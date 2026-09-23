@@ -29,6 +29,21 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'error',
     },
   },
+  {
+    files: ['site/app/**/*.{ts,tsx}'],
+    rules: {
+      // An effect returns its cleanup or nothing: an expression body returns whatever the
+      // expression gives (`scrollTo` gives a promise), and React calls it at the next commit.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'CallExpression[callee.name=/^use(Layout)?Effect$/] > ArrowFunctionExpression[expression=true]',
+          message: 'An effect body is a block: it returns its cleanup or nothing.',
+        },
+      ],
+    },
+  },
   ...tseslint.configs.recommended,
   {
     files: ['**/*.{ts,mts,tsx}'],
@@ -54,7 +69,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.ts', 'test/fixtures/**/*.ts'],
+    // Tests and golden fixtures; `timingDevice.ts` was a fixture before it joined the kit.
+    files: ['**/*.test.ts', 'tests/fixtures/**/*.ts', 'tests/kit/gpu/timingDevice.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
 );

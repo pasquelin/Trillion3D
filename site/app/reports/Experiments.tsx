@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Select } from '../components/UI.tsx';
-import { Tabs } from '../components/Tabs.tsx';
+import { useWords } from '../i18n.ts';
+import { Select } from '../ui/Input.tsx';
+import { Tabs } from '../ui/Tabs.tsx';
 import { viewName, runName, engineName } from '../../reports/names.ts';
-import { Section } from '../components/Section.tsx';
+import { Card } from '../ui/Card.tsx';
 import { sceneName, runOf } from '../../reports/presentation.ts';
 import { MetricCharts } from './MetricCharts.tsx';
 import type { Report } from '../../reports/types.ts';
 import type { MetricKey } from '../../reports/metrics.ts';
+import type { Dictionary } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ExperimentsProps {
@@ -15,34 +17,17 @@ interface ExperimentsProps {
   locale: Locale;
 }
 
-const GROUPS: [string, string, RegExp, MetricKey[]][] = [
-  [
-    'Resolution and error threshold',
-    'Résolution et seuil d’erreur',
-    /^(res-|raster-|three-(nu|lod)-1248)/,
-    ['gpu', 'sync', 'cpu', 'triangles'],
-  ],
-  [
-    'Lights, shadows and bounce',
-    'Lumières, ombres et rebond',
-    /lamp|ombre|rebond|sans-lumiere/,
-    ['gpu', 'sync', 'cpu', 'calls'],
-  ],
-  [
-    'Still frame, antialiasing and execution options',
-    'Image fixe, anticrénelage et options d’exécution',
-    /^(fixe|aa-off|profil-off|isolation|visible|math-)/,
-    ['gpu', 'cpu', 'cadence'],
-  ],
-  [
-    'Memory, instances and other renderers',
-    'Mémoire, instances et autres moteurs',
-    /./,
-    ['gpu', 'cpu', 'geometry', 'textures', 'textureBudget', 'triangles'],
-  ],
+/** The kinds of experiment, each titled by `experiments.<id>`: the runs its pattern names, and
+ *  the metrics it charts. */
+const GROUPS: [keyof Dictionary['experiments'], RegExp, MetricKey[]][] = [
+  ['resolution', /^(res-|raster-|three-(nu|lod)-1248)/, ['gpu', 'sync', 'cpu', 'triangles']],
+  ['lights', /lamp|ombre|rebond|sans-lumiere/, ['gpu', 'sync', 'cpu', 'calls']],
+  ['execution', /^(fixe|aa-off|profil-off|isolation|visible|math-)/, ['gpu', 'cpu', 'cadence']],
+  ['memory', /./, ['gpu', 'cpu', 'geometry', 'textures', 'textureBudget', 'triangles']],
 ];
 
 export function Experiments({ report, scene, locale }: ExperimentsProps) {
+  const t = useWords(locale);
   const [selected, setSelected] = useState('sol');
   const [quality, setQuality] = useState('1');
   const records = report.records.filter(
@@ -55,17 +40,17 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
   ];
   const activeQuality = qualities.includes(quality) ? quality : qualities[0];
   return (
-    <Section title={sceneName(scene)}>
+    <Card title={sceneName(scene)}>
       <Tabs
         sticky
-        label={locale === 'fr' ? 'Position' : 'View'}
+        label={t('report.view')}
         value={selected}
         onChange={setSelected}
         accessory={
           <div className="w-24">
             <Select
               size="sm"
-              aria-label={locale === 'fr' ? 'Seuil de détail' : 'Detail threshold'}
+              aria-label={t('report.threshold')}
               value={activeQuality}
               onChange={(event) => setQuality(event.target.value)}
             >
@@ -82,24 +67,24 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
           label: viewName(key, locale),
           render: () => (
             <>
-              {GROUPS.map(([en, fr, , metrics], groupIndex) => {
+              {GROUPS.map(([group, , metrics], groupIndex) => {
                 const rows = records.filter(
                   (r) =>
                     r.view === key &&
                     String(r.quality) === activeQuality &&
-                    GROUPS.findIndex(([, , pattern]) => pattern.test(runOf(report, r))) ===
+                    GROUPS.findIndex(([, pattern]) => pattern.test(runOf(report, r))) ===
                       groupIndex,
                 );
                 if (!rows.length) return null;
                 return (
-                  <section className="grid min-w-0 gap-4" key={en}>
-                    <h3 className="text-lg font-semibold">{locale === 'fr' ? fr : en}</h3>
+                  <section className="grid min-w-0 grid-cols-1 gap-4" key={group}>
+                    <h3 className="text-lg font-semibold">{t(`experiments.${group}`)}</h3>
                     <MetricCharts
                       columns={1}
                       {...{ report, locale, metrics }}
                       records={rows}
                       labelRecord={(r) =>
-                        `${runName(runOf(report, r), locale)} · ${r.variant === 'raster-calcul' ? (locale === 'fr' ? 'dessin par calcul' : 'compute drawing') : engineName(r.engine)}`
+                        `${runName(runOf(report, r), locale)} · ${r.variant === 'raster-calcul' ? t('report.computeDrawing') : engineName(r.engine)}`
                       }
                     />
                   </section>
@@ -109,6 +94,6 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
           ),
         }))}
       />
-    </Section>
+    </Card>
   );
 }

@@ -50,7 +50,7 @@ async function main(): Promise<void> {
           ...(await gitPaths([
             'diff',
             '--name-only',
-            process.env.WEB_GEOMETRY_BASE_REF ?? 'develop',
+            process.env.TRILLION3D_BASE_REF ?? 'develop',
             '--',
           ])),
           ...(await gitPaths(['ls-files', '--others', '--exclude-standard'])),

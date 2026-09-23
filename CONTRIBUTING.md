@@ -1,4 +1,4 @@
-# Contributing to Web Geometry
+# Contributing to Trillion3D
 
 ## The mission
 
@@ -12,8 +12,8 @@
   reflections and shadows, at that same performance, rebuilt for the web's constraints (no hardware
   ray tracing, bounded and unreadable GPU memory, one browser frame).** The geometry, the temporal
   antialiasing and the memory budgets are the foundation; the lighting is what they are for. It is
-  reached by stages, each measured, and the strategy lives in `docs/SPEC_ENGINE_WITHOUT_THREE.md`
-  §8. A stage that is out of order is not out of scope.
+  reached by stages, each measured, and the strategy lives in `docs/ENGINE.md` § "Lighting: the target and the stages".
+  A stage that is out of order is not out of scope.
 - **Never copy another engine's code, shaders or assets into this repository.** Not one line, ever.
   Commercial engines are not open source and their sources are licence-covered; reimplement from
   public material only — papers, talks, documentation, observed behaviour. Third-party engines and
@@ -32,8 +32,8 @@
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
 - Measure the whole frame before a part of it: the engine publishes a per-step CPU profile
-  (`webgpuPagesCpuSteps.ts`, `cpu-timing` diagnostic) and the repository has its own bench
-  (`scripts/mesure/banc.ts`, README alongside). Read them before choosing a target.
+  (`packages/sdk-browser/src/webgpu/pages/render/cpuSteps.ts`, `cpu-timing` diagnostic) and the repository has its own bench
+  (`bench/runner/bench.ts`, README alongside). Read them before choosing a target.
 - When a measurement contradicts a plan, the measurement wins, and the
   plan is corrected in the same batch.
 - Compare identical input, camera, quality, machine and resource budget. Record DPR, error threshold,
@@ -41,6 +41,14 @@
   Unmeasured values = `null`, never estimates presented as measurements. Keep diagnostics outside
   measured beauty passes; report unsupported capabilities. Measure on a quiet machine, and publish
   the run-to-run spread whenever a claim rests on a difference smaller than it.
+- **Two scales of proof.** A pull request proves its change on the public test scenes under
+  `.mesure/assets/` (Khronos sample models, the generated facade; `bench/runner/assets.ts` fetches
+  and compiles them), on the scene that exercises the change, in seconds to a minute. The full
+  campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
+  release pull request from `develop` to `main`, and its numbers are the ones published.
+- **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
+  `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
+  the pull request body, and the folder is removed before the pull request is opened.
 - A per-pass GPU duration says _where_, never _how much_: on tile-based GPUs passes overlap and a
   pass's timestamp absorbs its neighbours' work (17 Sept. 2026: a composition pass read 7 ms with
   the sun and 2.4 ms without, having not changed). The frame envelope is the total; a difference
@@ -75,14 +83,22 @@
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
   exceptions. Split by responsibility, preserve public contracts. Gate: `pnpm run check:lines`.
-- `pnpm run check:duplicates` rejects blocks ≥12 lines and ≥100 tokens across JS/TS/Rust. Resolve
-  every finding before integration; share logic only for identical behavior.
+- `pnpm run check:duplicates` rejects blocks ≥8 lines and ≥64 tokens across JS/TS/Rust, and
+  `pnpm run check:helpers` a small helper copied, name, signature and body alike, into a second
+  module of the same package or crate. Resolve every finding before integration; share logic only
+  for identical behavior.
 
 ## Engine and package boundaries
 
 - Generic engine: no scene names, hardcoded lights/cameras or object-type special cases. Use imported
   material/light properties; one lighting model for opaque and transparent surfaces, one reflection
   model for reflective surfaces. Benchmark fixes must generalize to any imported scene.
+- **No constant is chosen by sweeping a measurement scene.** Benchmark scenes prove, they never
+  tune. Every algorithmic value is derived from what the imported object carries — texture
+  dimensions, attribute amplitude, triangle density, the screen unit — and must hold on a model
+  nobody has measured. Two errors compared are converted to the same unit, the screen pixel. A value
+  that cannot be derived is declared as such, with what it stands for and its sensitivity. Proof
+  runs on two scenes, one of which was never tuned on.
 - **This repository is self-contained.** It builds, tests, measures and proves itself with only its
   own dependencies (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off
   git). No code, script, test or doc may read another project on disk — no neighbour path, no
@@ -92,7 +108,7 @@
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.
 - All generic Rust library/CLI code belongs in `packages/`, never numbered benchmarks.
-  `test/integration/structure-moteur.test.ts` checks core/adapter boundaries; `pnpm run check:structure` also
+  `tests/integration/engine-structure.test.ts` checks core/adapter boundaries; `pnpm run check:structure` also
   type-checks sdk-core without DOM.
 - Separate `formatVersion` from `compilerVersion`; reject unknown formats and incompatible caches.
   Compiler/cache-identity changes require correctness fixtures and source provenance. Never overwrite
@@ -143,7 +159,7 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
 no separate release branch is needed. Use the same template and `Closes #<issue>` first line,
 name the already reviewed implementation pull requests in the local-review section, and wait
-for validation and maintainer approval. Nothing built is committed on any branch: the Pages
+for validation and maintainer approval. Nothing built is committed on any branch: the site
 workflow (`.github/workflows/pages.yml`) builds the site from `main` (`site/` sources,
 `dist/site/` output) and deploys that tree, so a change is published only after that release
 merges.

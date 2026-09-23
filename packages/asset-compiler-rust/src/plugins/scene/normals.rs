@@ -14,10 +14,9 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
-mod join;
 #[cfg(test)]
 mod tests;
-use join::Join;
+use crate::join::Join;
 
 /// What this computation reads of a mesh. Both mark tables are read by their rank when it is in
 /// them: an empty table therefore says “nothing sharp”, which is the fully smooth mesh.

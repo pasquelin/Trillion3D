@@ -1,10 +1,6 @@
 use super::*;
 
 pub(super) fn cube_fixture() -> (PathBuf, Options) {
-    let root = scratch("fixture", "cube");
-    let source = root.join("source");
-    let cache = root.join("cache");
-    fs::create_dir_all(&source).expect("source");
     let mut bin = Vec::new();
     for value in [
         0f32, 0., 0., 1., 0., 0., 1., 1., 0., 0., 1., 0., 0., 0., 1., 1., 0., 1., 1., 1., 1., 0.,
@@ -19,10 +15,26 @@ pub(super) fn cube_fixture() -> (PathBuf, Options) {
         bin.extend_from_slice(&value.to_le_bytes());
     }
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"cube.bin","byteLength":bin.len()}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":96},{"buffer":0,"byteOffset":96,"byteLength":144}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":8},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":36}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("gltf");
-    fs::write(source.join("cube.gltf"), &gltf_bytes).expect("gltf write");
-    fs::write(source.join("cube.bin"), &bin).expect("bin write");
-    fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":"cube.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"cube.bin","sha256":hash(&bin)}],"trianglesAcrossNodes":12,"meshNodes":1}})).expect("manifest")).expect("manifest write");
+    gltf_fixture("cube", &gltf, &bin, 12)
+}
+/// Writes `<tag>.gltf`, `<tag>.bin` and the manifest of a one-node scene into a scratch source
+/// folder, and returns it with the options every simplified fixture compiles with. The document's
+/// only buffer must name `<tag>.bin`.
+pub(super) fn gltf_fixture(
+    tag: &str,
+    gltf: &Value,
+    bin: &[u8],
+    triangles: usize,
+) -> (PathBuf, Options) {
+    let root = scratch("fixture", tag);
+    let source = root.join("source");
+    let cache = root.join("cache");
+    fs::create_dir_all(&source).expect("source");
+    let gltf_bytes = serde_json::to_vec(gltf).expect("gltf");
+    let (gltf_name, bin_name) = (format!("{tag}.gltf"), format!("{tag}.bin"));
+    fs::write(source.join(&gltf_name), &gltf_bytes).expect("gltf write");
+    fs::write(source.join(&bin_name), bin).expect("bin write");
+    fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":gltf_name,"sha256":hash(&gltf_bytes),"sidecars":[{"file":bin_name,"sha256":hash(bin)}],"trianglesAcrossNodes":triangles,"meshNodes":1}})).expect("manifest")).expect("manifest write");
     (root, simplified_options(source, cache))
 }
 /// The options both fixtures compile with: simplification on, the BC family cooked.
@@ -57,11 +69,25 @@ pub(super) fn portable_sin(t: f32) -> f32 {
     sign * 16.0 * a / (5.0 * std::f32::consts::PI * std::f32::consts::PI - 4.0 * a)
 }
 
+/// Two triangles per quad of an `nx × ny` grid, corners named by `vertex(x, y)`: the one
+/// quad split every grid fixture of the crate shares.
+pub(crate) fn grid_indices(nx: usize, ny: usize, vertex: impl Fn(usize, usize) -> u32) -> Vec<u32> {
+    let mut indices = Vec::with_capacity(nx * ny * 6);
+    for y in 0..ny {
+        for x in 0..nx {
+            let (a, b, c, d) = (
+                vertex(x, y),
+                vertex(x + 1, y),
+                vertex(x, y + 1),
+                vertex(x + 1, y + 1),
+            );
+            indices.extend([a, b, c, b, d, c]);
+        }
+    }
+    indices
+}
+
 pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (PathBuf, Options) {
-    let root = scratch("fixture", "grid");
-    let source = root.join("source");
-    let cache = root.join("cache");
-    fs::create_dir_all(&source).expect("source");
     let mut positions = Vec::new();
     for y in 0..=ny {
         for x in 0..=nx {
@@ -72,14 +98,7 @@ pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (P
             ]);
         }
     }
-    let mut indices = Vec::new();
-    let width = (nx + 1) as u32;
-    for y in 0..ny as u32 {
-        for x in 0..nx as u32 {
-            let i = y * width + x;
-            indices.extend([i, i + 1, i + width, i + 1, i + 1 + width, i + width]);
-        }
-    }
+    let indices = grid_indices(nx, ny, |x, y| (y * (nx + 1) + x) as u32);
     let mut bin = Vec::new();
     for value in &positions {
         bin.extend_from_slice(&value.to_le_bytes());
@@ -90,11 +109,7 @@ pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (P
     let pos_bytes = positions.len() * 4;
     let index_bytes = indices.len() * 4;
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"grid.bin","byteLength":bin.len()}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":pos_bytes},{"buffer":0,"byteOffset":pos_bytes,"byteLength":index_bytes}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":positions.len()/3},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":indices.len()}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("gltf");
-    fs::write(source.join("grid.gltf"), &gltf_bytes).expect("gltf");
-    fs::write(source.join("grid.bin"), &bin).expect("bin");
-    fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":"grid.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"grid.bin","sha256":hash(&bin)}],"trianglesAcrossNodes":indices.len()/3,"meshNodes":1}})).expect("manifest")).expect("manifest write");
-    (root, simplified_options(source, cache))
+    gltf_fixture("grid", &gltf, &bin, indices.len() / 3)
 }
 pub(super) fn encode_glb(gltf: &Value, bin: &[u8]) -> Vec<u8> {
     let mut json = serde_json::to_vec(gltf).expect("json");
@@ -146,3 +161,16 @@ pub(super) fn obj_fixture(name: &str, mtl: bool) -> (PathBuf, Options) {
     options.triangle_budget = 150000;
     (root, options)
 }
+
+/// The two slopes of a symmetric roof, of length one: the flat normal of each of its faces,
+/// shared by every driver test that reads smoothing off such a roof.
+pub(crate) const ROOF_LEFT: [f32; 3] = [
+    -std::f32::consts::FRAC_1_SQRT_2,
+    0.0,
+    std::f32::consts::FRAC_1_SQRT_2,
+];
+pub(crate) const ROOF_RIGHT: [f32; 3] = [
+    std::f32::consts::FRAC_1_SQRT_2,
+    0.0,
+    std::f32::consts::FRAC_1_SQRT_2,
+];

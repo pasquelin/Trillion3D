@@ -8,7 +8,7 @@
 pub const MAX_BITS: u32 = 24;
 /// Largest magnitude of a grid exponent: the step stays a normal `f32`.
 pub const MAX_EXPONENT: i32 = 64;
-/// `2 / 255` as the nearest `f32`: an octahedral byte to `[-1, 1]`, the value `clusterFormat.ts`
+/// `2 / 255` as the nearest `f32`: an octahedral byte to `[-1, 1]`, the value `packages/sdk-browser/src/cluster/format.ts`
 /// rounds the same way.
 pub const OCT_SCALE: f32 = 2.0 / 255.0;
 

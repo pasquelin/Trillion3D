@@ -1,0 +1,55 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
+import { drawBlendPass } from '../blend/draw.ts';
+import { encodeWaterPass } from './pass.ts';
+import { device, mountDevice, prepared, replay, targets } from './pass.fixture.ts';
+import type { BlendGpuItem } from '../blend/state.ts';
+
+const items = (count: number, transmissive: boolean) =>
+  Array.from({ length: count }, () => ({ transmissive }) as BlendGpuItem);
+
+test('the water pass is mounted with the blend pipelines only for a scene that transmits', async () => {
+  const opaque = mountDevice();
+  const none = await createWebgpuBlendPipelines(opaque.device, items(3, false));
+  assert.equal(none.water, undefined, 'no transmissive item, no pass');
+  assert.deepEqual(opaque.pipelines, ['fs', 'fs', 'fs'], 'the three blend pipelines only');
+  const water = mountDevice();
+  const some = await createWebgpuBlendPipelines(water.device, items(3, true));
+  assert.ok(some.water, 'a transmissive item mounts the pass');
+  assert.deepEqual(
+    water.pipelines,
+    ['fs', 'fs', 'fs', 'fsWater', 'fsWater', 'fsWater', 'composeWater'],
+    'the surface stage at the three cull modes, then the composite',
+  );
+});
+
+test('a device that refuses the water pipelines keeps the blends, and the refusal is named', async () => {
+  const mount = mountDevice();
+  const create = mount.device.createRenderPipeline;
+  mount.device.createRenderPipeline = (descriptor: GPURenderPipelineDescriptor) => {
+    if (descriptor.fragment?.entryPoint === 'fsWater') throw new Error('DEVICE_SAYS_NO');
+    return create(descriptor);
+  };
+  const built = await createWebgpuBlendPipelines(mount.device, items(2, true));
+  assert.equal(built.water, undefined, 'no water pass');
+  assert.match(String(built.waterRefused), /DEVICE_SAYS_NO/, 'the device error is what is named');
+  assert.equal(built.blendPipelines.length, 3, 'the three blends are kept');
+});
+
+test('without the pass, the transmission slice draws as one more blend', () => {
+  const { blendState, gpu } = prepared();
+  targets(gpu);
+  const { rt, encoder, passes, counters } = replay(blendState, gpu);
+  // What `encodeBlend` does after the blends: the pass, or the slice as a blend.
+  const composed = encodeWaterPass(rt, encoder);
+  if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true);
+  assert.equal(composed, false);
+  assert.equal(counters.copies, 0, 'no backdrop copy without the pass');
+  assert.deepEqual(
+    passes,
+    [{ label: 'Trillion3D transmission', drawn: [1] }],
+    'the slice, as a blend',
+  );
+  assert.equal(rt.run.blendDrawCalls, 1);
+});
