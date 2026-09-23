@@ -20,11 +20,11 @@ import { tree, type TreeSpecies } from './trees.ts';
 import { add, cross, unit } from './vector.ts';
 
 /** Share of a stand tree's height that carries live crown (Hasenauer & Monserud 1996). */
-export const CROWN_RATIO = 0.5;
+const CROWN_RATIO = 0.5;
 
 /** Height and crown radius of the kit's small tree of a species, metres, from its mesh. */
 const shapes = new Map<TreeSpecies, { height: number; crown: number }>();
-export function kitShape(species: TreeSpecies) {
+function kitShape(species: TreeSpecies) {
   let shape = shapes.get(species);
   if (!shape) {
     const [min, max] = partBounds(tree(species, 'small', 0).parts);

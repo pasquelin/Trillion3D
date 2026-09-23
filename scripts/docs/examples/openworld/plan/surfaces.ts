@@ -36,7 +36,7 @@ const spreadOf = ([low, high]: Range) => (high - low) / (high + low);
 const SPREAD = new Map<string, number>();
 
 /** Luminance of a linear RGB colour (ITU-R BT.709 weights). */
-export const luminance = ([r, g, b]: readonly number[]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+const luminance = ([r, g, b]: readonly number[]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
 /**
  * A ground surface `terrain/<name>`: `hue` scaled so its luminance lands mid-`range` (an albedo
