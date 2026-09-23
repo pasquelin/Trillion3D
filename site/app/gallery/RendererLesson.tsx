@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useWords } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { RendererLessonItem } from '../../lessons/rendererLessonTypes.ts';
 import { LearningCards } from '../ui/LearningCards.tsx';
@@ -21,7 +22,7 @@ interface RendererLessonProps {
 export function RendererLesson({ lesson, locale = 'en', onSelect }: RendererLessonProps) {
   const initial = useMemo(() => rendererInitialState(lesson), [lesson]);
   const [state, setState] = useState(initial);
-  const french = locale === 'fr';
+  const t = useWords(locale);
   const title = local(lesson.title, locale);
   useEffect(() => {
     setState(initial);
@@ -41,17 +42,11 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }: RendererLess
       input={
         lesson.controls.length
           ? lesson.controls
-              .map((item) => `${local(item.label, locale)}: ${controlValue(item, state, french)}`)
+              .map((item) => `${local(item.label, locale)}: ${controlValue(item, state, locale)}`)
               .join(' · ')
-          : french
-            ? 'Géométrie préparée avant compilation.'
-            : 'Geometry authored before compilation.'
+          : t('playground.authoredGeometry')
       }
-      output={
-        french
-          ? 'Image calculée par le backend WebGPU public.'
-          : 'Image computed by the public WebGPU backend.'
-      }
+      output={t('playground.webgpuImage')}
       attempt={local(lesson.try, locale)}
       changes={local(lesson.changes, locale)}
       locale={locale}

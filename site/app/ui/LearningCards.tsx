@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useWords } from '../i18n.ts';
 import { Alert } from './Alert.tsx';
 import type { Locale } from '../../content/locale.ts';
 
@@ -17,10 +18,13 @@ export function LearningCards({
   changes,
   locale = 'en',
 }: LearningCardsProps) {
-  const titles =
-    locale === 'fr'
-      ? ['Entrée', 'Sortie moteur', 'À essayer', 'Ce qui change']
-      : ['Input', 'Engine output', 'What to try', 'What changes'];
+  const t = useWords(locale);
+  const titles = [
+    t('learning.input'),
+    t('learning.output'),
+    t('learning.try'),
+    t('learning.changes'),
+  ];
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {[input, output, attempt, changes].map((content, index) => (
