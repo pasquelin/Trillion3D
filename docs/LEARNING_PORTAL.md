@@ -143,7 +143,9 @@ packages; none stays external or is loaded from a CDN.
    `controls({ light: [0, 10, 3], colour: '#88aaff', spin: true, view: ['a', 'b'], reset: () => {} },
    onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb'`), lines of
    help (any other text, such as the keys to press), toggles, choices and buttons, returns the live values and calls `onChange(values, key)` once at start and after every
-   change. Name each control so that its label says what to try; there is no caption over the
+   change. `readout(label)`, declared after it, adds a live line to that panel and returns the
+   function that writes it (a counter read every frame). Name each control so that its label says
+   what to try; there is no caption over the
    render. The page hosting the example hides or shows the panel by posting
    `{ type: 'wg:controls', visible }` to its frame.
 2. A scene of primitives is built in code, with `geometry.*`, directly in the example's HTML. A
