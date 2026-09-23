@@ -42,11 +42,11 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   };
   diag.engineDiagnostic(
     'clear-color-input',
-    'Background colour received by WebGeometry WebGPU',
+    'Background colour received by Trillion3D WebGPU',
     inputColor,
   );
   if (typeof window !== 'undefined')
-    console.info('[web-geometry] background colour received by WebGeometry WebGPU', inputColor);
+    console.info('[trillion3d] background colour received by Trillion3D WebGPU', inputColor);
   const { roots, allPages, blendCopies, requestCount, worlds } = collectClusterPages(
     source,
     metadata,

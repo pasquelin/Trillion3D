@@ -31,7 +31,7 @@ export function markWebgpuLost(
   gpu.presenter?.dispose();
   gpu.presenter = undefined;
   if (!cause) return true;
-  console.error(`[web-geometry] WebGPU device lost (${cause.reason}): ${cause.message}`);
+  console.error(`[trillion3d] WebGPU device lost (${cause.reason}): ${cause.message}`);
   diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', { code: 'WEBGPU_LOST', ...cause });
   return true;
 }

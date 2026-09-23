@@ -14,7 +14,7 @@ use std::{
 fn run_batch(root: &Path, spec: Value) -> (Vec<Value>, Value) {
     let path = root.join("jobs.json");
     fs::write(&path, spec.to_string()).expect("spec");
-    let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
+    let output = Command::new(env!("CARGO_BIN_EXE_trillion3d-compiler"))
         .args(["--jobs", path.to_str().expect("path")])
         .stdin(Stdio::null())
         .output()

@@ -70,7 +70,7 @@ test('the course pager has no previous on the first chapter and leads to the exa
 });
 
 test('the generated reference loads apart from the portal, with the API area', async () => {
-  const out = await mkdtemp(join(tmpdir(), 'wg-portal-'));
+  const out = await mkdtemp(join(tmpdir(), 'trillion3d-portal-'));
   try {
     await buildPortal(resolve(import.meta.dirname, '..'), out);
     const reference = entriesIn('en')

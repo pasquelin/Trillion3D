@@ -14,7 +14,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const dossier = mkdtempSync(join(tmpdir(), 'wg-worker-dom-'));
+const dossier = mkdtempSync(join(tmpdir(), 'trillion3d-worker-dom-'));
 let compteur = 0;
 
 function pont(url: URL) {

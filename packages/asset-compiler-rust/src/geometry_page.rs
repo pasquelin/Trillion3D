@@ -1,8 +1,8 @@
 use crate::geometry_page_cells::{grids, BitWriter, Cell, Grids};
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
-use web_geometry_page_codec::{Header, Layout};
-pub use web_geometry_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+use trillion3d_page_codec::{Header, Layout};
+pub use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// The glTF attributes a page may carry, in the order the page writes them: the name the
 /// document gives each, its width (a colour may also be three-wide) and its presence bit.

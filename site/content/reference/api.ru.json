@@ -841,7 +841,7 @@
     "summary": "Функция, которая слышит каждую вещь, которую сообщает диагностический канал."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "Полная JSON Schema, документирующая все опции инициализации проводника WebGeometry (MeasuredWorldOptions).",
+    "summary": "Полная JSON Schema, документирующая все опции инициализации проводника Trillion3D (MeasuredWorldOptions).",
     "description": "Позволяет LLM понимать, проверять и настраивать конфигурацию 3D-движка."
   },
   "EngineCamera": {
@@ -3825,14 +3825,14 @@
       "toArray": "Четыре числа как список."
     }
   },
-  "WEB_GEOMETRY_RUNTIME_TOOLS": {
-    "summary": "Полный каталог инструментов и функций времени выполнения, доступных для управления WebGeometry из LLM."
+  "TRILLION3D_RUNTIME_TOOLS": {
+    "summary": "Полный каталог инструментов и функций времени выполнения, доступных для управления Trillion3D из LLM."
   },
-  "WEB_GEOMETRY_SYSTEM_PROMPT": {
-    "summary": "Системный промпт, направляющий LLM по принципам, бюджетам и опциям рендеринга WebGeometry."
+  "TRILLION3D_SYSTEM_PROMPT": {
+    "summary": "Системный промпт, направляющий LLM по принципам, бюджетам и опциям рендеринга Trillion3D."
   },
-  "WebGeometryTool": {
-    "summary": "Общее определение инструмента WebGeometry для LLM.",
+  "Trillion3dTool": {
+    "summary": "Общее определение инструмента Trillion3D для LLM.",
     "members": {
       "name": "Имя инструмента.",
       "description": "Что он делает.",
@@ -5068,11 +5068,11 @@
     "summary": "Публичная граница происхождения: потребители никогда не читают пути реализации SDK сами.",
     "description": "Только хеши — полный исходный код не загружается в снимок."
   },
-  "getWebGeometryLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Генерирует готовый к использованию экспертный системный промпт для настройки LLM."
   },
-  "getWebGeometryTools": {
-    "summary": "Возвращает полный массив определений инструментов WebGeometry, отформатированный для целевого провайдера LLM.",
+  "getTrillion3dTools": {
+    "summary": "Возвращает полный массив определений инструментов Trillion3D, отформатированный для целевого провайдера LLM.",
     "parameters": {
       "format": "Целевой формат ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). По умолчанию: 'openai'."
     }
@@ -6535,16 +6535,16 @@
     "description": "Шаблон приходит от компилятора, и движок не знает раскладку кэша; одна истина, как и для страниц. Шаблон без своих четырёх полей отклоняется: адрес, не меняющийся с ними, обслуживал бы одно и то же изображение для каждой текстуры."
   },
   "toAnthropicTool": {
-    "summary": "Преобразует универсальный инструмент WebGeometry в формат Anthropic Tool Use."
+    "summary": "Преобразует универсальный инструмент Trillion3D в формат Anthropic Tool Use."
   },
   "toGeminiTool": {
-    "summary": "Преобразует универсальный инструмент WebGeometry в формат Google Gemini Function Declaration."
+    "summary": "Преобразует универсальный инструмент Trillion3D в формат Google Gemini Function Declaration."
   },
   "toMcpTool": {
-    "summary": "Преобразует универсальный инструмент WebGeometry в формат Model Context Protocol (MCP)."
+    "summary": "Преобразует универсальный инструмент Trillion3D в формат Model Context Protocol (MCP)."
   },
   "toOpenAiTool": {
-    "summary": "Преобразует универсальный инструмент WebGeometry в формат OpenAI Function Calling."
+    "summary": "Преобразует универсальный инструмент Trillion3D в формат OpenAI Function Calling."
   },
   "toneMapping": {
     "summary": "Кривая, приводящая яркость сцены в диапазон отображения: каждая кривая, которую ранжирует движок."
@@ -6808,7 +6808,7 @@
   "SavedScene": {
     "summary": "Сцена в том виде, в каком её пишет `scene.toJSON` и читает `scene.fromJSON`: простой JSON.",
     "members": {
-      "format": "Всегда `'web-geometry-scene'`.",
+      "format": "Всегда `'trillion3d-scene'`.",
       "formatVersion": "Версия этой разметки; другая отклоняется.",
       "background": "Цвет фона или `null`.",
       "fog": "Туман или `null`.",

@@ -23,7 +23,7 @@ interface CacheManifest {
 }
 
 test('the published original garden matches its deterministic source generator', async () => {
-  const temporary = await mkdtemp(join(tmpdir(), 'wg-garden-'));
+  const temporary = await mkdtemp(join(tmpdir(), 'trillion3d-garden-'));
   try {
     await writeGarden(temporary);
     for (const file of ['garden.gltf', 'garden.bin']) {

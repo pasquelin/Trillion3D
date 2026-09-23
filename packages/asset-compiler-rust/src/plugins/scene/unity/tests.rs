@@ -13,7 +13,7 @@ const GUID: &str = "00000000000000000000000000000001";
 #[test]
 fn a_project_asset_is_named_by_an_escaped_uri() {
     let root = std::env::temp_dir().join(format!(
-        "wg-unity-uri-{}-{}",
+        "trillion3d-unity-uri-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

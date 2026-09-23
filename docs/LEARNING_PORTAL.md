@@ -74,7 +74,7 @@ dispose them before the next route. `docs/` holds the repository documentation o
   `site/assets/examples/CREDITS.md`.
 
   **The page ↔ example contract.** The page posts one message to the example's window, and only
-  one: `{ type: 'wg:controls', visible: boolean }`, to show or hide the example's controls panel —
+  one: `{ type: 'trillion3d:controls', visible: boolean }`, to show or hide the example's controls panel —
   when the reader presses Controls, and again after every load of the iframe with the current
   state. The kit listens from its import, before the example runs, so an example that builds its
   panel after an `await` still hears it; an example without a panel ignores it. Nothing else goes
@@ -150,7 +150,7 @@ onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb
    function that writes it (a counter read every frame). Name each control so that its label says
    what to try; there is no caption over the
    render. The page hosting the example hides or shows the panel by posting
-   `{ type: 'wg:controls', visible }` to its frame. Every word the reader sees goes in the
+   `{ type: 'trillion3d:controls', visible }` to its frame. Every word the reader sees goes in the
    examples' dictionaries (see "Example words" below), never in the page.
 2. A scene of primitives is built in code, with `geometry.*`, directly in the example's HTML. A
    scene built around an imported model is added to `scripts/docs/examples/models.ts`, credited in
@@ -203,7 +203,7 @@ in the portal's language. The kit loads it before the example's script runs:
 ## The API reference
 
 The reference is generated, never written by hand: `scripts/generate-api-reference.ts` reads the
-TypeScript declarations of the three public entries of `web-geometry` (`packages/sdk/index.ts`,
+TypeScript declarations of the three public entries of `trillion3d` (`packages/sdk/index.ts`,
 `browser.ts`, `node.mts`) and writes `site/content/reference/api.json` — one entry per export, one
 per member of every family (`geometry.box`, `material.meshStandard`, …) and one per member of the
 world (`world.scene`, `world.onFrame`, …). Each entry carries its summary (the first sentence of
@@ -251,7 +251,7 @@ pnpm docs:scene
 ```
 
 `docs:scene` runs `scripts/docs-scene.ts`, regenerates the deterministic glTF source, then invokes
-this checkout's native compiler to write the published cache. `WG_COMPILER` may select a compatible
+this checkout's native compiler to write the published cache. `TRILLION3D_COMPILER` may select a compatible
 compiler binary. Never replace source assets with compiler outputs or import assets from a
 neighbouring project. Review the generated manifest provenance and run
 `node --test scripts/docs-scene.test.ts` before publishing a regenerated cache.

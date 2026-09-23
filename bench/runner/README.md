@@ -123,7 +123,7 @@ Each series runs in a fresh page, closed immediately after. A large scene leaves
 
 ## Assets
 
-Harness serves `.mesure/assets/` (gitignored; `WG_ASSETS` points to alternative path) under
+Harness serves `.mesure/assets/` (gitignored; `TRILLION3D_ASSETS` points to alternative path) under
 `/benchmark-assets/`. A scene is a pair of folders: `<scene>/` holds the source glTF and its
 images, exactly as published and never written to, and `<scene>-derived/` the compiled cache
 (`native/full/manifest.json`). One command produces both:

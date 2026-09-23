@@ -100,7 +100,7 @@ fn fixture(folder: &str, name: &str) -> Vec<u8> {
 /// A disposable directory, named by the case that uses it.
 fn temp_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "wg-plugins-{tag}-{}-{}",
+        "trillion3d-plugins-{tag}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

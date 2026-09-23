@@ -24,13 +24,13 @@ interface ProseProps {
 
 /** Only repository-authored documentation HTML belongs here; never user input. */
 export function Prose({ html }: ProseProps) {
-  return <div className="wg-prose" dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className="trillion3d-prose" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 /** Repository-authored HTML steps, numbered in reading order. */
 export function Steps({ steps }: { steps: string[] }) {
   return (
-    <div className="wg-prose">
+    <div className="trillion3d-prose">
       <ol>
         {steps.map((step) => (
           <li key={step} dangerouslySetInnerHTML={{ __html: step }} />

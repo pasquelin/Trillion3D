@@ -58,19 +58,19 @@ export async function createGpuBounceProbes(
   const resident = createGpuBounceProxy(device, proxy);
   const uniform = createBounceUniform(device, cascades);
   const queue = device.createBuffer({
-    label: 'WG bounce probe queue v1',
+    label: 'Trillion3D bounce probe queue v1',
     size: schedule.queue.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const probes = device.createBuffer({
-    label: 'WG bounce probes v2',
+    label: 'Trillion3D bounce probes v2',
     size: probeBytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
   // Copy both passes read: frozen before them, so a higher-order bounce always sees the previous
   // frame's full cascades, never a neighbour half-written.
   const snapshot = device.createBuffer({
-    label: 'WG bounce probes snapshot v2',
+    label: 'Trillion3D bounce probes snapshot v2',
     size: probeBytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

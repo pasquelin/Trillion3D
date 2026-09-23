@@ -96,12 +96,12 @@ export function createRasterResolves(
     depthFor = input.depthView;
     hizFor = input.hizView;
     hizPass = {
-      label: 'WG raster occluder hiz',
+      label: 'Trillion3D raster occluder hiz',
       colorAttachments: [kept(input.hizView!)],
       depthStencilAttachment: depthKept(input.depthView),
     };
     finalPass = {
-      label: 'WG raster resolve',
+      label: 'Trillion3D raster resolve',
       colorAttachments: input.hizView
         ? [kept(input.idsView), kept(input.hizView)]
         : [kept(input.idsView)],

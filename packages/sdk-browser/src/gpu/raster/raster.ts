@@ -32,14 +32,14 @@ export function createGpuRaster(
   const targetBytes = Math.max(8, width * height * 8),
     listOffset = targetBytes;
   const work = device.createBuffer({
-    label: 'WG raster target and lists',
+    label: 'Trillion3D raster target and lists',
     size: listOffset + Math.max(4, (LIST_HEADER + 2 * capacity) * 4),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
   // Dispatch words are copied out of the lists instead of being written by a binding, so no
   // pass holds the buffer it launches from.
   const indirect = device.createBuffer({
-    label: 'WG raster dispatch',
+    label: 'Trillion3D raster dispatch',
     size: DISPATCH_WORDS * 4,
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
   });
@@ -120,7 +120,7 @@ export function createGpuRaster(
       const rows = Math.max(1, input.pageRows),
         spanY = Math.min(rows, DISPATCH_SPAN),
         spanZ = Math.ceil(rows / DISPATCH_SPAN);
-      const binning = encoder.beginComputePass({ label: 'WG raster binning' });
+      const binning = encoder.beginComputePass({ label: 'Trillion3D raster binning' });
       binning.setBindGroup(0, group);
       binning.setPipeline(clear);
       binning.dispatchWorkgroups(Math.ceil((width * height) / 64));
@@ -133,18 +133,18 @@ export function createGpuRaster(
       // One pass per raster dispatch: two consecutive dispatches already see each other's
       // writes, so every class has written its depth before any chooses an identifier. An
       // identifier chosen before a class has written its depth would name a losing triangle.
-      encodeMode(encoder, MODE_DEPTH_OCCLUDER, 'WG raster occluder depth');
+      encodeMode(encoder, MODE_DEPTH_OCCLUDER, 'Trillion3D raster occluder depth');
       if (input.tested) resolves.encodeHiz(encoder, input, width, height);
       return 3 + RASTER_CLASSES.length;
     },
     /** Surviving tested half, after the pyramid verdict. */
     encodeRest(encoder: GPUCommandEncoder) {
-      encodeMode(encoder, MODE_DEPTH_REST, 'WG raster tested depth');
+      encodeMode(encoder, MODE_DEPTH_REST, 'Trillion3D raster tested depth');
       return RASTER_CLASSES.length;
     },
     /** Identifier resolve over everything that was drawn, and the frame closed. */
     encodeIds(encoder: GPUCommandEncoder, input: GpuRasterInput) {
-      encodeMode(encoder, MODE_ID, 'WG raster identifiers');
+      encodeMode(encoder, MODE_ID, 'Trillion3D raster identifiers');
       resolves.encodeFinal(encoder, input, width, height);
       return RASTER_CLASSES.length;
     },

@@ -1,5 +1,5 @@
 [package]
-name = "web-geometry-page-codec"
+name = "trillion3d-page-codec"
 version = "0.1.0"
 edition = "2021"
 license = "PolyForm-Noncommercial-1.0.0"
@@ -7,7 +7,7 @@ license = "PolyForm-Noncommercial-1.0.0"
 # `rlib` for the native compiler, testing the decoder against its own encoder;
 # `cdylib` for `wasm32-unknown-unknown`, exporting only the ABI of `wasm.rs`.
 [lib]
-name = "web_geometry_page_codec"
+name = "trillion3d_page_codec"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 

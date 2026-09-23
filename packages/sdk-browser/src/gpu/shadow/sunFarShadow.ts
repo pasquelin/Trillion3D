@@ -50,7 +50,7 @@ export function createGpuSunFarShadow(device: GPUDevice) {
   });
   reader.adopt(
     device.createBuffer({
-      label: 'WG sun far shadow counts readback',
+      label: 'Trillion3D sun far shadow counts readback',
       size: COUNT_BYTES,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     }),

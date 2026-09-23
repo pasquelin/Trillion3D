@@ -91,7 +91,7 @@ function main(): void {
     'target',
     CIBLE,
     'release',
-    'web_geometry_page_codec.wasm',
+    'trillion3d_page_codec.wasm',
   );
   verifieJeuInstructions(construit);
   for (const dossier of SORTIES) {

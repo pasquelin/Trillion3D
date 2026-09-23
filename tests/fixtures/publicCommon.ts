@@ -10,7 +10,7 @@ import {
   type SceneState,
   type TransportOptions,
   type TransportResult,
-} from 'web-geometry';
+} from 'trillion3d';
 
 export const home: CameraPose = {
   position: [2, 1, 2],

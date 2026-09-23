@@ -63,7 +63,11 @@ const make = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', tex
 };
 
 const button = (text: string, press: () => void, primary = false) => {
-  const element = make('button', primary ? 'wg-button wg-primary' : 'wg-button', text);
+  const element = make(
+    'button',
+    primary ? 'trillion3d-button trillion3d-primary' : 'trillion3d-button',
+    text,
+  );
   element.type = 'button';
   element.onclick = press;
   return element;
@@ -71,8 +75,8 @@ const button = (text: string, press: () => void, primary = false) => {
 
 /** One keycap per key; the AZERTY keys, when they differ, on a line of their own. */
 function keycaps({ keys, azerty }: GameKey) {
-  const caps = make('div', 'wg-caps');
-  const cap = (key: string) => make('kbd', 'wg-cap', kitWord('keys', key, key));
+  const caps = make('div', 'trillion3d-caps');
+  const cap = (key: string) => make('kbd', 'trillion3d-cap', kitWord('keys', key, key));
   caps.append(...keys.map(cap));
   if (azerty) caps.append(make('small', '', 'AZERTY'), ...azerty.map(cap));
   return caps;
@@ -82,14 +86,14 @@ function keycaps({ keys, azerty }: GameKey) {
 function choice(option: GameOption, chosen: (value: string) => void) {
   const row = make(
       'div',
-      'wg-option',
+      'trillion3d-option',
       exampleWord(labelOf(option.id), 'game', 'options', option.id),
     ),
-    choices = make('div', 'wg-choices');
+    choices = make('div', 'trillion3d-choices');
   let value = option.value ?? option.choices[0];
   const mark = () => {
     for (const [index, element] of [...choices.children].entries())
-      element.classList.toggle('wg-on', option.choices[index] === value);
+      element.classList.toggle('trillion3d-on', option.choices[index] === value);
   };
   choices.append(
     ...option.choices.map((next) =>
@@ -116,14 +120,14 @@ export function createMenu(spec: MenuSpec, actions: MenuActions): MenuView {
   hud.textContent = HUD_RULE;
   document.head.append(hud);
   const { capture } = spec;
-  const menu = make('div', 'wg-menu'),
-    card = make('div', 'wg-card');
+  const menu = make('div', 'trillion3d-menu'),
+    card = make('div', 'trillion3d-card');
   const heading = make('h1'),
-    goal = make('p', 'wg-goal', spec.goal),
-    note = make('p', 'wg-note');
-  const main = make('div', 'wg-stack'),
-    sheet = make('div', 'wg-sheet'),
-    back = make('div', 'wg-stack');
+    goal = make('p', 'trillion3d-goal', spec.goal),
+    note = make('p', 'trillion3d-note');
+  const main = make('div', 'trillion3d-stack'),
+    sheet = make('div', 'trillion3d-sheet'),
+    back = make('div', 'trillion3d-stack');
   const primary = button(menuWord('play'), () => actions.play(), true);
   const restart = button(menuWord('restart'), () => actions.restart());
   const flip = (keys: boolean) => {

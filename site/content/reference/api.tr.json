@@ -841,7 +841,7 @@
     "summary": "Bir tanı kanalının bildirdiği her şeyi duyan bir fonksiyon."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "WebGeometry gezgininin (MeasuredWorldOptions) tüm başlatma seçeneklerini belgeleyen kapsamlı JSON Şeması.",
+    "summary": "Trillion3D gezgininin (MeasuredWorldOptions) tüm başlatma seçeneklerini belgeleyen kapsamlı JSON Şeması.",
     "description": "LLM'lerin 3D motor yapılandırmasını anlamasını, doğrulamasını ve ayarlamasını sağlar."
   },
   "EngineCamera": {
@@ -3825,14 +3825,14 @@
       "toArray": "Dört sayı, bir liste olarak."
     }
   },
-  "WEB_GEOMETRY_RUNTIME_TOOLS": {
-    "summary": "WebGeometry'yi bir LLM'den kontrol etmek için mevcut araçların ve çalışma zamanı fonksiyonlarının eksiksiz kataloğu."
+  "TRILLION3D_RUNTIME_TOOLS": {
+    "summary": "Trillion3D'yi bir LLM'den kontrol etmek için mevcut araçların ve çalışma zamanı fonksiyonlarının eksiksiz kataloğu."
   },
-  "WEB_GEOMETRY_SYSTEM_PROMPT": {
-    "summary": "Bir LLM'i WebGeometry ilkeleri, bütçeleri ve render seçenekleri konusunda yönlendiren sistem promptu."
+  "TRILLION3D_SYSTEM_PROMPT": {
+    "summary": "Bir LLM'i Trillion3D ilkeleri, bütçeleri ve render seçenekleri konusunda yönlendiren sistem promptu."
   },
-  "WebGeometryTool": {
-    "summary": "LLM'ler için genel WebGeometry araç tanımı.",
+  "Trillion3dTool": {
+    "summary": "LLM'ler için genel Trillion3D araç tanımı.",
     "members": {
       "name": "Aracın adı.",
       "description": "Ne yaptığı.",
@@ -5068,11 +5068,11 @@
     "summary": "Herkese açık köken sınırı: tüketiciler SDK uygulama yollarını asla kendileri okumaz.",
     "description": "Yalnızca özetler — tam kaynak anlık görüntüye yüklenmez."
   },
-  "getWebGeometryLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Bir LLM'i hazırlamak için kullanıma hazır uzman sistem promptunu üretir."
   },
-  "getWebGeometryTools": {
-    "summary": "Hedef LLM sağlayıcısı için biçimlendirilmiş, eksiksiz WebGeometry araç tanımları dizisini döndürür.",
+  "getTrillion3dTools": {
+    "summary": "Hedef LLM sağlayıcısı için biçimlendirilmiş, eksiksiz Trillion3D araç tanımları dizisini döndürür.",
     "parameters": {
       "format": "Hedef format ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Varsayılan: 'openai'."
     }
@@ -6535,16 +6535,16 @@
     "description": "Şablon derleyiciden gelir ve motor önbellek düzenini bilmez; sayfalarda olduğu gibi, tek bir gerçek. Dört alanı olmayan bir şablon reddedilir: onlarla değişmeyen bir adres, her dokuya aynı görseli sunardı."
   },
   "toAnthropicTool": {
-    "summary": "Genel bir WebGeometry aracını Anthropic Tool Use formatına dönüştürür."
+    "summary": "Genel bir Trillion3D aracını Anthropic Tool Use formatına dönüştürür."
   },
   "toGeminiTool": {
-    "summary": "Genel bir WebGeometry aracını Google Gemini Function Declaration formatına dönüştürür."
+    "summary": "Genel bir Trillion3D aracını Google Gemini Function Declaration formatına dönüştürür."
   },
   "toMcpTool": {
-    "summary": "Genel bir WebGeometry aracını Model Context Protocol (MCP) formatına dönüştürür."
+    "summary": "Genel bir Trillion3D aracını Model Context Protocol (MCP) formatına dönüştürür."
   },
   "toOpenAiTool": {
-    "summary": "Genel bir WebGeometry aracını OpenAI Function Calling formatına dönüştürür."
+    "summary": "Genel bir Trillion3D aracını OpenAI Function Calling formatına dönüştürür."
   },
   "toneMapping": {
     "summary": "Sahne parlaklığını ekran aralığına getiren eğri: motorun sıraladığı her eğri."
@@ -6808,7 +6808,7 @@
   "SavedScene": {
     "summary": "`scene.toJSON`'un yazdığı ve `scene.fromJSON`'un okuduğu biçimde bir sahne: düz JSON.",
     "members": {
-      "format": "Her zaman `'web-geometry-scene'`.",
+      "format": "Her zaman `'trillion3d-scene'`.",
       "formatVersion": "Bu düzenin sürümü; başkası reddedilir.",
       "background": "Arka plan rengi, ya da `null`.",
       "fog": "Sis, ya da `null`.",

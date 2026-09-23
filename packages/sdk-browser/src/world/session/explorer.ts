@@ -71,7 +71,7 @@ export async function openMeasuredWorld(
     const { profiler } = runtime;
     progress('ready', 1, 1, 'MeasuredWorld ready');
     if (typeof window !== 'undefined') {
-      (window as unknown as { __webGeometry: unknown }).__webGeometry = {
+      (window as unknown as { __trillion3d: unknown }).__trillion3d = {
         profiler,
         getReport: () => profiler.getReport(),
         printReport: () => profiler.printReport(),

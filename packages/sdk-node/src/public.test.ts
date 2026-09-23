@@ -28,19 +28,19 @@ test('Compilation jobs expose the shared slice default', () => {
 });
 test('compiler executable selection is explicit, then environment, then package-relative', () => {
   assert.equal(
-    resolveCompilerExecutable('/explicit', { WEB_GEOMETRY_COMPILER_BIN: '/env' }),
+    resolveCompilerExecutable('/explicit', { TRILLION3D_COMPILER_BIN: '/env' }),
     '/explicit',
   );
-  assert.equal(resolveCompilerExecutable(undefined, { WEB_GEOMETRY_COMPILER_BIN: '/env' }), '/env');
-  assert.match(resolveCompilerExecutable(undefined, {}, 'win32'), /web-geometry-compiler\.exe$/);
+  assert.equal(resolveCompilerExecutable(undefined, { TRILLION3D_COMPILER_BIN: '/env' }), '/env');
+  assert.match(resolveCompilerExecutable(undefined, {}, 'win32'), /trillion3d-compiler\.exe$/);
 });
 test('a missing compiler is reported by contract', async () => {
   await assert.rejects(
     prepare('in', 'out', 'slice', 1, {
-      executable: '/missing/web-geometry-compiler',
+      executable: '/missing/trillion3d-compiler',
       resourceBaseUrl: '/assets/',
     }),
-    /COMPILER_EXECUTABLE_MISSING: \/missing\/web-geometry-compiler/,
+    /COMPILER_EXECUTABLE_MISSING: \/missing\/trillion3d-compiler/,
   );
 });
 test('getSdkProvenance hashes files without embedding source text', async () => {

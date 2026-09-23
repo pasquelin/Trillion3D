@@ -30,7 +30,7 @@ const linearBackground = (clearColor: number) => {
 export function createBlendScene(clearColor: number, copies: readonly BlendCopy[]): BlendHostScene {
   const children = [...copies] as unknown as HostNode[];
   const scene: BlendHostScene = {
-    name: 'web-geometry-transparent',
+    name: 'trillion3d-transparent',
     visible: true,
     background: linearBackground(clearColor),
     children,

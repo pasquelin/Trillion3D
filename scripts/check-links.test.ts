@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { checkLinks } from './check-links.ts';
 
 test('reports a broken link in an ordinary file but ignores the same broken link under test/assets', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'wg-check-links-'));
+  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-check-links-'));
   try {
     await mkdir(join(directory, 'docs'), { recursive: true });
     await mkdir(join(directory, 'test/assets', 'gltf', 'Foo'), { recursive: true });
@@ -30,7 +30,7 @@ test('reports a broken link in an ordinary file but ignores the same broken link
 });
 
 test('a `:line` or `:line:column` suffix designates a location in the file, not another file', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'wg-check-links-'));
+  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-check-links-'));
   try {
     await mkdir(join(directory, 'docs'), { recursive: true });
     await writeFile(join(directory, 'docs', 'a.ts'), 'export {};\n');

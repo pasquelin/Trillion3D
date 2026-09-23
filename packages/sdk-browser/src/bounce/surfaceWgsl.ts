@@ -14,7 +14,7 @@ export const surfaceCacheTexels = (triangleCount: number) => Math.max(1, triangl
  */
 export const surfaceCacheBytes = (triangleCount: number) => surfaceCacheTexels(triangleCount) * 16;
 /** Label of the measured pass; it joins the "Bounce" step like the probe pass. */
-export const BOUNCE_SURFACE_PASS = 'WG bounce surface cache v1';
+export const BOUNCE_SURFACE_PASS = 'Trillion3D bounce surface cache v1';
 
 /**
  * Proxy surface cache (LR5): one outgoing radiance per triangle and per face.

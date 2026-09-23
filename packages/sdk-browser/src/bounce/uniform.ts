@@ -30,7 +30,7 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
   const floats = new Float32Array(packed),
     integers = new Uint32Array(packed);
   const buffer = device.createBuffer({
-    label: 'WG bounce cascades v1',
+    label: 'Trillion3D bounce cascades v1',
     size: packed.byteLength,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });

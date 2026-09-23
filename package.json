@@ -1,5 +1,5 @@
 {
-  "name": "web-geometry",
+  "name": "trillion3d",
   "version": "0.2.0",
   "packageManager": "pnpm@11.16.0",
   "type": "module",
@@ -23,7 +23,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "web-geometry-compile": "./dist/sdk-node/src/cli/cli.mjs"
+    "trillion3d-compile": "./dist/sdk-node/src/cli/cli.mjs"
   },
   "files": [
     "dist",

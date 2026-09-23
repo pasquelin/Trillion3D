@@ -4,14 +4,14 @@ import type {
   LlmToolFormat,
   McpToolDefinition,
   OpenAiToolDefinition,
-  WebGeometryTool,
+  Trillion3dTool,
 } from './types.ts';
-import { WEB_GEOMETRY_RUNTIME_TOOLS } from './runtimeToolsSchema.ts';
+import { TRILLION3D_RUNTIME_TOOLS } from './runtimeToolsSchema.ts';
 
 /**
- * Converts a generic WebGeometry tool into OpenAI Function Calling format.
+ * Converts a generic Trillion3D tool into OpenAI Function Calling format.
  */
-export function toOpenAiTool(tool: WebGeometryTool): OpenAiToolDefinition {
+export function toOpenAiTool(tool: Trillion3dTool): OpenAiToolDefinition {
   return {
     type: 'function',
     function: {
@@ -23,9 +23,9 @@ export function toOpenAiTool(tool: WebGeometryTool): OpenAiToolDefinition {
 }
 
 /**
- * Converts a generic WebGeometry tool into Anthropic Tool Use format.
+ * Converts a generic Trillion3D tool into Anthropic Tool Use format.
  */
-export function toAnthropicTool(tool: WebGeometryTool): AnthropicToolDefinition {
+export function toAnthropicTool(tool: Trillion3dTool): AnthropicToolDefinition {
   return {
     name: tool.name,
     description: tool.description,
@@ -34,9 +34,9 @@ export function toAnthropicTool(tool: WebGeometryTool): AnthropicToolDefinition 
 }
 
 /**
- * Converts a generic WebGeometry tool into Google Gemini Function Declaration format.
+ * Converts a generic Trillion3D tool into Google Gemini Function Declaration format.
  */
-export function toGeminiTool(tool: WebGeometryTool): GeminiFunctionDeclaration {
+export function toGeminiTool(tool: Trillion3dTool): GeminiFunctionDeclaration {
   return {
     name: tool.name,
     description: tool.description,
@@ -45,9 +45,9 @@ export function toGeminiTool(tool: WebGeometryTool): GeminiFunctionDeclaration {
 }
 
 /**
- * Converts a generic WebGeometry tool into Model Context Protocol (MCP) format.
+ * Converts a generic Trillion3D tool into Model Context Protocol (MCP) format.
  */
-export function toMcpTool(tool: WebGeometryTool): McpToolDefinition {
+export function toMcpTool(tool: Trillion3dTool): McpToolDefinition {
   return {
     name: tool.name,
     description: tool.description,
@@ -56,28 +56,28 @@ export function toMcpTool(tool: WebGeometryTool): McpToolDefinition {
 }
 
 /**
- * Returns the complete array of WebGeometry tool definitions formatted for the target LLM provider.
+ * Returns the complete array of Trillion3D tool definitions formatted for the target LLM provider.
  *
  * @param format Target format ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Default: 'openai'.
  */
-export function getWebGeometryTools(format: 'openai'): OpenAiToolDefinition[];
-export function getWebGeometryTools(format: 'anthropic'): AnthropicToolDefinition[];
-export function getWebGeometryTools(format: 'gemini'): GeminiFunctionDeclaration[];
-export function getWebGeometryTools(format: 'mcp'): McpToolDefinition[];
-export function getWebGeometryTools(format: 'json-schema'): WebGeometryTool[];
-export function getWebGeometryTools(format?: LlmToolFormat): unknown[];
-export function getWebGeometryTools(format: LlmToolFormat = 'openai'): unknown[] {
+export function getTrillion3dTools(format: 'openai'): OpenAiToolDefinition[];
+export function getTrillion3dTools(format: 'anthropic'): AnthropicToolDefinition[];
+export function getTrillion3dTools(format: 'gemini'): GeminiFunctionDeclaration[];
+export function getTrillion3dTools(format: 'mcp'): McpToolDefinition[];
+export function getTrillion3dTools(format: 'json-schema'): Trillion3dTool[];
+export function getTrillion3dTools(format?: LlmToolFormat): unknown[];
+export function getTrillion3dTools(format: LlmToolFormat = 'openai'): unknown[] {
   switch (format) {
     case 'openai':
-      return WEB_GEOMETRY_RUNTIME_TOOLS.map(toOpenAiTool);
+      return TRILLION3D_RUNTIME_TOOLS.map(toOpenAiTool);
     case 'anthropic':
-      return WEB_GEOMETRY_RUNTIME_TOOLS.map(toAnthropicTool);
+      return TRILLION3D_RUNTIME_TOOLS.map(toAnthropicTool);
     case 'gemini':
-      return WEB_GEOMETRY_RUNTIME_TOOLS.map(toGeminiTool);
+      return TRILLION3D_RUNTIME_TOOLS.map(toGeminiTool);
     case 'mcp':
-      return WEB_GEOMETRY_RUNTIME_TOOLS.map(toMcpTool);
+      return TRILLION3D_RUNTIME_TOOLS.map(toMcpTool);
     case 'json-schema':
     default:
-      return [...WEB_GEOMETRY_RUNTIME_TOOLS];
+      return [...TRILLION3D_RUNTIME_TOOLS];
   }
 }

@@ -36,7 +36,7 @@ const run = (args: string[], env: NodeJS.ProcessEnv = {}): Promise<RunResult> =>
     child.on('close', (code) => resolve({ code, stdout, stderr }));
   });
 test('CLI emits only its summary on stdout and events on stderr', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-cli-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-cli-'));
   try {
     const cache = join(root, 'cache');
     await mkdir(join(cache, 'native', 'slice', 'abc'), { recursive: true });
@@ -57,7 +57,7 @@ test('CLI emits only its summary on stdout and events on stderr', async () => {
     );
     await chmod(executable, 0o755);
     const result = await run(['source', cache, 'slice', '12', '/assets/'], {
-      WEB_GEOMETRY_COMPILER_BIN: executable,
+      TRILLION3D_COMPILER_BIN: executable,
     });
     assert.equal(result.code, 0);
     const output = JSON.parse(result.stdout) as CliSummary;

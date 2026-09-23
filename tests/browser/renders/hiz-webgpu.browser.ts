@@ -28,7 +28,7 @@ interface HizReport {
   finishedAt?: string;
 }
 
-const { server, port } = await blankPageServer('WebGeometry Hi-Z GPU check');
+const { server, port } = await blankPageServer('Trillion3D Hi-Z GPU check');
 const browser = await launchChrome({ headless: true });
 const report: HizReport = {
   version: 1,

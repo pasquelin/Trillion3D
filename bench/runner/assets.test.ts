@@ -8,7 +8,7 @@ import { SAMPLE_MODELS, kebab, sceneGltfFile, scenesOnDisk } from './assetsCatal
 import { missingModels } from './assetsFetch.ts';
 
 const sandbox = (build: (root: string) => void) => {
-  const root = mkdtempSync(join(tmpdir(), 'wg-assets-'));
+  const root = mkdtempSync(join(tmpdir(), 'trillion3d-assets-'));
   try {
     build(root);
     return root;

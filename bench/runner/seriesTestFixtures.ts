@@ -40,7 +40,7 @@ export const pose: CameraPose = {
 
 /** A run context in a throwaway folder, and the side it measures; `settings` adds to the defaults. */
 export async function contexte(settings: Partial<RunContext['settings']> = {}) {
-  const OUT = await mkdtemp(join(tmpdir(), 'wg-serie-test-'));
+  const OUT = await mkdtemp(join(tmpdir(), 'trillion3d-serie-test-'));
   const ctx: RunContext = {
     MANIFEST: 'manifest.json',
     OUT,

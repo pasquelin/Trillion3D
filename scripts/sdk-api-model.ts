@@ -11,7 +11,7 @@ export const ENTRIES = {
   node: 'packages/sdk-node/src/index.mts',
 } as const;
 export type ExportEntry = keyof typeof ENTRIES;
-/** The published facade of `web-geometry` (`package.json` exports), one file per condition: what a
+/** The published facade of `trillion3d` (`package.json` exports), one file per condition: what a
  *  consumer imports, the entries above plus the symbols the facade adds (`sdk-api-documented.ts`). */
 export const PUBLIC_ENTRIES: Record<ExportEntry, string> = {
   core: 'packages/sdk/index.ts',
@@ -114,7 +114,7 @@ export function consumerImports(root = ROOT): Map<string, Set<string>> {
       if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
       const clause = node.importClause;
       const specifier = node.moduleSpecifier.text;
-      const publicEntry = specifier === 'web-geometry';
+      const publicEntry = specifier === 'trillion3d';
       const internalEntry =
         specifier.includes('/sdk-core/') ||
         specifier.includes('/sdk-browser/') ||
