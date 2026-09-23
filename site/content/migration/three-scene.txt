@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A bust, a crate and a glass ball</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0e1621; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // --- Imports
+      import * as THREE from 'three';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+      // --- Renderer
+      const canvas = document.getElementById('view');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(devicePixelRatio);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      // --- Scene
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0e1621);
+
+      // --- Camera
+      const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 50);
+      camera.position.set(0, 0.4, 3.2);
+      camera.lookAt(0, -0.3, 0);
+
+      // --- Controls
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, -0.3, 0);
+      controls.update();
+
+      // --- Texture
+      const crateMap = await new THREE.TextureLoader().loadAsync('../assets/examples/models/crate/box1.png');
+      crateMap.colorSpace = THREE.SRGBColorSpace;
+
+      // --- Materials
+      const wood = new THREE.MeshStandardMaterial({ map: crateMap, roughness: 0.8 });
+      const glass = new THREE.MeshPhysicalMaterial({ transmission: 1, ior: 1.5, thickness: 0.3, roughness: 0.05 });
+      const glow = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffc27a, emissiveIntensity: 3 });
+
+      // --- Meshes
+      const crate = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), wood);
+      crate.position.set(0.9, -0.825, 0.5);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.22, 48, 24), glass);
+      ball.position.set(-0.9, -0.78, 0.5);
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), glow);
+      panel.position.set(-1.1, 0.6, -1.69);
+      for (const mesh of [crate, ball]) mesh.castShadow = mesh.receiveShadow = true;
+      scene.add(panel);
+
+      // --- Group
+      const turntable = new THREE.Group();
+      turntable.add(crate, ball);
+      scene.add(turntable);
+
+      // --- Lights
+      scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+      const sun = new THREE.DirectionalLight(0xfff2e0, 2.5);
+      sun.position.set(4, 6, 5);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 1, far: 20 });
+      sun.shadow.bias = -0.0005;
+      const lamp = new THREE.PointLight(0xffc27a, 3, 5);
+      lamp.position.set(-1.1, 0.6, -1.4);
+      const spot = new THREE.SpotLight(0xdde8ff, 20, 8, 0.35, 0.4);
+      spot.position.set(1.5, 2.5, 1.5);
+      spot.target.position.set(0, 0.25, 0);
+      spot.castShadow = true;
+      scene.add(sun, lamp, spot, spot.target);
+
+      // --- Model
+      const gltf = await new GLTFLoader().loadAsync('../assets/examples/bust/source/geometry.gltf');
+      gltf.scene.traverse((node) => {
+        if (node.isMesh) node.castShadow = node.receiveShadow = true;
+      });
+      scene.add(gltf.scene);
+
+      // --- Animation
+      const turn = (angle) => [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)];
+      const spin = new THREE.AnimationClip('spin', 12, [
+        new THREE.QuaternionKeyframeTrack('.quaternion', [0, 3, 6, 9, 12], [0, 1, 2, 3, 4].flatMap((i) => turn((i * Math.PI) / 2))),
+      ]);
+      const mixer = new THREE.AnimationMixer(turntable);
+      mixer.clipAction(spin).play();
+
+      // --- Resize
+      function resize() {
+        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+      }
+      addEventListener('resize', resize);
+      resize();
+
+      // --- Loop
+      const clock = new THREE.Clock();
+      renderer.setAnimationLoop(() => {
+        mixer.update(clock.getDelta());
+        controls.update();
+        renderer.render(scene, camera);
+      });
+
+      // --- Dispose
+      addEventListener('pagehide', () => {
+        renderer.setAnimationLoop(null);
+        removeEventListener('resize', resize);
+        controls.dispose();
+        scene.traverse((node) => {
+          if (!node.isMesh) return;
+          node.geometry.dispose();
+          for (const surface of [node.material].flat()) {
+            for (const value of Object.values(surface)) if (value?.isTexture) value.dispose();
+            surface.dispose();
+          }
+        });
+        renderer.dispose();
+      });
+    </script>
+  </body>
+</html>
