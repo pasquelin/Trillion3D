@@ -59,9 +59,10 @@ test('the header marks the area of the route', () => {
   assert.deepEqual(current('#/en/examples/cube'), ['examples #/en/examples']);
   assert.deepEqual(current('#/en/api/createWorld'), ['api #/en/api']);
   assert.deepEqual(current('#/fr/reports/september-18/compare'), ['reports #/fr/reports']);
+  assert.deepEqual(current('#/fr/sandbox/a-neon-sign'), ['sandbox #/fr/sandbox']);
   assert.deepEqual(
     navLinks(parseRoute('#/en/api')).map(({ area }) => area),
-    ['learn', 'examples', 'api', 'reports'],
+    ['learn', 'sandbox', 'examples', 'api', 'reports'],
   );
 });
 

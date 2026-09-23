@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useWords } from '../i18n.ts';
 import { useDrawer } from '../hooks/useDrawer.ts';
 import { useSearchShortcut } from '../hooks/useSearchShortcut.ts';
+import { hasSidebar } from '../portal/routes.ts';
 import { Header } from './Header.tsx';
 import { usePortal } from './PortalContext.ts';
 import { SearchModal } from './SearchModal.tsx';
@@ -37,7 +38,9 @@ export function Shell({ children }: { children: ReactNode }) {
         {t('actions.skip')}
       </a>
       <Header drawerOpen={drawer.open} onMenu={drawer.toggle} onSearch={openSearch} />
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)]">
+      <div
+        className={`grid min-h-0 flex-1 grid-cols-1 ${hasSidebar(route) ? 'lg:grid-cols-[18rem_minmax(0,1fr)]' : ''}`}
+      >
         <Sidebar open={drawer.open} panel={drawer.panel} onClose={drawer.close} />
         <main
           ref={main}
