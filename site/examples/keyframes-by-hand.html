@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Keyframes by hand</title>
+    <meta name="thumbnail" content="5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #15171d;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, animation } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#15171d');
+      const paint = (color, roughness = 0.6, metalness = 0, extra = {}) => material.meshStandard({ color, roughness, metalness, ...extra });
+
+      // A desk lamp: a base, two arms and a shade, each joint a named group the clip turns.
+      // Facing +x, a negative turn about z leans a joint forward.
+      const lampPaint = { body: paint('#e8e2d6', 0.35, 0.1), joint: paint('#2c2e33', 0.3, 0.9), bulb: paint('#000000', 0.4, 0, { emissive: '#fff1c8', emissiveIntensity: 6 }) };
+      function lamp(skin) {
+        const root = object.group();
+        const part = (name, parent, y) => {
+          const joint = object.group();
+          joint.name = name;
+          joint.position.y = y;
+          parent.add(joint);
+          return joint;
+        };
+        const add = (shape, paintOf, at, parent) => {
+          const mesh = object.mesh(shape, paintOf);
+          mesh.position.set(...at);
+          parent.add(mesh);
+          return mesh;
+        };
+        add(geometry.cylinder(0.42, 0.48, 0.12, 40), skin.body, [0, 0.06, 0], root);
+        const lower = part('lower', root, 0.16), upper = part('upper', lower, 1), head = part('head', upper, 0.9);
+        add(geometry.sphere(0.09, 16, 12), skin.joint, [0, 0, 0], lower);
+        add(geometry.cylinder(0.045, 0.045, 1, 12), skin.body, [0, 0.5, 0], lower);
+        add(geometry.sphere(0.08, 16, 12), skin.joint, [0, 0, 0], upper);
+        add(geometry.cylinder(0.04, 0.04, 0.9, 12), skin.body, [0, 0.45, 0], upper);
+        add(geometry.sphere(0.07, 16, 12), skin.joint, [0, 0, 0], head);
+        // The shade opens along +x: a frustum laid on its side, the bulb in its mouth.
+        add(geometry.cylinder(0.1, 0.32, 0.45, 32, 1, true), skin.body, [0.26, 0, 0], head).rotation.set(0, 0, -Math.PI / 2);
+        add(geometry.sphere(0.12, 20, 14), skin.bulb, [0.38, 0, 0], head);
+        return root;
+      }
+
+      // One hop, keyed by hand: time (s), height, share of the stride, the three joint angles.
+      const STRIDE = 1.6;
+      const HOP = [
+        [0.0, 0.0, 0.0, -0.3, 1.3, -1.5, 'rest'],
+        [0.25, 0.0, 0.0, -0.7, 2.1, -1.9, 'crouch'],
+        [0.42, 0.15, 0.12, 0.1, 0.3, -0.7, 'launch'],
+        [0.68, 1.1, 0.6, -0.2, 1.0, -1.0, 'apex'],
+        [0.92, 0.0, 1.0, -0.15, 0.9, -1.2, 'land'],
+        [1.08, 0.0, 1.0, -0.65, 2.0, -1.9, 'absorb'],
+        [1.25, 0.0, 1.0, -0.3, 1.3, -1.5, 'rest'],
+      ];
+      // Turning round: the head lifts to look, the body swings half a turn.
+      const TURN = [
+        [0.3, 0.0, -0.25, 1.0, -0.6, 0, 'look up'],
+        [0.75, 0.0, -0.3, 1.2, -1.2, 1, 'turn'],
+        [0.95, 0.0, -0.3, 1.3, -1.5, 1, 'rest'],
+      ];
+      // Three hops across the desk, a turn, three hops back, a turn: the keys laid end to end.
+      const keys = { time: [], x: [], y: [], heading: [], lower: [], upper: [], head: [], name: [] };
+      const key = (time, x, y, heading, lower, upper, head, name) => Object.entries({ time, x, y, heading, lower, upper, head, name }).forEach(([k, v]) => keys[k].push(v));
+      let clock = 0, x = -2.4, heading = 0;
+      const [, restY, , restLower, restUpper, restHead, restName] = HOP[0];
+      key(0, x, restY, heading, restLower, restUpper, restHead, restName);
+      for (const direction of [1, -1]) {
+        for (let hop = 0; hop < 3; hop++) {
+          for (const [t, y, share, lower, upper, head, name] of HOP.slice(1)) key(clock + t, x + direction * share * STRIDE, y, heading, lower, upper, head, name);
+          clock += HOP[HOP.length - 1][0];
+          x += direction * STRIDE;
+        }
+        for (const [t, y, lower, upper, head, turned, name] of TURN) key(clock + t, x, y, heading + turned * Math.PI, lower, upper, head, name);
+        clock += TURN[TURN.length - 1][0];
+        heading += Math.PI;
+      }
+      const TRACKS = [['.position.x', 'x'], ['.position.y', 'y'], ['.rotation.y', 'heading'], ['lower.rotation.z', 'lower'], ['upper.rotation.z', 'upper'], ['head.rotation.z', 'head']];
+      const clipOf = (name, times, value) => animation.clip(name, clock, TRACKS.map(([path, field]) => animation.numberTrack(path, times, times.map((_, k) => value(field, k)))));
+      // The engine blends two keys in a straight line. "Linear" plays the hand keys as they are;
+      // "eased" adds six keys between each pair along a smoothstep, so each move starts and
+      // stops softly. Both play together, and their weights pick the one seen.
+      const linear = clipOf('linear', keys.time, (field, k) => keys[field][k]);
+      const eased = { time: [], at: [] };
+      for (let k = 0; k < keys.time.length - 1; k++)
+        for (let step = 0; step < 7; step++) {
+          const u = step / 7, s = u * u * (3 - 2 * u);
+          eased.time.push(keys.time[k] + (keys.time[k + 1] - keys.time[k]) * u);
+          eased.at.push([k, s]);
+        }
+      eased.time.push(clock);
+      eased.at.push([keys.time.length - 1, 0]);
+      const smooth = clipOf('eased', eased.time, (field, j) => {
+        const [k, s] = eased.at[j], a = keys[field][k], b = keys[field][Math.min(k + 1, keys.time.length - 1)];
+        return a + (b - a) * s;
+      });
+      // The opening: the lamp wakes from a slump, stretches, and looks round before the first hop.
+      const WAKE = [[0, 0.25, 2.4, -2.6], [0.9, 0.25, 2.4, -2.6], [1.4, -0.1, 0.8, -0.3], [1.9, -0.2, 1.0, -0.9], [2.3, -0.3, 1.3, -1.5]];
+      const wake = animation.clip('wake', 2.3, ['lower', 'upper', 'head'].map((joint, j) => animation.numberTrack(`${joint}.rotation.z`, WAKE.map((row) => row[0]), WAKE.map((row) => row[j + 1]))));
+
+      const hero = lamp(lampPaint);
+      hero.position.set(-2.4, 0, 0.3);
+      world.scene.add(hero);
+      const mixer = animation.createMixer(hero);
+      const waking = mixer.clipAction(wake), plain = mixer.clipAction(linear), soft = mixer.clipAction(smooth);
+      waking.loop = 'once';
+      waking.play();
+
+      // Onion skin: the lamp copied, pale and see-through, at each key of the first hop.
+      const ghostPaint = paint('#9cc4ff', 0.5, 0, { transparent: true, opacity: 0.28, depthWrite: false });
+      const ghosts = HOP.slice(0, -1).map(([, y, share, lower, upper, head]) => {
+        const ghost = lamp({ body: ghostPaint, joint: ghostPaint, bulb: ghostPaint });
+        ghost.position.set(-2.4 + share * STRIDE, y, 0.3);
+        ghost.getObjectByName('lower').rotation.set(0, 0, lower);
+        ghost.getObjectByName('upper').rotation.set(0, 0, upper);
+        ghost.getObjectByName('head').rotation.set(0, 0, head);
+        ghost.visible = false;
+        world.scene.add(ghost);
+        return ghost;
+      });
+
+      // The desk against a plastered wall: books, a mug, a pencil pot, notes pinned on cork.
+      const put = (shape, paintOf, at, turn = 0) => {
+        const mesh = object.mesh(shape, paintOf);
+        mesh.position.set(...at);
+        mesh.rotation.set(0, turn, 0);
+        world.scene.add(mesh);
+        return mesh;
+      };
+      put(geometry.box(14, 0.3, 7), paint('#6b4128', 0.45), [0, -0.15, 0]);
+      put(geometry.box(16, 9, 0.3), paint('#c9bba5', 0.9), [0, 4, -3.6]);
+      put(geometry.box(4.4, 2.6, 0.08), paint('#a8784c', 0.95), [1.6, 3.4, -3.42]);
+      ['#f4e27a', '#f2a7a0', '#a9d8c2', '#f7f3ea', '#9ec3f0'].forEach((color, k) => put(geometry.box(0.7, 0.8, 0.02), paint(color, 0.9), [0.1 + k * 0.72, 3.2 + (k % 2) * 0.55, -3.37], (k - 2) * 0.02));
+      ['#8c2f39', '#2f5d8c', '#d9a441', '#3d6b45'].forEach((color, k) => put(geometry.box(1.5 - k * 0.1, 0.24, 1.1), paint(color, 0.7), [-5, 0.12 + k * 0.24, -1.2], k * 0.12 - 0.15));
+      put(geometry.cylinder(0.32, 0.3, 0.7, 32), paint('#e9e4dc', 0.3), [4.5, 0.35, -0.9]);
+      put(geometry.torus(0.2, 0.05, 10, 24), paint('#e9e4dc', 0.3), [4.84, 0.38, -0.9]);
+      put(geometry.cylinder(0.26, 0.26, 0.8, 24, 1, true), paint('#2f3540', 0.5, 0.6), [3.8, 0.4, -2.2]);
+      ['#e04f3f', '#f2c14e', '#3d7ec9'].forEach((color, k) => put(geometry.cylinder(0.03, 0.03, 1.1, 8), paint(color, 0.5), [3.72 + k * 0.08, 0.75, -2.2 + (k - 1) * 0.07]));
+      put(geometry.box(2.2, 0.01, 1.6), paint('#f5f1e8', 0.95), [-0.6, 0.005, 1.8], 0.12);
+      // A warm spot from high on the left throws the lamp's shadow across the desk and wall; a
+      // cool hemisphere keeps the far sides from going black.
+      world.scene.add(
+        light.spot({ color: '#ffd4a3', intensity: 650, distance: 30, angle: 0.62, penumbra: 0.55, position: [-7, 10, 8], castShadow: true }),
+        light.hemisphere({ color: '#8aa4ff', groundColor: '#3b2c22', intensity: 0.7 }),
+      );
+      world.camera.position.set(1.2, 3.3, 8.6);
+      world.camera.lookAt(0, 1.1, 0);
+      world.controls.target.set(0, 1.1, 0);
+      world.controls.minDistance = 3;
+      world.controls.maxDistance = 18;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      const ui = controls({
+        mouse: 'Drag to turn around the desk; show the keys of one hop as pale copies of the lamp',
+        timing: ['eased', 'linear'],
+        onionSkin: false,
+        speed: [0.1, 2, 1],
+      }, (values) => {
+        soft.weight = values.timing === 'eased' ? 1 : 0;
+        plain.weight = 1 - soft.weight;
+        for (const action of [waking, plain, soft]) action.timeScale = values.speed;
+        for (const ghost of ghosts) ghost.visible = values.onionSkin;
+        world.invalidate();
+      });
+      const shownKey = readout('Last key');
+
+      world.onFrame(() => {
+        // Once awake, both hop clips start together, whichever of them is seen.
+        if (!waking.playingNow && !plain.playingNow) {
+          plain.play();
+          soft.play();
+        }
+        const t = plain.playingNow ? plain.clipTime() : 0;
+        let k = 0;
+        while (k < keys.time.length - 1 && keys.time[k + 1] <= t) k++;
+        shownKey(plain.playingNow ? `${keys.name[k]} · ${t.toFixed(2)} s` : 'waking up');
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>
