@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>What hides what</title>
+    <meta name="thumbnail" content="9" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #b7d3ef;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // A sequence in [0, 1) from a seed: the same maze on every run.
+      function random(seed) {
+        let state = seed >>> 0;
+        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
+      }
+
+      // A hedge maze, carved by a walk that turns at random and backs up at every dead end: every
+      // cell is reached by exactly one path. `open[cell]` holds the sides the walk broke through.
+      const SIZE = 15, CELL = 3, next = random(21);
+      const N = 1, S = 2, E = 4, W = 8;
+      const STEP = { [N]: [0, -1, S], [S]: [0, 1, N], [E]: [1, 0, W], [W]: [-1, 0, E] };
+      const open = new Uint8Array(SIZE * SIZE);
+      const trail = [[7, 7]];
+      open[7 * SIZE + 7] = 16;
+      while (trail.length) {
+        const [x, z] = trail[trail.length - 1];
+        const ways = [N, S, E, W].filter((side) => {
+          const [dx, dz] = STEP[side], nx = x + dx, nz = z + dz;
+          return nx >= 0 && nz >= 0 && nx < SIZE && nz < SIZE && !open[nz * SIZE + nx];
+        });
+        if (!ways.length) {
+          trail.pop();
+          continue;
+        }
+        const side = ways[Math.floor(next() * ways.length)], [dx, dz, back] = STEP[side];
+        open[z * SIZE + x] |= side;
+        open[(z + dz) * SIZE + x + dx] |= back;
+        trail.push([x + dx, z + dz]);
+      }
+      open[(SIZE - 1) * SIZE + 7] |= S; // the gate, in the middle of the south side
+
+      // The hedges: one box shape, each run of wall along a row or a column one placement of it.
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#b7d3ef');
+      const block = geometry.box(1, 1, 1), hedge = material.meshStandard({ color: '#3d7a3c', roughness: 0.95 });
+      const centre = (i) => (i - (SIZE - 1) / 2) * CELL, edge = (i) => (i - SIZE / 2) * CELL;
+      const hedges = [];
+      function run(length, x, z, along) {
+        const mesh = object.mesh(block, hedge);
+        mesh.position.set(x, 0, z);
+        mesh.scale.set(along ? length + 0.6 : 0.6, 1, along ? 0.6 : length + 0.6);
+        world.scene.add(mesh);
+        hedges.push(mesh);
+      }
+      const wall = (x, z, side) => x < 0 || z < 0 || x >= SIZE || z >= SIZE || !(open[z * SIZE + x] & side);
+      for (let line = 0; line <= SIZE; line++)
+        for (const along of [true, false]) {
+          // Along a row: the north walls of row `line`; along a column: the west walls of column `line`.
+          let start = -1;
+          for (let k = 0; k <= SIZE; k++) {
+            const [x, z] = along ? [k, line] : [line, k];
+            const standing = k < SIZE && (line < SIZE ? wall(x, z, along ? N : W) : wall(along ? x : x - 1, along ? z - 1 : z, along ? S : E));
+            if (standing && start < 0) start = k;
+            if (!standing && start >= 0) {
+              const middle = (edge(start) + edge(k)) / 2, length = (k - start) * CELL;
+              along ? run(length, middle, edge(line), true) : run(length, edge(line), middle, false);
+              start = -1;
+            }
+          }
+        }
+
+      // What the hedges hide: a gilded knot on a plinth at every dead end, clipped yew balls in the
+      // corridors, and a fountain at the heart.
+      const gold = material.meshStandard({ color: '#e2b84c', metalness: 0.6, roughness: 0.3 });
+      const stone = material.meshStandard({ color: '#d9d2c3', roughness: 0.7 });
+      const yew = material.meshStandard({ color: '#4d8c3e', roughness: 0.9 });
+      const knot = geometry.torusKnot(0.34, 0.1, 180, 20), plinth = geometry.box(0.8, 0.9, 0.8), ball = geometry.sphere(0.55, 48, 32);
+      const statues = [];
+      let deadEnds = 0;
+      for (let z = 0; z < SIZE; z++)
+        for (let x = 0; x < SIZE; x++) {
+          if (x === 7 && z === 7) continue; // the fountain's cell
+          const sides = [N, S, E, W].filter((side) => open[z * SIZE + x] & side).length;
+          if (sides === 1) {
+            const base = object.mesh(plinth, stone), statue = object.mesh(knot, gold);
+            base.position.set(centre(x), 0.45, centre(z));
+            statue.position.set(centre(x), 1.5, centre(z));
+            statue.rotation.set(next() * 6.3, next() * 6.3, 0);
+            world.scene.add(base, statue);
+            statues.push(statue);
+            deadEnds++;
+          } else if (next() < 0.35) {
+            const tree = object.mesh(ball, yew);
+            tree.position.set(centre(x) + (next() - 0.5) * 0.8, 0.55, centre(z) + (next() - 0.5) * 0.8);
+            world.scene.add(tree);
+          }
+        }
+      const basin = object.mesh(geometry.cylinder(1.2, 1.3, 0.5, 64), stone), jet = object.mesh(geometry.sphere(0.45, 48, 32), gold);
+      basin.position.set(0, 0.25, 0);
+      jet.position.set(0, 1.1, 0);
+      const ground = object.mesh(geometry.box(SIZE * CELL + 12, 0.2, SIZE * CELL + 12), material.meshStandard({ color: '#cdb994', roughness: 1 }));
+      ground.position.y = -0.1;
+      world.scene.add(basin, jet, ground);
+      world.scene.add(
+        light.directional({ intensity: 3, color: '#fff0d8', position: [30, 42, 18], castShadow: true }),
+        light.hemisphere({ intensity: 0.85, color: '#d4e6ff', groundColor: '#7a6a4a' }),
+      );
+      world.camera.near = 0.05;
+      world.camera.far = 300;
+      world.controls.minDistance = 1;
+      world.controls.maxDistance = 110;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // Before it draws a cluster, the engine tests the cluster's box against a pyramid of the depth
+      // already on screen: one wholly behind what is drawn is dropped before its triangles are read.
+      // Raise the hedges and more of the maze is hidden, and never drawn.
+      const setHeight = (height) => {
+        for (const mesh of hedges) {
+          mesh.scale.y = height;
+          mesh.position.y = height / 2;
+        }
+      };
+      const ABOVE = { eye: [0, 58, 40], look: [0, 0, 2] };
+      const INSIDE = { eye: [0, 1.7, 25.5], look: [0, 1.4, 19.5] };
+      // `flight` runs from 0 to 1 over six seconds; the opening waits a second above the maze first.
+      let from = ABOVE, to = INSIDE, flight = -1 / 6;
+      controls({
+        mouse: 'Drag to look around; the hedges hide the gilded knots at the dead ends',
+        hedgeHeight: [0.3, 4, 2.6, 0.1],
+        view: ['beauty', 'visibility'],
+        aboveOrInside: () => {
+          // From wherever the camera stands now, to the other end of the flight.
+          from = { eye: world.camera.position.toArray(), look: world.controls.target.toArray() };
+          to = to === INSIDE ? ABOVE : INSIDE;
+          flight = 0;
+          world.invalidate();
+        },
+      }, (values) => {
+        setHeight(values.hedgeHeight);
+        world.diagnostic.mode = values.view;
+        world.invalidate();
+      }, world);
+      readout('Gilded knots')(String(deadEnds));
+      const tested = readout('Clusters tested'), hidden = readout('Clusters hidden'), triangles = readout('Triangles hidden');
+      const count = (value) => (value == null ? 'not counted here' : value.toLocaleString('en'));
+      world.onFrame(({ metrics }) => {
+        tested(count(metrics.hizTestedClusters));
+        hidden(count(metrics.hizRejectedClusters));
+        triangles(count(metrics.hizRejectedTriangles));
+      });
+
+      // The opening: the maze from above, everything in sight; then down through the gate to the
+      // eye of a walker, where the first hedge hides nearly all the rest. The knots turn slowly.
+      // A press or a wheel on the canvas hands the camera back at once.
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (flight = 1), { passive: true });
+      world.camera.position.set(...ABOVE.eye);
+      world.controls.target.set(...ABOVE.look);
+      world.controls.update();
+      const ease = (t) => t * t * (3 - 2 * t);
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.1);
+        for (const statue of statues) statue.rotation.y += step * 0.4;
+        if (flight < 1) {
+          flight = Math.min(1, flight + step / 6);
+          const t = ease(math.clamp(flight, 0, 1));
+          const at = (a, b) => a.map((value, axis) => value + (b[axis] - value) * t);
+          world.camera.position.set(...at(from.eye, to.eye));
+          world.controls.target.set(...at(from.look, to.look));
+          world.controls.update();
+        }
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>

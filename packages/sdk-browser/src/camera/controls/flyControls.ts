@@ -14,8 +14,8 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts';
  * FLIGHT, six degrees of freedom: the camera keeps no up axis and no pivot. Keys translate
  * along its own axes and turn it about them, roll included; a drag looks around. Nothing is
  * integrated until the host calls `update(delta)` with the seconds elapsed, and `update`
- * returns — and emits — only when a key is held or a drag is pending, so a released stick
- * leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every
+ * returns — and emits — only when a key is held, a stick input set or a drag pending, so a
+ * released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every
  * `update`, and asks for the next frame by emitting `change` each time.
  *
  * KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down,
@@ -40,6 +40,17 @@ export interface FlyCameraControls extends SteeredCameraControls {
    * A stick still travelling moves the camera, so the frames go on until it is centred.
    */
   inputResponse: number;
+  /**
+   * STICK, for a program that flies the camera: the pitch deflection in [-1, 1], nose up
+   * positive as ArrowUp. Added to the keys and bounded to full deflection, it ramps over
+   * `inputResponse` like a key, so a page's autopilot or mouse-aim instructor steers through
+   * the same rates as the player. 0 by default.
+   */
+  pitchInput: number;
+  /** The yaw deflection in [-1, 1], left positive as ArrowLeft; as `pitchInput`. */
+  yawInput: number;
+  /** The roll deflection in [-1, 1], left positive as Q; as `pitchInput`. */
+  rollInput: number;
   /** Whether dragging turns the view. */
   dragToLook: boolean;
   /** Whether the pointer turns the view at all, by drag or hover; true by default. */
@@ -88,6 +99,9 @@ export function createFlyCameraControls(
     pitchSpeed: null,
     yawSpeed: null,
     inputResponse: 0,
+    pitchInput: 0,
+    yawInput: 0,
+    rollInput: 0,
     dragToLook: true,
     pointerLook: true,
     autoForward: false,
@@ -97,12 +111,14 @@ export function createFlyCameraControls(
       pose.readOrientation(orientation);
       // The stick travels towards the keys held by at most `dt / inputResponse` of its range.
       const travel = api.inputResponse > 0 ? dt / api.inputResponse : Infinity;
-      const deflect = (axis: number, wanted: number) =>
-        (stick[axis] += clampNumber(wanted - stick[axis], -travel, travel));
+      const deflect = (axis: number, keyed: KeyAxis, input: number) => {
+        const wanted = clampNumber(axisOf(keys, ...keyed) + input, -1, 1);
+        return (stick[axis] += clampNumber(wanted - stick[axis], -travel, travel));
+      };
       const pitch =
-          lookPitch + deflect(0, axisOf(keys, ...PITCH)) * (api.pitchSpeed ?? api.rollSpeed) * dt,
-        yaw = lookYaw + deflect(1, axisOf(keys, ...YAW)) * (api.yawSpeed ?? api.rollSpeed) * dt,
-        roll = deflect(2, axisOf(keys, ...ROLL)) * api.rollSpeed * dt;
+          lookPitch + deflect(0, PITCH, api.pitchInput) * (api.pitchSpeed ?? api.rollSpeed) * dt,
+        yaw = lookYaw + deflect(1, YAW, api.yawInput) * (api.yawSpeed ?? api.rollSpeed) * dt,
+        roll = deflect(2, ROLL, api.rollInput) * api.rollSpeed * dt;
       lookPitch = lookYaw = 0;
       if (pitch || yaw || roll)
         normalizeQuaternion(

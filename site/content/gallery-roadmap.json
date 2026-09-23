@@ -188,8 +188,13 @@
         "fr": "Couleurs aux sommets"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/colours-on-the-vertices.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "per-vertex colours on WebGPU",
+        "fr": "couleurs par sommet sous WebGPU"
+      },
+      "issue": 347
     },
     {
       "id": "uvs-of-every-shape",
@@ -234,8 +239,13 @@
         "fr": "Lignes pointillées"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/dashed-lines.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "dashed lines",
+        "fr": "lignes pointillées"
+      },
+      "issue": 359
     },
     {
       "id": "shapes-cut-and-extruded",
@@ -565,8 +575,7 @@
         "fr": "La famille des matériaux"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/the-material-family.html"
     },
     {
       "id": "a-texture-turned-and-tiled",
@@ -575,8 +584,13 @@
         "fr": "Texture tournée, répétée"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-texture-turned-and-tiled.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "texture repeat, offset and rotation on WebGPU",
+        "fr": "répétition, décalage et rotation de texture sous WebGPU"
+      },
+      "issue": 360
     },
     {
       "id": "texture-filters-compared",
@@ -585,8 +599,13 @@
         "fr": "Filtres de texture"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/texture-filters-compared.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "texture filters and anisotropy on WebGPU",
+        "fr": "filtres de texture et anisotropie sous WebGPU"
+      },
+      "issue": 361
     },
     {
       "id": "every-image-format",
@@ -595,8 +614,7 @@
         "fr": "Tous les formats d’image"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/every-image-format.html"
     },
     {
       "id": "a-video-on-a-screen",
@@ -605,8 +623,13 @@
         "fr": "Une vidéo sur un écran"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-video-on-a-screen.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "live video textures",
+        "fr": "textures vidéo en direct"
+      },
+      "issue": 362
     },
     {
       "id": "the-webcam-as-a-texture",
@@ -615,8 +638,13 @@
         "fr": "La webcam en texture"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/the-webcam-as-a-texture.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "live video textures",
+        "fr": "textures vidéo en direct"
+      },
+      "issue": 362
     },
     {
       "id": "four-ways-to-blend",
@@ -625,8 +653,13 @@
         "fr": "Quatre mélanges"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/four-ways-to-blend.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "every blending mode",
+        "fr": "tous les modes de mélange"
+      },
+      "issue": 346
     },
     {
       "id": "toon-shading",
@@ -635,8 +668,7 @@
         "fr": "Rendu cartoon"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/toon-shading.html"
     },
     {
       "id": "a-matcap-sculpture",
@@ -645,8 +677,7 @@
         "fr": "Une sculpture matcap"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-matcap-sculpture.html"
     },
     {
       "id": "normals-and-depth-seen",
@@ -655,8 +686,7 @@
         "fr": "Normales et profondeur"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/normals-and-depth-seen.html"
     },
     {
       "id": "avif-textures",
@@ -1148,8 +1178,7 @@
         "fr": "Lumière ciel et sol"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/sky-and-ground-light.html"
     },
     {
       "id": "light-in-real-units",
@@ -1158,8 +1187,7 @@
         "fr": "Lumière en unités réelles"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/light-in-real-units.html"
     },
     {
       "id": "shadows-from-the-sun",
@@ -1168,8 +1196,7 @@
         "fr": "Ombres du soleil"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/shadows-from-the-sun.html"
     },
     {
       "id": "a-long-shadowed-street",
@@ -1178,8 +1205,7 @@
         "fr": "Une longue rue ombrée"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-long-shadowed-street.html"
     },
     {
       "id": "flat-shadows-on-the-floor",
@@ -1188,8 +1214,7 @@
         "fr": "Ombres projetées au sol"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/flat-shadows-on-the-floor.html"
     },
     {
       "id": "a-softbox-panel",
@@ -1198,8 +1223,7 @@
         "fr": "Un panneau lumineux"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-softbox-panel.html"
     },
     {
       "id": "light-from-a-probe",
@@ -1208,8 +1232,7 @@
         "fr": "Lumière d’une sonde"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/light-from-a-probe.html"
     },
     {
       "id": "soft-shadow-edges",
@@ -1437,8 +1460,8 @@
     {
       "id": "fly-over-a-model-town",
       "title": {
-        "en": "Fly a plane through rings",
-        "fr": "Piloter un avion à travers des anneaux"
+        "en": "A fighter jet in the canyon",
+        "fr": "Un chasseur dans le canyon"
       },
       "theme": "camera",
       "file": "examples/fly-over-a-model-town.html"
@@ -1468,8 +1491,7 @@
         "fr": "Perspective et ortho"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/two-lenses-one-scene.html"
     },
     {
       "id": "frame-the-model",
@@ -1478,8 +1500,7 @@
         "fr": "Cadrer le modèle"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/frame-the-model.html"
     },
     {
       "id": "turn-toward-a-target",
@@ -1488,8 +1509,7 @@
         "fr": "Se tourner vers une cible"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/turn-toward-a-target.html"
     },
     {
       "id": "ride-a-roller-coaster",
@@ -1498,8 +1518,7 @@
         "fr": "Tour de montagnes russes"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/ride-a-roller-coaster.html"
     },
     {
       "id": "from-a-grain-to-a-planet",
@@ -1508,8 +1527,7 @@
         "fr": "Du grain à la planète"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/from-a-grain-to-a-planet.html"
     },
     {
       "id": "a-wall-of-cameras",
@@ -1518,8 +1536,7 @@
         "fr": "Un mur de caméras"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-wall-of-cameras.html"
     },
     {
       "id": "several-views-one-page",
@@ -1528,8 +1545,7 @@
         "fr": "Plusieurs vues, une page"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/several-views-one-page.html"
     },
     {
       "id": "before-and-after-slider",
@@ -1538,8 +1554,7 @@
         "fr": "Curseur avant/après"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/before-and-after-slider.html"
     },
     {
       "id": "side-by-side-stereo",
@@ -1548,8 +1563,7 @@
         "fr": "Stéréo côte à côte"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/side-by-side-stereo.html"
     },
     {
       "id": "red-cyan-anaglyph",
@@ -1604,8 +1618,7 @@
         "fr": "Images clés à la main"
       },
       "theme": "animation",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/keyframes-by-hand.html"
     },
     {
       "id": "one-clip-many-objects",
@@ -1614,8 +1627,7 @@
         "fr": "Un clip, plusieurs objets"
       },
       "theme": "animation",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/one-clip-many-objects.html"
     },
     {
       "id": "animation-from-the-file",
@@ -1801,8 +1813,7 @@
         "fr": "Un modèle OBJ"
       },
       "theme": "loaders",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-model-from-obj.html"
     },
     {
       "id": "a-model-from-usdz",
@@ -1811,8 +1822,7 @@
         "fr": "Un modèle USDZ"
       },
       "theme": "loaders",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-model-from-usdz.html"
     },
     {
       "id": "printable-parts",
@@ -2002,8 +2012,7 @@
         "fr": "Détail par erreur pixel"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/detail-by-pixel-error.html"
     },
     {
       "id": "ten-thousand-objects",
@@ -2012,8 +2021,7 @@
         "fr": "Dix mille objets"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/ten-thousand-objects.html"
     },
     {
       "id": "compressed-textures",
@@ -2022,8 +2030,7 @@
         "fr": "Textures compressées"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/compressed-textures.html"
     },
     {
       "id": "what-hides-what",
@@ -2032,8 +2039,7 @@
         "fr": "Ce qui cache quoi"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/what-hides-what.html"
     },
     {
       "id": "create-and-dispose",
@@ -2042,8 +2048,7 @@
         "fr": "Créer et libérer"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/create-and-dispose.html"
     },
     {
       "id": "no-hitch-on-first-draw",
@@ -2052,8 +2057,7 @@
         "fr": "Pas d’à-coup au 1er rendu"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/no-hitch-on-first-draw.html"
     },
     {
       "id": "inside-the-g-buffer",
@@ -2062,8 +2066,7 @@
         "fr": "Dans le G-buffer"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/inside-the-g-buffer.html"
     },
     {
       "id": "reading-pixels-back",
@@ -2072,8 +2075,7 @@
         "fr": "Relire les pixels"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/reading-pixels-back.html"
     },
     {
       "id": "a-city-from-3d-tiles",
@@ -2110,8 +2112,7 @@
         "fr": "Dans un panorama"
       },
       "theme": "environment",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/inside-a-panorama.html"
     },
     {
       "id": "a-video-panorama",
@@ -2120,8 +2121,13 @@
         "fr": "Un panorama vidéo"
       },
       "theme": "environment",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-video-panorama.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "live video textures",
+        "fr": "textures vidéo en direct"
+      },
+      "issue": 362
     },
     {
       "id": "an-atmospheric-sky",
@@ -2410,8 +2416,7 @@
         "fr": "Un nuage de points"
       },
       "theme": "particles",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-cloud-of-points.html"
     },
     {
       "id": "waves-of-points",
@@ -2420,8 +2425,7 @@
         "fr": "Vagues de points"
       },
       "theme": "particles",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/waves-of-points.html"
     },
     {
       "id": "snow-of-sprites",
@@ -2430,8 +2434,7 @@
         "fr": "Neige de sprites"
       },
       "theme": "particles",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/snow-of-sprites.html"
     },
     {
       "id": "a-depth-camera-in-points",
@@ -2524,8 +2527,7 @@
         "fr": "Étiquettes qui suivent"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/labels-that-follow.html"
     },
     {
       "id": "select-with-a-box",
@@ -2534,8 +2536,7 @@
         "fr": "Sélection au cadre"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/select-with-a-box.html"
     },
     {
       "id": "sound-made-visible",
@@ -2544,8 +2545,7 @@
         "fr": "Le son rendu visible"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/sound-made-visible.html"
     },
     {
       "id": "click-to-pick",
@@ -2694,8 +2694,13 @@
         "fr": "Bords lissés dans le temps"
       },
       "theme": "effects",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/smooth-edges-over-time.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "the temporal antialiasing setting",
+        "fr": "le réglage de l’antialiasing temporel"
+      },
+      "issue": 363
     },
     {
       "id": "tone-mapping-compared",

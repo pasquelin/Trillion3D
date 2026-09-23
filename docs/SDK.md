@@ -368,7 +368,7 @@ world.controls.target.set(0, 1, 0); // orbit pivot
 Controls live on the world because they read input on the canvas it owns — a second listener would
 double the gestures — and they follow `world.camera` when it is replaced. Setting `kind` releases the
 previous controller and builds the next; `.enabled` turns the current one off without losing it.
-Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [firstPerson](../site/examples/walk-through-a-temple.html).
+Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [character](../site/examples/walk-through-a-temple.html); `firstPerson` is the same head without a body.
 
 | `world.controls.kind` | Motion                                         | Gestures                                                            |
 | --------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |

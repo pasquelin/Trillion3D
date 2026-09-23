@@ -91,6 +91,9 @@ export function createWebgpuDiagnostics(
     };
     const occurrence = (failureOccurrences.get(phase) ?? 0) + 1;
     failureOccurrences.set(phase, occurrence);
+    // A failed path is said on the console too, once per kind: with no diagnostic channel open —
+    // the default — it would otherwise leave a blank or degraded image and nothing to read.
+    if (occurrence === 1) console.warn(`[web-geometry] WebGPU ${phase}: ${details.error}`);
     if (traceEnabled) {
       traceDiagnostic(phase, 'WebGPU path failed', () => ({
         ...details,

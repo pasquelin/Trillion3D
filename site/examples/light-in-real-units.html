@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Light in real units</title>
+    <meta name="thumbnail" content="5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1c2433;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#1c2433');
+
+      // A village square, in metres. Every number of light below is the one a light meter would
+      // read: the sun and the sky in lux, a lamp in lumens, a glowing globe in candela per square
+      // metre. The camera then exposes the image like a photographer, by an exposure value.
+      const paint = (color, roughness = 0.8) => material.meshStandard({ color, roughness });
+      const add = (shape, matter, x, y, z, turn = 0) => {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(x, y, z);
+        mesh.rotation.set(0, turn, 0);
+        world.scene.add(mesh);
+        return mesh;
+      };
+      add(geometry.box(60, 0.2, 60), paint('#8a8176', 0.9), 0, -0.1, 0);
+      add(geometry.cylinder(9, 9, 0.06, 96), paint('#b3a792', 0.85), 0, 0.03, 0);
+
+      // Houses round the square: a body, a pitched roof, a door and a row of windows.
+      const WALLS = ['#d9c7a6', '#c98f6b', '#e4dccd', '#b8c4b0', '#d7a86e', '#c7b8d6'];
+      const roofMatter = paint('#8c3f2b', 0.7), doorMatter = paint('#4a3426', 0.7), windowMatter = paint('#2a3444', 0.5);
+      const HOUSES = [[-15, -14, 0], [-5, -17, 0], [6, -16, 0], [16, -13, -0.4], [-17, -2, Math.PI / 2], [-16, 10, Math.PI / 2 + 0.3], [17, 1, -Math.PI / 2], [15, 13, -Math.PI / 2 - 0.4]];
+      HOUSES.forEach(([x, z, turn], k) => {
+        const width = 8 + (k % 3) * 1.5, height = 6 + ((k * 5) % 4) * 1.4, depth = 7;
+        const house = object.group();
+        house.position.set(x, 0, z);
+        house.rotation.set(0, turn, 0);
+        const body = object.mesh(geometry.box(width, height, depth), paint(WALLS[k % WALLS.length]));
+        body.position.y = height / 2;
+        const roof = object.mesh(geometry.extrude(math.shape([[-width / 2 - 0.4, 0], [width / 2 + 0.4, 0], [0, 3]]), { depth: depth + 0.8, bevelEnabled: false }), roofMatter);
+        roof.position.set(0, height, -depth / 2 - 0.4);
+        const door = object.mesh(geometry.box(1.3, 2.3, 0.2), doorMatter);
+        door.position.set(-width / 4, 1.15, depth / 2);
+        house.add(body, roof, door);
+        for (let row = 1; row * 2.8 < height - 1; row++)
+          for (let column = -1; column <= 1; column++) {
+            if (row === 1 && column === -1) continue;
+            const pane = object.mesh(geometry.box(1.1, 1.4, 0.2), windowMatter);
+            pane.position.set((column * width) / 3.4, row * 2.8 - 0.6, depth / 2);
+            house.add(pane);
+          }
+        world.scene.add(house);
+      });
+
+      // Benches round the middle, and trees whose crowns shade the stones.
+      const stone = paint('#cfc6b6', 0.75);
+      const bark = paint('#5a4232'), leaves = paint('#4f7b3a', 0.9), wood = paint('#8a6038', 0.7);
+      for (let k = 0; k < 6; k++) {
+        const angle = (k / 6) * Math.PI * 2 + 0.5, [x, z] = [Math.cos(angle) * 9.5, Math.sin(angle) * 9.5];
+        add(geometry.cylinder(0.25, 0.35, 3.4, 16), bark, x, 1.7, z);
+        add(geometry.sphere(2 + (k % 2) * 0.4, 32, 16), leaves, x, 4.6, z);
+        add(geometry.box(2.2, 0.12, 0.6), wood, Math.cos(angle + 0.28) * 7.5, 0.5, Math.sin(angle + 0.28) * 7.5, -angle - 0.28 + Math.PI / 2);
+      }
+
+      // A small carousel turning in the middle of the square: its roof, its poles and its horses.
+      const carousel = object.group();
+      const canvasMatter = paint('#e6d8c0', 0.8), stripe = paint('#b53a32', 0.8);
+      carousel.add(object.mesh(geometry.cylinder(2.6, 2.6, 0.3, 48), wood), object.mesh(geometry.cone(3, 1.4, 12), stripe));
+      carousel.children[0].position.y = 0.15;
+      carousel.children[1].position.y = 3.6;
+      for (let k = 0; k < 8; k++) {
+        const angle = (k / 8) * Math.PI * 2, [x, z] = [Math.cos(angle) * 2, Math.sin(angle) * 2];
+        const pole = object.mesh(geometry.cylinder(0.05, 0.05, 2.9, 12), stone);
+        pole.position.set(x, 1.6, z);
+        const horse = object.mesh(geometry.capsule(0.22, 0.6, 6, 16), k % 2 ? canvasMatter : stripe);
+        horse.position.set(x, 1.3, z);
+        horse.rotation.set(Math.PI / 2, 0, 0);
+        carousel.add(pole, horse);
+      }
+      world.scene.add(carousel);
+
+      // Two street lamps: a post, a globe that glows, and the light it gives.
+      const glass = material.meshStandard({ color: '#1a1a1a', emissive: '#ffd9a8', emissiveIntensity: 0, roughness: 0.5 });
+      const lamps = [[4.5, -5.5], [-4, 8.5]].map(([x, z]) => {
+        add(geometry.cylinder(0.08, 0.12, 4, 16), paint('#2d3035', 0.6), x, 2, z);
+        add(geometry.sphere(0.18, 24, 12), glass, x, 4.2, z);
+        const lamp = light.point({ color: '#ffd9a8', intensity: 0, distance: 40, radius: 0.18, position: [x, 3.95, z], castShadow: true });
+        world.scene.add(lamp);
+        return lamp;
+      });
+
+      // The moments of a day, as a meter reads them. The sky is the light of the whole dome;
+      // the sun is the light straight from its disc, on a surface facing it. At night the same
+      // light stands for the moon.
+      const MOMENTS = {
+        'clear noon': { sun: 100000, height: 62, turn: 200, colour: '#fff4e6', sky: 20000, skyColour: '#a6c6ff', lamps: false },
+        'overcast': { sun: 0, height: 50, turn: 200, colour: '#ffffff', sky: 8000, skyColour: '#d4d8de', lamps: false },
+        'golden hour': { sun: 25000, height: 10, turn: 250, colour: '#ffba78', sky: 4000, skyColour: '#8fa6d6', lamps: false },
+        'sunset': { sun: 1500, height: 2, turn: 262, colour: '#ff7b3c', sky: 700, skyColour: '#7c86ba', lamps: true },
+        'blue hour': { sun: 0, height: 20, turn: 262, colour: '#ffffff', sky: 40, skyColour: '#4865b8', lamps: true },
+        'moonlit night': { sun: 0.3, height: 45, turn: 140, colour: '#b4c8ff', sky: 0.02, skyColour: '#3a4a80', lamps: true },
+      };
+      const sun = light.directional({ castShadow: true });
+      const sky = light.hemisphere({ groundColor: '#6d6154' });
+      world.scene.add(sun, sky);
+      world.camera.position.set(-12, 24, 40);
+      world.controls.target.set(0, 2.5, 0);
+      world.controls.update();
+      world.controls.minDistance = 8;
+      world.controls.maxDistance = 70;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // An exposure value of 0 is one second at f/1 on ISO 100 film; each step up halves the
+      // light let in. A meter reading E lux asks for EV = log2(E × 100 / 250), and the image is
+      // then scaled by 1 / (1.2 × 2^EV): the calibration of a camera's own meter.
+      const lux = (value) => (value >= 100 ? Math.round(value).toLocaleString('en') : value.toPrecision(2)) + ' lx';
+      let target = 15, ev = 10, shown = { sun: null, sky: null, lamp: null, ev: null };
+      const ui = controls({
+        mouse: 'Drag to walk round the square; pick a moment and watch the camera adapt, from 100,000 lux down to a moonlit night',
+        moment: Object.keys(MOMENTS),
+        lampLumens: [0, 20000, 8000, 100],
+        autoExposure: true,
+        exposureValue: [-4, 17, 12, 0.1],
+        turning: true,
+      }, (values, key) => {
+        const moment = MOMENTS[values.moment];
+        if (key === undefined || key === 'moment') {
+          const [up, round] = [math.degToRad(moment.height), math.degToRad(moment.turn)];
+          sun.position.set(Math.cos(up) * Math.sin(round) * 80, Math.sin(up) * 80, Math.cos(up) * Math.cos(round) * 80);
+          sun.color.set(moment.colour);
+          sun.intensity = moment.sun;
+          sky.color.set(moment.skyColour);
+          sky.intensity = moment.sky;
+        }
+        // A bare globe sends its lumens every way: over the 4π steradians round it, that is its
+        // intensity in candela; spread over its own surface, the luminance it glows with.
+        const lumens = moment.lamps ? values.lampLumens : 0;
+        for (const lamp of lamps) lamp.intensity = lumens / (4 * Math.PI);
+        glass.emissiveIntensity = lumens / (4 * Math.PI * Math.PI * 0.18 * 0.18);
+        // What the meter reads on the stones: the sun on a level ground, the sky, and a share of
+        // the lamps' light at the foot of their posts.
+        const meter = moment.sun * Math.sin(math.degToRad(moment.height)) + moment.sky + (0.3 * lumens) / (4 * Math.PI * 16);
+        target = values.autoExposure ? Math.log2((meter * 100) / 250) : values.exposureValue;
+        shown.sun?.(lux(moment.sun));
+        shown.sky?.(lux(moment.sky));
+        shown.lamp?.(`${lumens.toLocaleString('en')} lm · ${Math.round(lumens / (4 * Math.PI)).toLocaleString('en')} cd`);
+        world.invalidate();
+      }, world);
+      shown = { sun: readout('Sun'), sky: readout('Sky'), lamp: readout('Each lamp'), ev: readout('Exposure value') };
+      shown.sun(lux(MOMENTS[ui.moment].sun));
+      shown.sky(lux(MOMENTS[ui.moment].sky));
+      shown.lamp('off');
+
+      // The opening: the camera starts wide open, the square a white glare, and the exposure
+      // closes down to the noon sun like an eye stepping out of a dark room. The camera glides in
+      // too, until the viewer presses or scrolls on the canvas.
+      let gliding = true, time = 0, turn = 0;
+      const stop = () => (gliding = false);
+      world.canvas.addEventListener('pointerdown', stop);
+      world.canvas.addEventListener('wheel', stop, { passive: true });
+      // Both ends look in through the open south side of the square, between the trees, so the
+      // carousel and the two lamps hold the middle of the frame and no house wall stands close.
+      const FROM = [-12, 24, 40], TO = [-7, 8.5, 23];
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        if (gliding) {
+          const t = 1 - (1 - Math.min(1, time / 4)) ** 3;
+          world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * t));
+          world.controls.update();
+          if (t >= 1) gliding = false;
+        }
+        if (ui.turning) turn += step * 0.6;
+        carousel.rotation.set(0, turn, 0);
+        // The eye adapts: more than half the way to the reading every half second.
+        if (Math.abs(target - ev) > 0.005) {
+          ev += (target - ev) * (1 - Math.exp(-step * 1.6));
+          world.exposure = 1 / (1.2 * 2 ** ev);
+          shown.ev(`EV ${ev.toFixed(1)}`);
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

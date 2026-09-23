@@ -140,7 +140,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/core/world.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/world/core/worldFrames.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/animation/index\".advanceMixers"
     },
@@ -452,6 +452,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-node/src/compiler/contracts\".BatchSummary"
+    },
+    {
+      "name": "BeforeFrameInfo",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/core/worldFrames.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/core/worldFrames\".BeforeFrameInfo"
     },
     {
       "name": "biasedDepthBits",
@@ -1056,6 +1067,39 @@
       "bindingIdentity": "\"packages/sdk-core/src/runtime/safety\".CapabilityTier"
     },
     {
+      "name": "Capsule",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/collision/capsule.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/collision/capsule\".Capsule"
+    },
+    {
+      "name": "CapsuleContact",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/collision/capsule.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/collision/capsule\".CapsuleContact"
+    },
+    {
+      "name": "CapsulePush",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/collision/capsule.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/collision/capsule\".CapsulePush"
+    },
+    {
       "name": "capture",
       "kind": "value",
       "definingModule": "packages/sdk-browser/src/world/capture/index.ts",
@@ -1087,6 +1131,28 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/types\".ChangeListener"
+    },
+    {
+      "name": "CharacterCameraControls",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/camera/controls/characterControls.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/characterControls\".CharacterCameraControls"
+    },
+    {
+      "name": "CharacterCollision",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/collision/characterCollision.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/camera/controls/characterControls.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/collision/characterCollision\".CharacterCollision"
     },
     {
       "name": "Clip",
@@ -2467,6 +2533,7 @@
         "packages/sdk-browser/src/backend/defaultBackends.test.ts",
         "packages/sdk-browser/src/backend/defaultBackends.ts",
         "packages/sdk-browser/src/cluster/batches.ts",
+        "packages/sdk-browser/src/cluster/checked.test.ts",
         "packages/sdk-browser/src/cluster/pages.ts",
         "packages/sdk-browser/src/host/world/matrices.test.ts",
         "packages/sdk-browser/src/host/world/matrices.ts",
@@ -3179,6 +3246,17 @@
       "affectedConsumers": ["packages/sdk-browser/src/gpu/dag/shader/shader.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/cone\".HALF_PI_WGSL"
+    },
+    {
+      "name": "HeadSettings",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/camera/controls/look.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/look\".HeadSettings"
     },
     {
       "name": "helper",
@@ -4498,6 +4576,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/worldBatches.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
+        "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
         "packages/sdk-browser/src/world/core/worldMembers.ts",
         "packages/sdk-browser/src/world/core/worldPoses.ts",
@@ -4797,6 +4876,9 @@
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
+        "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
+        "packages/sdk-browser/src/world/core/worldFrames.test.ts",
+        "packages/sdk-browser/src/world/core/worldFrames.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/core/worldMembers.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
@@ -5338,6 +5420,17 @@
       "affectedConsumers": ["packages/sdk-browser/src/math/batchState.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/path/governor\".PathGovernor"
+    },
+    {
+      "name": "PersonHead",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/camera/controls/look.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/look\".PersonHead"
     },
     {
       "name": "perspectiveProjection",
@@ -6140,7 +6233,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/camera/controls/firstPersonControls.ts",
+        "packages/sdk-browser/src/camera/controls/look.ts",
         "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/math.ts",
         "packages/sdk-browser/src/camera/controls/pivot.ts",
@@ -8007,6 +8100,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/volumes\".Triangle"
+    },
+    {
+      "name": "TriangleCollision",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/collision/characterCollision.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/world/core/worldControlsHandle.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/collision/characterCollision\".TriangleCollision"
     },
     {
       "name": "uniformScaleMatrix4",
