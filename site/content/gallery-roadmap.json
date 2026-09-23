@@ -1787,8 +1787,7 @@
         "fr": "Un modèle USDZ"
       },
       "theme": "loaders",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-model-from-usdz.html"
     },
     {
       "id": "printable-parts",
@@ -1978,8 +1977,7 @@
         "fr": "Détail par erreur pixel"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/detail-by-pixel-error.html"
     },
     {
       "id": "ten-thousand-objects",
@@ -1988,8 +1986,7 @@
         "fr": "Dix mille objets"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/ten-thousand-objects.html"
     },
     {
       "id": "compressed-textures",
@@ -1998,8 +1995,7 @@
         "fr": "Textures compressées"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/compressed-textures.html"
     },
     {
       "id": "what-hides-what",
@@ -2008,8 +2004,7 @@
         "fr": "Ce qui cache quoi"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/what-hides-what.html"
     },
     {
       "id": "create-and-dispose",
