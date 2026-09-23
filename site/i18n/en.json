@@ -27,7 +27,8 @@
   },
   "home": {
     "title": "Stream huge 3D worlds in the browser",
-    "start": "Start the course"
+    "start": "Start the course",
+    "editor": "Open the scene editor"
   },
   "examples": {
     "lead": "Each example is one short file: watch it run, open its code, change it.",
