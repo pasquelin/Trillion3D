@@ -46,6 +46,18 @@ export function labelOf(key: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/** Whether the hosting page shows the panels, and the panels it applies to. Listened for from
+ * the kit's import, before the example runs: a page posts its choice when the frame loads, which
+ * an example that builds its panel after an `await` would otherwise miss. */
+let visible = true;
+const panels = new Set<HTMLElement>();
+addEventListener('message', (event) => {
+  const data = event.data as { type?: unknown; visible?: unknown } | null;
+  if (event.source !== parent || data?.type !== 'wg:controls') return;
+  visible = Boolean(data.visible);
+  for (const panel of panels) panel.hidden = !visible;
+});
+
 const isSlider = (spec: readonly (number | string)[]): spec is readonly number[] =>
   typeof spec[0] === 'number';
 
@@ -169,11 +181,8 @@ export function controls<const Specs extends Record<string, ControlSpec>>(
     rows.append(field(control, values, () => onChange(live, control.key as never)));
   box.append(title, rows);
   overlay().append(box);
-  addEventListener('message', (event) => {
-    const data = event.data as { type?: unknown; visible?: unknown } | null;
-    if (event.source !== parent || data?.type !== 'wg:controls') return;
-    box.hidden = !data.visible;
-  });
+  panels.add(box);
+  box.hidden = !visible;
   onChange(live);
   return live;
 }
