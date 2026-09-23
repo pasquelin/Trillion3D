@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Flat projected shadows</title>
+    <meta name="thumbnail" content="4.5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #e7c7a4;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#e7c7a4');
+
+      // The ground: a round plaza of warm stone in a lawn, both flat at height zero — the one plane
+      // every shadow of this page is pressed onto.
+      const flat = (mesh) => (mesh.rotation.set(-Math.PI / 2, 0, 0), mesh);
+      world.scene.add(
+        flat(object.mesh(geometry.circle(12, 96), material.meshStandard({ color: '#dcc4a0', roughness: 0.85 }))),
+        flat(object.mesh(geometry.ring(12, 90, 96), material.meshStandard({ color: '#7f9150', roughness: 1 }))),
+      );
+
+      // What casts: a sundial and the plaza around it. Every piece is a convex solid — a box, a
+      // cylinder, a sphere, a prism — so its flattened copy covers its shadow exactly once.
+      const stone = material.meshStandard({ color: '#efe4d0', roughness: 0.7 });
+      const bronze = material.meshStandard({ color: '#b07a3a', roughness: 0.35, metalness: 0.8 });
+      const casters = object.group();
+      world.scene.add(casters);
+      const place = (mesh, x, y, z) => (mesh.position.set(x, y, z), casters.add(mesh), mesh);
+
+      // The gnomon: a bronze triangle standing north–south, its sloped edge falling to the north.
+      const blade = math.shape([[-0.6, 0], [3.6, 0], [-0.6, 3.6]]);
+      const gnomon = place(object.mesh(geometry.extrude(blade, { depth: 0.22, bevelEnabled: false }), bronze), -0.11, 0, 0);
+      gnomon.rotation.set(0, Math.PI / 2, 0);
+      // The dial's face is a paving of darker stone laid in the plaza, below where shadows fall.
+      const dial = flat(object.mesh(geometry.circle(7.8, 96), material.meshStandard({ color: '#c8ab82', roughness: 0.8 })));
+      dial.position.set(0, 0.004, 0.6);
+      world.scene.add(dial);
+
+      // Where the sun is at an hour: it rises in the east (+x), stands south (+z) at noon and sets
+      // in the west, never higher than 62°. `toward` is the unit vector from the ground to it.
+      const HIGHEST = math.degToRad(62);
+      const sunAt = (hour) => {
+        const arc = (Math.PI * (hour - 6)) / 12, rise = HIGHEST * Math.sin(arc);
+        return { rise, toward: [Math.cos(arc) * Math.cos(rise), Math.sin(rise), Math.sin(arc) * Math.cos(rise)] };
+      };
+      // The hour stones: one where the shadow of the gnomon's tip falls at each hour.
+      for (let hour = 7; hour <= 17; hour++) {
+        const [x, , z] = sunAt(hour).toward, long = Math.hypot(x, z), tall = hour % 3 === 0 ? 0.7 : 0.35;
+        const mark = place(object.mesh(geometry.box(0.5, tall, 0.5), stone), (-x / long) * 7, tall / 2, 0.6 - (z / long) * 7);
+        mark.rotation.set(0, Math.atan2(x, z), 0);
+      }
+      // A ring of columns, and three stone balls on their plinths.
+      for (let k = 0; k < 9; k++) {
+        const a = Math.PI * (0.1 + (k / 8) * 0.8) + Math.PI, x = Math.cos(a) * 10.2, z = Math.sin(a) * 10.2 - 1;
+        place(object.mesh(geometry.box(1.1, 0.4, 1.1), stone), x, 0.2, z);
+        place(object.mesh(geometry.cylinder(0.36, 0.42, 4.6, 24), stone), x, 2.7, z);
+        place(object.mesh(geometry.box(1.05, 0.35, 1.05), stone), x, 5.18, z);
+      }
+      for (const [x, z] of [[-6.5, 5], [6.5, 5], [0, 8.5]]) {
+        place(object.mesh(geometry.box(1.2, 1.1, 1.2), stone), x, 0.55, z);
+        place(object.mesh(geometry.sphere(0.55, 32, 16), bronze), x, 1.65, z);
+      }
+      // What moves: a ball bouncing, a cube turning on its corner, a balloon drifting overhead.
+      const ball = place(object.mesh(geometry.sphere(0.5, 32, 16), material.meshStandard({ color: '#d8452b', roughness: 0.4 })), 3.5, 0.5, 2.5);
+      const spinner = place(object.group(), -3.6, 0, 2.8);
+      const cube = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ color: '#2f7fc1', roughness: 0.35 }));
+      cube.rotation.set(Math.PI / 4, 0, Math.atan(Math.SQRT1_2));
+      cube.position.y = Math.sqrt(3) / 2 + 0.05;
+      spinner.add(cube);
+      const balloon = place(object.group(), 0, 9, 0);
+      const envelope = object.mesh(geometry.sphere(1.3, 40, 20), material.meshStandard({ color: '#f2b233', roughness: 0.55 }));
+      const basket = object.mesh(geometry.box(0.5, 0.4, 0.5), material.meshStandard({ color: '#7a5230', roughness: 0.9 }));
+      basket.position.y = -1.9;
+      balloon.add(envelope, basket);
+      const moving = [ball, spinner, balloon];
+
+      // THE TECHNIQUE. No shadow map: each caster has a twin in dark glass, and the twins hang
+      // under one node whose matrix squashes the world onto the ground along the sun's rays —
+      // (x, y, z) goes to (x, y, z) − (y / toward.y) · toward. That map is a shear. A node carries
+      // a turn and a stretch, so the shear is written as turn · stretch · turn: in the vertical
+      // plane that holds the sun, it is the 2×2 matrix [[1, −tan], [0, ε]], taken apart into its
+      // two rotations and two scales. ε keeps a sliver of height so the matrix stays invertible.
+      const shade = material.meshBasic({ color: '#1c1a33', transparent: true, opacity: 0.55, depthWrite: false });
+      const squash = object.group(), unturn = object.group();
+      squash.rotation.order = 'YZX';
+      unturn.rotation.order = 'ZYX';
+      squash.position.y = 0.012;
+      squash.add(unturn);
+      world.scene.add(squash);
+      const twin = (node) => {
+        const copy = node.geometry ? object.mesh(node.geometry, shade) : object.group();
+        for (const child of node.children) copy.add(twin(child));
+        return copy;
+      };
+      const follow = (node, copy) => {
+        copy.position.copy(node.position);
+        copy.rotation.set(node.rotation.x, node.rotation.y, node.rotation.z);
+        copy.scale.copy(node.scale);
+        node.children.forEach((child, k) => follow(child, copy.children[k]));
+      };
+      const pairs = casters.children.map((node) => [node, twin(node)]);
+      for (const [node, copy] of pairs) (unturn.add(copy), follow(node, copy));
+      const pressFlat = (toward) => {
+        const slope = Math.hypot(toward[0], toward[2]) / toward[1], heading = -Math.atan2(toward[2], toward[0]), EPS = 0.002;
+        // The 2×2 [[a, b], [c, d]] = rotate(φ) · diag(sx, sy) · rotate(θ), in closed form.
+        const [a, b, c, d] = [1, -slope, 0, EPS], e = (a + d) / 2, f = (a - d) / 2, g = (c + b) / 2, h = (c - b) / 2;
+        const q = Math.hypot(e, h), r = Math.hypot(f, g), one = Math.atan2(g, f), two = Math.atan2(h, e);
+        squash.rotation.set(0, heading, (two + one) / 2);
+        squash.scale.set(q + r, q - r, 1);
+        unturn.rotation.set(0, -heading, (two - one) / 2);
+      };
+
+      // The sun lights the stone but casts nothing itself: the shadows are the twins. A cool sky
+      // fills the sides the sun misses.
+      const sun = light.directional({ intensity: 3.2 });
+      world.scene.add(sun, light.hemisphere({ color: '#a9c2ee', groundColor: '#8a6d48', intensity: 0.9 }));
+      world.camera.position.set(14, 9.5, 16);
+      world.camera.lookAt(0, 1, -1);
+      world.controls.target.set(0, 1, -1);
+      world.controls.minDistance = 6;
+      world.controls.maxDistance = 48;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      let hour = 6.6, opening = 0, length = null;
+      const DAWN = math.color('#ff8a3d'), NOON = math.color('#fff2dc');
+      const setHour = (value) => {
+        hour = value;
+        const { rise, toward } = sunAt(hour);
+        sun.position.set(toward[0] * 40, toward[1] * 40, toward[2] * 40);
+        sun.color.copy(DAWN).lerp(NOON, Math.sin(rise) / Math.sin(HIGHEST));
+        pressFlat(toward);
+        length?.(say('timesHeight', { times: (1 / Math.tan(rise)).toFixed(1) }));
+      };
+      const ui = controls({
+        mouse: 'Drag to walk around the sundial; slide the hour and every shadow swings with the sun',
+        hour: [6.6, 17.4, 16.2, 0.05],
+        darkness: [0.2, 0.9, 0.55, 0.05],
+        timeLapse: false,
+        motion: true,
+      }, (values, key) => {
+        // A hand on the slider ends the opening sweep.
+        if (key === 'hour') (opening = 1, setHour(values.hour));
+        if (key === undefined || key === 'darkness') shade.opacity = values.darkness;
+        world.invalidate();
+      }, world);
+      length = readout('shadowLength');
+      setHour(hour);
+
+      // The opening: dawn to the chosen hour in a few seconds, the shadows sweeping round the dial.
+      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        if (opening < 1) {
+          opening = Math.min(1, opening + step / 3.5);
+          setHour(6.6 + (ui.hour - 6.6) * ease(opening));
+        } else if (ui.timeLapse) setHour(hour + step * 1.2 > 17.4 ? 6.6 : hour + step * 1.2);
+        if (ui.motion) {
+          time += step;
+          ball.position.y = 0.5 + 2.6 * Math.abs(Math.sin(time * 2.4));
+          spinner.rotation.set(0, time * 0.9, 0);
+          balloon.position.set(Math.cos(time * 0.12) * 6, 9 + Math.sin(time * 0.5) * 0.4, Math.sin(time * 0.12) * 6 - 1);
+          for (const [node, copy] of pairs) if (moving.includes(node)) follow(node, copy);
+        }
+        // A still dial at a fixed hour asks for no new frame.
+        if (opening < 1 || ui.timeLapse || ui.motion) world.invalidate();
+      });
+    </script>
+  </body>
+</html>

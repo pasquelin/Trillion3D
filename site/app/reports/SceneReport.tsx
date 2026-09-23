@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useWords } from '../i18n.ts';
 import { SceneNotice } from './SceneNotice.tsx';
 import { Card } from '../ui/Card.tsx';
 import { Collapse } from '../ui/Collapse.tsx';
@@ -18,7 +19,7 @@ interface SceneReportProps {
 
 export function SceneReport({ scene, report, locale }: SceneReportProps) {
   const [selected, setSelected] = useState('sol');
-  const fr = locale === 'fr';
+  const t = useWords(locale);
   const records = report.records.filter(
     (r) =>
       r.scene === scene && ['three-nu', 'three-lod'].includes(runOf(report, r)) && r.quality === 1,
@@ -35,7 +36,7 @@ export function SceneReport({ scene, report, locale }: SceneReportProps) {
       />
       <Tabs
         sticky
-        label={fr ? 'Point de vue' : 'Viewpoint'}
+        label={t('report.viewpoint')}
         value={selected}
         onChange={setSelected}
         items={views.map((view) => ({
@@ -55,10 +56,7 @@ export function SceneReport({ scene, report, locale }: SceneReportProps) {
             return (
               <div className="grid min-w-0 grid-cols-1 gap-4">
                 <p>
-                  {web?.canvas?.width} × {web?.canvas?.height} ·{' '}
-                  {fr
-                    ? 'seuil : 1 px · valeurs médianes · temps plus court = mieux'
-                    : 'threshold: 1 px · median values · shorter duration = better'}
+                  {web?.canvas?.width} × {web?.canvas?.height} · {t('report.sceneReading')}
                 </p>
                 <MetricCharts
                   {...{ report, locale }}
@@ -74,14 +72,7 @@ export function SceneReport({ scene, report, locale }: SceneReportProps) {
                   compact
                   metrics={['gpu', 'sync']}
                 />
-                <Collapse
-                  surface="nested"
-                  title={
-                    fr
-                      ? 'Chiffres exacts, p95 et limites de comparaison'
-                      : 'Exact figures, p95 and comparison limits'
-                  }
-                >
+                <Collapse surface="nested" title={t('report.exactFigures')}>
                   {all
                     .filter((r) => r.engine !== 'webgpu-page-raster')
                     .map((r) => (

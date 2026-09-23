@@ -6,14 +6,14 @@ test('every JavaScript source anywhere in the repository is refused', () => {
   const files = [
     'site/app/main.tsx',
     'site/demos/engine.ts',
-    'site/lessons/draw.js',
+    'site/app/draw.js',
     'site/reports/copy.mjs',
     'site/assets/kinetic-garden/cache/native/full/manifest.json',
     'scripts/docs-build.mjs',
     'site.js',
   ];
   assert.deepEqual(javascriptFiles(files), [
-    'site/lessons/draw.js',
+    'site/app/draw.js',
     'site/reports/copy.mjs',
     'scripts/docs-build.mjs',
     'site.js',

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { t } from '../../content/i18n/index.ts';
+import { wordsOf } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
 import { sceneActions, type SceneActions } from './actions.ts';
 import { bindInput } from './input.ts';
+import type { AddKind } from './objects.ts';
 import { createSession, type Session } from './session.ts';
 
 /** The editor a page holds: its session on the world, the actions of its menus, and where a
@@ -16,9 +17,10 @@ export interface Editor {
 
 /** What the person reads of a failure: a refused format by name, anything else by its message. */
 function failureText(locale: Locale, error: unknown) {
+  const t = wordsOf(locale);
   if ((error as { code?: string } | null)?.code === 'UNSUPPORTED_SCENE_FORMAT')
-    return t(locale, 'editor.error.format');
-  return `${t(locale, 'editor.error.read')} ${error instanceof Error ? error.message : String(error)}`;
+    return t('editor.error.format');
+  return `${t('editor.error.read')} ${error instanceof Error ? error.message : String(error)}`;
 }
 
 /**
@@ -48,19 +50,21 @@ export function useEditor(
         const target = canvas.current;
         if (gone || !target) return;
         const session = createSession(engine, target, () => setVersion((count) => count + 1));
-        const actions = sceneActions(
-          session,
-          (kind) => t(language.current, `editor.add.${kind}`),
-          failed,
-        );
+        const words = () => wordsOf(language.current);
+        const kindName = (kind: AddKind) => words()(`editor.add.${kind}`);
+        const actions = sceneActions(session, kindName, failed);
         const unbind = bindInput(session, actions, target);
         release = () => {
           unbind();
           session.dispose();
         };
-        // The panels open once the saved scene is back: an edit made while it loads would be
-        // saved over it, then swept away with the history when it arrives.
-        await actions.restore();
+        // The panels open once the scene is back, saved or the starter one: an edit made while
+        // it loads would be saved over it, then swept away with the history when it arrives.
+        await actions.restore({
+          kind: kindName,
+          pedestal: words()('editor.pedestal'),
+          bust: words()('editor.model.marble-bust'),
+        });
         if (!gone) setEditor({ session, actions, failed });
       })
       .catch(failed);
