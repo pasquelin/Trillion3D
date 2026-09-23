@@ -65,7 +65,7 @@
         bricks.color.set(values.bricks);
         lamp.position.set(values.lamp, 1.8, 0.35);
         world.invalidate();
-      });
+      }, world);
       world.onFrame(({ time }) => {
         if (!ui.sweep) return;
         lamp.position.set(Math.sin(time * 0.5) * 2.6, 1.8, 0.35);

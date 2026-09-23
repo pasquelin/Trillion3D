@@ -24,3 +24,22 @@ export function overlay(): HTMLElement {
   document.body.append(host);
   return layer;
 }
+
+/** Whether the hosting page shows the panels, and the panels it applies to. Listened for from
+ * the kit's import, before the example runs: a page posts its choice when the frame loads, which
+ * an example that builds its panel after an `await` would otherwise miss. */
+let visible = true;
+const panels = new Set<HTMLElement>();
+// A page, not a test importing the kit in Node, has messages to hear.
+globalThis.addEventListener?.('message', (event) => {
+  const data = event.data as { type?: unknown; visible?: unknown } | null;
+  if (event.source !== parent || data?.type !== 'wg:controls') return;
+  visible = Boolean(data.visible);
+  for (const panel of panels) panel.hidden = !visible;
+});
+
+/** Puts `panel` under the page's show/hide message, in its current state. */
+export function hideable(panel: HTMLElement) {
+  panels.add(panel);
+  panel.hidden = !visible;
+}

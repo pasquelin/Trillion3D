@@ -60,7 +60,7 @@
         for (const vase of vases) vase.scale.set(values.width, values.height, values.width);
         for (const glaze of glazes) glaze.roughness = 1 - values.gloss;
         world.invalidate();
-      });
+      }, world);
       world.onFrame(({ delta }) => {
         if (!ui.spin) return;
         for (const vase of vases) vase.rotation.y += delta * 0.8;

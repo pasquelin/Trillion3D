@@ -50,7 +50,7 @@
         lamp.color.set(values.colour);
         world.exposure = values.exposure;
         world.invalidate();
-      });
+      }, world);
       // The camera circles the pedestal, one step per frame, when asked.
       world.onFrame(({ delta }) => {
         if (!ui.circle) return;

@@ -39,7 +39,7 @@
         sun?.color.set(values.sun);
         world.exposure = values.exposure;
         world.invalidate();
-      });
+      }, world);
       let hour = 0.35;
       world.onFrame(({ delta }) => {
         hour = (hour + delta * ui.daySpeed * 0.1) % 1;

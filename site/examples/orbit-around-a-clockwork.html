@@ -114,7 +114,7 @@
       }, (values) => {
         brass.color.set(values.brass);
         world.invalidate();
-      });
+      }, world);
       let time = 0;
       world.onFrame(({ delta }) => {
         time += delta * ui.speed;
