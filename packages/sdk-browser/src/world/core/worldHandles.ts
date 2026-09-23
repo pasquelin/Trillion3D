@@ -141,12 +141,12 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     /** A session that could not open: named on the handle and said on the console. An engine
      *  error is kept as it is; a bare code thrown on the way (`WEBGPU_LOST`) becomes that code. */
     failed(cause: unknown) {
-      const said = cause instanceof Error ? cause.message : String(cause);
-      const code = /^[A-Z][A-Z0-9_]*$/.test(said) ? said : 'SESSION_OPEN_FAILED';
+      const words = cause instanceof Error ? cause.message : String(cause);
+      const code = /^[A-Z][A-Z0-9_]*$/.test(words) ? words : 'SESSION_OPEN_FAILED';
       error =
         cause instanceof EngineError
           ? cause
-          : new EngineError(code, `The world's session failed to open: ${said}`, { cause: said });
+          : new EngineError(code, `The world's session failed to open: ${words}`, { cause: words });
       console.error('World session failed to open', error);
     },
   };
