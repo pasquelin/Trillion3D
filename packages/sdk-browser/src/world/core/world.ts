@@ -12,6 +12,7 @@ import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldModelLoader } from './loadedModel.ts';
 import { watchFirstFrame } from '../session/openWatch.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
+import { worldTelemetry } from './worldTelemetry.ts';
 
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
@@ -178,11 +179,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       live()?.resize(Math.floor(width), Math.floor(height));
       invalidate();
     },
-    /** Per-step profile of the session's frames. */
-    stageProfile: () => live()?.stageProfile() ?? null,
-    /** CPU bounds of the frames since `resetCpuSteps()` (p50, p95, max per step); `null` unmeasured. */
-    cpuSteps: () => live()?.cpuSteps() ?? null,
-    /** Opens a new `cpuSteps()` window. */ resetCpuSteps: () => live()?.resetStageProfile(),
+    ...worldTelemetry(live),
     /** Resolves once the pages the current view reads are resident (`awaitViewPages`). */
     awaitPages: () => awaitViewPages(runtime, live),
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {

@@ -15708,6 +15708,77 @@
     "description": ""
   },
   {
+    "id": "world.awaitPages",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.awaitPages()",
+    "signature": "world.awaitPages(): Promise<void>",
+    "summary": "Resolves once the pages the current view reads are resident (`awaitViewPages`).",
+    "returns": {
+      "type": "Promise<void>",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
+    "id": "world.dispose",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.dispose()",
+    "signature": "world.dispose(): void",
+    "summary": "Stops the world and gives back all it took: GPU memory, loop, controls.",
+    "description": ""
+  },
+  {
+    "id": "world.stageProfile",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.stageProfile()",
+    "signature": "world.stageProfile(): StageProfile | null",
+    "summary": "Per-step profile of the session's frames.",
+    "returns": {
+      "type": "StageProfile | null",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
+    "id": "world.cpuSteps",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.cpuSteps()",
+    "signature": "world.cpuSteps(): CpuStepSummary | null",
+    "summary": "CPU bounds of the frames since `resetCpuSteps()` (p50, p95, max per step); `null` unmeasured.",
+    "returns": {
+      "type": "CpuStepSummary | null",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
+    "id": "world.resetCpuSteps",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.resetCpuSteps()",
+    "signature": "world.resetCpuSteps(): void | undefined",
+    "summary": "Opens a new `cpuSteps()` window.",
+    "returns": {
+      "type": "void | undefined",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
     "id": "world.canvas",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["createWorld"],
@@ -16250,77 +16321,6 @@
         "desc": "New height, CSS pixels."
       }
     ],
-    "description": ""
-  },
-  {
-    "id": "world.stageProfile",
-    "module": "packages/sdk-browser/src/world/core/world.ts",
-    "exports": ["createWorld"],
-    "section": "world",
-    "kind": "Function",
-    "title": "world.stageProfile()",
-    "signature": "world.stageProfile(): StageProfile | null",
-    "summary": "Per-step profile of the session's frames.",
-    "returns": {
-      "type": "StageProfile | null",
-      "desc": ""
-    },
-    "description": ""
-  },
-  {
-    "id": "world.cpuSteps",
-    "module": "packages/sdk-browser/src/world/core/world.ts",
-    "exports": ["createWorld"],
-    "section": "world",
-    "kind": "Function",
-    "title": "world.cpuSteps()",
-    "signature": "world.cpuSteps(): CpuStepSummary | null",
-    "summary": "CPU bounds of the frames since `resetCpuSteps()` (p50, p95, max per step); `null` unmeasured.",
-    "returns": {
-      "type": "CpuStepSummary | null",
-      "desc": ""
-    },
-    "description": ""
-  },
-  {
-    "id": "world.resetCpuSteps",
-    "module": "packages/sdk-browser/src/world/core/world.ts",
-    "exports": ["createWorld"],
-    "section": "world",
-    "kind": "Function",
-    "title": "world.resetCpuSteps()",
-    "signature": "world.resetCpuSteps(): void | undefined",
-    "summary": "Opens a new `cpuSteps()` window.",
-    "returns": {
-      "type": "void | undefined",
-      "desc": ""
-    },
-    "description": ""
-  },
-  {
-    "id": "world.awaitPages",
-    "module": "packages/sdk-browser/src/world/core/world.ts",
-    "exports": ["createWorld"],
-    "section": "world",
-    "kind": "Function",
-    "title": "world.awaitPages()",
-    "signature": "world.awaitPages(): Promise<void>",
-    "summary": "Resolves once the pages the current view reads are resident (`awaitViewPages`).",
-    "returns": {
-      "type": "Promise<void>",
-      "desc": ""
-    },
-    "description": ""
-  },
-  {
-    "id": "world.dispose",
-    "module": "packages/sdk-browser/src/world/core/world.ts",
-    "exports": ["createWorld"],
-    "section": "world",
-    "kind": "Function",
-    "title": "world.dispose()",
-    "signature": "world.dispose(): void",
-    "summary": "Stops the world and gives back all it took: GPU memory, loop, controls.",
     "description": ""
   },
   {
