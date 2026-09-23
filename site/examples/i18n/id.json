@@ -27,7 +27,7 @@
       "triangles (scene)": "segitiga (adegan)",
       "draw calls": "panggilan gambar",
       "pages": "halaman",
-      "geometry pool": "gudang geometri",
+      "geometry pool": "kolam geometri",
       "lights": "lampu",
       "GPU frame": "bingkai GPU",
       "CPU frame": "bingkai CPU",
@@ -536,7 +536,7 @@
     "readouts": {
       "texturesBlocks": "Tekstur dalam blok",
       "allFullDetail": "Semua detail penuh",
-      "poolFormat": "Format gudang",
+      "poolFormat": "Format kolam",
       "tilesHeld": "Ubin disimpan",
       "heldGpu": "Disimpan di GPU"
     },
@@ -788,7 +788,7 @@
       "rings": "CINCIN {passed}/{all}",
       "complete": "RUTE SELESAI",
       "flyAgain": "{time} — R untuk terbang lagi",
-      "stall": "STALL",
+      "stall": "MOGOK",
       "pullUp": "NAIK",
       "turnBack": "BALIK ARAH",
       "crashed": "JATUH",
