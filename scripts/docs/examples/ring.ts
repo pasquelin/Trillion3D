@@ -1,5 +1,6 @@
 import { SceneGltf } from './gltf-scene.ts';
 import { randomStream, sineNoise, type Vec3 } from './random.ts';
+import { moved } from './mesh.ts';
 import { icosphere } from './solids.ts';
 
 /**
@@ -9,7 +10,7 @@ import { icosphere } from './solids.ts';
  */
 const COUNT = 10_000;
 
-/** A lumpy rock pressed with six craters, stretched out of round. */
+/** A lumpy rock pressed with six craters, stretched out of round; its normals follow the stretch. */
 function rock(seed: number) {
   const random = randomStream(seed),
     stretch = [1, 0.6 + random.uniform(0, 0.3), 0.8 + random.uniform(0, 0.3)],
@@ -30,10 +31,7 @@ function rock(seed: number) {
       1 + 0.22 * lumps(point),
     ),
   );
-  return {
-    ...sphere,
-    positions: sphere.positions.map((value, index) => value * stretch[index % 3]),
-  };
+  return moved(sphere, [0, 0, 0], stretch as Vec3);
 }
 
 /** Rounds a placement to a tenth of a millimetre at the ring's scale: shorter JSON, same scene. */

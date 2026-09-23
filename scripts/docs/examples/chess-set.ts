@@ -28,7 +28,9 @@ function material(name: string, [r, g, b]: readonly number[], roughness: number,
 `;
 }
 
-/** Light and dark squares, a frame around them and a plinth under the whole board. */
+/** Light and dark squares, a frame around them and a plinth under the whole board. The pieces
+ * stand at `z = (3.5 - rank) * SQUARE`, so a1 is `(i, j) = (0, 7)`: an odd sum is a dark square,
+ * and h1, at white's right hand, a light one. */
 function board() {
   const squares: [Mesh[], Mesh[]] = [[], []];
   for (let i = 0; i < 8; i++)
@@ -42,8 +44,8 @@ function board() {
       moved(box(3, 1.6, 8 * SQUARE), [s * edge, -0.81, 0]),
     ]);
   return [
-    usdMesh('LightSquares', merge(squares[1]), `${MATERIALS}/Maple`),
-    usdMesh('DarkSquares', merge(squares[0]), `${MATERIALS}/Walnut`),
+    usdMesh('LightSquares', merge(squares[0]), `${MATERIALS}/Maple`),
+    usdMesh('DarkSquares', merge(squares[1]), `${MATERIALS}/Walnut`),
     usdMesh(
       'Frame',
       merge([...frame, moved(box(8 * SQUARE + 6, 1.2, 8 * SQUARE + 6), [0, -1, 0])]),
