@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   entryRoute,
+  hasSidebar,
+  isEdgeToEdge,
   LEARN_SECTIONS,
   navLinks,
   parseRoute,
@@ -54,21 +56,27 @@ test('the removed legacy routes no longer lead anywhere', () => {
   assert.ok(!english.some(({ section }) => section === 'demo'));
 });
 
-test('the header marks the area of the route, the editor apart', () => {
+test('the header marks the area of the route, the editor an area of its own', () => {
   const current = (hash: string) =>
     navLinks(parseRoute(hash))
       .filter((link) => link.current)
-      .map(({ link, href }) => `${link} ${href}`);
+      .map(({ area, href }) => `${area} ${href}`);
   assert.deepEqual(current('#/fr/learn/create-a-world'), ['learn #/fr/learn/home']);
   assert.deepEqual(current('#/en/examples/cube'), ['examples #/en/examples']);
-  assert.deepEqual(current('#/fr/examples/scene-editor'), ['editor #/fr/examples/scene-editor']);
+  assert.deepEqual(current('#/fr/editor'), ['editor #/fr/editor']);
   assert.deepEqual(current('#/en/api/createWorld'), ['api #/en/api']);
   assert.deepEqual(current('#/fr/reports/september-18/compare'), ['reports #/fr/reports']);
   assert.deepEqual(current('#/fr/sandbox/a-neon-sign'), ['sandbox #/fr/sandbox']);
   assert.deepEqual(
-    navLinks(parseRoute('#/en/api')).map(({ link }) => link),
+    navLinks(parseRoute('#/en/api')).map(({ area }) => area),
     ['learn', 'sandbox', 'examples', 'editor', 'api', 'reports'],
   );
+});
+
+test('the editor takes the page from edge to edge, without a sidebar', () => {
+  const [editor, examples] = ['#/en/editor', '#/en/examples'].map((hash) => parseRoute(hash));
+  assert.deepEqual([hasSidebar(editor), isEdgeToEdge(editor)], [false, true]);
+  assert.deepEqual([hasSidebar(examples), isEdgeToEdge(examples)], [true, false]);
 });
 
 test('unknown and incomplete routes resolve to stable landing pages', () => {
@@ -127,10 +135,7 @@ test('page resolution distinguishes entries, examples, and unknown addresses', (
     '#/en/learn/architecture',
   );
   assert.equal(resolvePage({ locale, area: 'examples', id: '' }, entries).kind, 'examples');
-  assert.equal(
-    resolvePage({ locale, area: 'examples', id: 'scene-editor' }, entries).kind,
-    'editor',
-  );
+  assert.equal(resolvePage({ locale, area: 'editor', id: '' }, entries).kind, 'editor');
   assert.equal(
     resolvePage({ locale, area: 'examples', id: 'cube' }, entries, ['cube']).kind,
     'example',
