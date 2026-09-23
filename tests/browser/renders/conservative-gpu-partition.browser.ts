@@ -63,7 +63,7 @@ const audit = await empaquetePage(
     format: 'esm',
   },
 );
-const preuveDir = await mkdtemp(join(tmpdir(), 'wg-preuve-partition-'));
+const preuveDir = await mkdtemp(join(tmpdir(), 'trillion3d-preuve-partition-'));
 await writeFile(join(preuveDir, 'audit.js'), audit);
 
 const mounts = [

@@ -127,7 +127,7 @@ async function run(
   const result = spawnSync(process.execPath, argv, {
     cwd: ROOT,
     encoding: 'utf8',
-    env: { ...process.env, WG_CAMPAIGN_IDENTITY: identity },
+    env: { ...process.env, TRILLION3D_CAMPAIGN_IDENTITY: identity },
   });
   appendFileSync(join(dir, 'campagne.log'), `${result.stdout ?? ''}\n${result.stderr ?? ''}`);
   if (result.status !== 0) process.exitCode = 1;

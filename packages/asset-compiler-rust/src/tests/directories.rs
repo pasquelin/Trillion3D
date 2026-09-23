@@ -19,7 +19,7 @@ pub(super) fn scratch(prefix: &str, tag: &str) -> PathBuf {
 
 fn scratch_at(prefix: &str, tag: &str, stamp: u128) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "wg-{prefix}-{tag}-{}-{stamp}-{}",
+        "trillion3d-{prefix}-{tag}-{}-{stamp}-{}",
         std::process::id(),
         NEXT_FIXTURE_ID.fetch_add(1, Ordering::Relaxed),
     ));

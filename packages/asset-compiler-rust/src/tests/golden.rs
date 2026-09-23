@@ -83,7 +83,7 @@ pub(super) fn refused_golden_source(source: &Path, name: &str) -> String {
 /// its fixtures with them too.
 pub(crate) fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
     let root = std::env::temp_dir().join(format!(
-        "wg-golden-{name}-{}-{}-{}",
+        "trillion3d-golden-{name}-{}-{}-{}",
         std::process::id(),
         NEXT.fetch_add(1, Ordering::Relaxed),
         SystemTime::now()
