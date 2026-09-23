@@ -33,6 +33,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     'home.step3Title': 'Measure the frame',
     'home.step3Description': 'Inspect quality, residency and timing before tuning.',
     'examples.lead': 'Each example is one short file: watch it run, open its code, change it.',
+    'examples.inProgress': 'In progress',
+    'examples.waitsFor': 'Waits for the engine:',
     'api.title': 'Engine reference',
     'reports.campaign': 'Campaign',
     'api.lead': 'Public functions, types, and constants grouped by responsibility.',
@@ -49,6 +51,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     'entry.example': 'Example',
     'entry.replaces': 'Replaces',
     'entry.proof': 'Proof',
+    'entry.details': 'Details',
     'entry.live': 'It runs, here',
     'entry.liveHint':
       'Move the controls: these values come from the engine function running in this browser.',
@@ -104,6 +107,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     'home.step3Description': 'Observez qualité, résidence et temps avant tout réglage.',
     'examples.lead':
       'Chaque exemple est un court fichier : regardez-le tourner, ouvrez son code, modifiez-le.',
+    'examples.inProgress': 'En cours de création',
+    'examples.waitsFor': 'Attend du moteur :',
     'api.title': 'Référence du moteur',
     'reports.campaign': 'Campagne',
     'api.lead': 'Fonctions, types et constantes publics, regroupés par responsabilité.',
@@ -120,6 +125,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     'entry.example': 'Exemple',
     'entry.replaces': 'Remplace',
     'entry.proof': 'Preuve',
+    'entry.details': 'Détails',
     'entry.live': 'À vous d’essayer',
     'entry.liveHint':
       'Manipulez les contrôles : ces valeurs viennent de la fonction du moteur exécutée dans ce navigateur.',
