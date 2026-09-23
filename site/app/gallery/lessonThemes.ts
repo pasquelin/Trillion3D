@@ -1,16 +1,17 @@
-import type { Locale } from '../../content/locale.ts';
 import type { CatalogExample } from '../../content/catalog.ts';
 
-export const themes: [string, string, string][] = [
-  ['transforms', 'Transforms', 'Transformations'],
-  ['geometry', 'Geometry and bounds', 'Géométrie et volumes'],
-  ['camera', 'Camera', 'Caméra'],
-  ['materials', 'Materials and textures', 'Matériaux et textures'],
-  ['lighting', 'Lights and shadows', 'Lumières et ombres'],
-  ['performance', 'Performance and streaming', 'Performance et streaming'],
-];
+/** The lesson themes, in tab order; each is named by `themes.<id>` in the dictionaries. */
+export const THEMES = [
+  'transforms',
+  'geometry',
+  'camera',
+  'materials',
+  'lighting',
+  'performance',
+] as const;
+type Theme = (typeof THEMES)[number];
 
-const byCategory: Record<string, string> = {
+const byCategory: Record<string, Theme> = {
   transforms: 'transforms',
   vectors: 'geometry',
   geometry: 'geometry',
@@ -22,11 +23,6 @@ const byCategory: Record<string, string> = {
   lighting: 'lighting',
 };
 
-export function themeOf(entry: Pick<CatalogExample, 'category'>): string {
+export function themeOf(entry: Pick<CatalogExample, 'category'>): Theme {
   return byCategory[entry.category] ?? 'geometry';
-}
-
-export function themeLabel(id: string, locale: Locale): string {
-  const theme = themes.find(([value]) => value === id);
-  return theme?.[locale === 'fr' ? 2 : 1] ?? id;
 }

@@ -1,5 +1,5 @@
 import type { Locale } from '../content/locale.ts';
-import { localizeDemoText } from '../content/i18n/demo.fr.ts';
+import { localizeDemoText } from '../content/i18n/canvas.ts';
 
 /** A demo's control: every demo drives its model with numeric sliders. */
 export interface DemoControlDef {

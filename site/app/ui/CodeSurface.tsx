@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useWords } from '../i18n.ts';
 import type { ReactNode } from 'react';
 import type { Locale } from '../../content/locale.ts';
 import { Button } from './Button.tsx';
@@ -14,13 +15,13 @@ interface CodeSurfaceProps {
 
 export function CodeSurface({ code, locale, title, actions, children }: CodeSurfaceProps) {
   const [status, setStatus] = useState('');
-  const french = locale === 'fr';
+  const t = useWords(locale);
   async function copy() {
     try {
       await navigator.clipboard.writeText(String(code));
-      setStatus(french ? 'Copié' : 'Copied');
+      setStatus(t('code.copied'));
     } catch {
-      setStatus(french ? 'Échec de la copie' : 'Copy failed');
+      setStatus(t('code.copyFailed'));
     }
   }
   return (
@@ -30,7 +31,7 @@ export function CodeSurface({ code, locale, title, actions, children }: CodeSurf
         <div className="flex flex-wrap gap-2">
           {actions}
           <Button size="sm" onClick={copy}>
-            {french ? 'Copier le code' : 'Copy code'}
+            {t('code.copy')}
           </Button>
         </div>
       </div>
