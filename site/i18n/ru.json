@@ -28,7 +28,7 @@
   "home": {
     "title": "Передавайте огромные 3D-миры прямо в браузере",
     "start": "Начать курс",
-    "editor": "Open the scene editor"
+    "editor": "Открыть редактор сцен"
   },
   "examples": {
     "lead": "Каждый пример — это один короткий файл: посмотрите, как он работает, откройте код, измените его.",
@@ -118,7 +118,7 @@
       "transparency-without-sorting": "Прозрачность без сортировки",
       "frosted-glass": "Матовое стекло",
       "a-refracting-pane": "Преломляющее стекло",
-      "a-light-map": "Light map",
+      "a-light-map": "Карта освещения",
       "two-materials-one-mesh": "Два материала, один меш",
       "clearcoat-paint": "Краска с лаком",
       "velvet-sheen": "Бархатный блеск",
@@ -219,7 +219,7 @@
       "detail-by-pixel-error": "Детализация по пиксельной ошибке",
       "ten-thousand-objects": "Десять тысяч объектов",
       "compressed-textures": "Сжатые текстуры",
-      "what-hides-what": "Что что скрывает",
+      "what-hides-what": "Что скрывает что",
       "create-and-dispose": "Создать и освободить",
       "no-hitch-on-first-draw": "Без рывка на первом кадре",
       "inside-the-g-buffer": "Внутри G-buffer",
@@ -349,7 +349,7 @@
       "transparency-without-sorting": "прозрачность, независимая от порядка",
       "frosted-glass": "шероховатое пропускание",
       "a-refracting-pane": "рендер в текстуру",
-      "a-light-map": "слот для light map",
+      "a-light-map": "слот для карты освещения",
       "two-materials-one-mesh": "меши с несколькими материалами",
       "clearcoat-paint": "слои физического материала: лак",
       "velvet-sheen": "слои физического материала: блеск",
@@ -1012,7 +1012,7 @@
           "<code>world.camera.position.set(x, y, z)</code> помещает глаз куда-то; <code>world.camera.lookAt(x, y, z)</code> поворачивает его к точке.",
           "<em>Контроллер</em> превращает движения мыши, пальцев и клавиатуры в движения камеры. Выберите его при создании мира: <code>createWorld('view', { controls: 'orbit' })</code>.",
           "<code>'orbit'</code> кружит вокруг точки: перетаскивание поворачивает, перетаскивание правой кнопкой сдвигает, прокрутка масштабирует. <code>world.controls.target</code> — это точка, вокруг которой он кружит.",
-          "Есть и другие: <code>'fly'</code> (клавиши W A S D, смотрите <a href=\"#/ru/examples/fly-over-a-model-town\">Пилотирование самолёта через кольца</a>), <code>'firstPerson'</code> (ходьба, смотрите <a href=\"#/ru/examples/walk-through-a-temple\">Паркур в храме</a>), <code>'trackball'</code>, <code>'panZoom'</code> для плоской карты, и <code>'none'</code>, когда ваш собственный код двигает камеру.",
+          "Есть и другие: <code>'fly'</code> (клавиши W A S D, смотрите <a href=\"#/ru/examples/fly-over-a-model-town\">Пилотирование самолёта через кольца</a>), <code>'character'</code> (бег и прыжки, натыкаясь на стены, смотрите <a href=\"#/ru/examples/walk-through-a-temple\">Паркур в храме</a>), <code>'firstPerson'</code> (ходьба сквозь всё), <code>'trackball'</code>, <code>'panZoom'</code> для плоской карты, и <code>'none'</code>, когда ваш собственный код двигает камеру.",
           "Переключайтесь в любой момент: <code>world.controls.kind = 'fly'</code>."
         ],
         "tryIt": "Перетащите, чтобы повернуться вокруг часов, прокрутите, чтобы рассмотреть зубцы шестерёнок вблизи."
