@@ -1,7 +1,9 @@
 import { hideable, overlay } from './overlay.ts';
 
-/** What the stats corner reads of a frame: the engine's own counters, `null` when not measured. */
+/** What the stats corner reads of a frame: the engine's own counters, `null` when not measured.
+ *  Any other counter the frame publishes rides along under its own name. */
 interface FrameCounters {
+  [counter: string]: unknown;
   selectedTriangles?: number | null;
   drawCalls?: number | null;
   residentPages?: number | null;
@@ -32,10 +34,32 @@ export interface StatsSample extends FrameCounters {
 
 const count = (value: number) => Math.round(value).toLocaleString('en');
 
+/** `lightIntensity` → `Light intensity`: the label a key reads as. */
+export function labelOf(key: string): string {
+  const words = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * The shadow counters of a frame, read from the names the engine publishes (`shadow…`): a
+ * counter measured shows, zero included — zero is what a still scene must read —, and one the
+ * engine does not hold (`null`, or absent) has no line. A duration (`…Ms`) prints in ms.
+ */
+export function shadowLines(frame: Record<string, unknown>): [string, string][] {
+  const lines: [string, string][] = [];
+  for (const [key, value] of Object.entries(frame)) {
+    if (!/^shadows?[A-Z]/.test(key) || typeof value !== 'number') continue;
+    if (key.endsWith('Ms')) lines.push([labelOf(key.slice(0, -2)), `${value.toFixed(2)} ms`]);
+    else lines.push([labelOf(key), count(value)]);
+  }
+  return lines;
+}
+
 /**
  * The lines the corner shows, label then value. A counter the engine did not measure has no
- * line at all, never a dash or a zero; the triangles fall back to the scene's own count, named
- * so, when the frame reports none; a still image keeps its last rate, marked held.
+ * line at all, never a dash, and no zero but a shadow counter's (`shadowLines`); the triangles
+ * fall back to the scene's own count, named so, when the frame reports none; a still image keeps
+ * its last rate, marked held.
  */
 export function statLines(sample: StatsSample): [string, string][] {
   const lines: [string, string][] = [];
@@ -49,7 +73,7 @@ export function statLines(sample: StatsSample): [string, string][] {
     lines.push(['geometry pool', `${(sample.geometryPoolBytes / 2 ** 20).toFixed(1)} MiB`]);
   if (sample.lightsActive) lines.push(['lights', count(sample.lightsActive)]);
   if (sample.gpuFrameMs) lines.push(['GPU frame', `${sample.gpuFrameMs.toFixed(2)} ms`]);
-  return lines;
+  return [...lines, ...shadowLines(sample)];
 }
 
 /** Triangles of the visible meshes built in the scene: indexed, or three vertices each. */

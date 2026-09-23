@@ -1,5 +1,5 @@
 import { hideable, overlay } from './overlay.ts';
-import { stats, type StatsWorld } from './stats.ts';
+import { labelOf, stats, type StatsWorld } from './stats.ts';
 
 /**
  * What an example declares for one control, the kind read from the value itself:
@@ -40,12 +40,6 @@ type Control =
   | { kind: 'toggle'; key: string; label: string }
   | { kind: 'choice'; key: string; label: string; options: readonly string[] }
   | { kind: 'button'; key: string; label: string; press: () => void };
-
-/** `lightIntensity` → `Light intensity`: the label a key reads as. */
-export function labelOf(key: string): string {
-  const words = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
 
 const isSlider = (spec: readonly (number | string)[]): spec is readonly number[] =>
   typeof spec[0] === 'number';

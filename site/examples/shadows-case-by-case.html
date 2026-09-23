@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shadows, case by case</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // One long street built in code, and every situation a shadow has to hold in it. Pick a
+      // case in the panel; the corner at the bottom left shows the shadow counters the engine
+      // publishes for the frame, and none it does not.
+      const world = createWorld('view', { controls: 'orbit' });
+      const sand = material.meshStandard({ color: '#b59a73', roughness: 0.9 });
+      const chalk = material.meshStandard({ color: '#eee5d2', roughness: 0.7 });
+      const brick = material.meshStandard({ color: '#9a5b43', roughness: 0.8 });
+      function box(size, at, matter) {
+        const mesh = object.mesh(geometry.box(...size), matter);
+        mesh.position.set(...at);
+        world.scene.add(mesh);
+        return mesh;
+      }
+      box([40, 0.2, 100], [0, -0.1, -35], sand);
+      const profile = [[0, 0], [0.42, 0], [0.42, 0.25], [0.3, 0.25], [0.28, 2.7], [0.4, 2.7], [0.42, 2.95], [0, 2.95]];
+      for (const side of [-1, 1]) {
+        for (let index = 0; index < 20; index++) {
+          const column = object.mesh(geometry.lathe(profile, 32), chalk);
+          column.position.set(side * 2.4, 0, 4 - index * 4);
+          world.scene.add(column);
+        }
+        box([0.9, 0.4, 78], [side * 2.4, 3.15, -34], chalk);
+      }
+      // (a) Small things at the camera's feet: a die, a pebble, a peg.
+      box([0.12, 0.12, 0.12], [0, 0.06, 2], brick);
+      const pebble = object.mesh(geometry.sphere(0.07, 24, 16), chalk);
+      pebble.position.set(0.18, 0.07, 2.08);
+      box([0.03, 0.25, 0.03], [-0.12, 0.125, 1.95], chalk);
+      // (d) A tower on the open ground left of the street, behind the camera in its case.
+      const tower = box([2, 12, 2], [-12, 6, -22], brick);
+      // (e) A ball rolling across the street, the one thing that moves over a still set.
+      const ball = object.mesh(geometry.sphere(0.5, 32, 24), material.meshStandard({ color: '#2f6fd6', roughness: 0.4 }));
+      world.scene.add(pebble, ball);
+      // (f) A pergola above the far end, lit by a spot above it, both out of frame.
+      for (const z of [-57, -58, -59]) box([4, 0.2, 0.3], [0, 4.5, z], chalk);
+      const spot = light.spot({ position: [0, 6.5, -58], intensity: 300, distance: 14, angle: 0.6, penumbra: 0.3, castShadow: true, color: '#ffd9a0' });
+      spot.target.position.set(0, 0, -58);
+      const sun = light.directional({ intensity: 3.2, color: '#ffe2c0', castShadow: true });
+      world.scene.add(spot, sun, light.ambient({ intensity: 0.3, color: '#8fb4ff' }));
+      world.camera.far = 200;
+
+      // Every case: where the sun stands, whether the lamp burns, and the camera — a fixed pose
+      // [position, target] or a path `(t) => pose` over the seconds since the case began.
+      const CASES = {
+        near: { sun: [3, 10, 4], look: 'contact shadow, fine texels', pose: [[0.5, 0.7, 3], [0, 0.05, 2]] },
+        far: { sun: [10, 3.5, -6], look: 'long shadows hold still', path: (t) => [[0, 1.7, -4 + 6 * Math.cos(t * 0.08)], [0, 1, -70]] },
+        walk: {
+          sun: [3, 5, -20],
+          look: 'sun ahead, then behind',
+          path: (t) => {
+            const z = -30 + 25 * Math.sin(t * 0.1), yaw = t * 0.15;
+            return [[0, 1.7, z], [-Math.sin(yaw) * 10, 1.4, z - Math.cos(yaw) * 10]];
+          },
+        },
+        'off-screen caster': { sun: [0, 5, 10], look: 'the tower is behind you', pose: [[-12, 3, -30], [-12, 0, -40]] },
+        'moving object': { sun: [6, 10, 3], look: 'only the ball redraws', pose: [[-8, 3, -4], [-8, 0.4, -12]], ball: true },
+        lamp: { sun: [6, 10, 3], look: 'pergola above, out of frame', pose: [[0, 1.6, -50], [0, 0, -58]], lamp: true },
+        still: { sun: [6, 8, -4], look: 'nothing moves: zero work', pose: [[5, 3.5, 6], [0, 1, -10]] },
+        free: { sun: [8, 6, -6], look: 'drag to orbit', pose: [[6, 5, 10], [0, 1, -8]] },
+      };
+      let chosen = CASES.near, since = null, hint = () => {};
+      function place([position, target]) {
+        world.camera.position.set(...position);
+        world.camera.lookAt(...target);
+        world.controls.target.set(...target);
+      }
+      controls({ case: Object.keys(CASES), caster: true }, (values) => {
+        chosen = CASES[values.case];
+        since = null;
+        sun.position.set(...chosen.sun);
+        sun.intensity = chosen.lamp ? 0.15 : 3.2;
+        world.exposure = chosen.lamp ? 1.6 : 1;
+        spot.visible = Boolean(chosen.lamp);
+        ball.visible = Boolean(chosen.ball);
+        // Hiding the tower removes its shadow: proof that it is the tower, out of frame, casting.
+        tower.visible = values.caster;
+        ball.position.set(-8, 0.5, -12);
+        if (chosen.pose) place(chosen.pose);
+        hint(chosen.look);
+        world.invalidate();
+      }, world);
+      hint = readout('Look for');
+      hint(chosen.look);
+      // A case with a path, or the moving ball, asks for the next frame; the others let the
+      // engine rest, and its counters fall to what a still frame costs.
+      world.onFrame(({ time }) => {
+        since ??= time;
+        const t = time - since;
+        if (chosen.path) place(chosen.path(t));
+        if (chosen.ball) ball.position.set(-8 + Math.sin(t * 0.6) * 4, 0.5, -12);
+        if (chosen.path || chosen.ball) world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>
