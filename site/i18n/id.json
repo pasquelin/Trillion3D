@@ -3,7 +3,8 @@
     "name": "Bahasa Indonesia",
     "abbr": "ID",
     "hreflang": "id",
-    "rtl": false
+    "rtl": false,
+    "flag": "id"
   },
   "nav": {
     "primary": "Navigasi utama",
