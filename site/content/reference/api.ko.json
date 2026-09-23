@@ -6712,6 +6712,18 @@
       "tree": "질의할 수 있는 트리: 그 `triangleCount`와 `bytes`가 세계의 비용이다."
     }
   },
+  "TriangleTree": {
+    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
+    "description": "Built once by `buildTriangleTree`, read-only afterwards.",
+    "members": {
+      "triangles": "Nine numbers per triangle — three corners — in leaf order.",
+      "bounds": "Per node: min xyz, max xyz.",
+      "links": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent).",
+      "counts": "Per node: triangle count of a leaf, 0 for an inner node.",
+      "bytes": "Bytes the tree keeps.",
+      "triangleCount": "Triangles the tree holds."
+    }
+  },
   "world.beforeFrame": {
     "summary": "그려질 각 프레임 전에, `{ delta, time }`과 함께 함수를 실행한다; 이를 제거하는 함수를 반환한다.",
     "description": "세계 루프의 한 프레임이 실행된다: 컨트롤러가 카메라를 진행시키고(`controls.autoUpdate`가 false가 아닌 한), 클립이 진행되며, 이 훅들이 추가된 순서대로 실행되고, 장면이 기록되어 그려진 다음 `onFrame` 훅이 실행된다. 어떤 훅이 배치하는 것 — 카메라 위의 몸체, 조종석 — 은 바로 이 프레임 안에서 그려지며, 결코 한 프레임 늦지 않는다. 호스트가 주도하는 `render()`도 이들을 실행하지만, 컨트롤러는 진행시키지 않는다. `invalidate()`를 호출하는 훅은 프레임이 계속 오도록 한다.",
