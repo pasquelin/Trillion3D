@@ -1,5 +1,5 @@
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
-import type { RandomStream } from './random.ts';
+import { snap, type RandomStream } from './random.ts';
 
 /**
  * A small raster toolkit for the textures drawn in code: square float images of one or three
@@ -148,7 +148,10 @@ export function png(image: Raster) {
           : Math.floor(
               Math.max(
                 0,
-                Math.min(255, image.data[p * image.channels + (image.channels === 1 ? 0 : k)]),
+                Math.min(
+                  255,
+                  snap(image.data[p * image.channels + (image.channels === 1 ? 0 : k)]),
+                ),
               ),
             );
   return encodePng(image.size, image.size, rgba);

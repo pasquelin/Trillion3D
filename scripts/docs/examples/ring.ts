@@ -1,5 +1,5 @@
 import { SceneGltf } from './gltf-scene.ts';
-import { randomStream, sineNoise, type Vec3 } from './random.ts';
+import { randomStream, sineNoise, snap, type Vec3 } from './random.ts';
 import { moved } from './mesh.ts';
 import { icosphere } from './solids.ts';
 
@@ -35,7 +35,7 @@ function rock(seed: number) {
 }
 
 /** Rounds a placement to a tenth of a millimetre at the ring's scale: shorter JSON, same scene. */
-const round = (value: number) => Math.round(value * 1e4) / 1e4;
+const round = (value: number) => Math.round(snap(value) * 1e4) / 1e4;
 
 /** Writes `ring.gltf` and `ring.bin` into `directory`. */
 export async function writeRing(directory: string) {
