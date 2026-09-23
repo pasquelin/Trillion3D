@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { describe, labelOf, printed } from '../site/examples/kit/controls.ts';
-import { sceneTriangles, statLines, statsCorners } from '../site/examples/kit/stats.ts';
+import { sceneTriangles, statLines, statsCorners } from '../site/examples/kit/statsLines.ts';
 import { profileLines, profileWindow } from '../site/examples/kit/profile.ts';
 
 test('a declared control takes its kind from its value, and starts at it', () => {
