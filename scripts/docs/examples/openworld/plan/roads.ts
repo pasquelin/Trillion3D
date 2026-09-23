@@ -103,7 +103,11 @@ export function layRoad(
     profile = (cls === 'dirt' ? land : limitGrade(land, points, style.grade)).map((y) =>
       Math.max(y, 1),
     ),
-    water = points.map(([x, z]) => overRiver(x, z)),
+    // A river above the road's grade runs over a cut, not under a deck: no bridge there.
+    water = points.map(([x, z], k) => {
+      const level = overRiver(x, z);
+      return level !== null && level < profile[k] ? level : null;
+    }),
     bridge = points.slice(1).map((_, at) => water[at] !== null || water[at + 1] !== null),
     bridges: Bridge[] = [];
   for (let at = 0; at < bridge.length; at++) {
