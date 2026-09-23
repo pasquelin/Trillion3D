@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "This example stopped on an error"
+    },
+    "banner": {
+      "close": "Close"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "Drag to slide the board. Scroll or pinch to zoom.",
+    "banner": "Drag to slide the board. Scroll or pinch to zoom. Use the arrow keys to pan.",
     "controls": {
       "play": "Play",
       "speed": "Speed",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "Drag to look down the street. Slide the hour to stretch the shadows.",
+    "banner": "Drag to look down the street. Slide the hour to stretch the shadows. Scroll to move.",
     "controls": {
       "hour": "Hour",
       "traffic": "Traffic",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "Drag to turn around the gems. Each one is built point by point.",
+    "banner": "Drag to turn around the gems. Each one is built point by point. Switch sharp facets off to share the corners.",
     "controls": {
       "points": "Points",
       "waist": "Waist",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "Drag to look around. Turn and repeat the picture on the walls.",
+    "banner": "Drag to look around. Turn and repeat the picture on the walls. The panel at the back shows the picture as painted.",
     "controls": {
       "tile": "Tile",
       "wrap": "Wrap",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "Drag to look all around you. Open your own video if you like.",
+    "banner": "Drag to look all around you. Open your own video if you like. The view turns on its own until you press.",
     "controls": {
       "playing": "Playing",
       "fieldOfView": "Field of view",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "Drag to walk around. Watch pieces appear and disappear all the time.",
+    "banner": "Drag to walk around. Watch pieces appear and disappear all the time. Scroll to come closer.",
     "controls": {
       "perSecond": "Per second",
       "copies": "Copies",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "Drag to look from the side. Each panel mixes colours its own way.",
+    "banner": "Drag to look from the side. Each panel mixes colours its own way. Left to right: normal, additive, subtractive, multiply.",
     "controls": {
       "inks": "Inks",
       "opacity": "Opacity",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "Double-click an object to zoom onto it. Drag to turn.",
+    "banner": "Double-click an object to zoom onto it. Drag to turn. Scroll to zoom.",
     "controls": {
       "model": "Model",
       "margin": "Margin",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "Scroll to zoom from a grain of sand to the whole planet.",
+    "banner": "Scroll to zoom from a grain of sand to the whole planet. Drag to turn.",
     "controls": {
       "toTheGrain": "To the grain",
       "toTheBeach": "To the beach",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "Drag to turn around the desk. Watch the lamp hop from key to key.",
+    "banner": "Drag to turn around the desk. Watch the lamp hop from key to key. Show the keys to see one hop as pale copies of the lamp.",
     "controls": {
       "timing": "Timing",
       "onionSkin": "Onion skin",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "Drag to turn around the Sun. The labels ride on the planets.",
+    "banner": "Drag to turn around the Sun. The labels ride on the planets. Scroll to come closer.",
     "controls": {
       "show": "Show",
       "speed": "Speed",
@@ -1430,7 +1433,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "Drag the big view to turn it. Scroll and drag the small ones.",
+    "banner": "Drag the big view to turn it. Scroll and drag the small ones. They zoom and slide; double-click one to reset it.",
     "controls": {
       "explode": "Explode",
       "windFrom": "Wind from",
@@ -1574,7 +1577,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "Click the stage to hear a melody",
+    "banner": "Click the stage to hear a melody. Drag to walk around the stage: the bars are the pitches, the pearls the wave itself.",
     "controls": {
       "layout": "Layout",
       "height": "Height",
@@ -1640,7 +1643,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "Drag to look along the lanes. Each lane smooths the picture its own way.",
+    "banner": "Drag to look along the lanes. Each lane smooths the picture its own way. Left to right: nearest, linear, trilinear, anisotropic.",
     "controls": {
       "picture": "Picture",
       "anisotropy": "Anisotropy"

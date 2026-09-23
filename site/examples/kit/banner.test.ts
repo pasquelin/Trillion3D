@@ -3,6 +3,7 @@ import { readdirSync } from 'node:fs';
 import test from 'node:test';
 import english from '../i18n/en.json' with { type: 'json' };
 import { announce } from './banner.ts';
+import { overlay } from './overlay.ts';
 
 test('every example gives the banner a line of what to do', () => {
   const words = english as Record<string, { banner?: unknown }>;
@@ -13,18 +14,68 @@ test('every example gives the banner a line of what to do', () => {
   assert.deepEqual(silent, []);
 });
 
-test('an example tells its host page what the banner says, once per change', () => {
-  const sent: unknown[] = [];
-  Object.assign(globalThis, { parent: { postMessage: (message: unknown) => sent.push(message) } });
-  try {
-    announce('Checkpoint', 'Keep going');
-    announce('Checkpoint', 'Keep going');
-    announce('');
-  } finally {
-    Reflect.deleteProperty(globalThis, 'parent');
+/** Just enough of an element for the kit's overlay and its banner. */
+class Element {
+  children: Element[] = [];
+  parent?: Element;
+  hidden = false;
+  textContent = '';
+  dataset = {};
+  style = {};
+  click = () => {};
+  readonly tag: string;
+  constructor(tag: string) {
+    this.tag = tag;
   }
-  assert.deepEqual(sent, [
-    { type: 'trillion3d:banner', title: 'Checkpoint', line: 'Keep going' },
-    { type: 'trillion3d:banner', title: '', line: '' },
-  ]);
+  append(...children: Element[]) {
+    for (const child of children) {
+      child.remove();
+      child.parent = this;
+      this.children.push(child);
+    }
+  }
+  remove() {
+    this.parent?.children.splice(this.parent.children.indexOf(this), 1);
+    this.parent = undefined;
+  }
+  attachShadow() {
+    return new Element('shadow');
+  }
+  addEventListener(type: string, listener: () => void) {
+    if (type === 'click') this.click = listener;
+  }
+  removeAttribute() {}
+}
+
+test('the banner says the latest news over the example, until the reader closes it', () => {
+  const location = { search: '' };
+  const body = new Element('body');
+  Object.assign(globalThis, {
+    document: { location, body, createElement: (tag: string) => new Element(tag) },
+  });
+  try {
+    const layer = overlay() as unknown as Element;
+    const shown = () => {
+      const card = layer.children.find(({ tag }) => tag === 'div');
+      const [words] = card?.children ?? [];
+      return words?.children.filter(({ hidden }) => !hidden).map(({ textContent }) => textContent);
+    };
+    announce('Checkpoint', 'Keep going');
+    assert.deepEqual(shown(), ['Checkpoint', 'Keep going']);
+    announce('', 'Listening');
+    assert.deepEqual(shown(), ['Listening']);
+    layer.children[0].children[1].click();
+    assert.equal(shown(), undefined);
+    announce('', 'Listening');
+    assert.equal(shown(), undefined, 'a repeat does not reopen a closed banner');
+    announce('Finished', '12 s');
+    assert.deepEqual(shown(), ['Finished', '12 s']);
+    announce('');
+    assert.equal(shown(), undefined);
+    location.search = '?capture';
+    announce('Checkpoint');
+    assert.equal(shown(), undefined, 'a capture never shows it');
+  } finally {
+    Reflect.deleteProperty(globalThis, 'document');
+  }
 });

@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "Contoh ini berhenti karena sebuah kesalahan"
+    },
+    "banner": {
+      "close": "Tutup"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "Geser untuk memindahkan papan. Gulir atau cubit untuk zoom.",
+    "banner": "Geser untuk memindahkan papan. Gulir atau cubit untuk zoom. Tombol panah untuk bergeser.",
     "controls": {
       "play": "Main",
       "speed": "Kecepatan",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "Geser untuk melihat sepanjang jalan. Ubah jam untuk memanjangkan bayangan.",
+    "banner": "Geser untuk melihat sepanjang jalan. Ubah jam untuk memanjangkan bayangan. Roda untuk maju.",
     "controls": {
       "hour": "Jam",
       "traffic": "Lalu lintas",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "Geser untuk berputar mengelilingi permata. Tiap permata dibuat titik demi titik.",
+    "banner": "Geser untuk berputar mengelilingi permata. Tiap permata dibuat titik demi titik. Matikan sisi tajam agar sudutnya dipakai bersama.",
     "controls": {
       "points": "Titik",
       "waist": "Pinggang",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "Geser untuk melihat sekeliling. Putar dan ulangi gambar di dinding.",
+    "banner": "Geser untuk melihat sekeliling. Putar dan ulangi gambar di dinding. Panel di belakang adalah ubin seperti saat dilukis.",
     "controls": {
       "tile": "Ubin",
       "wrap": "Tepi",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "Geser untuk melihat ke segala arah. Buka videomu sendiri kalau mau.",
+    "banner": "Geser untuk melihat ke segala arah. Buka videomu sendiri kalau mau. Pemandangan berputar sendiri sampai kamu menekan.",
     "controls": {
       "playing": "Sedang diputar",
       "fieldOfView": "Bidang pandang",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "Geser untuk berkeliling. Lihat benda muncul dan hilang terus-menerus.",
+    "banner": "Geser untuk berkeliling. Lihat benda muncul dan hilang terus-menerus. Roda untuk mendekat.",
     "controls": {
       "perSecond": "Per detik",
       "copies": "Salinan",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "Geser untuk melihat dari samping. Tiap panel mencampur warna dengan caranya sendiri.",
+    "banner": "Geser untuk melihat dari samping. Tiap panel mencampur warna dengan caranya sendiri. Dari kiri ke kanan: normal, tambah, kurang, kali.",
     "controls": {
       "inks": "Tinta",
       "opacity": "Opasitas",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "Klik dua kali sebuah benda untuk mendekatinya. Geser untuk berputar.",
+    "banner": "Klik dua kali sebuah benda untuk mendekatinya. Geser untuk berputar. Roda untuk zoom.",
     "controls": {
       "model": "Benda",
       "margin": "Margin",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "Gulir untuk zoom dari sebutir pasir sampai seluruh planet.",
+    "banner": "Gulir untuk zoom dari sebutir pasir sampai seluruh planet. Geser untuk memutar.",
     "controls": {
       "toTheGrain": "Ke butir pasir",
       "toTheBeach": "Ke pantai",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "Geser untuk berputar mengelilingi meja. Lihat lampu melompat dari kunci ke kunci.",
+    "banner": "Geser untuk berputar mengelilingi meja. Lihat lampu melompat dari kunci ke kunci. Tampilkan kunci satu lompatan sebagai salinan pucat lampu.",
     "controls": {
       "timing": "Waktu",
       "onionSkin": "Kulit bawang",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "Geser untuk berputar mengelilingi Matahari. Labelnya ikut bersama planet.",
+    "banner": "Geser untuk berputar mengelilingi Matahari. Labelnya ikut bersama planet. Roda untuk mendekat.",
     "controls": {
       "show": "Tampilkan",
       "speed": "Kecepatan",
@@ -1408,7 +1411,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "Geser tampilan besar untuk memutarnya. Gulir dan geser yang kecil.",
+    "banner": "Geser tampilan besar untuk memutarnya. Gulir dan geser yang kecil. Begitu mereka zoom dan bergeser; klik dua kali untuk mengatur ulang.",
     "controls": {
       "explode": "Urai",
       "windFrom": "Angin dari",
@@ -1552,7 +1555,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "Klik panggung untuk mendengar melodi",
+    "banner": "Klik panggung untuk mendengar melodi. Geser untuk berjalan mengitari panggung: batang adalah nada, mutiara adalah gelombangnya sendiri.",
     "controls": {
       "layout": "Susunan",
       "height": "Tinggi",
@@ -1618,7 +1621,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "Geser untuk melihat sepanjang lajur. Tiap lajur menghaluskan gambar dengan caranya sendiri.",
+    "banner": "Geser untuk melihat sepanjang lajur. Tiap lajur menghaluskan gambar dengan caranya sendiri. Dari kiri ke kanan: terdekat, linear, trilinear, anisotropik.",
     "controls": {
       "picture": "Gambar",
       "anisotropy": "Anisotropi"

@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "Este ejemplo se detuvo por un error"
+    },
+    "banner": {
+      "close": "Cerrar"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "Arrastra para mover el tablero. Desplaza o pellizca para hacer zoom.",
+    "banner": "Arrastra para mover el tablero. Desplaza o pellizca para hacer zoom. Flechas para desplazarte.",
     "controls": {
       "play": "Jugar",
       "speed": "Velocidad",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "Arrastra para mirar la calle. Cambia la hora para alargar las sombras.",
+    "banner": "Arrastra para mirar la calle. Cambia la hora para alargar las sombras. Rueda para avanzar.",
     "controls": {
       "hour": "Hora",
       "traffic": "Tráfico",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "Arrastra para girar alrededor de las gemas. Cada una está hecha punto a punto.",
+    "banner": "Arrastra para girar alrededor de las gemas. Cada una está hecha punto a punto. Desmarca las facetas marcadas para compartir las esquinas.",
     "controls": {
       "points": "Puntos",
       "waist": "Cintura",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "Arrastra para mirar alrededor. Gira y repite la imagen en las paredes.",
+    "banner": "Arrastra para mirar alrededor. Gira y repite la imagen en las paredes. El panel del fondo es la baldosa tal como se pintó.",
     "controls": {
       "tile": "Baldosa",
       "wrap": "Borde",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "Arrastra para mirar a tu alrededor. Abre tu propio vídeo si quieres.",
+    "banner": "Arrastra para mirar a tu alrededor. Abre tu propio vídeo si quieres. La vista gira sola hasta que pulses.",
     "controls": {
       "playing": "Reproduciendo",
       "fieldOfView": "Campo de visión",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "Arrastra para dar la vuelta. Mira cómo las piezas aparecen y desaparecen sin parar.",
+    "banner": "Arrastra para dar la vuelta. Mira cómo las piezas aparecen y desaparecen sin parar. Rueda para acercarte.",
     "controls": {
       "perSecond": "Por segundo",
       "copies": "Copias",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "Arrastra para mirar de lado. Cada panel mezcla los colores a su manera.",
+    "banner": "Arrastra para mirar de lado. Cada panel mezcla los colores a su manera. De izquierda a derecha: normal, aditivo, sustractivo, multiplicar.",
     "controls": {
       "inks": "Tintas",
       "opacity": "Opacidad",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "Haz doble clic en un objeto para acercarte. Arrastra para girar.",
+    "banner": "Haz doble clic en un objeto para acercarte. Arrastra para girar. Rueda para acercar.",
     "controls": {
       "model": "Objeto",
       "margin": "Margen",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "Desplaza para ir de un grano de arena a todo el planeta.",
+    "banner": "Desplaza para ir de un grano de arena a todo el planeta. Arrastra para girar.",
     "controls": {
       "toTheGrain": "Al grano",
       "toTheBeach": "A la playa",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "Arrastra para girar alrededor del escritorio. Mira la lámpara saltar de clave en clave.",
+    "banner": "Arrastra para girar alrededor del escritorio. Mira la lámpara saltar de clave en clave. Muestra las claves de un salto como copias pálidas de la lámpara.",
     "controls": {
       "timing": "Ritmo",
       "onionSkin": "Papel cebolla",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "Arrastra para girar alrededor del Sol. Las etiquetas viajan con los planetas.",
+    "banner": "Arrastra para girar alrededor del Sol. Las etiquetas viajan con los planetas. Rueda para acercarte.",
     "controls": {
       "show": "Mostrar",
       "speed": "Velocidad",
@@ -1408,7 +1411,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "Arrastra la vista grande para girarla. Desplaza y arrastra las pequeñas.",
+    "banner": "Arrastra la vista grande para girarla. Desplaza y arrastra las pequeñas. Así se acercan y se desplazan; doble clic para reiniciar.",
     "controls": {
       "explode": "Separar",
       "windFrom": "Viento desde",
@@ -1552,7 +1555,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "Haz clic en el escenario para oír una melodía",
+    "banner": "Haz clic en el escenario para oír una melodía. Arrastra para rodear el escenario: las barras son las notas, las perlas la onda misma.",
     "controls": {
       "layout": "Disposición",
       "height": "Altura",
@@ -1618,7 +1621,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "Arrastra para mirar a lo largo de los carriles. Cada carril suaviza la imagen a su manera.",
+    "banner": "Arrastra para mirar a lo largo de los carriles. Cada carril suaviza la imagen a su manera. De izquierda a derecha: más cercano, lineal, trilineal, anisotrópico.",
     "controls": {
       "picture": "Imagen",
       "anisotropy": "Anisotropía"

@@ -23,7 +23,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, ease, mix, readout, seeded } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#f3c28c');
@@ -125,8 +125,7 @@
           else high = middle;
         }
         const a = samples[low], b = samples[high], k = (s - a.s) / (b.s - a.s || 1);
-        const mix = (x, y) => x.map((value, i) => value + (y[i] - value) * k);
-        return { p: mix(a.p, b.p), t: unit(mix(a.t, b.t)), u: unit(mix(a.u, b.u)), bend: a.bend + (b.bend - a.bend) * k };
+        return { p: mix(a.p, b.p, k), t: unit(mix(a.t, b.t, k)), u: unit(mix(a.u, b.u, k)), bend: a.bend + (b.bend - a.bend) * k };
       }
 
       // The speed the train carries: the chain's pace on the lift, then what its fall from the
@@ -368,10 +367,10 @@
           const eye = plus(plus(p, u, 1.35), t, 0.35), target = plus(eye, ahead, 6);
           if (intro < 1) {
             intro = Math.min(1, intro + step / 3.2);
-            const e = intro * intro * (3 - 2 * intro), mix = (a, b) => a.map((value, i) => value + (b[i] - value) * e);
-            world.camera.up.set(...unit(mix([0, 1, 0], u)));
-            world.camera.position.set(...mix(OVERVIEW, eye));
-            world.camera.lookAt(...mix(LOOK, target));
+            const e = ease.smooth(intro);
+            world.camera.up.set(...unit(mix([0, 1, 0], u, e)));
+            world.camera.position.set(...mix(OVERVIEW, eye, e));
+            world.camera.lookAt(...mix(LOOK, target, e));
           } else {
             world.camera.up.set(...u);
             world.camera.position.set(...eye);

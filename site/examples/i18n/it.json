@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "Questo esempio si è fermato per un errore"
+    },
+    "banner": {
+      "close": "Chiudi"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "Trascina per spostare la scacchiera. Scorri o pizzica per ingrandire.",
+    "banner": "Trascina per spostare la scacchiera. Scorri o pizzica per ingrandire. Frecce per muoverti.",
     "controls": {
       "play": "Gioca",
       "speed": "Velocità",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "Trascina per guardare la via. Cambia l'ora per allungare le ombre.",
+    "banner": "Trascina per guardare la via. Cambia l'ora per allungare le ombre. Rotella per muoverti.",
     "controls": {
       "hour": "Ora",
       "traffic": "Traffico",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "Trascina per girare intorno alle gemme. Ognuna è costruita punto per punto.",
+    "banner": "Trascina per girare intorno alle gemme. Ognuna è costruita punto per punto. Togli le faccette nette per condividere gli angoli.",
     "controls": {
       "points": "Punti",
       "waist": "Vita",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "Trascina per guardarti intorno. Ruota e ripeti l'immagine sui muri.",
+    "banner": "Trascina per guardarti intorno. Ruota e ripeti l'immagine sui muri. Il pannello in fondo è la piastrella come è stata dipinta.",
     "controls": {
       "tile": "Piastrella",
       "wrap": "Bordo",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "Trascina per guardarti tutto intorno. Apri un tuo video se vuoi.",
+    "banner": "Trascina per guardarti tutto intorno. Apri un tuo video se vuoi. La vista gira da sola finché non premi.",
     "controls": {
       "playing": "In riproduzione",
       "fieldOfView": "Campo visivo",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "Trascina per girare intorno. Guarda i pezzi apparire e sparire di continuo.",
+    "banner": "Trascina per girare intorno. Guarda i pezzi apparire e sparire di continuo. Rotella per avvicinarti.",
     "controls": {
       "perSecond": "Al secondo",
       "copies": "Copie",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "Trascina per guardare di lato. Ogni pannello mescola i colori a modo suo.",
+    "banner": "Trascina per guardare di lato. Ogni pannello mescola i colori a modo suo. Da sinistra a destra: normale, additivo, sottrattivo, moltiplica.",
     "controls": {
       "inks": "Inchiostri",
       "opacity": "Opacità",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "Fai doppio clic su un oggetto per inquadrarlo. Trascina per girare.",
+    "banner": "Fai doppio clic su un oggetto per inquadrarlo. Trascina per girare. Rotella per lo zoom.",
     "controls": {
       "model": "Oggetto",
       "margin": "Margine",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "Scorri per zoomare da un granello di sabbia a tutto il pianeta.",
+    "banner": "Scorri per zoomare da un granello di sabbia a tutto il pianeta. Trascina per girare.",
     "controls": {
       "toTheGrain": "Al granello",
       "toTheBeach": "Alla spiaggia",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "Trascina per girare intorno alla scrivania. Guarda la lampada saltare da una chiave all'altra.",
+    "banner": "Trascina per girare intorno alla scrivania. Guarda la lampada saltare da una chiave all'altra. Mostra le chiavi di un salto come copie pallide della lampada.",
     "controls": {
       "timing": "Tempi",
       "onionSkin": "Pelle di cipolla",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "Trascina per girare intorno al Sole. Le etichette viaggiano sui pianeti.",
+    "banner": "Trascina per girare intorno al Sole. Le etichette viaggiano sui pianeti. Rotella per avvicinarti.",
     "controls": {
       "show": "Mostra",
       "speed": "Velocità",
@@ -1408,7 +1411,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "Trascina la vista grande per girarla. Scorri e trascina quelle piccole.",
+    "banner": "Trascina la vista grande per girarla. Scorri e trascina quelle piccole. Così zoomano e si spostano; doppio clic per ripristinare.",
     "controls": {
       "explode": "Esplodi",
       "windFrom": "Vento da",
@@ -1552,7 +1555,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "Clicca sul palco per sentire una melodia",
+    "banner": "Clicca sul palco per sentire una melodia. Trascina per girare intorno al palco: le barre sono le note, le perle l'onda stessa.",
     "controls": {
       "layout": "Disposizione",
       "height": "Altezza",
@@ -1618,7 +1621,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "Trascina per guardare lungo le corsie. Ogni corsia leviga l'immagine a modo suo.",
+    "banner": "Trascina per guardare lungo le corsie. Ogni corsia leviga l'immagine a modo suo. Da sinistra a destra: più vicino, lineare, trilineare, anisotropico.",
     "controls": {
       "picture": "Immagine",
       "anisotropy": "Anisotropia"

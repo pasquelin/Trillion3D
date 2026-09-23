@@ -25,11 +25,19 @@ function showFailure(error: unknown) {
   overlay().append(shown);
 }
 
+/** A refusal the browser gives in passing, which stops nothing: a video's `play()` cut short by a
+ *  pause (`AbortError`) or refused before the reader has touched the page (`NotAllowedError`). */
+export const isPassing = (reason: unknown) =>
+  reason instanceof DOMException && ['AbortError', 'NotAllowedError'].includes(reason.name);
+
 /** Shows any error the example's own code leaves uncaught: an `await` that rejects at the top
- *  of its module is one. An error event without an error (a resize notice) is not one. */
+ *  of its module is one. An error event without an error (a resize notice) is not one, nor a
+ *  refusal in passing. */
 export function watchFailures() {
   globalThis.addEventListener?.('error', (event) => {
     if (event.error) showFailure(event.error);
   });
-  globalThis.addEventListener?.('unhandledrejection', (event) => showFailure(event.reason));
+  globalThis.addEventListener?.('unhandledrejection', (event) => {
+    if (!isPassing(event.reason)) showFailure(event.reason);
+  });
 }

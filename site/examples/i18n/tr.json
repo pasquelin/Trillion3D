@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "Bu örnek bir hata yüzünden durdu"
+    },
+    "banner": {
+      "close": "Kapat"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "Tahtayı kaydırmak için sürükle. Yakınlaştırmak için kaydır ya da iki parmakla sıkıştır.",
+    "banner": "Tahtayı kaydırmak için sürükle. Yakınlaştırmak için kaydır ya da iki parmakla sıkıştır. Kaymak için ok tuşları.",
     "controls": {
       "play": "Oyna",
       "speed": "Hız",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "Sokağa bakmak için sürükle. Gölgeleri uzatmak için saati kaydır.",
+    "banner": "Sokağa bakmak için sürükle. Gölgeleri uzatmak için saati kaydır. İlerlemek için tekerlek.",
     "controls": {
       "hour": "Saat",
       "traffic": "Trafik",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "Taşların etrafında dönmek için sürükle. Her biri nokta nokta yapıldı.",
+    "banner": "Taşların etrafında dönmek için sürükle. Her biri nokta nokta yapıldı. Köşeleri paylaşmak için keskin yüzleri kapat.",
     "controls": {
       "points": "Noktalar",
       "waist": "Bel",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "Etrafa bakmak için sürükle. Resmi duvarlarda döndür ve tekrarla.",
+    "banner": "Etrafa bakmak için sürükle. Resmi duvarlarda döndür ve tekrarla. Arkadaki panel karonun boyandığı hâli.",
     "controls": {
       "tile": "Karo",
       "wrap": "Kenar",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "Her yöne bakmak için sürükle. İstersen kendi videonu aç.",
+    "banner": "Her yöne bakmak için sürükle. İstersen kendi videonu aç. Sen basana kadar görünüm kendi kendine döner.",
     "controls": {
       "playing": "Oynuyor",
       "fieldOfView": "Görüş alanı",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "Etrafta dolaşmak için sürükle. Parçaların sürekli çıkıp kaybolmasını izle.",
+    "banner": "Etrafta dolaşmak için sürükle. Parçaların sürekli çıkıp kaybolmasını izle. Yaklaşmak için tekerlek.",
     "controls": {
       "perSecond": "Saniyede",
       "copies": "Kopyalar",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "Yandan bakmak için sürükle. Her panel renkleri kendi yoluyla karıştırır.",
+    "banner": "Yandan bakmak için sürükle. Her panel renkleri kendi yoluyla karıştırır. Soldan sağa: normal, toplama, çıkarma, çarpma.",
     "controls": {
       "inks": "Mürekkepler",
       "opacity": "Opaklık",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "Yakınlaşmak için bir nesneye çift tıkla. Döndürmek için sürükle.",
+    "banner": "Yakınlaşmak için bir nesneye çift tıkla. Döndürmek için sürükle. Yakınlaştırmak için tekerlek.",
     "controls": {
       "model": "Nesne",
       "margin": "Pay",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "Bir kum tanesinden koca gezegene yakınlaşmak için kaydır.",
+    "banner": "Bir kum tanesinden koca gezegene yakınlaşmak için kaydır. Döndürmek için sürükle.",
     "controls": {
       "toTheGrain": "Kum tanesine",
       "toTheBeach": "Plaja",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "Masanın etrafında dönmek için sürükle. Lambanın anahtardan anahtara zıplamasını izle.",
+    "banner": "Masanın etrafında dönmek için sürükle. Lambanın anahtardan anahtara zıplamasını izle. Bir zıplamanın anahtarlarını lambanın soluk kopyaları olarak göster.",
     "controls": {
       "timing": "Zamanlama",
       "onionSkin": "Soğan kabuğu",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "Güneşin etrafında dönmek için sürükle. Etiketler gezegenlerle gider.",
+    "banner": "Güneşin etrafında dönmek için sürükle. Etiketler gezegenlerle gider. Yaklaşmak için tekerlek.",
     "controls": {
       "show": "Göster",
       "speed": "Hız",
@@ -1408,7 +1411,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "Döndürmek için büyük görünümü sürükle. Küçükleri kaydır ve sürükle.",
+    "banner": "Döndürmek için büyük görünümü sürükle. Küçükleri kaydır ve sürükle. Böylece yakınlaşır ve kayarlar; sıfırlamak için çift tıkla.",
     "controls": {
       "explode": "Parçala",
       "windFrom": "Rüzgârın yönü",
@@ -1552,7 +1555,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "Bir melodi duymak için sahneye tıkla",
+    "banner": "Bir melodi duymak için sahneye tıkla. Sahnenin etrafında dolaşmak için sürükle: çubuklar notalar, inciler dalganın kendisi.",
     "controls": {
       "layout": "Düzen",
       "height": "Yükseklik",
@@ -1618,7 +1621,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "Şeritler boyunca bakmak için sürükle. Her şerit resmi kendi yoluyla yumuşatır.",
+    "banner": "Şeritler boyunca bakmak için sürükle. Her şerit resmi kendi yoluyla yumuşatır. Soldan sağa: en yakın, doğrusal, üç doğrusal, anizotropik.",
     "controls": {
       "picture": "Resim",
       "anisotropy": "Anizotropi"

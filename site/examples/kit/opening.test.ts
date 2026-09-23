@@ -11,12 +11,17 @@ function fakeWorld() {
     world: {
       canvas: {
         addEventListener: (type: string, listener: () => void) => listeners.set(type, listener),
+        removeEventListener: (type: string) => listeners.delete(type),
       },
-      onFrame: (hook: (frame: { delta: number }) => void) => hooks.push(hook),
+      onFrame: (hook: (frame: { delta: number }) => void) => {
+        hooks.push(hook);
+        return () => void hooks.splice(hooks.indexOf(hook), 1);
+      },
       invalidate: () => {},
       controls: { update: () => updates++ },
     },
     frame: (delta: number) => hooks.forEach((hook) => hook({ delta })),
+    hooked: () => hooks.length + listeners.size,
     press: (type: string) => listeners.get(type)?.(),
     updates: () => updates,
   };
@@ -51,6 +56,15 @@ test("the viewer's first press or wheel ends the opening where it is", () => {
     assert.equal(glide.gliding, false);
     assert.equal(poses, 1);
   }
+});
+
+test('a disposed opening leaves no listener and no frame hook behind', () => {
+  const fake = fakeWorld();
+  const glide = opening(fake.world as never, () => {});
+  assert.equal(fake.hooked(), 3);
+  glide.dispose();
+  assert.equal(fake.hooked(), 0);
+  assert.equal(glide.gliding, false);
 });
 
 test('the easings run from 0 to 1, clamped outside', () => {
