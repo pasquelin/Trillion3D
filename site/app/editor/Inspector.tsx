@@ -1,10 +1,9 @@
 import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
 import { t } from '../../content/i18n/index.ts';
 import { usePortal } from '../layout/PortalContext.ts';
-import { Field } from '../ui/Input.tsx';
 import { Note } from '../ui/Text.tsx';
 import { poseCommand, poseOf } from './commands.ts';
-import { NumberField, TextField } from './fields.tsx';
+import { Field, NumberField, TextField } from '../ui/Input.tsx';
 import { GeometryFields } from './GeometryFields.tsx';
 import type { Editor } from './useEditor.ts';
 import { SurfaceFields } from './SurfaceFields.tsx';
