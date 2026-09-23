@@ -8,7 +8,7 @@ import { exactPagesBounds, exactPagesLot } from './exactPagesBounds.ts';
 import { replicateInstances } from './replicateInstances.ts';
 import { hostBoundsLot, hostWorldBounds } from './hostWorldBounds.ts';
 import { hostWorldLot } from './hostWorldTree.ts';
-import { EngineError, MATRIX_VALUES, type ClusterManifest } from '../sdk-core/index.ts';
+import { EngineError, MATRIX_VALUES, type ClusterManifest } from '../sdk-core/src/index.ts';
 import { createMultiplyLot } from './mathBatchRuntime.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
 import type { BackendContext, MeasuredWorldOptions } from './backendTypes.ts';

@@ -5,9 +5,9 @@ import {
   createShadowPlan,
   type SceneLightStore,
   type ShadowPlan,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { MAX_SHADOW_REGIONS, type GpuShadowAtlas } from './gpuShadowAtlas.ts';
-import { ltcTable } from '../sdk-core/ltcTable.ts';
+import { ltcTable } from '../sdk-core/src/lighting/ltcTable.ts';
 import type { GpuShadowCull } from './gpuShadowCull.ts';
 import type { GpuLightTiles } from './gpuLightTiles.ts';
 

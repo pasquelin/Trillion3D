@@ -1,4 +1,4 @@
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import { detectCapabilities } from './capabilities.ts';
 import { requestExplorerDevice } from './explorerGpuDevice.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';

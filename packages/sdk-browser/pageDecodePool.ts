@@ -1,4 +1,4 @@
-import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
+import { PAGE_DECODE_PROTOCOL } from '../sdk-core/src/index.ts';
 import {
   ID,
   SHARED_BY_REGION,
@@ -12,7 +12,7 @@ import {
 } from './pageDecodeShared.ts';
 import { readSharedPage } from './pageDecodeSharedPage.ts';
 import type { PageArena } from './pageDecodeShared.ts';
-import type { PageDecodeAnswer, PageDecodeRequest } from '../sdk-core/index.ts';
+import type { PageDecodeAnswer, PageDecodeRequest } from '../sdk-core/src/index.ts';
 
 type Waiting = {
   request: PageDecodeRequest;

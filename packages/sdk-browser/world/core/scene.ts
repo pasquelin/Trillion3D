@@ -1,6 +1,6 @@
-import { Object3D } from '../../../sdk-core/world/object/object3d.ts';
-import type { Color } from '../../../sdk-core/world/math/color.ts';
-import type { Texture } from '../../../sdk-core/world/texture/texture.ts';
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Color } from '../../../sdk-core/src/world/math/color.ts';
+import type { Texture } from '../../../sdk-core/src/world/texture/texture.ts';
 import type { LoadedModel } from './loadedModel.ts';
 
 export interface LoadOptions {

@@ -7,7 +7,7 @@ import {
   createWebgpuVisibilityRasterPipelines,
 } from './webgpuVisibilityPipelines.ts';
 import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
-import { MAX_DEPTH_LAYER, depthLayerUnits } from '../sdk-core/index.ts';
+import { MAX_DEPTH_LAYER, depthLayerUnits } from '../sdk-core/src/index.ts';
 import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
 import { createGpuPartition } from './gpuPartitionFactory.ts';

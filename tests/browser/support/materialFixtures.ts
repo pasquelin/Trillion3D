@@ -7,7 +7,7 @@
 // in the page, with the `three` of its import map, the one the SDK under `dist/` also loads.
 import * as THREE from 'three';
 import { VIEWPORT } from './preuveSceneCommune.ts';
-import type { SceneLight } from '../../../packages/sdk-core/index.ts';
+import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
 
 /** Side of the square viewport every fixture is rendered in, in pixels: `rgbAt` reads both
  * images with this row stride, so a viewport that is not square would misread them silently. */

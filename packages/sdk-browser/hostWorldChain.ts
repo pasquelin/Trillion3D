@@ -1,4 +1,4 @@
-import { MATRIX_VALUES, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { MATRIX_VALUES, multiplyMatrix4 } from '../sdk-core/src/index.ts';
 import type { HostGraphNode } from './hostGraphNodes.ts';
 import { hostLocalInto } from './hostWorldMatrices.ts';
 

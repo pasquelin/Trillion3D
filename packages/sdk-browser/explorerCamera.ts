@@ -6,7 +6,7 @@ import { DEFAULT_FOV } from './backendCommon.ts';
 import type { BackendContext, MeasuredWorldOptions } from './backendTypes.ts';
 import type { HostGraphNode } from './hostGraphNodes.ts';
 import { hostBox, hostFramingCamera, hostPoint } from './hostGraphObjects.ts';
-import { sphereFromBounds, type ClusterManifest } from '../sdk-core/index.ts';
+import { sphereFromBounds, type ClusterManifest } from '../sdk-core/src/index.ts';
 
 /** Framing centre and radius: midpoint of the bounds and the half-diagonal, reread from a single sphere. */
 const framingSphere = new Float64Array(4);

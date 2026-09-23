@@ -3,7 +3,7 @@ import {
   GEOMETRY_PAGE_FORMAT_VERSION,
   type ClusterManifest,
   type GeometryPageDescriptor,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { ClusterRoot, PageRec } from './pageSelection.ts';
 
 /** The manifest with every page pointed at its cluster page, and those pages' descriptors by

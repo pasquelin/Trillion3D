@@ -9,7 +9,7 @@ import {
   SHADOW_SLICE_FLOATS,
   type SceneLight,
   type ShadowViewpoint,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { createShadowSlicePack } from './gpuShadowSlicePack.ts';
 import { createWebgpuLightState } from './webgpuPagesStateLights.ts';
 import { writeDrawnMasks } from './webgpuShadowDrawnMask.ts';

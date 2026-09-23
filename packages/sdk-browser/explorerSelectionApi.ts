@@ -1,4 +1,4 @@
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
 import type { ComparisonLayout } from './comparison.ts';
 

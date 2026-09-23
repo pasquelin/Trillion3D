@@ -21,6 +21,7 @@
   ],
   "exclude": [
     "**/*.test.ts",
+    "**/*.fixture.ts",
     "**/*Fixture.ts",
     "**/*TestHelpers.ts",
     "**/webgpuPagesTest*.ts",

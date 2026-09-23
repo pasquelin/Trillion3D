@@ -1,4 +1,4 @@
-import { previewIsWhole, type ClusterManifest } from '../sdk-core/index.ts';
+import { previewIsWhole, type ClusterManifest } from '../sdk-core/src/index.ts';
 
 /**
  * A 1×1 opaque white PNG: what the glTF loader receives in place of an image whose mip

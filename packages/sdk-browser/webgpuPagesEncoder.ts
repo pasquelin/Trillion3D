@@ -1,5 +1,5 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
-import { clearValueOf } from '../sdk-core/world/math/packedColour.ts';
+import { clearValueOf } from '../sdk-core/src/world/math/packedColour.ts';
 import { enginePose } from './cameraWorld.ts';
 import { composesOffscreen } from './diagnosticGpuVariant.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';

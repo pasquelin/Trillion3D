@@ -2,7 +2,7 @@
 // the foundation, opposed to the code it was before, copied in `oracles/socle-math*.ts`.
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three';
-import { srgbToLinear } from '../../../../packages/sdk-core/index.ts';
+import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts';
 import { orderPendingUrls } from '../../../../packages/sdk-browser/streamingPriority.ts';
 import { linearToSrgb8 } from '../../../../packages/sdk-browser/visibilityMath.ts';
 import { projectVisibilityVertex } from '../../../../packages/sdk-browser/visibilityProjection.ts';

@@ -8,7 +8,7 @@ import { triangleGeometry } from './triangleDiagnostic.ts';
 import { hostDiagnostics } from './threeSceneAdapter.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import type { PageRec } from './pageSelection.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 
 /** A cluster page as this file reads it: the host declaration, the identity, and the two
  *  facts the pages and the level-of-detail views colour by. */

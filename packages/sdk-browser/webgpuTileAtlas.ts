@@ -1,4 +1,4 @@
-import type { Texture } from '../sdk-core/index.ts';
+import type { Texture } from '../sdk-core/src/index.ts';
 import type { TextureRgba } from './visibilityTypes.ts';
 import { entryLevel, type TileLayout, type TilePlace } from './textureTiles.ts';
 import type { WebgpuTilePool } from './webgpuTilePool.ts';

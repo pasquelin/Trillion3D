@@ -8,10 +8,10 @@
  */
 import { encodeGeometryPage } from '../../../page-codec/geometryPage.ts';
 import type { PageAttributes } from '../../../page-codec/pageAttributes.ts';
-import { boxEmpty, boxExpandByPoint } from '../../../sdk-core/mathBox.ts';
-import { sphereFromBounds } from '../../../sdk-core/mathSphere.ts';
-import type { PageCutPage, PageCutPayload } from '../../../sdk-core/pageDecodeContracts.ts';
-import type { DrawnTriangles } from '../../../sdk-core/world/geometry/drawn.ts';
+import { boxEmpty, boxExpandByPoint } from '../../../sdk-core/src/math/primitives/box.ts';
+import { sphereFromBounds } from '../../../sdk-core/src/math/primitives/sphere.ts';
+import type { PageCutPage, PageCutPayload } from '../../../sdk-core/src/page/decodeContracts.ts';
+import type { DrawnTriangles } from '../../../sdk-core/src/world/geometry/drawn.ts';
 import { sha256Hex } from '../../sha256Hex.ts';
 
 /** A cluster holds at most this many triangles and vertices: the page format's cluster, the one

@@ -1,4 +1,4 @@
-import type { GeometryPageDescriptor } from '../sdk-core/index.ts';
+import type { GeometryPageDescriptor } from '../sdk-core/src/index.ts';
 import type { HostAttributes, HostGeometry, HostMaterials, HostMesh } from './hostResources.ts';
 import type { PageSurface } from './pageSurface.ts';
 import type { MatrixElements } from './matrixElements.ts';

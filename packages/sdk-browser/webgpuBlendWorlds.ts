@@ -1,4 +1,4 @@
-import { boxIsEmpty, boxTransform } from '../sdk-core/index.ts';
+import { boxIsEmpty, boxTransform } from '../sdk-core/src/index.ts';
 import { readHostBox } from './hostBoxBounds.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 

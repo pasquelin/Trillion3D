@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { asHostLibrary } from './hostResources.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';

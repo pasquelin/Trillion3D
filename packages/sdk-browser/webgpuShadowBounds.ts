@@ -1,4 +1,4 @@
-import { boxEmpty, boxUnion, transformAffinePoint } from '../sdk-core/index.ts';
+import { boxEmpty, boxUnion, transformAffinePoint } from '../sdk-core/src/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';

@@ -8,7 +8,7 @@ import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { dagLevel } from './webgpuPagesTestDag.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 
 test('a host eviction deferred for coverage is applied once the page is no longer pinned', async () => {

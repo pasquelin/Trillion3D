@@ -1,4 +1,4 @@
-import { hizBuildPyramid, hizReduceCeil } from '../sdk-core/index.ts';
+import { hizBuildPyramid, hizReduceCeil } from '../sdk-core/src/index.ts';
 import { hizRejects, type HizBounds, type HizPyramid } from './hiz.ts';
 import { VERDICT_KEPT, VERDICT_REJECTED } from './gpuPartitionContract.ts';
 

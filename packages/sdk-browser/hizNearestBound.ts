@@ -1,4 +1,4 @@
-import { biasedDepthBits } from '../sdk-core/index.ts';
+import { biasedDepthBits } from '../sdk-core/src/index.ts';
 
 const scratch = new Float32Array(1),
   scratchWords = new Uint32Array(scratch.buffer);

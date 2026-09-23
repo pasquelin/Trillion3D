@@ -14,9 +14,9 @@ import type {
   DiagnosticMode,
   SceneLightStore,
   StageProfile,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { BackendDrawCounters, BackendMetrics } from './backendMetricKeys.ts';
-import type { SceneToneMapping } from '../sdk-core/sceneEnvironment.ts';
+import type { SceneToneMapping } from '../sdk-core/src/scene/core/environment.ts';
 import type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 import type { CpuStepSummary } from './cpuProfile.ts';
 import type { BackendDiagnostic, DiagnosticDetail } from './backendDiagnosticTypes.ts';
@@ -187,7 +187,7 @@ export interface BackendContext {
   shadowPageInvalidation?: boolean;
   /** Reads the resident-proxy cache object. Absent when the cache does not carry one;
    *  called at most once, on the first frame that carries a declared light. */
-  readSceneProxy?: () => Promise<import('../sdk-core/index.ts').SceneProxy>;
+  readSceneProxy?: () => Promise<import('../sdk-core/src/index.ts').SceneProxy>;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;

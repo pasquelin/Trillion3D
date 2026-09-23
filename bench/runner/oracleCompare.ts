@@ -2,8 +2,8 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { CameraPose } from '../../packages/sdk-core/contractsBase.ts';
-import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
+import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
+import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 import type { Capture } from '../../tests/kit/server/serveur.ts';
 
 /** Compiler oracle binary, built by `pnpm run build:native` alongside compiler. */

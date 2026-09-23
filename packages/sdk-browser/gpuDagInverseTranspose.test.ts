@@ -10,7 +10,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
-import { SINGULAR_DETERMINANT_WGSL } from '../sdk-core/index.ts';
+import { SINGULAR_DETERMINANT_WGSL } from '../sdk-core/src/index.ts';
 import { INVERSE_TRANSPOSE_BEFORE_WGSL, INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import {
   angleEntre,

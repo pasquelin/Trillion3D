@@ -4,12 +4,12 @@ import {
   PAGE_SLICE_STRIDE,
   PAGE_SPEC_STRIDE,
   planPageIntegration,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type {
   PageIntegrationAnswer,
   PageIntegrationPlan,
   PageIntegrationRequest,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * Integration-contract task, once for both transports: the worker runs it on its thread, the

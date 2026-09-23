@@ -2,7 +2,7 @@ import { pendingWebgpuFrame } from './webgpuInteractiveFrame.ts';
 import { readShadowAtlasDigest } from './gpuShadowDigest.ts';
 import { readPartitionAudit } from './webgpuPartitionAudit.ts';
 import { readTransparentOcclusionAudit } from './webgpuTransparentOcclusionAudit.ts';
-import { disabledStageProfile } from '../sdk-core/index.ts';
+import { disabledStageProfile } from '../sdk-core/src/index.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 import { prepareGpuTiming, watchGpuDevice } from './webgpuPagesPrepareTiming.ts';

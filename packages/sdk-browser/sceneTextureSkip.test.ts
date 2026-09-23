@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { ClusterManifest, TexturePreview } from '../sdk-core/index.ts';
+import type { ClusterManifest, TexturePreview } from '../sdk-core/src/index.ts';
 import { bakedImageUrls } from './sceneTextureSkip.ts';
 
 const entry = (image: number, firstLevel: number, bakedLevels: number): TexturePreview => ({

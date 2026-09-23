@@ -3,7 +3,7 @@ import {
   previewFirstLevel,
   previewLastLevel,
   previewLevelSize,
-} from '../../../packages/sdk-core/texturePreviewLevels.ts';
+} from '../../../packages/sdk-core/src/texture/previewLevels.ts';
 
 /** `texturePreviewLevels.ts`: each number restarted from the dimensions, without a shared bound. */
 function referencePreviewPixelBytes(width: number, height: number) {

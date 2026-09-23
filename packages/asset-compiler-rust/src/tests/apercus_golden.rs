@@ -5,7 +5,7 @@
 //! decoders included.
 use super::*;
 
-/// Sidecar columns, in the order `packages/sdk-core/manifestBinaryFormat.ts`
+/// Sidecar columns, in the order `packages/sdk-core/src/manifest/binaryFormat.ts`
 /// publishes under `COLUMN_NAMES`. The golden rereads them by rank, like an
 /// outside reader, without borrowing the writer's private constants: a rank that
 /// moves is a format change, not a detail.

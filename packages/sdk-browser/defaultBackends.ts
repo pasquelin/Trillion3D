@@ -1,4 +1,4 @@
-import { EngineError, type ClusterManifest } from '../sdk-core/index.ts';
+import { EngineError, type ClusterManifest } from '../sdk-core/src/index.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';

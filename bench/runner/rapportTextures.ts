@@ -1,4 +1,4 @@
-import type { FrameMetrics } from '../../packages/sdk-core/index.ts';
+import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 import type { Row } from './report/types.ts';
 
 export const go = (b: number | null | undefined) =>

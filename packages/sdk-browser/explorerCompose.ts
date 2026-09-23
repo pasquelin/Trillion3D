@@ -1,5 +1,5 @@
-import { linearToSrgb } from '../sdk-core/index.ts';
-import { DEFAULT_TONE_MAPPING } from '../sdk-core/sceneEnvironment.ts';
+import { linearToSrgb } from '../sdk-core/src/index.ts';
+import { DEFAULT_TONE_MAPPING } from '../sdk-core/src/scene/core/environment.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import { createHostDrawCamera, readHostDrawCamera, type HostCamera } from './cameraWorld.ts';
 import { createBackendPresenter } from './explorerComposeSurface.ts';

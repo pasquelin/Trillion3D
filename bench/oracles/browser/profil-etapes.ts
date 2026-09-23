@@ -2,7 +2,7 @@
 // stage unless that stage is `null`; a pass is deposited by its label, an unknown label goes
 // to "geometry"; a `null` duration leaves its stage unmeasured, a truncated or missing sample
 // deposits nothing.
-import type { GpuPassTimings } from '../../../packages/sdk-core/index.ts';
+import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
 import type { StageAdd } from '../../../packages/sdk-browser/stageProfiler.ts';
 
 const ETAPE_DE: Record<string, string> = {

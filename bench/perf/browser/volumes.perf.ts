@@ -2,7 +2,7 @@
 import { stress, rapport } from '../../core/index.ts';
 import { casBoites } from './support/volumesCasBoites.ts';
 import { casTronc } from './support/volumesCasTronc.ts';
-import { boxEmpty } from '../../../packages/sdk-core/index.ts';
+import { boxEmpty } from '../../../packages/sdk-core/src/index.ts';
 
 const options = { chauffe: 1, tours: 10, budgetMs: 500 };
 const tousLesCas = [...casBoites, ...casTronc];

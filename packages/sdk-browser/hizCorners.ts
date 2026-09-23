@@ -1,4 +1,4 @@
-import { boxCornersInto } from '../sdk-core/index.ts';
+import { boxCornersInto } from '../sdk-core/src/index.ts';
 import type { HizPage } from './hizTypes.ts';
 import type { MatrixElements } from './matrixElements.ts';
 

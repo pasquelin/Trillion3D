@@ -1,4 +1,4 @@
-import type { Mesh } from '../../../sdk-core/world/object/mesh.ts';
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { growPlacementRows, type PlacementRows } from '../../placement/placementRows.ts';
 import type { Cut } from './worldCuts.ts';
 import type { MaterialEntry } from './worldMaterials.ts';

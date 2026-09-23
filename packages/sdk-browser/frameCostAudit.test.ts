@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { surfaceOf } from './pageSurface.ts';
 import { createHostFrameCostAudit, gpuFrameCostSnapshot } from './frameCostAudit.ts';
 import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
-import type { FrameMetrics } from '../sdk-core/index.ts';
+import type { FrameMetrics } from '../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 test('opt-in audit: bounded snapshot, deferred, without changing the selection or inventing the GPU mask', async (t) => {

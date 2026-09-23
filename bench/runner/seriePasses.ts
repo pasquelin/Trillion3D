@@ -1,5 +1,5 @@
 import { gpuPassBlockOf, gpuPassBlockTotals } from '../../packages/sdk-browser/gpuPassBlocks.ts';
-import type { GpuPassTimings } from '../../packages/sdk-core/index.ts';
+import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts';
 import { distribution } from './rapport.ts';
 import type { PassesGpu } from './rapportPasses.ts';
 

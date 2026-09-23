@@ -13,7 +13,7 @@
  *      number of times.
  * The rows then follow through `updatePlacements`, as any row does. Nothing is prepared again.
  */
-import { BOX_VALUES } from '../../sdk-core/index.ts';
+import { BOX_VALUES } from '../../sdk-core/src/index.ts';
 import type { PageRec, ClusterRoot } from '../pageSelectionTypes.ts';
 import { forgetRowRoots } from './placementUpdate.ts';
 import { placementWorld, type PlacementOf, type PlacementRows } from './placementRows.ts';

@@ -1,13 +1,21 @@
 import type { PortalEntry } from '../model.ts';
 
 /** 4×4 and 3×3 matrices, and the singularity rule the normal matrix follows. */
-const M4 = { section: 'matrices', kind: 'Function', module: 'packages/sdk-core/mathMatrix4.ts' };
+const M4 = {
+  section: 'matrices',
+  kind: 'Function',
+  module: 'packages/sdk-core/src/math/matrix/matrix4.ts',
+};
 const TRS = {
   section: 'matrices',
   kind: 'Function',
-  module: 'packages/sdk-core/mathMatrix4Trs.ts',
+  module: 'packages/sdk-core/src/math/matrix/matrix4Trs.ts',
 };
-const SING = { section: 'matrices', kind: 'Function', module: 'packages/sdk-core/mathSingular.ts' };
+const SING = {
+  section: 'matrices',
+  kind: 'Function',
+  module: 'packages/sdk-core/src/math/matrix/singular.ts',
+};
 
 export const MATRICES: PortalEntry[] = [
   {
@@ -28,7 +36,7 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
     id: 'invertMatrix4',
     exports: ['invertMatrix4'],
     title: 'invertMatrix4()',
-    module: 'packages/sdk-core/mathMatrix4Inverse.ts',
+    module: 'packages/sdk-core/src/math/matrix/matrix4Inverse.ts',
     signature: 'invertMatrix4(out: Float64Array, m: ArrayLike<number>)',
     description:
       '`out = m⁻¹` by cofactors. An exactly zero determinant yields the zero matrix, like the reference — a caller that must distinguish this case tests the determinant, never the output. That threshold is parity with the reference, not the engine singularity rule, which applies only where a normal is transported. The sixteen inputs are read before the first write, so `out` may be `m`.',
@@ -86,7 +94,7 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
     id: 'normalMatrix3',
     exports: ['normalMatrix3'],
     title: 'normalMatrix3()',
-    module: 'packages/sdk-core/mathMatrix3.ts',
+    module: 'packages/sdk-core/src/math/matrix/matrix3.ts',
     signature: 'normalMatrix3(out, m: ArrayLike<number>)',
     description:
       "`out = transpose(inverse(3×3 block of m))` on nine numbers, column-major: the matrix that carries the normals of a surface transformed by `m`, shear and non-uniform scale included. The inverse is the reference one, cofactors and product order included, then transposed with no floating-point operation. **On a singular matrix it writes the adjugate, undivided**, not the reference's zero matrix: a singular pose does not erase a surface, it flattens it onto a plane, and the adjugate applied to a local normal *is* the cross product of the transformed edges, sign included — every consumer then normalises. Only a zero, infinite or NaN scale is written apart, as nine zeros.",

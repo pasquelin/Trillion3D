@@ -1,7 +1,7 @@
-import { Camera } from '../../../sdk-core/world/camera/camera.ts';
-import { Color } from '../../../sdk-core/world/math/color.ts';
-import type { SceneLink } from '../../../sdk-core/world/object/object3d.ts';
-import type { ToneMapping } from '../../../sdk-core/world/constants/index.ts';
+import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
+import { Color } from '../../../sdk-core/src/world/math/color.ts';
+import type { SceneLink } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { ToneMapping } from '../../../sdk-core/src/world/constants/index.ts';
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
 import { probeWorldRenderer, type WorldRenderer } from '../capability/worldReady.ts';
 import { createWorldFrames, type FrameInfo } from './worldFrames.ts';
@@ -10,7 +10,7 @@ import { Scene, type LoadOptions } from './scene.ts';
 import { loadModel } from './loadedModel.ts';
 import { loadModelOfAnyFormat } from '../loader/modelFormat.ts';
 import { awaitViewPages, registerWorld } from './worldSession.ts';
-import { advanceMixers } from '../../../sdk-core/world/animation/index.ts';
+import { advanceMixers } from '../../../sdk-core/src/world/animation/index.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
 

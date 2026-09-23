@@ -6,7 +6,7 @@ import {
   boxUnion,
   primitiveUsesClusterErrors,
   type Primitive,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import {
   clusterErrorFields,
   cullingNodes,

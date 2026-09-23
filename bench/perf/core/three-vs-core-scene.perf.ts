@@ -1,9 +1,9 @@
 // Three.js vs sdk-core, scene: a camera turned towards a point, and the bounding box of a
 // geometry. Both sides store the camera's quaternion in the same loop, four numbers per target.
 import * as THREE from 'three';
-import { addTransformNode } from '../../../packages/sdk-core/mathTransformTree.ts';
-import { lookAtNode } from '../../../packages/sdk-core/mathTransformTreeLookAt.ts';
-import { boxEmpty, boxExpandByPoint } from '../../../packages/sdk-core/mathBox.ts';
+import { addTransformNode } from '../../../packages/sdk-core/src/math/transform-tree/transformTree.ts';
+import { lookAtNode } from '../../../packages/sdk-core/src/math/transform-tree/lookAt.ts';
+import { boxEmpty, boxExpandByPoint } from '../../../packages/sdk-core/src/math/primitives/box.ts';
 import { rapport } from '../../core/index.ts';
 import { aPlat } from '../../oracles/core/volumes.ts';
 import { N, duel, rnd } from '../../oracles/core/three-duel.ts';
@@ -23,7 +23,7 @@ const lines = [];
 lines.push(
   await duel({
     name: 'Object3D.lookAt, camera',
-    fichier: 'packages/sdk-core/mathTransformTreeLookAt.ts',
+    fichier: 'packages/sdk-core/src/math/transform-tree/lookAt.ts',
     three: () => {
       for (let i = 0; i < N; i++) {
         cameraThree.lookAt(targets[i * 3], targets[i * 3 + 1], targets[i * 3 + 2]);
@@ -60,7 +60,7 @@ const box = new Float64Array(6);
 lines.push(
   await duel({
     name: 'BufferGeometry.computeBoundingBox',
-    fichier: 'packages/sdk-core/mathBox.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/box.ts',
     size: POINTS,
     three: () => geometry.computeBoundingBox(),
     oracle: () => {

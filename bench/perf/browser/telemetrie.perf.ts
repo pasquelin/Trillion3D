@@ -1,6 +1,6 @@
 // Telemetry: frame intervals and hexadecimal digests, against the oracles of before batch A.
-import { frameStatistics } from '../../../packages/sdk-core/index.ts';
-import type { FrameMetrics } from '../../../packages/sdk-core/index.ts';
+import { frameStatistics } from '../../../packages/sdk-core/src/index.ts';
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
 import { EngineProfiler } from '../../../packages/sdk-browser/telemetry.ts';
 import { toHex } from '../../../packages/sdk-browser/sha256Hex.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';

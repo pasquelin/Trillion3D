@@ -1,6 +1,6 @@
-import { PAGE_INTEGRATION_PROTOCOL } from '../sdk-core/index.ts';
+import { PAGE_INTEGRATION_PROTOCOL } from '../sdk-core/src/index.ts';
 import { createPageIntegrationRunner } from './pageIntegrationTask.ts';
-import type { PageIntegrationRequest } from '../sdk-core/index.ts';
+import type { PageIntegrationRequest } from '../sdk-core/src/index.ts';
 
 /**
  * Entry point of the page-integration worker. Platform adapter: this file is loaded only in a

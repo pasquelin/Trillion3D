@@ -2,7 +2,11 @@
 // `mesure.json`, and everything under `bench/runner/` (`rapport.ts`, `rapportCalcul.ts`,
 // `rapportMemoire.ts`, `rapportTextures.ts`, `report/`) reads back. One record type here, typed
 // once from the engine contracts, rather than cast at every reader.
-import type { CameraPose, FrameMetrics, StageProfile } from '../../../packages/sdk-core/index.ts';
+import type {
+  CameraPose,
+  FrameMetrics,
+  StageProfile,
+} from '../../../packages/sdk-core/src/index.ts';
 import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/index.ts';
 import type { Distribution, PassesGpu } from '../rapportPasses.ts';
 import type { BenchSettings } from '../options.ts';

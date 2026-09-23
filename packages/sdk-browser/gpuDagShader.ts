@@ -10,7 +10,11 @@ import { DAG_LEVEL_WGSL } from './gpuDagLevelWgsl.ts';
 import { DAG_FLOOR_WGSL } from './gpuDagFloorWgsl.ts';
 import { DAG_RECORD_WGSL } from './gpuDagRecordWgsl.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
-import { CONE_LENGTH_RATIO_WGSL, CONE_ORTHO_EPS_WGSL, HALF_PI_WGSL } from '../sdk-core/index.ts';
+import {
+  CONE_LENGTH_RATIO_WGSL,
+  CONE_ORTHO_EPS_WGSL,
+  HALF_PI_WGSL,
+} from '../sdk-core/src/index.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,nodeFlags:u32,pad0:u32,pad1:u32,}

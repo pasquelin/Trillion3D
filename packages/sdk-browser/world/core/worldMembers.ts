@@ -1,5 +1,5 @@
-import type { Object3D } from '../../../sdk-core/world/object/object3d.ts';
-import type { Mesh } from '../../../sdk-core/world/object/mesh.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import type { LoadedModel } from './loadedModel.ts';
 import { isLight } from './worldLights.ts';
 import { rootedUnder } from './worldPoses.ts';

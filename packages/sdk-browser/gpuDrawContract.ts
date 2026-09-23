@@ -1,4 +1,4 @@
-import { MAX_DEPTH_LAYER } from '../sdk-core/index.ts';
+import { MAX_DEPTH_LAYER } from '../sdk-core/src/index.ts';
 
 export const DRAW_INDIRECT_STRIDE = 16;
 export const PAGE_BIND_ALIGN = 256;

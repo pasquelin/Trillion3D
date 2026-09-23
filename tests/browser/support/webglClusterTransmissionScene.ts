@@ -3,7 +3,7 @@
 // copies the engine draws itself, transmissive then blended.
 import * as THREE from 'three';
 import { quad } from './webglClusterPixels.ts';
-import type { Page } from '../../../packages/sdk-core/index.ts';
+import type { Page } from '../../../packages/sdk-core/src/index.ts';
 
 const page: Page = {
   id: 0,

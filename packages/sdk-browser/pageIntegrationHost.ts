@@ -1,7 +1,7 @@
-import { PAGE_INTEGRATION_PROTOCOL } from '../sdk-core/index.ts';
+import { PAGE_INTEGRATION_PROTOCOL } from '../sdk-core/src/index.ts';
 import { createPageIntegrationLane } from './pageIntegrationLane.ts';
 import { createPageIntegrationRunner } from './pageIntegrationTask.ts';
-import type { PageIntegrationAnswer } from '../sdk-core/index.ts';
+import type { PageIntegrationAnswer } from '../sdk-core/src/index.ts';
 
 /** What a planned arrival returns to the main thread: integers, already in the record's order. */
 export type ArrivalPlan = {

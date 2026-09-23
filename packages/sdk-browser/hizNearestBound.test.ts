@@ -3,7 +3,7 @@
 // inverse of the sense it had in forward-Z.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEPTH_LAYER_BIAS_UNITS } from '../sdk-core/index.ts';
+import { DEPTH_LAYER_BIAS_UNITS } from '../sdk-core/src/index.ts';
 import { hizNearestBound } from './hizNearestBound.ts';
 import { hizRejects, type HizBounds, type HizPyramid } from './hiz.ts';
 

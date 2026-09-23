@@ -1,7 +1,7 @@
 // Oracles of the WebGL2 cut from before batch 4c: the general path, the one that projects.
 // Unit tests import them to check that the zero-threshold paths yield the exact same
 // decision, and that the shared distance does not change a bit.
-import { clusterErrorPixels } from '../../../packages/sdk-core/index.ts';
+import { clusterErrorPixels } from '../../../packages/sdk-core/src/index.ts';
 import type { ClusterCut } from '../../../packages/sdk-browser/pageSelectionMath.ts';
 
 /** Bound-array offsets read at fixed slots, as `pageSelectionCutBounds.ts` lays them out. */

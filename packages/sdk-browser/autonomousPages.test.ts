@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
-import type { ClusterManifest, Material } from '../sdk-core/index.ts';
+import type { ClusterManifest, Material } from '../sdk-core/src/index.ts';
 import { createPlacementRows, type PlacementRows } from './placement/placementRows.ts';
 
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh` placed by `link`. */

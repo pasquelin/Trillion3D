@@ -19,7 +19,7 @@ import {
 } from '../../../packages/sdk-browser/pagesBackendScenes.ts';
 import type { HostCamera } from '../../../packages/sdk-browser/cameraWorld.ts';
 import type { BackendContext, RenderBackend } from '../../../packages/sdk-browser/backendTypes.ts';
-import type { ClusterManifest } from '../../../packages/sdk-core/index.ts';
+import type { ClusterManifest } from '../../../packages/sdk-core/src/index.ts';
 
 /** The fan's manifest without its primitives: same shape as `QUAD_MANIFEST`
  *  (`pagesBackendScenes.ts`), the fields the mock backend never reads left at neutral values. */

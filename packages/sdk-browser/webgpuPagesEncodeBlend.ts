@@ -1,4 +1,4 @@
-import { invertMatrix4 } from '../sdk-core/index.ts';
+import { invertMatrix4 } from '../sdk-core/src/index.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { writeBlendView } from './webgpuBlendUniforms.ts';
 import { encodeBlendExpansion } from './webgpuBlendResources.ts';
@@ -11,7 +11,7 @@ import { blendLightResources } from './webgpuBlendLighting.ts';
 import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
-import { clearValueOf } from '../sdk-core/world/math/packedColour.ts';
+import { clearValueOf } from '../sdk-core/src/world/math/packedColour.ts';
 import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
 import { composesOffscreen } from './diagnosticGpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from './taaFrame.ts';

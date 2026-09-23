@@ -9,7 +9,7 @@ import { ensureSunFarShadow } from './webgpuPagesPrepareSunFar.ts';
 import { createFrameGateCore } from './frameGateCore.ts';
 import { createWebgpuSunFarState } from './webgpuPagesStateSunFar.ts';
 import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
-import type { SceneProxy } from '../sdk-core/index.ts';
+import type { SceneProxy } from '../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 installGpuGlobals();

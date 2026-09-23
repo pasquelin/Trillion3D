@@ -2,14 +2,14 @@
 // translation-rotation-scale. Same seeded matrices on both sides; each side writes its own
 // output in its own form, Three's read flat untimed as the oracle.
 import * as THREE from 'three';
-import { multiplyMatrix4 } from '../../../packages/sdk-core/mathMatrix4.ts';
-import { invertMatrix4 } from '../../../packages/sdk-core/mathMatrix4Inverse.ts';
+import { multiplyMatrix4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts';
+import { invertMatrix4 } from '../../../packages/sdk-core/src/math/matrix/matrix4Inverse.ts';
 import {
   basisMatrix4,
   composeMatrix4,
   decomposeMatrix4,
   uniformScaleMatrix4,
-} from '../../../packages/sdk-core/mathMatrix4Trs.ts';
+} from '../../../packages/sdk-core/src/math/matrix/matrix4Trs.ts';
 import { rapport } from '../../core/index.ts';
 import {
   N,
@@ -21,7 +21,7 @@ import {
   views,
 } from '../../oracles/core/three-duel.ts';
 
-const TRS = 'packages/sdk-core/mathMatrix4Trs.ts';
+const TRS = 'packages/sdk-core/src/math/matrix/matrix4Trs.ts';
 const a = trsMatrices(N),
   b = trsMatrices(N);
 const outThree = Array.from({ length: N }, () => new THREE.Matrix4());
@@ -34,7 +34,7 @@ const lines = [];
 lines.push(
   await duel({
     name: 'Matrix4.multiplyMatrices',
-    fichier: 'packages/sdk-core/mathMatrix4.ts',
+    fichier: 'packages/sdk-core/src/math/matrix/matrix4.ts',
     three: () => {
       for (let i = 0; i < N; i++) outThree[i].multiplyMatrices(a.three[i], b.three[i]);
     },
@@ -49,7 +49,7 @@ lines.push(
 lines.push(
   await duel({
     name: 'Matrix4.invert',
-    fichier: 'packages/sdk-core/mathMatrix4Inverse.ts',
+    fichier: 'packages/sdk-core/src/math/matrix/matrix4Inverse.ts',
     three: () => {
       for (let i = 0; i < N; i++) outThree[i].copy(a.three[i]).invert();
     },

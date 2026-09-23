@@ -2,7 +2,7 @@ import {
   BOUNCE_PROBES_PER_FRAME,
   type BounceCascades,
   type BounceOccupancy,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * Probe scheduler: who works this frame, and how far.

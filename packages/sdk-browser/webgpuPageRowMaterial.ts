@@ -1,5 +1,5 @@
 import type { HostAttributes } from './hostResources.ts';
-import type { Texture } from '../sdk-core/index.ts';
+import type { Texture } from '../sdk-core/src/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
 import { materialClassKey } from './visibilityMaterialClass.ts';

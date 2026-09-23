@@ -9,7 +9,7 @@ import {
   UNI_VIEW_PROJ,
   writeSplitDouble,
 } from './gpuPartitionContract.ts';
-import { matrixAtRenderOrigin } from '../sdk-core/index.ts';
+import { matrixAtRenderOrigin } from '../sdk-core/src/index.ts';
 
 /** What a frame tells the partition, and nothing more: two matrices, an anchor, seven integers. */
 export type PartitionFrame = {

@@ -3,7 +3,7 @@ import {
   levelBlockBytes,
   PREVIEW_BLOCK_BYTES,
   PREVIEW_BLOCK_SIDE,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { levelSize, type TilePlace } from './textureTiles.ts';
 import { cellOrigin, tailOrigin, type TileRegion } from './webgpuTileWrite.ts';
 

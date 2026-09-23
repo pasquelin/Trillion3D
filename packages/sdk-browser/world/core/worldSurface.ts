@@ -8,12 +8,12 @@
  * WebGPU one (`surfaceModel.ts`). Lines, points and sprites are unlit: they wear a basic surface.
  */
 import * as THREE from 'three';
-import type { Material } from '../../../sdk-core/world/material/material.ts';
-import type { Texture } from '../../../sdk-core/world/texture/texture.ts';
+import type { Material } from '../../../sdk-core/src/world/material/material.ts';
+import type { Texture } from '../../../sdk-core/src/world/texture/texture.ts';
 import { hostPageSurface } from '../../hostPageObjects.ts';
 import { asHostLibrary } from '../../hostResources.ts';
 import { hostSide } from '../../materialSide.ts';
-import { TABLE_SLOTS } from '../../../sdk-core/sceneTableContracts.ts';
+import { TABLE_SLOTS } from '../../../sdk-core/src/scene/core/tableContracts.ts';
 import {
   HOST_FILTER_LINEAR,
   HOST_FILTER_LINEAR_MIP_LINEAR,

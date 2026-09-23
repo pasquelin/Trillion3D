@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { graine } from '../../../core/index.ts';
 import { materiau, porte } from './scenesCoupe.ts';
 import type { PageRec } from '../../../../packages/sdk-browser/pageSelectionTypes.ts';
-import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../packages/sdk-core/index.ts';
+import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../packages/sdk-core/src/index.ts';
 
 /** A page as `manifesteEtScene` builds it: bounds, cluster error, sphere, index triplet it covers,
  *  plus `sha256`, which `ClusterManifest['primitives'][number]['pages']` requires but nothing in

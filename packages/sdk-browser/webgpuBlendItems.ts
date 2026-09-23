@@ -1,4 +1,4 @@
-import type { Texture } from '../sdk-core/index.ts';
+import type { Texture } from '../sdk-core/src/index.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
 /**

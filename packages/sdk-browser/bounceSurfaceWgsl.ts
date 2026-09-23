@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS } from '../sdk-core/src/index.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
 import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './bounceGridWgsl.ts';
 import { PROXY_ALBEDO_WGSL, residentProxyWgsl } from './bounceNodeWgsl.ts';

@@ -1,4 +1,4 @@
-import { PROBE_FLOATS, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
+import { PROBE_FLOATS, SHADOW_SLICE_FLOATS } from '../sdk-core/src/index.ts';
 import { BOUNCE_GRID_BYTES } from './bounceUniform.ts';
 import { PROXY_HEADER_BYTES } from './bounceNodeWgsl.ts';
 import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';

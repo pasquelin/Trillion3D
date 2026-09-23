@@ -13,7 +13,7 @@ import {
   type WebglClusterScene,
 } from './webglClusterLights.ts';
 import { WebglClusterState } from './webglClusterState.ts';
-import { TONE_MAPPING_RANK, normalMatrix3 } from '../sdk-core/index.ts';
+import { TONE_MAPPING_RANK, normalMatrix3 } from '../sdk-core/src/index.ts';
 import { multiplyMatrix4 } from './webglClusterMatrices.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
 import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './webglClusterUniforms.ts';

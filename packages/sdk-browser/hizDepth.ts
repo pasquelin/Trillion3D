@@ -1,4 +1,4 @@
-import { hizBuildFlat } from '../sdk-core/index.ts';
+import { hizBuildFlat } from '../sdk-core/src/index.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 import { createVisibilityFrame } from './visibilityFrame.ts';
 import { barycentricAt, signedArea } from './visibilityProjection.ts';

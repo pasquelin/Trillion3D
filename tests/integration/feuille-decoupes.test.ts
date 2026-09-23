@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../../packages/sdk-core/index.ts';
+import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../../packages/sdk-core/src/index.ts';
 
 /**
  * The cutout answer sheet is the only format that both languages WRITE:

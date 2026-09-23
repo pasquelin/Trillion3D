@@ -1,5 +1,9 @@
 // the Hi-Z pyramid of the per-frame path.
-import { hizBuildPyramid, hizFootprintFar, hizOccluded } from '../../../packages/sdk-core/index.ts';
+import {
+  hizBuildPyramid,
+  hizFootprintFar,
+  hizOccluded,
+} from '../../../packages/sdk-core/src/index.ts';
 import { buildHizPyramid } from '../../../packages/sdk-browser/hizDepth.ts';
 import {
   hizRejects,

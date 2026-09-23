@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS } from '../sdk-core/src/index.ts';
 import { DEPTH_CLEAR, DEPTH_NEAR } from './depthConvention.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
 

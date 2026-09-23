@@ -1,9 +1,9 @@
 import { framingFromBounds } from '../../framing.ts';
 import { runCameraPath } from '../../cameraPath.ts';
-import type { CameraPose as EnginePose } from '../../../sdk-core/index.ts';
-import type { Box3 } from '../../../sdk-core/world/math/box3.ts';
-import { Vector3, readVec3, type Vec3Input } from '../../../sdk-core/world/math/vector3.ts';
-import type { CameraPose } from '../../../sdk-core/world/camera/camera.ts';
+import type { CameraPose as EnginePose } from '../../../sdk-core/src/index.ts';
+import type { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
+import { Vector3, readVec3, type Vec3Input } from '../../../sdk-core/src/world/math/vector3.ts';
+import type { CameraPose } from '../../../sdk-core/src/world/camera/camera.ts';
 import { sessionOf } from '../core/worldSession.ts';
 
 /** What a path is replayed through: a world and its camera. */

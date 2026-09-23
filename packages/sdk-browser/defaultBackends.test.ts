@@ -8,7 +8,7 @@ import { autonomousPagesBackend } from './autonomousPages.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { exactPagesBackend } from './exactPagesBackend.ts';
 import { referenceBackend } from './referenceBackend.ts';
-import { EngineError, type ClusterManifest } from '../sdk-core/index.ts';
+import { EngineError, type ClusterManifest } from '../sdk-core/src/index.ts';
 
 const cache = (autonomousScene: string | null) =>
   ({ autonomousScene, primitives: [] }) as unknown as ClusterManifest;

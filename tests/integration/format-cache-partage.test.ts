@@ -8,7 +8,10 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION } from '../../packages/sdk-core/index.ts';
+import {
+  CLUSTERED_BLEND_FORMAT_VERSION,
+  FORMAT_VERSION,
+} from '../../packages/sdk-core/src/index.ts';
 
 const rust = fileURLToPath(
   new URL('../../packages/asset-compiler-rust/src/compiler_format.rs', import.meta.url),

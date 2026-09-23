@@ -1,4 +1,4 @@
-import { forEachShadowFace } from '../sdk-core/index.ts';
+import { forEachShadowFace } from '../sdk-core/src/index.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 
 /**

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { compareImages } from '../sdk-core/index.ts';
+import { compareImages } from '../sdk-core/src/index.ts';
 import { DIRECT_LIGHTING_SHADER } from './deferredLighting.ts';
 import {
   rasterVisibilityIds,

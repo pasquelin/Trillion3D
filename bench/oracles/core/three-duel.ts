@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { copyMatrix4 } from '../../../packages/sdk-core/mathMatrix4.ts';
+import { copyMatrix4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts';
 import { graine, mesure } from '../../core/index.ts';
 import { compteur, note } from '../../core/ulp.ts';
 

@@ -1,7 +1,11 @@
 import type { PortalEntry } from '../model.ts';
 
 /** Batch math: `n` elements per call on flat buffers, the governor that arbitrates the paths. */
-const BATCH = { section: 'batches', kind: 'Function', module: 'packages/sdk-core/mathBatch.ts' };
+const BATCH = {
+  section: 'batches',
+  kind: 'Function',
+  module: 'packages/sdk-core/src/math/batch/batch.ts',
+};
 
 export const BATCHES: PortalEntry[] = [
   {
@@ -46,7 +50,7 @@ export const BATCHES: PortalEntry[] = [
     id: 'createPathGovernor',
     exports: ['createPathGovernor', 'PATH_MIN_SAMPLES', 'PATH_SWITCH_RUNS', 'PATH_EXPLORE_EVERY'],
     title: 'createPathGovernor()',
-    module: 'packages/sdk-core/mathPathGovernor.ts',
+    module: 'packages/sdk-core/src/math/path/governor.ts',
     signature:
       "createPathGovernor(now: () => number, mode: MathPathMode = 'auto'): PathGovernor\nPATH_MIN_SAMPLES = 5 · PATH_SWITCH_RUNS = 5 · PATH_EXPLORE_EVERY = 50",
     description:
@@ -97,7 +101,7 @@ export const BATCHES: PortalEntry[] = [
     id: 'transformPointsBatch',
     exports: ['transformPointsBatch', 'transformPointsByMatricesBatch', 'transformDirectionsBatch'],
     title: 'transformPointsBatch() · transformPointsByMatricesBatch() · transformDirectionsBatch()',
-    module: 'packages/sdk-core/mathBatchPoints.ts',
+    module: 'packages/sdk-core/src/math/batch/points.ts',
     signature:
       'transformPointsBatch(out: Float64Array, m, points, n)\ntransformPointsByMatricesBatch(out: Float64Array, mats: ArrayLike<number>[], points, n)\ntransformDirectionsBatch(out: Float64Array, m, dirs, n)',
     description:
@@ -109,7 +113,7 @@ export const BATCHES: PortalEntry[] = [
     id: 'srgbToLinearBatch',
     exports: ['srgbToLinearBatch', 'linearToSrgbBatch'],
     title: 'srgbToLinearBatch() · linearToSrgbBatch()',
-    module: 'packages/sdk-core/mathBatchColor.ts',
+    module: 'packages/sdk-core/src/math/batch/color.ts',
     signature:
       'srgbToLinearBatch(out: Float64Array, values, n)\nlinearToSrgbBatch(out: Float64Array, values, n)',
     description:

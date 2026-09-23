@@ -1,4 +1,4 @@
-import type { Page } from '../sdk-core/index.ts';
+import type { Page } from '../sdk-core/src/index.ts';
 
 /** The DAG clusters nothing replaces: the coarsest complete cover of a primitive. */
 export function collectCover(pages: Page[], out: number[]) {

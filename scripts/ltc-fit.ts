@@ -22,8 +22,8 @@
  * `ltcTable.ts` keeps, about two minutes of fitting.
  */
 import { pathToFileURL } from 'node:url';
-import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/ltcTable.ts';
-import { normalizeVector3 } from '../packages/sdk-core/mathVector.ts';
+import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/src/lighting/ltcTable.ts';
+import { normalizeVector3 } from '../packages/sdk-core/src/math/primitives/vector.ts';
 import { minimise } from './ltc-minimise.ts';
 
 type V3 = [number, number, number];

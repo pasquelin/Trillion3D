@@ -1,5 +1,5 @@
 // sRGB to linear in texture sampling.
-import type { Texture } from '../../../packages/sdk-core/index.ts';
+import type { Texture } from '../../../packages/sdk-core/src/index.ts';
 import { importHostTexture } from '../../../packages/sdk-browser/hostSurfaceImport.ts';
 import * as THREE from 'three';
 import {

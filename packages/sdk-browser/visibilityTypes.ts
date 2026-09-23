@@ -1,6 +1,6 @@
 import type { HostAttributes } from './hostResources.ts';
 import type { PageSurface } from './pageSurface.ts';
-import type { Texture } from '../sdk-core/index.ts';
+import type { Texture } from '../sdk-core/src/index.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 export const VIS_INVALID = 0;

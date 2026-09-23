@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { DEFAULT_SCOPE } from '../sdk-core/index.ts';
+import { DEFAULT_SCOPE } from '../sdk-core/src/index.ts';
 import {
   decodeManifestPreviews,
   previewLevelSize,
   type SlimClusterManifest,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * The thumbnails a compile already ships, read back for whoever asks the cutout questions.

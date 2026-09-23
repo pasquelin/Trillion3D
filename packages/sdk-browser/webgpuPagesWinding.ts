@@ -1,4 +1,4 @@
-import { matrixWindingCw } from '../sdk-core/index.ts';
+import { matrixWindingCw } from '../sdk-core/src/index.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 /**

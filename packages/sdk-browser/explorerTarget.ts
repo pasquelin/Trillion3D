@@ -1,4 +1,4 @@
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 
 /** An existing canvas, or its literal document ID (without a selector prefix). */
 export type MeasuredWorldTarget = HTMLCanvasElement | string;

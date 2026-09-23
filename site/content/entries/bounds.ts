@@ -1,8 +1,16 @@
 import type { PortalEntry } from '../model.ts';
 
 /** Boxes, spheres, frustums and cones: what decides, per frame, whether a cluster is drawn. */
-const B = { section: 'bounds', kind: 'Function', module: 'packages/sdk-core/mathBox.ts' };
-const F = { section: 'bounds', kind: 'Function', module: 'packages/sdk-core/mathFrustum.ts' };
+const B = {
+  section: 'bounds',
+  kind: 'Function',
+  module: 'packages/sdk-core/src/math/primitives/box.ts',
+};
+const F = {
+  section: 'bounds',
+  kind: 'Function',
+  module: 'packages/sdk-core/src/math/frustum/frustum.ts',
+};
 
 export const BOUNDS: PortalEntry[] = [
   {
@@ -32,7 +40,7 @@ export const BOUNDS: PortalEntry[] = [
     id: 'sphereFromBounds',
     exports: ['sphereFromBounds'],
     title: 'sphereFromBounds()',
-    module: 'packages/sdk-core/mathSphere.ts',
+    module: 'packages/sdk-core/src/math/primitives/sphere.ts',
     signature: 'sphereFromBounds(out, o, minX, minY, minZ, maxX, maxY, maxZ)',
     description:
       'The bounding sphere of a box, written flat from `o`: centre `x, y, z` then radius. The centre is `(min + max) * 0.5`, the radius half the diagonal. An empty box — an upper bound below its lower — yields the empty sphere, zero centre and radius `-1`. This is the reference box arithmetic term by term, NaN, signed zeros and infinities included.',
@@ -65,7 +73,7 @@ export const BOUNDS: PortalEntry[] = [
     id: 'frustumExcludesBox',
     exports: ['frustumExcludesBox', 'frustumClipBox'],
     title: 'frustumExcludesBox() · frustumClipBox()',
-    module: 'packages/sdk-core/mathFrustumBox.ts',
+    module: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
     signature:
       'frustumExcludesBox(planes, minX, minY, minZ, maxX, maxY, maxZ): boolean\nfrustumClipBox(planes, minX, minY, minZ, maxX, maxY, maxZ): 0 | 1 | 2',
     description:
@@ -77,7 +85,7 @@ export const BOUNDS: PortalEntry[] = [
     id: 'boxConeRejects',
     exports: ['boxConeRejects', 'CONE_LENGTH_RATIO', 'CONE_ORTHO_EPS', 'HALF_PI'],
     title: 'boxConeRejects()',
-    module: 'packages/sdk-core/mathCone.ts',
+    module: 'packages/sdk-core/src/math/primitives/cone.ts',
     signature:
       'boxConeRejects(axis, angle, min, max, world, normal, scale, eyeX, eyeY, eyeZ)\nCONE_LENGTH_RATIO = 1.0001 · CONE_ORTHO_EPS = 1e-4 · HALF_PI',
     description:

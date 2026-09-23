@@ -1,5 +1,5 @@
 import type { PageRec } from './pageSelection.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 import { asWholeMesh, type WholeMesh } from './clusterBatchMesh.ts';
 

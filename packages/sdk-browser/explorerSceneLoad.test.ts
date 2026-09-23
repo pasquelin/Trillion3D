@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { loadPreparedScene } from './explorerScene.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 
 const manifest = { primitives: [] } as unknown as ClusterManifest;
 /** The cache's scene tables, describing a scene that draws nothing: what both loads check against. */

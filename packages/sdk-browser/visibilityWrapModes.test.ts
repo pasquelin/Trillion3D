@@ -3,7 +3,7 @@
 // carries one nibble per map, and each shader read receives the nibble of the map it samples —
 // not the material flags, which carried only one for all of them.
 // Proof on a real GPU is the `tests/browser/probes/adressage-cartes-gpu.ts` bench.
-import type { Texture } from '../sdk-core/index.ts';
+import type { Texture } from '../sdk-core/src/index.ts';
 import { importWrapMode } from './hostSurfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';

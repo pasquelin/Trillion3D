@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { primitiveFinder } from './primitiveLookup.ts';
-import type { Primitive } from '../sdk-core/index.ts';
+import type { Primitive } from '../sdk-core/src/index.ts';
 
 const prim = (mesh: number, primitive: number, tag: string) =>
   ({ mesh, primitive, tag }) as unknown as Primitive;

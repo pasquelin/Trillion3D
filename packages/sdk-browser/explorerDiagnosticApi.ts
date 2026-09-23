@@ -1,4 +1,4 @@
-import { DIAGNOSTICS, type DiagnosticMode } from '../sdk-core/index.ts';
+import { DIAGNOSTICS, type DiagnosticMode } from '../sdk-core/src/index.ts';
 import { repaintHostGraph, type BeautyMaterials } from './hostGraphDiagnostic.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostDiagnosticMaterial } from './hostResources.ts';

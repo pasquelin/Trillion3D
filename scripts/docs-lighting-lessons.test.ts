@@ -6,7 +6,7 @@ import {
   createLightingLessonSession,
 } from '../site/lessons/lightingLessonRuntime.ts';
 import { lightingLessonCode } from '../site/lessons/lightingLessonCode.ts';
-import { light } from '../packages/sdk-core/world/light/index.ts';
+import { light } from '../packages/sdk-core/src/world/light/index.ts';
 import type { RendererLessonItem } from '../site/lessons/rendererLessonTypes.ts';
 import type { World } from '../packages/sdk-browser/index.ts';
 

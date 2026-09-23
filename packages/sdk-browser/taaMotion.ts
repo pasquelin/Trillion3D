@@ -5,7 +5,7 @@ import {
   multiplyMatrix4,
   transformAffinePoint,
   worldToRenderOrigin,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { sameElements, type MatrixElements } from './matrixElements.ts';
 
 /** What a placement's motion asks of a root: its host world matrix. */

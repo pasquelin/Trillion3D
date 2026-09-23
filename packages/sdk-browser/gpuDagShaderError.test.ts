@@ -3,7 +3,7 @@
 // sdk-core word for word.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { referenceScreenError } from '../sdk-core/index.ts';
+import { referenceScreenError } from '../sdk-core/src/index.ts';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
 import { REFERENCE_ERROR_DECL, withScreenErrorVariant } from './gpuDagShaderError.ts';
 

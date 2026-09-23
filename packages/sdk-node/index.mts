@@ -8,8 +8,8 @@ export {
   resolveCompilerExecutable,
 } from './compilerProcess.mts';
 export { getSdkProvenance } from './provenance.mts';
-import { DEFAULT_SCOPE } from '../sdk-core/index.ts';
-import type { AssetScope } from '../sdk-core/index.ts';
+import { DEFAULT_SCOPE } from '../sdk-core/src/index.ts';
+import type { AssetScope } from '../sdk-core/src/index.ts';
 import type {
   BatchJob,
   BatchOptions,
@@ -138,7 +138,7 @@ export async function createCompilationJob(
   output: string,
   options: CompilationJobOptions,
 ): Promise<CompilationJob> {
-  const { createJob } = await import('../sdk-core/index.ts');
+  const { createJob } = await import('../sdk-core/src/index.ts');
   return createJob(
     id,
     ({ signal, progress }) =>

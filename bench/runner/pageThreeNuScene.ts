@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { appliquer, creer } from './pageTemoin.ts';
 import type { ThreeLight } from './pageTemoin.ts';
-import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
+import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 
 const BYTES_PER_TEXEL_WITH_MIPS = 4 * 1.34;
 

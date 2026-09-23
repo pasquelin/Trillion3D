@@ -21,7 +21,7 @@ export function proveInstalledTypes({
       `// @ts-expect-error Camera positions contain exactly three coordinates.\n` +
       `const invalid:Pose={...pose,position:[0,1]};\n` +
       `// @ts-expect-error legacy package subpaths are not public.\nimport('${packageName}/core');\n` +
-      `// @ts-expect-error implementation paths are not public.\nimport('${packageName}/dist/sdk-core/index.js');\n` +
+      `// @ts-expect-error implementation paths are not public.\nimport('${packageName}/dist/sdk-core/src/index.js');\n` +
       `// @ts-expect-error the safe fallback excludes browser values.\nimport { createWorld } from '${packageName}';\n` +
       `export {matrix,snapshot,invalid};\n`,
   );

@@ -13,9 +13,9 @@
  * every host object handed to a host method is one this file built.
  */
 import * as THREE from 'three';
-import type { Object3D } from '../../../sdk-core/world/object/object3d.ts';
-import type { Material } from '../../../sdk-core/world/material/material.ts';
-import type { DrawnTriangles } from '../../../sdk-core/world/geometry/drawn.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Material } from '../../../sdk-core/src/world/material/material.ts';
+import type { DrawnTriangles } from '../../../sdk-core/src/world/geometry/drawn.ts';
 import type { PlacementRows } from '../../placement/placementRows.ts';
 import { HOST_MAPS, hostSurface, type HostTextures } from './worldSurface.ts';
 import type { Cut } from './worldCuts.ts';

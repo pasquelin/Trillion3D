@@ -1,5 +1,5 @@
 import type { HostAttributes } from './hostResources.ts';
-import type { Texture } from '../sdk-core/index.ts';
+import type { Texture } from '../sdk-core/src/index.ts';
 import type { GpuPartition } from './gpuPartitionTypes.ts';
 import { SHADE_UNIFORM_WORDS } from './visibilityShaderRequest.ts';
 import type { GpuHiz } from './gpuHiz.ts';

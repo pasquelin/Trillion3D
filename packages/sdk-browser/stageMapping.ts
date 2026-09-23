@@ -1,4 +1,4 @@
-import type { GpuPassTimings } from '../sdk-core/index.ts';
+import type { GpuPassTimings } from '../sdk-core/src/index.ts';
 import { BOUNCE_PROBE_PASS } from './bounceProbeWgsl.ts';
 import { BOUNCE_SURFACE_PASS } from './bounceSurfaceWgsl.ts';
 import { DEFERRED_LIGHTING_PASS } from './deferredLighting.ts';

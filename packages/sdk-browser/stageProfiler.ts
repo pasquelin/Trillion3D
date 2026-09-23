@@ -4,7 +4,7 @@ import {
   type GpuTimingMethod,
   type StageProfile,
   type StageProfileEntry,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /** Default sliding window: two seconds at 60 images per second. */
 const DEFAULT_WINDOW = 120;

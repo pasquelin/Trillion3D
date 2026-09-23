@@ -1,6 +1,6 @@
 // The DAG stalls of the measured cache, in `resume.md`: the primitives with a stalled group, ten
 // per side, ranked by the level-0 triangles they left as roots, with the cause the compiler named.
-import type { PrimitiveDagStall } from '../../packages/sdk-core/index.ts';
+import type { PrimitiveDagStall } from '../../packages/sdk-core/src/index.ts';
 import type { Report } from './report/types.ts';
 
 /** Rows per side: the same ten the compiler tells on stderr at the end of a cook. */

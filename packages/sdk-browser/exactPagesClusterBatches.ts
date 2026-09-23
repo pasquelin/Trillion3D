@@ -1,4 +1,4 @@
-import { DEFAULT_TONE_MAPPING, TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
+import { DEFAULT_TONE_MAPPING, TONE_MAPPING_RANK } from '../sdk-core/src/scene/core/environment.ts';
 import type { BackendContext, HostDrawOutput } from './backendTypes.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
 import { ClusterBatches, type BatchPage } from './clusterBatches.ts';

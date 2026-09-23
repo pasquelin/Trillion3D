@@ -1,6 +1,6 @@
 // Statistics, image deltas, machine load and `resume.md`, for `banc.ts`, on the SDK's calculations.
 import { loadavg } from 'node:os';
-import { compareImages, summarize } from '../../packages/sdk-core/index.ts';
+import { compareImages, summarize } from '../../packages/sdk-core/src/index.ts';
 import type { Capture } from '../../tests/kit/server/serveur.ts';
 import { cheminsCalcul } from './rapportCalcul.ts';
 import { p50p95, passes, type Distribution } from './rapportPasses.ts';

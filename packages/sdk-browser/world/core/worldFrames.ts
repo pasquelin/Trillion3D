@@ -1,4 +1,4 @@
-import type { FrameMetrics } from '../../../sdk-core/index.ts';
+import type { FrameMetrics } from '../../../sdk-core/src/index.ts';
 
 /** A frame's metrics, with the names a page reads them by; `null` where the path does not count. */
 export type WorldFrameMetrics = FrameMetrics & {

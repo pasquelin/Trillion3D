@@ -1,5 +1,5 @@
 import { go, mo } from './rapportTextures.ts';
-import type { FrameMetrics } from '../../packages/sdk-core/index.ts';
+import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 import type { Report } from './report/types.ts';
 
 const num = (v: number | null | undefined) => (typeof v === 'number' ? v : null);

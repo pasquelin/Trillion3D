@@ -1,4 +1,4 @@
-import { invertMatrix4, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { invertMatrix4, multiplyMatrix4 } from '../sdk-core/src/index.ts';
 import type { LightingExperimentRenderState } from './lightingObservationContracts.ts';
 import type { ObservationResources } from './lightingObservationResources.ts';
 import { createObservationTransforms } from './lightingObservationTransforms.ts';

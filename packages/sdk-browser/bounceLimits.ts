@@ -8,7 +8,7 @@
  * refused bounce with the measurement that missed, never with a guess.
  */
 
-import type { SceneProxy } from '../sdk-core/index.ts';
+import type { SceneProxy } from '../sdk-core/src/index.ts';
 import { PROXY_HEADER_BYTES } from './bounceNodeWgsl.ts';
 import { surfaceCacheBytes } from './bounceSurfaceWgsl.ts';
 import { BOUNCE_GRID_BYTES } from './bounceUniform.ts';

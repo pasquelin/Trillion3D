@@ -1,6 +1,6 @@
-import { LIGHT_KIND } from '../sdk-core/index.ts';
+import { LIGHT_KIND } from '../sdk-core/src/index.ts';
 import { MODEL_FLAG } from './surfaceModel.ts';
-import { LTC_SIZE } from '../sdk-core/ltcTable.ts';
+import { LTC_SIZE } from '../sdk-core/src/lighting/ltcTable.ts';
 import { INVERSE_PI, INVERSE_TWO_PI, PI } from './shaderConstants.ts';
 
 /**

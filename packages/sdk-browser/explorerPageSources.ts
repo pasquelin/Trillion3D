@@ -5,7 +5,7 @@ import { loadClusterPages } from './clusterPages.ts';
 import { createDiagnosticChannel } from './diagnosticChannel.ts';
 import type { RenderBackend, MeasuredWorldOptions } from './backendTypes.ts';
 import { indexManifestBundles, indexManifestPages } from './manifestPageIndex.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 
 type Progress = (phase: string, completed: number, total: number, message: string) => void;
 

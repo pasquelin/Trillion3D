@@ -1,4 +1,4 @@
-import { SHADOW_CULL_FLOATS } from '../sdk-core/index.ts';
+import { SHADOW_CULL_FLOATS } from '../sdk-core/src/index.ts';
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from './gpuDraw.ts';
 import { MAX_SHADOW_REGIONS } from './gpuShadowAtlas.ts';
 import { SHADOW_CULL_SHADER } from './gpuShadowCullShader.ts';

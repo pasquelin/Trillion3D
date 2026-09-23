@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS } from '../sdk-core/src/index.ts';
 import { HASH_UNIT_WGSL } from './hashUnitWgsl.ts';
 
 /** Ranks a sampled image cycles through: past that many, the offset walks the same path again. */

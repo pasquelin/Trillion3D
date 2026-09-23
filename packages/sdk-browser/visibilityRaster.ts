@@ -1,5 +1,5 @@
 import { signedArea, type Projected } from './visibilityProjection.ts';
-import { matrixWindingCw } from '../sdk-core/index.ts';
+import { matrixWindingCw } from '../sdk-core/src/index.ts';
 import { refreshSurface, surfaceSide } from './pageSurface.ts';
 import { DEPTH_CLEAR, depthNearer } from './depthConvention.ts';
 import { triangleAt, perspectiveBary, wrapTexel } from './visibilityMath.ts';

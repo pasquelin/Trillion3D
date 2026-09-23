@@ -3,8 +3,8 @@ import {
   maxStretch,
   multiplyMatrix4,
   transformAffinePoint,
-} from '../sdk-core/index.ts';
-import { clipWeight } from '../sdk-core/mathCamera.ts';
+} from '../sdk-core/src/index.ts';
+import { clipWeight } from '../sdk-core/src/math/primitives/camera.ts';
 import { copyElements, type MatrixElements } from './matrixElements.ts';
 
 /** Everything the order needs from a cluster record; a superset of `PageRec`. */

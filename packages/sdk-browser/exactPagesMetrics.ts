@@ -5,7 +5,7 @@ import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { ExactPagesRenderState } from './exactPagesRender.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 
 type MetricsContext = {

@@ -1,4 +1,4 @@
-import type { CameraPose } from '../sdk-core/index.ts';
+import type { CameraPose } from '../sdk-core/src/index.ts';
 import { devicePixels } from './backendCommon.ts';
 import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';

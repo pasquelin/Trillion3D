@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { passesGpu } from './seriePasses.ts';
 import { passes } from './rapportPasses.ts';
-import type { GpuPassTimings } from '../../packages/sdk-core/index.ts';
+import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts';
 
 const releve = (
   frame: number,

@@ -3,7 +3,7 @@ import type {
   GeometryPageDescriptor,
   Page,
   StreamBundle,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * Manifest pages deduplicated by URL in a single pass. Four `flatMap` built four complete

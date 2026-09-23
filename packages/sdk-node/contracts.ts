@@ -3,7 +3,7 @@ import type {
   DagWarning,
   JobSnapshot,
   PreparationProgress,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /** One JSON event from the native compiler's stderr. */
 export interface CompilerEvent {

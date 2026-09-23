@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { SceneLight, SceneLightStore } from '../sdk-core/index.ts';
+import type { SceneLight, SceneLightStore } from '../sdk-core/src/index.ts';
 import { asHostLibrary } from './hostResources.ts';
 import type { HostDrawScene } from './hostGraphNodes.ts';
 import { baseCapabilities } from './backendCommon.ts';

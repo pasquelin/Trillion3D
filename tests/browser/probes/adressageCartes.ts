@@ -2,7 +2,7 @@
 // real `createPageRowWriter` writes for it. The GPU bench and the non-regression test both read
 // this fixture: one material exercised, hence one thing to reread when the modes change.
 import { importHostTexture } from '../../../packages/sdk-browser/hostSurfaceImport.ts';
-import type { Texture } from '../../../packages/sdk-core/index.ts';
+import type { Texture } from '../../../packages/sdk-core/src/index.ts';
 import * as THREE from 'three';
 import { createPageRowWriter } from '../../../packages/sdk-browser/webgpuPageRow.ts';
 import type { PageRec } from '../../../packages/sdk-browser/pageSelection.ts';

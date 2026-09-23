@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { EngineError, assertSceneTables, type PreparedSceneTables } from '../sdk-core/index.ts';
+import { EngineError, assertSceneTables, type PreparedSceneTables } from '../sdk-core/src/index.ts';
 import { checkPreparedScene } from './preparedSceneTables.ts';
 import { tableMaterial } from './preparedSceneFixture.ts';
 import type { BackendContext } from './backendTypes.ts';

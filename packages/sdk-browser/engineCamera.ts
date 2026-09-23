@@ -5,7 +5,7 @@ import {
   perspectiveProjection,
   updateCameraFrame,
   type CameraFrame,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import {
   createRenderOriginFrame,
   holdRenderOriginFrame,

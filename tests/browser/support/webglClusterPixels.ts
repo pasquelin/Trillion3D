@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/index.ts';
+import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 import { WebglClusterRenderer } from '../../../packages/sdk-browser/webglClusterRenderer.ts';
 import type { ClusterDrawMesh } from '../../../packages/sdk-browser/clusterBatchMesh.ts';
 import {

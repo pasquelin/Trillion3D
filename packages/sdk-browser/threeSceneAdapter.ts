@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import type { HostDrawOutput } from './backendTypes.ts';
-import { DEFAULT_TONE_MAPPING, type SceneToneMapping } from '../sdk-core/sceneEnvironment.ts';
+import {
+  DEFAULT_TONE_MAPPING,
+  type SceneToneMapping,
+} from '../sdk-core/src/scene/core/environment.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
 import { clusterColor } from './hostSceneObjects.ts';
 import type { HostDrawScene } from './hostGraphNodes.ts';

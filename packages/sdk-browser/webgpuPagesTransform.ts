@@ -11,7 +11,7 @@ import {
   determinantMatrix4,
   invertMatrix4,
   multiplyMatrix4,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { assertFiniteTransform } from './hostWorldMatrices.ts';
 import { hostWorldChainInto } from './hostWorldChain.ts';
 import { copyElements, sameElements } from './matrixElements.ts';

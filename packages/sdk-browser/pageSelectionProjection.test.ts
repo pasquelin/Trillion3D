@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { clusterSphereValid, pageCarriesClusterError } from '../sdk-core/index.ts';
+import { clusterSphereValid, pageCarriesClusterError } from '../sdk-core/src/index.ts';
 import { cutSelects, projectedClusterError, type ClusterCut } from './pageSelectionMath.ts';
 import {
   cutSelectsAtZero,

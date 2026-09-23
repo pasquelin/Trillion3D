@@ -7,7 +7,7 @@ import {
   createBounceCascades,
   createBounceOccupancy,
   type SceneProxy,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { bounceGroup, bounceLayout } from './bounceBindings.ts';
 import { ensureBounceFits } from './bounceLimits.ts';
 import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER } from './bounceProbeWgsl.ts';

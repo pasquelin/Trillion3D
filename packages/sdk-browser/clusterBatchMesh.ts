@@ -1,4 +1,4 @@
-import { IDENTITY_MATRIX4, type Side } from '../sdk-core/index.ts';
+import { IDENTITY_MATRIX4, type Side } from '../sdk-core/src/index.ts';
 import type { HostAttributes, HostMaterials, HostMesh } from './hostResources.ts';
 import type { DrawRanges } from './clusterBatchRange.ts';
 import type { ClusterDraw } from './clusterBatches.ts';

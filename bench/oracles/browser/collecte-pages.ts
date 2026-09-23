@@ -7,7 +7,7 @@ import {
   EngineError,
   primitiveUsesClusterErrors,
   type ClusterManifest,
-} from '../../../packages/sdk-core/index.ts';
+} from '../../../packages/sdk-core/src/index.ts';
 import type { BackendContext } from '../../../packages/sdk-browser/backendTypes.ts';
 import type { PageRec, ClusterRoot } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
 import { isTransmissive } from '../../../packages/sdk-browser/visibilityBuffer.ts';

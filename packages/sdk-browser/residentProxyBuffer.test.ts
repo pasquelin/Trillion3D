@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROXY_NODE_FLOATS, type SceneProxy } from '../sdk-core/index.ts';
+import { PROXY_NODE_FLOATS, type SceneProxy } from '../sdk-core/src/index.ts';
 import {
   PROXY_COUNT_OFFSET,
   PROXY_HEADER_WORDS,

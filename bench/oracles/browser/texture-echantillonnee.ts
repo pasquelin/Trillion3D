@@ -1,5 +1,5 @@
 // Batch F oracle, texture side: `visibilityTypes.ts:129-142` from before batch F, copied as-is.
-import type { Texture } from '../../../packages/sdk-core/index.ts';
+import type { Texture } from '../../../packages/sdk-core/src/index.ts';
 
 /** `textureRgba` before batch F: a view and an object allocated on every sampled texel. */
 export function referenceTextureRgba(texture: Texture) {

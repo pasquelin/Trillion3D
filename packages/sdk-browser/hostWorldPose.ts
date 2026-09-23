@@ -8,7 +8,7 @@ import {
   setNodeQuaternion,
   setNodeScale,
   type TransformTree,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * ENTRY of a host local pose into the engine's transform tree.

@@ -1,7 +1,7 @@
-import { drawnTriangles, type DrawnTriangles } from '../../../sdk-core/world/geometry/drawn.ts';
-import type { Geometry } from '../../../sdk-core/world/geometry/geometry.ts';
-import type { Material } from '../../../sdk-core/world/material/material.ts';
-import type { Mesh } from '../../../sdk-core/world/object/mesh.ts';
+import { drawnTriangles, type DrawnTriangles } from '../../../sdk-core/src/world/geometry/drawn.ts';
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
+import type { Material } from '../../../sdk-core/src/world/material/material.ts';
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { sha256Hex } from '../../sha256Hex.ts';
 import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimitive.ts';
 import { packDrawn } from '../page/runtimeCut.ts';

@@ -1,6 +1,6 @@
 import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
 import * as THREE from 'three';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 
 export function dagFixture() {

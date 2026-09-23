@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS } from '../sdk-core/src/index.ts';
 import {
   PROXY_COUNTING_OFFSET,
   PROXY_COUNTS,

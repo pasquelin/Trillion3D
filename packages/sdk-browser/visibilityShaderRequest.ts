@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS, SHADOW_SLICE_FLOATS } from '../sdk-core/src/index.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 import { quartet } from './visibilityShaderMaps.ts';
 

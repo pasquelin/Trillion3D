@@ -1,6 +1,6 @@
 // Setup of the GPU-cut resume bench, split from its cases so neither file exceeds the line
 // limit. Cases live in `webgpuCutReprise.test.ts`.
-import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
+import { IDENTITY_MATRIX4 } from '../sdk-core/src/index.ts';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { mountCutAdopter } from './webgpuCutAdopterFixture.ts';
 import { cameraSelectionUniforms, createSelectionUniforms } from './gpuSelection.ts';

@@ -2,8 +2,8 @@
 import {
   LIGHT_SETTINGS,
   type ShadowViewpoint,
-} from '../../../packages/sdk-core/sceneLightContracts.ts';
-import { sunCascadeOf } from '../../../packages/sdk-core/sceneLightSunCascades.ts';
+} from '../../../packages/sdk-core/src/scene/light/contracts.ts';
+import { sunCascadeOf } from '../../../packages/sdk-core/src/scene/light-shadow/sunCascades.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import type { MesureCas } from '../../core/index.ts';
 import { referenceSunCascadeOf } from '../../oracles/core/soleil-cascades.ts';
@@ -59,7 +59,7 @@ const cas: MesureCas<ShadowViewpoint[]>[] = [
 
 const res = await mesure({
   name: 'bornes cascade soleil',
-  fichier: 'packages/sdk-core/sceneLightSunCascades.ts',
+  fichier: 'packages/sdk-core/src/scene/light-shadow/sunCascades.ts',
   cas,
   calcul: faces(sunCascadeOf),
   attendu: faces(referenceSunCascadeOf),

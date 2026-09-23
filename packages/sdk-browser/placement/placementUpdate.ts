@@ -1,4 +1,10 @@
-import { BOX_VALUES, boxEmpty, boxIsEmpty, boxTransform, boxUnion } from '../../sdk-core/index.ts';
+import {
+  BOX_VALUES,
+  boxEmpty,
+  boxIsEmpty,
+  boxTransform,
+  boxUnion,
+} from '../../sdk-core/src/index.ts';
 import type { ClusterRoot } from '../pageSelectionTypes.ts';
 import type { PlacementRows } from './placementRows.ts';
 

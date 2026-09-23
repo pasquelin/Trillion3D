@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import type { CameraPose } from '../../packages/sdk-core/index.ts';
+import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer } from '../../tests/kit/server/serveur.ts';

@@ -1,5 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { screenErrorRatio } from './diagnosticColors.ts';
 import { clusterHash } from './visibilityBuffer.ts';

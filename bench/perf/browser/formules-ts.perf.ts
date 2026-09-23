@@ -1,6 +1,6 @@
 // Equivalence bench for the "shared TS formulas" batch.
 import { DEFAULT_PIXEL_RATIO, devicePixels } from '../../../packages/sdk-browser/backendCommon.ts';
-import { frustumExcludesBox } from '../../../packages/sdk-core/index.ts';
+import { frustumExcludesBox } from '../../../packages/sdk-core/src/index.ts';
 import { nanosecondsToMs } from '../../../packages/sdk-browser/gpuTimingTypes.ts';
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/visibilityTypes.ts';
 import { barycentric } from '../../../packages/sdk-browser/visibilityMath.ts';
@@ -28,7 +28,7 @@ const options = { chauffe: 2, tours: 12, budgetMs: 500 };
 
 const resPlanes = await mesure({
   name: 'box outside the six planes',
-  fichier: 'packages/sdk-core/mathFrustumBox.ts',
+  fichier: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
   cas: un('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
   calcul: (liste) =>
     liste.map((c) =>

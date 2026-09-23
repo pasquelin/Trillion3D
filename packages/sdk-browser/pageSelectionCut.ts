@@ -1,4 +1,4 @@
-import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../sdk-core/src/index.ts';
 import { selectFlat } from './pageSelectionCutSelect.ts';
 import {
   IDENTITY_WORLD,

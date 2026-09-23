@@ -9,7 +9,7 @@ import {
   normalizeVector3,
   scaleVector3,
   transformDirectionVector3,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { attr2, sampleLinear, triangleAt } from './visibilityMath.ts';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';
 

@@ -13,7 +13,7 @@ import {
   ownerOf,
   worldOf,
 } from './gpuDagLayout.ts';
-import { copyMatrix4, frustumExcludesBox } from '../sdk-core/index.ts';
+import { copyMatrix4, frustumExcludesBox } from '../sdk-core/src/index.ts';
 import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
 import type { MatrixElements } from './matrixElements.ts';
 

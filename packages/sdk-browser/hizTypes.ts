@@ -1,4 +1,4 @@
-import type { HizFlat } from '../sdk-core/index.ts';
+import type { HizFlat } from '../sdk-core/src/index.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 export type HizPage = {

@@ -1,4 +1,4 @@
-import { decomposeMatrix4, invertMatrix4 } from '../sdk-core/index.ts';
+import { decomposeMatrix4, invertMatrix4 } from '../sdk-core/src/index.ts';
 import { copyElements, type HostNodeMatrix, type MatrixElements } from './matrixElements.ts';
 import {
   writeEngineCamera,

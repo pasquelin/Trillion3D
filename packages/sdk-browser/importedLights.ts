@@ -1,4 +1,8 @@
-import { validateSceneLight, type SceneLight, type SceneLightStore } from '../sdk-core/index.ts';
+import {
+  validateSceneLight,
+  type SceneLight,
+  type SceneLightStore,
+} from '../sdk-core/src/index.ts';
 
 /** Lights cache product, next to the neighbouring manifest. Its version is its own. */
 const IMPORTED_LIGHTS_FILE = 'lights.json';

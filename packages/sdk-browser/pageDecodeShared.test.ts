@@ -4,7 +4,7 @@
 // and the false retain — the only case where nothing must change from the previous path.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
+import { PAGE_DECODE_PROTOCOL } from '../sdk-core/src/index.ts';
 import { createPageDecodePool } from './pageDecodePool.ts';
 import { restorePageDecode } from './pageDecodeTask.ts';
 import {
@@ -27,7 +27,7 @@ import {
   withNodeWorkerShim,
 } from '../../bench/oracles/browser/pageDecodeNodeWorker.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
-import type { PageDecodeAnswer, PageDecodeDone } from '../sdk-core/index.ts';
+import type { PageDecodeAnswer, PageDecodeDone } from '../sdk-core/src/index.ts';
 
 const MAX = 16 * 1024 * 1024;
 

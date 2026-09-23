@@ -2,9 +2,13 @@
 // foundation, copied as-is from `develop` at commit d016f88. These copies are wanted
 // duplicates — it is against them that attached consumers are opposed, value by value, by `Object.is`.
 import * as THREE from 'three';
-import type { NumberSink } from '../../../packages/sdk-core/index.ts';
-import type { Scene, Surface, Vec3 } from '../../../packages/sdk-core/lightingExperimentScene.ts';
-import { EPSILON } from '../../../packages/sdk-core/lightingTransportIntersections.ts';
+import type { NumberSink } from '../../../packages/sdk-core/src/index.ts';
+import type {
+  Scene,
+  Surface,
+  Vec3,
+} from '../../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
+import { EPSILON } from '../../../packages/sdk-core/src/lighting/transport/intersections.ts';
 
 /** A cluster record as the world-sphere oracle reads it: matrix, then local box corners. */
 interface ClusterSphereRecord {

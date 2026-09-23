@@ -1,7 +1,7 @@
 // Pure oracles for A3 and A4, side-effect free: `occlusion.bench.ts` measures them, unit tests
 // import them as reference.
 import * as THREE from 'three';
-import { perspectiveProjection } from '../../../packages/sdk-core/index.ts';
+import { perspectiveProjection } from '../../../packages/sdk-core/src/index.ts';
 import { HIZ_BOUNDS_VALUES, projectBoxInto } from '../../../packages/sdk-browser/hizCorners.ts';
 import { hizOversized, type HizCounts } from '../../../packages/sdk-browser/hizCounts.ts';
 import { hizRejects } from '../../../packages/sdk-browser/hizOcclusion.ts';

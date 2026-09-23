@@ -5,7 +5,7 @@ import type {
   MathPathMode,
   PreparationProgress,
   ScreenErrorVariant,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { ComparisonLayout } from './comparison.ts';
 import type { BackendDiagnostic, BackendFactory, DiagnosticDetail } from './backendTypes.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
@@ -23,10 +23,10 @@ export interface MeasuredWorldOptions {
   /** False: the interactive session installs no camera controller of its own. */
   ownControls?: boolean;
   /** Called after every frame the session draws, with that frame's metrics. */
-  onFrame?: (metrics: import('../sdk-core/index.ts').FrameMetrics) => void;
+  onFrame?: (metrics: import('../sdk-core/src/index.ts').FrameMetrics) => void;
   replicaCount?: 1 | 4 | 9 | 12;
   detail?: 'source' | 'maximum';
-  onEvent?: (event: import('../sdk-core/index.ts').RuntimeEvent) => void;
+  onEvent?: (event: import('../sdk-core/src/index.ts').RuntimeEvent) => void;
   manifestUrl: string;
   scope?: AssetScope;
   signal?: AbortSignal;

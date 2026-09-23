@@ -3,7 +3,7 @@
 import {
   LIGHT_SETTINGS,
   type ShadowViewpoint,
-} from '../../../packages/sdk-core/sceneLightContracts.ts';
+} from '../../../packages/sdk-core/src/scene/light/contracts.ts';
 
 /** `sceneLightSunCascades.ts`: bounds were recomputed at each face for the same view. */
 function sunCascadeSplits(view: ShadowViewpoint, out: Float64Array) {

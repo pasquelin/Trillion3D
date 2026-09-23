@@ -9,7 +9,7 @@ import { createGpuShadowCullCounts, sumKeptClusters } from './gpuShadowCullCount
 import { unsettledMask } from './webgpuFrameHold.ts';
 import { planShadowRegions, shadowViewpointOf } from './webgpuPagesEncodeShadows.ts';
 import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
-import type { SceneLight } from '../sdk-core/index.ts';
+import type { SceneLight } from '../sdk-core/src/index.ts';
 import { settledRt } from './webgpuFrameHoldFixture.ts';
 import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 

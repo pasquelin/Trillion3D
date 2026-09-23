@@ -5,7 +5,7 @@ import type {
   ClusterManifest,
   GeometryPageDescriptor,
   Page,
-} from '../../../packages/sdk-core/index.ts';
+} from '../../../packages/sdk-core/src/index.ts';
 import type { BackendContext } from '../../../packages/sdk-browser/backendTypes.ts';
 import { meshes as objects } from '../../../packages/sdk-browser/sceneMeshes.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';

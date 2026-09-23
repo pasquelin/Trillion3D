@@ -6,7 +6,7 @@ import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { triangleGeometry } from './triangleDiagnostic.ts';
 import { hostDiagnostics } from './threeSceneAdapter.ts';
 import { materialSide } from './materialSide.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import * as THREE from 'three';
 
 type MaterialsOptions = {

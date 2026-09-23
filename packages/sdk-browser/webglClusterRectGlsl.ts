@@ -1,4 +1,4 @@
-import { LTC_SIZE } from '../sdk-core/ltcTable.ts';
+import { LTC_SIZE } from '../sdk-core/src/lighting/ltcTable.ts';
 import { INVERSE_TWO_PI } from './shaderConstants.ts';
 
 /** The WebGL2 program's rank of a rectangle in `lightData`, after its ambient (3). */

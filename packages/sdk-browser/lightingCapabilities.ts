@@ -1,4 +1,4 @@
-import type { LightingCapabilities } from '../sdk-core/index.ts';
+import type { LightingCapabilities } from '../sdk-core/src/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 
 /**

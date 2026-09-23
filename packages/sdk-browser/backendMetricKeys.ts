@@ -1,4 +1,4 @@
-import type { FrameMetrics } from '../sdk-core/index.ts';
+import type { FrameMetrics } from '../sdk-core/src/index.ts';
 
 /**
  * The measurements an engine publishes as-is and the host copies one by one, `null` when that

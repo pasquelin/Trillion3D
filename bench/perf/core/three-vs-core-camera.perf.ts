@@ -5,11 +5,11 @@
 // sixteen stores per element. The view and view-projection are the inverse and the product
 // measured by the matrices bench.
 import * as THREE from 'three';
-import { perspectiveProjection } from '../../../packages/sdk-core/mathCamera.ts';
+import { perspectiveProjection } from '../../../packages/sdk-core/src/math/primitives/camera.ts';
 import {
   FRUSTUM_PLANE_VALUES,
   frustumPlanesFromMatrix,
-} from '../../../packages/sdk-core/mathFrustum.ts';
+} from '../../../packages/sdk-core/src/math/frustum/frustum.ts';
 import { rapport } from '../../core/index.ts';
 import type { Mesure } from '../../core/index.ts';
 import { N, duel, rnd, trsMatrices } from '../../oracles/core/three-duel.ts';
@@ -28,7 +28,7 @@ const lines: Mesure[] = [];
 lines.push(
   await duel({
     name: 'Matrix4.makePerspective',
-    fichier: 'packages/sdk-core/mathCamera.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/camera.ts',
     three: () => {
       for (let i = 0; i < N; i++) {
         // The bounds `PerspectiveCamera.updateProjectionMatrix` derives from its field of view.
@@ -69,7 +69,7 @@ const sides = new Float64Array(N * 16),
 lines.push(
   await duel({
     name: 'Frustum.setFromProjectionMatrix',
-    fichier: 'packages/sdk-core/mathFrustum.ts',
+    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
     three: () => {
       for (let i = 0; i < N; i++) {
         frustum.setFromProjectionMatrix(clip.three[i]);

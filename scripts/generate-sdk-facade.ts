@@ -16,13 +16,20 @@ const rows = analyzeEntries();
 const consumers = consumerImports();
 rows.push(...DOCUMENTED_GAPS);
 
+// Categories follow the folders of `packages/sdk-core/src/`: each facade file re-exports one area.
 const CATEGORY_RULES: [string, RegExp][] = [
   ['llm', /\/llm\//],
-  ['math', /\/math|\/projectionOracles|\/matrixOrientation|\/hiz/],
-  ['lighting', /\/lighting|\/sceneLight|\/bounce|\/proxy/],
-  ['diagnostics', /diagnostic|metrics|stats|stageProfile|competitors|oracles|compareImages|paths/],
-  ['streaming', /manifest|page|geometryContracts|cacheContracts|texture/],
-  ['lifecycle', /jobs|safety|events|contractsBase/],
+  [
+    'diagnostics',
+    /\/math\/oracles\.ts$|\/runtime\/(?:diagnostics|stats|stageProfile|competitors|compareImages|paths)\.ts$|\/contracts\/metrics\.ts$/,
+  ],
+  ['math', /\/src\/(?:math|hiz|world\/math)\//],
+  ['lighting', /\/src\/(?:lighting|bounce|scene\/light(?:-shadow)?)\/|\/contracts\/proxy\.ts$/],
+  [
+    'streaming',
+    /\/src\/(?:manifest\/|page\/(?!contracts\.ts)|texture\/)|\/contracts\/(?:geometry|cache)\.ts$/,
+  ],
+  ['lifecycle', /\/runtime\/(?:jobs|safety|events)\.ts$|\/contracts\/base\.ts$/],
 ];
 
 function category(row: ExportRow): string {
@@ -30,7 +37,9 @@ function category(row: ExportRow): string {
 }
 
 function classification(row: ExportRow): string {
-  return /oracles|competitors|compareImages|lightingExperiment|screenErrorVariant/.test(row.module)
+  return /\/math\/oracles\.ts$|competitors|compareImages|experiment[A-Z]|screenErrorVariant/.test(
+    row.module,
+  )
     ? 'experimental'
     : 'public';
 }
@@ -42,7 +51,7 @@ function environments(row: ExportRow): string {
 }
 
 function sourceFor(row: ExportRow, facade: string): string {
-  const depth = facade.includes('sdk-core/index') ? '../../' : '../';
+  const depth = facade.includes('sdk-core/src/index') ? '../../' : '../';
   return `${depth}${row.module.slice('packages/'.length)}`;
 }
 
@@ -78,7 +87,7 @@ for (const name of categories)
     `packages/sdk/common/${name}.ts`,
     exportLines(
       common.filter((row) => category(row) === name),
-      '../../sdk-core/index.ts',
+      '../../sdk-core/src/index.ts',
     ),
   );
 await write(

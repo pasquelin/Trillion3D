@@ -7,9 +7,9 @@ import { readFile } from 'node:fs/promises';
 import { loadReactComponents } from './docs/render-react.ts';
 import { configureSceneCamera } from '../site/lessons/engine-scene/cameraControls.ts';
 import { pose } from '../packages/sdk-browser/world/pose/index.ts';
-import { Camera } from '../packages/sdk-core/world/camera/camera.ts';
-import { Vector3 } from '../packages/sdk-core/world/math/vector3.ts';
-import { Box3 } from '../packages/sdk-core/world/math/box3.ts';
+import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
+import { Vector3 } from '../packages/sdk-core/src/world/math/vector3.ts';
+import { Box3 } from '../packages/sdk-core/src/world/math/box3.ts';
 import type { World } from '../packages/sdk-browser/index.ts';
 
 const { Canvas } = (await loadReactComponents('site/app/components/Canvas.tsx')) as {

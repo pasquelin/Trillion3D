@@ -1,5 +1,5 @@
 // counting resident pages and GPU selection.
-import { maxStretch } from '../../../packages/sdk-core/index.ts';
+import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
 import { comptePagesResidentes } from '../../../packages/sdk-browser/autonomousResidency.ts';
 import { updateResidencyBits } from '../../../packages/sdk-browser/gpuDagRuntime.ts';
 import { parseDagOutput } from '../../../packages/sdk-browser/gpuDagUniforms.ts';
@@ -103,7 +103,7 @@ const etirements = (lecture: (w: number) => ArrayLike<number>) => () => {
 
 const resEtirement = await mesure({
   name: 'maximum world stretch',
-  fichier: 'packages/sdk-core/projectionOracles.ts',
+  fichier: 'packages/sdk-core/src/math/projectionOracles.ts',
   cas: [{ name: '64 worlds', input: null, size: 64 }],
   calcul: etirements((w) => mondes.subarray(w * 16, w * 16 + 16)),
   attendu: etirements((w) => Array.from(mondes.subarray(w * 16, w * 16 + 16))),

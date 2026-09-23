@@ -11,7 +11,7 @@ import {
   linearPartDeterminant,
   linearToSrgb,
   srgbToLinear,
-} from '../../../../packages/sdk-core/index.ts';
+} from '../../../../packages/sdk-core/src/index.ts';
 import { noeudsHierarchie } from './socleEquivalence.ts';
 import { SRGB_REFERENCE_GAP } from '../../../oracles/core/three-duel.ts';
 

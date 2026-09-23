@@ -1,7 +1,7 @@
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
-import type { FrameMetrics } from '../../../sdk-core/index.ts';
-import { Vector3 } from '../../../sdk-core/world/math/vector3.ts';
-import type { Camera } from '../../../sdk-core/world/camera/camera.ts';
+import type { FrameMetrics } from '../../../sdk-core/src/index.ts';
+import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
+import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import type { MeasuredWorld } from '../../explorer.ts';
 import { worldControls, type WorldControls } from './worldCamera.ts';
 import {

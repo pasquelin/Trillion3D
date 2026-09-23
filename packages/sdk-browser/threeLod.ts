@@ -10,7 +10,7 @@ import type { BackendFactory } from './backendTypes.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import { isTransmissive } from './visibilityBuffer.ts';
 import { setGeometryBounds } from './threeBounds.ts';
-import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../sdk-core/index.ts';
+import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../sdk-core/src/index.ts';
 import { resolveCameraWorld } from './cameraWorld.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './threeSceneAdapter.ts';
 

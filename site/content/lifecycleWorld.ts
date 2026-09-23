@@ -20,7 +20,7 @@ export const LIFECYCLE_WORLD: PortalEntry[] = [
     id: 'createWorldJob',
     exports: ['createJob'],
     title: 'A world load as a cancellable job',
-    module: 'packages/sdk-core/jobs.ts',
+    module: 'packages/sdk-core/src/runtime/jobs.ts',
     signature: 'createJob<World>(id, ({ signal, progress }) => Promise<World>, options?)',
     description:
       'A world has no dedicated job wrapper of its own: `scene.load` is a plain promise, and the generic `createJob` helper turns it into a cancellable one with progress when a host needs the same job contract compilation uses.',
@@ -37,7 +37,7 @@ const world = await job.promise;`,
     id: 'createJob',
     exports: ['createJob'],
     title: 'createJob()',
-    module: 'packages/sdk-core/jobs.ts',
+    module: 'packages/sdk-core/src/runtime/jobs.ts',
     signature:
       'createJob<T>(id, work: ({ signal, progress }) => Promise<T>, options?: { signal, telemetry })',
     description:

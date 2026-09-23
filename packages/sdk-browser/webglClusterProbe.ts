@@ -1,4 +1,7 @@
-import { ENVIRONMENT_COEFFICIENTS, IRRADIANCE_BAND } from '../sdk-core/sceneEnvironment.ts';
+import {
+  ENVIRONMENT_COEFFICIENTS,
+  IRRADIANCE_BAND,
+} from '../sdk-core/src/scene/core/environment.ts';
 
 /**
  * THE ENVIRONMENT IRRADIANCE ON THE WEBGL2 PATH: a host light probe's nine coefficients, read as

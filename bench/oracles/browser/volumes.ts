@@ -2,7 +2,7 @@
 // Three.js objects — `Vector3`, `Vector4`, `Matrix4` — in the exact order the engine
 // called them before batch M2.
 import * as THREE from 'three';
-import { coneRejects } from '../../../packages/sdk-core/index.ts';
+import { coneRejects } from '../../../packages/sdk-core/src/index.ts';
 
 /** Plane order of the old `extractPlanes`: left, right, bottom, top, near, far. */
 const ANCIEN_ORDRE = [1, 0, 2, 3, 5, 4];

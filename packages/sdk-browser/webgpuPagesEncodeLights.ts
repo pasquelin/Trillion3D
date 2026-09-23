@@ -1,5 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
-import { DEFAULT_TONE_MAPPING, TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
+import { DEFAULT_TONE_MAPPING, TONE_MAPPING_RANK } from '../sdk-core/src/scene/core/environment.ts';
 import { PAGES_RING, noteShadowFrame, uploadSceneLights } from './webgpuPagesStateLights.ts';
 import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';

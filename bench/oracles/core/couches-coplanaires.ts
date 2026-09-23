@@ -1,7 +1,10 @@
 // Oracle of `depthLayer.ts`, rewritten according to the contract: layer in hardware units, then the
 // depth bias applied on f32 depth bits, clamped to 1.0f. Constants come from the
 // contract so that the oracle does not silently drift.
-import { DEPTH_LAYER_BIAS_UNITS, MAX_DEPTH_LAYER } from '../../../packages/sdk-core/depthLayer.ts';
+import {
+  DEPTH_LAYER_BIAS_UNITS,
+  MAX_DEPTH_LAYER,
+} from '../../../packages/sdk-core/src/lod/depthLayer.ts';
 
 export function referenceDepthLayerUnits(layer: number | undefined) {
   if (!layer || !Number.isFinite(layer) || layer <= 0) return 0;

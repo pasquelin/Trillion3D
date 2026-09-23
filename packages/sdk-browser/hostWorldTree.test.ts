@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as THREE from 'three';
-import { EngineError, MATRIX_VALUES } from '../sdk-core/index.ts';
+import { EngineError, MATRIX_VALUES } from '../sdk-core/src/index.ts';
 import { prepareSdkWasm } from './geometryPageWasm.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
 import { hostWorldLot, hostWorldTree } from './hostWorldTree.ts';

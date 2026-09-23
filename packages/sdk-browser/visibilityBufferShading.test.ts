@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { compareImages } from '../sdk-core/index.ts';
+import { compareImages } from '../sdk-core/src/index.ts';
 import { rasterPages } from './pageRaster.ts';
 import {
   unpackVisibilityId,

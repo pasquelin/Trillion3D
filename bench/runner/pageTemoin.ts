@@ -21,7 +21,7 @@
 // engine draws.
 import * as THREE from 'three';
 import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
-import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
+import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 
 /** Physical inverse-square of the contract: `directIncidence` knows no other falloff. */
 const DECAY = 2;

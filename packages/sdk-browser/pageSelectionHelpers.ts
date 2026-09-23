@@ -7,7 +7,7 @@ import {
   type Page,
   type Primitive,
   type StreamCatalogue,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import {
   OPEN_CONE,
   coneContextFor,

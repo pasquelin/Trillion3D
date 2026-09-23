@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createExplorerMetrics } from './explorerMetrics.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 

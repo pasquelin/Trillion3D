@@ -1,4 +1,4 @@
-import { hizFootprintFarFlat, hizOccluded } from '../sdk-core/index.ts';
+import { hizFootprintFarFlat, hizOccluded } from '../sdk-core/src/index.ts';
 import { HIZ_BOUNDS_VALUES } from './hizCorners.ts';
 import { HIZ_KERNEL_TEXELS } from './hizCounts.ts';
 import type { HizBounds, HizPyramid } from './hizTypes.ts';

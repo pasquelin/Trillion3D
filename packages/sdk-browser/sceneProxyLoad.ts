@@ -1,4 +1,4 @@
-import { decodeSceneProxy, EngineError, type SceneProxy } from '../sdk-core/index.ts';
+import { decodeSceneProxy, EngineError, type SceneProxy } from '../sdk-core/src/index.ts';
 import { checked } from './clusterPages.ts';
 
 /**

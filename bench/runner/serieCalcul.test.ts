@@ -11,7 +11,7 @@ import { runSerie } from './serie.ts';
 import type { Page } from 'playwright';
 import type { RunContext } from './report/types.ts';
 import type { Side } from './optionsCote.ts';
-import type { CameraPose } from '../../packages/sdk-core/index.ts';
+import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 
 /** What the page returns when it has nothing more to say than requested metrics. */
 const releveDePage = (mathBatch: unknown) => ({

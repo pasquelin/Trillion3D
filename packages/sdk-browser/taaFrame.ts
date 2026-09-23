@@ -1,4 +1,4 @@
-import { invertMatrix4, matrixAtRenderOrigin } from '../sdk-core/index.ts';
+import { invertMatrix4, matrixAtRenderOrigin } from '../sdk-core/src/index.ts';
 import { TAA_SAMPLES, TAA_STILL_FRAMES, jitterViewProjection, taaJitter } from './taaJitter.ts';
 import { TAA_WEIGHTS, taaWeightTable } from './taaWeights.ts';
 import { SAMPLED_RANKS } from './directLightSamplingWgsl.ts';

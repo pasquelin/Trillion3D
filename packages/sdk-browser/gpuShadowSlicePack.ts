@@ -6,7 +6,7 @@ import {
   SHADOW_FACE_FLOATS,
   SHADOW_FACE_MASK_WORD,
   SHADOW_SLICE_FLOATS,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * Regions at most in a frame: the buffer cap, not a quality setting. A wholly stale face fits

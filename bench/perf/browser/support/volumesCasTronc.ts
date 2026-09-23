@@ -8,7 +8,7 @@ import {
   frustumClipBox,
   frustumExcludesBox,
   frustumPlanesToLocal,
-} from '../../../../packages/sdk-core/index.ts';
+} from '../../../../packages/sdk-core/src/index.ts';
 import type { MesureCas } from '../../../core/index.ts';
 import {
   boitesDeVue,
@@ -72,7 +72,7 @@ export const casTronc: CasVolume[] = [
   casVolume({
     calcul: 'normalized frustum planes of a view-projection',
     motif: Z_INVERSE,
-    fichier: 'packages/sdk-core/mathFrustum.ts',
+    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
     cas: deux(
       'vues WebGL, WebGPU et hostiles',
       vuesProjections,
@@ -85,7 +85,7 @@ export const casTronc: CasVolume[] = [
   casVolume({
     calcul: 'raw planes of a clip matrix',
     motif: Z_INVERSE,
-    fichier: 'packages/sdk-core/mathFrustum.ts',
+    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
     cas: deux(
       'vues WebGL, WebGPU et hostiles',
       vuesProjections,
@@ -102,7 +102,7 @@ export const casTronc: CasVolume[] = [
   casVolume({
     calcul: 'box outside the frustum',
     motif: Z_INVERSE,
-    fichier: 'packages/sdk-core/mathFrustumBox.ts',
+    fichier: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
     cas: deux(
       'boxes per view, near plane crossed',
       boitesDeVue,
@@ -116,7 +116,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calcul: 'box against the frustum in three states',
-    fichier: 'packages/sdk-core/mathFrustumBox.ts',
+    fichier: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
     cas: deux(
       'boxes per view, raw and normalized planes',
       boitesDeVue,
@@ -144,7 +144,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calcul: 'frustum planes in local space',
-    fichier: 'packages/sdk-core/mathFrustum.ts',
+    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
     cas: deux(
       'plans × placements hostiles',
       locaux(vuesProjections, matrices, 11),
@@ -162,7 +162,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calcul: 'rejection of a box by its normal cone',
-    fichier: 'packages/sdk-core/mathCone.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/cone.ts',
     cas: deux(
       'cones, conformal placements, eye in the sphere',
       casCones,

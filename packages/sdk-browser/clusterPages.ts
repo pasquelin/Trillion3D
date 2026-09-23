@@ -1,4 +1,4 @@
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import { verifyPageBytes } from './pageDecodeHost.ts';
 export async function checked(url: string, signal?: AbortSignal) {
   const response = await fetch(url, { signal });

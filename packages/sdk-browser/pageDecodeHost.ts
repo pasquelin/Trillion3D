@@ -1,10 +1,10 @@
-import { PAGE_DECODE_PROTOCOL, pageDecodeWorkerCount } from '../sdk-core/index.ts';
+import { PAGE_DECODE_PROTOCOL, pageDecodeWorkerCount } from '../sdk-core/src/index.ts';
 import { createPageDecodePool, type PageDecodePool } from './pageDecodePool.ts';
 import { restorePageDecode, runPageDecodeTask } from './pageDecodeTask.ts';
 import { createPageArena, sharedPagesAllowed } from './pageDecodeShared.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
-import type { PageDecodeAnswer, PageDecodeOp } from '../sdk-core/index.ts';
-import type { PageCutPayload } from '../sdk-core/pageDecodeContracts.ts';
+import type { PageDecodeAnswer, PageDecodeOp } from '../sdk-core/src/index.ts';
+import type { PageCutPayload } from '../sdk-core/src/page/decodeContracts.ts';
 
 /** Decoded-byte ceiling of a page, identical to the original synchronous path. */
 const MAX_DECODED_BYTES = 16 * 1024 * 1024;

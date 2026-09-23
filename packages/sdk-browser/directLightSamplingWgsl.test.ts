@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS } from '../sdk-core/src/index.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL, SAMPLED_RANKS } from './directLightSamplingWgsl.ts';
 import { DIRECT_LIGHTING_WGSL, declaredLightingWgsl } from './directLightingWgsl.ts';
 import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from './deferredLightingShaders.ts';

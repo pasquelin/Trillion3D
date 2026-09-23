@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prepareExplorerBackends } from './explorerBackends.ts';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 
 /**

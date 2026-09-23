@@ -1,4 +1,7 @@
-import { MATERIAL_BOOKKEEPING, type Material } from '../../../sdk-core/world/material/material.ts';
+import {
+  MATERIAL_BOOKKEEPING,
+  type Material,
+} from '../../../sdk-core/src/world/material/material.ts';
 
 /** One parameter value as a key: a texture by identity and version, a colour or a vector by its
  *  numbers, anything else by its own value. */

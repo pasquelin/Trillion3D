@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { loadPreparedScene } from './explorerScene.ts';
-import { EngineError, type ClusterManifest } from '../sdk-core/index.ts';
+import { EngineError, type ClusterManifest } from '../sdk-core/src/index.ts';
 
 const manifest = { primitives: [] } as unknown as ClusterManifest;
 

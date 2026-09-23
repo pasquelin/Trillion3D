@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { autonomousPagesBackend } from './autonomousPages.ts';
-import { createSceneLightStore, type ClusterManifest } from '../sdk-core/index.ts';
+import { createSceneLightStore, type ClusterManifest } from '../sdk-core/src/index.ts';
 
 /** Radiometric irradiance of the contract, `2400 / 683 lm·W⁻¹`. */
 const RADIOMETRIC = 3.514;

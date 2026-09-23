@@ -3,7 +3,7 @@
 // nothing. Oracle: the previous full recompute, `maxStretch` on each matrix.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { maxStretch } from '../sdk-core/index.ts';
+import { maxStretch } from '../sdk-core/src/index.ts';
 import { FRAME_VEC4 } from './gpuDagTypes.ts';
 import { refreshWorldStretch, worldsChanged } from './gpuDagWorlds.ts';
 

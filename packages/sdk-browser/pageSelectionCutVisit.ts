@@ -1,5 +1,5 @@
 import { coneSkipsPage } from './pageSelectionHelpers.ts';
-import { frustumClipBox } from '../sdk-core/index.ts';
+import { frustumClipBox } from '../sdk-core/src/index.ts';
 import { frameClusterError, frameSelects } from './pageSelectionFrame.ts';
 import { cutSelectsAtZero } from './pageSelectionProjection.ts';
 import { drawnUnderForcing } from './pageSelectionCutLogic.ts';

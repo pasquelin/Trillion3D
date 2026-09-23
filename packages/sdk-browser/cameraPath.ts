@@ -1,10 +1,10 @@
-import { compareImages, frameStatistics, summarize } from '../sdk-core/index.ts';
+import { compareImages, frameStatistics, summarize } from '../sdk-core/src/index.ts';
 import type {
   CameraPose,
   FrameMetrics,
   PreparationProgress,
   StablePreview,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { nextFrame } from './scheduling.ts';
 import type { MeasuredWorld } from './explorer.ts';
 

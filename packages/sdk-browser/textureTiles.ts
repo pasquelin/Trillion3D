@@ -1,4 +1,4 @@
-import { previewFirstLevel, previewLastLevel, previewLevelSize } from '../sdk-core/index.ts';
+import { previewFirstLevel, previewLastLevel, previewLevelSize } from '../sdk-core/src/index.ts';
 
 /**
  * Virtual-texture tile geometry: what the physical pool, the page table and the shader

@@ -1,4 +1,4 @@
-import { PAGE_DECODE_PROTOCOL, pageDecodeFailureCode } from '../sdk-core/index.ts';
+import { PAGE_DECODE_PROTOCOL, pageDecodeFailureCode } from '../sdk-core/src/index.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import { pageViews } from './geometryPageBlock.ts';
 import { sha256Hex } from './sha256Hex.ts';
@@ -6,7 +6,7 @@ import type {
   PageDecodeAnswer,
   PageDecodeGeometryPayload,
   PageDecodeRequest,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * The page decoder, chosen once and kept. First the module compiled to WebAssembly: it names no

@@ -7,7 +7,7 @@ import type { BatchPage } from './clusterBatchRange.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
 import { attributes } from './clusterBatchesFixture.ts';
-import { depthLayerUnits } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/src/index.ts';
 import { surfaceOf } from './pageSurface.ts';
 
 const BASE_MATERIAL = new THREE.MeshBasicMaterial();

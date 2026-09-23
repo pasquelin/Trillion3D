@@ -1,4 +1,4 @@
-import type { GpuFrameMs, GpuPassTimings } from '../sdk-core/index.ts';
+import type { GpuFrameMs, GpuPassTimings } from '../sdk-core/src/index.ts';
 /**
  * GPU durations pass by pass, from `timestamp-query`. One image may span several command encoders —
  * the selection dispatch is submitted before the render encoder — so a sample collects every part of

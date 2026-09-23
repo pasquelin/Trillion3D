@@ -1,7 +1,7 @@
 import type { HostTexture, HostTraversable } from './hostResources.ts';
 import type { HostGraphNode } from './hostGraphNodes.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
-import { createSceneLightStore, dagWarningsDiagnostic } from '../sdk-core/index.ts';
+import { createSceneLightStore, dagWarningsDiagnostic } from '../sdk-core/src/index.ts';
 import { createSceneProxyReader } from './sceneProxyLoad.ts';
 import { createTextureLevelReader } from './textureLevelReader.ts';
 import { resolveDiagnosticGpuVariant } from './diagnosticGpuVariant.ts';

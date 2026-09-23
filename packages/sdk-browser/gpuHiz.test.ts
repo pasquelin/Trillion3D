@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hizBuildPyramid, hizReduceCeil } from '../sdk-core/index.ts';
+import { hizBuildPyramid, hizReduceCeil } from '../sdk-core/src/index.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 import { buildHizPyramid, hizRejects, type HizBounds } from './hiz.ts';
 import {

@@ -1,4 +1,4 @@
-import { DIAGNOSTICS } from '../sdk-core/index.ts';
+import { DIAGNOSTICS } from '../sdk-core/src/index.ts';
 import type { ExplorerProbe } from './explorerCapabilityProbe.ts';
 import type { ExplorerRuntimeSurface } from './explorerHostRuntime.ts';
 import { createExplorerCameraApi } from './explorerCameraApi.ts';

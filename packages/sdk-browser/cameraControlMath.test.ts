@@ -12,14 +12,14 @@ import {
   fromSpherical,
   RADIUS_EPSILON,
   toSpherical,
-} from '../sdk-core/world/math/spherical.ts';
+} from '../sdk-core/src/world/math/spherical.ts';
 import {
   axisAngleQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
   rotateByQuaternion,
   localTurnQuaternion,
-} from '../sdk-core/mathQuaternion.ts';
+} from '../sdk-core/src/math/matrix/quaternion.ts';
 
 const close = (actual: ArrayLike<number>, expected: number[], epsilon = 1e-12) => {
   for (let i = 0; i < expected.length; i++)

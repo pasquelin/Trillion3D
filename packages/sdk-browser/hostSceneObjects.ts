@@ -15,7 +15,7 @@ import { installSceneLighting } from './sceneLighting.ts';
 import { clusterHue } from './diagnosticColors.ts';
 import { asHostLibrary, type HostPlaced, type HostTraversable } from './hostResources.ts';
 import type { HostDrawScene } from './hostGraphNodes.ts';
-import { hslToLinearRgb } from '../sdk-core/index.ts';
+import { hslToLinearRgb } from '../sdk-core/src/index.ts';
 import * as THREE from 'three';
 
 /** Three linear components reread immediately: a cluster colour allocates nothing more. */

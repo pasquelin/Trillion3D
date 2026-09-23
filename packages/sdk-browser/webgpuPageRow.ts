@@ -1,6 +1,6 @@
 import type { HostAttributes } from './hostResources.ts';
 import type { PageRec } from './pageSelection.ts';
-import { depthLayerUnits } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/src/index.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
 import {
   emptyGeometryBlock,

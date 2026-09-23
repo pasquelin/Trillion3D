@@ -1,6 +1,6 @@
-import { Vector3 } from '../../../sdk-core/world/math/vector3.ts';
-import { Quaternion } from '../../../sdk-core/world/math/quaternion.ts';
-import type { Camera } from '../../../sdk-core/world/camera/camera.ts';
+import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
+import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
+import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import type { HostCamera } from '../../cameraWorld.ts';
 import type { OrthographicBox } from '../../engineCamera.ts';
 import { createOrbitCameraControls } from '../../cameraOrbitControls.ts';

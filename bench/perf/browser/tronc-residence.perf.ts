@@ -2,7 +2,7 @@
 // two computations have no prior implementation to confront; their correctness is held by
 // `mathFrustumBox.test.ts` and `autonomousResidency.test.ts`. Each line says so rather than staying silent.
 import * as THREE from 'three';
-import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core/index.ts';
+import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core/src/index.ts';
 import { collectPendingUrls } from '../../../packages/sdk-browser/pageSelectionRequests.ts';
 import { createAutonomousResidency } from '../../../packages/sdk-browser/autonomousResidency.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/autonomousGeometry.ts';
@@ -47,7 +47,7 @@ const clipper = (plat: Float64Array) => {
 // ── Mesure frustumClipBox ────────────────────────────────────────────
 const clipResult = await mesure({
   name: 'frustumClipBox',
-  fichier: 'packages/sdk-core/mathFrustumBox.ts',
+  fichier: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
   cas: [
     { name: '20k boxes including degenerates', input: grande, size: 20000 },
     { name: 'no boxes', input: vide, size: 0 },

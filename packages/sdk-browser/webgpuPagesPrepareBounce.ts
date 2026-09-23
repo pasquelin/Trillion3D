@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS, PROBE_FLOATS, type SceneProxy } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS, PROBE_FLOATS, type SceneProxy } from '../sdk-core/src/index.ts';
 import { createGpuBounceProbes } from './gpuBounceProbes.ts';
 import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';

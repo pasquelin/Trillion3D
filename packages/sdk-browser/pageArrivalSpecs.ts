@@ -6,7 +6,7 @@ import {
   SPEC_PAGE_INDEX,
   SPEC_STREAM_OFFSET,
   SPEC_TRIANGLES,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { ArrivalPlan } from './pageIntegrationHost.ts';
 
 /** What a record owes the spec: its place in the bundle, its size, its page rank. */

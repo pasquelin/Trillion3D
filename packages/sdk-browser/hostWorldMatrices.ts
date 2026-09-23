@@ -4,7 +4,7 @@ import {
   POSITION_VALUES,
   QUATERNION_VALUES,
   composeMatrix4,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { copyElements } from './matrixElements.ts';
 
 /**

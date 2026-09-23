@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import { createExplorerLightApi } from './explorerLightApi.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { createWebgpuRunState } from './webgpuPagesStateRun.ts';

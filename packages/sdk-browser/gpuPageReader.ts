@@ -1,4 +1,4 @@
-import type { PageSource } from '../sdk-core/index.ts';
+import type { PageSource } from '../sdk-core/src/index.ts';
 import type { BackendDiagnostic } from './backendTypes.ts';
 
 export function createGpuPageReader(

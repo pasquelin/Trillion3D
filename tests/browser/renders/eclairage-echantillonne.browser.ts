@@ -10,7 +10,7 @@
 //
 //   node --experimental-strip-types tests/browser/renders/eclairage-echantillonne.browser.ts
 import assert from 'node:assert/strict';
-import { LIGHT_SETTINGS } from '../../../packages/sdk-core/index.ts';
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import {
   preuveDansLaPage,
   preuveSaine,

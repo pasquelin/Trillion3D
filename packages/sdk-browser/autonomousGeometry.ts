@@ -7,7 +7,7 @@ import {
   setHostPose,
 } from './hostPageObjects.ts';
 import { surfaceOf } from './pageSurface.ts';
-import { EngineError, type GeometryPageDescriptor } from '../sdk-core/index.ts';
+import { EngineError, type GeometryPageDescriptor } from '../sdk-core/src/index.ts';
 import type { HostGeometry, HostMaterial, HostMaterials } from './hostResources.ts';
 import { createWebglPageBatches } from './placement/webglPageBatches.ts';
 import { drawnInstanced } from './placement/autonomousPlacements.ts';

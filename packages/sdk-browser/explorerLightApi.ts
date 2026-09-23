@@ -7,7 +7,7 @@ import {
   type SceneLightStore,
   type SceneLightingView,
   cloneSceneLight,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { BackendDiagnostic, RenderBackend } from './backendTypes.ts';
 import { lightingCapabilitiesOf } from './lightingCapabilities.ts';
 

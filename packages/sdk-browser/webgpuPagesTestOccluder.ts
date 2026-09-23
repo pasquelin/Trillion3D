@@ -1,7 +1,7 @@
 import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
 import * as THREE from 'three';
 import assert from 'node:assert/strict';
-import { compareImages } from '../sdk-core/index.ts';
+import { compareImages } from '../sdk-core/src/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import { rasterVisibilityIds, shadeVisibility, unpackVisibilityId } from './visibilityBuffer.ts';
 import type { webgpuPagesBackend } from './webgpuPages.ts';

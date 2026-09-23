@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 
 export function blendFixture(
   material: THREE.Material = new THREE.MeshBasicMaterial({

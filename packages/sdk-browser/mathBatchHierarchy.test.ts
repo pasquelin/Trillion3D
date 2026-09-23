@@ -14,7 +14,7 @@ import {
   MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { prepareSdkWasm } from './geometryPageWasm.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
 import { createHierarchyLot, type HierarchyLot } from './mathBatchHierarchy.ts';

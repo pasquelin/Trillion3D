@@ -3,7 +3,7 @@
 // picks exactly one per region, and a threshold twice as large picks twice as few. Everything
 // comes from the shared bench's seeded generator.
 import * as THREE from 'three';
-import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../../packages/sdk-core/index.ts';
+import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../../packages/sdk-core/src/index.ts';
 import { graine } from '../../../core/index.ts';
 import type { ClusterRoot, PageRec } from '../../../../packages/sdk-browser/pageSelectionTypes.ts';
 import type { SelectionResult } from '../../../../packages/sdk-browser/pageSelectionCutState.ts';

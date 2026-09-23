@@ -1,5 +1,5 @@
-import { clusterErrorAtDepth } from '../sdk-core/index.ts';
-import { clipWeight } from '../sdk-core/mathCamera.ts';
+import { clusterErrorAtDepth } from '../sdk-core/src/index.ts';
+import { clipWeight } from '../sdk-core/src/math/primitives/camera.ts';
 import type { ClusterCut } from './pageSelectionMath.ts';
 
 /**

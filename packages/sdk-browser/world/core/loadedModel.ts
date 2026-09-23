@@ -1,9 +1,9 @@
-import { Object3D } from '../../../sdk-core/world/object/object3d.ts';
-import { Box3 } from '../../../sdk-core/world/math/box3.ts';
-import { Vector3 } from '../../../sdk-core/world/math/vector3.ts';
-import { lightFromRecord, type Light } from '../../../sdk-core/world/light/light.ts';
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
+import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
+import { lightFromRecord, type Light } from '../../../sdk-core/src/world/light/light.ts';
 import { loadImportedLights } from '../../importedLights.ts';
-import type { ClusterManifest, AssetScope } from '../../../sdk-core/index.ts';
+import type { ClusterManifest, AssetScope } from '../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../../manifestLoad.ts';
 import { loadPreparedScene } from '../../explorerScene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../hostWorldBounds.ts';

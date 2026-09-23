@@ -3,7 +3,7 @@ import { FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
 import { writeBlendDiagnostic } from './webgpuBlendDiagnostic.ts';
 import { directTiles } from './webgpuPagesEncodeLights.ts';
 import { wantsContractLighting } from './webgpuPagesLightResources.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Uniform stride of the fallback path, which keeps one record per primitive. */

@@ -1,4 +1,4 @@
-import type { GpuPassTimings } from '../sdk-core/index.ts';
+import type { GpuPassTimings } from '../sdk-core/src/index.ts';
 import type { createGpuTiming } from './gpuTiming.ts';
 import type { SelectionSubmission } from './gpuSelection.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';

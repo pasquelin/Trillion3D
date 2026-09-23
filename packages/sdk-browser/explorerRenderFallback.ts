@@ -1,4 +1,4 @@
-import type { AssetScope, DiagnosticMode } from '../sdk-core/index.ts';
+import type { AssetScope, DiagnosticMode } from '../sdk-core/src/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';

@@ -1,4 +1,4 @@
-import { FRUSTUM_PLANE_VALUES } from '../sdk-core/index.ts';
+import { FRUSTUM_PLANE_VALUES } from '../sdk-core/src/index.ts';
 import { createConeContext, type ConeContext, type NormalCone } from './pageCone.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import { IDENTITY_ELEMENTS, type MatrixElements } from './matrixElements.ts';

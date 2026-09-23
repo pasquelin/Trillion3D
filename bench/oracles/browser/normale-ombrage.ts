@@ -6,7 +6,7 @@
 // sides: this benchmark only proves vector algebra moved in this batch.
 import * as THREE from 'three';
 import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';
-import { matrixWindingCw, normalMatrix3 } from '../../../packages/sdk-core/index.ts';
+import { matrixWindingCw, normalMatrix3 } from '../../../packages/sdk-core/src/index.ts';
 import { attr2, sampleLinear, triangleAt } from '../../../packages/sdk-browser/visibilityMath.ts';
 import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/visibilityTypes.ts';
 

@@ -1,7 +1,7 @@
 // Geometry model for `erreur-ecran-borne.ts`: a drawn view (rotation, non-uniform or uniform
 // scale), the old screen-error formula, and the worst true screen displacement search per family.
 // Kept apart from orchestration and reporting so the campaign file stays under the line budget.
-import { maxStretch } from '../../../packages/sdk-core/index.ts';
+import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
 import { lois, mulberry32 } from './tirage.ts';
 import type { Vec3, Mat3 } from './vecTypes.ts';
 
