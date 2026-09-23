@@ -5,7 +5,7 @@ import { writtenEntries } from '../portal/written.ts';
 
 /**
  * The entries in `locale`: the written ones at once, every entry — the generated API reference
- * with them — once its chunk has loaded. It loads when `wanted` says so (the API area), or a
+ * with them, in the language's translation — once their chunks have loaded. It loads when `wanted` says so (the API area), or a
  * moment after the first page, so that the search finds the reference too.
  */
 export function useEntries(locale: Locale, wanted: boolean) {
@@ -20,9 +20,11 @@ export function useEntries(locale: Locale, wanted: boolean) {
   useEffect(() => {
     if (!load) return;
     let live = true;
-    void import('../portal/data.ts').then(({ entriesIn }) => {
-      if (live) setAll({ locale, entries: entriesIn(locale) });
-    });
+    void import('../portal/data.ts')
+      .then(({ loadEntries }) => loadEntries(locale))
+      .then((entries) => {
+        if (live) setAll({ locale, entries });
+      });
     return () => {
       live = false;
     };
