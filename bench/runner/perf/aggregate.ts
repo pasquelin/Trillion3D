@@ -8,11 +8,11 @@ import { loadavg } from 'node:os';
 import { join } from 'node:path';
 import { commitCourant, compareBaseline } from '../../core/baseline.ts';
 import type { LigneAvecEcartBaseline } from '../../core/baseline.ts';
-import { RACINE } from '../../core/paths.ts';
+import { measureOutput } from '../../core/paths.ts';
 import { lisFragments } from '../../core/report.ts';
 import { entete, ligneMd } from '../../core/table.ts';
 
-const SORTIE = join(RACINE, '.mesure', 'out', 'perf');
+const SORTIE = measureOutput('perf');
 const pourCent = (v: number) => `${(v * 100).toFixed(0)} %`;
 
 const fragments = lisFragments();

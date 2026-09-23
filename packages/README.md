@@ -30,7 +30,7 @@ Release targets: macOS arm64/x64, Linux x64/arm64, Windows x64. Build/test on ea
 
 ## Validation and contribution gates
 
-Use synthetic golden geometry, page/source index equality, exact image repeat/candidate comparisons and rejected malformed inputs. Keep raw measured before/after runs under ignored benchmark-runs. Compare the same source revision, scope, cache state, thread/RAM settings and machine. A single smoke run is not a speedup claim.
+Use synthetic golden geometry, page/source index equality, exact image repeat/candidate comparisons and rejected malformed inputs. Keep raw measured before/after runs under the ignored `.mesure/out/<batch>/`. Compare the same source revision, scope, cache state, thread/RAM settings and machine. A single smoke run is not a speedup claim.
 
 Performance regression budgets require repeated runs on a stable runner and variance bounds. No numeric CI threshold has been invented from the first local baseline. Native compatibility tests and importer tests exist; a full cross-platform CI/performance gate remains pending.
 

@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { campaignIdentity, canResume } from './report/provenance.ts';
 import { parseArgs, scenesOf } from './options.ts';
+import { measureOutput } from '../core/paths.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 // Argument groups that lines name in one word, replaced at execution.
@@ -141,7 +142,7 @@ async function run(
 
 if (import.meta.filename === process.argv[1]) {
   const flags = parseArgs(process.argv.slice(2));
-  const out = resolve(flags.get('out') ?? join(ROOT, '.mesure/out/global'));
+  const out = resolve(flags.get('out') ?? measureOutput('global'));
   const only = flags.get('seulement')?.split(',').filter(Boolean);
   const chosen = CAMPAGNE.filter(([name]) => !only || only.includes(name));
   const scenes = scenesOf(flags);

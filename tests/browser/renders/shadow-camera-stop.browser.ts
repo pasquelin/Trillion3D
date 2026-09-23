@@ -14,6 +14,7 @@ import { resolveMounts } from '../../../bench/runner/options.ts';
 import { ENGINES } from '../../../bench/runner/sideOptions.ts';
 import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/scene.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 // `window.scene`/`settle`/`stopped`/`pose` only exist in the page this harness evaluates code
 // in, never in Node; declared here so the `page.evaluate` callbacks below (type-checked, though
@@ -28,7 +29,7 @@ declare global {
 }
 
 const root = resolve(import.meta.dirname, '../../..');
-const output = resolve(root, 'benchmark-runs/shadow-camera-stop');
+const output = measureOutput('shadow-camera-stop');
 const WIDTH = 1248,
   HEIGHT = 702;
 await mkdir(output, { recursive: true });

@@ -22,6 +22,7 @@ import {
   countDrawnPixels,
   defaultBackendCapturePng,
 } from '../support/defaultBackendImages.ts';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 type ImageDelta = ReturnType<typeof compareDefaultBackendCaptures> | null;
 type Drawn = ReturnType<typeof countDrawnPixels> | null;
@@ -33,7 +34,7 @@ type MachineResult = {
 };
 
 const root = resolve(import.meta.dirname, '../../..');
-const out = resolve(root, 'benchmark-runs/default-backend');
+const out = measureOutput('default-backend');
 await mkdir(out, { recursive: true });
 const SCENE = 'site/assets/kinetic-garden';
 const MANIFEST = '/cache/scene/manifest.json';

@@ -24,12 +24,13 @@ import {
   countDrawnPixels,
   defaultBackendCapturePng,
 } from '../support/defaultBackendImages.ts';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 type Delta = ReturnType<typeof compareDefaultBackendCaptures>;
 type Read = { result: CaseResult; drawn: ReturnType<typeof countDrawnPixels>; capture: string };
 
 const root = resolve(import.meta.dirname, '../../..');
-const out = resolve(root, 'benchmark-runs/blend-cache-default');
+const out = measureOutput('blend-cache-default');
 await mkdir(out, { recursive: true });
 /** The capture of a scene on the WebGPU machine, carried into the other one to be compared. */
 const carriedKey = (name: string) => `webgpu-${name}`;

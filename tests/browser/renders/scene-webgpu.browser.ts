@@ -8,10 +8,11 @@ import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/scene.ts';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { runOnPage } from '../support/scenePageRun.ts';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
-const out = resolve('benchmark-runs/webgpu-visual', run);
+const out = measureOutput('webgpu-visual', run);
 // The harness page and its import map, the trajectory under `/runner/`, and the engine this run
 // proves — `routeBaseline` intercepts `/dist/sdk-browser/`, so the engine keeps that prefix.
 const mounts = [...resolveMounts(ROOT, []), { prefix: '/dist/', dir: resolve(ROOT, 'dist') }];

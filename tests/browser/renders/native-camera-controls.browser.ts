@@ -16,13 +16,14 @@ import {
   stepGesture,
 } from '../support/cameraControlsPage.ts';
 import type { Page } from 'playwright';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 declare global {
   var sdk: typeof import('../../../packages/sdk-browser/src/measurement/measurement.ts');
 }
 
 const root = resolve(import.meta.dirname, '../../..');
-const out = resolve(root, 'benchmark-runs/controles-camera-natifs');
+const out = measureOutput('native-camera-controls');
 await mkdir(out, { recursive: true });
 const cacheMounts = threeStackMounts(root, out);
 const server = await startServer({

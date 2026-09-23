@@ -6,7 +6,7 @@
 // no `aria-busy`, then 1.5 s more, and `document.body` is serialised after normalising what is
 // dynamic by nature: canvas contents and sizes, `disabled`, stat values and outputs, generated
 // ids, frame metrics. A DOM-at-rest comparison, not a pixel claim. Differences are written under
-// `benchmark-runs/site-diff/` and the exit code is 1 when any route differs. A filter keeps the
+// `.mesure/out/site-diff/` and the exit code is 1 when any route differs. A filter keeps the
 // routes containing it, to look again at a few.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -18,9 +18,10 @@ import { examples } from '../site/content/catalog.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { entryRoute, routeHref } from '../site/app/portal/routes.ts';
 import type { Locale } from '../site/content/locale.ts';
+import { measureOutput } from '../bench/core/paths.ts';
 
 const SETTLE_MS = 1500;
-const OUT = resolve(import.meta.dirname, '../benchmark-runs/site-diff');
+const OUT = measureOutput('site-diff');
 const LOCALES: Locale[] = ['en', 'fr'];
 
 /** Every route the portal resolves: entries and examples in both locales, plus the fixed pages. */

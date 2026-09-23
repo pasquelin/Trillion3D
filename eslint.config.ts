@@ -11,7 +11,6 @@ export default tseslint.config(
       'node_modules/**',
       'dist/**',
       ...localFileGlobs(),
-      'benchmark-runs/**',
       '**/target/**',
       // Measurement bench outputs: extracted source trees are built there.
       '.mesure/**',

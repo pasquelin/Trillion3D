@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startServer, serverPort } from '../tests/kit/server/staticServer.ts';
 import { buildSite, SITE_OUTPUT } from './docs/site.ts';
+import { measureOutput } from '../bench/core/paths.ts';
 
 interface FossilProof {
   triangles: number;
@@ -122,7 +123,7 @@ test('the original OBJ excavation renders stable exterior surfaces and coloured 
     assert.ok(proof.occupied > 0.1 && proof.occupied < 0.9, JSON.stringify(proof));
     assert.ok(proof.blue > 30 && proof.red > 30, JSON.stringify(proof));
     assert.deepEqual(errors, []);
-    const output = resolve(root, 'benchmark-runs/fossil-excavation');
+    const output = measureOutput('fossil-excavation');
     await mkdir(output, { recursive: true });
     await page.locator('canvas').screenshot({ path: resolve(output, 'excavation.png') });
     await writeFile(

@@ -4,6 +4,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { join, resolve } from 'node:path';
 import { assertReport } from '../../site/reports/contract.ts';
 import { parseArgs } from './options.ts';
+import { measureOutput } from '../core/paths.ts';
 export function publierRapport(source: string, dest: string): string {
   const report = assertReport(JSON.parse(readFileSync(join(source, 'report.json'), 'utf8')));
   const folder = join(dest, 'reports', report.id);
@@ -38,7 +39,7 @@ if (import.meta.filename === process.argv[1]) {
   const flags = parseArgs(process.argv.slice(2));
   console.log(
     publierRapport(
-      resolve(flags.get('dossier') ?? '.mesure/out/global/report-data'),
+      resolve(flags.get('dossier') ?? measureOutput('global', 'report-data')),
       resolve(flags.get('vers') ?? 'site'),
     ),
   );

@@ -1,7 +1,6 @@
 node_modules/
 dist/
 **/target/
-benchmark-runs/
 .idea/
 .mesure/
 # Personal files stay local. Shared checks read these patterns. No entry ends with a slash: a
