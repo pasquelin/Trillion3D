@@ -4675,9 +4675,13 @@
       "version": "Versión del producto.",
       "nodeTableVersion": "Versión de la tabla de nodos.",
       "materialTableVersion": "Versión de la tabla de materiales.",
-      "nodes": "Los nodos.",
+      "geometryTableVersion": "Versión de la disposición de la geometría.",
+      "scene": "La escena que abre el anfitrión y los nodos en su cima.",
+      "nodes": "Todos los nodos.",
+      "lights": "Las luces que llevan los nodos.",
       "materials": "Los materiales.",
-      "textures": "Las texturas."
+      "textures": "Las texturas.",
+      "documents": "La disposición de la geometría de cada archivo de escena publicado, por su nombre."
     }
   },
   "prepareMany": {
@@ -5661,27 +5665,32 @@
       "roughnessMap": "La imagen de rugosidad.",
       "normalMap": "La imagen de normales.",
       "aoMap": "La imagen de oclusión ambiental.",
-      "emissiveMap": "La imagen de brillo."
+      "emissiveMap": "La imagen de brillo.",
+      "kind": "Qué superficie construye el anfitrión: sin iluminación, estándar o física cuando se declara una extensión física.",
+      "alphaMode": "Cómo se lee el alfa: ignorado, recortado en `alphaTest` o mezclado.",
+      "opacity": "El alfa del factor de color base.",
+      "extensions": "Lo que añaden las extensiones físicas, con los nombres de parámetro del anfitrión: un factor, un color o un intervalo como números, un mapa como ranura."
     }
   },
   "TableNode": {
-    "summary": "Una primitiva dibujada: el nodo que la lleva, su pose en el mundo, la superficie que lleva y su rango entre las copias de esa misma primitiva — eso es aquí la instanciación, una geometría nombrada por varios nodos.",
-    "description": "`bounds` es la caja en el mundo de la geometría fuente; la escena autónoma publica triángulos degenerados en su lugar, así que es la respuesta de la caché, no la del cargador.",
+    "summary": "Un nodo del grafo de la escena, en su rango glTF: sus hijos, la malla y la luz puntual que lleva, y su pose LOCAL exactamente como se declara — una matriz, o cualquiera de traslación, rotación y escala, cada una `null` cuando se omite.",
+    "description": "Varios nodos que nombran una misma malla: eso es aquí la instanciación.",
     "members": {
       "name": "El nombre del nodo.",
-      "node": "El número del nodo.",
-      "parent": "El número de su padre.",
-      "mesh": "El número de su malla.",
-      "primitive": "El número de su primitiva.",
-      "material": "El rango de su material.",
-      "instance": "Qué copia es.",
-      "matrix": "Su matriz en el mundo.",
-      "bounds": "Su caja en el mundo."
+      "children": "Sus hijos, en orden.",
+      "mesh": "La malla que dibuja.",
+      "light": "La luz que lleva.",
+      "matrix": "Su matriz local, por columnas.",
+      "translation": "Dónde está.",
+      "rotation": "Cómo está girado, como cuaternión.",
+      "scale": "Cómo está estirado."
     }
   },
   "TableTexture": {
     "summary": "Estado de muestreo de una textura glTF, en las palabras del motor.",
     "members": {
+      "name": "Su nombre.",
+      "sampler": "El rango del muestreador glTF que declara, `null` si no hay ninguno.",
       "image": "Qué imagen.",
       "wrapS": "Repetición en anchura.",
       "wrapT": "Repetición hacia arriba.",
@@ -5690,11 +5699,11 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "Un emplazamiento de imagen ocupado: qué textura, qué conjunto de coordenadas, y el 3×3 compuesto para él.",
+    "summary": "Una ranura de mapa ocupada: qué textura, qué conjunto de coordenadas y la transformación que declara.",
     "members": {
       "texture": "Qué textura.",
       "texCoord": "Qué conjunto de UV.",
-      "transform": "La transformación de las UV, 3×3."
+      "transform": "El `KHR_texture_transform` que declara la ranura — desplazamiento, giro en radianes, estiramiento, cada uno `null` cuando se omite — o `null` si no declara ninguno."
     }
   },
   "TelemetryReport": {

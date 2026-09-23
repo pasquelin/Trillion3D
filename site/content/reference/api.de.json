@@ -4675,9 +4675,13 @@
       "version": "Version des Produkts.",
       "nodeTableVersion": "Version der Knotentabelle.",
       "materialTableVersion": "Version der Materialtabelle.",
-      "nodes": "Die Knoten.",
+      "geometryTableVersion": "Version des Geometrie-Layouts.",
+      "scene": "Die Szene, die der Host öffnet, und die Knoten an ihrer Spitze.",
+      "nodes": "Jeder Knoten.",
+      "lights": "Die Lichter, die die Knoten tragen.",
       "materials": "Die Materialien.",
-      "textures": "Die Texturen."
+      "textures": "Die Texturen.",
+      "documents": "Das Geometrie-Layout jeder veröffentlichten Szenendatei, nach ihrem Namen."
     }
   },
   "prepareMany": {
@@ -5661,27 +5665,32 @@
       "roughnessMap": "Das Rauheitsbild.",
       "normalMap": "Das Normalenbild.",
       "aoMap": "Das Umgebungsverdeckungsbild.",
-      "emissiveMap": "Das Leuchtbild."
+      "emissiveMap": "Das Leuchtbild.",
+      "kind": "Welche Oberfläche der Host baut: unbeleuchtet, Standard oder physikalisch, wenn eine physikalische Erweiterung deklariert ist.",
+      "alphaMode": "Wie Alpha gelesen wird: ignoriert, bei `alphaTest` abgeschnitten oder gemischt.",
+      "opacity": "Das Alpha des Grundfarbfaktors.",
+      "extensions": "Was die physikalischen Erweiterungen hinzufügen, unter den Parameternamen des Hosts: ein Faktor, eine Farbe oder ein Bereich als Zahlen, eine Map als Platz."
     }
   },
   "TableNode": {
-    "summary": "Eine gezeichnete Primitive: der Knoten, der sie trägt, ihre Pose in der Welt, die Oberfläche, die sie trägt, und ihr Rang unter den Kopien derselben Primitive — das ist hier Instanzierung, eine von mehreren Knoten benannte Geometrie.",
-    "description": "`bounds` ist die Weltbox der Quellgeometrie; die autonome Szene veröffentlicht stattdessen entartete Dreiecke, also ist das die Antwort des Caches, nicht die des Loaders.",
+    "summary": "Ein Knoten des Szenengraphen, an seinem glTF-Rang: seine Kinder, das Mesh und das punktförmige Licht, das er trägt, und seine LOKALE Pose genau wie deklariert — eine Matrix oder beliebige aus Verschiebung, Drehung und Skalierung, jeweils `null`, wenn nicht angegeben.",
+    "description": "Mehrere Knoten, die dasselbe Mesh nennen: Das ist hier Instanziierung.",
     "members": {
       "name": "Der Name des Knotens.",
-      "node": "Die Nummer des Knotens.",
-      "parent": "Die Nummer seines Elternteils.",
-      "mesh": "Die Nummer seines Meshes.",
-      "primitive": "Die Nummer seiner Primitive.",
-      "material": "Der Rang seines Materials.",
-      "instance": "Welche Kopie es ist.",
-      "matrix": "Seine Matrix in der Welt.",
-      "bounds": "Seine Box in der Welt."
+      "children": "Seine Kinder, der Reihe nach.",
+      "mesh": "Das Mesh, das er zeichnet.",
+      "light": "Das Licht, das er trägt.",
+      "matrix": "Seine lokale Matrix, spaltenweise.",
+      "translation": "Wo er steht.",
+      "rotation": "Wie er gedreht ist, als Quaternion.",
+      "scale": "Wie er gestreckt ist."
     }
   },
   "TableTexture": {
     "summary": "Abtastzustand einer glTF-Textur, in den Worten der Engine.",
     "members": {
+      "name": "Ihr Name.",
+      "sampler": "Der Rang des glTF-Samplers, den sie deklariert, `null` wenn keiner.",
       "image": "Welches Bild.",
       "wrapS": "Wiederholung in der Breite.",
       "wrapT": "Wiederholung nach oben.",
@@ -5690,11 +5699,11 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "Ein gefüllter Bildplatz: welche Textur, welcher Koordinatensatz, und das für ihn zusammengesetzte 3×3.",
+    "summary": "Ein belegter Map-Platz: welche Textur, welcher Koordinatensatz und die Transformation, die er deklariert.",
     "members": {
       "texture": "Welche Textur.",
       "texCoord": "Welcher UV-Satz.",
-      "transform": "Die Transformation der UV, 3×3."
+      "transform": "Das `KHR_texture_transform`, das der Platz deklariert — Versatz, Drehung im Bogenmaß, Streckung, jeweils `null`, wenn nicht angegeben — oder `null`, wenn keines."
     }
   },
   "TelemetryReport": {

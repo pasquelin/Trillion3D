@@ -4683,9 +4683,13 @@
       "version": "Version du produit.",
       "nodeTableVersion": "Version de la table des nœuds.",
       "materialTableVersion": "Version de la table des matériaux.",
-      "nodes": "Les nœuds.",
+      "geometryTableVersion": "Version de la disposition de la géométrie.",
+      "scene": "La scène que l’hôte ouvre, et les nœuds à son sommet.",
+      "nodes": "Tous les nœuds.",
+      "lights": "Les lumières que portent les nœuds.",
       "materials": "Les matériaux.",
-      "textures": "Les textures."
+      "textures": "Les textures.",
+      "documents": "La disposition de la géométrie de chaque fichier de scène publié, par son nom."
     }
   },
   "prepareMany": {
@@ -5669,27 +5673,32 @@
       "roughnessMap": "L’image de rugosité.",
       "normalMap": "L’image de normales.",
       "aoMap": "L’image d’occlusion ambiante.",
-      "emissiveMap": "L’image de lueur."
+      "emissiveMap": "L’image de lueur.",
+      "kind": "La surface que l’hôte construit : sans éclairage, standard, ou physique quand une extension physique est déclarée.",
+      "alphaMode": "Comment l’alpha est lu : ignoré, coupé à `alphaTest`, ou mélangé.",
+      "opacity": "L’alpha du facteur de couleur de base.",
+      "extensions": "Ce que les extensions physiques ajoutent, sous les noms de paramètres de l’hôte : un facteur, une couleur ou un intervalle en nombres, une image en emplacement."
     }
   },
   "TableNode": {
-    "summary": "Une primitive dessinée : le nœud qui la porte, sa pose dans le monde, la surface qu’elle porte et son rang parmi les copies de cette même primitive — c’est ce qu’est l’instanciation ici, une géométrie nommée par plusieurs nœuds.",
-    "description": "`bounds` est la boîte dans le monde de la géométrie source ; la scène autonome publie des triangles dégénérés à sa place, donc c’est la réponse du cache, pas celle du chargeur.",
+    "summary": "Un nœud du graphe de la scène, à son rang glTF : ses enfants, le maillage et la lumière ponctuelle qu’il porte, et sa pose LOCALE exactement telle que déclarée — une matrice, ou n’importe lesquelles de la translation, de la rotation et de l’échelle, chacune `null` quand elle est tue.",
+    "description": "Plusieurs nœuds qui nomment un même maillage, c’est ce qu’est l’instanciation ici.",
     "members": {
       "name": "Le nom du nœud.",
-      "node": "Le numéro du nœud.",
-      "parent": "Le numéro de son parent.",
-      "mesh": "Le numéro de son maillage.",
-      "primitive": "Le numéro de sa primitive.",
-      "material": "Le rang de son matériau.",
-      "instance": "Quelle copie c’est.",
-      "matrix": "Sa matrice dans le monde.",
-      "bounds": "Sa boîte dans le monde."
+      "children": "Ses enfants, dans l’ordre.",
+      "mesh": "Le maillage qu’il dessine.",
+      "light": "La lumière qu’il porte.",
+      "matrix": "Sa matrice locale, par colonnes.",
+      "translation": "Où il se tient.",
+      "rotation": "Comment il est tourné, en quaternion.",
+      "scale": "Comment il est étiré."
     }
   },
   "TableTexture": {
     "summary": "État d’échantillonnage d’une texture glTF, dans les mots du moteur.",
     "members": {
+      "name": "Son nom.",
+      "sampler": "Le rang de l’échantillonneur glTF qu’elle déclare, `null` s’il n’y en a pas.",
       "image": "Quelle image.",
       "wrapS": "Répétition en largeur.",
       "wrapT": "Répétition vers le haut.",
@@ -5698,11 +5707,11 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "Un emplacement d’image rempli : quelle texture, quel jeu de coordonnées, et le 3×3 composé pour lui.",
+    "summary": "Un emplacement d’image rempli : quelle texture, quel jeu de coordonnées, et la transformation qu’il déclare.",
     "members": {
       "texture": "Quelle texture.",
       "texCoord": "Quel jeu d’UV.",
-      "transform": "La transformation des UV, 3×3."
+      "transform": "Le `KHR_texture_transform` que l’emplacement déclare — décalage, rotation en radians, étirement, chacun `null` quand il est tu — ou `null` s’il n’en déclare aucun."
     }
   },
   "TelemetryReport": {
