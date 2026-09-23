@@ -28,7 +28,7 @@
   "home": {
     "title": "Tampilkan dunia 3D raksasa di browser",
     "start": "Mulai kursus",
-    "editor": "Open the scene editor"
+    "editor": "Buka editor scene"
   },
   "examples": {
     "lead": "Setiap contoh adalah satu berkas pendek: lihat cara kerjanya, buka kodenya, ubah isinya.",
@@ -554,7 +554,7 @@
           "<code>world.camera.position.set(x, y, z)</code> menaruh mata di suatu tempat; <code>world.camera.lookAt(x, y, z)</code> mengarahkannya ke sebuah titik.",
           "Sebuah <em>controller</em> mengubah gerakan mouse, jari dan papan ketik menjadi gerakan kamera. Pilih saat membuat dunia: <code>createWorld('view', { controls: 'orbit' })</code>.",
           "<code>'orbit'</code> mengelilingi sebuah titik: seret untuk berputar, seret kanan untuk menggeser, gulir untuk memperbesar. <code>world.controls.target</code> adalah titik yang dikelilinginya.",
-          "Ada juga yang lain: <code>'fly'</code> (tombol W A S D, lihat <a href=\"#/en/examples/fly-over-a-model-town\">Fly a plane through rings</a>), <code>'firstPerson'</code> (berjalan, lihat <a href=\"#/en/examples/walk-through-a-temple\">Temple parkour</a>), <code>'trackball'</code>, <code>'panZoom'</code> untuk peta datar, dan <code>'none'</code> saat kodemu sendiri yang menggerakkan kamera.",
+          "Ada juga yang lain: <code>'fly'</code> (tombol W A S D, lihat <a href=\"#/en/examples/fly-over-a-model-town\">Jet tempur di ngarai</a>), <code>'character'</code> (berlari dan melompat, menabrak tembok, lihat <a href=\"#/en/examples/walk-through-a-temple\">Parkour kuil</a>), <code>'firstPerson'</code> (berjalan menembus segalanya), <code>'trackball'</code>, <code>'panZoom'</code> untuk peta datar, dan <code>'none'</code> saat kodemu sendiri yang menggerakkan kamera.",
           "Ganti kapan saja: <code>world.controls.kind = 'fly'</code>."
         ],
         "tryIt": "Seret untuk berputar mengelilingi jam, gulir untuk melihat dekat gigi-gigi rodanya."
@@ -720,7 +720,7 @@
     },
     "GpuTimingMethod": {
       "description": "Bagaimana durasi GPU sebuah profil tahap diambil. Durasi per-tahap menunjukkan di mana, tidak pernah seberapa banyak: pada GPU berbasis ubin tahap-tahap saling tumpang tindih dan sebuah tahap menyerap tahap tetangganya. Total bingkainya adalah `gpuImageMs`, selangnya — durasi tahap tidak dijumlahkan ke dalamnya.",
-      "values": ["Native WebGPU timestamp queries.", "Ekstensi WebGL2, untuk jalur itu."]
+      "values": ["Kueri stempel waktu WebGPU asli.", "Ekstensi WebGL2, untuk jalur itu."]
     },
     "ColumnKind": {
       "description": "Penyimpanan satu kolom manifest biner. `COLUMN_KIND` memetakan tiap nama kolom ke jenisnya, jadi sebuah pembaca tahu tampilan mana yang dipakai atas byte sidecar-nya.",
@@ -1433,7 +1433,7 @@
       "pixel-art-render": "Render pixel-art",
       "stylised-filters": "Filter bergaya",
       "trails-behind-motion": "Jejak gerakan",
-      "masked-effects": "Efek termask",
+      "masked-effects": "Efek mask",
       "cross-fade-between-scenes": "Cross-fade antar scene",
       "a-screen-inside-the-scene": "Layar di dalam scene",
       "a-portal": "Sebuah portal",
