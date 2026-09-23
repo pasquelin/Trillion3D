@@ -11,7 +11,10 @@ function decodeId(value: string) {
 
 /** The areas of the header, in navigation order; each has its own sidebar. */
 const AREAS = ['learn', 'examples', 'api', 'reports'] as const;
-export type NavArea = (typeof AREAS)[number];
+type NavArea = (typeof AREAS)[number];
+
+/** The header's links: the areas, and the scene editor after Examples, whose page it is. */
+const NAV_LINKS = ['learn', 'examples', 'editor', 'api', 'reports'] as const;
 
 /** Every area a route may name: the header's, and the lessons, which live under Learn. */
 const ROUTE_AREAS = [...AREAS, 'lessons'] as const;
@@ -42,6 +45,9 @@ const isArea = (value: string | undefined): value is RouteArea =>
   value !== undefined && AREA_SET.has(value);
 /** The scene editor's page, under Examples beside the examples it is not one of. */
 export const EDITOR_ID = 'scene-editor';
+export const isEditorRoute = ({ area, id }: PortalRoute) => area === 'examples' && id === EDITOR_ID;
+export const editorHref = (locale: Locale) =>
+  routeHref({ locale, area: 'examples', id: EDITOR_ID });
 
 /** The entry sections read in Learn, as guides; the others are the API reference. */
 export const LEARN_SECTIONS = ['course', 'guides', 'internals'];
@@ -49,13 +55,22 @@ export const LEARN_SECTIONS = ['course', 'guides', 'internals'];
 /** The header area a route belongs to: the lessons are read from Learn. */
 const navArea = (area: RouteArea): NavArea => (area === 'lessons' ? 'learn' : area);
 
-/** The header's links for `route`: each area's first page, the route's own area current. */
-export const navLinks = (route: PortalRoute) =>
-  AREAS.map((area) => ({
-    area,
-    href: routeHref({ locale: route.locale, area, id: area === 'learn' ? 'home' : '' }),
-    current: navArea(route.area) === area,
+/**
+ * The header's links for `route`: each area's first page and the scene editor, the one the route
+ * shows current; the editor's route marks the editor, not Examples.
+ */
+export function navLinks(route: PortalRoute) {
+  const { locale } = route;
+  const here = isEditorRoute(route) ? 'editor' : navArea(route.area);
+  return NAV_LINKS.map((link) => ({
+    link,
+    href:
+      link === 'editor'
+        ? editorHref(locale)
+        : routeHref({ locale, area: link, id: link === 'learn' ? 'home' : '' }),
+    current: here === link,
   }));
+}
 
 /**
  * Reads `#/<locale>/<area>/<id>`. A hash without a locale opens the home page in

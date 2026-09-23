@@ -46,19 +46,20 @@ test('the removed legacy routes no longer lead anywhere', () => {
   assert.ok(!rawEntries.some(({ section }) => section === 'demo'));
 });
 
-test('the header marks the area of the route, the lessons under Learn', () => {
+test('the header marks the area of the route, the lessons under Learn, the editor apart', () => {
   const current = (hash: string) =>
     navLinks(parseRoute(hash))
       .filter((link) => link.current)
-      .map(({ area, href }) => `${area} ${href}`);
+      .map(({ link, href }) => `${link} ${href}`);
   assert.deepEqual(current('#/fr/learn/create-a-world'), ['learn #/fr/learn/home']);
   assert.deepEqual(current('#/en/lessons/rotate'), ['learn #/en/learn/home']);
   assert.deepEqual(current('#/en/examples/cube'), ['examples #/en/examples']);
+  assert.deepEqual(current('#/fr/examples/scene-editor'), ['editor #/fr/examples/scene-editor']);
   assert.deepEqual(current('#/en/api/createWorld'), ['api #/en/api']);
   assert.deepEqual(current('#/fr/reports/september-18/compare'), ['reports #/fr/reports']);
   assert.deepEqual(
-    navLinks(parseRoute('#/en/api')).map(({ area }) => area),
-    ['learn', 'examples', 'api', 'reports'],
+    navLinks(parseRoute('#/en/api')).map(({ link }) => link),
+    ['learn', 'examples', 'editor', 'api', 'reports'],
   );
 });
 
