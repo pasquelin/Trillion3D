@@ -5,6 +5,8 @@ import type { EngineCamera } from '../../../camera/world.ts';
 import { pixelNearOf } from '../../../camera/pixelFootprint.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
 import { createShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
+import { createShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
+import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
 
 const viewpoint: ShadowViewpoint & {
@@ -123,8 +125,9 @@ export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommand
 }
 
 /**
- * The static layer is built the first time an object moves; until its pipeline is ready, pages
- * are drawn whole, every caster at once. A device that refuses it keeps drawing them so.
+ * The static layer is built the first time an object moves, with the pyramids of its pages and
+ * the occlusion test of the moving casters; until they are ready, pages are drawn whole, every
+ * caster at once. A device that refuses the layer keeps drawing them so.
  */
 function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
@@ -132,8 +135,19 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   if (!lights.mobility.layered || lights.staticLayer || lights.staticLayerPending || !device)
     return;
   lights.staticLayerPending = true;
+  const capacity = rt.layout.drawSlots;
   createShadowStaticLayer(device)
-    .then((layer) => {
+    .then(async (layer) => {
+      // The pyramids and the occlusion test read the layer: a device that refuses them keeps the
+      // layer, and draws the moving casters untested.
+      try {
+        lights.pageHiz = await createShadowPageHiz(device, layer.view);
+        lights.occlusion = await createShadowOcclusion(device, capacity);
+      } catch (error) {
+        lights.pageHiz?.dispose();
+        lights.pageHiz = undefined;
+        rt.diag.diagnosticFailure('shadow-occlusion-unavailable', error);
+      }
       lights.staticLayer = layer;
     })
     .catch((error) => rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error));

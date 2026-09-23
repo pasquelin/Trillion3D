@@ -38,6 +38,9 @@ export interface ShadowFrameMetrics {
   /** Casters the per-page cull kept, all drawn pages together, on the frame the device last
    *  sampled — one in fifteen; `null` until a sample has returned. */
   shadowCastersKept?: number | null;
+  /** Moving casters the occlusion test found hidden behind the static layer of their page, on
+   *  the frame the device last sampled; `null` until a sample has returned. */
+  shadowCastersHidden?: number | null;
   /** What page invalidation produced: pages redrawn by the frame, pages left in
    *  the queue for lack of budget, and the lag in milliseconds of the oldest of them. Zero
    *  everywhere is the normal value of a still scene; `null` on an engine without a shadow atlas. */

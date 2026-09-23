@@ -61,6 +61,8 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     [SHADOW_PASS]: ['shadows', 'other'],
     [SHADOW_LAYER_PASS]: ['shadows', 'other'],
     'WG shadow cull': ['shadows', 'other'],
+    'WG shadow page pyramids': ['shadows', 'other'],
+    'WG shadow occlusion': ['shadows', 'other'],
     [LIGHT_TILES_PASS]: ['lightLists', 'other'],
     [BOUNCE_SURFACE_PASS]: ['bounce', 'other'],
     [BOUNCE_PROBE_PASS]: ['bounce', 'other'],

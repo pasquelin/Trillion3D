@@ -78,6 +78,7 @@ export function submitColorCopy(
   // Same for the far-shadow counts: their copy is mapped only once submitted.
   rt.sunFar.gpu?.submitted();
   rt.lights.cull?.counts.submitted();
+  rt.lights.occlusion?.counts.submitted();
   settleShadowRequests(rt, true);
   run.imageRevision++;
   if (owned) {

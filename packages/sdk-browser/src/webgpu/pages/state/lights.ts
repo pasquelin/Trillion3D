@@ -23,6 +23,8 @@ import { createShadowSceneBox } from '../../shadow/sceneBox.ts';
 import { createShadowResidence } from '../../shadow/residence.ts';
 import { createShadowMobility, type ShadowMobility } from '../../shadow/mobility.ts';
 import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
+import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
+import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
@@ -46,6 +48,9 @@ export interface WebgpuLightState {
   /** The static layer of the pool, once an object has moved and its pipeline is built. */
   staticLayer: ShadowStaticLayer | undefined;
   staticLayerPending: boolean;
+  /** The static layer's page pyramids and the test of the moving casters against them. */
+  pageHiz: ShadowPageHiz | undefined;
+  occlusion: ShadowOcclusion | undefined;
   /** The scene's world box, what a sun's depth range spans (`../../shadow/sceneBox.ts`). */
   sceneBox: ReturnType<typeof createShadowSceneBox>;
   /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
@@ -111,9 +116,11 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     mobilityRows: undefined,
     staticLayer: undefined,
     staticLayerPending: false,
+    pageHiz: undefined,
+    occlusion: undefined,
     cull: undefined,
     spheres: undefined,
-    shadowGroups: new Array(MAX_SHADOW_REGIONS).fill(undefined),
+    shadowGroups: new Array(2 * MAX_SHADOW_REGIONS).fill(undefined),
     shadowGroupsKey: [],
     uploadedEpoch: 0,
     faceMatrices: new Float32Array(MAX_SHADOW_REGIONS * 16),

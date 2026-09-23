@@ -43,10 +43,11 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       GPUTextureUsage.TEXTURE_BINDING |
       GPUTextureUsage.COPY_SRC,
   });
+  // Also storage: the occlusion test of the moving casters reads each region's matrix there.
   const faceUniform = device.createBuffer({
     label: 'WG shadow faces v1',
     size: MAX_SHADOW_REGIONS * FACE_STRIDE,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const dataBuffer = device.createBuffer({
     label: 'WG shadow records and page table v1',
@@ -116,6 +117,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       depth,
       clear,
       faceGroup,
+      faceUniform,
       faceStride: FACE_STRIDE,
       allocationBytes: shadowAtlasBytes() + faceUniform.size + dataBuffer.size + requestBuffer.size,
       writePage: pack.writePage,
