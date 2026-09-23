@@ -1,43 +1,71 @@
-import { local } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
-import { ExampleCard } from '../gallery/ExampleCard.tsx';
-import { ProgressiveList } from '../components/ProgressiveList.tsx';
+import { ExampleCard, PendingExampleCard } from './ExampleCard.tsx';
+import { DocPage } from '../layout/DocPage.tsx';
 import { routeHref } from '../portal/routes.ts';
-import { themedEntries } from './list.ts';
+import { Grid } from '../ui/Grid.tsx';
+import { JumpTo } from '../ui/JumpTo.tsx';
+import { Section } from '../ui/Text.tsx';
+import {
+  exampleMissing,
+  exampleTitle,
+  isReady,
+  themedEntries,
+  themeTitle,
+  thumbnailOf,
+} from './list.ts';
 
-/** The Examples landing page: the lessons' card grid, one card per entry of the list, theme by
- * theme — a done example with its settled render as thumbnail, opening the example; one still
- * to write greyed out, so what is done and what is not shows at a glance. */
+/** The heading a theme's section scrolls to. */
+const themeAnchor = (theme: string) => `theme-${theme}`;
+
+/** The Examples landing page, theme by theme: one card per ready example, its settled render as
+ * thumbnail, opening the example; then one card per example still in progress or waiting for the
+ * engine, opening nothing. */
 export function Examples({ locale }: { locale: Locale }) {
-  const french = locale === 'fr';
+  const t = useWords(locale);
   return (
-    <section data-examples>
-      <h1 className="text-3xl font-bold mb-6">{french ? 'Exemples' : 'Examples'}</h1>
-      <ProgressiveList
-        items={themedEntries.flatMap(({ theme, entries }) =>
-          entries.map((entry) => ({ ...entry, badge: local(theme.title, locale) })),
-        )}
-        labels={{
-          previous: french ? 'Charger les exemples précédents' : 'Load previous examples',
-          next: french ? 'Charger plus d’exemples' : 'Load more examples',
-          loading: french ? 'Chargement…' : 'Loading…',
-          end: french ? 'Fin des exemples' : 'End of examples',
-        }}
-        renderItem={(entry) => (
-          <ExampleCard
-            key={entry.id}
-            locale={locale}
-            href={entry.file ? routeHref({ locale, area: 'examples', id: entry.id }) : null}
-            badge={entry.badge}
-            example={{
-              id: entry.id,
-              category: entry.theme,
-              title: entry.title,
-              preview: `./assets/examples/thumbnails/${entry.id}.png`,
-            }}
-          />
-        )}
-      />
-    </section>
+    <DocPage
+      data-examples
+      title={t('nav.examples')}
+      lead={t('examples.lead')}
+      inlineActions
+      actions={
+        <JumpTo
+          aria-label={t('examples.jumpTo')}
+          placeholder={t('examples.jumpTo')}
+          items={themedEntries.map(({ theme, entries }) => ({
+            id: themeAnchor(theme),
+            label: themeTitle(theme, locale),
+            count: entries.length,
+          }))}
+        />
+      }
+    >
+      {themedEntries.map(({ theme, entries }) => (
+        <Section key={theme} id={themeAnchor(theme)} title={themeTitle(theme, locale)}>
+          <Grid>
+            {entries.map((entry) =>
+              isReady(entry) ? (
+                <ExampleCard
+                  key={entry.id}
+                  title={exampleTitle(entry.id, locale)}
+                  href={routeHref({ locale, area: 'examples', id: entry.id })}
+                  badge={themeTitle(theme, locale)}
+                  thumbnail={thumbnailOf(entry.id)}
+                />
+              ) : (
+                <PendingExampleCard
+                  key={entry.id}
+                  locale={locale}
+                  title={exampleTitle(entry.id, locale)}
+                  missing={exampleMissing(entry.id, locale)}
+                  issue={entry.issue}
+                />
+              ),
+            )}
+          </Grid>
+        </Section>
+      ))}
+    </DocPage>
   );
 }

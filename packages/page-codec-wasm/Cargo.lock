@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "web-geometry-page-codec"
+name = "trillion3d-page-codec"
 version = "0.1.0"

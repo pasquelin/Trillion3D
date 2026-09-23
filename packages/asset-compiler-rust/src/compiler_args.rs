@@ -46,7 +46,7 @@ pub fn parse_compiler_args(
   5=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,2,256,args[4].clone(),"none".into()),
   7=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),"none".into()),
   8=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),args[7].clone()),
-  _=>return Err("Usage: web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL\n       web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=bc7|astc|both|none]\n       SOURCE is a directory or a file in one of the formats --version lists".into()),
+  _=>return Err("Usage: trillion3d-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL\n       trillion3d-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=bc7|astc|both|none]\n       SOURCE is a directory or a file in one of the formats --version lists".into()),
  };
     if !["none", "qem-endpoints"].contains(&simplification.as_str()) {
         return Err("simplification must be none or qem-endpoints".into());

@@ -1,21 +1,25 @@
-# Web Geometry Documentation
+# Trillion3D Documentation
 
-[Contributing](../CONTRIBUTING.md): engineering practices, validation and review.
+The one index of the repository's documentation. The learning portal — guides, every public
+function, live demos, examples and the measurement reports — is built from `site/` into
+`dist/site/` and published on [www.trillion3d.com](https://www.trillion3d.com/); how it is
+maintained is [LEARNING_PORTAL.md](LEARNING_PORTAL.md).
 
-[Simple browser startup](SDK.md#simple-browser-startup): pass a canvas ID or element and opt into `interactive: true` for controls, CSS/DPR sizing and demand-driven rendering. Manual integration remains available.
+Start with [Create a world](SDK.md#create-a-world): `createWorld(canvasOrId)` owns the scene, the
+camera, the renderer and the loop.
 
-This folder is the repository documentation only. The learning portal lives under `site/`, one TypeScript folder organised by role, and is published from the tree `pnpm build:docs` writes into `dist/site/` (see [LEARNING_PORTAL.md](LEARNING_PORTAL.md)): `index.html` is the portal (guides, constants and enums, every public function, the live WebGPU demo, the measurement reports staged by `node scripts/mesure/publierRapport.ts`); the demos run the engine's own kernels, bundled into `js/engine.js` at build time.
+| Document                                               | Role                                                                                                                                                              |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [SDK guide](SDK.md)                                    | The public API: principles, entry points, a world, its families, the loop, the renderer option, the maths reference, lights, budgets, integration, current limits |
+| [Engine internals](ENGINE.md)                          | How a world draws: backend choice, page raster, surfaces, TAA, lighting, bounce, memory, diagnostics, and the lighting target and its stages                      |
+| [Native compiler](COMPILER.md)                         | `trillion3d-compiler`: arguments, events, pointer, batch mode, cancellation, imports, input formats, adding a format, error codes                                 |
+| [Cache format](FORMAT.md)                              | Pointer, `clusters.json` and `clusters.bin`, cluster DAG, pages, textures, prepared scene tables                                                                  |
+| [Package architecture](../packages/README.md)          | What each package owns, the native library, release work still required                                                                                           |
+| [Tests and benchmarks](TESTS.md)                       | Test layout, GPU proofs, performance benchmarks, quality gates                                                                                                    |
+| [Format fixtures](../tests/fixtures/formats/README.md) | The compiler's test inputs, one section per format: content, provenance, licence                                                                                  |
+| [Measurement harness](../bench/runner/README.md)       | The bench, its options, the witnesses, the published reports                                                                                                      |
+| [The reference in numbers](REFERENCE.md)               | The reference's published constants, bytes per triangle and profile, against ours                                                                                 |
+| [Contributing](../CONTRIBUTING.md)                     | Engineering rules, measurement rules, the contribution workflow                                                                                                   |
 
-The delivered SDK is described by the [SDK guide](SDK.md), [package architecture](../packages/README.md), [native compiler](COMPILER.md), and [cache format](FORMAT.md). Anything not listed here is not part of the release.
-
-| Document                                            | Role                                                                                                                               |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [Native compiler](COMPILER.md)                      | `web-geometry-compiler`: CLI arguments, events, pointer, batch mode, cancellation, FBX/OBJ import, error codes                     |
-| [Cache format](FORMAT.md)                           | Pointer, `clusters.json` and its binary sidecar `clusters.bin`, cluster DAG, culling hierarchy, streaming bundles, SHA objects     |
-| [Product principles](PRODUCT_PRINCIPLES.md)         | Behavioral requirements: portable core, capabilities, source ownership, fallback                                                   |
-| [Web / Electron / Node integration](INTEGRATION.md) | Canvas ownership, render loop, preparation, and fallback                                                                           |
-| [Engine API, batch by batch](API.md)                | Functions each merged batch delivers: signature, what it computes, the host-library call replaced, the proof                       |
-| [Tests and performance benchmarks](TESTS.md)        | Unit tests organization, GPU correctness probes, and 39 performance benchmarks                                                     |
-| [Reference UE5 in numbers](REFERENCE_UE5.md)        | Published constants, bytes per triangle, and performance profile of the reference versus our engine; valid comparisons and caveats |
-
-The engine target (editor, final baking, Three.js retirement, requirements and exit criteria) is maintained in [`docs/SPEC_ENGINE_WITHOUT_THREE.md`](SPEC_ENGINE_WITHOUT_THREE.md). The backlog of open tasks is kept in the [GitHub issues](https://github.com/pasquelin/WebGeometry/issues); a finished task is closed.
+Anything not described here is not part of the release. Open tasks are the
+[GitHub issues](https://github.com/pasquelin/Trillion3D/issues).

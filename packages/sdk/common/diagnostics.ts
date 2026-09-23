@@ -5,34 +5,34 @@ export type {
   GpuFrameMs,
   GpuPassTiming,
   GpuPassTimings,
-} from '../../sdk-core/metricsContracts.ts';
+} from '../../sdk-core/src/contracts/metrics.ts';
 export {
   barycentric,
   compact,
   edge,
   exclusiveScan,
   packDrawIndirect,
-} from '../../sdk-core/oracles.ts';
-export { CAMERA_SCENARIOS, makeCameraPath } from '../../sdk-core/paths.ts';
-export { compareImages } from '../../sdk-core/compareImages.ts';
-export { COMPARISON_LIBRARIES } from '../../sdk-core/competitors.ts';
-export type { CompetitorRecord, CompetitorStatus } from '../../sdk-core/competitors.ts';
-export { DIAGNOSTICS } from '../../sdk-core/diagnostics.ts';
+} from '../../sdk-core/src/math/oracles.ts';
+export { CAMERA_SCENARIOS, makeCameraPath } from '../../sdk-core/src/runtime/paths.ts';
+export { compareImages } from '../../sdk-core/src/runtime/compareImages.ts';
+export { COMPARISON_LIBRARIES } from '../../sdk-core/src/runtime/competitors.ts';
+export type { CompetitorRecord, CompetitorStatus } from '../../sdk-core/src/runtime/competitors.ts';
+export { DIAGNOSTICS } from '../../sdk-core/src/runtime/diagnostics.ts';
 export type {
   DiagnosticCapabilities,
   DiagnosticCapability,
   DiagnosticMode,
-} from '../../sdk-core/diagnostics.ts';
+} from '../../sdk-core/src/runtime/diagnostics.ts';
 export {
   disabledStageProfile,
   STAGE_LABELS,
   stageLabel,
   stageQuantiles,
-} from '../../sdk-core/stageProfile.ts';
+} from '../../sdk-core/src/runtime/stageProfile.ts';
 export type {
   GpuTimingMethod,
   StageProfile,
   StageProfileEntry,
   StageQuantiles,
-} from '../../sdk-core/stageProfile.ts';
-export { frameStatistics, summarize } from '../../sdk-core/stats.ts';
+} from '../../sdk-core/src/runtime/stageProfile.ts';
+export { frameStatistics, summarize } from '../../sdk-core/src/runtime/stats.ts';

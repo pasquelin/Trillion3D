@@ -23,6 +23,19 @@ impl Accessor<'_> {
             CompilerError::new("BUFFER_OUT_OF_BOUNDS", "Accessor exceeds binary buffer")
         })
     }
+    /// The tightly packed bytes of `elements` values of `size` bytes each, from the accessor's base.
+    fn packed_bytes(&self, elements: usize, size: usize) -> Result<&[u8]> {
+        let nbytes = elements
+            .checked_mul(size)
+            .ok_or_else(|| invalid("Accessor offset overflow"))?;
+        let end = self
+            .base
+            .checked_add(nbytes)
+            .ok_or_else(|| invalid("Accessor offset overflow"))?;
+        self.bin.get(self.base..end).ok_or_else(|| {
+            CompilerError::new("BUFFER_OUT_OF_BOUNDS", "Accessor exceeds binary buffer")
+        })
+    }
     pub(super) fn decoded_value(&self, b: &[u8]) -> Result<f64> {
         let raw = match self.component {
             5120 => (b[0] as i8) as f64,
@@ -86,17 +99,7 @@ impl Accessor<'_> {
         if !self.has_buffer_view {
             out.resize(self.count, 0);
         } else if self.width == 1 && self.stride == self.bytes && self.component != 5126 {
-            let nbytes = self
-                .count
-                .checked_mul(self.bytes)
-                .ok_or_else(|| invalid("Accessor offset overflow"))?;
-            let end = self
-                .base
-                .checked_add(nbytes)
-                .ok_or_else(|| invalid("Accessor offset overflow"))?;
-            let slice = self.bin.get(self.base..end).ok_or_else(|| {
-                CompilerError::new("BUFFER_OUT_OF_BOUNDS", "Accessor exceeds binary buffer")
-            })?;
+            let slice = self.packed_bytes(self.count, self.bytes)?;
             match self.component {
                 5121 => out.extend(slice.iter().map(|&b| b as u32)),
                 5123 => {
@@ -144,16 +147,7 @@ impl Accessor<'_> {
         if !self.has_buffer_view {
             out.resize(n, 0.0);
         } else if self.component == 5126 && self.stride == self.width * self.bytes {
-            let nbytes = n
-                .checked_mul(4)
-                .ok_or_else(|| invalid("Accessor offset overflow"))?;
-            let end = self
-                .base
-                .checked_add(nbytes)
-                .ok_or_else(|| invalid("Accessor offset overflow"))?;
-            let slice = self.bin.get(self.base..end).ok_or_else(|| {
-                CompilerError::new("BUFFER_OUT_OF_BOUNDS", "Accessor exceeds binary buffer")
-            })?;
+            let slice = self.packed_bytes(n, 4)?;
             for chunk in slice.as_chunks::<4>().0 {
                 let value = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
                 if !value.is_finite() {

@@ -1,6 +1,6 @@
 //! The tables that describe the prepared scene: which node draws which primitive, where, and with
 //! what surface. A cache product under its own name, beside `lights.json`, read by
-//! `packages/sdk-browser/preparedSceneTables.ts`.
+//! `packages/sdk-browser/src/scene/tables.ts`.
 //!
 //! Source of every value: the glTF this same compilation publishes as `source.gltf` — after the
 //! slice kept its nodes, after the cutout answers rewrote their materials, after the mesh ranks

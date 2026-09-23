@@ -149,8 +149,8 @@ export async function writeGarden(directory: string) {
     },
     asset: {
       version: '2.0',
-      generator: 'Web Geometry original procedural garden v1',
-      copyright: 'Web Geometry contributors; repository license',
+      generator: 'Trillion3D original procedural garden v1',
+      copyright: 'Trillion3D contributors; repository license',
     },
     scene: 0,
     scenes: [{ nodes: nodes.map((_, i) => i) }],

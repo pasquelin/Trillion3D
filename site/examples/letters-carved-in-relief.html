@@ -2,39 +2,75 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Letters carved in relief</title>
+    <title>Carved letters</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/relief/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
+      // Each letter is an outline drawn in a 5-by-7 grid, x to the right and y up, then pushed out
+      // of the stone by `geometry.extrude`. A B's two counters are holes cut in its outline. An arc
+      // starts with its own first point, so the straight edge before it needs no `lineTo`.
+      const W = math.shape([[0, 7], [1.05, 7], [1.65, 1.9], [2.05, 5], [2.95, 5], [3.35, 1.9], [3.95, 7], [5, 7], [3.9, 0], [2.95, 0], [2.5, 3.4], [2.05, 0], [1.1, 0]]);
+      const E = math.shape([[0, 0], [5, 0], [5, 1], [1.1, 1], [1.1, 3], [4, 3], [4, 4], [1.1, 4], [1.1, 6], [5, 6], [5, 7], [0, 7]]);
+      const B = math.shape()
+        .moveTo(0, 0).absarc(3.3, 1.5, 1.5, -Math.PI / 2, 0).absarc(3.3, 2, 1.5, 0, Math.PI / 2)
+        .absarc(2.6, 5, 1.5, -Math.PI / 2, 0).absarc(2.6, 5.5, 1.5, 0, Math.PI / 2).lineTo(0, 7);
+      B.holes.push(
+        math.shape().moveTo(1, 1).absarc(3.3, 1.5, 0.5, -Math.PI / 2, 0).absarc(3.3, 2.5, 0.5, 0, Math.PI / 2).lineTo(1, 3),
+        math.shape().moveTo(1, 4).absarc(2.6, 4.5, 0.5, -Math.PI / 2, 0).absarc(2.6, 5.5, 0.5, 0, Math.PI / 2).lineTo(1, 6),
+      );
+      // A grid cell is 22 cm; the letters stand 8 cm proud of the slab, their rims rounded.
+      const cell = 0.22, word = [W, E, B];
+      const world = createWorld('view', { controls: 'orbit' });
+      const stone = material.meshStandard({ color: '#d8cfbf', roughness: 0.85 });
+      const letters = material.meshStandard({ roughness: 0.35, metalness: 0.5 });
+      const slab = object.mesh(geometry.box(word.length * 6 * cell + 0.6, 7 * cell + 0.8, 0.2), stone);
+      slab.position.set(0, 1.1, -0.1);
+      world.scene.add(slab);
+      const bevel = 0.06;
+      word.forEach((outline, index) => {
+        const letter = object.mesh(geometry.extrude(outline, { depth: 0.08 / cell - 2 * bevel, bevelThickness: bevel, bevelSize: 0.05, bevelSegments: 2, curveSegments: 16 }), letters);
+        letter.scale.set(cell, cell, cell);
+        // The extruded solid starts `bevel` behind its own origin: moved forward by that much, it
+        // sits on the slab's face.
+        letter.position.set((index * 6 - (word.length * 6 - 1) / 2) * cell, 1.1 - 3.5 * cell, bevel * cell);
+        world.scene.add(letter);
       });
-      // Each set cell of a five-by-seven bitmap is one block raised from the plaque; a light
-      // raking across the plaque from the left is what makes the relief legible.
-      explorer.addLight({
-        id: 'raking',
-        kind: 'directional',
-        direction: [0.7, -0.55, -0.5],
-        color: [1, 0.94, 0.85],
-        intensity: 3,
-        castsShadow: true,
-      });
-      explorer.setPose({ ...explorer.homePose(), position: [1.2, 1.9, 4.2], target: [0, 1.1, 0] });
-      explorer.invalidate();
+      // Two lamps rake across the slab from opposite sides, one warm, one cool: each letter throws
+      // two coloured shadows, which cross as the rake slider moves the lamps. A dim sky keeps the
+      // faces they miss readable.
+      const warm = light.point({ intensity: 16, distance: 10, radius: 0.05, castShadow: true });
+      const cool = light.point({ intensity: 16, distance: 10, radius: 0.05, castShadow: true });
+      world.scene.add(warm, cool, light.hemisphere({ intensity: 0.5, color: '#c8d4f0', groundColor: '#6b5a48' }));
+      world.camera.position.set(0.5, 1.3, 3.6);
+      world.camera.lookAt(0, 1.1, 0);
+      world.controls.target.set(0, 1.1, 0);
+
+      controls({ rake: [-1, 1, 0.5], warm: '#ff8a3c', cool: '#3ca8ff', letters: '#c08a3e' }, (values) => {
+        warm.position.set(-2.4, 1.1 + values.rake * 1.2, 1.2);
+        cool.position.set(2.4, 1.1 - values.rake * 1.2, 1.2);
+        warm.color.set(values.warm);
+        cool.color.set(values.cool);
+        letters.color.set(values.letters);
+        world.invalidate();
+      }, world);
     </script>
   </body>
 </html>

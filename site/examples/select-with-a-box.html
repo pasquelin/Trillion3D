@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Select with a box</title>
+    <meta name="thumbnail" content="3.5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #9fb4cc;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      #marquee {
+        position: fixed;
+        left: 0;
+        top: 0;
+        display: none;
+        pointer-events: none;
+        border: 1.5px dashed #ffb020;
+        background: rgba(255, 176, 32, 0.14);
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="marquee"></div>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#9fb4cc');
+
+      // A sculpture garden: a stone plaza, rows of plinths, and on each a piece of one of eight
+      // shapes in one of eight glazes. Every shape is centred on its origin, so a copy of it
+      // scaled up round that origin wraps it evenly.
+      const glaze = (color, roughness, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      const GLAZES = [glaze('#e4572e', 0.35), glaze('#f3a712', 0.4), glaze('#29a36a', 0.45), glaze('#2e86de', 0.3), glaze('#8e5cd9', 0.35), glaze('#f2efe6', 0.25), glaze('#d4ae3a', 0.35, 0.6), glaze('#c3ccd8', 0.3, 0.6)];
+      const SHAPES = [
+        geometry.torusKnot(0.42, 0.14, 128, 16),
+        geometry.sphere(0.6, 48, 24),
+        geometry.box(0.9, 0.9, 0.9),
+        geometry.cone(0.6, 1.2, 48),
+        geometry.capsule(0.35, 0.6, 8, 24),
+        geometry.torus(0.5, 0.18, 24, 64),
+        geometry.cylinder(0.45, 0.45, 1.1, 48),
+        geometry.polyhedron([1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, -1], [2, 1, 0, 0, 3, 2, 1, 3, 0, 2, 3, 1], 0.7, 0),
+      ];
+      const stone = glaze('#cfc6b4', 0.85), plinthStone = glaze('#8d8578', 0.7), grass = glaze('#6f9a4c', 0.95);
+      // The halo: the inside faces of an enlarged copy, in a flat amber that no light changes.
+      // Made once per piece and hidden; a selection only switches it on.
+      const halo = material.meshBasic({ color: '#ffb020', side: 'back' });
+
+      const plaza = object.mesh(geometry.box(34, 0.4, 26), stone);
+      plaza.position.y = -0.2;
+      const lawn = object.mesh(geometry.cylinder(60, 60, 0.2, 96), grass);
+      lawn.position.y = -0.35;
+      world.scene.add(lawn, plaza);
+      const ROWS = 5, COLUMNS = 9, pieces = [];
+      for (let row = 0; row < ROWS; row++)
+        for (let column = 0; column < COLUMNS; column++) {
+          const x = (column - (COLUMNS - 1) / 2) * 3.2, z = (row - (ROWS - 1) / 2) * 4.2, k = row * COLUMNS + column;
+          const plinth = object.mesh(geometry.box(1.6, 1, 1.6), plinthStone);
+          plinth.position.set(x, 0.5, z);
+          const piece = object.mesh(SHAPES[(k * 3 + row) % SHAPES.length], GLAZES[(k * 5 + row * 2) % GLAZES.length]);
+          piece.position.set(x, 1.75, z);
+          piece.rotation.y = k * 0.7;
+          const outline = object.mesh(piece.geometry, halo);
+          outline.scale.setScalar(1.14);
+          outline.visible = false;
+          piece.add(outline);
+          world.scene.add(plinth, piece);
+          pieces.push({ piece, outline, rest: 1.75, lift: 0, selected: false, spin: k * 0.7 });
+        }
+      world.scene.add(
+        light.directional({ color: '#fff1dc', intensity: 3, position: [-14, 22, 12], castShadow: true }),
+        light.hemisphere({ color: '#cfe0ff', groundColor: '#5a4a38', intensity: 1.1 }),
+      );
+
+      world.camera.position.set(4, 17, 24);
+      world.controls.target.set(0, 1, 0);
+      world.controls.update();
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.controls.minDistance = 8;
+      world.controls.maxDistance = 60;
+
+      // Where a world point lands on the page, in CSS pixels: the camera's own frame, then its
+      // field of view. Null when the point is behind the eye.
+      const eye = math.vector3(), inverse = math.quaternion(), corner = math.vector3();
+      function onScreen(point) {
+        const { camera } = world, box = world.canvas.getBoundingClientRect();
+        eye.copy(point).sub(camera.position).applyQuaternion(inverse.copy(camera.quaternion).invert());
+        const depth = -eye.z, half = Math.tan((camera.fov * Math.PI) / 360) * depth;
+        if (depth <= camera.near) return null;
+        return [box.left + (0.5 + eye.x / (2 * half * (box.width / box.height))) * box.width, box.top + (0.5 - eye.y / (2 * half)) * box.height];
+      }
+      // A piece's bounds on screen: its box in the world, the eight corners projected, and the
+      // rectangle round them. A piece is caught when that rectangle meets the one drawn.
+      function screenBounds({ piece }) {
+        const bounds = piece.localBounds().clone().applyMatrix4(piece.matrixWorld), rect = [Infinity, Infinity, -Infinity, -Infinity];
+        for (let k = 0; k < 8; k++) {
+          corner.set(k & 1 ? bounds.max.x : bounds.min.x, k & 2 ? bounds.max.y : bounds.min.y, k & 4 ? bounds.max.z : bounds.min.z);
+          const at = onScreen(corner);
+          if (!at) return null;
+          rect[0] = Math.min(rect[0], at[0]), rect[1] = Math.min(rect[1], at[1]), rect[2] = Math.max(rect[2], at[0]), rect[3] = Math.max(rect[3], at[1]);
+        }
+        return rect;
+      }
+      const meets = (a, b) => a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+
+      // The drag: plain replaces the selection, Shift adds to it, Alt or Ctrl takes away. While
+      // the box is open, the halos show what letting go would select.
+      const marquee = document.getElementById('marquee');
+      let drag = null, count = null, circling = true;
+      const show = (entry, on) => {
+        if (entry.outline.visible !== on) entry.outline.visible = on;
+      };
+      function preview(rect, mode, commit) {
+        let total = 0;
+        for (const entry of pieces) {
+          const screen = screenBounds(entry), inside = screen !== null && meets(screen, rect);
+          const on = mode === 'add' ? entry.selected || inside : mode === 'remove' ? entry.selected && !inside : inside;
+          show(entry, on);
+          if (commit) entry.selected = on;
+          total += on;
+        }
+        count?.(String(total));
+        world.invalidate();
+      }
+      function drawMarquee(rect) {
+        Object.assign(marquee.style, { display: 'block', transform: `translate(${rect[0]}px, ${rect[1]}px)`, width: `${rect[2] - rect[0]}px`, height: `${rect[3] - rect[1]}px` });
+      }
+      const rectOf = ({ x, y }, event) => [Math.min(x, event.clientX), Math.min(y, event.clientY), Math.max(x, event.clientX), Math.max(y, event.clientY)];
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
+      world.canvas.addEventListener('pointerdown', (event) => {
+        if (ui.mouse !== 'select' || event.button !== 0) return;
+        world.canvas.setPointerCapture(event.pointerId);
+        drag = { x: event.clientX, y: event.clientY, mode: event.shiftKey ? 'add' : event.altKey || event.ctrlKey || event.metaKey ? 'remove' : 'replace' };
+      });
+      world.canvas.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        const rect = rectOf(drag, event);
+        drawMarquee(rect);
+        preview(rect, drag.mode, false);
+      });
+      const release = (event) => {
+        if (!drag) return;
+        preview(rectOf(drag, event), drag.mode, true);
+        marquee.style.display = 'none';
+        drag = null;
+      };
+      world.canvas.addEventListener('pointerup', release);
+      // A cancelled drag selects nothing: the halos go back to the selection as it stood.
+      world.canvas.addEventListener('pointercancel', () => {
+        if (!drag) return;
+        for (const entry of pieces) show(entry, entry.selected);
+        count?.(String(pieces.filter(({ selected }) => selected).length));
+        marquee.style.display = 'none';
+        drag = null;
+        world.invalidate();
+      });
+
+      const everything = (on) => () => {
+        for (const entry of pieces) show(entry, (entry.selected = on));
+        count?.(String(on ? pieces.length : 0));
+        world.invalidate();
+      };
+      const ui = controls({
+        help: 'Select: drag a box; Shift adds, Alt removes. Turn: drag to fly round the garden',
+        mouse: ['select', 'turn'],
+        selectAll: everything(true),
+        clear: everything(false),
+      }, (values, key) => {
+        // Selecting, the drag belongs to the box; turning, to the orbit.
+        if (key === undefined || key === 'mouse') world.controls.enabled = values.mouse === 'turn';
+      }, world);
+      count = readout('selected');
+      count('0');
+
+      // The opening: a box sweeps across the middle rows on its own, and the pieces it catches
+      // rise; the camera circles slowly until the viewer's first press or wheel.
+      let intro = 0;
+      const introRect = (t) => {
+        const box = world.canvas.getBoundingClientRect(), e = t * t * (3 - 2 * t);
+        const x = box.left + box.width * 0.22, y = box.top + box.height * 0.38;
+        return [x, y, x + box.width * 0.56 * e, y + box.height * 0.26 * e];
+      };
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        if (intro >= 0 && drag) intro = -1;
+        if (intro >= 0) {
+          intro += step;
+          // A pause, a sweep of 1.6 s, then the pieces caught are selected.
+          const t = Math.min(1, Math.max(0, (intro - 0.8) / 1.6));
+          if (t > 0) {
+            drawMarquee(introRect(t));
+            preview(introRect(t), 'replace', t === 1);
+          }
+          if (t === 1) {
+            marquee.style.display = 'none';
+            intro = -1;
+          }
+        }
+        if (circling) {
+          const { position } = world.camera, { target } = world.controls, turn = step * 0.08;
+          const x = position.x - target.x, z = position.z - target.z;
+          position.set(target.x + x * Math.cos(turn) + z * Math.sin(turn), position.y, target.z + z * Math.cos(turn) - x * Math.sin(turn));
+          // Selecting, no orbit is in place to aim the camera: it looks at the target itself.
+          world.camera.lookAt(target);
+          world.controls.update();
+        }
+        // A selected piece rises off its plinth and turns; let go, it settles back.
+        for (const entry of pieces) {
+          const goal = entry.selected ? 1 : 0;
+          entry.lift += (goal - entry.lift) * Math.min(1, step * 6);
+          if (entry.lift < 0.001 && !entry.selected) {
+            if (entry.lift) entry.piece.position.y = entry.rest + (entry.lift = 0);
+            continue;
+          }
+          entry.spin += step * 1.6 * entry.lift;
+          entry.piece.position.y = entry.rest + entry.lift * (0.9 + 0.12 * Math.sin(entry.spin * 2));
+          entry.piece.rotation.y = entry.spin;
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

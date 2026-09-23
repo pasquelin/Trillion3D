@@ -12,7 +12,7 @@ use super::{
     DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
     SUPERCOMPRESSION_UNSUPPORTED,
 };
-use crate::plugins::image::{Transfer, MAX_LEVELS};
+use crate::plugins::image::{word, Transfer, MAX_LEVELS};
 
 /// End of the fixed header: identifier, fourteen fields and the index of the three sections.
 const HEADER_END: usize = 80;
@@ -44,11 +44,6 @@ pub(super) struct Surface {
     pub(super) level: std::ops::Range<usize>,
     /// `uncompressedByteLength` of level 0: what supercompression must return.
     pub(super) plain: usize,
-}
-
-/// The thirty-two-bit word at this offset, little-endian like the whole format.
-fn word(bytes: &[u8], at: usize) -> u32 {
-    u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]])
 }
 
 /// The sixty-four-bit word at this offset: the level index only counts in 64 bits.

@@ -36,7 +36,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     generatedAt: new Date().toISOString(),
   };
   await writeFile(
-    resolve(directory, 'sdk-browser/buildProvenance.js'),
+    resolve(directory, 'sdk-browser/src/measurement/buildProvenance.js'),
     `export const SDK_BUILD_PROVENANCE=${JSON.stringify(provenance)};\n`,
   );
 }

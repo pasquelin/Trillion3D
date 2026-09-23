@@ -16,18 +16,19 @@
     "erasableSyntaxOnly": true,
     "baseUrl": ".",
     "paths": {
-      "/mesure/*": ["scripts/mesure/*"]
+      "/runner/*": ["bench/runner/*"]
     }
   },
   "include": [
     "scripts/**/*.ts",
-    "test/**/*.ts",
-    "packages/*/bench/**/*.ts",
+    "tests/**/*.ts",
+    "bench/**/*.ts",
     "packages/**/*.test.ts",
     "packages/page-codec/**/*.ts",
     "packages/sdk-node/**/*.ts",
     "knip.config.ts",
-    "eslint.config.ts"
+    "eslint.config.ts",
+    "site/app/migration/sources.d.ts"
   ],
-  "exclude": ["**/node_modules/**", "**/target/**", "test/fixtures/**"]
+  "exclude": ["**/node_modules/**", "**/target/**", "tests/fixtures/**"]
 }

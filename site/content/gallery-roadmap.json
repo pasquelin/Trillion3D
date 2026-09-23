@@ -1,776 +1,1521 @@
 {
   "themes": [
-    {
-      "id": "geometry",
-      "title": {
-        "en": "Geometry",
-        "fr": "Géométrie"
-      }
-    },
-    {
-      "id": "materials",
-      "title": {
-        "en": "Materials",
-        "fr": "Matériaux"
-      }
-    },
-    {
-      "id": "lights",
-      "title": {
-        "en": "Lights and shadows",
-        "fr": "Lumières et ombres"
-      }
-    },
-    {
-      "id": "camera",
-      "title": {
-        "en": "Camera",
-        "fr": "Caméra"
-      }
-    },
-    {
-      "id": "loaders",
-      "title": {
-        "en": "Loaded models",
-        "fr": "Modèles chargés"
-      }
-    },
-    {
-      "id": "streaming",
-      "title": {
-        "en": "Streaming",
-        "fr": "Streaming"
-      }
-    },
-    {
-      "id": "animation",
-      "title": {
-        "en": "Animation",
-        "fr": "Animation"
-      }
-    },
-    {
-      "id": "interaction",
-      "title": {
-        "en": "Interaction",
-        "fr": "Interaction"
-      }
-    },
-    {
-      "id": "post-processing",
-      "title": {
-        "en": "Post-processing",
-        "fr": "Post-traitement"
-      }
-    },
-    {
-      "id": "performance",
-      "title": {
-        "en": "Performance and budgets",
-        "fr": "Performance et budgets"
-      }
-    },
-    {
-      "id": "integration",
-      "title": {
-        "en": "Integration",
-        "fr": "Intégration"
-      }
-    }
+    "camera",
+    "geometry",
+    "materials",
+    "lights",
+    "animation",
+    "loaders",
+    "streaming",
+    "environment",
+    "particles",
+    "interaction",
+    "effects",
+    "compute",
+    "physics",
+    "xr"
   ],
   "entries": [
     {
-      "id": "cube-on-its-corner",
-      "title": {
-        "en": "A cube balanced on one corner",
-        "fr": "Un cube en équilibre sur un coin"
-      },
+      "id": "a-first-world",
       "theme": "geometry",
-      "file": "examples/cube-on-its-corner.html"
+      "file": "examples/a-first-world.html"
     },
     {
-      "id": "still-life-of-primitives",
-      "title": {
-        "en": "A still life of primitives",
-        "fr": "Une nature morte de primitives"
-      },
+      "id": "shapes-on-a-turntable",
       "theme": "geometry",
-      "file": "examples/still-life-of-primitives.html"
+      "file": "examples/shapes-on-a-turntable.html"
     },
     {
       "id": "a-field-of-pebbles",
-      "title": {
-        "en": "A field of ten thousand pebbles",
-        "fr": "Un champ de dix mille galets"
-      },
       "theme": "geometry",
       "file": "examples/a-field-of-pebbles.html"
     },
     {
       "id": "a-vase-turned-on-the-lathe",
-      "title": {
-        "en": "A vase turned on the lathe",
-        "fr": "Un vase tourné au tour"
-      },
       "theme": "geometry",
       "file": "examples/a-vase-turned-on-the-lathe.html"
     },
     {
       "id": "a-staircase-from-one-step",
-      "title": {
-        "en": "A spiral staircase from one step",
-        "fr": "Un escalier en colimaçon à partir d’une marche"
-      },
       "theme": "geometry",
       "file": "examples/a-staircase-from-one-step.html"
     },
     {
       "id": "a-terrain-from-a-height-map",
-      "title": {
-        "en": "A terrain from a height map",
-        "fr": "Un terrain d’après une carte de hauteurs"
-      },
       "theme": "geometry",
       "file": "examples/a-terrain-from-a-height-map.html"
     },
     {
       "id": "letters-carved-in-relief",
-      "title": {
-        "en": "Letters carved in relief",
-        "fr": "Des lettres taillées en relief"
-      },
       "theme": "geometry",
       "file": "examples/letters-carved-in-relief.html"
     },
     {
-      "id": "a-mesh-simplified-on-demand",
-      "title": {
-        "en": "A mesh simplified on demand",
-        "fr": "Un maillage simplifié à la demande"
-      },
+      "id": "a-scene-of-your-own",
       "theme": "geometry",
-      "file": "examples/a-mesh-simplified-on-demand.html"
+      "file": "examples/a-scene-of-your-own.html"
     },
     {
-      "id": "boxes-culled-by-the-frustum",
-      "title": {
-        "en": "Ten thousand boxes culled by the frustum",
-        "fr": "Dix mille boîtes triées par le frustum"
-      },
+      "id": "a-mesh-built-by-hand",
       "theme": "geometry",
-      "file": "examples/boxes-culled-by-the-frustum.html"
+      "file": "examples/a-mesh-built-by-hand.html"
+    },
+    {
+      "id": "colours-on-the-vertices",
+      "theme": "geometry",
+      "file": "examples/colours-on-the-vertices.html",
+      "status": "waiting-engine",
+      "issue": 347
+    },
+    {
+      "id": "uvs-of-every-shape",
+      "theme": "geometry",
+      "file": "examples/uvs-of-every-shape.html"
+    },
+    {
+      "id": "helpers-to-see-the-scene",
+      "theme": "geometry",
+      "file": "examples/helpers-to-see-the-scene.html"
+    },
+    {
+      "id": "edges-and-wireframe",
+      "theme": "geometry",
+      "file": "examples/edges-and-wireframe.html"
+    },
+    {
+      "id": "lines-in-colour",
+      "theme": "geometry",
+      "file": "examples/lines-in-colour.html"
+    },
+    {
+      "id": "dashed-lines",
+      "theme": "geometry",
+      "file": "examples/dashed-lines.html",
+      "status": "waiting-engine",
+      "issue": 359
+    },
+    {
+      "id": "shapes-cut-and-extruded",
+      "theme": "geometry",
+      "file": "examples/shapes-cut-and-extruded.html"
+    },
+    {
+      "id": "a-tube-along-a-spline",
+      "theme": "geometry",
+      "file": "examples/a-tube-along-a-spline.html"
+    },
+    {
+      "id": "curved-surfaces",
+      "theme": "geometry",
+      "file": "examples/curved-surfaces.html"
+    },
+    {
+      "id": "instances-in-colour",
+      "theme": "geometry",
+      "file": "examples/instances-in-colour.html"
+    },
+    {
+      "id": "copies-along-a-path",
+      "theme": "geometry",
+      "file": "examples/copies-along-a-path.html"
+    },
+    {
+      "id": "scattered-on-a-surface",
+      "theme": "geometry",
+      "file": "examples/scattered-on-a-surface.html"
+    },
+    {
+      "id": "a-world-of-blocks",
+      "theme": "geometry",
+      "file": "examples/a-world-of-blocks.html"
+    },
+    {
+      "id": "a-city-from-rules",
+      "theme": "geometry",
+      "file": "examples/a-city-from-rules.html"
+    },
+    {
+      "id": "a-molecule",
+      "theme": "geometry",
+      "file": "examples/a-molecule.html"
+    },
+    {
+      "id": "blobs-that-merge",
+      "theme": "geometry",
+      "file": "examples/blobs-that-merge.html"
+    },
+    {
+      "id": "thick-lines",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-line-that-draws-itself",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "shapes-from-an-svg",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-convex-hull",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "boolean-shapes",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "smoothing-by-subdivision",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "oriented-boxes",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-section-cut",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "cut-by-several-planes",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-capped-section",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "decals-on-a-surface",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "sculpt-a-sphere",
+      "theme": "geometry",
+      "file": "",
+      "status": "needs-engine"
     },
     {
       "id": "from-clay-to-chrome",
-      "title": {
-        "en": "From clay to chrome",
-        "fr": "De l’argile au chrome"
-      },
       "theme": "materials",
       "file": "examples/from-clay-to-chrome.html"
     },
     {
+      "id": "glass-on-the-table",
+      "theme": "materials",
+      "file": "examples/glass-on-the-table.html"
+    },
+    {
+      "id": "a-neon-sign",
+      "theme": "materials",
+      "file": "examples/a-neon-sign.html"
+    },
+    {
       "id": "painted-and-textured",
-      "title": {
-        "en": "Painted and textured surfaces",
-        "fr": "Surfaces peintes et texturées"
-      },
       "theme": "materials",
       "file": "examples/painted-and-textured.html"
     },
     {
       "id": "bricks-with-a-normal-map",
-      "title": {
-        "en": "Bricks with a normal map",
-        "fr": "Des briques avec une carte de normales"
-      },
       "theme": "materials",
       "file": "examples/bricks-with-a-normal-map.html"
     },
     {
       "id": "leaves-cut-by-alpha",
-      "title": {
-        "en": "Leaves cut out by their alpha",
-        "fr": "Des feuilles découpées par leur alpha"
-      },
       "theme": "materials",
       "file": "examples/leaves-cut-by-alpha.html"
     },
     {
-      "id": "glass-on-the-table",
-      "title": {
-        "en": "Glass on the table",
-        "fr": "Du verre sur la table"
-      },
-      "theme": "materials",
-      "file": ""
-    },
-    {
-      "id": "a-neon-sign",
-      "title": {
-        "en": "A neon sign that glows",
-        "fr": "Une enseigne au néon qui luit"
-      },
-      "theme": "materials",
-      "file": "examples/a-neon-sign.html"
-    },
-    {
-      "id": "brushed-metal",
-      "title": {
-        "en": "Brushed metal, anisotropic",
-        "fr": "Métal brossé, anisotrope"
-      },
-      "theme": "materials",
-      "file": ""
-    },
-    {
-      "id": "car-paint-under-clear-coat",
-      "title": {
-        "en": "Car paint under a clear coat",
-        "fr": "Peinture de carrosserie sous vernis"
-      },
-      "theme": "materials",
-      "file": ""
-    },
-    {
       "id": "a-colour-ramp-in-linear-light",
-      "title": {
-        "en": "A colour ramp in linear light",
-        "fr": "Un dégradé en lumière linéaire"
-      },
       "theme": "materials",
       "file": "examples/a-colour-ramp-in-linear-light.html"
     },
     {
-      "id": "sundial-in-the-afternoon",
-      "title": {
-        "en": "A sundial in the late afternoon",
-        "fr": "Un cadran solaire en fin d’après-midi"
-      },
-      "theme": "lights",
-      "file": "examples/sundial-in-the-afternoon.html"
+      "id": "the-material-family",
+      "theme": "materials",
+      "file": "examples/the-material-family.html"
     },
     {
-      "id": "street-lamp-at-night",
-      "title": {
-        "en": "A street lamp at night",
-        "fr": "Un lampadaire la nuit"
-      },
+      "id": "a-texture-turned-and-tiled",
+      "theme": "materials",
+      "file": "examples/a-texture-turned-and-tiled.html",
+      "status": "waiting-engine",
+      "issue": 360
+    },
+    {
+      "id": "texture-filters-compared",
+      "theme": "materials",
+      "file": "examples/texture-filters-compared.html",
+      "status": "waiting-engine",
+      "issue": 361
+    },
+    {
+      "id": "every-image-format",
+      "theme": "materials",
+      "file": "examples/every-image-format.html"
+    },
+    {
+      "id": "a-video-on-a-screen",
+      "theme": "materials",
+      "file": "examples/a-video-on-a-screen.html",
+      "status": "waiting-engine",
+      "issue": 362
+    },
+    {
+      "id": "the-webcam-as-a-texture",
+      "theme": "materials",
+      "file": "examples/the-webcam-as-a-texture.html",
+      "status": "waiting-engine",
+      "issue": 362
+    },
+    {
+      "id": "four-ways-to-blend",
+      "theme": "materials",
+      "file": "examples/four-ways-to-blend.html",
+      "status": "waiting-engine",
+      "issue": 346
+    },
+    {
+      "id": "toon-shading",
+      "theme": "materials",
+      "file": "examples/toon-shading.html"
+    },
+    {
+      "id": "a-matcap-sculpture",
+      "theme": "materials",
+      "file": "examples/a-matcap-sculpture.html"
+    },
+    {
+      "id": "normals-and-depth-seen",
+      "theme": "materials",
+      "file": "examples/normals-and-depth-seen.html"
+    },
+    {
+      "id": "avif-textures",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "object-space-normals",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-bumpy-surface",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "displaced-by-a-map",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "parallax-depth",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "hashed-alpha",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "custom-blend-equations",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "transparency-without-sorting",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "frosted-glass",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-refracting-pane",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-light-map",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "two-materials-one-mesh",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "clearcoat-paint",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "velvet-sheen",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "soap-bubble-iridescence",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "brushed-metal",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-prism-that-disperses",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "retroreflective-paint",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "light-through-skin",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-custom-surface-shader",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "custom-vertex-attributes",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "procedural-wood-and-noise",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "halftone-shading",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-planet-and-its-air",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "sliced-by-angle",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "hand-made-mip-levels",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-texture-updated-in-place",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-stack-of-texture-layers",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "wide-gamut-colour",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "energy-conservation-test",
+      "theme": "materials",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "from-noon-to-dusk",
       "theme": "lights",
-      "file": "examples/street-lamp-at-night.html"
+      "file": "examples/from-noon-to-dusk.html"
     },
     {
       "id": "crates-under-a-spotlight",
-      "title": {
-        "en": "Crates under one spotlight",
-        "fr": "Des caisses sous un projecteur"
-      },
       "theme": "lights",
       "file": "examples/crates-under-a-spotlight.html"
     },
     {
       "id": "a-ring-of-lamps",
-      "title": {
-        "en": "A ring of lamps on one budget",
-        "fr": "Un anneau de lampes sur un budget"
-      },
       "theme": "lights",
       "file": "examples/a-ring-of-lamps.html"
     },
     {
-      "id": "two-lamps-that-mix",
-      "title": {
-        "en": "A warm and a cool lamp that mix",
-        "fr": "Une lampe chaude et une froide qui se mélangent"
-      },
+      "id": "street-lamp-at-night",
       "theme": "lights",
-      "file": "examples/two-lamps-that-mix.html"
+      "file": "examples/street-lamp-at-night.html"
     },
     {
       "id": "a-lamp-in-its-glass",
-      "title": {
-        "en": "A lamp housed in its own glass",
-        "fr": "Une lampe logée dans son propre verre"
-      },
       "theme": "lights",
       "file": "examples/a-lamp-in-its-glass.html"
     },
     {
-      "id": "from-noon-to-dusk",
-      "title": {
-        "en": "Exposure from noon to dusk",
-        "fr": "L’exposition de midi au crépuscule"
-      },
-      "theme": "lights",
-      "file": "examples/from-noon-to-dusk.html"
-    },
-    {
-      "id": "light-off-a-red-wall",
-      "title": {
-        "en": "Light bouncing off a red wall",
-        "fr": "La lumière rebondit sur un mur rouge"
-      },
-      "theme": "lights",
-      "file": "examples/light-off-a-red-wall.html"
-    },
-    {
       "id": "a-lighthouse-beam",
-      "title": {
-        "en": "A lighthouse beam sweeping the shore",
-        "fr": "Le faisceau d’un phare balaie le rivage"
-      },
       "theme": "lights",
       "file": "examples/a-lighthouse-beam.html"
     },
     {
       "id": "lights-from-the-scene-file",
-      "title": {
-        "en": "The lights the scene file brought",
-        "fr": "Les lumières venues du fichier de scène"
-      },
       "theme": "lights",
       "file": "examples/lights-from-the-scene-file.html"
     },
     {
-      "id": "soft-shadows-from-a-wide-lamp",
-      "title": {
-        "en": "Soft shadows from a wide lamp",
-        "fr": "Des ombres douces sous une lampe large"
-      },
+      "id": "sky-and-ground-light",
       "theme": "lights",
-      "file": ""
+      "file": "examples/sky-and-ground-light.html"
     },
     {
-      "id": "circling-the-bust",
-      "title": {
-        "en": "Circling the marble bust",
-        "fr": "Tourner autour du buste de marbre"
-      },
+      "id": "light-in-real-units",
+      "theme": "lights",
+      "file": "examples/light-in-real-units.html"
+    },
+    {
+      "id": "shadows-from-the-sun",
+      "theme": "lights",
+      "file": "examples/shadows-from-the-sun.html"
+    },
+    {
+      "id": "a-long-shadowed-street",
+      "theme": "lights",
+      "file": "examples/a-long-shadowed-street.html"
+    },
+    {
+      "id": "flat-shadows-on-the-floor",
+      "theme": "lights",
+      "file": "examples/flat-shadows-on-the-floor.html"
+    },
+    {
+      "id": "a-softbox-panel",
+      "theme": "lights",
+      "file": "examples/a-softbox-panel.html"
+    },
+    {
+      "id": "light-from-a-probe",
+      "theme": "lights",
+      "file": "examples/light-from-a-probe.html"
+    },
+    {
+      "id": "soft-shadow-edges",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "contact-shadow-under-a-car",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "coloured-shadows-through-glass",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "shadows-in-the-corners",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "contact-shadows-from-the-screen",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "light-that-bounces",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "bounce-from-the-screen",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-lamp-with-a-profile",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-slide-projector",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "lights-for-some-objects",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-custom-light-model",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "light-shafts-in-the-haze",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-path-traced-reference",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "caustics-under-water",
+      "theme": "lights",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "orbit-around-a-clockwork",
       "theme": "camera",
-      "file": "examples/circling-the-bust.html"
+      "file": "examples/orbit-around-a-clockwork.html"
+    },
+    {
+      "id": "a-game-board-seen-from-above",
+      "theme": "camera",
+      "file": "examples/a-game-board-seen-from-above.html"
+    },
+    {
+      "id": "spin-an-astrolabe",
+      "theme": "camera",
+      "file": "examples/spin-an-astrolabe.html"
+    },
+    {
+      "id": "fly-over-a-model-town",
+      "theme": "camera",
+      "file": "examples/fly-over-a-model-town.html"
+    },
+    {
+      "id": "walk-through-a-temple",
+      "theme": "camera",
+      "file": "examples/walk-through-a-temple.html"
     },
     {
       "id": "zoom-down-the-colonnade",
-      "title": {
-        "en": "Zooming down a colonnade",
-        "fr": "Zoom le long d’une colonnade"
-      },
       "theme": "camera",
       "file": "examples/zoom-down-the-colonnade.html"
     },
     {
-      "id": "a-dolly-along-the-canal",
-      "title": {
-        "en": "A dolly along the canal",
-        "fr": "Un travelling le long du canal"
-      },
+      "id": "two-lenses-one-scene",
       "theme": "camera",
-      "file": ""
+      "file": "examples/two-lenses-one-scene.html"
     },
     {
-      "id": "the-near-plane-cuts-a-wall",
-      "title": {
-        "en": "The near plane cuts through a wall",
-        "fr": "Le plan proche tranche un mur"
-      },
+      "id": "frame-the-model",
       "theme": "camera",
-      "file": ""
+      "file": "examples/frame-the-model.html"
     },
     {
-      "id": "an-elevation-of-the-house",
-      "title": {
-        "en": "An orthographic elevation of the house",
-        "fr": "Une élévation orthographique de la maison"
-      },
+      "id": "turn-toward-a-target",
       "theme": "camera",
-      "file": ""
+      "file": "examples/turn-toward-a-target.html"
     },
     {
-      "id": "a-recorded-fly-through",
-      "title": {
-        "en": "A recorded fly-through, replayed",
-        "fr": "Un survol enregistré, rejoué"
-      },
+      "id": "ride-a-roller-coaster",
       "theme": "camera",
-      "file": ""
+      "file": "examples/ride-a-roller-coaster.html"
     },
     {
-      "id": "two-views-of-one-scene",
-      "title": {
-        "en": "Two views of one scene",
-        "fr": "Deux vues d’une même scène"
-      },
+      "id": "from-a-grain-to-a-planet",
       "theme": "camera",
-      "file": ""
+      "file": "examples/from-a-grain-to-a-planet.html"
     },
     {
-      "id": "the-home-pose",
-      "title": {
-        "en": "The home pose and the points of interest",
-        "fr": "La pose d’accueil et les points d’intérêt"
-      },
+      "id": "a-wall-of-cameras",
       "theme": "camera",
-      "file": ""
+      "file": "examples/a-wall-of-cameras.html"
+    },
+    {
+      "id": "several-views-one-page",
+      "theme": "camera",
+      "file": "examples/several-views-one-page.html"
+    },
+    {
+      "id": "before-and-after-slider",
+      "theme": "camera",
+      "file": "examples/before-and-after-slider.html"
+    },
+    {
+      "id": "side-by-side-stereo",
+      "theme": "camera",
+      "file": "examples/side-by-side-stereo.html"
+    },
+    {
+      "id": "red-cyan-anaglyph",
+      "theme": "camera",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "camera-layers",
+      "theme": "camera",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-robot-that-walks-and-waves",
+      "theme": "animation",
+      "file": "examples/a-robot-that-walks-and-waves.html"
+    },
+    {
+      "id": "a-wave-across-a-grid",
+      "theme": "animation",
+      "file": "examples/a-wave-across-a-grid.html"
+    },
+    {
+      "id": "keyframes-by-hand",
+      "theme": "animation",
+      "file": "examples/keyframes-by-hand.html"
+    },
+    {
+      "id": "one-clip-many-objects",
+      "theme": "animation",
+      "file": "examples/one-clip-many-objects.html"
+    },
+    {
+      "id": "animation-from-the-file",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-character-that-walks",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "additive-poses",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-crowd-of-characters",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "reaching-with-ik",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "motion-retargeting",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-character-of-points",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-shape-that-morphs",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-face-that-talks",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-galloping-horse",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-herd-of-morphs",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "morph-and-skin-together",
+      "theme": "animation",
+      "file": "",
+      "status": "needs-engine"
     },
     {
       "id": "marble-bust-on-its-pedestal",
-      "title": {
-        "en": "A marble bust on its pedestal",
-        "fr": "Un buste de marbre sur son socle"
-      },
       "theme": "loaders",
       "file": "examples/marble-bust-on-its-pedestal.html"
     },
     {
-      "id": "an-obj-with-its-materials",
-      "title": {
-        "en": "An OBJ with its material library",
-        "fr": "Un OBJ avec sa bibliothèque de matériaux"
-      },
+      "id": "a-model-from-obj",
       "theme": "loaders",
-      "file": ""
+      "file": "examples/a-model-from-obj.html"
     },
     {
-      "id": "an-fbx-with-its-lights",
-      "title": {
-        "en": "An FBX that brings its lights",
-        "fr": "Un FBX qui apporte ses lumières"
-      },
+      "id": "a-model-from-usdz",
       "theme": "loaders",
-      "file": ""
+      "file": "examples/a-model-from-usdz.html"
     },
     {
-      "id": "a-folder-merged-into-one-scene",
-      "title": {
-        "en": "A folder of files merged into one scene",
-        "fr": "Un dossier de fichiers fondus en une scène"
-      },
+      "id": "printable-parts",
       "theme": "loaders",
-      "file": ""
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "a-scene-with-its-own-cameras",
-      "title": {
-        "en": "A scene file with its own cameras",
-        "fr": "Un fichier de scène avec ses propres caméras"
-      },
+      "id": "legacy-interchange-files",
       "theme": "loaders",
-      "file": ""
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "compiled-on-the-fly",
-      "title": {
-        "en": "A model compiled on the fly",
-        "fr": "Un modèle compilé à la volée"
-      },
+      "id": "bricks-from-ldraw",
       "theme": "loaders",
-      "file": ""
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "what-the-compiler-refused",
-      "title": {
-        "en": "What the compiler refused, and why",
-        "fr": "Ce que le compilateur a refusé, et pourquoi"
-      },
+      "id": "voxel-models",
       "theme": "loaders",
-      "file": ""
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "cad-and-building-models",
+      "theme": "loaders",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-toolpath-in-lines",
+      "theme": "loaders",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "instanced-gltf",
+      "theme": "loaders",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "gltf-material-variants",
+      "theme": "loaders",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "compressed-mesh-input",
+      "theme": "loaders",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-medical-scan",
+      "theme": "loaders",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "save-the-scene",
+      "theme": "loaders",
+      "file": "examples/save-the-scene.html"
+    },
+    {
+      "id": "see-the-triangles",
+      "theme": "streaming",
+      "file": "examples/see-the-triangles.html"
     },
     {
       "id": "observatory-streamed",
-      "title": {
-        "en": "An observatory streamed by clusters",
-        "fr": "Un observatoire streamé par grappes"
-      },
       "theme": "streaming",
       "file": "examples/observatory-streamed.html"
     },
     {
       "id": "memory-on-a-budget",
-      "title": {
-        "en": "A city on a fixed memory budget",
-        "fr": "Une ville sous un budget mémoire fixe"
-      },
       "theme": "streaming",
-      "file": ""
+      "file": "examples/memory-on-a-budget.html"
     },
     {
-      "id": "a-walk-through-the-city",
-      "title": {
-        "en": "A city that streams as you walk",
-        "fr": "Une ville qui se charge à mesure qu’on marche"
-      },
+      "id": "detail-by-pixel-error",
       "theme": "streaming",
-      "file": ""
+      "file": "examples/detail-by-pixel-error.html"
     },
     {
-      "id": "from-coarse-to-exact",
-      "title": {
-        "en": "From the coarse cover to the exact cut",
-        "fr": "De la couverture grossière à la coupe exacte"
-      },
+      "id": "ten-thousand-objects",
       "theme": "streaming",
-      "file": ""
+      "file": "examples/ten-thousand-objects.html"
     },
     {
-      "id": "texture-tiles-arriving",
-      "title": {
-        "en": "Texture tiles arriving frame by frame",
-        "fr": "Des tuiles de texture qui arrivent image par image"
-      },
+      "id": "compressed-textures",
       "theme": "streaming",
-      "file": ""
+      "file": "examples/compressed-textures.html"
     },
     {
-      "id": "the-first-frame",
-      "title": {
-        "en": "What the first frame shows",
-        "fr": "Ce que montre la première image"
-      },
+      "id": "what-hides-what",
       "theme": "streaming",
-      "file": ""
+      "file": "examples/what-hides-what.html"
     },
     {
-      "id": "pages-kept-in-the-cache",
-      "title": {
-        "en": "The pages the cache keeps",
-        "fr": "Les pages que le cache garde"
-      },
+      "id": "create-and-dispose",
       "theme": "streaming",
-      "file": ""
+      "file": "examples/create-and-dispose.html"
     },
     {
-      "id": "a-crane-that-swings",
-      "title": {
-        "en": "A crane that swings its load",
-        "fr": "Une grue qui balance sa charge"
-      },
-      "theme": "animation",
-      "file": ""
+      "id": "no-hitch-on-first-draw",
+      "theme": "streaming",
+      "file": "examples/no-hitch-on-first-draw.html"
     },
     {
-      "id": "a-carousel",
-      "title": {
-        "en": "A carousel of wooden horses",
-        "fr": "Un manège de chevaux de bois"
-      },
-      "theme": "animation",
-      "file": ""
+      "id": "inside-the-g-buffer",
+      "theme": "streaming",
+      "file": "examples/inside-the-g-buffer.html"
     },
     {
-      "id": "a-pendulum-clock",
-      "title": {
-        "en": "A pendulum clock",
-        "fr": "Une horloge à balancier"
-      },
-      "theme": "animation",
-      "file": ""
+      "id": "reading-pixels-back",
+      "theme": "streaming",
+      "file": "examples/reading-pixels-back.html"
     },
     {
-      "id": "doors-that-open",
-      "title": {
-        "en": "Doors that open as you approach",
-        "fr": "Des portes qui s’ouvrent à l’approche"
-      },
-      "theme": "animation",
-      "file": ""
+      "id": "a-city-from-3d-tiles",
+      "theme": "streaming",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "a-wave-across-a-grid",
-      "title": {
-        "en": "A wave running across a grid",
-        "fr": "Une vague qui parcourt une grille"
-      },
-      "theme": "animation",
-      "file": ""
+      "id": "rendering-in-a-worker",
+      "theme": "streaming",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "pick-under-the-cursor",
-      "title": {
-        "en": "Pick the object under the cursor",
-        "fr": "Désigner l’objet sous le curseur"
-      },
+      "id": "inside-a-panorama",
+      "theme": "environment",
+      "file": "examples/inside-a-panorama.html"
+    },
+    {
+      "id": "a-video-panorama",
+      "theme": "environment",
+      "file": "examples/a-video-panorama.html",
+      "status": "waiting-engine",
+      "issue": 362
+    },
+    {
+      "id": "an-atmospheric-sky",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "chrome-in-a-room",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "lit-by-an-hdr-image",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "reflections-blurred-by-roughness",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "adjusting-the-environment",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "refraction-through-a-cube-map",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-car-in-the-studio",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-ground-projected-sky",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "box-projected-reflections",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "reflections-that-move",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-mirror-on-the-wall",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-polished-floor",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "reflections-from-the-screen",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "an-ocean",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-raging-sea",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-town-in-the-fog",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "fog-on-the-ground",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "fog-that-scatters-light",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-cloud-in-a-box",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-fire-in-a-volume",
+      "theme": "environment",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-cloud-of-points",
+      "theme": "particles",
+      "file": "examples/a-cloud-of-points.html"
+    },
+    {
+      "id": "waves-of-points",
+      "theme": "particles",
+      "file": "examples/waves-of-points.html"
+    },
+    {
+      "id": "snow-of-sprites",
+      "theme": "particles",
+      "file": "examples/snow-of-sprites.html"
+    },
+    {
+      "id": "a-depth-camera-in-points",
+      "theme": "particles",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "particles-with-own-sizes",
+      "theme": "particles",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "soft-smoke-particles",
+      "theme": "particles",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "flames-and-a-tornado",
+      "theme": "particles",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "point-clouds-from-a-scan",
+      "theme": "particles",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "gaussian-splats",
+      "theme": "particles",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "labels-that-follow",
       "theme": "interaction",
-      "file": ""
+      "file": "examples/labels-that-follow.html"
     },
     {
-      "id": "drag-a-crate",
-      "title": {
-        "en": "Drag a crate across the floor",
-        "fr": "Tirer une caisse sur le sol"
-      },
+      "id": "select-with-a-box",
       "theme": "interaction",
-      "file": ""
+      "file": "examples/select-with-a-box.html"
     },
     {
-      "id": "hover-to-highlight",
-      "title": {
-        "en": "Hover to highlight a part",
-        "fr": "Survoler pour surligner une pièce"
-      },
+      "id": "sound-made-visible",
       "theme": "interaction",
-      "file": ""
+      "file": "examples/sound-made-visible.html"
     },
     {
-      "id": "measure-a-distance",
-      "title": {
-        "en": "Measure a distance between two points",
-        "fr": "Mesurer une distance entre deux points"
-      },
+      "id": "click-to-pick",
       "theme": "interaction",
-      "file": ""
+      "file": "examples/click-to-pick.html"
     },
     {
-      "id": "a-rubber-band-selection",
-      "title": {
-        "en": "Select with a rubber band",
-        "fr": "Sélectionner au lasso rectangulaire"
-      },
+      "id": "hover-over-triangles",
       "theme": "interaction",
-      "file": ""
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "five-ways-to-move-the-camera",
-      "title": {
-        "en": "Five ways to move the camera",
-        "fr": "Cinq façons de déplacer la caméra"
-      },
+      "id": "pick-lines-and-points",
       "theme": "interaction",
-      "file": "examples/five-ways-to-move-the-camera.html"
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "bloom-on-the-neon",
-      "title": {
-        "en": "Bloom on the neon sign",
-        "fr": "Halo lumineux sur l’enseigne au néon"
-      },
-      "theme": "post-processing",
-      "file": ""
+      "id": "pick-an-instance",
+      "theme": "interaction",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "antialiasing-on-and-off",
-      "title": {
-        "en": "Temporal antialiasing, on and off",
-        "fr": "L’antialiasing temporel, avec et sans"
-      },
-      "theme": "post-processing",
-      "file": ""
+      "id": "paint-where-you-click",
+      "theme": "interaction",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "fog-by-depth",
-      "title": {
-        "en": "Fog thickening with depth",
-        "fr": "Un brouillard qui s’épaissit avec la profondeur"
-      },
-      "theme": "post-processing",
-      "file": ""
+      "id": "a-voxel-painter",
+      "theme": "interaction",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "drag-objects",
+      "theme": "interaction",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "move-rotate-scale-gizmo",
+      "theme": "interaction",
+      "file": "examples/move-rotate-scale-gizmo.html"
+    },
+    {
+      "id": "edit-a-spline",
+      "theme": "interaction",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "sound-in-space",
+      "theme": "interaction",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "smooth-edges-over-time",
+      "theme": "effects",
+      "file": "examples/smooth-edges-over-time.html",
+      "status": "waiting-engine",
+      "issue": 363
+    },
+    {
+      "id": "tone-mapping-compared",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-first-post-effect",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-glow-around-lights",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "glow-on-chosen-objects",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "depth-of-field",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "motion-blur",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "lens-flares",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "lens-artefacts",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "colour-grading-with-a-lut",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
       "id": "outline-the-selection",
-      "title": {
-        "en": "Outline the selected object",
-        "fr": "Détourer l’objet sélectionné"
-      },
-      "theme": "post-processing",
-      "file": ""
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "grain-and-vignette",
-      "title": {
-        "en": "Film grain and a vignette",
-        "fr": "Grain de pellicule et vignettage"
-      },
-      "theme": "post-processing",
-      "file": ""
+      "id": "edges-by-sobel",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "a-hundred-thousand-instances",
-      "title": {
-        "en": "A hundred thousand instances",
-        "fr": "Cent mille instances"
-      },
-      "theme": "performance",
-      "file": ""
+      "id": "pixel-art-render",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "hidden-behind-a-wall",
-      "title": {
-        "en": "Hidden behind a wall: occlusion",
-        "fr": "Caché derrière un mur : l’occlusion"
-      },
-      "theme": "performance",
-      "file": ""
+      "id": "stylised-filters",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "a-frame-budget-meter",
-      "title": {
-        "en": "A frame budget meter",
-        "fr": "Un compteur de budget par image"
-      },
-      "theme": "performance",
-      "file": ""
+      "id": "trails-behind-motion",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "shadows-redrawn-per-frame",
-      "title": {
-        "en": "Shadow pages redrawn per frame",
-        "fr": "Les pages d’ombre redessinées par image"
-      },
-      "theme": "performance",
-      "file": ""
+      "id": "masked-effects",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "the-cost-of-a-pixel-error",
-      "title": {
-        "en": "The cost of one pixel of error",
-        "fr": "Le coût d’un pixel d’erreur"
-      },
-      "theme": "performance",
-      "file": ""
+      "id": "cross-fade-between-scenes",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "inside-a-component",
-      "title": {
-        "en": "Inside a component: mount and dispose",
-        "fr": "Dans un composant : monter et libérer"
-      },
-      "theme": "integration",
-      "file": ""
+      "id": "a-screen-inside-the-scene",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "two-canvases-one-engine",
-      "title": {
-        "en": "Two canvases, one engine",
-        "fr": "Deux canevas, un moteur"
-      },
-      "theme": "integration",
-      "file": ""
+      "id": "a-portal",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "a-capture-saved-to-disk",
-      "title": {
-        "en": "A capture saved to disk",
-        "fr": "Une capture enregistrée sur disque"
-      },
-      "theme": "integration",
-      "file": ""
+      "id": "render-small-show-sharp",
+      "theme": "effects",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "drawn-inside-a-host-scene",
-      "title": {
-        "en": "Drawn inside a host renderer's scene",
-        "fr": "Dessiné dans la scène d’un rendu hôte"
-      },
-      "theme": "integration",
-      "file": ""
+      "id": "storage-buffers",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
     },
     {
-      "id": "listening-to-the-diagnostics",
-      "title": {
-        "en": "Listening to the diagnostics channel",
-        "fr": "À l’écoute du canal de diagnostics"
-      },
-      "theme": "integration",
-      "file": ""
+      "id": "a-million-particles",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "rain-and-snow",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-fluid-of-particles",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "strange-attractors",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-flock-of-birds",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "ripples-on-water",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "cloth-in-the-wind",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "geometry-moved-by-compute",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "images-computed",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "sort-and-reduce",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-software-rasteriser",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "sound-from-the-gpu",
+      "theme": "compute",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "falling-boxes",
+      "theme": "physics",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "breaking-things",
+      "theme": "physics",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "cloth-and-rope",
+      "theme": "physics",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "soft-bodies",
+      "theme": "physics",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "rolling-on-terrain",
+      "theme": "physics",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "hinges-and-joints",
+      "theme": "physics",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "walk-with-collisions",
+      "theme": "physics",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "drive-a-car",
+      "theme": "physics",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-room-in-vr",
+      "theme": "xr",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "a-360-photo-in-vr",
+      "theme": "xr",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "vr-composition-layers",
+      "theme": "xr",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "hands-in-vr",
+      "theme": "xr",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "teleport-in-vr",
+      "theme": "xr",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "controllers-in-vr",
+      "theme": "xr",
+      "file": "",
+      "status": "needs-engine"
+    },
+    {
+      "id": "ar-on-the-table",
+      "theme": "xr",
+      "file": "",
+      "status": "needs-engine"
     }
   ]
 }

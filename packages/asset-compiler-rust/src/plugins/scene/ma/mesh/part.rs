@@ -9,7 +9,7 @@
 //! counted: giving `(0, 0)` to the others would invent a mapping the file does not write. What
 //! a face corner becomes is read in `corner`.
 use super::*;
-use crate::import::{primitive, Vertices};
+use crate::import::Vertices;
 use crate::plugins::scene::ngon::Ngon;
 
 /// A material part: its glTF material, and the faces it carries.
@@ -132,11 +132,5 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
             out.indices.extend([corners[*a], corners[*b], corners[*c]]);
         }
     }
-    if out.indices.is_empty() {
-        return None;
-    }
-    let triangles = out.indices.len() / 3;
-    let scene = &mut world.scene;
-    let value = primitive(&out, &mut scene.bin, &mut scene.accessors, part.material);
-    Some((value, triangles))
+    world.scene.part_primitive(&out, part.material)
 }

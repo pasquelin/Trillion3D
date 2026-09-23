@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A scene of your own</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // 1. The world, with a camera the mouse turns around the scene.
+      const world = createWorld('view', { controls: 'orbit' });
+
+      // 2 and 3. Shapes and materials: an island, a house, a tree and a windmill.
+      const grass = material.meshStandard({ color: '#4d7a3a', roughness: 0.95 });
+      const wall = material.meshStandard({ color: '#efe6d2', roughness: 0.8 });
+      const roofPaint = material.meshStandard({ color: '#c0492b', roughness: 0.6 });
+      const wood = material.meshStandard({ color: '#6b4a2e', roughness: 0.7 });
+      const island = object.mesh(geometry.cylinder(5, 5.4, 0.4, 96), grass);
+      island.position.y = -0.2;
+      const house = object.mesh(geometry.box(1.6, 1.2, 1.4), wall);
+      house.position.set(-1.2, 0.6, 0.4);
+      const roof = object.mesh(geometry.cone(1.3, 0.9, 4), roofPaint);
+      roof.position.set(-1.2, 1.65, 0.4);
+      roof.rotation.y = Math.PI / 4;
+      const trunk = object.mesh(geometry.cylinder(0.12, 0.16, 1, 16), wood);
+      trunk.position.set(1.8, 0.5, 1.4);
+      const leaves = object.mesh(geometry.sphere(0.7, 32, 16), grass);
+      leaves.position.set(1.8, 1.4, 1.4);
+      const tower = object.mesh(geometry.cylinder(0.3, 0.5, 2.6, 32), wall);
+      tower.position.set(1.4, 1.3, -1.6);
+      // The sails are a group: turning the group turns all four together.
+      const sails = object.group();
+      sails.position.set(1.4, 2.3, -1.05);
+      for (let index = 0; index < 4; index++) {
+        const sail = object.mesh(geometry.box(0.16, 1.3, 0.04), wood);
+        sail.position.set(Math.sin((index * Math.PI) / 2) * 0.65, Math.cos((index * Math.PI) / 2) * 0.65, 0);
+        sail.rotation.z = (-index * Math.PI) / 2;
+        sails.add(sail);
+      }
+      world.scene.add(island, house, roof, trunk, leaves, tower, sails);
+
+      // 4. A sun that casts shadows, and the sky's soft light: blue from above, the grass's
+      // green-brown from below, so the sides the sun misses stay readable.
+      const sun = light.directional({ intensity: 3, color: '#fff2e0', castShadow: true });
+      world.scene.add(sun, light.hemisphere({ intensity: 1.4, color: '#c8dcff', groundColor: '#5f6a44' }));
+
+      // 5. Where the eye starts, and the point it turns around.
+      world.camera.position.set(5, 4, 6.5);
+      world.camera.lookAt(0, 0.8, 0);
+      world.controls.target.set(0, 0.8, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      const ui = controls({ hour: [7, 19, 10, 0.5], wind: [0, 4, 1.5], roof: '#c0492b' }, (values) => {
+        const arc = ((values.hour - 6) / 14) * Math.PI;
+        sun.position.set(Math.cos(arc) * 10, 1 + Math.sin(arc) * 10, 4);
+        roofPaint.color.set(values.roof);
+        world.invalidate();
+      });
+
+      // 6. Every frame, the wind turns the sails.
+      world.onFrame(({ delta }) => {
+        if (ui.wind === 0) return;
+        sails.rotation.z -= delta * ui.wind;
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>

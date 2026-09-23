@@ -4,13 +4,12 @@ use serde_json::Value;
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Output, Stdio},
 };
 
 /// A source tree holding one quad and an empty cache directory, both under a per-tag temporary root.
 pub fn fixture(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
-    let root =
-        std::env::temp_dir().join(format!("web-geometry-cli-{}-{}", std::process::id(), tag));
+    let root = std::env::temp_dir().join(format!("trillion3d-cli-{}-{}", std::process::id(), tag));
     let source = root.join("source");
     let cache = root.join("cache");
     let _ = fs::remove_dir_all(&root);
@@ -59,7 +58,7 @@ fn grid_obj(side: usize) -> String {
 
 /// Command line for a single job: source, cache, then settings that lock tests do not vary.
 pub fn compiler(source: &Path, cache: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_trillion3d-compiler"));
     command.args([
         source.to_str().expect("source"),
         cache.to_str().expect("cache"),
@@ -71,4 +70,16 @@ pub fn compiler(source: &Path, cache: &Path) -> Command {
         "none",
     ]);
     command
+}
+
+/// Runs a job without input and returns its output once it has succeeded; a failure shows the
+/// program's stderr.
+pub fn run_ok(command: &mut Command) -> Output {
+    let output = command.stdin(Stdio::null()).output().expect("run");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    output
 }

@@ -1,12 +1,13 @@
 //! Command line front of the compiler. Hosts talk to it with three streams only:
 //! - arguments (one job) or `--jobs FILE|-` (a JSON batch) tell it what to prepare;
-//! - stderr carries one JSON event per line: queued, accepted, progress, complete, error, done;
+//! - stderr carries one JSON event per line: queued, accepted, progress, stall, complete, error, done;
 //! - stdout carries the final pointer(s), a few hundred bytes, never the compiled manifest.
 //!
 //! A JSON line `{"cancel":"*"}` or `{"cancel":"<job>"}` on stdin cancels; killing the process is also safe
 //! because every output file is written atomically.
 mod cli_batch;
 mod cli_spec;
+mod cli_stalls;
 use cli_batch::run_batch;
 use serde_json::{json, Value};
 use std::{
@@ -19,7 +20,7 @@ use std::{
     },
     time::Instant,
 };
-use web_geometry_compiler::{
+use trillion3d_compiler::{
     compile, parse_compiler_args, plugins, shared_math::elapsed_ms, CompilerError, Options,
     COMPILER_VERSION, FORMAT_VERSION,
 };
@@ -108,6 +109,7 @@ fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
     });
     match result {
         Ok(result) => {
+            cli_stalls::emit_worst(&result, id);
             let pointer = pointer(&result, &options.cache);
             emit(
                 json!({"event":"complete","ratio":1.0,"pointer":pointer,"ms":elapsed_ms(started)}),
@@ -159,7 +161,7 @@ fn main() {
                 }
             },
             None => {
-                eprintln!("Usage: web-geometry-compiler --jobs FILE|-");
+                eprintln!("Usage: trillion3d-compiler --jobs FILE|-");
                 2
             }
         },

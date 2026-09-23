@@ -1,5 +1,5 @@
 //! What the Alembic reader recognises, composes and refuses, without going through the whole compiler.
-//! What it produces from a real archive is proven in the golden `src/tests/alembic_golden.rs`.
+//! What it produces from a real archive is proven in the golden `src/tests/formats/alembic_golden.rs`.
 
 use super::kind::{kind_of, Kind};
 use super::ogawa::MAGIC;
@@ -11,7 +11,7 @@ use std::fs;
 /// A throwaway file carrying these bytes, named by the case that uses it.
 fn written(tag: &str, bytes: &[u8]) -> std::path::PathBuf {
     let path = std::env::temp_dir().join(format!(
-        "wg-alembic-{tag}-{}-{}.abc",
+        "trillion3d-alembic-{tag}-{}-{}.abc",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -80,7 +80,8 @@ fn the_ogawa_header_names_a_frozen_archive_of_a_known_version() {
     assert_eq!(refused("version", &head(0xff, [0, 2])), VERSION_UNSUPPORTED);
     // The same byte pair read backwards would be two hundred and fifty-six: it is refused.
     assert_eq!(refused("envers", &head(0xff, [1, 0])), VERSION_UNSUPPORTED);
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/alembic/limites/cases.abc");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/formats/alembic/limites/cases.abc");
     let archive = Archive::open(&path).expect("the corpus opens");
     assert_eq!(archive.file.version, 1, "the corpus version is the first");
 }

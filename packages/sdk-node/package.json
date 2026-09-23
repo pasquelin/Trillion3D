@@ -1,14 +1,14 @@
 {
-  "name": "@web-geometry/sdk-node",
+  "name": "@trillion3d/sdk-node",
   "version": "0.1.0",
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./index.mts",
-    "./cli": "./cli.mts"
+    ".": "./src/index.mts",
+    "./cli": "./src/cli/cli.mts"
   },
   "files": [
-    "*.mts"
+    "src/**/*.mts"
   ],
   "engines": {
     "node": ">=22.18"

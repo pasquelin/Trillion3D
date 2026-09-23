@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A texture turned, tiled</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1a1714;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #360: WebGPU applies a texture's `repeat`, `offset` and `rotation` before it
+      // samples; until then the floor shows its tile once, upright. The texture's placement is the
+      // subject: the "flow" toggle slides its offset every frame, on purpose.
+      import { createWorld, geometry, material, object, light, math, texture, wrap } from '../runtime/engine.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
+
+      // One tile, painted by this page: a glazed square with a compass rose, the word "UP" and
+      // a notch in one corner, so every turn, slide and mirror of the picture can be read on it.
+      const SIZE = 512;
+      const card = document.createElement('canvas');
+      card.width = card.height = SIZE;
+      const pen = card.getContext('2d');
+      const TILES = {
+        terracotta: { ground: '#b8573a', glaze: '#e9d7b8', ink: '#1f3d5a' },
+        azulejo: { ground: '#f1eee6', glaze: '#2a5fa8', ink: '#123061' },
+        jade: { ground: '#2e6b57', glaze: '#d9ecd9', ink: '#0f2a22' },
+      };
+      function paint({ ground, glaze, ink }) {
+        pen.fillStyle = ground;
+        pen.fillRect(0, 0, SIZE, SIZE);
+        pen.strokeStyle = glaze;
+        pen.lineWidth = 14;
+        pen.strokeRect(16, 16, SIZE - 32, SIZE - 32);
+        // The rose: eight points, the north one long and dark.
+        pen.save();
+        pen.translate(SIZE / 2, SIZE / 2);
+        for (let k = 0; k < 8; k++) {
+          pen.fillStyle = k === 0 ? ink : glaze;
+          const reach = k % 2 ? 110 : 190;
+          pen.beginPath();
+          pen.moveTo(0, -reach);
+          pen.lineTo(26, 0);
+          pen.lineTo(-26, 0);
+          pen.fill();
+          pen.rotate(Math.PI / 4);
+        }
+        pen.fillStyle = ink;
+        pen.beginPath();
+        pen.arc(0, 0, 22, 0, Math.PI * 2);
+        pen.fill();
+        pen.restore();
+        // "UP" above the rose and a notch at the bottom left corner, where the UVs start.
+        pen.fillStyle = ink;
+        pen.font = 'bold 64px system-ui';
+        pen.textAlign = 'center';
+        pen.fillText(say('up'), SIZE / 2, 96);
+        pen.beginPath();
+        pen.moveTo(16, SIZE - 16);
+        pen.lineTo(96, SIZE - 16);
+        pen.lineTo(16, SIZE - 96);
+        pen.fill();
+      }
+      paint(TILES.terracotta);
+
+      // The floor wears the tile under every placement word; the panel standing behind it wears
+      // the same picture once, as painted, to compare.
+      const tile = texture.canvas(card);
+      tile.anisotropy = 8;
+      const reference = texture.canvas(card);
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#1a1714');
+      const floor = object.mesh(geometry.plane(8, 8), material.meshStandard({ map: tile, roughness: 0.45 }));
+      floor.rotation.x = -Math.PI / 2;
+      const panel = object.mesh(geometry.box(2, 2, 0.08), material.meshStandard({ map: reference, roughness: 0.5 }));
+      panel.position.set(0, 1.25, -4.4);
+      const stand = object.mesh(geometry.box(0.1, 0.25, 0.3), material.meshStandard({ color: '#2b2622', roughness: 0.8 }));
+      stand.position.set(0, 0.125, -4.4);
+      const plinth = object.mesh(geometry.box(8.4, 0.2, 8.4), material.meshStandard({ color: '#2b2622', roughness: 0.8 }));
+      plinth.position.y = -0.101;
+      world.scene.add(floor, panel, stand, plinth);
+      world.scene.add(light.directional({ color: '#ffe8cc', intensity: 3, position: [4, 8, 5], castShadow: true }));
+      world.scene.add(light.hemisphere({ color: '#c9d6ff', groundColor: '#3a2a20', intensity: 0.7 }));
+
+      world.camera.position.set(0, 6.4, 7.8);
+      world.camera.lookAt(0, 0, -0.6);
+      world.controls.target.set(0, 0, -0.6);
+      world.controls.minDistance = 3;
+      world.controls.maxDistance = 18;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.08;
+
+      // `repeat` counts tiles across the floor, `offset` slides them in tile widths, `rotation`
+      // turns the picture, and the wrap says what lies beyond the first tile.
+      const place = (values) => {
+        tile.wrap = wrap[values.wrap];
+        tile.repeat.set(values.tilesAcross, values.tilesAcross);
+        tile.offset.set(values.slideAcross, values.slideUp);
+        tile.rotation = (values.turn * Math.PI) / 180;
+      };
+      let placed = null;
+      const ui = controls({
+        mouse: 'Drag to look around; the panel at the back is the tile as painted',
+        tile: Object.keys(TILES),
+        wrap: ['repeat', 'mirror', 'clamp'],
+        tilesAcross: [1, 12, 4, 1],
+        turn: [-180, 180, 30, 5],
+        slideAcross: [0, 1, 0, 0.05],
+        slideUp: [0, 1, 0, 0.05],
+        flow: false,
+      }, (values, key) => {
+        if (key === 'tile') {
+          paint(TILES[values.tile]);
+          tile.needsUpdate = true;
+          reference.needsUpdate = true;
+        }
+        if (key !== 'flow') place(values);
+        placed?.(`${values.tilesAcross} × ${values.tilesAcross}, ${values.turn}°`);
+        world.invalidate();
+      }, world);
+      placed = readout('tilesTurn');
+      placed(`${ui.tilesAcross} × ${ui.tilesAcross}, ${ui.turn}°`);
+
+      // Flow: the tiles slide across the floor like a conveyor, a quarter tile a second.
+      let drift = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.flow) return;
+        drift = (drift + Math.min(delta, 0.05) * 0.25) % 1;
+        tile.offset.set((ui.slideAcross + drift) % 1, ui.slideUp);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

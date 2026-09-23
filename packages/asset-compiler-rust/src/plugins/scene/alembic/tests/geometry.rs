@@ -4,7 +4,7 @@
 use super::super::geom::Geometry;
 use super::super::mesh::{parts, FaceSet};
 use super::super::TOPOLOGY_INVALID;
-use crate::tests::ngones::{rendered_area, U_RING};
+use crate::tests::ngons::{rendered_area, U_RING};
 use std::sync::atomic::AtomicBool;
 
 /// A cancellation token never raised: these cases measure the split, not the stop.

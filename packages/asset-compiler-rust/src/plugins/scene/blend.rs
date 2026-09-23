@@ -1,6 +1,6 @@
 //! `blend` scene driver: a Blender file read by its own description, to a glTF 2.0.
 //!
-//! **Provenance and licence, written here as in `FORMATS.md`.** This reader is written from the
+//! **Provenance and licence, written here as in `docs/COMPILER.md` § "Input formats".** This reader is written from the
 //! public description of the format — the `BLENDER` header, the sequence of blocks, and the `DNA1`
 //! block by which each file describes its own structures, their fields and their types. **No
 //! line, header or algorithm of Blender's source code is reused**: the repository does not need

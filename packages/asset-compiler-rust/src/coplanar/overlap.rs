@@ -1,4 +1,5 @@
 use super::*;
+use crate::shared_math::dot;
 
 /// The triangles of a surface, flattened into the two axes of its own world plane. Built once per
 /// surface and reused by every pair it is tested against.
@@ -30,7 +31,7 @@ pub fn rectangle(surface: &Surface, u: [f64; 3], v: [f64; 3]) -> Rect {
                 surface.high[2]
             },
         ];
-        let flat = [plane::dot(u, point), plane::dot(v, point)];
+        let flat = [dot(u, point), dot(v, point)];
         crate::shared_math::extend_aabb(&mut low, &mut high, flat);
     }
     (low, high)
@@ -123,7 +124,7 @@ pub fn footprint(
             continue;
         }
         for corner in corners {
-            points.push([plane::dot(u, corner), plane::dot(v, corner)]);
+            points.push([dot(u, corner), dot(v, corner)]);
         }
     }
     if points.is_empty() {
@@ -134,7 +135,7 @@ pub fn footprint(
 
 fn in_plane(corners: &[[f64; 3]; 3], surface: &Surface, tolerance: f64) -> bool {
     for corner in corners {
-        if (plane::dot(surface.normal, *corner) - surface.offset).abs() > tolerance {
+        if (dot(surface.normal, *corner) - surface.offset).abs() > tolerance {
             return false;
         }
     }

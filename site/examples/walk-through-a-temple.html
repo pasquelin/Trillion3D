@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Temple parkour</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #4b3558;
+        font: 600 15px/1.2 system-ui, sans-serif;
+        color: #fff;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .layer {
+        position: fixed;
+        pointer-events: none;
+      }
+      #hud {
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 18px;
+        padding: 7px 18px;
+        border-radius: 999px;
+        background: rgba(24, 14, 28, 0.6);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        text-shadow: 0 1px 2px #000;
+        transition: box-shadow 0.35s, transform 0.35s;
+      }
+      #hud.flash {
+        box-shadow: 0 0 0 2px #7cf0ff, 0 0 26px #7cf0ff;
+        transform: translateX(-50%) scale(1.12);
+        transition: none;
+      }
+      #orbs {
+        color: #7cf0ff;
+      }
+      #sound {
+        opacity: 0.6;
+        font-weight: 400;
+      }
+      #dot {
+        top: 50%;
+        left: 50%;
+        width: 4px;
+        height: 4px;
+        margin: -2px 0 0 -2px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 0 3px #000;
+      }
+      #veil {
+        inset: 0;
+        background: radial-gradient(circle, rgba(170, 20, 0, 0.55), rgba(90, 0, 0, 0.95));
+        opacity: 0;
+        transition: opacity 0.5s;
+      }
+      #veil.on {
+        opacity: 1;
+        transition: opacity 0.18s;
+      }
+      #banner {
+        top: 38%;
+        left: 50%;
+        width: calc(100% - 32px);
+        transform: translate(-50%, -50%);
+        text-align: center;
+        text-shadow: 0 2px 8px #000;
+        transition: opacity 0.4s;
+      }
+      #banner b {
+        display: block;
+        font-size: 56px;
+        color: #ffd27a;
+      }
+      #banner span {
+        display: block;
+        margin-top: 6px;
+        font-size: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="hud" class="layer" data-example-overlay data-hud><span id="orbs"></span><span id="clock"></span><span id="sound" data-words="sound"></span></div>
+    <div id="dot" class="layer" data-example-overlay data-hud></div>
+    <div id="veil" class="layer" data-example-overlay></div>
+    <div id="banner" class="layer" data-example-overlay data-hud></div>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, play, words } from '../runtime/kit.js';
+      const say = words();
+
+      // ── The course: data, nothing of the engine inside. The temple is built at life size, in
+      // metres, for the engine's character and its human defaults: a 3.5 m/s jog, a 6.5 m/s
+      // sprint, a standing jump to 0.5 m, a 0.5 m step walked up.
+      const PIT = -4.5;
+      // The pillars rising out of the lava, [x from, x to, z from, z to, top], in the order they
+      // are crossed: steps and short hops first, running jumps after, two gaps only a sprint
+      // clears, and a stair up to the idol. Every jump leaves more than a quarter of the
+      // character's reach and 0.2 m of its height spare, every top it lands on is at least
+      // 1.2 m deep, and the next top is in sight from the edge.
+      const COURSE = [
+        [-4.5, 4.5, 1.8, 9.6, 0], [-1.5, 1.5, -1.2, 1.8, 0.25], [-1.5, 1.5, -3.2, -1.8, 0.25], [-1.5, 1.5, -5.2, -3.8, 0.5],
+        [-1.5, 1.5, -6.8, -5.2, 0.75], [-1, 2, -9.9, -8.3, 0.75], [0.5, 3.5, -13.4, -11.6, 1], [-3.5, -1.3, -13.4, -11.6, 1],
+        [-3.5, -1.1, -17.8, -15.2, 1.25], [-3.5, -1.1, -24, -21, 1.25], [-3.5, -1.1, -27.2, -25.6, 1.5], [0.2, 2.8, -27.2, -25.6, 1.75],
+        [0.2, 2.8, -31.8, -30.2, 2], [-0.5, 2.5, -34.4, -33, 2.25], [-1.5, 1.5, -37, -35.6, 2.5], [-1.5, 1.5, -38.7, -37, 2.75],
+        [-4.5, 4.5, -42.9, -38.7, 3],
+      ].map(([x0, x1, z0, z1, top]) => ({ x0, x1, z0, z1, top, x: (x0 + x1) / 2, z: (z0 + z1) / 2 }));
+      const FINISH = COURSE.at(-1);
+      // The lava is no floor: feet this low have fallen in.
+      const LAVA = PIT + 0.6;
+      // Whether the point (x, z) is within r of a pillar's footprint.
+      const touches = (p, x, z, r) => Math.hypot(Math.max(p.x0 - x, 0, x - p.x1), Math.max(p.z0 - z, 0, z - p.z1)) <= r;
+
+      // The hands, in the eye's frame (x right, y up, -z ahead, metres). A pose is read as where
+      // the knuckles sit on the screen — [screen x, screen y] from -1 to 1 — with their depth,
+      // the fingers' curl, the hand's roll about its own length (a quarter turn puts the palm
+      // inward), the hand's direction and the side the elbow bends to; the x of both directions
+      // points outward. The field of view and the aspect turn it into a point, so a hand only
+      // ever shows at the sides of any screen.
+      const ARM = { SHOULDER: [0.19, -0.3, 0.06], UPPER: 0.3, FORE: 0.27, HAND: 0.075 };
+      const mix = (a, b, t) => a.map((value, i) => value + (b[i] - value) * t);
+      const along = (a, b, k = 1) => a.map((value, i) => value + b[i] * k);
+      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const unit = (a) => along([0, 0, 0], a, 1 / Math.hypot(...a));
+      // Running, each arm swings at its side against the leg of that side, the elbow bent near a
+      // right angle, the fist loosely closed, palm in. The swing grows with the stride, so the
+      // fist only rises into its lower corner, a little toward the chest, at the top of a fast
+      // forward swing; standing, the arms hang out of sight.
+      function runPose(side, pose) {
+        const swing = -Math.sin(pose.phase) * side * (Math.min(1, pose.move) * 0.3 + pose.sprint * 0.7);
+        const f = Math.max(0, swing), b = Math.max(0, -swing);
+        return [0.8 - 0.2 * f, -1.3 + 0.45 * f - 0.3 * b, 0.36 + 0.06 * f - 0.14 * b, 0.8, 1.45, -0.25, 0.1 + 0.3 * f, -1, 0.35, -1, 0.5 + 0.5 * b];
+      }
+      // A jump swings the arms down and back at take-off, drives them up past the lower corners
+      // and out to the sides, elbows bent, spreads them a little at the top for balance, and
+      // brings them down in front of the hips for the landing. It is keyed by the jump's own
+      // phase, read from the vertical speed: 0 at take-off, 1 at the top, 2 falling as fast.
+      const LEAP = [
+        [0, [0.85, -1.8, 0.22, 0.6, 1.4, 0.1, -0.6, -0.5, 0.3, -0.6, 1]],
+        [0.35, [0.88, -0.95, 0.32, 0.5, 1.2, 0.25, 0.8, -0.5, 0.8, -0.6, 0.2]],
+        [0.75, [0.9, -0.35, 0.3, 0.35, 0.7, 0.4, 0.8, -0.4, 1, -0.5, 0]],
+        [1, [0.95, -0.3, 0.3, 0.2, 0.4, 0.7, 0.5, -0.5, 1, -0.4, 0]],
+        [1.5, [0.88, -0.75, 0.34, 0.3, 0.6, 0.4, 0.1, -0.8, 0.8, -0.6, 0.2]],
+        [2, [0.6, -1.35, 0.4, 0.4, 1, -0.2, -0.3, -1, 0.4, -1, 0.3]],
+      ];
+      // On the ground the jump's pose waits at its landing, so the next take-off springs from there.
+      function leapPose(vy) {
+        const launch = world.controls.jumpSpeed;
+        const t = vy > 0 ? 1 - Math.min(1, vy / launch) : 1 + Math.min(1, -vy / launch);
+        const k = Math.max(1, LEAP.findIndex(([at]) => at >= t)), [a0, p0] = LEAP[k - 1], [a1, p1] = LEAP[k];
+        return mix(p0, p1, (t - a0) / (a1 - a0));
+      }
+      // A landing braces the hands low at the sides.
+      const BRACE = [0.82, -0.97, 0.34, 0.55, 1.1, 0.1, -0.2, -1, 0.6, -1, 0.3];
+      // A critically damped spring, solved exactly over `dt`: it reaches `to` as fast as it can
+      // without overshooting, at any frame rate.
+      function spring(state, to, omega, dt) {
+        const x = state.x - to, k = (state.v + omega * x) * dt, e = Math.exp(-omega * dt);
+        [state.x, state.v] = [to + (x + k) * e, (state.v - omega * k) * e];
+      }
+      // `pose`: move (stride, 0 to 1.6), sprint (0 to 1), phase (the stride's), air and brace
+      // (0 to 1) and leap, the jump's pose as its spring holds it.
+      function handPose(side, pose, fov, aspect) {
+        const tan = Math.tan((fov * Math.PI) / 360);
+        const [nx, ny, depth, curl, roll, rx, ry, rz, hx, hy, hz] = mix(mix(runPose(side, pose), pose.leap, pose.air), BRACE, pose.brace);
+        const reach = unit([side * rx, ry, rz]), hint = [side * hx, hy, hz];
+        const shoulder = [side * ARM.SHOULDER[0], ARM.SHOULDER[1], ARM.SHOULDER[2]];
+        const toWrist = along(along([side * nx * tan * aspect * depth, ny * tan * depth, -depth], reach, -ARM.HAND), shoulder, -1);
+        // Two bones of fixed length: the elbow bends toward the hint, a straight arm stops short.
+        const d = Math.min(Math.hypot(...toWrist), ARM.UPPER + ARM.FORE - 1e-3), u = unit(toWrist);
+        const a = (ARM.UPPER ** 2 - ARM.FORE ** 2 + d * d) / (2 * d);
+        const bend = unit(along(hint, u, -dot(hint, u)));
+        const elbow = along(along(shoulder, u, a), bend, Math.sqrt(Math.max(0, ARM.UPPER ** 2 - a * a)));
+        const wrist = along(shoulder, u, d);
+        return { shoulder, elbow, wrist, knuckles: along(wrist, reach, ARM.HAND), reach, curl, roll: side * roll };
+      }
+      // ── The temple.
+
+      // `character` is the engine's runner: a click locks the mouse to look around, the keys
+      // W A S D walk by their place on the keyboard (Z Q S D on AZERTY), Shift sprints, Space
+      // jumps, Escape frees the mouse. The body gathers speed and brakes, falls, climbs steps,
+      // slides along walls and lands on whatever mesh is given as `colliders`. The page adds
+      // the arms and the legs, the sound and the game.
+      const world = createWorld('view', { controls: 'character' });
+      const camera = world.camera;
+      [camera.fov, camera.near, camera.far] = [75, 0.05, 300];
+      // The camera joins the scene so the arms and the head ride on it, posed in the same frame.
+      world.scene.add(camera);
+      world.scene.background = math.color('#4b3558');
+      // A head turns only so far: about 60° down, where the chest and the boots come into view,
+      // and 70° up.
+      Object.assign(world.controls, { minPitch: -1.05, maxPitch: 1.2 });
+      const PACE = { walkSpeed: world.controls.walkSpeed, sprintSpeed: world.controls.sprintSpeed };
+      // The first pointer move after the lock is granted can carry the cursor's whole jump to
+      // the middle of the screen: the page drops that one move before the controller sees it.
+      let fresh = false;
+      document.addEventListener('pointerlockchange', () => (fresh = document.pointerLockElement !== null));
+      addEventListener('pointermove', (event) => {
+        if (!fresh || document.pointerLockElement === null) return;
+        fresh = false;
+        event.stopPropagation();
+      }, { capture: true });
+
+      const matte = (color, roughness = 0.9, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      const glowing = (emissive, emissiveIntensity) => material.meshStandard({ color: '#000000', emissive, emissiveIntensity });
+      const stone = matte('#5a4d43'), darkStone = matte('#3a302b', 0.95), marble = matte('#efe8da', 0.3);
+      const bronze = matte('#8a6334', 0.4, 0.8);
+      function put(shape, matter, at, parent = world.scene) {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(...at);
+        parent.add(mesh);
+        return mesh;
+      }
+      function part(shape, matter, at, parent, scale) {
+        const mesh = put(shape, matter, at, parent);
+        mesh.scale.set(...scale);
+        return mesh;
+      }
+      const ball = geometry.sphere(0.5, 24, 16);
+      const box = (size, at, matter, parent) => put(geometry.box(...size), matter, at, parent);
+      // What the body stands on and runs into: the walls, the columns and the pillars. The lava,
+      // the lamps and the ornaments are not in it.
+      const solid = object.group();
+      world.scene.add(solid);
+      // A fixed scatter (a sine hash): the same temple on every visit.
+      const hash = (index, k) => { const t = Math.sin(index * 12.9898 + k * 78.233) * 43758.5453; return t - Math.floor(t); };
+
+      // The lava: an orange-red glow that cools in crusts — low rounded lumps of dark red-brown
+      // that still smoulder, smaller and fewer near the course — split by bright yellow cracks.
+      // Five warm lamps just above it light the pillars and the walls from below; they never
+      // move and cast no shadow.
+      box([27.4, 0.6, 60], [0, PIT - 0.3, -16], glowing('#ff3f10', 2.4));
+      const crust = material.meshStandard({ color: '#4a2418', roughness: 0.95, emissive: '#5c1606', emissiveIntensity: 0.7 });
+      const seam = geometry.capsule(0.05, 1, 2, 8), crack = glowing('#ffc45c', 4);
+      for (let index = 0; index < 48; index++) {
+        const [u, v, w] = [1, 2, 3].map((k) => hash(index, k)), x = u * 25 - 12.5, near = Math.abs(x) < 5;
+        if (near && index % 2) continue;
+        const size = (near ? 0.45 : 1) * (0.8 + w * 2);
+        part(ball, crust, [x, PIT, v * 57 - 43.5], world.scene, [size, 0.16 + 0.1 * w, size * (0.6 + u * 0.8)]).rotation.y = w * 3;
+      }
+      for (let index = 0; index < 18; index++) {
+        const [u, v, w] = [8, 9, 10].map((k) => hash(index, k));
+        part(seam, crack, [u * 25 - 12.5, PIT + 0.01, v * 57 - 43.5], world.scene, [0.6 + w * 0.6, 0.8 + w * 1.6, 1.4]).rotation.set(0, w * 6, Math.PI / 2);
+      }
+      for (const [x, z] of [[-3, 6], [3, -6], [-3, -18], [3, -30], [-3, -40]])
+        world.scene.add(light.point({ position: [x, PIT + 1.8, z], color: '#ff6a2a', intensity: 45, distance: 27 }));
+      // Embers climbing out of the lava: small glowing beads, moved every frame.
+      const ember = glowing('#ff8a2a', 5), bead = geometry.sphere(0.05, 8, 6);
+      const embers = Array.from({ length: 40 }, (_, index) => ({
+        mesh: put(bead, ember, [0, PIT, 0]), x: hash(index, 4) * 24 - 12, z: hash(index, 5) * 56 - 43, rise: 0.6 + hash(index, 6), at: hash(index, 7) * 14,
+      }));
+      // The walls: dark ashlar on a base course, and a colonnade before each — marble shafts on
+      // plinths under capitals, an architrave, a pilaster behind each shaft and an arch of three
+      // stones between each pair. The hall is open to the sky and to the setting sun behind.
+      for (const side of [-1, 1]) {
+        box([1.2, 15, 60], [side * 14.1, PIT + 7.5, -15.6], stone, solid);
+        box([0.42, 1.8, 60], [side * 13.29, PIT + 0.9, -15.6], darkStone, solid);
+        box([1.5, 0.9, 58.8], [side * 12.3, PIT + 13.05, -15.6], marble, solid);
+        for (let index = 0; index < 7; index++) {
+          const z = 12 - index * 9.6;
+          put(geometry.cylinder(0.66, 0.78, 10.8, 32), marble, [side * 12.3, PIT + 6.3, z], solid);
+          box([1.98, 0.9, 1.98], [side * 12.3, PIT + 0.45, z], darkStone, solid);
+          box([1.8, 0.9, 1.8], [side * 12.3, PIT + 12.15, z], marble);
+          box([0.3, 15, 1.8], [side * 13.38, PIT + 7.5, z], darkStone, solid);
+          if (index === 6) continue;
+          box([0.9, 3, 2.7], [side * 12.3, PIT + 11.1, z - 1.65], darkStone);
+          box([0.9, 3, 2.7], [side * 12.3, PIT + 11.1, z - 7.95], darkStone);
+          box([0.84, 1.8, 4.2], [side * 12.3, PIT + 11.7, z - 4.8], darkStone);
+        }
+      }
+      // The far wall, with two marble pilasters and a lintel framing the idol's niche.
+      box([29.4, 15, 1.2], [0, PIT + 7.5, -45.6], stone, solid);
+      box([29.4, 1.8, 0.3], [0, PIT + 0.9, -44.9], darkStone);
+      box([8, 9, 0.3], [0, 5.5, -44.85], darkStone);
+      for (const x of [-4.6, 4.6]) box([1, 14, 1], [x, PIT + 7, -44.6], marble);
+      box([10.6, 1.2, 1.2], [0, 10.4, -44.6], marble);
+      // Broken columns standing in the lava, and one fallen across it.
+      for (const [x, z, height] of [[-7.5, 3, 7], [7, -4, 9.5], [-8, -15, 5.5], [8, -24, 8], [-7, -33, 10], [7.5, -38, 6]]) {
+        put(geometry.cylinder(0.6, 0.7, height, 28), marble, [x, PIT + height / 2, z], solid);
+        box([1.6, 0.6, 1.6], [x, PIT + 0.3, z], darkStone);
+      }
+      put(geometry.cylinder(0.6, 0.6, 9, 28), marble, [6, PIT + 0.3, -12]).rotation.set(Math.PI / 2, 0.7, 0);
+
+      // The pillars of the course: dark stone out of the lava, a bronze band, a marble top.
+      for (const p of COURSE) {
+        const [w, d] = [p.x1 - p.x0, p.z1 - p.z0];
+        box([w, p.top - 0.27 - PIT, d], [p.x, (p.top - 0.27 + PIT) / 2, p.z], darkStone, solid);
+        box([w + 0.18, 0.12, d + 0.18], [p.x, p.top - 0.21, p.z], bronze, solid);
+        box([w + 0.12, 0.15, d + 0.12], [p.x, p.top - 0.075, p.z], marble, solid);
+      }
+      // Checkpoints: a bronze standard with a gem, dark until reached. Two gems, one shown:
+      // lighting a checkpoint changes which mesh is visible, never a material; its lamp rises.
+      const gemOff = matte('#1b2a30', 0.3, 0.6), gemOn = glowing('#7cf0ff', 5), gem = geometry.sphere(0.16, 20, 14);
+      const checkpoints = [0, 4, 8, 12].map((index) => {
+        const p = COURSE[index], [x, z] = [p.x1 - 0.3, p.z1 - 0.3];
+        put(geometry.cylinder(0.05, 0.07, 1.6, 12), bronze, [x, p.top + 0.8, z]);
+        const lamp = light.point({ position: [x, p.top + 2, z], color: '#7cf0ff', intensity: 0, distance: 8 });
+        world.scene.add(lamp);
+        return { platform: p, off: put(gem, gemOff, [x, p.top + 1.75, z]), on: put(gem, gemOn, [x, p.top + 1.75, z]), lamp };
+      });
+      const lit = (entry, on) => ([entry.on.visible, entry.off.visible, entry.lamp.intensity] = [on, !on, on ? 12 : 0]);
+      // The orbs: glowing beads in a turning bronze ring, two hanging over gaps — one over the
+      // first sprint's — and three over tops.
+      const glow = glowing('#7cf0ff', 6), pearl = geometry.sphere(0.2, 24, 16), hoop = geometry.torus(0.3, 0.03, 12, 40);
+      const orbs = [[0, 1.45, -3.5], [2, 2.1, -12.5], [-2.3, 2.4, -19.4], [-2.3, 2.6, -26.4], [1, 3.35, -33.7]].map((at) => {
+        const orb = joint(world.scene, at);
+        put(pearl, glow, [0, 0, 0], orb);
+        return { orb, ring: put(hoop, bronze, [0, 0, 0], orb) };
+      });
+      // The golden idol on its pedestal: gold that glows, and a lamp of its own that stays put.
+      box([1.4, 1.2, 1.4], [0, FINISH.top + 0.6, -41.4], marble, solid);
+      const IDOL = math.vector3(0, FINISH.top + 2.05, -41.4);
+      const gold = material.meshStandard({ color: '#d4a24c', metalness: 0.9, roughness: 0.25, emissive: '#ff9d2a', emissiveIntensity: 0.6 });
+      const idol = put(geometry.torusKnot(0.5, 0.15, 220, 28), gold, [IDOL.x, IDOL.y, IDOL.z]);
+      world.scene.add(light.point({ position: [0, IDOL.y, -40.2], color: '#ffc45a', intensity: 30, distance: 14 }));
+      // Everything solid now stands: the body's triangle tree is built from it, once.
+      world.controls.colliders = solid;
+      // Braziers at the start and the finish: a bowl of coals on a stand, a flame over it, a lamp
+      // without shadows that flickers — the lamp by its intensity, the flame by its size.
+      const flame = glowing('#ff9a3c', 6), coals = glowing('#ff5a1f', 4);
+      const fires = [[-3.9, 8.4, 0], [3.9, 8.4, 0], [-3.9, -39.9, 3], [3.9, -39.9, 3]].map(([x, z, y]) => {
+        put(geometry.cylinder(0.09, 0.18, 0.78, 12), bronze, [x, y + 0.39, z]);
+        put(geometry.cylinder(0.39, 0.21, 0.24, 24), bronze, [x, y + 0.9, z]);
+        put(geometry.cylinder(0.33, 0.33, 0.06, 24), coals, [x, y + 1.02, z]);
+        const lamp = light.point({ position: [x, y + 1.5, z], color: '#ff9a3c', intensity: 27, distance: 12, radius: 0.24 });
+        world.scene.add(lamp);
+        return { fire: put(geometry.sphere(0.21, 16, 12), flame, [x, y + 1.26, z]), lamp };
+      });
+      // Dusk: a low sun behind the start, still, whose long shadows run down the hall — the
+      // runner's own among them — and a sky and lava fill from the hemisphere.
+      world.scene.add(light.directional({ intensity: 2.6, color: '#ffab66', position: [6, 9, 30], castShadow: true }));
+      world.scene.add(light.hemisphere({ color: '#6a5a8c', groundColor: '#ff7a40', intensity: 0.7 }));
+
+      // ── The body. A head and two arms ride on the camera; the head is a one-sided shell the eye
+      // sits inside, so the eye sees none of it while the sun still draws its shadow. The arms
+      // are posed each frame from `handPose`: an upper arm to the elbow, a forearm to the wrist, a
+      // hand. The torso and the legs stand on the floor under the eye, turned with it, their front
+      // a little ahead of the eye: seen when looking down, casting the runner's shadow ahead of
+      // him. Every part is rounded — stretched spheres, capsules, tapered cylinders on shared
+      // shapes — and all of it exists before the first frame.
+      const skin = matte('#c98e6b', 0.6), sleeve = matte('#2f5d73', 0.85), leather = matte('#5a3a22', 0.7);
+      const cloth = matte('#4b3b2a'), boot = matte('#2a1e16', 0.8);
+      function joint(parent, at = [0, 0, 0]) {
+        const node = object.group();
+        node.position.set(...at);
+        parent.add(node);
+        return node;
+      }
+      put(geometry.sphere(0.13, 20, 14), skin, [0, 0, 0.02], camera);
+      const rig = joint(camera);
+      // A hand along its +y, its back to +z, the thumb on the inner side: a palm, four fingers of
+      // two joints that curl toward the palm, a thumb of two.
+      const bone = geometry.capsule(0.0095, 0.03, 3, 10), wristBall = geometry.sphere(0.036, 16, 12);
+      const FINGERS = [[0.03, 1], [0.01, 1.08], [-0.01, 1.02], [-0.029, 0.84]];
+      function digit(parent, at, length) {
+        const base = joint(parent, at), tip = joint(base, [0, 0.042 * length, 0]);
+        part(bone, skin, [0, 0.021 * length, 0], base, [1, length, 1]);
+        part(bone, skin, [0, 0.018 * length, 0], tip, [0.92, 0.85 * length, 0.92]);
+        return [base, tip];
+      }
+      function hand(side) {
+        const root = joint(rig);
+        put(wristBall, skin, [0, 0, 0], root);
+        part(ball, skin, [0, 0.045, 0], root, [0.086, 0.095, 0.036]);
+        const fingers = FINGERS.map(([x, length]) => digit(root, [-side * x, 0.086, 0], length));
+        const thumb = digit(root, [-side * 0.04, 0.022, -0.006], 1.05);
+        thumb[0].rotation.z = side * 0.75;
+        return { root, fingers, thumb };
+      }
+      const upperArm = geometry.capsule(0.052, ARM.UPPER, 4, 14), forearm = geometry.cylinder(0.036, 0.047, ARM.FORE, 16);
+      const cuff = geometry.cylinder(0.058, 0.061, 0.12, 16), hem = geometry.torus(0.057, 0.011, 8, 24);
+      const bracer = geometry.cylinder(0.043, 0.047, 0.08, 16);
+      const arms = [-1, 1].map((side) => {
+        const top = joint(rig), low = joint(rig);
+        put(upperArm, sleeve, [0, ARM.UPPER / 2, 0], top);
+        part(ball, sleeve, [0, 0, 0], low, [0.11, 0.11, 0.11]);
+        put(forearm, skin, [0, ARM.FORE / 2, 0], low);
+        put(cuff, sleeve, [0, 0.06, 0], low);
+        put(hem, cloth, [0, 0.12, 0], low).rotation.x = Math.PI / 2;
+        put(bracer, leather, [0, ARM.FORE - 0.07, 0], low);
+        return { side, top, low, ...hand(side) };
+      });
+      const UP = math.vector3(0, 1, 0), toward = math.vector3(), twist = math.quaternion();
+      // Stands a node at `from` with its +y toward `to`.
+      function aim(node, from, to) {
+        node.position.set(...from);
+        node.quaternion.setFromUnitVectors(UP, toward.set(...unit(along(to, from, -1))));
+      }
+      // The torso: a chest and a belly under a tunic, a belt, the hips; the legs: a thigh, a knee,
+      // a shin in a boot's shaft, a foot, jointed at the hip, the knee and the ankle.
+      const body = object.group();
+      world.scene.add(body);
+      part(ball, sleeve, [0, 1.3, 0.01], body, [0.4, 0.38, 0.25]);
+      part(ball, sleeve, [0, 1.07, 0], body, [0.33, 0.32, 0.22]);
+      for (const side of [-1, 1]) part(ball, sleeve, [side * 0.18, 1.41, 0.01], body, [0.15, 0.13, 0.15]);
+      part(geometry.cylinder(0.5, 0.5, 1, 28), leather, [0, 0.95, 0], body, [0.34, 0.06, 0.235]);
+      part(ball, cloth, [0, 0.87, 0.01], body, [0.34, 0.2, 0.23]);
+      const thigh = geometry.capsule(0.07, 0.3, 4, 14), shin = geometry.cylinder(0.055, 0.047, 0.3, 14);
+      const shaft = geometry.cylinder(0.062, 0.058, 0.2, 14);
+      const legs = [-1, 1].map((side) => {
+        const hip = joint(body, [side * 0.095, 0.86, 0.01]);
+        put(thigh, cloth, [0, -0.2, 0], hip);
+        const knee = joint(hip, [0, -0.4, 0]);
+        part(ball, cloth, [0, 0, 0], knee, [0.13, 0.13, 0.13]);
+        put(shin, cloth, [0, -0.13, 0], knee);
+        put(shaft, boot, [0, -0.28, 0], knee);
+        part(ball, boot, [0, -0.41, -0.06], knee, [0.11, 0.09, 0.27]);
+        return { side, hip, knee };
+      });
+
+      // ── Sound, made on the spot with Web Audio once a click allows it: footsteps, the jump and
+      // the landing, the orb's chime, the checkpoint's bell, the lava's rumble. M mutes it.
+      let audio = null, master, rumble, noise, muted = false;
+      function startAudio() {
+        if (audio) return;
+        audio = new AudioContext();
+        master = audio.createGain();
+        master.gain.value = muted || !game.running ? 0 : 0.8;
+        master.connect(audio.destination);
+        noise = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
+        const deep = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
+        const [white, brown] = [noise.getChannelData(0), deep.getChannelData(0)];
+        for (let i = 0, last = 0; i < white.length; i++) {
+          white[i] = Math.random() * 2 - 1;
+          brown[i] = last = (last + 0.02 * white[i]) / 1.02;
+        }
+        const source = audio.createBufferSource(), filter = audio.createBiquadFilter();
+        [source.buffer, source.loop, filter.type, filter.frequency.value] = [deep, true, 'lowpass', 160];
+        rumble = audio.createGain();
+        rumble.gain.value = 0;
+        source.connect(filter).connect(rumble).connect(master);
+        source.start();
+      }
+      // A sound's volume: up in 5 ms, down to silence over `decay` seconds.
+      function envelope(gain, decay, delay) {
+        const node = audio.createGain(), at = audio.currentTime + delay;
+        node.gain.setValueAtTime(0.0001, at);
+        node.gain.exponentialRampToValueAtTime(gain, at + 0.005);
+        node.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+        node.connect(master);
+        return [node, at];
+      }
+      function tone(freq, gain, decay, { to = freq, type = 'sine', delay = 0 } = {}) {
+        if (!audio) return;
+        const [node, at] = envelope(gain, decay, delay), osc = audio.createOscillator();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, at);
+        osc.frequency.exponentialRampToValueAtTime(to, at + decay);
+        osc.connect(node);
+        osc.start(at);
+        osc.stop(at + decay + 0.05);
+      }
+      function hiss(freq, gain, decay, { type = 'lowpass', to = freq } = {}) {
+        if (!audio) return;
+        const [node, at] = envelope(gain, decay, 0), source = audio.createBufferSource(), filter = audio.createBiquadFilter();
+        [source.buffer, filter.type] = [noise, type];
+        filter.frequency.setValueAtTime(freq, at);
+        filter.frequency.exponentialRampToValueAtTime(to, at + decay);
+        source.connect(filter).connect(node);
+        source.start(at, Math.random() * 1.5, decay + 0.05);
+      }
+      const PENTATONIC = [0, 3, 5, 7, 10, 12];
+      const sound = {
+        step: (speed) => (hiss(500 + Math.random() * 400, 0.12 + speed * 0.025, 0.08), tone(95, 0.1, 0.07, { to: 55 })),
+        jump: () => (tone(170, 0.08, 0.14, { to: 320, type: 'triangle' }), hiss(1400, 0.06, 0.16, { type: 'bandpass', to: 500 })),
+        land: (impact) => (tone(110, Math.min(0.5, impact * 0.05), 0.2, { to: 42 }), hiss(600, Math.min(0.35, impact * 0.03), 0.14)),
+        orb(count) {
+          const f = 660 * 2 ** (PENTATONIC[count] / 12);
+          tone(f, 0.18, 0.7);
+          tone(f * 2, 0.05, 0.35);
+          tone(f * 1.5, 0.1, 0.8, { delay: 0.09 });
+        },
+        bell: () => [220, 330, 440, 554].forEach((f, i) => tone(f, 0.1 / (i + 1), 1.8)),
+        burn: () => (hiss(3000, 0.4, 0.7, { to: 200 }), tone(70, 0.3, 0.6, { to: 35 })),
+        win: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.12, 1.4, { delay: i * 0.11, type: 'triangle' })),
+        crackle: () => hiss(3500, 0.02 + Math.random() * 0.03, 0.03, { type: 'highpass' }),
+      };
+
+      // ── The heads-up display and the keys. Walking, sprinting and jumping are the controller's;
+      // the page adds R and M.
+      const $ = (id) => document.getElementById(id);
+      const [hud, orbsShown, clockShown, soundShown, veil, banner] = ['hud', 'orbs', 'clock', 'sound', 'veil', 'banner'].map($);
+      const KEYS = [
+        { action: 'run', keys: ['W', 'A', 'S', 'D'], azerty: ['Z', 'Q', 'S', 'D'] },
+        { action: 'look', keys: ['Mouse'] },
+        { action: 'sprint', keys: ['Shift'] },
+        { action: 'jump', keys: ['Space'] },
+        { action: 'runAgain', keys: ['R'] },
+        { action: 'sound', keys: ['M'] },
+        { action: 'pause', keys: ['Esc'] },
+      ];
+      function announce(title, line = '') {
+        banner.style.opacity = title ? 1 : 0;
+        if (title) banner.innerHTML = `<b>${title}</b><span>${line}</span>`;
+      }
+      // R and M are letters, not places: read by the character they type on any layout.
+      addEventListener('keydown', (event) => {
+        if (event.repeat) return;
+        if (event.key.toLowerCase() === 'r') restart();
+        if (event.key.toLowerCase() === 'm') toggleSound();
+      });
+      // Any press starts it, the menu's Play among them: the game is played without a click.
+      addEventListener('pointerdown', startAudio);
+      // The sound's level: silent when muted or paused.
+      const volume = () => master && master.gain.setTargetAtTime(muted || !game.running ? 0 : 0.8, audio.currentTime, 0.02);
+      function toggleSound() {
+        muted = !muted;
+        soundShown.textContent = say(muted ? 'muted' : 'sound');
+        volume();
+      }
+      // The kit's menu and pause: the game runs only while the mouse is locked to the canvas.
+      // Paused, the kit turns the controller off and the frame below stops at its first line —
+      // no running, no looking, no clock, the body still — and the sound falls silent; the kit's
+      // menu hides the page's display (marked `data-hud`) until the run goes on.
+      const game = play(world, {
+        keys: KEYS,
+        onRestart: restart,
+        onPause: () => volume(),
+        onResume: () => volume(),
+      });
+      function flash() {
+        hud.classList.add('flash');
+        requestAnimationFrame(() => requestAnimationFrame(() => hud.classList.remove('flash')));
+      }
+
+      // ── The game: orbs, a clock, checkpoints, the lava, the idol.
+      // Where the runner stands, read from the camera the controller moved: the eye is
+      // `eyeHeight` above the feet, give or take the head's bob and a landing's dip.
+      const me = { x: 0, z: 0, feet: 0, grounded: true };
+      function locate() {
+        const { x, y, z } = camera.position;
+        [me.x, me.z, me.feet, me.grounded] = [x, z, y - world.controls.eyeHeight, world.controls.onGround];
+      }
+      // On a top, perched on its edge or standing on its band.
+      const standsOn = (p) => me.grounded && Math.abs(me.feet - p.top) < 0.2 && touches(p, me.x, me.z, world.controls.capsuleRadius);
+      let state, checkpoint, started, finished, taken, burnt;
+      // Moving the camera teleports the body there, at rest.
+      function spawn(p) {
+        const z = p === COURSE[0] ? 6 : p.z, eye = p.top + world.controls.eyeHeight;
+        camera.position.set(p.x, eye, z);
+        camera.lookAt(IDOL.x, eye - 0.35, IDOL.z);
+        locate();
+      }
+      function restart() {
+        [state, checkpoint, started, finished, taken] = ['run', checkpoints[0], null, null, 0];
+        checkpoints.forEach((entry, index) => lit(entry, index === 0));
+        for (const { orb } of orbs) orb.visible = true;
+        Object.assign(world.controls, PACE);
+        spawn(checkpoint.platform);
+        veil.classList.remove('on');
+        announce('');
+        world.invalidate();
+      }
+      restart();
+      controls({
+        keys: 'The engine\'s character control: the menu\'s Play locks the mouse to look, W A S D to run (Z Q S D on AZERTY), Shift to sprint, Space to jump, Escape frees the mouse. The page adds R to run again, M to mute.',
+        look: [0.5, 3, 1],
+        runAgain: restart,
+      }, (values) => (world.controls.lookSpeed = 0.002 * values.look), world);
+
+      // What the frame reads back, eased so the body moves without jerks.
+      const eased = { move: 0, fov: 75, tilt: 0, dip: 0, dipSpeed: 0, sprint: 0 };
+      const ease = (key, to, rate, dt) => (eased[key] += (to - eased[key]) * Math.min(1, dt * rate));
+      // The jump's weight and pose ride on springs, so no state change pops the arms.
+      const motion = { air: { x: 0, v: 0 }, leap: leapPose(-Infinity).map((x) => ({ x, v: 0 })) };
+      let phase = 0, footfall = 0, time = 0;
+      // The controller tells the take-off and the landing: a sound, and a brace of the arms as
+      // deep as the fall was fast. The head's bob and the landing's dip are the controller's
+      // own: the camera, the arms on it and the body under it all ride them.
+      world.controls.onJump = () => sound.jump();
+      world.controls.onLand = (impact) => {
+        eased.dipSpeed -= Math.min(1.8, impact * 0.18);
+        sound.land(impact);
+      };
+      // Where the eye looks, and that direction on the level.
+      function gaze() {
+        const q = camera.quaternion;
+        const look = [-2 * (q.x * q.z + q.w * q.y), -2 * (q.y * q.z - q.w * q.x), -(1 - 2 * (q.x * q.x + q.y * q.y))];
+        const flat = Math.hypot(look[0], look[2]) || 1;
+        return { look, fx: look[0] / flat, fz: look[2] / flat };
+      }
+      // Poses the body from the eased state. The hands: swung by the stride, carried through the
+      // jump, braced by a landing's dip, placed for this frame's field of view and aspect, the
+      // arms following them. The legs stride, the knee bending as the leg swings through, and
+      // tuck in a jump. Paused, the state stands still and so does the body.
+      function dress() {
+        const { fx, fz } = gaze();
+        const leap = motion.leap.map(({ x }) => x), air = motion.air.x;
+        const pose = { move: eased.move, sprint: eased.sprint, phase, air, leap, brace: Math.max(0, Math.min(1, -eased.dip * 25)) };
+        for (const { side, top, low, root, fingers, thumb } of arms) {
+          const h = handPose(side, pose, camera.fov, camera.aspect);
+          aim(top, h.shoulder, h.elbow);
+          aim(low, h.elbow, h.wrist);
+          root.position.set(...h.wrist);
+          root.quaternion.setFromUnitVectors(UP, toward.set(...h.reach)).premultiply(twist.setFromAxisAngle(toward, h.roll));
+          for (const [base, tip] of fingers) [base.rotation.x, tip.rotation.x] = [-1.1 * h.curl, -1.4 * h.curl];
+          [thumb[0].rotation.x, thumb[1].rotation.x] = [-0.5 * h.curl, -0.7 * h.curl];
+        }
+        rig.position.y = Math.sin(time * 1.7) * 0.006;
+        rig.rotation.z = eased.tilt;
+        body.position.set(me.x - fx * 0.1, me.feet, me.z - fz * 0.1);
+        body.rotation.y = Math.atan2(-fx, -fz);
+        for (const { side, hip, knee } of legs) {
+          const turn = phase + (side > 0 ? 0 : Math.PI);
+          hip.rotation.x = Math.sin(turn) * 0.55 * eased.move + air * (side > 0 ? 0.7 : 0.15);
+          knee.rotation.x = -Math.max(0, Math.cos(turn)) * 0.9 * eased.move - air * (side > 0 ? 1.1 : 0.45);
+        }
+      }
+      dress();
+      // The page steps the controller itself, so a runner fallen in the lava stops: it sinks,
+      // and nothing the keys do moves it. Placed after the step, the body is drawn where the
+      // eye is in this frame.
+      world.controls.autoUpdate = false;
+      world.beforeFrame(({ delta }) => {
+        // Paused, nothing moves: the frame only fits the hands to a resized screen.
+        if (!game.running) return dress();
+        // The game's own clock, which stands still while it is paused.
+        const dt = Math.min(delta, 1 / 20);
+        time += dt;
+        if (state === 'dead') camera.position.y -= dt * 0.8;
+        else world.controls.update(dt);
+        locate();
+        const { look, fx, fz } = gaze(), v = world.controls.velocity;
+
+        // The run: the controller's stride, a footstep at each foot strike, the arms' brace on a
+        // landing (a spring), the field of view widening at a sprint, a lean into a strafe.
+        const [vx, vz] = state === 'dead' ? [0, 0] : [v.x, v.z], going = Math.hypot(vx, vz);
+        ease('move', me.grounded ? Math.min(going / PACE.walkSpeed, 1.6) : eased.move, 10, dt);
+        spring(motion.air, me.grounded ? 0 : 1, 14, dt);
+        leapPose(me.grounded ? -Infinity : v.y).forEach((to, i) => spring(motion.leap[i], to, 25, dt));
+        phase = world.controls.stride;
+        if (Math.floor(phase / Math.PI) !== footfall) {
+          footfall = Math.floor(phase / Math.PI);
+          sound.step(going);
+        }
+        eased.dipSpeed += (-160 * eased.dip - 20 * eased.dipSpeed) * dt;
+        eased.dip = Math.max(-0.35, eased.dip + eased.dipSpeed * dt);
+        eased.sprint = Math.max(0, Math.min(1, (going - PACE.walkSpeed) / (PACE.sprintSpeed - PACE.walkSpeed)));
+        if (Math.abs(ease('fov', 75 + 10 * eased.sprint, 6, dt) - camera.fov) > 0.01) camera.fov = eased.fov;
+        ease('tilt', Math.max(-0.1, Math.min(0.1, (vx * fz - vz * fx) * 0.015)), 8, dt);
+        dress();
+
+        // The game.
+        if (state === 'run') {
+          if (started === null && (me.z < COURSE[0].z0 || !me.grounded)) started = time;
+          for (const { orb } of orbs) {
+            const near = Math.hypot(orb.position.x - me.x, orb.position.z - me.z) < 0.55;
+            if (!orb.visible || !near || orb.position.y < me.feet - 0.2 || orb.position.y > me.feet + 1.9) continue;
+            orb.visible = false;
+            taken += 1;
+            sound.orb(taken);
+            flash();
+          }
+          const rank = checkpoints.indexOf(checkpoint);
+          const reached = checkpoints.find((entry, index) => index > rank && standsOn(entry.platform));
+          if (reached) {
+            checkpoint = reached;
+            lit(reached, true);
+            sound.bell();
+            announce(say('checkpoint'));
+            setTimeout(() => state === 'run' && announce(''), 1200);
+          }
+          if (me.feet < LAVA) {
+            [state, burnt] = ['dead', time];
+            veil.classList.add('on');
+            sound.burn();
+          } else if (standsOn(FINISH)) {
+            // At the idol the run is over: the runner looks, and walks no more.
+            [state, finished] = ['done', time - (started ?? time)];
+            Object.assign(world.controls, { walkSpeed: 0, sprintSpeed: 0 });
+            sound.win();
+            announce(`${finished.toFixed(1)} s`, say('finished', { taken, orbs: orbs.length }));
+          }
+        } else if (state === 'dead' && time - burnt > 0.7) {
+          spawn(checkpoint.platform);
+          veil.classList.remove('on');
+          state = 'run';
+        } else if (state === 'done') {
+          // The eye turns slowly to the idol; the mouse can still look around.
+          const p = camera.position, to = [IDOL.x - p.x, IDOL.y - p.y, IDOL.z - p.z];
+          const far = Math.hypot(...to), k = Math.min(1, dt * 1.2);
+          const [ax, ay, az] = look.map((value, axis) => value + (to[axis] / far - value) * k);
+          camera.lookAt(p.x + ax, p.y + ay, p.z + az);
+        }
+        const shown = state === 'done' ? finished : started === null ? 0 : time - started;
+        orbsShown.textContent = `◆ ${taken} / ${orbs.length}`;
+        clockShown.textContent = `${shown.toFixed(1)} s`;
+
+        // The living temple: the idol turns, the orbs spin and breathe, embers climb out of the
+        // lava, the braziers flicker, the rumble swells as the lava comes near.
+        idol.rotation.y = time * (state === 'done' ? 2.5 : 0.6);
+        orbs.forEach(({ orb, ring }, index) => {
+          orb.scale.setScalar(1 + 0.12 * Math.sin(time * 4 + index));
+          ring.rotation.set(time * 1.3 + index, time * 0.9, 0);
+        });
+        for (const e of embers)
+          e.mesh.position.set(e.x + Math.sin(time * 0.7 + e.z) * 0.6, PIT + ((e.at + time * e.rise) % 14), e.z + Math.cos(time * 0.5 + e.x) * 0.4);
+        fires.forEach(({ fire, lamp }, index) => {
+          const flicker = 0.85 + 0.1 * Math.sin(time * 13 + index * 7) + 0.05 * Math.sin(time * 31 + index);
+          lamp.intensity = 27 * flicker;
+          fire.scale.set(1, 0.9 + 0.35 * flicker, 1);
+        });
+        if (audio) {
+          rumble.gain.setTargetAtTime(0.25 + 0.6 * Math.max(0, 1 - (me.feet - PIT) / 6), audio.currentTime, 0.2);
+          if (Math.random() < dt * 4) sound.crackle();
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

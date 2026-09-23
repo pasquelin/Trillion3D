@@ -5,9 +5,9 @@ export {
   assertCacheReady,
   assertFormat,
   EngineError,
-} from '../../sdk-core/cacheContracts.ts';
-export type { PageSource } from '../../sdk-core/cacheContracts.ts';
-export { assertManifestBinary, isBinaryManifest } from '../../sdk-core/manifestBinaryTypes.ts';
+} from '../../sdk-core/src/contracts/cache.ts';
+export type { PageSource } from '../../sdk-core/src/contracts/cache.ts';
+export { assertManifestBinary, isBinaryManifest } from '../../sdk-core/src/manifest/binaryTypes.ts';
 export type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,
@@ -16,7 +16,7 @@ export type {
   SlimPrimitiveBinary,
   SlimStreams,
   SlimStructure,
-} from '../../sdk-core/manifestBinaryTypes.ts';
+} from '../../sdk-core/src/manifest/binaryTypes.ts';
 export {
   blocksAcross,
   levelBlockBytes,
@@ -29,14 +29,14 @@ export {
   previewLevelCount,
   previewLevelSize,
   previewPixelBytes,
-} from '../../sdk-core/texturePreviewLevels.ts';
+} from '../../sdk-core/src/texture/previewLevels.ts';
 export {
   clusterSphereValid,
   pageCarriesClusterError,
   primitiveIsDrawable,
   primitiveUsesClusterErrors,
   UNSPLIT_PASS,
-} from '../../sdk-core/geometryContracts.ts';
+} from '../../sdk-core/src/contracts/geometry.ts';
 export type {
   ClusterGroup,
   ClusterManifest,
@@ -46,35 +46,37 @@ export type {
   Primitive,
   StreamBundle,
   StreamCatalogue,
-} from '../../sdk-core/geometryContracts.ts';
-export { manifestBinaryRanges } from '../../sdk-core/manifestBinaryLayout.ts';
-export type { Counts } from '../../sdk-core/manifestBinaryLayout.ts';
+} from '../../sdk-core/src/contracts/geometry.ts';
+export { manifestBinaryRanges } from '../../sdk-core/src/manifest/binaryLayout.ts';
+export type { Counts } from '../../sdk-core/src/manifest/binaryLayout.ts';
 export {
   createPageIntegrationPlan,
   planPageIntegration,
   sortPages,
-} from '../../sdk-core/pageIntegrationPlan.ts';
-export type { PageIntegrationPlan } from '../../sdk-core/pageIntegrationPlan.ts';
+} from '../../sdk-core/src/page/integrationPlan.ts';
+export type { PageIntegrationPlan } from '../../sdk-core/src/page/integrationPlan.ts';
 export {
   decodeManifestBinary,
   decodeManifestPreviews,
-} from '../../sdk-core/manifestBinaryDecode.ts';
-export { encodeManifestBinary } from '../../sdk-core/manifestBinaryEncode.ts';
+} from '../../sdk-core/src/manifest/binaryDecode.ts';
+export { encodeManifestBinary } from '../../sdk-core/src/manifest/binaryEncode.ts';
 export {
   GEOMETRY_PAGE_CODEC,
   GEOMETRY_PAGE_FORMAT_VERSION,
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
   COLUMN_KIND,
-} from '../../sdk-core/manifestBinaryFormat.ts';
-export type { ColumnKind } from '../../sdk-core/manifestBinaryFormat.ts';
+} from '../../sdk-core/src/manifest/binaryFormat.ts';
+export type { ColumnKind } from '../../sdk-core/src/manifest/binaryFormat.ts';
 export {
   PAGE_DECODE_FAILURES,
   PAGE_DECODE_PROTOCOL,
   pageDecodeFailureCode,
   pageDecodeWorkerCount,
-} from '../../sdk-core/pageDecodeContracts.ts';
+} from '../../sdk-core/src/page/decodeContracts.ts';
 export type {
+  PageCutPage,
+  PageCutPayload,
   PageDecodeAnswer,
   PageDecodeCancel,
   PageDecodeDone,
@@ -84,7 +86,7 @@ export type {
   PageDecodeOp,
   PageDecodeRequest,
   PageDecodeShare,
-} from '../../sdk-core/pageDecodeContracts.ts';
+} from '../../sdk-core/src/page/decodeContracts.ts';
 export {
   PAGE_INTEGRATION_FAILURES,
   PAGE_INTEGRATION_PROTOCOL,
@@ -96,14 +98,14 @@ export {
   SPEC_PAGE_INDEX,
   SPEC_STREAM_OFFSET,
   SPEC_TRIANGLES,
-} from '../../sdk-core/pageIntegrationContracts.ts';
+} from '../../sdk-core/src/page/integrationContracts.ts';
 export type {
   PageIntegrationAnswer,
   PageIntegrationDone,
   PageIntegrationFailed,
   PageIntegrationFailureCode,
   PageIntegrationRequest,
-} from '../../sdk-core/pageIntegrationContracts.ts';
+} from '../../sdk-core/src/page/integrationContracts.ts';
 export {
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_DATA,
@@ -114,9 +116,18 @@ export {
   PREVIEW_LAYOUT_NAMES,
   PREVIEW_LOSSLESS_FORMAT,
   TEXTURE_PREVIEW_VERSION,
-} from '../../sdk-core/texturePreviewFormat.ts';
-export type { TextureBlockFormat, TextureLayout } from '../../sdk-core/texturePreviewFormat.ts';
-export type { TextureFrameMetrics } from '../../sdk-core/textureMetricsContracts.ts';
-export { textureLevelFormat, textureLevelUrl } from '../../sdk-core/textureLevelUrl.ts';
-export type { TextureLevelFormat } from '../../sdk-core/textureLevelUrl.ts';
-export type { TexturePreview } from '../../sdk-core/texturePreviewContracts.ts';
+} from '../../sdk-core/src/texture/previewFormat.ts';
+export type {
+  TextureBlockFormat,
+  TextureLayout,
+} from '../../sdk-core/src/texture/previewFormat.ts';
+export type {
+  Texture,
+  TextureColorSpace,
+  TextureFilter,
+  WrapMode,
+} from '../../sdk-core/src/texture/contract.ts';
+export type { TextureFrameMetrics } from '../../sdk-core/src/texture/metricsContracts.ts';
+export { textureLevelFormat, textureLevelUrl } from '../../sdk-core/src/texture/levelUrl.ts';
+export type { TextureLevelFormat } from '../../sdk-core/src/texture/levelUrl.ts';
+export type { TexturePreview } from '../../sdk-core/src/texture/previewContracts.ts';

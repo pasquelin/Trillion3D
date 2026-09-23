@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lines in colour</title>
+    <meta name="thumbnail" content="9" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #07080d;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#07080d');
+
+      // Four strange attractors: a point pushed by a rule of three equations never settles and
+      // never repeats, and its path draws a shape. Each rule is followed step by step (fourth
+      // order Runge–Kutta), the first steps dropped while the point finds its shape.
+      const FIGURES = {
+        'Lorenz butterfly': { speed: ([x, y, z]) => [10 * (y - x), x * (28 - z) - y, x * y - (8 / 3) * z], start: [0.1, 0, 0], dt: 0.008, steps: 7000 },
+        'Aizawa shell': { speed: ([x, y, z]) => [(z - 0.7) * x - 3.5 * y, 3.5 * x + (z - 0.7) * y, 0.6 + 0.95 * z - z ** 3 / 3 - (x * x + y * y) * (1 + 0.25 * z) + 0.1 * z * x ** 3], start: [0.1, 0, 0], dt: 0.016, steps: 7000 },
+        'Thomas knot': { speed: ([x, y, z]) => [Math.sin(y) - 0.19 * x, Math.sin(z) - 0.19 * y, Math.sin(x) - 0.19 * z], start: [1.1, 1.1, -0.01], dt: 0.1, steps: 7000 },
+        'Halvorsen propeller': { speed: ([x, y, z]) => [-1.89 * x - 4 * y - 4 * z - y * y, -1.89 * y - 4 * z - 4 * x - z * z, -1.89 * z - 4 * x - 4 * y - x * x], start: [-1.48, -1.51, 2.04], dt: 0.008, steps: 7000 },
+      };
+      function trace({ speed, start, dt, steps }) {
+        let p = start;
+        const points = [];
+        const along = (q, k, h) => q.map((value, axis) => value + k[axis] * h);
+        for (let step = 0; step < steps + 400; step++) {
+          const k1 = speed(p), k2 = speed(along(p, k1, dt / 2)), k3 = speed(along(p, k2, dt / 2)), k4 = speed(along(p, k3, dt));
+          p = p.map((value, axis) => value + (dt / 6) * (k1[axis] + 2 * k2[axis] + 2 * k3[axis] + k4[axis]));
+          if (step >= 400) points.push(p);
+        }
+        // Centred and scaled to the same size, the third equation's axis standing up.
+        const low = [0, 1, 2].map((axis) => Math.min(...points.map((q) => q[axis])));
+        const high = [0, 1, 2].map((axis) => Math.max(...points.map((q) => q[axis])));
+        const scale = 5.4 / Math.max(...high.map((value, axis) => value - low[axis]));
+        return points.map((q) => [0, 2, 1].map((axis) => (q[axis] - (low[axis] + high[axis]) / 2) * scale));
+      }
+
+      // A line in the engine carries one colour: its material's. So each path is cut into
+      // pieces that follow one another, each piece a line of its own colour — ninety-six steps of
+      // a gradient. A line's thickness follows its own size, so each piece's width is set against
+      // the whole figure's: every piece draws as thick as the others.
+      const PIECES = 96, WIDTH = 2.4;
+      const figure = object.group();
+      world.scene.add(figure);
+      const size = (points) => {
+        const span = [0, 1, 2].map((axis) => Math.max(...points.map((q) => q[axis])) - Math.min(...points.map((q) => q[axis])));
+        return Math.hypot(...span) || 1;
+      };
+      const drawings = Object.fromEntries(Object.entries(FIGURES).map(([name, rule]) => {
+        const points = trace(rule), whole = size(points), per = Math.ceil(points.length / PIECES);
+        const pieces = Array.from({ length: PIECES }, (_, index) => {
+          const run = points.slice(index * per, (index + 1) * per + 1);
+          const ink = material.line({ linewidth: (WIDTH * whole) / size(run) });
+          const line = object.line(geometry.createBuffer({ position: buffer.float32(new Float32Array(run.flat()), 3) }), ink);
+          line.visible = false;
+          return { line, ink };
+        });
+        return [name, { points, pieces, joined: false }];
+      }));
+      // The world cuts every line into small prisms before it draws them, a cost that grows with
+      // the segments: the scene opens on the first figure alone, and the other three join it a
+      // second later — or at once, when one of them is picked.
+      const join = (drawing) => {
+        if (drawing.joined) return;
+        drawing.joined = true;
+        for (const { line } of drawing.pieces) figure.add(line);
+      };
+
+      // Below the figure, a dark glossy floor; the pen that draws is a small light, and the floor
+      // shows where it goes.
+      const floor = object.mesh(geometry.cylinder(9, 9, 0.2, 96), material.meshStandard({ color: '#14151d', roughness: 0.28, metalness: 0.3 }));
+      floor.position.y = -3.4;
+      const pen = object.mesh(geometry.sphere(0.07, 24, 12), material.meshStandard({ color: '#000000', emissive: '#ffffff', emissiveIntensity: 5 }));
+      const glow = light.point({ color: '#fff4e0', intensity: 14, distance: 9 });
+      figure.add(pen, glow);
+      world.scene.add(floor, light.hemisphere({ color: '#4a5a8a', groundColor: '#140f18', intensity: 0.35 }));
+
+      const PALETTES = {
+        aurora: ['#00ffa3', '#00b3ff', '#7a3cff', '#ff2fd0'],
+        sunset: ['#ffd000', '#ff6a00', '#ff0a54', '#6a00ff'],
+        embers: ['#fff3b0', '#ffb000', '#ff3d00', '#7a0010'],
+        ice: ['#ffffff', '#9fe8ff', '#2f8fff', '#1b2f9a'],
+      };
+      const colourAt = (stops, t) => {
+        const at = t * (stops.length - 1), k = Math.min(stops.length - 2, Math.floor(at));
+        return math.color(stops[k]).lerp(math.color(stops[k + 1]), at - k);
+      };
+
+      world.camera.position.set(0, 1.4, 7.6);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.target.set(0, 0, 0);
+      world.controls.minDistance = 3;
+      world.controls.maxDistance = 16;
+      world.controls.maxPolarAngle = Math.PI / 2 + 0.15;
+
+      // The pen runs along the path; a piece shows once the pen has entered it.
+      let drawn = 0, shown = null, current = null;
+      const restart = () => {
+        drawn = 0;
+        world.invalidate();
+      };
+      const ui = controls({
+        mouse: 'Drag to turn around the figure; pick another rule and the pen draws it from the start',
+        figure: Object.keys(FIGURES),
+        palette: Object.keys(PALETTES),
+        pace: [0.2, 4, 1],
+        redraw: restart,
+        spin: true,
+      }, (values, key) => {
+        if (key === undefined || key === 'figure') {
+          for (const { pieces } of Object.values(drawings)) for (const { line } of pieces) line.visible = false;
+          current = drawings[values.figure];
+          join(current);
+          restart();
+        }
+        if (key === undefined || key === 'palette')
+          for (const { pieces } of Object.values(drawings))
+            pieces.forEach(({ ink }, index) => ink.color.copy(colourAt(PALETTES[values.palette], index / (PIECES - 1))));
+        world.invalidate();
+      }, world);
+      shown = readout('colouredPieces');
+
+      let turn = 0, waited = 0;
+      // A figure drawn to its end and not turning asks for no new frame; a light is written only
+      // when the pen lifts or lands, never once a frame.
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        if (waited <= 1 && (waited += step) > 1) Object.values(drawings).forEach(join);
+        const { points, pieces } = current, drawing = drawn < points.length - 1;
+        if (!drawing && !ui.spin) return;
+        if (drawing) {
+          // About twelve seconds for a whole figure at the usual pace.
+          drawn = Math.min(points.length - 1, drawn + (step * ui.pace * points.length) / 12);
+          const head = points[Math.floor(drawn)], reached = Math.min(PIECES, Math.floor((drawn / points.length) * PIECES) + 1);
+          pieces.forEach(({ line }, index) => (line.visible = index < reached));
+          pen.position.set(...head);
+          glow.position.set(...head);
+          shown(`${reached} / ${PIECES}`);
+        }
+        const lit = drawn < points.length - 1;
+        if (pen.visible !== lit) {
+          pen.visible = lit;
+          glow.intensity = lit ? 14 : 0;
+        }
+        if (ui.spin) {
+          turn += step * 0.18;
+          figure.rotation.set(0, turn, 0);
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
