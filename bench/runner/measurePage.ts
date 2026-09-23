@@ -158,11 +158,11 @@ const SHADOW_COUNTERS = [
  * max over the frames that published it, `null` for a counter no frame published (an older dist).
  */
 export function shadowCountersPerFrame() {
-  const values = new Map<string, number[]>(SHADOW_COUNTERS.map((key) => [key, []]));
+  const values = new Map(SHADOW_COUNTERS.map((key) => [key, [] as number[]]));
   return {
     push(frame: Partial<FrameMetrics>) {
       for (const [key, list] of values) {
-        const value = frame[key as (typeof SHADOW_COUNTERS)[number]];
+        const value = frame[key];
         if (typeof value === 'number') list.push(value);
       }
     },
