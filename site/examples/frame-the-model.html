@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, opening, ease, circling } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -108,15 +108,28 @@
 
       // A flight: the target slides, the distance changes on a log scale — from a ring to an
       // obelisk is a factor of hundreds —, and the elevation settles between 20° and 70° above
-      // the ground. Its length grows with the change of scale.
-      let flight = null, drift = true, name = null, radius = null, distance = null;
-      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+      // the ground. Its length grows with the change of scale. A flight pauses the drift, which
+      // goes on from where it lands if it was on.
+      let flight = null, name = null, radius = null, distance = null;
+      const glide = opening(world, (time) => {
+        if (!flight) return false;
+        const e = ease.inOut(time / flight.span), { from, to } = flight;
+        const target = from.target.map((v, k) => v + (to.target[k] - v) * e);
+        const d = from.d.map((v, k) => v + (to.d[k] - v) * e), n = Math.hypot(...d);
+        place(target, d.map((v) => v / n), Math.exp(Math.log(from.length) + (Math.log(to.length) - Math.log(from.length)) * e));
+        if (time < flight.span) return true;
+        world.controls.minDistance = flight.nearest;
+        if (flight.resume) drift.restart();
+        return false;
+      });
       const frame = (node, margin) => {
         const { centre, radius: r } = bounds(node), from = lookFrom();
         const polar = Math.min(1.22, Math.max(0.35, Math.acos(from.d[1]))), flat = Math.hypot(from.d[0], from.d[2]) || 1;
         const d = [(Math.sin(polar) * from.d[0]) / flat, Math.cos(polar), (Math.sin(polar) * from.d[2]) / flat];
         const to = fitDistance(r, margin);
-        flight = { from, to: { target: centre, d, length: to }, t: 0, span: 1.2 + 0.35 * Math.abs(Math.log(to / from.length)), nearest: r * 0.8 };
+        flight = { from, to: { target: centre, d, length: to }, span: 1.2 + 0.35 * Math.abs(Math.log(to / from.length)), nearest: r * 0.8, resume: drift.gliding || Boolean(flight?.resume && glide.gliding) };
+        drift.stop();
+        glide.restart();
         // The wheel's range is the framed object's once the flight lands; open while it flies.
         world.controls.minDistance = 0;
         name?.(say(node.name));
@@ -131,7 +144,10 @@
         drift: true,
       }, (values, key) => {
         if (key === 'model' || key === 'margin') frame(pick(values.model), values.margin);
-        if (key === 'drift') drift = values.drift;
+        if (key !== 'drift') return;
+        if (glide.gliding) flight.resume = values.drift;
+        else if (values.drift) drift.restart();
+        else drift.stop();
       }, world);
       name = readout('framing');
       radius = readout('radius');
@@ -144,11 +160,6 @@
         while (hit && hit.parent !== exhibits) hit = hit.parent;
         if (hit) frame(hit, ui.margin);
       });
-      // A hand on the view stops the flight where it is, and the drift.
-      const takeOver = () => ((flight = null), (drift = false));
-      world.canvas.addEventListener('pointerdown', takeOver);
-      world.canvas.addEventListener('wheel', takeOver, { passive: true });
-
       // The opening: close on the ring, which then pulls back to show the whole courtyard.
       {
         const { centre, radius: r } = bounds(pick('the gold ring')), d = [0.55, 0.42, 0.72].map((v) => v / Math.hypot(0.55, 0.42, 0.72));
@@ -156,23 +167,15 @@
         name(say('the gold ring'));
         radius(`${(r * 100).toFixed(1)} cm`);
       }
-      let time = 0, opening = 1.4;
+      // The camera drifts round what it frames; a hand on the view stops the drift, and a flight
+      // where it is.
+      const drift = circling(world, 0.06);
+      let time = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step;
         ring.rotation.set(0, time * 0.8, 0);
-        if (opening > 0 && (opening -= step) <= 0 && drift) frame(exhibits, ui.margin);
-        if (flight) {
-          flight.t = Math.min(1, flight.t + step / flight.span);
-          const e = ease(flight.t), { from, to } = flight;
-          const target = from.target.map((v, k) => v + (to.target[k] - v) * e);
-          const d = from.d.map((v, k) => v + (to.d[k] - v) * e), n = Math.hypot(...d);
-          place(target, d.map((v) => v / n), Math.exp(Math.log(from.length) + (Math.log(to.length) - Math.log(from.length)) * e));
-          if (flight.t === 1) (world.controls.minDistance = flight.nearest), (flight = null);
-        } else if (drift) {
-          const { d, length, target } = lookFrom(), turn = step * 0.06, c = Math.cos(turn), s = Math.sin(turn);
-          place(target, [c * d[0] + s * d[2], d[1], -s * d[0] + c * d[2]], length);
-        }
+        if (time >= 1.4 && time - step < 1.4 && drift.gliding) frame(exhibits, ui.margin);
         const now = lookFrom().length;
         distance(now < 1 ? `${(now * 100).toFixed(0)} cm` : `${now.toFixed(1)} m`);
         world.invalidate();

@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, language, seeded } from '../runtime/kit.js';
+      import { controls, readout, language, seeded, opening, ease } from '../runtime/kit.js';
 
       const next = seeded(7);
 
@@ -132,10 +132,12 @@
 
       // The opening: the field lies flat under a camera high above, and rises as it comes down.
       const from = [0, 24, 1], to = [9, 6.5, 12];
-      let intro = 0, rise = 0, time = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
-      const smooth = (t) => t * t * (3 - 2 * t);
+      opening(world, (glide) => {
+        const e = ease.out(glide / 3.5);
+        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * e));
+        return glide < 3.5;
+      });
+      let rise = 0, time = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step * ui.speed;
@@ -143,7 +145,7 @@
         blend = Math.min(1, blend + step);
         for (const stone of stones)
           if (time - stone.born > 4) Object.assign(stone, { x: (next() - 0.5) * 12, z: (next() - 0.5) * 12, born: time });
-        const k = smooth(blend), amplitude = ui.height * smooth(rise);
+        const k = ease.smooth(blend), amplitude = ui.height * ease.smooth(rise);
         const height = (x, z) => amplitude * (before(x, z, time) * (1 - k) + after(x, z, time) * k);
         for (const mesh of points) mesh.position.y = height(mesh.position.x, mesh.position.z);
         for (const { buoy, x, z } of buoys) {
@@ -151,14 +153,8 @@
           buoy.position.set(x, height(x, z) + 0.08, z);
           buoy.rotation.set(-Math.atan(slopeZ), 0, Math.atan(slopeX));
         }
-        if (intro < 1) {
-          intro = Math.min(1, intro + step / 3.5);
-          const e = 1 - (1 - intro) ** 3;
-          world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * e));
-          world.controls.update();
-        }
         // At speed zero, once the field has risen and a new pattern has taken over, all stands still.
-        if (ui.speed || rise < 1 || blend < 1 || intro < 1) world.invalidate();
+        if (ui.speed || rise < 1 || blend < 1) world.invalidate();
       });
     </script>
   </body>

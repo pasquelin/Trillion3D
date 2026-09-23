@@ -48,7 +48,7 @@
     </div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, capture } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, circling } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -173,23 +173,16 @@
       });
       const mean = readout('meanColour'), peak = readout('brightest'), took = readout('readBack');
 
-      let circling = true, since = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
+      circling(world, -0.06);
+      let since = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         if (ui.turning) table.rotation.y += step * 0.25;
-        if (circling) {
-          const { position } = world.camera, { target } = world.controls, turn = -step * 0.06;
-          const x = position.x - target.x, z = position.z - target.z;
-          position.set(target.x + x * Math.cos(turn) + z * Math.sin(turn), position.y, target.z + z * Math.cos(turn) - x * Math.sin(turn));
-          world.controls.update();
-        }
         // Twice a second while live: a read costs one more draw, at the small size, asked for
         // after this frame rather than inside it.
         since += delta;
         if (ui.live && since > 0.5) (since = 0), setTimeout(readBack);
-        if (ui.turning || circling || ui.live) world.invalidate();
+        if (ui.turning || ui.live) world.invalidate();
       });
       world.invalidate();
     </script>

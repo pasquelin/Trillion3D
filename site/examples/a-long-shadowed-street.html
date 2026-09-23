@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded, language } from '../runtime/kit.js';
+      import { controls, readout, seeded, language, opening, ease } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#d9bf9f');
@@ -191,11 +191,7 @@
         mouse: 'Drag to look round the avenue, scroll to move; slide the hour and the shadows stretch across the street and climb the facades',
         hour: [15, 20.4, 19.2, 0.05],
         traffic: true,
-        flyAgain: () => {
-          time = 0;
-          flying = true;
-          world.invalidate();
-        },
+        flyAgain: () => flight.restart(),
       }, (values, key) => {
         if (key !== undefined && key !== 'hour') return world.invalidate();
         const late = (values.hour - 15) / 5.5;
@@ -216,35 +212,25 @@
       // The opening: from high over the near end, the camera swoops down into the avenue, then
       // glides along it at the height of a first floor. A press or a wheel on the canvas hands it
       // to the viewer; the Fly again button starts the flight over.
-      let flying = true, time = 0;
-      const stop = () => (flying = false);
-      world.canvas.addEventListener('pointerdown', stop);
-      world.canvas.addEventListener('wheel', stop, { passive: true });
       const HIGH = [70, 150, HALF + 90], LOW = [2.5, 7, HALF - 20];
-      const smooth = (t) => t * t * (3 - 2 * t);
+      const flight = opening(world, (time) => {
+        const swoop = ease.smooth(time / 5), along = Math.max(0, time - 5) * 7;
+        const z = LOW[2] - along;
+        world.camera.position.set(HIGH[0] + (LOW[0] - HIGH[0]) * swoop, HIGH[1] + (LOW[1] - HIGH[1]) * swoop, HIGH[2] + (z - HIGH[2]) * swoop);
+        world.controls.target.set(0, 5.5 * swoop, (z - 30) * swoop);
+        return z >= -HALF + 60;
+      });
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
-        time += step;
-        if (flying) {
-          const swoop = smooth(Math.min(1, time / 5)), along = Math.max(0, time - 5) * 7;
-          const z = LOW[2] - along;
-          world.camera.position.set(HIGH[0] + (LOW[0] - HIGH[0]) * swoop, HIGH[1] + (LOW[1] - HIGH[1]) * swoop, HIGH[2] + (z - HIGH[2]) * swoop);
-          world.controls.target.set(0, 5.5 * swoop, (z - 30) * swoop);
-          world.controls.update();
-          if (z < -HALF + 60) flying = false;
+        if (!ui.traffic) return;
+        for (const item of traffic) {
+          item.car.position.z += item.speed * step;
+          if (item.car.position.z > HALF) item.car.position.z -= LENGTH;
+          if (item.car.position.z < -HALF) item.car.position.z += LENGTH;
         }
-        if (ui.traffic)
-          for (const item of traffic) {
-            item.car.position.z += item.speed * step;
-            if (item.car.position.z > HALF) item.car.position.z -= LENGTH;
-            if (item.car.position.z < -HALF) item.car.position.z += LENGTH;
-          }
-        // No flight and no traffic: a still street asks for no new frame.
-        if (flying || ui.traffic) world.invalidate();
+        // No traffic: a still street asks for no new frame; the opening asks for its own.
+        world.invalidate();
       });
-      world.camera.position.set(...HIGH);
-      world.controls.target.set(0, 0, 0);
-      world.controls.update();
     </script>
   </body>
 </html>

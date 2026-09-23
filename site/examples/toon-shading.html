@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, side } from '../runtime/engine.js';
-      import { controls, seeded } from '../runtime/kit.js';
+      import { controls, seeded, opening, ease } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#8cc3ee');
@@ -188,21 +188,16 @@
       // The opening: the camera swoops down from high above while the village pops up, house by
       // house, then tree by tree. A press or a wheel on the canvas hands the camera back at once.
       const from = [34, 30, 30], to = [15, 8.5, 16];
-      let time = 0, intro = 0, spin = 0, drift = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
+      let time = 0, spin = 0, drift = 0;
       const bounce = (t) => (t <= 0 ? 0.001 : t >= 1 ? 1 : 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2);
-      world.camera.position.set(...from);
-      world.controls.update();
+      opening(world, (glide) => {
+        const k = ease.out(glide / 4);
+        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
+        return glide < 4;
+      });
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step;
-        if (intro < 1) {
-          intro = Math.min(1, intro + step / 4);
-          const ease = 1 - (1 - intro) ** 3;
-          world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * ease));
-          world.controls.update();
-        }
         for (const { holder, delay } of pop) holder.scale.setScalar(bounce((time - delay) / 0.6));
         spin += step * ui.wind * 1.4;
         drift += step * ui.wind * 0.03;

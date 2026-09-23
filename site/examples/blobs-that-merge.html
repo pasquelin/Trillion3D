@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, opening, ease } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#0d0a12');
@@ -236,10 +236,13 @@
 
       // The opening: the room is dark, the lamp warms up as the camera comes to it.
       const from = [7.5, 7.5, 12], to = [3.6, 4.6, 6.4];
-      let time = 0, warm = 0, intro = 0, shown = 0;
       // The viewer's hand wins: a press or a wheel on the canvas ends the opening where it is.
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
+      opening(world, (time) => {
+        const k = ease.out(time / 3.5);
+        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
+        return time < 3.5;
+      });
+      let time = 0, warm = 0, shown = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step * ui.heat;
@@ -248,13 +251,6 @@
           bulb.intensity = 26 * warm;
           glow.intensity = 14 * warm;
         }
-        if (intro < 1) {
-          intro = Math.min(1, intro + step / 3.5);
-          const ease = 1 - (1 - intro) ** 3;
-          world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * ease));
-          // The orbit turns the camera to its target and reads the pose back: no snap after.
-          world.controls.update();
-        }
         const frame = Math.floor((time / LOOP) * FRAMES) % FRAMES;
         if (frame !== shown || !frames[shown].visible) {
           frames[shown].visible = false;
@@ -262,8 +258,8 @@
           shown = frame;
           pieces(String(cooked[frame].pieces));
         }
-        // With no heat, once warm and in place, the lamp asks for no new frame.
-        if (ui.heat || warm < 1 || intro < 1) world.invalidate();
+        // With no heat, once warm, the lamp asks for no new frame; the opening asks for its own.
+        if (ui.heat || warm < 1) world.invalidate();
       });
     </script>
   </body>

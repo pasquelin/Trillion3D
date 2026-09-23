@@ -78,7 +78,7 @@
     <div id="split"><div id="knob">&#8596;</div><span class="tag" id="tagBefore"></span><span class="tag" id="tagAfter" data-words="finished"></span></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, words } from '../runtime/kit.js';
+      import { controls, words, ease, circling } from '../runtime/kit.js';
       const say = words();
 
       // Two worlds draw the same courtyard: "after" fills the page and takes the mouse, "before"
@@ -212,14 +212,14 @@
       // The split, a share of the page's width: dragged by its knob, and in the opening swept
       // from the right edge to the middle, so the "before" image is seen first, then uncovered.
       const beforeCanvas = document.getElementById('before'), split = document.getElementById('split'), knob = document.getElementById('knob');
-      let share = 1, opening = true;
+      let share = 1, sweeping = true;
       const place = (value) => {
         share = Math.min(1, Math.max(0, value));
         beforeCanvas.style.clipPath = `inset(0 ${(1 - share) * 100}% 0 0)`;
         split.style.left = `${share * 100}%`;
       };
       knob.addEventListener('pointerdown', (event) => {
-        opening = false;
+        sweeping = false;
         knob.setPointerCapture(event.pointerId);
       });
       knob.addEventListener('pointermove', (event) => {
@@ -238,22 +238,15 @@
 
       // The camera drifts round the square until the first press or wheel on the picture; it
       // moves the orbit's own pose, so a drag starts where the drift left the view.
-      let drifting = true;
-      for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (drifting = false), { passive: true });
+      circling(world, -0.08);
       const start = performance.now();
       const clock = () => (performance.now() - start) / 1000;
-      world.onFrame(({ delta }) => {
+      world.onFrame(() => {
         const time = clock();
-        if (opening) {
-          const t = Math.min(1, Math.max(0, (time - 1.2) / 2.2));
-          place(1 - 0.5 * (t * t * (3 - 2 * t)));
-          opening = t < 1;
-        }
-        if (drifting) {
-          const { position } = world.camera, { target } = world.controls, turn = Math.min(delta, 0.1) * 0.08;
-          const x = position.x - target.x, z = position.z - target.z;
-          position.set(target.x + x * Math.cos(turn) - z * Math.sin(turn), position.y, target.z + z * Math.cos(turn) + x * Math.sin(turn));
-          world.controls.update();
+        if (sweeping) {
+          const t = (time - 1.2) / 2.2;
+          place(1 - 0.5 * ease.smooth(t));
+          sweeping = t < 1;
         }
         afterScene.flow(time);
         // The "before" world sees through the same eye.
