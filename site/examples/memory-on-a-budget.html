@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Streamed clusters</title>
+    <title>Memory budget</title>
     <meta name="thumbnail" content="5" />
     <style>
       html,
@@ -25,19 +25,20 @@
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      // The compiler cut the model into clusters of triangles, and each cluster into coarser
-      // versions of itself. Every frame the engine picks, for each part of the view, the
-      // coarsest version whose error stays under `pixelError` pixels on screen.
       const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
       const framing = pose.fromBounds(model.bounds);
       world.camera.set(framing);
       world.controls.target.set(...framing.target);
       world.camera.position.lerp(world.controls.target, 0.4);
 
-      // `world.diagnostic.mode` swaps the image for a view of the engine's own work.
-      controls({ view: ['clusters', 'beauty', 'pages', 'lod', 'triangles'], pixelError: [0, 16, 0, 0.5] }, (values) => {
+      // `world.budget.geometryPool` is a fixed size in bytes, never read from the machine; the
+      // slider counts it in KiB. The engine keeps what fits and draws the rest coarser, raising
+      // the screen error until the view fits.
+      const KiB = 1024;
+      controls({ memory: [64, 2560, 768, 64], view: ['beauty', 'lod', 'clusters'] }, (values) => {
+        world.budget.geometryPool = values.memory * KiB;
         world.diagnostic.mode = values.view;
-        world.pixelError = values.pixelError;
+        world.invalidate();
       });
       world.invalidate();
     </script>
