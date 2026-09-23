@@ -28,7 +28,7 @@
   "home": {
     "title": "Riesige 3D-Welten im Browser streamen",
     "start": "Kurs starten",
-    "editor": "Open the scene editor"
+    "editor": "Szenen-Editor öffnen"
   },
   "examples": {
     "lead": "Jedes Beispiel ist eine kurze Datei: sieh es dir laufen an, öffne den Code, verändere ihn.",
@@ -1371,7 +1371,7 @@
     "scene-editor": {
       "title": "Eine Szene mit dem Editor bauen",
       "description": "Formen und Lichter hinzufügen, sie mit der Maus auswählen, mit Griffen bewegen, umfärben, die Szene speichern und wieder öffnen — im Portal, allein mit der öffentlichen API.",
-      "html": "<p>Der <a href=\"#/de/editor\">Szeneneditor</a> ist eine Seite dieses Portals, gebaut auf drei Türen der Engine und nichts sonst. Beginnen Sie mit einer leeren Szene: <b>Add → Box</b>, dann <b>Add → Directional light</b>. Klicken Sie auf die Box: <code>world.raycast</code> findet sie unter dem Zeiger, und die Griffe von <code>controls.transform</code> erscheinen auf ihr. Ziehen Sie einen Pfeil, um sie zu verschieben — die Kamera ruht, solange ein Griff gehalten wird — drücken Sie <kbd>E</kbd>, um sie zu drehen, <kbd>R</kbd>, um sie zu skalieren. Ändern Sie ihre Farbe im Inspektor: Die Engine malt das Material an Ort und Stelle neu, die Kosten des Bildes bleiben in der Statistikecke. <b>Save</b> lädt <code>scene.toJSON</code> herunter; <b>New</b>, dann <b>Open</b>, baut dieselbe Szene mit <code>scene.fromJSON</code> wieder auf.</p>\n<p>Jeder Schritt wird mit <kbd>Ctrl</kbd>+<kbd>Z</kbd> rückgängig gemacht, und die Szene bleibt zwischen zwei Besuchen im Browser erhalten. Die Seite selbst zeichnet und bewegt nichts: Was Sie sehen, ist die Engine.</p>"
+      "html": "<p>Der <a href=\"#/de/editor\">Szenen-Editor</a> ist eine Seite dieses Portals, gebaut auf drei Türen der Engine und nichts sonst. Beginnen Sie mit einer leeren Szene: <b>Add → Box</b>, dann <b>Add → Directional light</b>. Klicken Sie auf die Box: <code>world.raycast</code> findet sie unter dem Zeiger, und die Griffe von <code>controls.transform</code> erscheinen auf ihr. Ziehen Sie einen Pfeil, um sie zu verschieben — die Kamera ruht, solange ein Griff gehalten wird — drücken Sie <kbd>E</kbd>, um sie zu drehen, <kbd>R</kbd>, um sie zu skalieren. Ändern Sie ihre Farbe im Inspektor: Die Engine malt das Material an Ort und Stelle neu, die Kosten des Bildes bleiben in der Statistikecke. <b>Save</b> lädt <code>scene.toJSON</code> herunter; <b>New</b>, dann <b>Open</b>, baut dieselbe Szene mit <code>scene.fromJSON</code> wieder auf.</p>\n<p>Jeder Schritt wird mit <kbd>Ctrl</kbd>+<kbd>Z</kbd> rückgängig gemacht, und die Szene bleibt zwischen zwei Besuchen im Browser erhalten. Die Seite selbst zeichnet und bewegt nichts: Was Sie sehen, ist die Engine.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Ein Objekt mit dem Zeiger auswählen",
