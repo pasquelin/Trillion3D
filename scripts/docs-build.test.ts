@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { buildBundles, copyStatics } from './docs/site.ts';
+import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
 const root = resolve(import.meta.dirname, '..');
 
 test('the site build writes every bundle of the published tree', async () => {
@@ -12,7 +13,6 @@ test('the site build writes every bundle of the published tree', async () => {
     await buildBundles(root, temporary);
     for (const file of [
       'css/site.css',
-      'js/engine.js',
       'runtime/portal.js',
       'runtime/engine.js',
       'runtime/kit.js',
@@ -21,6 +21,12 @@ test('the site build writes every bundle of the published tree', async () => {
       'runtime/pageCodec.wasm',
     ])
       assert.ok((await stat(join(temporary, file))).size > 0, `${file} is built`);
+    // The flags the languages name, and no other, with the licence of the package they come from.
+    const flags = [...new Set(LANGUAGES.map(({ flag }) => `${flag}.svg`))];
+    assert.deepEqual(
+      (await readdir(join(temporary, 'flags'))).sort(),
+      [...flags, 'LICENSE'].sort(),
+    );
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

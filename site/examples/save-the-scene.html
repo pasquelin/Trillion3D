@@ -21,7 +21,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, helper } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.add(helper.grid(8, 8));
@@ -54,12 +55,12 @@
         },
         save: () => {
           saved = world.scene.toJSON(world.camera);
-          size(`${JSON.stringify(saved).length} bytes`);
+          size(say('bytes', { bytes: JSON.stringify(saved).length }));
         },
         open: () => world.scene.fromJSON(JSON.parse(JSON.stringify(saved)), world.camera),
       });
-      const size = readout('Saved');
-      size(`${JSON.stringify(saved).length} bytes`);
+      const size = readout('saved');
+      size(say('bytes', { bytes: JSON.stringify(saved).length }));
     </script>
   </body>
 </html>

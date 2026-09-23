@@ -10,11 +10,17 @@ export type {
   DiagnosticDetail,
 } from '../../sdk-browser/src/diagnostic/types.ts';
 export type { BoxTransformLot, MultiplyLot } from '../../sdk-browser/src/math/batchRuntime.ts';
+export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
 export type {
   ChangeListener,
   ControlVector,
   PivotCameraControls,
 } from '../../sdk-browser/src/camera/controls/types.ts';
+export type { CharacterCameraControls } from '../../sdk-browser/src/camera/controls/characterControls.ts';
+export type {
+  CharacterCollision,
+  TriangleCollision,
+} from '../../sdk-core/src/collision/characterCollision.ts';
 export type { ComparisonLayout } from '../../sdk-browser/src/measurement/comparison.ts';
 export type { CpuStepSummary } from '../../sdk-browser/src/stage/cpuProfile.ts';
 export { createDiagnosticChannel } from '../../sdk-browser/src/diagnostic/channel.ts';
@@ -40,6 +46,7 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapp
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
+export type { HeadSettings, PersonHead } from '../../sdk-browser/src/camera/controls/look.ts';
 export type {
   HostAttribute,
   HostAttributes,
@@ -73,6 +80,7 @@ export type {
   MemoryBudgets,
   MemoryBudgetsReport,
 } from '../../sdk-browser/src/webgpu/pages/io/memory.ts';
+export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts';
@@ -88,6 +96,7 @@ export type {
 } from '../../sdk-browser/src/texture/levelReader.ts';
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts';
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
+export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
 export {
   createEngineCamera,
   defaultEngineCamera,

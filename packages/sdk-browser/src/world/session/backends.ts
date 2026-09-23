@@ -89,6 +89,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     lodAdaptive: options.lodAdaptive,
     clearColor: options.clearColor ?? DEFAULT_CLEAR_COLOR,
     onDiagnostic: diagnosticChannel.enabled ? diagnosticChannel.emit : undefined,
+    preparationStep: (step) => diagnose('backend-preparation-step', step, { kind: 'preparation' }),
     diagnosticDetail: diagnosticChannel.detail,
     viewport,
     gpuDevice,

@@ -48,10 +48,11 @@
       }
       const world = createWorld('view', { controls: 'orbit' });
       const bricks = material.meshStandard({ color: '#a4533a', roughness: 0.85, normalMap: brickNormals(12, 8) });
-      const wall = object.mesh(geometry.plane(6, 3), bricks);
-      wall.position.set(0, 1.5, 0);
-      const floor = object.mesh(geometry.box(7, 0.2, 3), material.meshStandard({ color: '#55534f', roughness: 0.9 }));
-      floor.position.set(0, -0.1, 1.5);
+      // A wall 20 cm thick, its front face at z = 0: seen from any side, it stays a wall.
+      const wall = object.mesh(geometry.box(6, 3, 0.2), bricks);
+      wall.position.set(0, 1.5, -0.1);
+      const floor = object.mesh(geometry.box(7, 0.2, 4.5), material.meshStandard({ color: '#55534f', roughness: 0.9 }));
+      floor.position.set(0, -0.1, 0.75);
       world.scene.add(wall, floor);
       // A lamp close to the wall, sliding along it: its light grazes the bricks.
       const lamp = light.point({ intensity: 14, color: '#ffc27a', distance: 8, radius: 0.05 });
@@ -59,6 +60,7 @@
       world.camera.position.set(1.2, 1.7, 5.2);
       world.camera.lookAt(0, 1.4, 0);
       world.controls.target.set(0, 1.4, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       const ui = controls({ sweep: true, lamp: [-3, 3, -1.2], colour: '#ffc27a', bricks: '#a4533a' }, (values) => {
         lamp.color.set(values.colour);

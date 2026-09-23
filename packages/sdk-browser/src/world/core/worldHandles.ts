@@ -1,13 +1,12 @@
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
-import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
-import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import { DIAGNOSTICS, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
-import { worldControls, type WorldControls } from './worldCamera.ts';
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
 } from '../../webgpu/residency/memoryBudgets.ts';
+
+export { worldControlsHandle } from './worldControlsHandle.ts';
 
 /** The pools a page asks for, kept to open every later session with them. */
 export type Pools = { geometryPool?: number; texturePool?: number };
@@ -64,22 +63,52 @@ export function worldBudget(
   };
 }
 
-/** `world.diagnostic`: the view mode, applied to every session the world opens, and the world's
- *  own channel, whose notices reach every page channel (`worldNotices.ts`). */
+/** The modes a page may name: every diagnostic the engine offers, and `triangles`. */
+const WORLD_MODES = [
+  ...Object.entries(DIAGNOSTICS).flatMap(([name, { available }]) => (available ? [name] : [])),
+  'triangles',
+];
+
+/**
+ * `world.diagnostic`: the view mode, applied to every session the world opens, and the world's
+ * own channel, whose notices reach every page channel (`worldNotices.ts`). A mode the engine
+ * does not know, or one the session in place refuses, is said once on the console and ignored:
+ * the view keeps the mode it had, and a session opening later never inherits it.
+ */
 export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
   let mode = 'beauty',
     sessions = 0;
+  const said = new Set<string>();
+  const warn = (text: string) => {
+    if (said.has(text)) return;
+    said.add(text);
+    console.warn(`[web-geometry] world.diagnostic.mode: ${text}`);
+  };
   // `triangles` is the page's word for the per-triangle view, which the engine names `wireframe`
   // (one colour per submitted triangle, `triangleDiagnostic.ts`).
   const engineMode = (name: string) => (name === 'triangles' ? 'wireframe' : name) as never;
+  /** Puts `name` on `session`; false, said on the console, when the session refuses it. */
+  const put = (session: MeasuredWorld, name: string) => {
+    try {
+      session.setDiagnostic(engineMode(name));
+      return true;
+    } catch (error) {
+      warn(`'${name}' refused by this session (${(error as Error).message})`);
+      return false;
+    }
+  };
   const handle = {
     /** The view mode: `'beauty'` for the normal image, or a mode that shows how the engine works. */
     get mode() {
       return mode;
     },
     set mode(next: string) {
-      explorer()?.setDiagnostic(engineMode(next));
-      mode = next;
+      if (!WORLD_MODES.includes(next)) {
+        warn(`unknown mode ${JSON.stringify(next)}; one of ${WORLD_MODES.join(', ')}`);
+        return;
+      }
+      const session = explorer();
+      if (!session || put(session, next)) mode = next;
     },
     /** Sessions the world has opened so far: a change that reopens one shows here. */
     get sessions() {
@@ -96,77 +125,11 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     /** What the page holds: the mode, read and written. */
     handle,
     notices: createWorldNotices(),
-    /** Puts the mode on a session just opened; the world's own, never the page's. */
+    /** Puts the mode on a session just opened; the world's own, never the page's. A mode this
+     *  session refuses falls back to `beauty`, so an opening never fails on it. */
     apply(opened: MeasuredWorld) {
       sessions++;
-      if (mode !== 'beauty') opened.setDiagnostic(engineMode(mode));
-    },
-  };
-}
-
-/** A controller as the world drives it: a pivot one carries a `target`, a steered one integrates
- *  over a delta in `update`. */
-type Controller = NonNullable<ReturnType<typeof worldControls>> & {
-  target?: Vector3;
-  update?: (delta?: number) => boolean;
-};
-
-/**
- * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
- * `kind` or `enabled` releases the one in place and makes the next; a gesture redraws.
- */
-export function worldControlsHandle(
-  initial: WorldControls,
-  camera: () => Camera,
-  surface: HTMLElement,
-  invalidate: () => void,
-) {
-  let kind = initial,
-    enabled = true,
-    current: Controller | null = null;
-  const standingTarget = new Vector3();
-  const rebuild = () => {
-    standingTarget.copy(current?.target ?? standingTarget);
-    current?.dispose();
-    current = enabled ? (worldControls(kind, camera(), surface) as Controller | null) : null;
-    if (current?.target) {
-      current.target.copy(standingTarget);
-      current.update?.();
-    }
-    current?.addEventListener('change', invalidate);
-  };
-  rebuild();
-  return {
-    /** Which controller steers the camera; set another name to switch. */
-    get kind() {
-      return kind;
-    },
-    set kind(next: WorldControls) {
-      kind = next;
-      rebuild();
-    },
-    /** Whether the controller listens to the mouse and keyboard. */
-    get enabled() {
-      return enabled;
-    },
-    set enabled(on: boolean) {
-      enabled = on;
-      rebuild();
-    },
-    /** The point a pivot controller turns around. */
-    get target(): Vector3 {
-      return current?.target ?? standingTarget;
-    },
-    /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose. */
-    update(delta = 0) {
-      current?.update?.(delta);
-    },
-    /** The world's camera changed: the controller follows it. */
-    follow: rebuild,
-    /** Stops the controller and removes its listeners from the canvas. */
-    dispose() {
-      current?.dispose();
-      current = null;
+      if (mode !== 'beauty' && !put(opened, mode)) mode = 'beauty';
     },
   };
 }

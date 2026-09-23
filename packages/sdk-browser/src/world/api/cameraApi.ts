@@ -1,6 +1,9 @@
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
-import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts';
+import {
+  createOrbitCameraControls,
+  type OrbitCameraControls,
+} from '../../camera/controls/orbitControls.ts';
 import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts';
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts';
 import type { PivotCameraControls } from '../../camera/controls/types.ts';
@@ -55,7 +58,7 @@ export function createExplorerCameraApi(inputs: Inputs) {
     near: camera.near,
     far: camera.far,
   });
-  let orbit: PivotCameraControls | undefined;
+  let orbit: OrbitCameraControls | undefined;
   return {
     pointsOfInterest(): Array<PointOfInterest> {
       const extras = (options.pointsOfInterest ?? []).filter(

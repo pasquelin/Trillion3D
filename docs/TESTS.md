@@ -8,14 +8,14 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 <!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/src/       71 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    338 *.test.ts
+  sdk-core/src/       73 *.test.ts — unit tests, next to their source
+  sdk-browser/src/    349 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
-  integration/        21 *.test.ts — architecture, boundaries, public contracts
+  integration/        20 *.test.ts — architecture, boundaries, public contracts
   browser/renders/    42 *.browser.ts — rendering in real Chromium
   browser/probes/     20 GPU probes + 32 support modules
-  browser/support/    68 pages and cases served to the render proofs
+  browser/support/    67 pages and cases served to the render proofs
   kit/                28 shared test tools: fake GPU devices, servers, assertions
   fixtures/           12 test data builders; formats/ holds the compiler goldens
 bench/
@@ -84,11 +84,11 @@ category and reason, and the command prints it before starting — never in sile
 
 ### Site proofs
 
-The learning portal under `site/` has its own proofs, run on demand in system Chrome. The four
+The learning portal under `site/` has its own proofs, run on demand in system Chrome. The three
 `scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site into
 `dist/site/` before serving it, so they need no committed bundle. A behaviour-neutral change to the
 site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
-(entries and examples in both locales, gallery, API index, reports, engine scene, not found),
+(entries and examples in every language, examples index, API index, reports, not found),
 served from two built trees, settled, its DOM compared after normalising what is dynamic by
 nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame metrics).
 `node scripts/site-first-load.ts <siteDir> [route ...]` measures a route's first load
@@ -136,6 +136,9 @@ against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, C
   57 705 of 876 096 pixels (6.6 %, bound 5 %) shade otherwise than at rest — lit arches far from
   the camera read as shadowed. Publishing the current extent's matrix with the wrap origin of an
   undrawn slid cascade moved this by under 0.2 % and was not kept; the cause is not isolated.
+
+The geometry-garden lesson has since left the portal with the other lessons (#327), and with it
+the part of `explorer-startup` that failed; that proof has not been re-read since.
 
 Before #281 the same reading gave 10 fail (`origin/develop` at `ea7e3ecf4` and the head of #322,
 54 pass / 10 fail each). A batch that leaves exactly these two failing has changed nothing

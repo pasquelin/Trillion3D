@@ -12,7 +12,7 @@ const { Dropdown } = (await loadReactComponents('site/app/ui/Dropdown.tsx')) as 
 const { Tree: GenericTree } = (await loadReactComponents('site/app/ui/Tree.tsx')) as {
   Tree: typeof TreeComponent;
 };
-const { NumberField, TextField } = (await loadReactComponents('site/app/ui/Input.tsx')) as {
+const { NumberField, TextField } = (await loadReactComponents('site/app/ui/NumberField.tsx')) as {
   NumberField: ComponentType<Record<string, unknown>>;
   TextField: ComponentType<Record<string, unknown>>;
 };
@@ -69,11 +69,19 @@ test('a tree nests its rows, marks the selected one and dims a hidden one', () =
 
 test('a number field shows three decimals at most, a text field its value', () => {
   const number = renderToStaticMarkup(
-    createElement(NumberField, { label: 'x', value: 1 / 3, onCommit: noop }),
+    createElement(NumberField, { label: 'Width', value: 1 / 3, onCommit: noop }),
   );
   assert.match(number, /value="0.333"/);
+  assert.match(number, /<span class="label [^"]*truncate" title="Width">Width<\/span>/);
   const text = renderToStaticMarkup(
     createElement(TextField, { label: 'Name', value: 'Box', onCommit: noop }),
   );
-  assert.match(text, /<span class="label">Name<\/span><input type="text"[^>]*value="Box"/);
+  assert.match(text, /title="Name">Name<\/span><input type="text"[^>]*value="Box"/);
+});
+
+test('an axis field names its axis by the letter in the axis colour', () => {
+  const html = renderToStaticMarkup(
+    createElement(NumberField, { label: 'y', axis: 'y', value: 1.9, onCommit: noop }),
+  );
+  assert.match(html, /<span class="[^"]*bg-axis-y">y<\/span><input type="number"[^>]*value="1.9"/);
 });

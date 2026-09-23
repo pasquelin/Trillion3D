@@ -21,14 +21,16 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld } from '../runtime/engine.js';
+      import { createWorld, light } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      // No `light.*` call here. The scene file declares its lamps (`KHR_lights_punctual`); the
+      // No lamp is placed here. The scene file declares its lamps (`KHR_lights_punctual`); the
       // compiler read them, converted candela to the engine's radiometric unit, and the loaded
       // model carries them on `lights`, live lights like any other.
       const model = await world.scene.load('../assets/examples/hall/cache/native/full/manifest.json');
+      // The page adds only a dim sky, so what no lamp reaches is dark, not black.
+      world.scene.add(light.hemisphere({ intensity: 0.6, color: '#b8ccf0', groundColor: '#4a4038' }));
       world.camera.position.set(0, 3.6, 8.5);
       world.camera.lookAt(0, 1.2, -1);
       world.controls.target.set(0, 1.2, -1);

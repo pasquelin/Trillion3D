@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Toon shading</title>
+    <meta name="thumbnail" content="5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #8cc3ee;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, side } from '../runtime/engine.js';
+      import { controls, seeded } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#8cc3ee');
+
+      // One palette, painted three ways: toon (light in two flat bands), matte (Lambert) and the
+      // usual physical material. Every part keeps its colour and changes only its kind.
+      const PAINTS = {
+        grass: '#6cc24a', meadow: '#8fd35a', sand: '#f1d58a', sea: '#3fa6d8', foam: '#e8f6ff',
+        wall: '#fff1d6', brick: '#e9a86b', roof: '#e2553f', roofBlue: '#4a7fd0', wood: '#8a5a36',
+        leaf: '#3f9e45', leafLight: '#63bf4f', stone: '#b9b2a6', white: '#fbfbf6', dark: '#3b3140',
+        balloon: '#ffb23f', stripe: '#e64b6a', blade: '#f6ecd8',
+      };
+      const KINDS = { toon: material.meshToon, matte: material.meshLambert, physical: material.meshStandard };
+      const sets = Object.fromEntries(Object.entries(KINDS).map(([name, make]) => [
+        name,
+        Object.fromEntries(Object.entries(PAINTS).map(([paint, color]) => [paint, name === 'physical' ? make({ color, roughness: 0.55 }) : make({ color })])),
+      ]));
+
+      // The ink line of a cartoon: a copy of the part a little larger, showing only its back faces,
+      // so it peeks out round the silhouette. `size` is the part's radius: the line keeps one width.
+      const ink = material.meshBasic({ color: '#241a2a', side: side.back });
+      const parts = [], hulls = [];
+      function part(shape, paint, size, at = [0, 0, 0], parent = world.scene, outline = true) {
+        const holder = object.group(), body = object.mesh(shape, sets.toon[paint]);
+        holder.add(body);
+        if (outline) {
+          const hull = object.mesh(shape, ink);
+          hull.scale.setScalar(1 + 0.05 / size);
+          holder.add(hull);
+          hulls.push(hull);
+        }
+        holder.position.set(...at);
+        parent.add(holder);
+        parts.push({ body, paint });
+        return holder;
+      }
+      const random = seeded(21);
+
+      // The island: a sea to the horizon, a beach, a grass top and three soft hills.
+      part(geometry.cylinder(60, 60, 0.2, 96), 'sea', 60, [0, -0.5, 0], world.scene, false);
+      part(geometry.torus(10.4, 0.12, 8, 96).rotateX(Math.PI / 2), 'foam', 1, [0, -0.38, 0], world.scene, false);
+      part(geometry.cylinder(10.2, 10.6, 0.7, 64), 'sand', 10, [0, -0.3, 0]);
+      part(geometry.cylinder(9.2, 9.6, 0.5, 64), 'grass', 9, [0, 0.1, 0]);
+      const HILLS = [[-5, -4, 3.2, 1.6], [4.5, -5, 2.6, 1.1], [-6, 3.5, 2.2, 0.8]];
+      for (const [x, z, r, h] of HILLS) {
+        const hill = part(geometry.sphere(1, 32, 16), 'meadow', r, [x, 0.35, z]);
+        hill.scale.set(r, h, r);
+      }
+
+      // Houses: walls, a four-sided roof, a chimney and a door, each one turned to face the square.
+      const pop = [];
+      const HOUSES = [[2.5, 2.8], [-2.8, 2], [4.8, -0.6], [0.6, -3.2], [-1.2, 5.4]];
+      HOUSES.forEach(([x, z], k) => {
+        const house = object.group(), tall = 1 + (k % 2) * 0.5;
+        house.position.set(x, 0.35, z);
+        house.rotation.set(0, Math.atan2(-x, -z), 0);
+        part(geometry.box(1.6, tall, 1.4).translate(0, tall / 2, 0), k % 2 ? 'brick' : 'wall', 0.8, [0, 0, 0], house);
+        part(geometry.cone(1.35, 0.9, 4).rotateY(Math.PI / 4).translate(0, 0.45, 0), k % 3 ? 'roof' : 'roofBlue', 0.8, [0, tall, 0], house);
+        part(geometry.box(0.25, 0.6, 0.25), 'brick', 0.2, [0.45, tall + 0.5, -0.3], house);
+        part(geometry.box(0.4, 0.62, 0.06), 'wood', 0.3, [0, 0.31, 0.71], house, false);
+        world.scene.add(house);
+        pop.push({ holder: house, delay: 0.2 + k * 0.18 });
+      });
+
+      // Open ground: off the hills, clear of the houses and of the windmill's knoll.
+      const MILL = [6, 4];
+      const free = (x, z) => HILLS.every(([hx, hz, r]) => Math.hypot(hx - x, hz - z) > r + 0.4) && HOUSES.every(([hx, hz]) => Math.hypot(hx - x, hz - z) > 1.8) && Math.hypot(x - MILL[0], z - MILL[1]) > 2;
+
+      // Trees: a trunk and two stacked crowns, scattered where no house stands.
+      for (let k = 0, planted = 0; planted < 16 && k < 200; k++) {
+        const angle = random() * Math.PI * 2, reach = 3 + random() * 5.6, x = Math.cos(angle) * reach, z = Math.sin(angle) * reach;
+        if (!free(x, z)) continue;
+        const tree = object.group(), tall = 0.8 + random() * 0.6;
+        tree.position.set(x, 0.35, z);
+        part(geometry.cylinder(0.12, 0.16, tall, 8).translate(0, tall / 2, 0), 'wood', 0.15, [0, 0, 0], tree);
+        part(geometry.cone(0.8, 1.2, 10).translate(0, 0.6, 0), 'leaf', 0.7, [0, tall - 0.1, 0], tree);
+        part(geometry.cone(0.55, 0.9, 10).translate(0, 0.45, 0), 'leafLight', 0.5, [0, tall + 0.6, 0], tree);
+        world.scene.add(tree);
+        pop.push({ holder: tree, delay: 0.9 + planted * 0.06 });
+        planted++;
+      }
+
+      // The windmill on its knoll, its sails on a hub that turns about one axis.
+      const mill = object.group();
+      mill.position.set(MILL[0], 0.35, MILL[1]);
+      mill.rotation.set(0, 0.64, 0);
+      part(geometry.cylinder(0.6, 0.95, 3, 16).translate(0, 1.5, 0), 'stone', 0.8, [0, 0, 0], mill);
+      part(geometry.cone(0.8, 0.9, 16).translate(0, 0.45, 0), 'roof', 0.7, [0, 3, 0], mill);
+      const hub = object.group();
+      hub.position.set(0, 2.9, 0.85);
+      mill.add(hub);
+      part(geometry.sphere(0.18, 16, 8), 'wood', 0.18, [0, 0, 0], hub);
+      for (let blade = 0; blade < 4; blade++) {
+        const arm = object.group();
+        arm.rotation.set(0, 0, (blade * Math.PI) / 2);
+        part(geometry.box(0.34, 1.8, 0.05).translate(0.12, 1.05, 0), 'blade', 0.3, [0, 0, 0], arm);
+        hub.add(arm);
+      }
+      world.scene.add(mill);
+      pop.push({ holder: mill, delay: 1.3 });
+
+      // Sheep grazing in the meadow, each hopping to its own beat.
+      const sheep = Array.from({ length: 7 }, () => {
+        const one = object.group();
+        let x = 0, z = 0;
+        do [x, z] = [2 + random() * 6, -2 + random() * 8];
+        while (!free(x, z) || Math.hypot(x, z) > 8.6);
+        one.position.set(x, 0.35, z);
+        one.rotation.set(0, random() * Math.PI * 2, 0);
+        const body = part(geometry.sphere(0.32, 16, 10), 'white', 0.32, [0, 0.36, 0], one);
+        body.scale.set(1.3, 1, 1);
+        part(geometry.sphere(0.15, 12, 8), 'dark', 0.15, [0.42, 0.46, 0], one);
+        for (const [x, z] of [[0.2, 0.14], [0.2, -0.14], [-0.2, 0.14], [-0.2, -0.14]])
+          part(geometry.cylinder(0.05, 0.05, 0.22, 6), 'dark', 0.06, [x, 0.1, z], one, false);
+        world.scene.add(one);
+        return { one, beat: 1.4 + random(), phase: random() * 6 };
+      });
+
+      // A hot-air balloon circling the island, and clouds turning slowly overhead.
+      const balloon = object.group();
+      part(geometry.sphere(1, 24, 16), 'balloon', 1, [0, 1.2, 0], balloon).scale.set(1, 1.15, 1);
+      part(geometry.torus(1.0, 0.1, 8, 32).rotateX(Math.PI / 2), 'stripe', 1, [0, 1.25, 0], balloon, false);
+      part(geometry.cone(0.55, 0.6, 16).rotateX(Math.PI), 'stripe', 0.5, [0, 0.05, 0], balloon);
+      part(geometry.box(0.4, 0.3, 0.4), 'wood', 0.25, [0, -0.55, 0], balloon);
+      world.scene.add(balloon);
+      const sky = object.group();
+      for (let k = 0; k < 7; k++) {
+        const cloud = object.group(), angle = (k / 7) * Math.PI * 2 + random(), reach = 9 + random() * 8;
+        cloud.position.set(Math.cos(angle) * reach, 8 + random() * 3, Math.sin(angle) * reach);
+        for (let puff = 0; puff < 4; puff++) {
+          const size = 0.7 + random() * 0.6;
+          part(geometry.sphere(size, 16, 10), 'white', size, [(puff - 1.5) * 0.9, random() * 0.4, (random() - 0.5) * 0.8], cloud, false);
+        }
+        sky.add(cloud);
+      }
+      world.scene.add(sky);
+      for (const { holder } of pop) holder.scale.setScalar(0.001);
+
+      // Late-afternoon sun, low for long shadows, and the sky's cool fill so no face goes black.
+      const sun = light.directional({ color: '#ffd09a', intensity: 3.4, castShadow: true });
+      world.scene.add(sun, light.hemisphere({ color: '#a9cfff', groundColor: '#6a5238', intensity: 0.7 }));
+      world.controls.target.set(0, 1.2, 0);
+      world.controls.minDistance = 8;
+      world.controls.maxDistance = 45;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      const ui = controls({
+        mouse: 'Drag to turn around the island; switch the shading and watch light fall into bands',
+        shading: ['toon', 'matte', 'physical'],
+        outlines: true,
+        sun: [-180, 180, -40, 1],
+        wind: [0, 3, 1],
+      }, (values, key) => {
+        if (key === undefined || key === 'shading') for (const { body, paint } of parts) body.material = sets[values.shading][paint];
+        if (key === undefined || key === 'outlines') for (const hull of hulls) hull.visible = values.outlines;
+        if (key === undefined || key === 'sun') {
+          const turn = (values.sun * Math.PI) / 180;
+          sun.position.set(Math.sin(turn) * 14, 7, Math.cos(turn) * 14);
+        }
+        world.invalidate();
+      }, world);
+
+      // The opening: the camera swoops down from high above while the village pops up, house by
+      // house, then tree by tree. A press or a wheel on the canvas hands the camera back at once.
+      const from = [34, 30, 30], to = [15, 8.5, 16];
+      let time = 0, intro = 0, spin = 0, drift = 0;
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
+      const bounce = (t) => (t <= 0 ? 0.001 : t >= 1 ? 1 : 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2);
+      world.camera.position.set(...from);
+      world.controls.update();
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        if (intro < 1) {
+          intro = Math.min(1, intro + step / 4);
+          const ease = 1 - (1 - intro) ** 3;
+          world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * ease));
+          world.controls.update();
+        }
+        for (const { holder, delay } of pop) holder.scale.setScalar(bounce((time - delay) / 0.6));
+        spin += step * ui.wind * 1.4;
+        drift += step * ui.wind * 0.03;
+        hub.rotation.set(0, 0, spin);
+        sky.rotation.set(0, drift, 0);
+        for (const { one, beat, phase } of sheep) one.position.y = 0.35 + Math.abs(Math.sin(time * beat + phase)) * 0.12;
+        const round = time * 0.08 * Math.max(0.3, ui.wind);
+        balloon.position.set(Math.cos(round) * 11, 6 + Math.sin(time * 0.7) * 0.5, Math.sin(round) * 11);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

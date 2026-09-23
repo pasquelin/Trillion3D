@@ -10,7 +10,7 @@
  */
 
 /** One named/described item inside an entry's `values` list (e.g. an enum member). */
-export interface PortalEntryValue {
+interface PortalEntryValue {
   name: string;
   desc: string;
 }
@@ -37,6 +37,26 @@ export interface PortalMember {
   desc: string;
 }
 
+/** A step of the course's way through: where it goes, what kind of step it is, the page it names. */
+interface CourseLink {
+  href: string;
+  caption: string;
+  title?: string;
+}
+
+/** A course chapter's page, in one language: the example it builds, its steps and code, what to
+ *  try, the chapters around it, and the headings they sit under. `steps` and `tryIt` are HTML;
+ *  the first chapter has no `previous`, the last one's `next` is the examples. */
+export interface CourseChapter {
+  example: string;
+  steps: string[];
+  code: string[];
+  tryIt: string;
+  previous?: CourseLink;
+  next: CourseLink;
+  words: { steps: string; code: string; tryIt: string; open: string; navigation: string };
+}
+
 /** One documented item, as the content files declare it. */
 export interface PortalEntry {
   id: string;
@@ -58,12 +78,14 @@ export interface PortalEntry {
   valuesTitle?: string;
   replaces?: string;
   proof?: string;
+  chapter?: CourseChapter;
 }
 
-/** What a written page adds to a generated entry, by its id: a longer text, an example, the
- *  table of the words of a union type, the witness a function replaces and the proof. */
+/** What a written page adds to a generated entry, by its id: an example, the names of the words
+ *  of a union type, the witness a function replaces and the proof. Its text — a longer
+ *  description, what each word means — is in each language's dictionary, under `written`. */
 export type EntryNote = Pick<PortalEntry, 'id'> &
-  Partial<Pick<PortalEntry, 'description' | 'example' | 'values' | 'replaces' | 'proof'>>;
+  Partial<Pick<PortalEntry, 'example' | 'replaces' | 'proof'>> & { valueNames?: string[] };
 
 /** The families that describe a scene, in the order a page meets them. */
 const SCENE_FAMILIES = [
@@ -96,20 +118,21 @@ const ENGINE_FAMILIES = [
 /** Every family a page writes with, in reference order. */
 export const FAMILIES = [...SCENE_FAMILIES, ...CONSTANT_FAMILIES, ...ENGINE_FAMILIES];
 
-/** The sections of the portal, in sidebar order: the course, the guides and how it works, then the reference — the world and
- *  its families first, the constants gathered in one section, then the low-level maths, the Node
- *  compiler and every other public type. */
+/** The sections of the portal, in sidebar order: the course, the guides and how it works, then the
+ *  reference — the world and its families first, the constants gathered in one section, then the
+ *  low-level maths, the Node compiler and every other public type. A family section is titled by
+ *  the family's own name; the others by `section.<id>` in each language's dictionary. */
 export const SECTIONS = [
-  { id: 'course', title: 'Course' },
-  { id: 'guides', title: 'Guides' },
-  { id: 'internals', title: 'How it works' },
-  { id: 'world', title: 'World' },
-  ...SCENE_FAMILIES.map((id) => ({ id, title: id })),
-  { id: 'constants', title: 'Constants' },
-  ...ENGINE_FAMILIES.map((id) => ({ id, title: id })),
-  { id: 'math-utilities', title: 'Math utilities' },
-  { id: 'node', title: 'Node and compilation' },
-  { id: 'types', title: 'Types and errors' },
+  'course',
+  'guides',
+  'internals',
+  'world',
+  ...SCENE_FAMILIES,
+  'constants',
+  ...ENGINE_FAMILIES,
+  'math-utilities',
+  'node',
+  'types',
 ];
 
 /** The one-line summary of an entry, the line an index shows under its name: its `summary`, or
@@ -120,7 +143,15 @@ export function entrySummary(entry: Pick<PortalEntry, 'description' | 'summary'>
   return (/^.+?[.!?](?=\s+[A-Z`(]|$)/s.exec(text)?.[0] ?? text).trim();
 }
 
-export const REPOSITORY = 'https://github.com/pasquelin/WebGeometry';
+/** The description past the summary: the rest of it when the summary is its first sentence, all
+ *  of it when the summary is a line of its own. */
+export function entryRest(entry: Pick<PortalEntry, 'description' | 'summary'>): string {
+  const summary = entrySummary(entry);
+  const { description } = entry;
+  return (description.startsWith(summary) ? description.slice(summary.length) : description).trim();
+}
+
+const REPOSITORY = 'https://github.com/pasquelin/WebGeometry';
 
 /** What each open issue delivers, as the badge of an entry in development says it. */
 export const ISSUES: Record<number, string> = {};

@@ -5,15 +5,11 @@ import test from 'node:test';
 const example = (id: string) =>
   readFile(new URL(`../site/examples/${id}.html`, import.meta.url), 'utf8');
 
-test('the game on the board replays legally: every move leaves an occupied square for a free one or a capture', async () => {
+test('the chess opening on the board replays legally: every move leaves an occupied square for a free one or a capture', async () => {
   const html = await example('a-game-board-seen-from-above');
-  const game = /const GAME =([^;]*);/.exec(html)?.[1];
-  assert.ok(game);
-  const moves = [...game.matchAll(/'([^']*)'/g)]
-    .map(([, part]) => part)
-    .join('')
-    .trim()
-    .split(' ');
+  const opening = /const OPENING = '([^']*)';/.exec(html)?.[1];
+  assert.ok(opening);
+  const moves = opening.trim().split(' ');
   // The starting position: white on ranks 1 and 2, the other side on 7 and 8.
   const board = new Map<string, 'white' | 'black'>();
   for (const file of 'abcdefgh')

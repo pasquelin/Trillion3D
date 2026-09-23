@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A long shadowed street</title>
+    <meta name="thumbnail" content="6" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #d9bf9f;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout, seeded, language } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#d9bf9f');
+
+      // An avenue four hundred metres long, in metres, running along z. At the end of the day
+      // the sun sits low at its far end: the west side throws its shadow right across the street
+      // and up the east facades, and every cross street lets a blade of light through. The same
+      // sun shades a balcony at your feet and a tower four hundred metres away.
+      const LENGTH = 400, HALF = LENGTH / 2, CROSSINGS = [-120, -40, 40, 120], SLICE = 50;
+      const random = seeded(2024);
+      const pick = (list) => list[Math.floor(random() * list.length)];
+      const paint = (color, roughness = 0.85) => material.meshStandard({ color, roughness });
+
+      // Thousands of boxes — walls, windows, sills, balconies, cars — gathered into one mesh per
+      // material and per fifty-metre slice of the avenue: a few dozen meshes in all.
+      const slices = new Map();
+      function box(matter, x, y, z, sx, sy, sz) {
+        const key = `${Math.floor((z + HALF) / SLICE)}`;
+        if (!slices.has(key)) slices.set(key, new Map());
+        const lists = slices.get(key);
+        if (!lists.has(matter)) lists.set(matter, { position: [], normal: [], index: [] });
+        const list = lists.get(matter), centre = [x, y, z], half = [sx / 2, sy / 2, sz / 2];
+        for (let axis = 0; axis < 3; axis++)
+          for (const sign of [1, -1]) {
+            // Corners turned about the outward normal: along the two other axes, in the order
+            // that keeps the face looking out.
+            const u = (axis + 1) % 3, v = (axis + 2) % 3, first = list.position.length / 3;
+            const around = sign > 0 ? [[-1, -1], [1, -1], [1, 1], [-1, 1]] : [[-1, -1], [-1, 1], [1, 1], [1, -1]];
+            for (const [a, b] of around) {
+              const p = [0, 0, 0], n = [0, 0, 0];
+              p[axis] = centre[axis] + sign * half[axis];
+              p[u] = centre[u] + a * half[u];
+              p[v] = centre[v] + b * half[v];
+              n[axis] = sign;
+              list.position.push(...p);
+              list.normal.push(...n);
+            }
+            list.index.push(first, first + 1, first + 2, first, first + 2, first + 3);
+          }
+      }
+      const crossing = (z, reach) => CROSSINGS.some((c) => Math.abs(z - c) < 5 + reach);
+
+      // The ground, the roadway, and the pavements, broken at every crossing.
+      const asphalt = paint('#4a4644', 0.9), pavement = paint('#b9ab98', 0.9), kerb = paint('#d8d0c2', 0.8);
+      box(paint('#6f6555', 0.95), 0, -0.1, 0, 140, 0.2, LENGTH + 60);
+      for (let z = -HALF; z < HALF; z += 10) {
+        box(asphalt, 0, 0.01, z + 5, 10, 0.02, 10);
+        if (crossing(z + 5, 2)) continue;
+        for (const side of [-1, 1]) {
+          box(pavement, side * 7, 0.08, z + 5, 4, 0.16, 10);
+          box(kerb, side * 5.1, 0.1, z + 5, 0.2, 0.2, 10);
+        }
+      }
+
+      // The buildings: a body, a cornice, rows of windows with their sills, balconies on some,
+      // a shopfront and an awning at street level. Their heights rise toward the far end.
+      const FACADES = ['#d8b48a', '#c98b62', '#e7d8bd', '#b9745a', '#d9c49a', '#caa27c', '#e2c7a6', '#a8826a'].map((c) => paint(c));
+      const glass = paint('#2b3240', 0.5), trim = paint('#efe6d6', 0.7), shop = paint('#3a2e2a', 0.6);
+      const AWNINGS = ['#2f6d5a', '#a83a2c', '#2d4f86', '#c98a2b'].map((c) => paint(c, 0.8));
+      for (const side of [-1, 1])
+        for (let z = -HALF + 2; z < HALF - 6; ) {
+          const width = 9 + random() * 13;
+          if (crossing(z + width / 2, width / 2)) {
+            z += 3;
+            continue;
+          }
+          const height = 11 + random() * 18 + ((HALF - z) / LENGTH) * 14, depth = 14;
+          const facade = pick(FACADES), front = side * 9, middle = z + width / 2;
+          box(facade, side * (9 + depth / 2), height / 2, middle, depth, height, width - 0.3);
+          box(trim, side * 8.8, height + 0.3, middle, 1, 0.6, width - 0.1);
+          box(shop, side * 8.95, 1.7, middle, 0.2, 3, width - 1.6);
+          box(pick(AWNINGS), side * 8.1, 3.3, middle, 1.8, 0.12, width - 2);
+          const balconies = random() < 0.45;
+          for (let floor = 4.6; floor < height - 2.4; floor += 3.2)
+            for (let x = z + 1.8; x < z + width - 1.6; x += 2.6) {
+              box(glass, front, floor + 1, x + 0.65, 0.2, 1.9, 1.3);
+              box(trim, side * 8.85, floor - 0.02, x + 0.65, 0.3, 0.12, 1.6);
+            }
+          if (balconies)
+            for (let floor = 7.8; floor < height - 2.4; floor += 6.4) {
+              box(trim, side * 8.4, floor - 0.1, middle, 1.2, 0.14, width - 2.4);
+              box(trim, side * 7.85, floor + 0.45, middle, 0.08, 1, width - 2.4);
+            }
+          // A plainer row behind, so the avenue reads as a city from above.
+          box(pick(FACADES), side * 34, (height * 0.8) / 2, middle, 16, height * 0.8, width - 0.5);
+          z += width;
+        }
+
+      // Street lamps on both pavements, and cars parked along the kerb.
+      const iron = paint('#2c2e33', 0.6);
+      const CARS = ['#b8322a', '#e8e4dc', '#2a4f7c', '#1f1f22', '#7c8a90', '#d6a232'].map((c) => paint(c, 0.55));
+      for (const side of [-1, 1]) {
+        for (let z = -HALF + 10; z < HALF; z += 20) {
+          if (crossing(z, 1)) continue;
+          box(iron, side * 5.6, 3, z, 0.16, 6, 0.16);
+          box(iron, side * 5, 6, z, 1.3, 0.12, 0.12);
+          box(trim, side * 4.4, 5.85, z, 0.5, 0.2, 0.3);
+        }
+        for (let z = -HALF + 4; z < HALF - 4; z += 6 + random() * 5) {
+          if (crossing(z, 3) || random() < 0.3) continue;
+          const car = pick(CARS);
+          box(car, side * 3.9, 0.7, z, 1.8, 0.9, 4.2);
+          box(car, side * 3.9, 1.4, z - 0.2, 1.6, 0.6, 2.2);
+          box(glass, side * 3.9, 1.4, z - 0.2, 1.64, 0.4, 1.8);
+        }
+      }
+
+      // A clock tower closes the far end of the avenue, against the setting sun.
+      box(paint('#c6a47e'), 0, 22, -HALF - 14, 10, 44, 10);
+      box(trim, 0, 44.5, -HALF - 14, 11.5, 1, 11.5);
+      const spire = object.mesh(geometry.cone(6, 12, 4), paint('#4f5a5f', 0.6));
+      spire.position.set(0, 51, -HALF - 14);
+      spire.rotation.set(0, Math.PI / 4, 0);
+      const dial = object.mesh(geometry.cylinder(2.6, 2.6, 0.3, 48), trim);
+      dial.position.set(0, 36, -HALF - 8.9);
+      dial.rotation.set(Math.PI / 2, 0, 0);
+      world.scene.add(spire, dial);
+
+      for (const lists of slices.values())
+        for (const [matter, { position, normal, index }] of lists)
+          world.scene.add(object.mesh(geometry.createBuffer({
+            position: buffer.float32(new Float32Array(position), 3),
+            normal: buffer.float32(new Float32Array(normal), 3),
+            index: buffer.uint32(index),
+          }), matter));
+
+      // Plane trees along the pavements: a trunk and a round crown, one shared shape each.
+      const trunk = geometry.cylinder(0.18, 0.26, 4, 12), crown = geometry.sphere(1.8, 24, 16);
+      const bark = paint('#5d4a38'), leaves = paint('#5e7d3c', 0.9);
+      for (const side of [-1, 1])
+        for (let z = -HALF + 7; z < HALF; z += 14) {
+          if (crossing(z, 2.5)) continue;
+          const stem = object.mesh(trunk, bark), head = object.mesh(crown, leaves);
+          stem.position.set(side * 7.3, 2, z);
+          head.position.set(side * 7.3, 5.2, z);
+          head.scale.set(1, 0.85 + random() * 0.3, 1);
+          world.scene.add(stem, head);
+        }
+
+      // Traffic: a few cars driving both ways, back at the far end once past the near one.
+      const traffic = Array.from({ length: 10 }, (_, k) => {
+        const way = k % 2 ? 1 : -1, car = object.group(), matter = CARS[k % CARS.length];
+        const body = object.mesh(geometry.box(1.8, 0.9, 4.2), matter), cabin = object.mesh(geometry.box(1.6, 0.6, 2.2), matter);
+        const windows = object.mesh(geometry.box(1.64, 0.4, 1.8), glass);
+        body.position.y = 0.7;
+        cabin.position.set(0, 1.4, 0.2 * way);
+        windows.position.set(0, 1.4, 0.2 * way);
+        car.add(body, cabin, windows);
+        car.position.set(way * -1.8, 0, -HALF + ((k * 83) % LENGTH));
+        world.scene.add(car);
+        return { car, speed: way * (9 + (k % 3) * 2.5) };
+      });
+
+      // The sun: from mid-afternoon to the last minutes before it sets, lower and further round
+      // toward the far end of the avenue. It moves only when the hour changes.
+      const sun = light.directional({ castShadow: true });
+      const sky = light.hemisphere({ color: '#9fb8e6', groundColor: '#6e5a47', intensity: 1 });
+      world.scene.add(sun, sky);
+      world.camera.far = 3000;
+      world.controls.minDistance = 4;
+      world.controls.maxDistance = 400;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      let shadowShown = null, heightShown = null, elevation = 0;
+      const ui = controls({
+        mouse: 'Drag to look round the avenue, scroll to move; slide the hour and the shadows stretch across the street and climb the facades',
+        hour: [15, 20.4, 19.2, 0.05],
+        traffic: true,
+        flyAgain: () => {
+          time = 0;
+          flying = true;
+          world.invalidate();
+        },
+      }, (values, key) => {
+        if (key !== undefined && key !== 'hour') return world.invalidate();
+        const late = (values.hour - 15) / 5.5;
+        elevation = math.degToRad(Math.max(0.6, 46 * (1 - late)));
+        const round = math.degToRad(22 + late * 38);
+        sun.position.set(-Math.cos(elevation) * Math.sin(round) * 300, Math.sin(elevation) * 300, -Math.cos(elevation) * Math.cos(round) * 300);
+        sun.color.set('#ff7a36').lerp(math.color('#fff1dc'), Math.min(1, elevation / math.degToRad(30)));
+        sun.intensity = 2.2 + 1.4 * Math.min(1, elevation / math.degToRad(10));
+        heightShown?.(`${math.radToDeg(elevation).toFixed(1)}°`);
+        shadowShown?.(`${Math.round(30 / Math.tan(elevation)).toLocaleString(language())} m`);
+        world.invalidate();
+      }, world);
+      heightShown = readout('sunHeight');
+      shadowShown = readout('shadow30MHouse');
+      heightShown(`${math.radToDeg(elevation).toFixed(1)}°`);
+      shadowShown(`${Math.round(30 / Math.tan(elevation)).toLocaleString(language())} m`);
+
+      // The opening: from high over the near end, the camera swoops down into the avenue, then
+      // glides along it at the height of a first floor. A press or a wheel on the canvas hands it
+      // to the viewer; the Fly again button starts the flight over.
+      let flying = true, time = 0;
+      const stop = () => (flying = false);
+      world.canvas.addEventListener('pointerdown', stop);
+      world.canvas.addEventListener('wheel', stop, { passive: true });
+      const HIGH = [70, 150, HALF + 90], LOW = [2.5, 7, HALF - 20];
+      const smooth = (t) => t * t * (3 - 2 * t);
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        if (flying) {
+          const swoop = smooth(Math.min(1, time / 5)), along = Math.max(0, time - 5) * 7;
+          const z = LOW[2] - along;
+          world.camera.position.set(HIGH[0] + (LOW[0] - HIGH[0]) * swoop, HIGH[1] + (LOW[1] - HIGH[1]) * swoop, HIGH[2] + (z - HIGH[2]) * swoop);
+          world.controls.target.set(0, 5.5 * swoop, (z - 30) * swoop);
+          world.controls.update();
+          if (z < -HALF + 60) flying = false;
+        }
+        if (ui.traffic)
+          for (const item of traffic) {
+            item.car.position.z += item.speed * step;
+            if (item.car.position.z > HALF) item.car.position.z -= LENGTH;
+            if (item.car.position.z < -HALF) item.car.position.z += LENGTH;
+          }
+        // No flight and no traffic: a still street asks for no new frame.
+        if (flying || ui.traffic) world.invalidate();
+      });
+      world.camera.position.set(...HIGH);
+      world.controls.target.set(0, 0, 0);
+      world.controls.update();
+    </script>
+  </body>
+</html>

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { DragEvent, ReactNode } from 'react';
 import { Button } from './Button.tsx';
+import { QUIET_FOCUS } from './Input.tsx';
 
 interface TreeLabels {
   rename: string;
@@ -59,7 +60,7 @@ function RenameField({
 }) {
   return (
     <input
-      className="input input-xs min-w-0 flex-1"
+      className={`input input-xs min-w-0 flex-1 ${QUIET_FOCUS}`}
       aria-label={label}
       defaultValue={name}
       autoFocus

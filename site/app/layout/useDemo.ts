@@ -7,23 +7,29 @@ interface ControlsMessage {
 }
 
 /**
- * The state of one live demo: the example's source, read for the Code modal; each run of the
- * frame numbered, so a restart remounts it; whether the example's controls panel is shown.
+ * The state of one live demo: the example's source, read for the Code modal and the sandbox, or
+ * whether reading it failed; each run of the frame numbered, so a restart remounts it; whether
+ * the example's controls panel is shown.
  */
 export function useDemo(file: string) {
   const [source, setSource] = useState('');
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [run, setRun] = useState(0);
   const [loadedRun, setLoadedRun] = useState(-1);
   const [controls, setControls] = useState(true);
   const frame = useRef<HTMLIFrameElement | null>(null);
   useEffect(() => {
     const request = new AbortController();
+    setFailed(false);
     fetch(file, { signal: request.signal })
       .then((response) => (response.ok ? response.text() : Promise.reject(response.status)))
       .then(setSource)
-      .catch(() => {});
+      .catch(() => {
+        if (!request.signal.aborted) setFailed(true);
+      });
     return () => request.abort();
-  }, [file]);
+  }, [file, attempt]);
   const post = (visible: boolean) => {
     const message: ControlsMessage = { type: 'wg:controls', visible };
     frame.current?.contentWindow?.postMessage(message, location.origin);
@@ -31,8 +37,9 @@ export function useDemo(file: string) {
   return {
     frame,
     source,
+    failed,
     run,
-    pending: loadedRun !== run,
+    pending: !failed && loadedRun !== run,
     controls,
     /** The frame finished loading run `count`: it gets the panel's current state. */
     loaded: (count: number) => {
@@ -40,6 +47,11 @@ export function useDemo(file: string) {
       post(controls);
     },
     restart: () => setRun((count) => count + 1),
+    /** Reads the example again after a failure, and runs it anew. */
+    retry: () => {
+      setAttempt((count) => count + 1);
+      setRun((count) => count + 1);
+    },
     toggleControls: () => {
       setControls(!controls);
       post(!controls);

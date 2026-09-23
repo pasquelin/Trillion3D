@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Four ways to blend</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #20222a;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #346: a material's `blending` reaches the render on both renderers, every named
+      // mode; until then the four panels all mix as `normal`.
+      import { createWorld, geometry, material, object, light, math, blending, side } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#20222a');
+
+      // Four panels, left to right: normal, additive, subtractive, multiply. Each is half night,
+      // half paper, and three see-through discs circle over it: where they overlap and where they
+      // cross from dark to light, the mode shows what it does to what is behind.
+      const MODES = [blending.normal, blending.additive, blending.subtractive, blending.multiply];
+      const INKS = {
+        'red, green, blue': ['#ff2a2a', '#2aff4a', '#2a5cff'],
+        'cyan, magenta, yellow': ['#00e5ff', '#ff2ad4', '#ffe62a'],
+        'warm and cool': ['#ff8a2a', '#b06cff', '#2ad4a0'],
+      };
+      const disc = geometry.circle(0.62, 96);
+      const night = material.meshBasic({ color: '#05060a' }), paper = material.meshBasic({ color: '#f2eee4' });
+      const panels = MODES.map((mode, k) => {
+        const panel = object.group();
+        panel.position.x = (k - 1.5) * 3.3;
+        for (const [half, x] of [[night, -0.75], [paper, 0.75]]) {
+          const back = object.mesh(geometry.plane(1.5, 3), half);
+          back.position.x = x;
+          panel.add(back);
+        }
+        // Every disc wears a material of its own mode; a disc never writes depth, so the ones
+        // behind it still mix in.
+        const discs = [0, 1, 2].map((d) => {
+          const ink = material.meshBasic({ color: '#ffffff', transparent: true, opacity: 0.8, blending: mode, depthWrite: false, side: side.double });
+          const mesh = object.mesh(disc, ink);
+          mesh.position.z = 0.02 + d * 0.01;
+          panel.add(mesh);
+          return mesh;
+        });
+        // A wooden frame behind each panel.
+        const frame = object.mesh(geometry.box(3.1, 3.2, 0.1), material.meshStandard({ color: '#3a3024', roughness: 0.5, metalness: 0.3 }));
+        frame.position.z = -0.06;
+        panel.add(frame);
+        world.scene.add(panel);
+        return discs;
+      });
+      const floor = object.mesh(geometry.box(16, 0.1, 6), material.meshStandard({ color: '#2c2e36', roughness: 0.7 }));
+      floor.position.set(0, -1.75, 1.5);
+      world.scene.add(floor, light.directional({ color: '#fff2e0', intensity: 2.4, position: [2, 6, 8] }), light.hemisphere({ color: '#b8c4e0', groundColor: '#2a2420', intensity: 0.6 }));
+
+      world.camera.position.set(0, 0.6, 11);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.target.set(0, 0, 0);
+      world.controls.minDistance = 4;
+      world.controls.maxDistance = 20;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.controls.minAzimuthAngle = -1.1;
+      world.controls.maxAzimuthAngle = 1.1;
+
+      // The inks and the opacity change the discs' materials, on a control only.
+      const ui = controls({
+        mouse: 'Left to right: normal, additive, subtractive, multiply; drag to look at them from the side',
+        inks: Object.keys(INKS),
+        opacity: [0.1, 1, 0.8],
+        circle: true,
+      }, (values, key) => {
+        if (key === undefined || key === 'inks' || key === 'opacity')
+          for (const discs of panels)
+            discs.forEach((mesh, d) => {
+              mesh.material.color.set(INKS[values.inks][d]);
+              mesh.material.opacity = values.opacity;
+            });
+        world.invalidate();
+      }, world);
+
+      // The three discs of a panel circle its centre a third of a turn apart, so their overlaps
+      // slide across the line between night and paper.
+      let turn = 0;
+      const place = () => {
+        for (const discs of panels)
+          discs.forEach((mesh, d) => {
+            const angle = turn + (d * Math.PI * 2) / 3;
+            mesh.position.x = Math.cos(angle) * 0.42;
+            mesh.position.y = Math.sin(angle) * 0.42;
+          });
+      };
+      place();
+      world.onFrame(({ delta }) => {
+        if (!ui.circle) return;
+        turn += Math.min(delta, 0.05) * 0.35;
+        place();
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
