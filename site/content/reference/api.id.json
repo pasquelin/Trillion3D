@@ -2614,6 +2614,7 @@
       "scene": "Adegan yang dibuka host, dan simpul di puncaknya.",
       "nodes": "Setiap simpul.",
       "lights": "Cahaya yang dibawa simpul.",
+      "cameras": "Kamera yang dibawa simpul.",
       "materials": "Material-nya.",
       "textures": "Tekstur-teksturnya.",
       "documents": "Tata letak geometri setiap berkas adegan yang diterbitkan, menurut namanya."
@@ -3474,6 +3475,7 @@
       "children": "Anak-anaknya, berurutan.",
       "mesh": "Mesh yang digambarnya.",
       "light": "Cahaya yang dibawanya.",
+      "camera": "Kamera yang dibawanya.",
       "matrix": "Matriks lokalnya, per kolom.",
       "translation": "Di mana ia berada.",
       "rotation": "Bagaimana ia diputar, sebagai kuaternion.",

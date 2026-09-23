@@ -28,7 +28,7 @@ fn name_of(owner: &Value) -> &str {
     owner.get("name").and_then(Value::as_str).unwrap_or("")
 }
 
-/// One entry per node of the document: its name, its children, the mesh and the light it carries,
+/// One entry per node of the document: its name, its children, the mesh, light and camera it carries,
 /// and its local pose as declared.
 pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
     let nodes = values(g, "nodes")?;
@@ -37,6 +37,10 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
         .and_then(Value::as_array)
         .map_or(0, Vec::len);
     let lights = light_defs(g).len();
+    let cameras = g
+        .get("cameras")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
     let mut table = Vec::with_capacity(nodes.len());
     for (id, node) in nodes.iter().enumerate() {
         let mesh = match node.get("mesh") {
@@ -53,11 +57,19 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
         if light.is_some_and(|light| light >= lights) {
             return Err(invalid("node light index is out of bounds"));
         }
+        let camera = match node.get("camera") {
+            Some(value) => Some(required_index(Some(value), "node.camera")?),
+            None => None,
+        };
+        if camera.is_some_and(|camera| camera >= cameras) {
+            return Err(invalid("node.camera index is out of bounds"));
+        }
         table.push(json!({
             "name": name_of(node),
             "children": crate::compiler_nodes::children_of(nodes, id)?,
             "mesh": mesh,
             "light": light,
+            "camera": camera,
             "matrix": declared(node, "matrix"),
             "translation": declared(node, "translation"),
             "rotation": declared(node, "rotation"),
@@ -93,6 +105,39 @@ pub(super) fn light_table(g: &Value) -> Result<Vec<Value>> {
                 "range": declared(light, "range"),
                 "innerConeAngle": light.pointer("/spot/innerConeAngle").cloned().unwrap_or(Value::Null),
                 "outerConeAngle": light.pointer("/spot/outerConeAngle").cloned().unwrap_or(Value::Null),
+            }))
+        })
+        .collect()
+}
+
+/// The cameras the nodes carry, as the document declares them: the host builds its own camera from
+/// these, with the specification's defaults where a field is silent.
+pub(super) fn camera_table(g: &Value) -> Result<Vec<Value>> {
+    let Some(cameras) = g.get("cameras").and_then(Value::as_array) else {
+        return Ok(Vec::new());
+    };
+    cameras
+        .iter()
+        .map(|camera| {
+            let kind = camera.get("type").and_then(Value::as_str).unwrap_or("");
+            let Some(params) = camera
+                .get(kind)
+                .filter(|_| matches!(kind, "perspective" | "orthographic"))
+            else {
+                return Err(invalid(format!(
+                    "camera type {kind:?} declares no parameters"
+                )));
+            };
+            let field = |name: &str| params.get(name).cloned().unwrap_or(Value::Null);
+            Ok(json!({
+                "name": name_of(camera),
+                "type": kind,
+                "yfov": field("yfov"),
+                "aspectRatio": field("aspectRatio"),
+                "xmag": field("xmag"),
+                "ymag": field("ymag"),
+                "znear": field("znear"),
+                "zfar": field("zfar"),
             }))
         })
         .collect()

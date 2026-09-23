@@ -2614,6 +2614,7 @@
       "scene": "Cảnh mà máy chủ mở, và các nút ở đỉnh của nó.",
       "nodes": "Mọi nút.",
       "lights": "Các đèn mà các nút mang.",
+      "cameras": "Các camera mà các nút mang.",
       "materials": "Các vật liệu.",
       "textures": "Các kết cấu.",
       "documents": "Bố cục hình học của từng tệp cảnh đã xuất bản, theo tên của nó."
@@ -3474,6 +3475,7 @@
       "children": "Các nút con, theo thứ tự.",
       "mesh": "Lưới mà nó vẽ.",
       "light": "Đèn mà nó mang.",
+      "camera": "Camera mà nó mang.",
       "matrix": "Ma trận cục bộ của nó, theo cột.",
       "translation": "Nơi nó đứng.",
       "rotation": "Nó được xoay thế nào, dưới dạng quaternion.",

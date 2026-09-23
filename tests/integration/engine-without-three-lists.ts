@@ -69,6 +69,8 @@ export const AUTORISES: Record<string, string> = {
     'boundary: the host textures of the prepared scene, from the texture table and its images',
   'host/prepared/materials':
     'boundary: the host surfaces of the prepared scene, from the material table',
+  'host/prepared/nodes':
+    'boundary: the lights, cameras and poses of the prepared scene’s nodes, from the node table',
   'host/prepared/graph':
     'boundary: the host scene graph of the prepared scene — nodes, meshes, lights — from the node table',
   'host/scene/graphObjects':
