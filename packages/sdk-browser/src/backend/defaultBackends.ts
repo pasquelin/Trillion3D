@@ -99,7 +99,7 @@ export function chooseBackends(
 }
 
 /**
- * What the glTF loader must open, once the paths that will draw are known. The WebGPU page
+ * Which source images the prepared scene must read, once the paths that will draw are known. The WebGPU page
  * raster is the only backend that reads the levels the compiler baked; every other path — the
  * engine's own WebGL2 page path, chosen on a machine that grants no WebGPU device, a Three
  * witness named by the host — samples `texture.image`, so a session that skipped its source

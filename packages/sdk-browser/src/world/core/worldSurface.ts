@@ -13,7 +13,7 @@ import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { hostPageSurface } from '../../host/pageObjects.ts';
 import { asHostLibrary } from '../../host/resources.ts';
 import { hostSide } from '../../scene/materialSide.ts';
-import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts';
 import {
   HOST_FILTER_LINEAR,
   HOST_FILTER_LINEAR_MIP_LINEAR,

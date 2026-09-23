@@ -14,7 +14,7 @@ import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geome
  * @errorCode RESOURCE_HTTP_ERROR, INVALID_JSON_RESPONSE - A file could not be fetched, or was not what it should be.
  * @errorCode INVALID_POINTER, CACHE_NOT_READY, SCOPE_MISMATCH - The compiled model's pointer is broken, unfinished, or of another scope.
  * @errorCode INVALID_CACHE, UNSUPPORTED_FORMAT, STALE_CACHE, UNSUPPORTED_MODEL_FORMAT - The compiled model is damaged, too old, too new or of a format not read yet: compile it again.
- * @errorCode INVALID_SCENE_TABLES, UNSUPPORTED_SCENE_TABLES, PREPARED_SCENE_MISMATCH - The model's node and material tables are missing, of another version, or disagree with its scene.
+ * @errorCode INVALID_SCENE_TABLES, UNSUPPORTED_SCENE_TABLES, PREPARED_SCENE_MISMATCH - The model's scene tables are missing, of another version, or do not lay out the scene it draws.
  * @errorCode AUTONOMOUS_SCENE_UNAVAILABLE, AUTONOMOUS_ASSOCIATION_MISSING, AUTONOMOUS_COVERAGE_MISSING, CLUSTER_MATERIAL_UNSUPPORTED - The engine's own WebGL2 path cannot draw this model.
  * @errorCode PAGE_BUDGET, UNSUPPORTED_MEMORY_BUDGETS - The pages the view needs do not fit the memory budget, or this path has no budgets.
  * @errorCode INVALID_SCENE_LIGHT, DUPLICATE_SCENE_LIGHT, UNKNOWN_SCENE_LIGHT, SCENE_LIGHT_BUDGET, SCENE_LIGHTS_UNAVAILABLE - A light is malformed, doubled, unknown, one too many, or has nowhere to go.

@@ -313,7 +313,7 @@ diagnostic).
 **The engine reads the levels the compiler baked.** As soon as the cache declares texture chains,
 each baked level is read on demand (decoded by the browser, held in a 192 MiB host cache) and tiles
 are cut from it. A chain is generated at run time only for a texture the cache carries none for.
-`textureSource` (`'cache'` by default) says whether the loader opens the source images: under
+`textureSource` (`'cache'` by default) says whether the prepared scene reads the source images: under
 `'cache'` an image whose chain the cache carries is never fetched; `'cache'` is honoured only where
 every mounted backend reads the baked levels, and `backend-choice` publishes what was settled.
 

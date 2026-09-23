@@ -2592,9 +2592,13 @@
       "version": "산출물 버전.",
       "nodeTableVersion": "노드 테이블 버전.",
       "materialTableVersion": "재질 테이블 버전.",
-      "nodes": "노드들.",
+      "geometryTableVersion": "지오메트리 배치 버전.",
+      "scene": "호스트가 여는 씬과 그 꼭대기의 노드들.",
+      "nodes": "모든 노드.",
+      "lights": "노드들이 지닌 조명.",
       "materials": "재질들.",
-      "textures": "텍스처들."
+      "textures": "텍스처들.",
+      "documents": "게시된 각 씬 파일의 지오메트리 배치, 이름별로."
     }
   },
   "Primitive-common": {
@@ -3374,27 +3378,32 @@
       "roughnessMap": "거칠기 이미지.",
       "normalMap": "법선 이미지.",
       "aoMap": "환경광 차폐 이미지.",
-      "emissiveMap": "발광 이미지."
+      "emissiveMap": "발광 이미지.",
+      "kind": "호스트가 만드는 표면: 조명 없음, 표준, 또는 물리 확장이 선언되면 물리.",
+      "alphaMode": "알파를 읽는 방식: 무시, `alphaTest`에서 잘라냄, 또는 블렌드.",
+      "opacity": "기본 색 계수의 알파.",
+      "extensions": "물리 확장이 더하는 것, 호스트의 매개변수 이름으로: 계수·색·범위는 숫자로, 맵은 슬롯으로."
     }
   },
   "TableNode": {
-    "summary": "그려지는 프리미티브 하나: 그것을 나르는 노드, 그 월드 자세, 그것이 두른 표면, 그리고 같은 프리미티브의 사본들 중 그것의 순위 — 이것이 여기서 인스턴싱이 의미하는 바다. 하나의 지오메트리를 여러 노드가 가리키는 것.",
-    "description": "`bounds`는 원본 지오메트리의 월드 박스다; 자율 씬은 그 자리에 퇴화된 삼각형을 공개하므로, 이것은 로더의 답이 아니라 캐시의 답이다.",
+    "summary": "씬 그래프의 노드 하나, glTF 순위에서: 자식들, 그것이 지닌 메시와 점광원, 그리고 선언된 그대로의 로컬 자세 — 행렬, 또는 이동·회전·스케일 중 무엇이든, 생략되면 각각 `null`.",
+    "description": "여러 노드가 같은 메시를 가리키는 것, 그것이 여기서의 인스턴싱입니다.",
     "members": {
       "name": "노드의 이름.",
-      "node": "노드의 번호.",
-      "parent": "그 부모의 번호.",
-      "mesh": "그것이 속한 메시의 번호.",
-      "primitive": "그것이 속한 프리미티브의 번호.",
-      "material": "그 재질의 순위.",
-      "instance": "몇 번째 사본인가.",
-      "matrix": "그것의 월드 행렬.",
-      "bounds": "그것의 월드 박스."
+      "children": "자식들, 순서대로.",
+      "mesh": "그리는 메시.",
+      "light": "지닌 조명.",
+      "matrix": "로컬 행렬, 열 우선.",
+      "translation": "어디에 서 있는지.",
+      "rotation": "어떻게 회전했는지, 쿼터니언으로.",
+      "scale": "어떻게 늘어났는지."
     }
   },
   "TableTexture": {
     "summary": "하나의 glTF 텍스처의 샘플러 상태, 엔진의 용어로.",
     "members": {
+      "name": "이름.",
+      "sampler": "선언한 glTF 샘플러의 순위, 없으면 `null`.",
       "image": "어떤 이미지인가.",
       "wrapS": "가로 방향 반복.",
       "wrapT": "세로 방향 반복.",
@@ -3403,11 +3412,11 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "채워진 맵 슬롯 하나: 어떤 텍스처인지, 어떤 좌표 세트인지, 그리고 그것을 위해 합성된 3×3 행렬.",
+    "summary": "채워진 맵 슬롯: 어떤 텍스처, 어떤 좌표 세트, 그리고 선언한 변환.",
     "members": {
       "texture": "어떤 텍스처인가.",
       "texCoord": "어떤 UV 세트인가.",
-      "transform": "UV 변환, 3×3."
+      "transform": "슬롯이 선언한 `KHR_texture_transform` — 오프셋, 라디안 단위 회전, 늘임, 생략되면 각각 `null` — 또는 없으면 `null`."
     }
   },
   "TelemetryReport": {

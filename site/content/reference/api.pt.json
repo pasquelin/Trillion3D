@@ -2592,9 +2592,13 @@
       "version": "Versão do produto.",
       "nodeTableVersion": "Versão da tabela de nós.",
       "materialTableVersion": "Versão da tabela de materiais.",
-      "nodes": "Os nós.",
+      "geometryTableVersion": "Versão da disposição da geometria.",
+      "scene": "A cena que o anfitrião abre e os nós no seu topo.",
+      "nodes": "Todos os nós.",
+      "lights": "As luzes que os nós carregam.",
       "materials": "Os materiais.",
-      "textures": "As texturas."
+      "textures": "As texturas.",
+      "documents": "A disposição da geometria de cada ficheiro de cena publicado, pelo seu nome."
     }
   },
   "Primitive-common": {
@@ -3374,27 +3378,32 @@
       "roughnessMap": "A imagem de aspereza.",
       "normalMap": "A imagem de normais.",
       "aoMap": "A imagem de oclusão ambiente.",
-      "emissiveMap": "A imagem de brilho."
+      "emissiveMap": "A imagem de brilho.",
+      "kind": "Que superfície o anfitrião constrói: sem iluminação, padrão, ou física quando é declarada uma extensão física.",
+      "alphaMode": "Como o alfa é lido: ignorado, cortado em `alphaTest`, ou misturado.",
+      "opacity": "O alfa do fator de cor base.",
+      "extensions": "O que as extensões físicas acrescentam, com os nomes de parâmetro do anfitrião: um fator, uma cor ou um intervalo como números, um mapa como espaço."
     }
   },
   "TableNode": {
-    "summary": "Uma primitiva desenhada: o nó que a carrega, sua pose de mundo, a superfície que usa e seu posto entre as cópias dessa mesma primitiva — o que é a instanciação aqui, uma geometria nomeada por vários nós.",
-    "description": "`bounds` é a caixa de mundo da geometria de origem; a cena autônoma publica triângulos degenerados no lugar dela, então é a resposta do cache, não a do carregador.",
+    "summary": "Um nó do grafo da cena, na sua posição glTF: os seus filhos, a malha e a luz pontual que carrega, e a sua pose LOCAL exatamente como declarada — uma matriz, ou qualquer uma de translação, rotação e escala, cada uma `null` quando omitida.",
+    "description": "Vários nós que nomeiam a mesma malha: isso é aqui a instanciação.",
     "members": {
       "name": "O nome do nó.",
-      "node": "O número do nó.",
-      "parent": "O número de seu pai.",
-      "mesh": "O número de seu mesh.",
-      "primitive": "O número de sua primitiva.",
-      "material": "O posto de seu material.",
-      "instance": "Qual cópia é.",
-      "matrix": "Sua matriz de mundo.",
-      "bounds": "Sua caixa de mundo."
+      "children": "Os seus filhos, por ordem.",
+      "mesh": "A malha que desenha.",
+      "light": "A luz que carrega.",
+      "matrix": "A sua matriz local, por colunas.",
+      "translation": "Onde está.",
+      "rotation": "Como está rodado, como quaternião.",
+      "scale": "Como está esticado."
     }
   },
   "TableTexture": {
     "summary": "Estado de amostragem de uma textura glTF, nas palavras do motor.",
     "members": {
+      "name": "O seu nome.",
+      "sampler": "A posição do amostrador glTF que declara, `null` se nenhum.",
       "image": "Qual imagem.",
       "wrapS": "Repetição horizontal.",
       "wrapT": "Repetição vertical.",
@@ -3403,11 +3412,11 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "Um slot de mapa preenchido: qual textura, qual conjunto de coordenadas, e o 3×3 composto para ele.",
+    "summary": "Um espaço de mapa preenchido: que textura, que conjunto de coordenadas e a transformação que declara.",
     "members": {
       "texture": "Qual textura.",
       "texCoord": "Qual conjunto de UV.",
-      "transform": "A transformação UV, 3×3."
+      "transform": "O `KHR_texture_transform` que o espaço declara — deslocamento, rotação em radianos, estiramento, cada um `null` quando omitido — ou `null` se não declarar nenhum."
     }
   },
   "TelemetryReport": {

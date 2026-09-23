@@ -4675,9 +4675,13 @@
       "version": "Versione del prodotto.",
       "nodeTableVersion": "Versione della tabella dei nodi.",
       "materialTableVersion": "Versione della tabella dei materiali.",
-      "nodes": "I nodi.",
+      "geometryTableVersion": "Versione della disposizione della geometria.",
+      "scene": "La scena che l’host apre, e i nodi alla sua sommità.",
+      "nodes": "Ogni nodo.",
+      "lights": "Le luci che i nodi portano.",
       "materials": "I materiali.",
-      "textures": "Le texture."
+      "textures": "Le texture.",
+      "documents": "La disposizione della geometria di ogni file di scena pubblicato, per nome."
     }
   },
   "prepareMany": {
@@ -5661,27 +5665,32 @@
       "roughnessMap": "L'immagine di ruvidità.",
       "normalMap": "L'immagine di normali.",
       "aoMap": "L'immagine di occlusione ambientale.",
-      "emissiveMap": "L'immagine di bagliore."
+      "emissiveMap": "L'immagine di bagliore.",
+      "kind": "Quale superficie costruisce l’host: non illuminata, standard, o fisica quando è dichiarata un’estensione fisica.",
+      "alphaMode": "Come si legge l’alfa: ignorato, tagliato ad `alphaTest`, o miscelato.",
+      "opacity": "L’alfa del fattore di colore di base.",
+      "extensions": "Ciò che aggiungono le estensioni fisiche, con i nomi di parametro dell’host: un fattore, un colore o un intervallo come numeri, una mappa come slot."
     }
   },
   "TableNode": {
-    "summary": "Una primitiva disegnata: il nodo che la porta, la sua posa nel mondo, la superficie che porta e il suo rango tra le copie di quella stessa primitiva — questo è qui l'istanziazione, una geometria nominata da più nodi.",
-    "description": "`bounds` è la scatola nel mondo della geometria sorgente; la scena autonoma pubblica al suo posto triangoli degeneri, quindi è la risposta della cache, non quella del caricatore.",
+    "summary": "Un nodo del grafo della scena, al suo rango glTF: i suoi figli, la mesh e la luce puntiforme che porta, e la sua posa LOCALE esattamente come dichiarata — una matrice, o una qualsiasi fra traslazione, rotazione e scala, ciascuna `null` se taciuta.",
+    "description": "Più nodi che nominano la stessa mesh: questo è qui l’istanziazione.",
     "members": {
       "name": "Il nome del nodo.",
-      "node": "Il numero del nodo.",
-      "parent": "Il numero del suo genitore.",
-      "mesh": "Il numero della sua mesh.",
-      "primitive": "Il numero della sua primitiva.",
-      "material": "Il rango del suo materiale.",
-      "instance": "Quale copia è.",
-      "matrix": "La sua matrice nel mondo.",
-      "bounds": "La sua scatola nel mondo."
+      "children": "I suoi figli, in ordine.",
+      "mesh": "La mesh che disegna.",
+      "light": "La luce che porta.",
+      "matrix": "La sua matrice locale, per colonne.",
+      "translation": "Dove si trova.",
+      "rotation": "Come è ruotato, come quaternione.",
+      "scale": "Come è allungato."
     }
   },
   "TableTexture": {
     "summary": "Stato di campionamento di una texture glTF, nelle parole del motore.",
     "members": {
+      "name": "Il suo nome.",
+      "sampler": "Il rango del campionatore glTF che dichiara, `null` se nessuno.",
       "image": "Quale immagine.",
       "wrapS": "Ripetizione in larghezza.",
       "wrapT": "Ripetizione verso l'alto.",
@@ -5690,11 +5699,11 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "Uno slot di immagine occupato: quale texture, quale insieme di coordinate, e il 3×3 composto per esso.",
+    "summary": "Uno slot di mappa occupato: quale texture, quale insieme di coordinate e la trasformazione che dichiara.",
     "members": {
       "texture": "Quale texture.",
       "texCoord": "Quale insieme di UV.",
-      "transform": "La trasformazione delle UV, 3×3."
+      "transform": "Il `KHR_texture_transform` che lo slot dichiara — spostamento, rotazione in radianti, allungamento, ciascuno `null` se taciuto — oppure `null` se non ne dichiara."
     }
   },
   "TelemetryReport": {

@@ -1,0 +1,119 @@
+/**
+ * The host surfaces of the prepared scene, built from the material table under the rules the host
+ * loader applied, so that the engine reads from them exactly what it read before
+ * (`../surfaceImport.ts`, `../../scene/materialSide.ts`) and a host renderer draws them alike:
+ *
+ * - `unlit` is the host's basic surface, `physical` its physical one, anything else standard;
+ * - a blended surface is transparent and writes no depth, a masked one cuts at `alphaTest`;
+ * - the table entry already carries the tangent variant (`normalScaleY`); the variants a primitive
+ *   adds — vertex colours, flat shading where it has no normal — are built per primitive kind;
+ * - the physical extensions are applied under the parameter names the table writes them with.
+ */
+import * as THREE from 'three';
+import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts';
+
+type Slot = (
+  slot: TableTextureSlot,
+  colorSpace?: THREE.ColorSpace,
+) => Promise<THREE.Texture | null>;
+type Params = Record<string, unknown>;
+
+/** The extension maps that hold colour, and are read in sRGB. */
+const COLOUR_MAPS = new Set(['sheenColorMap', 'specularColorMap']);
+/** The extension factors that are colours. */
+const COLOURS = new Set(['sheenColor', 'specularColor']);
+
+const linear = (rgb: readonly number[]) =>
+  new THREE.Color().setRGB(rgb[0], rgb[1], rgb[2], THREE.LinearSRGBColorSpace);
+const isSlot = (value: unknown): value is TableTextureSlot =>
+  typeof value === 'object' && value !== null && 'texture' in value;
+
+/** The variant of a surface a primitive asks for: what its geometry carries. */
+export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean };
+
+function extensionParams(
+  entry: TableMaterial,
+  params: Params,
+  assign: (name: string, slot: TableTextureSlot, colour?: boolean) => void,
+) {
+  for (const [name, value] of Object.entries(entry.extensions)) {
+    if (isSlot(value)) assign(name, value, COLOUR_MAPS.has(name));
+    else if (name === 'clearcoatNormalScale')
+      params[name] = new THREE.Vector2(value as number, value as number);
+    else if (COLOURS.has(name)) params[name] = linear(value as number[]);
+    else params[name] = Array.isArray(value) ? [...value] : value;
+  }
+  // The host rebuilds the tangent frame from screen derivatives on geometry without tangents, and
+  // turns the second clear-coat normal factor the way it turns the first.
+  if (entry.kind === 'physical' && entry.derivativeTangents) {
+    const scale =
+      (params.clearcoatNormalScale as THREE.Vector2 | undefined) ?? new THREE.Vector2(1, 1);
+    params.clearcoatNormalScale = scale.set(scale.x, -scale.y);
+  }
+}
+
+async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) {
+  const params: Params = { color: linear(entry.baseColor), opacity: entry.opacity };
+  const pending: Promise<void>[] = [];
+  const assign = (name: string, from: TableTextureSlot | null, colour = false) => {
+    if (from)
+      pending.push(
+        slot(from, colour ? THREE.SRGBColorSpace : undefined).then((texture) => {
+          if (texture) params[name] = texture;
+        }),
+      );
+  };
+  assign('map', entry.map, true);
+  if (entry.kind !== 'unlit') {
+    params.metalness = entry.metalness;
+    params.roughness = entry.roughness;
+    assign('metalnessMap', entry.metalnessMap);
+    assign('roughnessMap', entry.roughnessMap);
+    assign('normalMap', entry.normalMap);
+    params.normalScale = new THREE.Vector2(entry.normalScale, entry.normalScaleY);
+    assign('aoMap', entry.aoMap);
+    params.aoMapIntensity = entry.aoIntensity;
+    params.emissive = linear(entry.emissive);
+    assign('emissiveMap', entry.emissiveMap, true);
+    extensionParams(entry, params, assign);
+  }
+  if (entry.kind === 'physical') {
+    params.transmission = entry.transmission;
+    params.ior = entry.ior;
+    params.thickness = entry.thickness;
+    params.attenuationDistance = entry.attenuationDistance || Infinity;
+    params.attenuationColor = linear(entry.attenuationColor);
+  }
+  if (entry.doubleSided) params.side = THREE.DoubleSide;
+  params.transparent = entry.alphaMode === 'BLEND';
+  if (entry.alphaMode === 'BLEND') params.depthWrite = false;
+  if (entry.alphaMode === 'MASK') params.alphaTest = entry.alphaTest;
+  if (variant.vertexColors) params.vertexColors = true;
+  if (variant.flatShading) params.flatShading = true;
+  await Promise.all(pending);
+  const material =
+    entry.kind === 'unlit'
+      ? new THREE.MeshBasicMaterial(params)
+      : entry.kind === 'physical'
+        ? new THREE.MeshPhysicalMaterial(params)
+        : new THREE.MeshStandardMaterial(params);
+  if (entry.name) material.name = entry.name;
+  return material;
+}
+
+/**
+ * The surface of each table rank in each variant, built once and shared by every primitive that
+ * wears it: a record the engine holds per surface is then held once per surface.
+ */
+export function preparedMaterials(materials: readonly TableMaterial[], slot: Slot) {
+  const built = new Map<string, Promise<THREE.Material>>();
+  return (rank: number, variant: SurfaceVariant) => {
+    const key = `${rank}:${variant.vertexColors}:${variant.flatShading}`;
+    let material = built.get(key);
+    if (!material) {
+      material = build(materials[rank], variant, slot);
+      built.set(key, material);
+    }
+    return material;
+  };
+}

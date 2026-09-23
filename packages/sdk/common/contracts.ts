@@ -27,17 +27,10 @@ export {
   NODE_TABLE_VERSION,
   SCENE_TABLES_FILE,
   SCENE_TABLES_VERSION,
-  TABLE_FLAGS,
-  TABLE_NUMBERS,
-  TABLE_SLOTS,
-  TABLE_TRIPLETS,
 } from '../../sdk-core/src/scene/core/tableContracts.ts';
 export type {
   PreparedSceneTables,
-  TableMaterial,
   TableNode,
-  TableTexture,
-  TableTextureSlot,
 } from '../../sdk-core/src/scene/core/tableContracts.ts';
 export {
   biasedDepthBits,
@@ -80,3 +73,14 @@ export { SCENE_MODEL_VERSION } from '../../sdk-core/src/scene/core/nodeContracts
 export type { SceneNodeOptions, SceneState } from '../../sdk-core/src/scene/core/nodeContracts.ts';
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts';
 export type { ShadowFrameMetrics } from '../../sdk-core/src/contracts/shadowMetrics.ts';
+export {
+  TABLE_FLAGS,
+  TABLE_NUMBERS,
+  TABLE_SLOTS,
+  TABLE_TRIPLETS,
+} from '../../sdk-core/src/scene/core/tableSurfaces.ts';
+export type {
+  TableMaterial,
+  TableTexture,
+  TableTextureSlot,
+} from '../../sdk-core/src/scene/core/tableSurfaces.ts';
