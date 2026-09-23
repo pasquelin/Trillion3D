@@ -1,5 +1,5 @@
-import { courseEntries } from '../entries/courseHtml.ts';
-import type { ChapterText, CourseWords } from '../entries/courseHtml.ts';
+import { courseEntries } from '../course/page.ts';
+import type { ChapterText, CourseWords } from '../course/page.ts';
 import type { LocaleOverlay } from './entryOverlay.ts';
 
 const WORDS: CourseWords = {
