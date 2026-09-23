@@ -15,22 +15,33 @@ export function TextLink({ className = '', ...props }: ComponentPropsWithoutRef<
   return <a className={`link ${className}`} {...props} />;
 }
 
+/** The heading of each section level, and the gap under it: a part of the page, then the
+ *  parts nested in it. */
+const LEVELS = {
+  2: { Heading: 'h2', heading: 'text-xl font-bold md:text-2xl', gap: 'gap-4' },
+  3: { Heading: 'h3', heading: 'text-lg font-semibold', gap: 'gap-3' },
+  4: { Heading: 'h4', heading: 'font-semibold', gap: 'gap-3' },
+} as const;
+
 /** A titled part of a page's body: its heading, then what it holds. `id` names the heading, a
- *  stable anchor a page can jump to. */
+ *  stable anchor a page can jump to; `level` nests it in another section. */
 export function Section({
   id,
   title,
+  level = 2,
   children,
 }: {
   id?: string;
   title: ReactNode;
+  level?: keyof typeof LEVELS;
   children: ReactNode;
 }) {
+  const { Heading, heading, gap } = LEVELS[level];
   return (
-    <section className="grid min-w-0 grid-cols-1 gap-4">
-      <h2 id={id} className="text-xl font-bold md:text-2xl">
+    <section className={`grid min-w-0 grid-cols-1 ${gap}`}>
+      <Heading id={id} className={heading}>
         {title}
-      </h2>
+      </Heading>
       {children}
     </section>
   );
