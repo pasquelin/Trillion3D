@@ -24,7 +24,7 @@ export const RENDER_ONLY = '[data-example-overlay], body > p { display: none }';
 
 /** The share of the page's canvas capture that differs from its top-left pixel: 0 while blank. */
 export async function drawnShare(page: Page): Promise<number> {
-  const png = await page.locator('canvas').screenshot({ style: RENDER_ONLY });
+  const png = await page.locator('canvas#view').screenshot({ style: RENDER_ONLY });
   return page.evaluate(
     async (dataUrl: string) => {
       const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
