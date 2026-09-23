@@ -1498,7 +1498,7 @@
       "circle": "环绕"
     },
     "readouts": {
-      "temporalAntialiasing": "时间抗锯齿"
+      "temporalAntialiasing": "时间性抗锯齿"
     },
     "words": {
       "on": "开",
