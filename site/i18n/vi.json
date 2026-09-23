@@ -3,7 +3,8 @@
     "name": "Tiếng Việt",
     "abbr": "VI",
     "hreflang": "vi",
-    "rtl": false
+    "rtl": false,
+    "flag": "vn"
   },
   "nav": {
     "primary": "Điều hướng chính",

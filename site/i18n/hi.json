@@ -3,7 +3,8 @@
     "name": "हिन्दी",
     "abbr": "HI",
     "hreflang": "hi",
-    "rtl": false
+    "rtl": false,
+    "flag": "in"
   },
   "nav": {
     "primary": "मुख्य नेविगेशन",
