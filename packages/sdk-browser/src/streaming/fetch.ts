@@ -29,7 +29,8 @@ export function createStreamingFetcher(
           attempt,
           expectedBytes: page.bytes,
         }));
-        let buffer = await (await checked(new URL(url, base).href, combined)).arrayBuffer();
+        // One request per attempt: this loop is the retry, and it says so page by page.
+        let buffer = await (await checked(new URL(url, base).href, combined, 1)).arrayBuffer();
         // Size is taken before any verification: the buffer leaves transferred to the decode
         // worker, so the original reference is detached for the round trip.
         const byteLength = buffer.byteLength;
