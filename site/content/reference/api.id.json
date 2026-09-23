@@ -926,8 +926,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "RAYCAST_NO_VIEW": "Titik gambar diminta dari canvas yang tidak punya ukuran: tidak ada gambar untuk dibidik.",
-      "SESSION_OPEN_FAILED": "Sesi dunia tidak dapat dibuka (`world.diagnostic.error`): WebGPU kehilangan perangkatnya, atau alasannya ada di `details.cause`.",
-      "WEBGPU_LOST": "Sesi dunia tidak dapat dibuka (`world.diagnostic.error`): WebGPU kehilangan perangkatnya, atau alasannya ada di `details.cause`.",
+      "SESSION_OPEN_FAILED": "Sesi dunia tidak dapat dibuka (`world.diagnostic.error`): WebGPU kehilangan perangkatnya, atau galat yang dilempar ada di `details.cause`.",
+      "WEBGPU_LOST": "Sesi dunia tidak dapat dibuka (`world.diagnostic.error`): WebGPU kehilangan perangkatnya, atau galat yang dilempar ada di `details.cause`.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan."
     }
@@ -6715,11 +6715,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "Apa yang dipegang halaman: mode, dibaca dan ditulis.",
+    "summary": "Apa yang dipegang halaman: mode tampilan, dibaca dan ditulis; sesi yang dibuka dan mengapa sesi terakhir gagal, hanya dibaca.",
     "members": {
       "mode": "Mode tampilan: `'beauty'` untuk gambar normal, atau sebuah mode yang menunjukkan cara kerja mesin.",
       "sessions": "Sesi yang sudah dibuka dunia sejauh ini: perubahan yang membuka ulang sebuah sesi terlihat di sini.",
-      "error": "Mengapa sesi terakhir tidak dapat dibuka, sebagai galat mesin yang bernama (`code`: `WEBGPU_LOST`, atau `SESSION_OPEN_FAILED` dengan kata-katanya di `details.cause`); `null` begitu sebuah sesi terbuka.",
+      "error": "Mengapa sesi terakhir tidak dapat dibuka, sebagai galat mesin yang bernama: `code` adalah `WEBGPU_LOST` saat WebGPU kehilangan perangkatnya, kode milik galat mesin, atau `SESSION_OPEN_FAILED` dengan galat yang dilempar di `details.cause`. `null` begitu sebuah sesi terbuka, atau saat tidak ada yang digambar dan tidak ada sesi yang dicoba.",
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
     }
   },

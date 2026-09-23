@@ -919,8 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "この描画経路は、シーンに対するその変更を行えない。",
       "BATCHED_WORLD_VIEW": "この描画経路は、シーンに対するその変更を行えない。",
       "RAYCAST_NO_VIEW": "サイズのない canvas に画像の点を求めました: 狙いをつける画像がありません。",
-      "SESSION_OPEN_FAILED": "ワールドのセッションを開けませんでした（`world.diagnostic.error`）：WebGPU がデバイスを失ったか、理由が `details.cause` にあります。",
-      "WEBGPU_LOST": "ワールドのセッションを開けませんでした（`world.diagnostic.error`）：WebGPU がデバイスを失ったか、理由が `details.cause` にあります。",
+      "SESSION_OPEN_FAILED": "ワールドのセッションを開けませんでした（`world.diagnostic.error`）: WebGPU がデバイスを失ったか、投げられたエラーが `details.cause` にあります。",
+      "WEBGPU_LOST": "ワールドのセッションを開けませんでした（`world.diagnostic.error`）: WebGPU がデバイスを失ったか、投げられたエラーが `details.cause` にあります。",
       "UNSUPPORTED_SCENE_FORMAT": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
       "SCENE_NOT_SAVABLE": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。"
     }
@@ -3940,11 +3940,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "ページが保持するもの: モード、読み書き可能。",
+    "summary": "ページが保持するもの: 表示モード（読み書き可能）、開いたセッション数と直前の失敗の理由（読み取り専用）。",
     "members": {
       "mode": "ビューモード: 通常の画像なら`'beauty'`、あるいはエンジンの動作を示すモード。",
       "sessions": "ワールドがこれまでに開いたセッション: セッションを開き直す変更はここに表れます。",
-      "error": "直前のセッションが開けなかった理由を、名前付きのエンジンエラーで示します（`code`：`WEBGPU_LOST`、または `details.cause` に説明のある `SESSION_OPEN_FAILED`）。セッションが開くと `null`。",
+      "error": "直前のセッションが開けなかった理由を、名前付きのエンジンエラーで示します。`code` は、WebGPU がデバイスを失ったときは `WEBGPU_LOST`、エンジンエラーならその固有のコード、それ以外は `SESSION_OPEN_FAILED` で、投げられたエラーが `details.cause` に入ります。セッションが開くと、または描くものがなくセッションを試みないときは `null`。",
       "modes": "現在のレンダラーが提供するすべてのビューモード。"
     }
   },

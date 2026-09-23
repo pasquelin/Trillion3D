@@ -3849,11 +3849,11 @@
       },
       {
         "name": "SESSION_OPEN_FAILED",
-        "desc": "The world's session could not open (`world.diagnostic.error`): WebGPU lost its device, or the reason is in `details.cause`."
+        "desc": "The world's session could not open (`world.diagnostic.error`): WebGPU lost its device, or the error thrown is in `details.cause`."
       },
       {
         "name": "WEBGPU_LOST",
-        "desc": "The world's session could not open (`world.diagnostic.error`): WebGPU lost its device, or the reason is in `details.cause`."
+        "desc": "The world's session could not open (`world.diagnostic.error`): WebGPU lost its device, or the error thrown is in `details.cause`."
       },
       {
         "name": "UNSUPPORTED_SCENE_FORMAT",
@@ -16809,7 +16809,7 @@
     "kind": "Constant",
     "title": "world.diagnostic",
     "signature": "world.diagnostic: { mode: string; readonly sessions: number; readonly error: EngineError | null; readonly modes: string[]; }",
-    "summary": "What the page holds: the mode, read and written.",
+    "summary": "What the page holds: the view mode, read and written; the sessions opened and why the last one failed, read only.",
     "members": [
       {
         "name": "mode",
@@ -16824,7 +16824,7 @@
       {
         "name": "error",
         "type": "EngineError | null",
-        "desc": "Why the last session could not open, as a named engine error (`code`: `WEBGPU_LOST`, or `SESSION_OPEN_FAILED` with the words in `details.cause`); `null` once a session opens."
+        "desc": "Why the last session could not open, as a named engine error: `code` is `WEBGPU_LOST` when WebGPU lost its device, an engine error's own code, or `SESSION_OPEN_FAILED` with the error thrown in `details.cause`. `null` once a session opens, or when there is nothing to draw and no session is tried."
       },
       {
         "name": "modes",

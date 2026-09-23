@@ -919,8 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "这条绘制路径无法对场景做出那种改动。",
       "BATCHED_WORLD_VIEW": "这条绘制路径无法对场景做出那种改动。",
       "RAYCAST_NO_VIEW": "向一个没有尺寸的 canvas 请求画面上的点：没有可以瞄准的画面。",
-      "SESSION_OPEN_FAILED": "世界的会话无法打开（`world.diagnostic.error`）：WebGPU 丢失了设备，或原因写在 `details.cause` 中。",
-      "WEBGPU_LOST": "世界的会话无法打开（`world.diagnostic.error`）：WebGPU 丢失了设备，或原因写在 `details.cause` 中。",
+      "SESSION_OPEN_FAILED": "世界的会话无法打开（`world.diagnostic.error`）：WebGPU 丢失了设备，或抛出的错误在 `details.cause` 中。",
+      "WEBGPU_LOST": "世界的会话无法打开（`world.diagnostic.error`）：WebGPU 丢失了设备，或抛出的错误在 `details.cause` 中。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。"
     }
@@ -3940,11 +3940,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "页面持有的内容:模式,可读写。",
+    "summary": "页面持有的内容：视图模式，可读写；已打开的会话数，以及上一次失败的原因，只读。",
     "members": {
       "mode": "视图模式:正常画面用 `'beauty'`,或者用来展示引擎工作方式的某种模式。",
       "sessions": "世界到目前为止打开过的会话：重新打开会话的修改会显示在这里。",
-      "error": "上一次会话为何无法打开，以带名称的引擎错误给出（`code`：`WEBGPU_LOST`，或 `SESSION_OPEN_FAILED`，说明在 `details.cause` 中）；会话一打开即为 `null`。",
+      "error": "上一次会话为何无法打开，以带名称的引擎错误给出：WebGPU 丢失设备时 `code` 为 `WEBGPU_LOST`，引擎错误则为其自身的代码，否则为 `SESSION_OPEN_FAILED`，抛出的错误放在 `details.cause` 中。会话一旦打开，或没有可绘制的内容而不尝试任何会话时，为 `null`。",
       "modes": "当前渲染器提供的所有视图模式。"
     }
   },
