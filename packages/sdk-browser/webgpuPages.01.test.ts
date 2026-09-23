@@ -4,8 +4,8 @@ import { presentationColorDiagnostic } from './measurement.ts';
 import { outputColorDiagnostic, webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('the GPU readback diagnostic distinguishes the requested clear color from the rendered pixels', () => {

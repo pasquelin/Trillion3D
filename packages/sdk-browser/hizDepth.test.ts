@@ -1,14 +1,14 @@
 // A1: visibilityDepth projects a triangle's vertices once per frame (cache by visibility
 // identifier) instead of once per pixel. The oracle is the reference copied before batch A in
-// `bench/oracles/hiz.ts` (importing the bench itself would run it).
+// `../../bench/oracles/browser/hiz.ts` (importing the bench itself would run it).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 import { packVisibilityId, rasterVisibilityIds } from './visibilityBuffer.ts';
 import { visibilityDepth } from './hiz.ts';
-import { referenceVisibilityDepth } from './bench/oracles/hiz.ts';
-import { cameraAt, quad } from '../../test/fixtures/hiz.ts';
+import { referenceVisibilityDepth } from '../../bench/oracles/browser/hiz.ts';
+import { cameraAt, quad } from '../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 import { surfaceOf } from './pageSurface.ts';
 

@@ -8,8 +8,8 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { rasterPageRecords } from './pageRaster.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
-import { drawnPageIds, indirectDraws, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
+import { drawnPageIds, indirectDraws, installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, mixedBinScene, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {

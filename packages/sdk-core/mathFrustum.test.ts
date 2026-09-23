@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumPlanesFromMatrix, frustumPlanesToLocal } from './index.ts';
-import { assertBits } from './bench/oracles/volumes.ts';
+import { assertBits } from '../../tests/kit/assert/bits.ts';
 
 /** The six planes of Three.js copied flat, normal then constant. The reference is always read
  *  in `[0, 1]` clipping: that is the engine's range, and only depth DIRECTION is reversed —

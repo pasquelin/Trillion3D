@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { prepareSdkWasm } from './geometryPageWasm.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
 import { createBoxTransformLot, createMultiplyLot } from './mathBatchRuntime.ts';
-import { remplitBoites, remplitMatrices } from './bench/appui/casLotsWasm.ts';
+import { remplitBoites, remplitMatrices } from '../../bench/perf/browser/support/casLotsWasm.ts';
 
 // Small batch: exactly 9 hostile matrices × 7 hostile boxes, full Cartesian product of
 // `casLotsWasm.ts` once each — zero ordinary pseudo-random element. A shorter batch

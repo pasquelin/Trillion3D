@@ -14,7 +14,7 @@ import {
   FLAG_MASK,
   SHADE_SHADER,
 } from './visibilityBuffer.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { DIAGNOSTICS } from '../sdk-core/index.ts';
 import { createExplorerDiagnosticApi } from './explorerDiagnosticApi.ts';
 import { createWebgpuShadePipelines } from './webgpuVisibilityPipelines.ts';

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createWebgpuTileStreamer } from './webgpuTileStreamer.ts';
 import { poolEncoding } from './textureBlockFormats.ts';
 import { levelSize, tileLayout } from './textureTiles.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 
 installGpuGlobals();
 

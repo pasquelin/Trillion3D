@@ -14,7 +14,7 @@ import {
   referencePrepareCones,
   referenceIndexSourceBytes,
   referenceCompteMateriauxEtTangentes,
-} from './bench/oracles/cones-normaux.ts';
+} from '../../bench/oracles/browser/cones-normaux.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 

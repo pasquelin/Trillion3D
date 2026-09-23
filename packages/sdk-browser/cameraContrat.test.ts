@@ -12,7 +12,12 @@ import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { resolvePixelError } from './pageSelectionRequests.ts';
 import { sameHizView } from './hizTemporal.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
-import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.ts';
+import {
+  POSES_PARENT,
+  cameraAplatie,
+  creeRig,
+  poseRig,
+} from '../../tests/browser/probes/cameraRig.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 import { createEngineCamera, type CameraMotion } from './cameraWorld.ts';
 

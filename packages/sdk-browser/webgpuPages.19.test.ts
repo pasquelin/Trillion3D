@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
 

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { quadScene } from './webgpuPagesTestScenes.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32 } from './gpuDraw.ts';

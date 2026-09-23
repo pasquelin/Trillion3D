@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { holdWebgpuFrame, keepWebgpuFrame } from './webgpuFrameHold.ts';
 import { createDeferredLighting } from './deferredLighting.ts';
 import type { DirectLightResources } from './deferredLightingProgram.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { settledRt } from './webgpuFrameHoldFixture.ts';
 
 installGpuGlobals();

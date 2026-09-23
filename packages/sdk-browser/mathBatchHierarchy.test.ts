@@ -1,5 +1,5 @@
 // Entire hierarchy in batch (`mathBatchHierarchy.ts`), on hostile parent/child chains of
-// foundation (`bench/socleHierarchie.ts`: negative scales, zero, extreme, non-uniform under
+// foundation (`bench/perf/browser/support/socleHierarchie.ts`: negative scales, zero, extreme, non-uniform under
 // parent rotation, half-turns, positions at `-0`, depths 1 to 6, 5-child branches).
 //
 // Three sides, single truth: JavaScript path, WebAssembly path, and `three`, whose
@@ -18,7 +18,7 @@ import {
 import { prepareSdkWasm } from './geometryPageWasm.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
 import { createHierarchyLot, type HierarchyLot } from './mathBatchHierarchy.ts';
-import { chainesHostiles } from './bench/appui/socleHierarchie.ts';
+import { chainesHostiles } from '../../bench/perf/browser/support/socleHierarchie.ts';
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, 'pageCodec.wasm')));
 

@@ -43,8 +43,8 @@ export function relatedTests(files: Map<string, string>, changed: Set<string>): 
       (file) =>
         testPattern.test(file) &&
         (file.startsWith('packages/') ||
-          file.startsWith('scripts/mesure/') ||
-          file.startsWith('test/') ||
+          file.startsWith('bench/') ||
+          file.startsWith('tests/') ||
           changed.has(file)),
     )
     .filter((file) => reachesChanged(file))

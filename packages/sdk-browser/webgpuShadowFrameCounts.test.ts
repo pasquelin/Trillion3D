@@ -11,7 +11,7 @@ import { planShadowRegions, shadowViewpointOf } from './webgpuPagesEncodeShadows
 import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
 import type { SceneLight } from '../sdk-core/index.ts';
 import { settledRt } from './webgpuFrameHoldFixture.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 
 installGpuGlobals();
 

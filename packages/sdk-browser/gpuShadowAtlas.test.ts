@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RECTS_PER_SLICE } from '../sdk-core/index.ts';
 import { createGpuShadowAtlas } from './gpuShadowAtlas.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 
 installGpuGlobals();
 

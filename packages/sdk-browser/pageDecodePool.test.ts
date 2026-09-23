@@ -9,7 +9,7 @@ import {
   FlakyNodeWorker,
   NodeDomWorker,
   withNodeWorkerShim,
-} from './bench/oracles/pageDecodeNodeWorker.ts';
+} from '../../bench/oracles/browser/pageDecodeNodeWorker.ts';
 
 test('the startup probe answers before any real work, even if submitted in the same breath', () =>
   withNodeWorkerShim(NodeDomWorker, async () => {

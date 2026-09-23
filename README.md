@@ -15,7 +15,7 @@
 [![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
 
-**[Documentation ↗](https://pasquelin.github.io/WebGeometry/)** · **[Live report ↗](https://pasquelin.github.io/WebGeometry/report.html)** · **[Why](#why-web-geometry)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](scripts/mesure/README.md)** · **[The reference in numbers](docs/REFERENCE_UE5.md)** · **[Roadmap](#roadmap)**
+**[Documentation ↗](https://pasquelin.github.io/WebGeometry/)** · **[Live report ↗](https://pasquelin.github.io/WebGeometry/report.html)** · **[Why](#why-web-geometry)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE_UE5.md)** · **[Roadmap](#roadmap)**
 
 </div>
 
@@ -145,7 +145,7 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 | [`packages/sdk-core`](packages/sdk-core)                       | Platform-independent TypeScript contracts and policies           |
 | [`packages/sdk-node`](packages/sdk-node)                       | Native process and filesystem integration                        |
 | [`packages/sdk-browser`](packages/sdk-browser)                 | Browser rendering and GPU resource adapters                      |
-| [`scripts/mesure`](scripts/mesure)                             | The bench: one harness, campaigns and the HTML report            |
+| [`bench/runner`](bench/runner)                             | The bench: one harness, campaigns and the HTML report            |
 | [`test`](test)                                                 | Public package integration tests and GPU proofs                  |
 
 ## Measuring
@@ -153,10 +153,10 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 Nothing is optimised before it is measured, and no claim outlives its measurement.
 
 ```sh
-node scripts/mesure/banc.ts --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
+node bench/runner/banc.ts --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
      --vues generale,sol,rue --images 60 --pixelError 0,1
-node scripts/mesure/campagne.ts        # the whole campaign
-node scripts/mesure/rapportGlobal.ts   # one HTML report
+node bench/runner/campagne.ts        # the whole campaign
+node bench/runner/rapportGlobal.ts   # one HTML report
 ```
 
 - One harness for every lot: Playwright drives the machine's Chrome, nothing else is needed on
@@ -169,7 +169,7 @@ node scripts/mesure/rapportGlobal.ts   # one HTML report
   difference is read on the frame envelope only.
 - `0 px`, `tri = selected` and A/A noise are the default proof for geometry and lighting.
 
-See [scripts/mesure/README.md](scripts/mesure/README.md) and [docs/TESTS.md](docs/TESTS.md).
+See [bench/runner/README.md](bench/runner/README.md) and [docs/TESTS.md](docs/TESTS.md).
 
 ## Quality bar
 

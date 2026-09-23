@@ -1,5 +1,5 @@
 import type { Browser } from 'playwright';
-import { launchChrome } from './mesure/chrome.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
 import { evaluateInstalledPage } from './installed-package-browser-page.ts';
 import {
   installedBrowserResult,

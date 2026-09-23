@@ -7,7 +7,7 @@ import { createGpuSunFarShadow } from './gpuSunFarShadow.ts';
 import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
 
 /** A fake device that returns what it is asked to create, mapping included. */

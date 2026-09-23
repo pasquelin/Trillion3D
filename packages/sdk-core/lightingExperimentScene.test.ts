@@ -12,7 +12,7 @@ import {
   unit,
   close,
   firstHit,
-} from '../../test/fixtures/lightingSceneTestHelpers.ts';
+} from '../../tests/fixtures/lightingSceneTestHelpers.ts';
 
 test('lighting scene retains patch identities under door movement and relighting, within the declared scene budget', () => {
   const closed = createLightingScene({ doorAngle: 0, lightIntensity: 1, patchSize: 1 });

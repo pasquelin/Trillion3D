@@ -1,4 +1,4 @@
-import { PART, fixture } from '../../test/fixtures/gpuTiming.ts';
+import { PART, fixture } from '../../tests/kit/gpu/timingDevice.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuTiming } from './gpuTiming.ts';

@@ -2,13 +2,13 @@
 // that formula never had a sum initialised to zero (see the note in `mathMatrix4.ts`), so no signed-
 // zero regression is expected here, unlike matrix × matrix products. This test checks it on matrices
 // and boxes hostile to signed zeros, against the previous code copied into
-// `bench/oracles/socle-math.ts`.
+// `../../bench/oracles/browser/socle-math.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { noteResidenceChange } from './webgpuShadowBounds.ts';
 import { createWebgpuLightState } from './webgpuPagesStateLights.ts';
-import { referenceClusterSphere } from './bench/oracles/socle-math.ts';
+import { referenceClusterSphere } from '../../bench/oracles/browser/socle-math.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 function record(matrice: number[], min: number[], max: number[]) {

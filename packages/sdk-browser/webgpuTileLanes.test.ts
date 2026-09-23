@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTileAtlas } from './webgpuTileAtlas.ts';
 import { tileLayout } from './textureTiles.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { poolEncoding } from './textureBlockFormats.ts';
 
 installGpuGlobals();
