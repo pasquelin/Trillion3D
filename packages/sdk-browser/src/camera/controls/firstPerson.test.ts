@@ -72,3 +72,18 @@ test('first person never captures a locked pointer, and a refused capture or loc
   await new Promise((settled) => setTimeout(settled, 0));
   assert.equal(controls.locked(), false);
 });
+
+test('a steering key keeps its default action from the page, unless typed into a field', () => {
+  const { surface } = steered(createFirstPersonCameraControls);
+  const kept = (code: string, target: unknown = surface.element) => {
+    let prevented = false;
+    surface.key('keydown', { code, target, preventDefault: () => (prevented = true) });
+    return prevented;
+  };
+  // Space would scroll the page; held, it repeats and is kept from it each time.
+  assert.deepEqual([kept('Space'), kept('Space'), kept('KeyW')], [true, true, true]);
+  assert.equal(kept('KeyZ'), false); // Not a key this controller steers with.
+  surface.key('keyup', { code: 'KeyW' });
+  assert.equal(kept('KeyW', { tagName: 'INPUT' }), false);
+  assert.equal(kept('KeyA', { isContentEditable: true }), false);
+});

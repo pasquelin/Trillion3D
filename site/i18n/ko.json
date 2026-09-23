@@ -418,7 +418,7 @@
       },
       "add-a-shape": {
         "title": "모양 추가하기",
-        "description": "여러분이 보는 모든 것은 메시입니다: 재질(머티리얼)이 입혀진 모양이죠. <code>geometry</code>로 모양을 만들고, <code>object.mesh</code>로 메시로 감싼 뒤, 씬에 추가하세요.",
+        "description": "여러분이 보는 모든 것은 메시입니다: 재질(머티리얼)이 입혀진 모양이죠. `geometry`로 모양을 만들고, `object.mesh`로 메시로 감싼 뒤, 씬에 추가하세요.",
         "steps": [
           "모양, 즉 <em>지오메트리</em>는 형태만을 나타냅니다: 모서리와 면이죠. <code>geometry.box(1, 1, 1)</code>은 한 변이 1미터인 정육면체이고, <code>geometry.sphere(0.75)</code>는 공입니다. 원기둥, 원뿔, 고리, 토러스 등도 있습니다.",
           "<em>메시</em>는 모양에 재질을 더한 것입니다: <code>object.mesh(shape, material)</code>. 재질은 다음 챕터에서 다룹니다.",
@@ -430,7 +430,7 @@
       },
       "give-it-a-material": {
         "title": "재질 입히기",
-        "description": "재질은 표면이 무엇으로 이루어져 있는지를 나타냅니다: 색깔, 금속 여부, 얼마나 거친지 등이죠. <code>material.meshStandard</code> 하나로 거의 모든 경우를 다룰 수 있습니다.",
+        "description": "재질은 표면이 무엇으로 이루어져 있는지를 나타냅니다: 색깔, 금속 여부, 얼마나 거친지 등이죠. `material.meshStandard` 하나로 거의 모든 경우를 다룰 수 있습니다.",
         "steps": [
           "<code>color</code>는 물감과 같은 것으로, 웹 색상 표기법을 씁니다: <code>'#e8a25a'</code>.",
           "<code>metalness</code>는 0(플라스틱, 점토, 나무)부터 1(금속)까지입니다. 금속은 주변의 색을 비춥니다.",
@@ -442,7 +442,7 @@
       },
       "light-it": {
         "title": "조명 비추기",
-        "description": "조명이 없으면 모든 것이 새까맣습니다. <code>light</code> 계열로 조명을 추가하고, 그림자도 드리우게 해 보세요.",
+        "description": "조명이 없으면 모든 것이 새까맣습니다. `light` 계열로 조명을 추가하고, 그림자도 드리우게 해 보세요.",
         "steps": [
           "<code>light.directional</code>은 태양광입니다: 모든 광선이 같은 방향으로 나아가며, <code>position</code>이 빛이 비치는 방향을 정합니다.",
           "<code>light.point</code>는 전구입니다: 사방으로 빛나며 <code>distance</code>에 따라 점점 약해집니다. <code>light.spot</code>은 손전등처럼 원뿔 모양으로 빛납니다.",
@@ -454,7 +454,7 @@
       },
       "move-the-camera": {
         "title": "카메라 움직이기",
-        "description": "카메라는 여러분이 이 세계를 바라보는 눈입니다. 코드로 배치한 뒤, <code>world.controls</code>로 사용자가 직접 움직이게 해 보세요.",
+        "description": "카메라는 여러분이 이 세계를 바라보는 눈입니다. 코드로 배치한 뒤, `world.controls`로 사용자가 직접 움직이게 해 보세요.",
         "steps": [
           "<code>world.camera.position.set(x, y, z)</code>는 눈을 어딘가에 두고, <code>world.camera.lookAt(x, y, z)</code>는 그것을 한 점 쪽으로 돌립니다.",
           "<em>컨트롤러</em>는 마우스, 손가락, 키보드 조작을 카메라 움직임으로 바꿔 줍니다. 월드를 만들 때 선택하세요: <code>createWorld('view', { controls: 'orbit' })</code>.",
@@ -466,7 +466,7 @@
       },
       "animate": {
         "title": "움직이게 만들기",
-        "description": "무언가를 움직이게 하려면, <code>world.onFrame</code>으로 매 화면을 그리기 전에 실행할 함수를 월드에 넘겨주세요.",
+        "description": "무언가를 움직이게 하려면, `world.onFrame`으로 매 화면을 그리기 전에 실행할 함수를 월드에 넘겨주세요.",
         "steps": [
           "월드는 1초에도 여러 번 새 화면을 그립니다. 그림 한 장을 <em>프레임</em>이라고 부릅니다. <code>world.onFrame(fn)</code>은 프레임마다 <code>fn</code>을 실행합니다.",
           "<code>fn</code>은 <code>delta</code>(지난 프레임 이후 지난 초)를 받습니다. 속도에 이 값을 곱하면, 빠른 화면에서도 느린 화면에서도 같은 속도로 움직이게 됩니다.",

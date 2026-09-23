@@ -5,8 +5,16 @@ import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldC
 import { controlSettingAccessors } from './worldControlsAccessors.ts';
 import { characterSettingAccessors } from './worldCharacterAccessors.ts';
 import { meshCollision } from '../../../../sdk-core/src/collision/meshTriangles.ts';
-import type { TriangleCollision } from '../../../../sdk-core/src/collision/characterCollision.ts';
+import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+
+/** What `world.controls.colliders` takes: meshes to build a triangle tree from, or a world. */
+type Colliders = Object3D | readonly Object3D[] | CharacterCollision | null;
+
+/** Whether `value` is a collision world rather than meshes: it answers the two questions. */
+const isCollision = (value: Colliders): value is CharacterCollision =>
+  typeof (value as Partial<CharacterCollision> | null)?.resolveCapsule === 'function' &&
+  typeof (value as Partial<CharacterCollision> | null)?.groundBelow === 'function';
 
 /**
  * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
@@ -34,8 +42,8 @@ export function worldControlsHandle(
   let kind = initial,
     enabled = true,
     current: Controller | null = null,
-    colliders: Object3D | readonly Object3D[] | null = null,
-    collision: TriangleCollision | null = null;
+    colliders: Colliders = null,
+    collision: CharacterCollision | null = null;
   const standingTarget = new Vector3(),
     settings = { ...CONTROL_SETTINGS };
   /** Whether the controller in place moves on its own — cruising, or a stick input held — and
@@ -101,22 +109,24 @@ export function worldControlsHandle(
      *  often and over whatever sub-steps it integrates; the world then never steps it. */
     autoUpdate: true,
     /**
-     * Character only: the meshes the body collides with — one object or a list, their
-     * descendants included — or `null`. Setting them builds a static triangle tree from their
-     * world-space triangles as they stand now: one pass over the triangles and an
-     * `O(T log T)` build, about 52 bytes kept per triangle. Compiled models are not read yet:
-     * give a simple mesh stand-in for them.
+     * Character only: what the body collides with, or `null`. Meshes — one object or a list,
+     * their descendants included — build a static triangle tree from their world-space
+     * triangles as they stand now: one pass over the triangles and an `O(T log T)` build, about
+     * 52 bytes kept per triangle. Compiled models are not read yet: give a simple mesh stand-in
+     * for them. A `CharacterCollision` — a physics backend's world, anything that answers
+     * `resolveCapsule` and `groundBelow` — is used as it is.
      */
-    get colliders() {
+    get colliders(): Object3D | readonly Object3D[] | CharacterCollision | null {
       return colliders;
     },
-    set colliders(next: Object3D | readonly Object3D[] | null) {
+    set colliders(next: Object3D | readonly Object3D[] | CharacterCollision | null) {
       colliders = next;
       handle.rebuildColliders();
     },
-    /** Character only: builds the collision tree again, after the colliders moved or changed. */
+    /** Character only: builds the collision tree again, after the colliders moved or changed; a
+     *  `CharacterCollision` is its own world and is handed on unchanged. */
     rebuildColliders() {
-      collision = colliders ? meshCollision(colliders) : null;
+      collision = isCollision(colliders) ? colliders : colliders ? meshCollision(colliders) : null;
       bound();
       invalidate();
     },
