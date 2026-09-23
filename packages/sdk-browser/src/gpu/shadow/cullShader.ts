@@ -6,8 +6,8 @@
  * half-angle. The others would be rejected anyway by the far plane or by the projection's
  * side planes and the scissor: the atlas comes out texel-for-texel identical.
  *
- * The source list is that of the main draw, selection included: the shadow pass therefore sees
- * exactly the same clusters as before, never one more.
+ * The source list is that of the main compact, selection included, with its commands as posted
+ * before the occlusion test truncates them: a caster the camera cannot see still casts.
  */
 export const SHADOW_CULL_SHADER = `struct Sphere{center:vec3f,radius:f32,}
 struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,}
