@@ -1,4 +1,4 @@
-import type { DagWarning } from '../sdk-core/index.ts';
+import type { DagWarning } from '../sdk-core/src/index.ts';
 
 /** DAG warnings of a job, summarised in one line: how many per code, and the worst. */
 export function dagWarningsTally() {

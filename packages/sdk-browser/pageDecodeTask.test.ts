@@ -2,11 +2,11 @@
 // on the main thread. Hostile inputs: a page truncated before its header, a flipped magic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
+import { PAGE_DECODE_PROTOCOL } from '../sdk-core/src/index.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 import { restorePageDecode, runPageDecodeTask } from './pageDecodeTask.ts';
-import type { PageDecodeDone, PageDecodeFailed, PageDecodeRequest } from '../sdk-core/index.ts';
+import type { PageDecodeDone, PageDecodeFailed, PageDecodeRequest } from '../sdk-core/src/index.ts';
 
 function requete(overrides: Partial<PageDecodeRequest>): PageDecodeRequest {
   return {

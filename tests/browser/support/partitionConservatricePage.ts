@@ -7,7 +7,7 @@
 // cluster by cluster (`partitionReference.ts`).
 
 import type * as SdkBrowser from '../../../packages/sdk-browser/measurement.ts';
-import type { CameraPose } from '../../../packages/sdk-core/index.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/backendTypes.ts';
 import { compareAudit, emptyTotals } from './partitionReference.ts';
 import { checkOcclusionAudit, emptyOcclusionTotals } from './transparentOcclusionReference.ts';

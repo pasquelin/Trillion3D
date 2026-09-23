@@ -1,4 +1,4 @@
-import { multiplyMatrix4, type Material } from '../sdk-core/index.ts';
+import { multiplyMatrix4, type Material } from '../sdk-core/src/index.ts';
 import type { HostMaterial, HostMaterials } from './hostResources.ts';
 import {
   copyHostGeometry,

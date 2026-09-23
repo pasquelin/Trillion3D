@@ -5,7 +5,7 @@ import { computeRasterReady } from './webgpuPagesEncodeVisSetup.ts';
 import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { SHADE_UNIFORM_BYTES, writeSunSlice } from './visibilityShaderRequest.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 
 /** `uni.mode` of the resolve, per diagnostic view (`visibilityShaderShade.ts`); beauty is zero. */
 const SHADE_MODE: Partial<Record<DiagnosticMode, number>> = {

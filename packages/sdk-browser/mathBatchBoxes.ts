@@ -4,7 +4,7 @@ import {
   boxTransform,
   boxUnion,
   boxUnionBatch,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
 import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
 

@@ -1,7 +1,7 @@
 // Pure A1 and A5 oracles, no side effects: `hiz.bench.ts` measures them; unit tests import
 // them as reference. Importing this module runs neither a bench nor a file write.
 import * as THREE from 'three';
-import { perspectiveProjection } from '../../../packages/sdk-core/index.ts';
+import { perspectiveProjection } from '../../../packages/sdk-core/src/index.ts';
 import { DEPTH_CLEAR } from '../../../packages/sdk-browser/depthConvention.ts';
 import { HIZ_KERNEL_TEXELS } from '../../../packages/sdk-browser/hizCounts.ts';
 import { projectVisibilityVertex } from '../../../packages/sdk-browser/visibilityProjection.ts';

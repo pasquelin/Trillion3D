@@ -3,8 +3,8 @@
 // both signs, where a product started at zero and a product without an initial zero diverge.
 import * as THREE from 'three';
 import { graine } from '../../../core/index.ts';
-import { POINT_FACE_AXES } from '../../../../packages/sdk-core/sceneLightShadowFaces.ts';
-import { FULL_FACE } from '../../../../packages/sdk-core/sceneLightShadowVolume.ts';
+import { POINT_FACE_AXES } from '../../../../packages/sdk-core/src/scene/light-shadow/faces.ts';
+import { FULL_FACE } from '../../../../packages/sdk-core/src/scene/light-shadow/volume.ts';
 import { BORDS, affines, matrices } from './scenesSocle.ts';
 import { pageRecFixture } from './pageRecFixture.ts';
 import type { PageRec } from '../../../../packages/sdk-browser/pageSelectionTypes.ts';

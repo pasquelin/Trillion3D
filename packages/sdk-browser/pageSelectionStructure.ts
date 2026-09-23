@@ -1,4 +1,4 @@
-import type { ClusterStructure } from '../sdk-core/index.ts';
+import type { ClusterStructure } from '../sdk-core/src/index.ts';
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 
 /**

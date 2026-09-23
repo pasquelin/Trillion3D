@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS, type BounceCascades } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS, type BounceCascades } from '../sdk-core/src/index.ts';
 
 /** Four-byte words of a level in the uniform: two `vec4f`, origin and base cell. */
 const LEVEL_WORDS = 8;

@@ -1,14 +1,14 @@
 // The world and its families: what a page writes (issue #319). One barrel per family folder.
 export * from './world/core/index.ts';
-export * from '../sdk-core/world/math/index.ts';
-export * from '../sdk-core/world/geometry/index.ts';
-export * from '../sdk-core/world/buffer/index.ts';
-export * from '../sdk-core/world/object/index.ts';
-export * from '../sdk-core/world/material/index.ts';
-export * from '../sdk-core/world/light/index.ts';
-export * from '../sdk-core/world/camera/index.ts';
-export * from '../sdk-core/world/animation/index.ts';
-export * from '../sdk-core/world/constants/index.ts';
+export * from '../sdk-core/src/world/math/index.ts';
+export * from '../sdk-core/src/world/geometry/index.ts';
+export * from '../sdk-core/src/world/buffer/index.ts';
+export * from '../sdk-core/src/world/object/index.ts';
+export * from '../sdk-core/src/world/material/index.ts';
+export * from '../sdk-core/src/world/light/index.ts';
+export * from '../sdk-core/src/world/camera/index.ts';
+export * from '../sdk-core/src/world/animation/index.ts';
+export * from '../sdk-core/src/world/constants/index.ts';
 export * from './world/texture/index.ts';
 export * from './world/loader/index.ts';
 export * from './world/helper/index.ts';
@@ -28,7 +28,7 @@ export type {
   StablePreview,
   FrameMetrics,
   ClusterManifest,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 export type { BackendDiagnostic, PointOfInterest } from './backendTypes.ts';
 export type { DiagnosticDetail } from './backendTypes.ts';
 /** The rows a mirrored mesh is placed through, reachable from the scene a loader records. */
@@ -85,14 +85,14 @@ export type {
 export type { AtlasLanes, LaneCounts, TextureCompression } from './textureBlockFormats.ts';
 export type { HostRetentionDelta, StreamPage } from './streamingTypes.ts';
 export type { BoxTransformLot, MultiplyLot } from './mathBatchRuntime.ts';
-export type { LightingCapabilities } from '../sdk-core/index.ts';
+export type { LightingCapabilities } from '../sdk-core/src/index.ts';
 export { framingFromBounds } from './framing.ts';
 export { presentationColorDiagnostic } from './presentationDiagnostic.ts';
 export { createGpuPageCache, httpPageSource } from './gpuPages.ts';
 export type { ResidentPage } from './gpuPages.ts';
 export { createPageStreamer } from './streamingPages.ts';
 export type { ComparisonLayout } from './comparison.ts';
-export { COMPARISON_LIBRARIES, LOD_QUALITY } from '../sdk-core/index.ts';
+export { COMPARISON_LIBRARIES, LOD_QUALITY } from '../sdk-core/src/index.ts';
 export { detectCapabilities } from './capabilities.ts';
 export {
   HIERARCHY_ROOT,
@@ -117,7 +117,7 @@ export {
   transformDirectionsBatch,
   transformPointsBatch,
   transformPointsByMatricesBatch,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 // The camera controllers a session hands out: their contract is public because
 // `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").

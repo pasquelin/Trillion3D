@@ -8,7 +8,7 @@ import { surfaceOf } from './pageSurface.ts';
 import { createBlendCopyRecord } from './blendCopyRecord.ts';
 import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import { refreshBlendBounds, refreshBlendWorlds } from './webgpuBlendWorlds.ts';
-import { BOX_VALUES } from '../sdk-core/index.ts';
+import { BOX_VALUES } from '../sdk-core/src/index.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
 /** A transparent item reduced to what the refresh reads: its matrix, box, geometry. The scene

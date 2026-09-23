@@ -31,7 +31,7 @@ import {
   maxStretch,
   multiplyMatrix4,
   transformAffinePoint,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 test('the request word yields the page and the priority that were put in it', () => {
   for (const page of [0, 1, 4095, 1959791, REQUEST_PAGE_MAX - 1])

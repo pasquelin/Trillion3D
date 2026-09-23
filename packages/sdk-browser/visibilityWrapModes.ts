@@ -1,4 +1,4 @@
-import type { Texture, WrapMode } from '../sdk-core/index.ts';
+import type { Texture, WrapMode } from '../sdk-core/src/index.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /**

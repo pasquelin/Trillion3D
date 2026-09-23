@@ -14,7 +14,7 @@ import {
   POLAR_EPSILON,
   RADIUS_EPSILON,
   toSpherical,
-} from '../sdk-core/world/math/spherical.ts';
+} from '../sdk-core/src/world/math/spherical.ts';
 import type { ControlCamera, PivotCameraControls } from './cameraControlTypes.ts';
 
 /**

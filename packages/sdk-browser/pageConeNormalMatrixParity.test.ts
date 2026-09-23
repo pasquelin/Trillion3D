@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { assertBits } from '../../tests/kit/assert/bits.ts';
-import { normalMatrix3 } from '../sdk-core/index.ts';
+import { normalMatrix3 } from '../sdk-core/src/index.ts';
 import { coneContextFor, createConeContext } from './pageCone.ts';
 import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
 

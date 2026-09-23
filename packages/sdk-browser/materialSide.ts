@@ -1,4 +1,4 @@
-import type { Side } from '../sdk-core/index.ts';
+import type { Side } from '../sdk-core/src/index.ts';
 import type { HostMaterial, HostMaterials } from './hostResources.ts';
 
 /** The host face constants, in the order glTF and every rendering library built on it number

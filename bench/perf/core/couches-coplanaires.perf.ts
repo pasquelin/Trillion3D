@@ -1,5 +1,5 @@
 // coplanar layer units and the depth bias they apply on a f32.
-import { biasedDepthBits, depthLayerUnits } from '../../../packages/sdk-core/depthLayer.ts';
+import { biasedDepthBits, depthLayerUnits } from '../../../packages/sdk-core/src/lod/depthLayer.ts';
 import { graine, mesure, rapport } from '../../core/index.ts';
 import {
   referenceBiasedDepthBits,
@@ -32,7 +32,7 @@ const unites =
 
 const mesureUnites = await mesure({
   name: 'coplanar layer units',
-  fichier: 'packages/sdk-core/depthLayer.ts',
+  fichier: 'packages/sdk-core/src/lod/depthLayer.ts',
   cas: [{ name: '50 000 layers', size: 50000, input: couches(50000) }],
   calcul: unites(depthLayerUnits),
   attendu: unites(referenceDepthLayerUnits),
@@ -53,7 +53,7 @@ const biaise =
 
 const mesureBits = await mesure({
   name: 'biased depth bits',
-  fichier: 'packages/sdk-core/depthLayer.ts',
+  fichier: 'packages/sdk-core/src/lod/depthLayer.ts',
   cas: [
     { name: '50 000 pairs', size: 50000, input: paires(50000) },
     { name: 'layer 0', size: 10000, input: paires(10000, 0) },

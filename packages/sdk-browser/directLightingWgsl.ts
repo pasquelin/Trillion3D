@@ -1,7 +1,7 @@
 import { residentProxyWgsl } from './bounceNodeWgsl.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
 import { RECT_SHADING_WGSL } from './directRectLightWgsl.ts';
-import { IRRADIANCE_BAND } from '../sdk-core/sceneEnvironment.ts';
+import { IRRADIANCE_BAND } from '../sdk-core/src/scene/core/environment.ts';
 import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from './surfaceModel.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL } from './directLightSamplingWgsl.ts';
 import { DIRECT_SHADOW_WGSL } from './directShadowWgsl.ts';

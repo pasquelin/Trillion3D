@@ -1,4 +1,4 @@
-import { matrixWindingCw } from '../sdk-core/index.ts';
+import { matrixWindingCw } from '../sdk-core/src/index.ts';
 import { refreshSurface, surfaceSide } from './pageSurface.ts';
 import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './webgpuBlendRuns.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './webgpuBlendState.ts';

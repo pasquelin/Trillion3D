@@ -1,4 +1,4 @@
-import { clipPlanesFromMatrix, frustumFarPlane, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { clipPlanesFromMatrix, frustumFarPlane, multiplyMatrix4 } from '../sdk-core/src/index.ts';
 import type { ConeContext } from './pageCone.ts';
 import {
   clearForcedMarks,

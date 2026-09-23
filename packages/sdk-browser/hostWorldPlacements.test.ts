@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import { blendFixture } from './pageSelectionBlendFixture.ts';

@@ -10,7 +10,7 @@ import type {
   BackendFactory,
   BackendDiagnostic,
 } from '../../../packages/sdk-browser/backendTypes.ts';
-import type * as SdkCore from '../../../packages/sdk-core/index.ts';
+import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 /** Background the page and both engines clear to, so an uncovered pixel is one colour. */
 export const CLEAR_COLOR = 0x2a303c;

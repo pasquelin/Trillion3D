@@ -4,7 +4,7 @@ import {
   createHostDrawCamera,
   readHostDrawCamera,
 } from '../../../packages/sdk-browser/cameraWorld.ts';
-import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/index.ts';
+import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 
 const p50 = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 

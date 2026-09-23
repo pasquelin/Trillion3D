@@ -11,7 +11,7 @@
 // node --experimental-strip-types tests/browser/probes/erreur-ecran-cpu-gpu.ts [n]
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { maxStretch } from '../../../packages/sdk-core/index.ts';
+import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
 import {
   cutSelects,
   projectedClusterError,

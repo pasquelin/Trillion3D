@@ -2,7 +2,7 @@
 // host reads the clear colour and walks the children, and prepare takes each copy back out.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { srgbToLinear } from '../sdk-core/index.ts';
+import { srgbToLinear } from '../sdk-core/src/index.ts';
 import { createBlendScene } from './blendSceneRecord.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import type { HostNode } from './hostResources.ts';

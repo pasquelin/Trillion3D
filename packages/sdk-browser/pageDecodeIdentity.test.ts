@@ -6,12 +6,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
+import { PAGE_DECODE_PROTOCOL } from '../sdk-core/src/index.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { decodeGeometryPageWasm, prepareSdkWasm } from './geometryPageWasm.ts';
 import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 import { runPageDecodeTask } from './pageDecodeTask.ts';
-import type { PageDecodeDone } from '../sdk-core/index.ts';
+import type { PageDecodeDone } from '../sdk-core/src/index.ts';
 
 const MAX = 16 * 1024 * 1024;
 const MODULE = readFileSync(join(import.meta.dirname, 'pageCodec.wasm'));

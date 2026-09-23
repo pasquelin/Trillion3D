@@ -8,8 +8,11 @@ import {
   dotVector3,
   lengthSqVector3,
   transformAffinePoint,
-} from '../../../packages/sdk-core/mathVector.ts';
-import { hslToLinearRgb, srgbToLinear } from '../../../packages/sdk-core/mathColor.ts';
+} from '../../../packages/sdk-core/src/math/primitives/vector.ts';
+import {
+  hslToLinearRgb,
+  srgbToLinear,
+} from '../../../packages/sdk-core/src/math/primitives/color.ts';
 import { rapport } from '../../core/index.ts';
 import {
   N,
@@ -21,7 +24,7 @@ import {
   trsMatrices,
 } from '../../oracles/core/three-duel.ts';
 
-const VECTORS = 'packages/sdk-core/mathVector.ts';
+const VECTORS = 'packages/sdk-core/src/math/primitives/vector.ts';
 const m = trsMatrices(N);
 const u = points(N),
   v = points(N);
@@ -111,7 +114,7 @@ lines.push(
 );
 
 // Colours: three seeded channels per element, decoded or built on both sides, three stores each.
-const COLOR = 'packages/sdk-core/mathColor.ts';
+const COLOR = 'packages/sdk-core/src/math/primitives/color.ts';
 const channel = Float64Array.from({ length: N * 3 }, () => alea());
 const color = new THREE.Color();
 const colorsThree = new Float64Array(N * 3);

@@ -13,7 +13,7 @@
 //
 // node --experimental-strip-types tests/browser/probes/erreur-ecran-borne.ts [cas]
 import assert from 'node:assert/strict';
-import { clusterErrorPixels } from '../../../packages/sdk-core/index.ts';
+import { clusterErrorPixels } from '../../../packages/sdk-core/src/index.ts';
 import { ancienne, tirerCas, pireDuCas } from './erreurEcranBorneCas.ts';
 
 interface Serie {

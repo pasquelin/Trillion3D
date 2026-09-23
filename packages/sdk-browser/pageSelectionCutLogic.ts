@@ -1,4 +1,4 @@
-import { maxStretch } from '../sdk-core/index.ts';
+import { maxStretch } from '../sdk-core/src/index.ts';
 import { frameClusterError } from './pageSelectionFrame.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import { forceScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';

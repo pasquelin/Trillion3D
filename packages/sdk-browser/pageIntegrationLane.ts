@@ -1,5 +1,5 @@
-import { PAGE_INTEGRATION_PROTOCOL } from '../sdk-core/index.ts';
-import type { PageIntegrationAnswer, PageIntegrationRequest } from '../sdk-core/index.ts';
+import { PAGE_INTEGRATION_PROTOCOL } from '../sdk-core/src/index.ts';
+import type { PageIntegrationAnswer, PageIntegrationRequest } from '../sdk-core/src/index.ts';
 
 const workerError = (id: number, url: string): PageIntegrationAnswer => ({
   protocol: PAGE_INTEGRATION_PROTOCOL,

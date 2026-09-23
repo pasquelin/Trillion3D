@@ -3,7 +3,7 @@
  * geometries. No computation here: the sphere comes from `mathSphere.ts`, and reading a host
  * box needs no library at all (`hostBoxBounds.ts`).
  */
-import { sphereFromBounds } from '../sdk-core/index.ts';
+import { sphereFromBounds } from '../sdk-core/src/index.ts';
 import * as THREE from 'three';
 
 const sphere = new Float64Array(4);

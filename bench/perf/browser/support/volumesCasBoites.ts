@@ -10,7 +10,7 @@ import {
   boxTransform,
   boxUnion,
   sphereFromBounds,
-} from '../../../../packages/sdk-core/index.ts';
+} from '../../../../packages/sdk-core/src/index.ts';
 import type { MesureCas } from '../../../core/index.ts';
 import { boitesHierarchiques } from './scenesHierarchies.ts';
 import { boites, matrices } from './scenesVolumes.ts';
@@ -39,7 +39,7 @@ const transformations: [number[], number[]][] = boites.flatMap((b, i) =>
 export const casBoites: CasVolume[] = [
   casVolume({
     calcul: 'empty box and emptiness test',
-    fichier: 'packages/sdk-core/mathBox.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/box.ts',
     cas: un('hostile boxes', boites),
     reference: (liste: number[][]) => [
       aPlat(new THREE.Box3().makeEmpty()),
@@ -53,7 +53,7 @@ export const casBoites: CasVolume[] = [
   }),
   casVolume({
     calcul: 'union of two boxes',
-    fichier: 'packages/sdk-core/mathBox.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/box.ts',
     cas: un('hostile box pairs', paires),
     reference: (liste: [number[], number[]][]) =>
       liste.map(([a, b]) => aPlat(boite3(a).union(boite3(b)))),
@@ -66,7 +66,7 @@ export const casBoites: CasVolume[] = [
   }),
   casVolume({
     calcul: 'extension of a box by two points',
-    fichier: 'packages/sdk-core/mathBox.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/box.ts',
     cas: un('hostile box pairs', paires),
     reference: (liste: [number[], number[]][]) =>
       liste.map(([a, b]) => {
@@ -84,7 +84,7 @@ export const casBoites: CasVolume[] = [
   }),
   casVolume({
     calcul: 'transform of a box by a matrix',
-    fichier: 'packages/sdk-core/mathBox.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/box.ts',
     cas: etHierarchies('boxes × hostile matrices', transformations),
     reference: (liste: [number[], number[]][]) =>
       liste.map(([b, m]) => aPlat(boite3(b).applyMatrix4(new THREE.Matrix4().fromArray(m)))),
@@ -101,7 +101,7 @@ export const casBoites: CasVolume[] = [
   }),
   casVolume({
     calcul: 'eight transformed corners of a box',
-    fichier: 'packages/sdk-core/mathBox.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/box.ts',
     cas: etHierarchies('boxes × hostile matrices', transformations),
     reference: (liste: [number[], number[]][]) =>
       liste.map(([b, m]) => {
@@ -123,7 +123,7 @@ export const casBoites: CasVolume[] = [
   }),
   casVolume({
     calcul: 'bounding sphere of a transformed box',
-    fichier: 'packages/sdk-core/mathSphere.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/sphere.ts',
     cas: etHierarchies('boxes × hostile matrices', transformations),
     reference: (liste: [number[], number[]][]) =>
       liste.map(([b, m]) => {
@@ -142,7 +142,7 @@ export const casBoites: CasVolume[] = [
   }),
   casVolume({
     calcul: 'bounding sphere of a box',
-    fichier: 'packages/sdk-core/mathSphere.ts',
+    fichier: 'packages/sdk-core/src/math/primitives/sphere.ts',
     cas: un('hostile boxes', boites),
     reference: (liste: number[][]) =>
       liste.map((b) => {

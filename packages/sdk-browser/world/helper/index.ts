@@ -1,16 +1,16 @@
-import { BufferAttribute } from '../../../sdk-core/world/buffer/index.ts';
-import { Geometry } from '../../../sdk-core/world/geometry/geometry.ts';
-import { cone } from '../../../sdk-core/world/geometry/basic.ts';
-import { Material } from '../../../sdk-core/world/material/material.ts';
-import { Group, Object3D } from '../../../sdk-core/world/object/object3d.ts';
-import { Mesh } from '../../../sdk-core/world/object/mesh.ts';
-import { Box3 } from '../../../sdk-core/world/math/box3.ts';
-import { Quaternion } from '../../../sdk-core/world/math/quaternion.ts';
-import { Vector3 } from '../../../sdk-core/world/math/vector3.ts';
-import type { ColorInput } from '../../../sdk-core/world/math/color.ts';
-import type { Plane } from '../../../sdk-core/world/math/volumes.ts';
-import type { Camera } from '../../../sdk-core/world/camera/camera.ts';
-import type { Light } from '../../../sdk-core/world/light/light.ts';
+import { BufferAttribute } from '../../../sdk-core/src/world/buffer/index.ts';
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
+import { cone } from '../../../sdk-core/src/world/geometry/basic.ts';
+import { Material } from '../../../sdk-core/src/world/material/material.ts';
+import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
+import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
+import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
+import type { ColorInput } from '../../../sdk-core/src/world/math/color.ts';
+import type { Plane } from '../../../sdk-core/src/world/math/volumes.ts';
+import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
+import type { Light } from '../../../sdk-core/src/world/light/light.ts';
 
 /** Line segments through `points` (two corners per segment), in one colour. */
 function lines(points: number[], color: ColorInput) {

@@ -20,7 +20,7 @@ import {
   type PreparedSceneTables,
   type TableNode,
   type Texture,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { HostTexture } from './hostResources.ts';
 import type { HostGraphNode } from './hostGraphNodes.ts';
 import { checked } from './clusterPages.ts';

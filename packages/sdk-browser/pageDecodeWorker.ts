@@ -1,4 +1,4 @@
-import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
+import { PAGE_DECODE_PROTOCOL } from '../sdk-core/src/index.ts';
 import { runPageDecodeTask } from './pageDecodeTask.ts';
 import { SHARED_READY, STATE, attachPageArena, slotField } from './pageDecodeShared.ts';
 import { writeSharedPage } from './pageDecodeSharedPage.ts';
@@ -8,7 +8,7 @@ import type {
   PageDecodeCancel,
   PageDecodeRequest,
   PageDecodeShare,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * Entry point of the decode worker. Platform adapter: this file is loaded only in a module

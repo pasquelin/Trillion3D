@@ -1,4 +1,4 @@
-import type { PageSource } from '../../../sdk-core/index.ts';
+import type { PageSource } from '../../../sdk-core/src/index.ts';
 import { createGpuPageCache, httpPageSource } from '../../gpuPages.ts';
 import { decodeGeometryPage } from '../../geometryPage.ts';
 import { DEFAULT_PAGE_WORKERS } from '../../backendCommon.ts';

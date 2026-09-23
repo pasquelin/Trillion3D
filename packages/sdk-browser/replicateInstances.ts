@@ -1,7 +1,7 @@
 import type { HostNode } from './hostResources.ts';
 import type { HostGraphMesh, HostGraphNode } from './hostGraphNodes.ts';
 import { hostGroup, hostMeshCopy } from './hostGraphObjects.ts';
-import { MATRIX_VALUES, boxIsEmpty, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { MATRIX_VALUES, boxIsEmpty, multiplyMatrix4 } from '../sdk-core/src/index.ts';
 import type { MultiplyLot } from './mathBatchRuntime.ts';
 import { ENGINE_OWNED } from './hostSceneWatch.ts';
 import { hostWorldBounds } from './hostWorldBounds.ts';

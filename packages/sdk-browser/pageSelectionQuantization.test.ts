@@ -10,7 +10,7 @@ import { cullingNodes, quantizationErrorOf } from './pageSelectionHelpers.ts';
 import { structureIndex } from './pageSelectionStructure.ts';
 import { dagLevel } from './webgpuPagesTestDag.ts';
 import { QUAD_MANIFEST, quadIndices, quadScene } from './pagesBackendScenes.ts';
-import type { ClusterManifest, PrimitiveQuantization } from '../sdk-core/index.ts';
+import type { ClusterManifest, PrimitiveQuantization } from '../sdk-core/src/index.ts';
 
 const ERROR = 0.25;
 const QUANTIZATION: PrimitiveQuantization = {

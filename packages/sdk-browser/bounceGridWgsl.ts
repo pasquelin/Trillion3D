@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../sdk-core/src/index.ts';
 
 /**
  * The Lambert constant, 1/π, that both bounce passes apply to probe irradiance: the

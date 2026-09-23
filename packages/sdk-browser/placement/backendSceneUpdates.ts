@@ -1,4 +1,4 @@
-import type { Material } from '../../sdk-core/index.ts';
+import type { Material } from '../../sdk-core/src/index.ts';
 import type { DecodedGeometryPage } from '../geometryPage.ts';
 import type { PlacementRows } from './placementRows.ts';
 

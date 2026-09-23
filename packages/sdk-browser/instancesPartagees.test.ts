@@ -11,7 +11,7 @@ import {
   ensureBlendUvBuffer,
 } from './webgpuBlendBuffers.ts';
 import { createWebgpuGpuState } from './webgpuPagesStateGpu.ts';
-import type { ClusterManifest, Primitive } from '../sdk-core/index.ts';
+import type { ClusterManifest, Primitive } from '../sdk-core/src/index.ts';
 
 /** A device that only knows how to create buffers and count what is written to them. */
 function fakeDevice() {

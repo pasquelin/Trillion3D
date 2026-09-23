@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from 'three';
-import { LIGHT_SETTINGS, createSceneLightStore } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS, createSceneLightStore } from '../sdk-core/src/index.ts';
 import { attachContractLights } from './exactPagesContractLights.ts';
 import { installSceneLighting } from './sceneLighting.ts';
 import { hostAimNode } from './hostSceneObjects.ts';

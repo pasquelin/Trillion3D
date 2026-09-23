@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { emitExplorerFrameDiagnostic } from './explorerFrameDiagnostic.ts';
 import type { RenderBackend } from './backendTypes.ts';
-import type { FrameMetrics } from '../sdk-core/index.ts';
+import type { FrameMetrics } from '../sdk-core/src/index.ts';
 
 test('emitExplorerFrameDiagnostic: the published camera is the world pose, under a rig the host does not walk', () => {
   const rig = new THREE.Object3D();

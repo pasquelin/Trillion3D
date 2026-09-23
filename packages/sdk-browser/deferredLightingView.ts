@@ -4,8 +4,8 @@
  * the background and the contract's light parameters. One buffer, one packed array, written
  * once per image; the shader-side layout is the struct in `deferredLightingShaders.ts`.
  */
-import { clearValueOf } from '../sdk-core/world/math/packedColour.ts';
-import { TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
+import { clearValueOf } from '../sdk-core/src/world/math/packedColour.ts';
+import { TONE_MAPPING_RANK } from '../sdk-core/src/scene/core/environment.ts';
 
 const DEFERRED_VIEW_BYTES = 144;
 

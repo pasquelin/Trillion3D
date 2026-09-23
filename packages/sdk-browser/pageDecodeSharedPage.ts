@@ -1,4 +1,4 @@
-import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
+import { PAGE_DECODE_PROTOCOL } from '../sdk-core/src/index.ts';
 import {
   ATTRS,
   ATTR_BASE,
@@ -19,7 +19,7 @@ import {
   slotField,
 } from './pageDecodeShared.ts';
 import type { PageArena } from './pageDecodeShared.ts';
-import type { PageDecodeDone } from '../sdk-core/index.ts';
+import type { PageDecodeDone } from '../sdk-core/src/index.ts';
 
 /**
  * A decoded page in a slot's region, and the same page reread by the main thread.

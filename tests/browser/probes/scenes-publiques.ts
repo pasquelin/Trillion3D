@@ -23,7 +23,7 @@ import { ASSETS, sceneDerived } from '../../../bench/runner/scene.ts';
 
 /**
  * The compile report a primitive carries beside the runtime contract: the engine consumes its
- * `warnings` alone (`packages/sdk-core/dagContracts.ts`), the rest is what the cook wrote down
+ * `warnings` alone (`packages/sdk-core/src/contracts/dag.ts`), the rest is what the cook wrote down
  * about the hierarchy it built, and what a proof about the shape of a DAG has to read.
  */
 interface DagLevels {

@@ -5,7 +5,7 @@ import { createPanZoomCameraControls } from './cameraPanZoomControls.ts';
 import { createTrackballCameraControls } from './cameraTrackballControls.ts';
 import type { PivotCameraControls } from './cameraControlTypes.ts';
 import { copyElements } from './matrixElements.ts';
-import type { CameraPose } from '../sdk-core/index.ts';
+import type { CameraPose } from '../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, PointOfInterest, RenderBackend } from './backendTypes.ts';
 import { resolveCameraWorld, type HostCamera } from './cameraWorld.ts';
 

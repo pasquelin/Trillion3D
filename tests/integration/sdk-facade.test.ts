@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
 import * as common from '../../packages/sdk/index.ts';
-import * as core from '../../packages/sdk-core/index.ts';
+import * as core from '../../packages/sdk-core/src/index.ts';
 import * as browser from '../../packages/sdk/browser.ts';
 import * as browserLegacy from '../../packages/sdk-browser/index.ts';
 
@@ -152,11 +152,11 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
       treeShaking: true,
       minify: true,
     });
-  const baseline = await bundle('./packages/sdk-core/index.ts');
+  const baseline = await bundle('./packages/sdk-core/src/index.ts');
   const proposed = await bundle('./packages/sdk/index.ts');
   const browserProposed = await bundle('./packages/sdk/browser.ts');
   const inputs = Object.keys(proposed.metafile.inputs);
-  assert.ok(inputs.some((path) => path.endsWith('mathBatch.ts')));
+  assert.ok(inputs.some((path) => path.endsWith('/math/batch/batch.ts')));
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')));
   assert.equal(baseline.outputFiles[0].contents.length, 5_510);
   assert.equal(proposed.outputFiles[0].contents.length, 1_780);

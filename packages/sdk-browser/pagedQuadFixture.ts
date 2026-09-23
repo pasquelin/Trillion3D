@@ -5,7 +5,7 @@ import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { QUAD_MANIFEST, quadScene } from './pagesBackendScenes.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import type { BackendDiagnostic } from './backendTypes.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 
 const POSITIONS = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]);
 /** The two triangles of the quad, as the corner lists a compiler would cluster them into. */

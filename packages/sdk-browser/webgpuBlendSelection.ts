@@ -1,4 +1,4 @@
-import { frustumExcludesBox } from '../sdk-core/index.ts';
+import { frustumExcludesBox } from '../sdk-core/src/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import { rowParked } from './placement/placementRows.ts';
 import type { createWebgpuBlendState } from './webgpuBlendState.ts';

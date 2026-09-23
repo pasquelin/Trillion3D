@@ -1,4 +1,4 @@
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 
 /**
  * The one named refusal of the autonomous WebGL2 path: at preparation, where it fails the

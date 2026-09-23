@@ -1,4 +1,4 @@
-import type { Scene } from '../sdk-core/lightingExperimentScene.ts';
+import type { Scene } from '../sdk-core/src/lighting/scene/experimentScene.ts';
 
 /** Preorder binary tree; each node stores min.xyz/escape and max.xyz/surface.
  * An internal node has surface=-1 and its first child immediately follows it.

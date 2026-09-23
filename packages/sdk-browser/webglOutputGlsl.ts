@@ -1,4 +1,4 @@
-import { TONE_MAPPING_RANK as R } from '../sdk-core/sceneEnvironment.ts';
+import { TONE_MAPPING_RANK as R } from '../sdk-core/src/scene/core/environment.ts';
 import { shaderFloat } from './shaderConstants.ts';
 import { ACES, AGX, CINEON, NEUTRAL } from './toneCurveConstants.ts';
 

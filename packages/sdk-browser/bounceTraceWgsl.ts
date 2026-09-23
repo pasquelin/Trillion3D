@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS, PROXY_CHILDREN, PROXY_TRIANGLE_FLOATS } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS, PROXY_CHILDREN, PROXY_TRIANGLE_FLOATS } from '../sdk-core/src/index.ts';
 import { BOUNCE_NODE_WGSL } from './bounceNodeWgsl.ts';
 
 /**

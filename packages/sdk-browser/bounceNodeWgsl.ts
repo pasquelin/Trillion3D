@@ -1,4 +1,4 @@
-import { PROXY_CHILD_WORDS, PROXY_NODE_FLOATS, PROXY_NODE_WORDS } from '../sdk-core/index.ts';
+import { PROXY_CHILD_WORDS, PROXY_NODE_FLOATS, PROXY_NODE_WORDS } from '../sdk-core/src/index.ts';
 
 /**
  * The resident proxy lives in **a single storage buffer**, header included.

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { dagRoots } from './webgpuPagesTestDag.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import type { BackendContext } from './backendTypes.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 import {
   QUAD_MANIFEST,
   frontCamera,

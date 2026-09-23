@@ -24,7 +24,7 @@ import {
 import { HIZ_BOUNDS_VALUES, projectCornersInto } from './hizCorners.ts';
 import { projectVisibilityVertex } from './visibilityProjection.ts';
 import { IDENTITY_ELEMENTS } from './matrixElements.ts';
-import { boxCornersInto } from '../sdk-core/index.ts';
+import { boxCornersInto } from '../sdk-core/src/index.ts';
 
 const LARGEUR = 800,
   HAUTEUR = 450,

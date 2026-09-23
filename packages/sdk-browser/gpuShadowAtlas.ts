@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, SHADOW_SLICE_FLOATS } from '../sdk-core/src/index.ts';
 import { SHADOW_DEPTH_SHADER } from './gpuShadowShader.ts';
 import { MAX_SHADOW_REGIONS, createShadowSlicePack } from './gpuShadowSlicePack.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';

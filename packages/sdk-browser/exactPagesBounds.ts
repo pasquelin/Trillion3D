@@ -3,7 +3,7 @@ import type { HostGraphMesh, HostGraphNode } from './hostGraphNodes.ts';
 import { hostWorldTree } from './hostWorldTree.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { emptyWorldBox } from './hostWorldBounds.ts';
-import { type ClusterManifest } from '../sdk-core/index.ts';
+import { type ClusterManifest } from '../sdk-core/src/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
 import { boxUnionCollector } from './mathBatchBoxes.ts';
 import type { BackendContext } from './backendTypes.ts';

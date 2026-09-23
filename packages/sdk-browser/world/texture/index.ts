@@ -1,4 +1,4 @@
-import { Texture } from '../../../sdk-core/world/texture/texture.ts';
+import { Texture } from '../../../sdk-core/src/world/texture/texture.ts';
 
 /** Pixels held in memory, with the size they span: what a data texture samples. */
 export type PixelImage = { data: ArrayBufferView; width: number; height: number; depth?: number };

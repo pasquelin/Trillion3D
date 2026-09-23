@@ -1,4 +1,4 @@
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import type { MeasuredWorldOptions } from './explorerOptions.ts';

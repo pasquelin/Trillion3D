@@ -1,7 +1,10 @@
 // Oracles for batch F, vector side of sdk-core: `lightingSceneMath.ts:15` and
 // `lightingTransportValidation.ts:68` copied as is. Point F20 on `sceneLightShadowFaces.ts`
 // (`multiply4`) is non-applicable: the shadows batch on develop removed this function.
-import type { Patch, Scene } from '../../../packages/sdk-core/lightingExperimentScene.ts';
+import type {
+  Patch,
+  Scene,
+} from '../../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
 
 /** `lightingSceneMath.ts` before batch F: length was computed via argument spreading. */
 export const referenceLength = (v: readonly number[]) => Math.hypot(...v);

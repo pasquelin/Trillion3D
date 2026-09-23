@@ -88,7 +88,7 @@ test('a cache with no cluster error falls back on the screen footprint of the bo
 
 // `orderPendingUrls` used to compose its view with a 4×4 product written inline (accumulator at `0`);
 // it now uses `multiplyMatrix4`, which has no initial sum and can therefore yield -0 where
-// the old one always yielded +0 (see `packages/sdk-core/mathMatrix4.test.ts`). This test checks that
+// the old one always yielded +0 (see `packages/sdk-core/src/math/matrix/matrix4.test.ts`). This test checks that
 // the public order the queue returns stays identical to the previous code on matrices hostile
 // to signed zeros; the oracle is `referenceOrder`, the copy of the previous code from the attach.
 test('orderPendingUrls: matrices hostile to signed zeros (aligned axes, ±0) — same order as previous code', () => {

@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { createAutonomousInstances, deplaceInstance } from './autonomousInstances.ts';
 import { asHostLibrary, type HostMaterial } from './hostResources.ts';
 import type { MatrixElements } from './matrixElements.ts';
-import type { Material } from '../sdk-core/index.ts';
+import type { Material } from '../sdk-core/src/index.ts';
 
 /** The records carry the contract pose; the oracle and the assertions read a host matrix. */
 const pose = (matrix: MatrixElements) => asHostLibrary<THREE.Matrix4>(matrix);

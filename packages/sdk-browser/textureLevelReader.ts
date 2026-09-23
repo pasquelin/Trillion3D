@@ -2,7 +2,7 @@ import {
   PREVIEW_LOSSLESS_FORMAT,
   textureLevelUrl,
   type TextureLevelFormat,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { checked } from './clusterPages.ts';
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —

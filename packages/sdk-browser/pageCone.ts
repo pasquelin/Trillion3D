@@ -6,7 +6,7 @@ import {
   boxConeRejects,
   linearPartScale,
   normalMatrix3,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 export type NormalCone = { axis: [number, number, number]; angle: number };

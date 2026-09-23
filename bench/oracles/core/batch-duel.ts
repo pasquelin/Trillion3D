@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BOX_VALUES } from '../../../packages/sdk-core/mathBox.ts';
+import { BOX_VALUES } from '../../../packages/sdk-core/src/math/primitives/box.ts';
 import { N, alea, flatOf, points, trsMatrices, views } from './three-duel.ts';
 
 export { N };

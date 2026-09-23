@@ -1,6 +1,6 @@
 // the probe batch encoded by a bounce image, and the control loop of this batch on the
 // "Bounce" stage duration measured on the GPU.
-import { bounceBatchOf, createBounceBudget } from '../../../packages/sdk-core/bounceBudget.ts';
+import { bounceBatchOf, createBounceBudget } from '../../../packages/sdk-core/src/bounce/budget.ts';
 import { graine, mesure, rapport } from '../../core/index.ts';
 import { referenceBounceBatch, referenceBudgetSequence } from '../../oracles/core/rebond-sondes.ts';
 import type { ReferenceBudget } from '../../oracles/core/rebond-sondes.ts';
@@ -23,7 +23,7 @@ const lot =
 
 const mesureLot = await mesure({
   name: 'bounce batch',
-  fichier: 'packages/sdk-core/bounceBudget.ts',
+  fichier: 'packages/sdk-core/src/bounce/budget.ts',
   cas: [
     {
       name: '10 000 pairs',
@@ -88,7 +88,7 @@ const suit = (observe: (budgetMs: number) => BudgetLike) => (input: Observations
 
 const mesureBudget = await mesure({
   name: 'budget control loop',
-  fichier: 'packages/sdk-core/bounceBudget.ts',
+  fichier: 'packages/sdk-core/src/bounce/budget.ts',
   cas: [
     { name: '100 observations', input: observations(100), size: 100 },
     { name: 'no sample', input: observations(20), size: 20 },

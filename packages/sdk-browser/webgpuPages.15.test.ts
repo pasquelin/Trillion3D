@@ -6,7 +6,7 @@ import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { twoCoarseQuadsScene } from './webgpuPagesTestOccluder.ts';
 import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
-import { DEFAULT_SCOPE, type ClusterManifest, type Primitive } from '../sdk-core/index.ts';
+import { DEFAULT_SCOPE, type ClusterManifest, type Primitive } from '../sdk-core/src/index.ts';
 
 test('surface capture keeps external renders blocked until main-view restoration has finished', async () => {
   installGpuGlobals();

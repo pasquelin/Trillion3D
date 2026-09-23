@@ -6,7 +6,7 @@ import type {
   HostDiagnosticMaterial,
   HostDiagnosticMesh,
 } from './hostResources.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 
 /**
  * The per-triangle view, computed here and nowhere else: one colour per submitted triangle, from

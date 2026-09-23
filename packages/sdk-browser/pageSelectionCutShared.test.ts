@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { clusterErrorPixels } from '../sdk-core/index.ts';
+import { clusterErrorPixels } from '../sdk-core/src/index.ts';
 import { cutSelects, projectedClusterError } from './pageSelectionMath.ts';
 
 const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);

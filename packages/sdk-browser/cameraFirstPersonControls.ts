@@ -2,8 +2,8 @@ import { createChangeGate, createControlBase } from './cameraControlBase.ts';
 import { axisOf, trackKeys, trackPointers, type KeyAxis } from './cameraControlInput.ts';
 import { controlPose } from './cameraControlPose.ts';
 import { moveLocal, orbitOrientation } from './cameraControlMath.ts';
-import { clampNumber, POLAR_EPSILON } from '../sdk-core/world/math/spherical.ts';
-import { rotateByQuaternion } from '../sdk-core/mathQuaternion.ts';
+import { clampNumber, POLAR_EPSILON } from '../sdk-core/src/world/math/spherical.ts';
+import { rotateByQuaternion } from '../sdk-core/src/math/matrix/quaternion.ts';
 import type { ControlCamera, SteeredCameraControls } from './cameraControlTypes.ts';
 
 /**

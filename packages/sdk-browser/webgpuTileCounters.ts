@@ -1,4 +1,4 @@
-import type { TextureFrameMetrics } from '../sdk-core/index.ts';
+import type { TextureFrameMetrics } from '../sdk-core/src/index.ts';
 import type { WebgpuTileAtlas } from './webgpuTileAtlas.ts';
 import type { WebgpuTileLevels } from './webgpuTileLevels.ts';
 import type { WebgpuTilePool } from './webgpuTilePool.ts';

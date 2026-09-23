@@ -1,8 +1,8 @@
 // Streaming-queue oracle of batch M1 "math foundation": `orderPendingUrls` from before the
 // attachment, copied as-is from `develop` at commit d016f88 (`streamingPriority.ts:46-129`),
 // with the product in a loop from zero and the view centre written inline.
-import type { NumberSink } from '../../../packages/sdk-core/index.ts';
-import { clusterErrorPixels, maxStretch } from '../../../packages/sdk-core/index.ts';
+import type { NumberSink } from '../../../packages/sdk-core/src/index.ts';
+import { clusterErrorPixels, maxStretch } from '../../../packages/sdk-core/src/index.ts';
 import { referenceComposeView, referenceProject } from './socle-math.ts';
 
 /** One hostile cluster record as `scenesSocleConsommateurs.ts` builds it: a subset of `PageRec`,

@@ -3,7 +3,7 @@ import type {
   Scene,
   Surface,
   Vec3,
-} from '../../packages/sdk-core/lightingExperimentScene.ts';
+} from '../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
 export function sceneWithBlocker(open: boolean, intensity: number): Scene {
   return sceneFromSurfaces([
     {

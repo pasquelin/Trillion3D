@@ -4,7 +4,7 @@ import {
   GEOMETRY_PAGE_FORMAT_VERSION,
   type ClusterManifest,
   type Primitive,
-} from '../../../sdk-core/index.ts';
+} from '../../../sdk-core/src/index.ts';
 import type { Cut } from './worldCuts.ts';
 import type { Batch } from './worldBatches.ts';
 import { buildWorldMirror } from './worldMirror.ts';

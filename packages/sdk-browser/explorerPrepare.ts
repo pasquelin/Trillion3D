@@ -24,7 +24,7 @@ export type ExplorerSource = {
   manifestUrl: string;
   metadataUrl: string;
   base: string;
-  metadata: import('../sdk-core/index.ts').ClusterManifest;
+  metadata: import('../sdk-core/src/index.ts').ClusterManifest;
   scene: ExplorerScene;
 };
 

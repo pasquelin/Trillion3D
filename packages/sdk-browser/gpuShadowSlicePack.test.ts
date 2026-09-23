@@ -5,7 +5,7 @@ import {
   SHADOW_FACE_FLOATS,
   SHADOW_FACE_MASK_WORD,
   SHADOW_SLICE_FLOATS,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { createShadowSlicePack } from './gpuShadowSlicePack.ts';
 
 const STRIDE = 256;
