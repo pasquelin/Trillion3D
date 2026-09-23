@@ -75,7 +75,9 @@ function assertNoCrack(meshes: readonly PropMesh[], window: TileWindow) {
 }
 
 describe('open world terrain tiles', () => {
-  const coast: TileWindow = { minTx: 24, maxTx: 26, minTz: 40, maxTz: 42 };
+  // Three by three tiles on the south shore: two rows of land, the last reaching the sea.
+  const coast: TileWindow = { minTx: 3, maxTx: 5, minTz: TILES - 4, maxTz: TILES - 2 },
+    [x0, z0] = [coast.minTx, coast.minTz];
 
   it('builds the same bytes twice from the same plan, without a crack between its tiles', () => {
     const [first, second] = [terrainTiles(plan, [], coast), terrainTiles(plan, [], coast)];
@@ -85,8 +87,8 @@ describe('open world terrain tiles', () => {
     // Neighbouring images bake their shared edge at the same world points: the same texels.
     const image = (tx: number, tz: number) => first.textures.get(`terrain-${tx}_${tz}.png`)!,
       last = first.stats.textureSize - 1;
-    assert.deepEqual(edge(image(24, 40), 0, last), edge(image(25, 40), 0, 0));
-    assert.deepEqual(edge(image(24, 40), 1, last), edge(image(24, 41), 1, 0));
+    assert.deepEqual(edge(image(x0, z0), 0, last), edge(image(x0 + 1, z0), 0, 0));
+    assert.deepEqual(edge(image(x0, z0), 1, last), edge(image(x0, z0 + 1), 1, 0));
     assert.ok(
       first.meshes.some((mesh) =>
         mesh.parts.some((part) => part.surface.name === SURFACE.sea.name),
@@ -96,7 +98,8 @@ describe('open world terrain tiles', () => {
 
   it('meets the terrain triangle budget over the whole map, one node per tile corner', (t) => {
     const whole = { minTx: 0, maxTx: TILES - 1, minTz: 0, maxTz: TILES - 1 },
-      { meshes, instances, stats, textures } = terrainTiles(plan, [], whole),
+      // No bake: the images are the window test's; this one weighs meshes and bytes.
+      { meshes, instances, stats } = terrainTiles(plan, [], whole, false),
       total = meshes.reduce((sum, mesh) => sum + triangles(mesh), 0);
     t.diagnostic(`terrain: ${total} triangles, threshold ${stats.threshold.toFixed(4)} m`);
     assert.equal(meshes.length, TILES * TILES);
@@ -113,10 +116,8 @@ describe('open world terrain tiles', () => {
       const [ground] = mesh.parts,
         uvs = ground.uvs ?? [];
       assert.equal(!!ground.surface.texture, uvs.length > 0, mesh.id);
-      if (ground.surface.texture) assert.ok(textures.has(ground.surface.texture), mesh.id);
       for (const uv of uvs) assert.ok(uv > 0 && uv < 1, `${mesh.id}: ${uv}`);
     }
-    assert.equal(textures.size, meshes.filter((mesh) => mesh.parts[0].surface.texture).length);
     for (const instance of instances) {
       const [, tx, tz] = /(\d+)_(\d+)$/.exec(instance.prop)!.map(Number);
       assert.deepEqual(instance.position, [

@@ -36,6 +36,8 @@ export function terrainTiles(
   plan: TerrainPlan,
   regions: readonly RegionModule[] = [],
   window = WHOLE,
+  /** False skips the image bake (a budget check needs the meshes only); the meshes still name it. */
+  bake = true,
 ) {
   const shape = hierarchy(TILE_GRID),
     tiles: Tile[] = [],
@@ -81,7 +83,7 @@ export function terrainTiles(
       const parts = flatParts(plan, threshold + 0.05),
         meshes: PropMesh[] = [],
         instances: Instance[] = [],
-        textures = bakeAll(plan, regions, tiles, split.size),
+        textures = bakeAll(plan, regions, tiles, bake ? split.size : 0),
         edges = { sum: 0, count: 0, max: 0 };
       tiles.forEach((tile, index) => {
         const { tx, tz, x0, z0 } = tile.grid,
@@ -145,7 +147,7 @@ function bakeAll(
     images = new Map<string, { size: number; rgba: Uint8Array }>();
   let roughness = 0;
   for (const { grid, deep } of tiles) {
-    if (deep) continue;
+    if (deep || !size) continue;
     const baked = bakeTile(plan.height, plan.erosion, colour, paths, seed, grid.tx, grid.tz, size);
     images.set(tileTexture(grid.tx, grid.tz), { size, rgba: baked.rgba });
     roughness += baked.roughness;
