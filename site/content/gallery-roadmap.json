@@ -1179,8 +1179,7 @@
         "fr": "Ombres projetées au sol"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/flat-shadows-on-the-floor.html"
     },
     {
       "id": "a-softbox-panel",
@@ -1189,8 +1188,7 @@
         "fr": "Un panneau lumineux"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-softbox-panel.html"
     },
     {
       "id": "light-from-a-probe",
@@ -1199,8 +1197,7 @@
         "fr": "Lumière d’une sonde"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/light-from-a-probe.html"
     },
     {
       "id": "soft-shadow-edges",
@@ -1459,8 +1456,7 @@
         "fr": "Perspective et ortho"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/two-lenses-one-scene.html"
     },
     {
       "id": "frame-the-model",
@@ -1469,8 +1465,7 @@
         "fr": "Cadrer le modèle"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/frame-the-model.html"
     },
     {
       "id": "turn-toward-a-target",

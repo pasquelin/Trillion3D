@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Frame the model</title>
+    <meta name="thumbnail" content="6" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #dcc6a8;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#dcc6a8');
+
+      // Five things in a courtyard, from a ring of a few centimetres to an obelisk of twenty-four
+      // metres: no single camera distance suits them all, and that is what framing solves.
+      const stone = material.meshStandard({ color: '#e8dcc6', roughness: 0.75 });
+      const ground = object.mesh(geometry.circle(160, 96), material.meshStandard({ color: '#c9b08a', roughness: 0.95 }));
+      ground.rotation.set(-Math.PI / 2, 0, 0);
+      world.scene.add(ground);
+      const exhibits = object.group();
+      exhibits.name = 'everything';
+      world.scene.add(exhibits);
+      const piece = (name, x, z, ...meshes) => {
+        const holder = object.group();
+        holder.name = name;
+        holder.position.set(x, 0, z);
+        holder.add(...meshes);
+        exhibits.add(holder);
+        return holder;
+      };
+      const at = (mesh, x, y, z) => (mesh.position.set(x, y, z), mesh);
+
+      // A gold ring turning on a small block, and a vase on a plinth. The stands are not exhibits:
+      // framing the ring frames the ring alone.
+      world.scene.add(at(object.mesh(geometry.box(0.3, 0.3, 0.3), stone), -2.4, 0.15, 4.2), at(object.mesh(geometry.box(0.6, 1, 0.6), stone), -0.6, 0.5, 2.4));
+      const ring = at(object.mesh(geometry.torus(0.03, 0.007, 24, 96), material.meshStandard({ color: '#f0c050', roughness: 0.15, metalness: 1 })), 0, 0.337, 0);
+      piece('the gold ring', -2.4, 4.2, ring);
+      const vaseShape = [[0, 0], [0.08, 0], [0.12, 0.05], [0.15, 0.16], [0.12, 0.28], [0.06, 0.34], [0.07, 0.38], [0, 0.38]];
+      piece('the vase', -0.6, 2.4, at(object.mesh(geometry.lathe(vaseShape, 64), material.meshStandard({ color: '#2d6fa8', roughness: 0.2 })), 0, 1, 0));
+      // A chess king taller than a person.
+      const kingShape = [[0, 0], [0.6, 0], [0.6, 0.15], [0.45, 0.25], [0.3, 0.6], [0.22, 1.3], [0.4, 1.4], [0.24, 1.5], [0.3, 1.85], [0.14, 2], [0, 2]];
+      piece('the king', 1.8, 0.6,
+        at(object.mesh(geometry.lathe(kingShape, 64), material.meshStandard({ color: '#2a2a30', roughness: 0.3 })), 0, 0, 0),
+        at(object.mesh(geometry.box(0.08, 0.36, 0.08), material.meshStandard({ color: '#2a2a30', roughness: 0.3 })), 0, 2.16, 0),
+        at(object.mesh(geometry.box(0.26, 0.08, 0.08), material.meshStandard({ color: '#2a2a30', roughness: 0.3 })), 0, 2.2, 0));
+      // An arch of stone.
+      piece('the arch', -5, -4,
+        at(object.mesh(geometry.box(1.1, 5.4, 1.1), stone), -2, 2.7, 0),
+        at(object.mesh(geometry.box(1.1, 5.4, 1.1), stone), 2, 2.7, 0),
+        at(object.mesh(geometry.box(5.4, 1, 1.3), stone), 0, 5.9, 0),
+        at(object.mesh(geometry.box(6, 0.3, 1.5), stone), 0, 6.55, 0));
+      // An obelisk: four tapered faces and a pyramid cap, turned square to the courtyard.
+      const obelisk = piece('the obelisk', 7, -11,
+        at(object.mesh(geometry.box(3.4, 0.8, 3.4), stone), 0, 0.4, 0),
+        at(object.mesh(geometry.cylinder(1, 1.6, 22, 4), stone), 0, 11.8, 0),
+        at(object.mesh(geometry.cone(1, 1.6, 4), material.meshStandard({ color: '#d9a441', roughness: 0.3, metalness: 1 })), 0, 23.6, 0));
+      for (const mesh of obelisk.children) if (mesh.position.y > 1) mesh.rotation.set(0, Math.PI / 4, 0);
+
+      world.scene.add(
+        light.directional({ color: '#ffc98e', intensity: 3.2, position: [-14, 9, 12], castShadow: true }),
+        light.hemisphere({ color: '#aac4f0', groundColor: '#7a6040', intensity: 0.8 }),
+      );
+      world.camera.far = 3000;
+      world.controls.minDistance = 0;
+      world.controls.maxDistance = 200;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // FRAMING. An object's box gives a centre and a radius — the half-diagonal, the sphere that
+      // holds it whichever way it is turned. That sphere fills the narrower of the two fields of
+      // view from `radius / sin(field / 2)`. The camera keeps the direction it looks from, so a
+      // framing moves it towards or away from the object, never round it.
+      const bounds = (node) => {
+        const box = math.box3().setFromObject(node), centre = box.getCenter(), size = box.getSize();
+        return { centre: [centre.x, centre.y, centre.z], radius: Math.hypot(size.x, size.y, size.z) / 2 };
+      };
+      const fitDistance = (radius, margin) => {
+        const vertical = (world.camera.fov * Math.PI) / 180, { clientWidth: w, clientHeight: h } = world.canvas, aspect = w && h ? w / h : 1;
+        const horizontal = 2 * Math.atan(Math.tan(vertical / 2) * aspect);
+        return (radius * margin) / Math.sin(Math.min(vertical, horizontal) / 2);
+      };
+      const lookFrom = () => {
+        const p = world.camera.position, t = world.controls.target, d = [p.x - t.x, p.y - t.y, p.z - t.z], length = Math.hypot(...d);
+        return { d: d.map((value) => value / length), length, target: [t.x, t.y, t.z] };
+      };
+      const place = (target, d, away) => {
+        world.controls.target.set(...target);
+        world.camera.position.set(target[0] + d[0] * away, target[1] + d[1] * away, target[2] + d[2] * away);
+        world.camera.near = away / 200;
+        world.controls.update();
+      };
+
+      // A flight: the target slides, the distance changes on a log scale — from a ring to an
+      // obelisk is a factor of hundreds —, and the elevation settles between 20° and 70° above
+      // the ground. Its length grows with the change of scale.
+      let flight = null, drift = true, name = null, radius = null, distance = null;
+      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+      const frame = (node, margin) => {
+        const { centre, radius: r } = bounds(node), from = lookFrom();
+        const polar = Math.min(1.22, Math.max(0.35, Math.acos(from.d[1]))), flat = Math.hypot(from.d[0], from.d[2]) || 1;
+        const d = [(Math.sin(polar) * from.d[0]) / flat, Math.cos(polar), (Math.sin(polar) * from.d[2]) / flat];
+        const to = fitDistance(r, margin);
+        flight = { from, to: { target: centre, d, length: to }, t: 0, span: 1.2 + 0.35 * Math.abs(Math.log(to / from.length)), nearest: r * 0.8 };
+        // The wheel's range is the framed object's once the flight lands; open while it flies.
+        world.controls.minDistance = 0;
+        name?.(node.name);
+        radius?.(`${r < 1 ? (r * 100).toFixed(1) + ' cm' : r.toFixed(2) + ' m'}`);
+        world.invalidate();
+      };
+      const pick = (label) => exhibits.getObjectByName(label);
+      const ui = controls({
+        mouse: 'Double-click an object to frame it; drag to turn, wheel to zoom',
+        model: ['everything', ...exhibits.children.map((node) => node.name)],
+        margin: [1, 2, 1.1, 0.05],
+        drift: true,
+      }, (values, key) => {
+        if (key === 'model' || key === 'margin') frame(pick(values.model), values.margin);
+        if (key === 'drift') drift = values.drift;
+      }, world);
+      name = readout('Framing');
+      radius = readout('Radius');
+      distance = readout('Distance');
+
+      // Double-click: a ray from the eye through the pointer, tested against every object's
+      // sphere; the nearest one hit is framed.
+      world.canvas.addEventListener('dblclick', (event) => {
+        const rect = world.canvas.getBoundingClientRect(), tan = Math.tan((world.camera.fov * Math.PI) / 360);
+        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1, y = 1 - ((event.clientY - rect.top) / rect.height) * 2;
+        const ray = math.vector3(x * tan * (rect.width / rect.height), y * tan, -1).applyQuaternion(world.camera.getWorldQuaternion()).normalize();
+        const eye = world.camera.getWorldPosition();
+        let best = null, nearest = Infinity;
+        for (const node of exhibits.children) {
+          const { centre, radius: r } = bounds(node), o = [centre[0] - eye.x, centre[1] - eye.y, centre[2] - eye.z];
+          const along = o[0] * ray.x + o[1] * ray.y + o[2] * ray.z, miss = Math.hypot(...o) ** 2 - along * along;
+          if (along > 0 && miss < r * r && along < nearest) (best = node, nearest = along);
+        }
+        if (best) frame(best, ui.margin);
+      });
+      // A hand on the view stops the flight where it is, and the drift.
+      const takeOver = () => ((flight = null), (drift = false));
+      world.canvas.addEventListener('pointerdown', takeOver);
+      world.canvas.addEventListener('wheel', takeOver, { passive: true });
+
+      // The opening: close on the ring, which then pulls back to show the whole courtyard.
+      {
+        const { centre, radius: r } = bounds(pick('the gold ring')), d = [0.55, 0.42, 0.72].map((v) => v / Math.hypot(0.55, 0.42, 0.72));
+        place(centre, d, fitDistance(r, 1.1));
+        name('the gold ring');
+        radius(`${(r * 100).toFixed(1)} cm`);
+      }
+      let time = 0, opening = 1.4;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        ring.rotation.set(0, time * 0.8, 0);
+        if (opening > 0 && (opening -= step) <= 0 && drift) frame(exhibits, ui.margin);
+        if (flight) {
+          flight.t = Math.min(1, flight.t + step / flight.span);
+          const e = ease(flight.t), { from, to } = flight;
+          const target = from.target.map((v, k) => v + (to.target[k] - v) * e);
+          const d = from.d.map((v, k) => v + (to.d[k] - v) * e), n = Math.hypot(...d);
+          place(target, d.map((v) => v / n), Math.exp(Math.log(from.length) + (Math.log(to.length) - Math.log(from.length)) * e));
+          if (flight.t === 1) (world.controls.minDistance = flight.nearest), (flight = null);
+        } else if (drift) {
+          const { d, length, target } = lookFrom(), turn = step * 0.06, c = Math.cos(turn), s = Math.sin(turn);
+          place(target, [c * d[0] + s * d[2], d[1], -s * d[0] + c * d[2]], length);
+        }
+        const now = lookFrom().length;
+        distance(now < 1 ? `${(now * 100).toFixed(0)} cm` : `${now.toFixed(1)} m`);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
