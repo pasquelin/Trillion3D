@@ -18,7 +18,7 @@ export class SceneGltf {
 
   constructor() {
     this.document = {
-      asset: { version: '2.0', generator: 'trillion3D example writer', copyright: 'CC0 1.0' },
+      asset: { version: '2.0', generator: 'Trillion3D example writer', copyright: 'CC0 1.0' },
       scene: 0,
       scenes: [{ nodes: [] }],
       nodes: [],

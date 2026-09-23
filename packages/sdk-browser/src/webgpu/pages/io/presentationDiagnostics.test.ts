@@ -53,7 +53,7 @@ test('WebGPU forwards its internal color diagnostics to the host report sink', a
   });
   assert.deepEqual(events[0], {
     phase: 'clear-color-input',
-    message: 'Background colour received by trillion3D WebGPU',
+    message: 'Background colour received by Trillion3D WebGPU',
     context: { pipelineVersion: 1, clearColor: '#2a303c', value: 0x2a303c, source: 'host' },
   });
   await backend.prepare();

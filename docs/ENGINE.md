@@ -126,7 +126,7 @@ instead of one program that tests every feature per pixel. A class is the set of
 resolve would branch on — UV, base map, alpha cut-out, roughness, metalness, occlusion, emissive and
 normal maps, vertex normals, double-sidedness, tangents — an eleven-bit word carried by every page
 row. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
-the `WG material depth` pass writes every pixel's class as an exact depth value, then one full-screen
+the `Trillion3D material depth` pass writes every pixel's class as an exact depth value, then one full-screen
 triangle per present class runs under `depthCompare: 'equal'`, so the hardware keeps that class's
 pixels and its fragment stage reads only the maps it has. The `material-classes-ready` diagnostic
 lists the classes; the `materials` view colours each pixel by its class. Not done: screen tiles per
@@ -136,7 +136,7 @@ class, so a class present anywhere costs one full-screen triangle.
 
 The visibility buffer cannot be multisampled; edges are recovered temporally. Each image is
 projected with a sub-pixel jitter (Halton (2,3), eight positions, a clip-space translation of the
-render matrix only) and resolved by `WG temporal antialiasing` between the transparent pass and
+render matrix only) and resolved by `Trillion3D temporal antialiasing` between the transparent pass and
 composition: the image is refiltered on its 3×3 neighbours with a one-pixel Blackman-Harris window,
 the history is read where the unjittered centre was in the previous image, clamped to the YCoCg box
 of the neighbours and blended in, each side weighted by its inverse luminance. Two `rgba16float`

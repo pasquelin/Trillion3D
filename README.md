@@ -1,6 +1,6 @@
 <div align="center">
 
-# trillion3D
+# Trillion3D
 
 ### Virtualized geometry for the web — a native Rust compiler, a WebGPU/WebGL2 runtime in TypeScript, and a bench that proves every number.
 
@@ -10,11 +10,11 @@
 [![WebGL2](https://img.shields.io/badge/WebGL2-fallback-2b2d30?logo=webgl&logoColor=e06666)](#what-it-does)
 [![Node 22](https://img.shields.io/badge/Node-%E2%89%A522.18-2b2d30?logo=node.js&logoColor=6da95f)](#quick-start)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-2b2d30?logo=pnpm&logoColor=f69220)](#quick-start)
-[![Quality](https://github.com/pasquelin/trillion3D/actions/workflows/quality.yml/badge.svg)](https://github.com/pasquelin/trillion3D/actions/workflows/quality.yml)
+[![Quality](https://github.com/pasquelin/Trillion3D/actions/workflows/quality.yml/badge.svg)](https://github.com/pasquelin/Trillion3D/actions/workflows/quality.yml)
 [![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
 
-**[Documentation ↗](https://pasquelin.github.io/trillion3D/)** · **[Live report ↗](https://pasquelin.github.io/trillion3D/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE.md)** · **[Roadmap](#roadmap)**
+**[Documentation ↗](https://pasquelin.github.io/Trillion3D/)** · **[Live report ↗](https://pasquelin.github.io/Trillion3D/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE.md)** · **[Roadmap](#roadmap)**
 
 </div>
 
@@ -22,11 +22,11 @@
 
 ---
 
-## Why trillion3D
+## Why Trillion3D
 
 The best desktop engines changed what a scene can hold: geometry is streamed by clusters, one cut
 through a DAG per frame, drawn through a visibility buffer, resolved by temporal antialiasing, held
-under a fixed memory budget. None of that exists for the browser. **trillion3D builds it for the
+under a fixed memory budget. None of that exists for the browser. **Trillion3D builds it for the
 web's constraints** — no hardware ray tracing, bounded and unreadable GPU memory, one browser frame —
 from the published literature only, and measures itself against the numbers those engines publish.
 The geometry is the foundation; the lighting is what it is for.
@@ -195,7 +195,7 @@ stages, each measured before the next ([lighting strategy](docs/ENGINE.md#lighti
 | L5    | World radiance probes in cascades                                                   | planned                                                    |
 | L6    | Reflections through the distance field reading the cache                            | planned                                                    |
 
-Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/trillion3D/issues); an issue is closed once it is done.
+Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/Trillion3D/issues); an issue is closed once it is done.
 
 ## Current limits
 
@@ -212,7 +212,7 @@ Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/trillion3
 
 ## Licence
 
-trillion3D is published under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for
+Trillion3D is published under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for
 noncommercial use, study, research and personal projects. **Commercial use requires a separate
 licence** from the copyright holder — open an issue or contact the author.
 

@@ -57,7 +57,7 @@ export function drawFallbackBlendPass(
   let unpaged = 0;
   voidStaleBlendGroups(rt);
   const pass = encoder.beginRenderPass({
-    label: 'WG transparents',
+    label: 'Trillion3D transparents',
     colorAttachments: [{ view: gpu.colorView!, loadOp: 'load', storeOp: 'store' }],
     depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
   });
