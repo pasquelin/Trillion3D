@@ -84,6 +84,8 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     );
     clearDrawItemWords(words);
     rows.rowsChanged = false;
+    // Shadow casters read the compact's commands before the visibility passes truncate them.
+    rt.lights.cull?.keepSourceCounts(encoder, vis.gpuDraw!.indirectBuffer);
   }
   // The hardware raster opens the opaque image and draws its share of the cut; the compute raster,
   // when it exists, blends its own between its passes — small triangles under the reference split,
