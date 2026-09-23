@@ -5,7 +5,7 @@ import { readyEntries, thumbnailOf } from '../examples/list.ts';
 import { DocPage, SITE_NAME } from '../layout/DocPage.tsx';
 import { LinkButton } from '../ui/Button.tsx';
 import { Mosaic } from '../ui/Mosaic.tsx';
-import { EDITOR_ID, routeHref } from './routes.ts';
+import { editorHref, routeHref } from './routes.ts';
 
 /** The flagships, shown large, one per band of the mosaic. */
 const FLAGSHIPS = [
@@ -50,10 +50,7 @@ export function Home({ locale }: { locale: Locale }) {
           <LinkButton variant="outline" href={routeHref({ locale, area: 'api', id: '' })}>
             {t(locale, 'nav.api')}
           </LinkButton>
-          <LinkButton
-            variant="secondary"
-            href={routeHref({ locale, area: 'examples', id: EDITOR_ID })}
-          >
+          <LinkButton variant="secondary" href={editorHref(locale)}>
             {t(locale, 'editor.showcase')}
           </LinkButton>
         </>
