@@ -1,6 +1,6 @@
 import { headingOf } from '../math3.ts';
 import { nearestRoad, sampleAt } from '../roads.ts';
-import { random } from '../../sky/random.ts';
+import { seeded } from '../../../random.ts';
 import { CRUISE, type RoadGraph } from './roadGraph.ts';
 
 /**
@@ -48,7 +48,7 @@ export function traffic(count: number, seed: number, radius: number): Traffic {
     yaw: 0,
     braking: false,
   }));
-  return { cars, next: random(seed ^ 0x7a5f1c), radius };
+  return { cars, next: seeded(seed ^ 0x7a5f1c), radius };
 }
 
 /** Puts a car on a road at a random place in the ring [inner, radius] around (px, pz). */
