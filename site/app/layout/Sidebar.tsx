@@ -69,7 +69,7 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
   }, [panel, route]);
   return (
     <div
-      className={`contents ${hasSidebar(route) ? 'lg:block lg:min-h-0 lg:border-r lg:border-base-300 lg:bg-base-200' : 'lg:hidden'}`}
+      className={`contents ${hasSidebar(route) ? 'lg:block lg:min-h-0 lg:border-e lg:border-base-300 lg:bg-base-200' : 'lg:hidden'}`}
     >
       <aside
         ref={panel}
@@ -78,7 +78,7 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('a')) onClose();
         }}
-        className={`fixed bottom-0 left-0 top-16 z-50 w-[min(20rem,88vw)] overflow-x-hidden overflow-y-auto bg-base-200 p-4 shadow-xl transition-transform lg:static lg:z-auto lg:h-full lg:w-auto lg:translate-x-0 lg:shadow-none lg:visible ${open ? 'translate-x-0' : 'invisible -translate-x-full'}`}
+        className={`fixed bottom-0 start-0 top-16 z-50 w-[min(20rem,88vw)] overflow-x-hidden overflow-y-auto bg-base-200 p-4 shadow-xl transition-transform lg:static lg:z-auto lg:h-full lg:w-auto lg:translate-x-0 lg:shadow-none lg:visible ${open ? 'translate-x-0' : 'invisible -translate-x-full rtl:translate-x-full'}`}
       >
         <PrimaryNavigation drawer />
         <AreaMenu key={route.area} />
