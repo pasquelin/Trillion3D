@@ -1,5 +1,20 @@
 import type { BackendDiagnostic } from '../../../backend/types.ts';
 
+/** One engine diagnostic to the host's observer, versioned: an error the observer throws is its
+ *  own, never the frame's. */
+export function sendEngineDiagnostic(
+  onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
+  phase: string,
+  message: string,
+  details: Record<string, unknown>,
+) {
+  try {
+    onDiagnostic?.({ phase, message, context: { pipelineVersion: 1, ...details } });
+  } catch {
+    /* Observers do not control rendering. */
+  }
+}
+
 export function createWebgpuDiagnostics(
   onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
   traceEnabled: boolean,
@@ -71,13 +86,8 @@ export function createWebgpuDiagnostics(
     });
     flushTraceQueue();
   };
-  const engineDiagnostic = (phase: string, message: string, details: Record<string, unknown>) => {
-    try {
-      onDiagnostic?.({ phase, message, context: { pipelineVersion: 1, ...details } });
-    } catch {
-      /* Observers do not control rendering. */
-    }
-  };
+  const engineDiagnostic = (phase: string, message: string, details: Record<string, unknown>) =>
+    sendEngineDiagnostic(onDiagnostic, phase, message, details);
   const loggedFailures = new Set<string>(),
     failureOccurrences = new Map<string, number>();
   const diagnosticFailure = (phase: string, error: unknown) => {

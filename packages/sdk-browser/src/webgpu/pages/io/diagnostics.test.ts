@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebgpuDiagnostics } from './diagnostics.ts';
+import { createWebgpuDiagnostics, sendEngineDiagnostic } from './diagnostics.ts';
 
 test('a failed WebGPU path is said on the console once per kind, with no channel open', (t) => {
   const warned = t.mock.method(console, 'warn', () => {});
@@ -15,4 +15,16 @@ test('a failed WebGPU path is said on the console once per kind, with no channel
       '[trillion3d] WebGPU coverage-upload-failed: slot refused',
     ],
   );
+});
+
+test('an engine diagnostic is versioned, and an observer that throws does not reach the engine', () => {
+  const seen: unknown[] = [];
+  const observer = (diagnostic: { context?: Record<string, unknown> }) => {
+    seen.push(diagnostic.context?.pipelineVersion);
+    throw new Error('observer failure');
+  };
+  assert.doesNotThrow(() =>
+    sendEngineDiagnostic(observer, 'memory-budgets', 'Memory pools set', {}),
+  );
+  assert.deepEqual(seen, [1]);
 });

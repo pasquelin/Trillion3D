@@ -1,8 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { admitGpuCut, BUDGET_RELAX_RATIO, MIN_BUDGET_PIXEL_ERROR } from './gpuCutAdmission.ts';
+import { admitGpuCut } from './gpuCutAdmission.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { createWebgpuBudgetState } from '../../residency/budgetState.ts';
+import {
+  BUDGET_RELAX_RATIO,
+  createWebgpuBudgetState,
+  MIN_BUDGET_PIXEL_ERROR,
+} from '../../residency/budgetState.ts';
 
 /** A runtime reduced to what admission reads: the pool, the sample's threshold, the counts. */
 function mount(slots: number) {
