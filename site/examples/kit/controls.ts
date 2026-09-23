@@ -1,6 +1,7 @@
 import { hideable, overlay } from './overlay.ts';
 import { perFrame } from './perFrame.ts';
-import { stats, type StatsWorld } from './stats.ts';
+import { stats } from './stats.ts';
+import type { StatsWorld } from './statsLines.ts';
 import { exampleWord, kitWord, labelOf } from './words.ts';
 
 /**

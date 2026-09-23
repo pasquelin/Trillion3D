@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "초당 프레임",
-      "fpsHeld": "초당 프레임 (멈춤)",
+      "FPS": "초당 프레임",
+      "FPS (held)": "초당 프레임 (멈춤)",
       "triangles": "삼각형",
-      "sceneTriangles": "삼각형 (장면)",
-      "drawCalls": "그리기 호출",
+      "triangles (scene)": "삼각형 (장면)",
+      "draw calls": "그리기 호출",
       "pages": "페이지",
-      "geometryPool": "지오메트리 저장소",
+      "geometry pool": "지오메트리 저장소",
       "lights": "조명",
-      "gpuFrame": "GPU 프레임",
-      "cpuFrame": "CPU 프레임",
-      "pageHooks": "페이지 코드",
-      "engineCpu": "엔진 CPU"
+      "GPU frame": "GPU 프레임",
+      "CPU frame": "CPU 프레임",
+      "page hooks": "페이지 코드",
+      "engine CPU": "엔진 CPU"
     }
   },
   "a-city-from-rules": {

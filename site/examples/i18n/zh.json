@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "帧/秒",
-      "fpsHeld": "帧/秒（停住）",
+      "FPS": "帧/秒",
+      "FPS (held)": "帧/秒（停住）",
       "triangles": "三角形",
-      "sceneTriangles": "三角形（场景）",
-      "drawCalls": "绘制调用",
+      "triangles (scene)": "三角形（场景）",
+      "draw calls": "绘制调用",
       "pages": "页",
-      "geometryPool": "几何体存储",
+      "geometry pool": "几何体存储",
       "lights": "灯光",
-      "gpuFrame": "GPU 帧",
-      "cpuFrame": "CPU 帧",
-      "pageHooks": "页面代码",
-      "engineCpu": "引擎 CPU"
+      "GPU frame": "GPU 帧",
+      "CPU frame": "CPU 帧",
+      "page hooks": "页面代码",
+      "engine CPU": "引擎 CPU"
     }
   },
   "a-city-from-rules": {

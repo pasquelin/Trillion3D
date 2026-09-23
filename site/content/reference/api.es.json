@@ -6726,6 +6726,18 @@
       "tree": "El árbol desde el que se responde: su `triangleCount` y sus `bytes` son el coste del mundo."
     }
   },
+  "TriangleTree": {
+    "summary": "Una jerarquía de volúmenes envolventes sobre los triángulos del mundo, consultada por caja: la fase amplia detrás de `triangleCollision` y `capsulePass`.",
+    "description": "Construido una vez por `buildTriangleTree`, de solo lectura después.",
+    "members": {
+      "triangles": "Nueve números por triángulo — tres esquinas — en orden de hoja.",
+      "bounds": "Por nodo: min xyz, max xyz.",
+      "links": "Por nodo: el primer triángulo de una hoja, o el hijo derecho de un nodo interno (el izquierdo sigue a su padre).",
+      "counts": "Por nodo: número de triángulos de una hoja, 0 para un nodo interno.",
+      "bytes": "Bytes que ocupa el árbol.",
+      "triangleCount": "Triángulos que contiene el árbol."
+    }
+  },
   "CanvasPoint": {
     "summary": "Un punto del canvas, en píxeles CSS desde su esquina superior izquierda: `event.offsetX`, `offsetY`.",
     "members": {
