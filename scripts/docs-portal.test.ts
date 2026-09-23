@@ -124,6 +124,11 @@ test('page resolution distinguishes entries, lessons, and unknown addresses', ()
   );
   assert.equal(resolvePage({ locale, area: 'examples', id: '' }, entries).kind, 'examples');
   assert.equal(
+    resolvePage({ locale, area: 'examples', id: 'scene-editor' }, entries, [], ['scene-editor'])
+      .kind,
+    'editor',
+  );
+  assert.equal(
     resolvePage({ locale, area: 'examples', id: 'cube' }, entries, [], ['cube']).kind,
     'example',
   );
