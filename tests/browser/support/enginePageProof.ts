@@ -68,3 +68,22 @@ export function preuveSaine(resultat: ResultatPagePreuve): void {
     JSON.stringify(resultat.evenements),
   );
 }
+
+/** Prints the adapter, the passes and the errors of a result that reports per-pass readings, then
+ *  runs the checks every proof of this kind passes (`preuveSaine`). */
+export function publieEtVerifie(
+  resultat: ResultatPagePreuve & { adaptateur?: unknown; passes: unknown },
+): void {
+  console.log(
+    JSON.stringify(
+      {
+        adaptateur: resultat.adaptateur ?? null,
+        passes: resultat.passes,
+        erreurs: resultat.erreurs,
+      },
+      null,
+      2,
+    ),
+  );
+  preuveSaine(resultat);
+}

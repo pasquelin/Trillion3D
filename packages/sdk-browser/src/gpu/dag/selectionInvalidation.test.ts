@@ -4,7 +4,7 @@ import { createGpuDagSelection } from './selection.ts';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { mockDagDevice } from './selection.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { kernelUniforms, packed } from './selectionHelpers.fixture.ts';
+import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts';
 
 test("a shared command buffer is the caller's to submit, and abandoning it gives everything back", async () => {
   installGpuGlobals();
@@ -124,15 +124,8 @@ test('a failed readback marks GPU selection dead', async () => {
 });
 
 test('readback from an older resident cut cannot restore an invalidated drawable mask', async () => {
-  installGpuGlobals();
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const fixture = dagFixture();
-  const { dag, roots } = packed(fixture);
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0);
-  const selection = await createGpuDagSelection(mockDagDevice(dag, { mapGate: gate }).device, dag, {
+  const { release, fixture, dag, uniforms, device } = gatedDag();
+  const selection = await createGpuDagSelection(device, dag, {
     residentCut: true,
   });
   assert.ok(selection);

@@ -7,34 +7,9 @@ import { tailId, tileId } from './ids.ts';
 import { tileLayout, TILE_PITCH, TILES_PER_LAYER, POOL_LAYER_SIDE } from '../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { poolEncoding } from '../../texture/blockFormats.ts';
+import { textureDevice } from './textureDevice.fixture.ts';
 
 installGpuGlobals();
-
-type Copy = { from?: number[]; to?: number[]; size: number[] };
-
-/** A dummy texture device: it notes copies and destroyed textures. */
-function textureDevice() {
-  const copies: Copy[] = [];
-  let destroyed = 0;
-  const gpu = {
-    createTexture: () => ({
-      createView: () => ({}),
-      destroy: () => destroyed++,
-      format: 'rgba8unorm',
-    }),
-    createBuffer: () => ({ destroy() {} }),
-    createCommandEncoder: () => ({
-      copyTextureToTexture: (
-        from: { origin?: number[] },
-        to: { origin?: number[] },
-        size: number[],
-      ) => copies.push({ from: from.origin, to: to.origin, size }),
-      finish: () => ({}),
-    }),
-    queue: { writeTexture() {}, writeBuffer() {}, submit() {} },
-  };
-  return { gpu: gpu as never, copies, destroyed: () => destroyed };
-}
 
 const options: Omit<TilePoolOptions, 'layers'> = {
   kind: 'color',

@@ -43,3 +43,18 @@ export function quadPages(
 export function centerId(ids: Uint32Array, width: number, height: number) {
   return ids[((height / 2) | 0) * width + ((width / 2) | 0)];
 }
+
+/** A 2×2 RGBA map sampled nearest — red, green, blue, white — its rows as stored. */
+export function nearestQuadTexture() {
+  const map = new THREE.DataTexture(
+    new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]),
+    2,
+    2,
+    THREE.RGBAFormat,
+  );
+  map.magFilter = THREE.NearestFilter;
+  map.minFilter = THREE.NearestFilter;
+  map.flipY = false;
+  map.needsUpdate = true;
+  return map;
+}

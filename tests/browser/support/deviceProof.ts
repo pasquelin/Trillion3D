@@ -19,16 +19,21 @@ interface ResultatAppareil {
 /**
  * Common envelope of a device proof: opens the device, runs `corps(device, evenements, resultat)`
  * — which fills `resultat` as it goes, so what ran before a failure is still reported —,
- * closes the device. This function only carries what every device proof repeats identically.
+ * closes the device. This function only carries what every device proof repeats identically;
+ * `R` names the fields a proof adds to the common result.
  */
-async function executerAppareil(
-  corps: (device: GPUDevice, evenements: unknown[], resultat: ResultatAppareil) => Promise<void>,
-): Promise<ResultatAppareil> {
+export async function executerAppareil<R extends object = object>(
+  corps: (
+    device: GPUDevice,
+    evenements: unknown[],
+    resultat: Partial<R> & ResultatAppareil,
+  ) => Promise<void>,
+): Promise<Partial<R> & ResultatAppareil> {
   const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
+  if (!appareil) return { indisponible: 'no WebGPU adapter' } as Partial<R> & ResultatAppareil;
   const { device, erreurs } = appareil;
   const evenements: unknown[] = [],
-    resultat: ResultatAppareil = {};
+    resultat = {} as Partial<R> & ResultatAppareil;
   try {
     await corps(device, evenements, resultat);
   } catch (error) {

@@ -4,14 +4,14 @@ import { relatedTests } from './check-changed.ts';
 
 test('selects tests through transitive imports and does not select unrelated suites', () => {
   const files = new Map([
-    ['packages/sdk-core/leaf.ts', 'export const leaf = 1;'],
-    ['packages/sdk-core/index.ts', "export {leaf} from './leaf.ts';"],
-    ['packages/sdk-core/leaf.test.ts', "import {leaf} from './index.ts';"],
-    ['packages/sdk-browser/view.test.ts', "import {view} from './view.ts';"],
-    ['packages/sdk-browser/view.ts', 'export const view = 2;'],
+    ['packages/sdk-core/src/leaf.ts', 'export const leaf = 1;'],
+    ['packages/sdk-core/src/index.ts', "export {leaf} from './leaf.ts';"],
+    ['packages/sdk-core/src/leaf.test.ts', "import {leaf} from './index.ts';"],
+    ['packages/sdk-browser/src/view.test.ts', "import {view} from './view.ts';"],
+    ['packages/sdk-browser/src/view.ts', 'export const view = 2;'],
   ]);
-  assert.deepEqual(relatedTests(files, new Set(['packages/sdk-core/leaf.ts'])), [
-    'packages/sdk-core/leaf.test.ts',
+  assert.deepEqual(relatedTests(files, new Set(['packages/sdk-core/src/leaf.ts'])), [
+    'packages/sdk-core/src/leaf.test.ts',
   ]);
 });
 
@@ -28,9 +28,9 @@ test('includes a changed test even when it has no source imports', () => {
 });
 
 test('selects a test when an imported source file was deleted', () => {
-  const files = new Map([['packages/sdk-core/index.test.ts', "import {old} from './old.ts';"]]);
-  assert.deepEqual(relatedTests(files, new Set(['packages/sdk-core/old.ts'])), [
-    'packages/sdk-core/index.test.ts',
+  const files = new Map([['packages/sdk-core/src/index.test.ts', "import {old} from './old.ts';"]]);
+  assert.deepEqual(relatedTests(files, new Set(['packages/sdk-core/src/old.ts'])), [
+    'packages/sdk-core/src/index.test.ts',
   ]);
 });
 

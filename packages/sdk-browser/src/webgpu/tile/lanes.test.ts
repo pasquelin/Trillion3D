@@ -4,24 +4,10 @@ import { createWebgpuTileAtlas } from './atlas.ts';
 import { tileLayout } from '../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { poolEncoding } from '../../texture/blockFormats.ts';
+import { textureDevice } from './textureDevice.fixture.ts';
 
 installGpuGlobals();
 
-/** A dummy texture device that counts destroyed textures. */
-function textureDevice() {
-  let destroyed = 0;
-  const gpu = {
-    createTexture: () => ({
-      createView: () => ({}),
-      destroy: () => destroyed++,
-      format: 'rgba8unorm',
-    }),
-    createBuffer: () => ({ destroy() {} }),
-    createCommandEncoder: () => ({ copyTextureToTexture() {}, finish: () => ({}) }),
-    queue: { writeTexture() {}, writeBuffer() {}, submit() {} },
-  };
-  return { gpu: gpu as never, destroyed: () => destroyed };
-}
 const empty = { levels: [], blocks: { bc7: [], astc: [] } };
 
 // Behaviour: an atlas opens one pool per lane its textures take, each texture's tiles and tail

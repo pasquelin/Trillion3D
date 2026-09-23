@@ -6,22 +6,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { composeFace, shadowOrthographic, shadowProjection } from './math.ts';
+import { POINT_FACE_AXES } from './faces.ts';
 import {
   referenceComposeFace,
   referenceShadowOrthographic,
   referenceShadowProjection,
 } from '../../../../../bench/oracles/browser/core-math-shadows.ts';
 
-/** The six point axes, then each with its zero components made negative, one by one and
- *  all together: the same hostility as the bench's `POINT_FACE_AXES`. */
-const AXES: ReadonlyArray<readonly [number, number, number]> = [
-  [1, 0, 0],
-  [-1, 0, 0],
-  [0, 1, 0],
-  [0, -1, 0],
-  [0, 0, 1],
-  [0, 0, -1],
-];
+// The six point axes, then each with its zero components made negative, one by one and all
+// together: the same hostility as the bench's `POINT_FACE_AXES`.
 function variantesZeroSigne(axe: readonly [number, number, number]) {
   const variantes: Array<[number, number, number]> = [[...axe]];
   for (let signes = 1; signes < 8; signes++)
@@ -36,20 +29,27 @@ const YEUX: ReadonlyArray<readonly [number, number, number]> = [
   [3, -4, 5],
 ];
 
+/** Sets the same projection on both sides — the reference's into `proj`, the engine's inside
+ *  `math.ts` — and returns the reference's for `referenceComposeFace`. */
+function selectProjection(perspective: boolean) {
+  const proj = new Float32Array(16);
+  if (perspective) {
+    referenceShadowProjection(proj, Math.PI / 2, 10);
+    shadowProjection(Math.PI / 2, 10);
+  } else {
+    referenceShadowOrthographic(proj, 5, 100);
+    shadowOrthographic(5, 100);
+  }
+  return proj;
+}
+
 test('composeFace: hostile axes and signed zeros, perspective and orthographic — bit-exact against the previous code', () => {
   let compares = 0;
-  for (const axe of AXES)
+  for (const axe of POINT_FACE_AXES)
     for (const forward of variantesZeroSigne(axe))
       for (const oeil of YEUX)
         for (const perspective of [true, false]) {
-          const proj = new Float32Array(16);
-          if (perspective) {
-            referenceShadowProjection(proj, Math.PI / 2, 10);
-            shadowProjection(Math.PI / 2, 10);
-          } else {
-            referenceShadowOrthographic(proj, 5, 100);
-            shadowOrthographic(5, 100);
-          }
+          const proj = selectProjection(perspective);
           const attendu = new Float32Array(16),
             recu = new Float32Array(16);
           referenceComposeFace(attendu, 0, oeil, forward, proj);
@@ -84,14 +84,7 @@ test('composeFace: copy at a non-zero offset yields the same bits, without touch
   for (const oeil of eyes)
     for (const forward of avants)
       for (const perspective of [true, false]) {
-        const proj = new Float32Array(16);
-        if (perspective) {
-          referenceShadowProjection(proj, Math.PI / 2, 10);
-          shadowProjection(Math.PI / 2, 10);
-        } else {
-          referenceShadowOrthographic(proj, 5, 100);
-          shadowOrthographic(5, 100);
-        }
+        const proj = selectProjection(perspective);
         // Filled with a sentinel before the face: both sides start from the same "dirty" buffer, and
         // a gap outside [BASE, BASE+16) — copy shifted by one, overflowing guard — shows it.
         const gardeAttendu = new Float32Array(BASE + 16).fill(7),

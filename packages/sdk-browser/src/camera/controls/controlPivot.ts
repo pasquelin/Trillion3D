@@ -1,5 +1,6 @@
 import { createChangeGate, createControlBase, type ControlBase } from './controlBase.ts';
-import { controlPose, readVector, writeVector } from './controlPose.ts';
+import { controlPose, readVector, writeVector, type ControlPose } from './controlPose.ts';
+import { trackPointers, trackWheel, type DragHandlers } from './controlInput.ts';
 import { dollyDistance, panOffset, pixelWorldScale } from './controlMath.ts';
 import { clampNumber, RADIUS_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
@@ -66,21 +67,10 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     moved.set(orientation, 6);
     return gate(moved);
   };
-  const api: PivotCameraControls = {
-    ...base.api,
-    object: pose.object,
-    target: pose.vector(),
-    minDistance: 0,
-    maxDistance: Infinity,
-    enableZoom: true,
-    enablePan: true,
-    rotateSpeed: 1,
-    zoomSpeed: 1,
-    update: () => {
-      sample();
-      return apply();
-    },
-  };
+  const api = pivotControlsApi(base, pose, () => {
+    sample();
+    return apply();
+  });
   return {
     base,
     api,
@@ -110,7 +100,48 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
   };
 }
 
+/** The pivot contract at its defaults: unbounded distance, both gestures on, unit speeds. */
+export function pivotControlsApi(
+  base: ControlBase,
+  pose: ControlPose,
+  update: () => boolean,
+): PivotCameraControls {
+  return {
+    ...base.api,
+    object: pose.object,
+    target: pose.vector(),
+    minDistance: 0,
+    maxDistance: Infinity,
+    enableZoom: true,
+    enablePan: true,
+    rotateSpeed: 1,
+    zoomSpeed: 1,
+    update,
+  };
+}
+
+/**
+ * The zoom gestures every pivot controller shares: a pinch pans by its midpoint and dollies by
+ * its ratio, a wheel notch dollies — down pushes the camera away, as every viewer expects.
+ */
+export function trackPivotGestures(
+  surface: HTMLElement,
+  base: ControlBase,
+  drag: DragHandlers['drag'],
+  panBy: (dx: number, dy: number) => void,
+  dolly: (steps: number) => void,
+) {
+  trackPointers(surface, base, {
+    drag,
+    pinch: (ratio, dx, dy) => {
+      panBy(dx, dy);
+      dolly(pinchSteps(ratio));
+    },
+  });
+  trackWheel(surface, base, (steps) => dolly(-steps));
+}
+
 /** Notches a pinch is worth: fingers apart zoom in, exactly as a wheel turned backwards. */
-export function pinchSteps(ratio: number) {
+function pinchSteps(ratio: number) {
   return ratio > 0 ? -Math.log(ratio) / Math.log(0.95) : 0;
 }

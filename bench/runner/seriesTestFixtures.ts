@@ -1,5 +1,5 @@
-// Shared fixtures for `series.test.ts` and `seriesHiz.test.ts`: split out to keep both files under
-// the line budget.
+// Shared fixtures for `series.test.ts`, `seriesHiz.test.ts` and `seriesCompute.test.ts`: split out
+// to keep the files under the line budget.
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -38,7 +38,8 @@ export const pose: CameraPose = {
   far: 100,
 };
 
-export async function contexte() {
+/** A run context in a throwaway folder, and the side it measures; `settings` adds to the defaults. */
+export async function contexte(settings: Partial<RunContext['settings']> = {}) {
   const OUT = await mkdtemp(join(tmpdir(), 'wg-serie-test-'));
   const ctx: RunContext = {
     MANIFEST: 'manifest.json',
@@ -49,6 +50,7 @@ export async function contexte() {
       maxPages: 32,
       width: 8,
       height: 8,
+      ...settings,
     } as RunContext['settings'],
     lights: null,
     poses: null,

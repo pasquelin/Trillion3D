@@ -1,5 +1,4 @@
-import { createPivotControls, pinchSteps } from './controlPivot.ts';
-import { trackPointers, trackWheel } from './controlInput.ts';
+import { createPivotControls, trackPivotGestures } from './controlPivot.ts';
 import type { ControlCamera, PivotCameraControls } from './controlTypes.ts';
 
 /**
@@ -31,14 +30,7 @@ export function createPanZoomCameraControls(
 ): PanZoomCameraControls {
   const core = createPivotControls(camera, surface);
   const api = Object.assign(core.api, { keyPanPixels: 24 });
-  trackPointers(surface, core.base, {
-    drag: (dx, dy) => core.panBy(dx, dy),
-    pinch: (ratio, dx, dy) => {
-      core.panBy(dx, dy);
-      core.dolly(pinchSteps(ratio));
-    },
-  });
-  trackWheel(surface, core.base, (steps) => core.dolly(-steps));
+  trackPivotGestures(surface, core.base, core.panBy, core.panBy, core.dolly);
   // Keys are acted on as they arrive, never polled: a held arrow repeats through the
   // platform's own auto-repeat, and a still view is never woken by a key nobody pressed.
   core.base.listen<KeyboardEvent>(surface.ownerDocument, 'keydown', (event) => {

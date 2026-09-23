@@ -8,6 +8,25 @@ import * as THREE from 'three';
 import { createExplorerCameraApi } from './cameraApi.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
 
+/** The explorer's camera API on `camera`, one WebGPU backend behind it, nothing else live. */
+function cameraApiOn(camera: THREE.PerspectiveCamera, center: THREE.Vector3) {
+  return createExplorerCameraApi({
+    check: () => {},
+    options: {} as MeasuredWorldOptions,
+    camera,
+    center,
+    homeOffset: new THREE.Vector3(0, 0, 1),
+    lookAtTarget: new THREE.Vector3(),
+    radius: 1,
+    canvas: { width: 8, height: 8 } as HTMLCanvasElement,
+    backends: [{ id: 'webgpu-page-raster' } as RenderBackend],
+    disposed: () => false,
+    setMeasuring: () => {},
+    setActive: () => {},
+    hostedControls: [],
+  });
+}
+
 test('restoreAfterCampaign puts the saved pose and optics back on the live camera', () => {
   const camera = new THREE.PerspectiveCamera(50, 1.5, 0.1, 100);
   camera.position.set(1, 2, 3);
@@ -20,21 +39,7 @@ test('restoreAfterCampaign puts the saved pose and optics back on the live camer
   Object.assign(camera, { fov: 22, aspect: 2, near: 5, far: 50, zoom: 3 });
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
-  const api = createExplorerCameraApi({
-    check: () => {},
-    options: {} as MeasuredWorldOptions,
-    camera,
-    center: new THREE.Vector3(-4, 0, 6),
-    homeOffset: new THREE.Vector3(0, 0, 1),
-    lookAtTarget: new THREE.Vector3(),
-    radius: 1,
-    canvas: { width: 8, height: 8 } as HTMLCanvasElement,
-    backends: [{ id: 'webgpu-page-raster' } as RenderBackend],
-    disposed: () => false,
-    setMeasuring: () => {},
-    setActive: () => {},
-    hostedControls: [],
-  });
+  const api = cameraApiOn(camera, new THREE.Vector3(-4, 0, 6));
   api.restoreAfterCampaign('webgpu-page-raster', saved);
   assert.deepEqual(camera.position.toArray(), saved.position.toArray());
   assert.deepEqual(camera.quaternion.toArray(), saved.quaternion.toArray());
@@ -57,21 +62,7 @@ test('restoreAfterCampaign restores a camera the host posed by matrix', () => {
   const saved = camera.clone();
   camera.matrix.makeTranslation(-20, 40, 0);
   camera.updateMatrixWorld();
-  const api = createExplorerCameraApi({
-    check: () => {},
-    options: {} as MeasuredWorldOptions,
-    camera,
-    center: new THREE.Vector3(),
-    homeOffset: new THREE.Vector3(0, 0, 1),
-    lookAtTarget: new THREE.Vector3(),
-    radius: 1,
-    canvas: { width: 8, height: 8 } as HTMLCanvasElement,
-    backends: [{ id: 'webgpu-page-raster' } as RenderBackend],
-    disposed: () => false,
-    setMeasuring: () => {},
-    setActive: () => {},
-    hostedControls: [],
-  });
+  const api = cameraApiOn(camera, new THREE.Vector3());
   api.restoreAfterCampaign('webgpu-page-raster', saved);
   assert.equal(camera.matrixAutoUpdate, false);
   assert.deepEqual([...camera.matrix.elements], [...saved.matrix.elements]);

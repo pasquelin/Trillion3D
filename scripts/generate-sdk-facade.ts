@@ -100,14 +100,14 @@ const browserOnly = rows.filter(
 );
 await write(
   'packages/sdk/browser.ts',
-  `export * from './common/index.ts';\n${exportLines(browserOnly, '../sdk-browser/index.ts')}`,
+  `export * from './common/index.ts';\n${exportLines(browserOnly, '../sdk-browser/src/index.ts')}`,
 );
 const nodeOnly = rows.filter(
   (row) => row.entries.includes('node') && !row.entries.includes('core'),
 );
 await write(
   'packages/sdk/node.mts',
-  `export * from './common/index.ts';\n${exportLines(nodeOnly, '../sdk-node/index.mts')}`,
+  `export * from './common/index.ts';\n${exportLines(nodeOnly, '../sdk-node/src/index.mts')}`,
 );
 await write('packages/sdk/index.ts', "export * from './common/index.ts';\n");
 

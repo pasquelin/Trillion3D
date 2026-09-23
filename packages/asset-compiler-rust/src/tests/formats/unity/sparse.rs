@@ -96,28 +96,13 @@ fn view_bytes<'a>(gltf: &Value, bin: &'a [u8], view: usize) -> &'a [u8] {
     &bin[at..at + length]
 }
 
-/// The first `count` float triples of these bytes.
-fn triples(bytes: &[u8], count: usize) -> Vec<[f32; 3]> {
-    bytes[..count * 12]
-        .as_chunks::<12>()
-        .0
-        .iter()
-        .map(|word| {
-            let read = |axis: usize| {
-                f32::from_le_bytes(word[axis * 4..axis * 4 + 4].try_into().expect("float"))
-            };
-            [read(0), read(1), read(2)]
-        })
-        .collect()
-}
-
 /// Points of an accessor, its sparse replacement applied: what the format declares,
 /// and what no merge has the right to change.
 fn resolved(gltf: &Value, bin: &[u8], accessor: usize) -> Vec<[f32; 3]> {
     let accessor = &gltf["accessors"][accessor];
     let count = accessor["count"].as_u64().expect("count") as usize;
     let view = accessor["bufferView"].as_u64().expect("bufferView") as usize;
-    let mut out = triples(view_bytes(gltf, bin, view), count);
+    let mut out = float_triples(view_bytes(gltf, bin, view), count);
     if let Some(sparse) = accessor.get("sparse") {
         let replaced = sparse["count"].as_u64().expect("sparse.count") as usize;
         let ranks = view_bytes(
@@ -127,7 +112,7 @@ fn resolved(gltf: &Value, bin: &[u8], accessor: usize) -> Vec<[f32; 3]> {
                 .as_u64()
                 .expect("sparse.indices.bufferView") as usize,
         );
-        let values = triples(
+        let values = float_triples(
             view_bytes(
                 gltf,
                 bin,

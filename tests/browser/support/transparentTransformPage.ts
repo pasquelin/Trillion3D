@@ -3,11 +3,10 @@
 // pixels and public counters on the other.
 import * as THREE from 'three';
 import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import { VIEWPORT, cameraFace, libere, engine, versApi } from './sharedSceneProof.ts';
+import { VIEWPORT, libere, versApi } from './sharedSceneProof.ts';
 import { estRouge, image } from './sceneImageProof.ts';
 import { executerPasses } from './deviceProof.ts';
-import { sceneTransparente } from './transparentTransformScene.ts';
+import { ouvrePasse } from './transparentTransformScene.ts';
 
 const point = new THREE.Vector3();
 
@@ -66,14 +65,8 @@ function releve(
  * then stabilisation and a move after hold.
  */
 async function sequence(device: GPUDevice, pagine: boolean, evenements: unknown[]) {
-  const s = sceneTransparente(pagine);
-  const { backend, canvas } = engine(webgpuPagesBackend, s, device, (e) =>
-    evenements.push({ pagine, ...e }),
-  );
-  if (!backend.setTransform) throw new Error('backend missing setTransform');
-  const setTransform = backend.setTransform;
-  const camera = cameraFace(),
-    etapes: ReturnType<typeof releve>[] = [];
+  const { s, backend, canvas, setTransform, camera } = ouvrePasse(device, pagine, evenements);
+  const etapes: ReturnType<typeof releve>[] = [];
   // Three probes: left, right, and the top-right corner only a sheared tile covers.
   const sondes: [number, number][] = [
     [-0.8, 0],

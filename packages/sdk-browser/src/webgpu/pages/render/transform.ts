@@ -1,4 +1,5 @@
 import type { HostMesh } from '../../../host/resources.ts';
+import { unionBoxInto } from '../../../math/boxUnionInto.ts';
 import type { HostGraphNode } from '../../../host/scene/graphNodes.ts';
 import {
   BOX_VALUES,
@@ -6,7 +7,6 @@ import {
   boxEmpty,
   boxIsEmpty,
   boxTransform,
-  boxUnion,
   decomposeMatrix4,
   determinantMatrix4,
   invertMatrix4,
@@ -98,7 +98,8 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
   boxEmpty(moved, 0);
   for (const root of layout.selectionRoots)
-    if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node)) unionInto(root.worldBox);
+    if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node))
+      unionBoxInto(moved, root.worldBox);
   // The local matrix is authoritative, not the three fields: not every matrix is a
   // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
   // scale under a rotation produces — does not decompose into it, and `updateMatrixWorld` would
@@ -129,7 +130,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   for (const root of layout.selectionRoots) {
     if (!root.localBox || !root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) continue;
     if (!enLot) boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
-    unionInto(root.worldBox);
+    unionBoxInto(moved, root.worldBox);
   }
   layout.rows.tableEpoch++;
   // Origin of the scene change: this subtree's world matrices have just been rewritten. Only
@@ -145,11 +146,6 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     movedMax[axis] = moved[axis + 3];
   }
   lights.plan.worldChanged(movedMin, movedMax);
-}
-
-/** Adds a world box to the motion box. */
-function unionInto(box: Float64Array) {
-  boxUnion(moved, 0, box[0], box[1], box[2], box[3], box[4], box[5]);
 }
 
 /** True when `mesh` is the moved node or one of its descendants. */

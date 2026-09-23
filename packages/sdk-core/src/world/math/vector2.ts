@@ -8,6 +8,9 @@ export class Vector2 extends Observed {
   private _x: number;
   private _y: number;
 
+  // Observed accessors spelled out per public class: `Euler` has the same `x`/`y` pair but a
+  // different contract (angles plus an order), and a shared base would change both prototypes.
+  // jscpd:ignore-start
   constructor(x = 0, y = 0) {
     super();
     this._x = x;
@@ -27,6 +30,7 @@ export class Vector2 extends Observed {
     this._y = value;
     this._changed();
   }
+  // jscpd:ignore-end
   set(x: number, y: number) {
     this._x = x;
     this._y = y;

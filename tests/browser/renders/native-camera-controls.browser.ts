@@ -7,6 +7,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
+import { sdkMounts, threeStackMounts } from '../support/renderHarness.ts';
 import {
   beginGesture,
   endGesture,
@@ -23,24 +24,11 @@ declare global {
 const root = resolve(import.meta.dirname, '../../..');
 const out = resolve(root, 'benchmark-runs/controles-camera-natifs');
 await mkdir(out, { recursive: true });
-const fixture = resolve(root, 'tests/fixtures/formats/coplanar/three-stack');
-const compiler =
-  process.env.WG_COMPILER ??
-  resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
-execFileSync(compiler, [fixture, resolve(out, 'cache'), 'full', '150000', '/fixture/'], {
-  stdio: 'pipe',
-});
+const cacheMounts = threeStackMounts(root, out);
 const server = await startServer({
   port: 0,
   captures: new Map(),
-  mounts: [
-    { prefix: '/sdk/', dir: resolve(root, 'dist') },
-    { prefix: '/vendor/three/', dir: resolve(root, 'node_modules/three') },
-    { prefix: '/vendor/meshoptimizer/', dir: resolve(root, 'node_modules/meshoptimizer') },
-    { prefix: '/cache/city/', dir: resolve(out, 'cache/native/full') },
-    { prefix: '/cache/objects/', dir: resolve(out, 'cache/native/objects') },
-    { prefix: '/fixture/', dir: fixture },
-  ],
+  mounts: [...sdkMounts(root), ...cacheMounts],
 });
 const browser = await launchChrome({ headless: true });
 const errors: string[] = [];

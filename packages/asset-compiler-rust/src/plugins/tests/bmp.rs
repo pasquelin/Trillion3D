@@ -3,23 +3,10 @@
 //! a mask of more than eight bits per channel does not enter, because entering would cost it
 //! its low bits — a loss the source did not have.
 use super::super::image as registry;
-use super::{assert_claims, assert_refusals, decoded_rgba8, fixture};
+use super::{assert_claims, assert_refusals, decoded_rgba8, fixture, REFERENCE_RGB as REFERENCE};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
-/// Reference image, top row first: four frank colours then three mixes whose each component is
-/// exactly carried by five bits, and each green also by six. That is what lets both 16-bit
-/// writings yield those bytes and not their neighbours.
-const REFERENCE: [[u8; 3]; 8] = [
-    [255, 0, 0],
-    [0, 255, 0],
-    [0, 0, 255],
-    [255, 255, 255],
-    [0, 0, 0],
-    [247, 206, 8],
-    [16, 49, 239],
-    [132, 239, 66],
-];
 /// One bit carries only two colours: this file has its own reference, a checkerboard.
 const DAMIER: [[u8; 3]; 8] = [
     [255, 255, 255],

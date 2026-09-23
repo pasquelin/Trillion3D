@@ -1,13 +1,18 @@
 import * as THREE from 'three';
+import assert from 'node:assert/strict';
 import { dagRoots } from './testDag.fixture.ts';
 import { webgpuPagesBackend } from './pages.ts';
-import type { BackendContext } from '../../backend/types.ts';
+import { collectClusterPages } from '../../page/selection/selection.ts';
+import { packDagSelection } from '../../gpu/dag/selection.ts';
+import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
+import type { BackendContext, RenderBackend } from '../../backend/types.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import {
   QUAD_MANIFEST,
   frontCamera,
   quadIndices,
   quadScene as quadMesh,
+  triangleGeometry,
 } from '../../backend/pagesBackendScenes.fixture.ts';
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
@@ -62,25 +67,63 @@ export function quadBackend(
   return { fixture, backend };
 }
 
+/**
+ * `scene` packed for the GPU cut, mounted on a mock GPU that runs it — two resident pages, a
+ * 32 px viewport and whatever `options` add — then prepared, rendered once and flushed.
+ */
+export async function flushedGpuScene(
+  scene: Pick<BackendContext, 'source' | 'metadata' | 'indices' | 'associations'>,
+  options: Partial<BackendContext> = {},
+) {
+  const collected = collectClusterPages(
+    scene.source,
+    scene.metadata,
+    scene.indices,
+    scene.associations,
+  );
+  const packed = packDagSelection(collected.roots);
+  const gpu = mockGpu(undefined, packed);
+  const backend = webgpuPagesBackend({
+    ...scene,
+    gpuDevice: gpu.device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+    ...options,
+  });
+  await backend.prepare();
+  backend.render(camera());
+  await backend.flush?.();
+  return { ...gpu, packed, backend };
+}
+
 export function camera() {
   const cam = frontCamera();
   cam.updateMatrixWorld();
   return cam;
 }
 
+/** Renders the front view: both quad clusters are drawn, two triangles in all. */
+export function assertBothQuadPagesDrawn(
+  backend: Pick<RenderBackend, 'render' | 'metrics'> & { selectedPageIds(): string[] },
+) {
+  backend.render(camera());
+  assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
+  assert.equal(backend.metrics().submittedTriangles, 2);
+}
+
+/** Releases a backend and the quad it was mounted on. */
+export function disposeQuadRun(
+  backend: { dispose(): void },
+  fixture: { geometry: THREE.BufferGeometry; material: THREE.Material },
+) {
+  backend.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
+}
+
 export function mixedBinScene() {
-  const geoA = new THREE.BufferGeometry();
-  geoA.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0], 3),
-  );
-  geoA.setIndex([0, 1, 2]);
-  const geoB = new THREE.BufferGeometry();
-  geoB.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geoB.setIndex([0, 1, 2]);
+  const geoA = triangleGeometry([-1, -1, 0, 1, -1, 0, 1, 1, 0]);
+  const geoB = triangleGeometry([-1, -1, 0, 1, 1, 0, -1, 1, 0]);
   const front = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.FrontSide }),
     both = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
   const meshA = new THREE.Mesh(geoA, front),

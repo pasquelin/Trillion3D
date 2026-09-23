@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import {
   preuveDansLaPage,
-  preuveSaine,
+  publieEtVerifie,
   type ResultatPagePreuve,
 } from '../support/enginePageProof.ts';
 
@@ -31,14 +31,7 @@ const resultat = (await preuveDansLaPage(
   'transparentTransform',
   'Moved transparent',
 )) as Resultat;
-console.log(
-  JSON.stringify(
-    { adaptateur: resultat.adaptateur ?? null, passes: resultat.passes, erreurs: resultat.erreurs },
-    null,
-    2,
-  ),
-);
-preuveSaine(resultat);
+publieEtVerifie(resultat);
 
 /** The page's three probes: left, right, top-right corner of the sheared tile. */
 const [GAUCHE, DROITE, COIN] = [0, 1, 2];

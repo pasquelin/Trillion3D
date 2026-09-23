@@ -22,18 +22,7 @@ fn objects_on_disk(cache: &Path) -> BTreeSet<String> {
 /// referenced" nor delete anything: it fails and leaves the cache intact.
 #[test]
 fn a_sidecar_of_another_version_stops_the_prune_without_removing_anything() {
-    let (root, options) = obj_fixture("a.obj", false);
-    let dir = options.source.parent().expect("dir").to_path_buf();
-    fs::write(
-        dir.join("b.obj"),
-        "v 5 0 0\nv 7 0 0\nv 5 3 0\nvn 0 0 1\nf 1//1 2//1 3//1\n",
-    )
-    .expect("second mesh");
-    let options = Options {
-        source: dir,
-        ..options
-    };
-    let full = compile(&options, |_| {}).expect("full");
+    let (root, options, full) = two_mesh_folder();
     let sidecar = options
         .cache
         .join("native/full")

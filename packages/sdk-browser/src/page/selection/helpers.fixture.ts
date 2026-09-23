@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { dagFixture } from './dag.fixture.ts';
+import { collectClusterPages } from './selection.ts';
 
 export function assertOneRepresentationPerGroup(shown: readonly string[]) {
   const drawn = new Set(shown);
@@ -44,6 +45,26 @@ export function dagCulling() {
       ...node(whole, rootSphere, -1, 0, 0, 4, 3),
     ],
   };
+}
+
+/** Zero-threshold cut request that holds resident pages, at a 1280×720 viewport. */
+export const HELD_EXACT_ASK = {
+  pixelError: 0,
+  viewport: [1280, 720] as [number, number],
+  holdResident: true,
+};
+
+/** The test DAG with its node hierarchy, collected into cluster roots. */
+export function culledDagRoots() {
+  const fixture = dagFixture();
+  fixture.metadata.primitives[0].culling = dagCulling();
+  const { roots } = collectClusterPages(
+    fixture.source,
+    fixture.metadata,
+    fixture.indices,
+    fixture.associations,
+  );
+  return { fixture, roots };
 }
 
 export function withBundles(fixture: ReturnType<typeof dagFixture>) {

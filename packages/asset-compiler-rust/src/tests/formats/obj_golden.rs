@@ -54,23 +54,7 @@ fn files_without_timings(files: &Value) -> Value {
 /// What the golden fixes: the retained driver, the intermediate scene it wrote —
 /// nodes, meshes, materials, images, samplers, report — and the compiled scene that comes out.
 fn digest(run: &GoldenRun) -> Value {
-    let (digest, manifest, gltf) = scene_digest(run, "obj");
-    let mut out = digest;
-    for (field, value) in [
-        ("scenePlugin", run.result["scenePlugin"].clone()),
-        ("meshes", gltf["meshes"].clone()),
-        ("materials", gltf["materials"].clone()),
-        ("images", gltf["images"].clone()),
-        ("samplers", gltf["samplers"].clone()),
-        ("textures", gltf["textures"].clone()),
-        ("accessors", gltf["accessors"].clone()),
-        ("files", files_without_timings(&manifest["source"]["files"])),
-        ("external", manifest["source"]["external"].clone()),
-        ("sidecarSha256", json!(hash(&run.binary))),
-        ("selectedNodes", run.result["selectedNodes"].clone()),
-        ("sourceTriangles", run.result["sourceTriangles"].clone()),
-    ] {
-        out[field] = value;
-    }
+    let (mut out, manifest) = tables_digest(run, "obj", files_without_timings);
+    out["external"] = manifest["source"]["external"].clone();
     out
 }

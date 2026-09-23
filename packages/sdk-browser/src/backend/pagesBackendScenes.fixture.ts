@@ -10,6 +10,14 @@ import {
   type Cluster,
 } from './pagesBackend.fixture.ts';
 
+/** One indexed triangle over three `positions`; by default (−1, −1), (1, −1), (0, 1) at z = 0. */
+export function triangleGeometry(positions = [-1, -1, 0, 1, -1, 0, 0, 1, 0]) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex([0, 1, 2]);
+  return geometry;
+}
+
 /** The quad's manifest without its primitives: a ready slice of two triangles over the DAG model. */
 export const QUAD_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
   ...DAG,

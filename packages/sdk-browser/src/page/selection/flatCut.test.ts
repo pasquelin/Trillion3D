@@ -56,9 +56,10 @@ test('a flat cluster cut keeps the frustum cut and reports the root cover', () =
   fixture.geometry.dispose();
 });
 
-test('a missing cluster steps its whole group back to the coarse representation, never leaving a hole', () => {
+/** The exact wide-camera cut of the test DAG once `missing` clusters are gone from the cache. */
+function cutWithout(...missing: string[]) {
   const fixture = dagFixture();
-  fixture.indices.delete('leaf0');
+  for (const url of missing) fixture.indices.delete(url);
   const { roots } = collectClusterPages(
     fixture.source,
     fixture.metadata,
@@ -72,6 +73,11 @@ test('a missing cluster steps its whole group back to the coarse representation,
     holdResident: true,
   });
   const shown = selected.shown.map((page) => page.url).sort();
+  return { fixture, selected, shown };
+}
+
+test('a missing cluster steps its whole group back to the coarse representation, never leaving a hole', () => {
+  const { fixture, selected, shown } = cutWithout('leaf0');
   assert.deepEqual(
     shown,
     ['leaf2', 'leaf3', 'mid-left'],
@@ -93,22 +99,7 @@ test('a missing cluster steps its whole group back to the coarse representation,
 });
 
 test('a missing coarse cluster keeps stepping back until the pinned root covers everything', () => {
-  const fixture = dagFixture();
-  fixture.indices.delete('leaf0');
-  fixture.indices.delete('mid-left');
-  const { roots } = collectClusterPages(
-    fixture.source,
-    fixture.metadata,
-    fixture.indices,
-    fixture.associations,
-    { allowMissing: true },
-  );
-  const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
-    pixelError: 0,
-    viewport: [1280, 720],
-    holdResident: true,
-  });
-  const shown = selected.shown.map((page) => page.url).sort();
+  const { fixture, shown } = cutWithout('leaf0', 'mid-left');
   assert.deepEqual(shown, ['root'], 'the whole primitive falls back to its root');
   assertOneRepresentationPerGroup(shown);
   fixture.geometry.dispose();

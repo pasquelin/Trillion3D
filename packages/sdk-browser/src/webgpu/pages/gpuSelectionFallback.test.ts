@@ -1,5 +1,6 @@
 import test from 'node:test';
 import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts';
+import { triangleGeometry } from '../../backend/pagesBackendScenes.fixture.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
@@ -24,18 +25,8 @@ type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
   installGpuGlobals();
-  const geoA = new THREE.BufferGeometry();
-  geoA.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0], 3),
-  );
-  geoA.setIndex([0, 1, 2]);
-  const geoB = new THREE.BufferGeometry();
-  geoB.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([8, -1, 0, 10, -1, 0, 10, 1, 0], 3),
-  );
-  geoB.setIndex([0, 1, 2]);
+  const geoA = triangleGeometry([-1, -1, 0, 1, -1, 0, 1, 1, 0]);
+  const geoB = triangleGeometry([8, -1, 0, 10, -1, 0, 10, 1, 0]);
   const material = new THREE.MeshBasicMaterial(),
     meshA = new THREE.Mesh(geoA, material),
     meshB = new THREE.Mesh(geoB, material),

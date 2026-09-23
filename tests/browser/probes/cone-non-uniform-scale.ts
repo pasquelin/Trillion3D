@@ -15,7 +15,6 @@ import {
   coneCullsPageWith,
   createConeContext,
   OPEN_CONE,
-  triangleCone,
 } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
@@ -29,18 +28,10 @@ import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fi
 import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { triggerCase } from './coneNonUniformScaleCase.ts';
 
-const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
-const indices = [0, 1, 2, 3, 4, 5];
+const { positions, indices, cone, min, max, world, camera } = triggerCase();
 const TRIANGLES = indices.length / 3;
-const cone = triangleCone(positions, indices);
-const min = [-1e6, -1e6, -1e6],
-  max = [1e6, 1e6, 0];
-const world = new THREE.Matrix4().makeScale(1e-8, 1e-6, 1e-6);
-const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-camera.position.set(6, 0, -9);
-camera.lookAt(0, 0, -0.5);
-camera.updateMatrixWorld(true);
 const VIEWPORT: [number, number] = [1000, 1000];
 
 /** What the camera sees, computed on world vertices: the face is visible, and large. */

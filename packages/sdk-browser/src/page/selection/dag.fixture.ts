@@ -139,6 +139,15 @@ export function wideCamera() {
   return cam;
 }
 
+/** An oblique view of the origin from (3, 2, 9), as the zero-threshold cut tests decide under. */
+export function obliqueCamera() {
+  const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.25, 500);
+  cam.position.set(3, 2, 9);
+  cam.lookAt(0, 0, 0);
+  cam.updateMatrixWorld();
+  return cam;
+}
+
 const fixtureCam = createEngineCamera();
 
 export function urls(

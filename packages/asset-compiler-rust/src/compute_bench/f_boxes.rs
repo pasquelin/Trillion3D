@@ -101,6 +101,8 @@ pub(crate) fn row_simple() -> Row {
         "F3 single-precision box (extend_aabb_f32)",
         "shared_math.rs",
         format!("{COUNT} single points, one in seven poisoned"),
+        // Frozen single-precision "before" loop, kept apart from F1's double one as the oracle.
+        // jscpd:ignore-start
         &mut || {
             let mut low = [f32::MAX; 3];
             let mut high = [f32::MIN; 3];
@@ -112,6 +114,7 @@ pub(crate) fn row_simple() -> Row {
             }
             (low, high)
         },
+        // jscpd:ignore-end
         &mut || {
             let mut low = [f32::MAX; 3];
             let mut high = [f32::MIN; 3];

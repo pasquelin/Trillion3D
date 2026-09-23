@@ -1,5 +1,5 @@
-// Shared fixtures for `summary.test.ts` and `summaryCoverage.test.ts`: split out to keep both
-// files under the line budget.
+// Shared fixtures for `summary.test.ts`, `summaryCoverage.test.ts` and `summaryCompute.test.ts`:
+// split out to keep the files under the line budget.
 import type { Report, Row } from './report/types.ts';
 
 /** A minimal report: one series, one side, just what `resume()` reads. */

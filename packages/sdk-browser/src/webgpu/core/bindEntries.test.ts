@@ -18,6 +18,7 @@ import { BASE_SLOTS } from '../../gpu/draw/draw.ts';
 import { createGpuRaster } from '../../gpu/raster/raster.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { layoutCreators } from './layoutDevice.fixture.ts';
 
 // Defect this test catches: a layout gains a binding and only one of its two constructors
 // binds it. The real device answers “Number of entries (10) did not match the expected number
@@ -27,12 +28,7 @@ type Recorded = { layout: { entries: unknown[] }; entries: unknown[] };
 
 function recordingDevice(groups: Recorded[]) {
   return {
-    createBuffer: ({ size, usage }: { size: number; usage: number }) => ({ size, usage }),
-    createBindGroupLayout: (desc: unknown) => desc,
-    createPipelineLayout: () => ({}),
-    createRenderPipeline: () => ({}),
-    createComputePipeline: () => ({}),
-    createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
+    ...layoutCreators(),
     createBindGroup: (desc: Recorded) => {
       groups.push(desc);
       return desc;

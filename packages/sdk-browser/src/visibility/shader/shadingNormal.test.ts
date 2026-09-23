@@ -13,31 +13,13 @@ import * as THREE from 'three';
 import { shadingNormal } from './shadingNormal.ts';
 import { referenceShadingNormal } from '../../../../../bench/oracles/browser/shading-normals.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
+import { litMaterial } from './material.fixture.ts';
 
 const attribut = (valeurs: number[], taille: number) =>
   new THREE.BufferAttribute(Float32Array.from(valeurs), taille);
 
-function materiau(overrides: Partial<VisMaterial> = {}): VisMaterial {
-  return {
-    baseColor: [0.8, 0.6, 0.4],
-    metalness: 0.3,
-    roughness: 0.4,
-    lit: true,
-    doubleSided: false,
-    backSide: false,
-    alphaTest: 0,
-    normalScale: 1,
-    normalScaleY: 1,
-    aoIntensity: 1,
-    emissive: [0, 0, 0],
-    transmission: 0,
-    ior: 1.5,
-    thickness: 0,
-    attenuationDistance: 0,
-    attenuationColor: [1, 1, 1],
-    ...overrides,
-  };
-}
+const materiau = (overrides: Partial<VisMaterial> = {}) =>
+  litMaterial({ baseColor: [0.8, 0.6, 0.4], metalness: 0.3, roughness: 0.4, ...overrides });
 
 /** Minimal 2×2 normal map: enough to exercise `sampleLinear` without a spare allocation. */
 function carteNormales(): Texture {

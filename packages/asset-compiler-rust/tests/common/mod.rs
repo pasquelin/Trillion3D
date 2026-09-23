@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Output, Stdio},
 };
 
 /// A source tree holding one quad and an empty cache directory, both under a per-tag temporary root.
@@ -71,4 +71,16 @@ pub fn compiler(source: &Path, cache: &Path) -> Command {
         "none",
     ]);
     command
+}
+
+/// Runs a job without input and returns its output once it has succeeded; a failure shows the
+/// program's stderr.
+pub fn run_ok(command: &mut Command) -> Output {
+    let output = command.stdin(Stdio::null()).output().expect("run");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    output
 }

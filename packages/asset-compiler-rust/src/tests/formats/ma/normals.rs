@@ -3,17 +3,7 @@
 //! continuity breaks —, `.n`, when present, decides instead.
 use super::driver::{close, compile_ma, normals};
 
-/// Roof slope of length one.
-const LEFT: [f32; 3] = [
-    -std::f32::consts::FRAC_1_SQRT_2,
-    0.0,
-    std::f32::consts::FRAC_1_SQRT_2,
-];
-const RIGHT: [f32; 3] = [
-    std::f32::consts::FRAC_1_SQRT_2,
-    0.0,
-    std::f32::consts::FRAC_1_SQRT_2,
-];
+use crate::tests::fixtures::{ROOF_LEFT as LEFT, ROOF_RIGHT as RIGHT};
 
 /// Roof of two quads sharing ridge edge `.ed[1]`, hard or soft. Both
 /// slopes same area: average at ridge exactly vertical.

@@ -10,23 +10,14 @@ import {
   isTransmissive,
   VIS_INVALID,
 } from './buffer.ts';
-import { camera, quadPages } from './buffer.fixture.ts';
+import { camera, nearestQuadTexture, quadPages } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 
 test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {
-  const map = new THREE.DataTexture(
-    new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]),
-    2,
-    2,
-    THREE.RGBAFormat,
-  );
-  map.magFilter = THREE.NearestFilter;
-  map.minFilter = THREE.NearestFilter;
+  const map = nearestQuadTexture();
   map.wrapS = THREE.RepeatWrapping;
   map.wrapT = THREE.RepeatWrapping;
-  map.flipY = false;
-  map.needsUpdate = true;
   const a = new THREE.MeshBasicMaterial({ color: 0xffffff, map });
   const b = new THREE.MeshBasicMaterial({ color: 0xffffff, map });
   const left = quadPages(a, [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]);

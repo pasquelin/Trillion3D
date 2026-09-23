@@ -34,16 +34,7 @@ fn close(left: [f32; 3], right: [f32; 3]) -> bool {
 }
 
 /// The slope of a roof side, of length one: it is the flat normal of each face of the roof.
-const LEFT: [f32; 3] = [
-    -std::f32::consts::FRAC_1_SQRT_2,
-    0.0,
-    std::f32::consts::FRAC_1_SQRT_2,
-];
-const RIGHT: [f32; 3] = [
-    std::f32::consts::FRAC_1_SQRT_2,
-    0.0,
-    std::f32::consts::FRAC_1_SQRT_2,
-];
+use crate::tests::fixtures::{ROOF_LEFT as LEFT, ROOF_RIGHT as RIGHT};
 
 // Behaviour: a sharp face keeps its own normal on each of its corners; two smooth faces that
 // share a soft edge average theirs on the corners of that edge.

@@ -7,6 +7,7 @@ import { createWebgpuBlendState } from '../blend/state.ts';
 import { VOLUME_WORDS } from '../transparent/transmission.ts';
 import { buildBlendStatics, refreshBlendPlan } from '../blend/plan.ts';
 import { orderBlendPasses } from '../blend/order.ts';
+import { triangleGeometry } from '../../backend/pagesBackendScenes.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import type { WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -45,12 +46,7 @@ export const device = mountDevice().device;
 
 /** One triangle per mesh: only the material class distinguishes the three copies. */
 function copy(material: THREE.Material, order: number) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2]);
+  const geometry = triangleGeometry();
   const mesh = new THREE.Mesh(geometry, material);
   mesh.matrixAutoUpdate = false;
   mesh.renderOrder = order;

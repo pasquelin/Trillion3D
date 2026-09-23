@@ -1,6 +1,5 @@
 import { createChangeGate, createControlBase } from './controlBase.ts';
-import { pinchSteps } from './controlPivot.ts';
-import { trackPointers, trackWheel } from './controlInput.ts';
+import { pivotControlsApi, trackPivotGestures } from './controlPivot.ts';
 import { controlPose, readVector, writeVector } from './controlPose.ts';
 import { dollyDistance, orbitOrientation, panOffset, pixelWorldScale } from './controlMath.ts';
 import {
@@ -76,30 +75,17 @@ export function createOrbitCameraControls(
     spherical[0] = dollyDistance(spherical[0], steps, api.zoomSpeed);
     apply();
   };
-  const api: PivotCameraControls = {
-    ...base.api,
-    object: pose.object,
-    target: pose.vector(),
-    minDistance: 0,
-    maxDistance: Infinity,
-    enableZoom: true,
-    enablePan: true,
-    rotateSpeed: 1,
-    zoomSpeed: 1,
-    update: () => {
-      sample();
-      return apply();
-    },
-  };
-  trackPointers(surface, base, {
-    drag: (dx, dy, button, event) =>
-      button === 0 && !event.shiftKey ? rotate(dx, dy) : panBy(dx, dy),
-    pinch: (ratio, dx, dy) => {
-      panBy(dx, dy);
-      dolly(pinchSteps(ratio));
-    },
+  const api = pivotControlsApi(base, pose, () => {
+    sample();
+    return apply();
   });
-  // Wheel down pushes the camera away, as every viewer expects; a notch is 5 % of the distance.
-  trackWheel(surface, base, (steps) => dolly(-steps));
+  // A wheel notch is 5 % of the distance.
+  trackPivotGestures(
+    surface,
+    base,
+    (dx, dy, button, event) => (button === 0 && !event.shiftKey ? rotate(dx, dy) : panBy(dx, dy)),
+    panBy,
+    dolly,
+  );
   return api;
 }

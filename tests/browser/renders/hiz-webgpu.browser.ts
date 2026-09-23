@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { createHash } from 'node:crypto';
-import { createServer } from 'node:http';
+import { blankPageServer } from '../../kit/server/blankPage.ts';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { HIZ_SHADER, hizBindEntries } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts';
@@ -28,16 +28,7 @@ interface HizReport {
   finishedAt?: string;
 }
 
-const server = createServer((_request, response) => {
-  response.writeHead(200, { 'content-type': 'text/html' });
-  response.end('<!doctype html><title>WebGeometry Hi-Z GPU check</title>');
-});
-await new Promise<void>((ready: () => void, reject) => {
-  server.once('error', reject);
-  server.listen(0, '127.0.0.1', ready);
-});
-const address = server.address();
-if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
+const { server, port } = await blankPageServer('WebGeometry Hi-Z GPU check');
 const browser = await launchChrome({ headless: true });
 const report: HizReport = {
   version: 1,
@@ -53,7 +44,7 @@ const report: HizReport = {
 try {
   const page = await browser.newPage();
   page.on('pageerror', (error) => report.errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${address.port}/`);
+  await page.goto(`http://127.0.0.1:${port}/`);
   const result = await page.evaluate(executerHiz, {
     shader: HIZ_SHADER,
     cases,

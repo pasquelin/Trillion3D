@@ -7,7 +7,7 @@
 // node --experimental-strip-types tests/browser/renders/cone-non-uniform-scale.browser.ts
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { OPEN_CONE, triangleCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
+import { OPEN_CONE } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import {
   packDagSelection,
   packedWorldsToRenderOrigin,
@@ -17,6 +17,7 @@ import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fi
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import { selectionGpu } from '../probes/selectionKernelGpu.ts';
+import { triggerCase } from '../probes/coneNonUniformScaleCase.ts';
 
 const VIEWPORT: [number, number] = [1000, 1000];
 
@@ -45,16 +46,7 @@ function empaquete(
 /** Trigger case: two real triangles, scale (1e-8, 1e-6, 1e-6), visible and large face —
  *  identical to `tests/browser/probes/cone-non-uniform-scale.ts`. */
 function casDeclencheur() {
-  const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
-  const indices = [0, 1, 2, 3, 4, 5];
-  const cone = triangleCone(positions, indices);
-  const min = [-1e6, -1e6, -1e6],
-    max = [1e6, 1e6, 0];
-  const world = new THREE.Matrix4().makeScale(1e-8, 1e-6, 1e-6);
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-  camera.position.set(6, 0, -9);
-  camera.lookAt(0, 0, -0.5);
-  camera.updateMatrixWorld(true);
+  const { cone, min, max, world, camera } = triggerCase();
   const sphere = [0, 0, -0.5, 2];
   const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
   return {

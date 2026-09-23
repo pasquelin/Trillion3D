@@ -42,6 +42,6 @@ export async function openMachine(input: {
   await page.goto(`http://127.0.0.1:${serverPort(input.server)}`);
   await page.evaluate(async (url) => {
     window.sdk = await import(url);
-  }, '/sdk/sdk-browser/measurement.js');
+  }, '/sdk/sdk-browser/src/measurement/measurement.js');
   return { context, page };
 }

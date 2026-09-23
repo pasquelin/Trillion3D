@@ -39,6 +39,9 @@ export async function executerHiz({
     device: adapter.info.device,
     description: adapter.info.description,
   };
+  // Serialized into the page, this function reaches no module: the device opening `drawRun.ts`
+  // shares is written again here, on purpose.
+  // jscpd:ignore-start
   const device = await adapter.requestDevice();
   const errors: string[] = [];
   device.addEventListener('uncapturederror', (event) => {
@@ -47,6 +50,7 @@ export async function executerHiz({
   });
   const module = device.createShaderModule({ code: shader });
   const info = await module.getCompilationInfo();
+  // jscpd:ignore-end
   const compilationErrors = info.messages
     .filter((message) => message.type === 'error')
     .map((message) => message.message);

@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './pages.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { quadScene, camera } from './testScenes.fixture.ts';
+import {
+  quadScene,
+  camera,
+  assertBothQuadPagesDrawn,
+  disposeQuadRun,
+} from './testScenes.fixture.ts';
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
 import {
@@ -43,9 +48,7 @@ test('surface capture keeps external renders blocked until main-view restoration
     surface.dispose();
     assert.match(String(blocked), /SURFACE_CAPTURE_BUSY/);
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });
 
@@ -75,9 +78,7 @@ test('a failed transparent material pipeline cannot leave an HDR pass with an rg
     backend.render(camera());
     assert.equal(backend.metrics().submittedTriangles, 2);
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });
 
@@ -154,12 +155,8 @@ test('a visible opaque primitive without a hierarchy still has complete exact-pa
   }) as WebgpuPagesBackend;
   try {
     await backend.prepare();
-    backend.render(camera());
-    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
-    assert.equal(backend.metrics().submittedTriangles, 2);
+    assertBothQuadPagesDrawn(backend);
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });

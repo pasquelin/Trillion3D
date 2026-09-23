@@ -14,9 +14,9 @@ packages/
 tests/
   integration/        21 *.test.ts — architecture, boundaries, public contracts
   browser/renders/    42 *.browser.ts — rendering in real Chromium
-  browser/probes/     20 GPU probes + 31 support modules
-  browser/support/    67 pages and cases served to the render proofs
-  kit/                14 shared test tools: fake GPU devices, servers, assertions
+  browser/probes/     20 GPU probes + 32 support modules
+  browser/support/    68 pages and cases served to the render proofs
+  kit/                16 shared test tools: fake GPU devices, servers, assertions
   fixtures/           12 test data builders; formats/ holds the compiler goldens
 bench/
   core/               14 modules: measure, report, diff, ulp, baseline
@@ -197,7 +197,8 @@ identical budgets, scenes, and poses.
 | Command                       | Role                                                                     |
 | ----------------------------- | ------------------------------------------------------------------------ |
 | `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                |
-| `pnpm run check:duplicates`   | No duplicated blocks ≥ 12 lines and ≥ 100 tokens                         |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                           |
+| `pnpm run check:helpers`      | No small helper copied into a second module of the same package          |
 | `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                   |
 | `pnpm run check:unused`       | Dead exports and files (`knip`)                                          |
 | `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript               |

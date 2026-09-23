@@ -12,6 +12,7 @@ import type { VisPage, VisMaterial } from '../types.ts';
 import type { Projected } from '../projection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
+import { litMaterial } from './material.fixture.ts';
 
 function vertex(worldX: number, worldY: number, worldZ: number, invW = 1): Projected {
   return { x: 0, y: 0, z: 0, invW, worldX, worldY, worldZ };
@@ -23,28 +24,6 @@ function fakeTexture(pixel: [number, number, number, number]): Texture {
     wrapS: 'clamp',
     wrapT: 'clamp',
   } as unknown as Texture;
-}
-
-function material(overrides: Partial<VisMaterial> = {}): VisMaterial {
-  return {
-    baseColor: [1, 1, 1],
-    metalness: 0,
-    roughness: 1,
-    lit: true,
-    doubleSided: false,
-    backSide: false,
-    alphaTest: 0,
-    normalScale: 1,
-    normalScaleY: 1,
-    aoIntensity: 1,
-    emissive: [0, 0, 0],
-    transmission: 0,
-    ior: 1.5,
-    thickness: 0,
-    attenuationDistance: 0,
-    attenuationColor: [1, 1, 1],
-    ...overrides,
-  };
 }
 
 function pageOf(overrides: Partial<VisPage> = {}): VisPage {
@@ -92,7 +71,7 @@ function assertSameShading(cas: Cas, label: string) {
     cas.affine ?? { area: -0.42 },
     cas.bary ?? { w0: 0.5, w1: 0.3, w2: 0.2 },
     cas.uv ?? [0.35, 0.7],
-    cas.mat ?? material(),
+    cas.mat ?? litMaterial(),
     cas.rgb ?? [0.2, 0.5, 0.9],
     cas.metalness ?? 0.3,
     cas.roughness ?? 0.5,
@@ -119,7 +98,7 @@ test('negative determinant (mirrored page) and doubleSided/backSide combined', (
   for (const doubleSided of [false, true])
     for (const backSide of [false, true])
       assertSameShading(
-        { page, affine: { area: 0.1 }, mat: material({ doubleSided, backSide }) },
+        { page, affine: { area: 0.1 }, mat: litMaterial({ doubleSided, backSide }) },
         `ds${doubleSided} bs${backSide}`,
       );
 });
@@ -144,7 +123,7 @@ test('vertex normals carried by the page, with and without doubleSided', () => {
   );
   const page = pageOf({ attributes: { normal } });
   for (const doubleSided of [false, true])
-    assertSameShading({ page, mat: material({ doubleSided }) }, `normale ds${doubleSided}`);
+    assertSameShading({ page, mat: litMaterial({ doubleSided }) }, `normale ds${doubleSided}`);
 });
 
 test('visibilityLighting reads Nx/Ny/Nz from normal[0]/[1]/[2], not permuted', () => {
@@ -166,7 +145,7 @@ test('normal map with a tangent carried by the page', () => {
     4,
   );
   const page = pageOf({ attributes: { normal, tangent } });
-  const mat = material({
+  const mat = litMaterial({
     normalMap: fakeTexture([200, 90, 255, 255]),
     normalScale: 1.4,
     normalScaleY: -0.6,
@@ -177,12 +156,12 @@ test('normal map with a tangent carried by the page', () => {
 test('normal map without a tangent: derived from the UVs carried by the page', () => {
   const uv = new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2);
   const page = pageOf({ attributes: { uv } });
-  const mat = material({ normalMap: fakeTexture([10, 250, 5, 255]) });
+  const mat = litMaterial({ normalMap: fakeTexture([10, 250, 5, 255]) });
   assertSameShading({ page, mat }, 'normalMap without tangent');
 });
 
 test('mapped ambient occlusion and emission, compared to their absence', () => {
-  const avecCartes = material({
+  const avecCartes = litMaterial({
     aoMap: fakeTexture([64, 64, 64, 255]),
     aoIntensity: 1.8,
     emissiveMap: fakeTexture([255, 128, 0, 255]),

@@ -6,16 +6,12 @@ import { createWebgpuShadePipelines } from '../visibility/pipelines.ts';
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
 import { createGpuRaster } from '../../gpu/raster/raster.ts';
 import { createTemporalAntialiasing } from '../../taa/temporalAntialiasing.ts';
+import { layoutCreators } from './layoutDevice.fixture.ts';
 
 /** Fake device for layouts: it keeps only what it is asked to create. */
 function recordingDevice() {
   return {
-    createBuffer: ({ size, usage }: { size: number; usage: number }) => ({ size, usage }),
-    createBindGroupLayout: (desc: unknown) => desc,
-    createPipelineLayout: () => ({}),
-    createRenderPipeline: () => ({}),
-    createComputePipeline: () => ({}),
-    createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
+    ...layoutCreators(),
     createBindGroup: (desc: unknown) => desc,
     createSampler: () => ({}),
     queue: { writeBuffer() {} },

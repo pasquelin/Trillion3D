@@ -3,15 +3,12 @@
 // without ever assuming a path that the measured dist did not publish.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { rm } from 'node:fs/promises';
 import { readOptions } from './options.ts';
 import { runSerie } from './series.ts';
+import { contexte, pose } from './seriesTestFixtures.ts';
 import type { Page } from 'playwright';
 import type { RunContext } from './report/types.ts';
-import type { Side } from './sideOptions.ts';
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 
 /** What the page returns when it has nothing more to say than requested metrics. */
 const releveDePage = (mathBatch: unknown) => ({
@@ -27,11 +24,8 @@ const releveDePage = (mathBatch: unknown) => ({
   ...(mathBatch === undefined ? {} : { mathBatch }),
 });
 
-const pose: CameraPose = { position: [0, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 };
-
 /** A series run on a mock page: returns produced row and path it received. */
 async function serie(mathPath: string, mathBatch: unknown) {
-  const OUT = await mkdtemp(join(tmpdir(), 'wg-serie-calcul-'));
   const recus: unknown[] = [];
   const page = {
     evaluate: async (_fn: unknown, payload: { mathPath: unknown }) => {
@@ -39,39 +33,12 @@ async function serie(mathPath: string, mathBatch: unknown) {
       return releveDePage(mathBatch);
     },
   } as unknown as Page;
-  const ctx: RunContext = {
-    MANIFEST: 'manifest.json',
-    OUT,
-    settings: {
-      frames: 4,
-      warmup: 1,
-      maxPages: 32,
-      width: 8,
-      height: 8,
-      mathPath,
-    } as RunContext['settings'],
-    lights: null,
-    poses: null,
-  };
-  const side = {
-    name: 'a',
-    dist: 'dist-test',
-    from: 'test',
-    engine: {
-      backend: 'creerMoteur',
-      id: 'moteur-test',
-      flags: [],
-      page: 'lightingPage.ts',
-      source: 'cache',
-    },
-    variant: null,
-    errorMetric: null,
-  } as unknown as Side;
+  const { ctx, side } = await contexte({ mathPath } as Partial<RunContext['settings']>);
   try {
     const { row } = await runSerie(ctx, page, side, 'salon', 1, pose, new Map());
     return { row, recus };
   } finally {
-    await rm(OUT, { recursive: true, force: true });
+    await rm(ctx.OUT, { recursive: true, force: true });
   }
 }
 

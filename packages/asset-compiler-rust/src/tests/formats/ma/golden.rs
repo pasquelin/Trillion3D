@@ -67,22 +67,5 @@ fn fixture(dir: &Path) -> PathBuf {
 /// Golden comparison: retained driver, written intermediate scene — nodes,
 /// meshes, materials, images, report —, and output compiled scene.
 fn digest(run: &GoldenRun) -> Value {
-    let (digest, manifest, gltf) = scene_digest(run, "ma");
-    let mut out = digest;
-    for (field, value) in [
-        ("scenePlugin", run.result["scenePlugin"].clone()),
-        ("meshes", gltf["meshes"].clone()),
-        ("materials", gltf["materials"].clone()),
-        ("images", gltf["images"].clone()),
-        ("samplers", gltf["samplers"].clone()),
-        ("textures", gltf["textures"].clone()),
-        ("accessors", gltf["accessors"].clone()),
-        ("files", manifest["source"]["files"].clone()),
-        ("sidecarSha256", json!(hash(&run.binary))),
-        ("selectedNodes", run.result["selectedNodes"].clone()),
-        ("sourceTriangles", run.result["sourceTriangles"].clone()),
-    ] {
-        out[field] = value;
-    }
-    out
+    tables_digest(run, "ma", Value::clone).0
 }

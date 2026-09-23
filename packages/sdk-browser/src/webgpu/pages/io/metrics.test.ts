@@ -9,6 +9,24 @@ import { referenceVertexBytes } from '../../../../../../bench/oracles/browser/by
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuGpuState } from '../state/gpu.ts';
 
+/** The smallest runtime `metricsOf` reads: fresh states around `run` and `gpu`, nothing
+ *  streamed yet. */
+function runtimeOver(
+  run: ReturnType<typeof createWebgpuRunState>,
+  gpu: object = { positionBuffers: new Map() },
+) {
+  return {
+    run,
+    gpu,
+    vis: createWebgpuVisState(),
+    timing: {},
+    blendState: createWebgpuBlendState(),
+    services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
+    setup: { geometryPool: { slots: 0 }, texturePool: {} },
+    lights: createWebgpuLightState(),
+  } as unknown as WebgpuPagesRuntime;
+}
+
 // Synchronous-triangles lot: `drawnTriangles` is copied as-is from `run.drawnTriangles`, without
 // the `pending` guard (`gpuFrameActive && !gpuMetricsReady`) that hides `submittedTriangles` — it
 // never waited for a GPU readback, so never `null` for lack of time where a cut exists.
@@ -17,16 +35,7 @@ test('metricsOf publishes drawnTriangles from run.drawnTriangles, even when subm
   run.gpuFrameActive = true;
   run.gpuMetricsReady = false; // An image still in flight: submittedTriangles must be null.
   run.drawnTriangles = 4321;
-  const rt = {
-    run,
-    gpu: { positionBuffers: new Map() },
-    vis: createWebgpuVisState(),
-    timing: {},
-    blendState: createWebgpuBlendState(),
-    services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
-    setup: { geometryPool: { slots: 0 }, texturePool: {} },
-    lights: createWebgpuLightState(),
-  } as unknown as WebgpuPagesRuntime;
+  const rt = runtimeOver(run);
 
   const metrics = metricsOf(rt);
   assert.equal(metrics.drawnTriangles, 4321);
@@ -34,16 +43,7 @@ test('metricsOf publishes drawnTriangles from run.drawnTriangles, even when subm
 });
 
 test("texture metrics are the streamer's, and `null` until it is built", () => {
-  const rt = {
-    run: createWebgpuRunState(),
-    gpu: { positionBuffers: new Map() },
-    vis: createWebgpuVisState(),
-    timing: {},
-    blendState: createWebgpuBlendState(),
-    services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
-    setup: { geometryPool: { slots: 0 }, texturePool: {} },
-    lights: createWebgpuLightState(),
-  } as unknown as WebgpuPagesRuntime;
+  const rt = runtimeOver(createWebgpuRunState());
   const before = metricsOf(rt) as Record<string, unknown>;
   assert.equal('texturePoolBytes' in before, false, 'no pool: nothing is published, not even zero');
   rt.vis.textures = {
@@ -137,16 +137,7 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
 
 test('`lightsSampled` is true only on a moving accumulated frame whose resolve ran sampled', () => {
   const temporal = { frame: { active: true, sampledRank: 3 } };
-  const rt = {
-    run: createWebgpuRunState(),
-    gpu: { positionBuffers: new Map(), temporal },
-    vis: createWebgpuVisState(),
-    timing: {},
-    blendState: createWebgpuBlendState(),
-    services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
-    setup: { geometryPool: { slots: 0 }, texturePool: {} },
-    lights: createWebgpuLightState(),
-  } as unknown as WebgpuPagesRuntime;
+  const rt = runtimeOver(createWebgpuRunState(), { positionBuffers: new Map(), temporal });
   assert.equal(metricsOf(rt).lightsSampled, false, 'no light lit: nothing was drawn');
   rt.lights.lightsActive = 2;
   assert.equal(metricsOf(rt).lightsSampled, true);

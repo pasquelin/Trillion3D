@@ -1,5 +1,6 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './selection.ts';
 import { bytesOf, compactDrawnPages } from '../../../../../tests/kit/gpu/globals.ts';
+import { readDagUniforms } from '../../../../../tests/kit/gpu/mockCompute.ts';
 import { SELECTION_HEADER_WORDS, residentBase, residentBit } from './layout.ts';
 
 export function mockDagDevice(
@@ -11,22 +12,6 @@ export function mockDagDevice(
   let pipeline: { entryPoint: string } | undefined,
     uniformWriteCount = 0,
     copyCount = 0;
-  const readUniforms = (data: Uint8Array) => {
-    const f32 = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
-    const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4);
-    return {
-      uniforms: {
-        planes: f32.slice(0, 24),
-        view: f32.slice(24, 40),
-        pixelScale: [f32[40], f32[41]] as [number, number],
-        pixelError: f32[42],
-        near: f32[43],
-        cameraWorld: [f32[48], f32[49], f32[50]] as [number, number, number],
-        cameraStretch: f32[51],
-      },
-      residentCut: !!u32[47],
-    };
-  };
   const device = {
     limits: { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
     createBuffer: ({ size, usage }: { size: number; usage: number }) => ({
@@ -83,7 +68,7 @@ export function mockDagDevice(
             );
             return;
           }
-          const { uniforms, residentCut } = readUniforms(byBinding.get(2)!.data);
+          const { uniforms, residentCut } = readDagUniforms(byBinding.get(2)!.data);
           // Residency lives as bits behind the cold records: the double rereads it through the
           // shared decoder, like the shader, rather than at a rank copied here.
           const bits = new Uint32Array(

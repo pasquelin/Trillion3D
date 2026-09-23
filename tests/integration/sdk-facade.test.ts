@@ -53,6 +53,8 @@ test('the five-import hierarchy example composes parents before children', () =>
     hierarchyUpdateBatch,
   } = common;
   const count = 3;
+  // The guide's five-import example, run as written: the portal demo (`site/demos/batch.ts`) shows its own copy.
+  // jscpd:ignore-start
   const views = (buffer: Float64Array, stride: number): Float64Array[] =>
     Array.from({ length: count }, (_, index) =>
       buffer.subarray(index * stride, (index + 1) * stride),
@@ -61,6 +63,7 @@ test('the five-import hierarchy example composes parents before children', () =>
   const positions = new Float64Array(count * POSITION_VALUES);
   const rotations = new Float64Array(count * QUATERNION_VALUES);
   const scales = new Float64Array(count * POSITION_VALUES).fill(1);
+  // jscpd:ignore-end
   const parents = new Uint32Array([HIERARCHY_ROOT, 0, 1]);
   rotations[3] = rotations[7] = rotations[11] = 1;
   positions[0] = 2;

@@ -6,34 +6,29 @@ import { compareImages, type ClusterManifest } from '../../../../../sdk-core/src
 import { exactPagesBackend } from '../../../measurement/measurement.ts';
 import { webgpuPagesBackend } from '../pages.ts';
 import { rasterPageRecords } from '../../../page/raster.ts';
-import { collectClusterPages } from '../../../page/selection/selection.ts';
-import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import {
   drawnPageIds,
   indirectDraws,
   installGpuGlobals,
 } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { quadScene, camera, mixedBinScene, quadBackend } from '../testScenes.fixture.ts';
+import {
+  quadScene,
+  camera,
+  mixedBinScene,
+  quadBackend,
+  flushedGpuScene,
+} from '../testScenes.fixture.ts';
 
 test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {
   installGpuGlobals();
   const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const collected = collectClusterPages(source, metadata, indices, associations);
-  const packed = packDagSelection(collected.roots);
-  const { device, draws, writes, computes, buffers } = mockGpu(undefined, packed);
-  const backend = webgpuPagesBackend({
+  const { draws, writes, computes, buffers, packed, backend } = await flushedGpuScene({
     source,
     metadata,
     indices,
     associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   });
-  await backend.prepare();
-  backend.render(camera());
-  await backend.flush?.();
   draws.length = 0;
   backend.render(camera());
   let pageMeshes = 0;
@@ -85,21 +80,12 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
     both,
   } = mixedBinScene();
   const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY };
-  const collected = collectClusterPages(source, metadata, indices, associations);
-  const packed = packDagSelection(collected.roots);
-  const { device, draws, computes, buffers } = mockGpu(undefined, packed);
-  const backend = webgpuPagesBackend({
+  const { draws, computes, buffers, packed, backend } = await flushedGpuScene({
     source,
     metadata,
     indices,
     associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   });
-  await backend.prepare();
-  backend.render(camera());
-  await backend.flush?.();
   draws.length = 0;
   computes.length = 0;
   backend.render(camera());

@@ -23,7 +23,7 @@ import { ASSETS, DEFAULT_SCENE, assetsManifest } from '../../../bench/runner/sce
 import { poseAt } from '../../../bench/runner/poses.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../..');
-const SDK_URL = '/sdk/sdk-browser/measurement.js',
+const SDK_URL = '/sdk/sdk-browser/src/measurement/measurement.js',
   MODULES_URL = '/preuve/',
   MESURE_URL = '/runner/';
 const POSES = 30;
