@@ -5,6 +5,7 @@ import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { readyEntries } from '../site/app/examples/list.ts';
 import { layoutFaults, ROUTES } from './docs/layout-faults.ts';
+import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
 
 const [example] = readyEntries;
 const { server, port } = await startDocsServer();
@@ -121,9 +122,9 @@ test('moving from one example to the next keeps the sidebar where it was, with n
   await page.context().close();
 });
 
-test('the layout holds on every page type, at every width, in both languages', async () => {
+test('the layout holds on every page type, at every width, in every language', async () => {
   const faults: string[] = [];
-  for (const locale of ['en', 'fr'])
+  for (const { code: locale } of LANGUAGES)
     for (const width of [390, 768, 1024, 1280, 1440, 1920]) {
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       const page = await context.newPage();
