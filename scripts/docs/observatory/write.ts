@@ -68,8 +68,8 @@ export async function writeObservatory(directory: string) {
   const gltf: GltfDocument = {
     asset: {
       version: '2.0',
-      generator: 'trillion3D Solstice Court recipe v1',
-      copyright: 'Original trillion3D contributors; repository license',
+      generator: 'Trillion3D Solstice Court recipe v1',
+      copyright: 'Original Trillion3D contributors; repository license',
     },
     scene: 0,
     scenes: [{ nodes: [0, 1] }],

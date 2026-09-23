@@ -49,7 +49,7 @@ export function createTileLanes(
       throw new Error(`TEXTURE_POOL_TAILS: ${tails} ${lane} textures, ${pool.tiles} tiles`);
   }
   const standInTexture = device.createTexture({
-    label: `WG texture pool ${kind} stand-in`,
+    label: `Trillion3D texture pool ${kind} stand-in`,
     size: { width: 4, height: 4, depthOrArrayLayers: 1 },
     format: 'rgba8unorm',
     usage: GPUTextureUsage.TEXTURE_BINDING,

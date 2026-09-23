@@ -74,7 +74,7 @@ export function createWebgpuTilePool(
   // format cannot be one, and no browser image is ever copied into it.
   const attachment = texelBytes === 1 ? 0 : GPUTextureUsage.RENDER_ATTACHMENT;
   const texture = device.createTexture({
-    label: `WG texture pool ${options.kind} ${options.lane}`,
+    label: `Trillion3D texture pool ${options.kind} ${options.lane}`,
     size: { width: POOL_LAYER_SIDE, height: POOL_LAYER_SIDE, depthOrArrayLayers: layers },
     format,
     usage:

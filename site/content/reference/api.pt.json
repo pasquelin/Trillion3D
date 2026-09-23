@@ -841,7 +841,7 @@
     "summary": "Uma função que ouve cada coisa que um canal de diagnóstico relata."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "Esquema JSON abrangente documentando todas as opções de inicialização do explorador trillion3D (MeasuredWorldOptions).",
+    "summary": "Esquema JSON abrangente documentando todas as opções de inicialização do explorador Trillion3D (MeasuredWorldOptions).",
     "description": "Permite que LLMs entendam, validem e ajustem a configuração do motor 3D."
   },
   "EngineCamera": {
@@ -3826,13 +3826,13 @@
     }
   },
   "TRILLION3D_RUNTIME_TOOLS": {
-    "summary": "Catálogo completo de ferramentas e funções em tempo de execução disponíveis para controlar o trillion3D a partir de um LLM."
+    "summary": "Catálogo completo de ferramentas e funções em tempo de execução disponíveis para controlar o Trillion3D a partir de um LLM."
   },
   "TRILLION3D_SYSTEM_PROMPT": {
-    "summary": "Prompt de sistema guiando um LLM sobre os princípios, orçamentos e opções de renderização do trillion3D."
+    "summary": "Prompt de sistema guiando um LLM sobre os princípios, orçamentos e opções de renderização do Trillion3D."
   },
   "Trillion3dTool": {
-    "summary": "Definição genérica de ferramenta trillion3D para LLMs.",
+    "summary": "Definição genérica de ferramenta Trillion3D para LLMs.",
     "members": {
       "name": "O nome da ferramenta.",
       "description": "O que ela faz.",
@@ -5072,7 +5072,7 @@
     "summary": "Gera o prompt de sistema especialista pronto para uso para preparar um LLM."
   },
   "getTrillion3dTools": {
-    "summary": "Devolve o array completo de definições de ferramentas trillion3D formatado para o provedor de LLM alvo.",
+    "summary": "Devolve o array completo de definições de ferramentas Trillion3D formatado para o provedor de LLM alvo.",
     "parameters": {
       "format": "Formato alvo ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Padrão: 'openai'."
     }
@@ -6535,16 +6535,16 @@
     "description": "O modelo vem do compilador e o motor não conhece o layout do cache; uma só verdade, como para as páginas. Um modelo sem seus quatro campos é recusado: um endereço que não varia com eles serviria a mesma imagem para cada textura."
   },
   "toAnthropicTool": {
-    "summary": "Converte uma ferramenta trillion3D genérica para o formato Anthropic Tool Use."
+    "summary": "Converte uma ferramenta Trillion3D genérica para o formato Anthropic Tool Use."
   },
   "toGeminiTool": {
-    "summary": "Converte uma ferramenta trillion3D genérica para o formato Google Gemini Function Declaration."
+    "summary": "Converte uma ferramenta Trillion3D genérica para o formato Google Gemini Function Declaration."
   },
   "toMcpTool": {
-    "summary": "Converte uma ferramenta trillion3D genérica para o formato Model Context Protocol (MCP)."
+    "summary": "Converte uma ferramenta Trillion3D genérica para o formato Model Context Protocol (MCP)."
   },
   "toOpenAiTool": {
-    "summary": "Converte uma ferramenta trillion3D genérica para o formato OpenAI Function Calling."
+    "summary": "Converte uma ferramenta Trillion3D genérica para o formato OpenAI Function Calling."
   },
   "toneMapping": {
     "summary": "A curva que traz a radiância da cena para a faixa de exibição: cada curva que o motor classifica."

@@ -42,7 +42,7 @@ export interface JsonSchemaObject {
 }
 
 /**
- * Generic trillion3D tool definition for LLMs.
+ * Generic Trillion3D tool definition for LLMs.
  */
 export interface Trillion3dTool {
   /** The tool's name. */
