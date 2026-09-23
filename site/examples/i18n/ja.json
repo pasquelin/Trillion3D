@@ -801,7 +801,7 @@
   },
   "four-ways-to-blend": {
     "controls": {
-      "mouse": "左から右へ：ふつう、加算、減算、乗算。ドラッグで横から見よう",
+      "mouse": "左から右へ: ふつう、加算、減算、乗算。ドラッグで横から見よう",
       "inks": "インク",
       "opacity": "不透明度",
       "circle": "回る"
@@ -947,7 +947,7 @@
       "beauty": "光が当たった絵",
       "albedo": "下地の色、光が当たる前",
       "normals": "カメラから見て面が向いている方向",
-      "depth": "きょり：近いと明るく、遠いと暗い",
+      "depth": "きょり: 近いと明るく、遠いと暗い",
       "triangle ids": "どの三角形がそのピクセルをおおうか",
       "material ids": "どのマテリアルがそのピクセルに色をぬるか",
       "notOffered": "このレンダラーにはない"
@@ -1142,7 +1142,7 @@
       "circle": "回る"
     },
     "words": {
-      "credit": "Marble Bust 01、作：Rico Cilliers、Poly Haven、CC0 — assets/examples/CREDITS.md を見てね"
+      "credit": "Marble Bust 01、作: Rico Cilliers、Poly Haven、CC0 — assets/examples/CREDITS.md を見てね"
     }
   },
   "memory-on-a-budget": {
@@ -1160,7 +1160,7 @@
   },
   "migrating-from-three": {
     "words": {
-      "credit": "Marble Bust 01、作：Rico Cilliers、Poly Haven、CC0。木箱：W. Sitters、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
+      "credit": "Marble Bust 01、作: Rico Cilliers、Poly Haven、CC0。木箱: W. Sitters、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
     }
   },
   "move-rotate-scale-gizmo": {
@@ -1220,8 +1220,8 @@
     },
     "words": {
       "lit": "光とマテリアル",
-      "normals": "向き：右が赤、上が緑、きみの方が青",
-      "depth": "きょり：近いと白、遠いと暗い"
+      "normals": "向き: 右が赤、上が緑、きみの方が青",
+      "depth": "きょり: 近いと白、遠いと暗い"
     }
   },
   "observatory-streamed": {
@@ -1259,7 +1259,7 @@
   },
   "orbit-around-a-clockwork": {
     "controls": {
-      "mouse": "商品ビューア：ドラッグで回す · 右ドラッグでずらす · ホイールで歯車の歯にズーム",
+      "mouse": "商品ビューア: ドラッグで回す · 右ドラッグでずらす · ホイールで歯車の歯にズーム",
       "view": "表示",
       "speed": "速さ",
       "brass": "真ちゅう"
@@ -1296,7 +1296,7 @@
     },
     "words": {
       "hover": "絵の上にマウスをのせて、ピクセルを読もう",
-      "pixel": "ピクセル {x}, {y}：{colour}"
+      "pixel": "ピクセル {x}, {y}: {colour}"
     }
   },
   "ride-a-roller-coaster": {
@@ -1340,7 +1340,7 @@
   },
   "see-the-triangles": {
     "controls": {
-      "mouse": "ホイールで遠ざかったり近づいたり：遠くからだと、胸像に必要な三角形は少なく大きくなる",
+      "mouse": "ホイールで遠ざかったり近づいたり: 遠くからだと、胸像に必要な三角形は少なく大きくなる",
       "view": "表示",
       "pixelError": "ピクセル誤差",
       "sideBySide": "ならべる"
@@ -1359,12 +1359,12 @@
       "pagesMemory": "メモリ上のページ"
     },
     "words": {
-      "credit": "Marble Bust 01、作：Rico Cilliers、Poly Haven、CC0 — assets/examples/CREDITS.md を見てね"
+      "credit": "Marble Bust 01、作: Rico Cilliers、Poly Haven、CC0 — assets/examples/CREDITS.md を見てね"
     }
   },
   "select-with-a-box": {
     "controls": {
-      "help": "選ぶ：四角をドラッグ。Shiftで追加、Altで外す。回る：ドラッグで庭の上を飛ぶ",
+      "help": "選ぶ: 四角をドラッグ。Shiftで追加、Altで外す。回る: ドラッグで庭の上を飛ぶ",
       "mouse": "マウス",
       "selectAll": "全部選ぶ",
       "clear": "クリア"
@@ -1540,8 +1540,8 @@
     },
     "words": {
       "hint": "ステージをクリックしてメロディを聞こう",
-      "listening": "マイクを聞いているよ：歌って、口笛をふいて、手をたたいて",
-      "refused": "マイクがことわられた：かわりにメロディが鳴るよ",
+      "listening": "マイクを聞いているよ: 歌って、口笛をふいて、手をたたいて",
+      "refused": "マイクがことわられた: かわりにメロディが鳴るよ",
       "silence": "静か。ステージをクリックすると、またメロディが聞こえる"
     }
   },
@@ -1590,7 +1590,7 @@
   },
   "texture-filters-compared": {
     "controls": {
-      "mouse": "ドラッグでレーンにそって見よう。左から右へ：最近傍、リニア、トライリニア、異方性",
+      "mouse": "ドラッグでレーンにそって見よう。左から右へ: 最近傍、リニア、トライリニア、異方性",
       "picture": "絵",
       "anisotropy": "異方性"
     },
@@ -1643,11 +1643,11 @@
     },
     "words": {
       "meshBasic": "平らな色ひとつ、どのランプも見えない",
-      "meshLambert": "チョークみたいにマット：やわらかい光、つやなし",
-      "meshPhong": "プラスチック：太陽がはね返るところに明るい点",
+      "meshLambert": "チョークみたいにマット: やわらかい光、つやなし",
+      "meshPhong": "プラスチック: 太陽がはね返るところに明るい点",
       "meshStandard": "金属っぽさとざらざら、いつもの選択",
-      "meshPhysical": "スタンダード＋ガラス：光が通りぬける",
-      "meshToon": "アニメ：光が2本の平らな帯になる",
+      "meshPhysical": "スタンダード＋ガラス: 光が通りぬける",
+      "meshToon": "アニメ: 光が2本の平らな帯になる",
       "meshNormal": "それぞれの点の向きを色で",
       "meshMatcap": "ランプではなく、光の当たった球の絵で照らされる",
       "allKinds": "8種類全部",
@@ -1753,7 +1753,7 @@
   },
   "walk-through-a-temple": {
     "controls": {
-      "keys": "エンジンのキャラクター操作：メニューの「プレイ」でマウスを固定して見回す、W A S D で走る（AZERTYなら Z Q S D）、Shift でダッシュ、スペースでジャンプ、Esc でマウスを放す。このページは、R で走りなおし、M で音を消すのを足している。",
+      "keys": "エンジンのキャラクター操作: メニューの「プレイ」でマウスを固定して見回す、W A S D で走る（AZERTYなら Z Q S D）、Shift でダッシュ、スペースでジャンプ、Esc でマウスを放す。このページは、R で走りなおし、M で音を消すのを足している。",
       "look": "視点",
       "runAgain": "走りなおす"
     },
