@@ -30,7 +30,7 @@
         stroke: #3cff7a;
         stroke-width: 1.4;
         color: #3cff7a;
-        font: 400 13px/1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        font: 400 15px/1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
         letter-spacing: 0.04em;
         filter: drop-shadow(0 0 2px #3cff7aaa);
       }
@@ -43,10 +43,10 @@
         fill-opacity: 0.45;
       }
       #hud .small {
-        font-size: 11px;
+        font-size: 13px;
       }
       #hud .big {
-        font-size: 20px;
+        font-size: 24px;
         letter-spacing: 0.12em;
       }
       #hud .blink {
@@ -56,6 +56,38 @@
         50% {
           opacity: 0.15;
         }
+      }
+      /* The cockpit's screens: flat pictures laid over the screens of the panel each frame. */
+      canvas.mfd {
+        position: fixed;
+        left: 0;
+        top: 0;
+        transform-origin: 0 0;
+        pointer-events: none;
+        display: none;
+      }
+      /* Past the pilot's 9 g, the view reddens from its edges. */
+      #redout {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(ellipse at center, #0000 35%, #a0000c 100%);
+      }
+      /* The test mode says so, big and red, so no player mistakes it for a broken mouse lock. */
+      #testmode {
+        position: fixed;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 16px;
+        border-radius: 6px;
+        background: #c8102e;
+        color: #fff;
+        font: 600 15px/1.2 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.04em;
+        pointer-events: none;
+        z-index: 10;
       }
       /* The big messages: the take-off hint, a crash, the time at the finish. */
       #banner {
@@ -85,7 +117,9 @@
   </head>
   <body>
     <canvas id="view"></canvas>
+    <div id="redout" data-hud data-example-overlay></div>
     <svg id="hud" data-hud data-example-overlay></svg>
+    <div id="testmode" data-example-overlay hidden>TEST MODE — mouse not locked</div>
     <div id="banner" data-hud data-example-overlay><h1></h1><p></p></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
@@ -95,8 +129,9 @@
       // jet; an instructor turns the jet onto it — bank towards it, pull, level the wings — by
       // setting the stick inputs of the engine's own `fly` controller each step, which turns the
       // jet at its rates and cruises it forward (`autoForward`) at the airspeed the page computes.
-      // The page adds the physics the controller does not know: thrust, gravity along the path,
-      // the stall, the runway, the gear, the crash.
+      // In Expert there is no instructor: the mouse is the stick. The page adds the physics the
+      // controller does not know: thrust, gravity along the path, the stall, the runway, the
+      // gear, the crash.
       const world = createWorld('view', { controls: 'fly' });
       const HORIZON = '#f6c592';
       world.scene.background = math.color(HORIZON);
@@ -177,13 +212,25 @@
       // Speeds in metres per second: the slowest a flying jet goes, where the wing stalls, where
       // it lifts off, what idle holds in the air, full military power, full afterburner, Mach 1.
       const MIN_AIR = 50, STALL = 72, ROTATE = 78, IDLE_AIR = 60, MIL = 280, AB_SPEED = 400, MACH = 340;
-      // Turn rates at full stick: a fighter rolls fast, pitches hard (never past 12 g) and barely yaws.
-      const PITCH_RATE = 80 * deg, ROLL_RATE = 240 * deg, YAW_RATE = 20 * deg, GROUND_YAW = 12 * deg, MAX_G = 12;
-      // The aim turns this many radians per pixel of mouse at sensitivity 1.
-      const AIM_PER_PX = 0.0025;
+      // Turn rates at full stick: a fighter rolls fast, pitches hard and barely yaws.
+      const PITCH_RATE = 80 * deg, ROLL_RATE = 240 * deg, YAW_RATE = 20 * deg, GROUND_YAW = 12 * deg;
+      // Loads: the airframe holds 12 g, a pilot 9 g before the red-out. The wing lifts the weight
+      // exactly at the stall speed, and with the square of the speed above it; the corner speed
+      // is where it first gives the pilot's 9 g. A wheel touching down faster than 6 m/s breaks.
+      const MAX_G = 12, PILOT_G = 9, liftG = (v) => (v / STALL) ** 2, CORNER = STALL * Math.sqrt(PILOT_G), HARD = 6;
+      // ARCADE: the aim never strays past 35° from the nose; the instructor banks at most 70°,
+      // rolls at most 120°/s so the view never whips, levels the wings within 2° of the aim, and
+      // pulls up by itself 15 m over the ground. The nose closes on the aim, and the bank on the
+      // one the turn needs, as first-order lags: no overshoot to damp.
+      const ARCADE = { cone: 35 * deg, bank: 70 * deg, roll: 120 * deg, level: 2 * deg, floor: 15, nose: 0.45, wings: 0.3 };
+      // EXPERT: the mouse's speed is the stick's, and the stick centres over a few frames.
+      const STICK_CENTRE = 0.15;
       // How much the controls bite: little near the stall, fully from 150 m/s.
       const authority = (v) => 0.25 + 0.75 * smooth(MIN_AIR, 150, v);
-      const pitchLimit = (S) => (S.onGround ? 10 * deg : Math.min(PITCH_RATE * authority(S.v), (MAX_G * G) / Math.max(S.v, 1)));
+      // The load the stick may ask for: in Arcade what the wing gives, up to the pilot's limit —
+      // never a stall; in Expert the airframe's limit, the wing stalling past what it gives.
+      const loadCap = (S, expert) => (expert ? MAX_G : clamp(liftG(S.v), 1, PILOT_G));
+      const pitchLimit = (S, expert) => (S.onGround ? 10 * deg : Math.min(PITCH_RATE * authority(S.v), (loadCap(S, expert) * G) / Math.max(S.v, 1)) * (expert ? S.soft : 1));
       // Quaternions as [x, y, z, w], the engine's order; a turn `b` after `a` is `qmul(a, b)`.
       const qmul = (a, b) => [
         a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
@@ -200,6 +247,7 @@
         return [vx + w * tx + y * tz - z * ty, vy + w * ty + z * tx - x * tz, vz + w * tz + x * ty - y * tx];
       }
       const wrap = (angle) => angle - 2 * Math.PI * Math.round(angle / (2 * Math.PI));
+      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
       // The attitude read off the axes, in radians: no angle is integrated, so it holds upside
       // down and through the vertical. Bank is positive with the right wing down.
       function attitude(q) {
@@ -217,6 +265,7 @@
           pos: [0, 0, 0], q: [0, 0, 0, 1], aim: [0, 0, 0, 1], v: 0, throttle: 0, burner: false, braking: false,
           onGround: true, gearDown: true, stalling: false, crashed: false, load: 1, vel: [0, 0, 0], rates: [0, 0, 0],
           stick: [0, 0, 0], rest: 0, lookYaw: 0, lookPitch: 0, mouseX: 0, mouseY: 0,
+          virtual: [0, 0], soft: 1, dropSide: 1, ownThrottle: false, pullUp: false, climb: 0,
         };
       }
       // On the runway's southern threshold, nose north (-z), engine idle.
@@ -229,83 +278,125 @@
       }
       // The mouse moves the aim: sideways about the vertical while the aim is upright, about its
       // own up axis once over the top, and up and down about its own right axis — so the circle
-      // always goes the way the hand does, and pushing on through the zenith flies a loop. At
-      // rest and not steep, the aim rolls itself back upright.
+      // always goes the way the hand does, and pushing on through the zenith flies a loop. It
+      // never strays past the cone around the nose: a big move asks for a hard turn, not an
+      // impossible one. At rest it drifts gently back onto the nose, and rolls upright.
       function aimBy(S, dx, dy, dt) {
         const upright = rotate(S.aim, [0, 1, 0])[1] > 0.2;
         S.aim = upright ? qmul(qaxis(0, 1, 0, -dx), S.aim) : qmul(S.aim, qaxis(0, 1, 0, -dx));
         S.aim = qnorm(qmul(S.aim, qaxis(1, 0, 0, -dy)));
+        const nose = rotate(S.q, [0, 0, -1]), aim = rotate(S.aim, [0, 0, -1]), off = Math.acos(clamp(dot(nose, aim)));
+        const back = off > ARCADE.cone ? off - ARCADE.cone : S.rest > 0.5 ? off * (1 - Math.exp(-dt / 2)) : 0;
+        const axis = [aim[1] * nose[2] - aim[2] * nose[1], aim[2] * nose[0] - aim[0] * nose[2], aim[0] * nose[1] - aim[1] * nose[0]], length = Math.hypot(...axis);
+        if (back > 0 && length > 1e-9) S.aim = qnorm(qmul(qaxis(...axis.map((v) => v / length), back), S.aim));
         const { pitch, bank } = attitude(S.aim);
         if (Math.abs(pitch) < 60 * deg && (upright || S.rest > 0.5)) S.aim = qnorm(qmul(S.aim, qaxis(0, 0, 1, bank * (1 - Math.exp(-dt * 3)))));
       }
-      // THE INSTRUCTOR: the stick that brings the nose onto the aim. Far off, it banks the aim
-      // over the canopy and pulls; close, it levels the wings and nudges with pitch and rudder.
-      // Rates measured last step damp each axis, so the nose settles instead of swinging.
+      // THE INSTRUCTOR (Arcade): the stick that brings the nose onto the aim. The nose turns about
+      // the axis from it to the aim at a rate proportional to the angle, split into pitch and yaw;
+      // the wings bank to what that turn needs — the bank whose lift turns the path at the rate
+      // the heading error asks, within the wing's load and 70° — and level within 2° of the aim.
       function instructor(S) {
         const [x, y, z] = rotate(qconj(S.q), rotate(S.aim, [0, 0, -1]));
-        const off = Math.acos(clamp(-z)), { bank, pitch: climb } = attitude(S.q), a = authority(S.v);
-        const w = clamp(off / (12 * deg), 0, 1), [pitchRate, yawRate, rollRate] = S.rates;
-        const pitch = clamp(Math.atan2(y, -z) / (8 * deg) - (0.5 * pitchRate) / pitchLimit(S), -0.5, 1);
-        const yaw = clamp(-Math.atan2(x, -z) / (4 * deg), -1, 1) * (1 - w) - (0.3 * yawRate) / (YAW_RATE * a);
-        const wingsLevel = clamp(-wrap(bank) / (30 * deg)) * clamp(3 * Math.cos(climb), 0, 1);
-        const rollRight = wingsLevel + (clamp(4 * x) - wingsLevel) * w;
-        return [pitch, yaw, clamp(-rollRight - (0.12 * rollRate) / (ROLL_RATE * a))];
+        const off = Math.acos(clamp(-z)), { bank, pitch: climb, heading } = attitude(S.q), a = authority(S.v);
+        const across = Math.hypot(x, y) || 1, rate = off / ARCADE.nose, aimed = attitude(S.aim);
+        const pitch = clamp((rate * y) / across / pitchLimit(S, false), -0.5, 1);
+        const yaw = clamp((-rate * x) / across / (YAW_RATE * a));
+        // Near the vertical the heading means nothing: the bank is held and the pitch flies the loop.
+        let wanted = bank;
+        if (Math.abs(climb) < 60 * deg && Math.abs(aimed.pitch) < 75 * deg) {
+          const most = Math.min(ARCADE.bank, Math.acos(1 / loadCap(S, false))), turn = wrap(aimed.heading - heading) / ARCADE.nose;
+          wanted = clamp(Math.atan((S.v * turn) / G), -most, most) * smooth(ARCADE.level, 3 * ARCADE.level, off);
+        }
+        return [pitch, yaw, clamp(-wrap(wanted - bank) / ARCADE.wings / Math.min(ROLL_RATE * a, ARCADE.roll))];
       }
-      // The stick for this step, signed as the controller's keys are: nose up, left, left.
+      // The stick for this step, signed as the controller's keys are: nose up, left, left. Arcade:
+      // the mouse moves the aim and the instructor flies onto it. Expert: the mouse is the stick.
       function steer(S, input, dt) {
-        const keys = input.keys, key = (code) => (keys.has(code) ? 1 : 0);
-        const k = AIM_PER_PX * input.sensitivity, dx = S.mouseX * k, dy = S.mouseY * k * (input.invert ? -1 : 1);
+        const keys = input.keys, key = (code) => (keys.has(code) ? 1 : 0), expert = input.mode === 'expert';
+        const k = input.perPx * input.sensitivity * (input.precision ? 0.4 : 1), dx = S.mouseX * k, dy = S.mouseY * k * (input.invert ? -1 : 1);
         S.mouseX = S.mouseY = 0;
         S.rest = dx || dy ? 0 : S.rest + dt;
-        let stick = [0, 0, 0];
+        // Looking around: the mouse turns the head, the jet holds its stick.
         if (input.freeLook) {
-          // Looking around: the mouse turns the head, the jet holds its aim.
           S.lookYaw = clamp(S.lookYaw - dx, -2.8, 2.8);
           S.lookPitch = clamp(S.lookPitch - dy, -1.3, 1.3);
+        } else [S.lookYaw, S.lookPitch] = [S.lookYaw, S.lookPitch].map((angle) => angle * Math.exp(-dt * 5));
+        const [mx, my] = input.freeLook ? [0, 0] : [dx, dy];
+        let stick;
+        if (expert) {
+          // The mouse's speed is the pitch rate, three times it the roll rate.
+          const fade = Math.exp(-dt / STICK_CENTRE), reach = [pitchLimit(S, true), ROLL_RATE * authority(S.v)];
+          S.virtual = [clamp(S.virtual[0] * fade - my / STICK_CENTRE / reach[0]), clamp(S.virtual[1] * fade - (3 * mx) / STICK_CENTRE / reach[1])];
+          S.aim = S.q.slice();
+          stick = [S.virtual[0], 0, clamp(S.virtual[1] + key('KeyA') - key('KeyD'))];
         } else {
-          [S.lookYaw, S.lookPitch] = [S.lookYaw, S.lookPitch].map((angle) => angle * Math.exp(-dt * 5));
-          if (!input.realistic) aimBy(S, dx, dy, dt);
-          // Realistic: the mouse is the stick itself — its speed is the pitch and roll rate.
-          else stick = [clamp(-dy / dt / pitchLimit(S)), 0, clamp((-3 * dx) / dt / (ROLL_RATE * authority(S.v)))];
+          aimBy(S, mx, my, dt);
+          // Too near the ground and not landing: the aim is taken up, wings level (`physics`).
+          if (S.pullUp) S.aim = level(attitude(S.q).heading, S.climb);
+          stick = instructor(S);
+          const roll = key('KeyA') - key('KeyD');
+          if (roll) stick = [0, 0, roll]; // The instructor lets go while the player rolls.
         }
-        if (input.realistic) S.aim = S.q.slice();
-        else stick = instructor(S);
-        const roll = key('KeyA') - key('KeyD');
-        if (roll) stick = [0, 0, roll]; // The instructor lets go while the player rolls.
         stick[1] = clamp(stick[1] + key('KeyQ') - key('KeyE'));
         if (S.onGround) stick = [S.v >= ROTATE ? clamp(stick[0], 0, 0.6) : 0, key('KeyQ') - key('KeyE'), 0];
         return (S.stick = stick);
       }
+      // The ground's normal under a point, from its slope; a roof's edge reads as a wall.
+      function groundNormal(ground, x, z) {
+        const h = (dx, dz) => ground(x + dx, z + dz)[0], nx = (h(-2, 0) - h(2, 0)) / 4, nz = (h(0, -2) - h(0, 2)) / 4;
+        return Number.isFinite(nx + nz) ? [nx, 1, nz].map((v) => v / Math.hypot(nx, 1, nz)) : [0, 1, 0];
+      }
       // What the controller does not know: engine and gravity along the path, the stall, the
       // ground, the gear, and the load the turn puts on the pilot.
       function physics(S, input, dt, ground, from, before) {
-        const keys = input.keys, turn = qmul(qconj(before), S.q), s = (turn[3] < 0 ? -2 : 2) / dt;
+        const keys = input.keys, expert = input.mode === 'expert', turn = qmul(qconj(before), S.q), s = (turn[3] < 0 ? -2 : 2) / dt;
         S.rates = [turn[0] * s, turn[1] * s, turn[2] * s];
-        S.throttle = clamp(S.throttle + ((keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0)) * 0.6 * dt, 0, 1);
+        const pushed = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
+        S.ownThrottle ||= Boolean(pushed) && !S.onGround;
+        S.throttle = clamp(S.throttle + pushed * 0.6 * dt, 0, 1);
         S.burner = keys.has('ShiftLeft') || keys.has('ShiftRight');
         S.braking = keys.has('Space');
-        // Too slow in the air, the wing stalls: the nose falls about the horizontal line across
-        // it and the jet sinks, until the dive gives the speed back.
-        const lost = S.onGround ? 0 : clamp((STALL - S.v) / (STALL - MIN_AIR), 0, 1), nose = attitude(S.q).forward;
+        // Arcade, until the player touches the throttle in the air: a helper holds the corner speed.
+        if (!expert && !S.onGround && !S.ownThrottle && !S.burner) {
+          const wanted = clamp((2 * CORNER - IDLE_AIR - S.v) / (MIL - IDLE_AIR), 0, 1);
+          S.throttle += (wanted - S.throttle) * (1 - Math.exp(-dt));
+        }
+        // The stall (Expert): too slow, or asking the wing for more load than it gives. The nose
+        // falls about the horizontal line across it, a wing drops, the jet sinks, and rudder held
+        // into it winds the stall into a spin — until the dive gives the speed back.
+        const demand = (Math.abs(S.rates[0]) * S.v) / G;
+        const lost = S.onGround || !expert ? 0 : clamp(Math.max((STALL - S.v) / (STALL - MIN_AIR), demand / liftG(S.v) - 1), 0, 1);
+        if (lost && !S.stalling) S.dropSide = S.rates[2] > 0 ? 1 : -1;
         S.stalling = lost > 0;
-        const across = Math.hypot(nose[0], nose[2]);
-        if (S.stalling && across > 1e-3 && nose[1] > -0.8) S.q = qnorm(qmul(qaxis(nose[2] / across, 0, -nose[0] / across, 1.2 * (0.35 + lost) * dt), S.q));
-        if (S.stalling) S.pos[1] -= 16 * lost * dt;
+        const nose = attitude(S.q).forward, across = Math.hypot(nose[0], nose[2]);
+        if (S.stalling) {
+          if (across > 1e-3 && nose[1] > -0.8) S.q = qnorm(qmul(qaxis(nose[2] / across, 0, -nose[0] / across, 1.2 * (0.35 + lost) * dt), S.q));
+          S.q = qnorm(qmul(S.q, qaxis(0, 0, 1, S.dropSide * 1.5 * lost * dt)));
+          if (Math.abs(S.stick[1]) > 0.5 && lost > 0.5) S.q = qnorm(qmul(qaxis(0, 1, 0, Math.sign(S.stick[1]) * 2 * lost * dt), qmul(S.q, qaxis(0, 0, 1, Math.sign(S.stick[1]) * 2 * lost * dt))));
+          S.pos[1] -= 16 * lost * dt;
+        }
+        // Past the pilot's limit the stick softens in the ratio he is over it.
+        S.soft = PILOT_G / Math.max(PILOT_G, S.load);
         // The engine pulls towards the speed its throttle sets; a climb costs speed, a dive
-        // gives it, a hard turn bleeds it, the air brake takes it. It never hovers.
+        // gives it, a hard turn bleeds it, the air brake takes it. It never hovers, and in Arcade
+        // it never falls under the lift-off speed.
         const idle = S.onGround ? 0 : IDLE_AIR, target = S.burner ? AB_SPEED : idle + (MIL - idle) * S.throttle;
         let accel = clamp((target - S.v) / 3.5, -10, 5 + 11 * S.throttle + (S.burner ? 12 : 0));
         if (!S.onGround) accel -= G * attitude(S.q).forward[1] + 1.2 * Math.max(0, S.load - 2);
         if (S.braking) accel -= S.onGround ? 15 : 30;
-        S.v = clamp(S.v + accel * dt, S.onGround ? 0 : MIN_AIR, AB_SPEED * 1.1);
+        S.v = clamp(S.v + accel * dt, S.onGround ? 0 : expert ? MIN_AIR : ROTATE, AB_SPEED * 1.1);
         // Touching the ground: roll on the runway and flat meadows with the wheels down, gently
-        // and upright; anything else is a crash. On the ground the jet stays level until it has
-        // the speed to lift its nose.
+        // and upright. Anything else is a crash in Expert; Arcade forgives what is no hard
+        // impact — the jet scrapes along and the instructor climbs away. On the ground the jet
+        // stays level until it has the speed to lift its nose.
         const [floor, landable] = ground(S.pos[0], S.pos[2]), agl = S.pos[1] - GEAR - floor, sink = (from[1] - S.pos[1]) / dt;
+        const vel = S.pos.map((p, i) => (p - from[i]) / dt);
         if (agl < 0) {
-          if (!(landable && S.gearDown && (S.onGround || sink < 6) && attitude(S.q).up[1] > 0.9)) return void (S.crashed = true);
+          if (landable && S.gearDown && (S.onGround || sink < HARD) && attitude(S.q).up[1] > 0.9) S.onGround = true;
+          else if (expert || -dot(vel, groundNormal(ground, S.pos[0], S.pos[2])) > HARD) return void (S.crashed = true);
+          else S.q = level(attitude(S.q).heading, Math.max(attitude(S.q).pitch, 5 * deg));
           S.pos[1] = floor + GEAR;
-          S.onGround = true;
         } else if (agl > 0.3) S.onGround = false;
         if (S.onGround) {
           const { heading, pitch } = attitude(S.q);
@@ -313,7 +404,24 @@
         }
         if (S.gearDown && agl > 25) S.gearDown = false;
         else if (!S.gearDown && agl < 60 && S.v < 110) S.gearDown = true;
-        const vel = S.pos.map((p, i) => (p - from[i]) / dt), up = attitude(S.q).up;
+        // Arcade's pull-up, as a ground-collision avoider decides it: the path — straight on
+        // and along the turn it is flying, whichever passes higher — comes within 15 m of the
+        // ground by more than a pull at the allowed load, begun half a second from now, could
+        // still climb. It looks as far ahead as that pull takes to level a dive, and a second
+        // more. It climbs, wings level, 10° over the steepest slope ahead and at least 20°, and
+        // lets go once there.
+        const { pitch, heading } = attitude(S.q), turning = wrap(heading - attitude(before).heading) / dt;
+        const flat = S.v * Math.cos(pitch), rise = GEAR + ARCADE.floor - S.pos[1], pull = Math.min(PITCH_RATE * authority(S.v), (loadCap(S, false) * G) / S.v);
+        const horizon = 1.5 + Math.max(0, -pitch) / pull;
+        const ahead = Array.from({ length: Math.ceil(horizon * 2) }, (_, k) => (k + 1) / 2).map((k) => {
+          const heights = [0, turning].map((rate) => ground(S.pos[0] + Math.sin(heading + (rate * k) / 2) * flat * k, S.pos[2] - Math.cos(heading + (rate * k) / 2) * flat * k)[0]);
+          const t = Math.max(0, k - 0.5), gain = (S.v / pull) * (Math.cos(pitch) - Math.cos(Math.min(pitch + pull * t, Math.PI / 2))) - S.v * t * Math.sin(pitch);
+          return [Math.min(...heights) + rise - vel[1] * k - gain, Math.atan2(heights[0] + rise, flat * k)];
+        });
+        const slope = Math.max(...ahead.map(([, angle]) => angle)), danger = ahead.some(([over]) => over > 0);
+        S.climb = clamp(Math.max(20 * deg, slope + 10 * deg), 0, 70 * deg);
+        S.pullUp = !expert && !S.onGround && !(S.gearDown && landable) && (danger || (S.pullUp && pitch < S.climb - 2 * deg));
+        const up = attitude(S.q).up;
         const lift = up.reduce((sum, u, i) => sum + u * ((vel[i] - S.vel[i]) / dt + (i === 1 ? G : 0)), 0);
         S.load += (lift / G - S.load) * (1 - Math.exp(-dt * 4));
         S.vel = vel;
@@ -322,9 +430,9 @@
       // integration of the jet's pose (`integrate`), then the physics. Returns where it came from.
       function advance(S, integrate, controls, camera, input, dt, ground) {
         if (!(dt > 0)) return null;
-        const from = S.pos.slice(), before = S.q.slice(), a = authority(S.v), stick = steer(S, input, dt);
+        const from = S.pos.slice(), before = S.q.slice(), a = authority(S.v), stick = steer(S, input, dt), expert = input.mode === 'expert';
         const settings = {
-          movementSpeed: S.v, pitchSpeed: pitchLimit(S), yawSpeed: S.onGround ? GROUND_YAW : YAW_RATE * a, rollSpeed: ROLL_RATE * a,
+          movementSpeed: S.v, pitchSpeed: pitchLimit(S, expert), yawSpeed: S.onGround ? GROUND_YAW : YAW_RATE * a, rollSpeed: expert ? ROLL_RATE * a : Math.min(ROLL_RATE * a, ARCADE.roll),
           pitchInput: stick[0], yawInput: stick[1], rollInput: stick[2],
         };
         for (const [name, value] of Object.entries(settings)) if (controls[name] !== value) controls[name] = value;
@@ -344,42 +452,186 @@
       }
       // FLIGHT-MODEL-END
 
-      // COCKPIT-START — the seat, in metres from the pilot's eye (x right, y up, -z ahead).
-      // The eye sits in the jet 1.05 m over its axis and 5 m ahead of its middle, under the canopy.
+      // COCKPIT-START — the seat, in metres from the pilot's eye (x right, y up, -z ahead). The
+      // eye sits in the jet 1.05 m over its axis and 5 m ahead of its middle, under the canopy.
       const EYE = [0, 1.05, -5];
-      const qFromTo = (a, b) => qnorm([a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0], 1 + a[0] * b[0] + a[1] * b[1] + a[2] * b[2]]);
-      const part = (kind, size, at, q = [0, 0, 0, 1]) => ({ kind, size, at, q });
-      function strut(kind, from, to, width) {
-        const d = to.map((v, i) => v - from[i]), length = Math.hypot(...d);
-        return part(kind, [width, length, width], from.map((v, i) => (v + to[i]) / 2), qFromTo([0, 1, 0], d.map((v) => v / length)));
-      }
-      // A low glare shield over the panel and its two screens, thin windscreen pillars at the
-      // sides, the canopy rails, and the head-up display's glass on two posts: the outside keeps
-      // the view (the proof measures how much).
-      const COCKPIT = [
-        part('shield', [0.8, 0.04, 0.3], [0, -0.3, -0.8]),
-        part('panel', [0.8, 0.34, 0.04], [0, -0.49, -0.66]),
-        ...[-1, 1].flatMap((side) => [
-          strut('frame', [side * 0.4, -0.26, -0.78], [side * 0.3, 0.45, -0.5], 0.022),
-          part('frame', [0.03, 0.03, 0.3], [side * 0.45, -0.31, -0.7]),
-          part('frame', [0.01, 0.13, 0.01], [side * 0.31, -0.215, -0.735]),
-          part('frame', [0.01, 0.34, 0.01], [side * 0.31, 0.02, -0.74]),
-          part('bezel', [0.17, 0.14, 0.012], [side * 0.19, -0.41, -0.638]),
-          part('screen', [0.15, 0.12, 0.002], [side * 0.19, -0.41, -0.631]),
-        ]),
-        part('frame', [0.63, 0.01, 0.01], [0, 0.19, -0.74]),
-        part('glass', [0.62, 0.34, 0.003], [0, 0.02, -0.74]),
-      ];
-      // The glass's corners: the head-up display draws inside what they project to.
-      const COMBINER = [[-0.305, -0.145, -0.74], [0.305, -0.145, -0.74], [-0.305, 0.185, -0.74], [0.305, 0.185, -0.74]];
-      const MFD = [-0.19, 0.19].map((x) => [x, -0.41, -0.629]);
-      const corners = ({ size, at, q }) => [0, 1, 2, 3, 4, 5, 6, 7].map((k) => rotate(q, size.map((s, i) => (k >> i) & 1 ? s / 2 : -s / 2)).map((v, i) => v + at[i]));
-      // The near plane: half the closest depth any cockpit corner reaches ahead of the eye, so
-      // no part of the seat is ever cut.
-      const COCKPIT_NEAR = 0.5 * Math.min(...COCKPIT.flatMap((p) => corners(p).map((c) => -c[2]).filter((depth) => depth > 0)));
-      const COCKPIT_FOV = 76;
-      // The nose ahead of the canopy, the jet's own profile (radius, then distance forward).
+      // The head rests looking 5° under the jet's axis, as a fighter's design eye does: the
+      // horizon rides a little high and the panel shows under the head-up display.
+      const LOOK_DOWN = 5 * deg, COCKPIT_FOV = 76;
+      // The hull around the seat and the nose ahead of the canopy, from the jet's own profile
+      // (radius, then distance forward).
+      const HULL = [[1.02, 1.5], [0.98, 4.2], [0.82, 6.0]];
       const NOSE = [[0.82, 6.0], [0.64, 7.6], [0.5, 8.6], [0.3, 9.6], [0.1, 10.3], [0.001, 10.6]];
+      // The panel's face, and its three screens (centre and size on it): attitude, engine, map.
+      const PANEL_Z = -0.545;
+      const SCREENS = [
+        { at: [-0.185, -0.405], size: [0.115, 0.115], rim: [0.045, 0.04] },
+        { at: [0, -0.41], size: [0.09, 0.075], rim: [0.045, 0.03] },
+        { at: [0.185, -0.405], size: [0.115, 0.115], rim: [0.045, 0.04] },
+      ];
+      // The stick's pivot on the floor and its grip's axis and radius, in the stick's frame. It
+      // tilts back further than forward, as a stick travels. The grip passes in front of the
+      // centre screen, so the screens' pictures leave out the outline of its points.
+      const STICK_PIVOT = [0, -0.69, -0.3], GRIP = [[0, 0.34, -0.04], [0, 0.45, -0.022]], GRIP_RADIUS = 0.03;
+      const stickTilt = ([pitchInput, , rollInput]) => [(pitchInput > 0 ? 0.12 : 0.06) * pitchInput, 0.15 * rollInput];
+      function gripPoints([tiltX, tiltZ]) {
+        const turn = qmul(qaxis(1, 0, 0, tiltX), qaxis(0, 0, 1, tiltZ)), ways = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+        return GRIP.flatMap((end) => ways.map((way) => rotate(turn, end.map((v, i) => v + way[i] * GRIP_RADIUS)).map((v, i) => v + STICK_PIVOT[i])));
+      }
+      // The perspective map of the unit square onto a quad (top-left, clockwise) — eight
+      // numbers, the ninth being 1 — and its inverse, from a point of the quad back to the square.
+      function homography([[x0, y0], [x1, y1], [x2, y2], [x3, y3]]) {
+        const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3, dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
+        const den = dx1 * dy2 - dx2 * dy1, g = (dx3 * dy2 - dx2 * dy3) / den, k = (dx1 * dy3 - dx3 * dy1) / den;
+        return [x1 - x0 + g * x1, x3 - x0 + k * x3, x0, y1 - y0 + g * y1, y3 - y0 + k * y3, y0, g, k];
+      }
+      function unmap([a, b, c, d, e, f, g, k], [x, y]) {
+        const w = (d * k - e * g) * x + (b * g - a * k) * y + a * e - b * d;
+        return [((e - f * k) * x + (c * k - b) * y + b * f - c * e) / w, ((f * g - d) * x + (a - c * g) * y + c * d - a * f) / w];
+      }
+      // The convex hull of points on the screen, counter-clockwise (the monotone chain).
+      function hullOf(points) {
+        const sorted = points.slice().sort((p, q) => p[0] - q[0] || p[1] - q[1]), cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+        const chain = (list) => list.reduce((hull, point) => {
+          while (hull.length > 1 && cross(hull.at(-2), hull.at(-1), point) <= 0) hull.pop();
+          return [...hull, point];
+        }, []);
+        const lower = chain(sorted), upper = chain(sorted.reverse());
+        return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+      }
+      // A screen's corners, top-left first, clockwise: where its picture is laid each frame.
+      const screenCorners = ({ at: [x, y], size: [w, h] }) => [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([sx, sy]) => [x + (sx * w) / 2, y + (sy * h) / 2, PANEL_Z + 0.0135]);
+      const qFromTo = (a, b) => qnorm([a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0], 1 + a[0] * b[0] + a[1] * b[1] + a[2] * b[2]]);
+      // THE COCKPIT, built from the engine's shapes: `matter(kind)` gives each kind its material.
+      // Returns the group and the parts that move: the stick, the throttle, the gauges' needles.
+      function buildCockpit({ geometry, object, math }, matter) {
+        const root = object.group();
+        const put = (shape, kind, [x, y, z], [rx, ry, rz] = [0, 0, 0], parent = root) => {
+          const mesh = object.mesh(shape, matter(kind));
+          mesh.position.set(x, y, z);
+          mesh.rotation.set(rx, ry, rz);
+          parent.add(mesh);
+          return mesh;
+        };
+        const hinge = ([x, y, z], parent = root) => {
+          const pivot = object.group();
+          pivot.position.set(x, y, z);
+          parent.add(pivot);
+          return pivot;
+        };
+        // An outline of [x, y] points (four numbers: a curve's control point, then its end),
+        // pushed `depth` along +z, its edges rounded by `round`: the padded and bevelled parts.
+        const slab = (points, depth, round) => {
+          const edge = math.shape().moveTo(...points[0]);
+          for (const point of points.slice(1)) point.length === 4 ? edge.quadraticCurveTo(...point) : edge.lineTo(...point);
+          return geometry.extrude(edge, { depth, bevelEnabled: true, bevelThickness: round, bevelSize: round, bevelSegments: 3, curveSegments: 8 });
+        };
+        // A rectangle `w` by `h` about `[x, y]`, its corners rounded to `r`.
+        const rounded = (w, h, r, [x, y] = [0, 0]) =>
+          [
+            [-w / 2 + r, -h / 2], [w / 2 - r, -h / 2], [w / 2, -h / 2, w / 2, -h / 2 + r], [w / 2, h / 2 - r], [w / 2, h / 2, w / 2 - r, h / 2],
+            [-w / 2 + r, h / 2], [-w / 2, h / 2, -w / 2, h / 2 - r], [-w / 2, -h / 2 + r], [-w / 2, -h / 2, -w / 2 + r, -h / 2],
+          ].map((point) => point.map((v, i) => v + (i % 2 ? y : x)));
+        // A plate standing on the panel, its front face at `front`; one lying flat, its top at `top`.
+        const plate = (points, depth, round, kind, [x, y, front], parent = root) => put(slab(points, depth, round), kind, [x, y, front - depth - round], [0, 0, 0], parent);
+        const deck = (points, depth, round, kind, top) => put(slab(points, depth, round), kind, [0, top - depth - round, 0], [-Math.PI / 2, 0, 0]);
+        // A rod with round ends from `a` to `b`.
+        const rod = (a, b, radius, kind, parent = root) => {
+          const d = b.map((v, i) => v - a[i]), length = Math.hypot(...d);
+          const mesh = put(geometry.capsule(radius, length, 3, 10), kind, a.map((v, i) => (v + b[i]) / 2), [0, 0, 0], parent);
+          mesh.quaternion.set(...qFromTo([0, 1, 0], d.map((v) => v / length)));
+          return mesh;
+        };
+        const lathe = (profile, kind, [x, y, z], [width, height], from = 0, arc = 2 * Math.PI) => {
+          const mesh = put(geometry.lathe(profile, 40, from, arc), kind, [x, y, z], [-Math.PI / 2, 0, 0]);
+          mesh.scale.set(width, 1, height);
+          return mesh;
+        };
+        // The hull beside the canopy and the nose, from the jet's profile; the canopy's opening
+        // is the arc left out on top.
+        const jet = [-EYE[0], -EYE[1], -EYE[2]], opening = Math.asin(0.47 / 1.25);
+        for (const from of [opening, -opening - 1.6]) lathe(HULL, 'skin', jet, [1.25, 0.85], from, 1.6);
+        lathe(NOSE.slice(0, 2), 'skin', jet, [1.25, 0.85]);
+        lathe(NOSE.slice(1), 'radome', jet, [1.25, 0.85]);
+        put(geometry.cylinder(0.03, 0.03, 0.9, 6), 'metal', [jet[0], jet[1], jet[2] - 11], [Math.PI / 2, 0, 0]);
+        // The canopy: a thin bow arching over the windscreen's foot, two thin rails along the sills.
+        put(geometry.torus(0.5, 0.008, 8, 56, Math.PI), 'frame', [0, -0.29, -0.62]).scale.set(1, 1.08, 1);
+        for (const side of [-1, 1]) rod([side * 0.5, -0.29, -0.62], [side * 0.48, -0.29, -0.2], 0.011, 'frame');
+        // The glare shield: a padded hood over the panel, its lip trimmed lighter, the head-up
+        // display's glass leaning on its top.
+        deck([[-0.34, 0.53], [0, 0.47, 0.34, 0.53], [0.42, 0.68], [0.34, 0.86], [0, 0.9, -0.34, 0.86], [-0.42, 0.68], [-0.34, 0.53]], 0.004, 0.012, 'hood', -0.255);
+        const lip = Array.from({ length: 11 }, (_, k) => {
+          const u = k / 10, forward = (1 - u) ** 2 * 0.53 + 2 * u * (1 - u) * 0.47 + u ** 2 * 0.53;
+          return [(-0.34 + 0.68 * u) * 1.03, -0.269, -(forward - 0.013)];
+        });
+        put(geometry.tube(math.curve(lip), 40, 0.006, 8), 'trim', [0, 0, 0]);
+        deck(rounded(0.2, 0.12, 0.02, [0, 0.62]), 0.006, 0.008, 'bezel', -0.235);
+        put(geometry.plane(0.2, 0.2), 'glass', [0, -0.15, -0.605], [0.26, 0, 0]);
+        for (const side of [-1, 1]) rod([side * 0.105, -0.255, -0.63], [side * 0.105, -0.05, -0.58], 0.0045, 'frame');
+        rod([-0.105, -0.05, -0.58], [0.105, -0.05, -0.58], 0.0045, 'frame');
+        // The side walls of the tub and the consoles along them.
+        for (const side of [-1, 1]) {
+          put(slab([[-0.4, -0.29], [0.56, -0.29], [0.56, -0.62], [-0.4, -0.62]], 0.012, 0.004), 'wall', [side * 0.47 - 0.006, 0, 0], [0, Math.PI / 2, 0]);
+          deck([[side * 0.27, 0.51], [side * 0.46, 0.51], [side * 0.46, -0.4], [side * 0.27, -0.4]], 0.05, 0.012, 'console', -0.42);
+        }
+        // The instrument panel from wall to wall, and its pedestal between the knees.
+        plate([[-0.37, -0.3], [0.37, -0.3], [0.46, -0.37], [0.46, -0.54], [0.15, -0.56], [0.14, -0.7], [-0.14, -0.7], [-0.15, -0.56], [-0.46, -0.54], [-0.46, -0.37]], 0.03, 0.01, 'panel', [0, 0, PANEL_Z]);
+        // Three screens in bezels, a row of push-buttons down each side and along the foot.
+        const button = geometry.capsule(0.0042, 0.007, 3, 8);
+        for (const { at: [x, y], size: [w, h], rim } of SCREENS) {
+          plate(rounded(w + rim[0], h + rim[1], 0.01), 0.004, 0.004, 'bezel', [x, y, PANEL_Z + 0.012]);
+          put(geometry.plane(w, h), 'screen', [x, y, PANEL_Z + 0.0125]);
+          for (let k = 0; k < 4; k++) {
+            const along = (k - 1.5) / 4;
+            for (const side of [-1, 1]) put(button, 'cap', [x + side * (w / 2 + 0.012), y + along * h, PANEL_Z + 0.014], [Math.PI / 2, 0, 0]);
+            put(button, 'cap', [x + along * w, y - h / 2 - 0.011, PANEL_Z + 0.014], [Math.PI / 2, 0, Math.PI / 2]);
+          }
+        }
+        // The up-front controls under the head-up display: a dim data window and two rows of keys.
+        plate(rounded(0.15, 0.034, 0.008), 0.004, 0.004, 'bezel', [0, -0.337, PANEL_Z + 0.012]);
+        put(geometry.plane(0.07, 0.008), 'window', [0, -0.328, PANEL_Z + 0.0125]);
+        const key = geometry.capsule(0.004, 0.005, 3, 8);
+        for (let k = 0; k < 10; k++) put(key, 'cap', [-0.056 + (k % 5) * 0.028, k < 5 ? -0.338 : -0.347, PANEL_Z + 0.015], [Math.PI / 2, 0, Math.PI / 2]);
+        // Four round backup gauges, a needle each; warning lights either side of the up-front controls.
+        const needles = [], tick = geometry.circle(0.026, 1, Math.PI / 2 - 0.035, 0.07);
+        for (const [x, y] of [[-0.31, -0.35], [-0.31, -0.42], [0.31, -0.35], [0.31, -0.42]]) {
+          put(geometry.torus(0.029, 0.004, 6, 32), 'frame', [x, y, PANEL_Z + 0.004]);
+          put(geometry.circle(0.028, 32), 'dial', [x, y, PANEL_Z + 0.0045]);
+          for (let k = 0; k < 12; k++) put(tick, 'mark', [x, y, PANEL_Z + 0.005], [0, 0, (k / 12) * 2 * Math.PI]);
+          put(geometry.circle(0.02, 24), 'dial', [x, y, PANEL_Z + 0.0055]);
+          const needle = hinge([x, y, PANEL_Z + 0.006]);
+          put(slab([[-0.0018, -0.004], [0.0018, -0.004], [0.0006, 0.022], [-0.0006, 0.022]], 0.0005, 0.0003), 'mark', [0, 0, 0], [0, 0, 0], needle);
+          put(geometry.sphere(0.0028, 10, 6), 'frame', [0, 0, 0.001], [0, 0, 0], needle);
+          needles.push(needle);
+        }
+        const lamp = geometry.sphere(0.0038, 10, 6);
+        for (let k = 0; k < 6; k++) put(lamp, ['amber', 'green', 'red', 'amber', 'green', 'amber'][k], [(k < 3 ? -1 : 1) * 0.086, -0.345 - (k % 3) * 0.016, PANEL_Z + 0.003]);
+        // The stick between the knees, on its pivot at the floor: a rubber boot, the shaft, the grip.
+        const stick = hinge(STICK_PIVOT);
+        put(geometry.lathe([[0.06, 0], [0.045, 0.04], [0.02, 0.1], [0.012, 0.13]], 20), 'boot', [0, 0, 0], [0, 0, 0], stick);
+        rod([0, 0, 0], [0, 0.33, -0.04], 0.011, 'metal', stick);
+        rod(GRIP[0], [0, 0.43, -0.02], 0.021, 'grip', stick);
+        put(geometry.sphere(0.008, 12, 8), 'cap', [0, 0.458, -0.024], [0, 0, 0], stick);
+        rod([0, 0.37, -0.066], [0, 0.4, -0.062], 0.006, 'cap', stick);
+        // The throttle on the left console, its lever on a pivot swinging forward with the power.
+        const throttle = hinge([-0.36, -0.42, -0.42]);
+        rod([0, 0, 0], [0, 0.07, 0], 0.012, 'metal', throttle);
+        rod([-0.025, 0.085, 0], [0.02, 0.085, 0], 0.021, 'grip', throttle);
+        put(geometry.sphere(0.006, 10, 6), 'cap', [0.014, 0.102, -0.01], [0, 0, 0], throttle);
+        // Switches on the right console: toggles on round bases, and two knobs.
+        for (let k = 0; k < 6; k++) {
+          const [x, z] = [0.3 + (k % 3) * 0.045, -0.46 + Math.floor(k / 3) * 0.06];
+          put(geometry.cylinder(0.009, 0.011, 0.006, 16), 'metal', [x, -0.418, z]);
+          rod([x, -0.415, z], [x, -0.39, z - (k % 2 ? 0.008 : -0.008)], 0.0035, 'switch');
+        }
+        for (const z of [-0.33, -0.25]) put(geometry.cylinder(0.014, 0.016, 0.018, 20), 'grip', [0.36, -0.411, z]);
+        // The pilot's legs in the green flight suit: thighs from the seat, knees up, shins down.
+        for (const side of [-1, 1]) {
+          rod([side * 0.16, -0.62, 0.05], [side * 0.26, -0.45, -0.42], 0.075, 'suit');
+          rod([side * 0.26, -0.45, -0.42], [side * 0.22, -0.95, -0.66], 0.058, 'suit');
+        }
+        return { root, stick, throttle, needles };
+      }
       // A world point on the screen, in pixels from its centre (y down); null behind the eye.
       function project(point, eye, turn, f) {
         const [x, y, z] = rotate(qconj(turn), point.map((v, i) => v - eye[i]));
@@ -640,41 +892,244 @@
       const trails = TIPS.map(() => Array.from({ length: TRAIL }, () => place(streak, mist, [0, -500, 0])));
       const history = Array.from({ length: TRAIL }, () => ({ at: TIPS.map(() => [0, -500, 0]), turn: [0, 0, 0, 1] }));
 
-      // THE COCKPIT, the seat the pilot's eye sits in: built from the parts above, riding the
-      // jet. From inside, the jet's own hull is hidden; its nose is drawn from the same profile.
-      const cockpit = object.group();
-      const seatMats = { shield: matte('#1b1d20', 0.9), panel: matte('#24272b', 0.8), frame: matte('#34383d', 0.6), bezel: matte('#111214', 0.7), screen: material.meshBasic({ color: '#03110a' }), glass: sheer('#b8ffd0', 0.06) };
-      for (const { kind, size, at, q } of COCKPIT) place(geometry.box(...size), seatMats[kind], at, cockpit).quaternion.set(...q);
-      const nose = object.group();
-      nose.position.set(-EYE[0], -EYE[1], -EYE[2]);
-      cockpit.add(nose);
-      lathed(NOSE.slice(0, 2), skin, [0, 0, 0], nose, [1.25, 0.85]);
-      lathed(NOSE.slice(1), radome, [0, 0, 0], nose, [1.25, 0.85]);
-      place(geometry.cylinder(0.03, 0.03, 0.9, 6), metal, [0, 0, -11], nose).rotation.x = Math.PI / 2;
-      // Two glowing screens: the attitude on the left (a horizon bar that turns and slides under
-      // a fixed jet symbol), the map on the right (heading up: the canyon, the rings, the next one).
-      const glow = material.meshBasic({ color: '#3cff7a' }), dim = material.meshBasic({ color: '#1d7a3e' }), amber = material.meshBasic({ color: '#ffb13b' });
-      const [attitudeScreen, mapScreen] = MFD.map((at) => {
-        const screen = object.group();
-        screen.position.set(...at);
-        cockpit.add(screen);
-        return screen;
-      });
-      const horizonBar = place(geometry.box(0.11, 0.0035, 0.001), glow, [0, 0, 0], attitudeScreen);
-      for (const [x, y, w, h] of [[-0.024, 0, 0.026, 0.004], [0.024, 0, 0.026, 0.004], [0, -0.004, 0.004, 0.008]]) place(geometry.box(w, h, 0.001), amber, [x, y, 0.001], attitudeScreen);
-      const dot = geometry.box(0.004, 0.004, 0.001);
-      const canyonDots = Array.from({ length: 40 }, () => place(dot, dim, [0, 0, 0], mapScreen));
-      const ringDots = rings.map(() => place(geometry.box(0.007, 0.007, 0.001), glow, [0, 0, 0.0005], mapScreen));
-      const nextDot = place(geometry.box(0.011, 0.011, 0.001), amber, [0, 0, 0.001], mapScreen);
-      for (const side of [-1, 1]) place(geometry.box(0.004, 0.016, 0.001), amber, [side * 0.004, -0.036, 0.001], mapScreen).rotation.z = side * 0.5;
+      // THE COCKPIT, the seat the pilot's eye sits in, riding the jet: from inside, the jet's own
+      // hull is hidden and the cockpit draws the hull beside the seat and the nose. Its matter
+      // is dark but never black — each dark part glows a hair, as a cockpit's night lighting
+      // does — and every material is made here, once; none changes afterwards.
+      const lit = (color, roughness, metalness = 0, emissive = '#000000') => material.meshStandard({ color, roughness, metalness, emissive });
+      const glowing = (color) => material.meshBasic({ color });
+      const SEAT_MATTER = {
+        skin, radome, metal,
+        frame: lit('#4a4f55', 0.35, 0.6),
+        hood: lit('#2e3135', 0.95, 0, '#0a0b0c'),
+        trim: lit('#a59c8b', 0.7),
+        panel: lit('#42474e', 0.4, 0.35, '#0b0c0e'),
+        wall: lit('#383c41', 0.8, 0, '#090a0b'),
+        console: lit('#3b3f45', 0.6, 0.2, '#0a0b0c'),
+        bezel: lit('#26292d', 0.5, 0.25, '#08090a'),
+        dial: lit('#151719', 0.5, 0, '#050606'),
+        cap: lit('#8e949b', 0.45, 0.3),
+        switch: lit('#cfd2d6', 0.3, 0.8),
+        grip: lit('#202123', 0.75, 0, '#060606'),
+        boot: lit('#17181a', 0.95, 0, '#050505'),
+        suit: lit('#56643f', 0.95, 0, '#0c0e09'),
+        mark: glowing('#e6ebee'),
+        screen: glowing('#04160c'),
+        window: glowing('#1f7a44'),
+        amber: glowing('#ffb13b'),
+        green: glowing('#3cff7a'),
+        red: glowing('#ff4a3d'),
+        glass: sheer('#c8ffe0', 0.08),
+      };
+      const seat = buildCockpit({ geometry, object, math }, (kind) => SEAT_MATTER[kind]), cockpit = seat.root;
+      cockpit.visible = false;
+      // A soft fill from under the canopy's top, so the tub never falls to black; the sun comes
+      // in through the canopy by itself and sweeps the panel as the jet turns. A light lights
+      // whatever group it hangs in, so it is switched with the cockpit.
+      const fill = light.point({ color: '#e2e8f0', intensity: 0.4, distance: 1.6, decay: 2, position: [0, 0.2, 0.1] });
+      fill.visible = false;
+      cockpit.add(fill);
       world.scene.add(cockpit);
-      const GORGE_DOTS = canyonDots.map((_, k) => gorgeAt(GORGE.from + ((GORGE.to - GORGE.from) * k) / (canyonDots.length - 1)));
+      // The near plane: half the distance from the eye to the closest point of the cockpit. No
+      // point on the view lies more than 60° off its axis, where its depth is half its distance,
+      // so no part of the seat is ever cut.
+      cockpit.updateMatrixWorld(true);
+      let closest = Infinity;
+      cockpit.traverse((node) => {
+        const points = node.geometry?.attributes.position, m = node.matrixWorld.elements;
+        for (let k = 0; points && k < points.count; k++) {
+          const [x, y, z] = points.array.slice(3 * k, 3 * k + 3);
+          closest = Math.min(closest, Math.hypot(m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]));
+        }
+      });
+      const COCKPIT_NEAR = closest / 2;
 
-      // THE HEAD-UP DISPLAY, in SVG over the view. In the cockpit it lives on the glass: a
-      // conformal pitch ladder, the nose's waterline, the flight-path marker, the aim circle,
-      // heading on top, speed (knots) and altitude (feet) on thin tapes at the sides, G and Mach
-      // small. Outside, only the aim circle, the nose cross, speed and altitude. Rings and time
-      // sit in the top-right corner. Every write happens only when what it shows changes.
+      // THE SCREENS' PICTURES: one canvas per screen, laid each frame over the four corners the
+      // screen projects to by a perspective transform, as the head-up display is laid over the
+      // view. Only the pictures move; the screens themselves are never redrawn in the engine.
+      const pictures = SCREENS.map((screen) => {
+        const canvas = document.createElement('canvas'), [w, h] = screen.size;
+        [canvas.width, canvas.height] = [256, Math.round((256 * h) / w)];
+        Object.assign(canvas.style, { width: `${canvas.width}px`, height: `${canvas.height}px` });
+        canvas.className = 'mfd';
+        canvas.dataset.hud = canvas.dataset.exampleOverlay = '';
+        document.getElementById('hud').before(canvas);
+        return { canvas, g: canvas.getContext('2d'), corners: screenCorners(screen), shown: false, cut: 'none' };
+      });
+      // The CSS matrix laying a `w` × `h` picture by the homography `m`.
+      const cssMatrix = (w, h, [a, b, c, d, e, f, g, k]) => `matrix3d(${[a / w, d / w, 0, g / w, b / h, e / h, 0, k / h, 0, 0, 1, 0, c, f, 0, 1].map((v) => v.toPrecision(8)).join(',')})`;
+      const GREEN = '#3cff7a', DIM = '#1f8a47', AMBER = '#ffb13b', INK = '#03140b', WHITE = '#eef5f0';
+      const mono = (size, weight = 600) => `${weight} ${size}px ui-monospace, 'SF Mono', Menlo, monospace`;
+      // Left screen, the attitude: the sky and the ground turned by the bank and slid by the
+      // pitch behind a fixed jet symbol, 10° rungs, and the bank scale on top.
+      function drawAttitude(g, W, H, pitch, bank) {
+        const px = H / (50 * deg);
+        g.save();
+        g.translate(W / 2, H / 2);
+        g.rotate(-bank);
+        g.translate(0, pitch * px);
+        g.fillStyle = '#12507f';
+        g.fillRect(-2 * W, -40 * H, 4 * W, 40 * H);
+        g.fillStyle = '#5e3c18';
+        g.fillRect(-2 * W, 0, 4 * W, 40 * H);
+        g.strokeStyle = g.fillStyle = WHITE;
+        g.lineWidth = 2;
+        g.font = mono(13);
+        g.textBaseline = 'middle';
+        g.beginPath();
+        g.moveTo(-2 * W, 0);
+        g.lineTo(2 * W, 0);
+        for (let e = -90; e <= 90; e += 10) {
+          const y = -e * deg * px, half = e % 20 ? 16 : 30;
+          if (!e || Math.abs(e * deg - pitch) > 40 * deg) continue;
+          g.moveTo(-half, y);
+          g.lineTo(half, y);
+          if (!(e % 20)) g.fillText(Math.abs(e), half + 6, y);
+        }
+        g.stroke();
+        g.restore();
+        g.strokeStyle = AMBER;
+        g.lineWidth = 5;
+        g.beginPath();
+        g.moveTo(W / 2 - 64, H / 2);
+        g.lineTo(W / 2 - 22, H / 2);
+        g.lineTo(W / 2 - 11, H / 2 + 12);
+        g.moveTo(W / 2 + 64, H / 2);
+        g.lineTo(W / 2 + 22, H / 2);
+        g.lineTo(W / 2 + 11, H / 2 + 12);
+        g.stroke();
+        g.fillStyle = AMBER;
+        g.fillRect(W / 2 - 3, H / 2 - 3, 6, 6);
+        g.strokeStyle = g.fillStyle = GREEN;
+        g.lineWidth = 2;
+        g.beginPath();
+        g.arc(W / 2, H / 2, H * 0.42, -Math.PI / 2 - Math.PI / 3, -Math.PI / 2 + Math.PI / 3);
+        for (const tick of [-60, -45, -30, -20, -10, 10, 20, 30, 45, 60]) {
+          const a = -Math.PI / 2 + tick * deg, r = H * 0.42;
+          g.moveTo(W / 2 + r * Math.cos(a), H / 2 + r * Math.sin(a));
+          g.lineTo(W / 2 + (r + (tick % 30 ? 6 : 11)) * Math.cos(a), H / 2 + (r + (tick % 30 ? 6 : 11)) * Math.sin(a));
+        }
+        g.stroke();
+        const a = -Math.PI / 2 - bank, r = H * 0.42 - 3;
+        g.beginPath();
+        g.moveTo(W / 2 + r * Math.cos(a), H / 2 + r * Math.sin(a));
+        g.lineTo(W / 2 + (r - 12) * Math.cos(a - 0.06), H / 2 + (r - 12) * Math.sin(a - 0.06));
+        g.lineTo(W / 2 + (r - 12) * Math.cos(a + 0.06), H / 2 + (r - 12) * Math.sin(a + 0.06));
+        g.fill();
+        g.font = mono(14);
+        g.fillText('ADI', 10, 20);
+      }
+      // Centre screen, the engine: power and fuel as bars, with their figures, and the load.
+      const FUEL = 10800;
+      function drawEngine(g, W, H, power, fuel, load) {
+        g.fillStyle = INK;
+        g.fillRect(0, 0, W, H);
+        g.font = mono(15);
+        g.textAlign = 'center';
+        [['RPM', power, `${Math.round(power * 100)}%`, power > 1 ? AMBER : GREEN], ['FUEL', fuel / FUEL, `${Math.round(fuel)}`, fuel < 2000 ? AMBER : GREEN]].forEach(([name, share, figure, colour], k) => {
+          const x = W * (0.27 + 0.46 * k), top = 40, tall = H - 92;
+          g.strokeStyle = DIM;
+          g.lineWidth = 2;
+          g.strokeRect(x - 22, top, 44, tall);
+          g.fillStyle = colour;
+          g.fillRect(x - 18, top + tall * (1 - Math.min(share, 1.1) / 1.1), 36, (tall * Math.min(share, 1.1)) / 1.1);
+          g.fillText(name, x, 24);
+          g.fillText(figure, x, H - 32);
+        });
+        g.fillStyle = load > PILOT_G ? AMBER : GREEN;
+        g.fillText(`G ${load.toFixed(1)}`, W / 2, H - 10);
+        g.textAlign = 'start';
+      }
+      // Right screen, the map, heading up: range rings each kilometre, the canyon, the runway,
+      // the rings — the next one in amber — and the jet at the foot.
+      const GORGE_LINE = Array.from({ length: 60 }, (_, k) => gorgeAt(GORGE.from + ((GORGE.to - GORGE.from) * k) / 59));
+      function drawMap(g, W, H, heading, next) {
+        const [ox, oy] = [W / 2, H * 0.74], scale = (H * 0.64) / 3000, [c, s] = [Math.cos(heading), Math.sin(heading)];
+        const at = ([x, z]) => {
+          const dx = x - S.pos[0], dz = z - S.pos[2];
+          return [ox + (dx * c + dz * s) * scale, oy - (dx * s - dz * c) * scale];
+        };
+        g.fillStyle = INK;
+        g.fillRect(0, 0, W, H);
+        g.strokeStyle = DIM;
+        g.lineWidth = 1.5;
+        g.setLineDash([4, 5]);
+        g.beginPath();
+        for (const km of [1, 2, 3]) {
+          g.moveTo(ox + km * 1000 * scale, oy);
+          g.arc(ox, oy, km * 1000 * scale, 0, 2 * Math.PI);
+        }
+        g.stroke();
+        g.setLineDash([]);
+        g.lineWidth = 7;
+        g.globalAlpha = 0.55;
+        g.beginPath();
+        for (const point of GORGE_LINE) g.lineTo(...at(point));
+        g.stroke();
+        g.globalAlpha = 1;
+        g.strokeStyle = WHITE;
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(...at([0, -550]));
+        g.lineTo(...at([0, 550]));
+        g.stroke();
+        rings.forEach((ring, k) => {
+          const [x, y] = at([ring.centre[0], ring.centre[2]]);
+          g.strokeStyle = g.fillStyle = k === next ? AMBER : GREEN;
+          g.lineWidth = 2;
+          g.beginPath();
+          g.arc(x, y, k === next ? 8 : 5, 0, 2 * Math.PI);
+          if (ring.done) g.fill();
+          else g.stroke();
+        });
+        g.strokeStyle = GREEN;
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(ox, oy - 12);
+        g.lineTo(ox + 9, oy + 9);
+        g.lineTo(ox, oy + 4);
+        g.lineTo(ox - 9, oy + 9);
+        g.closePath();
+        g.stroke();
+        g.fillStyle = GREEN;
+        g.font = mono(16);
+        g.textAlign = 'center';
+        g.fillText(String(Math.round(heading / deg) % 360).padStart(3, '0'), W / 2, 22);
+        g.textAlign = 'start';
+      }
+      // Each frame in the cockpit: the pictures redrawn and laid on their screens, less the
+      // stick's grip where it passes in front — or hidden while a screen's corner is behind the eye.
+      function drawScreens(f, seatAt, eyeAt, turn, W, H, inCockpit) {
+        const { pitch, bank, heading } = attitude(S.q), next = rings.findIndex((ring) => !ring.done);
+        const onScreen = (point) => {
+          const at = project(rotate(S.q, point).map((v, i) => v + seatAt[i]), eyeAt, turn, f);
+          return at && [at[0] + W / 2, at[1] + H / 2];
+        };
+        const grip = gripPoints(stickTilt(S.stick)).map(onScreen), gripHull = grip.every(Boolean) && hullOf(grip);
+        pictures.forEach((picture, k) => {
+          const quad = inCockpit && picture.corners.map(onScreen);
+          const visible = Boolean(quad) && quad.every(Boolean);
+          if (visible !== picture.shown) picture.canvas.style.display = (picture.shown = visible) ? 'block' : 'none';
+          if (!visible) return;
+          const { canvas, g } = picture, [w, h] = [canvas.width, canvas.height], m = homography(quad);
+          canvas.style.transform = cssMatrix(w, h, m);
+          const hole = gripHull && gripHull.map((point) => unmap(m, point)), span = (i) => hole.map((point) => point[i]);
+          const overlaps = hole && Math.min(...span(0)) < 1 && Math.max(...span(0)) > 0 && Math.min(...span(1)) < 1 && Math.max(...span(1)) > 0;
+          const cut = overlaps ? `path(evenodd, 'M0 0H${w}V${h}H0Z M${hole.map(([u, v]) => `${(u * w).toFixed(1)} ${(v * h).toFixed(1)}`).join(' L')}Z')` : 'none';
+          if (cut !== picture.cut) canvas.style.clipPath = picture.cut = cut;
+          if (k === 0) drawAttitude(g, canvas.width, canvas.height, pitch, bank);
+          else if (k === 1) drawEngine(g, canvas.width, canvas.height, S.burner ? 1.08 : 0.62 + 0.38 * S.throttle, fuel, S.load);
+          else drawMap(g, canvas.width, canvas.height, heading, next);
+        });
+      }
+
+      // THE HEAD-UP DISPLAY, in SVG over the view. In the cockpit it is large and conformal,
+      // riding the jet's boresight: a pitch ladder, the nose's waterline, the flight-path marker,
+      // the aim circle, heading on top, speed (knots) and altitude (feet) on tapes at the sides,
+      // G and Mach small — the combiner's glass only frames it. Outside, only the aim circle,
+      // the nose cross, speed and altitude. Rings and time sit in the top-right corner. A group
+      // is switched by `display`, which none of its children can override; every write happens
+      // only when what it shows changes.
       const NS = 'http://www.w3.org/2000/svg', hudRoot = document.getElementById('hud');
       function svg(tag, attributes = {}, parent = hudRoot) {
         const element = document.createElementNS(NS, tag);
@@ -692,7 +1147,8 @@
         if (name === 'text') element.textContent = value;
         else element.setAttribute(name, value);
       }
-      const place2d = (element, [x, y]) => put(element, 'transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+      const show = (element, on) => put(element, 'display', on ? 'inline' : 'none');
+      const place2d = (element, [x, y], scale = 1) => put(element, 'transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(3)})`);
       const box = (element, [x, y, width, height]) => ['x', 'y', 'width', 'height'].forEach((name, k) => put(element, name, [x, y, width, height][k].toFixed(1)));
       const defs = svg('defs');
       const clipRect = (id) => svg('rect', {}, svg('clipPath', { id }, defs));
@@ -703,38 +1159,38 @@
       // it goes on over the top, down the far side, each rung showing its elevation upside down.
       for (let p = -175; p <= 180; p += 5) {
         const elevation = p > 90 ? 180 - p : p < -90 ? -180 - p : p, rung = svg('g', {}, ladder), mark = svg('g', { transform: Math.abs(p) > 90 ? 'rotate(180)' : null }, rung);
-        if (elevation === 0) svg('path', { d: 'M -260 0 H -40 M 40 0 H 260' }, mark);
-        else if (elevation === 90) svg('circle', { r: 9 }, mark);
-        else if (elevation === -90) svg('path', { d: 'M -8 -8 L 8 8 M -8 8 L 8 -8' }, mark);
+        if (elevation === 0) svg('path', { d: 'M -320 0 H -56 M 56 0 H 320' }, mark);
+        else if (elevation === 90) svg('circle', { r: 11 }, mark);
+        else if (elevation === -90) svg('path', { d: 'M -10 -10 L 10 10 M -10 10 L 10 -10' }, mark);
         else {
-          const tick = elevation > 0 ? 7 : -7;
-          svg('path', { d: `M -62 ${tick} V 0 H -24 M 24 0 H 62 V ${tick}`, 'stroke-dasharray': elevation < 0 ? '8 5' : null }, mark);
-          label(-67, 4, 'end', mark, { class: 'small' }).textContent = Math.abs(elevation);
-          label(67, 4, 'start', mark, { class: 'small' }).textContent = Math.abs(elevation);
+          const tick = elevation > 0 ? 9 : -9;
+          svg('path', { d: `M -84 ${tick} V 0 H -32 M 32 0 H 84 V ${tick}`, 'stroke-dasharray': elevation < 0 ? '10 6' : null }, mark);
+          label(-90, 5, 'end', mark, { class: 'small' }).textContent = Math.abs(elevation);
+          label(90, 5, 'start', mark, { class: 'small' }).textContent = Math.abs(elevation);
         }
         rungs.push([p * deg, rung]);
       }
-      const waterline = svg('path', { d: 'M -28 0 H -14 L -7 8 L 0 0 L 7 8 L 14 0 H 28' }, inside);
+      const waterline = svg('path', { d: 'M -34 0 H -17 L -8 10 L 0 0 L 8 10 L 17 0 H 34' }, inside);
       const pathMarker = svg('g', {}, inside);
-      svg('circle', { r: 6 }, pathMarker);
-      svg('path', { d: 'M -18 0 H -6 M 6 0 H 18 M 0 -6 V -13' }, pathMarker);
+      svg('circle', { r: 8 }, pathMarker);
+      svg('path', { d: 'M -24 0 H -8 M 8 0 H 24 M 0 -8 V -17' }, pathMarker);
       const aimMarks = [inside, outside].map((parent) => {
         const mark = svg('g', {}, parent);
-        svg('circle', { r: 12 }, mark);
-        svg('circle', { r: 1.5 }, mark);
+        svg('circle', { r: 15 }, mark);
+        svg('circle', { r: 1.8 }, mark);
         return mark;
       });
-      const noseCross = svg('path', { d: 'M -9 0 H 9 M 0 -9 V 9' }, outside);
+      const noseCross = svg('path', { d: 'M -11 0 H 11 M 0 -11 V 11' }, outside);
       // Tapes: a strip of marks slid behind a clipped window, the value boxed at its middle.
       function tapeOf(clip, from, to, every, major, perUnit, sign, unit) {
         const tape = svg('g', {}, inside), strip = svg('g', {}, svg('g', { 'clip-path': `url(#${clip})` }, tape)), anchor = sign < 0 ? 'end' : 'start';
         for (let value = from; value <= to; value += every) {
           const y = -value * perUnit;
-          svg('path', { d: `M 0 ${y} H ${sign * (value % major ? 5 : 10)}` }, strip);
-          if (!(value % major)) label(sign * 13, y + 4, anchor, strip, { class: 'small' }).textContent = value;
+          svg('path', { d: `M 0 ${y} H ${sign * (value % major ? 6 : 12)}` }, strip);
+          if (!(value % major)) label(sign * 15, y + 4, anchor, strip, { class: 'small' }).textContent = value;
         }
-        svg('rect', { class: 'box', x: sign < 0 ? -58 : 8, y: -11, width: 50, height: 22 }, tape);
-        const value = label(sign * 13, 5, anchor, tape);
+        svg('rect', { class: 'box', x: sign < 0 ? -64 : 8, y: -13, width: 56, height: 26 }, tape);
+        const value = label(sign * 14, 6, anchor, tape);
         const title = label(sign * 8, 0, anchor, tape, { class: 'small' });
         title.textContent = unit;
         return { tape, strip, value, title, clip };
@@ -747,76 +1203,80 @@
         if (!(h % 10)) label(h * HEADING_PX, -4, 'middle', headingStrip, { class: 'small' }).textContent = String(((h + 360) % 360) / 10).padStart(2, '0');
       }
       svg('path', { d: 'M -5 20 L 0 13 L 5 20' }, headingTape);
-      const readouts = [0, 1].map(() => label(0, 0, 'start', inside, { class: 'small' }));
-      const statuses = [0, 1].map(() => label(0, 0, 'end', inside, { class: 'small' }));
+      const readouts = [0, 1].map(() => label(0, 0, 'start', inside));
+      const statuses = [0, 1].map(() => label(0, 0, 'end', inside));
       const warningInside = label(0, 0, 'middle', inside, { class: 'big blink' });
       const outsideSpeed = label(0, 0, 'end', outside), outsideAlt = label(0, 0, 'start', outside), warningOutside = label(0, 0, 'middle', outside, { class: 'big blink' });
       const corner = [0, 1].map(() => label(0, 0, 'end'));
       const banner = (title, line = '') => (put(document.querySelector('#banner h1'), 'text', title), put(document.querySelector('#banner p'), 'text', line));
       const clockOf = (seconds) => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(1).padStart(4, '0')}`;
+      // The display's field in the cockpit, in the jet's own angles about its boresight: 26°
+      // either side, 18° over it, 10° under it — above the glare shield and the nose.
+      const FIELD = { across: 26 * deg, over: 18 * deg, under: 10 * deg };
 
       // The display for one view. `f` is the focal length in pixels; `eye` and `turn` the camera.
-      function drawHud(f, seat, eye, turn, W, H, alert) {
+      function drawHud(f, eye, turn, W, H, alert) {
         put(hudRoot, 'viewBox', `0 0 ${W} ${H}`);
         put(centre, 'transform', `translate(${W / 2} ${H / 2})`);
-        corner.forEach((line, k) => (put(line, 'x', W - 16), put(line, 'y', 26 + k * 18)));
+        corner.forEach((line, k) => (put(line, 'x', W - 16), put(line, 'y', 28 + k * 20)));
         put(corner[0], 'text', `RINGS ${passedCount}/${rings.length}`);
         put(corner[1], 'text', clockOf(finished ?? elapsed));
         const { forward } = attitude(S.q), far = (direction) => S.pos.map((p, i) => p + direction[i] * 2000);
         const aimAt = project(far(rotate(S.aim, [0, 0, -1])), eye, turn, f), noseAt = project(far(forward), eye, turn, f);
-        const knots = S.v * KT, feet = (S.pos[1] - GEAR) * FT;
-        const inCockpit = view === 'cockpit', glass = COMBINER.map((c) => project(rotate(S.q, c).map((v, i) => v + seat[i]), eye, turn, f));
-        const onGlass = inCockpit && glass.every(Boolean);
-        put(inside, 'visibility', onGlass ? 'visible' : 'hidden');
-        put(outside, 'visibility', inCockpit ? 'hidden' : 'visible');
-        if (onGlass) {
-          const [l, r] = [Math.min(...glass.map((c) => c[0])), Math.max(...glass.map((c) => c[0]))];
-          const [t, b] = [Math.min(...glass.map((c) => c[1])), Math.max(...glass.map((c) => c[1]))];
-          const inset = (point, m = 14) => point && [clamp(point[0], l + m, r - m), clamp(point[1], t + m, b - m)];
+        const knots = S.v * KT, feet = (S.pos[1] - GEAR) * FT, scale = clamp(H / 820, 0.9, 1.7);
+        const inCockpit = view === 'cockpit', onHud = inCockpit && noseAt && Math.abs(noseAt[0]) < W / 2 && Math.abs(noseAt[1]) < H / 2;
+        show(inside, onHud);
+        show(outside, !inCockpit);
+        if (onHud) {
+          const [nx, ny] = noseAt, across = f * Math.tan(FIELD.across);
+          const [l, r, t, b] = [nx - across, nx + across, ny - f * Math.tan(FIELD.over), ny + f * Math.tan(FIELD.under)];
+          const inset = (point, m = 18 * scale) => point && [clamp(point[0], l + m, r - m), clamp(point[1], t + m, b - m)];
           // The ladder from the camera's own attitude: conformal with the real horizon.
           const seen = attitude(turn);
-          box(clips.ladder, [l + 62, t + 30, r - l - 124, b - t - 30]);
+          box(clips.ladder, [l + 80 * scale, t + 36 * scale, r - l - 160 * scale, b - t - 36 * scale]);
           put(ladder, 'transform', `rotate(${(-seen.bank / deg).toFixed(2)})`);
           for (const [p, rung] of rungs) {
             const near = Math.abs(seen.pitch - p) < 70 * deg;
-            put(rung, 'visibility', near ? 'visible' : 'hidden');
-            if (near) put(rung, 'transform', `translate(0 ${rungOffset(seen.pitch, p, f).toFixed(1)})`);
+            show(rung, near);
+            if (near) place2d(rung, [0, rungOffset(seen.pitch, p, f)], scale);
           }
-          place2d(waterline, inset(noseAt) ?? [0, 0]);
+          place2d(waterline, inset(noseAt), scale);
           const moving = Math.hypot(...S.vel) > 5 && project(S.pos.map((p, i) => p + S.vel[i] * 40), eye, turn, f);
-          put(pathMarker, 'visibility', moving ? 'visible' : 'hidden');
-          if (moving) place2d(pathMarker, inset(moving));
-          put(aimMarks[0], 'visibility', aimAt ? 'visible' : 'hidden');
-          if (aimAt) place2d(aimMarks[0], inset(aimAt));
-          const tall = (b - t) * 0.36, middle = (t + b) / 2 + 8;
-          place2d(speedTape.tape, [l + 58, middle]);
-          place2d(altTape.tape, [r - 58, middle]);
+          show(pathMarker, moving);
+          if (moving) place2d(pathMarker, inset(moving), scale);
+          show(aimMarks[0], aimAt && pilot.mode === 'arcade');
+          if (aimAt) place2d(aimMarks[0], inset(aimAt), scale);
+          const tall = ((b - t) * 0.36) / scale;
+          place2d(speedTape.tape, [l + 70 * scale, ny], scale);
+          place2d(altTape.tape, [r - 70 * scale, ny], scale);
           for (const { clip, title, tape } of [speedTape, altTape]) {
-            box(clips[clip], [tape === speedTape.tape ? -58 : 0, -tall, 58, 2 * tall]);
-            put(title, 'y', (-tall - 6).toFixed(1));
+            box(clips[clip], [tape === speedTape.tape ? -64 : 0, -tall, 64, 2 * tall]);
+            put(title, 'y', (-tall - 8).toFixed(1));
           }
           put(speedTape.strip, 'transform', `translate(0 ${(knots * SPEED_PX).toFixed(1)})`);
           put(speedTape.value, 'text', String(Math.round(knots)));
           put(altTape.strip, 'transform', `translate(0 ${(feet * ALT_PX).toFixed(1)})`);
           put(altTape.value, 'text', String(Math.round(feet)));
-          const half = Math.min(120, (r - l) / 2 - 70);
-          place2d(headingTape, [0, t + 14]);
-          box(clips.heading, [-half, -14, 2 * half, 28]);
+          const half = Math.min(170, ((r - l) / 2 - 100 * scale) / scale);
+          place2d(headingTape, [nx, t + 16 * scale], scale);
+          box(clips.heading, [-half, -18, 2 * half, 36]);
           put(headingStrip, 'transform', `translate(${((-attitude(S.q).heading / deg) * HEADING_PX).toFixed(1)} 0)`);
-          [`G ${S.load.toFixed(1)}`, `M ${(S.v / MACH).toFixed(2)}`].forEach((text, k) => (put(readouts[k], 'text', text), put(readouts[k], 'x', l + 8), put(readouts[k], 'y', b - 22 + k * 14)));
-          [[S.burner ? 'AB' : '', S.braking ? 'BRK' : ''].filter(Boolean).join(' '), S.gearDown ? 'GEAR' : ''].forEach((text, k) => (put(statuses[k], 'text', text), put(statuses[k], 'x', r - 8), put(statuses[k], 'y', b - 22 + k * 14)));
+          const row = (k) => (b - 30 * scale + k * 20 * scale).toFixed(1);
+          [`G ${S.load.toFixed(1)}`, `M ${(S.v / MACH).toFixed(2)}`].forEach((text, k) => (put(readouts[k], 'text', text), put(readouts[k], 'x', (l + 12 * scale).toFixed(1)), put(readouts[k], 'y', row(k))));
+          [[S.burner ? 'AB' : '', S.braking ? 'BRK' : ''].filter(Boolean).join(' '), S.gearDown ? 'GEAR' : ''].forEach((text, k) => (put(statuses[k], 'text', text), put(statuses[k], 'x', (r - 12 * scale).toFixed(1)), put(statuses[k], 'y', row(k))));
           put(warningInside, 'text', alert);
-          put(warningInside, 'y', (b - 42).toFixed(1));
+          put(warningInside, 'x', nx.toFixed(1));
+          put(warningInside, 'y', (b - 40 * scale).toFixed(1));
         } else if (!inCockpit) {
-          put(aimMarks[1], 'visibility', aimAt ? 'visible' : 'hidden');
-          if (aimAt) place2d(aimMarks[1], aimAt);
-          put(noseCross, 'visibility', noseAt ? 'visible' : 'hidden');
-          if (noseAt) place2d(noseCross, noseAt);
-          const side = Math.min(W * 0.3, 280);
+          show(aimMarks[1], aimAt && pilot.mode === 'arcade');
+          if (aimAt) place2d(aimMarks[1], aimAt, scale);
+          show(noseCross, noseAt);
+          if (noseAt) place2d(noseCross, noseAt, scale);
+          const side = Math.min(W * 0.3, 280 * scale);
           put(outsideSpeed, 'text', `${Math.round(knots)} KT`);
           put(outsideAlt, 'text', `${Math.round(feet)} FT`);
-          place2d(outsideSpeed, [-side, H * 0.06]);
-          place2d(outsideAlt, [side, H * 0.06]);
+          place2d(outsideSpeed, [-side, H * 0.06], scale);
+          place2d(outsideAlt, [side, H * 0.06], scale);
           put(warningOutside, 'text', alert);
           put(warningOutside, 'y', (-H * 0.2).toFixed(1));
         }
@@ -907,16 +1367,19 @@
       }
 
       // THE GAME. `S` is the jet, `pilot` what the player holds; the view is the cockpit or the
-      // exterior, whose camera follows the aim so the jet is seen catching up with it.
+      // exterior, whose camera follows the aim so the jet is seen catching up with it. The mouse
+      // turns the aim by the view's own measure — the screen's width is the field of view — at
+      // Medium; Low and High take 0.6 and 1.6 of it, and the right button held 0.4 for fine aim.
       const S = createFlight();
-      const pilot = { keys: new Set(), sensitivity: 1, invert: false, realistic: false, freeLook: false };
+      const pilot = { keys: new Set(), sensitivity: 1, invert: false, mode: 'arcade', freeLook: false, precision: false, perPx: 0 };
       const SENSITIVITY = { Low: 0.6, Medium: 1, High: 1.6 };
-      let view = 'cockpit', chosenView = 'cockpit', phase = 'flying', crashTime = 0, passedCount = 0, lastRing = null;
+      const MODES = { 'Arcade — the jet flies onto your aim; no stall, it pulls up by itself': 'arcade', 'Expert — the mouse is the stick; it stalls and spins': 'expert' };
+      let view = 'cockpit', chosenView = 'cockpit', phase = 'flying', crashTime = 0, passedCount = 0, lastRing = null, fuel = FUEL;
       let airborne = false, elapsed = 0, finished = null, time = 0, zoom = 22, prevMach = 0, coneAge = Infinity, lastTrail = 0, headYaw = 0;
       let chaseTurn = [0, 0, 0, 1];
       function restart() {
         for (const ring of rings) [ring.done, ring.todo.visible, ring.passed.visible] = [false, true, false];
-        [passedCount, lastRing, airborne, elapsed, finished, phase] = [0, null, false, 0, null, 'flying'];
+        [passedCount, lastRing, airborne, elapsed, finished, phase, fuel] = [0, null, false, 0, null, 'flying', FUEL];
         park(S);
         chaseTurn = S.aim.slice();
         banner('');
@@ -974,15 +1437,21 @@
         S.mouseY += clamp(event.movementY, -250, 250);
       });
       addEventListener('wheel', (event) => game.running && (zoom = clamp(zoom * Math.exp(event.deltaY * 0.001), 12, 70)), { passive: true });
+      // The right button held: fine aim. Its menu never opens while playing.
+      for (const type of ['mousedown', 'mouseup']) addEventListener(type, (event) => event.button === 2 && (pilot.precision = type === 'mousedown' && game.running));
+      addEventListener('contextmenu', (event) => game.running && event.preventDefault());
       function setView(next) {
         view = next;
         chaseTurn = S.aim.slice();
       }
 
-      // TEST MODE, `?input=free`: an automated browser cannot be granted a pointer lock, so Play
-      // "locks" nothing and the mouse's plain `mousemove` deltas steer instead; Escape pauses. A
-      // player never needs it; it changes nothing else.
-      const free = new URLSearchParams(location.search).get('input') === 'free';
+      // TEST MODE, `?input=free`, served from this machine only — a loopback address or a name
+      // with no domain: an automated browser cannot be granted a pointer lock, so Play "locks"
+      // nothing and the mouse's plain `mousemove` deltas steer instead; Escape pauses. A red
+      // banner says so while it is on. A player never needs it; it changes nothing else.
+      const loopback = /^(127(\.\d+){3}|\[::1\])$/.test(location.hostname) || !location.hostname.includes('.');
+      const free = new URLSearchParams(location.search).get('input') === 'free' && loopback;
+      document.getElementById('testmode').hidden = !free;
       let freeHeld = false;
       const lockWatchers = [];
       const freeDoc = {
@@ -1005,10 +1474,11 @@
           title: 'Fighter jet',
           goal: 'Take off, then fly the canyon through the ten gold rings as fast as you can. Point with the mouse: the jet follows.',
           keys: [
-            { action: 'Aim — the jet turns to follow', keys: ['Mouse'] },
+            { action: 'Aim (Arcade) or stick (Expert)', keys: ['Mouse'] },
+            { action: 'Fine aim (hold)', keys: ['Right button'] },
             { action: 'Throttle up, down', keys: ['W', 'S'], azerty: ['Z', 'S'] },
             { action: 'Afterburner (hold)', keys: ['Shift'] },
-            { action: 'Roll (overrides the aim)', keys: ['A', 'D'], azerty: ['Q', 'D'] },
+            { action: 'Roll (overrides the aim in Arcade)', keys: ['A', 'D'], azerty: ['Q', 'D'] },
             { action: 'Rudder', keys: ['Q', 'E'], azerty: ['A', 'E'] },
             { action: 'Air brake (hold)', keys: ['Space'] },
             { action: 'Look around (hold)', keys: ['V'] },
@@ -1019,7 +1489,7 @@
           ],
           options: [
             { id: 'view', label: 'View', choices: ['Cockpit', 'Exterior'] },
-            { id: 'instructor', label: 'Instructor', choices: ['Arcade', 'Realistic'] },
+            { id: 'mode', label: 'Mode', choices: Object.keys(MODES) },
             { id: 'sensitivity', label: 'Mouse sensitivity', choices: Object.keys(SENSITIVITY), value: 'Medium' },
             { id: 'invert', label: 'Invert Y', choices: ['Off', 'On'] },
             { id: 'sound', label: 'Sound', choices: ['On', 'Off'] },
@@ -1036,7 +1506,7 @@
           onRestart: restart,
           onOption(id, value) {
             if (id === 'view') setView((chosenView = value === 'Cockpit' ? 'cockpit' : 'exterior'));
-            if (id === 'instructor') pilot.realistic = value === 'Realistic';
+            if (id === 'mode') pilot.mode = MODES[value];
             if (id === 'sensitivity') pilot.sensitivity = SENSITIVITY[value];
             if (id === 'invert') pilot.invert = value === 'On';
             if (id === 'sound') muted = value === 'Off';
@@ -1067,13 +1537,16 @@
         present(dt);
       };
       world.onFrame(() => game.running && world.invalidate());
+      const redout = document.getElementById('redout');
+      let reddened = '0';
 
       // Everything the step shows: the jet and its surfaces, the cockpit and its screens, the
       // effects, the camera for the view, the display, the sound.
       function present(dt) {
-        const cockpitView = view === 'cockpit', { heading, pitch, bank } = attitude(S.q);
+        const cockpitView = view === 'cockpit';
         jet.visible = !cockpitView && phase === 'flying';
         cockpit.visible = cockpitView && phase === 'flying';
+        if (fill.visible !== cockpit.visible) fill.visible = cockpit.visible;
         jet.position.set(...S.pos);
         jet.quaternion.set(...S.q);
         const eye = S.pos.map((p, i) => p + rotate(S.q, EYE)[i]);
@@ -1112,41 +1585,33 @@
             strip.scale.setScalar(1 - k / TRAIL);
           }),
         );
-        // The screens: the horizon bar turned by the bank and slid by the pitch; the map turned
-        // heading up, 1500 m to its half-height.
-        const slide = -clamp(pitch / (30 * deg)) * 0.05;
-        horizonBar.rotation.z = bank;
-        horizonBar.position.set(-Math.sin(bank) * slide, Math.cos(bank) * slide, 0);
-        const toMap = ([x, z], mesh) => {
-          const dx = x - S.pos[0], dz = z - S.pos[2], across = dx * Math.cos(heading) + dz * Math.sin(heading), along = dx * Math.sin(heading) - dz * Math.cos(heading);
-          const at = [(across * 0.045) / 1500, (along * 0.045) / 1500 - 0.03];
-          mesh.visible = Math.abs(at[0]) < 0.07 && Math.abs(at[1]) < 0.056;
-          if (mesh.visible) mesh.position.set(at[0], at[1], mesh.position.z);
-        };
-        canyonDots.forEach((mesh, k) => toMap(GORGE_DOTS[k], mesh));
-        const ahead = rings.findIndex((ring) => !ring.done);
-        rings.forEach((ring, k) => {
-          if (ring.done || k === ahead) ringDots[k].visible = false;
-          else toMap([ring.centre[0], ring.centre[2]], ringDots[k]);
-        });
-        if (ahead < 0) nextDot.visible = false;
-        else toMap([COURSE[ahead][0], COURSE[ahead][2]], nextDot);
-        // The camera. Cockpit: the eye, turned a little towards the aim (the pilot looks into
-        // the turn) and by the free look, shaken by the load, the afterburner, the runway and
-        // the stall. Exterior: behind and above the jet along the aim, easing after it, pulled
-        // back with speed and the wheel.
+        // The cockpit's moving parts: the throttle swings forward with the power and on into
+        // the afterburner detent, the stick tilts with the pitch and roll it asks for (back
+        // further than forward, as a stick travels), the backup gauges read speed, altitude,
+        // load and fuel.
+        seat.throttle.rotation.x = 0.35 - 0.6 * S.throttle - (S.burner ? 0.2 : 0);
+        const [tiltX, tiltZ] = stickTilt(S.stick);
+        seat.stick.rotation.set(tiltX, 0, tiltZ);
+        const knots = S.v * KT, feet = (S.pos[1] - GEAR) * FT;
+        [clamp(knots / 800, 0, 1) * 5.8, ((feet / 1000) % 1) * 2 * Math.PI, clamp(S.load / MAX_G, -0.3, 1) * 5.2, (fuel / FUEL) * 4.7].forEach((angle, k) => (seat.needles[k].rotation.z = -angle));
+        fuel = Math.max(0, fuel - dt * (0.8 + 4 * S.throttle + (S.burner ? 25 : 0)));
+        // The camera. Cockpit: the eye, resting 5° under the axis, turned a little towards the
+        // aim (the pilot looks into the turn, never past 10°) and by the free look, shaken by the
+        // load, the afterburner, the runway and the stall. Exterior: behind and above the jet
+        // along the aim, following it on a quarter-second spring, pulled back with speed and
+        // the wheel.
         const [aimX, , aimZ] = rotate(qconj(S.q), rotate(S.aim, [0, 0, -1]));
-        headYaw += (clamp(-Math.atan2(aimX, -aimZ) * 0.3, -12 * deg, 12 * deg) - headYaw) * (1 - Math.exp(-dt * 4));
+        headYaw += (clamp(-Math.atan2(aimX, -aimZ) * 0.3, -10 * deg, 10 * deg) - headYaw) * (1 - Math.exp(-dt * 4));
         const look = qmul(qaxis(0, 1, 0, S.lookYaw), qaxis(1, 0, 0, S.lookPitch));
         const rough = 0.0025 * Math.max(0, S.load - 3) + (S.burner ? 0.002 : 0) + (S.onGround ? 0.003 * Math.min(1, S.v / 80) : 0) + (S.stalling ? 0.004 : 0);
         const shake = rotate(S.q, [Math.sin(time * 41) * rough, Math.sin(time * 37 + 1) * rough, 0]);
         let eyeAt, turn;
         if (cockpitView) {
-          turn = qmul(S.q, qmul(qaxis(0, 1, 0, headYaw), look));
+          turn = qmul(S.q, qmul(qaxis(0, 1, 0, headYaw), qmul(qaxis(1, 0, 0, -LOOK_DOWN), look)));
           eyeAt = eye.map((p, i) => p + shake[i]);
           [camera.near, camera.fov] = [COCKPIT_NEAR, COCKPIT_FOV + 4 * smooth(100, 400, S.v)];
         } else {
-          chaseTurn = qblend(chaseTurn, qmul(S.aim, look), 1 - Math.exp(-dt * 8));
+          chaseTurn = qblend(chaseTurn, qmul(S.aim, look), 1 - Math.exp(-dt / 0.25));
           turn = chaseTurn;
           const back = rotate(turn, [0, 3.4, zoom * (1 + 0.3 * smooth(100, 400, S.v))]);
           eyeAt = S.pos.map((p, i) => p + back[i] + shake[i] * 4);
@@ -1154,15 +1619,20 @@
         }
         camera.position.set(...eyeAt);
         camera.quaternion.set(...turn);
+        const W = innerWidth, H = innerHeight, f = H / 2 / Math.tan((camera.fov * deg) / 2);
+        pilot.perPx = (2 * Math.atan((W / 2 / f))) / W;
+        // Past the pilot's 9 g the view reddens from its edges.
+        const red = smooth(PILOT_G, MAX_G, S.load).toFixed(2);
+        if (reddened !== red) redout.style.opacity = reddened = red;
         // Warnings, the take-off hint, the display.
         const [floor] = ground(S.pos[0], S.pos[2]), radar = S.pos[1] - GEAR - floor, sinking = -S.vel[1];
-        const pullUp = !S.onGround && sinking > 5 && radar / sinking < 5, overTheEdge = Math.max(Math.abs(S.pos[0]), Math.abs(S.pos[2])) > 2450;
+        const pullUp = S.pullUp || (!S.onGround && sinking > 5 && radar / sinking < 5), overTheEdge = Math.max(Math.abs(S.pos[0]), Math.abs(S.pos[2])) > 2450;
         const alert = phase === 'crashed' ? '' : S.stalling ? 'STALL' : pullUp ? 'PULL UP' : overTheEdge ? 'TURN BACK' : '';
         if (phase === 'crashed') banner('CRASHED', lastRing === null ? 'Back to the runway…' : 'Back to the last ring…');
         else if (!airborne) banner('', S.throttle < 0.5 ? 'W — throttle up (Z on AZERTY)' : S.v < ROTATE ? `Rolling — ${Math.round(S.v * KT)} kt` : 'Mouse up — lift off');
         else if (finished === null) banner('');
-        const H = innerHeight;
-        drawHud(H / 2 / Math.tan((camera.fov * deg) / 2), eye, eyeAt, turn, innerWidth, H, alert);
+        drawHud(f, eyeAt, turn, W, H, alert);
+        drawScreens(f, eye, eyeAt, turn, W, H, cockpit.visible);
         sound(Boolean(alert) && phase !== 'crashed', time);
       }
     </script>
