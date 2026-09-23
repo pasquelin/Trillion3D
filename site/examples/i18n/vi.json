@@ -1,0 +1,1829 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "Cài đặt"
+    },
+    "menu": {
+      "play": "Chơi",
+      "resume": "Tiếp tục",
+      "restart": "Chơi lại",
+      "controls": "Cài đặt",
+      "back": "Quay lại",
+      "paused": "Đang tạm dừng",
+      "again": "Bấm lần nữa để tiếp tục"
+    },
+    "keys": {
+      "Mouse": "Chuột",
+      "Right button": "Nút phải",
+      "Wheel": "Con lăn",
+      "Shift": "Shift",
+      "Space": "Phím cách",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "FPS": "Khung/giây",
+      "FPS (held)": "Khung/giây (đứng yên)",
+      "triangles": "tam giác",
+      "triangles (scene)": "tam giác (cảnh)",
+      "draw calls": "lệnh vẽ",
+      "pages": "trang",
+      "geometry pool": "kho hình học",
+      "lights": "đèn",
+      "GPU frame": "khung GPU",
+      "CPU frame": "khung CPU",
+      "page hooks": "mã của trang",
+      "engine CPU": "CPU của engine"
+    }
+  },
+  "a-city-from-rules": {
+    "controls": {
+      "mouse": "Kéo để bay quanh; mỗi thiết lập dựng lại thành phố theo quy tắc của nó",
+      "blocks": "Khu phố",
+      "maxHeight": "Độ cao tối đa",
+      "density": "Mật độ",
+      "parks": "Công viên",
+      "seed": "Hạt giống",
+      "hour": "Giờ",
+      "traffic": "Giao thông"
+    },
+    "readouts": {
+      "buildings": "Tòa nhà",
+      "parks": "Công viên"
+    }
+  },
+  "a-cloud-of-points": {
+    "controls": {
+      "mouse": "Kéo để bay quanh đám mây; chọn hình khác, hình cũ cuộn lại biến mất trong khi hình mới mở ra",
+      "shape": "Hình dạng",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "thiên hà xoắn ốc",
+        "globular cluster": "cụm sao cầu",
+        "ring nebula": "tinh vân vòng",
+        "Lorenz attractor": "bộ hút Lorenz"
+      }
+    },
+    "readouts": {
+      "points": "Điểm",
+      "colourGroups": "Nhóm màu"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "controls": {
+      "colour": "Màu",
+      "glow": "Phát sáng",
+      "exposure": "Độ phơi sáng"
+    }
+  },
+  "a-field-of-pebbles": {
+    "controls": {
+      "sunTurn": "Hướng mặt trời",
+      "sunHeight": "Độ cao mặt trời",
+      "first": "Đầu",
+      "last": "Cuối"
+    }
+  },
+  "a-first-world": {
+    "controls": {
+      "colour": "Màu"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "controls": {
+      "mouse": "Kéo để trượt bàn cờ · con lăn hoặc chụm tay để thu phóng · phím mũi tên để di chuyển",
+      "play": "Chơi",
+      "speed": "Tốc độ",
+      "follow": "Đi theo",
+      "replay": "Xem lại"
+    },
+    "readouts": {
+      "move": "Nước đi"
+    },
+    "words": {
+      "takes": "ăn"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "controls": {
+      "swing": "Đung đưa",
+      "lamp": "Đèn",
+      "power": "Công suất",
+      "glass": "Kính"
+    }
+  },
+  "a-lighthouse-beam": {
+    "controls": {
+      "turnsPerMinute": "Vòng mỗi phút",
+      "beamWidth": "Độ rộng chùm sáng",
+      "colour": "Màu"
+    }
+  },
+  "a-long-shadowed-street": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh đại lộ, con lăn để tiến; kéo giờ và bóng đổ dài ra trên phố rồi leo lên mặt tiền",
+      "hour": "Giờ",
+      "traffic": "Giao thông",
+      "flyAgain": "Bay lại"
+    },
+    "readouts": {
+      "sunHeight": "Độ cao mặt trời",
+      "shadow30MHouse": "Bóng của ngôi nhà cao 30 m"
+    }
+  },
+  "a-matcap-sculpture": {
+    "controls": {
+      "mouse": "Kéo để đi quanh bức tượng: ánh sáng xoay theo bạn, vì nó sống trong bức ảnh",
+      "matcap": "Matcap",
+      "sculpture": "Tượng",
+      "gallery": "Phòng trưng bày",
+      "turn": "Xoay"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "đất sét đỏ",
+        "chrome": "crôm",
+        "gold": "vàng",
+        "jade": "ngọc bích",
+        "pearl": "ngọc trai",
+        "obsidian": "đá vỏ chai"
+      },
+      "sculpture": {
+        "knot": "nút thắt",
+        "rings": "vòng",
+        "vase": "bình hoa"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh viên đá quý; tắt mặt cắt sắc để các góc dùng chung",
+      "points": "Điểm",
+      "waist": "Eo",
+      "height": "Chiều cao",
+      "sharpFacets": "Mặt cắt sắc",
+      "colour": "Màu",
+      "spin": "Xoay"
+    },
+    "readouts": {
+      "verticesWritten": "Đỉnh đã ghi",
+      "triangles": "Tam giác"
+    }
+  },
+  "a-model-from-obj": {
+    "controls": {
+      "mouse": "Kéo để đi quanh bàn cờ, con lăn để lại gần: xem OBJ đã thành gì",
+      "view": "Chế độ xem",
+      "sunAngle": "Góc mặt trời",
+      "sunHeight": "Độ cao mặt trời",
+      "turn": "Xoay"
+    },
+    "choices": {
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "triangles": "tam giác",
+        "clusters": "cụm",
+        "lod": "mức chi tiết"
+      }
+    },
+    "words": {
+      "credit": "Bộ cờ vua làm cho các ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "a-model-from-usdz": {
+    "controls": {
+      "mouse": "Kéo để đi quanh bàn cờ; dùng con lăn xuống tới các quân cờ",
+      "view": "Chế độ xem",
+      "turn": "Xoay"
+    },
+    "choices": {
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "materials": "chất liệu",
+        "clusters": "cụm",
+        "triangles": "tam giác"
+      }
+    },
+    "readouts": {
+      "source": "Nguồn",
+      "boardWidth": "Chiều rộng bàn cờ",
+      "partsPlaced": "Bộ phận đã đặt",
+      "triangles": "Tam giác"
+    },
+    "words": {
+      "credit": "Bộ cờ vua làm bằng mã cho ví dụ này, CC0; tệp là assets/examples/a-model-from-usdz/source/chess-set.usdz — xem assets/examples/CREDITS.md"
+    }
+  },
+  "a-molecule": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh phân tử; chọn phân tử khác và các nguyên tử bay tới chỗ mới",
+      "molecule": "Phân tử",
+      "style": "Kiểu",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "buckyball C60",
+        "carbon nanotube": "ống nano cacbon",
+        "diamond crystal": "tinh thể kim cương",
+        "DNA double helix": "chuỗi xoắn kép ADN"
+      },
+      "style": {
+        "ball and stick": "bi và que",
+        "space filling": "cầu đặc",
+        "sticks": "que"
+      }
+    },
+    "readouts": {
+      "atoms": "Nguyên tử",
+      "bonds": "Liên kết"
+    }
+  },
+  "a-neon-sign": {
+    "controls": {
+      "star": "Ngôi sao",
+      "wave": "Sóng",
+      "glow": "Phát sáng",
+      "pulse": "Nhấp nháy",
+      "exposure": "Độ phơi sáng",
+      "toneMapping": "Ánh xạ tông màu"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "trung tính",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "tuyến tính"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "controls": {
+      "lamps": "Đèn",
+      "speed": "Tốc độ",
+      "power": "Công suất",
+      "shadows": "Bóng đổ"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "controls": {
+      "walk": "Đi bộ",
+      "wave": "Sóng",
+      "dance": "Nhảy múa",
+      "speed": "Tốc độ",
+      "colour": "Màu"
+    }
+  },
+  "a-scene-of-your-own": {
+    "controls": {
+      "hour": "Giờ",
+      "wind": "Gió",
+      "roof": "Mái nhà"
+    }
+  },
+  "a-softbox-panel": {
+    "controls": {
+      "mouse": "Kéo để đi quanh phim trường; phóng to tấm đèn và xem chỗ lóa mềm đi",
+      "panelWidth": "Chiều rộng tấm đèn",
+      "power": "Công suất",
+      "colour": "Màu",
+      "swing": "Đung đưa"
+    },
+    "readouts": {
+      "panel": "Tấm đèn",
+      "radiance": "Độ bức xạ"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "controls": {
+      "climb": "Leo lên",
+      "turnPerStep": "Góc xoay mỗi bậc",
+      "lantern": "Đèn lồng"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "controls": {
+      "hour": "Giờ",
+      "sunColour": "Màu mặt trời",
+      "exposure": "Độ phơi sáng"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh; tấm phía sau là viên gạch đúng như khi được vẽ",
+      "tile": "Gạch",
+      "wrap": "Mép",
+      "tilesAcross": "Số gạch theo chiều ngang",
+      "turn": "Xoay",
+      "slideAcross": "Trượt ngang",
+      "slideUp": "Trượt lên",
+      "flow": "Chảy"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "lặp lại",
+        "mirror": "gương",
+        "clamp": "giữ mép"
+      },
+      "tile": {
+        "terracotta": "đất nung",
+        "azulejo": "azulejo",
+        "jade": "ngọc bích"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "Gạch, góc xoay"
+    },
+    "words": {
+      "up": "LÊN"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh; các hạt chạy trên đường cong mà ống đi theo",
+      "path": "Đường đi",
+      "radius": "Bán kính",
+      "sides": "Cạnh",
+      "slices": "Lát cắt",
+      "speed": "Tốc độ",
+      "beads": "Hạt",
+      "paint": "Sơn"
+    },
+    "choices": {
+      "path": {
+        "knot": "nút thắt",
+        "coaster": "tàu lượn",
+        "spiral": "xoắn ốc"
+      }
+    },
+    "readouts": {
+      "triangles": "Tam giác"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "controls": {
+      "width": "Chiều rộng",
+      "height": "Chiều cao",
+      "gloss": "Độ bóng",
+      "spin": "Xoay"
+    }
+  },
+  "a-video-on-a-screen": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh phòng; màn hình phát một phần tử video thật",
+      "playing": "Đang phát",
+      "openVideo": "Mở video"
+    },
+    "readouts": {
+      "playing": "Đang phát",
+      "videoTime": "Thời gian video"
+    },
+    "words": {
+      "yourFile": "tệp của bạn",
+      "testCard": "ảnh thử"
+    }
+  },
+  "a-video-panorama": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh; cảnh tự quay cho tới khi bạn nhấn",
+      "playing": "Đang phát",
+      "fieldOfView": "Trường nhìn",
+      "openVideo": "Mở video"
+    },
+    "readouts": {
+      "playing": "Đang phát"
+    },
+    "words": {
+      "yourFile": "tệp của bạn",
+      "duskOverSea": "hoàng hôn trên biển"
+    }
+  },
+  "a-wall-of-cameras": {
+    "controls": {
+      "mouse": "Bấm vào một camera để đưa lên màn hình lớn; bảo các camera phải theo dõi gì",
+      "watch": "Theo dõi"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "tuần tra",
+        "car": "chiếc xe",
+        "balloon": "khinh khí cầu"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "Camera đang thấy xe"
+    },
+    "words": {
+      "cam": "CAM",
+      "northGate": "CỔNG BẮC",
+      "fountain": "ĐÀI PHUN NƯỚC",
+      "eastRoad": "ĐƯỜNG ĐÔNG",
+      "clockTower": "THÁP ĐỒNG HỒ",
+      "cafe": "QUÁN CÀ PHÊ",
+      "southCorner": "GÓC NAM",
+      "noSignal": "MẤT TÍN HIỆU",
+      "patrol": "TUẦN TRA",
+      "car": "ĐANG THEO XE",
+      "balloon": "ĐANG THEO KHINH KHÍ CẦU"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "controls": {
+      "height": "Chiều cao",
+      "speed": "Tốc độ",
+      "ripples": "Gợn sóng",
+      "inner": "Bên trong",
+      "outer": "Bên ngoài"
+    }
+  },
+  "a-world-of-blocks": {
+    "controls": {
+      "mouse": "Kéo để bay quanh đảo; dâng mực nước biển và xem thung lũng ngập nước",
+      "seed": "Hạt giống",
+      "seaLevel": "Mực nước biển",
+      "hour": "Giờ",
+      "clouds": "Mây"
+    },
+    "readouts": {
+      "facesDrawn": "Mặt đã vẽ"
+    }
+  },
+  "before-and-after-slider": {
+    "controls": {
+      "mouse": "Kéo núm tròn để dời đường chia; kéo bức ảnh để xoay quanh quảng trường",
+      "before": "Trước"
+    },
+    "choices": {
+      "before": {
+        "clay": "đất sét",
+        "no shadows": "không bóng",
+        "no sun": "không mặt trời",
+        "noon sun": "nắng trưa"
+      }
+    },
+    "words": {
+      "clay": "đất sét",
+      "no shadows": "không bóng",
+      "no sun": "không mặt trời",
+      "noon sun": "nắng trưa",
+      "finished": "hoàn thành"
+    }
+  },
+  "blobs-that-merge": {
+    "controls": {
+      "mouse": "Kéo để đi quanh chiếc đèn; tăng độ dính và các giọt tan vào nhau",
+      "stickiness": "Độ dính",
+      "heat": "Nhiệt",
+      "wax": "Sáp"
+    },
+    "readouts": {
+      "piecesWax": "Mẩu sáp"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "controls": {
+      "sweep": "Quét",
+      "lamp": "Đèn",
+      "colour": "Màu",
+      "bricks": "Gạch nung"
+    }
+  },
+  "click-to-pick": {
+    "controls": {
+      "help": "Bấm vào một hình: nó sáng lên, và bảng cho biết tia chạm vào nó ở đâu."
+    },
+    "readouts": {
+      "picked": "Đã chọn",
+      "point": "Điểm",
+      "distance": "Khoảng cách"
+    },
+    "words": {
+      "nothing": "không có gì",
+      "box": "hộp",
+      "sphere": "quả cầu",
+      "cone": "hình nón",
+      "torus": "hình xuyến",
+      "cylinder": "hình trụ",
+      "knot": "nút thắt"
+    }
+  },
+  "colours-on-the-vertices": {
+    "controls": {
+      "mouse": "Kéo để xoay hành tinh; mỗi đỉnh mang màu riêng của nó",
+      "palette": "Bảng màu",
+      "seaLevel": "Mực nước biển",
+      "relief": "Độ nổi",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "palette": {
+        "earth": "trái đất",
+        "lava": "dung nham",
+        "ice": "băng",
+        "candy": "kẹo"
+      }
+    }
+  },
+  "compressed-textures": {
+    "controls": {
+      "mouse": "Kéo để đi quanh đài phun nước; lăn xuống một viên gạch và xem chi tiết của nó tới",
+      "sunTurn": "Hướng mặt trời",
+      "sunHeight": "Độ cao mặt trời"
+    },
+    "readouts": {
+      "texturesBlocks": "Kết cấu dạng khối",
+      "allFullDetail": "Tất cả ở chi tiết tối đa",
+      "poolFormat": "Định dạng kho",
+      "tilesHeld": "Ô đang giữ",
+      "heldGpu": "Giữ trên GPU"
+    },
+    "words": {
+      "credit": "Sân và kết cấu được vẽ bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md",
+      "someOf": "{some} trên {all}",
+      "notPlain": "{held} MiB, không phải {plain}",
+      "notMeasured": "không đo ở đây"
+    }
+  },
+  "copies-along-a-path": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh công viên; tăng số bản sao cho tới khi các vòm khép thành đường hầm",
+      "copies": "Bản sao",
+      "twist": "Xoắn",
+      "speed": "Tốc độ",
+      "ride": "Đi tàu"
+    },
+    "readouts": {
+      "archesPlaced": "Vòm đã đặt"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "controls": {
+      "angle": "Góc",
+      "softness": "Độ mềm",
+      "colour": "Màu",
+      "power": "Công suất"
+    },
+    "words": {
+      "credit": "Mô hình thùng gỗ của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "create-and-dispose": {
+    "controls": {
+      "mouse": "Kéo để đi quanh đài phun nước · con lăn để lại gần",
+      "perSecond": "Mỗi giây",
+      "copies": "Bản sao",
+      "burst": "Loạt bắn",
+      "clearAll": "Xóa hết"
+    },
+    "choices": {
+      "copies": {
+        "share": "dùng chung hình",
+        "fresh": "hình mới mỗi lần"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "Mảnh còn sống",
+      "created": "Đã tạo",
+      "disposed": "Đã giải phóng",
+      "gpuMemory": "Bộ nhớ GPU"
+    },
+    "words": {
+      "notMeasured": "không đo"
+    }
+  },
+  "curved-surfaces": {
+    "controls": {
+      "mouse": "Kéo để đi trong phòng trưng bày; giảm lưới để thấy các tam giác tạo nên mỗi đường cong",
+      "grid": "Lưới",
+      "facets": "Mặt cắt",
+      "turntable": "Bàn xoay"
+    },
+    "readouts": {
+      "triangles": "Tam giác",
+      "facingYou": "Hướng về bạn"
+    },
+    "words": {
+      "Klein bottle": "chai Klein",
+      "Möbius strip": "dải Möbius",
+      "Seashell": "vỏ sò",
+      "Dini's twist": "mặt xoắn Dini",
+      "Enneper saddle": "yên ngựa Enneper"
+    }
+  },
+  "dashed-lines": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh mặt trời; đổi nét và khoảng trống, mọi quỹ đạo đổi theo",
+      "lines": "Đường",
+      "dash": "Nét",
+      "gap": "Khoảng trống",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "nét đứt",
+        "solid": "nét liền"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "Số nét trên quỹ đạo hành tinh xanh"
+    }
+  },
+  "detail-by-pixel-error": {
+    "controls": {
+      "mouse": "Kéo để đi dọc đại lộ; lại gần một chiếc bình, rồi đi thật xa",
+      "pixelError": "Sai số điểm ảnh",
+      "view": "Chế độ xem"
+    },
+    "choices": {
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "lod": "mức chi tiết",
+        "screen-error": "sai số màn hình",
+        "triangles": "tam giác"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Tam giác đã vẽ",
+      "shareAvenue": "Phần của đại lộ",
+      "trianglesAvenue": "Tam giác trong đại lộ"
+    },
+    "words": {
+      "credit": "Đại lộ bình được làm bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md",
+      "notCounted": "không đếm ở đây"
+    }
+  },
+  "edges-and-wireframe": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh; tăng ngưỡng để chỉ giữ các nếp gấp sắc",
+      "view": "Chế độ xem",
+      "threshold": "Ngưỡng",
+      "lines": "Đường",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "bề mặt và cạnh",
+        "edges": "cạnh",
+        "wireframe": "khung dây",
+        "surface and wireframe": "bề mặt và khung dây",
+        "surface": "bề mặt"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "Đoạn cạnh",
+      "wireframeSegments": "Đoạn khung dây"
+    }
+  },
+  "every-image-format": {
+    "controls": {
+      "mouse": "Kéo để đi dọc các giá vẽ; giảm chất lượng và nhìn gần JPEG và WebP",
+      "quality": "Chất lượng",
+      "lookAt": "Nhìn vào"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "cả tám",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "Điểm ảnh thô"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "Điểm ảnh thô"
+    },
+    "words": {
+      "samePicture": "512 × 512 · cùng một bức ảnh",
+      "lossless": "không mất dữ liệu",
+      "lossy": "mất dữ liệu",
+      "colours256": "256 màu",
+      "uncompressed": "không nén",
+      "shapes": "hình, vẽ khi tải",
+      "painted": "vẽ trong trang",
+      "bytes": "byte trong bộ nhớ",
+      "inMemory": "{size} trong bộ nhớ · {note}",
+      "sentAs": "gửi dưới dạng {type}"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "controls": {
+      "mouse": "Kéo để đi quanh đồng hồ mặt trời; kéo giờ và mọi bóng đổ xoay cùng mặt trời",
+      "hour": "Giờ",
+      "darkness": "Độ tối",
+      "timeLapse": "Tua nhanh",
+      "motion": "Chuyển động"
+    },
+    "readouts": {
+      "shadowLength": "Chiều dài bóng"
+    },
+    "words": {
+      "timesHeight": "{times} × chiều cao"
+    }
+  },
+  "fly-over-a-model-town": {
+    "choices": {
+      "view": {
+        "cockpit": "Buồng lái",
+        "exterior": "Bên ngoài"
+      },
+      "mode": {
+        "arcade": "Arcade — máy bay bay về chỗ bạn ngắm; không thất tốc, tự nâng lên",
+        "expert": "Chuyên gia — chuột là cần lái; máy bay có thể thất tốc và xoáy"
+      },
+      "sensitivity": {
+        "Low": "Thấp",
+        "Medium": "Vừa",
+        "High": "Cao"
+      },
+      "invert": {
+        "off": "Tắt",
+        "on": "Bật"
+      },
+      "sound": {
+        "on": "Bật",
+        "off": "Tắt"
+      }
+    },
+    "game": {
+      "title": "Máy bay chiến đấu",
+      "goal": "Cất cánh, rồi bay qua hẻm núi xuyên qua mười vòng vàng nhanh nhất có thể. Ngắm bằng chuột: máy bay bay theo.",
+      "keys": {
+        "aim": "Ngắm (Arcade) hoặc cần lái (Chuyên gia)",
+        "fineAim": "Ngắm chính xác (giữ)",
+        "throttle": "Tăng, giảm ga",
+        "afterburner": "Đốt tăng lực (giữ)",
+        "roll": "Lăn (ưu tiên hơn ngắm ở Arcade)",
+        "rudder": "Bánh lái hướng",
+        "airBrake": "Phanh khí (giữ)",
+        "lookAround": "Nhìn quanh (giữ)",
+        "view": "Nhìn từ buồng lái hoặc bên ngoài",
+        "zoom": "Thu phóng góc nhìn ngoài",
+        "startOver": "Bắt đầu lại",
+        "pause": "Tạm dừng"
+      },
+      "options": {
+        "view": "Chế độ xem",
+        "mode": "Chế độ",
+        "sensitivity": "Độ nhạy chuột",
+        "invert": "Đảo trục Y",
+        "sound": "Âm thanh"
+      }
+    },
+    "words": {
+      "testMode": "CHẾ ĐỘ THỬ — chuột chưa khóa",
+      "rings": "VÒNG {passed}/{all}",
+      "complete": "HOÀN THÀNH ĐƯỜNG BAY",
+      "flyAgain": "{time} — R để bay lại",
+      "stall": "THẤT TỐC",
+      "pullUp": "KÉO LÊN",
+      "turnBack": "QUAY LẠI",
+      "crashed": "RƠI",
+      "backToRunway": "Về lại đường băng…",
+      "backToRing": "Về lại vòng cuối…",
+      "throttleUp": "W — tăng ga (Z trên AZERTY)",
+      "rolling": "Đang chạy đà — {knots} hải lý/giờ",
+      "liftOff": "Đưa chuột lên — cất cánh"
+    }
+  },
+  "four-ways-to-blend": {
+    "controls": {
+      "mouse": "Từ trái sang phải: bình thường, cộng, trừ, nhân; kéo để xem từ bên cạnh",
+      "inks": "Mực",
+      "opacity": "Độ mờ đục",
+      "circle": "Xoay quanh"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "đỏ, xanh lá, xanh dương",
+        "cyan, magenta, yellow": "lục lam, hồng sen, vàng",
+        "warm and cool": "ấm và lạnh"
+      }
+    }
+  },
+  "frame-the-model": {
+    "controls": {
+      "mouse": "Bấm đúp vào một vật để đưa vào khung; kéo để xoay, con lăn để thu phóng",
+      "model": "Vật",
+      "margin": "Lề",
+      "drift": "Trôi"
+    },
+    "choices": {
+      "model": {
+        "everything": "tất cả",
+        "the gold ring": "nhẫn vàng",
+        "the vase": "bình hoa",
+        "the king": "quân vua",
+        "the arch": "cổng vòm",
+        "the obelisk": "tháp đá"
+      }
+    },
+    "readouts": {
+      "framing": "Đang đóng khung",
+      "radius": "Bán kính",
+      "distance": "Khoảng cách"
+    },
+    "words": {
+      "the gold ring": "nhẫn vàng",
+      "the vase": "bình hoa",
+      "the king": "quân vua",
+      "the arch": "cổng vòm",
+      "the obelisk": "tháp đá"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "controls": {
+      "mouse": "Lăn chuột để thu phóng từ một hạt cát tới cả hành tinh; kéo để xoay",
+      "toTheGrain": "Tới hạt cát",
+      "toTheBeach": "Tới bãi biển",
+      "toTheIsland": "Tới hòn đảo",
+      "toThePlanet": "Tới hành tinh"
+    },
+    "readouts": {
+      "viewWidth": "Bề rộng khung nhìn",
+      "youSee": "Bạn thấy"
+    },
+    "words": {
+      "grains of sand": "hạt cát",
+      "sand and shells": "cát và vỏ sò",
+      "pebbles": "sỏi",
+      "the beach": "bãi biển",
+      "the coast": "bờ biển",
+      "the island": "hòn đảo",
+      "the planet": "hành tinh"
+    }
+  },
+  "from-clay-to-chrome": {
+    "controls": {
+      "colour": "Màu",
+      "lamps": "Đèn",
+      "swing": "Đung đưa"
+    }
+  },
+  "from-noon-to-dusk": {
+    "controls": {
+      "speed": "Tốc độ",
+      "hour": "Giờ",
+      "adaptEyes": "Mắt thích nghi"
+    }
+  },
+  "glass-on-the-table": {
+    "controls": {
+      "refraction": "Khúc xạ",
+      "thickness": "Độ dày",
+      "tint": "Sắc màu",
+      "spin": "Xoay"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "controls": {
+      "mouse": "Kéo để đi quanh phim trường; tắt các trợ giúp để thấy cảnh quay đúng như nó là",
+      "helpers": "Trợ giúp",
+      "dolly": "Lia máy",
+      "bulb": "Bóng đèn"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "tất cả",
+        "lights and camera": "đèn và camera",
+        "shapes and bounds": "hình và giới hạn",
+        "nothing": "không có gì"
+      }
+    },
+    "readouts": {
+      "helpersShown": "Trợ giúp đang hiện"
+    }
+  },
+  "inside-a-panorama": {
+    "controls": {
+      "mouse": "Kéo để xoay · con lăn để lại gần",
+      "sky": "Bầu trời",
+      "fieldOfView": "Trường nhìn"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "bình minh",
+        "noon": "giữa trưa",
+        "dusk": "chạng vạng"
+      }
+    },
+    "words": {
+      "credit": "Ảnh toàn cảnh do trang này vẽ bằng mã khi mở: không tải gì về cả."
+    }
+  },
+  "inside-the-g-buffer": {
+    "controls": {
+      "mouse": "Kéo để đi quanh sân · chọn một bộ đệm để nhìn vào bên trong khung hình",
+      "buffer": "Bộ đệm",
+      "turning": "Đang xoay"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "ảnh hoàn chỉnh",
+        "albedo": "màu gốc",
+        "normals": "pháp tuyến",
+        "depth": "độ sâu",
+        "triangle ids": "số hiệu tam giác",
+        "material ids": "số hiệu chất liệu"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "Mỗi điểm ảnh chứa"
+    },
+    "words": {
+      "beauty": "ảnh đã chiếu sáng",
+      "albedo": "màu gốc, trước mọi ánh sáng",
+      "normals": "hướng bề mặt quay về, nhìn từ camera",
+      "depth": "khoảng cách: gần sáng, xa tối",
+      "triangle ids": "tam giác nào phủ điểm ảnh",
+      "material ids": "chất liệu nào tô màu điểm ảnh",
+      "notOffered": "trình kết xuất này không có"
+    }
+  },
+  "instances-in-colour": {
+    "controls": {
+      "mouse": "Kéo để nghiêng thiên hà; lăn chuột để lặn vào trong",
+      "count": "Số lượng",
+      "arms": "Nhánh",
+      "twist": "Xoắn",
+      "core": "Lõi",
+      "rim": "Viền",
+      "spin": "Xoay"
+    },
+    "readouts": {
+      "placementsDrawn": "Bản sao đã vẽ",
+      "materials": "Chất liệu"
+    }
+  },
+  "keyframes-by-hand": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh bàn; hiện các khóa của một cú nhảy thành bản sao mờ của chiếc đèn",
+      "timing": "Nhịp",
+      "onionSkin": "Da hành",
+      "speed": "Tốc độ"
+    },
+    "choices": {
+      "timing": {
+        "eased": "mượt",
+        "linear": "tuyến tính"
+      }
+    },
+    "readouts": {
+      "lastKey": "Khóa cuối"
+    },
+    "words": {
+      "rest": "nghỉ",
+      "crouch": "khom người",
+      "launch": "bật lên",
+      "apex": "đỉnh",
+      "land": "tiếp đất",
+      "absorb": "giảm chấn",
+      "look up": "nhìn lên",
+      "turn": "quay người",
+      "waking up": "đang thức dậy"
+    }
+  },
+  "labels-that-follow": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh Mặt Trời, con lăn để lại gần; nhãn tên đi theo các hành tinh",
+      "show": "Hiện",
+      "speed": "Tốc độ",
+      "lineThemUp": "Xếp thẳng hàng"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "khoảng cách tới Mặt Trời",
+        "year": "năm",
+        "moons": "mặt trăng",
+        "names only": "chỉ tên"
+      }
+    },
+    "words": {
+      "Sun": "Mặt Trời",
+      "Mercury": "Sao Thủy",
+      "Venus": "Sao Kim",
+      "Earth": "Trái Đất",
+      "Moon": "Mặt Trăng",
+      "Mars": "Sao Hỏa",
+      "Jupiter": "Sao Mộc",
+      "Saturn": "Sao Thổ",
+      "Uranus": "Sao Thiên Vương",
+      "Neptune": "Sao Hải Vương",
+      "fromEarth": "cách Trái Đất 384 400 km",
+      "ourStar": "ngôi sao của chúng ta",
+      "au": "{au} AU",
+      "month": "một tháng 27 ngày",
+      "year": "một năm {days} ngày",
+      "planets": "8 hành tinh",
+      "earthsMoon": "mặt trăng của Trái Đất",
+      "oneMoon": "1 mặt trăng",
+      "moons": "{moons} mặt trăng"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "controls": {
+      "branches": "Cành",
+      "leaves": "Lá",
+      "cutoff": "Ngưỡng cắt",
+      "sun": "Mặt Trời"
+    }
+  },
+  "letters-carved-in-relief": {
+    "controls": {
+      "rake": "Độ nghiêng",
+      "warm": "Ấm",
+      "cool": "Lạnh",
+      "letters": "Chữ"
+    }
+  },
+  "light-from-a-probe": {
+    "controls": {
+      "mouse": "Kéo để đi quanh khu vườn; chọn một nơi và các bức tượng mang ánh sáng của nơi đó",
+      "place": "Nơi",
+      "turn": "Xoay",
+      "strength": "Cường độ",
+      "keyLight": "Đèn chính",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "sa mạc lúc hoàng hôn",
+        "forest clearing": "khoảng trống trong rừng",
+        "neon alley": "hẻm đèn neon",
+        "snowfield": "cánh đồng tuyết"
+      }
+    },
+    "readouts": {
+      "meanLight": "Ánh sáng trung bình"
+    }
+  },
+  "light-in-real-units": {
+    "controls": {
+      "mouse": "Kéo để đi quanh quảng trường; chọn một thời điểm và xem camera thích nghi, từ 100 000 lux tới đêm trăng",
+      "moment": "Thời điểm",
+      "lampLumens": "Quang thông đèn",
+      "autoExposure": "Phơi sáng tự động",
+      "exposureValue": "Giá trị phơi sáng",
+      "turning": "Đang xoay"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "trưa trong xanh",
+        "overcast": "trời âm u",
+        "golden hour": "giờ vàng",
+        "sunset": "hoàng hôn",
+        "blue hour": "giờ xanh",
+        "moonlit night": "đêm trăng"
+      }
+    },
+    "readouts": {
+      "sun": "Mặt Trời",
+      "sky": "Bầu trời",
+      "eachLamp": "Mỗi đèn",
+      "exposureValue": "Giá trị phơi sáng"
+    },
+    "words": {
+      "off": "tắt"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "controls": {
+      "lamp": "Đèn",
+      "power": "Công suất",
+      "colour": "Màu"
+    }
+  },
+  "lines-in-colour": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh hình; chọn quy tắc khác và cây bút vẽ lại từ đầu",
+      "figure": "Hình",
+      "palette": "Bảng màu",
+      "pace": "Nhịp độ",
+      "redraw": "Vẽ lại",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "con bướm Lorenz",
+        "Aizawa shell": "vỏ ốc Aizawa",
+        "Thomas knot": "nút thắt Thomas",
+        "Halvorsen propeller": "cánh quạt Halvorsen"
+      },
+      "palette": {
+        "aurora": "cực quang",
+        "sunset": "hoàng hôn",
+        "embers": "than hồng",
+        "ice": "băng"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "Đoạn đã tô màu"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "controls": {
+      "lampTurn": "Hướng đèn",
+      "lampHeight": "Độ cao đèn",
+      "colour": "Màu",
+      "exposure": "Độ phơi sáng",
+      "circle": "Xoay quanh"
+    },
+    "words": {
+      "credit": "Marble Bust 01 của Rico Cilliers, Poly Haven, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "memory-on-a-budget": {
+    "controls": {
+      "memory": "Bộ nhớ",
+      "view": "Chế độ xem"
+    },
+    "choices": {
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "lod": "mức chi tiết",
+        "clusters": "cụm"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01 của Rico Cilliers, Poly Haven, CC0; thùng gỗ của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "controls": {
+      "help": "Kéo một tay cầm. Kéo bên cạnh để xoay camera.",
+      "mode": "Chế độ",
+      "axes": "Trục",
+      "snap": "Bám lưới"
+    },
+    "choices": {
+      "mode": {
+        "translate": "di chuyển",
+        "rotate": "xoay",
+        "scale": "co giãn"
+      },
+      "axes": {
+        "world": "thế giới",
+        "local": "cục bộ"
+      }
+    },
+    "readouts": {
+      "position": "Vị trí",
+      "drags": "Số lần kéo"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh phòng trưng bày · biểu đồ là thời gian giữa các khung hình",
+      "turning": "Đang xoay",
+      "revealAgain": "Hiện lại"
+    },
+    "readouts": {
+      "worstFrameBefore": "Khung hình tệ nhất trước",
+      "worstFrameAfter": "Khung hình tệ nhất sau"
+    },
+    "words": {
+      "note": "Mười bốn bề mặt, mỗi cái một chất liệu hay thiết lập khác nhau, tất cả hiện trên cùng một khung hình. Biểu đồ vẽ thời gian giữa các khung hình; vạch vàng là lúc chúng xuất hiện.",
+      "measuring": "đang đo",
+      "hidden": "đang ẩn"
+    }
+  },
+  "normals-and-depth-seen": {
+    "controls": {
+      "mouse": "Kéo để đi quanh sân; đổi chế độ xem để thấy bề mặt như trình kết xuất lưu chúng",
+      "see": "Xem",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "see": {
+        "lit": "có chiếu sáng",
+        "normals": "pháp tuyến",
+        "depth": "độ sâu"
+      }
+    },
+    "readouts": {
+      "colourMeans": "Màu có nghĩa là"
+    },
+    "words": {
+      "lit": "ánh sáng và chất liệu",
+      "normals": "hướng: phải đỏ, lên xanh lá, về phía bạn xanh dương",
+      "depth": "khoảng cách: gần trắng, xa tối"
+    }
+  },
+  "observatory-streamed": {
+    "controls": {
+      "view": "Chế độ xem",
+      "pixelError": "Sai số điểm ảnh"
+    },
+    "choices": {
+      "view": {
+        "clusters": "cụm",
+        "beauty": "ảnh hoàn chỉnh",
+        "pages": "trang",
+        "lod": "mức chi tiết",
+        "triangles": "tam giác"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh sân vận động; chọn cách chia một đoạn hoạt hình cho các cổ động viên",
+      "pattern": "Mẫu",
+      "speed": "Tốc độ"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "làn sóng sân vận động",
+        "ripple outwards": "gợn sóng lan ra",
+        "all at once": "cùng lúc"
+      }
+    },
+    "readouts": {
+      "clips": "Đoạn hoạt hình",
+      "fansPlayingIt": "Cổ động viên đang diễn"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "controls": {
+      "mouse": "Trình xem sản phẩm: kéo để xoay · kéo chuột phải để trượt · lăn chuột để phóng to răng bánh xe",
+      "view": "Chế độ xem",
+      "speed": "Tốc độ",
+      "brass": "Đồng thau"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "ba phần tư",
+        "front": "trước",
+        "side": "bên",
+        "top": "trên"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "controls": {
+      "checks": "Ô vuông",
+      "paint": "Sơn",
+      "second": "Thứ hai",
+      "spin": "Xoay"
+    }
+  },
+  "reading-pixels-back": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh · ảnh góc dưới bên phải là khung nhìn được đọc lại thành số",
+      "sunHeight": "Độ cao mặt trời",
+      "live": "Trực tiếp",
+      "turning": "Đang xoay",
+      "savePng": "Lưu PNG"
+    },
+    "readouts": {
+      "meanColour": "Màu trung bình",
+      "brightest": "Sáng nhất",
+      "readBack": "Đọc lại trong"
+    },
+    "words": {
+      "hover": "Di chuột lên ảnh để đọc một điểm ảnh",
+      "pixel": "điểm ảnh {x}, {y}: {colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "controls": {
+      "mouse": "Khi đang đi tàu, kéo để quay đầu. Tắt tàu để bay quanh công viên",
+      "ride": "Đi tàu",
+      "loops": "Vòng lộn"
+    },
+    "readouts": {
+      "speed": "Tốc độ",
+      "gForce": "Lực G"
+    }
+  },
+  "save-the-scene": {
+    "controls": {
+      "help": "Làm đổ tòa tháp, rồi mở lại cảnh đã lưu.",
+      "knockDown": "Làm đổ",
+      "save": "Lưu",
+      "open": "Mở"
+    },
+    "readouts": {
+      "saved": "Đã lưu"
+    },
+    "words": {
+      "bytes": "{bytes} byte"
+    }
+  },
+  "scattered-on-a-surface": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh hành tinh; tăng độ dốc lớn nhất và rừng leo lên núi",
+      "trees": "Cây",
+      "rocks": "Đá",
+      "steepest": "Dốc nhất",
+      "seaLevel": "Mực nước biển",
+      "spin": "Xoay"
+    },
+    "readouts": {
+      "treesPlanted": "Cây đã trồng",
+      "spotsRefused": "Chỗ bị từ chối"
+    }
+  },
+  "see-the-triangles": {
+    "controls": {
+      "mouse": "Lăn chuột ra xa rồi lại gần: từ xa, tượng bán thân cần ít tam giác hơn, to hơn",
+      "view": "Chế độ xem",
+      "pixelError": "Sai số điểm ảnh",
+      "sideBySide": "Cạnh nhau"
+    },
+    "choices": {
+      "view": {
+        "triangles": "tam giác",
+        "clusters": "cụm",
+        "lod": "mức chi tiết",
+        "pages": "trang",
+        "beauty": "ảnh hoàn chỉnh"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Tam giác đã vẽ",
+      "pagesMemory": "Trang trong bộ nhớ"
+    },
+    "words": {
+      "credit": "Marble Bust 01 của Rico Cilliers, Poly Haven, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "select-with-a-box": {
+    "controls": {
+      "help": "Chọn: kéo một khung; Shift thêm, Alt bỏ. Xoay: kéo để bay quanh khu vườn",
+      "mouse": "Chuột",
+      "selectAll": "Chọn tất cả",
+      "clear": "Xóa chọn"
+    },
+    "choices": {
+      "mouse": {
+        "select": "chọn",
+        "turn": "quay người"
+      }
+    },
+    "readouts": {
+      "selected": "Đã chọn"
+    }
+  },
+  "several-views-one-page": {
+    "controls": {
+      "mouse": "Kéo khung lớn để xoay; lăn chuột và kéo ở khung nhỏ để thu phóng và trượt, bấm đúp để đặt lại",
+      "explode": "Tách rời",
+      "windFrom": "Gió từ",
+      "windSpeed": "Tốc độ gió"
+    },
+    "readouts": {
+      "sailTurnsMinute": "Vòng cánh quạt mỗi phút"
+    },
+    "words": {
+      "perspective": "Phối cảnh",
+      "top": "Trên",
+      "front": "Trước",
+      "side": "Bên, từ phía đông"
+    }
+  },
+  "shadows-from-the-sun": {
+    "controls": {
+      "mouse": "Kéo để đi quanh khu vườn; kéo giờ và mọi bóng đổ xoay, đỉnh tháp đá bước trên các phiến đá giờ",
+      "hour": "Giờ",
+      "day": "Ngày",
+      "latitude": "Vĩ độ",
+      "sails": "Cánh buồm"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "hạ chí",
+        "spring equinox": "xuân phân",
+        "winter solstice": "đông chí"
+      }
+    },
+    "readouts": {
+      "sunHeight": "Độ cao mặt trời",
+      "sunBearing": "Hướng mặt trời",
+      "obeliskShadow": "Bóng tháp đá"
+    },
+    "words": {
+      "S": "N",
+      "SW": "TN",
+      "W": "T",
+      "NW": "TB",
+      "N": "B",
+      "NE": "ĐB",
+      "E": "Đ",
+      "SE": "ĐN",
+      "belowHorizon": "dưới đường chân trời",
+      "bearing": "{point} ({degrees}° từ hướng bắc)"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh; độ sâu bằng không để lại hình cắt phẳng",
+      "depth": "Độ sâu",
+      "bevel": "Vát cạnh",
+      "bevelSize": "Kích thước vát",
+      "bevelSegments": "Đoạn vát",
+      "curveSegments": "Đoạn đường cong",
+      "spin": "Xoay"
+    },
+    "readouts": {
+      "triangles": "Tam giác"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "controls": {
+      "colour": "Màu",
+      "speed": "Tốc độ",
+      "spin": "Xoay"
+    }
+  },
+  "side-by-side-stereo": {
+    "controls": {
+      "mouse": "Kéo trên ảnh bên trái để xoay; nhìn lác cho tới khi hai chấm thành một",
+      "viewing": "Cách nhìn",
+      "separation": "Khoảng tách",
+      "speed": "Tốc độ"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "nhìn lác",
+        "parallel": "song song"
+      }
+    },
+    "words": {
+      "leftEye": "mắt trái",
+      "rightEye": "mắt phải"
+    }
+  },
+  "sky-and-ground-light": {
+    "controls": {
+      "mouse": "Kéo để nhìn từ dưới và từ trên; mỗi nơi tô mặt trên bằng bầu trời và mặt dưới bằng mặt đất của nó",
+      "place": "Nơi",
+      "skyStrength": "Cường độ bầu trời",
+      "sun": "Mặt Trời",
+      "float": "Lơ lửng"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "đồng cỏ giữa trưa",
+        "snowfield": "cánh đồng tuyết",
+        "red desert": "sa mạc đỏ",
+        "sunset beach": "bãi biển lúc hoàng hôn",
+        "tropical lagoon": "đầm phá nhiệt đới",
+        "overcast city": "thành phố u ám"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "Bầu trời nhìn từ trên",
+      "groundFromBelow": "Mặt đất nhìn từ dưới"
+    }
+  },
+  "smooth-edges-over-time": {
+    "controls": {
+      "mouse": "Kéo để nhìn các sợi dây; tắt làm mượt và xem chúng vỡ thành bậc thang",
+      "smoothing": "Làm mượt",
+      "circle": "Xoay quanh"
+    },
+    "readouts": {
+      "temporalAntialiasing": "Khử răng cưa theo thời gian"
+    },
+    "words": {
+      "on": "bật",
+      "off": "tắt"
+    }
+  },
+  "snow-of-sprites": {
+    "controls": {
+      "mouse": "Kéo để đi quanh căn nhà gỗ; biến nó thành bão tuyết và bông tuyết dày lên, bay ngang",
+      "weather": "Thời tiết",
+      "wind": "Gió"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "tuyết đều",
+        "light flurry": "tuyết lất phất",
+        "blizzard": "bão tuyết"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "Bông tuyết đang rơi"
+    }
+  },
+  "sound-made-visible": {
+    "controls": {
+      "mouse": "Kéo để đi quanh sân khấu; các thanh là cao độ, các hạt ngọc là chính sóng âm",
+      "layout": "Bố cục",
+      "height": "Chiều cao",
+      "playMelody": "Chơi giai điệu",
+      "useMicrophone": "Dùng micro",
+      "silence": "Im lặng"
+    },
+    "choices": {
+      "layout": {
+        "ring": "vòng",
+        "wall": "bức tường",
+        "spiral": "xoắn ốc"
+      }
+    },
+    "words": {
+      "hint": "Bấm vào sân khấu để nghe một giai điệu",
+      "listening": "Đang nghe micro: hãy hát, huýt sáo, vỗ tay",
+      "refused": "Micro bị từ chối: giai điệu sẽ phát thay thế",
+      "silence": "Im lặng. Bấm vào sân khấu để nghe lại giai điệu"
+    }
+  },
+  "spin-an-astrolabe": {
+    "controls": {
+      "mouse": "Kéo để quay nó theo mọi hướng, cả lộn ngược · con lăn để thu phóng",
+      "turning": "Đang xoay",
+      "sun": "Mặt Trời"
+    }
+  },
+  "street-lamp-at-night": {
+    "controls": {
+      "night": "Đêm",
+      "bounce": "Ánh sáng dội",
+      "sun": "Mặt Trời",
+      "lamp": "Đèn"
+    },
+    "words": {
+      "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "ten-thousand-objects": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh hành tinh; lăn chuột vào vành đai cho tới khi một tảng đá lấp đầy khung nhìn",
+      "view": "Chế độ xem",
+      "pixelError": "Sai số điểm ảnh",
+      "drift": "Trôi"
+    },
+    "choices": {
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "clusters": "cụm",
+        "lod": "mức chi tiết"
+      }
+    },
+    "readouts": {
+      "objectsScene": "Vật trong cảnh",
+      "trianglesFile": "Tam giác trong tệp",
+      "trianglesDrawn": "Tam giác đã vẽ"
+    },
+    "words": {
+      "credit": "Hành tinh và các mặt trăng nhỏ được làm bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md",
+      "million": "{count} triệu",
+      "notCounted": "không đếm ở đây"
+    }
+  },
+  "texture-filters-compared": {
+    "controls": {
+      "mouse": "Kéo để nhìn dọc các làn; từ trái sang phải: gần nhất, tuyến tính, tam tuyến tính, dị hướng",
+      "picture": "Ảnh",
+      "anisotropy": "Dị hướng"
+    },
+    "choices": {
+      "picture": {
+        "checker": "bàn cờ",
+        "lettering": "chữ"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "Dị hướng của làn thứ tư"
+    }
+  },
+  "the-material-family": {
+    "controls": {
+      "mouse": "Kéo để đi quanh gia đình; chuyển ánh sáng sang đêm và xem loại nào vẫn sáng",
+      "light": "Ánh sáng",
+      "shape": "Hình dạng",
+      "lookAt": "Nhìn vào",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "cả gia đình",
+        "all": "cả gia đình",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "giờ vàng",
+        "midday": "giữa trưa",
+        "night": "đêm"
+      },
+      "shape": {
+        "knot": "nút thắt",
+        "sphere": "quả cầu",
+        "vase": "bình hoa",
+        "ring": "vòng"
+      }
+    },
+    "readouts": {
+      "looking": "Đang nhìn",
+      "litByLamps": "Được đèn chiếu sáng"
+    },
+    "words": {
+      "meshBasic": "một màu phẳng, không thấy đèn nào",
+      "meshLambert": "mờ như phấn: ánh sáng khuếch tán, không bóng",
+      "meshPhong": "nhựa: một đốm sáng nơi mặt trời dội lại",
+      "meshStandard": "độ kim loại và độ nhám, lựa chọn thường dùng",
+      "meshPhysical": "tiêu chuẩn thêm kính: ánh sáng đi xuyên qua",
+      "meshToon": "hoạt hình: ánh sáng thành hai dải phẳng",
+      "meshNormal": "hướng của mỗi điểm, thể hiện bằng màu",
+      "meshMatcap": "được chiếu sáng bởi ảnh một quả bóng sáng, không phải bởi đèn",
+      "allKinds": "cả tám loại",
+      "yes": "có",
+      "no": "không",
+      "fiveOfEight": "năm trên tám"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "controls": {
+      "mouse": "Kéo để nhìn dọc bức tường; camera của bạn chỉ được hỏi khi bạn nhấn nút",
+      "useMyCamera": "Dùng camera của tôi",
+      "layout": "Bố cục",
+      "mirror": "Lật gương"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "tường video",
+        "one per screen": "mỗi màn hình một"
+      }
+    },
+    "readouts": {
+      "source": "Nguồn"
+    },
+    "words": {
+      "noCamera": "không có camera",
+      "yourCamera": "camera của bạn",
+      "refused": "camera bị từ chối ({error})",
+      "paintedSignal": "tín hiệu vẽ"
+    }
+  },
+  "toon-shading": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh đảo; đổi cách tô bóng và xem ánh sáng rơi thành dải",
+      "shading": "Tô bóng",
+      "outlines": "Viền",
+      "sun": "Mặt Trời",
+      "wind": "Gió"
+    },
+    "choices": {
+      "shading": {
+        "toon": "hoạt hình",
+        "matte": "mờ",
+        "physical": "vật lý"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh; bật con trỏ và điều khiển drone, mọi chảo ăng-ten đi theo",
+      "turn": "Xoay",
+      "turnSpeed": "Tốc độ xoay",
+      "followPointer": "Theo con trỏ"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "đều đều",
+        "at once": "ngay lập tức",
+        "on a spring": "như lò xo"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "Chảo đã khóa mục tiêu"
+    }
+  },
+  "two-lenses-one-scene": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh thị trấn; đổi ống kính và xem đường phố thẳng ra",
+      "lens": "Ống kính",
+      "fieldOfView": "Trường nhìn",
+      "isometric": "Đẳng cự",
+      "drift": "Trôi"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "phối cảnh",
+        "orthographic": "trực giao"
+      }
+    },
+    "readouts": {
+      "lens": "Ống kính"
+    },
+    "words": {
+      "orthographic": "trực giao, cao {height} m",
+      "perspective": "phối cảnh {degrees}°"
+    }
+  },
+  "uvs-of-every-shape": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh; một chữ cái và một chữ số đặt tên cho mỗi ô của bức ảnh",
+      "pattern": "Mẫu",
+      "repeat": "Lặp lại",
+      "slide": "Trượt",
+      "spin": "Xoay"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "ảnh thử",
+        "checks": "ô vuông",
+        "arrows": "mũi tên"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "controls": {
+      "keys": "Điều khiển nhân vật của engine: nút Chơi trong menu khóa chuột để nhìn, W A S D để chạy (Z Q S D trên AZERTY), Shift để chạy nhanh, phím cách để nhảy, Esc thả chuột. Trang thêm R để chạy lại, M để tắt tiếng.",
+      "look": "Nhìn",
+      "runAgain": "Chạy lại"
+    },
+    "game": {
+      "title": "Parkour đền thờ",
+      "goal": "Tới tượng thần vàng và nhặt năm quả cầu trên đường. Dung nham đưa bạn về điểm kiểm tra sáng gần nhất.",
+      "keys": {
+        "run": "Chạy",
+        "look": "Nhìn",
+        "sprint": "Chạy nhanh",
+        "jump": "Nhảy",
+        "runAgain": "Chạy lại",
+        "sound": "Bật hoặc tắt âm thanh",
+        "pause": "Tạm dừng"
+      }
+    },
+    "words": {
+      "checkpoint": "Điểm kiểm tra",
+      "finished": "{taken} / {orbs} quả cầu · R để chạy lại",
+      "muted": "M tắt tiếng",
+      "sound": "M có tiếng"
+    }
+  },
+  "waves-of-points": {
+    "controls": {
+      "mouse": "Kéo để xoay quanh cánh đồng; chọn một mẫu và sóng đổi hình dạng dưới các phao",
+      "pattern": "Mẫu",
+      "height": "Chiều cao",
+      "speed": "Tốc độ"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "sóng biển",
+        "rain of stones": "mưa đá",
+        "interference": "giao thoa",
+        "standing wave": "sóng dừng",
+        "whirlpool": "xoáy nước"
+      }
+    },
+    "readouts": {
+      "points": "Điểm"
+    }
+  },
+  "what-hides-what": {
+    "controls": {
+      "mouse": "Kéo để nhìn quanh; hàng rào cây che các nút thắt mạ vàng ở cuối ngõ cụt",
+      "hedgeHeight": "Chiều cao hàng rào",
+      "view": "Chế độ xem",
+      "aboveOrInside": "Trên cao hoặc bên trong"
+    },
+    "choices": {
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "visibility": "khả năng nhìn thấy"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "Nút thắt mạ vàng",
+      "clustersTested": "Cụm đã thử",
+      "clustersHidden": "Cụm bị ẩn",
+      "trianglesHidden": "Tam giác bị ẩn"
+    },
+    "words": {
+      "notCounted": "không đếm ở đây"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "controls": {
+      "fieldOfView": "Trường nhìn",
+      "dollyZoom": "Zoom dolly"
+    }
+  }
+}

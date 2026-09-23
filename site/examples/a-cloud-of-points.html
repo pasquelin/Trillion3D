@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, readout, seeded, language } from '../runtime/kit.js';
 
       // A bell curve drawn from a seeded sequence (the kit's `seeded`): the same sky on every run.
       const next = seeded(21);
@@ -159,7 +159,7 @@
       const choose = (name) => {
         current = SHAPES[name];
         current.root.visible = true;
-        pointCount?.(current.points.toLocaleString('en'));
+        pointCount?.(current.points.toLocaleString(language()));
         groupCount?.(String(current.layers.length));
       };
       const ui = controls({
@@ -170,8 +170,8 @@
         if (key === undefined || key === 'shape') choose(values.shape);
         world.invalidate();
       }, world);
-      pointCount = readout('Points');
-      groupCount = readout('Colour groups');
+      pointCount = readout('points');
+      groupCount = readout('colourGroups');
       choose(ui.shape);
 
       // The opening: the camera falls from high above the disc to a three-quarter view.

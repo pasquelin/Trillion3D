@@ -27,10 +27,10 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p>Chess set modelled in code for this example, CC0; the file is assets/examples/a-model-from-usdz/source/chess-set.usdz — see assets/examples/CREDITS.md</p>
+    <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, language } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#2d2824');
@@ -64,10 +64,10 @@
       }, world);
       // Read from the model: its size, now in metres, and what the file holds.
       const { min, max } = chess.bounds;
-      readout('Source')('chess-set.usdz');
-      readout('Board width')(`${((max.x - min.x) * 100).toFixed(0)} cm`);
-      readout('Parts placed')(String(chess.metadata.totalNodes));
-      readout('Triangles')(chess.metadata.sourceTriangles.toLocaleString('en'));
+      readout('source')('chess-set.usdz');
+      readout('boardWidth')(`${((max.x - min.x) * 100).toFixed(0)} cm`);
+      readout('partsPlaced')(String(chess.metadata.totalNodes));
+      readout('triangles')(chess.metadata.sourceTriangles.toLocaleString(language()));
 
       // The opening: the eye starts low behind the white pawns, then rises to look over the whole
       // game, then circles the board slowly. A press or a wheel hands the camera back; the

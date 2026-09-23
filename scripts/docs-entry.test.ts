@@ -46,7 +46,7 @@ test('a course chapter reads as steps, highlighted code, its example live, then 
     const page = renderToStaticMarkup(createElement(Chapter, { entry, locale: 'fr' }));
     assert.equal((page.match(/<li>/g) ?? []).length, chapter.steps.length, entry.id);
     assert.equal((page.match(/data-code-block/g) ?? []).length, chapter.code.length, entry.id);
-    assert.ok(page.includes(`<iframe src="examples/${chapter.example}.html"`), entry.id);
+    assert.ok(page.includes(`<iframe src="examples/${chapter.example}.html?lang=fr"`), entry.id);
     assert.ok(page.includes(`href="${chapter.next.href}"`), entry.id);
     assert.doesNotMatch(page, /<pre class="rounded-box/);
   }

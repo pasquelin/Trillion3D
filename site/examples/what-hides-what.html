@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words, language } from '../runtime/kit.js';
+      const say = words();
 
       // A sequence in [0, 1) from a seed: the same maze on every run.
       function random(seed) {
@@ -156,9 +157,9 @@
         world.diagnostic.mode = values.view;
         world.invalidate();
       }, world);
-      readout('Gilded knots')(String(deadEnds));
-      const tested = readout('Clusters tested'), hidden = readout('Clusters hidden'), triangles = readout('Triangles hidden');
-      const count = (value) => (value == null ? 'not counted here' : value.toLocaleString('en'));
+      readout('gildedKnots')(String(deadEnds));
+      const tested = readout('clustersTested'), hidden = readout('clustersHidden'), triangles = readout('trianglesHidden');
+      const count = (value) => (value == null ? say('notCounted') : value.toLocaleString(language()));
       world.onFrame(({ metrics }) => {
         tested(count(metrics.hizTestedClusters));
         hidden(count(metrics.hizRejectedClusters));

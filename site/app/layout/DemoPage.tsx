@@ -1,6 +1,6 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useWords } from '../i18n.ts';
+import { exampleAddress, useWords } from '../i18n.ts';
 import { Alert } from '../ui/Alert.tsx';
 import { Button, LinkButton } from '../ui/Button.tsx';
 import { CodeBlock } from '../ui/CodeBlock.tsx';
@@ -108,8 +108,13 @@ export function DemoPage({ file, title, sandbox, sandboxHref }: DemoPageProps) {
               key={demo.run}
               ref={demo.frame}
               {...(editing
-                ? { srcDoc: sandboxDocument(edits.shown, new URL(file, document.baseURI).href) }
-                : { src: file })}
+                ? {
+                    srcDoc: sandboxDocument(
+                      edits.shown,
+                      new URL(exampleAddress(file, locale), document.baseURI).href,
+                    ),
+                  }
+                : { src: exampleAddress(file, locale) })}
               title={title}
               allow="fullscreen"
               onLoad={() => demo.loaded(demo.run)}

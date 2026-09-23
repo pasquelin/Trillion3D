@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#e7c7a4');
@@ -145,7 +146,7 @@
         sun.position.set(toward[0] * 40, toward[1] * 40, toward[2] * 40);
         sun.color.copy(DAWN).lerp(NOON, Math.sin(rise) / Math.sin(HIGHEST));
         pressFlat(toward);
-        length?.(`${(1 / Math.tan(rise)).toFixed(1)} × height`);
+        length?.(say('timesHeight', { times: (1 / Math.tan(rise)).toFixed(1) }));
       };
       const ui = controls({
         mouse: 'Drag to walk around the sundial; slide the hour and every shadow swings with the sun',
@@ -159,7 +160,7 @@
         if (key === undefined || key === 'darkness') shade.opacity = values.darkness;
         world.invalidate();
       }, world);
-      length = readout('Shadow length');
+      length = readout('shadowLength');
       setHour(hour);
 
       // The opening: dawn to the chosen hour in a few seconds, the shadows sweeping round the dial.

@@ -1,0 +1,1829 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "Настройки"
+    },
+    "menu": {
+      "play": "Играть",
+      "resume": "Продолжить",
+      "restart": "Заново",
+      "controls": "Настройки",
+      "back": "Назад",
+      "paused": "Пауза",
+      "again": "Нажми ещё раз, чтобы продолжить"
+    },
+    "keys": {
+      "Mouse": "Мышь",
+      "Right button": "Правая кнопка",
+      "Wheel": "Колёсико",
+      "Shift": "Shift",
+      "Space": "Пробел",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "FPS": "Кадров/с",
+      "FPS (held)": "Кадров/с (стоп)",
+      "triangles": "треугольники",
+      "triangles (scene)": "треугольники (сцена)",
+      "draw calls": "вызовы отрисовки",
+      "pages": "страницы",
+      "geometry pool": "запас геометрии",
+      "lights": "источники света",
+      "GPU frame": "кадр GPU",
+      "CPU frame": "кадр CPU",
+      "page hooks": "код страницы",
+      "engine CPU": "CPU движка"
+    }
+  },
+  "a-city-from-rules": {
+    "controls": {
+      "mouse": "Тяни, чтобы летать вокруг; каждая настройка заново строит город по его правилам",
+      "blocks": "Кварталы",
+      "maxHeight": "Макс. высота",
+      "density": "Плотность",
+      "parks": "Парки",
+      "seed": "Зерно",
+      "hour": "Час",
+      "traffic": "Движение"
+    },
+    "readouts": {
+      "buildings": "Здания",
+      "parks": "Парки"
+    }
+  },
+  "a-cloud-of-points": {
+    "controls": {
+      "mouse": "Тяни, чтобы облететь облако; выбери другую форму — старая свернётся, а новая раскроется",
+      "shape": "Форма",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "спиральная галактика",
+        "globular cluster": "шаровое скопление",
+        "ring nebula": "кольцевая туманность",
+        "Lorenz attractor": "аттрактор Лоренца"
+      }
+    },
+    "readouts": {
+      "points": "Точки",
+      "colourGroups": "Группы цветов"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "controls": {
+      "colour": "Цвет",
+      "glow": "Свечение",
+      "exposure": "Экспозиция"
+    }
+  },
+  "a-field-of-pebbles": {
+    "controls": {
+      "sunTurn": "Поворот солнца",
+      "sunHeight": "Высота солнца",
+      "first": "Первый",
+      "last": "Последний"
+    }
+  },
+  "a-first-world": {
+    "controls": {
+      "colour": "Цвет"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "controls": {
+      "mouse": "Тяни, чтобы двигать доску · колёсико или щипок — зум · стрелки — сдвиг",
+      "play": "Играть",
+      "speed": "Скорость",
+      "follow": "Следить",
+      "replay": "Повтор"
+    },
+    "readouts": {
+      "move": "Ход"
+    },
+    "words": {
+      "takes": "берёт"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "controls": {
+      "swing": "Качание",
+      "lamp": "Лампа",
+      "power": "Мощность",
+      "glass": "Стекло"
+    }
+  },
+  "a-lighthouse-beam": {
+    "controls": {
+      "turnsPerMinute": "Оборотов в минуту",
+      "beamWidth": "Ширина луча",
+      "colour": "Цвет"
+    }
+  },
+  "a-long-shadowed-street": {
+    "controls": {
+      "mouse": "Тяни, чтобы смотреть по сторонам, колёсико — идти; сдвинь час, и тени растянутся по улице и полезут на фасады",
+      "hour": "Час",
+      "traffic": "Движение",
+      "flyAgain": "Лететь снова"
+    },
+    "readouts": {
+      "sunHeight": "Высота солнца",
+      "shadow30MHouse": "Тень дома высотой 30 м"
+    }
+  },
+  "a-matcap-sculpture": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти скульптуру: её свет поворачивается вместе с тобой, потому что живёт в картинке",
+      "matcap": "Matcap",
+      "sculpture": "Скульптура",
+      "gallery": "Галерея",
+      "turn": "Вращать"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "красная глина",
+        "chrome": "хром",
+        "gold": "золото",
+        "jade": "нефрит",
+        "pearl": "жемчуг",
+        "obsidian": "обсидиан"
+      },
+      "sculpture": {
+        "knot": "узел",
+        "rings": "кольца",
+        "vase": "ваза"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "controls": {
+      "mouse": "Тяни, чтобы вращать камни; сними острые грани, чтобы углы стали общими",
+      "points": "Точки",
+      "waist": "Талия",
+      "height": "Высота",
+      "sharpFacets": "Острые грани",
+      "colour": "Цвет",
+      "spin": "Вращение"
+    },
+    "readouts": {
+      "verticesWritten": "Записано вершин",
+      "triangles": "Треугольники"
+    }
+  },
+  "a-model-from-obj": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти доску, колёсико — наклониться ближе: смотри, чем стал OBJ",
+      "view": "Вид",
+      "sunAngle": "Угол солнца",
+      "sunHeight": "Высота солнца",
+      "turn": "Вращать"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "triangles": "треугольники",
+        "clusters": "кластеры",
+        "lod": "уровни детализации"
+      }
+    },
+    "words": {
+      "credit": "Шахматы смоделированы для этих примеров, CC0 — см. assets/examples/CREDITS.md"
+    }
+  },
+  "a-model-from-usdz": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти доску; колёсиком спустись к фигурам",
+      "view": "Вид",
+      "turn": "Вращать"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "materials": "материалы",
+        "clusters": "кластеры",
+        "triangles": "треугольники"
+      }
+    },
+    "readouts": {
+      "source": "Источник",
+      "boardWidth": "Ширина доски",
+      "partsPlaced": "Размещено частей",
+      "triangles": "Треугольники"
+    },
+    "words": {
+      "credit": "Шахматы смоделированы в коде для этого примера, CC0; файл — assets/examples/a-model-from-usdz/source/chess-set.usdz — см. assets/examples/CREDITS.md"
+    }
+  },
+  "a-molecule": {
+    "controls": {
+      "mouse": "Тяни, чтобы вращать молекулу; выбери другую, и её атомы полетят на новые места",
+      "molecule": "Молекула",
+      "style": "Стиль",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "фуллерен C60",
+        "carbon nanotube": "углеродная нанотрубка",
+        "diamond crystal": "кристалл алмаза",
+        "DNA double helix": "двойная спираль ДНК"
+      },
+      "style": {
+        "ball and stick": "шарики и палочки",
+        "space filling": "плотные шары",
+        "sticks": "палочки"
+      }
+    },
+    "readouts": {
+      "atoms": "Атомы",
+      "bonds": "Связи"
+    }
+  },
+  "a-neon-sign": {
+    "controls": {
+      "star": "Звезда",
+      "wave": "Волна",
+      "glow": "Свечение",
+      "pulse": "Мигание",
+      "exposure": "Экспозиция",
+      "toneMapping": "Тональная коррекция"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "нейтральная",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "линейная"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "controls": {
+      "lamps": "Лампы",
+      "speed": "Скорость",
+      "power": "Мощность",
+      "shadows": "Тени"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "controls": {
+      "walk": "Ходьба",
+      "wave": "Волна",
+      "dance": "Танец",
+      "speed": "Скорость",
+      "colour": "Цвет"
+    }
+  },
+  "a-scene-of-your-own": {
+    "controls": {
+      "hour": "Час",
+      "wind": "Ветер",
+      "roof": "Крыша"
+    }
+  },
+  "a-softbox-panel": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти площадку; увеличь панель и смотри, как блики смягчаются",
+      "panelWidth": "Ширина панели",
+      "power": "Мощность",
+      "colour": "Цвет",
+      "swing": "Качание"
+    },
+    "readouts": {
+      "panel": "Панель",
+      "radiance": "Яркость"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "controls": {
+      "climb": "Подъём",
+      "turnPerStep": "Поворот на ступень",
+      "lantern": "Фонарь"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "controls": {
+      "hour": "Час",
+      "sunColour": "Цвет солнца",
+      "exposure": "Экспозиция"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеться; панель сзади — плитка такой, какой её нарисовали",
+      "tile": "Плитка",
+      "wrap": "Край",
+      "tilesAcross": "Плиток в ширину",
+      "turn": "Вращать",
+      "slideAcross": "Сдвиг вбок",
+      "slideUp": "Сдвиг вверх",
+      "flow": "Течение"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "повтор",
+        "mirror": "зеркало",
+        "clamp": "закрепить"
+      },
+      "tile": {
+        "terracotta": "терракота",
+        "azulejo": "азулежу",
+        "jade": "нефрит"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "Плитки, поворот"
+    },
+    "words": {
+      "up": "ВВЕРХ"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеться; бусины едут по кривой, вдоль которой идёт труба",
+      "path": "Путь",
+      "radius": "Радиус",
+      "sides": "Стороны",
+      "slices": "Срезы",
+      "speed": "Скорость",
+      "beads": "Бусины",
+      "paint": "Краска"
+    },
+    "choices": {
+      "path": {
+        "knot": "узел",
+        "coaster": "американские горки",
+        "spiral": "спираль"
+      }
+    },
+    "readouts": {
+      "triangles": "Треугольники"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "controls": {
+      "width": "Ширина",
+      "height": "Высота",
+      "gloss": "Блеск",
+      "spin": "Вращение"
+    }
+  },
+  "a-video-on-a-screen": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеть комнату; экран показывает настоящее видео",
+      "playing": "Играет",
+      "openVideo": "Открыть видео"
+    },
+    "readouts": {
+      "playing": "Играет",
+      "videoTime": "Время видео"
+    },
+    "words": {
+      "yourFile": "твой файл",
+      "testCard": "тестовая таблица"
+    }
+  },
+  "a-video-panorama": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеться; вид крутится сам, пока ты не нажмёшь",
+      "playing": "Играет",
+      "fieldOfView": "Поле зрения",
+      "openVideo": "Открыть видео"
+    },
+    "readouts": {
+      "playing": "Играет"
+    },
+    "words": {
+      "yourFile": "твой файл",
+      "duskOverSea": "сумерки над морем"
+    }
+  },
+  "a-wall-of-cameras": {
+    "controls": {
+      "mouse": "Нажми на камеру, чтобы вывести её на большой экран; скажи камерам, за чем следить",
+      "watch": "Следить"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "обход",
+        "car": "машина",
+        "balloon": "шар"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "Камеры, видящие машину"
+    },
+    "words": {
+      "cam": "КАМ",
+      "northGate": "СЕВЕРНЫЕ ВОРОТА",
+      "fountain": "ФОНТАН",
+      "eastRoad": "ВОСТОЧНАЯ ДОРОГА",
+      "clockTower": "ЧАСОВАЯ БАШНЯ",
+      "cafe": "КАФЕ",
+      "southCorner": "ЮЖНЫЙ УГОЛ",
+      "noSignal": "НЕТ СИГНАЛА",
+      "patrol": "ОБХОД",
+      "car": "СЛЕЖУ ЗА МАШИНОЙ",
+      "balloon": "СЛЕЖУ ЗА ШАРОМ"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "controls": {
+      "height": "Высота",
+      "speed": "Скорость",
+      "ripples": "Круги",
+      "inner": "Внутри",
+      "outer": "Снаружи"
+    }
+  },
+  "a-world-of-blocks": {
+    "controls": {
+      "mouse": "Тяни, чтобы облететь остров; подними море и смотри, как затопит долины",
+      "seed": "Зерно",
+      "seaLevel": "Уровень моря",
+      "hour": "Час",
+      "clouds": "Облака"
+    },
+    "readouts": {
+      "facesDrawn": "Нарисовано граней"
+    }
+  },
+  "before-and-after-slider": {
+    "controls": {
+      "mouse": "Тяни круглую ручку, чтобы двигать границу; тяни картинку, чтобы вращать площадь",
+      "before": "До"
+    },
+    "choices": {
+      "before": {
+        "clay": "глина",
+        "no shadows": "без теней",
+        "no sun": "без солнца",
+        "noon sun": "полуденное солнце"
+      }
+    },
+    "words": {
+      "clay": "глина",
+      "no shadows": "без теней",
+      "no sun": "без солнца",
+      "noon sun": "полуденное солнце",
+      "finished": "готово"
+    }
+  },
+  "blobs-that-merge": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти лампу; добавь липкости, и капли сольются друг с другом",
+      "stickiness": "Липкость",
+      "heat": "Жар",
+      "wax": "Воск"
+    },
+    "readouts": {
+      "piecesWax": "Кусочки воска"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "controls": {
+      "sweep": "Проход",
+      "lamp": "Лампа",
+      "colour": "Цвет",
+      "bricks": "Кирпичи"
+    }
+  },
+  "click-to-pick": {
+    "controls": {
+      "help": "Нажми на фигуру: она загорится, а панель скажет, где луч её коснулся."
+    },
+    "readouts": {
+      "picked": "Выбрано",
+      "point": "Точка",
+      "distance": "Расстояние"
+    },
+    "words": {
+      "nothing": "ничего",
+      "box": "куб",
+      "sphere": "шар",
+      "cone": "конус",
+      "torus": "тор",
+      "cylinder": "цилиндр",
+      "knot": "узел"
+    }
+  },
+  "colours-on-the-vertices": {
+    "controls": {
+      "mouse": "Тяни, чтобы вращать планету; у каждой вершины свой цвет",
+      "palette": "Палитра",
+      "seaLevel": "Уровень моря",
+      "relief": "Рельеф",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "palette": {
+        "earth": "земля",
+        "lava": "лава",
+        "ice": "лёд",
+        "candy": "конфета"
+      }
+    }
+  },
+  "compressed-textures": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти фонтан; колёсиком спустись к плитке и смотри, как приходят детали",
+      "sunTurn": "Поворот солнца",
+      "sunHeight": "Высота солнца"
+    },
+    "readouts": {
+      "texturesBlocks": "Текстуры в блоках",
+      "allFullDetail": "Всё в полной детализации",
+      "poolFormat": "Формат запаса",
+      "tilesHeld": "Удержано плиток",
+      "heldGpu": "Хранится на GPU"
+    },
+    "words": {
+      "credit": "Двор и текстуры нарисованы в коде для этого примера, CC0 — см. assets/examples/CREDITS.md",
+      "someOf": "{some} из {all}",
+      "notPlain": "{held} МиБ, а не {plain}",
+      "notMeasured": "здесь не измерено"
+    }
+  },
+  "copies-along-a-path": {
+    "controls": {
+      "mouse": "Тяни, чтобы осмотреть парк; добавляй копии, пока арки не сомкнутся в туннель",
+      "copies": "Копии",
+      "twist": "Закрутка",
+      "speed": "Скорость",
+      "ride": "Прокатиться"
+    },
+    "readouts": {
+      "archesPlaced": "Поставлено арок"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "controls": {
+      "angle": "Угол",
+      "softness": "Мягкость",
+      "colour": "Цвет",
+      "power": "Мощность"
+    },
+    "words": {
+      "credit": "Модель ящика: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"
+    }
+  },
+  "create-and-dispose": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти фонтан · колёсико — подойти ближе",
+      "perSecond": "В секунду",
+      "copies": "Копии",
+      "burst": "Залп",
+      "clearAll": "Убрать всё"
+    },
+    "choices": {
+      "copies": {
+        "share": "общие формы",
+        "fresh": "новая форма каждый раз"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "Живые кусочки",
+      "created": "Создано",
+      "disposed": "Освобождено",
+      "gpuMemory": "Память GPU"
+    },
+    "words": {
+      "notMeasured": "не измерено"
+    }
+  },
+  "curved-surfaces": {
+    "controls": {
+      "mouse": "Тяни, чтобы пройти по галерее; уменьши сетку, чтобы увидеть треугольники каждой кривой",
+      "grid": "Сетка",
+      "facets": "Грани",
+      "turntable": "Поворотный стол"
+    },
+    "readouts": {
+      "triangles": "Треугольники",
+      "facingYou": "Лицом к тебе"
+    },
+    "words": {
+      "Klein bottle": "бутылка Клейна",
+      "Möbius strip": "лента Мёбиуса",
+      "Seashell": "ракушка",
+      "Dini's twist": "поверхность Дини",
+      "Enneper saddle": "седло Эннепера"
+    }
+  },
+  "dashed-lines": {
+    "controls": {
+      "mouse": "Тяни, чтобы вращать вокруг солнца; измени штрих и промежуток — каждая орбита подстроится",
+      "lines": "Линии",
+      "dash": "Штрих",
+      "gap": "Промежуток",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "пунктир",
+        "solid": "сплошная"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "Штрихи на орбите голубой планеты"
+    }
+  },
+  "detail-by-pixel-error": {
+    "controls": {
+      "mouse": "Тяни, чтобы пройти по аллее; подойди близко к урне, потом далеко",
+      "pixelError": "Ошибка в пикселях",
+      "view": "Вид"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "lod": "уровни детализации",
+        "screen-error": "ошибка на экране",
+        "triangles": "треугольники"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Нарисовано треугольников",
+      "shareAvenue": "Доля аллеи",
+      "trianglesAvenue": "Треугольники аллеи"
+    },
+    "words": {
+      "credit": "Аллея урн смоделирована в коде для этого примера, CC0 — см. assets/examples/CREDITS.md",
+      "notCounted": "здесь не подсчитано"
+    }
+  },
+  "edges-and-wireframe": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеться; подними порог, чтобы оставить только острые сгибы",
+      "view": "Вид",
+      "threshold": "Порог",
+      "lines": "Линии",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "поверхность и рёбра",
+        "edges": "рёбра",
+        "wireframe": "каркас",
+        "surface and wireframe": "поверхность и каркас",
+        "surface": "поверхность"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "Отрезки рёбер",
+      "wireframeSegments": "Отрезки каркаса"
+    }
+  },
+  "every-image-format": {
+    "controls": {
+      "mouse": "Тяни, чтобы пройти вдоль мольбертов; снизь качество и рассмотри JPEG и WebP вблизи",
+      "quality": "Качество",
+      "lookAt": "Смотреть"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "все восемь",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "Сырые пиксели"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "Сырые пиксели"
+    },
+    "words": {
+      "samePicture": "512 × 512 · та же картинка",
+      "lossless": "без потерь",
+      "lossy": "с потерями",
+      "colours256": "256 цветов",
+      "uncompressed": "без сжатия",
+      "shapes": "фигуры, нарисованные при загрузке",
+      "painted": "нарисовано на странице",
+      "bytes": "байты в памяти",
+      "inMemory": "{size} в памяти · {note}",
+      "sentAs": "отправлено как {type}"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти солнечные часы; сдвинь час, и каждая тень повернётся вместе с солнцем",
+      "hour": "Час",
+      "darkness": "Темнота",
+      "timeLapse": "Ускорение",
+      "motion": "Движение"
+    },
+    "readouts": {
+      "shadowLength": "Длина тени"
+    },
+    "words": {
+      "timesHeight": "{times} × высота"
+    }
+  },
+  "fly-over-a-model-town": {
+    "choices": {
+      "view": {
+        "cockpit": "Кабина",
+        "exterior": "Снаружи"
+      },
+      "mode": {
+        "arcade": "Аркада — самолёт летит туда, куда ты целишься; без сваливания, сам выравнивается",
+        "expert": "Эксперт — мышь как штурвал; он сваливается и входит в штопор"
+      },
+      "sensitivity": {
+        "Low": "Низкая",
+        "Medium": "Средняя",
+        "High": "Высокая"
+      },
+      "invert": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "sound": {
+        "on": "Вкл",
+        "off": "Выкл"
+      }
+    },
+    "game": {
+      "title": "Истребитель",
+      "goal": "Взлети, потом пролети каньон через десять золотых колец как можно быстрее. Целься мышью: самолёт следует за ней.",
+      "keys": {
+        "aim": "Прицел (Аркада) или штурвал (Эксперт)",
+        "fineAim": "Точный прицел (держать)",
+        "throttle": "Тяга больше, меньше",
+        "afterburner": "Форсаж (держать)",
+        "roll": "Крен (заменяет прицел в Аркаде)",
+        "rudder": "Руль направления",
+        "airBrake": "Воздушный тормоз (держать)",
+        "lookAround": "Осмотреться (держать)",
+        "view": "Вид из кабины или снаружи",
+        "zoom": "Приблизить внешний вид",
+        "startOver": "Начать сначала",
+        "pause": "Пауза"
+      },
+      "options": {
+        "view": "Вид",
+        "mode": "Режим",
+        "sensitivity": "Чувствительность мыши",
+        "invert": "Инверсия Y",
+        "sound": "Звук"
+      }
+    },
+    "words": {
+      "testMode": "ТЕСТОВЫЙ РЕЖИМ — мышь не захвачена",
+      "rings": "КОЛЬЦА {passed}/{all}",
+      "complete": "ТРАССА ПРОЙДЕНА",
+      "flyAgain": "{time} — R, чтобы лететь снова",
+      "stall": "СВАЛИВАНИЕ",
+      "pullUp": "ВВЕРХ",
+      "turnBack": "РАЗВОРАЧИВАЙСЯ",
+      "crashed": "КРУШЕНИЕ",
+      "backToRunway": "Назад на полосу…",
+      "backToRing": "Назад к последнему кольцу…",
+      "throttleUp": "W — дай газ (Z на AZERTY)",
+      "rolling": "Разбег — {knots} узлов",
+      "liftOff": "Мышь вверх — взлёт"
+    }
+  },
+  "four-ways-to-blend": {
+    "controls": {
+      "mouse": "Слева направо: обычное, сложение, вычитание, умножение; тяни, чтобы посмотреть сбоку",
+      "inks": "Краски",
+      "opacity": "Непрозрачность",
+      "circle": "Облёт"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "красный, зелёный, синий",
+        "cyan, magenta, yellow": "голубой, пурпурный, жёлтый",
+        "warm and cool": "тёплые и холодные"
+      }
+    }
+  },
+  "frame-the-model": {
+    "controls": {
+      "mouse": "Дважды нажми на предмет, чтобы взять его в кадр; тяни, чтобы вращать, колёсико — зум",
+      "model": "Предмет",
+      "margin": "Отступ",
+      "drift": "Дрейф"
+    },
+    "choices": {
+      "model": {
+        "everything": "всё",
+        "the gold ring": "золотое кольцо",
+        "the vase": "ваза",
+        "the king": "король",
+        "the arch": "арка",
+        "the obelisk": "обелиск"
+      }
+    },
+    "readouts": {
+      "framing": "В кадре",
+      "radius": "Радиус",
+      "distance": "Расстояние"
+    },
+    "words": {
+      "the gold ring": "золотое кольцо",
+      "the vase": "ваза",
+      "the king": "король",
+      "the arch": "арка",
+      "the obelisk": "обелиск"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "controls": {
+      "mouse": "Колёсиком приближайся от песчинки до всей планеты; тяни, чтобы вращать",
+      "toTheGrain": "К песчинке",
+      "toTheBeach": "К пляжу",
+      "toTheIsland": "К острову",
+      "toThePlanet": "К планете"
+    },
+    "readouts": {
+      "viewWidth": "Ширина вида",
+      "youSee": "Ты видишь"
+    },
+    "words": {
+      "grains of sand": "песчинки",
+      "sand and shells": "песок и ракушки",
+      "pebbles": "гальку",
+      "the beach": "пляж",
+      "the coast": "берег",
+      "the island": "остров",
+      "the planet": "планету"
+    }
+  },
+  "from-clay-to-chrome": {
+    "controls": {
+      "colour": "Цвет",
+      "lamps": "Лампы",
+      "swing": "Качание"
+    }
+  },
+  "from-noon-to-dusk": {
+    "controls": {
+      "speed": "Скорость",
+      "hour": "Час",
+      "adaptEyes": "Привыкание глаз"
+    }
+  },
+  "glass-on-the-table": {
+    "controls": {
+      "refraction": "Преломление",
+      "thickness": "Толщина",
+      "tint": "Оттенок",
+      "spin": "Вращение"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти площадку; выключи помощников, чтобы увидеть кадр как есть",
+      "helpers": "Помощники",
+      "dolly": "Наезд",
+      "bulb": "Лампочка"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "всё",
+        "lights and camera": "свет и камера",
+        "shapes and bounds": "фигуры и границы",
+        "nothing": "ничего"
+      }
+    },
+    "readouts": {
+      "helpersShown": "Показано помощников"
+    }
+  },
+  "inside-a-panorama": {
+    "controls": {
+      "mouse": "Тяни, чтобы вращать · колёсико — ближе",
+      "sky": "Небо",
+      "fieldOfView": "Поле зрения"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "рассвет",
+        "noon": "полдень",
+        "dusk": "сумерки"
+      }
+    },
+    "words": {
+      "credit": "Панорамы нарисованы этой страницей в коде при открытии: ничего не скачивается."
+    }
+  },
+  "inside-the-g-buffer": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти площадку · выбери буфер, чтобы заглянуть внутрь кадра",
+      "buffer": "Буфер",
+      "turning": "Вращение"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "картинка",
+        "albedo": "базовый цвет",
+        "normals": "нормали",
+        "depth": "глубина",
+        "triangle ids": "номера треугольников",
+        "material ids": "номера материалов"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "Каждый пиксель хранит"
+    },
+    "words": {
+      "beauty": "освещённую картинку",
+      "albedo": "базовый цвет, до всякого света",
+      "normals": "куда смотрит поверхность, от камеры",
+      "depth": "расстояние: светлое близко, тёмное далеко",
+      "triangle ids": "какой треугольник покрывает пиксель",
+      "material ids": "какой материал красит пиксель",
+      "notOffered": "этот рендерер так не умеет"
+    }
+  },
+  "instances-in-colour": {
+    "controls": {
+      "mouse": "Тяни, чтобы наклонить галактику; колёсиком ныряй внутрь",
+      "count": "Количество",
+      "arms": "Рукава",
+      "twist": "Закрутка",
+      "core": "Ядро",
+      "rim": "Край",
+      "spin": "Вращение"
+    },
+    "readouts": {
+      "placementsDrawn": "Нарисовано копий",
+      "materials": "Материалы"
+    }
+  },
+  "keyframes-by-hand": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти стол; покажи ключи одного прыжка бледными копиями лампы",
+      "timing": "Ритм",
+      "onionSkin": "Калька",
+      "speed": "Скорость"
+    },
+    "choices": {
+      "timing": {
+        "eased": "плавно",
+        "linear": "линейная"
+      }
+    },
+    "readouts": {
+      "lastKey": "Последний ключ"
+    },
+    "words": {
+      "rest": "покой",
+      "crouch": "присед",
+      "launch": "толчок",
+      "apex": "вершина",
+      "land": "приземление",
+      "absorb": "амортизация",
+      "look up": "взгляд вверх",
+      "turn": "поворот",
+      "waking up": "пробуждение"
+    }
+  },
+  "labels-that-follow": {
+    "controls": {
+      "mouse": "Тяни, чтобы вращать вокруг Солнца, колёсико — ближе; подписи летят вместе с планетами",
+      "show": "Показать",
+      "speed": "Скорость",
+      "lineThemUp": "Выстроить"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "расстояние до Солнца",
+        "year": "год",
+        "moons": "спутники",
+        "names only": "только имена"
+      }
+    },
+    "words": {
+      "Sun": "Солнце",
+      "Mercury": "Меркурий",
+      "Venus": "Венера",
+      "Earth": "Земля",
+      "Moon": "Луна",
+      "Mars": "Марс",
+      "Jupiter": "Юпитер",
+      "Saturn": "Сатурн",
+      "Uranus": "Уран",
+      "Neptune": "Нептун",
+      "fromEarth": "384 400 км от Земли",
+      "ourStar": "наша звезда",
+      "au": "{au} а. е.",
+      "month": "месяц из 27 дней",
+      "year": "год из {days} дней",
+      "planets": "8 планет",
+      "earthsMoon": "спутник Земли",
+      "oneMoon": "1 спутник",
+      "moons": "спутников: {moons}"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "controls": {
+      "branches": "Ветки",
+      "leaves": "Листья",
+      "cutoff": "Порог выреза",
+      "sun": "Солнце"
+    }
+  },
+  "letters-carved-in-relief": {
+    "controls": {
+      "rake": "Наклон",
+      "warm": "Тёплый",
+      "cool": "Холодный",
+      "letters": "Буквы"
+    }
+  },
+  "light-from-a-probe": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти сад; выбери место, и скульптуры возьмут его свет",
+      "place": "Место",
+      "turn": "Вращать",
+      "strength": "Сила",
+      "keyLight": "Главный свет",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "пустыня на закате",
+        "forest clearing": "лесная поляна",
+        "neon alley": "неоновый переулок",
+        "snowfield": "снежное поле"
+      }
+    },
+    "readouts": {
+      "meanLight": "Средний свет"
+    }
+  },
+  "light-in-real-units": {
+    "controls": {
+      "mouse": "Тяни, чтобы пройти по площади; выбери момент и смотри, как камера подстраивается — от 100 000 люкс до лунной ночи",
+      "moment": "Момент",
+      "lampLumens": "Люмены фонарей",
+      "autoExposure": "Автоэкспозиция",
+      "exposureValue": "Экспозиционное число",
+      "turning": "Вращение"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "ясный полдень",
+        "overcast": "пасмурно",
+        "golden hour": "золотой час",
+        "sunset": "закат",
+        "blue hour": "синий час",
+        "moonlit night": "лунная ночь"
+      }
+    },
+    "readouts": {
+      "sun": "Солнце",
+      "sky": "Небо",
+      "eachLamp": "Каждый фонарь",
+      "exposureValue": "Экспозиционное число"
+    },
+    "words": {
+      "off": "выкл"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "controls": {
+      "lamp": "Лампа",
+      "power": "Мощность",
+      "colour": "Цвет"
+    }
+  },
+  "lines-in-colour": {
+    "controls": {
+      "mouse": "Тяни, чтобы вращать фигуру; выбери другое правило, и перо нарисует её с начала",
+      "figure": "Фигура",
+      "palette": "Палитра",
+      "pace": "Темп",
+      "redraw": "Перерисовать",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "бабочка Лоренца",
+        "Aizawa shell": "раковина Айдзавы",
+        "Thomas knot": "узел Томаса",
+        "Halvorsen propeller": "пропеллер Хальворсена"
+      },
+      "palette": {
+        "aurora": "сияние",
+        "sunset": "закат",
+        "embers": "угли",
+        "ice": "лёд"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "Цветные кусочки"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "controls": {
+      "lampTurn": "Поворот лампы",
+      "lampHeight": "Высота лампы",
+      "colour": "Цвет",
+      "exposure": "Экспозиция",
+      "circle": "Облёт"
+    },
+    "words": {
+      "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0 — см. assets/examples/CREDITS.md"
+    }
+  },
+  "memory-on-a-budget": {
+    "controls": {
+      "memory": "Память",
+      "view": "Вид"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "lod": "уровни детализации",
+        "clusters": "кластеры"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; ящик: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "controls": {
+      "help": "Тяни ручку. Тяни рядом, чтобы вращать камеру.",
+      "mode": "Режим",
+      "axes": "Оси",
+      "snap": "Привязка"
+    },
+    "choices": {
+      "mode": {
+        "translate": "сдвиг",
+        "rotate": "поворот",
+        "scale": "масштаб"
+      },
+      "axes": {
+        "world": "мир",
+        "local": "локально"
+      }
+    },
+    "readouts": {
+      "position": "Положение",
+      "drags": "Перетаскиваний"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "controls": {
+      "mouse": "Тяни, чтобы осмотреть галерею · график — время между кадрами",
+      "turning": "Вращение",
+      "revealAgain": "Показать снова"
+    },
+    "readouts": {
+      "worstFrameBefore": "Худший кадр до",
+      "worstFrameAfter": "Худший кадр после"
+    },
+    "words": {
+      "note": "Четырнадцать поверхностей, каждая со своим материалом или настройкой, все в одном кадре. График показывает время между кадрами; золотая линия — момент их появления.",
+      "measuring": "измеряю",
+      "hidden": "скрыты"
+    }
+  },
+  "normals-and-depth-seen": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти площадку; переключи вид, чтобы увидеть поверхности так, как их хранит рендерер",
+      "see": "Смотреть",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "see": {
+        "lit": "освещено",
+        "normals": "нормали",
+        "depth": "глубина"
+      }
+    },
+    "readouts": {
+      "colourMeans": "Цвет означает"
+    },
+    "words": {
+      "lit": "свет и материал",
+      "normals": "направление: вправо красный, вверх зелёный, к тебе синий",
+      "depth": "расстояние: близко белое, далеко тёмное"
+    }
+  },
+  "observatory-streamed": {
+    "controls": {
+      "view": "Вид",
+      "pixelError": "Ошибка в пикселях"
+    },
+    "choices": {
+      "view": {
+        "clusters": "кластеры",
+        "beauty": "картинка",
+        "pages": "страницы",
+        "lod": "уровни детализации",
+        "triangles": "треугольники"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "controls": {
+      "mouse": "Тяни, чтобы облететь арену; выбери, как один клип раздаётся болельщикам",
+      "pattern": "Узор",
+      "speed": "Скорость"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "стадионная волна",
+        "ripple outwards": "волна наружу",
+        "all at once": "все сразу"
+      }
+    },
+    "readouts": {
+      "clips": "Клипы",
+      "fansPlayingIt": "Болельщики, играющие его"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "controls": {
+      "mouse": "Просмотр товара: тяни, чтобы вращать · правой кнопкой — сдвигать · колёсико — приблизить зубцы",
+      "view": "Вид",
+      "speed": "Скорость",
+      "brass": "Латунь"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "три четверти",
+        "front": "спереди",
+        "side": "сбоку",
+        "top": "сверху"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "controls": {
+      "checks": "Клетки",
+      "paint": "Краска",
+      "second": "Второй",
+      "spin": "Вращение"
+    }
+  },
+  "reading-pixels-back": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеться · картинка справа внизу — вид, прочитанный обратно как числа",
+      "sunHeight": "Высота солнца",
+      "live": "Вживую",
+      "turning": "Вращение",
+      "savePng": "Сохранить PNG"
+    },
+    "readouts": {
+      "meanColour": "Средний цвет",
+      "brightest": "Самое яркое",
+      "readBack": "Прочитано за"
+    },
+    "words": {
+      "hover": "Наведи на картинку, чтобы прочитать пиксель",
+      "pixel": "пиксель {x}, {y}: {colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "controls": {
+      "mouse": "На аттракционе тяни, чтобы поворачивать голову. Выключи поездку, чтобы облететь парк",
+      "ride": "Прокатиться",
+      "loops": "Мёртвые петли"
+    },
+    "readouts": {
+      "speed": "Скорость",
+      "gForce": "Перегрузка"
+    }
+  },
+  "save-the-scene": {
+    "controls": {
+      "help": "Сбей башню, а потом снова открой сохранённую сцену.",
+      "knockDown": "Сбить",
+      "save": "Сохранить",
+      "open": "Открыть"
+    },
+    "readouts": {
+      "saved": "Сохранено"
+    },
+    "words": {
+      "bytes": "{bytes} байт"
+    }
+  },
+  "scattered-on-a-surface": {
+    "controls": {
+      "mouse": "Тяни, чтобы вращать планету; увеличь самый крутой склон, и лес заберётся в горы",
+      "trees": "Деревья",
+      "rocks": "Камни",
+      "steepest": "Самый крутой",
+      "seaLevel": "Уровень моря",
+      "spin": "Вращение"
+    },
+    "readouts": {
+      "treesPlanted": "Посажено деревьев",
+      "spotsRefused": "Отказано мест"
+    }
+  },
+  "see-the-triangles": {
+    "controls": {
+      "mouse": "Колёсико туда и обратно: издалека бюсту нужно меньше треугольников, но крупнее",
+      "view": "Вид",
+      "pixelError": "Ошибка в пикселях",
+      "sideBySide": "Рядом"
+    },
+    "choices": {
+      "view": {
+        "triangles": "треугольники",
+        "clusters": "кластеры",
+        "lod": "уровни детализации",
+        "pages": "страницы",
+        "beauty": "картинка"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Нарисовано треугольников",
+      "pagesMemory": "Страниц в памяти"
+    },
+    "words": {
+      "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0 — см. assets/examples/CREDITS.md"
+    }
+  },
+  "select-with-a-box": {
+    "controls": {
+      "help": "Выбор: тяни рамку; Shift добавляет, Alt убирает. Вращение: тяни, чтобы летать над садом",
+      "mouse": "Мышь",
+      "selectAll": "Выбрать всё",
+      "clear": "Очистить"
+    },
+    "choices": {
+      "mouse": {
+        "select": "выбор",
+        "turn": "поворот"
+      }
+    },
+    "readouts": {
+      "selected": "Выбрано"
+    }
+  },
+  "several-views-one-page": {
+    "controls": {
+      "mouse": "Тяни большой вид, чтобы вращать; колёсико и тяни на маленьких — зум и сдвиг, двойной щелчок — сброс",
+      "explode": "Разобрать",
+      "windFrom": "Ветер с",
+      "windSpeed": "Сила ветра"
+    },
+    "readouts": {
+      "sailTurnsMinute": "Оборотов крыльев в минуту"
+    },
+    "words": {
+      "perspective": "Перспектива",
+      "top": "Сверху",
+      "front": "Спереди",
+      "side": "Сбоку, с востока"
+    }
+  },
+  "shadows-from-the-sun": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти сад; сдвинь час, и каждая тень повернётся, а кончик обелиска пройдёт по часовым камням",
+      "hour": "Час",
+      "day": "День",
+      "latitude": "Широта",
+      "sails": "Паруса"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "летнее солнцестояние",
+        "spring equinox": "весеннее равноденствие",
+        "winter solstice": "зимнее солнцестояние"
+      }
+    },
+    "readouts": {
+      "sunHeight": "Высота солнца",
+      "sunBearing": "Азимут солнца",
+      "obeliskShadow": "Тень обелиска"
+    },
+    "words": {
+      "S": "Ю",
+      "SW": "ЮЗ",
+      "W": "З",
+      "NW": "СЗ",
+      "N": "С",
+      "NE": "СВ",
+      "E": "В",
+      "SE": "ЮВ",
+      "belowHorizon": "за горизонтом",
+      "bearing": "{point} ({degrees}° от севера)"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеться; глубина ноль оставляет плоскую вырезанную фигуру",
+      "depth": "Глубина",
+      "bevel": "Фаска",
+      "bevelSize": "Размер фаски",
+      "bevelSegments": "Сегменты фаски",
+      "curveSegments": "Сегменты кривых",
+      "spin": "Вращение"
+    },
+    "readouts": {
+      "triangles": "Треугольники"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "controls": {
+      "colour": "Цвет",
+      "speed": "Скорость",
+      "spin": "Вращение"
+    }
+  },
+  "side-by-side-stereo": {
+    "controls": {
+      "mouse": "Тяни по левой картинке, чтобы вращать; скоси глаза, пока две точки не станут одной",
+      "viewing": "Как смотреть",
+      "separation": "Разнос",
+      "speed": "Скорость"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "скосив глаза",
+        "parallel": "параллельно"
+      }
+    },
+    "words": {
+      "leftEye": "левый глаз",
+      "rightEye": "правый глаз"
+    }
+  },
+  "sky-and-ground-light": {
+    "controls": {
+      "mouse": "Тяни, чтобы смотреть снизу и сверху; каждое место красит верх своим небом, а низ — своей землёй",
+      "place": "Место",
+      "skyStrength": "Сила неба",
+      "sun": "Солнце",
+      "float": "Парить"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "луг в полдень",
+        "snowfield": "снежное поле",
+        "red desert": "красная пустыня",
+        "sunset beach": "пляж на закате",
+        "tropical lagoon": "тропическая лагуна",
+        "overcast city": "пасмурный город"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "Небо сверху",
+      "groundFromBelow": "Земля снизу"
+    }
+  },
+  "smooth-edges-over-time": {
+    "controls": {
+      "mouse": "Тяни, чтобы смотреть на провода; выключи сглаживание, и они рассыплются на ступеньки",
+      "smoothing": "Сглаживание",
+      "circle": "Облёт"
+    },
+    "readouts": {
+      "temporalAntialiasing": "Временное сглаживание"
+    },
+    "words": {
+      "on": "вкл",
+      "off": "выкл"
+    }
+  },
+  "snow-of-sprites": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти домик; устрой метель, и хлопья станут гуще и полетят вбок",
+      "weather": "Погода",
+      "wind": "Ветер"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "ровный снег",
+        "light flurry": "лёгкая пороша",
+        "blizzard": "метель"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "Падающие хлопья"
+    }
+  },
+  "sound-made-visible": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти сцену; столбики — это ноты, жемчужины — сама волна",
+      "layout": "Расстановка",
+      "height": "Высота",
+      "playMelody": "Сыграть мелодию",
+      "useMicrophone": "Включить микрофон",
+      "silence": "Тишина"
+    },
+    "choices": {
+      "layout": {
+        "ring": "кольцо",
+        "wall": "стена",
+        "spiral": "спираль"
+      }
+    },
+    "words": {
+      "hint": "Нажми на сцену, чтобы услышать мелодию",
+      "listening": "Слушаю микрофон: пой, свисти, хлопай",
+      "refused": "Микрофон не разрешён: вместо него играет мелодия",
+      "silence": "Тишина. Нажми на сцену, чтобы снова услышать мелодию"
+    }
+  },
+  "spin-an-astrolabe": {
+    "controls": {
+      "mouse": "Тяни, чтобы крутить его как угодно, даже вверх ногами · колёсико — зум",
+      "turning": "Вращение",
+      "sun": "Солнце"
+    }
+  },
+  "street-lamp-at-night": {
+    "controls": {
+      "night": "Ночь",
+      "bounce": "Отражённый свет",
+      "sun": "Солнце",
+      "lamp": "Лампа"
+    },
+    "words": {
+      "credit": "Модель фонаря: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"
+    }
+  },
+  "ten-thousand-objects": {
+    "controls": {
+      "mouse": "Тяни, чтобы вращать планету; колёсиком влетай в кольцо, пока один камень не заполнит вид",
+      "view": "Вид",
+      "pixelError": "Ошибка в пикселях",
+      "drift": "Дрейф"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "clusters": "кластеры",
+        "lod": "уровни детализации"
+      }
+    },
+    "readouts": {
+      "objectsScene": "Объекты в сцене",
+      "trianglesFile": "Треугольники в файле",
+      "trianglesDrawn": "Нарисовано треугольников"
+    },
+    "words": {
+      "credit": "Планета и маленькие луны смоделированы в коде для этого примера, CC0 — см. assets/examples/CREDITS.md",
+      "million": "{count} млн",
+      "notCounted": "здесь не подсчитано"
+    }
+  },
+  "texture-filters-compared": {
+    "controls": {
+      "mouse": "Тяни, чтобы смотреть вдоль дорожек; слева направо: ближайший, линейный, трилинейный, анизотропный",
+      "picture": "Картинка",
+      "anisotropy": "Анизотропия"
+    },
+    "choices": {
+      "picture": {
+        "checker": "шашки",
+        "lettering": "буквы"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "Анизотропия четвёртой дорожки"
+    }
+  },
+  "the-material-family": {
+    "controls": {
+      "mouse": "Тяни, чтобы обойти семейство; переключи свет на ночь и смотри, какие виды ещё светятся",
+      "light": "Свет",
+      "shape": "Форма",
+      "lookAt": "Смотреть",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "всё семейство",
+        "all": "всё семейство",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "золотой час",
+        "midday": "полдень",
+        "night": "ночь"
+      },
+      "shape": {
+        "knot": "узел",
+        "sphere": "шар",
+        "vase": "ваза",
+        "ring": "кольцо"
+      }
+    },
+    "readouts": {
+      "looking": "Смотрим на",
+      "litByLamps": "Освещено лампами"
+    },
+    "words": {
+      "meshBasic": "один плоский цвет, не видит ни одной лампы",
+      "meshLambert": "матовый как мел: рассеянный свет, без блеска",
+      "meshPhong": "пластик: яркое пятно там, где отражается солнце",
+      "meshStandard": "металл и шероховатость, обычный выбор",
+      "meshPhysical": "стандартный плюс стекло: свет проходит насквозь",
+      "meshToon": "мультик: свет двумя плоскими полосами",
+      "meshNormal": "куда смотрит каждая точка, цветом",
+      "meshMatcap": "освещён картинкой освещённого шара, а не лампами",
+      "allKinds": "все восемь видов",
+      "yes": "да",
+      "no": "нет",
+      "fiveOfEight": "пять из восьми"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "controls": {
+      "mouse": "Тяни, чтобы смотреть вдоль стены; камеру спросят, только когда нажмёшь кнопку",
+      "useMyCamera": "Моя камера",
+      "layout": "Расстановка",
+      "mirror": "Зеркало"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "видеостена",
+        "one per screen": "одна на экран"
+      }
+    },
+    "readouts": {
+      "source": "Источник"
+    },
+    "words": {
+      "noCamera": "нет камеры",
+      "yourCamera": "твоя камера",
+      "refused": "камера запрещена ({error})",
+      "paintedSignal": "нарисованный сигнал"
+    }
+  },
+  "toon-shading": {
+    "controls": {
+      "mouse": "Тяни, чтобы облететь остров; смени затенение и смотри, как свет ложится полосами",
+      "shading": "Затенение",
+      "outlines": "Контуры",
+      "sun": "Солнце",
+      "wind": "Ветер"
+    },
+    "choices": {
+      "shading": {
+        "toon": "мультик",
+        "matte": "матовое",
+        "physical": "физическое"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеться; включи указатель и веди дрон — каждая антенна следит",
+      "turn": "Вращать",
+      "turnSpeed": "Скорость поворота",
+      "followPointer": "За указателем"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "плавно",
+        "at once": "сразу",
+        "on a spring": "на пружине"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "Антенн навелось"
+    }
+  },
+  "two-lenses-one-scene": {
+    "controls": {
+      "mouse": "Тяни, чтобы облететь город; смени объектив и смотри, как улицы выпрямляются",
+      "lens": "Объектив",
+      "fieldOfView": "Поле зрения",
+      "isometric": "Изометрия",
+      "drift": "Дрейф"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "перспектива",
+        "orthographic": "ортографическая"
+      }
+    },
+    "readouts": {
+      "lens": "Объектив"
+    },
+    "words": {
+      "orthographic": "ортографическая, высота {height} м",
+      "perspective": "перспектива {degrees}°"
+    }
+  },
+  "uvs-of-every-shape": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеться; буква и цифра называют каждую клетку картинки",
+      "pattern": "Узор",
+      "repeat": "Повтор",
+      "slide": "Сдвиг",
+      "spin": "Вращение"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "тестовая таблица",
+        "checks": "клетки",
+        "arrows": "стрелки"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "controls": {
+      "keys": "Управление персонажем в движке: «Играть» в меню захватывает мышь для обзора, W A S D — бег (Z Q S D на AZERTY), Shift — рывок, Пробел — прыжок, Esc отпускает мышь. Страница добавляет R — начать забег заново, M — выключить звук.",
+      "look": "Обзор",
+      "runAgain": "Забег заново"
+    },
+    "game": {
+      "title": "Паркур в храме",
+      "goal": "Доберись до золотого идола, собрав по пути пять сфер. Лава вернёт тебя к последней горящей контрольной точке.",
+      "keys": {
+        "run": "Бег",
+        "look": "Обзор",
+        "sprint": "Рывок",
+        "jump": "Прыжок",
+        "runAgain": "Забег заново",
+        "sound": "Звук вкл или выкл",
+        "pause": "Пауза"
+      }
+    },
+    "words": {
+      "checkpoint": "Контрольная точка",
+      "finished": "{taken} / {orbs} сфер · R — забег заново",
+      "muted": "M без звука",
+      "sound": "M звук"
+    }
+  },
+  "waves-of-points": {
+    "controls": {
+      "mouse": "Тяни, чтобы облететь поле; выбери узор, и волны изменят форму под буями",
+      "pattern": "Узор",
+      "height": "Высота",
+      "speed": "Скорость"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "океанская зыбь",
+        "rain of stones": "дождь из камней",
+        "interference": "интерференция",
+        "standing wave": "стоячая волна",
+        "whirlpool": "водоворот"
+      }
+    },
+    "readouts": {
+      "points": "Точки"
+    }
+  },
+  "what-hides-what": {
+    "controls": {
+      "mouse": "Тяни, чтобы оглядеться; живые изгороди прячут золотые узлы в тупиках",
+      "hedgeHeight": "Высота изгородей",
+      "view": "Вид",
+      "aboveOrInside": "Сверху или внутри"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "visibility": "видимость"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "Золотые узлы",
+      "clustersTested": "Проверено кластеров",
+      "clustersHidden": "Скрыто кластеров",
+      "trianglesHidden": "Скрыто треугольников"
+    },
+    "words": {
+      "notCounted": "здесь не подсчитано"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "controls": {
+      "fieldOfView": "Поле зрения",
+      "dollyZoom": "Долли-зум"
+    }
+  }
+}
