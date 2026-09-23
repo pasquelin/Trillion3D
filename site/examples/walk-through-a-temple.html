@@ -522,17 +522,21 @@
         camera.lookAt(IDOL.x, eye - 0.35, IDOL.z);
         locate();
       }
-      function restart() {
+      // A run again clears the banner; the first run leaves it the line of what to do.
+      function reset() {
         [state, checkpoint, started, finished, taken] = ['run', checkpoints[0], null, null, 0];
         checkpoints.forEach((entry, index) => lit(entry, index === 0));
         for (const { orb } of orbs) orb.visible = true;
         Object.assign(world.controls, PACE);
         spawn(checkpoint.platform);
         veil.classList.remove('on');
-        announce('');
         world.invalidate();
       }
-      restart();
+      function restart() {
+        reset();
+        announce('');
+      }
+      reset();
       controls({
         keys: 'The engine\'s character control: the menu\'s Play locks the mouse to look, W A S D to run (Z Q S D on AZERTY), Shift to sprint, Space to jump, Escape frees the mouse. The page adds R to run again, M to mute.',
         look: [0.5, 3, 1],
