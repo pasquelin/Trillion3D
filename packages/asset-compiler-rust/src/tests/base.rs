@@ -82,11 +82,10 @@ pub(super) fn obj_source(root: &Path, folder: &str, mtl: &str) -> PathBuf {
     source.join("scene.obj")
 }
 
-/// Compiles and returns the intermediate-scene key with what import wrote of it.
-/// The key is read in the driver's progress: that is what the cache reuses, or not.
-pub(super) fn import_key(options: &Options) -> (String, Value, Value) {
+/// Compiles, and returns the result with the intermediate-scene key the driver's progress named.
+pub(super) fn compile_with_import_key(options: &Options) -> (Value, String) {
     let keys = std::sync::Mutex::new(Vec::new());
-    compile(options, |report| {
+    let result = compile(options, |report| {
         if report["phase"] == "import-source" {
             if let Some(key) = report["key"].as_str() {
                 keys.lock().expect("keys").push(key.to_string());
@@ -95,10 +94,32 @@ pub(super) fn import_key(options: &Options) -> (String, Value, Value) {
     })
     .expect("compile obj");
     let key = keys.into_inner().expect("keys").pop().expect("a key");
+    (result, key)
+}
+
+/// Compiles and returns the intermediate-scene key with what import wrote of it.
+/// The key is read in the driver's progress: that is what the cache reuses, or not.
+pub(super) fn import_key(options: &Options) -> (String, Value, Value) {
+    let (_, key) = compile_with_import_key(options);
     let directory = options.cache.join("native").join("imports").join(&key);
     (
         key,
         read_json(&directory.join("model.gltf")),
         read_json(&directory.join("manifest.json")),
     )
+}
+
+/// The first `count` little-endian float triples of these bytes.
+pub(super) fn float_triples(bytes: &[u8], count: usize) -> Vec<[f32; 3]> {
+    bytes[..count * 12]
+        .as_chunks::<12>()
+        .0
+        .iter()
+        .map(|word| {
+            let read = |axis: usize| {
+                f32::from_le_bytes(word[axis * 4..axis * 4 + 4].try_into().expect("float"))
+            };
+            [read(0), read(1), read(2)]
+        })
+        .collect()
 }

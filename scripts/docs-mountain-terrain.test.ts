@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
+import { assertSourceReproduced, publishedManifest } from './docs/gallery-scene.ts';
 import { mountainTerrain, terrainHeight } from './docs/mountain-terrain/model.ts';
 import { writeMountainTerrain } from './docs/mountain-terrain/write.ts';
 const root = resolve(import.meta.dirname, '..'),
@@ -33,33 +32,13 @@ test('mountain terrain is deterministic with deep relief, strata, and a river', 
 });
 
 test('published mountain source is reproduced byte for byte by its original recipe', async () => {
-  const temporary = await mkdtemp(join(tmpdir(), 'wg-mountain-terrain-'));
-  try {
-    await writeMountainTerrain(temporary, mountainTerrain());
-    for (const file of ['geometry.gltf', 'geometry.bin'])
-      assert.deepEqual(
-        await readFile(join(temporary, file)),
-        await readFile(join(published, 'source', file)),
-      );
-  } finally {
-    await rm(temporary, { recursive: true, force: true });
-  }
+  await assertSourceReproduced(published, 'trillion3d-mountain-terrain-', (directory) =>
+    writeMountainTerrain(directory, mountainTerrain()),
+  );
 });
 
-/** Shape of one native compiler cache manifest, as persisted on disk. */
-interface CacheManifest {
-  sourceTriangles: number;
-  selectedTriangles: number;
-  primitives: unknown[];
-  scenePlugin: { name: string };
-}
-
 test('published mountain cache preserves source triangles and hierarchy', async () => {
-  const directory = resolve(published, 'cache/native/full'),
-    pointer = JSON.parse(await readFile(resolve(directory, 'manifest.json'), 'utf8')) as {
-      url: string;
-    },
-    manifest = JSON.parse(await readFile(resolve(directory, pointer.url), 'utf8')) as CacheManifest;
+  const manifest = await publishedManifest(published);
   assert.equal(manifest.sourceTriangles, 18592);
   assert.equal(manifest.selectedTriangles, 18592);
   assert.equal(manifest.primitives.length, 5);

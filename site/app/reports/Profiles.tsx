@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Select } from '../components/UI.tsx';
+import { useWords } from '../i18n.ts';
+import { Select } from '../ui/Input.tsx';
 import { viewName } from '../../reports/names.ts';
-import { Section } from '../components/Section.tsx';
+import { Card } from '../ui/Card.tsx';
 import { runOf, sceneName } from '../../reports/presentation.ts';
 import { ProfileReading } from './ProfileReading.tsx';
 import type { Report, ReportRecord } from '../../reports/types.ts';
@@ -13,6 +14,7 @@ interface ProfilesProps {
 }
 
 function SceneProfiles({ records, report, locale }: ProfilesProps & { records: ReportRecord[] }) {
+  const t = useWords(locale);
   const [view, setView] = useState('sol'),
     [quality, setQuality] = useState('1');
   const views = [...new Set(records.map((r) => r.view))];
@@ -29,7 +31,7 @@ function SceneProfiles({ records, report, locale }: ProfilesProps & { records: R
           <div className="w-40">
             <Select
               size="sm"
-              aria-label={locale === 'fr' ? 'Point de vue' : 'Viewpoint'}
+              aria-label={t('report.viewpoint')}
               value={selectedView}
               onChange={(event) => setView(event.target.value)}
             >
@@ -43,7 +45,7 @@ function SceneProfiles({ records, report, locale }: ProfilesProps & { records: R
           <div className="w-24">
             <Select
               size="sm"
-              aria-label={locale === 'fr' ? 'Détail' : 'Detail'}
+              aria-label={t('report.detail')}
               value={String(active.quality)}
               onChange={(event) => setQuality(event.target.value)}
             >
@@ -65,12 +67,12 @@ export function Profiles({ report, locale }: ProfilesProps) {
   return (
     <>
       {[...new Set(records.map((r) => r.scene))].map((scene) => (
-        <Section key={scene} title={sceneName(scene)}>
+        <Card key={scene} title={sceneName(scene)}>
           <SceneProfiles
             records={records.filter((r) => r.scene === scene)}
             {...{ report, locale }}
           />
-        </Section>
+        </Card>
       ))}
     </>
   );

@@ -1,5 +1,5 @@
 //! Golden of the TIFF driver: each declared profile, decoded from a real file of
-//! `fixtures/tiff/`, yields exactly the same RGBA8 pixels — written in the open here. Byte
+//! `tests/fixtures/formats/tiff/`, yields exactly the same RGBA8 pixels — written in the open here. Byte
 //! order, compression and component count are ways of writing the same image, never of changing
 //! it. And what the driver does not declare, it refuses by naming it: that is the second half
 //! of the contract, the one that stops a 16-bit from coming back clipped to eight.

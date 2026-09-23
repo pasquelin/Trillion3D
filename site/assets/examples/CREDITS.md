@@ -1,15 +1,15 @@
 # Example assets: provenance and credits
 
 Every scene under this folder is compiled by the repository's native compiler from the sources
-beside it (`scripts/docs-examples-assets.ts`). The procedural scenes — `corner-cube`,
-`still-life`, `clay-to-chrome`, `sundial`, `colonnade` — are original, written by
-`scripts/docs/examples/scenes.mjs` under the repository licence, with no third-party geometry.
+beside it (`scripts/docs-examples-assets.ts`). Every example built from primitives alone is now
+written in code, with `geometry.*`, directly in its `site/examples/*.html` page: it compiles
+nothing here and owns no folder under this directory.
 
 The models under `models/` are kept as imported — mesh, textures and, when the author ships one,
 the licence file — and never edited. An OBJ model enters a scene as a copy whose `v` lines alone
-are scaled to metres and moved into place (`scripts/docs/examples/obj.mjs`, `placeObj`), beside an
+are scaled to metres and moved into place (`scripts/docs/examples/obj.ts`, `placeObj`), beside an
 original setting written as boxes; a glTF model enters as-is, the setting appended to a copy of
-its scene file as one more node (`scripts/docs/examples/gltf.mjs`, `appendSurfacesGltf`).
+its scene file as one more node (`scripts/docs/examples/gltf.ts`, `appendSurfacesGltf`).
 
 | Model          | Folder                | Author        | Source and licence                                                            | Used by                             |
 | -------------- | --------------------- | ------------- | ----------------------------------------------------------------------------- | ----------------------------------- |
@@ -27,5 +27,22 @@ them credits the author. Nothing else of that bank was taken: the items without 
 source, and its `imagerie/` sheets, are not redistributable; the `jeep` by Psionic ships only in
 formats the compiler does not read (`.3ds`, `.ms3d`).
 
-The streamed example reuses `site/assets/gallery/signature-architecture/`, an original scene of the
-lessons.
+The streaming and memory examples reuse `site/assets/gallery/signature-architecture/`, an original
+scene of the lessons.
+
+## Scenes modelled in code
+
+Five scenes are modelled in code for their example and released under
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/): nothing in them was taken from another
+work. Each has a writer under `scripts/docs/examples/`, seeded so the same code writes the same
+bytes on every machine, and is rebuilt, source and cache, by
+`node scripts/docs-examples-assets.ts <folder>` with the same compiler arguments as the model
+scenes above (`full`, 2 threads, 256 MB, `qem-endpoints`, the default `bc7` texture family).
+
+| Folder                   | Writer         | Source                                                                                                                  |
+| ------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `a-model-from-obj/`      | `chess-obj.ts` | `chess.obj` and `chess.mtl`: the same board and turned pieces in metres, each piece written where it stands, on a table |
+| `a-model-from-usdz/`     | `chess-set.ts` | `chess-set.usdz`: one USD text layer in centimetres, six turned shapes instanced thirty-two times                       |
+| `compressed-textures/`   | `courtyard.ts` | `courtyard.gltf` and its five drawn images: glazed tiles, brick, marble, the tiles' and brick's relief                  |
+| `detail-by-pixel-error/` | `avenue.ts`    | `avenue.gltf`: an avenue of fluted urns and a bronze knot at a tenth of life size                                       |
+| `ten-thousand-objects/`  | `ring.ts`      | `ring.gltf`: a planet and ten thousand moonlets, four rock shapes in three stones placed ten thousand times             |

@@ -1,6 +1,6 @@
 /**
  * Which demo belongs to which entry. An entry with no demo simply has no live section;
- * `test/integration/portail-documentation.test.mjs` checks that every id named here is an
+ * `tests/integration/documentation-portal.test.ts` checks that every id named here is an
  * entry of the portal, so a renamed page cannot leave an orphan demo behind.
  */
 import { MATRIX_DEMOS } from './matrix.ts';

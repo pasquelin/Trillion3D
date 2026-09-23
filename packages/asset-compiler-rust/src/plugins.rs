@@ -7,7 +7,7 @@
 //! contract's output type.
 //!
 //! Adding a format means adding a module and a registry line; core does not change.
-//! `PLUGINS.md` is driver manual, `FORMATS.md`
+//! `docs/COMPILER.md` § "Adding a format" is the driver manual, § "Input formats" the
 //! policy: which formats admitted, which refused, under what conditions.
 use serde_json::{json, Value};
 

@@ -1,0 +1,10 @@
+use super::*;
+pub(in crate::tests) mod bmp_gif_golden;
+pub(in crate::tests) mod float_golden;
+pub(in crate::tests) mod identity_textures;
+pub(in crate::tests) mod ktx2_golden;
+pub(in crate::tests) mod obj_texture_cache;
+pub(in crate::tests) mod previews_golden;
+pub(in crate::tests) mod previews_import;
+pub(in crate::tests) mod previews_source;
+pub(in crate::tests) mod psd_golden;

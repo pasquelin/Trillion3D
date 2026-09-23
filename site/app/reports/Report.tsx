@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 import { ReadingLegend } from './ReadingLegend.tsx';
-import { reportCopy } from '../../reports/copy.ts';
 import { sceneName } from '../../reports/presentation.ts';
 import { useReports } from './useReports.ts';
-import { Alert } from '../components/UI.tsx';
-import { SectionHeader } from '../components/SectionHeader.tsx';
-import { Collapse } from '../components/Collapse.tsx';
+import { Alert } from '../ui/Alert.tsx';
+import { DocPage } from '../layout/DocPage.tsx';
+import { useWords } from '../i18n.ts';
+import { TextLink } from '../ui/Text.tsx';
+import { Collapse } from '../ui/Collapse.tsx';
 import { SceneReport } from './SceneReport.tsx';
 import { SceneEvidence } from './SceneEvidence.tsx';
 import { Experiments } from './Experiments.tsx';
@@ -23,14 +24,17 @@ interface ReportProps {
 export function Report({ route }: ReportProps) {
   const [campaign, active = 'overview'] = route.id.split('/');
   const state = useReports(campaign);
-  const locale = route.locale,
-    c = reportCopy(locale),
-    fr = locale === 'fr';
+  const locale = route.locale;
+  const t = useWords(locale);
   if (!state.report)
     return (
-      <Alert tone={state.error ? 'warning' : 'info'}>
-        {c[state.loading ? 'loading' : state.error ? 'unavailable' : 'empty']}
-      </Alert>
+      <DocPage title={t('report.title')}>
+        <Alert tone={state.error ? 'warning' : 'info'}>
+          {t(
+            state.loading ? 'report.loading' : state.error ? 'report.unavailable' : 'report.empty',
+          )}
+        </Alert>
+      </DocPage>
     );
   const { report, sources } = state;
   const scenes = [...new Set(report.records.map((r) => r.scene))];
@@ -39,20 +43,20 @@ export function Report({ route }: ReportProps) {
     overview: () => (
       <>
         <Findings {...props} />
-        <Collapse title={fr ? 'Exécutions et sources' : 'Runs and sources'}>
+        <Collapse title={t('report.runsAndSources')}>
           <CampaignRuns {...props} />
-          <a className="link" href={`reports/${report.id}/report.json`} download>
-            {c.download}
-          </a>
+          <TextLink href={`reports/${report.id}/report.json`} download>
+            {t('report.download')}
+          </TextLink>
         </Collapse>
       </>
     ),
     compare: () => (
       <>
         <ReadingLegend locale={locale} engines />
-        <Collapse title={fr ? 'Comment lire les chiffres ?' : 'How do I read the figures?'}>
+        <Collapse title={t('report.readFigures')}>
           <p>
-            {c.p95} {c.timing}
+            {t('report.p95')} {t('report.timing')}
           </p>
         </Collapse>
         {scenes.map((scene) => (
@@ -74,14 +78,12 @@ export function Report({ route }: ReportProps) {
     references: () => <References locale={locale} />,
   };
   return (
-    <article className="grid min-w-0 w-full gap-6">
-      <SectionHeader
-        level={1}
-        title={c.title}
-        eyebrow={`Web Geometry · ${report.id}`}
-        description={`${report.records.length} ${fr ? 'mesures' : 'readings'} · ${report.runs.length} ${fr ? 'exécutions' : 'runs'} · ${scenes.map(sceneName).join(' / ')}`}
-      />
+    <DocPage
+      title={t('report.title')}
+      eyebrow={`${t('reports.campaign')} ${report.id}`}
+      lead={`${t('report.counts', { readings: report.records.length, runs: report.runs.length })} · ${scenes.map(sceneName).join(' / ')}`}
+    >
       {(Object.hasOwn(content, active) ? content[active] : content.overview)()}
-    </article>
+    </DocPage>
   );
 }

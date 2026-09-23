@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Click to pick</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, helper } from '../runtime/engine.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4] }), light.ambient({ intensity: 0.3 }));
+      world.scene.add(helper.grid(8, 8));
+
+      // Six shapes in a ring, each with a material of its own: picking one repaints only it.
+      const shapes = [geometry.box(0.8, 0.8, 0.8), geometry.sphere(0.5), geometry.cone(0.5, 1), geometry.torus(0.4, 0.15), geometry.cylinder(0.4, 0.4, 0.9), geometry.torusKnot(0.3, 0.1)];
+      const names = ['box', 'sphere', 'cone', 'torus', 'cylinder', 'knot'];
+      shapes.forEach((shape, i) => {
+        const mesh = object.mesh(shape, material.meshStandard({ color: '#7a8699', roughness: 0.5 }));
+        const angle = (i / shapes.length) * Math.PI * 2;
+        mesh.position.set(Math.cos(angle) * 2.2, 0.5, Math.sin(angle) * 2.2);
+        mesh.name = names[i];
+        world.scene.add(mesh);
+      });
+      world.camera.position.set(0, 4, 6);
+      world.camera.lookAt(0, 0, 0);
+
+      controls({ help: 'Click a shape: it lights up, and the panel says where the ray met it.' });
+      const picked = readout('picked'), where = readout('point'), far = readout('distance');
+
+      // A click that did not drag the camera: the ray through the pointer, nearest object first.
+      let down = null, chosen = null;
+      world.canvas.addEventListener('pointerdown', (event) => (down = [event.offsetX, event.offsetY]));
+      world.canvas.addEventListener('pointerup', (event) => {
+        if (!down || Math.hypot(event.offsetX - down[0], event.offsetY - down[1]) > 3) return;
+        const hit = world.raycast({ x: event.offsetX, y: event.offsetY });
+        chosen?.material.color.set('#7a8699');
+        chosen = hit?.object ?? null;
+        chosen?.material.color.set('#ffb347');
+        picked(chosen ? say(chosen.name) : say('nothing'));
+        where(hit ? hit.point.toArray().map((v) => v.toFixed(2)).join(', ') : '—');
+        far(hit ? hit.distance.toFixed(2) : '—');
+      });
+    </script>
+  </body>
+</html>

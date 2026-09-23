@@ -2,48 +2,100 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Leaves cut out by their alpha</title>
+    <title>Leaves cut by alpha</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, texture, math, side } from '../runtime/engine.js';
+      import { controls, seeded } from '../runtime/kit.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/leaves/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
-      });
-      // Every leaf is a rectangle of two triangles; the leaf outline is the alpha of its
-      // texture, and the material's alpha mode is MASK with a cutoff at one half: the engine
-      // keeps or discards each pixel, and the shadow pass cuts the same outline.
-      explorer.addLight({
-        id: 'sun',
-        kind: 'directional',
-        direction: [-0.4, -0.75, -0.5],
-        color: [1, 0.96, 0.85],
-        intensity: 3,
-        castsShadow: true,
-      });
-      explorer.addLight({
-        id: 'sky',
-        kind: 'directional',
-        direction: [0.4, -0.5, 0.7],
-        color: [0.5, 0.65, 0.9],
-        intensity: 1.2,
-        castsShadow: false,
-      });
-      explorer.setPose({ ...explorer.homePose(), position: [2.4, 3, 3.6], target: [0, 2.1, 0] });
-      explorer.invalidate();
+      // A leaf picture: green inside an almond outline with a darker midrib, see-through outside it.
+      function leafTexture() {
+        const size = 256, canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        const context = canvas.getContext('2d'), image = context.createImageData(size, size);
+        for (let py = 0; py < size; py++)
+          for (let px = 0; px < size; px++) {
+            const along = py / size, across = Math.abs(px / size - 0.5);
+            const width = 0.42 * Math.sin(Math.PI * along) ** 0.8, rib = across < 0.012 && along > 0.05 && along < 0.9;
+            const alpha = Math.min(1, Math.max(0, (width - across) * 40 + 0.5));
+            const rgba = [rib ? 0.3 : 0.36 - along * 0.1, rib ? 0.5 : 0.68, 0.16, alpha];
+            rgba.forEach((value, channel) => (image.data[(py * size + px) * 4 + channel] = Math.round(value * 255)));
+          }
+        context.putImageData(image, 0, 0);
+        return texture.canvas(canvas);
+      }
+      const world = createWorld('view', { controls: 'orbit' });
+      const ground = object.mesh(geometry.cylinder(3.2, 3.2, 0.2, 64), material.meshStandard({ color: '#5b6b3a', roughness: 0.95 }));
+      ground.position.y = -0.1;
+      world.scene.add(ground);
+
+      // The tree grows by one rule: a branch ends in two or three shorter, thinner branches, each
+      // turned away from its parent. Every level is built once; the slider shows as many as asked.
+      const bark = material.meshStandard({ color: '#6b4a2e', roughness: 0.9 });
+      // `alphaTest`: a leaf pixel whose alpha is under it is thrown away; the leaf is one rectangle.
+      const leafMaterial = material.meshStandard({ map: leafTexture(), alphaTest: 0.5, side: side.double, roughness: 0.6 });
+      // The branches and leaves are placed by a seeded sequence: the same tree on every run.
+      const leafShape = geometry.plane(0.28, 0.6), next = seeded(5), up = math.vector3(0, 1, 0);
+      const branches = [], leaves = [];
+      function grow(from, direction, length, radius, level) {
+        const stick = object.mesh(geometry.cylinder(radius * 0.7, radius, length, 12), bark);
+        stick.quaternion.setFromUnitVectors(up, direction);
+        stick.position.copy(from).addScaledVector(direction, length / 2);
+        world.scene.add(stick);
+        branches.push({ mesh: stick, level });
+        const end = from.clone().addScaledVector(direction, length);
+        if (level >= 2)
+          for (let index = 0; index < 9; index++) {
+            const leaf = object.mesh(leafShape, leafMaterial);
+            leaf.position.copy(from).addScaledVector(direction, length * (0.3 + next() * 0.7));
+            leaf.position.x += (next() - 0.5) * 0.5;
+            leaf.position.z += (next() - 0.5) * 0.5;
+            leaf.rotation.set(next() * Math.PI, next() * Math.PI * 2, next() * Math.PI);
+            leaf.scale.setScalar(0.7 + next() * 0.7);
+            world.scene.add(leaf);
+            leaves.push({ mesh: leaf, level, rank: next() });
+          }
+        if (level === 5) return;
+        const children = 2 + Math.floor(next() * 2);
+        for (let child = 0; child < children; child++) {
+          const turn = (child / children) * Math.PI * 2 + next();
+          const bent = math.vector3(Math.cos(turn), 0.55 + next() * 0.5, Math.sin(turn)).normalize().lerp(direction, 0.2).normalize();
+          grow(end, bent, length * (0.72 + next() * 0.12), radius * 0.62, level + 1);
+        }
+      }
+      grow(math.vector3(0, 0, 0), up.clone(), 1.5, 0.14, 1);
+
+      const sun = light.directional({ intensity: 3, color: '#fff1d6', castShadow: true, radius: 0.5 });
+      world.scene.add(sun, light.ambient({ intensity: 0.6, color: '#b8d0ff' }));
+      world.scene.add(light.directional({ intensity: 1, color: '#9fc0ff', position: [-6, 3, -6] }));
+      world.camera.position.set(3.4, 2.5, 4.2);
+      world.camera.lookAt(0, 2.4, 0);
+      world.controls.target.set(0, 2.4, 0);
+
+      controls({ branches: [1, 5, 5, 1], leaves: [0, 1, 0.8], cutoff: [0.05, 0.95, 0.5], sun: [-180, 180, 40, 1] }, (values) => {
+        for (const { mesh, level } of branches) mesh.visible = level <= values.branches;
+        for (const { mesh, level, rank } of leaves) mesh.visible = level <= values.branches && rank < values.leaves;
+        leafMaterial.alphaTest = values.cutoff;
+        const turn = (values.sun * Math.PI) / 180;
+        sun.position.set(Math.sin(turn) * 8, 9, Math.cos(turn) * 8);
+        world.invalidate();
+      }, world);
     </script>
   </body>
 </html>

@@ -1,0 +1,53 @@
+import type { SceneLightStore } from '../../../sdk-core/src/index.ts';
+import { DEFAULT_TONE_MAPPING } from '../../../sdk-core/src/scene/core/environment.ts';
+import { DEFAULT_CLEAR_COLOR } from '../backend/common.ts';
+import { lighting as installLighting } from '../host/scene/objects.ts';
+import type { BackendContext } from '../backend/types.ts';
+import { sceneLightingApi, type installSceneLighting } from './sceneLighting.ts';
+import { attachContractLights, CONTRACT_LIGHTS_LIGHTING } from '../backend/exact/contractLights.ts';
+
+/** The render scene the contract writes into, named without importing the host library here. */
+type RenderScene = Parameters<typeof attachContractLights>[0];
+/**
+ * The lighting half of a Three-rendered engine's API, in one place: the source graph's own
+ * lights while the contract declares none, the contract's — radiometric, as the cache's light
+ * table records them — as soon as it does. An engine that skips this draws the glTF's
+ * photometric intensities straight into the renderer and blows its image out to white.
+ */
+export function contractLightingApi(
+  scene: RenderScene,
+  store: SceneLightStore | undefined,
+  source: ReturnType<typeof installSceneLighting>,
+  sceneChanged: () => void,
+) {
+  const contract = attachContractLights(scene, store, source, sceneChanged);
+  return {
+    ...sceneLightingApi(source, sceneChanged),
+    /** The image comes out in real light as soon as either light set carries one. */
+    sceneLit: () => contract.lit,
+    /** The display curve the scene chose through its environment; ACES when it chose none. */
+    sceneToneMapping: () => store?.environment?.toneMapping ?? DEFAULT_TONE_MAPPING,
+    refreshSceneLights: contract.apply,
+    lighting: CONTRACT_LIGHTS_LIGHTING,
+  };
+}
+
+/**
+ * Both halves at once, for an engine that holds no other use for the source-graph lights: the
+ * copy installed on its scene, and the API above wired onto it.
+ */
+export function createContractLighting(
+  scene: RenderScene,
+  context: BackendContext,
+  sceneChanged: () => void,
+) {
+  const source = installLighting(
+    scene,
+    context.clearColor ?? DEFAULT_CLEAR_COLOR,
+    context.sceneLighting ?? context.source,
+  );
+  return {
+    lighting: source,
+    api: contractLightingApi(scene, context.sceneLights, source, sceneChanged),
+  };
+}

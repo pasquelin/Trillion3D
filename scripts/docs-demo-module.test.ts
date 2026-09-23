@@ -1,12 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// The demos import this module and the site build bundles it as `js/engine.js`, the module the
-// code editor's snippets import. Here, behaviour: what the portal's demos call must really be the
+// The demos import this module. Here, behaviour: what the portal's demos call must really be the
 // engine, and answer as it.
 const kernels = await import('../site/demos/engine.ts');
 
-test('the bundle carries the public maths the demos call', () => {
+test('the module carries the public maths the demos call', () => {
   // A record derived from the namespace's own entries, so a dynamic name lookup stays typed
   // without widening the namespace import itself.
   const exports: Record<string, unknown> = Object.fromEntries(Object.entries(kernels));

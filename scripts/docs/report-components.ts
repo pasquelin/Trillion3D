@@ -1,10 +1,14 @@
+import { loadLanguage } from '../../site/app/i18n.ts';
 import { loadReactComponents } from './render-react.ts';
 import type { Comparison as ComparisonComponent } from '../../site/app/reports/Comparison.tsx';
 import type { Evidence as EvidenceComponent } from '../../site/app/reports/Evidence.tsx';
 import type { AllReadings as AllReadingsComponent } from '../../site/app/reports/AllReadings.tsx';
-import type { BarChart as BarChartComponent } from '../../site/app/components/BarChart.tsx';
+import type { BarChart as BarChartComponent } from '../../site/app/ui/BarChart.tsx';
 import type { Findings as FindingsComponent } from '../../site/app/reports/Findings.tsx';
 import type { SceneNotice as SceneNoticeComponent } from '../../site/app/reports/SceneNotice.tsx';
+
+// The report names the test reads from the sources are in French too: its words are read first.
+await loadLanguage('fr');
 
 /** The report test's six React components, typed against their real prop signatures instead
  * of the `unknown` `loadReactComponents` returns for its esbuild-compiled module. */
@@ -17,7 +21,7 @@ export const { Evidence } = (await loadReactComponents('site/app/reports/Evidenc
 export const { AllReadings } = (await loadReactComponents('site/app/reports/AllReadings.tsx')) as {
   AllReadings: typeof AllReadingsComponent;
 };
-export const { BarChart } = (await loadReactComponents('site/app/components/BarChart.tsx')) as {
+export const { BarChart } = (await loadReactComponents('site/app/ui/BarChart.tsx')) as {
   BarChart: typeof BarChartComponent;
 };
 export const { Findings } = (await loadReactComponents('site/app/reports/Findings.tsx')) as {

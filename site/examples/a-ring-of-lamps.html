@@ -2,77 +2,85 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A ring of lamps on one budget</title>
+    <title>Sixty-four lamps</title>
+    <meta name="thumbnail" content="3" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0e1621;
+        background: #171d28;
       }
       canvas {
         display: block;
         width: 100%;
         height: 100%;
       }
-      p {
-        position: absolute;
-        bottom: 0;
-        margin: 0.5rem;
-        color: #cbd5e1;
-        font: 12px system-ui;
-      }
     </style>
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/"
-        }
-      }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p id="shadows"></p>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/colonnade/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
-        // Shadow work per frame, in GPU milliseconds: what the sixteen lamps share.
-        shadowBudgetMs: 1,
+      const world = createWorld('view', { controls: 'orbit' });
+
+      // A dark floor and a grid of pale pillars to catch the light.
+      const floor = object.mesh(geometry.box(16, 0.2, 16), material.meshStandard({ color: '#3a3d45', roughness: 0.7 }));
+      floor.position.y = -0.1;
+      world.scene.add(floor);
+      const chalk = material.meshStandard({ color: '#e8e4da', roughness: 0.5 });
+      const pillar = geometry.cylinder(0.25, 0.3, 1, 32);
+      for (let row = -3; row <= 3; row++)
+        for (let column = -3; column <= 3; column++) {
+          const height = 0.6 + ((row * 7 + column * 3 + 50) % 5) * 0.35;
+          const mesh = object.mesh(pillar, chalk);
+          mesh.scale.y = height;
+          mesh.position.set(column * 1.9, height / 2, row * 1.9);
+          world.scene.add(mesh);
+        }
+
+      // A dim night sky, so a pillar's shaded side reads against the floor.
+      world.scene.add(light.hemisphere({ intensity: 0.4, color: '#6f7fa8', groundColor: '#2a2c33' }));
+
+      // Sixty-four lamps: each a point light and a small glowing bulb of its colour. The engine
+      // sorts the lights into screen tiles, so each pixel only adds up the lamps that reach it.
+      // They fly above the tallest pillar (2 m), so every top catches their light.
+      const lamps = Array.from({ length: 64 }, (_, index) => {
+        const colour = math.color().setHSL((index * 0.618) % 1, 0.9, 0.55);
+        const glow = light.point({ color: colour, intensity: 14, distance: 6, radius: 0.08 });
+        const bulb = object.mesh(geometry.sphere(0.08, 16, 12), material.meshStandard({ color: '#000000', emissive: colour, emissiveIntensity: 6 }));
+        world.scene.add(glow, bulb);
+        return { glow, bulb, phase: index * 2.39996, orbit: 1.5 + (index % 8) * 0.8 };
       });
-      // Sixteen shadow-casting lamps around the colonnade — six faces each in the shadow atlas.
-      // The budget bounds what one frame redraws; the pages left over wait, never dropped, and
-      // the counter below reads the queue as the frames settle.
-      for (let index = 0; index < 16; index++) {
-        const angle = (index / 16) * Math.PI * 2;
-        explorer.addLight({
-          id: `lamp-${index}`,
-          kind: 'point',
-          position: [Math.sin(angle) * 3.2, 2.2, Math.cos(angle) * 7.2],
-          color: index % 2 ? [1, 0.75, 0.45] : [0.7, 0.8, 1],
-          intensity: 4,
-          range: 9,
-          emitterRadius: 0.1,
-          castsShadow: true,
+      world.camera.position.set(0, 7, 9.5);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.target.set(0, 0, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      const ui = controls({ lamps: [1, 64, 32, 1], speed: [0, 2, 0.6], power: [1, 40, 14], shadows: false }, (values) => {
+        lamps.forEach(({ glow, bulb }, index) => {
+          glow.visible = bulb.visible = index < values.lamps;
+          glow.intensity = values.power;
+          // Off by default: each moving lamp that casts a shadow redraws its shadow map every frame.
+          glow.castShadow = values.shadows;
         });
-      }
-      explorer.setPose({ ...explorer.homePose(), position: [4.5, 3.6, 10], target: [0, 1.2, 0] });
-      explorer.invalidate();
-      // The queue drains once; the page reads it until it is empty, then stops — a settled scene
-      // does no work.
-      const shadows = document.getElementById('shadows');
-      const read = () => {
-        const { shadowPagesDrawn, shadowPagesPending, shadowPagesTotal } =
-          explorer.backends[0].metrics();
-        shadows.textContent = `shadow pages: ${shadowPagesDrawn ?? '?'} drawn this frame, ${shadowPagesPending ?? '?'} waiting, ${shadowPagesTotal ?? '?'} in all`;
-        if (shadowPagesPending) setTimeout(read, 250);
-      };
-      read();
+        world.invalidate();
+      }, world);
+      // At speed zero the lamps stop, and a still scene asks for no new frame.
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.speed) return;
+        time += delta * ui.speed;
+        for (const { glow, bulb, phase, orbit } of lamps) {
+          const angle = time * (6 / orbit) * 0.3 + phase;
+          const at = [Math.cos(angle) * orbit, 2.5 + Math.sin(time * 1.3 + phase) * 0.3, Math.sin(angle) * orbit];
+          glow.position.set(...at);
+          bulb.position.set(...at);
+        }
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

@@ -1,8 +1,8 @@
-# The native compiler — `web-geometry-compiler`
+# The native compiler — `trillion3d-compiler`
 
-One executable does all of the preparation work: it reads a source model (glTF, GLB, FBX or OBJ), builds the cluster hierarchy and writes the cache described in [FORMAT.md](FORMAT.md). Everything else — the Node adapter, an Electron host, a shell script — only launches it, forwards a few paths and options, and listens to what it says. No external application is needed: the FBX/OBJ reader (ufbx) is compiled into the binary.
+One executable does all of the preparation work: it reads a source model through one driver per format — glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII, Unity scenes and packages, ZIP, and a dozen image formats ([Input formats](#input-formats)) — builds the cluster hierarchy and writes the cache described in [FORMAT.md](FORMAT.md). Everything else — the Node adapter, an Electron host, a shell script — only launches it, forwards a few paths and options, and listens to what it says. No external application is needed: every driver is compiled into the binary.
 
-Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.rs` compiles, `import.rs` imports, `main.rs` is the command line). Build with `pnpm run build:native`; the binary lands in `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
+Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.rs` compiles, `import.rs` imports, `main.rs` is the command line). Build with `pnpm run build:native`; the binary lands in `packages/asset-compiler-rust/target/release/trillion3d-compiler` (`.exe` on Windows).
 
 ## Contents
 
@@ -11,9 +11,13 @@ Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.
 - [Events](#events)
 - [The pointer](#the-pointer)
 - [Reusing a compiled folder](#reusing-a-compiled-folder)
+- [Measurements](#measurements)
 - [Batch mode](#batch-mode)
 - [Cancellation](#cancellation)
 - [FBX and OBJ import](#fbx-and-obj-import)
+- [USD and USDZ import](#usd-and-usdz-import)
+- [Input formats](#input-formats)
+- [Adding a format](#adding-a-format)
 - [Cache layout](#cache-layout)
 - [Cutouts declared as blend](#cutouts-declared-as-blend)
 - [Memory and threads](#memory-and-threads)
@@ -24,39 +28,117 @@ Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.
 ## Invocation
 
 ```
-web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL
-web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=bc7|astc|both|none]
-web-geometry-compiler --jobs FILE|-
-web-geometry-compiler --version
+trillion3d-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL
+trillion3d-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=bc7|astc|both|none]
+trillion3d-compiler --jobs FILE|-
+trillion3d-compiler --version
 ```
 
-| Argument            | Meaning                                                                                                                                                                                                                                                         | Default  |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `SOURCE`            | A directory with `manifest.json`; a directory with exactly one `.gltf`/`.glb`; a `.gltf`/`.glb` file; a `.fbx`/`.obj` file; or a directory of `.fbx`/`.obj` files, merged into one scene                                                                        | required |
-| `CACHE`             | Output directory, created if missing. It holds one pointer per scope and prunes itself after each compile, so one cache serves one source at a time; a second compilation of the same cache waits up to 30 s for the first, then is refused with `CACHE_LOCKED` | required |
-| scope               | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                                                                                                           | `slice`  |
-| triangles           | Triangle budget for `slice`; ignored by `full`                                                                                                                                                                                                                  | `150000` |
-| threads             | Worker threads for clustering and simplification (1–64)                                                                                                                                                                                                         | `2`      |
-| `RAM_MB`            | Admission budget: the job is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`) when its estimated working set exceeds it. This is a guard, not an enforced limit                                                                                                        | `256`    |
-| `RESOURCE_BASE_URL` | URL prefix under which the host serves the **source** directory; relative image URIs are rewritten against it                                                                                                                                                   | required |
-| simplification      | `none` keeps exact clusters only — one DAG level, every cluster a root; `qem-endpoints` builds the coarser levels above them                                                                                                                                    | `none`   |
-| `--textures-format` | `--textures-format=bc7|astc|both|none`: the block family cooked beside the lossless levels, `bc7` by default (a cook runs on a desktop), `none` lossless only; kept under the quality gate of [FORMAT.md](FORMAT.md), _Textures_. The encode and its read-back are the option's whole cost, on the job's thread pool, block rows in parallel: Emerald from an empty cache, 8 threads, 17.9 / 18.8 s wall without a family (two runs), 26.1 / 25.9 s `bc7`, 31.4 / 39.0 s `astc`; a level file already there is not encoded again, so a recompile pays the tails alone                                |
+| Argument            | Meaning                                                                                                                                                                                                                                                                                                                | Default  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `SOURCE`            | A source file or folder a driver recognises: a directory with `manifest.json`, a `.gltf`/`.glb`, a scene of one of the formats above, a container (`.usdz`, `.unitypackage`, `.zip`), or a directory of such files, merged into one scene. An unknown or ambiguous source is refused with the list of accepted formats | required |
+| `CACHE`             | Output directory, created if missing. It holds one pointer per scope and prunes itself after each compile, so one cache serves one source at a time; a second compilation of the same cache waits up to 30 s for the first, then is refused with `CACHE_LOCKED`                                                        | required |
+| scope               | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                                                                                                                                                                  | `slice`  |
+| triangles           | Triangle budget for `slice`; ignored by `full`                                                                                                                                                                                                                                                                         | `150000` |
+| threads             | Worker threads for clustering and simplification (1–64)                                                                                                                                                                                                                                                                | `2`      |
+| `RAM_MB`            | Admission budget: the job is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`) when its estimated working set exceeds it. This is a guard, not an enforced limit                                                                                                                                                               | `256`    |
+| `RESOURCE_BASE_URL` | URL prefix under which the host serves the **source** directory; relative image URIs are rewritten against it                                                                                                                                                                                                          | required |
+| simplification      | `none` keeps exact clusters only — one DAG level, every cluster a root; `qem-endpoints` builds the coarser levels above them                                                                                                                                                                                           | `none`   |
+| `--textures-format` | `--textures-format=bc7                                                                                                                                                                                                                                                                                                 | astc     | both | none`: the block family cooked beside the lossless levels, `bc7`by default (a cook runs on a desktop),`none`lossless only; kept under the quality gate of [FORMAT.md](FORMAT.md), _Textures_. The encode and its read-back are the option's whole cost, on the job's thread pool, block rows in parallel: Emerald from an empty cache, 8 threads, 17.9 / 18.8 s wall without a family (two runs), 26.1 / 25.9 s`bc7`, 31.4 / 39.0 s `astc`; a level file already there is not encoded again, so a recompile pays the tails alone |
 
 Examples:
 
 ```sh
-web-geometry-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
-web-geometry-compiler scenes/london cache/london full 150000 8 8192 /assets/london/ qem-endpoints   # a folder of FBX files
-web-geometry-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/emerald/ qem-endpoints # a glTF folder with manifest.json
+trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
+trillion3d-compiler scenes/london cache/london full 150000 8 8192 /assets/london/ qem-endpoints   # a folder of FBX files
+trillion3d-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/emerald/ qem-endpoints # a glTF folder with manifest.json
 ```
 
 `simplification` says what the cluster DAG is allowed to hold, not how fast it is built. In `none` the DAG stops at level 0: its clusters partition the source triangles exactly, nothing replaces them, every cluster is a root, and `"simplification": false` in the manifest means precisely that no cluster carries a surface the source does not have. In `qem-endpoints` each level groups 8 to 32 clusters, simplifies the group with its border locked and re-splits the result; the level-0 partition is the same in both modes.
+
+### The corpus
+
+The DAG builder is proved on a generated corpus, `packages/asset-compiler-rust/src/tests/corpus/`. A case is a function of a seed: its shape, its texture layout and its parameters are drawn from that seed, nothing is hand-picked, and no file is read from disk. Five families say what a mesh can be — `uv` (where the seams of an artist's charts fall, including a second texture set with seams of its own, sampled or read by no material), `attributes` (normals, vertex colours, tangents, present or absent), `topology` (closed, open, non-manifold, T-junctions, degenerate and sliver triangles, meshes smaller than one cluster and larger than one level), `materials` (several slots, masked, blended, double-sided) and `inputs` (how the document is written: `u8`, `u16`, `u32` and unindexed triangles, sparse positions, quantized positions, and scenes at the millimetre, the metre and the kilometre).
+
+Every case is built on two seeds, and on each the corpus asserts the same set:
+
+- level 0 is the source partition — the same triangles, each exactly once;
+- every index of a coarse cluster names a vertex the source itself uses;
+- every LOD error is finite, and a cluster's error never exceeds its parent's;
+- no coarse triangle spans two texture islands of any set a material samples, so no texture slides between two islands; a seam whose two sides stay connected elsewhere, such as a wrap column, is one island and is not covered;
+- either the primitive reaches a single root, or every stalled group carries one of the causes the case accepts — a silent stall is a failure;
+- every cluster's page encodes and decodes back to its positions and attributes, within the error the page declares;
+- the compiled cache agrees with the DAG built in memory, root for root, and its `source.bin` is the source buffer byte for byte, view by view.
+
+A texture set no material samples stays out of the pages and out of the seam weld: `uv-second-set-unread` is `uv-second-set-with-own-seams` with its second set read by nobody, and it reaches one root; its compiled DAG is, page for page, the one the mesh compiles to without that set.
+
+A stalled group is named by experiment on the group itself, never by a threshold, and only once it has stalled: the builder reruns the reduction that stalled with one constraint lifted at a time, drops the result — the DAG is the one built without the reruns — and keeps the first cause that holds:
+
+| Cause            | The group…                                                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `too-small`      | holds fewer than two live triangles: nothing to halve                                                                                                               |
+| `border-locked`  | advances when rerun with no lock: the positions it shares with the neighbouring groups hold it                                                                      |
+| `seam-locked`    | still stalls with no lock, and advances with no lock on its position copies welded across the seams of every texture set the pages carry: its texture seams hold it |
+| `unreducible`    | advances under neither rerun: the surface itself resists the halving                                                                                                |
+| `border-lost`    | lost a shared position on every retry with added locks                                                                                                              |
+| `unusable-error` | received a non-finite error from the simplifier                                                                                                                     |
+
+A case the compiler cannot accept fails with its named error code, checked against the code the case expects: today `inputs-quantized-positions` is the only one, refused `INVALID_GLTF` ("POSITION must be float VEC3") because `KHR_mesh_quantization` is not read. A panic, a refusal under another code, or a flat DAG with no explanation is a failing case, never a tolerated one. Each case guarantees one outcome, on both seeds:
+
+| Case                            | Guaranteed outcome                                              |
+| ------------------------------- | --------------------------------------------------------------- |
+| `uv-one-island`                 | one root                                                        |
+| `uv-island-per-face`            | stall: `seam-locked`, or `border-locked` on one group of seed 1 |
+| `uv-island-per-brick`           | stall: `seam-locked`                                            |
+| `uv-atlas-of-islands`           | one root                                                        |
+| `uv-mirrored-halves`            | one root                                                        |
+| `uv-tiled-beyond-unit`          | one root                                                        |
+| `uv-second-set-with-own-seams`  | stall: `seam-locked`                                            |
+| `uv-second-set-unread`          | one root                                                        |
+| `uv-zero-area-triangles`        | one root                                                        |
+| `uv-all-at-one-point`           | one root                                                        |
+| `uv-none`                       | one root                                                        |
+| `attributes-hard-normals`       | one root                                                        |
+| `attributes-smooth-normals`     | one root                                                        |
+| `attributes-colour-steps`       | one root                                                        |
+| `attributes-tangents`           | one root                                                        |
+| `attributes-every-one`          | stall: `seam-locked`                                            |
+| `topology-closed-manifold`      | one root                                                        |
+| `topology-open-borders`         | one root                                                        |
+| `topology-non-manifold-edges`   | one root                                                        |
+| `topology-t-junctions`          | one root                                                        |
+| `topology-unwelded-duplicates`  | one root                                                        |
+| `topology-degenerate-triangles` | one root                                                        |
+| `topology-thin-strip`           | one root                                                        |
+| `topology-slats`                | one root                                                        |
+| `topology-smaller-than-cluster` | one root                                                        |
+| `topology-exactly-one-cluster`  | one root                                                        |
+| `topology-huge-flat-plane`      | one root                                                        |
+| `topology-high-curvature`       | one root                                                        |
+| `topology-slivers`              | one root                                                        |
+| `materials-several`             | one root                                                        |
+| `materials-alpha-masked`        | one root                                                        |
+| `materials-blended`             | one root                                                        |
+| `materials-double-sided`        | one root                                                        |
+| `inputs-indices-u8`             | one root                                                        |
+| `inputs-indices-u16`            | one root                                                        |
+| `inputs-indices-u32`            | one root                                                        |
+| `inputs-unindexed`              | one root                                                        |
+| `inputs-sparse-positions`       | one root                                                        |
+| `inputs-quantized-positions`    | refused: `INVALID_GLTF`                                         |
+| `inputs-large-offset`           | one root                                                        |
+| `inputs-millimetre-scale`       | one root                                                        |
+| `inputs-kilometre-scale`        | one root                                                        |
+
+Cases that stall record why in their own doc comment, from a property of the mesh. `uv-island-per-face`, `uv-island-per-brick`, `uv-second-set-with-own-seams` and `attributes-every-one` write every vertex as a seam corner of some texture set: lifting the locks frees nothing, welding the seams frees the groups. One group of `uv-island-per-face` on seed 1 — 2 072 triangles and 181 shared positions, the most of the case — advances with its locks lifted alone and is `border-locked`; the case accepts both causes and no other. `topology-high-curvature` stalled under meshoptimizer 0.22 on the seam positions left at its poles and wrap column; 0.25 slides past them and it climbs to one root.
+
+Run it with `cargo test --release corpus --manifest-path packages/asset-compiler-rust/Cargo.toml`: 42 cases, 5 families, two seeds each, under 4 s.
 
 A glTF document renders one scene (glTF 2.0 §3.5). The compiler takes the scene `scene` names, otherwise the first of `scenes`, and compiles only the nodes reachable from that scene's roots — node selection, the resident proxy and `lights.json` read that one set, so a mesh or a `KHR_lights_punctual` lamp that lives in another scene, or in none, is not compiled. A document with **no** `scenes` (or an empty one) names no scene at all: every root of the node hierarchy is compiled then, and `selectedNodes` says which nodes were kept. A `scene`, `scenes[].nodes` or `children` index outside the node table is refused (`INVALID_GLTF`), and so is a `children` chain that closes back on itself: the whole node table is checked for cycles before anything is published, whether or not the rendered scene reaches them, because the published document carries every node. A node with no parent that no scene names is not a cycle and stays accepted, uncompiled.
 
 ## The three streams
 
-The process talks through stdin, stdout and stderr only. There is no socket, no temporary protocol file, and the only environment variable it reads, `WG_CACHE_LOCK_WAIT_MS`, merely shortens the wait for a busy cache: milliseconds, `0` refusing at once with `CACHE_LOCKED`, anything unreadable ignored and the 30 s default kept.
+The process talks through stdin, stdout and stderr only. There is no socket, no temporary protocol file, and the only environment variable it reads, `TRILLION3D_CACHE_LOCK_WAIT_MS`, merely shortens the wait for a busy cache: milliseconds, `0` refusing at once with `CACHE_LOCKED`, anything unreadable ignored and the 30 s default kept.
 
 | Stream | Content                                            | Size                                    |
 | ------ | -------------------------------------------------- | --------------------------------------- |
@@ -70,16 +152,17 @@ The compiled manifest (`clusters.json`, hundreds of KB to MB) is **never** print
 
 Every stderr line is `{"event": <kind>, "job": <id>, ...}`. `accepted`, `progress` and `complete` also carry `ratio`, a whole-job completion estimate from 0 to 1 (source import up to 0.30, glTF import 0.35, clustering 0.35–0.95 spread over the primitives announced by the `import` event, root bundles 0.95–0.96, coplanar cuts 0.96–0.965, texture levels 0.965–0.97 one image per step, resident proxy 0.97, lights 0.98, prune 0.99, pointer 1), so a host can draw one bar without knowing the phases. It never goes backwards: a phase this table does not know keeps the last ratio announced, and a job importing several files does not restart its bar. For a single invocation the job id is `"job"`; in batch mode it is the id from the batch file; batch-level lines use `"*"`.
 
-| `event`     | When                                     | Extra fields                                                                        |
-| ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------- |
-| `batch`     | Once, first line of `--jobs`             | `jobs`, `workers`                                                                   |
-| `queued`    | Once per job in a batch, before any work | `source`                                                                            |
-| `accepted`  | A worker starts the job                  | `source`, `cache`, `scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` |
-| `progress`  | During the job                           | `phase` and phase-specific fields, see below                                        |
-| `complete`  | The job succeeded                        | `pointer` (same object as stdout), `ms`                                             |
-| `cancelled` | The job stopped on a cancel request      | `status:"error"`, `code:"CANCELLED"`, `message`, `ms`                               |
-| `error`     | The job failed                           | `status:"error"`, `code`, `message`, `ms`                                           |
-| `done`      | Once, last line of `--jobs`              | `completed`, `failed`, `cancelled`, `ms`                                            |
+| `event`     | When                                     | Extra fields                                                                                                                                                                                                                                                                                                            |
+| ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `batch`     | Once, first line of `--jobs`             | `jobs`, `workers`                                                                                                                                                                                                                                                                                                       |
+| `queued`    | Once per job in a batch, before any work | `source`                                                                                                                                                                                                                                                                                                                |
+| `accepted`  | A worker starts the job                  | `source`, `cache`, `scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification`                                                                                                                                                                                                                                     |
+| `progress`  | During the job                           | `phase` and phase-specific fields, see below                                                                                                                                                                                                                                                                            |
+| `stall`     | The job succeeded, before `complete`     | one line per primitive among the ten that left the most level-0 triangles as roots, over those with a stalled group: `rank`, `mesh`, `primitive`, `rootTriangles`, `cause`, `seamVertices`, `lockedVertices`, `uvIslands` (the primitive's `dag` fields, [FORMAT.md](FORMAT.md)); in batch mode too, under the job's id |
+| `complete`  | The job succeeded                        | `pointer` (same object as stdout), `ms`                                                                                                                                                                                                                                                                                 |
+| `cancelled` | The job stopped on a cancel request      | `status:"error"`, `code:"CANCELLED"`, `message`, `ms`                                                                                                                                                                                                                                                                   |
+| `error`     | The job failed                           | `status:"error"`, `code`, `message`, `ms`                                                                                                                                                                                                                                                                               |
+| `done`      | Once, last line of `--jobs`              | `completed`, `failed`, `cancelled`, `ms`                                                                                                                                                                                                                                                                                |
 
 Progress phases, in order:
 
@@ -87,7 +170,7 @@ Progress phases, in order:
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `import-source` | `step` = `parse` (`file`, `index`, `files`, `completed`, `total` in bytes) → `meshes` (`completed`, `total` in nodes) → `write` (`bytes`) → `complete` (`key`, `triangles`, `meshNodes`, `ms`), or `reused` (`key`) when a previous import is reused | FBX/OBJ only                                                                                                                                                                                                              |
 | `import`        | `completed`, `total`, `ms`, `primitives`, `nodes`                                                                                                                                                                                                    | glTF loaded and validated, source geometry written; `primitives` is the number of `primitive` events to expect                                                                                                            |
-| `primitive`     | `mesh`, `primitive`, `pages`                                                                                                                                                                                                                         | One primitive clustered and paged (order is not deterministic: primitives run in parallel)                                                                                                                                |
+| `primitive`     | `mesh`, `primitive`, `pages`; on a DAG primitive `timings` (elapsed ms of its own stages, each from the end of the one before: `dagMs`, `cullingMs`, `pagesMs`, `reportMs`), and `warnings` when it has any                                          | One primitive clustered and paged (order is not deterministic: primitives run in parallel)                                                                                                                                |
 | `bootstrap`     | `completed`, `total`                                                                                                                                                                                                                                 | Root bundles assembled                                                                                                                                                                                                    |
 | `textures`      | `completed`, `total`                                                                                                                                                                                                                                 | One source image decoded, its mip chain baked for every atlas that reads it, its levels written                                                                                                                           |
 | `cutouts`       | `pending`, `sheet`                                                                                                                                                                                                                                   | Cutout sheet written; `pending` counts the textures nobody has answered yet, `sheet` is where the answer sheet landed                                                                                                     |
@@ -144,14 +227,14 @@ Two parts of a manifest are deliberately **outside** that identity, at every lev
 
 The key names the product entirely, so a folder already under it holds the bytes the job would write again. Before the first primitive is clustered — once the source is routed, loaded and its key computed — the compiler looks for `<scope>/<key>/clusters.json`. Absent: it compiles. Present: it **proves** the folder, then keeps it as is and skips straight to the pointer and the prune. Every check is the one the compile path applies to what it keeps — a fingerprint for what it fingerprints, a presence for the level files it also trusts by name:
 
-| Checked                        | Against                                                                                                                                                                                                                                                                                                                                                            |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| The manifest head              | `status`, `key`, `scope` and `compilerVersion` of this job; a `formatVersion` this compiler writes. Another build's folder under the key is refused                                                                                                                                                                                                                |
-| `clusters.bin`                 | `binary.sha256` recorded in the manifest                                                                                                                                                                                                                                                                                                                           |
-| Every other product            | The `files` record of the manifest — `source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin` — by size and SHA-256; a manifest without the record is not proven                                                                                                                                                                         |
-| Every object the sidecar names | Its content-addressed name, hashed on the job's thread pool                                                                                                                                                                                                                                                                                                        |
+| Checked                        | Against                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The manifest head              | `status`, `key`, `scope` and `compilerVersion` of this job; a `formatVersion` this compiler writes. Another build's folder under the key is refused                                                                                                                                                                                                                                                                                                        |
+| `clusters.bin`                 | `binary.sha256` recorded in the manifest                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Every other product            | The `files` record of the manifest — `source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin` — by size and SHA-256; a manifest without the record is not proven                                                                                                                                                                                                                                            |
+| Every object the sidecar names | Its content-addressed name, hashed on the job's thread pool                                                                                                                                                                                                                                                                                                                                                                                                |
 | Every baked texture level      | Its presence under `textures/v<N>/<sha256>/` — the lossless file, and the block file of every family the entry's layout word keeps —, once per (image, atlas) whatever the number of textures reading it, as the compile path trusts a level it finds; a bake the compile could not finish (`texturePreviews.notes.texture-level-write-failed`, or fewer levels baked than the sidecar tail starts at) is refused, since a reuse would never bake it again |
-| The cutout answer sheet        | Its presence at the cache root (`decoupes.json`): every compilation writes it, and a host reads "nothing to answer" in its absence                                                                                                                                                                                                                                 |
+| The cutout answer sheet        | Its presence at the cache root (`decoupes.json`): every compilation writes it, and a host reads "nothing to answer" in its absence                                                                                                                                                                                                                                                                                                                         |
 
 The first failed check stops the proof: the `reuse` event names the reason (`completed: 0`), the job compiles as if the folder were absent and overwrites it whole. A proven folder yields `reused` on the pointer and a `reuse` event with `completed: 1`; the manifest on disk is not rewritten, so its `metrics` still describe the compile that produced it, and the cutout answer sheet, present by the proof, is not rewritten either — it already holds what that compile measured and what was answered since (an answer that changes the product changes the key, and compiles). The `files` record is written by every compile, so a folder written by a compiler without it is never reused: its key differs anyway, since the compiler's own sources enter the key.
 
@@ -168,14 +251,14 @@ Every reuse is under the recompile it was paired with; the proof is most of a re
 
 Every duration a job publishes belongs to that job alone: its counters are created with the compilation, adopted by the threads of its own pool, and read by nobody else. Two jobs of one batch — side by side or one after the other — never describe each other's work.
 
-| Field                             | Where                        | Meaning                                                                                                                                                                                                                                                                   |
-| --------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `metrics.importMs`                | manifest and pointer         | Source routed, loaded, validated, its geometry copied                                                                                                                                                                                                                     |
-| `metrics.clusterHierarchyPagesMs` | manifest and pointer         | Clustering, paging, coplanar cuts, resident proxy and lights                                                                                                                                                                                                              |
-| `metrics.compileMs`               | manifest                     | Wall time up to the moment the manifest is serialized — the last thing a file can know about itself                                                                                                                                                                       |
-| `metrics.pruneMs`                 | pointer                      | Wall time of the cache purge that follows publication                                                                                                                                                                                                                     |
+| Field                             | Where                        | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `metrics.importMs`                | manifest and pointer         | Source routed, loaded, validated, its geometry copied                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `metrics.clusterHierarchyPagesMs` | manifest and pointer         | Clustering, paging, coplanar cuts, resident proxy and lights                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `metrics.compileMs`               | manifest                     | Wall time up to the moment the manifest is serialized — the last thing a file can know about itself                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `metrics.pruneMs`                 | pointer                      | Wall time of the cache purge that follows publication                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `metrics.phaseElapsedMs`          | manifest                     | Elapsed time accumulated per phase, over every worker thread; the texture stage publishes `textureDecodeMs`, `textureBakeMs` (the chains, the block encodes and their read-back through the gate), `textureWriteMs` and `textureAlphaMs` — Emerald from an empty cache, 8 threads, `--textures-format=bc7`: 7,2 s, 72,0 s, 68,3 s and 0,6 s summed over the workers, inside 26,1 s of wall time; the same cook without a family (develop's compiler, same machine, same evening) read 6,7 s, 6,3 s, 64,2 s and 0,6 s inside 17,9 s — the write column is the PNG levels, paid once per image whichever family |
-| `metrics.wallMs`                  | pointer and `complete` event | Wall time of the whole job, taken once the manifest is written and the cache purged                                                                                                                                                                                       |
+| `metrics.wallMs`                  | pointer and `complete` event | Wall time of the whole job, taken once the manifest is written and the cache purged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 `clusters.json` is written before the purge, so it carries `compileMs`, never `wallMs`: a file cannot hold a duration measured after it was written. The pointer on stdout and the `complete` event carry `wallMs` and `pruneMs`; `wallMs` is therefore at least `compileMs + pruneMs`; it bounds a single phase only when one thread did the work.
 
@@ -322,6 +405,124 @@ ring with corners within rounding of collinear could in principle be read convex
 otherwise by the ears. What it saves is the scan of the living corners per triangle: a convex
 polygon of `n` corners cost `n²` corner tests and now costs `n`.
 
+## Input formats
+
+Fidelity rule: no loss is added without a bound. A texture received lossless keeps its lossless levels in the cache; the block-compressed family cooked beside them is kept only where the quality gate of [FORMAT.md](FORMAT.md#textures) holds its loss under a declared, measured bound; a texture received already compressed for the GPU keeps its compressed format when the machine supports it, and is decoded only as a fallback.
+
+Goal: a single Rust executable accepting whatever marketplaces deliver (FAB, Unity Asset Store, Quixel, Sketchfab) without third-party tools. Fidelity first: no lossy format is re-encoded, sources are never modified.
+
+Legal policy: no proprietary format, unless established legal reading. This page is not legal advice; verdicts come from documentary analysis (Directive 2009/24/EC art. 1, 5 § 3, 6; CJEU SAS Institute C‑406/10; 17 USC § 102(b); SAS v. WPL, 4th Cir. 2017 on contract scope). Repository rules: reader written from public specifications or permissive libraries whose license is respected, never any editor code or SDK reused, never any protection bypass, provenance of each reader documented, redistributable test suites.
+
+### Architecture: one driver per format
+
+The compiler knows no format. It routes each source to a driver (interpretation plugin) registered in a static registry, on the model of a device driver:
+
+- **one driver per format, without exception, including existing ones**: `gltf`, `fbx`, `obj` for scenes; `png`, `jpeg` for images; then `tga`, `tiff`, `dds`, `exr`, `hdr`, `ktx2`, `webp`, `psd`, `bmp`, `gif`, `zip`, `unitypackage`, `unity`, `usd`, `alembic`, `blend`, `ma`;
+- each driver is a Rust module with its name, version, detection (extension, magic number, folder structure), named report and minimal golden test; two drivers can share an internal library (ufbx for `fbx` and `obj`, the `image` crate for images) but remain two entries in the registry;
+- adding or removing a format = adding or removing a module and a registry line, without touching core or CLI;
+- two versioned contracts: scene driver (produces glTF intermediate scene + bin + report) and image driver (produces RGBA8, or RGBA linear float for EXR and HDR); driver and contract versions enter the cache identity;
+- selected driver (name, version) is recorded in the manifest and report for provenance;
+- an unknown or ambiguous source is rejected with the list of accepted formats, never interpreted by default;
+- instructions for writing a driver are in [Adding a format](#adding-a-format).
+
+### Safe
+
+| Format                   | Base                                                     | State | Path                                                                                                                                                                                                                                                                                                                                          | Priority |
+| ------------------------ | -------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| glTF / GLB               | Khronos standard                                         | done  | —                                                                                                                                                                                                                                                                                                                                             | —        |
+| OBJ / MTL                | published specification                                  | done  | MTL read and audited (golden [`tests/fixtures/formats/obj`](../tests/fixtures/formats/README.md#obj)). Dependency limit: ufbx stores `Tr` and `illum` as raw properties without ever interpreting them — transparency written `Tr` instead of `d` does not output, and illumination model is ignored                                          | P2       |
+| PNG, classic JPEG        | standards                                                | done  | —                                                                                                                                                                                                                                                                                                                                             | —        |
+| TGA                      | published specification                                  | done  | —                                                                                                                                                                                                                                                                                                                                             | —        |
+| TIFF (declared profiles) | published specification                                  | done  | —                                                                                                                                                                                                                                                                                                                                             | —        |
+| OpenEXR, Radiance HDR    | documented, BSD-3                                        | done  | `exr` crate 1.74.2 for OpenEXR; HDR written here from spec, without crate                                                                                                                                                                                                                                                                     | —        |
+| USD / USDZ               | public AOUSD, OpenUSD under TOST 1.0                     | done  | `openusd` crate 0.7.0 (MIT, pure Rust, no C++); `usd` renders Xform/Scope, triangulated Mesh, GeomSubset → materials, instances, UsdPreviewSurface and UsdUVTexture, `metersPerUnit`/`upAxis` on root, first time sample; `usdz` is stored and aligned ZIP container. Subdivision, PointInstancer, curves, volumes and skel counted in report | —        |
+| Alembic                  | open, BSD-3                                              | done  | static geometry only; Ogawa reader written here from spec, without crate                                                                                                                                                                                                                                                                      | —        |
+| `.blend`                 | documented SDNA; reading a .blend does not impose GPL    | done  | SDNA reader written here; meshes, UVs, instances, Principled BSDF                                                                                                                                                                                                                                                                             | —        |
+| PSD / PSB                | specification published by Adobe for third-party readers | done  | flattened composite only, to RGBA8; reader written here from spec, without crate; RGB and 8-bit grayscale, raw or PackBits, PSD and PSB                                                                                                                                                                                                       | P3       |
+| BMP, GIF                 | open                                                     | done  | `image` features; lossless only — BMP masks with >8 bits per channel and animated GIF rejected by name                                                                                                                                                                                                                                        | P3       |
+| ZIP                      | open                                                     | done  | —                                                                                                                                                                                                                                                                                                                                             | —        |
+
+### Conditionally Safe — condition written in code
+
+| Format                                     | Condition                                                                    | State | Path                                                                                                                                                                                                                                                                                                                                                                   | Priority |
+| ------------------------------------------ | ---------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| FBX                                        | MIT ufbx, frozen version, notices kept, never Autodesk SDK                   | done  | —                                                                                                                                                                                                                                                                                                                                                                      | —        |
+| Unity `.unity`, `.prefab`, `.mat`, `.meta` | YAML subset documented by Unity; data only, never Unity scripts or code      | done  | —                                                                                                                                                                                                                                                                                                                                                                      | —        |
+| `.unitypackage`                            | tar.gz archive; each file retains its license                                | done  | —                                                                                                                                                                                                                                                                                                                                                                      | —        |
+| DDS                                        | container documented by Microsoft; codecs declared one by one                | done  | —                                                                                                                                                                                                                                                                                                                                                                      | —        |
+| KTX2, Basis Universal                      | Khronos; `basisu` Apache-2; codecs listed one by one                         | done  | KTX2 only; ETC1S/BasisLZ and UASTC LDR by `basisu`, Zstandard by `ruzstd`, uncompressed R8G8B8A8, BC1–BC5, BC7, ETC2, EAC, ASTC 4×4; KTX 1.0 no                                                                                                                                                                                                                        | —        |
+| WebP                                       | public specification; pure Rust decoder `image-webp`, libwebp patent license | done  | lossless only, lossy stream and animation rejected by name                                                                                                                                                                                                                                                                                                             | —        |
+| Maya ASCII `.ma`                           | documented format; data only, no script executed                             | done  | reader written here from public MEL command docs, without crate; subset `createNode`, `setAttr`, `connectAttr`, `currentUnit`, `parent`; `transform`, `mesh`, `lambert`/`phong`/`blinn`/`standardSurface`, `file`/`place2dTexture`/`bump2d`, `shadingEngine` by face groups. Any other command — `python`, `eval`, `source`, unknown — counted by name, never executed | —        |
+
+### To Avoid — No Native Import
+
+`.uasset` / `.umap`, `.max`, `.mb` (binary), native SpeedTree, Substance `.sbsar`, CAD (`.step`, `.3dm`), point clouds, HEIC. Request export in one of listed formats.
+
+### Content Licenses — Independent of Format
+
+- FAB Standard License: use with other tools and engines permitted, standalone asset redistribution prohibited; historical licenses apply for some items, keep purchase EULA.
+- Quixel Megascans under Epic Engine plan: restricted to Epic Engine, unusable in Trillion3D.
+- Unity Asset Store: use in other engines permitted, but not a product whose purpose is raw asset distribution; model library distributor is not a finished game.
+- Sketchfab: per-download license (CC-BY requires attribution and change notice).
+- Demos and public repo tests: assets with full rights owned or under redistributable license.
+
+## Adding a format
+
+Paths below are relative to `packages/asset-compiler-rust/`. The compiler knows no input format. It knows **drivers**: one per format, each in its module, all listed in a static registry. Adding a format means adding a module and a line; removing a format means removing both. Core does not change.
+
+What the driver must produce is always the same: the **intermediate scene**, a glTF 2.0 and its binary, which `compile` alone knows how to read. Images follow the same model, toward RGBA8 or, for high dynamic range formats, toward RGBA linear float.
+
+The policy — which formats are admitted, which are rejected, under what conditions and under what license — is in [Input formats](#input-formats).
+It takes precedence over this section: a driver outside this list will not be merged.
+
+### A Scene Driver
+
+1. A module in `src/plugins/scene/<format>.rs`, named after the format, never after the library reading it. Two formats read by the same library remain two drivers, two names, two versions; shared code goes in a neighboring module, like `ufbx_driver.rs` for FBX and OBJ.
+2. `impl Plugin`: `name` (the format in lowercase), `version` (changing it invalidates caches, it names the library and its version), `extensions` (lowercase, without leading dot).
+3. `impl ScenePlugin`: `accepts_head` recognizes the format header — `false` for a text format without one —, `prepare` returns `PreparedScene::InPlace` for direct input or `request.converted(directory)` for what the driver wrote into `request.cache`.
+4. One line in `scene::PLUGINS`.
+
+A **project** driver — `unity` being the first — additionally claims an entire folder via `project_inputs` and then takes precedence over file drivers found underneath, whose files become its inputs rather than competing sources; two projects for the same folder remain ambiguous.
+
+`prepare` receives all files from the folder claimed by this driver: it decides whether to accept one or several, and rejects with `SOURCE_FORMAT_AMBIGUOUS` when it only wants one.
+It checks `request.cancelled` at each bounded work boundary, publishes its progress via `request.progress`, and never writes alongside the source — only under `request.cache`.
+
+Filling glTF tables (nodes, meshes, materials, accessors, images) is shared in `src/import/tables.rs` (`SceneTables`); emitting a primitive from deduplicated vertices is shared in `src/import/primitive.rs` (`Vertices`). A driver building its geometry uses these two modules rather than rewriting its own table filling.
+
+Images do not follow the scene into the cache: they stay where the driver read them. The root where relative image URIs resolve is therefore `scene::image_root(request.source)` — the source folder, or the extracted folder for a container —, and `request.converted` attaches it to the converted scene so the compiler re-reads the same bytes. A driver resolving an image calls this function; it does not write a second version.
+
+### A Container Driver
+
+An archive is not a scene: it is a container for a source. A container is an ordinary scene driver — `zip` being the first — that extracts under `request.cache`, traverses a single root folder, then **routes the extracted folder through the router** and returns what the selected scene driver returns. The router's rules apply as-is: unknown or ambiguous means rejection.
+
+What does not depend on the archive format lives in `scene/archive.rs` — named ceilings (entries and uncompressed bytes), rejection of output outside extraction folder, extraction key, composition with the router. ZIP reading itself is shared in `scene/archive/zip_reader.rs`, used by `zip` and `usdz` (an uncompressed, aligned ZIP). A second container adds its reading module, not a second version of all this.
+Protections are non-negotiable: no absolute paths or `..`, no symlinks followed, no encrypted archives opened, and a named rejection — never half an extraction.
+
+### An Image Driver
+
+1. A module in `src/plugins/image/<format>.rs`, same naming rule.
+2. `impl Plugin`, then `impl ImageDecoder`: `mime`, `accepts_head` (the format's magic number) and `decode`, which returns `DecodedImage` under the received allocation ceiling.
+3. One line in `image::DECODERS`.
+
+An impossible decode returns a report reason — a stable string like `image-decode-failed` — never a compilation error: an unreadable texture lets the engine fall back to its default white.
+The decoder never returns an empty image and never panics.
+
+`DecodedImage` has two variants since `image-plugin-2`: `Rgba8`, and `RgbaF32` for high dynamic range formats. **A driver never converts one to the other**: bringing float down to 8-bit requires tone mapping, i.e., loss that the source did not have. The consumer decides via a `match` and a named reason — `image-float-unsupported` for previews, which are RGBA8 sRGB. A float driver checks the allocation ceiling at **sixteen bytes per pixel** before allocating, via `float_budget`, and the rejection carries its own format name.
+
+### What to Provide With It
+
+- **A minimal golden fixture**: the smallest file of the format owned or redistributable, under [`tests/fixtures/formats/`](../tests/fixtures/formats/README.md), with its `expected.json`, compiled by the shared harness (`src/tests/golden.rs`) — never by a custom harness. `GoldenRun::prepared_dir` finds a driver's prepared directory and `scene_digest` extracts the comparable triplet for `expected.json`; use these rather than re-reading produced files yourself.
+- **One test per driver behavior**: what it recognizes, what it rejects, what it reports. Router and registry tests already exist: do not duplicate them per format. To read a decode result, use `rgba8()` or `rgba_f32()` from `src/plugins/tests.rs` — never an irrefutable `let` on a `DecodedImage` variant: the contract has two outputs, and a test assuming one must state so via a call that panics on the other.
+- **Provenance**: where the spec comes from, which library, which license. Place it in the module header and commit message.
+
+### Forbidden
+
+- Reusing code or an editor SDK, even if available: reader written from public specification or permissive library whose license is respected and preserved.
+- Bypassing encryption, protection or license check of a format.
+- Re-encoding a lossy source, modifying or writing alongside original files.
+- Placing anything format-specific in `main.rs`, `cli_batch.rs` or `compiler_args.rs`: the CLI is thin, naming no format.
+- Adding an empty driver "for later": a format without a reader has no module.
+
 ## Cache layout
 
 Written by a job, all under `<CACHE>/native/`:
@@ -333,7 +534,7 @@ Written by a job, all under `<CACHE>/native/`:
 | `<scope>/<key>/source.gltf` + `source.bin`     | Source glTF rewritten to a single aligned buffer, image URIs rewritten under `RESOURCE_BASE_URL`                                                                                                                                                                                                               |
 | `<scope>/<key>/scene.gltf` + `scene.bin`       | Autonomous scene for the prepared-page backends (materials, no source geometry); written only when every primitive is exact and the source declares no animation, skinning or morph weights, otherwise `autonomousScene` is `null` and `autonomous-scene-animated` says why                                    |
 | `textures/v<N>/<sha256>/<kind>-<level>.png`    | Baked mip levels above the sidecar's tail, one lossless PNG per level, addressed by the SHA-256 of the source image and the atlas (`srgb`, `linear`); shared across keys and scopes, never rewritten once present, pruned with the objects; `v<N>` is the reduction rule's version, see [FORMAT.md](FORMAT.md) |
-| `objects/<sha256>.bin`                         | Content-addressed index pages, quantized cluster pages (`WGP3`, see [FORMAT.md](FORMAT.md)) and streaming bundles, shared across keys and scopes                                                                                                                                                              |
+| `objects/<sha256>.bin`                         | Content-addressed index pages, quantized cluster pages (`WGP3`, see [FORMAT.md](FORMAT.md)) and streaming bundles, shared across keys and scopes                                                                                                                                                               |
 | `imports/<import-key>/`                        | FBX/OBJ import (above)                                                                                                                                                                                                                                                                                         |
 | `<scope>/<key>/lights.json`                    | Scene lights in the engine's `SceneLight` contract, a cache product of its own (below)                                                                                                                                                                                                                         |
 | `<scope>/<key>/scene-tables.json`              | Node and material tables of the prepared scene, a cache product of its own, read from the `source.gltf` this same job publishes and checked by the runtime against the scene it builds ([FORMAT.md](FORMAT.md#prepared-scene-tables))                                                                          |
@@ -388,7 +589,7 @@ is byte-identical to before.
 **The compiler draws nothing.** It publishes what is pending — in the manifest and in a `cutouts`
 progress event — and whoever called it presents the question: a terminal asks it, an application
 shows it in its own panel, and a log or an automated chain is asked nothing at all. `reviewCutouts`
-in `web-geometry` on Node is the terminal side of that: it gathers the pending textures of a whole
+in `trillion3d` on Node is the terminal side of that: it gathers the pending textures of a whole
 batch (a single import is a batch of one), shows each one — a real picture where the terminal has an
 image protocol, a mosaic of half-blocks where it has none, plus a link to the full-resolution
 texture — takes one keypress per texture, writes the answers into every sheet that knows the image,
@@ -646,10 +847,10 @@ A Unity scene also carries the report of the driver that read each model it refe
 
 ## Using it from Node
 
-`web-geometry` resolves to a thin Node relay over the executable ([`packages/sdk-node/index.mts`](../packages/sdk-node/index.mts)):
+`trillion3d` resolves to a thin Node relay over the executable ([`packages/sdk-node/src/index.mts`](../packages/sdk-node/src/index.mts)):
 
 ```ts
-import { prepare, prepareMany, type CompilationResult, type PrepareOptions } from 'web-geometry';
+import { prepare, prepareMany, type CompilationResult, type PrepareOptions } from 'trillion3d';
 
 // One model: events → onProgress, pointer read from stdout, manifest read back from disk.
 const options: PrepareOptions = {
@@ -675,7 +876,7 @@ const summary = await prepareMany(jobs, { workers: 4, ramBudgetMb: 32768, thread
 summary.jobs[0].pointer; // pointers only; nothing is read from disk
 ```
 
-Terminal display comes with the adapter: `createTerminalProgress({label, index, total})` returns an object whose `event` method accepts every compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, or one plain line per phase change elsewhere; `createBatchProgress()` does the same per job for `prepareMany({onEvent})`. `progress.note(text)` shows a host-side step (a copy, a manifest check) on the same line before the compiler starts. The `web-geometry-compile` CLI uses it on a TTY and prints raw JSON events on a pipe (`WEB_GEOMETRY_RAW_EVENTS=1` forces raw events).
+Terminal display comes with the adapter: `createTerminalProgress({label, index, total})` returns an object whose `event` method accepts every compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, or one plain line per phase change elsewhere; `createBatchProgress()` does the same per job for `prepareMany({onEvent})`. `progress.note(text)` shows a host-side step (a copy, a manifest check) on the same line before the compiler starts. The `trillion3d-compile` CLI uses it on a TTY and prints raw JSON events on a pipe (`TRILLION3D_RAW_EVENTS=1` forces raw events).
 
 ```js
 const progress = createTerminalProgress({ label: 'city', index: 0, total: 8 });
@@ -684,8 +885,8 @@ await prepare(source, cache, 'full', 150000, { resourceBaseUrl, onProgress: prog
 // ✔ 1/8 city 1,132,930 triangles, 412 primitives, 3395 ms 4.1s
 ```
 
-The executable is found at `packages/asset-compiler-rust/target/release/`, or through `options.executable`, or `WEB_GEOMETRY_COMPILER_BIN`. Node never buffers a manifest: its memory stays flat (about 90 MB RSS) whatever the model size.
+The executable is found at `packages/asset-compiler-rust/target/release/`, or through `options.executable`, or `TRILLION3D_COMPILER_BIN`. Node never buffers a manifest: its memory stays flat (about 90 MB RSS) whatever the model size.
 
 ## Using it from any other host
 
-Spawn the executable, read stderr line by line, read stdout once at exit, write a cancel line on stdin when the user asks. That is the whole contract; it is the same on macOS, Linux and Windows. A host that prefers a library can call `web_geometry_compiler::compile(&Options, progress)` from Rust directly (`main.rs` is 100 lines over it); an N-API or WebAssembly binding is not provided (`unsupported: "N-API binding"`).
+Spawn the executable, read stderr line by line, read stdout once at exit, write a cancel line on stdin when the user asks. That is the whole contract; it is the same on macOS, Linux and Windows. A host that prefers a library can call `trillion3d_compiler::compile(&Options, progress)` from Rust directly (`main.rs` is 100 lines over it); an N-API or WebAssembly binding is not provided (`unsupported: "N-API binding"`).

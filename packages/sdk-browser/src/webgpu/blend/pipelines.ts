@@ -1,0 +1,105 @@
+import { BLEND_SHADER } from './shader.ts';
+import { FEEDBACK_FORMAT } from '../../scene/surfaceBuffer.ts';
+import { BLEND_VIEW_SIZE } from './uniforms.ts';
+import type { BlendGpuItem } from './state.ts';
+import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
+import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
+import { ALPHA_BLEND, blendStagePipelines } from './stagePipelines.ts';
+import { createWaterPass, type WaterPass } from '../water/pass.ts';
+import {
+  blendVariantPipeline,
+  DIAGNOSTIC_BLEND_WGSL,
+  type DiagnosticGpuVariant,
+} from '../../diagnostic/gpuVariant.ts';
+
+/** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
+ *  that transmits. */
+export async function createWebgpuBlendPipelines(
+  device: GPUDevice,
+  items: BlendGpuItem[],
+  variant?: DiagnosticGpuVariant,
+) {
+  const b = BLEND_BINDINGS;
+  // Without a variant, the module and the targets are exactly those of before: production compiles
+  // no diagnostic stage and has no write mask of its own.
+  const { entryPoint, writeMask } = blendVariantPipeline(variant);
+  const blendBindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      { binding: b.indices, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.positions, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.uvs, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      {
+        binding: b.uniform,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform', minBindingSize: BLEND_VIEW_SIZE },
+      },
+      // Each item's record, read at the rank the vertex index carries: it is what replaces the
+      // dynamic uniform offset, and therefore the bind group per draw.
+      { binding: b.items, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      ...atlasLayoutEntries(b.color),
+      { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
+      ...atlasLayoutEntries(b.data),
+      { binding: b.normals, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.directLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.clusterDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.planInstances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.clusterSpans, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.shadowSlices, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      {
+        binding: b.shadowAtlas,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'depth' },
+      },
+      {
+        binding: b.shadowSampler,
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: { type: 'comparison' },
+      },
+      { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.tileLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      // Resident proxy of the far sun shadow: **read-only**, and that is the condition of early
+      // depth rejection for the whole pass. A binding writable from the fragment stage forces the
+      // GPU to shade every fragment before testing it, side effect and all — here 4232 fragment
+      // draws fully hidden behind opaque. The shadow ray is the same; only the two census counters
+      // stay with deferred resolve, which can write. It is the eighth and last storage binding of
+      // this fragment stage, the one the spec still guarantees.
+      { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+    ],
+  });
+  // The water pass exists for a scene that transmits, outside any diagnostic variant: under one,
+  // the transmission slice draws as one more blend, so the variant measures the same fragment
+  // stage on all of it. Its surface stage is compiled into the blend module only then.
+  const wantsWater = !variant && items.some((item) => item.transmissive);
+  const blendModule = device.createShaderModule({
+    code:
+      BLEND_SHADER +
+      (wantsWater ? WATER_SURFACE_WGSL : '') +
+      (variant ? DIAGNOSTIC_BLEND_WGSL : ''),
+  });
+  const blendPipelines = await blendStagePipelines(
+    device,
+    blendModule,
+    blendBindGroupLayout,
+    {
+      module: blendModule,
+      entryPoint,
+      targets: [
+        { format: 'rgba16float', writeMask, blend: ALPHA_BLEND },
+        // Tile rank the pixel requests from the virtual textures: an integer target, without blend,
+        // that reduction rereads after the pass.
+        { format: FEEDBACK_FORMAT },
+      ],
+    },
+    false,
+  );
+  // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.
+  let water: WaterPass | undefined, waterRefused: Error | undefined;
+  if (wantsWater)
+    try {
+      water = await createWaterPass(device, blendModule, blendBindGroupLayout);
+    } catch (error) {
+      waterRefused = error instanceof Error ? error : new Error(String(error));
+    }
+  return { blendBindGroupLayout, blendPipelines, water, waterRefused };
+}

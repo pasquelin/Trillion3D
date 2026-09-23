@@ -36,7 +36,7 @@ impl AtlasKind {
 /// RGBA8, at `preview_level_size` dimensions.
 ///
 /// The rule is the one the engine applied on the GPU by regenerating the chain
-/// after full resolution (`packages/sdk-browser/textureMips.ts`), reproduced here
+/// after full resolution (`packages/sdk-browser/src/texture/mips.ts`), reproduced here
 /// so baking levels instead of regenerating them does not change the image: each
 /// level is computed from the PREVIOUS level already quantised to bytes, never
 /// from a kept float; colours are the mean of the four texels, decoded then

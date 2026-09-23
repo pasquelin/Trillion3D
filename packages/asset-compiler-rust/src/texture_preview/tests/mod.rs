@@ -16,7 +16,7 @@ mod median_alpha;
 /// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
 pub(super) fn temp_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "wg-texture-preview-{tag}-{}-{}",
+        "trillion3d-texture-preview-{tag}-{}-{}",
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)

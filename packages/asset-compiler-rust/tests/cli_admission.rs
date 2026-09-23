@@ -14,7 +14,7 @@ use std::{
 fn run_batch(root: &Path, spec: Value) -> (Vec<Value>, Value) {
     let path = root.join("jobs.json");
     fs::write(&path, spec.to_string()).expect("spec");
-    let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
+    let output = Command::new(env!("CARGO_BIN_EXE_trillion3d-compiler"))
         .args(["--jobs", path.to_str().expect("path")])
         .stdin(Stdio::null())
         .output()
@@ -38,7 +38,7 @@ fn accepted_shares(events: &[Value]) -> Vec<u64> {
 // Behavior: two concurrent jobs allocated 64 MiB under a total budget of 64 MiB equals 128 MiB total.
 // The batch must reduce its concurrency — one job at a time — rather than granting twice the total.
 #[test]
-fn a15_la_concurrence_admise_tient_dans_le_budget_total() {
+fn a15_admitted_concurrency_fits_the_total_budget() {
     let (root, obj, cache) = fixture("admission-total");
     let (events, summary) = run_batch(
         &root,
@@ -65,7 +65,7 @@ fn a15_la_concurrence_admise_tient_dans_le_budget_total() {
 // Behavior: a job requiring more than the batch budget by itself can never fit.
 // The batch is refused before the first job, and refusal names the job and both figures.
 #[test]
-fn a15_un_travail_plus_gourmand_que_le_lot_est_refuse() {
+fn a15_a_job_hungrier_than_the_batch_is_refused() {
     let (root, obj, cache) = fixture("admission-travail");
     let (_, summary) = run_batch(
         &root,

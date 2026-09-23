@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dashed lines</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #05060c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #359: `material.lineDashed` cuts its line into `dashSize` dashes and `gapSize`
+      // gaps, measured along the line; until then every orbit draws solid.
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#05060c');
+
+      // A small solar system: each planet on a tilted circle, the circle drawn dashed, and a comet
+      // on a long ellipse whose path is dashed in its own colour.
+      const PLANETS = [
+        { radius: 2.2, size: 0.14, colour: '#c9b59a', period: 4, tilt: 0.05 },
+        { radius: 3.3, size: 0.24, colour: '#e8c27a', period: 7, tilt: -0.08 },
+        { radius: 4.6, size: 0.26, colour: '#4f8fe8', period: 11, tilt: 0.03 },
+        { radius: 5.9, size: 0.18, colour: '#d8653a', period: 17, tilt: 0.1 },
+        { radius: 8.2, size: 0.6, colour: '#e0b98a', period: 30, tilt: -0.04 },
+        { radius: 10.6, size: 0.5, colour: '#d9cf9f', period: 44, tilt: 0.07 },
+      ];
+      const ORBIT_POINTS = 256;
+      const circle = (radius, tilt) => {
+        const points = new Float32Array(ORBIT_POINTS * 3);
+        for (let k = 0; k < ORBIT_POINTS; k++) {
+          const angle = (k / ORBIT_POINTS) * Math.PI * 2;
+          points.set([Math.cos(angle) * radius, Math.sin(angle) * radius * Math.sin(tilt), Math.sin(angle) * radius * Math.cos(tilt)], k * 3);
+        }
+        return geometry.createBuffer({ position: buffer.float32(points, 3) });
+      };
+      // The comet: an ellipse with the sun at one focus, eccentricity 0.8, tilted out of the plane.
+      const COMET = { a: 8, e: 0.8, tilt: 0.45, period: 26 };
+      const cometAt = (angle) => {
+        const r = (COMET.a * (1 - COMET.e ** 2)) / (1 + COMET.e * Math.cos(angle));
+        return [Math.cos(angle) * r, Math.sin(angle) * r * Math.sin(COMET.tilt), Math.sin(angle) * r * Math.cos(COMET.tilt)];
+      };
+      const cometPath = new Float32Array(ORBIT_POINTS * 3);
+      for (let k = 0; k < ORBIT_POINTS; k++) cometPath.set(cometAt((k / ORBIT_POINTS) * Math.PI * 2), k * 3);
+
+      // Two inks for the orbits, two for the comet: dashed, and solid to compare. Every line is in
+      // the scene from the start; a control only chooses which ink it wears.
+      const inks = {
+        dashed: material.lineDashed({ color: '#8fa6d8', dashSize: 0.3, gapSize: 0.2 }),
+        solid: material.line({ color: '#8fa6d8' }),
+      };
+      const cometInks = {
+        dashed: material.lineDashed({ color: '#7ff0ff', dashSize: 0.15, gapSize: 0.25 }),
+        solid: material.line({ color: '#7ff0ff' }),
+      };
+      const orbits = PLANETS.map(({ radius, tilt }) => {
+        const orbit = object.lineLoop(circle(radius, tilt), inks.dashed);
+        world.scene.add(orbit);
+        return orbit;
+      });
+      const cometOrbit = object.lineLoop(geometry.createBuffer({ position: buffer.float32(cometPath, 3) }), cometInks.dashed);
+      world.scene.add(cometOrbit);
+
+      const ball = geometry.sphere(1, 48, 24);
+      const planets = PLANETS.map(({ size, colour }) => {
+        const planet = object.mesh(ball, material.meshStandard({ color: colour, roughness: 0.7 }));
+        planet.scale.setScalar(size);
+        world.scene.add(planet);
+        return planet;
+      });
+      const comet = object.mesh(geometry.sphere(0.08, 16, 8), material.meshBasic({ color: '#e8ffff' }));
+      const sun = object.mesh(geometry.sphere(0.9, 64, 32), material.meshStandard({ color: '#000000', emissive: '#ffb347', emissiveIntensity: 4 }));
+      world.scene.add(comet, sun, light.point({ color: '#fff0d8', intensity: 90, distance: 40 }), light.ambient({ color: '#3a4460', intensity: 0.25 }));
+
+      world.camera.position.set(0, 7.5, 15);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.target.set(0, 0, 0);
+      world.controls.minDistance = 5;
+      world.controls.maxDistance = 40;
+      world.controls.maxPolarAngle = Math.PI / 2 + 0.3;
+
+      // The dash and the gap are lengths along the line, in metres: the same on the small orbits
+      // and on the large ones, so a large orbit holds more dashes.
+      const count = (values) => String(Math.round((2 * Math.PI * PLANETS[2].radius) / (values.dash + values.gap)));
+      let dashes = null;
+      const ui = controls({
+        mouse: 'Drag to turn around the sun; change the dash and the gap and every orbit follows',
+        lines: ['dashed', 'solid'],
+        dash: [0.05, 1.5, 0.3, 0.05],
+        gap: [0.05, 1.5, 0.2, 0.05],
+        spin: true,
+      }, (values, key) => {
+        if (key === undefined || key === 'lines') {
+          for (const orbit of orbits) orbit.material = inks[values.lines];
+          cometOrbit.material = cometInks[values.lines];
+        }
+        if (key === undefined || key === 'dash' || key === 'gap') {
+          inks.dashed.dashSize = values.dash;
+          inks.dashed.gapSize = values.gap;
+          cometInks.dashed.dashSize = values.dash / 2;
+          cometInks.dashed.gapSize = values.gap;
+          dashes?.(count(values));
+        }
+        world.invalidate();
+      }, world);
+      dashes = readout('dashesBluePlanetOrbit');
+      dashes(count(ui));
+
+      // The planets run their circles, Kepler's comet speeds up near the sun.
+      let time = 0;
+      const place = () => {
+        PLANETS.forEach(({ radius, tilt, period }, k) => {
+          const angle = (time / period) * Math.PI * 2 + k;
+          planets[k].position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * Math.sin(tilt), Math.sin(angle) * radius * Math.cos(tilt));
+          planets[k].rotation.y = time * 0.8;
+        });
+        // The comet's angle from its mean anomaly (Kepler's equation, a few Newton steps).
+        const mean = (time / COMET.period) * Math.PI * 2;
+        let eccentric = mean;
+        for (let step = 0; step < 6; step++) eccentric -= (eccentric - COMET.e * Math.sin(eccentric) - mean) / (1 - COMET.e * Math.cos(eccentric));
+        const angle = 2 * Math.atan2(Math.sqrt(1 + COMET.e) * Math.sin(eccentric / 2), Math.sqrt(1 - COMET.e) * Math.cos(eccentric / 2));
+        comet.position.set(...cometAt(angle));
+      };
+      place();
+      // Stopped, nothing moves and no new frame is asked for.
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        time += Math.min(delta, 0.05);
+        place();
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

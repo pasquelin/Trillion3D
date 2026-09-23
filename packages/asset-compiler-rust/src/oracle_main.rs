@@ -5,7 +5,7 @@
 //! the rest of the compiler.
 //!
 //! ```text
-//! web-geometry-oracle JOB.json      # or `-` to read the job from standard input
+//! trillion3d-oracle JOB.json      # or `-` to read the job from standard input
 //! ```
 use std::io::Read;
 
@@ -21,7 +21,7 @@ fn fail(code: &str, message: impl std::fmt::Display) -> ! {
 fn main() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if arguments.len() != 1 {
-        eprintln!("usage: web-geometry-oracle TRAVAIL.json|-");
+        eprintln!("usage: trillion3d-oracle TRAVAIL.json|-");
         std::process::exit(2);
     }
     let text = if arguments[0] == "-" {
@@ -32,8 +32,8 @@ fn main() {
     }
     .unwrap_or_else(|error| fail("IO_ERROR", error));
     let value = serde_json::from_str(&text).unwrap_or_else(|error| fail("INVALID_JSON", error));
-    match web_geometry_compiler::oracle::job_of(&value)
-        .and_then(|job| web_geometry_compiler::oracle::run(&job))
+    match trillion3d_compiler::oracle::job_of(&value)
+        .and_then(|job| trillion3d_compiler::oracle::run(&job))
     {
         Ok(report) => println!("{report}"),
         Err(error) => fail(error.code, error.message),

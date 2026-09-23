@@ -36,7 +36,7 @@ pub fn pack(colour: [f64; 3]) -> u32 {
 /// Two other copies of this curve exist, and neither is this one: the table in
 /// `texture_preview/curves.rs::srgb_table` computes it in `f32` — 214 of the 256
 /// entries differ from rounded `f64`, so the table is not built from here — and
-/// `deferredLightingShaders.ts` carries it on the engine side. Three precisions,
+/// `packages/sdk-browser/src/lighting/deferred/shaders.ts` carries it on the engine side. Three precisions,
 /// three locations, no sharing.
 pub fn srgb_to_linear(byte: u8) -> f64 {
     let value = byte as f64 / 255.0;
