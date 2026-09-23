@@ -1,7 +1,7 @@
-import { FRENCH } from './overlays.ts';
+import { WRITTEN_FRENCH } from './overlays.ts';
 import { sectionStrings } from './sections.ts';
 import { STRINGS } from './strings.ts';
-import type { EntryOverlay } from './entryOverlay.ts';
+import type { EntryOverlay, LocaleOverlay } from './entryOverlay.ts';
 import type { Locale } from '../locale.ts';
 import type { PortalEntry } from '../model.ts';
 
@@ -27,6 +27,12 @@ function localizedEntry(entry: PortalEntry, overlay: EntryOverlay | null) {
   return result;
 }
 
-export function localizeEntries(entries: PortalEntry[], locale: Locale) {
-  return entries.map((entry) => localizedEntry(entry, locale === 'fr' ? FRENCH[entry.id] : null));
+/** `entries` in `locale`, each through its overlay in `french` — the written overlays unless the
+ *  caller brings the full table, generated reference included. */
+export function localizeEntries(
+  entries: PortalEntry[],
+  locale: Locale,
+  french: LocaleOverlay = WRITTEN_FRENCH,
+) {
+  return entries.map((entry) => localizedEntry(entry, locale === 'fr' ? french[entry.id] : null));
 }
