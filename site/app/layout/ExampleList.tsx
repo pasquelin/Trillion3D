@@ -1,3 +1,5 @@
+import { Thumbnail } from '../ui/Thumbnail.tsx';
+
 interface ExampleLink {
   key: string;
   label: string;
@@ -23,20 +25,12 @@ export function ExampleList({ groups }: { groups: ExampleGroup[] }) {
           <ul className="grid grid-cols-1 gap-3">
             {group.items.map((item) => (
               <li key={item.key}>
-                <a
-                  className={`grid gap-2 rounded-box p-2 hover:bg-base-300 ${item.active ? 'bg-base-300 ring-2 ring-primary' : ''}`}
+                <Thumbnail
                   href={item.href}
-                  title={item.label}
-                  aria-current={item.active ? 'page' : undefined}
-                >
-                  <img
-                    className="aspect-[16/10] w-full rounded-lg bg-base-300 object-cover"
-                    src={item.thumbnail}
-                    alt=""
-                    loading="lazy"
-                  />
-                  <span className="line-clamp-2 text-sm font-medium">{item.label}</span>
-                </a>
+                  src={item.thumbnail}
+                  label={item.label}
+                  active={item.active}
+                />
               </li>
             ))}
           </ul>

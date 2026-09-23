@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Entry } from './Entry.tsx';
 import { EngineExample } from './engine-scene/index.tsx';
 import { examples as lessons } from '../content/catalog.ts';
@@ -31,6 +31,16 @@ const Report = lazy(() => import('./reports/Report.tsx').then((m) => ({ default:
 
 const LESSON_IDS = lessons.map(({ id }) => id);
 
+/** Every area's chunk, fetched once the first page is up, so that no later click waits on one. */
+const preloadAreas = () =>
+  Promise.all([
+    import('./gallery/Gallery.tsx'),
+    import('./examples/Examples.tsx'),
+    import('./examples/Example.tsx'),
+    import('./gallery/Playground.tsx'),
+    import('./reports/Report.tsx'),
+  ]);
+
 function Page({ page, route }: { page: ResolvedPage; route: PortalRoute }) {
   const { locale } = route;
   if (page.kind === 'report') return <Report route={route} />;
@@ -52,6 +62,10 @@ function Page({ page, route }: { page: ResolvedPage; route: PortalRoute }) {
 
 export function App() {
   const route = useRoute();
+  useEffect(() => {
+    const timer = setTimeout(() => void preloadAreas(), 1000);
+    return () => clearTimeout(timer);
+  }, []);
   const entries: PortalEntry[] = useMemo(
     () => localizeEntries(rawEntries, route.locale),
     [route.locale],
@@ -67,13 +81,13 @@ export function App() {
   return (
     <PortalContext value={portal}>
       <Shell>
-        {/* One boundary per route: the page that leaves is unmounted at once and saves its state,
-            instead of staying mounted, hidden, while the next area's chunk loads. */}
+        {/* One boundary per area, whose chunk loads once; the page is keyed by its route, so
+            the page that leaves is unmounted and a new one starts from its own state. */}
         <Suspense
-          key={`${route.locale}/${route.area}/${route.id}`}
+          key={`${route.locale}/${route.area}`}
           fallback={<span className="loading loading-spinner loading-md" role="status" />}
         >
-          <Page page={page} route={portal.route} />
+          <Page key={`${route.area}/${route.id}`} page={page} route={portal.route} />
         </Suspense>
       </Shell>
     </PortalContext>
