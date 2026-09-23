@@ -66,9 +66,12 @@
           // Off by default: each moving lamp that casts a shadow redraws its shadow map every frame.
           glow.castShadow = values.shadows;
         });
+        world.invalidate();
       }, world);
+      // At speed zero the lamps stop, and a still scene asks for no new frame.
       let time = 0;
       world.onFrame(({ delta }) => {
+        if (!ui.speed) return;
         time += delta * ui.speed;
         for (const { glow, bulb, phase, orbit } of lamps) {
           const angle = time * (6 / orbit) * 0.3 + phase;

@@ -122,8 +122,7 @@
 
       // The planets run their circles, Kepler's comet speeds up near the sun.
       let time = 0;
-      world.onFrame(({ delta }) => {
-        if (ui.spin) time += Math.min(delta, 0.05);
+      const place = () => {
         PLANETS.forEach(({ radius, tilt, period }, k) => {
           const angle = (time / period) * Math.PI * 2 + k;
           planets[k].position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * Math.sin(tilt), Math.sin(angle) * radius * Math.cos(tilt));
@@ -135,7 +134,14 @@
         for (let step = 0; step < 6; step++) eccentric -= (eccentric - COMET.e * Math.sin(eccentric) - mean) / (1 - COMET.e * Math.cos(eccentric));
         const angle = 2 * Math.atan2(Math.sqrt(1 + COMET.e) * Math.sin(eccentric / 2), Math.sqrt(1 - COMET.e) * Math.cos(eccentric / 2));
         comet.position.set(...cometAt(angle));
-        if (ui.spin) world.invalidate();
+      };
+      place();
+      // Stopped, nothing moves and no new frame is asked for.
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        time += Math.min(delta, 0.05);
+        place();
+        world.invalidate();
       });
     </script>
   </body>

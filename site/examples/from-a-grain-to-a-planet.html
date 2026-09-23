@@ -288,7 +288,11 @@
       // A journey is a run of the distance on a log scale, eased at both ends; the opening goes
       // out from the grain to the planet, and the viewer's first press or wheel ends any journey.
       let journey = { from: NEAR, to: FAR, time: -1.5, length: 26 };
-      const fly = (to) => (journey = { from: world.camera.position.distanceTo(world.controls.target), to, time: 0, length: 4 + 2.2 * Math.abs(Math.log10(to / world.camera.position.distanceTo(world.controls.target))) });
+      const fly = (to) => {
+        const from = world.camera.position.distanceTo(world.controls.target);
+        journey = { from, to, time: 0, length: 4 + 2.2 * Math.abs(Math.log10(to / from)) };
+        world.invalidate();
+      };
       for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (journey = null), { passive: true });
       controls({
         mouse: 'Scroll to zoom anywhere from a grain of sand to the whole planet; drag to turn',
@@ -322,7 +326,8 @@
         const across = 2 * distance * Math.tan((world.camera.fov * Math.PI) / 360);
         shown(width(across));
         seen(SCALES.find(([limit]) => across < limit)[1]);
-        world.invalidate();
+        // Between journeys only the viewer's own moves ask for a frame.
+        if (journey) world.invalidate();
       });
     </script>
   </body>

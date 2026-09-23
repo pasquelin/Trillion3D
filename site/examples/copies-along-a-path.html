@@ -136,7 +136,7 @@
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       // Copies and twist place the arches again; the colours follow each arch's share of the way.
-      let copies = 0, reveal = 0, placed = null;
+      let copies = 0, reveal = 0, placed = null, resting = false;
       const layout = ({ copies: count, twist }) => {
         copies = count;
         arches.forEach((mesh, k) => {
@@ -153,6 +153,7 @@
         speed: [0, 3, 1],
         ride: false,
       }, (values, key) => {
+        resting = false;
         if (key === undefined || key === 'copies' || key === 'twist') layout(values);
         // The ride holds the camera, so the orbit lets go of it for the whole ride: a drag cannot
         // fight the train, nor the orbit's limits bend the view. Off the train, the overview comes
@@ -171,6 +172,9 @@
       // The opening: the arches appear one after the other round the loop.
       let travel = 0;
       world.onFrame(({ delta }) => {
+        // A stopped train is placed once more after a change, then asks for no new frame.
+        if (resting) return;
+        resting = reveal >= 1 && !ui.speed;
         const step = Math.min(delta, 0.05);
         if (reveal < 1) {
           reveal = Math.min(1, reveal + step / 2.5);

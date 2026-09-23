@@ -109,7 +109,9 @@
         world.invalidate();
       }, world);
       let angle = -1.3;
+      // A beam at rest asks for no new frame.
       world.onFrame(({ delta }) => {
+        if (!ui.turnsPerMinute) return;
         angle += (delta * ui.turnsPerMinute * Math.PI * 2) / 60;
         beam.target.position.set(Math.cos(angle) * REACH, -0.4, Math.sin(angle) * REACH);
         sweep.rotation.y = -angle;
