@@ -1,11 +1,40 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { Browser, Page } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
-import { openExample } from './docs/examples/capture.ts';
+import { openExample, RENDER_ONLY } from './docs/examples/capture.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 
 const ready = roadmap.entries.filter(({ file }) => file);
+
+/** The centre of the render, the kit's panels outside it. */
+const centre = (page: Page) =>
+  page.screenshot({ clip: { x: 330, y: 200, width: 300, height: 200 }, style: RENDER_ONLY });
+
+/**
+ * The example kit: a colour picked in the panel changes the render, and the page hosting the
+ * example hides and shows the panel by message.
+ */
+async function controlsDriveTheRender(browser: Browser, port: number) {
+  const entry = ready.find(({ id }) => id === 'shapes-on-a-turntable');
+  assert.ok(entry);
+  const { page, errors } = await openExample(browser, port, entry, { width: 960, height: 600 });
+  const panel = page.locator('[data-example-overlay] details');
+  const spin = panel.getByRole('checkbox');
+  await spin.uncheck();
+  await page.waitForTimeout(500);
+  const before = await centre(page);
+  await panel.locator('input[type=color]').fill('#2fd4ff');
+  await page.waitForTimeout(1000);
+  assert.notDeepEqual(await centre(page), before, 'the picked colour reaches the render');
+  await page.evaluate(() => postMessage({ type: 'wg:controls', visible: false }, '*'));
+  await panel.waitFor({ state: 'hidden' });
+  await page.evaluate(() => postMessage({ type: 'wg:controls', visible: true }, '*'));
+  await panel.waitFor({ state: 'visible' });
+  assert.deepEqual(errors, []);
+  await page.close();
+}
 
 test('every example file renders an image on its own, and the portal page fills with it', async () => {
   const { server, port } = await startDocsServer();
@@ -41,6 +70,7 @@ test('every example file renders an image on its own, and the portal page fills 
         await opened.page.close();
       }
     assert.deepEqual(blank, []);
+    await controlsDriveTheRender(browser, port);
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

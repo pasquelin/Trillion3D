@@ -2,43 +2,61 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A colour ramp in linear light</title>
+    <title>Linear colour ramp</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p>Far row: base colour in equal linear steps, 0 to 1. Near row: equal display steps, converted to linear.</p>
     <script type="module">
-      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      const slab = object.mesh(geometry.box(8, 0.3, 8), material.meshStandard({ color: [0.08, 0.08, 0.09], roughness: 0.9 }));
-      slab.position.y = -0.15;
-      world.scene.add(slab);
-
-      // Base colours are linear: the far row goes from 0 to 1 in equal linear steps and reads as
-      // uneven to the eye, the near row takes equal display (sRGB) steps converted to linear and
-      // reads as even. One white light straight down; the display transfer is applied once, at
-      // composition.
+      const floor = object.mesh(geometry.box(9, 0.2, 4), material.meshStandard({ color: '#5a5d66', roughness: 0.4 }));
+      floor.position.y = -0.1;
+      world.scene.add(floor);
+      // Two rows of glowing bars from dark to one colour. Colours are stored as linear light: the
+      // back row adds the same amount of light at each step and looks uneven to the eye; the front
+      // row takes equal steps as a screen shows them (sRGB) and looks even.
       const display = (value) => (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
-      for (let step = 0; step <= 10; step++)
-        for (const [z, level] of [[-0.7, step / 10], [0.7, display(step / 10)]]) {
-          const tile = object.mesh(geometry.box(0.56, 0.3, 0.56), material.meshStandard({ color: [level, level, level], roughness: 0.9 }));
-          tile.position.set((step - 5) * 0.62, 0.15, z);
-          world.scene.add(tile);
+      const bars = [];
+      for (let step = 1; step <= 12; step++)
+        for (const [z, level] of [[-0.8, step / 12], [0.8, display(step / 12)]]) {
+          const glow = material.meshStandard({ color: '#000000', roughness: 0.3 });
+          const bar = object.mesh(geometry.box(0.5, 0.5, 0.5), glow);
+          bar.position.set((step - 6.5) * 0.66, 0.25, z);
+          world.scene.add(bar);
+          bars.push({ glow, level });
         }
+      world.camera.position.set(0, 3.6, 6.6);
+      world.camera.lookAt(0, 0.2, 0);
+      world.controls.target.set(0, 0.2, 0);
 
-      world.scene.add(light.directional({
-        intensity: 3.14, color: [1, 1, 1], position: [0, 23, 4.6], target: [0, 0, 0],
-      }));
-      world.camera.position.set(0, 4.6, 4.6);
-      world.camera.lookAt(0, 0, 0);
-      world.controls.target.set(0, 0, 0);
-      world.invalidate();
+      // Each bar emits the picked colour scaled by its level; the lamp shows the floor they stand on.
+      const lamp = light.point({ intensity: 60, distance: 12, position: [0, 3, 3] });
+      world.scene.add(lamp);
+      controls({ colour: '#ff9a3c', glow: [0.5, 6, 2], exposure: [0.3, 3, 1] }, (values) => {
+        for (const { glow, level } of bars) {
+          glow.emissive.copy(math.color(values.colour)).multiplyScalar(level);
+          glow.emissiveIntensity = values.glow;
+        }
+        lamp.color.set(values.colour);
+        world.exposure = values.exposure;
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

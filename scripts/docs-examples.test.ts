@@ -5,6 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
+import { thumbnailDelay } from './docs/examples/capture.ts';
 import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
 import type { ExampleList as ExampleListComponent } from '../site/app/layout/ExampleList.tsx';
 import { examplesMenu } from '../site/app/layout/menus.ts';
@@ -22,6 +23,11 @@ test('every example is one standalone HTML file that imports the built engine', 
     assert.ok(themes.has(entry.theme), entry.id);
     assert.ok(entry.title.en && entry.title.fr, entry.id);
     assert.doesNotMatch(`${entry.id} ${entry.title.en} ${entry.title.fr}`, /three|unreal|babylon/i);
+    // An example still to write says whether it waits on the engine, and then on what.
+    const { status, missing } = entry as { status?: string; missing?: { en: string; fr: string } };
+    if (entry.file) assert.equal(status, undefined, entry.id);
+    else assert.ok(status === 'buildable' || status === 'needs-engine', entry.id);
+    assert.equal(Boolean(missing?.en && missing.fr), status === 'needs-engine', entry.id);
   }
   assert.ok(ready.length >= 10);
   for (const entry of ready) {
@@ -31,6 +37,10 @@ test('every example is one standalone HTML file that imports the built engine', 
     assert.match(html, /<canvas id="view"><\/canvas>/);
     assert.match(html, /import \{ createWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
+    // The kit, when used, is the one served beside the engine, and the thumbnail moment is valid.
+    if (/runtime\/kit\.js/.test(html))
+      assert.match(html, /import \{[^}]*\} from '\.\.\/runtime\/kit\.js'/, entry.id);
+    thumbnailDelay(html);
     // #276: an example lets the engine read the machine and choose its path, so it renders
     // wherever it is opened; one that pins a backend to show the setting says so on the page.
     if (/backends:/.test(html)) assert.match(html, /<p>[^<]*\bbackend\b[^<]*<\/p>/i, entry.id);
@@ -43,6 +53,13 @@ test('every example is one standalone HTML file that imports the built engine', 
     if (Object.keys(modelScenes).some((scene) => manifest.startsWith(`assets/examples/${scene}/`)))
       assert.match(html, /<p>[^<]*\b(CC0|CC BY 3\.0)\b[^<]*CREDITS\.md<\/p>/, entry.id);
   }
+});
+
+test('an example declares the moment its thumbnail is taken, or gets the settled default', () => {
+  assert.equal(thumbnailDelay('<title>x</title>'), 1.5);
+  assert.equal(thumbnailDelay('<meta name="thumbnail" content="4.5" />'), 4.5);
+  assert.throws(() => thumbnailDelay('<meta name="thumbnail" content="soon" />'), /0 to 20 s/);
+  assert.throws(() => thumbnailDelay('<meta name="thumbnail" content="60" />'), /0 to 20 s/);
 });
 
 test('an example is its file, live, on the demo page; the area lists the ready examples only', async () => {

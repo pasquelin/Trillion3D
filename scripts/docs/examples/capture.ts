@@ -6,9 +6,25 @@ export interface GalleryEntry {
   file: string;
 }
 
+/**
+ * How long an example asks its thumbnail to wait once its render shows, in seconds: the moment
+ * it declares most telling (`<meta name="thumbnail" content="3">`), a second and a half when it
+ * declares none — a still scene has settled by then.
+ */
+export function thumbnailDelay(html: string): number {
+  const declared = /<meta name="thumbnail" content="([^"]*)"/.exec(html)?.[1];
+  if (declared === undefined) return 1.5;
+  const seconds = Number(declared);
+  if (!(seconds >= 0 && seconds <= 20)) throw new Error(`thumbnail delay ${declared}: 0 to 20 s`);
+  return seconds;
+}
+
+/** A capture of the render alone: the example kit's panels and the credit line hidden. */
+export const RENDER_ONLY = '[data-example-overlay], body > p { display: none }';
+
 /** The share of the page's canvas capture that differs from its top-left pixel: 0 while blank. */
 async function drawnShare(page: Page): Promise<number> {
-  const png = await page.locator('canvas').screenshot();
+  const png = await page.locator('canvas').screenshot({ style: RENDER_ONLY });
   return page.evaluate(
     async (dataUrl: string) => {
       const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
