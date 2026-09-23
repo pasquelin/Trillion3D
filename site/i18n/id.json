@@ -27,7 +27,8 @@
   },
   "home": {
     "title": "Tampilkan dunia 3D raksasa di browser",
-    "start": "Mulai kursus"
+    "start": "Mulai kursus",
+    "editor": "Open the scene editor"
   },
   "examples": {
     "lead": "Setiap contoh adalah satu berkas pendek: lihat cara kerjanya, buka kodenya, ubah isinya.",
