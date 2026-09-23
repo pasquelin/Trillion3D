@@ -9,7 +9,10 @@ export interface SavedGeometry {
   /** The family member and every argument it was built with. */
   recipe?: { type: string; args: (number | boolean)[] };
   /** Each per-vertex list, when no call builds the shape again. */
-  attributes?: Record<string, { itemSize: number; array: number[] }>;
+  attributes?: Record<
+    string,
+    { itemSize: number; array: number[]; type: string; normalized: boolean }
+  >;
   /** Which vertices make each triangle. */
   index?: number[];
   /** Index ranges drawn with one material each. */

@@ -862,7 +862,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/helper/index.ts",
-        "packages/sdk-browser/src/world/saved/read.ts"
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/buffer/index\".BufferAttribute"
@@ -4252,6 +4253,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
       "disposition": "retained",
