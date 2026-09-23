@@ -6,15 +6,15 @@ export type TrackKind = 'number' | 'vector' | 'quaternion' | 'color';
 
 /** Values sampled at times: `values` holds `values.length / times.length` numbers per key. */
 export interface Track {
-  readonly name: string;
-  readonly kind: TrackKind;
-  readonly times: Float32Array;
-  readonly values: Float32Array;
+  /** What it animates: `node.field`. */ readonly name: string;
+  /** What kind of value it holds. */ readonly kind: TrackKind;
+  /** When each key happens, in seconds. */ readonly times: Float32Array;
+  /** The value at each key, one after the other. */ readonly values: Float32Array;
 }
-export interface Clip {
-  readonly name: string;
-  readonly duration: number;
-  readonly tracks: Track[];
+/** A named animation: tracks played together. */ export interface Clip {
+  /** The clip's name. */ readonly name: string;
+  /** How long the clip lasts, in seconds. */ readonly duration: number;
+  /** The tracks it plays. */ readonly tracks: Track[];
 }
 
 const track =
@@ -37,17 +37,15 @@ function resolve(root: Object3D, path: string) {
   return owner ? { owner, field: fields[fields.length - 1] } : null;
 }
 
-/** A track bound to what it writes: the owner and field it resolved to, the key it last stood
- *  at, and the numbers of one sample. */
+/** A track bound to what it writes: its owner and field, its last key, one sample's numbers. */
 export type TrackBinding = {
-  owner: Record<string, unknown>;
-  field: string;
-  key: number;
-  value: Float64Array;
+  /** The object the track writes into. */ owner: Record<string, unknown>;
+  /** The field of `owner` it writes. */ field: string;
+  /** The key the last sample stood at. */ key: number;
+  /** The numbers of one sample. */ value: Float64Array;
 };
 
-/** The track's value at `t`, linearly between the two keys around it; quaternions on the arc.
- *  The search starts at the key the last sample stood at when `t` has not gone back past it. */
+/** The track's value at `t` between its two keys, from the last key reached; quaternions on the arc. */
 function sample(tr: Track, t: number, bound: TrackBinding) {
   const { times, values } = tr,
     out = bound.value,
@@ -72,13 +70,14 @@ function sample(tr: Track, t: number, bound: TrackBinding) {
 
 /** One clip playing on a mixer's root. */
 export class Action {
+  /** What happens at the end: stop, start again, or go back. */
   loop: 'once' | 'repeat' | 'pingpong' = 'repeat';
-  weight = 1;
-  timeScale = 1;
-  time = 0;
-  playingNow = false;
-  readonly mixer: Mixer;
-  readonly clip: Clip;
+  /** How much this action counts, 0 to 1. */ weight = 1;
+  /** Speed: 2 plays twice as fast. */ timeScale = 1;
+  /** Seconds played so far. */ time = 0;
+  /** Whether the action is playing. */ playingNow = false;
+  /** The mixer that plays it. */ readonly mixer: Mixer;
+  /** The clip it plays. */ readonly clip: Clip;
   /** Each track's binding, made on the first sample that finds its target. */
   private readonly bindings = new Map<Track, TrackBinding>();
   constructor(mixer: Mixer, clip: Clip) {
@@ -95,13 +94,13 @@ export class Action {
     this.bindings.set(tr, (bound = { ...target, key: 0, value }));
     return bound;
   }
-  play() {
+  /** Starts playing. */ play() {
     this.playingNow = true;
     playing.add(this.mixer);
     this.mixer.root._link?.pose(this.mixer.root);
     return this;
   }
-  stop() {
+  /** Stops, and goes back to the start. */ stop() {
     this.playingNow = false;
     this.time = 0;
     return this;
@@ -119,19 +118,19 @@ export class Action {
 /** Plays clips on the nodes under `root`; a world's loop advances it while an action plays. */
 export class Mixer {
   private readonly actions = new Map<Clip, Action>();
-  readonly root: Object3D;
+  /** The node whose children it animates. */ readonly root: Object3D;
   constructor(root: Object3D) {
     this.root = root;
   }
-  clipAction(clip: Clip) {
+  /** The action that plays `clip`. */ clipAction(clip: Clip) {
     let action = this.actions.get(clip);
     if (!action) this.actions.set(clip, (action = new Action(this, clip)));
     return action;
   }
-  play(clip: Clip) {
+  /** Plays `clip` now. */ play(clip: Clip) {
     return this.clipAction(clip).play();
   }
-  stopAll() {
+  /** Stops every action. */ stopAll() {
     for (const action of this.actions.values()) action.stop();
     playing.delete(this);
   }
@@ -177,11 +176,25 @@ export function advanceMixers(scene: Object3D, seconds: number) {
 
 /** The `animation` family: clips of keyed tracks, played by a mixer on a node and its children. */
 export const animation = {
+  /** A player of clips for a node and its children.
+   *  @param root - The node whose children the clips move. */
   createMixer: (root: Object3D) => new Mixer(root),
+  /** A named animation made of tracks.
+   *  @param name - Its name. @param duration - How long it lasts, in s. @param tracks - What moves. */
   clip: (name: string, duration: number, tracks: Track[]): Clip => ({ name, duration, tracks }),
+  /** A track of plain numbers.
+   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - Values. */
   track: track('number'),
+  /** A track of single numbers.
+   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - One each. */
   numberTrack: track('number'),
+  /** A track of 3D positions or sizes.
+   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - Three each. */
   vectorTrack: track('vector'),
+  /** A track of rotations.
+   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - Four each. */
   quaternionTrack: track('quaternion'),
+  /** A track of colours.
+   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - RGB each. */
   colorTrack: track('color'),
 };

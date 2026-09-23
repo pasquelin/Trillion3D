@@ -32,7 +32,7 @@ const load = (into: Float64Array, v: XYZ) => {
  * the core functions of `math/primitives/vector.ts` read and write; every write tells the owner.
  */
 export class Vector3 extends ObservedComponents {
-  readonly isVector3 = true as const;
+  /** Always `true`: tells a 3D vector apart. */ readonly isVector3 = true as const;
 
   constructor(x = 0, y = 0, z = 0) {
     super(new Float64Array([x, y, z]));
@@ -50,89 +50,89 @@ export class Vector3 extends ObservedComponents {
   private written(from: ArrayLike<number>) {
     return this.set(from[0], from[1], from[2]);
   }
-  setScalar(s: number) {
+  /** Sets x, y and z to one value. */ setScalar(s: number) {
     return this.set(s, s, s);
   }
-  copy(v: XYZ) {
+  /** Takes x, y and z of another point. */ copy(v: XYZ) {
     return this.set(v.x, v.y, v.z);
   }
-  clone() {
+  /** A new vector with the same numbers. */ clone() {
     return new Vector3(this.x, this.y, this.z);
   }
-  add(v: XYZ) {
+  /** Adds another vector. */ add(v: XYZ) {
     return this.set(this.x + v.x, this.y + v.y, this.z + v.z);
   }
-  addScalar(s: number) {
+  /** Adds `s` to x, y and z. */ addScalar(s: number) {
     return this.set(this.x + s, this.y + s, this.z + s);
   }
-  addVectors(u: XYZ, v: XYZ) {
+  /** Becomes `u + v`. */ addVectors(u: XYZ, v: XYZ) {
     return this.set(u.x + v.x, u.y + v.y, u.z + v.z);
   }
-  addScaledVector(v: XYZ, s: number) {
+  /** Adds `v` times `s`. */ addScaledVector(v: XYZ, s: number) {
     return this.written(addScaledVector3(load(a, this), load(b, v), s));
   }
-  sub(v: XYZ) {
+  /** Takes another vector away. */ sub(v: XYZ) {
     return this.addScaledVector(v, -1);
   }
-  subVectors(u: XYZ, v: XYZ) {
+  /** Becomes `u − v`. */ subVectors(u: XYZ, v: XYZ) {
     return this.copy(u).sub(v);
   }
-  multiply(v: XYZ) {
+  /** Multiplies x, y and z one by one. */ multiply(v: XYZ) {
     return this.set(this.x * v.x, this.y * v.y, this.z * v.z);
   }
-  multiplyScalar(s: number) {
+  /** Multiplies x, y and z by `s`. */ multiplyScalar(s: number) {
     return this.written(scaleVector3(load(a, this), s));
   }
-  divideScalar(s: number) {
+  /** Divides x, y and z by `s`. */ divideScalar(s: number) {
     return this.multiplyScalar(1 / s);
   }
-  negate() {
+  /** Points the other way. */ negate() {
     return this.multiplyScalar(-1);
   }
-  min(v: XYZ) {
+  /** Keeps the smaller of each number. */ min(v: XYZ) {
     return this.set(Math.min(this.x, v.x), Math.min(this.y, v.y), Math.min(this.z, v.z));
   }
-  max(v: XYZ) {
+  /** Keeps the larger of each number. */ max(v: XYZ) {
     return this.set(Math.max(this.x, v.x), Math.max(this.y, v.y), Math.max(this.z, v.z));
   }
-  dot(v: XYZ) {
+  /** How much two arrows point the same way. */ dot(v: XYZ) {
     return dotVector3(this.elements, load(b, v));
   }
-  cross(v: XYZ) {
+  /** Becomes the arrow square to both. */ cross(v: XYZ) {
     return this.crossVectors(this, v);
   }
-  crossVectors(u: XYZ, v: XYZ) {
+  /** Becomes the arrow square to `u` and `v`. */ crossVectors(u: XYZ, v: XYZ) {
     return this.written(crossVector3(a, load(a, u), load(b, v)));
   }
-  lengthSq() {
+  /** The length, squared: quicker to get. */ lengthSq() {
     return lengthSqVector3(this.elements);
   }
-  length() {
+  /** How long the arrow is. */ length() {
     return Math.sqrt(this.lengthSq());
   }
-  setLength(length: number) {
+  /** Keeps the direction, sets the length. */ setLength(length: number) {
     return this.normalize().multiplyScalar(length);
   }
-  normalize() {
+  /** Keeps the direction, makes the length 1. */ normalize() {
     load(a, this);
     normalizeVector3(a);
     return this.written(a);
   }
-  distanceToSquared(v: XYZ) {
+  /** The distance to a point, squared. */ distanceToSquared(v: XYZ) {
     load(a, this);
     addScaledVector3(a, load(b, v), -1);
     return lengthSqVector3(a);
   }
-  distanceTo(v: XYZ) {
+  /** The distance to a point. */ distanceTo(v: XYZ) {
     return Math.sqrt(this.distanceToSquared(v));
   }
-  lerp(v: XYZ, t: number) {
+  /** Moves `t` of the way to `v`. */ lerp(v: XYZ, t: number) {
     return this.lerpVectors(this, v, t);
   }
-  lerpVectors(u: XYZ, v: XYZ, t: number) {
+  /** Becomes the point `t` of the way from `u` to `v`. */ lerpVectors(u: XYZ, v: XYZ, t: number) {
     return this.set(u.x + (v.x - u.x) * t, u.y + (v.y - u.y) * t, u.z + (v.z - u.z) * t);
   }
-  equals(v: XYZ) {
+  /** Whether two vectors hold the same numbers. */ equals(v: XYZ) {
     return this.x === v.x && this.y === v.y && this.z === v.z;
   }
   /** Point transform, divided by the projective row. */
@@ -141,30 +141,31 @@ export class Vector3 extends ObservedComponents {
     const w = 1 / (h[3] || 1);
     return this.set(h[0] * w, h[1] * w, h[2] * w);
   }
-  applyMatrix3(m: Matrix3) {
+  /** Multiplies by a 3×3 matrix. */ applyMatrix3(m: Matrix3) {
     return this.written(applyMatrix3Vector3(a, m.elements, this.x, this.y, this.z));
   }
   /** Direction transform: no translation, renormalised. */
   transformDirection(m: Matrix4) {
     return this.written(transformDirectionVector3(a, m.elements, this.x, this.y, this.z));
   }
-  applyQuaternion(r: Q) {
+  /** Turns the vector by a quaternion. */ applyQuaternion(r: Q) {
     q[0] = r.x;
     q[1] = r.y;
     q[2] = r.z;
     q[3] = r.w;
     return this.written(rotateByQuaternion(a, q, this.x, this.y, this.z));
   }
-  setFromMatrixPosition(m: Matrix4) {
+  /** Takes the move part of a matrix. */ setFromMatrixPosition(m: Matrix4) {
     return this.written(m.elements.subarray(12, 15));
   }
+  /** The point at a distance and two angles. */
   setFromSpherical(s: { radius: number; phi: number; theta: number }) {
     return this.written(fromSpherical(a, [s.radius, s.theta, s.phi]));
   }
-  fromArray(array: ArrayLike<number>, offset = 0) {
+  /** Reads x, y and z from a list. */ fromArray(array: ArrayLike<number>, offset = 0) {
     return this.set(array[offset], array[offset + 1], array[offset + 2]);
   }
-  toArray(): [number, number, number] {
+  /** x, y and z as a list. */ toArray(): [number, number, number] {
     return [this.x, this.y, this.z];
   }
 }

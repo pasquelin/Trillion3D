@@ -2,11 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A marble bust on its pedestal</title>
+    <title>Marble bust</title>
+    <meta name="thumbnail" content="3" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        bottom: 0;
+        margin: 0.5rem;
+        color: #cbd5e1;
+        font: 12px system-ui;
+      }
     </style>
   </head>
   <body>
@@ -14,21 +30,35 @@
     <p>Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md</p>
     <script type="module">
       import { createWorld, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       // A loaded model is a compiled cache: the compiler cut the glTF file and its textures into
-      // clusters, and the engine streams them. One key light from the side, one soft fill.
-      await world.scene.load('../assets/examples/bust/cache/native/full/manifest.json');
-      world.scene.add(light.directional({
-        intensity: 3.5, color: [1, 0.93, 0.82], position: [12, 14, 8], target: [0, 0, 0], castShadow: true,
-      }));
-      world.scene.add(light.directional({
-        intensity: 0.6, color: [0.55, 0.65, 0.9], position: [-14, 4, 10], target: [0, 0, 0],
-      }));
-      world.camera.position.set(0.55, 0.45, 0.8);
+      // clusters, and the engine streams in the ones the view needs.
+      const bust = await world.scene.load('../assets/examples/bust/cache/native/full/manifest.json');
+
+      // A warm lamp that walks around the head, and a cool fill from the far side.
+      const lamp = light.point({ intensity: 3, distance: 6, radius: 0.05, castShadow: true });
+      world.scene.add(lamp, light.directional({ intensity: 0.5, color: '#8ca6e6', position: [-14, 4, 10] }));
+      world.camera.position.set(0.45, 0.4, 0.66);
       world.camera.lookAt(0, 0.22, 0);
       world.controls.target.set(0, 0.22, 0);
-      world.invalidate();
+
+      const ui = controls({ lampTurn: [-180, 180, 40, 1], lampHeight: [0, 1.2, 0.6], colour: '#ffd9a8', exposure: [0.3, 3, 1], circle: false }, (values) => {
+        const turn = (values.lampTurn * Math.PI) / 180;
+        lamp.position.set(Math.sin(turn) * 0.9, values.lampHeight, Math.cos(turn) * 0.9);
+        lamp.color.set(values.colour);
+        world.exposure = values.exposure;
+        world.invalidate();
+      }, world);
+      // The camera circles the pedestal, one step per frame, when asked.
+      world.onFrame(({ delta }) => {
+        if (!ui.circle) return;
+        const { x, z } = world.camera.position, turn = delta * 0.3;
+        world.camera.position.set(x * Math.cos(turn) + z * Math.sin(turn), world.camera.position.y, z * Math.cos(turn) - x * Math.sin(turn));
+        world.camera.lookAt(0, 0.22, 0);
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

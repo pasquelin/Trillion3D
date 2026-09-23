@@ -207,8 +207,8 @@ separate operations; rebuilding the interface never launches Chrome or benchmark
 2. Export with `node bench/runner/summaryGlobal.ts --dossier .mesure/out/<campaign>
    --vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
 3. Stage with `node bench/runner/publishReport.ts --dossier .mesure/out/<campaign>-report`.
-   Campaign IDs are immutable. The script writes `site/reports/<id>/`, updates the catalogue,
-   and keeps `report.html` as an entry to the portal. It does not deploy or push anything.
+   Campaign IDs are immutable. The script writes `site/reports/<id>/` and updates the
+   catalogue, which the portal's Measurements area reads. It does not deploy or push anything.
 4. Validate, then preview with `pnpm docs:serve` (it builds the bundles first).
    Publishing follows the normal issue/PR and maintainer release workflow.
 

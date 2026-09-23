@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Collapse } from '../components/Collapse.tsx';
-import { Tabs } from '../components/Tabs.tsx';
-import { Alert } from '../components/UI.tsx';
+import { Collapse } from '../ui/Collapse.tsx';
+import { Tabs } from '../ui/Tabs.tsx';
+import { Alert } from '../ui/Alert.tsx';
 import { formatValue, metricValue } from '../../reports/metrics.ts';
 import { recordLabel } from '../../reports/presentation.ts';
-import { BarChart } from '../components/BarChart.tsx';
+import { BarChart } from '../ui/BarChart.tsx';
 import { Details } from './Details.tsx';
 import { Conditions } from './Conditions.tsx';
 import { Diagnostics } from './Diagnostics.tsx';
 import type { Report, ReportRecord } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
-import type { BarChartRow } from '../components/BarChart.tsx';
+import type { BarChartRow } from '../ui/BarChart.tsx';
 
 interface ProfileReadingProps {
   record: ReportRecord;

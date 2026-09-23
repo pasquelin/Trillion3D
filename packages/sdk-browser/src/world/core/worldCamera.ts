@@ -9,6 +9,7 @@ import { createFirstPersonCameraControls } from '../../camera/controls/firstPers
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts';
 import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts';
 
+/** The ways a page can steer the camera with the mouse and keyboard, or `'none'`. */
 export type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'trackball' | 'panZoom' | 'none';
 
 const position = new Vector3(),

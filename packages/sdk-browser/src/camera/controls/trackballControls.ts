@@ -19,6 +19,7 @@ import type { ControlCamera, PivotCameraControls } from './types.ts';
  * elevation and rebuilds the orientation from its angles, use the orbit controller.
  */
 export interface TrackballCameraControls extends PivotCameraControls {
+  /** Whether up stays up, like a turntable. */
   turntable: boolean;
 }
 

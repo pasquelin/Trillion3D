@@ -368,7 +368,7 @@ world.controls.target.set(0, 1, 0); // orbit pivot
 Controls live on the world because they read input on the canvas it owns — a second listener would
 double the gestures — and they follow `world.camera` when it is replaced. Setting `kind` releases the
 previous controller and builds the next; `.enabled` turns the current one off without losing it.
-Live example: [`site/examples/five-ways-to-move-the-camera.html`](../site/examples/five-ways-to-move-the-camera.html).
+Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [firstPerson](../site/examples/walk-through-a-temple.html).
 
 | `world.controls.kind` | Motion                                         | Gestures                                                            |
 | --------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
@@ -792,8 +792,11 @@ reopened.
 ## Migration from Three.js
 
 No Three.js adapter ships or is planned: a host that already writes Three.js code writes the same
-shapes with this engine's [families](#families) instead (portal guide, "Migration from
-Three.js"; the "Witness call" column of the [maths reference](#measured-against-the-witness-library)).
+shapes with this engine's [families](#families) instead. The portal's
+[migration page](https://pasquelin.github.io/WebGeometry/#/en/learn/three-migration) sets one
+complete Three.js program beside the engine program that draws the same scene
+([`site/examples/migrating-from-three.html`](../site/examples/migrating-from-three.html)); the
+maths map through the "Witness call" column of the [maths reference](#measured-against-the-witness-library).
 Three.js stays a comparison witness of the bench, never mixed with a published world (#79).
 
 ## Current limits

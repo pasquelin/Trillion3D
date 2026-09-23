@@ -1,6 +1,5 @@
-import { Collapse } from '../components/Collapse.tsx';
-import { ImageComparison } from '../components/ImageComparison.tsx';
-import { SectionHeader } from '../components/SectionHeader.tsx';
+import { Collapse } from '../ui/Collapse.tsx';
+import { ImageComparison } from '../ui/ImageComparison.tsx';
 import { engineName, viewName } from '../../reports/names.ts';
 import { formatValue } from '../../reports/metrics.ts';
 import type { ReportRecord } from '../../reports/types.ts';
@@ -31,10 +30,10 @@ export function Evidence({ a, b, campaign, locale, imageOnly = false }: Evidence
   const src = (r: ReportRecord) => `reports/${campaign}/${r.image}`;
   const sameSize = a.canvas?.width === b.canvas?.width && a.canvas?.height === b.canvas?.height;
   return (
-    <div className="grid min-w-0 gap-4" data-report-image-pair>
+    <div className="grid min-w-0 grid-cols-1 gap-4" data-report-image-pair>
       {!imageOnly && (
         <>
-          <SectionHeader level={3} size="sm" title={viewName(a.view, locale)} />
+          <h3 className="text-lg font-bold">{viewName(a.view, locale)}</h3>
           <div className="flex justify-between gap-4 text-sm font-semibold">
             <span>
               {fr ? 'Gauche' : 'Left'} · {left}
@@ -78,7 +77,7 @@ export function Evidence({ a, b, campaign, locale, imageOnly = false }: Evidence
             {fr ? 'Seuil de détail' : 'Detail threshold'} : {a.quality} px · {a.canvas?.width} ×{' '}
             {a.canvas?.height}
           </p>
-          <div className="grid gap-4 text-sm md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
             {[a, b].map((r) => (
               <div key={r.id}>
                 <a className="link" href={src(r)} target="_blank" rel="noreferrer">

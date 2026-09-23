@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Locale } from '../../content/locale.ts';
-import { LearningCards } from '../components/LearningCards.tsx';
-import { CodeEditor } from '../components/CodeEditor.tsx';
+import { LearningCards } from '../ui/LearningCards.tsx';
+import { CodeEditor } from '../ui/CodeEditor.tsx';
 import { formatNumericText } from '../code/formatNumber.ts';
-import { LessonTemplate } from '../components/LessonTemplate.tsx';
-import { Button } from '../components/UI.tsx';
-import type { LessonControl } from '../components/LessonControls.tsx';
-import { LessonControls } from '../components/LessonControls.tsx';
+import { LessonTemplate } from './LessonTemplate.tsx';
+import { Button } from '../ui/Button.tsx';
+import { Note } from '../ui/Text.tsx';
+import type { LessonControl } from '../ui/LessonControls.tsx';
+import { LessonControls } from '../ui/LessonControls.tsx';
 import { experimentPicker } from './experimentPicker.ts';
-import { ApiBadges } from '../components/ApiBadges.tsx';
+import { ApiBadges } from '../ui/ApiBadges.tsx';
 import { byId } from '../../content/catalog.ts';
 import { codeFor } from '../../lessons/code.ts';
 import { evaluate } from '../../lessons/evaluate.ts';
@@ -46,7 +47,9 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   const example = byId(id),
     scenario = SCENARIOS[example.id],
     [state, setState] = useState(() => initialState(example.id));
-  useEffect(() => setState(initialState(example.id)), [example.id]);
+  useEffect(() => {
+    setState(initialState(example.id));
+  }, [example.id]);
   const result = useMemo(() => evaluate(example.id, state, locale), [example.id, state, locale]),
     guidance = guidanceFor(example.id, locale),
     french = locale === 'fr',
@@ -123,11 +126,11 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   );
   const note = (
     <>
-      <p className="text-xs opacity-60">
+      <Note>
         {french
           ? 'Illustration mathématique 3D ; la scène moteur montre le streaming réel.'
           : '3D mathematical illustration; the engine scene shows actual streaming.'}
-      </p>
+      </Note>
       <Diagram id={example.id} state={state} locale={locale} label={local(example.title, locale)} />
     </>
   );
