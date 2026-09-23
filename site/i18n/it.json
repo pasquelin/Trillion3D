@@ -1374,24 +1374,24 @@
       "description": "Un canale per elemento, le curve esatte di `packages/sdk-core/src/math/primitives/color.ts`: il riferimento moltiplica per costanti arrotondate, e lo scarto — invisibile a 8 bit — viene limitato una volta, nel banco che li confronta."
     },
     "scene-editor": {
-      "title": "Build a scene with the editor",
-      "description": "Add shapes and lights, pick them with the mouse, move them with handles, recolour them, save the scene and open it again — in the portal, on the public API alone.",
-      "html": "<p>The <a href=\"#/it/examples/scene-editor\">scene editor</a> is a page of this portal built on three doors of the engine and nothing else. Start from an empty scene: <b>Add → Box</b>, then <b>Add → Directional light</b>. Click the box: <code>world.raycast</code> finds it under the pointer, and the handles of <code>controls.transform</code> appear on it. Drag an arrow to move it — the camera rests while a handle is held — press <kbd>E</kbd> to turn it, <kbd>R</kbd> to scale it. Change its colour in the inspector: the engine repaints the material in place, the frame's cost stays in the stats corner. <b>Save</b> downloads <code>scene.toJSON</code>; <b>New</b>, then <b>Open</b>, builds the same scene again with <code>scene.fromJSON</code>.</p>\n<p>Every step is undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>, and the scene is kept in the browser between two visits. Nothing is drawn or moved by the page itself: what you see is the engine.</p>"
+      "title": "Costruire una scena con l’editor",
+      "description": "Aggiungere forme e luci, sceglierle con il mouse, spostarle con le maniglie, ricolorarle, salvare la scena e riaprirla — nel portale, con la sola API pubblica.",
+      "html": "<p>L’<a href=\"#/it/examples/scene-editor\">editor di scene</a> è una pagina di questo portale costruita su tre porte del motore e nient’altro. Partite da una scena vuota: <b>Add → Box</b>, poi <b>Add → Directional light</b>. Fate clic sul box: <code>world.raycast</code> lo trova sotto il puntatore, e le maniglie di <code>controls.transform</code> compaiono su di esso. Trascinate una freccia per spostarlo — la camera resta ferma finché si tiene una maniglia — premete <kbd>E</kbd> per ruotarlo, <kbd>R</kbd> per scalarlo. Cambiate il suo colore nell’ispettore: il motore ridipinge il materiale sul posto, e il costo dell’immagine resta nell’angolo delle statistiche. <b>Save</b> scarica <code>scene.toJSON</code>; <b>New</b>, poi <b>Open</b>, ricostruisce la stessa scena con <code>scene.fromJSON</code>.</p>\n<p>Ogni passo si annulla con <kbd>Ctrl</kbd>+<kbd>Z</kbd>, e la scena è conservata nel browser tra due visite. La pagina non disegna né sposta nulla da sé: ciò che vedete è il motore.</p>"
     },
     "pick-with-the-pointer": {
-      "title": "Pick an object with the pointer",
-      "description": "`world.raycast` returns the nearest object under a canvas point: the node the page added, the point and normal hit, the distance.",
-      "html": "<p>The test runs on the CPU over the scene's own geometry: triangle meshes triangle by triangle, a loaded model on its box, lines and points never. Hidden subtrees and <code>helper</code> marks are skipped. See it in <a href=\"#/it/examples/click-to-pick\">Click to pick</a>.</p>"
+      "title": "Scegliere un oggetto con il puntatore",
+      "description": "`world.raycast` restituisce l’oggetto più vicino sotto un punto del canvas: il nodo aggiunto dalla pagina, il punto e la normale colpiti, la distanza.",
+      "html": "<p>Il test gira sulla CPU sulla geometria stessa della scena: le mesh di triangoli triangolo per triangolo, un modello caricato sul suo box, linee e punti mai. I sottoalberi nascosti e i segni <code>helper</code> vengono saltati. Guardatelo in <a href=\"#/it/examples/click-to-pick\">Click to pick</a>.</p>"
     },
     "move-with-handles": {
-      "title": "Move, turn and scale with handles",
-      "description": "`controls.transform(world)` puts handles on one object; a drag writes its pose through its parents, and the camera rests meanwhile.",
-      "html": "<p>Modes <code>translate</code>, <code>rotate</code> and <code>scale</code>, world or local axes, optional steps. The events <code>dragStart</code> and <code>dragEnd</code> frame one drag — one undo step. See it in <a href=\"#/it/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
+      "title": "Spostare, ruotare e scalare con le maniglie",
+      "description": "`controls.transform(world)` mette maniglie su un oggetto; un trascinamento scrive la sua posa attraverso i genitori, e la camera resta ferma nel frattempo.",
+      "html": "<p>Modalità <code>translate</code>, <code>rotate</code> e <code>scale</code>, assi del mondo o locali, passi facoltativi. Gli eventi <code>dragStart</code> e <code>dragEnd</code> delimitano un trascinamento — un passo di annullamento. Guardatelo in <a href=\"#/it/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
     },
     "save-and-open-a-scene": {
-      "title": "Save and open a scene",
-      "description": "`scene.toJSON(camera)` writes the scene as plain versioned JSON; `scene.fromJSON(json, camera)` builds it again.",
-      "html": "<p>Shapes are stored by the call that built them, materials by their values, loaded models by their address — never inlined — and <code>helper</code> marks not at all. Another format version is refused by name. See it in <a href=\"#/it/examples/save-the-scene\">Save the scene</a>.</p>"
+      "title": "Salvare e aprire una scena",
+      "description": "`scene.toJSON(camera)` scrive la scena come JSON semplice e versionato; `scene.fromJSON(json, camera)` la ricostruisce.",
+      "html": "<p>Le forme sono salvate tramite la chiamata che le ha costruite, i materiali tramite i loro valori, i modelli caricati tramite il loro indirizzo — mai incorporati — e i segni <code>helper</code> per niente. Un’altra versione del formato viene rifiutata per nome. Guardatelo in <a href=\"#/it/examples/save-the-scene\">Save the scene</a>.</p>"
     }
   },
   "canvas": {
