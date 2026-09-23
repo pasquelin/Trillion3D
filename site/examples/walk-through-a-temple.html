@@ -92,10 +92,10 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <div id="hud" class="layer" data-example-overlay><span id="orbs"></span><span id="clock"></span><span id="sound">M sound</span></div>
-    <div id="dot" class="layer" data-example-overlay></div>
+    <div id="hud" class="layer" data-example-overlay data-hud><span id="orbs"></span><span id="clock"></span><span id="sound">M sound</span></div>
+    <div id="dot" class="layer" data-example-overlay data-hud></div>
     <div id="veil" class="layer" data-example-overlay></div>
-    <div id="banner" class="layer" data-example-overlay></div>
+    <div id="banner" class="layer" data-example-overlay data-hud></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
       import { controls, play } from '../runtime/kit.js';
@@ -531,7 +531,16 @@
       // window before the controller, which would rise and sink with them.
       const $ = (id) => document.getElementById(id);
       const [hud, orbsShown, clockShown, soundShown, veil, banner] = ['hud', 'orbs', 'clock', 'sound', 'veil', 'banner'].map($);
-      const KEYS = 'W A S D (Z Q S D on AZERTY) · mouse to look · Shift sprint · Space jump';
+      const KEYS = [
+        { action: 'Walk', keys: ['W', 'A', 'S', 'D'], azerty: ['Z', 'Q', 'S', 'D'] },
+        { action: 'Look', keys: ['Mouse'] },
+        { action: 'Sprint', keys: ['Shift'] },
+        { action: 'Jump (hold to jump higher)', keys: ['Space'] },
+        { action: 'Run again', keys: ['R'] },
+        { action: 'Sound on or off', keys: ['M'] },
+        { action: 'Pause', keys: ['Esc'] },
+      ];
+      const GOAL = 'Reach the golden idol, grabbing the five orbs on the way. The lava sends you back to the last glowing checkpoint.';
       function say(title, line = '') {
         banner.style.opacity = title ? 1 : 0;
         if (title) banner.innerHTML = `<b>${title}</b><span>${line}</span>`;
@@ -560,21 +569,21 @@
         soundShown.textContent = muted ? 'M muted' : 'M sound';
         volume();
       }
-      // The kit's pause: the game runs only while the mouse is locked to the canvas. Paused, the
-      // frame below stops at its first line — no walking, no looking, no clock, the body still —
-      // the sound falls silent, held keys are dropped and the page's own banner steps aside.
+      // The kit's menu and pause: the game runs only while the mouse is locked to the canvas.
+      // Paused, the frame below stops at its first line — no walking, no looking, no clock, the
+      // body still — the sound falls silent and held keys are dropped; the kit's menu hides the
+      // page's display (marked `data-hud`) until the run goes on.
       const game = play(world, {
+        title: 'Temple parkour',
+        goal: GOAL,
         keys: KEYS,
+        onRestart: restart,
         onPause() {
           held.clear();
           jumpPressed = false;
-          banner.hidden = true;
           volume();
         },
-        onResume() {
-          banner.hidden = false;
-          volume();
-        },
+        onResume: () => volume(),
       });
       function flash() {
         hud.classList.add('flash');
@@ -600,8 +609,7 @@
       }
       restart();
       controls({
-        keys: 'The engine\'s firstPerson control: click to lock the mouse and look, W A S D to walk (Z Q S D on AZERTY), Escape frees the mouse. The page adds Shift to sprint, Space to jump (hold it to jump higher), R to run again, M to mute.',
-        goal: 'Reach the golden idol, grabbing the five orbs on the way. The lava sends you back to the last glowing checkpoint.',
+        keys: 'The engine\'s firstPerson control: the menu\'s Play locks the mouse to look, W A S D to walk (Z Q S D on AZERTY), Escape frees the mouse. The page adds Shift to sprint, Space to jump (hold it to jump higher), R to run again, M to mute.',
         look: [0.5, 3, 1],
         runAgain: restart,
       }, (values) => (world.controls.lookSpeed = 0.002 * values.look), world);
