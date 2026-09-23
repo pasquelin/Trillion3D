@@ -5,8 +5,6 @@ export interface CardProps extends Omit<ComponentPropsWithoutRef<'section'>, 'ti
   surface?: 'default' | 'nested' | 'inset';
 }
 
-export const CARD_SURFACE = 'card bg-base-200 border border-base-300';
-
 const surfaces: Record<NonNullable<CardProps['surface']>, string> = {
   default: 'bg-base-200',
   nested: 'bg-base-100',
