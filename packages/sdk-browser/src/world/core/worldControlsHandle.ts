@@ -77,6 +77,10 @@ export function worldControlsHandle(
     get target(): Vector3 {
       return current?.target ?? standingTarget;
     },
+    /** Whether the world's loop calls `update` ahead of each frame, before `world.beforeFrame`
+     *  hooks. `false` hands the step to the page, which calls `update` from such a hook, as
+     *  often and over whatever sub-steps it integrates; the world then never steps it. */
+    autoUpdate: true,
     /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose. */
     update(delta = 0) {
       current?.update?.(delta);
