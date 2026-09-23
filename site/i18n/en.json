@@ -459,7 +459,7 @@
           "<code>world.camera.position.set(x, y, z)</code> puts the eye somewhere; <code>world.camera.lookAt(x, y, z)</code> turns it towards a point.",
           "A <em>controller</em> turns the mouse, fingers and keyboard into camera moves. Choose it when you create the world: <code>createWorld('view', { controls: 'orbit' })</code>.",
           "<code>'orbit'</code> circles a point: drag to turn, right-drag to slide, scroll to zoom. <code>world.controls.target</code> is the point it circles.",
-          "There are others: <code>'fly'</code> (keys W A S D, see <a href=\"#/en/examples/fly-over-a-model-town\">A fighter jet in the canyon</a>), <code>'firstPerson'</code> (walk, see <a href=\"#/en/examples/walk-through-a-temple\">Temple parkour</a>), <code>'trackball'</code>, <code>'panZoom'</code> for a flat map, and <code>'none'</code> when your code moves the camera itself.",
+          "There are others: <code>'fly'</code> (keys W A S D, see <a href=\"#/en/examples/fly-over-a-model-town\">A fighter jet in the canyon</a>), <code>'character'</code> (run and jump, bumping into walls, see <a href=\"#/en/examples/walk-through-a-temple\">Temple parkour</a>), <code>'firstPerson'</code> (walk through everything), <code>'trackball'</code>, <code>'panZoom'</code> for a flat map, and <code>'none'</code> when your code moves the camera itself.",
           "Switch at any time: <code>world.controls.kind = 'fly'</code>."
         ],
         "tryIt": "Drag to turn around the clock, scroll to look closely at the teeth of the gears."
