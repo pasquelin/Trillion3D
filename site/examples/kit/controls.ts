@@ -51,7 +51,8 @@ export function labelOf(key: string): string {
  * an example that builds its panel after an `await` would otherwise miss. */
 let visible = true;
 const panels = new Set<HTMLElement>();
-addEventListener('message', (event) => {
+// A page, not a test importing the kit in Node, has messages to hear.
+globalThis.addEventListener?.('message', (event) => {
   const data = event.data as { type?: unknown; visible?: unknown } | null;
   if (event.source !== parent || data?.type !== 'wg:controls') return;
   visible = Boolean(data.visible);
