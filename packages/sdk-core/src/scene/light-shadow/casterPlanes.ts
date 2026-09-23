@@ -1,6 +1,6 @@
-import { LIGHT_KIND, SCENE_LIGHT_FLOATS, SCENE_LIGHT_HEADER_FLOATS } from '../light/contracts.ts';
+import { LIGHT_KIND } from '../light/contracts.ts';
 import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
-import { castsShadow } from './casters.ts';
+import { baseOf, castsShadow } from './casters.ts';
 
 /** Six planes, four numbers each: `n · x + d ≥ 0` inside, as every frustum of the engine. */
 const PLANES = 6;
@@ -31,7 +31,7 @@ export function shadowCasterPlanes(
   let open = 0;
   for (let slot = 0; slot < store.count; slot++) {
     if (!castsShadow(store, slot)) continue;
-    const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
+    const base = baseOf(slot);
     const sun = packed[base + LIGHT_FIELD.kind] === LIGHT_KIND.directional;
     // The sun as a point at infinity, toward it; a lamp as its position in the planes' frame.
     const at = sun ? LIGHT_FIELD.direction : LIGHT_FIELD.position,
