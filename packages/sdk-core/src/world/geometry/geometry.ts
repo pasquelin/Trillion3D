@@ -23,6 +23,9 @@ export class Geometry {
   boundingBox: Box3 | null = null;
   /** The ball around every vertex, once computed; `null` until then. */
   boundingSphere: Sphere | null = null;
+  /** The family member and arguments that built this shape, while it is still what they built:
+   *  what a saved scene stores instead of the vertices. Any later change forgets it. */
+  recipe: { type: string; args: unknown[] } | null = null;
   /** Bumped by every change of shape: what the world compares to cut the pages again. */
   version = 0;
   /** Who draws this geometry: every mesh holding it hears its changes. */
@@ -32,6 +35,7 @@ export class Geometry {
   _changed() {
     this.version++;
     this.boundingBox = this.boundingSphere = null;
+    this.recipe = null;
     for (const listener of this._listeners) listener();
     return this;
   }
@@ -154,4 +158,11 @@ export class Geometry {
   dispose() {
     this._listeners.clear();
   }
+}
+
+/** Stamps `geometry` with the family call that built it (`Geometry.recipe`): a saved scene
+ *  stores the call and builds the same shape again. */
+export function withRecipe(geometry: Geometry, type: string, args: ArrayLike<unknown>) {
+  geometry.recipe = { type, args: Array.from(args) };
+  return geometry;
 }
