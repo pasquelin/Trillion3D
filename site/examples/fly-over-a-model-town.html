@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Fly over a model town</title>
-    <meta name="thumbnail" content="2" />
+    <title>Fly a plane through rings</title>
+    <meta name="thumbnail" content="3" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #171d28;
+        background: #9cc6ec;
       }
       canvas {
         display: block;
@@ -21,69 +21,125 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
 
       // A sequence in [0, 1) from a seed: the same scene on every run.
       function random(seed) {
         let state = seed >>> 0;
         return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
       }
+      const matte = (color, roughness = 0.8) => material.meshStandard({ color, roughness });
 
-      // `fly`: six degrees of freedom. The town is a model at table scale, since the controller
-      // flies at one metre a second.
+      // `fly`: six degrees of freedom, no up axis kept. The controller steers the plane; the engine
+      // in front of it is this page's: every frame pushes the camera forward at the throttle.
       const world = createWorld('view', { controls: 'fly' });
-      world.camera.far = 100;
+      world.scene.background = math.color('#9cc6ec');
+      world.camera.far = 120;
+      world.camera.near = 0.05;
       const next = random(9);
-      const grass = object.mesh(geometry.box(24, 0.1, 24), material.meshStandard({ color: '#4f6e3a', roughness: 0.95 }));
-      grass.position.y = -0.05;
-      const river = object.mesh(geometry.box(1.6, 0.02, 24), material.meshStandard({ color: '#2f6f9f', roughness: 0.15 }));
-      river.position.y = 0.01;
-      world.scene.add(grass, river);
-      // Blocks of towers of five colours on both banks, each with a lit roof lamp.
-      const walls = ['#e0d6c2', '#c9785a', '#8fa3b8', '#d9b86a', '#b9c7a3'].map((colour) => material.meshStandard({ color: colour, roughness: 0.7 }));
-      const roofs = material.meshStandard({ color: '#3a3d45', roughness: 0.5 });
-      const block = geometry.box(1, 1, 1);
-      for (let row = -10; row <= 10; row += 1.2)
-        for (let column = -10; column <= 10; column += 1.2) {
-          if (Math.abs(column) < 1.4 || next() < 0.25) continue;
-          const height = 0.3 + next() ** 2 * (Math.abs(column) < 5 ? 3.2 : 1.2);
-          const tower = object.mesh(block, walls[Math.floor(next() * 5)]);
-          tower.scale.set(0.8, height, 0.8);
-          tower.position.set(column, height / 2, row);
-          const roof = object.mesh(block, roofs);
-          roof.scale.set(0.85, 0.05, 0.85);
-          roof.position.set(column, height + 0.025, row);
-          world.scene.add(tower, roof);
-        }
-      // Three bridges over the river, and boats sailing down it.
-      for (const z of [-6, 0, 6]) {
-        const bridge = object.mesh(geometry.box(2.4, 0.08, 0.5), material.meshStandard({ color: '#8a8580', roughness: 0.8 }));
-        bridge.position.set(0, 0.25, z);
-        world.scene.add(bridge);
+      function place(shape, matter, [x, y, z], parent = world.scene) {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(x, y, z);
+        parent.add(mesh);
+        return mesh;
       }
-      const hull = material.meshStandard({ color: '#f2efe6', roughness: 0.4 });
-      const boats = Array.from({ length: 4 }, (_, index) => {
-        const boat = object.mesh(geometry.box(0.25, 0.1, 0.6), hull);
-        boat.position.set(index % 2 ? 0.35 : -0.35, 0.06, index * 6 - 9);
-        world.scene.add(boat);
-        return boat;
-      });
-      world.scene.add(light.directional({ intensity: 3, color: '#ffd7a8', position: [8, 6, -4], castShadow: true }));
-      world.scene.add(light.ambient({ intensity: 0.4, color: '#8fb4ff' }));
-      world.camera.position.set(3, 3.2, 12);
-      world.camera.lookAt(0, 0.8, 2);
 
-      controls({
-        keys: 'W S forward and back · A D sideways · R F up and down',
-        look: 'Drag or arrow keys to look · Q E to roll',
-        backToStart: () => {
-          world.camera.position.set(3, 3.2, 12);
-          world.camera.lookAt(0, 0.8, 2);
-        },
+      // The valley: meadows, a river, a ring of mountains with snow caps, forests on the slopes.
+      place(geometry.box(90, 0.1, 90), matte('#5f8a45', 0.95), [0, -0.05, 0]);
+      place(geometry.box(1.6, 0.02, 90), matte('#2f6f9f', 0.15), [0, 0.01, 0]);
+      const rock = matte('#7b7468', 0.9), snow = matte('#f4f6fa', 0.5), pine = matte('#2f5a33', 0.9);
+      for (let index = 0; index < 22; index++) {
+        const angle = (index / 22) * Math.PI * 2 + next() * 0.2, far = 22 + next() * 12;
+        const [x, z, height, width] = [Math.sin(angle) * far, Math.cos(angle) * far, 6 + next() * 8, 5 + next() * 5];
+        place(geometry.cone(width, height, 40), rock, [x, height / 2, z]);
+        place(geometry.cone(width * 0.3, height * 0.3, 40), snow, [x, height * 0.86, z]);
+      }
+      for (let index = 0; index < 90; index++) {
+        const angle = next() * Math.PI * 2, far = 11 + next() * 10, size = 0.3 + next() * 0.5;
+        place(geometry.cone(size * 0.4, size * 1.6, 12), pine, [Math.sin(angle) * far, size * 0.8, Math.cos(angle) * far]);
+      }
+      // The town in the middle of the valley: towers of five colours on both banks, three bridges.
+      const walls = ['#e0d6c2', '#c9785a', '#8fa3b8', '#d9b86a', '#b9c7a3'].map((colour) => matte(colour, 0.7));
+      const roofs = matte('#3a3d45', 0.5), block = geometry.box(1, 1, 1);
+      for (let row = -5.4; row <= 5.4; row += 1.2)
+        for (let column = -5.4; column <= 5.4; column += 1.2) {
+          if (Math.abs(column) < 1.4 || next() < 0.25) continue;
+          const height = 0.3 + next() ** 2 * 2.2;
+          place(block, walls[Math.floor(next() * 5)], [column, height / 2, row]).scale.set(0.8, height, 0.8);
+          place(block, roofs, [column, height + 0.025, row]).scale.set(0.85, 0.05, 0.85);
+        }
+      for (const z of [-4, 0, 4]) place(geometry.box(2.4, 0.08, 0.5), matte('#8a8580'), [0, 0.25, z]);
+      // A few clouds.
+      const cloud = matte('#ffffff', 1);
+      for (let index = 0; index < 8; index++) {
+        const [x, y, z] = [(next() - 0.5) * 40, 8 + next() * 3, (next() - 0.5) * 40];
+        for (let puff = 0; puff < 4; puff++) place(geometry.sphere(0.8 + next() * 0.6, 20, 14), cloud, [x + puff * 0.9, y + next() * 0.4, z + next()]);
+      }
+
+      // The rings: a loop around the town, rising and falling. Each is gold until flown through,
+      // then its green twin shows instead — two meshes, never a material changed on the fly.
+      const RADIUS = 0.6, gold = material.meshStandard({ color: '#ffc23a', metalness: 0.6, roughness: 0.3, emissive: '#6b4a00' });
+      const green = material.meshStandard({ color: '#3ddc84', roughness: 0.4, emissive: '#0f5a2c' });
+      const hoop = geometry.torus(RADIUS, 0.06, 16, 64), along = (a) => [8 * Math.sin(a), 2.5 + 1.2 * Math.sin(3 * a), 8 * Math.cos(a)];
+      const rings = Array.from({ length: 10 }, (_, index) => {
+        const angle = (index / 10) * Math.PI * 2;
+        const ring = object.group();
+        ring.position.set(...along(angle));
+        ring.lookAt(...along(angle + 0.05));
+        const todo = place(hoop, gold, [0, 0, 0], ring), passed = place(hoop, green, [0, 0, 0], ring);
+        world.scene.add(ring);
+        return { ring, todo, passed };
+      });
+
+      // The plane, built along -z like the camera: fuselage, wings, tail, a spinning propeller.
+      const plane = object.group();
+      const body = matte('#d0342c', 0.4), wing = matte('#f2efe6', 0.5);
+      place(geometry.cylinder(0.025, 0.018, 0.3, 20), body, [0, 0, 0], plane).rotation.x = Math.PI / 2;
+      place(geometry.sphere(0.025, 20, 14), body, [0, 0, -0.15], plane);
+      place(geometry.sphere(0.02, 16, 12), matte('#2a3d55', 0.2), [0, 0.02, -0.06], plane);
+      place(geometry.box(0.36, 0.008, 0.07), wing, [0, 0, -0.03], plane);
+      place(geometry.box(0.12, 0.006, 0.04), wing, [0, 0, 0.13], plane);
+      place(geometry.box(0.006, 0.05, 0.04), body, [0, 0.025, 0.13], plane);
+      const propeller = place(geometry.box(0.12, 0.01, 0.004), matte('#303030', 0.6), [0, 0, -0.178], plane);
+      world.scene.add(plane);
+
+      world.scene.add(light.directional({ intensity: 3, color: '#ffe6c0', position: [10, 14, 6], castShadow: true }));
+      world.scene.add(light.hemisphere({ color: '#cfe4ff', groundColor: '#6f8a4f', intensity: 1 }));
+
+      let through, started, finished;
+      function takeOff() {
+        world.camera.position.set(0, 2.7, 13);
+        world.camera.lookAt(...along(0));
+        for (const ring of rings) [ring.todo.visible, ring.passed.visible] = [true, false];
+        [through, started, finished] = [0, null, null];
+      }
+      takeOff();
+      const ui = controls({
+        keys: 'Arrows to pitch and turn · Q E to roll · drag to look around',
+        more: 'W S boost and brake · A D slide sideways · R F climb and dive',
+        throttle: [0.5, 4, 1.5],
+        takeOff,
       }, world);
-      world.onFrame(({ delta }) => {
-        for (const boat of boats) boat.position.z = ((boat.position.z + 12 + delta * 0.4) % 24) - 12;
+      const ringsShown = readout('Rings'), timeShown = readout('Time');
+      const chase = math.vector3(), WHERE = [0, -0.13, -0.9];
+      world.onFrame(({ delta, time }) => {
+        const dt = Math.min(delta, 0.05), camera = world.camera;
+        camera.translateOnAxis({ x: 0, y: 0, z: -1 }, ui.throttle * dt);
+        camera.position.y = Math.max(0.25, camera.position.y);
+        // The plane rides just ahead of and below the camera, turned with it: a chase view.
+        plane.position.copy(chase.set(...WHERE).applyQuaternion(camera.quaternion).add(camera.position));
+        plane.quaternion.copy(camera.quaternion);
+        propeller.rotation.z = time * 40;
+        started ??= time;
+        for (const ring of rings)
+          if (ring.todo.visible && plane.position.distanceTo(ring.ring.position) < RADIUS * 0.85) {
+            [ring.todo.visible, ring.passed.visible] = [false, true];
+            through += 1;
+            if (through === rings.length) finished = time - started;
+          }
+        ringsShown(`${through} / ${rings.length}`);
+        timeShown(finished !== null ? `${finished.toFixed(1)} s, all rings!` : `${(time - started).toFixed(1)} s`);
         world.invalidate();
       });
     </script>
