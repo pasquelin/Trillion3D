@@ -37,15 +37,24 @@ export interface PortalMember {
   desc: string;
 }
 
+/** A step of the course's way through: where it goes, what kind of step it is, the page it names. */
+interface CourseLink {
+  href: string;
+  caption: string;
+  title?: string;
+}
+
 /** A course chapter's page, in one language: the example it builds, its steps and code, what to
- *  try, the chapter after it, and the headings they sit under. `steps` and `tryIt` are HTML. */
+ *  try, the chapters around it, and the headings they sit under. `steps` and `tryIt` are HTML;
+ *  the first chapter has no `previous`, the last one's `next` is the examples. */
 export interface CourseChapter {
   example: string;
   steps: string[];
   code: string[];
   tryIt: string;
-  next: { href: string; label: string };
-  words: { steps: string; code: string; tryIt: string; open: string };
+  previous?: CourseLink;
+  next: CourseLink;
+  words: { steps: string; code: string; tryIt: string; open: string; navigation: string };
 }
 
 /** One documented item, as the content files declare it. */

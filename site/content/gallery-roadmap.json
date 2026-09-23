@@ -1,6 +1,13 @@
 {
   "themes": [
     {
+      "id": "camera",
+      "title": {
+        "en": "Controls",
+        "fr": "Contrôles"
+      }
+    },
+    {
       "id": "geometry",
       "title": {
         "en": "Geometry",
@@ -19,13 +26,6 @@
       "title": {
         "en": "Lights and shadows",
         "fr": "Lumières et ombres"
-      }
-    },
-    {
-      "id": "camera",
-      "title": {
-        "en": "Camera",
-        "fr": "Caméra"
       }
     },
     {
