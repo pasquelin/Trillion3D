@@ -10,8 +10,8 @@ function decodeId(value: string) {
   }
 }
 
-/** The areas of the header, in navigation order; each but the sandbox has its own sidebar. */
-const AREAS = ['learn', 'sandbox', 'examples', 'api', 'reports'] as const;
+/** The areas of the header, in navigation order; the sandbox and the editor take the whole width. */
+const AREAS = ['learn', 'sandbox', 'examples', 'editor', 'api', 'reports'] as const;
 type NavArea = (typeof AREAS)[number];
 
 export interface PortalRoute {
@@ -36,8 +36,6 @@ export type ResolvedPage =
 const AREA_SET: ReadonlySet<string> = new Set(AREAS);
 const isArea = (value: string | undefined): value is NavArea =>
   value !== undefined && AREA_SET.has(value);
-/** The scene editor's page, under Examples beside the examples it is not one of. */
-export const EDITOR_ID = 'scene-editor';
 
 /** The entry sections read in Learn, as guides; the others are the API reference. */
 export const LEARN_SECTIONS = ['course', 'guides', 'internals'];
@@ -50,8 +48,9 @@ export const navLinks = (route: PortalRoute) =>
     current: route.area === area,
   }));
 
-/** Whether the area has a sidebar on wide screens: the sandbox takes the whole width. */
-export const hasSidebar = (route: PortalRoute) => route.area !== 'sandbox';
+/** Whether the area has a sidebar on wide screens: the sandbox and the editor take the width. */
+export const hasSidebar = (route: PortalRoute) =>
+  route.area !== 'sandbox' && route.area !== 'editor';
 
 /**
  * Reads `#/<locale>/<area>/<id>`. A hash without a locale opens the home page in
@@ -89,9 +88,9 @@ export function resolvePage(
   if (area === 'learn' && id === 'home') return { kind: 'home' };
   if (area === 'learn' && entry && learnEntry) return { kind: 'entry', entry };
   if (area === 'examples' && !id) return { kind: 'examples' };
-  if (area === 'examples' && id === EDITOR_ID) return { kind: 'editor' };
   if (area === 'examples' && exampleIds.includes(id)) return { kind: 'example', id };
   if (area === 'sandbox' && (!id || exampleIds.includes(id))) return { kind: 'sandbox', id };
+  if (area === 'editor' && !id) return { kind: 'editor' };
   if (area === 'api' && !id) return { kind: 'api-index' };
   if (area === 'api' && entry && !learnEntry) return { kind: 'entry', entry };
   return { kind: 'not-found' };

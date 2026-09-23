@@ -11,6 +11,7 @@
     "learn": "Apprendre",
     "sandbox": "Tester en direct",
     "examples": "Exemples",
+    "editor": "Éditeur",
     "api": "Référence API",
     "reports": "Mesures"
   },
@@ -558,8 +559,6 @@
   },
   "editor": {
     "title": "Éditeur de scène",
-    "group": "Outils",
-    "showcase": "Ouvrir l’éditeur de scène",
     "loading": "Préparation de l’éditeur…",
     "canvas": "Vue de la scène : cliquez sur un objet pour le sélectionner, glissez pour tourner la caméra",
     "menu": {
@@ -1379,7 +1378,7 @@
     "scene-editor": {
       "title": "Construire une scène avec l’éditeur",
       "description": "Ajouter des formes et des lumières, les choisir à la souris, les déplacer avec des poignées, les recolorer, enregistrer la scène et la rouvrir — dans le portail, avec la seule API publique.",
-      "html": "<p>L’<a href=\"#/fr/examples/scene-editor\">éditeur de scène</a> est une page de ce portail bâtie sur trois portes du moteur et rien d’autre. Partez d’une scène vide : <b>Ajouter → Boîte</b>, puis <b>Ajouter → Lumière directionnelle</b>. Cliquez sur la boîte : <code>world.raycast</code> la trouve sous le pointeur, et les poignées de <code>controls.transform</code> apparaissent dessus. Glissez une flèche pour la déplacer — la caméra reste immobile tant qu’une poignée est tenue — appuyez sur <kbd>E</kbd> pour la tourner, <kbd>R</kbd> pour la mettre à l’échelle. Changez sa couleur dans l’inspecteur : le moteur repeint le matériau sur place, et le coût de l’image reste affiché dans le coin des statistiques. <b>Enregistrer</b> télécharge <code>scene.toJSON</code> ; <b>Nouveau</b>, puis <b>Ouvrir</b>, reconstruit la même scène avec <code>scene.fromJSON</code>.</p>\n<p>Chaque étape s’annule avec <kbd>Ctrl</kbd>+<kbd>Z</kbd>, et la scène est gardée dans le navigateur d’une visite à l’autre. La page ne dessine ni ne déplace rien elle-même : ce que vous voyez, c’est le moteur.</p>"
+      "html": "<p>L’<a href=\"#/fr/editor\">éditeur de scène</a> est une page de ce portail bâtie sur trois portes du moteur et rien d’autre. Partez d’une scène vide : <b>Ajouter → Boîte</b>, puis <b>Ajouter → Lumière directionnelle</b>. Cliquez sur la boîte : <code>world.raycast</code> la trouve sous le pointeur, et les poignées de <code>controls.transform</code> apparaissent dessus. Glissez une flèche pour la déplacer — la caméra reste immobile tant qu’une poignée est tenue — appuyez sur <kbd>E</kbd> pour la tourner, <kbd>R</kbd> pour la mettre à l’échelle. Changez sa couleur dans l’inspecteur : le moteur repeint le matériau sur place, et le coût de l’image reste affiché dans le coin des statistiques. <b>Enregistrer</b> télécharge <code>scene.toJSON</code> ; <b>Nouveau</b>, puis <b>Ouvrir</b>, reconstruit la même scène avec <code>scene.fromJSON</code>.</p>\n<p>Chaque étape s’annule avec <kbd>Ctrl</kbd>+<kbd>Z</kbd>, et la scène est gardée dans le navigateur d’une visite à l’autre. La page ne dessine ni ne déplace rien elle-même : ce que vous voyez, c’est le moteur.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Choisir un objet au pointeur",
