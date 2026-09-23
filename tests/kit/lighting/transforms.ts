@@ -5,7 +5,7 @@ import {
   lengthSqVector3,
   scaleVector3,
   uniformScaleMatrix4,
-} from '../../../../sdk-core/src/index.ts';
+} from '../../../packages/sdk-core/src/index.ts';
 import type { LightingExperimentRenderState } from './contracts.ts';
 
 /** Column-major 4×4 basis of a surface or of the sphere, written into an owned buffer. */

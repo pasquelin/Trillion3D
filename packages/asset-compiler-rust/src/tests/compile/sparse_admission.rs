@@ -28,7 +28,7 @@ fn sparse_position_fixture(count: u64) -> (PathBuf, Options) {
 /// sees it pass; only the dense reservation of `count × 3` floats used to notice,
 /// by panicking.
 #[test]
-fn a01_un_position_sparse_de_2_puissance_61_est_refuse_sans_panique() {
+fn a01_a_sparse_position_of_2_pow_61_is_refused_without_panic() {
     let (root, options) = sparse_position_fixture(1u64 << 61);
     let error = compile(&options, |_| {}).expect_err("the hostile accessor must be refused");
     assert!(
@@ -41,7 +41,7 @@ fn a01_un_position_sparse_de_2_puissance_61_est_refuse_sans_panique() {
 /// A01 bis: a realistic sparse, whose dense expansion exceeds the 64 MiB budget
 /// without overflowing any integer, must be refused by admission and not allocated.
 #[test]
-fn a01_un_sparse_realiste_hors_budget_est_refuse_par_l_admission() {
+fn a01_a_realistic_sparse_over_budget_is_refused_by_admission() {
     let (root, options) = sparse_position_fixture(8_000_000);
     let error = compile(&options, |_| {}).expect_err("the dense expansion exceeds the budget");
     assert_eq!(error.code, "RAM_ADMISSION_BUDGET_EXCEEDED", "{error}");

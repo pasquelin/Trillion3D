@@ -1,4 +1,7 @@
-import type { BackendCapabilities, BackendDiagnostic } from '../../backend/types.ts';
+import type {
+  BackendCapabilities,
+  BackendDiagnostic,
+} from '../../../packages/sdk-browser/src/backend/types.ts';
 import { MAX_EMITTERS } from './contracts.ts';
 import type { ObservationResources } from './resources.ts';
 import type { ObservationMeshes } from './meshes.ts';

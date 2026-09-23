@@ -5,7 +5,7 @@ use super::*;
 // byte — triangles, write order, colors and BVH included.
 
 #[test]
-fn l_index_par_maillage_rend_le_meme_proxy_que_le_balayage() {
+fn the_per_mesh_index_gives_the_same_proxy_as_the_scan() {
     let jeux = jeux::jeux();
     assert!(
         empreinte(&tous(&jeux, reference_stage_proxy)) == empreinte(&tous(&jeux, stage_proxy)),
@@ -20,7 +20,7 @@ const SOUS_TRIANGLES: usize = 4;
 /// Uncompiled mesh, primitive without `mesh` field, primitive without cut: all three
 /// discarded, two nodes sharing mesh 0 each place their two primitives.
 #[test]
-fn une_scene_ecrite_en_clair_pose_cinq_coupes_des_deux_cotes() {
+fn a_plainly_written_scene_sets_five_cuts_on_both_sides() {
     let (jeu, attendus) = jeux::clair();
     let proxy = stage_proxy(&jeu.inputs()).expect("indexed proxy");
     let reference = reference_stage_proxy(&jeu.inputs()).expect("scanned proxy");

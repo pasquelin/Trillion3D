@@ -8,7 +8,7 @@ use crate::tests::formats::usd::driver::{compile_layer, wrap, QUAD};
 
 /// Key exposed by a compilation of `source` in a fresh cache: it is from cache
 /// to cache, not from a cache already served to itself, that an unstable key shows.
-fn cle_dans_un_cache_neuf(source: &Path, tag: &str) -> String {
+fn key_in_a_fresh_cache(source: &Path, tag: &str) -> String {
     compile_golden_source(source, tag).result["key"]
         .as_str()
         .expect("key")
@@ -16,26 +16,26 @@ fn cle_dans_un_cache_neuf(source: &Path, tag: &str) -> String {
 }
 
 /// Three keys in a row for the same source, each in its own cache.
-fn trois_cles(source: &Path, tag: &str) -> [String; 3] {
+fn three_keys(source: &Path, tag: &str) -> [String; 3] {
     [
-        cle_dans_un_cache_neuf(source, tag),
-        cle_dans_un_cache_neuf(source, tag),
-        cle_dans_un_cache_neuf(source, tag),
+        key_in_a_fresh_cache(source, tag),
+        key_in_a_fresh_cache(source, tag),
+        key_in_a_fresh_cache(source, tag),
     ]
 }
 
 // Behaviour: a native driver — ufbx import of an OBJ — yields the same key on
 // every conversion, and a modified input changes it.
 #[test]
-fn trois_imports_dun_obj_rendent_la_meme_cle() {
+fn three_imports_of_an_obj_give_the_same_key() {
     let root = scratch("identite", "obj");
     let obj = obj_source(&root, "obj", "newmtl Uni\nKd 1 1 1\n");
-    let [une, deux, trois] = trois_cles(&obj, "identite-obj");
+    let [une, deux, trois] = three_keys(&obj, "identite-obj");
     assert_eq!(une, deux, "two conversions of the same bytes, one key");
     assert_eq!(deux, trois, "the third does not drift either");
 
     fs::write(obj.with_file_name("scene.mtl"), "newmtl Uni\nKd 0 1 0\n").expect("mtl");
-    let modifiee = cle_dans_un_cache_neuf(&obj, "identite-obj-mtl");
+    let modifiee = key_in_a_fresh_cache(&obj, "identite-obj-mtl");
     assert_ne!(une, modifiee, "a modified library changes the key");
     fs::remove_dir_all(root).expect("cleanup");
 }
@@ -43,7 +43,7 @@ fn trois_imports_dun_obj_rendent_la_meme_cle() {
 // Behaviour: a scene driver — the USD layer — also yields the same key on every
 // conversion, and a modified layer changes it.
 #[test]
-fn trois_imports_dune_couche_usd_rendent_la_meme_cle() {
+fn three_imports_of_a_usd_layer_give_the_same_key() {
     let couche = wrap("", QUAD);
     let cles: Vec<String> = (0..3)
         .map(|_| {
@@ -70,7 +70,7 @@ fn trois_imports_dune_couche_usd_rendent_la_meme_cle() {
 // Behaviour: compiler options stay in identity — two triangle budgets yield two
 // products, therefore two keys.
 #[test]
-fn une_option_modifiee_change_la_cle() {
+fn a_changed_option_changes_the_key() {
     let (root, options) = fixture();
     let premiere = compile(&options, |_| {}).expect("compile")["key"]
         .as_str()

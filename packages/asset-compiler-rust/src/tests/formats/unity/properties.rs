@@ -1,7 +1,7 @@
 //! Properties a Unity project declares and that the driver must read as-is: a
 //! material's alpha mode, a texture's import settings, and the report of the driver
 //! that read a model. Instance and mesh cases are in `instances.rs`.
-use super::project::{cube, instancie, mat, mat_blanc, material_named, Projet};
+use super::project::{cube, instance_of, mat, material_named, white_mat, UnityProject};
 use super::*;
 
 /// GUID of the model of each case.
@@ -22,7 +22,7 @@ const PIXEL: [u8; 70] = [
 // value is less than one.
 #[test]
 fn an_opaque_material_stays_opaque_whatever_the_alpha_of_its_colour() {
-    let projet = Projet::new("opaque");
+    let projet = UnityProject::new("opaque");
     let guid = "000000000000000000000000000000d1";
     projet.data(
         "Materials/Plein.mat",
@@ -54,7 +54,7 @@ fn an_opaque_material_stays_opaque_whatever_the_alpha_of_its_colour() {
 // that declares neither stays opaque.
 #[test]
 fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
-    let projet = Projet::new("surface-type");
+    let projet = UnityProject::new("surface-type");
     let (fondu, masque, plein) = (
         "000000000000000000000000000000d2",
         "000000000000000000000000000000d3",
@@ -63,12 +63,12 @@ fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
     projet.data(
         "Materials/Fondu.mat",
         fondu,
-        &mat_blanc("Fondu", "    - _SurfaceType: 1\n"),
+        &white_mat("Fondu", "    - _SurfaceType: 1\n"),
     );
     projet.data(
         "Materials/Masque.mat",
         masque,
-        &mat_blanc(
+        &white_mat(
             "Masque",
             "    - _SurfaceType: 0\n    - _AlphaCutoffEnable: 1\n    - _AlphaCutoff: 0.3\n",
         ),
@@ -76,7 +76,7 @@ fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
     projet.data(
         "Materials/Plein.mat",
         plein,
-        &mat_blanc("Plein", "    - _Metallic: 0.5\n"),
+        &white_mat("Plein", "    - _Metallic: 0.5\n"),
     );
     projet.scene(&format!(
         "{}{}{}",
@@ -100,10 +100,10 @@ fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
 // codes rise there under their own name, and two models that miss the same thing add up.
 #[test]
 fn the_report_of_the_model_driver_reaches_the_unity_report() {
-    let projet = Projet::new("rapport-modele");
+    let projet = UnityProject::new("rapport-modele");
     let obj = b"mtllib absente.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nusemtl Uni\nf 1 2 3\n";
     projet.model_bytes("Models/Triangle.obj", MODEL, obj, "");
-    projet.scene(&instancie(
+    projet.scene(&instance_of(
         "Socle",
         &format!("{{fileID: 4300000, guid: {MODEL}, type: 3}}"),
     ));
@@ -121,7 +121,7 @@ fn the_report_of_the_model_driver_reaches_the_unity_report() {
 // repeated on the other keeps both modes, and nearest filtering is not smoothed.
 #[test]
 fn the_texture_importer_of_a_meta_gives_the_sampler_its_wrap_and_filter() {
-    let projet = Projet::new("sampler");
+    let projet = UnityProject::new("sampler");
     let (image, matiere) = (
         "000000000000000000000000000000f1",
         "000000000000000000000000000000f2",
@@ -135,7 +135,7 @@ fn the_texture_importer_of_a_meta_gives_the_sampler_its_wrap_and_filter() {
     projet.data(
         "Materials/Peinte.mat",
         matiere,
-        &mat_blanc_texture("Peinte", image),
+        &white_mat_texture("Peinte", image),
     );
     projet.scene(&cube(100, "Boite", matiere));
     let (_, gltf) = projet.compile("unity-sampler").prepared("unity");
@@ -159,8 +159,8 @@ fn the_texture_importer_of_a_meta_gives_the_sampler_its_wrap_and_filter() {
 }
 
 /// A white `.mat` whose base colour carries the texture of this GUID.
-fn mat_blanc_texture(name: &str, image: &str) -> String {
-    let body = mat_blanc(name, "");
+fn white_mat_texture(name: &str, image: &str) -> String {
+    let body = white_mat(name, "");
     body.replace(
         "m_TexEnvs: []",
         &format!("m_TexEnvs:\n    - _MainTex:\n        m_Texture: {{fileID: 2800000, guid: {image}, type: 3}}\n        m_Scale: {{x: 1, y: 1}}\n        m_Offset: {{x: 0, y: 0}}"),

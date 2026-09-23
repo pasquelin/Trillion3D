@@ -1,9 +1,9 @@
 import { MAX_REFLECTION_SAMPLES, MAX_EMITTERS, MAX_DIRECT_SAMPLES } from './contracts.ts';
-import { lightingSurfaceShader } from '../shader/surface.ts';
-import { lightingIntersectionsShader } from '../shader/intersections.ts';
-import { lightingTraversalShader } from '../shader/traversal.ts';
-import { lightingDirectShader } from '../shader/direct.ts';
-import { lightingSpecularShader } from '../shader/specular.ts';
+import { lightingSurfaceShader } from '../../../packages/sdk-browser/src/lighting/shader/surface.ts';
+import { lightingIntersectionsShader } from '../../../packages/sdk-browser/src/lighting/shader/intersections.ts';
+import { lightingTraversalShader } from '../../../packages/sdk-browser/src/lighting/shader/traversal.ts';
+import { lightingDirectShader } from '../../../packages/sdk-browser/src/lighting/shader/direct.ts';
+import { lightingSpecularShader } from '../../../packages/sdk-browser/src/lighting/shader/specular.ts';
 
 export const vertexShader = `
 varying vec3 worldPosition;

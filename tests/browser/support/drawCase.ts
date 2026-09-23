@@ -1,4 +1,4 @@
-export interface DrawItem {
+interface DrawItem {
   pageIndex: number;
   bin: number;
   selectionIndex: number;

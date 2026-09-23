@@ -1,4 +1,4 @@
-import type { HostNode, HostScene } from '../../host/resources.ts';
+import type { HostNode, HostScene } from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   MAX_SURFACES,
   MAX_CACHE_DIMENSION,
@@ -6,7 +6,7 @@ import {
   type LightingExperimentRenderState,
   type LightingExperimentRayDiagnostics,
 } from './contracts.ts';
-import { createRectangleBvh } from '../rectangleBvh.ts';
+import { createRectangleBvh } from '../../../packages/sdk-browser/src/lighting/rectangleBvh.ts';
 
 /** A float RGBA texture of the engine: its texels, its size, and whether the GPU copy is
  *  behind them. Uploaded by the draw, nearest-filtered, clamped, never mipmapped. */

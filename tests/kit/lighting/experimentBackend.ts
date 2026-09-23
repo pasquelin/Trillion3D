@@ -1,4 +1,4 @@
-import type { BackendFactory } from '../../backend/types.ts';
+import type { BackendFactory } from '../../../packages/sdk-browser/src/backend/types.ts';
 import type { LightingExperimentRenderState } from './contracts.ts';
 import { createObservationResources } from './resources.ts';
 import { createObservationMeshes } from './meshes.ts';

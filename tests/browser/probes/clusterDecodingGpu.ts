@@ -15,7 +15,7 @@ import {
 import { dansPageWebgpu } from './pageWebgpu.ts';
 
 /** Word the page sits at in its slot: never zero, so an accessor that forgot the offset fails. */
-export const SLOT_WORDS = 13;
+const SLOT_WORDS = 13;
 /** Words of a page-table row, and the two the row needs: its flags and its slot offset. */
 const ROW_WORDS = PAGE_INFO_STRIDE / 4,
   ROW_OFFSET_WORD = 24;
