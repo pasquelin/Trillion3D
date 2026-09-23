@@ -78,6 +78,12 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     updatePlacements(rows, from, to) {
       updateWebgpuPlacements(rt, rows, from, to);
     },
+    refreshMaterials() {
+      // Every row is written again at the next frame, and the writer rereads each surface whose
+      // version moved (`row/pageRowConstants.ts`); only values changed, so no resolve class did.
+      rt.layout.rows.tableEpoch++;
+      run.gate.sceneMoved();
+    },
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     async prepare() {
       context.signal?.throwIfAborted();

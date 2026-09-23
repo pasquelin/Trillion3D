@@ -46,11 +46,13 @@ export type { BufferNumbers, BufferTypedArray } from '../../sdk-core/src/world/b
 export { camera } from '../../sdk-core/src/world/camera/index.ts';
 export { Camera } from '../../sdk-core/src/world/camera/camera.ts';
 export type { CameraParameters, CameraPose } from '../../sdk-core/src/world/camera/camera.ts';
+export type { CanvasPoint, RaycastOptions } from '../../sdk-browser/src/world/core/worldRaycast.ts';
 export { capability } from '../../sdk-browser/src/world/capability/index.ts';
 export { capture } from '../../sdk-browser/src/world/capture/index.ts';
 export type { CaptureSize } from '../../sdk-browser/src/world/capture/index.ts';
 export { Color } from '../../sdk-core/src/world/math/color.ts';
 export type { ColorInput } from '../../sdk-core/src/world/math/color.ts';
+export { controls } from '../../sdk-browser/src/world/controls/index.ts';
 export { createWorld } from '../../sdk-browser/src/world/core/world.ts';
 export type { World } from '../../sdk-browser/src/world/core/world.ts';
 export { Curve, Path, Shape, SplineCurve } from '../../sdk-core/src/world/math/curves.ts';
@@ -71,6 +73,8 @@ export { Geometry } from '../../sdk-core/src/world/geometry/geometry.ts';
 export { Group, Object3D } from '../../sdk-core/src/world/object/object3d.ts';
 export type { SceneLink } from '../../sdk-core/src/world/object/object3d.ts';
 export { helper } from '../../sdk-browser/src/world/helper/index.ts';
+export { raycast } from '../../sdk-core/src/world/object/raycast.ts';
+export type { Intersection } from '../../sdk-core/src/world/object/raycast.ts';
 export { light, Light } from '../../sdk-core/src/world/light/light.ts';
 export type { LightParameters } from '../../sdk-core/src/world/light/light.ts';
 export { LoadedModel } from '../../sdk-browser/src/world/core/loadedModel.ts';
@@ -97,8 +101,27 @@ export type { PosedWorld } from '../../sdk-browser/src/world/pose/index.ts';
 export { probeWorldRenderer } from '../../sdk-browser/src/world/capability/worldReady.ts';
 export type { WorldRenderer } from '../../sdk-browser/src/world/capability/worldReady.ts';
 export { Quaternion } from '../../sdk-core/src/world/math/quaternion.ts';
+export type {
+  SavedCamera,
+  SavedGeometry,
+  SavedMaterial,
+  SavedNode,
+  SavedScene,
+} from '../../sdk-browser/src/world/saved/format.ts';
 export { Spherical, Vector2, Vector4 } from '../../sdk-core/src/world/math/vector2.ts';
 export { Texture } from '../../sdk-core/src/world/texture/texture.ts';
+export type {
+  TransformControls,
+  TransformControlsOptions,
+  TransformEvent,
+  TransformHost,
+} from '../../sdk-browser/src/world/controls/transform.ts';
+export type {
+  TransformHandle,
+  TransformMode,
+  TransformSnap,
+  TransformSpace,
+} from '../../sdk-browser/src/world/controls/transformMath.ts';
 export { Vector3 } from '../../sdk-core/src/world/math/vector3.ts';
 export type { Vec3Input } from '../../sdk-core/src/world/math/vector3.ts';
 export type { WorldControls } from '../../sdk-browser/src/world/core/worldCamera.ts';

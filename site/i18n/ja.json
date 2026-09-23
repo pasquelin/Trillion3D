@@ -405,7 +405,6 @@
       "gltf-material-variants": "more glTF extensions: material variants",
       "compressed-mesh-input": "more glTF extensions: Draco, meshopt, quantisation",
       "a-medical-scan": "volume rendering",
-      "save-the-scene": "scene export",
       "a-city-from-3d-tiles": "3D Tiles input",
       "rendering-in-a-worker": "OffscreenCanvas worker rendering",
       "a-video-panorama": "live video textures",
@@ -435,14 +434,12 @@
       "flames-and-a-tornado": "custom shader materials",
       "point-clouds-from-a-scan": "point-cloud import",
       "gaussian-splats": "gaussian splat rendering",
-      "click-to-pick": "picking (raycast)",
       "hover-over-triangles": "picking (raycast)",
       "pick-lines-and-points": "picking (raycast)",
       "pick-an-instance": "picking (raycast)",
       "paint-where-you-click": "picking (raycast)",
       "a-voxel-painter": "picking (raycast)",
       "drag-objects": "picking (raycast)",
-      "move-rotate-scale-gizmo": "picking (raycast) and transform gizmo",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "positional audio",
       "smooth-edges-over-time": "the temporal antialiasing setting",
@@ -558,6 +555,103 @@
     "title": "その場で試す",
     "start": "サンプルから始める",
     "open": "サンドボックスで開く"
+  },
+  "editor": {
+    "title": "Scene editor",
+    "group": "Tools",
+    "showcase": "Open the scene editor",
+    "loading": "Preparing the editor…",
+    "canvas": "Scene view: click an object to select it, drag to turn the camera",
+    "menu": {
+      "file": "File",
+      "add": "Add",
+      "edit": "Edit",
+      "models": "Models"
+    },
+    "new": "New",
+    "openFile": "Open…",
+    "save": "Save",
+    "undo": "Undo",
+    "redo": "Redo",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "add": {
+      "box": "Box",
+      "sphere": "Sphere",
+      "cylinder": "Cylinder",
+      "cone": "Cone",
+      "torus": "Torus",
+      "plane": "Plane",
+      "group": "Group",
+      "point": "Point light",
+      "spot": "Spot light",
+      "directional": "Directional light",
+      "ambient": "Ambient light"
+    },
+    "model": {
+      "bust": "Marble bust",
+      "crates": "Crates",
+      "hall": "Hall",
+      "street-corner": "Street corner"
+    },
+    "tools": "Transform tools",
+    "translate": "Move (W)",
+    "rotate": "Rotate (E)",
+    "scale": "Scale (R)",
+    "space": {
+      "world": "World axes",
+      "local": "Local axes"
+    },
+    "snap": "Snap",
+    "outliner": "Scene",
+    "empty": "The scene is empty: add an object from the Add menu.",
+    "show": "Show",
+    "hide": "Hide",
+    "rename": "Rename",
+    "dropRoot": "Drag a row onto another to put it inside; drop it here to bring it back to the top.",
+    "inspector": "Properties",
+    "nothing": "Select an object to edit it.",
+    "name": "Name",
+    "position": "Position",
+    "rotation": "Rotation (°)",
+    "scaleField": "Scale",
+    "geometry": "Shape",
+    "material": "Material",
+    "color": "Colour",
+    "metalness": "Metalness",
+    "roughness": "Roughness",
+    "emissive": "Emissive",
+    "opacity": "Opacity",
+    "light": "Light",
+    "intensity": "Intensity",
+    "range": "Range (0: no limit)",
+    "shadow": "Casts shadows",
+    "param": {
+      "width": "Width",
+      "height": "Height",
+      "depth": "Depth",
+      "radius": "Radius",
+      "radiusTop": "Top radius",
+      "radiusBottom": "Bottom radius",
+      "tube": "Tube radius",
+      "arc": "Arc (radians)",
+      "widthSegments": "Width segments",
+      "heightSegments": "Height segments",
+      "depthSegments": "Depth segments",
+      "radialSegments": "Radial segments",
+      "tubularSegments": "Tube segments"
+    },
+    "stats": "Engine statistics",
+    "cpu": "CPU frame (ms)",
+    "gpu": "GPU frame (ms)",
+    "triangles": "Triangles",
+    "pages": "Pages resident",
+    "sessions": "Sessions opened",
+    "statsHint": "Read from the last frame drawn; a still scene draws none.",
+    "error": {
+      "format": "This file holds a scene format this editor does not read.",
+      "read": "The scene could not be read:"
+    }
   },
   "section": {
     "course": "コース",
@@ -1278,6 +1372,26 @@
     },
     "srgbToLinearBatch": {
       "description": "要素ごとに1チャンネル、`packages/sdk-core/src/math/primitives/color.ts`の正確な曲線を使う: 参照実装は丸められた定数を掛けており、その差(8ビットでは見えない)は、それと競わせるベンチの中で一度だけ境界づけられている。"
+    },
+    "scene-editor": {
+      "title": "エディターでシーンを組み立てる",
+      "description": "形状とライトを追加し、マウスで選び、ハンドルで動かし、色を変え、シーンを保存してもう一度開く — ポータルの中で、公開 API だけで。",
+      "html": "<p><a href=\"#/ja/examples/scene-editor\">シーンエディター</a>は、エンジンの 3 つの扉だけで作られたこのポータルのページです。空のシーンから始めます: <b>Add → Box</b>、続いて <b>Add → Directional light</b>。ボックスをクリックすると、<code>world.raycast</code> がポインターの下にそれを見つけ、<code>controls.transform</code> のハンドルが現れます。矢印をドラッグして動かします — ハンドルを掴んでいる間カメラは止まります — <kbd>E</kbd> で回転、<kbd>R</kbd> で拡大縮小。インスペクターで色を変えると、エンジンはマテリアルをその場で塗り直し、フレームのコストは統計の隅に表示されたままです。<b>Save</b> は <code>scene.toJSON</code> をダウンロードし、<b>New</b> の後 <b>Open</b> で <code>scene.fromJSON</code> により同じシーンが再構築されます。</p>\n<p>どの操作も <kbd>Ctrl</kbd>+<kbd>Z</kbd> で元に戻せ、シーンは次の訪問までブラウザーに保存されます。ページ自身は何も描かず、何も動かしません: 見えているのはエンジンです。</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "ポインターでオブジェクトを選ぶ",
+      "description": "`world.raycast` はキャンバス上の点の下にある最も近いオブジェクトを返します: ページが追加したノード、当たった点と法線、距離。",
+      "html": "<p>判定は CPU 上でシーン自身のジオメトリに対して行われます: 三角形メッシュは三角形ごと、読み込まれたモデルはそのボックスで、線と点は対象外です。非表示のサブツリーと <code>helper</code> の目印は飛ばされます。<a href=\"#/ja/examples/click-to-pick\">Click to pick</a> で確認できます。</p>"
+    },
+    "move-with-handles": {
+      "title": "ハンドルで移動・回転・拡大縮小する",
+      "description": "`controls.transform(world)` は 1 つのオブジェクトにハンドルを付けます。ドラッグはその姿勢を親を通して書き込み、その間カメラは止まります。",
+      "html": "<p>モードは <code>translate</code>、<code>rotate</code>、<code>scale</code>。ワールド軸またはローカル軸、刻みは任意です。<code>dragStart</code> と <code>dragEnd</code> イベントが 1 回のドラッグ — 1 つの取り消し単位 — を囲みます。<a href=\"#/ja/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a> で確認できます。</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "シーンを保存して開く",
+      "description": "`scene.toJSON(camera)` はシーンをプレーンでバージョン付きの JSON として書き出し、`scene.fromJSON(json, camera)` がそれを再構築します。",
+      "html": "<p>形状はそれを作った呼び出しで、マテリアルはその値で、読み込まれたモデルはそのアドレスで保存され(埋め込まれることはありません)、<code>helper</code> の目印はまったく保存されません。別のフォーマットバージョンは名前を挙げて拒否されます。<a href=\"#/ja/examples/save-the-scene\">Save the scene</a> で確認できます。</p>"
     }
   },
   "canvas": {

@@ -7,9 +7,11 @@ import { probeWorldRenderer, type WorldRenderer } from '../capability/worldReady
 import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
 import { Scene, type LoadOptions } from './scene.ts';
+import { worldModelLoader } from './worldLoader.ts';
+import { worldRaycast, type CanvasPoint, type RaycastOptions } from './worldRaycast.ts';
+import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { awaitViewPages, registerWorld } from './worldSession.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
-import { worldModelLoader } from './loadedModel.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
 import { worldTelemetry } from './worldTelemetry.ts';
 
@@ -38,7 +40,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     gpuDevice = granted.gpuDevice;
   });
   ready.catch(() => {});
-  const scene = new Scene(worldModelLoader(ready, () => renderer, options.signal));
+  const scene = new Scene(worldModelLoader(ready, options.signal, () => renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
   const runtime = createWorldRuntime({
@@ -151,16 +153,18 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       () => frames.last,
     ),
     diagnostic: diagnostic.handle,
+    /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
+     *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
+    raycast: (at: CanvasPoint | Ray, options?: RaycastOptions) =>
+      worldRaycast(scene, camera, canvas, at, options),
     /** Runs a function after every drawn frame, with its time and metrics; returns its remover. */
     onFrame: frames.add,
-    /**
-     * Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.
+    /** Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.
      * A frame of the world's loop runs: the controller steps the camera (unless
      * `controls.autoUpdate` is false), clips advance, these hooks in the order they were added,
      * the scene is written and drawn, then the `onFrame` hooks. What a hook places — a body on
      * the camera, a cockpit — is drawn in this very frame, never one late. A host-led `render()`
-     * runs them too but steps no controller. A hook calling `invalidate()` keeps frames coming.
-     */
+     * runs them too but steps no controller. A hook calling `invalidate()` keeps frames coming. */
     beforeFrame: frames.before,
     /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks for a new frame after a change the world could not see. */ invalidate,
