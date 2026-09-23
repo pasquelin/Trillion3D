@@ -1374,24 +1374,24 @@
       "description": "要素ごとに1チャンネル、`packages/sdk-core/src/math/primitives/color.ts`の正確な曲線を使う: 参照実装は丸められた定数を掛けており、その差(8ビットでは見えない)は、それと競わせるベンチの中で一度だけ境界づけられている。"
     },
     "scene-editor": {
-      "title": "Build a scene with the editor",
-      "description": "Add shapes and lights, pick them with the mouse, move them with handles, recolour them, save the scene and open it again — in the portal, on the public API alone.",
-      "html": "<p>The <a href=\"#/ja/examples/scene-editor\">scene editor</a> is a page of this portal built on three doors of the engine and nothing else. Start from an empty scene: <b>Add → Box</b>, then <b>Add → Directional light</b>. Click the box: <code>world.raycast</code> finds it under the pointer, and the handles of <code>controls.transform</code> appear on it. Drag an arrow to move it — the camera rests while a handle is held — press <kbd>E</kbd> to turn it, <kbd>R</kbd> to scale it. Change its colour in the inspector: the engine repaints the material in place, the frame's cost stays in the stats corner. <b>Save</b> downloads <code>scene.toJSON</code>; <b>New</b>, then <b>Open</b>, builds the same scene again with <code>scene.fromJSON</code>.</p>\n<p>Every step is undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>, and the scene is kept in the browser between two visits. Nothing is drawn or moved by the page itself: what you see is the engine.</p>"
+      "title": "エディターでシーンを組み立てる",
+      "description": "形状とライトを追加し、マウスで選び、ハンドルで動かし、色を変え、シーンを保存してもう一度開く — ポータルの中で、公開 API だけで。",
+      "html": "<p><a href=\"#/ja/examples/scene-editor\">シーンエディター</a>は、エンジンの 3 つの扉だけで作られたこのポータルのページです。空のシーンから始めます: <b>Add → Box</b>、続いて <b>Add → Directional light</b>。ボックスをクリックすると、<code>world.raycast</code> がポインターの下にそれを見つけ、<code>controls.transform</code> のハンドルが現れます。矢印をドラッグして動かします — ハンドルを掴んでいる間カメラは止まります — <kbd>E</kbd> で回転、<kbd>R</kbd> で拡大縮小。インスペクターで色を変えると、エンジンはマテリアルをその場で塗り直し、フレームのコストは統計の隅に表示されたままです。<b>Save</b> は <code>scene.toJSON</code> をダウンロードし、<b>New</b> の後 <b>Open</b> で <code>scene.fromJSON</code> により同じシーンが再構築されます。</p>\n<p>どの操作も <kbd>Ctrl</kbd>+<kbd>Z</kbd> で元に戻せ、シーンは次の訪問までブラウザーに保存されます。ページ自身は何も描かず、何も動かしません: 見えているのはエンジンです。</p>"
     },
     "pick-with-the-pointer": {
-      "title": "Pick an object with the pointer",
-      "description": "`world.raycast` returns the nearest object under a canvas point: the node the page added, the point and normal hit, the distance.",
-      "html": "<p>The test runs on the CPU over the scene's own geometry: triangle meshes triangle by triangle, a loaded model on its box, lines and points never. Hidden subtrees and <code>helper</code> marks are skipped. See it in <a href=\"#/ja/examples/click-to-pick\">Click to pick</a>.</p>"
+      "title": "ポインターでオブジェクトを選ぶ",
+      "description": "`world.raycast` はキャンバス上の点の下にある最も近いオブジェクトを返します: ページが追加したノード、当たった点と法線、距離。",
+      "html": "<p>判定は CPU 上でシーン自身のジオメトリに対して行われます: 三角形メッシュは三角形ごと、読み込まれたモデルはそのボックスで、線と点は対象外です。非表示のサブツリーと <code>helper</code> の目印は飛ばされます。<a href=\"#/ja/examples/click-to-pick\">Click to pick</a> で確認できます。</p>"
     },
     "move-with-handles": {
-      "title": "Move, turn and scale with handles",
-      "description": "`controls.transform(world)` puts handles on one object; a drag writes its pose through its parents, and the camera rests meanwhile.",
-      "html": "<p>Modes <code>translate</code>, <code>rotate</code> and <code>scale</code>, world or local axes, optional steps. The events <code>dragStart</code> and <code>dragEnd</code> frame one drag — one undo step. See it in <a href=\"#/ja/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
+      "title": "ハンドルで移動・回転・拡大縮小する",
+      "description": "`controls.transform(world)` は 1 つのオブジェクトにハンドルを付けます。ドラッグはその姿勢を親を通して書き込み、その間カメラは止まります。",
+      "html": "<p>モードは <code>translate</code>、<code>rotate</code>、<code>scale</code>。ワールド軸またはローカル軸、刻みは任意です。<code>dragStart</code> と <code>dragEnd</code> イベントが 1 回のドラッグ — 1 つの取り消し単位 — を囲みます。<a href=\"#/ja/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a> で確認できます。</p>"
     },
     "save-and-open-a-scene": {
-      "title": "Save and open a scene",
-      "description": "`scene.toJSON(camera)` writes the scene as plain versioned JSON; `scene.fromJSON(json, camera)` builds it again.",
-      "html": "<p>Shapes are stored by the call that built them, materials by their values, loaded models by their address — never inlined — and <code>helper</code> marks not at all. Another format version is refused by name. See it in <a href=\"#/ja/examples/save-the-scene\">Save the scene</a>.</p>"
+      "title": "シーンを保存して開く",
+      "description": "`scene.toJSON(camera)` はシーンをプレーンでバージョン付きの JSON として書き出し、`scene.fromJSON(json, camera)` がそれを再構築します。",
+      "html": "<p>形状はそれを作った呼び出しで、マテリアルはその値で、読み込まれたモデルはそのアドレスで保存され(埋め込まれることはありません)、<code>helper</code> の目印はまったく保存されません。別のフォーマットバージョンは名前を挙げて拒否されます。<a href=\"#/ja/examples/save-the-scene\">Save the scene</a> で確認できます。</p>"
     }
   },
   "canvas": {

@@ -6727,14 +6727,14 @@
     "summary": "新しい`cpuSteps()`ウィンドウを開く。"
   },
   "CanvasPoint": {
-    "summary": "A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`.",
+    "summary": "キャンバス上の点。左上隅からの CSS ピクセル: `event.offsetX`、`offsetY`。",
     "members": {
       "x": "CSS pixels from the canvas's left edge.",
       "y": "CSS pixels from the canvas's top edge."
     }
   },
   "Intersection": {
-    "summary": "Where a ray meets an object: the object itself, the world point and the surface's normal there, how far along the ray, and which triangle (`-1` when the object's box was hit).",
+    "summary": "レイがオブジェクトに当たった場所: オブジェクト自身、そこでのワールド座標の点と面の法線、レイに沿った距離、どの三角形か(オブジェクトのボックスに当たった場合は `-1`)。",
     "members": {
       "object": "The object hit: the very node the page added.",
       "point": "The world point hit.",
@@ -6744,13 +6744,13 @@
     }
   },
   "RaycastOptions": {
-    "summary": "What `world.raycast` may be told; every field is optional.",
+    "summary": "`world.raycast` に渡せるもの。どのフィールドも省略可能です。",
     "members": {
       "objects": "The objects tested, with their subtrees; unset, the whole scene."
     }
   },
   "SavedCamera": {
-    "summary": "The camera a scene was saved with: its pose, projection and optics.",
+    "summary": "シーンを保存したときのカメラ: その姿勢、投影、光学設定。",
     "members": {
       "projection": "Perspective or orthographic.",
       "position": "Where the eye stands.",
@@ -6759,7 +6759,7 @@
     }
   },
   "SavedGeometry": {
-    "summary": "A geometry: the family call that built it, or its vertices when no call can build it again.",
+    "summary": "ジオメトリ: それを作ったファミリーの呼び出し、または再構築できる呼び出しがない場合はその頂点。",
     "members": {
       "recipe": "The family member and every argument it was built with.",
       "attributes": "Each per-vertex list, when no call builds the shape again.",
@@ -6768,14 +6768,14 @@
     }
   },
   "SavedMaterial": {
-    "summary": "A material: its kind and every parameter, colours as linear `[r, g, b]`.",
+    "summary": "マテリアル: その種類と各パラメーター。色はリニアな `[r, g, b]`。",
     "members": {
       "kind": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…",
       "parameters": "Every parameter by name."
     }
   },
   "SavedNode": {
-    "summary": "A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it.",
+    "summary": "ノード: その姿勢と種類 — グループ、メッシュ、ライト、読み込まれたモデル — と、その下にあるもの。",
     "members": {
       "kind": "What the node is.",
       "name": "Its name.",
@@ -6794,7 +6794,7 @@
     }
   },
   "SavedScene": {
-    "summary": "A scene as `scene.toJSON` writes it and `scene.fromJSON` reads it: plain JSON.",
+    "summary": "`scene.toJSON` が書き、`scene.fromJSON` が読むシーン: プレーンな JSON。",
     "members": {
       "format": "Always `'web-geometry-scene'`.",
       "formatVersion": "The version of this layout; another one is refused.",
@@ -6807,7 +6807,7 @@
     }
   },
   "TransformControls": {
-    "summary": "What `controls.transform` returns.",
+    "summary": "`controls.transform` が返すもの。",
     "members": {
       "snap": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional.",
       "handles": "The group of the handles — a `helper` mark — in the scene while attached.",
@@ -6825,7 +6825,7 @@
     }
   },
   "TransformControlsOptions": {
-    "summary": "What `controls.transform` may be told; every field is optional.",
+    "summary": "`controls.transform` に渡せるもの。どのフィールドも省略可能です。",
     "members": {
       "mode": "Move, turn or scale; `'translate'` by default.",
       "space": "Handles along the world axes or the object's own; `'world'` by default.",
@@ -6834,13 +6834,13 @@
     }
   },
   "TransformEvent": {
-    "summary": "The events a transform control emits: every pose it writes, and the start and end of a drag."
+    "summary": "トランスフォームコントロールが発するイベント: 書き込むすべての姿勢と、ドラッグの開始と終了。"
   },
   "TransformHandle": {
-    "summary": "A handle: one axis, the plane of two, or `'xyz'` — the centre: free move, uniform scale."
+    "summary": "ハンドル: 1 本の軸、2 本の軸の平面、または `'xyz'` — 中心: 自由移動、均一スケール。"
   },
   "TransformHost": {
-    "summary": "What a transform control needs of a world: `createWorld` returns one.",
+    "summary": "トランスフォームコントロールがワールドに求めるもの: `createWorld` が返します。",
     "members": {
       "canvas": "The canvas the pointer presses on.",
       "scene": "The scene the handles are added to.",
@@ -6849,10 +6849,10 @@
     }
   },
   "TransformMode": {
-    "summary": "What a transform control does to its object."
+    "summary": "トランスフォームコントロールが対象オブジェクトに行うこと。"
   },
   "TransformSnap": {
-    "summary": "Steps a drag is rounded to, each optional: world units, radians, scale factor.",
+    "summary": "ドラッグを丸める刻み。どれも省略可能: ワールド単位、ラジアン、スケール係数。",
     "members": {
       "translate": "World units a move is rounded to, along each axis.",
       "rotate": "Radians a turn is rounded to.",
@@ -6860,20 +6860,20 @@
     }
   },
   "TransformSpace": {
-    "summary": "The frame the handles are aligned with; a scale is always along the object's own axes."
+    "summary": "ハンドルを揃える座標系。スケールは常にオブジェクト自身の軸に沿います。"
   },
   "world.raycast": {
-    "summary": "The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`: the node the page added, the world point and normal hit, the distance (`worldRaycast`).",
+    "summary": "キャンバス上の点(CSS ピクセル)の下、またはワールドのレイに沿った最も近いオブジェクト、または `null`: ページが追加したノード、当たったワールドの点と法線、距離(`worldRaycast`)。",
     "parameters": {
       "options": "What `world.raycast` may be told; every field is optional.",
       "options.objects": "The objects tested, with their subtrees; unset, the whole scene."
     }
   },
   "controls": {
-    "summary": "The `controls` family: controllers a page attaches to a world, beside the camera controller `world.controls` already drives."
+    "summary": "`controls` ファミリー: `world.controls` がすでに動かすカメラコントローラーとは別に、ページがワールドに取り付けるコントローラー。"
   },
   "controls.transform": {
-    "summary": "Handles that move, turn and scale one object with the mouse (`transform.ts`).",
+    "summary": "1 つのオブジェクトをマウスで移動・回転・拡大縮小するハンドル(`transform.ts`)。",
     "parameters": {
       "host": "The world whose scene and camera the handles live in.",
       "options": "Mode, axes, snapping and screen size; saying nothing is the usual case.",
@@ -6884,7 +6884,7 @@
     }
   },
   "raycast": {
-    "summary": "Every object under `roots` that `ray` meets, nearest first, one hit per object: the nearest of its own.",
-    "description": "The direction is made a unit vector at the door, so every `distance` is in world units whatever length the page gave it. Hidden subtrees are skipped — a root under a hidden ancestor too — and so are the nodes `skip` names with their subtrees: the marks a page works with, never its content."
+    "summary": "`ray` が出会う `roots` 以下のすべてのオブジェクト。近い順で、オブジェクトごとに 1 つの交差: そのうち最も近いもの。",
+    "description": "方向は入口で単位ベクトルにされるため、ページが与えた長さにかかわらず、すべての `distance` はワールド単位です。非表示のサブツリーは飛ばされ(非表示の祖先の下にあるルートも)、`skip` が指定するノードもそのサブツリーごと飛ばされます: ページが作業に使う目印であり、決してその内容ではありません。"
   }
 }

@@ -7,6 +7,17 @@ import type { Editor } from './useEditor.ts';
 
 /** The public cooked models the Models menu loads, each committed under `site/assets/examples`. */
 const MODELS = ['bust', 'crates', 'hall', 'street-corner'] as const;
+/** The dictionary words (`editor.<word>`) naming the menus' items. */
+type ItemWord =
+  | 'new'
+  | 'openFile'
+  | 'save'
+  | 'undo'
+  | 'redo'
+  | 'duplicate'
+  | 'delete'
+  | `add.${AddKind}`
+  | `model.${(typeof MODELS)[number]}`;
 const manifestOf = (id: string) =>
   new URL(`assets/examples/${id}/cache/native/full/manifest.json`, document.baseURI).href;
 
@@ -65,7 +76,7 @@ export function MenuBar({ editor }: { editor: Editor }) {
   const file = useRef<HTMLInputElement>(null);
   const kinds: AddKind[] = [...(Object.keys(SHAPES) as AddKind[]), 'group', ...LIGHTS];
   const none = !session.selected;
-  const item = (key: string, run: () => void, disabled = false) => ({
+  const item = (key: ItemWord, run: () => void, disabled = false) => ({
     key,
     label: t(`editor.${key}`),
     run,

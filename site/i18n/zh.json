@@ -1371,24 +1371,24 @@
       "description": "每个元素处理一个通道,使用 `packages/sdk-core/src/math/primitives/color.ts` 里的精确曲线:参考实现乘的是经过舍入的常量,这个差距(在 8 位精度下不可见)已经在与它对决的基准测试中被一次性界定清楚。"
     },
     "scene-editor": {
-      "title": "Build a scene with the editor",
-      "description": "Add shapes and lights, pick them with the mouse, move them with handles, recolour them, save the scene and open it again — in the portal, on the public API alone.",
-      "html": "<p>The <a href=\"#/zh/examples/scene-editor\">scene editor</a> is a page of this portal built on three doors of the engine and nothing else. Start from an empty scene: <b>Add → Box</b>, then <b>Add → Directional light</b>. Click the box: <code>world.raycast</code> finds it under the pointer, and the handles of <code>controls.transform</code> appear on it. Drag an arrow to move it — the camera rests while a handle is held — press <kbd>E</kbd> to turn it, <kbd>R</kbd> to scale it. Change its colour in the inspector: the engine repaints the material in place, the frame's cost stays in the stats corner. <b>Save</b> downloads <code>scene.toJSON</code>; <b>New</b>, then <b>Open</b>, builds the same scene again with <code>scene.fromJSON</code>.</p>\n<p>Every step is undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>, and the scene is kept in the browser between two visits. Nothing is drawn or moved by the page itself: what you see is the engine.</p>"
+      "title": "用编辑器搭建场景",
+      "description": "添加形状和灯光,用鼠标选中它们,用手柄移动,重新着色,保存场景并再次打开 —— 在门户中,仅用公开 API。",
+      "html": "<p><a href=\"#/zh/examples/scene-editor\">场景编辑器</a>是本门户的一个页面,只建立在引擎的三扇门之上,别无其他。从空场景开始:<b>Add → Box</b>,然后 <b>Add → Directional light</b>。点击盒子:<code>world.raycast</code> 在指针下找到它,<code>controls.transform</code> 的手柄随即出现在上面。拖动箭头来移动它 —— 按住手柄时相机保持不动 —— 按 <kbd>E</kbd> 旋转,按 <kbd>R</kbd> 缩放。在检查器中更改颜色:引擎就地重绘材质,帧的开销留在统计角落里。<b>Save</b> 下载 <code>scene.toJSON</code>;<b>New</b> 之后 <b>Open</b>,用 <code>scene.fromJSON</code> 重新构建同一个场景。</p>\n<p>每一步都可以用 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销,场景在两次访问之间保存在浏览器中。页面本身不绘制也不移动任何东西:您看到的是引擎。</p>"
     },
     "pick-with-the-pointer": {
-      "title": "Pick an object with the pointer",
-      "description": "`world.raycast` returns the nearest object under a canvas point: the node the page added, the point and normal hit, the distance.",
-      "html": "<p>The test runs on the CPU over the scene's own geometry: triangle meshes triangle by triangle, a loaded model on its box, lines and points never. Hidden subtrees and <code>helper</code> marks are skipped. See it in <a href=\"#/zh/examples/click-to-pick\">Click to pick</a>.</p>"
+      "title": "用指针选取对象",
+      "description": "`world.raycast` 返回画布上某点下方最近的对象:页面添加的节点、击中的点和法线、距离。",
+      "html": "<p>测试在 CPU 上针对场景自身的几何体进行:三角形网格逐个三角形,已加载的模型按其包围盒,线和点从不参与。隐藏的子树和 <code>helper</code> 标记会被跳过。请在 <a href=\"#/zh/examples/click-to-pick\">Click to pick</a> 中查看。</p>"
     },
     "move-with-handles": {
-      "title": "Move, turn and scale with handles",
-      "description": "`controls.transform(world)` puts handles on one object; a drag writes its pose through its parents, and the camera rests meanwhile.",
-      "html": "<p>Modes <code>translate</code>, <code>rotate</code> and <code>scale</code>, world or local axes, optional steps. The events <code>dragStart</code> and <code>dragEnd</code> frame one drag — one undo step. See it in <a href=\"#/zh/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
+      "title": "用手柄移动、旋转和缩放",
+      "description": "`controls.transform(world)` 在一个对象上放置手柄;拖动通过其父级写入它的姿态,期间相机保持不动。",
+      "html": "<p>模式有 <code>translate</code>、<code>rotate</code> 和 <code>scale</code>,世界轴或局部轴,可选步长。<code>dragStart</code> 和 <code>dragEnd</code> 事件框定一次拖动 —— 一个撤销步骤。请在 <a href=\"#/zh/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a> 中查看。</p>"
     },
     "save-and-open-a-scene": {
-      "title": "Save and open a scene",
-      "description": "`scene.toJSON(camera)` writes the scene as plain versioned JSON; `scene.fromJSON(json, camera)` builds it again.",
-      "html": "<p>Shapes are stored by the call that built them, materials by their values, loaded models by their address — never inlined — and <code>helper</code> marks not at all. Another format version is refused by name. See it in <a href=\"#/zh/examples/save-the-scene\">Save the scene</a>.</p>"
+      "title": "保存和打开场景",
+      "description": "`scene.toJSON(camera)` 将场景写为纯粹的、带版本的 JSON;`scene.fromJSON(json, camera)` 将其重建。",
+      "html": "<p>形状按构建它们的调用保存,材质按其数值保存,已加载的模型按其地址保存 —— 从不内嵌 —— 而 <code>helper</code> 标记完全不保存。其他格式版本会被点名拒绝。请在 <a href=\"#/zh/examples/save-the-scene\">Save the scene</a> 中查看。</p>"
     }
   },
   "canvas": {

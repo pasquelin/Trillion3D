@@ -6727,14 +6727,14 @@
     "summary": "Открывает новое окно `cpuSteps()`."
   },
   "CanvasPoint": {
-    "summary": "A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`.",
+    "summary": "Точка canvas в CSS-пикселях от его левого верхнего угла: `event.offsetX`, `offsetY`.",
     "members": {
       "x": "CSS pixels from the canvas's left edge.",
       "y": "CSS pixels from the canvas's top edge."
     }
   },
   "Intersection": {
-    "summary": "Where a ray meets an object: the object itself, the world point and the surface's normal there, how far along the ray, and which triangle (`-1` when the object's box was hit).",
+    "summary": "Где луч встречает объект: сам объект, мировая точка и нормаль поверхности в ней, расстояние вдоль луча и какой треугольник (`-1`, если попадание пришлось в бокс объекта).",
     "members": {
       "object": "The object hit: the very node the page added.",
       "point": "The world point hit.",
@@ -6744,13 +6744,13 @@
     }
   },
   "RaycastOptions": {
-    "summary": "What `world.raycast` may be told; every field is optional.",
+    "summary": "Что можно передать `world.raycast`; каждое поле необязательно.",
     "members": {
       "objects": "The objects tested, with their subtrees; unset, the whole scene."
     }
   },
   "SavedCamera": {
-    "summary": "The camera a scene was saved with: its pose, projection and optics.",
+    "summary": "Камера, с которой сцена была сохранена: её поза, проекция и оптика.",
     "members": {
       "projection": "Perspective or orthographic.",
       "position": "Where the eye stands.",
@@ -6759,7 +6759,7 @@
     }
   },
   "SavedGeometry": {
-    "summary": "A geometry: the family call that built it, or its vertices when no call can build it again.",
+    "summary": "Геометрия: вызов семейства, который её построил, или её вершины, когда никакой вызов не может построить её заново.",
     "members": {
       "recipe": "The family member and every argument it was built with.",
       "attributes": "Each per-vertex list, when no call builds the shape again.",
@@ -6768,14 +6768,14 @@
     }
   },
   "SavedMaterial": {
-    "summary": "A material: its kind and every parameter, colours as linear `[r, g, b]`.",
+    "summary": "Материал: его вид и каждый параметр, цвета как линейный `[r, g, b]`.",
     "members": {
       "kind": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…",
       "parameters": "Every parameter by name."
     }
   },
   "SavedNode": {
-    "summary": "A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it.",
+    "summary": "Узел: его поза и то, чем он является — группа, меш, свет или загруженная модель, — и что под ним.",
     "members": {
       "kind": "What the node is.",
       "name": "Its name.",
@@ -6794,7 +6794,7 @@
     }
   },
   "SavedScene": {
-    "summary": "A scene as `scene.toJSON` writes it and `scene.fromJSON` reads it: plain JSON.",
+    "summary": "Сцена в том виде, в каком её пишет `scene.toJSON` и читает `scene.fromJSON`: простой JSON.",
     "members": {
       "format": "Always `'web-geometry-scene'`.",
       "formatVersion": "The version of this layout; another one is refused.",
@@ -6807,7 +6807,7 @@
     }
   },
   "TransformControls": {
-    "summary": "What `controls.transform` returns.",
+    "summary": "Что возвращает `controls.transform`.",
     "members": {
       "snap": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional.",
       "handles": "The group of the handles — a `helper` mark — in the scene while attached.",
@@ -6825,7 +6825,7 @@
     }
   },
   "TransformControlsOptions": {
-    "summary": "What `controls.transform` may be told; every field is optional.",
+    "summary": "Что можно передать `controls.transform`; каждое поле необязательно.",
     "members": {
       "mode": "Move, turn or scale; `'translate'` by default.",
       "space": "Handles along the world axes or the object's own; `'world'` by default.",
@@ -6834,13 +6834,13 @@
     }
   },
   "TransformEvent": {
-    "summary": "The events a transform control emits: every pose it writes, and the start and end of a drag."
+    "summary": "События контроллера трансформации: каждая поза, которую он записывает, а также начало и конец перетаскивания."
   },
   "TransformHandle": {
-    "summary": "A handle: one axis, the plane of two, or `'xyz'` — the centre: free move, uniform scale."
+    "summary": "Ручка: одна ось, плоскость двух осей или `'xyz'` — центр: свободное перемещение, равномерный масштаб."
   },
   "TransformHost": {
-    "summary": "What a transform control needs of a world: `createWorld` returns one.",
+    "summary": "Что контроллеру трансформации нужно от мира: `createWorld` возвращает такой.",
     "members": {
       "canvas": "The canvas the pointer presses on.",
       "scene": "The scene the handles are added to.",
@@ -6849,10 +6849,10 @@
     }
   },
   "TransformMode": {
-    "summary": "What a transform control does to its object."
+    "summary": "Что контроллер трансформации делает со своим объектом."
   },
   "TransformSnap": {
-    "summary": "Steps a drag is rounded to, each optional: world units, radians, scale factor.",
+    "summary": "Шаги, до которых округляется перетаскивание, каждый необязателен: мировые единицы, радианы, коэффициент масштаба.",
     "members": {
       "translate": "World units a move is rounded to, along each axis.",
       "rotate": "Radians a turn is rounded to.",
@@ -6860,20 +6860,20 @@
     }
   },
   "TransformSpace": {
-    "summary": "The frame the handles are aligned with; a scale is always along the object's own axes."
+    "summary": "Система координат, по которой выровнены ручки; масштаб всегда идёт вдоль собственных осей объекта."
   },
   "world.raycast": {
-    "summary": "The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`: the node the page added, the world point and normal hit, the distance (`worldRaycast`).",
+    "summary": "Ближайший объект под точкой canvas (CSS-пиксели) или вдоль мирового луча, либо `null`: узел, добавленный страницей, мировая точка и нормаль попадания, расстояние (`worldRaycast`).",
     "parameters": {
       "options": "What `world.raycast` may be told; every field is optional.",
       "options.objects": "The objects tested, with their subtrees; unset, the whole scene."
     }
   },
   "controls": {
-    "summary": "The `controls` family: controllers a page attaches to a world, beside the camera controller `world.controls` already drives."
+    "summary": "Семейство `controls`: контроллеры, которые страница подключает к миру, рядом с контроллером камеры, которым уже управляет `world.controls`."
   },
   "controls.transform": {
-    "summary": "Handles that move, turn and scale one object with the mouse (`transform.ts`).",
+    "summary": "Ручки, которые перемещают, вращают и масштабируют объект мышью (`transform.ts`).",
     "parameters": {
       "host": "The world whose scene and camera the handles live in.",
       "options": "Mode, axes, snapping and screen size; saying nothing is the usual case.",
@@ -6884,7 +6884,7 @@
     }
   },
   "raycast": {
-    "summary": "Every object under `roots` that `ray` meets, nearest first, one hit per object: the nearest of its own.",
-    "description": "The direction is made a unit vector at the door, so every `distance` is in world units whatever length the page gave it. Hidden subtrees are skipped — a root under a hidden ancestor too — and so are the nodes `skip` names with their subtrees: the marks a page works with, never its content."
+    "summary": "Каждый объект под `roots`, который встречает `ray`, ближайший первым, одно попадание на объект: ближайшее из его собственных.",
+    "description": "Направление на входе приводится к единичному вектору, поэтому каждое `distance` выражено в мировых единицах, какую бы длину ни дала страница. Скрытые поддеревья пропускаются — и корень под скрытым предком тоже, — как и узлы, названные в `skip`, вместе с их поддеревьями: метки, с которыми работает страница, но никогда не её содержимое."
   }
 }

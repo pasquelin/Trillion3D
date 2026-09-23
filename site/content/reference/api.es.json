@@ -6727,14 +6727,14 @@
     }
   },
   "CanvasPoint": {
-    "summary": "A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`.",
+    "summary": "Un punto del canvas, en píxeles CSS desde su esquina superior izquierda: `event.offsetX`, `offsetY`.",
     "members": {
       "x": "CSS pixels from the canvas's left edge.",
       "y": "CSS pixels from the canvas's top edge."
     }
   },
   "Intersection": {
-    "summary": "Where a ray meets an object: the object itself, the world point and the surface's normal there, how far along the ray, and which triangle (`-1` when the object's box was hit).",
+    "summary": "Donde un rayo alcanza un objeto: el propio objeto, el punto del mundo y la normal de la superficie allí, la distancia a lo largo del rayo y qué triángulo (`-1` cuando se alcanzó la caja del objeto).",
     "members": {
       "object": "The object hit: the very node the page added.",
       "point": "The world point hit.",
@@ -6744,13 +6744,13 @@
     }
   },
   "RaycastOptions": {
-    "summary": "What `world.raycast` may be told; every field is optional.",
+    "summary": "Lo que se le puede indicar a `world.raycast`; cada campo es opcional.",
     "members": {
       "objects": "The objects tested, with their subtrees; unset, the whole scene."
     }
   },
   "SavedCamera": {
-    "summary": "The camera a scene was saved with: its pose, projection and optics.",
+    "summary": "La cámara con la que se guardó una escena: su pose, su proyección y su óptica.",
     "members": {
       "projection": "Perspective or orthographic.",
       "position": "Where the eye stands.",
@@ -6759,7 +6759,7 @@
     }
   },
   "SavedGeometry": {
-    "summary": "A geometry: the family call that built it, or its vertices when no call can build it again.",
+    "summary": "Una geometría: la llamada de familia que la construyó, o sus vértices cuando ninguna llamada puede reconstruirla.",
     "members": {
       "recipe": "The family member and every argument it was built with.",
       "attributes": "Each per-vertex list, when no call builds the shape again.",
@@ -6768,14 +6768,14 @@
     }
   },
   "SavedMaterial": {
-    "summary": "A material: its kind and every parameter, colours as linear `[r, g, b]`.",
+    "summary": "Un material: su tipo y cada parámetro, los colores como `[r, g, b]` lineal.",
     "members": {
       "kind": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…",
       "parameters": "Every parameter by name."
     }
   },
   "SavedNode": {
-    "summary": "A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it.",
+    "summary": "Un nodo: su pose y lo que es — un grupo, una malla, una luz o un modelo cargado — y lo que hay debajo.",
     "members": {
       "kind": "What the node is.",
       "name": "Its name.",
@@ -6794,7 +6794,7 @@
     }
   },
   "SavedScene": {
-    "summary": "A scene as `scene.toJSON` writes it and `scene.fromJSON` reads it: plain JSON.",
+    "summary": "Una escena tal como `scene.toJSON` la escribe y `scene.fromJSON` la lee: JSON simple.",
     "members": {
       "format": "Always `'web-geometry-scene'`.",
       "formatVersion": "The version of this layout; another one is refused.",
@@ -6807,7 +6807,7 @@
     }
   },
   "TransformControls": {
-    "summary": "What `controls.transform` returns.",
+    "summary": "Lo que devuelve `controls.transform`.",
     "members": {
       "snap": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional.",
       "handles": "The group of the handles — a `helper` mark — in the scene while attached.",
@@ -6825,7 +6825,7 @@
     }
   },
   "TransformControlsOptions": {
-    "summary": "What `controls.transform` may be told; every field is optional.",
+    "summary": "Lo que se le puede indicar a `controls.transform`; cada campo es opcional.",
     "members": {
       "mode": "Move, turn or scale; `'translate'` by default.",
       "space": "Handles along the world axes or the object's own; `'world'` by default.",
@@ -6834,13 +6834,13 @@
     }
   },
   "TransformEvent": {
-    "summary": "The events a transform control emits: every pose it writes, and the start and end of a drag."
+    "summary": "Los eventos que emite un control de transformación: cada pose que escribe, y el inicio y el fin de un arrastre."
   },
   "TransformHandle": {
-    "summary": "A handle: one axis, the plane of two, or `'xyz'` — the centre: free move, uniform scale."
+    "summary": "Un tirador: un eje, el plano de dos, o `'xyz'` — el centro: movimiento libre, escala uniforme."
   },
   "TransformHost": {
-    "summary": "What a transform control needs of a world: `createWorld` returns one.",
+    "summary": "Lo que un control de transformación necesita de un mundo: `createWorld` devuelve uno.",
     "members": {
       "canvas": "The canvas the pointer presses on.",
       "scene": "The scene the handles are added to.",
@@ -6849,10 +6849,10 @@
     }
   },
   "TransformMode": {
-    "summary": "What a transform control does to its object."
+    "summary": "Lo que un control de transformación hace a su objeto."
   },
   "TransformSnap": {
-    "summary": "Steps a drag is rounded to, each optional: world units, radians, scale factor.",
+    "summary": "Pasos a los que se redondea un arrastre, cada uno opcional: unidades del mundo, radianes, factor de escala.",
     "members": {
       "translate": "World units a move is rounded to, along each axis.",
       "rotate": "Radians a turn is rounded to.",
@@ -6860,20 +6860,20 @@
     }
   },
   "TransformSpace": {
-    "summary": "The frame the handles are aligned with; a scale is always along the object's own axes."
+    "summary": "El marco con el que se alinean los tiradores; una escala siempre sigue los ejes propios del objeto."
   },
   "world.raycast": {
-    "summary": "The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`: the node the page added, the world point and normal hit, the distance (`worldRaycast`).",
+    "summary": "El objeto más cercano bajo un punto del canvas (píxeles CSS) o a lo largo de un rayo del mundo, o `null`: el nodo que añadió la página, el punto del mundo y la normal alcanzados, la distancia (`worldRaycast`).",
     "parameters": {
       "options": "What `world.raycast` may be told; every field is optional.",
       "options.objects": "The objects tested, with their subtrees; unset, the whole scene."
     }
   },
   "controls": {
-    "summary": "The `controls` family: controllers a page attaches to a world, beside the camera controller `world.controls` already drives."
+    "summary": "La familia `controls`: controladores que una página asocia a un mundo, junto al controlador de cámara que `world.controls` ya dirige."
   },
   "controls.transform": {
-    "summary": "Handles that move, turn and scale one object with the mouse (`transform.ts`).",
+    "summary": "Tiradores que mueven, giran y escalan un objeto con el ratón (`transform.ts`).",
     "parameters": {
       "host": "The world whose scene and camera the handles live in.",
       "options": "Mode, axes, snapping and screen size; saying nothing is the usual case.",
@@ -6884,7 +6884,7 @@
     }
   },
   "raycast": {
-    "summary": "Every object under `roots` that `ray` meets, nearest first, one hit per object: the nearest of its own.",
-    "description": "The direction is made a unit vector at the door, so every `distance` is in world units whatever length the page gave it. Hidden subtrees are skipped — a root under a hidden ancestor too — and so are the nodes `skip` names with their subtrees: the marks a page works with, never its content."
+    "summary": "Cada objeto bajo `roots` que `ray` encuentra, el más cercano primero, un impacto por objeto: el más cercano de los suyos.",
+    "description": "La dirección se convierte en vector unitario a la entrada, así que cada `distance` está en unidades del mundo sea cual sea la longitud que dio la página. Se saltan los subárboles ocultos — también una raíz bajo un ancestro oculto — y los nodos que nombra `skip` con sus subárboles: las marcas con las que trabaja una página, nunca su contenido."
   }
 }

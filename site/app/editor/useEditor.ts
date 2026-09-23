@@ -16,9 +16,10 @@ export interface Editor {
 
 /** What the person reads of a failure: a refused format by name, anything else by its message. */
 function failureText(locale: Locale, error: unknown) {
+  const t = wordsOf(locale);
   if ((error as { code?: string } | null)?.code === 'UNSUPPORTED_SCENE_FORMAT')
-    return wordsOf(locale)('editor.error.format');
-  return `${wordsOf(locale)('editor.error.read')} ${error instanceof Error ? error.message : String(error)}`;
+    return t('editor.error.format');
+  return `${t('editor.error.read')} ${error instanceof Error ? error.message : String(error)}`;
 }
 
 /**
@@ -41,7 +42,7 @@ export function useEditor(
     let release: (() => void) | null = null,
       gone = false;
     const failed = (error: unknown) => {
-      if (!gone) fail(failureTexwordsOf(language.current)(error));
+      if (!gone) fail(failureText(language.current, error));
     };
     void import('../../../packages/sdk-browser/src/index.ts')
       .then(async (engine) => {

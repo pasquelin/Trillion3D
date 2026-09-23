@@ -1374,24 +1374,24 @@
       "description": "Eleman başına bir kanal, `packages/sdk-core/src/math/primitives/color.ts`'nin tam eğrileriyle: referans yuvarlanmış sabitlerle çarpar, ve 8 bitte görünmez olan fark, onları karşı karşıya getiren bench'te bir kez sınırlanır."
     },
     "scene-editor": {
-      "title": "Build a scene with the editor",
-      "description": "Add shapes and lights, pick them with the mouse, move them with handles, recolour them, save the scene and open it again — in the portal, on the public API alone.",
-      "html": "<p>The <a href=\"#/tr/examples/scene-editor\">scene editor</a> is a page of this portal built on three doors of the engine and nothing else. Start from an empty scene: <b>Add → Box</b>, then <b>Add → Directional light</b>. Click the box: <code>world.raycast</code> finds it under the pointer, and the handles of <code>controls.transform</code> appear on it. Drag an arrow to move it — the camera rests while a handle is held — press <kbd>E</kbd> to turn it, <kbd>R</kbd> to scale it. Change its colour in the inspector: the engine repaints the material in place, the frame's cost stays in the stats corner. <b>Save</b> downloads <code>scene.toJSON</code>; <b>New</b>, then <b>Open</b>, builds the same scene again with <code>scene.fromJSON</code>.</p>\n<p>Every step is undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>, and the scene is kept in the browser between two visits. Nothing is drawn or moved by the page itself: what you see is the engine.</p>"
+      "title": "Düzenleyiciyle bir sahne kurmak",
+      "description": "Şekiller ve ışıklar eklemek, onları fareyle seçmek, tutamaçlarla taşımak, yeniden renklendirmek, sahneyi kaydedip yeniden açmak — portalda, yalnızca genel API ile.",
+      "html": "<p><a href=\"#/tr/examples/scene-editor\">Sahne düzenleyicisi</a>, bu portalın motorun üç kapısı üzerine kurulu, başka hiçbir şey kullanmayan bir sayfasıdır. Boş bir sahneyle başlayın: <b>Add → Box</b>, ardından <b>Add → Directional light</b>. Kutuya tıklayın: <code>world.raycast</code> onu işaretçinin altında bulur ve <code>controls.transform</code> tutamaçları üzerinde belirir. Taşımak için bir oku sürükleyin — bir tutamaç tutulurken kamera durur — döndürmek için <kbd>E</kbd>, ölçeklemek için <kbd>R</kbd> tuşuna basın. Rengini denetleyicide değiştirin: motor malzemeyi yerinde yeniden boyar, karenin maliyeti istatistik köşesinde kalır. <b>Save</b>, <code>scene.toJSON</code> dosyasını indirir; <b>New</b>, ardından <b>Open</b>, aynı sahneyi <code>scene.fromJSON</code> ile yeniden kurar.</p>\n<p>Her adım <kbd>Ctrl</kbd>+<kbd>Z</kbd> ile geri alınır ve sahne iki ziyaret arasında tarayıcıda saklanır. Sayfa kendi başına hiçbir şey çizmez ya da taşımaz: gördüğünüz motordur.</p>"
     },
     "pick-with-the-pointer": {
-      "title": "Pick an object with the pointer",
-      "description": "`world.raycast` returns the nearest object under a canvas point: the node the page added, the point and normal hit, the distance.",
-      "html": "<p>The test runs on the CPU over the scene's own geometry: triangle meshes triangle by triangle, a loaded model on its box, lines and points never. Hidden subtrees and <code>helper</code> marks are skipped. See it in <a href=\"#/tr/examples/click-to-pick\">Click to pick</a>.</p>"
+      "title": "İşaretçiyle bir nesne seçmek",
+      "description": "`world.raycast`, bir canvas noktasının altındaki en yakın nesneyi döndürür: sayfanın eklediği düğüm, vurulan nokta ve normal, uzaklık.",
+      "html": "<p>Test, CPU üzerinde sahnenin kendi geometrisinde çalışır: üçgen mesh'ler üçgen üçgen, yüklenmiş bir model kutusu üzerinden, çizgiler ve noktalar asla. Gizli alt ağaçlar ve <code>helper</code> işaretleri atlanır. <a href=\"#/tr/examples/click-to-pick\">Click to pick</a> içinde görün.</p>"
     },
     "move-with-handles": {
-      "title": "Move, turn and scale with handles",
-      "description": "`controls.transform(world)` puts handles on one object; a drag writes its pose through its parents, and the camera rests meanwhile.",
-      "html": "<p>Modes <code>translate</code>, <code>rotate</code> and <code>scale</code>, world or local axes, optional steps. The events <code>dragStart</code> and <code>dragEnd</code> frame one drag — one undo step. See it in <a href=\"#/tr/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
+      "title": "Tutamaçlarla taşımak, döndürmek ve ölçeklemek",
+      "description": "`controls.transform(world)` bir nesneye tutamaçlar koyar; bir sürükleme pozunu ebeveynleri üzerinden yazar ve bu sırada kamera durur.",
+      "html": "<p><code>translate</code>, <code>rotate</code> ve <code>scale</code> kipleri, dünya ya da yerel eksenler, isteğe bağlı adımlar. <code>dragStart</code> ve <code>dragEnd</code> olayları bir sürüklemeyi çerçeveler — bir geri alma adımı. <a href=\"#/tr/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a> içinde görün.</p>"
     },
     "save-and-open-a-scene": {
-      "title": "Save and open a scene",
-      "description": "`scene.toJSON(camera)` writes the scene as plain versioned JSON; `scene.fromJSON(json, camera)` builds it again.",
-      "html": "<p>Shapes are stored by the call that built them, materials by their values, loaded models by their address — never inlined — and <code>helper</code> marks not at all. Another format version is refused by name. See it in <a href=\"#/tr/examples/save-the-scene\">Save the scene</a>.</p>"
+      "title": "Bir sahneyi kaydetmek ve açmak",
+      "description": "`scene.toJSON(camera)` sahneyi düz, sürümlü JSON olarak yazar; `scene.fromJSON(json, camera)` onu yeniden kurar.",
+      "html": "<p>Şekiller onları kuran çağrıyla, malzemeler değerleriyle, yüklenmiş modeller adresleriyle — asla gömülmeden — saklanır, <code>helper</code> işaretleri ise hiç saklanmaz. Başka bir biçim sürümü adıyla reddedilir. <a href=\"#/tr/examples/save-the-scene\">Save the scene</a> içinde görün.</p>"
     }
   },
   "canvas": {

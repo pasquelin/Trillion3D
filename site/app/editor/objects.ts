@@ -5,7 +5,7 @@ import type {
   Mesh,
   Object3D,
 } from '../../../packages/sdk-browser/src/index.ts';
-import type { Engine } from '../../lessons/lessonWorld.ts';
+import type { Engine } from './session.ts';
 import { applyPose } from './commands.ts';
 
 /** The shapes the Add menu builds, each with the first arguments of its family call named. */
