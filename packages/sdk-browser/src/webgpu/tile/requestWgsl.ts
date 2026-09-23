@@ -6,7 +6,8 @@ const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 /**
  * Virtual-texture image feedback: the rank of the tile a pixel ASKS for, posted in the image's
  * feedback target and reduced to counters by a compute pass (`reduce.ts`) for one pixel in
- * sixteen. Level and address are those of the read (`slotLod`, `${k}Entry`): what a pixel asks is
+ * sixteen. Level and address are those of the read (`${k}Read`, `${k}Entry`), the texture's
+ * transform included: what a pixel asks is
  * what it reads. Requires `TILE_POOL_WGSL` and the atlas reads (`COLOR_SAMPLE_WGSL`,
  * `DATA_SAMPLE_WGSL`) before this block.
  */
@@ -15,10 +16,10 @@ const request = (
 ) => `fn ${k}RequestIndex(slot:u32,uv:vec2f,wrap:u32,ddx:vec2f,ddy:vec2f,next:bool)->u32{
  let s=${k}Slot(slot);
  if(s.tail==0u){return 0u;}
- let lod=slotLod(s,ddx,ddy);
- let level=u32(floor(lod))+select(0u,1u,next&&lod-floor(lod)>0.0);
+ let r=${k}Read(slot,s,uv,ddx,ddy);
+ let level=u32(floor(r.lod))+select(0u,1u,next&&r.lod-floor(r.lod)>0.0);
  if(level>=s.tail){return 0u;}
- return ${k}Entry(s,slotWrapped(s,uv,wrap),level)-${k}Pages[2]+${k}Pages[0]+1u;
+ return ${k}Entry(s,slotWrapped(s,r.uv,wrap),level)-${k}Pages[2]+${k}Pages[0]+1u;
 }`;
 
 const m = WRAP_MAP;
