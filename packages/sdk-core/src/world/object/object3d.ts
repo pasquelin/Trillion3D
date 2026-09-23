@@ -47,7 +47,6 @@ export class Object3D extends SceneNode {
   _link: SceneLink | null = null;
   private readonly local = new Matrix4();
   private readonly world = new Matrix4();
-
   constructor() {
     const slot = space.reserve();
     super(slot.state, slot.id, slot.index, slot.visible);
@@ -61,13 +60,15 @@ export class Object3D extends SceneNode {
       this.setScale(this.scale.x, this.scale.y, this.scale.z);
       pose();
     });
-    listen(this.quaternion, () => {
-      const q = this.quaternion;
+    /** Written angles stay as written (`object3d.test.ts`): only a quaternion write re-derives them. */
+    const turned = (fromAngles: boolean) => {
+      const q = fromAngles ? this.quaternion.setFromEuler(this.rotation, true) : this.quaternion;
       this.setQuaternion(q.x, q.y, q.z, q.w);
-      this.rotation.setFromQuaternion(q, undefined, true);
+      if (!fromAngles) this.rotation.setFromQuaternion(q, undefined, true);
       pose();
-    });
-    listen(this.rotation, () => this.quaternion.setFromEuler(this.rotation));
+    };
+    listen(this.quaternion, () => turned(false));
+    listen(this.rotation, () => turned(true));
   }
   override get visible() {
     return super.visible;
