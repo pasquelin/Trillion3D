@@ -63,7 +63,10 @@ async function copyTree(source: string, target: string, published: boolean) {
      change made there. An unpublished one is copied as is; the size check below tells it apart
      from a published copy left by an earlier build, which the tag makes longer. */
   if (published && extname(source) === '.html') {
-    await writeFile(target, withMeasurement(await readFile(source, 'utf8'), FRAMED_MEASUREMENT_TAG));
+    await writeFile(
+      target,
+      withMeasurement(await readFile(source, 'utf8'), FRAMED_MEASUREMENT_TAG),
+    );
     return;
   }
   if (await unchanged(source, target)) return;

@@ -37,10 +37,7 @@ const emittedInputs = (meta: Metafile, output: string) =>
     ([, contribution]) => contribution.bytesInOutput > 0,
   );
 
-function assertInstalledMathReachability(bundles: {
-  maths: Metafile;
-  hierarchy: Metafile;
-}): void {
+function assertInstalledMathReachability(bundles: { maths: Metafile; hierarchy: Metafile }): void {
   for (const name of ['maths', 'hierarchy'] as const) {
     const forbidden = emittedInputs(bundles[name], name)
       .map(([path]) => path)
