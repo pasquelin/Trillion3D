@@ -1,6 +1,6 @@
 # The native compiler — `web-geometry-compiler`
 
-One executable does all of the preparation work: it reads a source model (glTF, GLB, FBX or OBJ), builds the cluster hierarchy and writes the cache described in [FORMAT.md](FORMAT.md). Everything else — the Node adapter, an Electron host, a shell script — only launches it, forwards a few paths and options, and listens to what it says. No external application is needed: the FBX/OBJ reader (ufbx) is compiled into the binary.
+One executable does all of the preparation work: it reads a source model through one driver per format — glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII, Unity scenes and packages, ZIP, and a dozen image formats ([FORMATS.md](../packages/asset-compiler-rust/FORMATS.md)) — builds the cluster hierarchy and writes the cache described in [FORMAT.md](FORMAT.md). Everything else — the Node adapter, an Electron host, a shell script — only launches it, forwards a few paths and options, and listens to what it says. No external application is needed: every driver is compiled into the binary.
 
 Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.rs` compiles, `import.rs` imports, `main.rs` is the command line). Build with `pnpm run build:native`; the binary lands in `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
 
@@ -11,9 +11,11 @@ Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.
 - [Events](#events)
 - [The pointer](#the-pointer)
 - [Reusing a compiled folder](#reusing-a-compiled-folder)
+- [Measurements](#measurements)
 - [Batch mode](#batch-mode)
 - [Cancellation](#cancellation)
 - [FBX and OBJ import](#fbx-and-obj-import)
+- [USD and USDZ import](#usd-and-usdz-import)
 - [Cache layout](#cache-layout)
 - [Cutouts declared as blend](#cutouts-declared-as-blend)
 - [Memory and threads](#memory-and-threads)
@@ -32,7 +34,7 @@ web-geometry-compiler --version
 
 | Argument            | Meaning                                                                                                                                                                                                                                                         | Default  |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `SOURCE`            | A directory with `manifest.json`; a directory with exactly one `.gltf`/`.glb`; a `.gltf`/`.glb` file; a `.fbx`/`.obj` file; or a directory of `.fbx`/`.obj` files, merged into one scene                                                                        | required |
+| `SOURCE`            | A source file or folder a driver recognises: a directory with `manifest.json`, a `.gltf`/`.glb`, a scene of one of the formats above, a container (`.usdz`, `.unitypackage`, `.zip`), or a directory of such files, merged into one scene. An unknown or ambiguous source is refused with the list of accepted formats | required |
 | `CACHE`             | Output directory, created if missing. It holds one pointer per scope and prunes itself after each compile, so one cache serves one source at a time; a second compilation of the same cache waits up to 30 s for the first, then is refused with `CACHE_LOCKED` | required |
 | scope               | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                                                                                                           | `slice`  |
 | triangles           | Triangle budget for `slice`; ignored by `full`                                                                                                                                                                                                                  | `150000` |
