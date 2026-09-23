@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>From clay to chrome</title>
+    <title>Clay to chrome</title>
     <meta name="thumbnail" content="2" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0e1621;
+        background: #171d28;
       }
       canvas {
         display: block;
@@ -21,12 +21,10 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, banner } from '../runtime/kit.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      banner('From clay to chrome', 'Left to right the spheres get more metallic, back to front rougher. Pick a colour, swing the lamps.');
       const world = createWorld('view', { controls: 'orbit' });
-      world.scene.background = math.color('#0e1621');
       const slab = object.mesh(geometry.box(7.5, 0.3, 7.5), material.meshStandard({ color: '#1b1d22', roughness: 0.9 }));
       slab.position.y = -0.15;
       world.scene.add(slab);
@@ -51,7 +49,7 @@
         world.scene.add(lamp);
         return lamp;
       });
-      world.camera.position.set(0, 5.5, 8.5);
+      world.camera.position.set(0, 4.3, 6.6);
       world.camera.lookAt(0, 0, 0.4);
       world.controls.target.set(0, 0, 0.4);
 

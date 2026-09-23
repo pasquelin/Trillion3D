@@ -2,54 +2,61 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A vase turned on the lathe</title>
+    <title>A turned vase</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      const table = object.mesh(geometry.box(5, 0.3, 5), material.meshStandard({ color: [0.3, 0.18, 0.1], roughness: 0.6 }));
-      table.position.y = -0.15;
+      const table = object.mesh(geometry.cylinder(1.6, 1.6, 0.2, 96), material.meshStandard({ color: '#5a3a24', roughness: 0.5 }));
+      table.position.y = -0.1;
       world.scene.add(table);
 
-      // The vase is one profile of forty points turned around the vertical axis: a shell, outer
-      // wall and inner wall, that the light reads as one smooth surface. The inner wall follows
-      // the outer wall's own radius, offset by a constant thickness at the same heights, so the
-      // two walls never cross.
-      const outerRadiusAt = (y) =>
-        0.32 + 0.4 * Math.sin((y / 1.9) * Math.PI) ** 1.4 - 0.12 * Math.max(0, y - 1.5);
-      const wallThickness = 0.03;
+      // The profile climbs the outer wall, crosses the lip and comes down the inner wall, a constant
+      // thickness inside: `geometry.lathe` turns it around the vertical axis into one smooth shell.
+      const outerRadiusAt = (y) => 0.32 + 0.4 * Math.sin((y / 1.9) * Math.PI) ** 1.4 - 0.12 * Math.max(0, y - 1.5);
       const profile = [[0, 0]];
-      for (let step = 0; step <= 30; step++) {
-        const y = (step / 30) * 1.9;
-        profile.push([outerRadiusAt(y), y]);
-      }
+      for (let step = 0; step <= 30; step++) profile.push([outerRadiusAt((step / 30) * 1.9), (step / 30) * 1.9]);
       profile.push([0.5, 1.95], [0.42, 1.95]);
-      for (let step = 30; step >= 0; step--) {
-        const y = (step / 30) * 1.9;
-        profile.push([Math.max(0, outerRadiusAt(y) - wallThickness), y]);
-      }
+      for (let step = 30; step >= 0; step--) profile.push([Math.max(0, outerRadiusAt((step / 30) * 1.9) - 0.03), (step / 30) * 1.9]);
       profile.push([0, 0]);
-      const vase = object.mesh(geometry.lathe(profile, 96), material.meshStandard({ color: [0.55, 0.72, 0.6], roughness: 0.25 }));
+      const glaze = material.meshStandard({ roughness: 0.25 });
+      const vase = object.mesh(geometry.lathe(profile, 96), glaze);
       world.scene.add(vase);
 
-      world.scene.add(light.directional({
-        intensity: 3, color: [1, 0.96, 0.9], position: [14, 10, 10], target: [0, 0, 0], castShadow: true,
-      }));
-      world.scene.add(light.directional({
-        intensity: 0.5, color: [0.6, 0.7, 0.9], position: [-12, 6, -14], target: [0, 0, 0],
-      }));
-      world.camera.position.set(2.4, 1.6, 3.2);
-      world.camera.lookAt(0, 0.9, 0);
-      world.controls.target.set(0, 0.9, 0);
-      world.invalidate();
+      world.scene.add(light.directional({ intensity: 3, color: '#fff1dc', position: [6, 8, 6], castShadow: true }));
+      world.scene.add(light.point({ intensity: 8, color: '#7fb0ff', position: [-2.5, 1.5, -1.5], distance: 8 }));
+      world.camera.position.set(2.1, 1.6, 2.8);
+      world.camera.lookAt(0, 0.95, 0);
+      world.controls.target.set(0, 0.95, 0);
+
+      const ui = controls({ glaze: '#6fb89a', gloss: [0, 1, 0.75], spin: true }, (values) => {
+        glaze.color.set(values.glaze);
+        glaze.roughness = 1 - values.gloss;
+        world.invalidate();
+      });
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        vase.rotation.y += delta * 0.4;
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

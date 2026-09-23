@@ -45,15 +45,8 @@
     {
       "id": "streaming",
       "title": {
-        "en": "Streaming",
-        "fr": "Streaming"
-      }
-    },
-    {
-      "id": "performance",
-      "title": {
-        "en": "Performance and budgets",
-        "fr": "Performance et budgets"
+        "en": "Streaming and memory",
+        "fr": "Streaming et mémoire"
       }
     }
   ],
@@ -62,7 +55,7 @@
       "id": "shapes-on-a-turntable",
       "title": {
         "en": "Shapes on a turntable",
-        "fr": "Des formes sur un plateau tournant"
+        "fr": "Formes sur un plateau"
       },
       "theme": "geometry",
       "file": "examples/shapes-on-a-turntable.html"
@@ -70,8 +63,8 @@
     {
       "id": "a-field-of-pebbles",
       "title": {
-        "en": "A field of ten thousand pebbles",
-        "fr": "Un champ de dix mille galets"
+        "en": "A field of pebbles",
+        "fr": "Un champ de galets"
       },
       "theme": "geometry",
       "file": "examples/a-field-of-pebbles.html"
@@ -79,8 +72,8 @@
     {
       "id": "a-vase-turned-on-the-lathe",
       "title": {
-        "en": "A vase turned on the lathe",
-        "fr": "Un vase tourné au tour"
+        "en": "A turned vase",
+        "fr": "Un vase tourné"
       },
       "theme": "geometry",
       "file": "examples/a-vase-turned-on-the-lathe.html"
@@ -88,8 +81,8 @@
     {
       "id": "a-staircase-from-one-step",
       "title": {
-        "en": "A spiral staircase from one step",
-        "fr": "Un escalier en colimaçon à partir d’une marche"
+        "en": "Spiral staircase",
+        "fr": "Escalier en colimaçon"
       },
       "theme": "geometry",
       "file": "examples/a-staircase-from-one-step.html"
@@ -97,8 +90,8 @@
     {
       "id": "a-terrain-from-a-height-map",
       "title": {
-        "en": "A terrain from a height map",
-        "fr": "Un terrain d’après une carte de hauteurs"
+        "en": "Mountain terrain",
+        "fr": "Relief de montagne"
       },
       "theme": "geometry",
       "file": "examples/a-terrain-from-a-height-map.html"
@@ -106,25 +99,16 @@
     {
       "id": "letters-carved-in-relief",
       "title": {
-        "en": "Letters carved in relief",
-        "fr": "Des lettres taillées en relief"
+        "en": "Carved letters",
+        "fr": "Lettres en relief"
       },
       "theme": "geometry",
       "file": "examples/letters-carved-in-relief.html"
     },
     {
-      "id": "a-mesh-simplified-on-demand",
-      "title": {
-        "en": "A mesh simplified on demand",
-        "fr": "Un maillage simplifié à la demande"
-      },
-      "theme": "geometry",
-      "file": "examples/a-mesh-simplified-on-demand.html"
-    },
-    {
       "id": "from-clay-to-chrome",
       "title": {
-        "en": "From clay to chrome",
+        "en": "Clay to chrome",
         "fr": "De l’argile au chrome"
       },
       "theme": "materials",
@@ -142,8 +126,8 @@
     {
       "id": "a-neon-sign",
       "title": {
-        "en": "A neon sign that glows",
-        "fr": "Une enseigne au néon qui luit"
+        "en": "Neon sign",
+        "fr": "Enseigne au néon"
       },
       "theme": "materials",
       "file": "examples/a-neon-sign.html"
@@ -151,8 +135,8 @@
     {
       "id": "painted-and-textured",
       "title": {
-        "en": "Painted and textured surfaces",
-        "fr": "Surfaces peintes et texturées"
+        "en": "Painted and textured",
+        "fr": "Peint et texturé"
       },
       "theme": "materials",
       "file": "examples/painted-and-textured.html"
@@ -160,8 +144,8 @@
     {
       "id": "bricks-with-a-normal-map",
       "title": {
-        "en": "Bricks with a normal map",
-        "fr": "Des briques avec une carte de normales"
+        "en": "Brick normal map",
+        "fr": "Briques en relief"
       },
       "theme": "materials",
       "file": "examples/bricks-with-a-normal-map.html"
@@ -169,8 +153,8 @@
     {
       "id": "leaves-cut-by-alpha",
       "title": {
-        "en": "Leaves cut out by their alpha",
-        "fr": "Des feuilles découpées par leur alpha"
+        "en": "Leaves cut by alpha",
+        "fr": "Feuilles découpées"
       },
       "theme": "materials",
       "file": "examples/leaves-cut-by-alpha.html"
@@ -178,8 +162,8 @@
     {
       "id": "a-colour-ramp-in-linear-light",
       "title": {
-        "en": "A colour ramp in linear light",
-        "fr": "Un dégradé en lumière linéaire"
+        "en": "Linear colour ramp",
+        "fr": "Dégradé linéaire"
       },
       "theme": "materials",
       "file": "examples/a-colour-ramp-in-linear-light.html"
@@ -187,7 +171,7 @@
     {
       "id": "from-noon-to-dusk",
       "title": {
-        "en": "From noon to dusk",
+        "en": "Noon to dusk",
         "fr": "De midi au crépuscule"
       },
       "theme": "lights",
@@ -196,8 +180,8 @@
     {
       "id": "crates-under-a-spotlight",
       "title": {
-        "en": "Crates under one spotlight",
-        "fr": "Des caisses sous un projecteur"
+        "en": "Spotlight on crates",
+        "fr": "Projecteur sur caisses"
       },
       "theme": "lights",
       "file": "examples/crates-under-a-spotlight.html"
@@ -205,8 +189,8 @@
     {
       "id": "a-ring-of-lamps",
       "title": {
-        "en": "Sixty-four lamps at once",
-        "fr": "Soixante-quatre lampes à la fois"
+        "en": "Sixty-four lamps",
+        "fr": "Soixante-quatre lampes"
       },
       "theme": "lights",
       "file": "examples/a-ring-of-lamps.html"
@@ -214,26 +198,17 @@
     {
       "id": "street-lamp-at-night",
       "title": {
-        "en": "A street lamp, day and night",
-        "fr": "Un réverbère, de jour et de nuit"
+        "en": "Street lamp",
+        "fr": "Réverbère"
       },
       "theme": "lights",
       "file": "examples/street-lamp-at-night.html"
     },
     {
-      "id": "two-lamps-that-mix",
-      "title": {
-        "en": "A warm and a cool lamp that mix",
-        "fr": "Une lampe chaude et une froide qui se mélangent"
-      },
-      "theme": "lights",
-      "file": "examples/two-lamps-that-mix.html"
-    },
-    {
       "id": "a-lamp-in-its-glass",
       "title": {
-        "en": "A lamp housed in its own glass",
-        "fr": "Une lampe logée dans son propre verre"
+        "en": "Lamp in a glass globe",
+        "fr": "Lampe sous globe"
       },
       "theme": "lights",
       "file": "examples/a-lamp-in-its-glass.html"
@@ -241,8 +216,8 @@
     {
       "id": "a-lighthouse-beam",
       "title": {
-        "en": "A lighthouse beam sweeping the shore",
-        "fr": "Le faisceau d’un phare balaie le rivage"
+        "en": "Lighthouse beam",
+        "fr": "Faisceau de phare"
       },
       "theme": "lights",
       "file": "examples/a-lighthouse-beam.html"
@@ -250,8 +225,8 @@
     {
       "id": "lights-from-the-scene-file",
       "title": {
-        "en": "The lights the scene file brought",
-        "fr": "Les lumières venues du fichier de scène"
+        "en": "Lights from the file",
+        "fr": "Lumières du fichier"
       },
       "theme": "lights",
       "file": "examples/lights-from-the-scene-file.html"
@@ -259,8 +234,8 @@
     {
       "id": "five-ways-to-move-the-camera",
       "title": {
-        "en": "Five ways to move the camera",
-        "fr": "Cinq façons de déplacer la caméra"
+        "en": "Camera controls",
+        "fr": "Contrôles de caméra"
       },
       "theme": "camera",
       "file": "examples/five-ways-to-move-the-camera.html"
@@ -268,8 +243,8 @@
     {
       "id": "zoom-down-the-colonnade",
       "title": {
-        "en": "Zooming down a colonnade",
-        "fr": "Zoom le long d’une colonnade"
+        "en": "Colonnade zoom",
+        "fr": "Zoom sur la colonnade"
       },
       "theme": "camera",
       "file": "examples/zoom-down-the-colonnade.html"
@@ -277,8 +252,8 @@
     {
       "id": "a-robot-that-walks-and-waves",
       "title": {
-        "en": "A robot that walks, waves and dances",
-        "fr": "Un robot qui marche, salue et danse"
+        "en": "Blending robot motions",
+        "fr": "Robot aux gestes mêlés"
       },
       "theme": "animation",
       "file": "examples/a-robot-that-walks-and-waves.html"
@@ -286,8 +261,8 @@
     {
       "id": "a-wave-across-a-grid",
       "title": {
-        "en": "A wave across a grid of cubes",
-        "fr": "Une vague sur une grille de cubes"
+        "en": "Wave of cubes",
+        "fr": "Vague de cubes"
       },
       "theme": "animation",
       "file": "examples/a-wave-across-a-grid.html"
@@ -295,8 +270,8 @@
     {
       "id": "marble-bust-on-its-pedestal",
       "title": {
-        "en": "A marble bust on its pedestal",
-        "fr": "Un buste de marbre sur son socle"
+        "en": "Marble bust",
+        "fr": "Buste de marbre"
       },
       "theme": "loaders",
       "file": "examples/marble-bust-on-its-pedestal.html"
@@ -304,8 +279,8 @@
     {
       "id": "observatory-streamed",
       "title": {
-        "en": "An observatory streamed in clusters",
-        "fr": "Un observatoire streamé par grappes"
+        "en": "Streamed clusters",
+        "fr": "Grappes streamées"
       },
       "theme": "streaming",
       "file": "examples/observatory-streamed.html"
@@ -313,20 +288,11 @@
     {
       "id": "memory-on-a-budget",
       "title": {
-        "en": "Memory on a budget",
-        "fr": "La mémoire sous budget"
+        "en": "Memory budget",
+        "fr": "Budget mémoire"
       },
-      "theme": "performance",
+      "theme": "streaming",
       "file": "examples/memory-on-a-budget.html"
-    },
-    {
-      "id": "boxes-culled-by-the-frustum",
-      "title": {
-        "en": "Ten thousand boxes culled by the frustum",
-        "fr": "Dix mille boîtes triées par le frustum"
-      },
-      "theme": "performance",
-      "file": "examples/boxes-culled-by-the-frustum.html"
     }
   ]
 }

@@ -19,9 +19,10 @@ const { server, port } = await startDocsServer();
 const browser = await launchChrome({ headless: true });
 try {
   for (const entry of entries) {
+    // 16:10, sharp on a card at twice its size.
     const { page, errors, drawn } = await openExample(browser, port, entry, {
-      width: 916,
-      height: 520,
+      width: 800,
+      height: 500,
     });
     if (errors.length || drawn < 0.1)
       throw new Error(`${entry.id}: ${errors.join('; ') || 'blank'}`);
