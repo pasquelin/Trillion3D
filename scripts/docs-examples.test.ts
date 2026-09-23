@@ -6,8 +6,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
 import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
-import type { SidebarMenu as SidebarMenuComponent } from '../site/app/portal/SidebarMenu.tsx';
-import type { examplesMenu as examplesMenuFunction } from '../site/app/examples/examplesMenu.ts';
+import type { ExampleList as ExampleListComponent } from '../site/app/layout/ExampleList.tsx';
+import { examplesMenu } from '../site/app/layout/menus.ts';
 import type { Examples as ExamplesComponent } from '../site/app/examples/Examples.tsx';
 import type { PortalRoute } from '../site/app/portal/routes.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
@@ -45,62 +45,42 @@ test('every example is one standalone HTML file that imports the built engine', 
   }
 });
 
-test('the example page shows the file as source on the left and runs it on the right', async () => {
+test('an example is its file, live, on the demo page; the area lists the ready examples only', async () => {
   const { Example } = (await loadReactComponents('site/app/examples/Example.tsx')) as {
     Example: typeof ExampleComponent;
   };
-  const { SidebarMenu } = (await loadReactComponents('site/app/portal/SidebarMenu.tsx')) as {
-    SidebarMenu: typeof SidebarMenuComponent;
+  const { ExampleList } = (await loadReactComponents('site/app/layout/ExampleList.tsx')) as {
+    ExampleList: typeof ExampleListComponent;
   };
-  const { examplesMenu } = (await loadReactComponents('site/app/examples/examplesMenu.ts')) as {
-    examplesMenu: typeof examplesMenuFunction;
-  };
-  const [entry] = ready;
-  const page = renderToStaticMarkup(createElement(Example, { id: entry.id, locale: 'fr' }));
-  assert.match(page, new RegExp(`<h1[^>]*>${entry.title.fr}</h1>`));
-  // The example runs in the very frame a lesson's canvas wears, loading state included.
-  assert.match(
-    page,
-    new RegExp(`<div class="render-frame relative min-w-0"><iframe src="${entry.file}"`),
-  );
-  assert.match(page, /role="status"[^>]*>.*Préparation de la scène/s);
-  assert.match(page, new RegExp(`<span class="text-sm font-semibold">${entry.file}</span>`));
-  assert.ok(page.indexOf('data-code-block') < page.indexOf('<iframe'));
-  const route: PortalRoute = { locale: 'en', area: 'examples', id: entry.id };
-  const sidebar = renderToStaticMarkup(
-    createElement(SidebarMenu, { groups: examplesMenu(route), open: true }),
-  );
-  for (const { id, file } of roadmap.entries)
-    assert.equal(sidebar.includes(`href="#/en/examples/${id}"`), Boolean(file), id);
-  assert.match(
-    sidebar,
-    new RegExp(`class="menu-active" href="#/en/examples/${entry.id}" aria-current="page"`),
-  );
   const { Examples } = (await loadReactComponents('site/app/examples/Examples.tsx')) as {
     Examples: typeof ExamplesComponent;
   };
-  const index = renderToStaticMarkup(createElement(Examples, { locale: 'en' }));
-  for (const theme of roadmap.themes) {
-    const entries = roadmap.entries.filter((entry) => entry.theme === theme.id),
-      done = entries.filter((entry) => entry.file).length;
-    assert.ok(
-      sidebar.includes(
-        `<span class="sidebar-section-title">${theme.title.en}</span><span class="sidebar-count">${done}/${entries.length}</span>`,
-      ),
-      theme.id,
-    );
+  const [entry] = ready;
+  const page = renderToStaticMarkup(createElement(Example, { id: entry.id, locale: 'en' }));
+  assert.match(page, new RegExp(`<h1[^>]*>.*${entry.title.en}</h1>`));
+  assert.match(page, new RegExp(`<div class="render-frame[^"]*"><iframe src="${entry.file}"`));
+  assert.match(page, /role="status"[^>]*>.*Preparing the scene/s);
+  // One floating button carries the actions; the source waits behind Code, in its modal.
+  assert.equal((page.match(/class="fab"/g) ?? []).length, 1);
+  for (const action of ['Code', 'Share', 'Controls', 'Fullscreen', 'Restart'])
+    assert.match(page, new RegExp(`aria-label="${action}"`), action);
+  assert.doesNotMatch(page, /data-code-block/);
+  const route: PortalRoute = { locale: 'en', area: 'examples', id: entry.id };
+  const sidebar = renderToStaticMarkup(createElement(ExampleList, { groups: examplesMenu(route) }));
+  for (const { id, file } of roadmap.entries) {
+    assert.equal(sidebar.includes(`href="#/en/examples/${id}"`), Boolean(file), id);
+    assert.equal(sidebar.includes(`thumbnails/${id}.png`), Boolean(file), id);
   }
-  // The grid is the lessons' progressive list: its first batch of 24 cards is what the server
-  // renders, theme by theme; the rest mounts on scroll.
-  const shown = roadmap.themes
-    .flatMap((theme) => roadmap.entries.filter((entry) => entry.theme === theme.id))
-    .slice(0, 24);
-  for (const { id, file, title } of shown) {
-    assert.ok(index.includes(`>${title.en}</h2>`), id);
+  assert.match(
+    sidebar,
+    new RegExp(`href="#/en/examples/${entry.id}" title="[^"]*" aria-current="page"`),
+  );
+  const filtered = examplesMenu(route, entry.title.en).flatMap(({ items }) => items);
+  assert.equal(filtered[0].key, entry.id);
+  assert.deepEqual(examplesMenu(route, 'no example is called this'), []);
+  const index = renderToStaticMarkup(createElement(Examples, { locale: 'en' }));
+  for (const { id, file, title } of roadmap.entries) {
+    assert.equal(index.includes(`>${title.en}</h2>`), Boolean(file), id);
     assert.equal(index.includes(`assets/examples/thumbnails/${id}.png`), Boolean(file), id);
   }
-  assert.equal(
-    (index.match(/aria-disabled="true"/g) ?? []).length,
-    shown.filter(({ file }) => !file).length,
-  );
 });

@@ -18,8 +18,6 @@ export function t(locale: Locale, key: string) {
   );
 }
 
-export type TranslateFn = typeof t;
-
 function localizedEntry(entry: PortalEntry, overlay: EntryOverlay | null) {
   if (!overlay) return { ...entry };
   const { values: translated, ...fields } = overlay;
