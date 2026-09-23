@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { parseRoute, routeHref, resolvePage } from '../site/app/portal/routes.ts';
-import { reportCopy, METRIC_COPY } from '../site/reports/copy.ts';
+import { runName, viewName } from '../site/reports/names.ts';
 import { flattenFields } from '../site/reports/availability.ts';
 import { pairedImages } from '../site/reports/presentation.ts';
 import { readingGroups } from '../site/reports/sources.ts';
@@ -18,14 +18,17 @@ import {
   SceneNotice,
 } from './docs/report-components.ts';
 
-test('report routes and labels remain bilingual without a selection form', () => {
+test('report routes resolve in each language; names are its words, an unknown id kept', () => {
   for (const locale of ['en', 'fr'] as const) {
     const route = parseRoute(routeHref({ locale, area: 'reports', id: 'september-18' }));
     assert.equal(route.id, 'september-18');
     assert.equal(resolvePage(route, []).kind, 'report');
   }
-  assert.deepEqual(Object.keys(reportCopy('en')), Object.keys(reportCopy('fr')));
-  assert.ok(Object.values(METRIC_COPY).every((pair) => pair.length === 2 && pair.every(Boolean)));
+  assert.deepEqual(
+    [viewName('sol', 'fr'), viewName('elsewhere', 'fr'), runName('res-1248-e2', 'en')],
+    ['Au sol', 'elsewhere', 'Image width 1248 px · threshold 2 px'],
+  );
+  assert.equal(runName('lampes-8-sans-ombres', 'fr'), '8 lumières sans ombres');
 });
 
 test('comparison names engines, explains missing values and shows observed arithmetic', () => {
@@ -46,7 +49,7 @@ test('comparison names engines, explains missing values and shows observed arith
       createElement(Comparison, { locale, a, b, variable: 'engine' }),
     );
     assert.match(html, /Three.js/);
-    assert.match(html, /Web Geometry/);
+    assert.match(html, /Trillion3D/);
     assert.match(html, /-3 ms/);
     assert.doesNotMatch(html, /<details|<select|NaN|Infinity|undefined|>A<|>B</);
   }

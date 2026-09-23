@@ -8,18 +8,10 @@ use super::super::*;
 use super::Scene;
 use crate::hash;
 use crate::import::{f32_bytes, write_scene, Tables};
-use crate::plugins::scene::SceneOutput;
+use crate::plugins::scene::{scene_output_fields, SceneOutput};
 
 impl SceneOutput for Scene {
-    fn nodes(&self) -> &[Value] {
-        &self.nodes
-    }
-    fn counts(&self) -> &BTreeMap<&'static str, usize> {
-        &self.counts
-    }
-    fn key(&self) -> String {
-        hash(self.key_material.as_bytes())
-    }
+    scene_output_fields!();
     fn write(
         self,
         plugin: &dyn ScenePlugin,

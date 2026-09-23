@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="data:," />
+    <title>A bust, a crate and a glass ball</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0e1621; }
+      canvas { display: block; width: 100%; height: 100%; }
+      p { position: absolute; top: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p data-words="credit"></p>
+    <script type="module">
+      // --- Imports
+      // One module, no add-ons: a bundled project imports the same names from 'trillion3d'.
+      import { createWorld, animation, camera, geometry, light, loader, material, math, object } from '../runtime/engine.js';
+
+      // --- Renderer
+      // WebGPU when the machine grants it, the engine's WebGL2 path otherwise; ACES is the default.
+      const world = createWorld('view');
+
+      // --- Scene
+      // The world owns its scene.
+      world.scene.background = math.color(0x0e1621);
+
+      // --- Camera
+      // The aspect follows the canvas; depth is reversed and infinite, so there is no far plane.
+      world.camera = camera.perspective({ fov: 45, near: 0.1 });
+      world.camera.position.set(0, 0.4, 3.2);
+      world.camera.lookAt(0, -0.3, 0);
+
+      // --- Controls
+      // The world owns its controllers: they read input on its canvas and follow its camera.
+      world.controls.kind = 'orbit';
+      world.controls.target.set(0, -0.3, 0);
+
+      // --- Texture
+      // A colour texture is sRGB unless told otherwise.
+      const crateMap = await loader.texture('../assets/examples/models/crate/box1.png');
+
+      // --- Materials
+      const wood = material.meshStandard({ map: crateMap, roughness: 0.8 });
+      const glass = material.meshPhysical({ transmission: 1, ior: 1.5, thickness: 0.3, roughness: 0.05 });
+      const glow = material.meshStandard({ color: 0x000000, emissive: 0xffc27a, emissiveIntensity: 3 });
+
+      // --- Meshes
+      const crate = object.mesh(geometry.box(0.35, 0.35, 0.35), wood);
+      crate.position.set(0.9, -0.825, 0.5);
+      const ball = object.mesh(geometry.sphere(0.22, 48, 24), glass);
+      ball.position.set(-0.9, -0.78, 0.5);
+      const panel = object.mesh(geometry.plane(0.8, 0.5), glow);
+      panel.position.set(-1.1, 0.6, -1.69);
+      // Every surface casts and receives shadows: there is no per-mesh flag.
+      world.scene.add(panel);
+
+      // --- Group
+      const turntable = object.group();
+      turntable.add(crate, ball);
+      world.scene.add(turntable);
+
+      // --- Lights
+      // Shadows are virtual pages sized by the screen: no map size, no shadow camera, no bias.
+      world.scene.add(light.ambient({ color: 0xffffff, intensity: 0.3 }));
+      const sun = light.directional({ color: 0xfff2e0, intensity: 2.5, position: [4, 6, 5], castShadow: true });
+      const lamp = light.point({ color: 0xffc27a, intensity: 3, distance: 5, position: [-1.1, 0.6, -1.4] });
+      // The target is written at creation and is never added to the scene.
+      const spot = light.spot({
+        color: 0xdde8ff, intensity: 20, distance: 8, angle: 0.35, penumbra: 0.4,
+        position: [1.5, 2.5, 1.5], target: [0, 0.25, 0], castShadow: true,
+      });
+      world.scene.add(sun, lamp, spot);
+
+      // --- Model
+      // The glTF is compiled ahead of time into streamed clusters; the page loads that cache.
+      await world.scene.load('../assets/examples/bust/cache/native/full/manifest.json');
+
+      // --- Animation
+      const turn = (angle) => [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)];
+      const spin = animation.clip('spin', 12, [
+        animation.quaternionTrack('.quaternion', [0, 3, 6, 9, 12], [0, 1, 2, 3, 4].flatMap((i) => turn((i * Math.PI) / 2))),
+      ]);
+      const mixer = animation.createMixer(turntable);
+      mixer.play(spin);
+
+      // --- Resize
+      // The canvas follows its CSS box and the device pixel ratio: there is no resize handler.
+
+      // --- Loop
+      // The world owns the loop: it advances mixers and controls, draws, and pauses on a still image.
+
+      // --- Dispose
+      // One call releases the GPU, the controls, the observers and the queued frames.
+      addEventListener('pagehide', () => world.dispose());
+    </script>
+  </body>
+</html>

@@ -7,19 +7,19 @@ export type {
   LlmToolFormat,
   McpToolDefinition,
   OpenAiToolDefinition,
-  WebGeometryTool,
-} from '../../sdk-core/llm/types.ts';
-export { COMPILER_OPTIONS_SCHEMA } from '../../sdk-core/llm/compilerOptionsSchema.ts';
-export { EXPLORER_OPTIONS_SCHEMA } from '../../sdk-core/llm/explorerOptionsSchema.ts';
+  Trillion3dTool,
+} from '../../sdk-core/src/llm/types.ts';
+export { COMPILER_OPTIONS_SCHEMA } from '../../sdk-core/src/llm/compilerOptionsSchema.ts';
+export { EXPLORER_OPTIONS_SCHEMA } from '../../sdk-core/src/llm/explorerOptionsSchema.ts';
 export {
-  getWebGeometryLlmPrompt,
-  WEB_GEOMETRY_SYSTEM_PROMPT,
-} from '../../sdk-core/llm/systemPrompt.ts';
+  getTrillion3dLlmPrompt,
+  TRILLION3D_SYSTEM_PROMPT,
+} from '../../sdk-core/src/llm/systemPrompt.ts';
 export {
-  getWebGeometryTools,
+  getTrillion3dTools,
   toAnthropicTool,
   toGeminiTool,
   toMcpTool,
   toOpenAiTool,
-} from '../../sdk-core/llm/toolDefinitions.ts';
-export { WEB_GEOMETRY_RUNTIME_TOOLS } from '../../sdk-core/llm/runtimeToolsSchema.ts';
+} from '../../sdk-core/src/llm/toolDefinitions.ts';
+export { TRILLION3D_RUNTIME_TOOLS } from '../../sdk-core/src/llm/runtimeToolsSchema.ts';

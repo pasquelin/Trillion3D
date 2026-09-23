@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Compressed textures</title>
+    <meta name="thumbnail" content="8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #b9d2ec;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #1d2a3a;
+        font: 12px system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p data-words="credit"></p>
+    <script type="module">
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls, readout, words, language } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#b9d2ec');
+      const sun = light.directional({ intensity: 3.4, color: '#ffe0b0', castShadow: true });
+      world.scene.add(sun, light.hemisphere({ intensity: 0.85, color: '#cfe0ff', groundColor: '#8a6a50' }));
+      // Glazed tiles, brick, marble and two relief maps. The compiler cut each image into a chain
+      // of smaller copies and encoded every chain in GPU blocks — BC7 for colour, BC5 for relief —
+      // one byte a texel instead of four. It kept the blocks only where no texel moved by more than
+      // three levels of 255: below what the eye tells apart. A chain that failed stays lossless.
+      const courtyard = await world.scene.load('../assets/examples/compressed-textures/cache/native/full/manifest.json');
+      world.camera.near = 0.02;
+      world.camera.far = 80;
+      world.controls.minDistance = 0.2;
+      world.controls.maxDistance = 16;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // The sun moves only when a slider does: low, it rakes the relief of every paver and brick.
+      controls({
+        mouse: 'Drag to walk round the fountain; scroll down to one tile and watch its detail arrive',
+        sunTurn: [0, 360, 215, 1],
+        sunHeight: [0.05, 1.5, 0.3],
+      }, (values) => {
+        const turn = math.degToRad(values.sunTurn);
+        sun.position.set(Math.cos(turn) * 10, values.sunHeight * 10, Math.sin(turn) * 10);
+        world.invalidate();
+      }, world);
+
+      // What the cook decided, read from the compiled model itself: each texture says, per block
+      // family, whether its chain was kept in blocks or left lossless. A chain of every level
+      // weighs a third more than its largest image; a block texel costs one byte, a lossless one four.
+      const MiB = 2 ** 20;
+      const textures = courtyard.metadata.texturePreviews ?? [];
+      const inBlocks = (entry) => Object.values(entry.layouts ?? {}).some((layout) => layout !== 'lossless');
+      const chain = (entry) => (entry.width * entry.height * 4) / 3;
+      const held = textures.reduce((sum, entry) => sum + chain(entry) * (inBlocks(entry) ? 1 : 4), 0);
+      const plain = textures.reduce((sum, entry) => sum + chain(entry) * 4, 0);
+      readout('texturesBlocks')(say('someOf', { some: textures.filter(inBlocks).length, all: textures.length }));
+      readout('allFullDetail')(say('notPlain', { held: (held / MiB).toFixed(1), plain: (plain / MiB).toFixed(1) }));
+      // What the GPU holds now: the family the device samples, the tiles streamed in for this view.
+      const format = readout('poolFormat'), tiles = readout('tilesHeld'), bytes = readout('heldGpu');
+      world.onFrame(({ metrics }) => {
+        format(metrics.texturePoolFormat ?? say('notMeasured'));
+        tiles(metrics.textureTilesResident == null ? '—' : metrics.textureTilesResident.toLocaleString(language()));
+        bytes(metrics.textureResidentBytes == null ? '—' : `${(metrics.textureResidentBytes / 2 ** 20).toFixed(1)} MiB`);
+      });
+
+      // The opening: from above the walls down to the floor by the fountain, close enough that the
+      // finest level of the tiles is asked for and streams in. A press or a wheel stops the glide.
+      const START = { eye: [5.8, 4.4, 8.6], look: [0, 0.6, 0] };
+      const END = { eye: [1.7, 0.42, 2.5], look: [0.1, 0.25, 0.4] };
+      let gliding = true, time = 0;
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (gliding = false), { passive: true });
+      world.camera.position.set(...START.eye);
+      world.controls.target.set(...START.look);
+      world.controls.update();
+      const ease = (t) => t * t * (3 - 2 * t);
+      world.onFrame(({ delta }) => {
+        if (!gliding) return;
+        time += Math.min(delta, 0.1);
+        const t = ease(math.clamp((time - 1) / 6, 0, 1));
+        const at = (from, to) => from.map((value, axis) => value + (to[axis] - value) * t);
+        world.camera.position.set(...at(START.eye, END.eye));
+        world.controls.target.set(...at(START.look, END.look));
+        world.controls.update();
+        gliding = t < 1;
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>

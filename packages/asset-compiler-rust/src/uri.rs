@@ -82,7 +82,7 @@ mod tests {
 
     // Behaviour: what is written re-reads identically, including reserved characters.
     #[test]
-    fn lechappement_et_le_decodage_sont_inverses() {
+    fn escaping_and_decoding_are_inverses() {
         for name in [
             "simple.png",
             "color%red.png",
@@ -104,7 +104,7 @@ mod tests {
     // remains the only separator — a URI already written by a driver does not move
     // under this change.
     #[test]
-    fn un_nom_ordinaire_ne_change_pas() {
+    fn an_ordinary_name_does_not_change() {
         assert_eq!(
             encode_relative(Path::new("textures/checker.png")),
             "textures/checker.png"
@@ -113,7 +113,7 @@ mod tests {
 
     // Behaviour: a truncated or invalid escape is not guessed.
     #[test]
-    fn un_echappement_invalide_ne_se_decode_pas() {
+    fn an_invalid_escape_does_not_decode() {
         assert_eq!(decode("a%"), None);
         assert_eq!(decode("a%zz.png"), None);
         assert_eq!(decode("%FF.png"), None);

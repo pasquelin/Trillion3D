@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A first world</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // A world draws into the canvas above; `orbit` lets the mouse turn around the scene.
+      const world = createWorld('view', { controls: 'orbit' });
+
+      // Something to look at: one cube, standing on a floor.
+      const paint = material.meshStandard({ color: '#3c8ce0' });
+      const cube = object.mesh(geometry.box(1, 1, 1), paint);
+      cube.position.set(0, 0.5, 0);
+      world.scene.add(cube);
+      const floor = object.mesh(geometry.box(6, 0.1, 6), material.meshStandard({ color: '#8a8f99' }));
+      floor.position.set(0, -0.05, 0);
+      world.scene.add(floor);
+
+      // A sun that casts shadows, and a sky that lights the sides the sun misses:
+      // without a light, everything stays black.
+      world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4], castShadow: true }));
+      world.scene.add(light.hemisphere({ color: '#bcd4ff', groundColor: '#5a4a3c', intensity: 1 }));
+
+      // Where the eye stands, and what it looks at.
+      world.camera.position.set(2.2, 1.8, 3.2);
+      world.camera.lookAt(0, 0.4, 0);
+      world.controls.target.set(0, 0.4, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      controls({ colour: '#3c8ce0' }, ({ colour }) => {
+        paint.color.set(colour);
+        world.invalidate();
+      }, world);
+    </script>
+  </body>
+</html>

@@ -7,14 +7,13 @@
 // bytes transferred. Three's CDN modules are answered from node_modules so the network is not
 // measured. A measurement, not a proof: it exits 0.
 import { resolve } from 'node:path';
-import { readFile } from 'node:fs/promises';
-import type { Browser, Route } from 'playwright';
-import { launchChrome } from './mesure/chrome.ts';
+import type { Browser } from 'playwright';
+import { routeThree } from '../tests/kit/server/threeRoute.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
 import { createDocsServer, listen } from './docs-serve.ts';
 import { SITE_OUTPUT } from './docs/site.ts';
 
-const DEFAULT_ROUTES = ['#/en/learn/home', '#/en/lessons/shadow-casting-switch'];
-const THREE = 'https://cdn.jsdelivr.net/npm/three@0.174.0/';
+const DEFAULT_ROUTES = ['#/en/learn/home', '#/en/examples/observatory-streamed'];
 const SUMMARY_KEYS = ['domContentLoaded', 'settled', 'requests', 'bytes'] as const;
 
 interface LoadSample {
@@ -28,13 +27,7 @@ const median = (values: number[]) => [...values].sort((a, b) => a - b)[values.le
 
 async function loadOnce(browser: Browser, origin: string, route: string): Promise<LoadSample> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-  await context.route(`${THREE}**`, async (handler: Route) => {
-    const file = handler.request().url().slice(THREE.length);
-    handler.fulfill({
-      contentType: 'text/javascript',
-      body: await readFile(resolve(import.meta.dirname, '../node_modules/three', file)),
-    });
-  });
+  await routeThree(context);
   const page = await context.newPage();
   let requests = 0;
   let bytes = 0;

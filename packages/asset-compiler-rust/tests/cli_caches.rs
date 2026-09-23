@@ -10,7 +10,7 @@ use std::{
 };
 
 fn run_batch(spec_path: &Path) -> (Option<i32>, Value) {
-    let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
+    let output = Command::new(env!("CARGO_BIN_EXE_trillion3d-compiler"))
         .args(["--jobs", spec_path.to_str().expect("path")])
         .stdin(Stdio::null())
         .output()
@@ -30,7 +30,7 @@ fn write_spec(spec_path: &Path, obj: &Path, first: &Path, second: &Path) {
     .expect("spec");
 }
 /// Refusal names both entries in the batch so the host knows which ones to merge.
-fn assert_refus_alias(code: Option<i32>, summary: &Value) {
+fn assert_alias_refused(code: Option<i32>, summary: &Value) {
     assert_eq!(code, Some(2), "{summary}");
     assert_eq!(summary["code"], "INVALID_BATCH", "{summary}");
     let message = summary["message"].as_str().unwrap_or_default();
@@ -43,7 +43,7 @@ fn assert_refus_alias(code: Option<i32>, summary: &Value) {
 /// A02: `x` and `p/../x` refer to the same missing folder. `canonicalize` failed on a missing
 /// path, raw text then served as identity and both jobs were admitted.
 #[test]
-fn a02_deux_ecritures_du_meme_cache_absent_sont_refusees() {
+fn a02_two_writes_of_the_same_absent_cache_are_refused() {
     let (root, obj, cache) = fixture("alias-absent");
     let spec = root.join("jobs.json");
     write_spec(
@@ -53,12 +53,12 @@ fn a02_deux_ecritures_du_meme_cache_absent_sont_refusees() {
         &cache.join("alias-parent/../alias-output"),
     );
     let (code, summary) = run_batch(&spec);
-    assert_refus_alias(code, &summary);
+    assert_alias_refused(code, &summary);
     fs::remove_dir_all(root).ok();
 }
 /// A02: the same pair, but the folders already exist before the batch.
 #[test]
-fn a02_deux_ecritures_du_meme_cache_existant_sont_refusees() {
+fn a02_two_writes_of_the_same_existing_cache_are_refused() {
     let (root, obj, cache) = fixture("alias-existant");
     let direct = cache.join("alias-output");
     fs::create_dir_all(cache.join("alias-parent")).expect("parent");
@@ -71,13 +71,13 @@ fn a02_deux_ecritures_du_meme_cache_existant_sont_refusees() {
         &cache.join("alias-parent/../alias-output"),
     );
     let (code, summary) = run_batch(&spec);
-    assert_refus_alias(code, &summary);
+    assert_alias_refused(code, &summary);
     fs::remove_dir_all(root).ok();
 }
 /// A02: an existing symbolic link to another job's cache is the same alias.
 #[cfg(unix)]
 #[test]
-fn a02_un_lien_symbolique_vers_le_meme_cache_est_refuse() {
+fn a02_a_symlink_to_the_same_cache_is_refused() {
     let (root, obj, cache) = fixture("alias-lien");
     let direct = cache.join("alias-output");
     fs::create_dir_all(&direct).expect("cache");
@@ -86,6 +86,6 @@ fn a02_un_lien_symbolique_vers_le_meme_cache_est_refuse() {
     let spec = root.join("jobs.json");
     write_spec(&spec, &obj, &direct, &link);
     let (code, summary) = run_batch(&spec);
-    assert_refus_alias(code, &summary);
+    assert_alias_refused(code, &summary);
     fs::remove_dir_all(root).ok();
 }

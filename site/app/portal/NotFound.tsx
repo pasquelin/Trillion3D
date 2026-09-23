@@ -1,64 +1,24 @@
-import { useState } from 'react';
+import { useWords } from '../i18n.ts';
 import { routeHref } from './routes.ts';
-import { initialState, SCENARIOS } from '../../lessons/scenarios.ts';
-import { WebGPUCanvas } from '../gallery/WebGPUCanvas.tsx';
-import { usePlaygroundMotion } from '../gallery/usePlaygroundMotion.ts';
-import { SectionHeader } from '../components/SectionHeader.tsx';
-import { Section } from '../components/Section.tsx';
+import { DocPage } from '../layout/DocPage.tsx';
+import { Actions, LinkButton } from '../ui/Button.tsx';
+import { Card } from '../ui/Card.tsx';
 import type { Locale } from '../../content/locale.ts';
 
 export function NotFound({ locale }: { locale: Locale }) {
-  const fr = locale === 'fr';
-  const [state, setState] = useState(() => initialState('hierarchy'));
-  const motion = usePlaygroundMotion(SCENARIOS.hierarchy, setState, { autoPlay: true });
+  const t = useWords(locale);
   return (
-    <div className="grid gap-6">
-      <SectionHeader
-        level={1}
-        eyebrow="404"
-        title={fr ? 'Page introuvable' : 'Page not found'}
-        description={
-          fr
-            ? 'Cette adresse ne correspond à aucune page du portail.'
-            : 'This address does not match a page in the portal.'
-        }
-      />
-      <Section title={fr ? 'Retrouver votre chemin' : 'Find your way back'}>
-        <div className="flex flex-wrap gap-3">
-          <a className="btn btn-primary" href={routeHref({ locale, area: 'learn', id: 'home' })}>
-            {fr ? 'Revenir à l’accueil' : 'Return home'}
-          </a>
-          <a className="btn btn-outline" href={routeHref({ locale, area: 'examples', id: '' })}>
-            {fr ? 'Explorer les exemples' : 'Explore examples'}
-          </a>
-          <button
-            className="btn btn-ghost"
-            type="button"
-            onClick={motion.toggle}
-            aria-pressed={motion.playing}
-          >
-            {motion.playing
-              ? fr
-                ? 'Mettre en pause'
-                : 'Pause animation'
-              : fr
-                ? 'Animer'
-                : 'Animate'}
-          </button>
-        </div>
-      </Section>
-      <WebGPUCanvas
-        id="hierarchy"
-        state={state}
-        locale={locale}
-        animating={motion.playing}
-        related
-        label={
-          fr
-            ? 'Orbites géométriques — illustration 3D interactive'
-            : 'Geometric orbits — interactive 3D illustration'
-        }
-      />
-    </div>
+    <DocPage eyebrow="404" title={t('notFound.title')} lead={t('notFound.lead')}>
+      <Card title={t('notFound.wayBack')}>
+        <Actions>
+          <LinkButton variant="primary" href={routeHref({ locale, area: 'learn', id: 'home' })}>
+            {t('notFound.home')}
+          </LinkButton>
+          <LinkButton variant="outline" href={routeHref({ locale, area: 'examples', id: '' })}>
+            {t('notFound.examples')}
+          </LinkButton>
+        </Actions>
+      </Card>
+    </DocPage>
   );
 }

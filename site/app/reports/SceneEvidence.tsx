@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { useWords } from '../i18n.ts';
 import { SceneNotice } from './SceneNotice.tsx';
-import { ImageCard } from '../components/ImageCard.tsx';
-import { Modal } from '../components/Modal.tsx';
-import { Card, Select } from '../components/UI.tsx';
-import { Section } from '../components/Section.tsx';
-import { Tabs } from '../components/Tabs.tsx';
+import { ImageCard } from '../ui/ImageCard.tsx';
+import { ModalTrigger } from '../ui/Modal.tsx';
+import { Card } from '../ui/Card.tsx';
+import { Select } from '../ui/Input.tsx';
+import { Tabs } from '../ui/Tabs.tsx';
 import { pairedImages, sceneName, runOf } from '../../reports/presentation.ts';
 import { engineName, runName, viewName } from '../../reports/names.ts';
 import { Evidence } from './Evidence.tsx';
@@ -17,12 +18,8 @@ interface SceneEvidenceProps {
   locale: Locale;
 }
 
-const FAMILIES: [string, string, string][] = [
-  ['engines', 'Engines', 'Moteurs'],
-  ['drawing', 'Drawing methods', 'Méthodes de dessin'],
-  ['lighting', 'Lighting', 'Éclairage'],
-  ['single', 'Individual captures', 'Captures seules'],
-];
+/** The kinds of capture, in tab order; each is named by `report.families.<id>`. */
+const FAMILIES = ['engines', 'drawing', 'lighting', 'single'] as const;
 
 function family(name: string): string {
   if (/lamp|ombre/.test(name)) return 'lighting';
@@ -38,37 +35,33 @@ interface CaptureGroupsProps {
 }
 
 function CaptureGroups({ report, locale, pairs, singles, name }: CaptureGroupsProps) {
-  const fr = locale === 'fr';
+  const t = useWords(locale);
   const engines = pairs.length > 0 && pairs.every(([a]) => family(runOf(report, a)) === 'engines');
   return (
     <>
       <p>
-        {fr
-          ? engines
-            ? 'Comparé à Web Geometry. Déplacez la poignée pour comparer les images.'
+        {t(
+          engines
+            ? 'report.comparedEngines'
             : singles.length
-              ? 'Captures individuelles : aucune image de comparaison n’a été enregistrée pour ces vues.'
-              : 'Déplacez la poignée sur chaque image pour comparer les deux rendus.'
-          : engines
-            ? 'Compared with Web Geometry. Move the handle to compare images.'
-            : singles.length
-              ? 'Individual captures: no comparison image was recorded for these views.'
-              : 'Move the handle on each image to compare both renders.'}
+              ? 'report.singlesOnly'
+              : 'report.compareHandle',
+        )}
       </p>
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {pairs
           .filter(([a]) => runOf(report, a) === name)
           .map(([a, b]) => (
             <Card surface="nested" key={a.differencePair}>
               <Evidence {...{ a, b, locale }} campaign={report.id} />
-              <Modal
-                imageOnly
+              <ModalTrigger
+                size="image"
                 title={`${sceneName(a.scene)} · ${viewName(a.view, locale)}`}
-                triggerLabel={fr ? 'Agrandir' : 'Enlarge'}
-                closeLabel={fr ? 'Fermer' : 'Close'}
+                label={t('report.enlarge')}
+                closeLabel={t('actions.close')}
               >
-                {() => <Evidence imageOnly {...{ a, b, locale }} campaign={report.id} />}
-              </Modal>
+                <Evidence imageOnly {...{ a, b, locale }} campaign={report.id} />
+              </ModalTrigger>
             </Card>
           ))}
         {singles
@@ -79,8 +72,8 @@ function CaptureGroups({ report, locale, pairs, singles, name }: CaptureGroupsPr
               title={`${viewName(r.view, locale)} · ${r.quality} px · ${engineName(r.engine)}`}
               src={`reports/${report.id}/${r.image}`}
               alt={`${sceneName(r.scene)} · ${viewName(r.view, locale)}`}
-              enlargeLabel={fr ? 'Agrandir' : 'Enlarge'}
-              closeLabel={fr ? 'Fermer' : 'Close'}
+              enlargeLabel={t('report.enlarge')}
+              closeLabel={t('actions.close')}
             />
           ))}
       </div>
@@ -89,15 +82,16 @@ function CaptureGroups({ report, locale, pairs, singles, name }: CaptureGroupsPr
 }
 
 export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
+  const t = useWords(locale);
   const [selected, setSelected] = useState('engines');
   const [chosenRun, setChosenRun] = useState('');
   const records = report.records.filter((r) => r.scene === scene);
   const pairs = pairedImages(records);
   const paired = new Set(pairs.flat().map((r) => r.id));
   const singles = records.filter((r) => r.image && !paired.has(r.id));
-  const groups = FAMILIES.map(([id, en, fr]) => ({
+  const groups = FAMILIES.map((id) => ({
     id,
-    label: locale === 'fr' ? fr : en,
+    label: t(`report.families.${id}`),
     pairs: pairs.filter(([a]) => family(runOf(report, a)) === id),
     singles: id === 'single' ? singles : [],
   })).filter((group) => group.pairs.length || group.singles.length);
@@ -117,14 +111,14 @@ export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
       : runName(run, locale);
   }
   return (
-    <Section title={sceneName(scene)}>
+    <Card title={sceneName(scene)}>
       <SceneNotice
         note={report.records.find((r) => r.scene === scene && r.sceneNote)?.sceneNote}
         locale={locale}
       />
       <Tabs
         sticky
-        label={locale === 'fr' ? 'Type de comparaison visuelle' : 'Visual comparison type'}
+        label={t('report.comparisonType')}
         value={selected}
         onChange={(id) => {
           setSelected(id);
@@ -134,7 +128,7 @@ export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
           <div className="w-60 max-w-full">
             <Select
               size="sm"
-              aria-label={locale === 'fr' ? 'Essai' : 'Experiment'}
+              aria-label={t('report.experiment')}
               value={name}
               onChange={(event) => setChosenRun(event.target.value)}
             >
@@ -160,6 +154,6 @@ export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
           ),
         }))}
       />
-    </Section>
+    </Card>
   );
 }

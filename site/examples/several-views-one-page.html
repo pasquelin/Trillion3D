@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Several views, one page</title>
+    <meta name="thumbnail" content="6" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e131b;
+      }
+      body {
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        grid-template-rows: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+        padding: 4px;
+      }
+      .pane {
+        position: relative;
+        overflow: hidden;
+        border-radius: 4px;
+      }
+      .main {
+        grid-row: 1 / span 3;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      .label {
+        position: absolute;
+        top: 6px;
+        left: 8px;
+        font: 600 11px/1.3 system-ui, sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #e9eef7;
+        text-shadow: 0 1px 2px #000;
+        pointer-events: none;
+      }
+      @media (max-width: 640px) {
+        body {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
+        }
+        .main {
+          grid-row: 1;
+          grid-column: 1 / span 3;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pane main"><canvas id="view"></canvas><p class="label" data-words="perspective"></p></div>
+    <div class="pane"><canvas id="top"></canvas><p class="label" data-words="top"></p></div>
+    <div class="pane"><canvas id="front"></canvas><p class="label" data-words="front"></p></div>
+    <div class="pane"><canvas id="side"></canvas><p class="label" data-words="side"></p></div>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, camera } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // A windmill on its island, drawn by four worlds at once: one looks through a perspective
+      // lens the viewer turns, the three others through orthographic cameras from above, the
+      // front and the side, where sizes never shrink with distance — the views of a drawing.
+      function build(world) {
+        const paint = (color, roughness = 0.8, metalness = 0, flatShading = false) => material.meshStandard({ color, roughness, metalness, flatShading });
+        const add = (parent, shape, look, x = 0, y = 0, z = 0) => {
+          const mesh = object.mesh(shape, look);
+          mesh.position.set(x, y, z);
+          parent.add(mesh);
+          return mesh;
+        };
+        const scene = world.scene, stone = paint('#a39888', 0.9, 0, true), slate = paint('#454b55', 0.7, 0, true), wood = paint('#8b6a4a', 0.8), cloth = paint('#efe6d2', 0.9), trim = paint('#f4f1ea', 0.6);
+        // The island: grass on a bank of earth, a path to the door, a fence round the edge.
+        add(scene, geometry.cylinder(15, 15.6, 1.2, 72), paint('#5f8b3a', 0.95), 0, -0.6, 0);
+        add(scene, geometry.cylinder(15.6, 13, 2.4, 72), paint('#6b5440', 0.95), 0, -2.4, 0);
+        add(scene, geometry.box(2.4, 0.06, 10), paint('#c9b48e', 0.9), 0, 0.03, 9);
+        for (let k = 0; k < 36; k++) {
+          const a = (k / 36) * Math.PI * 2;
+          if (Math.abs(a - Math.PI / 2) < 0.12) continue;
+          add(scene, geometry.box(0.16, 1.1, 0.16), wood, Math.cos(a) * 14, 0.55, Math.sin(a) * 14);
+        }
+        for (const [x, z] of [[-9, -6], [8, -8]]) {
+          add(scene, geometry.cylinder(0.3, 0.4, 3, 8), paint('#5b4331'), x, 1.5, z);
+          add(scene, geometry.sphere(2.4, 20, 14), paint('#4a7a33', 0.9), x, 4.4, z);
+        }
+        add(scene, geometry.cylinder(1.1, 1.1, 0.35, 32).rotateZ(1.3), stone, 5.5, 1, 5.2);
+        for (let k = 0; k < 3; k++) add(scene, geometry.capsule(0.4, 0.5, 4, 10), cloth, 3.6 + k * 0.7, 0.6, 6.8 - k * 0.3);
+
+        // The mill in four parts that an exploded view pulls apart: the stone base, the tower with
+        // its gallery, and the cap carrying the sails. Each part is a group, raised on its own.
+        const base = object.group(), tower = object.group(), gallery = object.group(), cap = object.group(), sails = object.group();
+        // Eight-sided, turned an eighth of a half-turn so a flat face looks down each axis.
+        add(base, geometry.lathe([[4.7, 0], [4.5, 2.4], [0, 2.4]], 8, Math.PI / 8), stone);
+        add(base, geometry.box(1.3, 2, 0.4), wood, 0, 1, 4.3);
+        add(tower, geometry.lathe([[4.25, 0], [3.05, 9.6], [0, 9.6]], 8, Math.PI / 8), slate);
+        // Windows on four faces, each just proud of its face: the face's distance is cos(π/8)
+        // of the tower's radius at that height.
+        for (const [y, a] of [[3.2, 0], [5.2, Math.PI / 2], [7.4, Math.PI], [4.2, -Math.PI / 2]]) {
+          const out = (4.25 - 0.125 * y) * Math.cos(Math.PI / 8) + 0.12;
+          add(tower, geometry.box(0.8, 1.1, 0.3), trim, Math.sin(a) * out, y, Math.cos(a) * out).rotation.set(0, a, 0);
+        }
+        add(gallery, geometry.cylinder(6.2, 6.2, 0.25, 8), wood);
+        add(gallery, geometry.torus(5.6, 0.06, 6, 16).rotateX(Math.PI / 2), wood, 0, 1.1, 0);
+        for (let k = 0; k < 16; k++) add(gallery, geometry.box(0.1, 1.1, 0.1), wood, Math.cos((k / 16) * Math.PI * 2) * 5.6, 0.55, Math.sin((k / 16) * Math.PI * 2) * 5.6);
+        add(cap, geometry.lathe([[3.4, 0], [3.2, 1.3], [2.3, 2.6], [0.9, 3.3], [0, 3.4]], 32), paint('#7c5636', 0.85));
+        add(cap, geometry.cylinder(0.35, 0.35, 3, 16).rotateX(Math.PI / 2), wood, 0, 1.6, 3.2);
+        add(cap, geometry.box(0.25, 0.25, 4.5).rotateX(-0.5), wood, 0, 0.6, -4.2);
+        // The sails: four stocks with their cloths, turning together about the shaft.
+        sails.position.set(0, 1.6, 4.8);
+        add(sails, geometry.box(1, 1, 0.8), wood);
+        for (let k = 0; k < 4; k++) {
+          const arm = object.group();
+          arm.rotation.set(0, 0, (k * Math.PI) / 2);
+          add(arm, geometry.box(0.32, 12.5, 0.32).translate(0, 6.6, 0), wood);
+          add(arm, geometry.box(2.2, 9.6, 0.08).translate(1.3, 7.6, 0.05), cloth);
+          for (let bar = 0; bar < 6; bar++) add(arm, geometry.box(2.6, 0.1, 0.14).translate(1.2, 3.4 + bar * 1.8, 0.14), wood);
+          sails.add(arm);
+        }
+        cap.add(sails);
+        scene.add(base, tower, gallery, cap);
+
+        // Golden hour from the west, a cool sky in the shade.
+        scene.add(
+          light.directional({ color: '#ffc27e', intensity: 3.2, position: [-40, 22, 26], castShadow: true }),
+          light.hemisphere({ color: '#a9c2ff', groundColor: '#5a5236', intensity: 0.9 }),
+        );
+        return { tower, gallery, cap, sails };
+      }
+
+      // Where each part stands, and how far the exploded view lifts it.
+      const PARTS = { tower: [2.4, 3], gallery: [4.4, 1.8], cap: [12, 6] };
+      const state = { time: 0, last: performance.now(), explode: 0, turn: 0, wind: 0, speed: 0.6 };
+      const turnsAMinute = () => (state.speed * (60 / (Math.PI * 2))).toFixed(1);
+      function advance() {
+        const now = performance.now(), step = Math.min(0.05, (now - state.last) / 1000);
+        if (step <= 0) return;
+        state.last = now;
+        state.time += step;
+        state.turn += step * state.speed;
+      }
+
+      // The four worlds: one perspective with an orbit, three orthographic that pan and zoom.
+      const VIEWS = [
+        { id: 'view', background: '#f0c28e' },
+        { id: 'top', eye: [0, 80, 0], look: [0, 0, 0], up: [0, 0, -1], half: 17, right: [1, 0, 0], above: [0, 0, -1] },
+        { id: 'front', eye: [0, 13, 80], look: [0, 13, 0], up: [0, 1, 0], half: 19, right: [1, 0, 0], above: [0, 1, 0] },
+        { id: 'side', eye: [80, 13, 0], look: [0, 13, 0], up: [0, 1, 0], half: 19, right: [0, 0, -1], above: [0, 1, 0] },
+      ];
+      const worlds = VIEWS.map((view) => {
+        const world = createWorld(view.id, { controls: view.eye ? 'none' : 'orbit' });
+        world.scene.background = math.color(view.background ?? '#1a2230');
+        const mill = build(world);
+        if (view.eye) {
+          // An orthographic box as tall as the view's `half` on each side of its centre, and as
+          // wide as the canvas's shape asks; a wheel zooms it, a drag slides it.
+          const lens = camera.orthographic({ near: 1, far: 200 });
+          lens.up.set(...view.up);
+          world.camera = lens;
+          let pan = [0, 0];
+          const pose = () => {
+            const [x, y] = pan, at = view.eye.map((value, i) => value + view.right[i] * x + view.above[i] * y), to = view.look.map((value, i) => value + view.right[i] * x + view.above[i] * y);
+            lens.position.set(...at);
+            lens.lookAt(...to);
+          };
+          const shape = () => {
+            const aspect = world.canvas.clientWidth / Math.max(1, world.canvas.clientHeight);
+            Object.assign(lens, { left: -view.half * aspect, right: view.half * aspect, top: view.half, bottom: -view.half });
+          };
+          new ResizeObserver(shape).observe(world.canvas);
+          shape();
+          pose();
+          world.canvas.addEventListener('wheel', (event) => {
+            event.preventDefault();
+            lens.zoom = Math.max(0.6, Math.min(8, lens.zoom * Math.exp(-event.deltaY * 0.0015)));
+          }, { passive: false });
+          let held = null;
+          world.canvas.addEventListener('pointerdown', (event) => (held = [event.clientX, event.clientY, ...pan]));
+          addEventListener('pointerup', () => (held = null));
+          world.canvas.addEventListener('pointermove', (event) => {
+            if (!held) return;
+            const metres = (2 * view.half) / lens.zoom / Math.max(1, world.canvas.clientHeight);
+            pan = [held[2] - (event.clientX - held[0]) * metres, held[3] + (event.clientY - held[1]) * metres];
+            pose();
+          });
+          world.canvas.addEventListener('dblclick', () => {
+            pan = [0, 0];
+            lens.zoom = 1;
+            pose();
+          });
+        } else {
+          world.camera.position.set(26, 15, 30);
+          world.controls.target.set(0, 8, 0);
+          world.controls.update();
+          world.controls.minDistance = 12;
+          world.controls.maxDistance = 90;
+          world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+        }
+        world.onFrame(() => {
+          advance();
+          // The opening: the mill starts pulled apart and settles together in every view at once.
+          const settle = 1 - Math.min(1, state.time / 3.5), lift = Math.max(state.explode, settle * settle * (3 - 2 * settle));
+          for (const [part, [y, rise]] of Object.entries(PARTS)) mill[part].position.y = y + rise * lift;
+          mill.sails.position.z = 4.8 + 3 * lift;
+          mill.cap.rotation.set(0, state.wind, 0);
+          mill.sails.rotation.set(0, 0, -state.turn);
+          // Once the mill has settled and the wind has dropped, the four views stand still.
+          if (state.speed || settle > 0) world.invalidate();
+        });
+        return world;
+      });
+
+      let rpm = null;
+      controls({
+        mouse: 'Drag the big view to turn it; wheel and drag the small ones to zoom and slide, double-click to reset',
+        explode: [0, 1, 0, 0.01],
+        windFrom: [-180, 180, 0, 1],
+        windSpeed: [0, 2, 0.6, 0.05],
+      }, (values) => {
+        state.explode = values.explode;
+        state.wind = (values.windFrom * Math.PI) / 180;
+        state.speed = values.windSpeed;
+        rpm?.(turnsAMinute());
+        for (const world of worlds) world.invalidate();
+      }, worlds[0]);
+      rpm = readout('sailTurnsMinute');
+      rpm(turnsAMinute());
+    </script>
+  </body>
+</html>
