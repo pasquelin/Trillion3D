@@ -83,11 +83,13 @@ function bricks(random: RandomStream) {
     height = raster(DRAWN, [0]),
     [course, width, mortar] = [DRAWN / 8, DRAWN / 4, 24];
   for (let row = 0; row < 8; row++) {
-    const offset = ((row % 2) * width) / 2;
+    const offset = ((row % 2) * width) / 2,
+      tints = Array.from({ length: 4 }, () => [random.uniform(-1, 1), random.uniform(0.82, 1.08)]);
+    // A brick cut by the right edge comes back at the left one: both halves wear its tint.
     for (let k = -1; k < 5; k++) {
       const [x0, y0] = [k * width + offset + mortar / 2, row * course + mortar / 2],
         rect = [x0, y0, x0 + width - mortar, y0 + course - mortar],
-        [hue, fired] = [random.uniform(-1, 1), random.uniform(0.82, 1.08)];
+        [hue, fired] = tints[(k + 4) % 4];
       fillRect(
         colour,
         rect,
