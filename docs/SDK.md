@@ -871,7 +871,7 @@ bounced; the proxy carries diffuse albedo only.
 `setLightingView('bounce')` is the measurement view: the indirect irradiance alone, multiplied by
 exposure, in linear values with no ACES and no sRGB. It is not an image to look at — it is the
 quantity `bench/runner/oracle.ts` compares against the compiler's own path tracer
-(`web-geometry-oracle`, built by `pnpm run build:native`), which traces the source triangles with the
+(`web-geometry-oracle`, built by `pnpm run build:oracle`), which traces the source triangles with the
 same light and diffuse-material model. The oracle truncates the bounce series at its `bounces`
 count while the engine carries the whole series, so a comparison only means something at a matching
 order.

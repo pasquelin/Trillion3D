@@ -53,7 +53,7 @@ async function main() {
   if (!cache) throw new Error('--cache is required: the compiled cache derived directory');
   const source = resolve(flag('source', ''));
   if (!existsSync(source)) throw new Error(`--source not found: ${source}`);
-  if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`');
+  if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:oracle`');
   const out = resolve(flag('out', join(ROOT, `.mesure/out/oracle-${Date.now()}`)));
   await mkdir(out, { recursive: true });
   const settings: OracleSettings = {

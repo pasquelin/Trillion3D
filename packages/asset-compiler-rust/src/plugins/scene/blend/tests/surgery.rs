@@ -1,4 +1,4 @@
-//! Reproducing a defect on the CC0 fixture, without Blender and without writing into `fixtures/`.
+//! Reproducing a defect on the CC0 fixture, without Blender and without writing into `tests/fixtures/formats/`.
 //!
 //! The fixture is unpacked from its wrapping, then patched **through the SDNA it itself carries**:
 //! no offset is hardcoded here either, each field is found by its name as the driver does. A
@@ -14,7 +14,7 @@ const SPARE: u64 = 0xB1E0_0000_0000_0001;
 /// The bytes of the CC0 fixture, unpacked from their Zstandard wrapping.
 pub(super) fn fixture() -> Vec<u8> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures/blend/procedural-materials/scene.blend");
+        .join("../../tests/fixtures/formats/blend/procedural-materials/scene.blend");
     let raw = fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     envelope::unwrap(&raw, MAX_BYTES).expect("the fixture wrapping")
 }
