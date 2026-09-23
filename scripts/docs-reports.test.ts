@@ -49,7 +49,7 @@ test('comparison names engines, explains missing values and shows observed arith
       createElement(Comparison, { locale, a, b, variable: 'engine' }),
     );
     assert.match(html, /Three.js/);
-    assert.match(html, /Web Geometry/);
+    assert.match(html, /trillion3D/);
     assert.match(html, /-3 ms/);
     assert.doesNotMatch(html, /<details|<select|NaN|Infinity|undefined|>A<|>B</);
   }

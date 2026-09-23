@@ -119,7 +119,7 @@ export async function prepareMany(
     if (typeof job.resourceBaseUrl !== 'string' || !job.resourceBaseUrl)
       throw new Error(`job ${job.id ?? '?'}: resourceBaseUrl is required`);
   }
-  const directory = await mkdtemp(join(tmpdir(), 'web-geometry-batch-'));
+  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-batch-'));
   try {
     const file = join(directory, 'jobs.json');
     await writeFile(

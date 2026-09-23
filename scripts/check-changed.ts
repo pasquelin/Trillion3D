@@ -11,7 +11,7 @@ const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
 const formatPattern = /\.(?:[cm]?ts|tsx|json)$/;
 
 function candidates(importer: string, specifier: string): string[] {
-  if (specifier === 'web-geometry')
+  if (specifier === 'trillion3d')
     return ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'];
   if (!specifier.startsWith('.')) return [];
   const target = posix.normalize(posix.join(posix.dirname(importer), specifier));
@@ -59,7 +59,7 @@ export function existingChangedFiles(changed: Iterable<string>, root = process.c
 }
 
 async function main(): Promise<void> {
-  const base = process.env.WEB_GEOMETRY_BASE_REF ?? 'develop';
+  const base = process.env.TRILLION3D_BASE_REF ?? 'develop';
   const changed = new Set([
     ...(await gitPaths(['diff', '--name-only', '-z', base, '--'])),
     ...(await gitPaths(['ls-files', '--others', '--exclude-standard', '-z'])),

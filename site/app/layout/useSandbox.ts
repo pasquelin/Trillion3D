@@ -51,7 +51,7 @@ function store(key: string, code: string | null) {
  * reload in the browser, and the source the frame shows. The source found on arrival is shown.
  */
 export function useSandbox(file: string, start: string) {
-  const key = `web-geometry.sandbox/${file}`;
+  const key = `trillion3d.sandbox/${file}`;
   const [state, dispatch] = useReducer(sandboxReducer, key, (name) => {
     const edited = stored(name);
     return { edited, ran: edited };

@@ -25,8 +25,8 @@ import { fetchModels } from './assetsFetch.ts';
 const ROOT = resolve(import.meta.dirname, '../..');
 const CLI = join(ROOT, 'dist/sdk-node/src/cli/cli.mjs');
 const COMPILER =
-  process.env.WEB_GEOMETRY_COMPILER_BIN ??
-  join(ROOT, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
+  process.env.TRILLION3D_COMPILER_BIN ??
+  join(ROOT, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
 /** The triangle budget of a `full` cache, as `README.md` § Assets states it for every scene. */
 const TRIANGLE_BUDGET = '150000';
 
@@ -73,7 +73,7 @@ function compile(scene: string, budget: ReturnType<typeof machineBudget>) {
   const run = spawnSync('node', args, {
     cwd: ROOT,
     stdio: ['ignore', 'inherit', 'inherit'],
-    env: { ...process.env, WEB_GEOMETRY_COMPILER_BIN: COMPILER },
+    env: { ...process.env, TRILLION3D_COMPILER_BIN: COMPILER },
   });
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error(`compiling ${scene} failed (${run.status})`);

@@ -7,7 +7,7 @@ import { scan, snapshot, type NodeState, type WatchVerdict } from './scan.ts';
  * Mark of a node the engine created itself — an instance copy, for example. The host never
  * received it and therefore cannot write it: hooking it would listen for a write that never comes.
  */
-export const ENGINE_OWNED = 'webGeometryEngineOwned';
+export const ENGINE_OWNED = 'trillion3DEngineOwned';
 
 /** What the engine draws, seen from here: each entry names the source node it comes from. A
  *  page of a selection root, a blended mesh outside the DAG: the same key, the same treatment. */
