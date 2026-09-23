@@ -21,8 +21,8 @@ import { VEHICLE_SPECS } from './docs/examples/openworld/props/vehicles.ts';
 const root = resolve(import.meta.dirname, '..'),
   out = resolve(root, 'site/assets/examples/openworld'),
   compiler =
-    process.env.WG_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
+    process.env.TRILLION3D_COMPILER ??
+    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
 
 const started = performance.now(),
   lap = (label: string) =>
