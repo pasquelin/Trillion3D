@@ -72,8 +72,8 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   assertSavedScene(json);
   const geometries = json.geometries.map(readGeometry);
   const materials = json.materials.map((m) => new Material(m.kind, m.parameters));
-  /** The models loaded so far: `load` adds each to the scene at once. */
-  const loaded: Object3D[] = [];
+  /** Every model load started: `load` adds each model to the scene as it arrives. */
+  const loads: Promise<Object3D>[] = [];
   const node = async (saved: SavedNode): Promise<Object3D> => {
     let o: Object3D;
     if (saved.mesh) {
@@ -83,8 +83,11 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
     } else if (saved.light) {
       const { kind, color, groundColor, values, target, sh } = saved.light;
       o = new Light(kind, { ...values, color, groundColor, target, sh: sh ?? undefined });
-    } else if (saved.model) loaded.push((o = await scene.load(saved.model.url)));
-    else o = saved.kind === 'group' ? new Group() : new Object3D();
+    } else if (saved.model) {
+      const load = scene.load(saved.model.url);
+      loads.push(load);
+      o = await load;
+    } else o = saved.kind === 'group' ? new Group() : new Object3D();
     o.name = saved.name;
     o.position.fromArray(saved.position);
     o.quaternion.fromArray(saved.quaternion);
@@ -104,8 +107,14 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   try {
     children = await Promise.all(json.children.map(node));
   } catch (error) {
-    // A model that could not be read leaves the scene as it was: what was loaded goes again.
-    for (const model of loaded) model.removeFromParent();
+    // A model that could not be read leaves the scene as it was: every load still running is
+    // waited for — one may start another under it — and every model that arrived goes again.
+    for (let settled = -1; settled !== loads.length;) {
+      settled = loads.length;
+      await Promise.allSettled(loads);
+    }
+    for (const load of await Promise.allSettled(loads))
+      if (load.status === 'fulfilled') load.value.removeFromParent();
     throw error;
   }
   if (before.length) scene.remove(...before);
