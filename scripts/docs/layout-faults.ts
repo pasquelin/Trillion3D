@@ -3,7 +3,7 @@ import type { Page } from 'playwright';
 /** One route of each page type the portal has, after the locale. */
 export const ROUTES = [
   'learn/home',
-  'learn/quick-start',
+  'learn/create-a-world',
   'learn/three-migration',
   'api',
   'api/createWorld',

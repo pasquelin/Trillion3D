@@ -81,8 +81,22 @@ test('both locales describe the world: its options row by row, and each of its m
     assert.match(interactive.desc, /loop|boucle/);
     for (const member of ['world.invalidate', 'world.dispose', 'world.scene'])
       assert.ok(entrySummary(localized.find(({ id }) => id === member)!), member);
-    const quickStart = localized.find(({ id }) => id === 'quick-start');
-    assert(quickStart?.html);
-    assert.match(quickStart.html, /createWorld/);
+  }
+});
+
+test('the course is nine chapters in both locales, each linking the next and showing its example live', () => {
+  for (const locale of supportedLocales) {
+    const chapters = localizeEntries(rawEntries, locale).filter(
+      ({ section }) => section === 'course',
+    );
+    assert.equal(chapters.length, 9);
+    chapters.forEach((chapter, index) => {
+      assert.match(chapter.title ?? '', new RegExp(`^${index + 1}\\. `));
+      const next = chapters[index + 1];
+      const target = next ? `#/${locale}/learn/${next.id}` : `#/${locale}/examples`;
+      assert.ok(chapter.html?.includes(`href="${target}"`), chapter.id);
+      assert.match(chapter.html ?? '', /<iframe src="examples\/[a-z-]+\.html"/);
+      assert.doesNotMatch(chapter.description, /<code>/, chapter.id);
+    });
   }
 });

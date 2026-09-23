@@ -3,14 +3,14 @@ import { resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { routeThree } from '../../kit/server/threeRoute.ts';
 
-/** Verify the portal's line-based code blocks in both locales and at both widths. */
+/** Verify the first chapter's code in both locales and at both widths, then the createWorld entry. */
 export async function startupSite(page: Page, base: string, out: string) {
   await routeThree(page);
   for (const locale of ['en', 'fr']) {
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto(`${base}/site/index.html#/${locale}/learn/quick-start`);
-      const code = page.locator('main [data-code-block]').last();
+      await page.goto(`${base}/site/index.html#/${locale}/learn/create-a-world`);
+      const code = page.locator('main pre code').last();
       await code.waitFor();
       assert.equal(
         await page.evaluate(() =>
@@ -21,13 +21,12 @@ export async function startupSite(page: Page, base: string, out: string) {
         true,
         'portal stylesheet is active',
       );
-      const text = (await code.locator('pre code').allTextContents()).join('\n');
-      assert.match(text, /createWorld\('viewer'\)/);
-      assert.match(text, /world\.scene\.load\('\/cache\/city\/manifest\.json'\)/);
+      const text = (await page.locator('main pre code').allTextContents()).join('\n');
+      assert.match(text, /createWorld\('view', \{ controls: 'orbit' \}\)/);
       assert.doesNotMatch(text, /querySelector|requestAnimationFrame/);
       assert.match(
         (await page.locator('main').textContent()) ?? '',
-        /pauses once the image has held|se met en pause une fois l’image tenue/,
+        /Next chapter — Add a shape|Chapitre suivant — Ajouter une forme/,
       );
       await page.screenshot({
         path: resolve(out, `docs-${locale}-${width}.png`),

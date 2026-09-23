@@ -101,6 +101,15 @@
   ],
   "entries": [
     {
+      "id": "a-first-world",
+      "title": {
+        "en": "A first world",
+        "fr": "Un premier monde"
+      },
+      "theme": "geometry",
+      "file": "examples/a-first-world.html"
+    },
+    {
       "id": "shapes-on-a-turntable",
       "title": {
         "en": "Shapes on a turntable",
@@ -153,6 +162,15 @@
       },
       "theme": "geometry",
       "file": "examples/letters-carved-in-relief.html"
+    },
+    {
+      "id": "a-scene-of-your-own",
+      "title": {
+        "en": "A scene of your own",
+        "fr": "Une scène à vous"
+      },
+      "theme": "geometry",
+      "file": "examples/a-scene-of-your-own.html"
     },
     {
       "id": "a-mesh-built-by-hand",

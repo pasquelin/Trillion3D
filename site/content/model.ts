@@ -95,12 +95,13 @@ const ENGINE_FAMILIES = [
 /** Every family a page writes with, in reference order. */
 export const FAMILIES = [...SCENE_FAMILIES, ...CONSTANT_FAMILIES, ...ENGINE_FAMILIES];
 
-/** The sections of the portal, in sidebar order: the guides, then the reference — the world and
+/** The sections of the portal, in sidebar order: the course, the guides and how it works, then the reference — the world and
  *  its families first, the constants gathered in one section, then the low-level maths, the Node
  *  compiler and every other public type. */
 export const SECTIONS = [
+  { id: 'course', title: 'Course' },
   { id: 'guides', title: 'Guides' },
-  { id: 'examples', title: 'SDK examples' },
+  { id: 'internals', title: 'How it works' },
   { id: 'world', title: 'World' },
   ...SCENE_FAMILIES.map((id) => ({ id, title: id })),
   { id: 'constants', title: 'Constants' },
