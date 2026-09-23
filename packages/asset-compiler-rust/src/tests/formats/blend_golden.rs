@@ -4,7 +4,7 @@
 //! PBR materials and images, value by value. What the driver refuses is fixed
 //! here too, by its code.
 //!
-//! The fixture is described in `tests/fixtures/formats/blend/README.md`. Regenerating the
+//! The fixture is described in `tests/fixtures/formats/README.md` § "blend". Regenerating the
 //! expected, from the repository root:
 //!
 //! ```text

@@ -196,5 +196,5 @@ function mappings in the catalogue limited to functions actually called by the e
 The Measurements route (`#/en/reports` or `#/fr/reports`) reads versioned campaign data from
 `site/reports/`. Shared React components own its presentation; the modules of `site/reports/` own
 the contract, metric semantics, comparison eligibility and bilingual labels. See the
-[report pipeline](../bench/runner/report/README.md) for export and staging. The legacy
+[report pipeline](../bench/runner/README.md#published-reports) for export and staging. The legacy
 `report.html` URL forwards to this route. Campaign data is independent of the site build.
