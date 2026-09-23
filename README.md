@@ -183,7 +183,7 @@ documentation, the code, its identifiers and this page are in English.
 
 The geometry, the temporal antialiasing and the memory budgets are the foundation. What they are
 for is **real-time dynamic global illumination, reflections and shadows** — reached by
-stages, each measured before the next ([lighting strategy](docs/LIGHTING_STRATEGY.md)):
+stages, each measured before the next ([lighting strategy](docs/ENGINE.md#lighting-the-target-and-the-stages)):
 
 | Stage | Content                                                                             | State                                                      |
 | ----- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
