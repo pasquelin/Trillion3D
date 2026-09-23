@@ -11,10 +11,15 @@ import type { ExplorerScene } from '../session/prepare.ts';
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
+  /** The address of the model's manifest, as the page gave it. */
   manifestUrl: string;
+  /** The address the manifest's details were read from. */
   metadataUrl: string;
+  /** The folder the model's other files are read against. */
   base: string;
+  /** The compiled manifest itself: primitives, pages and their sizes. */
   metadata: ClusterManifest;
+  /** The scene graph the loader built from the manifest. */
   scene: ExplorerScene;
   /** Where its images were read: `cache` left the baked ones to the levels the session reads. */
   textureSource: 'host' | 'cache';
@@ -25,7 +30,9 @@ export type ModelRecord = {
  * reads, and its node poses it. `bounds` is the box it spans in its own frame.
  */
 export class LoadedModel extends Object3D {
+  /** Always `true`: tells a loaded model apart from any other object. */
   readonly isLoadedModel = true as const;
+  /** The box the model fills, in its own frame. */
   readonly bounds: Box3;
   /** Lights under the model — those the source file carried, as nodes: a page edits, moves or
    *  removes them like its own, and they move with the model. */
@@ -33,6 +40,7 @@ export class LoadedModel extends Object3D {
     return this.children.filter((child) => (child as Light).isLight === true) as Light[];
   }
 
+  /** Everything the world keeps about this model: its addresses, manifest and graph. */
   readonly record: ModelRecord;
   constructor(record: ModelRecord) {
     super();

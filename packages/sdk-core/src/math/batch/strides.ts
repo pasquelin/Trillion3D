@@ -4,7 +4,9 @@
  * kernels beside it all read these.
  */
 export const MATRIX_VALUES = 16;
+/** Numbers per position in a batch: three. */
 export const POSITION_VALUES = 3;
+/** Numbers per rotation in a batch: four. */
 export const QUATERNION_VALUES = 4;
 /** A bounding sphere: centre then radius. */
 export const SPHERE_VALUES = 4;

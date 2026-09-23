@@ -2,19 +2,29 @@ import { LIGHT_KIND, type SceneLight } from './contracts.ts';
 
 /** Field of a light in the buffer, in floats from its base. Four `vec4f` per light. */
 export const LIGHT_FIELD = {
+  /** Where it stands. */
   position: 0,
+  /** How far it reaches. */
   range: 3,
+  /** Its colour. */
   color: 4,
+  /** Its strength. */
   intensity: 7,
+  /** Where it points. */
   direction: 8,
+  /** Cosine of its cone. */
   cosCone: 11,
+  /** Its kind. */
   kind: 12,
+  /** Its shadow slot. */
   shadowSlice: 13,
+  /** Whether it casts shadows. */
   castsShadow: 14,
   /** A spot's inner cone, where its penumbra starts: the cone's own edge when it has none. */
   cosInner: 15,
   /** A rectangle's half-width axis — `right` times half its width —, then half its height. */
   halfWidth: 16,
+  /** Half a rectangle's height. */
   halfHeight: 19,
 } as const;
 /** A point tests no cone, and a spot without penumbra no inner cone: this cosine never bounds. */

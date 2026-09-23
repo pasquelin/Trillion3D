@@ -1,40 +1,28 @@
 import type { Locale } from '../locale.ts';
+import { FAMILIES, SECTIONS } from '../model.ts';
+
+/** A family section is titled by the family's own name, the word a page writes, in every language. */
+const families = Object.fromEntries(FAMILIES.map((id) => [`section.${id}`, id]));
+
+const titled = (titles: Record<string, string>) => ({
+  ...families,
+  ...Object.fromEntries(Object.entries(titles).map(([id, title]) => [`section.${id}`, title])),
+});
 
 export const sectionStrings: Record<Locale, Record<string, string>> = {
-  en: {
-    'section.course': 'Course',
-    'section.guides': 'Guides',
-    'section.internals': 'How it works',
-    'section.world': 'The world',
-    'section.families': 'Families',
-    'section.measurement': 'Measurement entry',
-    'section.enums': 'Constants & types',
-    'section.lifecycle': 'Engine lifecycle',
-    'section.camera': 'Camera & projection',
-    'section.host': 'Camera bridge & sides',
-    'section.matrices': 'Matrices',
-    'section.vectors': 'Vectors',
-    'section.colors': 'Colours',
-    'section.bounds': 'Bounds & visibility',
-    'section.tree': 'Transform tree',
-    'section.batches': 'Batch math',
-  },
-  fr: {
-    'section.course': 'Cours',
-    'section.guides': 'Guides',
-    'section.internals': 'Comment ça marche',
-    'section.world': 'Le monde',
-    'section.families': 'Familles',
-    'section.measurement': 'Point d’entrée de mesure',
-    'section.enums': 'Constantes et types',
-    'section.lifecycle': 'Cycle de vie du moteur',
-    'section.camera': 'Caméra et projection',
-    'section.host': 'Passerelle caméra et faces',
-    'section.matrices': 'Matrices',
-    'section.vectors': 'Vecteurs',
-    'section.colors': 'Couleurs',
-    'section.bounds': 'Volumes et visibilité',
-    'section.tree': 'Arbre de transformations',
-    'section.batches': 'Calcul par lots',
-  },
+  en: titled(
+    Object.fromEntries(
+      SECTIONS.filter(({ id }) => !FAMILIES.includes(id)).map(({ id, title }) => [id, title]),
+    ),
+  ),
+  fr: titled({
+    course: 'Cours',
+    guides: 'Guides',
+    internals: 'Comment ça marche',
+    world: 'Monde',
+    constants: 'Constantes',
+    'math-utilities': 'Outils mathématiques',
+    node: 'Node et compilation',
+    types: 'Types et erreurs',
+  }),
 };

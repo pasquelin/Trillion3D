@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { entrySummary } from '../site/content/model.ts';
 import { localizeEntries, supportedLocales, t } from '../site/content/i18n/index.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { localizeDemoText } from '../site/content/i18n/demo.fr.ts';
@@ -17,15 +18,15 @@ test('French content covers every documentation entry and preserves its technica
     assert.equal(french.module, source.module);
     assert.equal(french.example, source.example);
     assert.equal(french.exports, source.exports);
-    assert.notEqual(
-      french.description,
-      source.description,
-      `${source.id} has no French description`,
-    );
-    assert.deepEqual(
-      french.values?.map(({ name }) => name),
-      source.values?.map(({ name }) => name),
-    );
+    const translated =
+      french.description !== source.description || entrySummary(french) !== entrySummary(source);
+    assert.ok(translated, `${source.id} has no French text`);
+    for (const rows of ['values', 'parameters', 'members'] as const)
+      assert.deepEqual(
+        french[rows]?.map(({ name }) => name),
+        source[rows]?.map(({ name }) => name),
+        `${source.id}: the French ${rows} rename a row`,
+      );
   }
 });
 
@@ -70,19 +71,16 @@ test('legacy demo labels are localized without changing technical symbols', () =
   assert.equal(localizeDemoText('multiplyMatrix4(out, a, b)', 'fr'), 'multiplyMatrix4(out, a, b)');
 });
 
-test('both locales describe interactive startup and align every method description', () => {
+test('both locales describe the world: its options row by row, and each of its members', () => {
   for (const locale of supportedLocales) {
     const localized = localizeEntries(rawEntries, locale);
     const world = localized.find(({ id }) => id === 'createWorld');
     assert(world);
-    assert.match(world.description, /`interactive`/);
-    assert.match(world.description, /`scene\.load`/);
-    const invalidate = world.values?.find(({ name }) => name.includes('invalidate()'));
-    const dispose = world.values?.find(({ name }) => name === 'dispose()');
-    assert(invalidate);
-    assert(dispose);
-    assert.match(invalidate.desc, /frame|image/i);
-    assert.match(dispose.desc, /Releases|Libère/);
+    const interactive = world.parameters?.find(({ name }) => name === 'options.interactive?');
+    assert.equal(interactive?.default, 'true');
+    assert.match(interactive.desc, /loop|boucle/);
+    for (const member of ['world.invalidate', 'world.dispose', 'world.scene'])
+      assert.ok(entrySummary(localized.find(({ id }) => id === member)!), member);
   }
 });
 

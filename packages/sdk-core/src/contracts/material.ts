@@ -19,13 +19,19 @@ export type LinearRgb = readonly [number, number, number];
 
 /** Surface parameters of one primitive, as the engine holds them. */
 export interface Material {
+  /** The base colour, linear. */
   baseColor: LinearRgb;
   /** Base-colour alpha, `1` for a surface that hides what is behind it. */
   opacity: number;
+  /** How metallic, 0 to 1. */
   metalness: number;
+  /** How rough, 0 to 1. */
   roughness: number;
+  /** The colour it gives off. */
   emissive: LinearRgb;
+  /** Which faces are drawn. */
   side: Side;
+  /** Opaque, cut out, or blended. */
   alphaMode: AlphaMode;
   /** Alpha below which a masked surface discards the pixel; ignored by the other modes. */
   alphaCutoff: number;

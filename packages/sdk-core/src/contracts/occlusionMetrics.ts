@@ -18,10 +18,15 @@ export interface OcclusionFrameMetrics {
    * verdicts cannot be reread, and as long as no frame has been counted.
    */
   hizTestedClusters?: number | null;
+  /** Clusters hidden. */
   hizRejectedClusters?: number | null;
+  /** Clusters too big to test. */
   hizOversizedClusters?: number | null;
+  /** Triangles tested. */
   hizTestedTriangles?: number | null;
+  /** Triangles hidden. */
   hizRejectedTriangles?: number | null;
+  /** Triangles too big to test. */
   hizOversizedTriangles?: number | null;
   /**
    * The frame the six counters above describe. It is the current frame where the oracle counts

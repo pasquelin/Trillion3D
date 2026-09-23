@@ -19,8 +19,8 @@ export { SCENE_MODEL_VERSION, type SceneNodeOptions } from './nodeContracts.ts';
 export class SceneNode {
   private childNodes: readonly SceneNode[] = Object.freeze([]);
   protected readonly state: SceneState;
-  readonly id: string;
-  readonly index: number;
+  /** The node's name in the tree. */ readonly id: string;
+  /** Its slot in the tree. */ readonly index: number;
   private visibleState: boolean;
   #alive = true;
 
@@ -36,7 +36,7 @@ export class SceneNode {
     return this.state.root as SceneRoot;
   }
 
-  get visible() {
+  /** Whether it is drawn. */ get visible() {
     this.assertAlive();
     return this.visibleState;
   }
@@ -71,7 +71,7 @@ export class SceneNode {
     return this.state.tree.worldViews[this.index];
   }
 
-  add(child: SceneNode) {
+  /** Adds a child. */ add(child: SceneNode) {
     this.assertCompatible(child);
     if (child.index === this.state.root?.index)
       sceneNodeFail('SCENE_ROOT_PARENT', 'A scene root cannot be reparented', {});
@@ -82,7 +82,7 @@ export class SceneNode {
     return this;
   }
 
-  remove(child: SceneNode) {
+  /** Removes a child. */ remove(child: SceneNode) {
     this.assertCompatible(child);
     if (child.parent !== this) return this;
     reparentTransformNode(this.state.tree, child.index, -1);
@@ -90,13 +90,13 @@ export class SceneNode {
     return this;
   }
 
-  clear() {
+  /** Removes every child. */ clear() {
     this.assertAlive();
     for (let i = this.childNodes.length - 1; i >= 0; i--) this.remove(this.childNodes[i]);
     return this;
   }
 
-  reparent(parent: SceneNode | null) {
+  /** Moves it under another parent. */ reparent(parent: SceneNode | null) {
     this.assertAlive();
     if (this.index === this.state.root?.index)
       sceneNodeFail('SCENE_ROOT_PARENT', 'A scene root cannot be reparented', {});
@@ -105,7 +105,7 @@ export class SceneNode {
     return this;
   }
 
-  clone(recursive = true, options: SceneNodeOptions = {}) {
+  /** A copy, children too. */ clone(recursive = true, options: SceneNodeOptions = {}) {
     this.assertAlive();
     const clone = this.root.createNode(options);
     clone.copy(this, recursive);
@@ -120,37 +120,37 @@ export class SceneNode {
     return this;
   }
 
-  setPosition(x: number, y: number, z: number) {
+  /** Sets its position. */ setPosition(x: number, y: number, z: number) {
     this.assertAlive();
     setNodePosition(this.state.tree, this.index, x, y, z);
     return this;
   }
 
-  setQuaternion(x: number, y: number, z: number, w: number) {
+  /** Sets its rotation. */ setQuaternion(x: number, y: number, z: number, w: number) {
     this.assertAlive();
     setNodeQuaternion(this.state.tree, this.index, x, y, z, w);
     return this;
   }
 
-  setScale(x: number, y: number, z: number) {
+  /** Sets its size. */ setScale(x: number, y: number, z: number) {
     this.assertAlive();
     setNodeScale(this.state.tree, this.index, x, y, z);
     return this;
   }
 
-  setLocalMatrix(matrix: ArrayLike<number>) {
+  /** Sets its local matrix. */ setLocalMatrix(matrix: ArrayLike<number>) {
     this.assertAlive();
     setNodeLocalMatrix(this.state.tree, this.index, matrix);
     return this;
   }
 
-  setAutoUpdate(auto: boolean) {
+  /** Whether its matrix follows its pose. */ setAutoUpdate(auto: boolean) {
     this.assertAlive();
     setNodeAutoUpdate(this.state.tree, this.index, auto);
     return this;
   }
 
-  updateWorldMatrix(updateParents = true, updateChildren = true) {
+  /** Updates its world matrix. */ updateWorldMatrix(updateParents = true, updateChildren = true) {
     this.assertAlive();
     updateNodeWorldMatrix(this.state.tree, this.index, updateParents, updateChildren);
     return this;
