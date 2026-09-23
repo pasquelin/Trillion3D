@@ -28,7 +28,7 @@
   "home": {
     "title": "ब्राउज़र में विशाल 3D दुनिया दिखाएँ",
     "start": "कोर्स शुरू करें",
-    "editor": "Open the scene editor"
+    "editor": "दृश्य एडिटर खोलें"
   },
   "examples": {
     "lead": "हर उदाहरण एक छोटी फ़ाइल है: उसे चलता देखें, उसका कोड खोलें, उसे बदलें।",
@@ -101,9 +101,9 @@
     "open": "सैंडबॉक्स में खोलें"
   },
   "editor": {
-    "title": "scene एडिटर",
+    "title": "दृश्य एडिटर",
     "loading": "एडिटर तैयार हो रहा है…",
-    "canvas": "scene व्यू: किसी ऑब्जेक्ट को चुनने के लिए उस पर क्लिक करें, कैमरा घुमाने के लिए खींचें",
+    "canvas": "दृश्य व्यू: किसी ऑब्जेक्ट को चुनने के लिए उस पर क्लिक करें, कैमरा घुमाने के लिए खींचें",
     "menu": {
       "file": "फ़ाइल",
       "add": "जोड़ें",
@@ -147,8 +147,8 @@
     "pedestal": "आधार",
     "panels": "पैनल",
     "snap": "स्नैप",
-    "outliner": "scene",
-    "empty": "scene खाली है: जोड़ें मेन्यू से कोई ऑब्जेक्ट जोड़ें।",
+    "outliner": "दृश्य",
+    "empty": "दृश्य खाली है: जोड़ें मेन्यू से कोई ऑब्जेक्ट जोड़ें।",
     "show": "दिखाएँ",
     "hide": "छिपाएँ",
     "rename": "नाम बदलें",
@@ -160,7 +160,7 @@
     "rotation": "घुमाव (°)",
     "scaleField": "स्केल",
     "geometry": "आकृति",
-    "material": "material",
+    "material": "सामग्री",
     "color": "रंग",
     "metalness": "धात्विकता",
     "roughness": "खुरदरापन",
@@ -186,8 +186,8 @@
       "tubularSegments": "नली के खंड"
     },
     "error": {
-      "format": "इस फ़ाइल में ऐसा scene फ़ॉर्मैट है जिसे यह एडिटर नहीं पढ़ता।",
-      "read": "scene पढ़ा नहीं जा सका:"
+      "format": "इस फ़ाइल में ऐसा दृश्य फ़ॉर्मैट है जिसे यह एडिटर नहीं पढ़ता।",
+      "read": "दृश्य पढ़ा नहीं जा सका:"
     }
   },
   "section": {
@@ -272,7 +272,7 @@
     "runsAndSources": "रन और स्रोत",
     "readFigures": "आँकड़े कैसे पढ़ें?",
     "counts": "{{readings}} रीडिंग · {{runs}} रन",
-    "view": "दृश्य",
+    "view": "व्यू",
     "threshold": "विवरण की सीमा",
     "computeDrawing": "compute से बनाना",
     "detail": "विवरण",
@@ -505,7 +505,7 @@
         "steps": [
           "इंजन ले आएँ। यह अभी npm पर नहीं है: रिपॉज़िटरी को क्लोन करें, उसमें <code>pnpm install</code> और <code>pnpm run build</code> चलाएँ, फिर उसी फ़ोल्डर से इसे अपने प्रोजेक्ट में जोड़ें।",
           "अपने पेज में एक <code>&lt;canvas&gt;</code> रखें। कैनवस पेज का वह हिस्सा है जिसमें कोई प्रोग्राम तस्वीर बना सकता है। इसे चौड़ाई और ऊँचाई दें।",
-          "कैनवस के id के साथ <code>createWorld</code> बुलाएँ। आपको एक वर्ल्ड मिलेगा: एक <em>scene</em> (जो चीज़ें बनानी हैं उनकी सूची), एक <em>कैमरा</em> (जो उन्हें देखने वाली आँख है) और वह सब कुछ जो तस्वीर बनाता है।",
+          "कैनवस के id के साथ <code>createWorld</code> बुलाएँ। आपको एक वर्ल्ड मिलेगा: एक <em>दृश्य</em> (जो चीज़ें बनानी हैं उनकी सूची), एक <em>कैमरा</em> (जो उन्हें देखने वाली आँख है) और वह सब कुछ जो तस्वीर बनाता है।",
           "एक क्यूब और एक रोशनी जोड़ें, ताकि कुछ देखने को हो। अगले अध्याय इन पंक्तियों को एक-एक करके समझाते हैं।",
           "जब आपका पेज बंद हो, तो मेमोरी वापस देने के लिए <code>world.dispose()</code> बुलाएँ।"
         ],
@@ -513,7 +513,7 @@
       },
       "add-a-shape": {
         "title": "एक आकार जोड़ें",
-        "description": "जो कुछ भी आप देखते हैं वह एक mesh है: उस पर सामग्री लगा एक आकार। `geometry` से आकार बनाएँ, `object.mesh` से उसे mesh में लपेटें, और इसे scene में जोड़ें।",
+        "description": "जो कुछ भी आप देखते हैं वह एक mesh है: उस पर सामग्री लगा एक आकार। `geometry` से आकार बनाएँ, `object.mesh` से उसे mesh में लपेटें, और इसे दृश्य में जोड़ें।",
         "steps": [
           "एक आकार, यानी <em>geometry</em>, सिर्फ़ रूप है: उसके कोने और उसके फलक। <code>geometry.box(1, 1, 1)</code> एक मीटर चौड़ा क्यूब है, <code>geometry.sphere(0.75)</code> एक गेंद है। सिलेंडर, कोन, रिंग, टोरस और भी बहुत कुछ हैं।",
           "एक <em>mesh</em> होता है आकार जमा सामग्री: <code>object.mesh(shape, material)</code>। सामग्री अगले अध्याय में है।",
@@ -911,14 +911,14 @@
       "description": "हर एलिमेंट के लिए एक चैनल, `packages/sdk-core/src/math/primitives/color.ts` के सटीक वक्र: मानक गोल किए स्थिरांकों से गुणा करता है, और वह अंतर — 8 बिट पर अदृश्य — उस बेंच में एक बार बाँधा जाता है जो उन्हें आमने-सामने लाती है।"
     },
     "scene-editor": {
-      "title": "एडिटर से scene बनाना",
-      "description": "आकृतियाँ और लाइटें जोड़ें, उन्हें माउस से चुनें, हैंडल से हिलाएँ, उनका रंग बदलें, scene सहेजें और फिर से खोलें — पोर्टल में ही, सिर्फ़ सार्वजनिक API से।",
-      "html": "<p><a href=\"#/en/editor\">scene एडिटर</a> इस पोर्टल का एक पेज है, जो इंजन के तीन दरवाज़ों पर बना है और किसी और चीज़ पर नहीं। एक खाली scene से शुरू करें: <b>जोड़ें → बॉक्स</b>, फिर <b>जोड़ें → दिशात्मक लाइट</b>। बॉक्स पर क्लिक करें: <code>world.raycast</code> उसे पॉइंटर के नीचे ढूँढ़ता है, और उस पर <code>controls.transform</code> के हैंडल दिखाई देते हैं। उसे हिलाने के लिए कोई तीर खींचें — जब तक हैंडल पकड़ा हुआ है, कैमरा रुका रहता है — उसे घुमाने के लिए <kbd>E</kbd> दबाएँ, आकार बदलने के लिए <kbd>R</kbd>। गुण पैनल में उसका रंग बदलें: इंजन material को उसी जगह फिर से रंगता है, और फ़्रेम की लागत आँकड़ों वाले कोने में दिखती रहती है। <b>सहेजें</b> <code>scene.toJSON</code> डाउनलोड करता है; <b>नया</b>, फिर <b>खोलें</b>, <code>scene.fromJSON</code> से वही scene फिर से बनाता है।</p>\n<p>हर कदम <kbd>Ctrl</kbd>+<kbd>Z</kbd> से पूर्ववत होता है, और scene दो विज़िट के बीच ब्राउज़र में रखा रहता है। पेज खुद कुछ नहीं बनाता और कुछ नहीं हिलाता: आप जो देखते हैं, वह इंजन है।</p>"
+      "title": "एडिटर से दृश्य बनाना",
+      "description": "आकृतियाँ और लाइटें जोड़ें, उन्हें माउस से चुनें, हैंडल से हिलाएँ, उनका रंग बदलें, दृश्य सहेजें और फिर से खोलें — पोर्टल में ही, सिर्फ़ सार्वजनिक API से।",
+      "html": "<p><a href=\"#/en/editor\">दृश्य एडिटर</a> इस पोर्टल का एक पेज है, जो इंजन के तीन दरवाज़ों पर बना है और किसी और चीज़ पर नहीं। एक खाली दृश्य से शुरू करें: <b>जोड़ें → बॉक्स</b>, फिर <b>जोड़ें → दिशात्मक लाइट</b>। बॉक्स पर क्लिक करें: <code>world.raycast</code> उसे पॉइंटर के नीचे ढूँढ़ता है, और उस पर <code>controls.transform</code> के हैंडल दिखाई देते हैं। उसे हिलाने के लिए कोई तीर खींचें — जब तक हैंडल पकड़ा हुआ है, कैमरा रुका रहता है — उसे घुमाने के लिए <kbd>E</kbd> दबाएँ, आकार बदलने के लिए <kbd>R</kbd>। गुण पैनल में उसका रंग बदलें: इंजन सामग्री को उसी जगह फिर से रंगता है, और फ़्रेम की लागत आँकड़ों वाले कोने में दिखती रहती है। <b>सहेजें</b> <code>scene.toJSON</code> डाउनलोड करता है; <b>नया</b>, फिर <b>खोलें</b>, <code>scene.fromJSON</code> से वही दृश्य फिर से बनाता है।</p>\n<p>हर कदम <kbd>Ctrl</kbd>+<kbd>Z</kbd> से पूर्ववत होता है, और दृश्य दो विज़िट के बीच ब्राउज़र में रखा रहता है। पेज खुद कुछ नहीं बनाता और कुछ नहीं हिलाता: आप जो देखते हैं, वह इंजन है।</p>"
     },
     "pick-with-the-pointer": {
       "title": "पॉइंटर से ऑब्जेक्ट चुनना",
       "description": "`world.raycast` canvas के किसी बिंदु के नीचे सबसे नज़दीकी ऑब्जेक्ट लौटाता है: पेज का जोड़ा हुआ नोड, टकराने वाला बिंदु और नॉर्मल, और दूरी।",
-      "html": "<p>यह जाँच CPU पर, scene की अपनी ज्यामिति पर चलती है: त्रिभुज मेश एक-एक त्रिभुज करके, लोड किया गया मॉडल उसके बॉक्स पर, और रेखाएँ व बिंदु कभी नहीं। छिपे हुए सबट्री और <code>helper</code> निशान छोड़ दिए जाते हैं। इसे <a href=\"#/en/examples/click-to-pick\">चुनने के लिए क्लिक करें</a> में देखें।</p>"
+      "html": "<p>यह जाँच CPU पर, दृश्य की अपनी ज्यामिति पर चलती है: त्रिभुज मेश एक-एक त्रिभुज करके, लोड किया गया मॉडल उसके बॉक्स पर, और रेखाएँ व बिंदु कभी नहीं। छिपे हुए सबट्री और <code>helper</code> निशान छोड़ दिए जाते हैं। इसे <a href=\"#/en/examples/click-to-pick\">चुनने के लिए क्लिक करें</a> में देखें।</p>"
     },
     "move-with-handles": {
       "title": "हैंडल से हिलाना, घुमाना और आकार बदलना",
@@ -926,9 +926,9 @@
       "html": "<p>मोड <code>translate</code>, <code>rotate</code> और <code>scale</code>, दुनिया की या लोकल धुरियाँ, और वैकल्पिक कदम। इवेंट <code>dragStart</code> और <code>dragEnd</code> एक खिंचाव को घेरते हैं — यानी पूर्ववत का एक कदम। इसे <a href=\"#/en/examples/move-rotate-scale-gizmo\">हिलाना, घुमाना, स्केल gizmo</a> में देखें।</p>"
     },
     "save-and-open-a-scene": {
-      "title": "scene सहेजना और खोलना",
-      "description": "`scene.toJSON(camera)` scene को सादे, वर्ज़न वाले JSON में लिखता है; `scene.fromJSON(json, camera)` उसे फिर से बनाता है।",
-      "html": "<p>आकृतियाँ उस कॉल से सहेजी जाती हैं जिसने उन्हें बनाया, material अपने मानों से, लोड किए गए मॉडल अपने पते से — कभी अंदर कॉपी नहीं होते — और <code>helper</code> निशान बिल्कुल नहीं। फ़ॉर्मैट का कोई दूसरा वर्ज़न नाम लेकर मना कर दिया जाता है। इसे <a href=\"#/en/examples/save-the-scene\">scene सहेजना</a> में देखें।</p>"
+      "title": "दृश्य सहेजना और खोलना",
+      "description": "`scene.toJSON(camera)` दृश्य को सादे, वर्ज़न वाले JSON में लिखता है; `scene.fromJSON(json, camera)` उसे फिर से बनाता है।",
+      "html": "<p>आकृतियाँ उस कॉल से सहेजी जाती हैं जिसने उन्हें बनाया, सामग्री अपने मानों से, लोड किए गए मॉडल अपने पते से — कभी अंदर कॉपी नहीं होते — और <code>helper</code> निशान बिल्कुल नहीं। फ़ॉर्मैट का कोई दूसरा वर्ज़न नाम लेकर मना कर दिया जाता है। इसे <a href=\"#/en/examples/save-the-scene\">दृश्य सहेजना</a> में देखें।</p>"
     }
   },
   "canvas": {
@@ -1188,7 +1188,7 @@
     "themes": {
       "camera": "नियंत्रण",
       "geometry": "ज्यामिति",
-      "materials": "मटेरियल",
+      "materials": "सामग्री",
       "lights": "रोशनी और छाया",
       "animation": "एनिमेशन",
       "loaders": "लोड किए गए मॉडल",
@@ -1209,11 +1209,11 @@
       "a-staircase-from-one-step": "सर्पिल सीढ़ी",
       "a-terrain-from-a-height-map": "पहाड़ी इलाका",
       "letters-carved-in-relief": "उभरे हुए अक्षर",
-      "a-scene-of-your-own": "आपका अपना scene",
+      "a-scene-of-your-own": "आपका अपना दृश्य",
       "a-mesh-built-by-hand": "हाथ से बना मेश",
       "colours-on-the-vertices": "वर्टेक्स पर रंग",
       "uvs-of-every-shape": "हर आकार के UV",
-      "helpers-to-see-the-scene": "scene में हेल्पर",
+      "helpers-to-see-the-scene": "दृश्य में हेल्पर",
       "edges-and-wireframe": "किनारे और वायरफ़्रेम",
       "lines-in-colour": "रंगीन रेखाएँ",
       "dashed-lines": "टूटी-फूटी रेखाएँ",
@@ -1246,7 +1246,7 @@
       "bricks-with-a-normal-map": "नॉर्मल मैप वाली ईंटें",
       "leaves-cut-by-alpha": "अल्फ़ा से कटे पत्ते",
       "a-colour-ramp-in-linear-light": "रैखिक रोशनी में रंग रैंप",
-      "the-material-family": "material परिवार",
+      "the-material-family": "सामग्री परिवार",
       "a-texture-turned-and-tiled": "घुमाई और टाइल की गई texture",
       "texture-filters-compared": "texture फ़िल्टर की तुलना",
       "every-image-format": "हर इमेज फ़ॉर्मेट",
@@ -1267,7 +1267,7 @@
       "frosted-glass": "फ्रॉस्टेड ग्लास",
       "a-refracting-pane": "अपवर्तक पैन",
       "a-light-map": "एक लाइट मैप",
-      "two-materials-one-mesh": "दो material, एक मेश",
+      "two-materials-one-mesh": "दो सामग्री, एक मेश",
       "clearcoat-paint": "क्लियरकोट पेंट",
       "velvet-sheen": "मखमली चमक",
       "soap-bubble-iridescence": "इंद्रधनुषी चमक",
@@ -1357,10 +1357,10 @@
       "cad-and-building-models": "CAD और भवन मॉडल",
       "a-toolpath-in-lines": "रेखाओं में एक टूलपाथ",
       "instanced-gltf": "इंस्टेंस्ड glTF",
-      "gltf-material-variants": "material वेरिएंट",
+      "gltf-material-variants": "सामग्री वेरिएंट",
       "compressed-mesh-input": "संपीड़ित मेश इनपुट",
       "a-medical-scan": "एक मेडिकल स्कैन",
-      "save-the-scene": "scene सहेजना",
+      "save-the-scene": "दृश्य सहेजना",
       "see-the-triangles": "त्रिभुज देखना",
       "observatory-streamed": "स्ट्रीम किए गए क्लस्टर",
       "memory-on-a-budget": "मेमोरी बजट",
@@ -1435,7 +1435,7 @@
       "trails-behind-motion": "गति के पीछे निशान",
       "masked-effects": "मास्क्ड इफ़ेक्ट",
       "cross-fade-between-scenes": "scenes के बीच क्रॉस-फ़ेड",
-      "a-screen-inside-the-scene": "scene के अंदर एक स्क्रीन",
+      "a-screen-inside-the-scene": "दृश्य के अंदर एक स्क्रीन",
       "a-portal": "एक पोर्टल",
       "render-small-show-sharp": "टेम्पोरल अपस्केलिंग",
       "storage-buffers": "स्टोरेज बफ़र",
@@ -1498,20 +1498,20 @@
       "frosted-glass": "रफ़ ट्रांसमिशन",
       "a-refracting-pane": "texture में रेंडर",
       "a-light-map": "लाइट-मैप स्लॉट",
-      "two-materials-one-mesh": "मल्टी-material मेश",
-      "clearcoat-paint": "भौतिक material लेयर: क्लियरकोट",
-      "velvet-sheen": "भौतिक material लेयर: sheen",
-      "soap-bubble-iridescence": "भौतिक material लेयर: इरिडिसेंस",
-      "brushed-metal": "भौतिक material लेयर: एनिसोट्रॉपी",
-      "a-prism-that-disperses": "भौतिक material लेयर: डिस्पर्शन",
-      "retroreflective-paint": "कस्टम शेडर material",
+      "two-materials-one-mesh": "मल्टी-सामग्री मेश",
+      "clearcoat-paint": "भौतिक सामग्री लेयर: क्लियरकोट",
+      "velvet-sheen": "भौतिक सामग्री लेयर: sheen",
+      "soap-bubble-iridescence": "भौतिक सामग्री लेयर: इरिडिसेंस",
+      "brushed-metal": "भौतिक सामग्री लेयर: एनिसोट्रॉपी",
+      "a-prism-that-disperses": "भौतिक सामग्री लेयर: डिस्पर्शन",
+      "retroreflective-paint": "कस्टम शेडर सामग्री",
       "light-through-skin": "सबसर्फ़ेस स्कैटरिंग",
-      "a-custom-surface-shader": "कस्टम शेडर material",
-      "custom-vertex-attributes": "कस्टम शेडर material",
-      "procedural-wood-and-noise": "कस्टम शेडर material",
-      "halftone-shading": "कस्टम शेडर material",
-      "a-planet-and-its-air": "कस्टम शेडर material",
-      "sliced-by-angle": "कस्टम शेडर material",
+      "a-custom-surface-shader": "कस्टम शेडर सामग्री",
+      "custom-vertex-attributes": "कस्टम शेडर सामग्री",
+      "procedural-wood-and-noise": "कस्टम शेडर सामग्री",
+      "halftone-shading": "कस्टम शेडर सामग्री",
+      "a-planet-and-its-air": "कस्टम शेडर सामग्री",
+      "sliced-by-angle": "कस्टम शेडर सामग्री",
       "hand-made-mip-levels": "डेटा, ऐरे और 3D textures",
       "a-texture-updated-in-place": "डेटा, ऐरे और 3D textures: आंशिक अपडेट",
       "a-stack-of-texture-layers": "डेटा, ऐरे और 3D textures",
@@ -1527,7 +1527,7 @@
       "a-lamp-with-a-profile": "IES प्रकाश प्रोफ़ाइल",
       "a-slide-projector": "प्रक्षेपित प्रकाश textures",
       "lights-for-some-objects": "प्रकाश लेयर",
-      "a-custom-light-model": "कस्टम शेडर material",
+      "a-custom-light-model": "कस्टम शेडर सामग्री",
       "light-shafts-in-the-haze": "वॉल्यूमेट्रिक कोहरा और प्रकाश किरणें",
       "a-path-traced-reference": "ब्राउज़र में path tracer",
       "caustics-under-water": "कॉस्टिक्स",
@@ -1552,7 +1552,7 @@
       "cad-and-building-models": "अन्य सोर्स इम्पोर्टर: 3DM, IFC",
       "a-toolpath-in-lines": "अन्य सोर्स इम्पोर्टर: G-code",
       "instanced-gltf": "अन्य glTF एक्सटेंशन: GPU इंस्टेंसिंग",
-      "gltf-material-variants": "अन्य glTF एक्सटेंशन: material वेरिएंट",
+      "gltf-material-variants": "अन्य glTF एक्सटेंशन: सामग्री वेरिएंट",
       "compressed-mesh-input": "अन्य glTF एक्सटेंशन: Draco, meshopt, क्वांटाइज़ेशन",
       "a-medical-scan": "वॉल्यूम रेंडरिंग",
       "a-city-from-3d-tiles": "3D Tiles इनपुट",
@@ -1572,16 +1572,16 @@
       "a-polished-floor": "स्क्रीन-स्पेस परावर्तन",
       "reflections-from-the-screen": "स्क्रीन-स्पेस परावर्तन",
       "an-ocean": "texture में रेंडर: पानी का परावर्तन और अपवर्तन",
-      "a-raging-sea": "कस्टम शेडर material",
+      "a-raging-sea": "कस्टम शेडर सामग्री",
       "a-town-in-the-fog": "कोहरा",
       "fog-on-the-ground": "कोहरा: ऊँचाई कोहरा",
       "fog-that-scatters-light": "वॉल्यूमेट्रिक कोहरा और प्रकाश किरणें",
       "a-cloud-in-a-box": "वॉल्यूम रेंडरिंग",
       "a-fire-in-a-volume": "वॉल्यूम रेंडरिंग",
-      "a-depth-camera-in-points": "कस्टम शेडर material",
-      "particles-with-own-sizes": "कस्टम शेडर material",
+      "a-depth-camera-in-points": "कस्टम शेडर सामग्री",
+      "particles-with-own-sizes": "कस्टम शेडर सामग्री",
       "soft-smoke-particles": "कण प्रणाली (नरम, क्रमबद्ध)",
-      "flames-and-a-tornado": "कस्टम शेडर material",
+      "flames-and-a-tornado": "कस्टम शेडर सामग्री",
       "point-clouds-from-a-scan": "पॉइंट-क्लाउड इंपोर्ट",
       "gaussian-splats": "गॉसियन स्प्लैट रेंडरिंग",
       "hover-over-triangles": "चयन (रेकास्ट)",
