@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import * as common from '../../packages/sdk/index.ts';
 import * as core from '../../packages/sdk-core/src/index.ts';
 import * as browser from '../../packages/sdk/browser.ts';
-import * as browserLegacy from '../../packages/sdk-browser/index.ts';
+import * as browserLegacy from '../../packages/sdk-browser/src/index.ts';
 
 test('the facade keeps canonical binding identity across environments', () => {
   assert.equal(common.LOD_QUALITY, core.LOD_QUALITY);

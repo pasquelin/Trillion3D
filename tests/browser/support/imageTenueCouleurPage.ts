@@ -9,10 +9,10 @@
 // must neither re-encode nor re-tone-map it — and must work at all on a drawing buffer without
 // alpha, where a copy into an RGBA texture through `copyTexSubImage2D` was refused.
 import * as THREE from 'three';
-import { createFrameComposer } from '../../../packages/sdk-browser/explorerCompose.ts';
-import { createThreeSceneDraw } from '../../../packages/sdk-browser/threeSceneAdapter.ts';
-import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/webglSurface.ts';
-import { baseCapabilities } from '../../../packages/sdk-browser/backendCommon.ts';
+import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
+import { createThreeSceneDraw } from '../../../packages/sdk-browser/src/host/three/sceneAdapter.ts';
+import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/src/webgl/core/surface.ts';
+import { baseCapabilities } from '../../../packages/sdk-browser/src/backend/common.ts';
 
 const LARGEUR = 256,
   HAUTEUR = 192;

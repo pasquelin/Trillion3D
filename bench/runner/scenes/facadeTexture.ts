@@ -4,7 +4,7 @@
 // direction — two cells apart looks exactly like no slide at all. The digits give each cell a name,
 // so a capture shows the slide itself: a wall reading `37` where `38` is expected is off by one
 // cell, whatever the filtering did to the edges.
-import { encodePng } from '../../../packages/sdk-node/png.mts';
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
 
 /** 5 × 7 glyphs, one string of 35 characters per digit, row after row. */
 const DIGITS = [

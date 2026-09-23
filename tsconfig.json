@@ -19,15 +19,5 @@
     "packages/sdk/**/*.ts",
     "packages/sdk/**/*.mts"
   ],
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.fixture.ts",
-    "**/*Fixture.ts",
-    "**/*TestHelpers.ts",
-    "**/webgpuPagesTest*.ts",
-    "**/webglTestContext.ts",
-    "**/pagesBackendScenes.ts",
-    "**/gpuDagCutFrontierScene.ts",
-    "**/target/**"
-  ]
+  "exclude": ["**/*.test.ts", "**/*.fixture.ts", "**/target/**"]
 }

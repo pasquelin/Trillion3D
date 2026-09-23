@@ -6,14 +6,15 @@
 // otherwise the comparison would say nothing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
-import { fillAffine, fillReference, rasterAvec } from './support/rasterTampon.ts';
+import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
+import { fillAffine, fillReference } from './support/rasterTampon.ts';
+import { rasterAvec } from './support/rasterFrameLoop.ts';
 import { quadrillage } from './support/scenesCoupe.ts';
 import { compteur, ecart, mesure, note, rapport, stress } from '../../core/index.ts';
 import { camera, coupe } from './support/scenes.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import type { EngineCamera } from '../../../packages/sdk-browser/cameraWorld.ts';
-import type { VisPage } from '../../../packages/sdk-browser/visibilityTypes.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
+import type { VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 
 interface FrameInput {
   pages: VisPage[];
@@ -73,7 +74,7 @@ const tour =
 
 const resC1 = await mesure({
   name: 'affine visbuffer candidate against perspective',
-  fichier: 'packages/sdk-browser/visibilityRaster.ts',
+  fichier: 'packages/sdk-browser/src/visibility/raster.ts',
   cas: [
     { name: '1280×720, 9 600 triangles including degenerates', input: grande, size: 9600 },
     { name: '1280×720, grazing triangles and behind the camera', input: rase, size: 576 },

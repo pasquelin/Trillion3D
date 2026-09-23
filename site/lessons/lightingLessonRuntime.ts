@@ -3,7 +3,7 @@ import type {
   Light,
   LightParameters,
   World,
-} from '../../packages/sdk-browser/index.ts';
+} from '../../packages/sdk-browser/src/index.ts';
 import type { RendererLessonItem } from './rendererLessonTypes.ts';
 import {
   LESSON_POINT_INTENSITY,

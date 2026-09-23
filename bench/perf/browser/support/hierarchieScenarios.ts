@@ -2,7 +2,7 @@
 // `hierarchieRejeuThree.ts` and `hierarchieRejeuNous.ts`.
 // Drawn from a fixed seed: two runs play the exact same operations.
 import { graine } from '../../../core/index.ts';
-import type { CameraOptics } from '../../../../packages/sdk-browser/engineCamera.ts';
+import type { CameraOptics } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts';
 
 export type Vec3 = [number, number, number];
 export type Quat = [number, number, number, number];

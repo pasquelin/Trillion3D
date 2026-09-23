@@ -2,14 +2,14 @@
 // the two images compared point by point. Split from `materialPixelsPage.ts` (fixture run and
 // comparison) to keep each file under the line gate.
 import * as THREE from 'three';
-import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { batisseur, engine, libere, type ScenePreparee } from './preuveSceneCommune.ts';
 import { jusquaTenue } from './preuveSceneImage.ts';
 import { SIZE, type Fixture } from './materialFixtures.ts';
 import type {
   BackendFactory,
   BackendDiagnostic,
-} from '../../../packages/sdk-browser/backendTypes.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts';
 import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 /** Background the page and both engines clear to, so an uncovered pixel is one colour. */

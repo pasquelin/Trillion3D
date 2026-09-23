@@ -23,7 +23,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "web-geometry-compile": "./dist/sdk-node/cli.mjs"
+    "web-geometry-compile": "./dist/sdk-node/src/cli/cli.mjs"
   },
   "files": [
     "dist",
@@ -42,7 +42,7 @@
     "test:changed": "node scripts/check-changed.ts --tests-only",
     "test:gpu": "node tests/browser/test-gpu.ts",
     "check:changed": "node scripts/check-changed.ts",
-    "test:watch": "node --experimental-strip-types --test --watch packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.ts tests/integration/*.test.ts",
+    "test:watch": "node --experimental-strip-types --test --watch \"packages/*/src/**/*.test.ts\" \"tests/integration/*.test.ts\"",
     "test:native": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "bench:calculs:natif": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture bench_calculs",
     "bench:calculs:natif-g": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture bench_calculs_g",

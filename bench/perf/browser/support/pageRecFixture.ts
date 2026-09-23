@@ -2,8 +2,8 @@
 // (residency, streaming, shadow spheres): the rest are shared constants, allocated once, never
 // read by the timed loop, so filling them costs nothing the bench's own numbers could move.
 import * as THREE from 'three';
-import type { PageRec } from '../../../../packages/sdk-browser/pageSelectionTypes.ts';
-import { surfaceOf } from '../../../../packages/sdk-browser/pageSurface.ts';
+import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
+import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 
 const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
 const IDENTITY_MATRIX = new THREE.Matrix4();

@@ -10,18 +10,18 @@
 import {
   importHostTexture,
   importWrapMode,
-} from '../../../packages/sdk-browser/hostSurfaceImport.ts';
+} from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { sampleLinear, wrapTexel } from '../../../packages/sdk-browser/visibilityMath.ts';
-import { wrapLinear } from '../../../packages/sdk-browser/visibilityWrapModes.ts';
-import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
+import { sampleLinear, wrapTexel } from '../../../packages/sdk-browser/src/visibility/math.ts';
+import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
+import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { cas, lineaireThree, melange, octetsTexture, texelThree } from './adressageCas.ts';
 import type { AdressageCas } from './adressageCas.ts';
 import { bilan, somme } from './adressageBilan.ts';
 import { CARTES, materielMelange, TEXTURE, UV } from './adressageCartes.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 
 const textures = new Map<string, THREE.Texture>();
 function carte(c: AdressageCas) {

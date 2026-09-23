@@ -1,6 +1,6 @@
 // Defect 4: WebGPU execution of wrap batches in a real Chromium. The harness and device opening
 // are those of `pageWebgpu.ts` and `appareilWebgpu.ts`.
-import { WRAP_COORD_WGSL } from '../../../packages/sdk-browser/visibilityWrapModes.ts';
+import { WRAP_COORD_WGSL } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
 
 /** One texture, as raw RGBA8 bytes, read into a `texture_2d_array` by every batch. */

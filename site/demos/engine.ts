@@ -15,4 +15,4 @@ export {
   DEPTH_CLEAR,
   DEPTH_COMPARE_OR_EQUAL,
   DEPTH_NEAR,
-} from '../../packages/sdk-browser/depthConvention.ts';
+} from '../../packages/sdk-browser/src/camera/depthConvention.ts';

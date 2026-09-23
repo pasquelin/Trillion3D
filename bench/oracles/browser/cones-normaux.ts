@@ -1,8 +1,8 @@
 // Batch F oracles, WebGPU engine-prepare side: `webgpuPagesPrepare.ts:23-44`,
 // `webgpuPagesSetup.ts:94-105` and `webgpuPagesPrepareTextures.ts:37-42` from before batch F.
-import type { HostAttributes } from '../../../packages/sdk-browser/hostResources.ts';
-import { OPEN_CONE, triangleCone } from '../../../packages/sdk-browser/pageCone.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+import type { HostAttributes } from '../../../packages/sdk-browser/src/host/resources.ts';
+import { OPEN_CONE, triangleCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 interface ConesRoot {
   cones?: boolean;

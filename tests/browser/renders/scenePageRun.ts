@@ -2,7 +2,7 @@
 // so nothing here may close over an outer Node import — only its own parameters and browser
 // globals (`window`, `document`, `navigator`). Kept as a named, explicitly typed function so its
 // return type is a real structural type instead of collapsing to `any` through `import(sdkUrl)`.
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/backendTypes.ts';
+import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 
 // `window.saveImage` is installed by `page.exposeFunction` in the caller; declared here so this
 // module (type-checked, though it runs in the browser) sees it.

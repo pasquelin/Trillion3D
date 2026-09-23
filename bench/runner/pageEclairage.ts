@@ -1,4 +1,4 @@
-import type * as SdkBrowser from '../../packages/sdk-browser/measurement.ts';
+import type * as SdkBrowser from '../../packages/sdk-browser/src/measurement/measurement.ts';
 import type { MeasureViewOptions, MeasureViewResult } from './mesureOptions.ts';
 import type * as PageCoupe from './pageCoupe.ts';
 import type * as PageTemoin from './pageTemoin.ts';

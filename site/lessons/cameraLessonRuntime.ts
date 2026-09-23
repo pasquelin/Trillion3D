@@ -1,4 +1,4 @@
-import type { CameraPose, World } from '../../packages/sdk-browser/index.ts';
+import type { CameraPose, World } from '../../packages/sdk-browser/src/index.ts';
 import type { RendererLessonItem } from './rendererLessonTypes.ts';
 
 // `Array.isArray` does not narrow a readonly tuple cleanly against the object half of

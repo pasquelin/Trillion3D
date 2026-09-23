@@ -1,7 +1,7 @@
 // Oracle for G4 checkpoint: `webgpuPagesMetrics.ts` before batch G. The report re-summed, at each call,
 // the size of all resident position buffers and all transparent meshes.
-import type { WebgpuGpuState } from '../../../packages/sdk-browser/webgpuPagesStateGpu.ts';
-import type { BlendGpuItem } from '../../../packages/sdk-browser/webgpuBlendState.ts';
+import type { WebgpuGpuState } from '../../../packages/sdk-browser/src/webgpu/pages/state/gpu.ts';
+import type { BlendGpuItem } from '../../../packages/sdk-browser/src/webgpu/blend/state.ts';
 
 export function referenceVertexBytes(
   gpu: Pick<WebgpuGpuState, 'positionBuffers'>,

@@ -1,19 +1,19 @@
 // The DAG selection WGSL kernel actually run in Chromium WebGPU: buffers packed
 // by `packDagSelection`, uniforms from `writeDagUniforms`, passes `dagPrepare` through `dagMask`
 // in engine order (non-resident cut), then a readback of the GPU output.
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/gpuDagShader.ts';
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
-import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/gpuSelection.ts';
-import type { SelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
-import { REQUEST_PAGE_MAX } from '../../../packages/sdk-browser/gpuDagRequest.ts';
+import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { REQUEST_PAGE_MAX } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
 import {
   OUT_DRAWN_TRIANGLES,
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
   OUT_UNCOVERED_TRIANGLES,
   SELECTION_HEADER_WORDS,
-} from '../../../packages/sdk-browser/gpuDagLayout.ts';
-import type { PackedDag } from '../../../packages/sdk-browser/gpuDagTypes.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import { versPage } from './noyauSelectionGpuPack.ts';
 import type { ExecuterEntree, ExecutionResultat, Resultat } from './noyauSelectionGpuPack.ts';
 

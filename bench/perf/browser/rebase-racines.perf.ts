@@ -4,9 +4,12 @@
 // #80 gates a WebAssembly kernel on: a loop under 0.1 ms per image keeps its JavaScript form.
 import * as THREE from 'three';
 import { mesure, rapport } from '../../core/index.ts';
-import { rootWorldsToRenderOrigin } from '../../../packages/sdk-browser/gpuDagPack.ts';
-import { refreshWorldStretch, worldsChanged } from '../../../packages/sdk-browser/gpuDagWorlds.ts';
-import type { DagRoot } from '../../../packages/sdk-browser/gpuDagTypes.ts';
+import { rootWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
+import {
+  refreshWorldStretch,
+  worldsChanged,
+} from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
+import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 
 /** Emerald Square, `--scene emerald-square`: 2 479 selection roots (campaign `l-80b`, #80). */
 const ROOTS = 2479;
@@ -27,7 +30,10 @@ const frameData = new Float32Array(ROOTS * 7 * 4);
 
 const resultats = await mesure({
   name: 'world step loops',
-  fichier: ['packages/sdk-browser/gpuDagPack.ts', 'packages/sdk-browser/gpuDagWorlds.ts'],
+  fichier: [
+    'packages/sdk-browser/src/gpu/dag/pack.ts',
+    'packages/sdk-browser/src/gpu/dag/worlds.ts',
+  ],
   cas: [
     {
       name: 'root rebase, 2 479 roots',

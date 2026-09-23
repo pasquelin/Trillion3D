@@ -18,12 +18,12 @@
 // node --experimental-strip-types \
 //   tests/browser/probes/reflexion-cone.ts
 import assert from 'node:assert/strict';
-import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
+import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { camera, decisionCpu, veriteTerrain } from './inverseTransposeCas.ts';
 import { tousLesCas } from './inverseTransposeEchantillon.ts';
 import { pageVisible, sensDuMoteur, VUE } from './reflexionCas.ts';
 import { dessineParLeMoteur } from './inverseTransposeOracle.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 
 // --- What the GPU actually draws: the true-orientation oracle, written once ---------------------
 const gpu = await dessineParLeMoteur(tousLesCas);

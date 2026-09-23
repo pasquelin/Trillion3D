@@ -2,12 +2,15 @@
 import {
   createSelectionResult,
   selectVisiblePages,
-} from '../../../packages/sdk-browser/pageSelection.ts';
-import type { ClusterRoot, SelectionResult } from '../../../packages/sdk-browser/pageSelection.ts';
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type {
+  ClusterRoot,
+  SelectionResult,
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { ligneDecrite, mesure, stress, rapport } from '../../core/index.ts';
 import { camera } from './support/scenes.ts';
 import { dag, etatDeCoupe, racine, type DagPage } from './support/dagCoupe.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 
 interface Scene {
   pages: DagPage[];
@@ -100,7 +103,7 @@ const sansBudget = scene({ feuilles: 4000, seed: 71, pixelError: 2, budget: 0 })
 
 const resC5 = await mesure({
   name: 'retry on budget',
-  fichier: 'packages/sdk-browser/pageSelectionCut.ts',
+  fichier: 'packages/sdk-browser/src/page/cut/cut.ts',
   cas: [
     { name: '20 000 pages, budget 300 exceeded', input: serre, size: 20000 },
     { name: '20 000 pages, budget held', input: large, size: 20000 },
@@ -113,12 +116,12 @@ const resC5 = await mesure({
 
 const decritC6 = ligneDecrite({
   name: 'memorized repair threshold',
-  fichier: 'packages/sdk-browser/pageSelectionCutRepair.ts',
+  fichier: 'packages/sdk-browser/src/page/cut/repair.ts',
   motif: 'not kept: the stepwise climb seeks the smallest fixed point',
 });
 const decritC4 = ligneDecrite({
   name: 'second forcing pass',
-  fichier: 'packages/sdk-browser/pageSelectionCutSelect.ts',
+  fichier: 'packages/sdk-browser/src/page/cut/select.ts',
   motif: 'not measured: the second pass changes the predicate for every page',
 });
 

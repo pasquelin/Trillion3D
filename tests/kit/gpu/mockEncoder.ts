@@ -1,4 +1,4 @@
-import type { PackedDag } from '../../../packages/sdk-browser/gpuDagSelection.ts';
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { simulateComputeDispatch, type ComputeBind } from './mockCompute.ts';
 
 export type MockDraw = {

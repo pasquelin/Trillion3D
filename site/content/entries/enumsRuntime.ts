@@ -101,7 +101,7 @@ console.log(COLUMN_KIND.pageBounds); // 'f64'`,
     module: 'packages/sdk-core/src/contracts/material.ts',
     signature: "type Side = 'front' | 'back' | 'double'",
     description:
-      'Which faces of a surface are drawn — every raster, cone, pipeline and blend-plan decision compares against it. Two readers of `packages/sdk-browser/materialSide.ts` stand between it and a host: `sideOf(material: HostMaterials): Side` reads what a host material declares, once at the import boundary, the only place naming the host constants; `materialSide(material: HostMaterials): number` returns that host constant itself, for the diagnostic materials still built with the host library.',
+      'Which faces of a surface are drawn — every raster, cone, pipeline and blend-plan decision compares against it. Two readers of `packages/sdk-browser/src/scene/materialSide.ts` stand between it and a host: `sideOf(material: HostMaterials): Side` reads what a host material declares, once at the import boundary, the only place naming the host constants; `materialSide(material: HostMaterials): number` returns that host constant itself, for the diagnostic materials still built with the host library.',
     values: [
       { name: "'front'", desc: 'Front faces only (an empty material array gives this).' },
       { name: "'back'", desc: 'Back faces only.' },

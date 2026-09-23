@@ -50,7 +50,7 @@ no radius: `KHR_lights_punctual` carries none (`docs/SDK.md`). It is the compile
 `"emitterRadius": 0.2` in `lights.json`, measured on `enveloppe-lampe` — the lamp's emissive sibling,
 an octahedron whose six vertices are 0.20 m from its centre — and counted under
 `light-emitter-radius-derived`. Nothing is added by hand: `loadImportedLights`
-(`packages/sdk-browser/importedLights.ts`) validates the value by the same contract as the host's
+(`packages/sdk-browser/src/lighting/importedLights.ts`) validates the value by the same contract as the host's
 lamps. Reproduction of the VERIFICATION_STABILISATION_5896648_2026-09-16 audit (defect 4):
 `occultant-diagonale` is outside the sphere but fell inside the cube the old near plane
 excluded; `occultant-proche` falls in both, before as after, and crosses the envelope —

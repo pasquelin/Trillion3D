@@ -7,7 +7,7 @@
 // pass bends its normal map with, against the same formula in JavaScript.
 //   node --experimental-strip-types tests/browser/probes/decodage-cluster-gpu.ts
 import assert from 'node:assert/strict';
-import { decodeGeometryPage } from '../../../packages/sdk-browser/geometryPage.ts';
+import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 import { anneau } from '../../../bench/perf/browser/support/pagesWasm.ts';
 import { decodageClusterGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodageClusterGpu.ts';
 

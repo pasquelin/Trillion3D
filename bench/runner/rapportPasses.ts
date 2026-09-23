@@ -1,5 +1,5 @@
 import type { summarize } from '../../packages/sdk-core/src/index.ts';
-import type { GpuPassBlockTotals } from '../../packages/sdk-browser/gpuPassBlocks.ts';
+import type { GpuPassBlockTotals } from '../../packages/sdk-browser/src/gpu/core/passBlocks.ts';
 
 /** p50/p95/p99 of a series, or `null` if it was empty. */
 export type Distribution = ReturnType<typeof summarize>;

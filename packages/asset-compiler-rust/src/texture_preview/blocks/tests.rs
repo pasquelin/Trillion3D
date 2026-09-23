@@ -124,7 +124,7 @@ fn encoding_is_deterministic() {
 }
 
 // Behaviour: the engine fills slot 0 of a block pool with one constant block per
-// format — mirror of `WHITE_TAIL` in `packages/sdk-browser/textureBlockFormats.ts`
+// format — mirror of `WHITE_TAIL` in `packages/sdk-browser/src/texture/blockFormats.ts`
 // — and an independent decoder reads both as opaque white: BC7 mode 6 with every
 // endpoint at its maximum, ASTC a void-extent block of 16-bit ones.
 #[test]

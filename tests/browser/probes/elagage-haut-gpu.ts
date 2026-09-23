@@ -10,15 +10,18 @@
 // node --experimental-strip-types tests/browser/probes/elagage-haut-gpu.ts
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/gpuDagSelection.ts';
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/gpuDagShader.ts';
-import { scenePages, sceneRoots } from '../../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
+import {
+  scenePages,
+  sceneRoots,
+} from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
 import { selectionGpu } from './noyauSelectionGpu.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 
 const VIEWPORT: [number, number] = [1280, 720];
 const POSES: Array<[string, number, number, number]> = [

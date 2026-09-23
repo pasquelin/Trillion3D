@@ -1,7 +1,10 @@
 // Oracles of the "cut by delta" batch: the previous code, copied as-is. The four cut
 // readers rewalked the list published by the sample every frame; the bench compares them
 // to those that now read only a delta. The copies are wanted duplicates: that is the oracle.
-import type { PageRec, RequestStamps } from '../../../packages/sdk-browser/pageSelection.ts';
+import type {
+  PageRec,
+  RequestStamps,
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 
 /** `webgpuPagesHelpers.ts:shownFromGpu` before the batch: four totals of one pass over the whole cut. */
 export function referenceCutCounts(

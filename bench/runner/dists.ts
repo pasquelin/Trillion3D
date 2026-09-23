@@ -36,8 +36,7 @@ export function resolveSides({
   root: string;
 }): SideBase[] {
   const target = after ?? join(root, 'dist');
-  if (target === join(root, 'dist') && !existsSync(join(target, 'sdk-browser/index.js')))
-    buildDist(root);
+  if (target === join(root, 'dist') && !isDist(target)) buildDist(root);
   const sides = [{ name: 'apres', ...resolveDist(target, 'apres', root) }];
   if (before) sides.push({ name: 'avant', ...resolveDist(before, 'avant', root) });
   return sides;
@@ -46,15 +45,13 @@ export function resolveSides({
 /** Resolves a side: an existing `dist` folder, or a git reference extracted then built.
  *  The extracted tree goes outside the repository: a second `tsconfig.json` under root would break linting. */
 function resolveDist(value: string, label: string, root: string): { dist: string; from: string } {
-  if (existsSync(join(value, 'sdk-browser/index.js')))
-    return { dist: resolve(value), from: 'folder' };
-  if (existsSync(join(value, 'dist/sdk-browser/index.js')))
-    return { dist: resolve(value, 'dist'), from: 'folder' };
+  if (isDist(value)) return { dist: resolve(value), from: 'folder' };
+  if (isDist(join(value, 'dist'))) return { dist: resolve(value, 'dist'), from: 'folder' };
   const ref = execFileSync('git', ['-C', root, 'rev-parse', '--verify', `${value}^{commit}`], {
     encoding: 'utf8',
   }).trim();
   const dir = join(tmpdir(), 'web-geometry-mesure', `${label}-${ref.slice(0, 12)}`);
-  if (existsSync(join(dir, 'dist/sdk-browser/index.js')))
+  if (isDist(join(dir, 'dist')))
     return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)} (reused)` };
   mkdirSync(dir, { recursive: true });
   execFileSync('/bin/sh', ['-c', `git -C '${root}' archive ${ref} | tar -x -C '${dir}'`]);
@@ -63,7 +60,23 @@ function resolveDist(value: string, label: string, root: string): { dist: string
   return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)}` };
 }
 
-/** The page-side address of a side's SDK: its measurement entry, which names the witnesses, or the
- *  published entry of a dist built before that entry existed, which named them itself. */
+/**
+ * The browser entries a built dist may carry, newest layout first: the measurement entry, which
+ * names the witnesses, under `src/` since the package sources are foldered, then at the package
+ * root as a dist built before that move has it, then the published entry of a dist built before
+ * the measurement entry existed, which named the witnesses itself. A bench side is often a
+ * reference built from an older commit, so every layout it may carry is read.
+ */
+const BROWSER_ENTRIES = [
+  'sdk-browser/src/measurement/measurement.js',
+  'sdk-browser/measurement.js',
+  'sdk-browser/src/index.js',
+  'sdk-browser/index.js',
+];
+
+/** Whether `dir` is a built dist: it holds one of the browser entries. */
+const isDist = (dir: string) => BROWSER_ENTRIES.some((entry) => existsSync(join(dir, entry)));
+
+/** The page-side address of a side's SDK: the first browser entry its dist carries. */
 export const sdkEntryUrl = (side: { name: string; dist: string }) =>
-  `/sdk/${side.name}/sdk-browser/${existsSync(join(side.dist, 'sdk-browser/measurement.js')) ? 'measurement' : 'index'}.js`;
+  `/sdk/${side.name}/${BROWSER_ENTRIES.find((entry) => existsSync(join(side.dist, entry))) ?? BROWSER_ENTRIES[0]}`;

@@ -251,7 +251,7 @@ Forcing one and being served the other silently is the one outcome this must nev
 never imports, names or holds a backend factory: `options.backends` and the backend factories are
 not part of the published entry point (`web-geometry`). The bench and the proofs name their
 witnesses (bare Three.js, `THREE.LOD`, …) through a separate measurement entry point
-(`packages/sdk-browser/measurement.ts`, `openMeasuredWorld` and the witnesses) — that is their job,
+(`packages/sdk-browser/src/measurement/measurement.ts`, `openMeasuredWorld` and the witnesses) — that is their job,
 never a host's. See "Which backend renders by default" below for the decision the world takes
 internally.
 
@@ -523,7 +523,7 @@ host batches: the rule stays that a kernel is written only where a loop's share 
 
 A page creates a **world** ("Create a world" above); it never creates an explorer. What follows is
 the internal session a world opens on itself — `openMeasuredWorld` and its options — kept nameable
-for the measurement entry point (`packages/sdk-browser/measurement.ts`) and for the parts of this
+for the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) and for the parts of this
 guide that document its lighting, memory and diagnostic behaviour in depth. A host reads them
 through the `world` families above (`world.exposure`, `world.diagnostic.mode`, `metric.frame(world)`,
 …), never by importing `openMeasuredWorld` itself.
