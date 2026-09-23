@@ -2,43 +2,78 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A street lamp at night</title>
+    <title>Street lamp</title>
+    <meta name="thumbnail" content="4" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #cbd5e1;
+        font: 12px system-ui;
+      }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p>Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md</p>
+    <p data-words="credit"></p>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/street-corner/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
-      });
-      // One point light at the end of the lamp's arm: the glass is its emitter radius, so the
-      // fixture casts no shadow on itself, and the pavement and the wall show the light falling
-      // off with distance.
-      explorer.addLight({
-        id: 'lamp',
-        kind: 'point',
-        position: [-0.55, 3.95, 0.4],
-        color: [1, 0.72, 0.4],
-        intensity: 24,
-        range: 12,
-        emitterRadius: 0.25,
-        castsShadow: true,
-      });
-      explorer.setPose({ ...explorer.homePose(), position: [5.5, 2.4, 7], target: [-0.5, 1.5, -0.5] });
-      explorer.invalidate();
+      const world = createWorld('view', { controls: 'orbit' });
+      // The compiled corner: two facades behind a raised pavement and its kerb, the road a step
+      // lower, the buildings across it, a door, the street lamp with the bulb in its globe, and
+      // the windows — a lit pane glows by itself, a dark one only mirrors the sky.
+      await world.scene.load('../assets/examples/street-corner/cache/native/full/manifest.json');
+
+      // By day a sun and a blue sky. By night the lamp around its bulb — `radius` is its glass
+      // globe's, so the lamp casts no shadow on itself —, the shop window pouring its light onto
+      // the pavement (a lit rectangle just in front of the pane), and a dim sky, so what no lamp
+      // reaches is dark, not black.
+      const sun = light.directional({ intensity: 3.5, color: '#fff3e2', castShadow: true });
+      const lamp = light.point({ position: [-0.55, 3.95, -1.9], intensity: 24, distance: 12, castShadow: true, radius: 0.25 });
+      const shopLight = light.rectArea({ position: [2.4, 1.4, -2.89], width: 1.8, height: 1.4, intensity: 6, color: '#ffc27a' });
+      shopLight.lookAt(2.4, 1.4, 5);
+      const sky = light.hemisphere({ color: '#bcd4ff', groundColor: '#6b5a48' });
+      world.scene.add(sun, lamp, shopLight, sky);
+
+      // The camera turns around the middle of the square, never farther than the nearest wall,
+      // never below its eye level nor above the roofs: no drag shows the back of a wall. Panning,
+      // which would carry the middle along, is off.
+      world.controls.target.set(0.75, 1.6, 1);
+      world.controls.maxDistance = 3.6;
+      world.controls.minPolarAngle = 0.5;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.controls.enablePan = false;
+      world.camera.position.set(2.15, 2.5, 4.1);
+      world.camera.lookAt(0.75, 1.6, 1);
+
+      // `world.bounce` adds the light the surfaces send back, traced against the compiled model.
+      controls({ night: true, bounce: true, sun: [-80, 80, 30, 1], lamp: '#ffb866' }, (values) => {
+        sun.visible = !values.night;
+        lamp.visible = shopLight.visible = values.night;
+        lamp.color.set(values.lamp);
+        const turn = math.degToRad(values.sun);
+        sun.position.set(Math.sin(turn) * 15, 11, Math.cos(turn) * 15);
+        sky.intensity = values.night ? 0.25 : 1.2;
+        sky.color.set(values.night ? '#3a4c80' : '#bcd4ff');
+        world.scene.background = math.color(values.night ? '#0b1020' : '#8fb4e0');
+        world.bounce = values.bounce;
+        world.exposure = values.night ? 1.6 : 1;
+        world.invalidate();
+      }, world);
     </script>
   </body>
 </html>

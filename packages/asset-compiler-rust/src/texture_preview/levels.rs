@@ -1,5 +1,5 @@
 //! Geometry of a texture's progressive pyramid, shared by the computation, sidecar
-//! writing and the TypeScript reader (`packages/sdk-core/texturePreviewLevels.ts`).
+//! writing and the TypeScript reader (`packages/sdk-core/src/texture/previewLevels.ts`).
 //!
 //! A level `k` is exactly mip level `k` of the source: integer division of both
 //! sides by `2^k`, never less than one texel. The engine can therefore write the

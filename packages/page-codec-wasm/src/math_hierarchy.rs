@@ -1,9 +1,9 @@
-//! The whole hierarchy updated in one pass, to the bits of `mathBatch.ts::hierarchyUpdateBatch`.
+//! The whole hierarchy updated in one pass, to the bits of `packages/sdk-core/src/math/batch/batch.ts::hierarchyUpdateBatch`.
 //!
 //! Same rule as in JavaScript, term by term: nodes are ordered parents before children, each
 //! composes its local matrix from its position, quaternion and scale
-//! (`mathMatrix4Trs.ts::composeMatrix4`), then multiplies it by its parent's world matrix
-//! (`mathMatrix4.ts::multiplyMatrix4`). Quaternion products are doubled by addition (`x + x`),
+//! (`packages/sdk-core/src/math/matrix/matrix4Trs.ts::composeMatrix4`), then multiplies it by its parent's world matrix
+//! (`packages/sdk-core/src/math/matrix/matrix4.ts::multiplyMatrix4`). Quaternion products are doubled by addition (`x + x`),
 //! never multiplied by two, and the last row is written `(0, 0, 0, 1)` exactly.
 //!
 //! `parents[i]` must name a node already updated, hence of index strictly less than `i`; any

@@ -2,40 +2,87 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A spiral staircase from one step</title>
+    <title>Spiral staircase</title>
+    <meta name="thumbnail" content="3" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/staircase/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
+      const world = createWorld('view', { controls: 'orbit' });
+      const oak = material.meshStandard({ color: '#a8703c', roughness: 0.55 });
+      const plaster = material.meshStandard({ color: '#d9d3c7', roughness: 0.85 });
+      const base = object.mesh(geometry.cylinder(2.2, 2.2, 0.3, 64), plaster);
+      base.position.y = -0.15;
+      const column = object.mesh(geometry.cylinder(0.2, 0.2, 7, 32), plaster);
+      column.position.y = 3.5;
+      world.scene.add(base, column);
+
+      // One step — a tread and its baluster — as a group; each copy is raised one riser higher and
+      // turned a little further round the column.
+      function step() {
+        const group = object.group();
+        const tread = object.mesh(geometry.box(1.25, 0.18, 0.3), oak);
+        tread.position.x = 0.2 + 1.25 / 2;
+        const baluster = object.mesh(geometry.box(0.05, 1, 0.05), oak);
+        baluster.position.set(1.38, 0.5, 0);
+        group.add(tread, baluster);
+        return group;
+      }
+      const flights = Array.from({ length: 36 }, (_, index) => {
+        const flight = step();
+        flight.position.y = 0.18 + index * 0.18;
+        world.scene.add(flight);
+        return flight;
       });
-      // The scene file holds one step mesh and thirty-six nodes that place it, each one turned a
-      // twenty-second of a turn further and raised one riser higher: the compiler paged the step
-      // once, and every node draws the same pages at its own transform.
-      explorer.addLight({
-        id: 'skylight',
-        kind: 'directional',
-        direction: [-0.35, -0.8, -0.45],
-        color: [1, 0.97, 0.92],
-        intensity: 3,
-        castsShadow: true,
+      // A lantern climbs the stairs: a glowing bulb and its point light, warming each tread it
+      // passes. It casts no shadow — a lamp that moves every frame would redraw its shadow every
+      // frame —; the still sun draws the balusters' shadows on the column and the floor, and the
+      // sky lights the sides it misses.
+      const bulb = object.mesh(geometry.sphere(0.07, 16, 12), material.meshStandard({ color: '#000000', emissive: '#ffb45e', emissiveIntensity: 8 }));
+      const lantern = light.point({ color: '#ffb45e', intensity: 10, distance: 8, radius: 0.07 });
+      world.scene.add(bulb, lantern);
+      world.scene.add(light.directional({ intensity: 2.6, color: '#fff0dc', position: [6, 12, 5], castShadow: true }));
+      world.scene.add(light.hemisphere({ intensity: 1.2, color: '#bcd4ff', groundColor: '#6b5a48' }));
+      // The whole stair in view, from the floor to the last baluster, 7.5 m up.
+      world.camera.position.set(8.5, 6, 10.5);
+      world.camera.lookAt(0, 3.6, 0);
+      world.controls.target.set(0, 3.6, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // Stopped, the lantern is placed once more after a change, then asks for no new frame.
+      let at = 0, resting = false;
+      const ui = controls({ climb: [0, 6, 2], turnPerStep: [5, 30, 16, 1], lantern: '#ffb45e' }, (values) => {
+        resting = false;
+        flights.forEach((flight, index) => (flight.rotation.y = (index * values.turnPerStep * Math.PI) / 180));
+        lantern.color.set(values.lantern);
+        world.invalidate();
+      }, world);
+      world.onFrame(({ delta }) => {
+        if (resting) return;
+        resting = !ui.climb;
+        at = (at + delta * ui.climb) % 34;
+        const turn = (at * ui.turnPerStep * Math.PI) / 180;
+        const position = [Math.cos(turn) * 1.1, 0.75 + at * 0.18, -Math.sin(turn) * 1.1];
+        bulb.position.set(...position);
+        lantern.position.set(...position);
+        world.invalidate();
       });
-      explorer.setPose({ ...explorer.homePose(), position: [5.6, 5.2, 6.4], target: [0, 3.3, 0] });
-      explorer.invalidate();
     </script>
   </body>
 </html>

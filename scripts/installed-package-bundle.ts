@@ -46,21 +46,22 @@ export function emitInstalledBrowserBundle({
 }: BrowserModesOptions): EmittedBrowserBundle {
   const outputRoot = join(fixture, 'browser-output');
   const packageRoot = join(fixture, 'node_modules', packageName);
-  const resourceRoot = join(packageRoot, 'dist/sdk-browser');
+  const decodeRoot = join(packageRoot, 'dist/sdk-browser/src/page/decode');
+  const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/page/integration');
   const explorer = join(fixture, 'explorer.ts');
   const metafile = join(outputRoot, 'metafile.json');
   mkdirSync(outputRoot, { recursive: true });
   writeFileSync(
     explorer,
-    `import { createExplorer,decodeManifestBinary,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES } from '${packageName}';\n` +
-      `globalThis.__installedSdk={createExplorer,decodeManifestBinary,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES};\n`,
+    `import { createWorld,pose,metric,capture,decodeManifestBinary,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES } from '${packageName}';\n` +
+      `globalThis.__installedSdk={createWorld,pose,metric,capture,decodeManifestBinary,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES};\n`,
   );
   run(
     bundler,
     [
       explorer,
-      join(resourceRoot, 'pageDecodeWorker.js'),
-      join(resourceRoot, 'pageIntegrationWorker.js'),
+      join(decodeRoot, 'pageDecodeWorker.js'),
+      join(integrationRoot, 'pageIntegrationWorker.js'),
       '--bundle',
       '--format=esm',
       '--platform=browser',
@@ -72,7 +73,7 @@ export function emitInstalledBrowserBundle({
     ],
     fixture,
   );
-  const wasm = join(resourceRoot, 'pageCodec.wasm');
+  const wasm = join(decodeRoot, 'pageCodec.wasm');
   for (const { path } of filesAt(outputRoot))
     if (
       path.endsWith('.js') &&

@@ -1,49 +1,41 @@
-/** Domain groups stay explicit: these counters are not interchangeable memory totals. */
-export const DIAGNOSTICS = [
-  {
-    title: ['Shadows and indirect lighting', 'Ombres et éclairage indirect'],
-    fields: [
-      ['stage:shadows:pagesRedessinees', 'Redrawn shadow pages', 'Pages d’ombre redessinées', ''],
-      ['stage:shadows:pagesEnAttente', 'Pending shadow pages', 'Pages d’ombre en attente', ''],
-      ['stage:shadows:retardMaxMs', 'Maximum shadow delay', 'Retard maximal des ombres', 'ms'],
-      ['stage:bounce:sondesMisesAJour', 'Updated probes', 'Sondes mises à jour', ''],
-      ['stage:bounce:rayonsParImage', 'Rays per frame', 'Rayons par image', ''],
-    ],
-  },
-  {
-    title: ['Residency and streaming', 'Résidence et streaming'],
-    fields: [
-      ['budgetPages.residentes', 'Resident pages', 'Pages résidentes', ''],
-      ['budgetPages.demande', 'Requested pages', 'Pages demandées', ''],
-      ['budgetPages.seuilBudget', 'Budget threshold', 'Seuil du budget', ' px'],
-      ['metrics.texturePending', 'Pending textures', 'Textures en attente', ''],
-      ['metrics.textureEvictions', 'Evicted textures', 'Textures évincées', ''],
-      ['metrics.gpuAllocatedBytes', 'Tracked GPU allocations', 'Allocations GPU suivies', 'bytes'],
-    ],
-  },
-  {
-    title: ['Lighting and image work', 'Éclairage et travail de rendu'],
-    fields: [
-      ['metrics.lightsActive', 'Active lights', 'Lumières actives', ''],
-      [
-        'totalSubmittedTriangles',
-        'Submitted triangles, all passes',
-        'Triangles soumis, toutes passes',
-        '',
-      ],
-      ['submittedTriangles', 'Submitted opaque triangles', 'Triangles opaques soumis', ''],
-      [
-        'metrics.hizRejectedTriangles',
-        'Occlusion-rejected triangles',
-        'Triangles rejetés par occlusion',
-        '',
-      ],
-      ['metrics.pagesDecodedWasm', 'Decoded pages (Wasm)', 'Pages décodées (Wasm)', ''],
-    ],
-  },
-];
 import { readPath } from './contract.ts';
 import type { ReportRecord } from './types.ts';
+
+/** Domain groups stay explicit: these counters are not interchangeable memory totals. Each group
+ *  and field is named by `report.diagnostics.<id>`; a field is `[id, path, unit]`. */
+export const DIAGNOSTICS = [
+  {
+    id: 'shadows',
+    fields: [
+      ['shadowPagesRedrawn', 'stage:shadows:pagesRedessinees', ''],
+      ['shadowPagesPending', 'stage:shadows:pagesEnAttente', ''],
+      ['shadowDelay', 'stage:shadows:retardMaxMs', 'ms'],
+      ['probesUpdated', 'stage:bounce:sondesMisesAJour', ''],
+      ['raysPerFrame', 'stage:bounce:rayonsParImage', ''],
+    ],
+  },
+  {
+    id: 'residency',
+    fields: [
+      ['residentPages', 'budgetPages.residentes', ''],
+      ['requestedPages', 'budgetPages.demande', ''],
+      ['budgetThreshold', 'budgetPages.seuilBudget', ' px'],
+      ['texturesPending', 'metrics.texturePending', ''],
+      ['texturesEvicted', 'metrics.textureEvictions', ''],
+      ['gpuAllocations', 'metrics.gpuAllocatedBytes', 'bytes'],
+    ],
+  },
+  {
+    id: 'lighting',
+    fields: [
+      ['lightsActive', 'metrics.lightsActive', ''],
+      ['trianglesSubmitted', 'totalSubmittedTriangles', ''],
+      ['opaqueTrianglesSubmitted', 'submittedTriangles', ''],
+      ['trianglesOccluded', 'metrics.hizRejectedTriangles', ''],
+      ['pagesDecodedWasm', 'metrics.pagesDecodedWasm', ''],
+    ],
+  },
+] as const;
 
 export function diagnosticValue(record: ReportRecord | null | undefined, path: string) {
   if (path.startsWith('stage:')) {

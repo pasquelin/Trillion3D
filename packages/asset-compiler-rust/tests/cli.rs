@@ -1,6 +1,6 @@
 //! End-to-end checks of the executable's protocol: events on stderr, pointer(s) on stdout, exit codes.
 mod common;
-use common::{fixture, lines};
+use common::{fixture, lines, run_ok};
 use serde_json::Value;
 use std::{
     fs,
@@ -11,8 +11,8 @@ use std::{
 #[test]
 fn single_job_prints_a_pointer_and_streams_events() {
     let (root, obj, cache) = fixture("single");
-    let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
-        .args([
+    let output = run_ok(
+        Command::new(env!("CARGO_BIN_EXE_trillion3d-compiler")).args([
             obj.to_str().unwrap(),
             cache.to_str().unwrap(),
             "full",
@@ -21,14 +21,7 @@ fn single_job_prints_a_pointer_and_streams_events() {
             "64",
             "/assets/",
             "none",
-        ])
-        .stdin(Stdio::null())
-        .output()
-        .expect("run");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
+        ]),
     );
     let stdout = lines(&String::from_utf8_lossy(&output.stdout));
     assert_eq!(stdout.len(), 1);
@@ -64,7 +57,7 @@ fn batch_runs_every_job_and_summarises() {
     let (root, obj, cache) = fixture("batch");
     let spec = root.join("jobs.json");
     fs::write(&spec,serde_json::json!({"workers":2,"ramBudgetMb":256,"jobs":[{"id":"a","source":obj,"cache":cache.join("a"),"resourceBaseUrl":"/a/"},{"id":"b","source":obj,"cache":cache.join("b"),"resourceBaseUrl":"/b/","simplification":"qem-endpoints"},{"id":"missing","source":root.join("nope.obj"),"cache":cache.join("c"),"resourceBaseUrl":"/c/"}]}).to_string()).expect("spec");
-    let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
+    let output = Command::new(env!("CARGO_BIN_EXE_trillion3d-compiler"))
         .args(["--jobs", spec.to_str().unwrap()])
         .stdin(Stdio::null())
         .output()
@@ -107,7 +100,7 @@ fn batch_runs_every_job_and_summarises() {
 #[test]
 fn cancel_line_on_stdin_stops_the_job() {
     let (root, obj, cache) = fixture("cancel");
-    let mut child = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_trillion3d-compiler"))
         .args([
             obj.to_str().unwrap(),
             cache.to_str().unwrap(),
@@ -149,7 +142,7 @@ fn plugin_names(plugins: &[Value]) -> Vec<&str> {
 
 #[test]
 fn version_flag_describes_the_build() {
-    let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
+    let output = Command::new(env!("CARGO_BIN_EXE_trillion3d-compiler"))
         .arg("--version")
         .output()
         .expect("run");

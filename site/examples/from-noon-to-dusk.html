@@ -2,63 +2,78 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Exposure from noon to dusk</title>
+    <title>Noon to dusk</title>
+    <meta name="thumbnail" content="7" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p id="clock"></p>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      // Manual rendering: the loop below draws every frame itself, so the canvas size is given.
-      const canvas = document.getElementById('view');
-      const explorer = await createExplorer(canvas, {
-        manifestUrl: '../assets/examples/sundial/cache/native/full/manifest.json',
-        scope: 'full',
-        width: canvas.clientWidth,
-        height: canvas.clientHeight,
-        pixelRatio: devicePixelRatio,
-      });
-      explorer.addLight({
-        id: 'sun',
-        kind: 'directional',
-        direction: [0, -1, 0],
-        color: [1, 1, 1],
-        intensity: 3,
-        castsShadow: true,
-      });
-      explorer.setPose({ ...explorer.homePose(), position: [4.5, 3.2, 5.5], target: [0, 0.2, 0] });
+      const world = createWorld('view', { controls: 'orbit' });
 
-      // Twelve seconds from noon to dusk, then back. The sun sinks and reddens, its irradiance
-      // falls as it thins through the atmosphere, and the exposure rises to keep the dial
-      // readable — what a camera does with its aperture, applied at composition.
-      const clock = document.getElementById('clock');
-      async function frame(time) {
-        const day = (1 - Math.cos((time / 12000) * Math.PI)) / 2, // 0 at noon, 1 at dusk
-          elevation = (1 - day * 0.97) * (Math.PI / 2),
-          hour = 12 + day * 7;
-        explorer.setLight('sun', {
-          direction: [-Math.cos(elevation) * 0.8, -Math.sin(elevation), -Math.cos(elevation) * 0.6],
-          color: [1, 1 - day * 0.55, 1 - day * 0.85],
-          intensity: 3 * (1 - day * 0.85),
-        });
-        explorer.setEnvironment({ exposure: 1 + day * 1.5 });
-        clock.textContent = `${Math.floor(hour)}:${String(Math.floor((hour % 1) * 60)).padStart(2, '0')} — exposure ×${(1 + day * 1.5).toFixed(1)}`;
-        await explorer.awaitPages();
-        explorer.render();
-        await explorer.flush();
-        requestAnimationFrame(frame);
+      // A sundial in a ring of columns: every shadow turns with the sun.
+      const stone = material.meshStandard({ color: '#d6cbb4', roughness: 0.8 });
+      const bronze = material.meshStandard({ color: '#8c6035', metalness: 0.9, roughness: 0.35 });
+      const lawn = object.mesh(geometry.cylinder(9, 9, 0.2, 96), material.meshStandard({ color: '#4d6b3a', roughness: 0.95 }));
+      lawn.position.y = -0.1;
+      const dial = object.mesh(geometry.cylinder(2.2, 2.4, 0.4, 64), stone);
+      dial.position.y = 0.2;
+      const gnomon = object.mesh(geometry.box(0.08, 1.6, 0.9), bronze);
+      gnomon.position.set(0, 0.75, -0.2);
+      gnomon.rotation.x = -0.6;
+      world.scene.add(lawn, dial, gnomon);
+      const profile = [[0, 0], [0.42, 0], [0.42, 0.25], [0.3, 0.25], [0.26, 2.9], [0.4, 3], [0.42, 3.2], [0, 3.2]];
+      for (let index = 0; index < 12; index++) {
+        const angle = (index / 12) * Math.PI * 2;
+        const column = object.mesh(geometry.lathe(profile, 32), stone);
+        column.position.set(Math.cos(angle) * 6, 0, Math.sin(angle) * 6);
+        const mark = object.mesh(geometry.box(0.12, 0.08, 0.4), bronze);
+        mark.position.set(Math.cos(angle) * 1.9, 0.44, Math.sin(angle) * 1.9);
+        mark.rotation.y = -angle;
+        world.scene.add(column, mark);
       }
-      requestAnimationFrame(frame);
+
+      // The sun, and the blue sky's own light filling the shadows it leaves.
+      const sun = light.directional({ intensity: 3, castShadow: true });
+      world.scene.add(sun, light.ambient({ intensity: 0.25, color: '#8fb4ff' }));
+      world.camera.position.set(7, 4.4, 7.8);
+      world.camera.lookAt(0, 0.6, 0);
+      world.controls.target.set(0, 0.6, 0);
+
+      const ui = controls({ speed: [0, 3, 0.8], hour: [6, 20, 12, 0.5], adaptEyes: true }, () => world.invalidate(), world);
+      // The sun rises in the east at six and sets in the west at twenty. Near the horizon it
+      // reddens and its light thins; `exposure` then rises like an eye adapting to the dusk.
+      let hour = ui.hour, from = null, adapted = null;
+      world.onFrame(({ delta }) => {
+        // Stopped, the sun moves only when the hour or the eyes are changed.
+        if (ui.hour !== from) hour = from = ui.hour;
+        else if (!ui.speed && ui.adaptEyes === adapted) return;
+        adapted = ui.adaptEyes;
+        hour += delta * ui.speed; // hours per second
+        if (hour > 20) hour = 6;
+        const arc = ((hour - 6) / 14) * Math.PI, height = Math.sin(arc);
+        sun.position.set(Math.cos(arc) * 10, 1 + height * 11, 5);
+        sun.color.setRGB(1, 0.55 + 0.45 * height, 0.25 + 0.75 * height);
+        sun.intensity = 0.4 + 2.8 * height;
+        world.exposure = ui.adaptEyes ? 1 + (1 - height) * 1.5 : 1;
+        world.invalidate();
+      });
+      world.invalidate();
     </script>
   </body>
 </html>

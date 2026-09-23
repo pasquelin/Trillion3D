@@ -12,7 +12,10 @@ pub(super) struct DagResult {
     pub proxy_threshold: f64,
     pub reused: i32,
     pub dag_report: Value,
-    /// What the DAG has to complain about, named: empty when it rose to its root.
+    /// Elapsed milliseconds of the primitive's stages, told on its progress event alone: the cache
+    /// holds only what a rebuild reproduces byte for byte.
+    pub timings: Value,
+    /// What the DAG has to complain about, named, also told on the progress event.
     pub warnings: Vec<Value>,
     pub culling_report: Value,
     pub structure_report: Value,
@@ -47,21 +50,23 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
-    attributes: &[geometry_page::Attribute],
+    carried: &[&geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
     store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
-    // UVs, when the primitive carries them: fallback DAG weld does not cross a texture seam.
-    let uvs = attributes.iter().find(|a| a.flag == geometry_page::FLAG_UV);
-    let (dag, groups, tallies) = crate::dag::build_dag_tallied(
-        pos,
-        uvs.map(|a| &a.values[..]),
-        index_values,
-        strategy,
-        &|| check(o),
-    )?;
+    // Every texture set the pages carry, and only those: the fallback DAG weld crosses no seam a
+    // material samples, and a set no material reads never stalls a group.
+    let uv_sets: Vec<&[f32]> = carried
+        .iter()
+        .filter(|a| a.flag == geometry_page::FLAG_UV || a.flag == geometry_page::FLAG_UV1)
+        .map(|a| &a.values[..])
+        .collect();
+    let mut laps = perf::Laps::start();
+    let (dag, groups, tallies, stalls) =
+        crate::dag::build_dag_tallied(pos, &uv_sets, index_values, strategy, &|| check(o))?;
+    laps.lap("dagMs");
     if dag
         .iter()
         .filter(|c| c.level == 0)
@@ -95,24 +100,14 @@ pub(super) fn build_dag_primitive(
     // The proxy coarse cut is read here, where the DAG and the positions are both
     // at hand; further on, clusters exist only as cache objects.
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
-    let shape = compiler_primitive_warn::DagShape::of(&dag);
-    let depth = shape.depth;
-    let group_stats: Vec<Value> = tallies
-        .iter()
-        .enumerate()
-        .map(|(i, tally)| {
-            let mut level = tally.json();
-            level["level"] = json!(i + 1);
-            level
-        })
-        .collect();
-    let warnings = compiler_primitive_warn::dag_warnings(strategy, &shape, &tallies);
-    let dag_report = json!({"depth":depth,"clusterTriangles":crate::dag::DAG_CLUSTER_TRIANGLES,"groupMin":crate::dag::DAG_GROUP_MIN,"groupMax":crate::dag::DAG_GROUP_MAX,"levels":compiler_primitive_warn::level_report(&dag, depth),"groups":group_stats,"warnings":warnings});
+    let (dag_report, warnings) =
+        compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls);
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
     let (order, culling) = {
         let _t = perf::Timer::new(perf::Phase::Culling);
         crate::dag::build_culling_bvh(pos, &dag)
     };
+    laps.lap("cullingMs");
     let base_id = 0usize;
     let mut page_of = vec![0usize; dag.len()];
     for (rank, &slot) in order.iter().enumerate() {
@@ -126,6 +121,7 @@ pub(super) fn build_dag_primitive(
         bundle_dag_pages(o, &dag, &order, base_id, pos, &|slice: &[u32]| {
             store_packed(slice, position_exponent)
         })?;
+    laps.lap("pagesMs");
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
     // and the only place the partition and the positions are both in hand.
     let cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>> = order
@@ -180,6 +176,7 @@ pub(super) fn build_dag_primitive(
         flat.push(json!(node.cluster_count));
     }
     let culling_report = json!({"stride":CULLING_STRIDE,"count":culling.len(),"nodes":flat});
+    laps.lap("reportMs");
     Ok(DagResult {
         pages,
         cluster_planes,
@@ -187,6 +184,7 @@ pub(super) fn build_dag_primitive(
         proxy_threshold,
         reused,
         dag_report,
+        timings: laps.report(),
         warnings,
         culling_report,
         structure_report,

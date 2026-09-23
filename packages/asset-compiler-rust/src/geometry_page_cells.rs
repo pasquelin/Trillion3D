@@ -4,8 +4,8 @@
 use crate::geometry_page::Attribute;
 use crate::geometry_page_quant::{max_error, oct_encode, quantize, COLOR_EXPONENT, UV_EXPONENT};
 use crate::{CompilerError, Result};
-use web_geometry_page_codec::bits::Quant;
-use web_geometry_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+use trillion3d_page_codec::bits::Quant;
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// The page's vertices, `width` floats each, gathered from the primitive's `source_width`-wide
 /// values in local order; a missing trailing component reads 1, the alpha of a three-wide colour.

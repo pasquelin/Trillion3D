@@ -19,5 +19,5 @@
     "packages/sdk/**/*.ts",
     "packages/sdk/**/*.mts"
   ],
-  "exclude": ["**/*.test.ts", "**/bench/**", "**/target/**"]
+  "exclude": ["**/*.test.ts", "**/*.fixture.ts", "**/target/**"]
 }
