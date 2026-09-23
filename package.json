@@ -114,6 +114,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.12.0",
     "highlight.js": "^11.12.0",
+    "jolt-physics": "1.1.0",
     "jscpd": "^5.2.0",
     "knip": "^6.35.1",
     "playwright": "^1.63.0",
