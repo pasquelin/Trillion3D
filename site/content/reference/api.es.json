@@ -1578,8 +1578,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este camino de dibujo no sabe hacer este cambio en la escena.",
       "BATCHED_WORLD_VIEW": "Este camino de dibujo no sabe hacer este cambio en la escena.",
       "RAYCAST_NO_VIEW": "Se pidió un punto de imagen a un canvas sin tamaño: no hay imagen a través de la cual apuntar.",
-      "SESSION_OPEN_FAILED": "La sesión del mundo no pudo abrirse (`world.diagnostic.error`): WebGPU perdió su dispositivo, o el error lanzado está en `details.cause`.",
-      "WEBGPU_LOST": "La sesión del mundo no pudo abrirse (`world.diagnostic.error`): WebGPU perdió su dispositivo, o el error lanzado está en `details.cause`.",
+      "SESSION_OPEN_FAILED": "La sesión del mundo no pudo abrirse, por un motivo sin código propio (`world.diagnostic.error`): el error lanzado está en `details.cause`.",
+      "WEBGPU_LOST": "WebGPU perdió su dispositivo, o un error en él dejó un estado desde el que nada puede dibujar: lo lanzan `render`, `flush` y las lecturas que necesitan el dispositivo, lo nombra el diagnóstico `gpu-device-lost`, y aparece en `world.diagnostic.error` cuando una sesión no pudo abrirse por ello.",
       "UNSUPPORTED_SCENE_FORMAT": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar.",
       "SCENE_NOT_SAVABLE": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar."
     }
@@ -6398,7 +6398,7 @@
     "members": {
       "mode": "El modo de vista: `'beauty'` para la imagen normal, o un modo que muestra cómo trabaja el motor.",
       "sessions": "Las sesiones que el mundo ha abierto hasta ahora: un cambio que vuelve a abrir una se ve aquí.",
-      "error": "Por qué no pudo abrirse la última sesión, como un error del motor con nombre: `code` es `WEBGPU_LOST` cuando WebGPU perdió su dispositivo, el código propio de un error del motor, o `SESSION_OPEN_FAILED` con el error lanzado en `details.cause`. `null` en cuanto se abre una sesión, o cuando no hay nada que dibujar y no se intenta ninguna sesión.",
+      "error": "Por qué no pudo abrirse la última sesión, como error nombrado del motor: su `code` es uno de los documentados en `EngineError` (`WEBGPU_LOST` cuando WebGPU perdió su dispositivo), o `SESSION_OPEN_FAILED` para un motivo sin código propio; el error lanzado está en `details.cause`. `null` en cuanto se abre una sesión, o cuando no hay nada que dibujar y no se intenta ninguna sesión.",
       "modes": "Cada modo de vista que ofrece el motor de renderizado actual."
     }
   },

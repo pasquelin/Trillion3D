@@ -1578,8 +1578,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "BATCHED_WORLD_VIEW": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "RAYCAST_NO_VIEW": "Un point d’image a été demandé à un canvas sans taille : il n’y a pas d’image à travers laquelle viser.",
-      "SESSION_OPEN_FAILED": "La session du monde n’a pas pu s’ouvrir (`world.diagnostic.error`) : WebGPU a perdu son appareil, ou l’erreur levée est dans `details.cause`.",
-      "WEBGPU_LOST": "La session du monde n’a pas pu s’ouvrir (`world.diagnostic.error`) : WebGPU a perdu son appareil, ou l’erreur levée est dans `details.cause`.",
+      "SESSION_OPEN_FAILED": "La session du monde n’a pas pu s’ouvrir, pour une raison sans code propre (`world.diagnostic.error`) : l’erreur levée est dans `details.cause`.",
+      "WEBGPU_LOST": "WebGPU a perdu son appareil, ou une erreur sur celui-ci a laissé un état dont rien ne peut dessiner : levée par `render`, `flush` et les lectures qui ont besoin de l’appareil, nommée par le diagnostic `gpu-device-lost`, et sur `world.diagnostic.error` quand une session n’a pas pu s’ouvrir pour cette raison.",
       "UNSUPPORTED_SCENE_FORMAT": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
       "SCENE_NOT_SAVABLE": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker."
     }
@@ -6407,7 +6407,7 @@
       "mode": "Le mode de vue : `'beauty'` pour l’image normale, ou un mode qui montre comment travaille le moteur.",
       "modes": "Chaque mode de vue qu’offre le moteur de rendu actuel.",
       "sessions": "Les sessions que le monde a ouvertes jusqu’ici : un changement qui en rouvre une se voit ici.",
-      "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : `code` vaut `WEBGPU_LOST` quand WebGPU a perdu son appareil, le code propre d’une erreur du moteur, ou `SESSION_OPEN_FAILED` avec l’erreur levée dans `details.cause`. `null` dès qu’une session s’ouvre, ou quand il n’y a rien à dessiner et qu’aucune session n’est tentée."
+      "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas ; l’erreur levée est dans `details.cause`. `null` dès qu’une session s’ouvre, ou quand il n’y a rien à dessiner et qu’aucune session n’est tentée."
     }
   },
   "world.onFrame": {
