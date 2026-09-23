@@ -28,7 +28,7 @@ try {
       throw new Error(`${entry.id}: ${errors.join('; ') || 'blank'}`);
     const html = await readFile(resolve(site, entry.file), 'utf8');
     await page.waitForTimeout(thumbnailDelay(html) * 1000);
-    await page.locator('canvas').screenshot({
+    await page.locator('canvas#view').screenshot({
       path: resolve(out, `${entry.id}.png`),
       style: RENDER_ONLY,
     });
