@@ -1,7 +1,6 @@
 import { useWords } from '../i18n.ts';
 import { Table } from '../ui/Table.tsx';
 import { METRICS, METRIC_KEYS, metricValue, formatValue } from '../../reports/metrics.ts';
-import { metricLabel, reportCopy } from '../../reports/copy.ts';
 import { missingMetric } from '../../reports/availability.ts';
 import { readingName } from '../../reports/presentation.ts';
 import { comparison } from '../../reports/compare.ts';
@@ -16,7 +15,6 @@ interface ComparisonProps {
 }
 
 export function Comparison({ a, b, variable, locale }: ComparisonProps) {
-  const c = reportCopy(locale);
   const t = useWords(locale);
   return (
     <section className="grid min-w-0 grid-cols-1 gap-3">
@@ -27,7 +25,7 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
       <Table>
         <thead>
           <tr>
-            <th scope="col">{c.reading}</th>
+            <th scope="col">{t('report.reading')}</th>
             <th scope="col">{readingName(a, locale)}</th>
             <th scope="col">{readingName(b, locale)}</th>
             <th scope="col">{t('report.difference')}</th>
@@ -44,7 +42,7 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
             return (
               <tr key={key}>
                 <th scope="row">
-                  {metricLabel(key, locale)}
+                  {t(`report.metrics.${key}`)}
                   {hasStat && <small>p50 · {metric.unit}</small>}
                 </th>
                 {[a, b].map((r, i) => (
@@ -72,7 +70,7 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
           })}
         </tbody>
       </Table>
-      <p className="text-sm leading-relaxed text-base-content/75">{c.p95}</p>
+      <p className="text-sm leading-relaxed text-base-content/75">{t('report.p95')}</p>
     </section>
   );
 }

@@ -13,7 +13,7 @@ import { NOTES } from '../site/content/entries/reference.ts';
 import { entriesIn, rawEntries } from '../site/app/portal/data.ts';
 import type { Header as HeaderComponent } from '../site/app/layout/Header.tsx';
 
-const CODES = LANGUAGES.map(({ lang }) => lang);
+const CODES = LANGUAGES.map(({ code }) => code);
 
 test('every language gives exactly the keys English gives', () => {
   const mismatches = keyMismatches();
@@ -29,13 +29,12 @@ test('a key given on one side only is named, missing or extra', () => {
   assert.deepEqual(compareKeys('site/i18n/xx.json', ['a'], ['a']), []);
 });
 
-test('the languages are the files of site/i18n, English first, each named by its own meta', () => {
+test('the languages are the files of site/i18n, English first', () => {
   const files = readdirSync(new URL('../site/i18n/', import.meta.url))
     .filter((file) => file.endsWith('.json'))
     .map((file) => file.slice(0, -'.json'.length));
   assert.deepEqual([...CODES].sort(), files.sort());
   assert.equal(CODES[0], DEFAULT_LANGUAGE);
-  for (const [code, { meta }] of Object.entries(DICTIONARIES)) assert.equal(meta.lang, code);
 });
 
 test('another language keeps every entry and its technical contract, and translates its text', () => {
@@ -129,11 +128,11 @@ test('the header offers every language, each a link to the same page in it', asy
   const html = renderToStaticMarkup(
     createElement(Header, { drawerOpen: false, onMenu: noop, onSearch: noop }),
   );
-  for (const { lang, name, hreflang } of LANGUAGES)
+  for (const { code, name, hreflang } of LANGUAGES)
     assert.match(
       html,
       new RegExp(
-        `<a href="#/${lang}/learn/home" hrefLang="${hreflang}"[^>]*><span class="truncate">${name}</span>`,
+        `<a href="#/${code}/learn/home" hrefLang="${hreflang}"[^>]*><span class="truncate">${name}</span>`,
       ),
     );
   assert.match(html, /aria-current="page"[^>]*><span class="truncate">English</);
