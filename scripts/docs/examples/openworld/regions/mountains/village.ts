@@ -6,7 +6,7 @@
  */
 import type { LampLight, Marker, Settlement } from '../../plan/contract.ts';
 import { placeLamps } from '../../props/index.ts';
-import { BASEMENT } from './chalet.ts';
+import { BASEMENT, TERRACES } from './chalet.ts';
 import { CHURCH_LAMPS } from './church.ts';
 import { LANTERN_LAMPS } from './nature.ts';
 import { CHALETS } from './props.ts';
@@ -42,28 +42,30 @@ export function placeVillage(placer: Placer, site: Settlement, rand: () => numbe
     markers: Marker[] = [],
     tag = `mountains/${site.id}`,
     houses = site.kind in HOUSES ? HOUSES[site.kind as keyof typeof HOUSES] : 0;
-  for (let k = 0; k < 300; k++) {
-    const r = 10 + k * 3,
-      [x, z] = [cx + Math.cos(k * GOLDEN) * r, cz + Math.sin(k * GOLDEN) * r],
-      yaw = valleyYaw(placer, x, z),
-      church = placer.place('mountains/church', x, z, {
-        seat: 'high',
-        basement: BASEMENT,
-        yaw,
-        name: `${tag}/church`,
-      });
-    if (!church) continue;
-    lights.push(...placeLamps(CHURCH_LAMPS, church));
-    const [tx, tz] = [x + Math.sin(yaw) * 45, z + Math.cos(yaw) * 45];
-    markers.push({
-      kind: 'teleport',
-      name: tag,
-      position: [tx, placer.plan.height(tx, tz) + EYE, tz],
-      yaw: yaw + Math.PI,
-      pitch: 0.12,
-    });
-    break;
+  // A church stands on its basement first; on steeper ground, on a terrace up to three storeys.
+  let seated = false;
+  for (const basement of TERRACES) {
+    for (let k = 0; k < 300 && !seated; k++) {
+      const r = 10 + k * 3,
+        [x, z] = [cx + Math.cos(k * GOLDEN) * r, cz + Math.sin(k * GOLDEN) * r],
+        yaw = valleyYaw(placer, x, z),
+        church = placer.place('mountains/church', x, z, {
+          seat: 'high',
+          basement,
+          yaw,
+          name: `${tag}/church`,
+        });
+      if (!church) continue;
+      lights.push(...placeLamps(CHURCH_LAMPS, church));
+      markers.push(
+        facingTeleport(placer, tag, x + Math.sin(yaw) * 45, z + Math.cos(yaw) * 45, yaw + Math.PI),
+      );
+      seated = true;
+    }
+    if (seated) break;
   }
+  // Every village keeps its teleport: at its centre, looking down the valley.
+  if (!seated) markers.push(facingTeleport(placer, tag, cx, cz, valleyYaw(placer, cx, cz)));
   let built = 0;
   for (let k = 0; k < 900 && built < houses; k++) {
     const r = 45 + Math.sqrt(k) * 13;
@@ -106,4 +108,15 @@ export function placeVillage(placer: Placer, site: Settlement, rand: () => numbe
       yaw: headingYaw(...near.dir),
     });
   return { lights, markers };
+}
+
+/** A settlement's teleport at (x, z), eye height over the ground, turned to `yaw`. */
+function facingTeleport(placer: Placer, name: string, x: number, z: number, yaw: number): Marker {
+  return {
+    kind: 'teleport',
+    name,
+    position: [x, placer.plan.height(x, z) + EYE, z],
+    yaw,
+    pitch: 0.12,
+  };
 }

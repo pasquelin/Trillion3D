@@ -11,6 +11,8 @@ import { MOUNTAIN_SURFACES as S } from './surfaces.ts';
 
 /** The drop a chalet's basement hides: the steepest footing it accepts. */
 export const BASEMENT = 3.5;
+/** The basements a landmark (church, station) may stand on, lowest first: one to three storeys. */
+export const TERRACES = [BASEMENT, 2 * BASEMENT, 3 * BASEMENT];
 const GROUND = 2.8;
 const STOREY = 2.7;
 
