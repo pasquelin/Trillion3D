@@ -194,11 +194,14 @@
           format.texture = await load(format.blob);
         } else if (format.name === 'Canvas') format.texture = texture.canvas(sheet);
         else {
-          // Bytes of colour, not plain numbers: read as sRGB, the first row at the top.
+          // Bytes of colour, not plain numbers: read as sRGB.
           format.texture = texture.data(new Uint8Array(pixelsOf(sheet).buffer), SIZE, SIZE, 'rgba');
           format.texture.colorSpace = 'srgb';
-          format.texture.flipY = true;
         }
+        // Every source is kept as it arrives, its first row first: a decoded file, a canvas and
+        // raw bytes are then read the same way, and the picture's own coordinates (below) put
+        // that first row at the top.
+        format.texture.flipY = false;
       }
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -226,6 +229,10 @@
       const gilt = material.meshStandard({ color: '#d2a55a', metalness: 0.65, roughness: 0.35 });
       const leg = geometry.box(0.07, 2.9, 0.07), ledge = geometry.box(1.9, 0.08, 0.2), board = geometry.box(1.8, 1.8, 0.05);
       const bar = geometry.box(1.98, 0.09, 0.08), post = geometry.box(0.09, 1.8, 0.08), sheetShape = geometry.plane(1.8, 1.8);
+      // A plane's texture coordinates grow upward; an image's rows grow downward. Turned over
+      // here, the picture's first row sits at the top of the sheet and its text reads.
+      const sheetUv = sheetShape.attributes.uv;
+      for (let v = 0; v < sheetUv.count; v++) sheetUv.setXY(v, sheetUv.getX(v), 1 - sheetUv.getY(v));
       const CENTRE = [0, 3], RADIUS = 7;
       const easels = FORMATS.map((format, k) => {
         const angle = ((k - (FORMATS.length - 1) / 2) / (FORMATS.length - 1)) * 2.4;
@@ -264,10 +271,11 @@
         return { format, frame, at: [x, z], facing: [-Math.sin(angle), Math.cos(angle)] };
       });
 
-      // A low golden sun from the front right, a cool sky above and a warm bounce from the ground.
+      // A golden sun behind the visitor, high enough to reach every easel of the half circle
+      // face on, a cool sky above and a warm bounce from the ground.
       world.scene.add(
-        light.directional({ color: '#ffbf7a', intensity: 3.2, position: [15, 6, 14], castShadow: true }),
-        light.hemisphere({ color: '#8fa6e8', groundColor: '#6a4a2c', intensity: 0.8 }),
+        light.directional({ color: '#ffc98a', intensity: 3, position: [-2, 11, 20], castShadow: true }),
+        light.hemisphere({ color: '#a3b6ec', groundColor: '#7a5a3c', intensity: 1.1 }),
       );
 
       const WIDE = { position: [0, 3.4, 12.5], target: [0, 1.7, -0.5] };

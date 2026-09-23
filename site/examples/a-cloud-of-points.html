@@ -123,23 +123,30 @@
         });
       }
 
-      // Every shape built and placed before the first frame, only the first one shown; each has
-      // its tilt, the angle it is seen at best.
+      // Every shape built before the first frame, only the first one shown; each has its tilt,
+      // the angle it is seen at best.
       const SHAPES = {
         'spiral galaxy': { layers: galaxy(), tilt: 0.42 },
         'globular cluster': { layers: cluster(), tilt: 0 },
         'ring nebula': { layers: nebula(), tilt: 0.95 },
         'Lorenz attractor': { layers: attractor(), tilt: 0.1 },
       };
+      // The world turns every point into a small solid it cuts into pages before it draws: a
+      // cost that grows with the points. So the scene opens on the galaxy's bright core alone,
+      // and the rest joins it in two steps — the galaxy's bulge, arms and disc, then the other
+      // three shapes — while the first points are already on screen.
       for (const shape of Object.values(SHAPES)) {
         shape.root = object.group();
-        for (const [layer] of shape.layers) shape.root.add(layer);
         shape.points = shape.layers.reduce((sum, [layer]) => sum + layer.userData.count, 0);
         shape.root.visible = false;
         shape.root.scale.setScalar(0.001);
         shape.grow = 0;
         world.scene.add(shape.root);
       }
+      const [first, ...others] = Object.values(SHAPES);
+      const placed = (shape, layers) => layers.map(([layer]) => [shape.root, layer]);
+      first.root.add(first.layers[0][0]);
+      const steps = [placed(first, first.layers.slice(1)), others.flatMap((shape) => placed(shape, shape.layers))];
 
       // The sky: a far shell of white and warm stars, still.
       const shell = (colour, count) => colourGroup(colour, 0.35, count, () => direction().map((value) => value * (110 + next() * 40)));
@@ -177,10 +184,16 @@
       for (const type of ['pointerdown', 'wheel'])
         world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
       const ease = (t) => 1 - (1 - t) ** 3;
-      let time = 0;
+      let time = 0, waited = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         if (ui.spin) time += step;
+        // The next step joins once the frame before it has drawn, a second apart.
+        waited += step;
+        if (steps.length && waited > 1) {
+          for (const [root, layer] of steps.shift()) root.add(layer);
+          waited = 0;
+        }
         for (const shape of Object.values(SHAPES)) {
           if (!shape.root.visible) continue;
           shape.grow = shape === current ? Math.min(1, shape.grow + step / 2.2) : Math.max(0, shape.grow - step / 1.1);

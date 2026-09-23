@@ -55,7 +55,7 @@
       table.position.set(0, 0, 1);
       world.scene.add(table);
       const put = (mesh, x, y, z) => (mesh.position.set(x, y, z), table.add(mesh), mesh);
-      put(object.mesh(geometry.cylinder(1.9, 1.95, 0.24, 96), material.meshStandard({ color: '#23252b', roughness: 0.25, metalness: 0.3 })), 0, 0.12, 0);
+      put(object.mesh(geometry.cylinder(1.9, 1.95, 0.24, 96), material.meshStandard({ color: '#a39a8e', roughness: 0.45 })), 0, 0.12, 0);
       const vaseProfile = [[0, 0], [0.34, 0], [0.42, 0.1], [0.52, 0.45], [0.46, 0.85], [0.24, 1.15], [0.17, 1.4], [0.22, 1.55], [0.2, 1.58]];
       put(object.mesh(geometry.lathe(vaseProfile, 64), material.meshStandard({ color: '#9e1b24', roughness: 0.12 })), -0.7, 0.24, -0.35);
       put(object.mesh(geometry.sphere(0.45, 64, 32), material.meshStandard({ color: '#f2f2f4', roughness: 0.04, metalness: 1 })), 0.75, 0.69, -0.2);
@@ -66,7 +66,8 @@
 
       // THE SOFTBOX: a rectangle light (`rectArea`), in a frame on an arm that swings round the
       // table. The light looks down its own −z, so it is turned to face the subject; the glowing
-      // face beside it is just a white panel, drawn to show where the light comes from.
+      // face beside it is just a white panel, drawn to show where the light comes from. The arm
+      // stays on the camera's right, its glowing face turned towards the lens, never its back.
       const rig = object.group(), arm = object.group();
       rig.position.set(0, 0, 1);
       arm.position.set(0, 2.7, 3.6);
@@ -87,9 +88,9 @@
         light.directional({ color: '#ffc58a', intensity: 1.1, position: [8, 2.6, 7], target: [0, 0.6, 1], castShadow: true }),
         light.hemisphere({ color: '#9fb4ff', groundColor: '#3a3440', intensity: 0.35 }),
       );
-      world.camera.position.set(0.8, 2.1, 7.6);
-      world.camera.lookAt(0, 0.8, 1);
-      world.controls.target.set(0, 0.8, 1);
+      world.camera.position.set(-2.2, 2.3, 7.4);
+      world.camera.lookAt(0.4, 0.8, 1);
+      world.controls.target.set(0.4, 0.8, 1);
       world.controls.minDistance = 2.5;
       world.controls.maxDistance = 11;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
@@ -124,7 +125,8 @@
       size(`${softbox.width.toFixed(2)} × ${softbox.height.toFixed(2)} m`);
       radiance(softbox.intensity.toFixed(1));
 
-      // The opening: the panel swings in from behind the set; then it sways, and the table turns.
+      // The opening: the panel swings in from behind the set, its face to the camera, to the
+      // right of the table; then it sways there, and the table turns.
       const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
       let time = 0, opening = 0, sway = 0;
       world.onFrame(({ delta }) => {
@@ -132,7 +134,8 @@
         time += step;
         if (opening < 1) opening = Math.min(1, opening + step / 3);
         if (ui.swing) sway += step;
-        rig.rotation.set(0, -2.6 * (1 - ease(opening)) + 0.55 + 0.5 * Math.sin(sway * 0.35), 0);
+        const side = 1.45 + 0.28 * Math.sin(sway * 0.35);
+        rig.rotation.set(0, side + (Math.PI - side) * (1 - ease(opening)), 0);
         table.rotation.set(0, time * 0.18, 0);
         world.invalidate();
       });
