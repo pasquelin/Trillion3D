@@ -6172,6 +6172,13 @@
   "object.group": {
     "summary": "一个持有其他对象的空节点,使它们能够一起移动。"
   },
+  "object.clone": {
+    "summary": "一个对象及其下所有内容的副本，与原对象不共享任何东西：它的形状、材质、灯光和字段都会被复制。",
+    "description": "已加载的模型不会被复制：对它返回 `null`，并且它会被排除在复制的组之外。",
+    "parameters": {
+      "source": "要复制的对象。"
+    }
+  },
   "object.points": {
     "summary": "把一个几何体的每个顶点都绘制成一个点。",
     "parameters": {

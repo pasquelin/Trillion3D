@@ -107,8 +107,11 @@ export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
       receiveShadow: o.receiveShadow,
       renderOrder: o.renderOrder,
       userData: plain(o.userData),
-      // A model's children are the lights its file carried: they come back with the model.
-      children: model.isLoadedModel ? [] : o.children.filter((c) => !isHelper(c)).map(node),
+      // What a model's file carried comes back with the model; what the page placed under it
+      // is saved like any child.
+      children: o.children
+        .filter((c) => !isHelper(c) && !(model.isLoadedModel && model._fromFile(c)))
+        .map(node),
     };
     if ((o as { isGroup?: boolean }).isGroup) saved.kind = 'group';
     if (mesh.isMesh) {
