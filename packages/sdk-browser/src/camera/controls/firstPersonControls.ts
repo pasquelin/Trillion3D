@@ -8,7 +8,7 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts';
 
 /**
  * FIRST PERSON, pointer locked: the pointer turns the head, the keys walk. The horizon stays
- * level — yaw about world up, pitch clamped just short of the poles, never any roll — and the
+ * level — yaw about world up, pitch clamped to `[minPitch, maxPitch]`, never any roll — and the
  * walk follows the yaw alone, so looking up does not lift the walker off the floor.
  *
  * THE LOCK IS THE HOST'S TO ASK FOR. A browser only grants a pointer lock inside a gesture, so
@@ -20,6 +20,13 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts';
 export interface FirstPersonCameraControls extends SteeredCameraControls {
   /** Radians turned per pixel of pointer motion. */
   lookSpeed: number;
+  /**
+   * Lowest the head looks, in radians below the horizon counted negative (0 is the horizon);
+   * by default just short of straight down. Raise it so a walker never looks into its own body.
+   */
+  minPitch: number;
+  /** Highest the head looks, in radians above the horizon; by default just short of the zenith. */
+  maxPitch: number;
   /** Whether the pointer is locked to the view. */
   locked(): boolean;
   /** Locks the pointer to the view. */
@@ -27,6 +34,12 @@ export interface FirstPersonCameraControls extends SteeredCameraControls {
   /** Frees the pointer. */
   unlock(): void;
 }
+
+/** The default pitch range: just short of either pole, where the yaw would lose its meaning. */
+export const FIRST_PERSON_PITCH = [
+  POLAR_EPSILON - Math.PI / 2,
+  Math.PI / 2 - POLAR_EPSILON,
+] as const;
 
 const STRAFE: KeyAxis = [['KeyD'], ['KeyA']],
   RISE: KeyAxis = [['Space'], ['ShiftLeft']],
@@ -71,6 +84,8 @@ export function createFirstPersonCameraControls(
     object: pose.object,
     movementSpeed: 1,
     lookSpeed: 0.002,
+    minPitch: FIRST_PERSON_PITCH[0],
+    maxPitch: FIRST_PERSON_PITCH[1],
     locked: () => owner.pointerLockElement === surface,
     lock: () => void surface.requestPointerLock?.(),
     unlock: () => api.locked() && owner.exitPointerLock?.(),
@@ -79,11 +94,7 @@ export function createFirstPersonCameraControls(
       const dt = delta > 0 ? delta : 0;
       pose.readPosition(position);
       yaw -= lookX * api.lookSpeed;
-      pitch = clampNumber(
-        pitch - lookY * api.lookSpeed,
-        POLAR_EPSILON - Math.PI / 2,
-        Math.PI / 2 - POLAR_EPSILON,
-      );
+      pitch = clampNumber(pitch - lookY * api.lookSpeed, api.minPitch, api.maxPitch);
       lookX = lookY = 0;
       angles[1] = yaw;
       angles[2] = Math.PI / 2 + pitch;

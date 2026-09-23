@@ -47,3 +47,32 @@ test('`world.controls` keeps its speeds across `kind`, and first person walks at
   assert.equal(Number(camera.position.length().toFixed(6)), 5);
   controls.dispose();
 });
+
+test('`world.controls.autoForward` cruises flight alone, kept across kinds, and asks for a frame', () => {
+  const camera = new Camera('perspective');
+  const surface = fixtureSurface(400);
+  let redraws = 0;
+  const controls = worldControlsHandle(
+    'orbit',
+    () => camera,
+    surface.element,
+    () => redraws++,
+  );
+  // Set on the orbit: harmless, no frame asked, and kept for the flight that comes next.
+  controls.autoForward = true;
+  assert.equal(redraws, 0);
+  controls.movementSpeed = 3;
+  controls.kind = 'fly';
+  assert.equal(controls.autoForward, true);
+  assert.ok(redraws > 0);
+  controls.update(0);
+  controls.update(1);
+  assert.equal(Number(camera.position.length().toFixed(6)), 3);
+  // A disabled controller does not cruise: the scene is still again.
+  controls.enabled = false;
+  const settled = redraws;
+  controls.update(1);
+  assert.equal(redraws, settled);
+  assert.equal(Number(camera.position.length().toFixed(6)), 3);
+  controls.dispose();
+});
