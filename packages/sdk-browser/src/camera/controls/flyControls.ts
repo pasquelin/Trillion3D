@@ -14,17 +14,30 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts';
  * along its own axes and turn it about them, roll included; a drag looks around. Nothing is
  * integrated until the host calls `update(delta)` with the seconds elapsed, and `update`
  * returns — and emits — only when a key is held or a drag is pending, so a released stick
- * leaves the scene still.
+ * leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every
+ * `update`, and asks for the next frame by emitting `change` each time.
  *
  * KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down,
  * arrows pitch and yaw, Q/E roll. `dragToLook` (the default) looks while a pointer is held;
- * set false and the pointer looks as soon as it moves over the surface.
+ * set false and the pointer looks as soon as it moves over the surface; set `pointerLook`
+ * false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or
+ * Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier
+ * must be released before the key that follows it counts.
  */
 export interface FlyCameraControls extends SteeredCameraControls {
   /** Radians per second at full deflection, for pitch, yaw and roll alike. */
   rollSpeed: number;
   /** Whether dragging turns the view. */
   dragToLook: boolean;
+  /** Whether the pointer turns the view at all, by drag or hover; true by default. */
+  pointerLook: boolean;
+  /**
+   * CRUISE, off by default: the camera flies forward at `movementSpeed` with no key held, as
+   * a plane does. W then adds `movementSpeed` (twice as fast) and S takes it away (the camera
+   * hangs in place); it never flies backwards. Nothing moves until the next `update`, so a
+   * host that redraws on `change` asks for one frame when it turns cruise on.
+   */
+  autoForward: boolean;
 }
 
 const PITCH: KeyAxis = [['ArrowUp'], ['ArrowDown']],
@@ -59,6 +72,8 @@ export function createFlyCameraControls(
     movementSpeed: 1,
     rollSpeed: 0.4,
     dragToLook: true,
+    pointerLook: true,
+    autoForward: false,
     update(delta = 0) {
       const dt = delta > 0 ? delta : 0;
       pose.readPosition(position);
@@ -71,13 +86,14 @@ export function createFlyCameraControls(
         normalizeQuaternion(
           multiplyQuaternion(orientation, orientation, localTurnQuaternion(turn, pitch, yaw, roll)),
         );
-      const step = api.movementSpeed * dt;
+      const step = api.movementSpeed * dt,
+        advance = axisOf(keys, ...ADVANCE);
       moveLocal(
         position,
         orientation,
         axisOf(keys, ...STRAFE) * step,
         axisOf(keys, ...RISE) * step,
-        axisOf(keys, ...ADVANCE) * step,
+        (api.autoForward ? Math.max(0, 1 + advance) : advance) * step,
       );
       pose.write(position, orientation);
       moved.set(position);
@@ -90,7 +106,7 @@ export function createFlyCameraControls(
     down: () => (held = true),
     up: () => (held = false),
     drag: (dx, dy) => {
-      if (!api.dragToLook) return;
+      if (!api.dragToLook || !api.pointerLook) return;
       look(dx, dy);
       base.emit();
     },
@@ -98,7 +114,7 @@ export function createFlyCameraControls(
   // `dragToLook = false`: the pointer steers by hovering, which is why this listener is its
   // own and not the tracker's — the tracker only ever reports a pointer that is down.
   base.listen<PointerEvent>(surface, 'pointermove', (event) => {
-    if (api.dragToLook || held) return;
+    if (api.dragToLook || held || !api.pointerLook) return;
     look(event.movementX, event.movementY);
     base.emit();
   });
