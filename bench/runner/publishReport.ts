@@ -28,10 +28,6 @@ export function publierRapport(source: string, dest: string): string {
         .sort()[0] ?? null,
   });
   writeFileSync(indexPath, JSON.stringify(index) + '\n');
-  writeFileSync(
-    join(dest, 'report.html'),
-    '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Measurements · Web Geometry</title><meta http-equiv="refresh" content="0;url=./#/en/reports"><a href="./#/en/reports">Measurements</a> · <a href="./#/fr/reports">Mesures</a></html>\n',
-  );
   writeFileSync(join(dest, '.nojekyll'), '');
   return folder;
 }

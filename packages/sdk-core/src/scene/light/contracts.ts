@@ -13,18 +13,18 @@
  * a position would be a promise the engine would not keep.
  */
 export interface SceneLight {
-  id: string;
-  kind: 'point' | 'spot' | 'directional' | 'rect';
+  /** The light's name. */ id: string;
+  /** Point, spot, sun or rectangle. */ kind: 'point' | 'spot' | 'directional' | 'rect';
   /** Point and spot only: the point the light comes from, in metres. */
   position?: [number, number, number];
   /** Spot: the cone axis. Directional: the propagation direction (from the sun toward the
    *  ground). Rect: the normal of its emitting face. */
   direction?: [number, number, number];
-  color: [number, number, number];
-  intensity: number;
+  /** Its colour, linear RGB. */ color: [number, number, number];
+  /** How strong it is. */ intensity: number;
   /** Point, spot and rect: the range in metres, where energy vanishes exactly. */
   range?: number;
-  coneAngle?: number;
+  /** A spot's opening. */ coneAngle?: number;
   /** Spot only: the share of the cone, from its edge inward, over which the light fades in
    *  `[0, 1]`; without it the edge softens over `spotEdgeSoftness`. */
   penumbra?: number;
@@ -42,11 +42,11 @@ export interface SceneLight {
   right?: [number, number, number];
   /** Rect only: its width and height, in metres. */
   size?: [number, number];
-  castsShadow: boolean;
+  /** Whether it casts shadows. */ castsShadow: boolean;
 }
 /** Exposure, display curve and the irradiance from every direction (`../core/environment.ts`). */
 export type { SceneEnvironment } from '../core/environment.ts';
-export const SCENE_LIGHT_VERSION = 2;
+/** The version of the light contract this engine reads. */ export const SCENE_LIGHT_VERSION = 2;
 /**
  * What the host asks to see. `lit` is real lighting and that alone; `unlit` is the raw-albedo
  * diagnostic view — material colour as-is, with no light, no ambient and
@@ -113,14 +113,9 @@ export const LIGHT_SETTINGS = {
    * a surface stays lit without a cast shadow: named approximation, published in the diagnostic.
    */
   sunShadowFarFraction: 0.2,
-  /**
-   * Ratio between two consecutive cascade-split bounds. At a seam, texel
-   * density changes by exactly this ratio: it, and nothing else, decides the visible
-   * sharpness jump from one cascade to the next, and holding it constant is all that is asked of
-   * a split. The near-plane floor is deduced from it — `shadow distance / ratio^cascades` —
-   * instead of starting from the camera near plane, a ten-thousandth of the far, which crushed the
-   * geometric sequence and forced catching it up by mixing with a uniform sequence.
-   */
+  /** Ratio between two consecutive cascade-split bounds: at a seam, texel density changes by
+   *  exactly this ratio, and nothing else decides the sharpness jump between cascades. The
+   *  near-plane floor is deduced from it — `shadow distance / ratio^cascades`. */
   sunCascadeRatioMax: 4,
   /**
    * Offset of the far-shadow ray origin along the normal, in metres. It only
@@ -152,10 +147,10 @@ export const LIGHT_SETTINGS = {
   shadowDepthBias: 0.02,
   /** Slope bias, in metres per unit of `tan(acos(N·L))`, capped by `shadowSlopeBiasMax`. */
   shadowSlopeBias: 0.08,
-  shadowSlopeBiasMax: 0.5,
+  /** Largest slope bias. */ shadowSlopeBiasMax: 0.5,
   /** Near plane of a slice: a fraction of the range, never less than this floor. */
   shadowNearFraction: 1 / 200,
-  shadowNearMin: 0.05,
+  /** Nearest shadow distance. */ shadowNearMin: 0.05,
   /**
    * Offset of the sample point along the normal, in slice texels. It is what
    * closes the seam between two faces of a point light and removes grazing acne; it is in
@@ -171,21 +166,24 @@ export const POINT_FACES = 6;
 export const SCENE_LIGHT_FLOATS = 20;
 /** Light-buffer header: count, tiles in X, tiles in Y, reserved. */
 export const SCENE_LIGHT_HEADER_FLOATS = 4;
+/** Floats of the whole GPU light buffer: header, then every light. */
 export const SCENE_LIGHT_BUFFER_FLOATS =
   SCENE_LIGHT_HEADER_FLOATS + LIGHT_SETTINGS.maxLights * SCENE_LIGHT_FLOATS;
-/** Rank of a light kind in the GPU buffer: the shader refers to it by this number, not by name. */
+/** Rank of a light kind in the GPU buffer: the shader refers to it by this number, not by name.
+ *  @property point - A bulb. @property spot - A torch. @property directional - The sun.
+ *  @property rect - A glowing rectangle. */
 export const LIGHT_KIND = { point: 0, spot: 1, directional: 2, rect: 3 } as const;
 /** Axis of a light that has one — spot, directional, rect —, normalised by the contract, which
  *  rejects a light of those kinds without one: reading it here assumes nothing more. */
 export const lightDirection = (light: SceneLight) => light.direction as [number, number, number];
 /** What the scheduler knows of the view: a camera, not a matrix, to stay without a dependency. */
 export interface ShadowViewpoint {
-  position: readonly [number, number, number];
-  forward: readonly [number, number, number];
-  halfFovY: number;
-  aspect: number;
-  near: number;
-  far: number;
+  /** Where the viewpoint stands. */ position: readonly [number, number, number];
+  /** Which way it looks. */ forward: readonly [number, number, number];
+  /** Half its vertical opening. */ halfFovY: number;
+  /** Width over height. */ aspect: number;
+  /** Nearest distance. */ near: number;
+  /** Farthest distance. */ far: number;
 }
 /** The ten numbers of a view, in order: position, axis, half-field, aspect, near, far. */
 export const VIEW_NUMBERS = 10;

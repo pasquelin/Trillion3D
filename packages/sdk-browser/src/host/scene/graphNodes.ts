@@ -36,19 +36,28 @@ export type HostDrawScene = HostScene & {
 
 /** Three numbers of a pose, as the host stores them and a boundary sets them back. */
 export type HostVector = {
+  /** Left to right. */
   x: number;
+  /** Bottom to top. */
   y: number;
+  /** Back to front. */
   z: number;
+  /** Writes the three numbers. */
   set(x: number, y: number, z: number): unknown;
 };
 
 /** The orientation of a pose, as the host stores it: `(x, y, z, w)`. A camera controller writes
  *  exactly this shape, so `../../camera/controls/types.ts` reads it from here rather than redeclaring it. */
 export type HostRotation = {
+  /** The first number. */
   x: number;
+  /** The second number. */
   y: number;
+  /** The third number. */
   z: number;
+  /** The fourth number. */
   w: number;
+  /** Writes the four numbers. */
   set(x: number, y: number, z: number, w: number): unknown;
 };
 
@@ -66,7 +75,9 @@ export type HostRotation = {
  * the two satisfies only the contract it answers, so neither may stand for the other.
  */
 export interface HostGraphNode extends HostNode {
+  /** Its parent. */
   readonly parent: HostGraphNode | null;
+  /** Where it stands. */
   readonly position: HostVector;
   /**
    * The two faces of a node's rotation — the quaternion the engine compares, and the Euler
@@ -82,14 +93,18 @@ export interface HostGraphNode extends HostNode {
     _onChangeCallback: () => void;
     _onChange(callback: () => void): unknown;
   };
+  /** How it is turned, as angles. */
   readonly rotation: {
     _onChangeCallback: () => void;
     _onChange(callback: () => void): unknown;
   };
+  /** How it is stretched. */
   readonly scale: HostVector;
   /** False when the host set `matrix` itself: the matrix IS the pose and nothing recomposes it. */
   matrixAutoUpdate: boolean;
+  /** Its local matrix. */
   readonly matrix: HostNodeMatrix;
+  /** Its world matrix. */
   readonly matrixWorld: HostNodeMatrix;
   /** Where the engine marks a copy of its own, which the host has never seen and cannot write. */
   readonly userData: Record<string, unknown>;

@@ -32,6 +32,7 @@ export const POINT_FACE_AXES: ReadonlyArray<readonly [number, number, number]> =
  * is still held, and read.
  */
 export const SHADOW_FACE_FLOATS = 24;
+/** Word of a light's shadow faces in its GPU record. */
 export const SHADOW_FACE_MASK_WORD = 20;
 /** Floats of a slice: six faces plus a header `vec4f` (faces, kind, side, pad). */
 export const SHADOW_SLICE_FLOATS = POINT_FACES * SHADOW_FACE_FLOATS + 4;

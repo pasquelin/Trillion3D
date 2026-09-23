@@ -121,7 +121,7 @@ test('renderer badges link only to documented API entries', () => {
     renderToStaticMarkup(createElement(Playground, { id, locale: 'en' }));
   const light = render('point-light-range');
   assert.doesNotMatch(light, /#\/en\/api\/scene\.add/);
-  assert.match(light, />scene\.add\(light\.\*\)<\/code>/);
+  assert.match(light, />scene\.add\(light\.\*\)<\/span>/);
   assert.match(render('offline-prism'), /#\/en\/api\/createWorld/);
 });
 

@@ -1,7 +1,12 @@
 import { sessionOf } from '../core/worldSession.ts';
 
 /** The size of a capture, in pixels. */
-export type CaptureSize = { width: number; height: number };
+export type CaptureSize = {
+  /** Width of the image, in pixels. */
+  width: number;
+  /** Height of the image, in pixels. */
+  height: number;
+};
 
 /**
  * The view's pixels at `width × height`, top row first, drawn offscreen at that size
@@ -24,8 +29,16 @@ async function pixels(world: object, size: CaptureSize) {
 
 /** The `capture` family: an image of the view, taken aside. */
 export const capture = {
+  /**
+   * @param world - The world to capture.
+   * @param size - The image's width and height.
+   */
   buffer: pixels,
-  /** The image encoded as `type` (PNG by default). */
+  /**
+   * The image encoded as `type` (PNG by default).
+   * @param world - The world to capture.
+   * @param p - The image's size, and PNG or JPEG.
+   */
   async surface(world: object, p: CaptureSize & { type?: 'image/png' | 'image/jpeg' }) {
     const { width, height, data } = await pixels(world, p);
     const page = new OffscreenCanvas(width, height);

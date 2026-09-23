@@ -1,6 +1,9 @@
 import type { Locale } from '../../content/locale.ts';
 import type { CatalogExample } from '../../content/catalog.ts';
-import { Card } from '../components/UI.tsx';
+import { Badge } from '../ui/Badge.tsx';
+import { Card } from '../ui/Card.tsx';
+import { Note } from '../ui/Text.tsx';
+import { t } from '../../content/i18n/index.ts';
 import { routeHref } from '../portal/routes.ts';
 import { GeometryPreview } from './WebGPUCanvas.tsx';
 import { themeLabel, themeOf } from './lessonThemes.ts';
@@ -62,48 +65,63 @@ type CardExample = Omit<CatalogExample, 'description'> & { description?: Localiz
 interface ExampleCardProps {
   example: CardExample;
   locale?: Locale;
-  /** The card's route; `null` for an example that has no file yet: no link, no image. */
-  href?: string | null;
+  /** The card's route; a lesson's by default. */
+  href?: string;
   badge?: string;
 }
 
 export function ExampleCard({ example, locale = 'en', href, badge }: ExampleCardProps) {
-  const french = locale === 'fr',
-    title = local(example.title, locale);
-  const card = (
-    <Card className={`h-full shadow-sm overflow-hidden${href === null ? ' opacity-50' : ''}`}>
-      <div className="gallery-preview rounded-box overflow-hidden bg-base-300">
-        {href !== null && <Preview example={example} locale={locale} title={title} />}
-      </div>
-      <span className="badge badge-soft badge-primary">
-        {badge ??
-          (example.engine
-            ? french
-              ? 'Scène moteur'
-              : 'Engine scene'
-            : themeLabel(themeOf(example), locale))}
-      </span>
-      <h2 className="card-title text-lg">{title}</h2>
-      {example.description && (
-        <p className="text-sm opacity-75 grow">{local(example.description, locale)}</p>
-      )}
-      {href !== null && (
-        <span className="self-end text-primary text-xl" aria-hidden="true">
-          →
-        </span>
-      )}
-    </Card>
-  );
-  if (href === null) return <div aria-disabled="true">{card}</div>;
+  const title = local(example.title, locale);
+  const engineBadge = locale === 'fr' ? 'Scène moteur' : 'Engine scene';
   return (
     <a
       className="block h-full rounded-box focus-visible:outline-2 focus-visible:outline-primary"
-      href={
-        href ??
-        routeHref({ locale, area: example.engine ? 'lessons' : 'playground', id: example.id })
-      }
+      href={href ?? routeHref({ locale, area: 'lessons', id: example.id })}
     >
-      {card}
+      <Card className="h-full overflow-hidden shadow-sm">
+        <div className="aspect-[16/10] overflow-hidden rounded-box bg-base-300">
+          <Preview example={example} locale={locale} title={title} />
+        </div>
+        <Badge tone="primary" soft>
+          {badge ?? (example.engine ? engineBadge : themeLabel(themeOf(example), locale))}
+        </Badge>
+        <h2 className="card-title text-lg">{title}</h2>
+        {example.description && (
+          <p className="grow text-sm opacity-75">{local(example.description, locale)}</p>
+        )}
+        <span className="self-end text-xl text-primary" aria-hidden="true">
+          →
+        </span>
+      </Card>
     </a>
+  );
+}
+
+interface PendingProps {
+  title: string;
+  locale: Locale;
+  /** The engine feature the example waits for, when it waits for one. */
+  missing?: string;
+}
+
+/** An example still to come: its title, "in progress", and — when it waits for the engine — the
+ * feature it waits for. It opens nothing. */
+export function PendingExampleCard({ title, locale, missing }: PendingProps) {
+  return (
+    <div aria-disabled="true" className="h-full opacity-75">
+      <Card className="h-full overflow-hidden shadow-sm">
+        <img
+          className="aspect-[16/10] w-full rounded-box object-cover"
+          src="./assets/example-in-progress.svg"
+          alt=""
+          loading="lazy"
+        />
+        <Badge tone="info" soft>
+          {t(locale, 'examples.inProgress')}
+        </Badge>
+        <h2 className="card-title text-lg">{title}</h2>
+        {missing && <Note>{`${t(locale, 'examples.waitsFor')} ${missing}`}</Note>}
+      </Card>
+    </div>
   );
 }

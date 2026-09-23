@@ -3,9 +3,11 @@ import { ReadingLegend } from './ReadingLegend.tsx';
 import { reportCopy } from '../../reports/copy.ts';
 import { sceneName } from '../../reports/presentation.ts';
 import { useReports } from './useReports.ts';
-import { Alert } from '../components/UI.tsx';
-import { SectionHeader } from '../components/SectionHeader.tsx';
-import { Collapse } from '../components/Collapse.tsx';
+import { Alert } from '../ui/Alert.tsx';
+import { DocPage } from '../layout/DocPage.tsx';
+import { t } from '../../content/i18n/index.ts';
+import { TextLink } from '../ui/Text.tsx';
+import { Collapse } from '../ui/Collapse.tsx';
 import { SceneReport } from './SceneReport.tsx';
 import { SceneEvidence } from './SceneEvidence.tsx';
 import { Experiments } from './Experiments.tsx';
@@ -28,9 +30,11 @@ export function Report({ route }: ReportProps) {
     fr = locale === 'fr';
   if (!state.report)
     return (
-      <Alert tone={state.error ? 'warning' : 'info'}>
-        {c[state.loading ? 'loading' : state.error ? 'unavailable' : 'empty']}
-      </Alert>
+      <DocPage title={c.title}>
+        <Alert tone={state.error ? 'warning' : 'info'}>
+          {c[state.loading ? 'loading' : state.error ? 'unavailable' : 'empty']}
+        </Alert>
+      </DocPage>
     );
   const { report, sources } = state;
   const scenes = [...new Set(report.records.map((r) => r.scene))];
@@ -41,9 +45,9 @@ export function Report({ route }: ReportProps) {
         <Findings {...props} />
         <Collapse title={fr ? 'Exécutions et sources' : 'Runs and sources'}>
           <CampaignRuns {...props} />
-          <a className="link" href={`reports/${report.id}/report.json`} download>
+          <TextLink href={`reports/${report.id}/report.json`} download>
             {c.download}
-          </a>
+          </TextLink>
         </Collapse>
       </>
     ),
@@ -74,14 +78,12 @@ export function Report({ route }: ReportProps) {
     references: () => <References locale={locale} />,
   };
   return (
-    <article className="grid min-w-0 w-full gap-6">
-      <SectionHeader
-        level={1}
-        title={c.title}
-        eyebrow={`Web Geometry · ${report.id}`}
-        description={`${report.records.length} ${fr ? 'mesures' : 'readings'} · ${report.runs.length} ${fr ? 'exécutions' : 'runs'} · ${scenes.map(sceneName).join(' / ')}`}
-      />
+    <DocPage
+      title={c.title}
+      eyebrow={`${t(locale, 'reports.campaign')} ${report.id}`}
+      lead={`${report.records.length} ${fr ? 'mesures' : 'readings'} · ${report.runs.length} ${fr ? 'exécutions' : 'runs'} · ${scenes.map(sceneName).join(' / ')}`}
+    >
       {(Object.hasOwn(content, active) ? content[active] : content.overview)()}
-    </article>
+    </DocPage>
   );
 }

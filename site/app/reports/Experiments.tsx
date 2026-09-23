@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Select } from '../components/UI.tsx';
-import { Tabs } from '../components/Tabs.tsx';
+import { Select } from '../ui/Input.tsx';
+import { Tabs } from '../ui/Tabs.tsx';
 import { viewName, runName, engineName } from '../../reports/names.ts';
-import { Section } from '../components/Section.tsx';
+import { Card } from '../ui/Card.tsx';
 import { sceneName, runOf } from '../../reports/presentation.ts';
 import { MetricCharts } from './MetricCharts.tsx';
 import type { Report } from '../../reports/types.ts';
@@ -55,7 +55,7 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
   ];
   const activeQuality = qualities.includes(quality) ? quality : qualities[0];
   return (
-    <Section title={sceneName(scene)}>
+    <Card title={sceneName(scene)}>
       <Tabs
         sticky
         label={locale === 'fr' ? 'Position' : 'View'}
@@ -92,7 +92,7 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
                 );
                 if (!rows.length) return null;
                 return (
-                  <section className="grid min-w-0 gap-4" key={en}>
+                  <section className="grid min-w-0 grid-cols-1 gap-4" key={en}>
                     <h3 className="text-lg font-semibold">{locale === 'fr' ? fr : en}</h3>
                     <MetricCharts
                       columns={1}
@@ -109,6 +109,6 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
           ),
         }))}
       />
-    </Section>
+    </Card>
   );
 }

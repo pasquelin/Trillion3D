@@ -19,12 +19,17 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  * makes sense after a rendered image.
  */
 export interface PartitionAudit {
+  /** Rows checked. */
   rows: number;
+  /** Width in pixels. */
   width: number;
+  /** Height in pixels. */
   height: number;
+  /** Nearest distance. */
   near: number;
   /** View and view-projection elements in double precision, as the image posted them. */
   view: Float64Array;
+  /** The camera's view-projection. */
   viewProj: Float64Array;
   /** World corners in double precision, eight per row: the exact input of both calculations. */
   corners: Float64Array;

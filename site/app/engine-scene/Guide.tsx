@@ -1,8 +1,8 @@
 import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
 import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
 import type { Locale } from '../../content/locale.ts';
-import { Accordion } from '../components/Accordion.tsx';
-import { Alert } from '../components/UI.tsx';
+import { Accordion } from '../ui/Accordion.tsx';
+import { Alert } from '../ui/Alert.tsx';
 
 const QUALITY_HELP: Record<Locale, string> = {
   en: 'Pixel error 0 keeps exact leaves; raising it permits a coarser bounded DAG cut.',
@@ -20,7 +20,7 @@ export function EngineGuide({ copy, locale, diagnostic }: EngineGuideProps) {
   return (
     <Accordion title={copy.details}>
       <p className="text-sm opacity-75 mb-3">{copy.preview}</p>
-      <dl data-scene-guide className="grid gap-2 text-sm mt-4 sm:grid-cols-3">
+      <dl data-scene-guide className="grid grid-cols-1 gap-2 text-sm mt-4 sm:grid-cols-3">
         <div>
           <dt className="font-bold">{copy.guideWhat}</dt>
           <dd data-scene-what>{what}</dd>

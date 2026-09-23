@@ -66,9 +66,17 @@ export function chooseBlockFormat(
 /** The lanes of an atlas, in the order the bindings and the shader's taps number them. */
 export const POOL_LANES = PREVIEW_LAYOUT_NAMES;
 export type PoolLane = TextureLayout;
-/** One number per lane — layers, tiles —, and one per atlas. */
+/** One number per lane — layers, tiles —, and one per atlas.
+ *  @property lossless - Kept as plain pixels. @property rgba - In colour blocks.
+ *  @property two-channel - In two-channel blocks, for normal maps. */
 export type LaneCounts = Record<PoolLane, number>;
-export type AtlasLanes = { color: LaneCounts; data: LaneCounts };
+/** The lane counts of both atlases: colour and data. */
+export type AtlasLanes = {
+  /** The colour atlas. */
+  color: LaneCounts;
+  /** The data atlas. */
+  data: LaneCounts;
+};
 export const laneCounts = (): LaneCounts =>
   Object.fromEntries(POOL_LANES.map((lane) => [lane, 0])) as LaneCounts;
 

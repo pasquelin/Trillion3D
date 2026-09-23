@@ -3,6 +3,7 @@ import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../webgl/core/fullscr
 import { createWebglProgram } from '../webgl/core/program.ts';
 import { bindWebglTarget, type WebglRenderTarget } from '../webgl/core/renderTarget.ts';
 
+/** How two renders are shown side by side for comparison. */
 export type ComparisonLayout = 'single' | 'side-by-side' | 'wipe' | 'toggle' | 'difference';
 
 const LAYOUT_IDS: Record<ComparisonLayout, number> = {

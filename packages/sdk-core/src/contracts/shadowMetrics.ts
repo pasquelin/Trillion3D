@@ -24,6 +24,7 @@ export interface ShadowFrameMetrics {
   /** What the shadow pass redrew: faces (views) and draw calls actually encoded.
    *  This is the cost per shadow light, split from the rest. Null on an engine that draws no shadow. */
   shadowFacesDrawn?: number | null;
+  /** Shadow draw calls. */
   shadowDrawCalls?: number | null;
   /** Cluster cuts run from the lights: one per redrawn face, zero on a still frame. */
   shadowLightCuts?: number | null;
@@ -34,9 +35,14 @@ export interface ShadowFrameMetrics {
   /** Pages drawn since the explorer opened, drains of `flush()` included: what a change cost
    *  is the difference between two readings. */
   shadowPagesTotal?: number | null;
+  /** Shadow pages waiting. */
   shadowPagesPending?: number | null;
+  /** How long they waited. */
   shadowWaitMs?: number | null;
+  /** GPU time of light lists. */
   gpuLightListsMs?: number | null;
+  /** GPU time of shadows. */
   gpuShadowsMs?: number | null;
+  /** GPU time of lighting. */
   gpuLightingMs?: number | null;
 }

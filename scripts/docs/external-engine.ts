@@ -15,3 +15,6 @@ export const externalEngine: Plugin = {
     }));
   },
 };
+
+/** Program files the portal shows as text (`site/app/migration/`): bundled as strings. */
+export const PROGRAM_TEXT = { '.txt': 'text', '.html': 'text' } as const;

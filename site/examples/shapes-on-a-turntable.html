@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shapes on a turntable</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+
+      // A world is a scene, a camera and lights. Here: five shapes on a round plate.
+      const plate = object.mesh(geometry.cylinder(3.4, 3.4, 0.25, 96), material.meshStandard({ color: '#2a2f3a', roughness: 0.6 }));
+      plate.position.y = -0.125;
+      const paint = material.meshStandard({ color: '#e0663c', roughness: 0.35 });
+      const turntable = object.group();
+      const shapes = [
+        [geometry.box(1.2, 1.2, 1.2), [2, 0.6, 0]],
+        [geometry.sphere(0.75, 64, 32), [0.62, 0.75, 1.9]],
+        [geometry.cone(0.7, 1.7, 64), [-1.62, 0.85, 1.18]],
+        [geometry.torusKnot(0.5, 0.17, 160, 24), [-1.62, 0.9, -1.18]],
+        [geometry.cylinder(0.6, 0.6, 1.4, 64), [0.62, 0.7, -1.9]],
+      ].map(([shape, at]) => {
+        const mesh = object.mesh(shape, paint);
+        mesh.position.set(...at);
+        turntable.add(mesh);
+        return mesh;
+      });
+      world.scene.add(plate, turntable);
+
+      // A sun that casts shadows, and a cool fill light from the other side.
+      world.scene.add(light.directional({ intensity: 3, color: '#fff2e0', position: [6, 10, 5], castShadow: true }));
+      world.scene.add(light.directional({ intensity: 0.6, color: '#8fb4ff', position: [-6, 4, -5] }));
+      world.camera.position.set(0, 3.3, 5.6);
+      world.camera.lookAt(0, 0.6, 0);
+      world.controls.target.set(0, 0.6, 0);
+
+      const ui = controls({ colour: '#e0663c', speed: [0, 2, 0.5], spin: true }, ({ colour }) => {
+        paint.color.set(colour);
+      }, world);
+      // Every frame, the turntable turns and each shape spins on itself.
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        const step = delta * ui.speed;
+        turntable.rotation.y += step;
+        for (const shape of shapes) shape.rotation.y -= step * 2;
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>

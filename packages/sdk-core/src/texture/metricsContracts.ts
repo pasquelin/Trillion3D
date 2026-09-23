@@ -16,9 +16,13 @@ export interface TextureFrameMetrics {
    * the occupied share, pinned tails included, at each lane's own texel cost.
    */
   texturePoolBytes?: number | null;
+  /** Format of the texture pool. */
   texturePoolFormat?: string | null;
+  /** Layers in the pool. */
   texturePoolLayers?: number | null;
+  /** Tiles held. */
   textureTilesResident?: number | null;
+  /** Bytes held. */
   textureResidentBytes?: number | null;
   /**
    * Image feedback: what the pixels asked for at the last sample. `textureTilesRequested`:
@@ -29,9 +33,13 @@ export interface TextureFrameMetrics {
    * pass's budget pushed to the next pass, their coarser level shown meanwhile.
    */
   textureTilesRequested?: number | null;
+  /** Tiles at the level asked. */
   textureTilesAtLevel?: number | null;
+  /** Levels still missing. */
   textureMissingLevels?: number | null;
+  /** Tiles on their way. */
   textureTilesPending?: number | null;
+  /** Tiles put off to a later frame. */
   textureTilesDeferred?: number | null;
   /**
    * The streamer, since the start of the session. `textureTilesServed`: tiles copied into the pool.
@@ -44,10 +52,15 @@ export interface TextureFrameMetrics {
    * peak, never a median.
    */
   textureTilesServed?: number | null;
+  /** Tiles removed. */
   textureTilesEvicted?: number | null;
+  /** Tiles refused. */
   textureTilesRefused?: number | null;
+  /** Bytes sent last frame. */
   textureBytesLastFrame?: number | null;
+  /** Time spent sending tiles. */
   textureUploadMs?: number | null;
+  /** Longest send in one frame. */
   textureUploadPeakMs?: number | null;
   /**
    * The sources. `textureLevelReads`: baked levels being read in the cache. `textureLevelsDecoded`:
@@ -56,7 +69,10 @@ export interface TextureFrameMetrics {
    * work textures built for a texture without a baked chain, the whole source each time.
    */
   textureLevelReads?: number | null;
+  /** Levels decoded. */
   textureLevelsDecoded?: number | null;
+  /** Bytes of decoded levels kept. */
   textureLevelCacheBytes?: number | null;
+  /** Scratch textures built. */
   textureScratchBuilds?: number | null;
 }
