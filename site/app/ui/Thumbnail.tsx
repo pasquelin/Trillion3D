@@ -6,6 +6,19 @@ interface ThumbnailProps {
   active?: boolean;
 }
 
+/** A render as a list shows it: the width of its column, 16:10, loaded when it scrolls near. */
+export function Cover({ src }: { src: string }) {
+  return (
+    <img
+      className="aspect-[16/10] w-full rounded-lg bg-base-300 object-cover"
+      src={src}
+      alt=""
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
+
 /** A picture that opens a page: the render the width of its column, its title under it on at most
  * two lines. */
 export function Thumbnail({ href, src, label, active = false }: ThumbnailProps) {
@@ -16,12 +29,7 @@ export function Thumbnail({ href, src, label, active = false }: ThumbnailProps) 
       title={label}
       aria-current={active ? 'page' : undefined}
     >
-      <img
-        className="aspect-[16/10] w-full rounded-lg bg-base-300 object-cover"
-        src={src}
-        alt=""
-        loading="lazy"
-      />
+      <Cover src={src} />
       <span className="line-clamp-2 text-sm font-medium">{label}</span>
     </a>
   );

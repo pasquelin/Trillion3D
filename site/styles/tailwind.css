@@ -1,9 +1,6 @@
 @import 'tailwindcss' source(none);
 @import './portal.css';
 @import './syntax.css';
-@source '../index.html';
-@source '../js/**/*.js';
-@source '../react/**/*.{ts,tsx}';
 /* The three axes, x red, y green, z blue: the hues the transform handles draw them in, dark
    enough that a white letter reads on them in either theme. */
 @theme {

@@ -2,6 +2,8 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 export interface CardProps extends Omit<ComponentPropsWithoutRef<'section'>, 'title'> {
   title?: ReactNode;
+  /** A picture above the title: the card of a page a list opens. */
+  media?: ReactNode;
   surface?: 'default' | 'nested' | 'inset';
 }
 
@@ -18,6 +20,7 @@ export const surfaceClass = (surface: CardProps['surface'] = 'default'): string 
 export function Card({
   children,
   title,
+  media,
   className = '',
   surface = 'default',
   ...props
@@ -28,6 +31,7 @@ export function Card({
       {...props}
     >
       <div className="card-body gap-4 p-4">
+        {media}
         {title && <h2 className="card-title text-lg">{title}</h2>}
         {children}
       </div>
