@@ -13,21 +13,21 @@
 // node --experimental-strip-types \
 //   tests/browser/probes/etalement-transparents-gpu.ts
 import assert from 'node:assert/strict';
-import { expandBlendPlan } from '../../../packages/sdk-browser/webgpuBlendExpandCpu.ts';
+import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts';
 import {
   blendExpandUniform,
   buildBlendRuns,
   EXPAND_GROUP,
   RUN_WORDS,
   UNI_WORDS,
-} from '../../../packages/sdk-browser/webgpuBlendRuns.ts';
+} from '../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
 import {
   BLEND_EXPAND_ENTRIES,
   BLEND_EXPAND_SHADER,
   blendExpandDispatch,
   STORAGE_TYPES,
-} from '../../../packages/sdk-browser/webgpuBlendExpandWgsl.ts';
-import { DRAW_UNPAGED, planEntry } from '../../../packages/sdk-browser/webgpuBlendPlan.ts';
+} from '../../../packages/sdk-browser/src/webgpu/blend/expandWgsl.ts';
+import { DRAW_UNPAGED, planEntry } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts';
 import { etalementGpu } from './noyauEtalementGpu.ts';
 import { graine } from '../../../bench/core/index.ts';
 

@@ -1,8 +1,8 @@
 // the autonomous backend detaches by cut delta instead of sweeping the whole DAG.
 import * as THREE from 'three';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
-import { createAutonomousGeometry } from '../../../packages/sdk-browser/autonomousGeometry.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelection.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceAutonomousSync } from '../../oracles/browser/backend-autonome.ts';
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
@@ -101,7 +101,7 @@ function cas(name: string, total: number, tailles: readonly number[], mesure = t
 
 const resAutonome = await mesure({
   name: 'autonomous backend cut',
-  fichier: 'packages/sdk-browser/autonomousGeometry.ts',
+  fichier: 'packages/sdk-browser/src/backend/autonomous/geometry.ts',
   cas: [
     cas('20 000 pages, cuts of 200', 20000, [200, 200, 200, 200]),
     cas('4 000 pages, full cut then empty', 4000, [4000, 0, 4000, 0]),

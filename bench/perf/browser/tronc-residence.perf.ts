@@ -3,13 +3,13 @@
 // `mathFrustumBox.test.ts` and `autonomousResidency.test.ts`. Each line says so rather than staying silent.
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core/src/index.ts';
-import { collectPendingUrls } from '../../../packages/sdk-browser/pageSelectionRequests.ts';
-import { createAutonomousResidency } from '../../../packages/sdk-browser/autonomousResidency.ts';
-import { createAutonomousGeometry } from '../../../packages/sdk-browser/autonomousGeometry.ts';
+import { collectPendingUrls } from '../../../packages/sdk-browser/src/page/selection/requests.ts';
+import { createAutonomousResidency } from '../../../packages/sdk-browser/src/backend/autonomous/residency.ts';
+import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
 import { mesure, rapport, stress } from '../../core/index.ts';
 import { boites, camera, type SceneBox } from './support/scenes.ts';
 import { pageRecFixture } from './support/pageRecFixture.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 const cam = camera(6, 0.1, 16 / 9);
 const clip = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
@@ -102,7 +102,7 @@ const grandHote = hote(15000),
 
 const residenceResult = await mesure({
   name: 'collectPendingUrls',
-  fichier: 'packages/sdk-browser/pageSelectionRequests.ts',
+  fichier: 'packages/sdk-browser/src/page/selection/requests.ts',
   cas: [
     { name: '15k pages', input: grandHote, size: 15000 },
     { name: 'no pages', input: hoteVide, size: 0 },

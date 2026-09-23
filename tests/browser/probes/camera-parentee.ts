@@ -22,7 +22,7 @@ import {
 } from './cameraRig.ts';
 import { SITES, residuRepereDeRendu } from './cameraSites.ts';
 import type { Site } from './cameraSitesMoteurs.ts';
-import type { HostCamera } from '../../../packages/sdk-browser/cameraWorld.ts';
+import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 
 const texte = (valeur: unknown): string => JSON.stringify(valeur);
 

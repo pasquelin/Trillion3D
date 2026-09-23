@@ -1,9 +1,9 @@
 import type * as THREE from 'three';
-import type { RenderBackend } from '../../../packages/sdk-browser/backendTypes.ts';
+import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
 import {
   blendFixture,
   camera as fixtureCamera,
-} from '../../../packages/sdk-browser/pageSelectionBlendFixture.ts';
+} from '../../../packages/sdk-browser/src/page/selection/blend.fixture.ts';
 import { mountExplorerProof } from './webglClusterExplorerMount.ts';
 
 /** `RenderBackend` does not declare `selectedPageIds` publicly; the object `exactPagesBackend`

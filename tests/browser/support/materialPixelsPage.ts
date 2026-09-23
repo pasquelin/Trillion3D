@@ -20,8 +20,8 @@ import {
 import type {
   BackendFactory,
   BackendDiagnostic,
-} from '../../../packages/sdk-browser/backendTypes.ts';
-import type * as SdkBrowser from '../../../packages/sdk-browser/measurement.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts';
+import type * as SdkBrowser from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 interface Sides {

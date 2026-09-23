@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts';
 import type { SceneLightStore } from '../../../packages/sdk-core/src/index.ts';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { VIEWPORT, batisseur, carre, cameraFace, libere, engine } from './preuveSceneCommune.ts';
 import { image, jusquaTenue } from './preuveSceneImage.ts';
 import { executerAccumulation } from './preuveAppareil.ts';

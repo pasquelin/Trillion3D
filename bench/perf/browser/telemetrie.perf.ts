@@ -1,8 +1,8 @@
 // Telemetry: frame intervals and hexadecimal digests, against the oracles of before batch A.
 import { frameStatistics } from '../../../packages/sdk-core/src/index.ts';
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
-import { EngineProfiler } from '../../../packages/sdk-browser/telemetry.ts';
-import { toHex } from '../../../packages/sdk-browser/sha256Hex.ts';
+import { EngineProfiler } from '../../../packages/sdk-browser/src/diagnostic/telemetry.ts';
+import { toHex } from '../../../packages/sdk-browser/src/measurement/sha256Hex.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceHex, referenceIntervals } from '../../oracles/browser/telemetrie.ts';
 
@@ -35,7 +35,7 @@ const METRIQUES_VIDES: FrameMetrics = {
 
 const resTelemetry = await mesure({
   name: 'intervals and hexadecimal',
-  fichier: 'packages/sdk-browser/telemetry.ts',
+  fichier: 'packages/sdk-browser/src/diagnostic/telemetry.ts',
   cas: [
     { name: '2 000 frames, 2 000 digests', input: { intervalles, digests }, size: 2000 },
     { name: 'no frames', input: { intervalles: [], digests: [] }, size: 0 },

@@ -11,10 +11,10 @@
 // two copies would be two chances for the probed read to drift from production.
 //
 //   node --experimental-strip-types tests/browser/renders/enroulement-texture-gpu.browser.ts
-import { importHostTexture } from '../../../packages/sdk-browser/hostSurfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { wrapNibble } from '../../../packages/sdk-browser/visibilityWrapModes.ts';
+import { wrapNibble } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 import {
   MODES_GPU,
   octetsTexture,

@@ -7,20 +7,20 @@ import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { PAGE_DECODE_PROTOCOL } from '../../../packages/sdk-core/src/index.ts';
 import type { PageDecodeAnswer, PageDecodeOp } from '../../../packages/sdk-core/src/index.ts';
-import { prepareSdkWasm } from '../../../packages/sdk-browser/geometryPageWasm.ts';
+import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts';
 import { RACINE, ecart, graine, mesure, stress, rapport } from '../../core/index.ts';
 import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.ts';
-import { decodeGeometryPage } from '../../../packages/sdk-browser/geometryPage.ts';
+import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 import {
   decodePageOffThread,
   verifyPageBytes,
-} from '../../../packages/sdk-browser/pageDecodeHost.ts';
-import { restorePageDecode } from '../../../packages/sdk-browser/pageDecodeTask.ts';
-import { sha256Hex } from '../../../packages/sdk-browser/sha256Hex.ts';
+} from '../../../packages/sdk-browser/src/page/decode/host.ts';
+import { restorePageDecode } from '../../../packages/sdk-browser/src/page/decode/task.ts';
+import { sha256Hex } from '../../../packages/sdk-browser/src/measurement/sha256Hex.ts';
 
 const MAX_DECODED_BYTES = 16 * 1024 * 1024;
 const alea = graine(211);
-const MODULE = readFileSync(join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'));
+const MODULE = readFileSync(join(RACINE, 'packages/sdk-browser/src/page/decode/pageCodec.wasm'));
 if (!(await prepareSdkWasm(MODULE))) throw new Error('H2_WASM_ABSENT: run `pnpm run build:wasm`');
 
 async function page(sommets: number) {
@@ -59,13 +59,14 @@ writeFileSync(
   `import { readFileSync } from 'node:fs';\n` +
     `import { parentPort } from 'node:worker_threads';\n` +
     `import { runPageDecodeTask } from ${JSON.stringify(
-      new URL('../../../packages/sdk-browser/pageDecodeTask.ts', import.meta.url).href,
+      new URL('../../../packages/sdk-browser/src/page/decode/task.ts', import.meta.url).href,
     )};\n` +
     `import { prepareSdkWasm } from ${JSON.stringify(
-      new URL('../../../packages/sdk-browser/geometryPageWasm.ts', import.meta.url).href,
+      new URL('../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts', import.meta.url)
+        .href,
     )};\n` +
     `await prepareSdkWasm(readFileSync(${JSON.stringify(
-      join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'),
+      join(RACINE, 'packages/sdk-browser/src/page/decode/pageCodec.wasm'),
     )}));\n` +
     `parentPort.on('message', async (requete) => {\n` +
     `  const { answer, transfer } = await runPageDecodeTask(requete);\n` +
@@ -101,7 +102,7 @@ test('H2: the worker yields the exact same page and bytes as the main thread', a
 
 const resDecode = await mesure({
   name: 'WebAssembly decode contract',
-  fichier: 'packages/sdk-browser/pageDecodeHost.ts',
+  fichier: 'packages/sdk-browser/src/page/decode/host.ts',
   cas: [
     { name: '30 000 vertices, 6 attributes', input: grande, size: 30000 },
     { name: '9 vertices', input: petite, size: 9 },
@@ -113,7 +114,7 @@ const resDecode = await mesure({
 
 const resHash = await mesure({
   name: 'integrity-hash contract',
-  fichier: 'packages/sdk-browser/pageDecodeHost.ts',
+  fichier: 'packages/sdk-browser/src/page/decode/host.ts',
   cas: [
     { name: '30 000 vertices, compressed', input: grande.buffer, size: grande.byteLength },
     { name: '9 vertices', input: petite.buffer, size: petite.byteLength },

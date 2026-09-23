@@ -8,7 +8,7 @@ import { createRendererLessonDeadline } from './rendererLessonDeadline.ts';
 import { createReadyGate } from './rendererLessonReadyGate.ts';
 import { createShadowPageCounter } from './lessonShadowPages.ts';
 import { isDiagnosticMode } from './engine-scene/diagnosticModes.ts';
-import type { Light, World } from '../../packages/sdk-browser/index.ts';
+import type { Light, World } from '../../packages/sdk-browser/src/index.ts';
 import type {
   RendererLessonRuntimeOptions,
   RendererLessonSession,
@@ -26,7 +26,7 @@ export async function createRendererLessonRuntime({
   signal,
 }: RendererLessonRuntimeOptions): Promise<RendererLessonSession> {
   const startup = createRendererLessonDeadline(signal, SETTLE_TIME_LIMIT_MS);
-  const engine: Engine = await import('../../packages/sdk-browser/index.ts');
+  const engine: Engine = await import('../../packages/sdk-browser/src/index.ts');
   let world: World, bounds: Awaited<ReturnType<typeof createLessonWorld>>['bounds'];
   try {
     ({ world, bounds } = await startup.wait(

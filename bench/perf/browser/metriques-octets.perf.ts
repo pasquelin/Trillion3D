@@ -1,11 +1,11 @@
 // Vertex bytes published by metrics().
 import * as THREE from 'three';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
-import { createWebgpuGpuState } from '../../../packages/sdk-browser/webgpuPagesStateGpu.ts';
-import { createWebgpuBlendState } from '../../../packages/sdk-browser/webgpuBlendState.ts';
-import { ensureWebgpuPositionBuffer } from '../../../packages/sdk-browser/webgpuPositions.ts';
-import { prepareWebgpuBlend } from '../../../packages/sdk-browser/webgpuBlendPrepare.ts';
-import { vertexBytesOf } from '../../../packages/sdk-browser/webgpuPagesMetrics.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { createWebgpuGpuState } from '../../../packages/sdk-browser/src/webgpu/pages/state/gpu.ts';
+import { createWebgpuBlendState } from '../../../packages/sdk-browser/src/webgpu/blend/state.ts';
+import { ensureWebgpuPositionBuffer } from '../../../packages/sdk-browser/src/webgpu/core/positions.ts';
+import { prepareWebgpuBlend } from '../../../packages/sdk-browser/src/webgpu/blend/prepare.ts';
+import { vertexBytesOf } from '../../../packages/sdk-browser/src/webgpu/pages/io/metrics.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceVertexBytes } from '../../oracles/browser/metriques-octets.ts';
 
@@ -68,7 +68,7 @@ const petit = etat(2, 1, true, 0x43);
 
 const resOctets = await mesure({
   name: 'vertex bytes of report',
-  fichier: 'packages/sdk-browser/webgpuPagesMetrics.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/pages/io/metrics.ts',
   cas: [
     { name: '400 pages, 200 transparents', input: grand, size: 600 },
     { name: '2 pages, 1 transparent', input: petit, size: 3 },

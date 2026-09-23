@@ -1,7 +1,7 @@
 // Standalone proof of the autonomous transmission pass: what a transmissive scene copy lets
 // through is the engine's own cluster image, opaque and blended, depth-tested both ways.
 import * as THREE from 'three';
-import type { ClusterDrawMesh } from '../../../packages/sdk-browser/clusterBatchMesh.ts';
+import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel, quad } from './webglClusterPixels.ts';
 
 const glassMesh = (options: Partial<THREE.MeshPhysicalMaterialParameters> = {}) => {

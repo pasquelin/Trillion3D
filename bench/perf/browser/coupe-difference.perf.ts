@@ -1,12 +1,18 @@
 // GEO-1: cut readers and budget ranking by delta.
 import * as THREE from 'three';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
-import { RequestStamps, collectPendingUrls } from '../../../packages/sdk-browser/pageSelection.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelection.ts';
-import { createCutDelta, type CutDelta } from '../../../packages/sdk-browser/webgpuCutDelta.ts';
-import { createCutCounts } from '../../../packages/sdk-browser/webgpuCutCounts.ts';
-import { createCutPending } from '../../../packages/sdk-browser/webgpuCutPending.ts';
-import { createBudgetRanking } from '../../../packages/sdk-browser/webgpuBudgetRanking.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import {
+  RequestStamps,
+  collectPendingUrls,
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import {
+  createCutDelta,
+  type CutDelta,
+} from '../../../packages/sdk-browser/src/webgpu/cut/delta.ts';
+import { createCutCounts } from '../../../packages/sdk-browser/src/webgpu/cut/counts.ts';
+import { createCutPending } from '../../../packages/sdk-browser/src/webgpu/cut/pending.ts';
+import { createBudgetRanking } from '../../../packages/sdk-browser/src/webgpu/residency/budgetRanking.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
   createReferenceRanking,
@@ -158,7 +164,7 @@ for (const [regime, images] of regimes) {
   mesuresResultats.push(
     await mesure({
       name: `cut readers ${regime}`,
-      fichier: 'packages/sdk-browser/webgpuCutCounts.ts',
+      fichier: 'packages/sdk-browser/src/webgpu/cut/counts.ts',
       cas: [{ name: `8 frames ${regime}`, input: images, size: COUPE * 8 }],
       calcul: lecteursOptimisee,
       attendu: lecteursReference,
@@ -168,7 +174,7 @@ for (const [regime, images] of regimes) {
   mesuresResultats.push(
     await mesure({
       name: `budget ranking ${regime}`,
-      fichier: 'packages/sdk-browser/webgpuBudgetRanking.ts',
+      fichier: 'packages/sdk-browser/src/webgpu/residency/budgetRanking.ts',
       cas: [{ name: `8 frames budget ${regime}`, input: images, size: COUPE * 8 }],
       calcul: classementOptimisee,
       attendu: classementReference,

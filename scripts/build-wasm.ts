@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Compiles `packages/page-codec-wasm` for `wasm32-unknown-unknown` and deposits the module next to its
-// loader, in `packages/sdk-browser/`. Outside of `pnpm run validate`: the target and LLVM archiver
+// loader, in `packages/sdk-browser/src/page/decode/`. Outside of `pnpm run validate`: the target and LLVM archiver
 // are a local setup (`rustup target add wasm32-unknown-unknown`, `rustup component add
 // llvm-tools`), and a machine without them must still be able to validate the repo. The decoder's
 // golden test runs natively in `pnpm run test:native`.
@@ -12,7 +12,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFESTE = join(RACINE, 'packages', 'page-codec-wasm', 'Cargo.toml');
 const CIBLE = 'wasm32-unknown-unknown';
-const SORTIES = [join(RACINE, 'packages', 'sdk-browser'), join(RACINE, 'dist', 'sdk-browser')];
+const DECODE = join('sdk-browser', 'src', 'page', 'decode');
+const SORTIES = [join(RACINE, 'packages', DECODE), join(RACINE, 'dist', DECODE)];
 const NOM = 'pageCodec.wasm';
 
 function rustc(...args: string[]): string {

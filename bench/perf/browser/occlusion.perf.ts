@@ -1,15 +1,15 @@
 // Sharing occluders and occlusion test of an entire cut.
-import { createHizCounts } from '../../../packages/sdk-browser/hizCounts.ts';
-import { countUnoccluded } from '../../../packages/sdk-browser/hizUnoccluded.ts';
-import { splitOccludersInto } from '../../../packages/sdk-browser/hizSplit.ts';
-import { buildHizPyramid } from '../../../packages/sdk-browser/hizDepth.ts';
+import { createHizCounts } from '../../../packages/sdk-browser/src/hiz/counts.ts';
+import { countUnoccluded } from '../../../packages/sdk-browser/src/hiz/unoccluded.ts';
+import { splitOccludersInto } from '../../../packages/sdk-browser/src/hiz/split.ts';
+import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { boites, camera } from './support/scenes.ts';
 import {
   referenceCountUnoccluded,
   referenceSplitOccluders,
 } from '../../oracles/browser/occlusion.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { SceneBox } from './support/scenes.ts';
 
 const LARGEUR = 640,
@@ -35,7 +35,7 @@ const occluders: SceneBox[] = [],
 
 const resSplit = await mesure({
   name: 'splitOccluders',
-  fichier: 'packages/sdk-browser/hizSplit.ts',
+  fichier: 'packages/sdk-browser/src/hiz/split.ts',
   cas: jeux,
   calcul: (pages) => {
     splitOccludersInto(pages, cameraMoteur(cam), viewport, occluders, rest);
@@ -50,7 +50,7 @@ const resSplit = await mesure({
 
 const resCount = await mesure({
   name: 'countUnoccluded',
-  fichier: 'packages/sdk-browser/hizUnoccluded.ts',
+  fichier: 'packages/sdk-browser/src/hiz/unoccluded.ts',
   cas: jeux,
   calcul: (pages) => {
     const counts = createHizCounts();

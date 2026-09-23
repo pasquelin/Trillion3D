@@ -16,19 +16,19 @@ import {
   createConeContext,
   OPEN_CONE,
   triangleCone,
-} from '../../../packages/sdk-browser/pageCone.ts';
-import { selectVisiblePages } from '../../../packages/sdk-browser/pageSelectionCut.ts';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
+} from '../../../packages/sdk-browser/src/page/cone/cone.ts';
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
   evaluateDagSelectionKernel,
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/gpuDagSelection.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { selectionGpu } from './noyauSelectionGpu.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import type { NormalCone } from '../../../packages/sdk-browser/pageCone.ts';
-import type { PackedDag } from '../../../packages/sdk-browser/gpuDagTypes.ts';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 
 const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
 const indices = [0, 1, 2, 3, 4, 5];

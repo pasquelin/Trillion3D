@@ -20,13 +20,13 @@ export type {
   ReusedFolder,
   TerminalProgress,
   TerminalProgressOptions,
-} from '../sdk-node/contracts.ts';
+} from '../sdk-node/src/compiler/contracts.ts';
 export {
   CANCEL_GRACE_MS,
   COMPILER_LINE_LIMIT,
   resolveCompilerExecutable,
-} from '../sdk-node/compilerProcess.mts';
-export { createBatchProgress, createTerminalProgress } from '../sdk-node/progress.mts';
-export { createCompilationJob, prepare, prepareMany } from '../sdk-node/index.mts';
-export { getSdkProvenance } from '../sdk-node/provenance.mts';
-export { reviewCutouts } from '../sdk-node/cutoutReview.mts';
+} from '../sdk-node/src/compiler/process.mts';
+export { createBatchProgress, createTerminalProgress } from '../sdk-node/src/cli/progress.mts';
+export { createCompilationJob, prepare, prepareMany } from '../sdk-node/src/index.mts';
+export { getSdkProvenance } from '../sdk-node/src/compiler/provenance.mts';
+export { reviewCutouts } from '../sdk-node/src/cutout/review.mts';

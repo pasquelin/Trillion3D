@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {
   NORMAL_TRANSFORM_WGSL,
   STANDARD_LIGHTING_WGSL,
-} from '../../../packages/sdk-browser/standardLighting.ts';
+} from '../../../packages/sdk-browser/src/lighting/standardLighting.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
 import type { CasEclairage, LigneGpu } from './normaleEclairageCas.ts';
 

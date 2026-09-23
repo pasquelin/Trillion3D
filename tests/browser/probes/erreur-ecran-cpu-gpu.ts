@@ -15,16 +15,16 @@ import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
 import {
   cutSelects,
   projectedClusterError,
-} from '../../../packages/sdk-browser/pageSelectionMath.ts';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
+} from '../../../packages/sdk-browser/src/page/selection/math.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
   evaluateDagSelectionKernel,
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/gpuDagSelection.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { selectionGpu } from './noyauSelectionGpu.ts';
 import { lois, xorshift32 } from './tirage.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 
 interface Page {
   url: string;

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { repositoryFiles } from './repository-files.ts';
 
 const unitTest =
-  /^(?:packages\/(?:sdk-core\/src(?:\/[\w-]+)*|sdk-browser|sdk-node)|scripts|bench\/(?:runner(?:\/scenes)?|core)|tests(?:\/integration|\/browser|\/kit\/server)?)\/[^/]+\.test\.ts$/;
+  /^(?:packages\/sdk-(?:core|browser|node)\/src(?:\/[\w-]+)*|scripts|bench\/(?:runner(?:\/scenes)?|core)|tests(?:\/integration|\/browser|\/kit\/server)?)\/[^/]+\.test\.ts$/;
 const found = repositoryFiles();
 if (!found) throw new Error('Not a Git repository.');
 const files = found.filter((file) => unitTest.test(file));

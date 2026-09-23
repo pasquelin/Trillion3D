@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer, serverPort } from '../../kit/server/serveur.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import type { MeasuredWorld } from '../../../packages/sdk-browser/explorer.ts';
+import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 
 // `window.scene` only exists in the page this harness evaluates code in, never in Node; declared
 // here so the `page.evaluate` callbacks below (type-checked, though they run in the browser) see it.

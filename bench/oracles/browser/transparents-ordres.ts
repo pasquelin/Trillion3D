@@ -8,7 +8,7 @@
 // This is the oracle: these copies are wanted duplicates, and the bench compares their
 // output to that of the imported package path.
 import { frustumExcludesBox, matrixWindingCw } from '../../../packages/sdk-core/src/index.ts';
-import type { BlendGpuItem } from '../../../packages/sdk-browser/webgpuBlendState.ts';
+import type { BlendGpuItem } from '../../../packages/sdk-browser/src/webgpu/blend/state.ts';
 
 /** The scene shape both the previous ranking and encode loop read. */
 export interface ReferenceScene {

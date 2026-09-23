@@ -8,9 +8,9 @@
 // module opposes the two truths: the raw one and the engine's, measured in fragments actually
 // covered by rasterisation.
 import * as THREE from 'three';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
-import { windingCw } from '../../../packages/sdk-browser/webgpuPagesWinding.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { windingCw } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 import { camera } from './inverseTransposeCas.ts';
 import type { Cas } from './inverseTransposeCas.ts';
 

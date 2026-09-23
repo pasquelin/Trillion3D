@@ -14,20 +14,23 @@
 // node --experimental-strip-types tests/browser/probes/plancher-erreur-cpu-gpu.ts
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { selectVisiblePages } from '../../../packages/sdk-browser/pageSelectionCut.ts';
-import { cullingBounds } from '../../../packages/sdk-browser/pageSelectionCutBounds.ts';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
+import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
   evaluateDagSelectionKernel,
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/gpuDagSelection.ts';
-import { descenteComptee } from '../../../packages/sdk-browser/gpuDagCutFrontierFixture.ts';
-import { scenePages, sceneRoots } from '../../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { descenteComptee } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontier.fixture.ts';
+import {
+  scenePages,
+  sceneRoots,
+} from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
 import { selectionGpu } from './noyauSelectionGpu.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import type { PackedDag } from '../../../packages/sdk-browser/gpuDagTypes.ts';
-import type { SelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 
 const VIEWPORT: [number, number] = [1280, 720];
 /** Fourth field is the threshold; fifth, the depths at which the pyramid is PLACED. A

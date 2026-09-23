@@ -6,7 +6,7 @@
 // the watch does per frame over the same nodes is measured on its own.
 import * as THREE from 'three';
 import { mesure, rapport } from '../../core/index.ts';
-import { createHostSceneWatch } from '../../../packages/sdk-browser/hostSceneWatch.ts';
+import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts';
 
 const NODES = 20000;
 const GROUPS = 200;
@@ -86,7 +86,10 @@ const options = { chauffe: 5, tours: 40, budgetMs: 4000 };
 
 const walks = await mesure({
   name: 'updateMatrixWorld(true) over hooked nodes',
-  fichier: ['packages/sdk-browser/hostSceneHookCore.ts', 'packages/sdk-browser/hostSceneHooks.ts'],
+  fichier: [
+    'packages/sdk-browser/src/host/scene/hookCore.ts',
+    'packages/sdk-browser/src/host/scene/hooks.ts',
+  ],
   cas: [
     { name: `${NODES} nodes hooked on the prototype`, input: hooked(), size: NODES },
     {
@@ -106,7 +109,10 @@ const written = hooked();
 let frame = 0;
 const reads = await mesure({
   name: 'watch.take() per frame',
-  fichier: ['packages/sdk-browser/hostSceneWatch.ts', 'packages/sdk-browser/hostSceneScan.ts'],
+  fichier: [
+    'packages/sdk-browser/src/host/scene/watch.ts',
+    'packages/sdk-browser/src/host/scene/scan.ts',
+  ],
   cas: [
     { name: `${NODES} nodes, still scene`, input: still, size: NODES },
     { name: `${NODES} nodes, one pose written per frame`, input: written, size: NODES },

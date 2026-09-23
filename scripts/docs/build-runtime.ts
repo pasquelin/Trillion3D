@@ -12,9 +12,9 @@ export async function buildRuntime(root: string, outdir: string) {
   await build({
     absWorkingDir: root,
     entryPoints: {
-      engine: 'packages/sdk-browser/index.ts',
-      pageDecodeWorker: 'packages/sdk-browser/pageDecodeWorker.ts',
-      pageIntegrationWorker: 'packages/sdk-browser/pageIntegrationWorker.ts',
+      engine: 'packages/sdk-browser/src/index.ts',
+      pageDecodeWorker: 'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
+      pageIntegrationWorker: 'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
     },
     outdir,
     bundle: true,
@@ -29,7 +29,7 @@ export async function buildRuntime(root: string, outdir: string) {
     logLevel: 'warning',
   });
   await copyFile(
-    resolve(root, 'packages/sdk-browser/pageCodec.wasm'),
+    resolve(root, 'packages/sdk-browser/src/page/decode/pageCodec.wasm'),
     resolve(outdir, 'pageCodec.wasm'),
   );
 }

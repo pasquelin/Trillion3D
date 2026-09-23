@@ -13,7 +13,7 @@
  * the division then yields nothing.
  *
  * WHERE IT APPLIES. `normalMatrix3` (`matrix3.ts`) on the CPU, `invTranspose3Prep`
- * (`packages/sdk-browser/inverseTransposeWgsl.ts`) on the GPU, which inserts `SINGULAR_DETERMINANT_WGSL`
+ * (`packages/sdk-browser/src/math/inverseTransposeWgsl.ts`) on the GPU, which inserts `SINGULAR_DETERMINANT_WGSL`
  * into its text instead of rewriting the number. Both decide the same thing, each in its
  * precision: the CPU in double, the GPU in single. What a singular matrix BECOMES — the
  * flattened-normal convention — is written once, in `inverseTransposeWgsl.ts`.
@@ -36,7 +36,7 @@ export const SINGULAR_DETERMINANT_WGSL = SINGULAR_DETERMINANT.toExponential();
 /**
  * The SCALE of a linear part: the sum of the absolute values of the nine terms of the 3×3 block of a
  * column-major 4×4. This is the normalisation divisor, and the same sum the conformance
- * test reads (`packages/sdk-browser/pageCone.ts`): one sum, one term order.
+ * test reads (`packages/sdk-browser/src/page/cone/cone.ts`): one sum, one term order.
  */
 export function linearPartScale(m: ArrayLike<number>) {
   return (

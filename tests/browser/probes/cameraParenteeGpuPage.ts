@@ -1,17 +1,17 @@
 // Page side of the GPU reproduction: the engine's real WebGPU selection (`createGpuDagSelection`,
 // its buffers, kernel and readout), fed by the real `cameraSelectionUniforms`.
 // Bundled by esbuild then run in Chromium: nothing is replayed off the GPU.
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
   createGpuDagSelection,
   packDagSelection,
-} from '../../../packages/sdk-browser/gpuDagSelection.ts';
-import { collectClusterPages } from '../../../packages/sdk-browser/pageSelection.ts';
-import { dagFixture } from '../../../packages/sdk-browser/pageSelectionDagFixture.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import { dagFixture } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './cameraRig.ts';
 import { ouvrirAppareil } from './appareilWebgpu.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import type { HostCamera } from '../../../packages/sdk-browser/cameraWorld.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 
 const VIEWPORT: [number, number] = [1280, 720];
 

@@ -1,7 +1,7 @@
 // Page-side kernel of the Hi-Z GPU proof: one `testHiz` dispatch per case, on the real device.
 // Serialized into the page by Playwright's `page.evaluate` (`hiz-webgpu.browser.ts`); it only
 // sees its argument, never the module scope.
-import type { hizBindEntries } from '../../../packages/sdk-browser/gpuHiz.ts';
+import type { hizBindEntries } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts';
 
 export interface HizCaseSample {
   name: string;

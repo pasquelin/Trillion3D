@@ -19,7 +19,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dansPageWebgpu } from './pageWebgpu.ts';
-import { DEPTH_CLEAR, DEPTH_COMPARE } from '../../../packages/sdk-browser/depthConvention.ts';
+import * as depth from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
 
 type LightsFile = { lights?: { emitterRadius?: number; position?: number[] }[] };
 
@@ -166,8 +166,8 @@ const argument = {
   cas,
   size: 64,
   triangle: [-0.8, -0.8, 0.8, -0.8, 0.0, 0.8],
-  depthCompare: DEPTH_COMPARE,
-  depthClear: DEPTH_CLEAR,
+  depthCompare: depth.DEPTH_COMPARE,
+  depthClear: depth.DEPTH_CLEAR,
 };
 const resultat = await dansPageWebgpu(executer, argument, {
   titre: 'WebGeometry spherical exclusion',
@@ -183,17 +183,17 @@ const par = Object.fromEntries(resultat.resultats.map((r) => [r.nom, r]));
 // "a shadow is cast" is read on the MAXIMUM, and "nothing is written" on a map that stayed
 // entirely at the clear value.
 assert.ok(
-  par['diagonale-hors-sphere'].max > DEPTH_CLEAR,
+  par['diagonale-hors-sphere'].max > depth.DEPTH_CLEAR,
   'the diagonal point, outside the sphere, must cast its shadow (depth written)',
 );
 assert.equal(
   par['dans-la-sphere'].min,
-  DEPTH_CLEAR,
+  depth.DEPTH_CLEAR,
   'the point at 0.19 m, inside the sphere, must write nothing',
 );
-assert.equal(par['dans-la-sphere'].max, DEPTH_CLEAR);
+assert.equal(par['dans-la-sphere'].max, depth.DEPTH_CLEAR);
 assert.ok(
-  par['sans-rayon-meme-point'].max > DEPTH_CLEAR,
+  par['sans-rayon-meme-point'].max > depth.DEPTH_CLEAR,
   'a lamp with no radius must exclude nothing, even at the same point',
 );
 

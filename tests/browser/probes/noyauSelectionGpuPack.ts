@@ -1,15 +1,15 @@
 // Packing of a DAG selection case into page-crossable bytes, and the result shapes the WGSL
 // kernel (`noyauSelectionGpu.ts`) reads and returns. Split apart so the kernel file holds
 // `check:lines`.
-import { writeDagUniforms } from '../../../packages/sdk-browser/gpuDagUniforms.ts';
+import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import {
   SELECTION_UNIFORM_BYTES,
   SELECTION_WORKGROUP,
-} from '../../../packages/sdk-browser/gpuSelection.ts';
-import type { SelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
-import { FRAME_VEC4 } from '../../../packages/sdk-browser/gpuDagTypes.ts';
-import type { PackedDag } from '../../../packages/sdk-browser/gpuDagTypes.ts';
-import { dagWorkLayout } from '../../../packages/sdk-browser/gpuDagFloorWgsl.ts';
+} from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { FRAME_VEC4 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
 
 const octets = (vue: ArrayBufferView): number[] =>
   Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));

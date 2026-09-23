@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { WebglClusterRenderer } from '../../../packages/sdk-browser/webglClusterRenderer.ts';
+import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
 import {
   createHostDrawCamera,
   readHostDrawCamera,
-} from '../../../packages/sdk-browser/cameraWorld.ts';
+} from '../../../packages/sdk-browser/src/camera/world.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 
 const p50 = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];

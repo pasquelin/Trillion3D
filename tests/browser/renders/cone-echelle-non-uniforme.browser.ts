@@ -7,15 +7,15 @@
 // node --experimental-strip-types tests/browser/renders/cone-echelle-non-uniforme.browser.ts
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { OPEN_CONE, triangleCone } from '../../../packages/sdk-browser/pageCone.ts';
+import { OPEN_CONE, triangleCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import {
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/gpuDagSelection.ts';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import type { DagRoot } from '../../../packages/sdk-browser/gpuDagTypes.ts';
-import type { NormalCone } from '../../../packages/sdk-browser/pageCone.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import { selectionGpu } from '../probes/noyauSelectionGpu.ts';
 
 const VIEWPORT: [number, number] = [1000, 1000];

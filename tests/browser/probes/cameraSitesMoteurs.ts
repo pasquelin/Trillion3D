@@ -2,23 +2,26 @@
 // decided. WebGPU runs on the tests' fake device: every buffer write is recorded (view, blend,
 // light and shadow uniforms included), with no GPU.
 import { createHash } from 'node:crypto';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
-import { exactPagesBackend } from '../../../packages/sdk-browser/exactPagesBackend.ts';
-import { threeLodBackend } from '../../../packages/sdk-browser/threeLod.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
+import { exactPagesBackend } from '../../../packages/sdk-browser/src/backend/exact/backend.ts';
+import { threeLodBackend } from '../../../packages/sdk-browser/src/host/three/lod.ts';
 import { installGpuGlobals } from '../../kit/gpu/globals.ts';
 import { mockGpu } from '../../kit/gpu/mockGpu.ts';
 import {
   camera as principale,
   quadScene,
-} from '../../../packages/sdk-browser/webgpuPagesTestScenes.ts';
-import { DAG, dagLevel } from '../../../packages/sdk-browser/pagesBackendFixture.ts';
+} from '../../../packages/sdk-browser/src/webgpu/pages/testScenes.fixture.ts';
+import { DAG, dagLevel } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
 import {
   fanScene,
   quadCluster,
   quadRootsContext,
-} from '../../../packages/sdk-browser/pagesBackendScenes.ts';
-import type { HostCamera } from '../../../packages/sdk-browser/cameraWorld.ts';
-import type { BackendContext, RenderBackend } from '../../../packages/sdk-browser/backendTypes.ts';
+} from '../../../packages/sdk-browser/src/backend/pagesBackendScenes.fixture.ts';
+import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
+import type {
+  BackendContext,
+  RenderBackend,
+} from '../../../packages/sdk-browser/src/backend/types.ts';
 import type { ClusterManifest } from '../../../packages/sdk-core/src/index.ts';
 
 /** The fan's manifest without its primitives: same shape as `QUAD_MANIFEST`

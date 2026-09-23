@@ -3,16 +3,16 @@
 // is handed — the scene the witness adapter draws after the owner, where what the engine owns
 // must never appear.
 import type * as THREE from 'three';
-import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';
-import { exactPagesBackend } from '../../../packages/sdk-browser/exactPagesBackend.ts';
-import { createFrameComposer } from '../../../packages/sdk-browser/explorerCompose.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
+import { exactPagesBackend } from '../../../packages/sdk-browser/src/backend/exact/backend.ts';
+import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
 import {
   bindWebglTarget,
   createWebglRenderTarget,
-} from '../../../packages/sdk-browser/webglRenderTarget.ts';
+} from '../../../packages/sdk-browser/src/webgl/core/renderTarget.ts';
 import { pixel } from './webglClusterPixels.ts';
-import type { BackendContext } from '../../../packages/sdk-browser/backendTypes.ts';
-import type { HostCamera } from '../../../packages/sdk-browser/cameraWorld.ts';
+import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
+import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 
 /** The prepared-scene fields every explorer proof's fixture shares. */
 type ExplorerScene = Pick<BackendContext, 'source' | 'metadata' | 'indices' | 'associations'>;
