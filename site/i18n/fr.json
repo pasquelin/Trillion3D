@@ -459,7 +459,7 @@
           "<code>world.camera.position.set(x, y, z)</code> place l’œil ; <code>world.camera.lookAt(x, y, z)</code> le tourne vers un point.",
           "Un <em>contrôleur</em> transforme la souris, les doigts et le clavier en mouvements de caméra. Choisissez-le en créant le monde : <code>createWorld('view', { controls: 'orbit' })</code>.",
           "<code>'orbit'</code> tourne autour d’un point : glissez pour tourner, glissez avec le bouton droit pour décaler, la molette pour zoomer. <code>world.controls.target</code> est ce point.",
-          "Il y en a d’autres : <code>'fly'</code> (touches W A S D, voir <a href=\"#/fr/examples/fly-over-a-model-town\">Un chasseur dans le canyon</a>), <code>'firstPerson'</code> (marcher, voir <a href=\"#/fr/examples/walk-through-a-temple\">Parkour dans un temple</a>), <code>'trackball'</code>, <code>'panZoom'</code> pour une carte à plat, et <code>'none'</code> quand votre code bouge la caméra lui-même.",
+          "Il y en a d’autres : <code>'fly'</code> (touches W A S D, voir <a href=\"#/fr/examples/fly-over-a-model-town\">Un chasseur dans le canyon</a>), <code>'character'</code> (courir et sauter, en se cognant aux murs, voir <a href=\"#/fr/examples/walk-through-a-temple\">Parkour dans un temple</a>), <code>'firstPerson'</code> (marcher à travers tout), <code>'trackball'</code>, <code>'panZoom'</code> pour une carte à plat, et <code>'none'</code> quand votre code bouge la caméra lui-même.",
           "Changez à tout moment : <code>world.controls.kind = 'fly'</code>."
         ],
         "tryIt": "Glissez pour tourner autour de l’horloge, et zoomez à la molette sur les dents des engrenages."
