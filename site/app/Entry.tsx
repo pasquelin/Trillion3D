@@ -4,7 +4,7 @@ import { demoFor } from '../demos/registry.ts';
 import { ApiDemo } from './ApiDemo.tsx';
 import { DocPage } from './layout/DocPage.tsx';
 import { Collapse } from './ui/Collapse.tsx';
-import { summaryOf } from './layout/menus.ts';
+import { entrySummary } from '../content/model.ts';
 import { LEARN_SECTIONS } from './portal/routes.ts';
 import { CodeBlock } from './ui/CodeBlock.tsx';
 import { Card } from './ui/Card.tsx';
@@ -46,7 +46,7 @@ function Details({ rest, html }: { rest: string; html?: string }) {
  */
 export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: Locale }) {
   const demo = demoFor(entry.id);
-  const summary = summaryOf(entry.description);
+  const summary = entrySummary(entry);
   const rest = entry.description.slice(summary.length).trim();
   const guide = LEARN_SECTIONS.includes(entry.section);
   const details = <Details rest={rest} html={entry.html} />;
