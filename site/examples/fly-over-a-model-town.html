@@ -1047,25 +1047,25 @@
       );
       stats(world, 'top-left');
 
-      // THE STEP. The world steps its controller just before it draws; the flight rides that
-      // very step, so the jet, the cockpit, the camera and the display are placed on the pose
-      // about to be drawn, never a frame late. The controller integrates the jet's pose, then
+      // THE STEP. The flight takes the controller's step from the world and runs it just before
+      // the frame is drawn, so the jet, the cockpit, the camera and the display are placed on the
+      // pose about to be drawn, never a frame late. The controller integrates the jet's pose, then
       // the camera is moved to the view.
-      const integrate = world.controls.update;
-      world.controls.update = (delta) => {
+      world.controls.autoUpdate = false;
+      world.beforeFrame(({ delta }) => {
         const dt = Math.min(delta, 0.05);
-        if (!game.running) return integrate.call(world.controls, delta);
+        if (!game.running) return world.controls.update(delta);
         time += dt;
         pilot.freeLook = pilot.keys.has('KeyV');
         if (phase === 'flying') {
-          const from = advance(S, (step) => integrate.call(world.controls, step), world.controls, camera, pilot, dt, ground);
+          const from = advance(S, (step) => world.controls.update(step), world.controls, camera, pilot, dt, ground);
           if (S.crashed) [phase, crashTime] = ['crashed', 0];
           else if (from) flyThrough(from);
           airborne ||= !S.onGround;
         } else if ((crashTime += dt) > 1.6) respawn();
         if (airborne && finished === null) elapsed += dt;
         present(dt);
-      };
+      });
       world.onFrame(() => game.running && world.invalidate());
 
       // Everything the step shows: the jet and its surfaces, the cockpit and its screens, the
