@@ -2042,8 +2042,7 @@
         "fr": "Créer et libérer"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/create-and-dispose.html"
     },
     {
       "id": "no-hitch-on-first-draw",
@@ -2052,8 +2051,7 @@
         "fr": "Pas d’à-coup au 1er rendu"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/no-hitch-on-first-draw.html"
     },
     {
       "id": "inside-the-g-buffer",
@@ -2062,8 +2060,7 @@
         "fr": "Dans le G-buffer"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/inside-the-g-buffer.html"
     },
     {
       "id": "reading-pixels-back",
@@ -2072,8 +2069,7 @@
         "fr": "Relire les pixels"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/reading-pixels-back.html"
     },
     {
       "id": "a-city-from-3d-tiles",
@@ -2110,8 +2106,7 @@
         "fr": "Dans un panorama"
       },
       "theme": "environment",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/inside-a-panorama.html"
     },
     {
       "id": "a-video-panorama",
