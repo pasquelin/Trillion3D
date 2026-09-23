@@ -22,11 +22,11 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#efc493');
-      const random = ((state) => () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296)(17);
+      const random = seeded(17);
 
       // The valley: a meadow, a service road, hills round the horizon and trees along the edge.
       const paint = (color, roughness = 0.8, metalness = 0) => material.meshStandard({ color, roughness, metalness });
