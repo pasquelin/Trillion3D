@@ -27,7 +27,8 @@
   },
   "home": {
     "title": "Riesige 3D-Welten im Browser streamen",
-    "start": "Kurs starten"
+    "start": "Kurs starten",
+    "editor": "Open the scene editor"
   },
   "examples": {
     "lead": "Jedes Beispiel ist eine kurze Datei: sieh es dir laufen an, öffne den Code, verändere ihn.",

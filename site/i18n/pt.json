@@ -27,7 +27,8 @@
   },
   "home": {
     "title": "Transmita mundos 3D enormes no navegador",
-    "start": "Começar o curso"
+    "start": "Começar o curso",
+    "editor": "Open the scene editor"
   },
   "examples": {
     "lead": "Cada exemplo é um arquivo curto: veja-o rodando, abra o código, mude-o.",

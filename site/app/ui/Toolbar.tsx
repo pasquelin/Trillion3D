@@ -3,14 +3,17 @@ import { Button } from './Button.tsx';
 
 /**
  * A tool page's bar: a band of its own surface the whole width of the page, right under the
- * header, its menus and tools wrapping on narrow screens.
+ * header, its menus and tools wrapping on narrow screens. `base-300`, the step furthest from the
+ * page's own `base-100`, keeps the band reading apart from the content under it in both themes;
+ * the border is a `base-content` tint rather than another base shade, which would fade into the
+ * band's own fill.
  */
 export function Toolbar({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div
       role="toolbar"
       aria-label={label}
-      className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-base-300 bg-base-200 px-2 py-1 sm:px-4"
+      className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-base-content/10 bg-base-300 px-2 py-1 sm:px-4"
     >
       {children}
     </div>
@@ -19,7 +22,7 @@ export function Toolbar({ label, children }: { label: string; children: ReactNod
 
 /** A thin rule between two groups of a toolbar. */
 export function ToolbarDivider() {
-  return <span aria-hidden="true" className="hidden h-6 w-px bg-base-300 sm:block" />;
+  return <span aria-hidden="true" className="hidden h-6 w-px bg-base-content/15 sm:block" />;
 }
 
 interface SegmentedProps<T extends string> {
@@ -37,13 +40,13 @@ export function Segmented<T extends string>({
   label,
 }: SegmentedProps<T>) {
   return (
-    <div className="join" role="group" aria-label={label}>
+    <div className="join h-8" role="group" aria-label={label}>
       {options.map((option) => (
         <Button
           key={option.value}
           size="sm"
           variant={option.value === value ? 'primary' : 'ghost'}
-          className="join-item"
+          className="join-item h-full"
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
         >
