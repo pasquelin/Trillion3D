@@ -1979,6 +1979,15 @@
       "file": "examples/save-the-scene.html"
     },
     {
+      "id": "openworld",
+      "title": {
+        "en": "Open world",
+        "fr": "Monde ouvert"
+      },
+      "theme": "streaming",
+      "file": "examples/openworld.html"
+    },
+    {
       "id": "see-the-triangles",
       "title": {
         "en": "See the triangles",
