@@ -131,10 +131,15 @@ export function createCharacterCameraControls(
   };
   const head = createHead(pose, surface, base, api);
   let jumpHeld = false;
-  const keys = trackKeys(surface, base, () => {
-    if (keys.has(JUMP) && !jumpHeld) body.pressJump();
-    jumpHeld = keys.has(JUMP);
-    base.emit();
-  });
+  const keys = trackKeys(
+    surface,
+    base,
+    () => {
+      if (keys.has(JUMP) && !jumpHeld) body.pressJump();
+      jumpHeld = keys.has(JUMP);
+      base.emit();
+    },
+    [STRAFE, ADVANCE, [SPRINT, [JUMP]]],
+  );
   return api;
 }
