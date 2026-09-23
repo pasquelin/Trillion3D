@@ -1,7 +1,7 @@
 //! `ma` (Maya ASCII) scene driver: a MEL command file becomes an intermediate glTF scene.
 //! **No command is executed**: the file is read as data.
 //!
-//! **Provenance and licence, written here as in `FORMATS.md`.** This reader is written in this
+//! **Provenance and licence, written here as in `docs/COMPILER.md` § "Input formats".** This reader is written in this
 //! repository from Autodesk's public documentation: the form of a `.ma` — a sequence of MEL
 //! commands ended by `;` —, the commands `requires`, `currentUnit`, `createNode`, `setAttr`,
 //! `connectAttr`, `parent` and `fileInfo`, and the attribute names of `transform`, `mesh`,
