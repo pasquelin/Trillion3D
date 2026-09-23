@@ -1,3 +1,4 @@
+import { useWords, wordsOf } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
 import { local } from '../../content/locale.ts';
 import type {
@@ -12,11 +13,11 @@ import { Button } from '../ui/Button.tsx';
 export const controlValue = (
   item: RendererLessonControl,
   state: Record<string, number>,
-  french: boolean,
+  locale: Locale,
 ): string | number => {
   const current = state[item.id] ?? item.value;
   if (item.type === 'boolean')
-    return current === 1 ? (french ? 'Activé' : 'Enabled') : french ? 'Désactivé' : 'Disabled';
+    return wordsOf(locale)(current === 1 ? 'playground.enabled' : 'playground.disabled');
   return Number(current.toFixed(3));
 };
 
@@ -38,7 +39,7 @@ export function RendererControls({
   onReset,
   onSelect,
 }: RendererControlsProps) {
-  const french = locale === 'fr';
+  const t = useWords(locale);
   const controls: LessonControl[] = lesson.controls.map((item): LessonControl => {
     const label = local(item.label, locale);
     if (item.type === 'boolean')
@@ -57,7 +58,7 @@ export function RendererControls({
       kind: 'range',
       id: item.id,
       label,
-      display: controlValue(item, state, french),
+      display: controlValue(item, state, locale),
       min: item.min,
       max: item.max,
       step: item.step,
@@ -72,7 +73,7 @@ export function RendererControls({
       actions={
         lesson.controls.length > 0 && (
           <Button size="sm" variant="outline" onClick={onReset}>
-            {french ? 'Réinitialiser' : 'Reset'}
+            {t('playground.reset')}
           </Button>
         )
       }

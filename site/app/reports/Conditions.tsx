@@ -1,8 +1,10 @@
+import { useWords } from '../i18n.ts';
 import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { reportCopy } from '../../reports/copy.ts';
 import { formatValue } from '../../reports/metrics.ts';
 import type { ReportRecord } from '../../reports/types.ts';
+import type { Dictionary } from '../../content/i18n/languages.inline.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ConditionsProps {
@@ -11,28 +13,29 @@ interface ConditionsProps {
   locale: Locale;
 }
 
-const FIELDS: [string, string, string, string?][] = [
-  ['frames', 'Measured frames', 'Images mesurées', ''],
-  ['warmup', 'Warm-up frames', 'Images de préchauffage', ''],
-  ['movingCamera', 'Moving camera', 'Caméra mobile'],
-  ['sun', 'Sun', 'Soleil'],
-  ['lights', 'Additional lights', 'Lumières supplémentaires', ''],
-  ['lightShadows', 'Shadows enabled', 'Ombres activées'],
-  ['bounce', 'Indirect lighting', 'Éclairage indirect'],
-  ['temporalAntialiasing', 'Temporal antialiasing', 'Anticrénelage temporel'],
-  ['stageProfile', 'Profiling enabled', 'Profilage activé'],
-  ['visible', 'Visible browser window', 'Fenêtre du navigateur visible'],
-  ['shadowBudgetMs', 'Shadow budget', 'Budget des ombres', 'ms'],
-  ['geometryPoolBytes', 'Geometry pool budget', 'Budget du pool géométrique', 'MiB'],
-  ['texturePoolBytes', 'Texture pool budget', 'Budget du pool de textures', 'MiB'],
+/** The settings a reading states, each named by `conditions.<key>`, with its unit. */
+const FIELDS: [keyof Dictionary['conditions'], string?][] = [
+  ['frames', ''],
+  ['warmup', ''],
+  ['movingCamera'],
+  ['sun'],
+  ['lights', ''],
+  ['lightShadows'],
+  ['bounce'],
+  ['temporalAntialiasing'],
+  ['stageProfile'],
+  ['visible'],
+  ['shadowBudgetMs', 'ms'],
+  ['geometryPoolBytes', 'MiB'],
+  ['texturePoolBytes', 'MiB'],
 ];
 
 export function Conditions({ a, b, locale }: ConditionsProps) {
-  const c = reportCopy(locale),
-    fr = locale === 'fr';
+  const c = reportCopy(locale);
+  const t = useWords(locale);
   const value = (record: ReportRecord | null | undefined, key: string, unit?: string) => {
     const raw = record?.settings?.[key];
-    if (typeof raw === 'boolean') return raw ? (fr ? 'Oui' : 'Yes') : fr ? 'Non' : 'No';
+    if (typeof raw === 'boolean') return t(raw ? 'report.yes' : 'report.no');
     if (typeof raw !== 'number') return c.unknown;
     return formatValue(unit === 'MiB' ? raw / 1048576 : raw, locale, unit);
   };
@@ -48,9 +51,9 @@ export function Conditions({ a, b, locale }: ConditionsProps) {
           </tr>
         </thead>
         <tbody>
-          {FIELDS.map(([key, en, translated, unit]) => (
+          {FIELDS.map(([key, unit]) => (
             <tr key={key}>
-              <th scope="row">{fr ? translated : en}</th>
+              <th scope="row">{t(`conditions.${key}`)}</th>
               <td>{value(a, key, unit)}</td>
               {b && <td>{value(b, key, unit)}</td>}
             </tr>

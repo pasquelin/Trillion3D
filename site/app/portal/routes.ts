@@ -1,3 +1,4 @@
+import { DEFAULT_LANGUAGE, isLanguage } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { PortalEntry } from '../../content/model.ts';
 
@@ -57,10 +58,9 @@ export const navLinks = (route: PortalRoute) =>
  * Reads `#/<locale>/<area>/<id>`. A hash without a locale opens the home page in
  * `fallbackLocale`; an unknown area keeps its whole path as the id, which then resolves to no page.
  */
-export function parseRoute(hash: string, fallbackLocale: Locale = 'en'): PortalRoute {
+export function parseRoute(hash: string, fallbackLocale: Locale = DEFAULT_LANGUAGE): PortalRoute {
   const parts = String(hash).replace(/^#\/?/, '').split('/').filter(Boolean);
-  if (parts[0] !== 'en' && parts[0] !== 'fr')
-    return { locale: fallbackLocale, area: 'learn', id: 'home' };
+  if (!isLanguage(parts[0])) return { locale: fallbackLocale, area: 'learn', id: 'home' };
   const [locale, area] = parts;
   if (!area) return { locale, area: 'learn', id: 'home' };
   if (!isArea(area)) return { locale, area: 'learn', id: decodeId(parts.slice(1).join('/')) };

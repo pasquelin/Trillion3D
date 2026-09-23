@@ -1,3 +1,4 @@
+import { useWords } from '../i18n.ts';
 import { Table } from '../ui/Table.tsx';
 import { formatValue } from '../../reports/metrics.ts';
 import type { CutAnalysis, CutRow } from '../../reports/types.ts';
@@ -9,26 +10,19 @@ interface CutProps {
 }
 
 export function Cut({ analysis, locale }: CutProps) {
+  const t = useWords(locale);
   if (!analysis) return null;
-  const fr = locale === 'fr';
   const tables: [string, CutRow[]][] = [
     ['Primitive', analysis.byPrimitive],
     ['DAG', analysis.byLevel],
   ];
   return (
     <section className="grid min-w-0 grid-cols-1 gap-3">
-      <h3 className="text-lg font-semibold">
-        {fr ? 'Origine des triangles de la capture' : 'Where capture triangles come from'}
-      </h3>
+      <h3 className="text-lg font-semibold">{t('report.cutTitle')}</h3>
       <p>
-        {formatValue(analysis.total, locale)}{' '}
-        {fr ? 'triangles · pages inconnues :' : 'triangles · unknown pages:'} {analysis.unknown}
+        {formatValue(analysis.total, locale)} {t('report.cutUnknown')} {analysis.unknown}
       </p>
-      <p className="text-sm leading-relaxed text-base-content/75">
-        {fr
-          ? 'Coupe de la capture stabilisée ; elle peut différer de la dernière image mesurée en mouvement.'
-          : 'Settled capture cut; it may differ from the last measured moving frame.'}
-      </p>
+      <p className="text-sm leading-relaxed text-base-content/75">{t('report.cutNote')}</p>
       {tables.map(([label, rows]) => (
         <Table key={label}>
           <thead>

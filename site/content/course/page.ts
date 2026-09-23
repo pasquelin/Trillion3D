@@ -1,9 +1,10 @@
 import { CHAPTERS } from './code.ts';
+import { dictionaryOf } from '../i18n/dictionary.ts';
 import type { Locale } from '../locale.ts';
 import type { PortalEntry } from '../model.ts';
 
 /** A chapter's words in one language; `steps` and `tryIt` are HTML fragments. */
-export interface ChapterText {
+interface ChapterText {
   title: string;
   /** The idea in one or two sentences: the first one is the page's lead. */
   description: string;
@@ -12,24 +13,12 @@ export interface ChapterText {
   tryIt: string;
 }
 
-/** The headings every chapter shares, per language. */
-export interface CourseWords {
-  picture: string;
-  steps: string;
-  code: string;
-  tryIt: string;
-  open: string;
-  next: string;
-  end: string;
-}
-
-/** The nine chapters, in order, as Learn entries in one language. */
-export function courseEntries(
-  texts: Record<string, ChapterText>,
-  words: CourseWords,
-  locale: Locale,
-): PortalEntry[] {
-  return CHAPTERS.map(({ id }, index) => {
+/** The nine chapters, in order, as Learn entries in `locale`: the words are the language's
+ *  `course`, the example and the code are the chapter's own. */
+export function courseEntries(locale: Locale): PortalEntry[] {
+  const { words, chapters } = dictionaryOf(locale).course;
+  const texts: Record<string, ChapterText> = chapters;
+  return CHAPTERS.map(({ id, example, code }, index) => {
     const text = texts[id];
     const following = CHAPTERS[index + 1];
     const next = following
@@ -44,14 +33,7 @@ export function courseEntries(
       kind: 'Chapter',
       title: `${index + 1}. ${text.title}`,
       description: text.description,
-      chapter: {
-        example: CHAPTERS[index].example,
-        code: CHAPTERS[index].code,
-        steps: text.steps,
-        tryIt: text.tryIt,
-        next,
-        words,
-      },
+      chapter: { example, code, steps: text.steps, tryIt: text.tryIt, next, words },
     };
   });
 }

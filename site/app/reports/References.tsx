@@ -1,3 +1,4 @@
+import { useWords } from '../i18n.ts';
 import { Table } from '../ui/Table.tsx';
 import { Card } from '../ui/Card.tsx';
 import { reportCopy } from '../../reports/copy.ts';
@@ -8,22 +9,17 @@ interface ReferencesProps {
 }
 
 export function References({ locale }: ReferencesProps) {
-  const c = reportCopy(locale),
-    fr = locale === 'fr';
+  const c = reportCopy(locale);
+  const t = useWords(locale);
   const rows = [
-    [fr ? 'Triangles par grappe' : 'Triangles per cluster', '128'],
-    [fr ? 'Grappes par groupe' : 'Clusters per group', '8–32'],
-    [fr ? 'Page de streaming' : 'Streaming page', '128 KiB'],
-    [
-      fr
-        ? 'Pool géométrique par défaut (source secondaire)'
-        : 'Default geometry pool (secondary source)',
-      '512 MB',
-    ],
-    [fr ? 'Format en mémoire par triangle' : 'Memory format per triangle', '8.7 B'],
-    [fr ? 'Visibilité GPU, démonstration PS5' : 'GPU visibility, PS5 demo', '2.5 ms'],
-    [fr ? 'Matériaux GPU, démonstration PS5' : 'GPU materials, PS5 demo', '2.084 ms'],
-    [fr ? 'CPU, démonstration PS5' : 'CPU, PS5 demo', '0.05 ms'],
+    [t('references.clusterTriangles'), '128'],
+    [t('references.groupClusters'), '8–32'],
+    [t('references.streamingPage'), '128 KiB'],
+    [t('references.geometryPool'), '512 MB'],
+    [t('references.triangleFormat'), '8.7 B'],
+    [t('references.gpuVisibility'), '2.5 ms'],
+    [t('references.gpuMaterials'), '2.084 ms'],
+    [t('references.cpu'), '0.05 ms'],
   ];
   return (
     <Card id="report-references" title={c.references}>

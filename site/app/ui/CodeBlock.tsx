@@ -1,4 +1,5 @@
 import { Fragment, useMemo } from 'react';
+import { useWords } from '../i18n.ts';
 import { highlightLines } from './highlightLines.ts';
 import { CodeSurface } from './CodeSurface.tsx';
 import type { CodeLanguage } from './highlighter.ts';
@@ -16,7 +17,8 @@ interface CodeBlockProps {
 }
 
 export function CodeBlock({ code, locale = 'en', label, language, gaps, whole }: CodeBlockProps) {
-  const title = label ?? (locale === 'fr' ? 'Code exécutable' : 'Runnable code');
+  const t = useWords(locale);
+  const title = label ?? t('code.runnable');
   const lines = useMemo(() => highlightLines(code, language), [code, language]);
   return (
     <CodeSurface code={code} locale={locale} title={title}>
