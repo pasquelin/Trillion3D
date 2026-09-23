@@ -37,7 +37,7 @@ test('a saved scene is read back into the same scene, models by address', async 
   lamp.target.position.set(0, -1, 0);
   const model = await scene.load('https://example.test/model/manifest.json');
   model.position.set(0, 0, -5);
-  scene.add(group, lamp, helper.grid(), helper.box(box));
+  scene.add(group, lamp, helper.grid(), helper.box(box.geometry.computeBoundingBox()));
   scene.background = new Color(0x223344);
   const camera = new Camera('perspective', { fov: 40 });
   camera.position.set(4, 5, 6);

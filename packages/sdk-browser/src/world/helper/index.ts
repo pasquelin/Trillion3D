@@ -97,10 +97,13 @@ export const helper = markedFamily({
     for (let r = 1; r <= rings; r++) out.push(...circle((radius * r) / rings, 64));
     return lines(out, color);
   },
-  /** The outline of the box around an object.
-   *  @param target - The object to outline. @param color - Colour of the lines. */
-  box(target: Object3D, color: ColorInput = 0xffff00) {
-    const box = new Box3().setFromObject(target);
+  /** The outline of the box around an object, or of a box itself — a shape's own
+   *  `geometry.boundingBox`, to be posed with its mesh.
+   *  @param target - The object or the box to outline. @param color - Colour of the lines. */
+  box(target: Object3D | Box3, color: ColorInput = 0xffff00) {
+    const box = (target as Box3).isBox3
+      ? (target as Box3)
+      : new Box3().setFromObject(target as Object3D);
     return lines(boxEdges(box.min, box.max), color);
   },
   /** A square outline lying on a plane.
