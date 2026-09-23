@@ -2,6 +2,7 @@ import { DEFAULT_SCOPE, setScreenErrorVariant } from '../../../../sdk-core/src/i
 import type { AssetScope, ClusterManifest, RuntimeEvent } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions } from '../../backend/types.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
+import { watchOpening } from './openWatch.ts';
 
 /** The two observer outlets every explorer module reports through. */
 export type ExplorerEmitters = {
@@ -22,7 +23,8 @@ export type ExplorerSession = ExplorerEmitters & {
   callerOwned?: boolean;
 };
 
-export function createExplorerSession(options: MeasuredWorldOptions) {
+/** The session's outlets; `opening` watches it open under `label` until `opening.done()`. */
+export function createExplorerSession(options: MeasuredWorldOptions, label: string) {
   // EXPERIENCE screen-error variant, set before any selection and before the DAG
   // shader is compiled. A session without the option restores ours: nothing inherits.
   setScreenErrorVariant(options.screenError);
@@ -36,8 +38,11 @@ export function createExplorerSession(options: MeasuredWorldOptions) {
       /* Diagnostic observers cannot interrupt rendering. */
     }
   };
-  const diagnose = (phase: string, message: string, context: Record<string, unknown> = {}) =>
+  const opening = watchOpening(label);
+  const diagnose = (phase: string, message: string, context: Record<string, unknown> = {}) => {
+    opening.note(phase, message);
     diagnosticChannel.emit({ phase, message, context });
+  };
   const preparationStart = performance.now();
   const signal = options.signal;
   const scope = options.scope ?? DEFAULT_SCOPE;
@@ -46,5 +51,5 @@ export function createExplorerSession(options: MeasuredWorldOptions) {
     options.onPreparation?.({ phase, completed, total, message });
     diagnose('preparation', message, { kind: 'preparation', phase, completed, total, scope });
   };
-  return { diagnosticChannel, emit, diagnose, preparationStart, signal, scope, progress };
+  return { diagnosticChannel, emit, diagnose, preparationStart, signal, scope, progress, opening };
 }

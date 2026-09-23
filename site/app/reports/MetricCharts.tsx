@@ -1,8 +1,8 @@
-import { assessment, ASSESSMENT_LABELS, engineTone } from '../../reports/assessment.ts';
+import { useWords } from '../i18n.ts';
+import { assessment, engineTone } from '../../reports/assessment.ts';
 import { engineName } from '../../reports/names.ts';
 import { missingMetric } from '../../reports/availability.ts';
 import { METRICS, metricValue, formatValue } from '../../reports/metrics.ts';
-import { metricLabel } from '../../reports/copy.ts';
 import { recordLabel, runOf } from '../../reports/presentation.ts';
 import { ChartGrid } from '../ui/ChartGrid.tsx';
 import { BarChart } from '../ui/BarChart.tsx';
@@ -33,6 +33,7 @@ export function MetricCharts({
   colorByEngine = false,
   columns = 2,
 }: MetricChartsProps) {
+  const t = useWords(locale);
   const label = (r: ReportRecord) =>
     labelRecord
       ? labelRecord(r)
@@ -49,9 +50,9 @@ export function MetricCharts({
           return (
             <BarChart
               key={key}
-              title={metricLabel(key, locale)}
+              title={t(`report.metrics.${key}`)}
               format={(v) => formatValue(v, locale, METRICS[key].unit)}
-              missingLabel={locale === 'fr' ? 'Non mesuré' : 'Not measured'}
+              missingLabel={t('report.notMeasured')}
               rows={records.map((r) => ({
                 id: colorByEngine
                   ? r.engine
@@ -62,29 +63,26 @@ export function MetricCharts({
                 status:
                   colorByEngine || assessment(r, key).code === 'noTarget'
                     ? null
-                    : ASSESSMENT_LABELS[assessment(r, key).code][locale === 'fr' ? 1 : 0],
+                    : t(`report.assessment.${assessment(r, key).code}`),
               }))}
             />
           );
         })}
       </ChartGrid>
       {missing.length > 0 && (
-        <Collapse
-          surface="nested"
-          title={`${locale === 'fr' ? 'Mesures manquantes' : 'Missing measurements'} · ${missing.length}`}
-        >
+        <Collapse surface="nested" title={`${t('report.missing')} · ${missing.length}`}>
           <Table>
             <thead>
               <tr>
-                <th scope="col">{locale === 'fr' ? 'Mesure' : 'Measurement'}</th>
-                <th scope="col">{locale === 'fr' ? 'Cas' : 'Case'}</th>
-                <th scope="col">{locale === 'fr' ? 'Explication' : 'Explanation'}</th>
+                <th scope="col">{t('report.measurement')}</th>
+                <th scope="col">{t('report.case')}</th>
+                <th scope="col">{t('report.explanation')}</th>
               </tr>
             </thead>
             <tbody>
               {missing.map(({ key, record }) => (
                 <tr key={`${key}-${record.id}`}>
-                  <th scope="row">{metricLabel(key, locale)}</th>
+                  <th scope="row">{t(`report.metrics.${key}`)}</th>
                   <td>{label(record)}</td>
                   <td>{missingMetric(record, key, locale)}</td>
                 </tr>

@@ -10,14 +10,12 @@ const { NotFound } = (await loadReactComponents('site/app/portal/NotFound.tsx'))
   NotFound: ComponentType<{ locale: Locale }>;
 };
 
-test('missing pages retain localized recovery links and an accessible 3D illustration', () => {
+test('missing pages keep localized recovery links and mount no canvas', () => {
   for (const locale of ['en', 'fr'] as const) {
     const html = renderToStaticMarkup(createElement(NotFound, { locale }));
     assert.match(html, /<h1[^>]*>/);
     assert.ok(html.includes(`href="#/${locale}/learn/home"`));
     assert.ok(html.includes(`href="#/${locale}/examples"`));
-    assert.match(html, /<canvas[^>]*aria-label=/);
-    assert.match(html, /data-geometry-fps/);
-    assert.match(html, /aria-pressed="false"/);
+    assert.doesNotMatch(html, /<canvas/);
   }
 });

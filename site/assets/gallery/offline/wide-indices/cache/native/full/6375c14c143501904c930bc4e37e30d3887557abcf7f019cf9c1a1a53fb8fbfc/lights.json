@@ -1,1 +1,0 @@
-{"count":1,"counts":{},"lights":[{"castsShadow":true,"color":[1.0,0.95,0.88],"direction":[-0.0,-0.7071067811865476,-0.7071067811865475],"id":"Authoring-light","intensity":3.513909224011713,"kind":"directional"}],"rejected":{},"sceneLightVersion":2,"units":{"lumensPerWatt":683.0,"maxRange":10000.0,"rangeCutoffIrradiance":0.01},"version":1}
