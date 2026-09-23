@@ -16,7 +16,7 @@ export const SHAPES = {
   torus: ['radius', 'tube', 'radialSegments', 'tubularSegments', 'arc'],
   plane: ['width', 'height', 'widthSegments', 'heightSegments'],
 } as const;
-export type Shape = keyof typeof SHAPES;
+type Shape = keyof typeof SHAPES;
 export const LIGHTS = ['point', 'spot', 'directional', 'ambient'] as const;
 type LightKind = (typeof LIGHTS)[number];
 export type AddKind = Shape | LightKind | 'group';
@@ -45,8 +45,7 @@ export const shapeBuilder = (engine: Engine, type: string) =>
 
 export const isMesh = (node: Object3D): node is Mesh => (node as Mesh).isMesh === true;
 export const isLight = (node: Object3D): node is Light => (node as Light).isLight === true;
-export const isModel = (node: Object3D) =>
-  (node as { isLoadedModel?: boolean }).isLoadedModel === true;
+const isModel = (node: Object3D) => (node as { isLoadedModel?: boolean }).isLoadedModel === true;
 /** The one material of a mesh the inspector edits; a mesh wearing one per group has none. */
 export const materialOf = (node: Object3D) =>
   isMesh(node) && !Array.isArray(node.material) ? (node.material as Material) : null;

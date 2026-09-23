@@ -11371,12 +11371,12 @@
       },
       {
         "name": "position",
-        "type": "Numbers",
+        "type": "number[]",
         "desc": "Where the eye stands."
       },
       {
         "name": "quaternion",
-        "type": "Numbers",
+        "type": "number[]",
         "desc": "How the eye is turned."
       },
       {
@@ -11465,17 +11465,17 @@
       },
       {
         "name": "position",
-        "type": "Numbers",
+        "type": "number[]",
         "desc": "Where it stands, from its parent."
       },
       {
         "name": "quaternion",
-        "type": "Numbers",
+        "type": "number[]",
         "desc": "How it is turned, as a quaternion."
       },
       {
         "name": "scale",
-        "type": "Numbers",
+        "type": "number[]",
         "desc": "How it is stretched on each axis."
       },
       {
@@ -11515,7 +11515,7 @@
       },
       {
         "name": "light?",
-        "type": "{ kind: string; color: Triple; groundColor: Triple; values: Record<string, number>; target: Triple; sh: number[] | null; } | undefined",
+        "type": "{ kind: string; color: [number, number, number]; groundColor: [number, number, number]; values: Record<string, number>; target: [number, number, number]; sh:...",
         "desc": "A light's kind, colours, numbers, aim and probe coefficients."
       },
       {
@@ -11548,12 +11548,12 @@
       },
       {
         "name": "background",
-        "type": "Triple | null",
+        "type": "[number, number, number] | null",
         "desc": "The background colour, or `null`."
       },
       {
         "name": "fog",
-        "type": "{ color: Triple; near: number; far: number; } | null",
+        "type": "{ color: [number, number, number]; near: number; far: number; } | null",
         "desc": "The fog, or `null`."
       },
       {
