@@ -30,7 +30,8 @@
   "examples": {
     "lead": "每个示例都只是一个简短的文件:看它运行,打开它的代码,动手改一改。",
     "inProgress": "制作中",
-    "waitsFor": "等待引擎:"
+    "waitsFor": "等待引擎:",
+    "waitingEngine": "正在等待引擎"
   },
   "api": {
     "title": "引擎参考手册",
@@ -591,10 +592,7 @@
     },
     "ScreenErrorVariant": {
       "description": "裁切时用来和阈值比较的,是簇误差的哪一种投影方式。这是整个页面共享的模块级状态,由 CPU 侧的指标读取,并在着色器编译时内联进选择着色器;基准测试的两侧各自运行在自己的页面上。公式的公开出处:Karis、Stubbe 与 Wihlidal,SIGGRAPH 2021,《Advances in Real-Time Rendering in Games》。",
-      "values": [
-        "我们这边(默认):一个绝不会低估误差的上界。",
-        "公开发表的公式,用于对比基准测试。"
-      ]
+      "values": ["我们这边(默认):一个绝不会低估误差的上界。", "公开发表的公式,用于对比基准测试。"]
     },
     "MathPathMode": {
       "description": "一个批处理运行在哪条路径上。`auto` 通过实测来裁定:调度器在每一侧都维护一个「每元素耗费纳秒数」的滑动中位数,并在连续多次执行都保持领先后才切换路径,JS 始终是基准,也是后备方案。`MATH_PATH_CONTRACT` 管理公开报告的版本号。",
