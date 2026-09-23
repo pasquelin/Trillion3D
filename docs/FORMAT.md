@@ -1,6 +1,6 @@
 # Cache formats 5 and 6 — produced and read by the SDK
 
-This is the on-disk contract implemented today. Design documents under
+This is the on-disk contract implemented today: what the compiler writes and the SDK reads.
 
 ## Layout
 
@@ -17,7 +17,7 @@ Every served object carries the `.bin` extension and every object name is the SH
 ```json
 {
   "status": "ready",
-  "formatVersion": 1,
+  "formatVersion": 5,
   "compiler": "native-rust",
   "key": "<cache-key>",
   "scope": "slice",
@@ -78,7 +78,7 @@ Level 0 partitions the source triangles into clusters of at most 128 triangles, 
 
 Static BLEND geometry joins the DAG on the same terms as opaque geometry but keeps its transparent forward pass, original material flags, vertex attributes and source mesh sorting; `start` restores the source draw order that spatial clustering would otherwise scramble. Simplification changes indices only: it keeps existing vertices and locks every vertex shared with another group, so group borders stay watertight. A group that cannot be reduced keeps its children. The positional error does not bound texture-alpha or compositing error: `pixelError=0` is the exact-geometry comparison, and nonzero error settings require a visual check. Transmission remains unsplit because its refraction semantics are separate from alpha blending.
 
-The current reader explicitly accepts cache formats 1 and 2 and rejects unknown versions. Format 2 is required for `clustered-blend`: older SDK readers reject it instead of treating transparent pages as opaque. Both the pointer and the metadata advertise version 2. Source manifests and historical caches keep version 1; they do not require migration. `FORMAT_VERSION=1` remains the source/base format, while `CLUSTERED_BLEND_FORMAT_VERSION=2` identifies the newer cache semantics. SDK, compiler and cache versions are independent; the compiler fingerprint additionally changes the cache key.
+The reader accepts cache formats 5 and 6 and rejects every other version. Format 6 is required for `clustered-blend`, so an older reader rejects it instead of treating transparent pages as opaque; every other cache is format 5 (`FORMAT_VERSION`, `CLUSTERED_BLEND_FORMAT_VERSION`). SDK, compiler and cache versions are independent; the compiler fingerprint additionally changes the cache key.
 
 The compiler validates selected accessors against their own `bufferView` length, including stride and sparse index/value ranges, before publishing a ready pointer. Sparse indices must be strictly increasing and within the accessor count. The Rust fingerprint includes its source modules, `Cargo.toml` and `Cargo.lock` at build time. Source JSON, declared sidecars, geometry bytes, compilation options and the error-model identity also participate in the cache key. Changes create a new key and leave source assets untouched. External image bytes referred to by URI are not embedded in the manifest or included in this geometry key — their SHA-256 is, and the baked levels under `native/textures/` are addressed by it; hosts own their resource identity.
 
@@ -86,7 +86,7 @@ The compiler validates selected accessors against their own `bufferView` length,
 
 Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
 
-Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what the Three-based autonomous backend holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 2. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 7 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
+Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 2. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 7 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
 
 #### Quantized cluster page (`WGP3`)
 
@@ -166,14 +166,6 @@ opened half way.
 ## Source glTF
 
 The compiler writes a compacted `source.gltf` + `source.bin` for the selected nodes. Relative image URIs are rewritten against the host `resourceBaseUrl`. `images` may be omitted. Images that use `bufferView` (no `uri`) keep their view; the view is copied into `source.bin`. Sparse accessors (`accessor.sparse`) are decoded and their bufferViews are compacted and remapped. Skinned meshes (`skin`, `JOINTS_0`, `WEIGHTS_0`), morph targets (`targets`), and animations are preserved in `source.gltf` and routed to the `shared-blend` reference pass.
-
-## Visibility Buffer Shading
-
-The WebGPU visibility path reconstructs material surfaces, then shades them with its deferred lighting pass. It does not implement specular environment-map IBL or complete glTF material parity. The CPU shading oracle and WGSL path are distinct implementations; exact A/A within one path does not establish parity between them. Compare lossless captures against the Three reference at identical settings before claiming visual fidelity.
-
-## Hi-Z Occlusion Status
-
-The WebGPU renderer runs the published two-phase occlusion design. The main pass draws the rows the previous frame drew that the previous frame's pyramid does not hide — each row's previous-frame rectangle and depth bound are read against that pyramid on the GPU, no reprojection — then a pyramid of farthest depths (reverse-Z minimum) is built from that depth, and the post pass tests the withdrawn and previously rejected rows against it before drawing what survives. CPU and GPU tests choose the first mip whose outward-rounded inclusive footprint fits 16×16 samples; bounds extending outside the target or crossing the near plane are kept. The previous frame's pyramid only chooses the main pass; the current frame's pyramid is the only judge of what is rejected, and it is conservative to the ulp (`tests/browser/renders/conservative-gpu-partition.browser.ts`). A row kept by the test while the view stands still remains in the main pass until the view or a world moves, so a still image converges under the antialiasing jitter and is held. `applyTemporalHiz` is the CPU reference of the WebGL2 path, not proof of GPU parity.
 
 ## Source files
 
