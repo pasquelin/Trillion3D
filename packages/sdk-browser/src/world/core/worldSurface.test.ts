@@ -60,3 +60,48 @@ test('a repaint writes a map’s sampling into the host texture it already holds
   assert.ok(Math.abs(b + 4 * Math.sin(Math.PI / 6)) < 1e-9);
   assert.ok(Math.abs(c - 4 * Math.sin(Math.PI / 6)) < 1e-9);
 });
+
+// #360: a placement alone — repeat, offset, rotation — is the host texture's UV matrix, read at
+// every draw and aliased by its engine record: recomposed in place, it uploads nothing again,
+// where a bumped version would reload the whole image on WebGL2 at every frame of an animated UV.
+test('a repaint that moves a map’s placement alone recomposes its matrix, no upload', () => {
+  const map = new Texture({ width: 2, height: 2 });
+  const paint = material.meshStandard({ map });
+  const surface = hostSurface(paint, false, new Map()) as unknown as Record<string, unknown>;
+  const host = surface.map as HostTexture & { version: number };
+  const record = importHostTexture(host);
+  const version = host.version;
+  map.offset.set(0.25, 0.5);
+  map.rotation = Math.PI / 2;
+  assert.equal(repaintHostSurface(surface as never, paint), true);
+  assert.equal(host.version, version, 'no new upload');
+  assert.equal(importHostTexture(host), record);
+  const [a, , , , , , tx, ty] = record.transform;
+  assert.ok(Math.abs(a) < 1e-9, 'the quarter turn reaches the record');
+  assert.ok(tx !== 0 || ty !== 0, 'the offset reaches the record');
+});
+
+// #360: a repaint writes sampling and values only. A map that shows another picture — image,
+// `flipY`, colour space, UV set — needs a new upload: the repaint is refused, nothing written,
+// and the session reopens rather than draw the old picture without a word.
+test('a repaint is refused when a map shows another picture, and writes nothing', () => {
+  for (const change of [
+    (map: Texture) => (map.image = { width: 4, height: 4 }),
+    (map: Texture) => (map.flipY = false),
+    (map: Texture) => (map.colorSpace = 'linear'),
+    (map: Texture) => (map.channel = 1),
+  ]) {
+    const map = new Texture({ width: 2, height: 2 });
+    const paint = material.meshStandard({ color: 0x808080, map });
+    const surface = hostSurface(paint, false, new Map()) as unknown as Record<string, unknown>;
+    const host = surface.map as HostTexture & { version: number };
+    const version = host.version,
+      surfaceVersion = surface.version;
+    change(map);
+    map.magFilter = 'nearest';
+    paint.color.set(0xff0000);
+    assert.equal(repaintHostSurface(surface as never, paint), false);
+    assert.equal(host.version, version, 'the host texture untouched');
+    assert.equal(surface.version, surfaceVersion, 'the surface untouched');
+  }
+});
