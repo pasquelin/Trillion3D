@@ -1,5 +1,5 @@
 import type { ProfiledWorld } from './profile.ts';
-import { language, lookup } from './words.ts';
+import { kitWord, language } from './words.ts';
 
 /** What the stats corner reads of a frame: the engine's own counters, `null` when not measured. */
 interface FrameCounters {
@@ -108,7 +108,7 @@ export function watchStats(
     const sample: StatsSample = { ...last, fps, held: held && fps !== null, sceneTriangles: null };
     if (last.selectedTriangles == null) sample.sceneTriangles = sceneTriangles(world.scene);
     const lines = [...statLines(sample), ...extra()].map(([label, value]): [string, string] => [
-        lookup(['kit', 'stats', label]) ?? label,
+        kitWord('stats', label, label),
         value,
       ]),
       key = lines.join('\n');

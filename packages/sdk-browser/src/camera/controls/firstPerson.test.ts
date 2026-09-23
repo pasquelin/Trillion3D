@@ -74,7 +74,7 @@ test('first person never captures a locked pointer, and a refused capture or loc
 });
 
 test('a steering key keeps its default action from the page, unless typed into a field', () => {
-  const { surface } = steered(createFirstPersonCameraControls);
+  const { camera, surface, controls } = steered(createFirstPersonCameraControls);
   const kept = (code: string, target: unknown = surface.element) => {
     let prevented = false;
     surface.key('keydown', { code, target, preventDefault: () => (prevented = true) });
@@ -83,7 +83,10 @@ test('a steering key keeps its default action from the page, unless typed into a
   // Space would scroll the page; held, it repeats and is kept from it each time.
   assert.deepEqual([kept('Space'), kept('Space'), kept('KeyW')], [true, true, true]);
   assert.equal(kept('KeyZ'), false); // Not a key this controller steers with.
-  surface.key('keyup', { code: 'KeyW' });
+  for (const code of ['Space', 'KeyW']) surface.key('keyup', { code });
   assert.equal(kept('KeyW', { tagName: 'INPUT' }), false);
   assert.equal(kept('KeyA', { isContentEditable: true }), false);
+  // What is typed into a field is the field's: the camera does not walk.
+  controls.update(1);
+  assert.deepEqual(at(camera), [0, 0, 0]);
 });

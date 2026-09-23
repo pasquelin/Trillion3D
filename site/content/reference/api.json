@@ -10139,12 +10139,12 @@
     "section": "math",
     "kind": "Type",
     "title": "Path",
-    "signature": "class Path extends Curve\nnew Path(points?: (readonly [number, number] | Vec3Input)[]): Path",
+    "signature": "class Path extends Curve\nnew Path(points?: (Vec3Input | readonly [number, number])[]): Path",
     "summary": "Straight segments through every point, parameterised by arc length.",
     "parameters": [
       {
         "name": "points",
-        "type": "(readonly [number, number] | Vec3Input)[]",
+        "type": "(Vec3Input | readonly [number, number])[]",
         "default": "[]",
         "desc": ""
       }
@@ -27871,12 +27871,12 @@
     "section": "math",
     "kind": "Function",
     "title": "math.path()",
-    "signature": "math.path(points: (readonly [number, number] | Vec3Input)[]): Path",
+    "signature": "math.path(points: (Vec3Input | readonly [number, number])[]): Path",
     "summary": "Straight segments through the points, 2D points lying in the `z = 0` plane.",
     "parameters": [
       {
         "name": "points",
-        "type": "(readonly [number, number] | Vec3Input)[]",
+        "type": "(Vec3Input | readonly [number, number])[]",
         "desc": "The corners, 2D or 3D."
       }
     ],

@@ -35,7 +35,7 @@ export function requestedLanguage(url: URL, preferred: readonly string[]): strin
 }
 
 /** The word at `path`, or `undefined` when the dictionary has none there. */
-export function lookup(path: readonly string[]): string | undefined {
+function lookup(path: readonly string[]): string | undefined {
   let node: string | WordTree | undefined = tree;
   for (const part of path) node = typeof node === 'object' ? node[part] : undefined;
   return typeof node === 'string' ? node : undefined;
@@ -53,8 +53,9 @@ export function labelOf(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-/** The kit's own word at `kit.<group>.<key>`, else the key humanised. */
-export const kitWord = (group: string, key: string) => lookup(['kit', group, key]) ?? labelOf(key);
+/** The kit's own word at `kit.<group>.<key>`, else `fallback`: the key humanised by default. */
+export const kitWord = (group: string, key: string, fallback = labelOf(key)) =>
+  lookup(['kit', group, key]) ?? fallback;
 
 /** The example's word at `<id>.<group>.<key>…`, else `fallback`: a label, a choice, a readout. */
 export const exampleWord = (fallback: string, ...path: string[]) =>
