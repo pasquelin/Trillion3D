@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, ease } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#14151a');
@@ -127,7 +127,6 @@
 
       // The opening: the panel swings in from behind the set, its face to the camera, to the
       // right of the table; then it sways there, and the table turns.
-      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
       let time = 0, opening = 0, sway = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
@@ -135,7 +134,7 @@
         if (opening < 1) opening = Math.min(1, opening + step / 3);
         if (ui.swing) sway += step;
         const side = 1.45 + 0.28 * Math.sin(sway * 0.35);
-        rig.rotation.set(0, side + (Math.PI - side) * (1 - ease(opening)), 0);
+        rig.rotation.set(0, side + (Math.PI - side) * (1 - ease.inOut(opening)), 0);
         table.rotation.set(0, time * 0.18, 0);
         world.invalidate();
       });

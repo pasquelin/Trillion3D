@@ -63,7 +63,7 @@
     <div class="eye" style="left: 50%"><b></b><span id="rightEye"></span></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, words } from '../runtime/kit.js';
+      import { controls, words, opening } from '../runtime/kit.js';
       const say = words();
 
       // Two worlds, one per eye, each drawing its own copy of the same orrery. The left half takes
@@ -165,19 +165,18 @@
 
       // The opening: the planets start lined up and set off at their own speeds while the camera
       // glides in from afar; the first press or wheel on the picture hands it to the viewer.
-      let gliding = true, time = 0;
-      for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (gliding = false), { passive: true });
+      let last = 0;
+      opening(world, (glide) => {
+        const step = glide - last, { position } = world.camera, { target: aim } = world.controls;
+        last = glide;
+        const x = position.x - aim.x, y = position.y - aim.y, z = position.z - aim.z, reach = Math.hypot(x, y, z);
+        const closer = Math.max(15, reach - step * Math.max(0.6, (reach - 15) * 0.9)) / reach, turn = step * 0.1;
+        position.set(aim.x + (x * Math.cos(turn) - z * Math.sin(turn)) * closer, aim.y + y * closer, aim.z + (z * Math.cos(turn) + x * Math.sin(turn)) * closer);
+      });
+      let time = 0;
       const side = math.vector3();
       world.onFrame(({ delta }) => {
-        const step = Math.min(delta, 0.1);
-        time += step * ui.speed;
-        if (gliding) {
-          const { position } = world.camera, { target: aim } = world.controls;
-          const x = position.x - aim.x, y = position.y - aim.y, z = position.z - aim.z, reach = Math.hypot(x, y, z);
-          const closer = Math.max(15, reach - step * Math.max(0.6, (reach - 15) * 0.9)) / reach, turn = step * 0.1;
-          position.set(aim.x + (x * Math.cos(turn) - z * Math.sin(turn)) * closer, aim.y + y * closer, aim.z + (z * Math.cos(turn) + x * Math.sin(turn)) * closer);
-          world.controls.update();
-        }
+        time += Math.min(delta, 0.1) * ui.speed;
         turnLeft(time);
         // The other eye: the same camera, moved along its own right-hand axis and aimed back.
         const sign = ui.viewing === 'cross-eyed' ? -1 : 1;

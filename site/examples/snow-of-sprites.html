@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, texture, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, readout, seeded, opening, ease } from '../runtime/kit.js';
 
       const next = seeded(12);
 
@@ -185,24 +185,21 @@
 
       // The opening: the camera comes down through the falling snow to the cabin.
       const from = [0, 22, 4], to = [11, 4.2, 15];
-      let intro = 0, time = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
+      opening(world, (time) => {
+        const e = ease.out(time / 4);
+        world.camera.position.set(...from.map((value, k) => value + (to[k] - value) * e));
+        return time < 4;
+      });
+      let time = 0;
       const facing = math.quaternion(), turn = math.quaternion(), axis = math.vector3(0, 0, 1);
       const wrap = (value) => ((((value + BOX) % (2 * BOX)) + 2 * BOX) % (2 * BOX)) - BOX;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step;
-        const [, fallTo, gustTo] = WEATHER[ui.weather], ease = 1 - Math.exp(-step * 1.5);
-        pace += (fallTo - pace) * ease;
-        gusts += (gustTo - gusts) * ease;
+        const [, fallTo, gustTo] = WEATHER[ui.weather], settle = 1 - Math.exp(-step * 1.5);
+        pace += (fallTo - pace) * settle;
+        gusts += (gustTo - gusts) * settle;
         const push = ui.wind * gusts * (1 + 0.35 * Math.sin(time * 0.7));
-        if (intro < 1) {
-          intro = Math.min(1, intro + step / 4);
-          const e = 1 - (1 - intro) ** 3;
-          world.camera.position.set(...from.map((value, k) => value + (to[k] - value) * e));
-          world.controls.update();
-        }
         // A sprite is a square: each one is turned to face the camera, then about its own centre.
         facing.copy(world.camera.quaternion);
         for (let k = 0; k < falling; k++) {

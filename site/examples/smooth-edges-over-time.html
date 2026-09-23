@@ -24,7 +24,7 @@
       // Waits for #363: `createWorld` takes `temporalAntialiasing`, and `world.temporalAntialiasing`
       // switches it on the next frame; until then the toggle changes nothing.
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, circling } from '../runtime/kit.js';
       const say = words();
 
       // Temporal antialiasing: each frame the image is drawn a fraction of a pixel aside, and mixed
@@ -90,11 +90,12 @@
 
       // The setting is read back from the world: what is drawn, not what was asked.
       let state = null;
-      const ui = controls({
+      controls({
         mouse: 'Drag to look at the wires; switch the smoothing off and watch them break into steps',
         smoothing: true,
         circle: true,
       }, (values, key) => {
+        if (key === 'circle') values.circle ? round.restart() : round.stop();
         if (key === undefined || key === 'smoothing') world.temporalAntialiasing = values.smoothing;
         state?.(say(world.temporalAntialiasing ? 'on' : 'off'));
         world.invalidate();
@@ -103,16 +104,7 @@
       state(say(world.temporalAntialiasing ? 'on' : 'off'));
 
       // The camera circles slowly, so the wires cross the pixels, until the first press or wheel.
-      let circling = true, azimuth = Math.PI / 4;
-      for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (circling = false), { passive: true });
-      world.onFrame(({ delta }) => {
-        if (!ui.circle || !circling) return;
-        azimuth += Math.min(delta, 0.05) * 0.06;
-        const reach = Math.hypot(world.camera.position.x, world.camera.position.z);
-        world.camera.position.set(Math.cos(azimuth) * reach, world.camera.position.y, Math.sin(azimuth) * reach);
-        world.camera.lookAt(0, 5, 0);
-        world.invalidate();
-      });
+      const round = circling(world, -0.06);
     </script>
   </body>
 </html>
