@@ -65,6 +65,7 @@
       world.camera.position.set(5, 4, 6.5);
       world.camera.lookAt(0, 0.8, 0);
       world.controls.target.set(0, 0.8, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       const ui = controls({ hour: [7, 19, 10, 0.5], wind: [0, 4, 1.5], roof: '#c0492b' }, (values) => {
         const arc = ((values.hour - 6) / 14) * Math.PI;
