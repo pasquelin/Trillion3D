@@ -58,11 +58,17 @@ export function trackPointers(surface: HTMLElement, base: ControlBase, handlers:
   };
   const scrolling = surface.style.touchAction;
   surface.style.touchAction = 'none';
+  const letGo = () => {
+    for (const pointerId of pointers.keys()) capture(surface, pointerId, false);
+    if (pointers.size) handlers.up?.();
+    pointers.clear();
+    span = 0;
+  };
   base.undo(() => {
     surface.style.touchAction = scrolling;
-    for (const pointerId of pointers.keys()) capture(surface, pointerId, false);
-    pointers.clear();
+    letGo();
   });
+  base.onPause(letGo);
   base.listen<PointerEvent>(surface, 'pointerdown', (event) => {
     if (pointers.size === 0) button = event.button;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -156,13 +162,16 @@ export function trackKeys(
   base.listen<KeyboardEvent>(document, 'keyup', (event) => {
     if (pressed.delete(event.code)) onChange();
   });
-  // A window that loses focus never sends the `keyup`: the key would stay held forever.
-  base.listen<Event>(document.defaultView ?? document, 'blur', () => {
+  // A window that loses focus never sends the `keyup`: the key would stay held forever. Nor
+  // does a paused controller hear it.
+  const release = () => {
     if (pressed.size) {
       pressed.clear();
       onChange();
     }
-  });
+  };
+  base.listen<Event>(document.defaultView ?? document, 'blur', release);
+  base.onPause(release);
   return pressed;
 }
 

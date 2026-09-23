@@ -91,3 +91,17 @@ test('orbit aims a camera the host only turned back at its target on `update()`'
     [0, 0, 0, 1],
   );
 });
+
+test('orbit turns by `autoRotate` over `update(delta)` until the first press, then rests', () => {
+  const { camera, controls, surface, changes } = orbit(10);
+  controls.update();
+  controls.autoRotate = Math.PI / 4;
+  assert.equal(controls.update(1), true);
+  assert.deepEqual(at(camera), [LEG, 0, LEG]);
+  surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+  surface.fire('pointerup', { pointerId: 1 });
+  const before = changes();
+  assert.equal(controls.update(1), false);
+  assert.equal(changes(), before);
+  assert.deepEqual(at(camera), [LEG, 0, LEG]);
+});

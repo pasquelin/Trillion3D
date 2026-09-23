@@ -4192,7 +4192,9 @@
       "minPolarAngle": "Ángulo polar más pequeño, en radianes desde la vertical: `0` deja que la cámara mire justo hacia abajo. El polo mismo queda fuera de alcance, donde el acimut dejaría de estar definido.",
       "maxPolarAngle": "Ángulo polar más grande, en radianes desde la vertical: `Math.PI / 2` la mantiene por encima del suelo.",
       "minAzimuthAngle": "Inicio del arco de acimut permitido, en radianes de +Z hacia +X; sin límite en `-Infinity`. Solo un par de límites finitos más estrecho que una vuelta completa retiene la cámara.",
-      "maxAzimuthAngle": "Fin de ese arco; sin límite en `Infinity`. Puede ser más pequeño que `minAzimuthAngle`."
+      "maxAzimuthAngle": "Fin de ese arco; sin límite en `Infinity`. Puede ser más pequeño que `minAzimuthAngle`.",
+      "autoRotate": "Radianes por segundo que la cámara gira sola alrededor de `target`, azimut de +Z hacia +X; 0, el valor por defecto, la deja quieta. El giro lo integra `update(delta)` y se detiene para siempre con la primera pulsación o paso de rueda sobre la superficie: el espectador ha tomado la cámara.",
+      "update": "Como el `update()` del pivote, con los segundos que gira `autoRotate`; 0 por defecto."
     }
   },
   "OrthographicBox": {
@@ -6299,14 +6301,14 @@
     "summary": "El controlador de ratón y teclado que mueve la cámara.",
     "members": {
       "kind": "Qué controlador dirige la cámara; da otro nombre para cambiar.",
-      "enabled": "Si el controlador escucha el ratón y el teclado.",
+      "enabled": "Si el controlador escucha el ratón y el teclado y mueve la cámara. `false` lo pausa — sin entrada, sin `update` — sin rehacerlo: velocidad, apoyo, zancada, orientación y giro se conservan, y `true` reanuda exactamente donde se detuvo.",
       "target": "El punto alrededor del cual gira un controlador de pivote.",
       "autoUpdate": "Si el bucle del mundo llama a `update` antes de cada fotograma, antes de los hooks de `world.beforeFrame`. `false` entrega el paso a la página, que llama a `update` desde uno de esos hooks, tan a menudo y con las subetapas que integre; el mundo entonces ya nunca lo hace.",
       "colliders": "Solo personaje: las mallas con las que choca el cuerpo — un objeto o una lista, descendientes incluidos — o `null`. Asignarlas construye un árbol de triángulos estático a partir de sus triángulos en espacio mundo tal como están ahora: una pasada sobre los triángulos y una construcción `O(T log T)`, unos 52 bytes por triángulo. Los modelos compilados aún no se leen: dales una malla simple como sustituto. Un `CharacterCollision` — el mundo de un motor de física, cualquier cosa que responda a `resolveCapsule` y `groundBelow` — se usa tal cual.",
       "rebuildColliders": "Solo personaje: reconstruye el árbol de colisión, después de que los colisionadores se hayan movido o cambiado. Un `CharacterCollision` es su propio mundo y se pasa sin cambios.",
       "velocity": "Solo personaje: la velocidad del cuerpo en metros por segundo, una copia; cero en otro caso.",
       "onGround": "Solo personaje: si los pies están sobre un suelo; `false` para cualquier otro controlador.",
-      "update": "Hace avanzar un controlador pilotado `delta` segundos; un controlador de pivote vuelve a leer su pose.",
+      "update": "Integra un controlador guiado durante `delta` segundos; uno de pivote vuelve a leer su pose, y una órbita gira según `autoRotate`. Un controlador en pausa no hace nada.",
       "follow": "La cámara del mundo ha cambiado: el controlador la sigue.",
       "dispose": "Detiene el controlador y quita sus escuchadores del lienzo.",
       "minDistance": "Distancia mínima a la que un controlador de pivote acerca la cámara a `target`.",
@@ -6315,6 +6317,7 @@
       "maxPolarAngle": "Solo órbita: ángulo polar más grande; `Math.PI / 2` mantiene la cámara por encima del suelo.",
       "minAzimuthAngle": "Solo órbita: inicio del arco de acimut permitido, en radianes de +Z hacia +X.",
       "maxAzimuthAngle": "Solo órbita: fin de ese arco; puede ser más pequeño que `minAzimuthAngle`.",
+      "autoRotate": "Solo órbita: radianes por segundo que gira sola alrededor de `target`, hasta la primera pulsación o paso de rueda; 0 por defecto.",
       "movementSpeed": "Vuelo y primera persona: unidades del mundo por segundo a tecla completa; 1 por defecto.",
       "lookSpeed": "Primera persona y personaje: radianes que gira la vista por píxel de movimiento del puntero.",
       "minPitch": "Primera persona y personaje: lo más bajo que mira la cabeza, en radianes (0 es el horizonte, negativo hacia abajo).",

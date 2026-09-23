@@ -18,20 +18,21 @@ const isCollision = (value: Colliders): value is CharacterCollision =>
 
 /**
  * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
- * `kind` or `enabled` releases the one in place and makes the next; a gesture redraws.
+ * `kind` releases the one in place and makes the next; `enabled` pauses it; a gesture redraws.
  *
  * THE LIMITS AND SPEEDS BELONG TO THE HANDLE, not to the controller in place: a write is kept,
  * handed to the live controller when it has that setting, and handed again to every controller
  * `kind` makes later. A controller without that setting ignores it — the distances bound the
- * pivot controllers (orbit, trackball, pan-zoom), the angles the orbit alone; `movementSpeed`
- * drives flight and first person, `lookSpeed`, `minPitch` and `maxPitch` first person and the
- * character, the turn speeds, the stick inputs, `inputResponse`, `autoForward` and
- * `pointerLook` flight, `rotateSpeed` and `zoomSpeed` the pivot controllers, the body, speeds,
- * jump and hooks the character — so a page may set them before or after it picks its
+ * pivot controllers (orbit, trackball, pan-zoom), the angles and `autoRotate` the orbit alone;
+ * `movementSpeed` drives flight and first person, `lookSpeed`, `minPitch` and `maxPitch` first
+ * person and the character, the turn speeds, the stick inputs, `inputResponse`, `autoForward`
+ * and `pointerLook` flight, `rotateSpeed` and `zoomSpeed` the pivot controllers, the body,
+ * speeds, jump and hooks the character — so a page may set them before or after it picks its
  * controller. The character's `colliders` are kept the same way: the triangle tree is built
  * once when they are set, handed to every character `kind` makes, and rebuilt only on
- * `rebuildColliders()`. A cruising flight moves on every frame, so the handle asks for the
- * first one; a disabled controller, or any other kind, leaves the scene still.
+ * `rebuildColliders()`. A cruising flight or a turning orbit moves on every frame, so the
+ * handle asks for the first one; a paused controller, or any other kind, leaves the scene
+ * still.
  */
 export function worldControlsHandle(
   initial: WorldControls,
@@ -46,11 +47,11 @@ export function worldControlsHandle(
     collision: CharacterCollision | null = null;
   const standingTarget = new Vector3(),
     settings = { ...CONTROL_SETTINGS };
-  /** Whether the controller in place moves on its own — cruising, or a stick input held — and
-   *  so is sent its first frame; the ones after follow from its own `change`. */
+  /** Whether the controller in place moves on its own — cruising, a stick input held, a turn —
+   *  and so is sent its first frame; the ones after follow from its own `change`. */
   const wake = (live: Record<string, unknown>) => {
-    if (live.autoForward === true || live.pitchInput || live.yawInput || live.rollInput)
-      invalidate();
+    const moving = live.autoForward === true || live.pitchInput || live.yawInput || live.rollInput;
+    if (enabled && (moving || live.autoRotate)) invalidate();
   };
   /** Hands every kept setting to the controller in place, where it has them. */
   const bound = () => {
@@ -69,16 +70,17 @@ export function worldControlsHandle(
       wake(live);
     }
     // A pivot controller re-reads its pose under the new setting, and redraws if it moved.
-    if (current?.target) current.update?.();
+    if (enabled && current?.target) current.update?.();
   };
   const rebuild = () => {
     standingTarget.copy(current?.target ?? standingTarget);
     current?.dispose();
-    current = enabled ? (worldControls(kind, camera(), surface) as Controller | null) : null;
+    current = worldControls(kind, camera(), surface) as Controller | null;
+    current?.pause(!enabled);
     bound();
     if (current?.target) {
       current.target.copy(standingTarget);
-      current.update?.();
+      if (enabled) current.update?.();
     }
     current?.addEventListener('change', invalidate);
   };
@@ -92,13 +94,19 @@ export function worldControlsHandle(
       kind = next;
       rebuild();
     },
-    /** Whether the controller listens to the mouse and keyboard. */
+    /**
+     * Whether the controller listens to the mouse and keyboard and moves the camera. `false`
+     * pauses it — no input, no `update` — without remaking it: velocity, footing, stride,
+     * orientation and turn are kept, and `true` resumes exactly where it stopped.
+     */
     get enabled() {
       return enabled;
     },
     set enabled(on: boolean) {
+      if (on === enabled) return;
       enabled = on;
-      rebuild();
+      current?.pause(!on);
+      if (on) invalidate();
     },
     /** The point a pivot controller turns around. */
     get target(): Vector3 {
@@ -143,9 +151,10 @@ export function worldControlsHandle(
     get stride(): number {
       return (current as { stride?: number } | null)?.stride ?? 0;
     },
-    /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose. */
+    /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose,
+     *  and an orbit turns by `autoRotate`. A paused controller does nothing. */
     update(delta = 0) {
-      current?.update?.(delta);
+      if (enabled) current?.update?.(delta);
     },
     /** The world's camera changed: the controller follows it. */
     follow: rebuild,
