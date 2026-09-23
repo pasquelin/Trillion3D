@@ -51,6 +51,22 @@ export type SlotLayout = {
   rows: number[];
   tableRows: number;
 };
+/** Words ahead of a light's row list: its entry count and its sixty-four-wide group count. */
+export const LIGHT_LIST_HEAD = 4;
+/** A list entry whose page holds no row this frame: every pass skips it. */
+export const NO_ROW = 0xffffffff;
+/**
+ * Where a light cut leaves the pages it draws, in the order its mask kernel appended them: the
+ * catalogue indices from word `offset` of `buffer`, their count at word `countWord` of `work` and
+ * that count's sixty-four-wide group count at word `groupsWord`.
+ */
+export type DrawnLog = {
+  buffer: GPUBuffer;
+  offset: number;
+  work: GPUBuffer;
+  countWord: number;
+  groupsWord: number;
+};
 export type GpuDraw = {
   /**
    * `items` holds `count` packed rows of {pageIndex,bin,selectionIndex,layer,triangles}. Those five
@@ -73,20 +89,16 @@ export type GpuDraw = {
     selection?: { maskBuffer: GPUBuffer; maskOffset: number },
   ): void;
   /**
-   * A second compaction over the same items, created at the first call: a light cut's mask in,
-   * the light's instance list and indirect commands out — how the shadow pass consumes the light
-   * cut, as the visibility pass consumes the camera's. It uploads no item: the camera's encode,
-   * earlier in the same command buffer, already did.
+   * A second compaction, created at the first call, over the pages a light cut drew rather than
+   * over every resident row: the light's drawn log in, the light's instance list and indirect
+   * commands out — how the shadow pass consumes the light cut, as the visibility pass consumes the
+   * camera's. `pages` is the size of the selection catalogue the log indexes. It uploads no item:
+   * the camera's encode, earlier in the same command buffer, already did.
    */
-  lightCompaction(): {
+  lightCompaction(pages: number): {
     instanceBuffer: GPUBuffer;
     indirectBuffer: GPUBuffer;
-    encode(
-      encoder: GPUCommandEncoder,
-      count: number,
-      maxVertexCount: number,
-      selection?: { maskBuffer: GPUBuffer; maskOffset: number },
-    ): void;
+    encode(encoder: GPUCommandEncoder, rows: number, maxVertexCount: number, log: DrawnLog): void;
   };
   /** Draw records as the GPU holds them: what the GPU partition reads to know each
    *  row's bin, layer and triangles. */

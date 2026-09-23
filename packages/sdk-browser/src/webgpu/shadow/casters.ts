@@ -37,7 +37,7 @@ export function encodeShadowCasters(
   const light = selection && lightCutOf(selection, MAX_SHADOW_REGIONS);
   lights.lightCut = light;
   if (light) {
-    const compaction = gpuDraw.lightCompaction();
+    const compaction = gpuDraw.lightCompaction(light.pageCount);
     source.spheres = spheres.buffer;
     source.source = compaction.instanceBuffer;
     source.base = 0;
@@ -47,7 +47,7 @@ export function encodeShadowCasters(
     for (let r = 0; r < runs.count; r++) {
       const face = runs.list[r];
       light.encode(encoder, r, face.uniforms);
-      compaction.encode(encoder, rows, setup.maxCorners, light);
+      compaction.encode(encoder, rows, setup.maxCorners, light.drawnLog);
       cull.encode(encoder, source, r, face.first, face.count, rows);
     }
     lights.lightRuns = runs.count;

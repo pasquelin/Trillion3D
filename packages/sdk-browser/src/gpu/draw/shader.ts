@@ -1,4 +1,4 @@
-import { BASE_SLOTS, slotCount } from './contract.ts';
+import { BASE_SLOTS, LIGHT_LIST_HEAD, NO_ROW, slotCount } from './contract.ts';
 
 /**
  * Stable compaction of the frame's draw items into one indirect command per slot.
@@ -64,13 +64,16 @@ struct Uniforms{count:u32,maxVertexCount:u32,slotCap:u32,groupCount:u32,selectio
 @group(0) @binding(8) var<storage, read> slotUsed:array<u32>;
 // The occluder/rest partition is the only per-frame word of an item, so it travels as one bit each.
 fn restAt(i:u32)->u32{return (restBits[i>>5u]>>(i&31u))&1u;}
+// Mode 2 walks a light's row list rather than the rows: \`selectionMask\` is that list, every entry
+// of it selected, and an entry whose page holds no row is skipped (\`lightList.ts\`).
+fn rowAt(e:u32)->u32{if(uni.selectionEnabled==2u){return selectionMask[${LIGHT_LIST_HEAD}u+e];}return e;}
 fn selected(item:DrawItem)->bool{
- if(uni.selectionEnabled==0u){return true;}
+ if(uni.selectionEnabled!=1u){return true;}
  return selectionMask[uni.selectionOffset+item.selectionIndex]!=0u;
 }
 /** GPU mirror of \`slotOf\` (cpu.ts): same product, same sum, same layer ceiling. */
 fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*3u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
-fn matches(i:u32,slot:u32)->bool{let item=items[i];return slotOf(i,item)==slot&&selected(item);}
+fn matches(e:u32,slot:u32)->bool{let i=rowAt(e);if(i==${NO_ROW}u){return false;}let item=items[i];return slotOf(i,item)==slot&&selected(item);}
 fn writeCmd(slot:u32,count:u32){
  let o=slot*4u;
  indirect[o]=uni.maxVertexCount;
@@ -119,12 +122,13 @@ fn prefixGroups(@builtin(local_invocation_id) lid:vec3u){
 }
 @compute @workgroup_size(64)
 fn scatterGroups(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;
- if(i>=uni.count||uni.count>uni.slotCap){return;}
+ let e=id.x;
+ if(e>=uni.count||uni.count>uni.slotCap){return;}
+ let i=rowAt(e);if(i==${NO_ROW}u){return;}
  let item=items[i];if(!selected(item)){return;}let slot=slotOf(i,item);
- let group=i/64u;let begin=group*64u;
+ let group=e/64u;let begin=group*64u;
  var rank=0u;
- for(var j=begin;j<i;j++){if(matches(j,slot)){rank=rank+1u;}}
+ for(var j=begin;j<e;j++){if(matches(j,slot)){rank=rank+1u;}}
  instances[groupOffsets[group*${slots}u+slot]+rank]=item.pageIndex;
 }
 `;

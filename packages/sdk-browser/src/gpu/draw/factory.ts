@@ -4,6 +4,9 @@ import type { GpuDraw } from './contract.ts';
 import { dropValidation, openValidation, validationError } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { drawBindEntries, drawShader } from './shader.ts';
+import { createLightList, LIST_COUNT_ARGS, LIST_SCATTER_ARGS } from './lightList.ts';
+
+type LightList = ReturnType<typeof createLightList>;
 
 /**
  * Stable GPU compact into one drawIndirect command per slot. `layerSlots` is one plus the deepest
@@ -69,11 +72,15 @@ export async function createGpuDraw(
       let boundMask = itemsBuf,
         bindGroup = makeBindGroup(boundMask);
       const uniData = new Uint32Array(UNIFORM_BYTES / 4);
+      /** Uniform words and bind group, then the three passes; `list` dispatches from its arguments. */
       return (
         encoder: GPUCommandEncoder,
         count: number,
         maxVertexCount: number,
-        selection?: { maskBuffer: GPUBuffer; maskOffset: number },
+        mask: GPUBuffer,
+        mode: number,
+        maskOffset: number,
+        list?: LightList,
       ) => {
         // Only the groups the frame's items reach are counted and prefixed. The groups past them
         // hold zero by construction and nothing reads them, so bounding the serial prefix by the
@@ -81,36 +88,42 @@ export async function createGpuDraw(
         const liveGroups = Math.max(1, Math.ceil(Math.min(count, slotCap) / WORKGROUP));
         uniData[0] = count;
         uniData[1] = maxVertexCount;
-        uniData[2] = slotCap;
+        uniData[2] = list ? count : slotCap;
         uniData[3] = liveGroups;
-        uniData[4] = selection ? 1 : 0;
-        uniData[5] = selection?.maskOffset ?? 0;
-        const mask = selection?.maskBuffer ?? itemsBuf;
+        uniData[4] = mode;
+        uniData[5] = maskOffset;
         if (mask !== boundMask) {
           boundMask = mask;
           bindGroup = makeBindGroup(mask);
         }
         device.queue.writeBuffer(own.uniforms, 0, uniData);
+        // A light's entry and group counts are the GPU's: copied over the two uniform words, in order.
+        if (list) {
+          encoder.copyBufferToBuffer(list.list, 0, own.uniforms, 0, 4);
+          encoder.copyBufferToBuffer(list.list, 4, own.uniforms, 12, 4);
+        }
         const pass = encoder.beginComputePass({ label: 'WG draw compaction' });
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(countPipeline);
-        pass.dispatchWorkgroups(Math.ceil((liveGroups * SLOTS) / WORKGROUP));
+        if (list) pass.dispatchWorkgroupsIndirect(list.args, LIST_COUNT_ARGS);
+        else pass.dispatchWorkgroups(Math.ceil((liveGroups * SLOTS) / WORKGROUP));
         pass.setPipeline(prefixPipeline);
         pass.dispatchWorkgroups(1);
         pass.setPipeline(scatterPipeline);
-        pass.dispatchWorkgroups(liveGroups);
+        if (list) pass.dispatchWorkgroupsIndirect(list.args, LIST_SCATTER_ARGS);
+        else pass.dispatchWorkgroups(liveGroups);
         pass.end();
       };
     };
     const compact = compaction(allocated);
-    let light: ReturnType<GpuDraw['lightCompaction']> | undefined;
+    let light: ReturnType<GpuDraw['lightCompaction']> | undefined, lightList: LightList | undefined;
     return {
       encode(encoder, items, count, itemsFrom, itemsTo, maxVertexCount, selection) {
         if (disposed) return;
         // The range the row table just rewrote, and it alone: a frame that sees neither a page
         // arrival nor an eviction sends not one byte of record.
         const last = Math.min(itemsTo, Math.min(count, slotCap) - 1);
-        if (last >= itemsFrom)
+        if (last >= itemsFrom) {
           device.queue.writeBuffer(
             itemsBuf,
             itemsFrom * DRAW_ITEM_U32 * 4,
@@ -118,18 +131,27 @@ export async function createGpuDraw(
             items.byteOffset + itemsFrom * DRAW_ITEM_U32 * 4,
             (last - itemsFrom + 1) * DRAW_ITEM_U32 * 4,
           );
-        compact(encoder, count, maxVertexCount, selection);
+          lightList?.markRows(itemsFrom, last);
+        }
+        if (selection)
+          compact(encoder, count, maxVertexCount, selection.maskBuffer, 1, selection.maskOffset);
+        else compact(encoder, count, maxVertexCount, itemsBuf, 0, 0);
       },
-      lightCompaction() {
+      lightCompaction(pages) {
         if (light) return light;
-        const own = createGpuCompactionBuffers(device, slotCap, SLOTS);
+        // Groups follow the list, which can name every page of the catalogue; instances follow
+        // the rows, which bound what the list resolves.
+        const own = createGpuCompactionBuffers(device, slotCap, SLOTS, pages);
         buffers.push(...own.all);
+        const list = (lightList = createLightList(device, itemsBuf, SLOTS, pages, buffers));
         const encode = compaction(own);
         light = {
           instanceBuffer: own.instanceBuffer,
           indirectBuffer: own.indirectBuffer,
-          encode: (encoder, count, maxVertexCount, selection) => {
-            if (!disposed) encode(encoder, count, maxVertexCount, selection);
+          encode: (encoder, rows, maxVertexCount, log) => {
+            if (disposed) return;
+            list.encode(encoder, Math.min(rows, slotCap), log);
+            encode(encoder, pages, maxVertexCount, list.list, 2, 0, list);
           },
         };
         return light;

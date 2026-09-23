@@ -2,6 +2,8 @@ import { SELECTION_UNIFORM_BYTES } from '../core/selection.ts';
 import type { DagViewUniforms } from './types.ts';
 import { createDagOutputScratch, parseDagOutput, writeDagUniforms } from './uniforms.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
+import { dagWorkLayout } from './shader/floorWgsl.ts';
+import type { DrawnLog } from '../draw/contract.ts';
 import type { createDagResources } from './resources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
@@ -29,6 +31,7 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  */
 export function createDagLightCut(resources: DagResources, runs: number) {
   const { device, packed, residentCut, nodeCount, outputBytes, readbackBytes, buffers } = resources;
+  const { pageCount, blockCount, worldCount } = resources;
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const own = (descriptor: GPUBufferDescriptor) => {
     const buffer = device.createBuffer(descriptor);
@@ -81,10 +84,18 @@ export function createDagLightCut(resources: DagResources, runs: number) {
   const scratch = createDagOutputScratch();
   let mapped = false,
     requests: readonly number[] | null = null;
+  const counters = dagWorkLayout(blockCount, worldCount);
   return {
-    /** Where `dagMask` leaves the light's draw flags: what the light compaction reads. */
-    maskBuffer: flags,
-    maskOffset: nodeCount,
+    /** Catalogue pages the log indexes. */
+    pageCount,
+    /** Where `dagMask` logs the pages the light draws: what the light compaction reads. */
+    drawnLog: {
+      buffer: flags,
+      offset: nodeCount + pageCount * 3,
+      work,
+      countWord: counters.drawnCounter,
+      groupsWord: counters.drawnGroups,
+    } satisfies DrawnLog,
     /** Encodes run `run` of the frame; the first run of a frame starts the request list over. */
     encode(encoder: GPUCommandEncoder, run: number, uniforms: DagViewUniforms) {
       const view = views[run];

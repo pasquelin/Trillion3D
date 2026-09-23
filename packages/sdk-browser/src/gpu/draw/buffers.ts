@@ -8,10 +8,16 @@ import {
 
 /**
  * What one compaction writes: its uniform, its instance list, its indirect commands and its
- * per-group scratch. The camera has one; a light cut has its own, reading the same items.
+ * per-group scratch. The camera has one; a light cut has its own, reading the same items. The
+ * scratch covers `listCap` entries: the rows for the camera, the light's list for a light.
  */
-export function createGpuCompactionBuffers(device: GPUDevice, slotCap: number, slots: number) {
-  const groupBytes = Math.ceil(slotCap / WORKGROUP) * slots * 4;
+export function createGpuCompactionBuffers(
+  device: GPUDevice,
+  slotCap: number,
+  slots: number,
+  listCap = slotCap,
+) {
+  const groupBytes = Math.max(1, Math.ceil(listCap / WORKGROUP)) * slots * 4;
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const uniforms = device.createBuffer({
     size: UNIFORM_BYTES,
