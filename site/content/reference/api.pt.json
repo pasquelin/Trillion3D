@@ -6713,15 +6713,15 @@
     }
   },
   "TriangleTree": {
-    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
-    "description": "Built once by `buildTriangleTree`, read-only afterwards.",
+    "summary": "Uma hierarquia de volumes envolventes sobre os triângulos do mundo, consultada por caixa: a fase ampla por trás de `triangleCollision` e `capsulePass`.",
+    "description": "Construída uma vez por `buildTriangleTree`, somente leitura depois.",
     "members": {
-      "triangles": "Nine numbers per triangle — three corners — in leaf order.",
-      "bounds": "Per node: min xyz, max xyz.",
-      "links": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent).",
-      "counts": "Per node: triangle count of a leaf, 0 for an inner node.",
-      "bytes": "Bytes the tree keeps.",
-      "triangleCount": "Triangles the tree holds."
+      "triangles": "Nove números por triângulo — três cantos — na ordem das folhas.",
+      "bounds": "Por nó: min xyz, max xyz.",
+      "links": "Por nó: o primeiro triângulo de uma folha, ou o filho direito de um nó interno (o esquerdo segue seu pai).",
+      "counts": "Por nó: número de triângulos de uma folha, 0 para um nó interno.",
+      "bytes": "Bytes que a árvore ocupa.",
+      "triangleCount": "Triângulos que a árvore contém."
     }
   },
   "world.beforeFrame": {

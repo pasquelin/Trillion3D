@@ -6889,15 +6889,15 @@
     }
   },
   "TriangleTree": {
-    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
-    "description": "Built once by `buildTriangleTree`, read-only afterwards.",
+    "summary": "Sebuah hierarki volume pembatas atas segitiga-segitiga dunia, dikueri dengan kotak: fase luas di balik `triangleCollision` dan `capsulePass`.",
+    "description": "Dibangun sekali oleh `buildTriangleTree`, hanya-baca setelahnya.",
     "members": {
-      "triangles": "Nine numbers per triangle — three corners — in leaf order.",
-      "bounds": "Per node: min xyz, max xyz.",
-      "links": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent).",
-      "counts": "Per node: triangle count of a leaf, 0 for an inner node.",
-      "bytes": "Bytes the tree keeps.",
-      "triangleCount": "Triangles the tree holds."
+      "triangles": "Sembilan angka per segitiga — tiga sudut — dalam urutan daun.",
+      "bounds": "Untuk setiap node: xyz minimum, xyz maksimum.",
+      "links": "Untuk setiap node: segitiga pertama dari sebuah daun, atau anak kanan dari node internal (yang kiri mengikuti induknya).",
+      "counts": "Untuk setiap node: jumlah segitiga sebuah daun, 0 untuk node internal.",
+      "bytes": "Byte yang disimpan pohon.",
+      "triangleCount": "Segitiga yang disimpan pohon."
     }
   }
 }

@@ -6713,15 +6713,15 @@
     }
   },
   "TriangleTree": {
-    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
-    "description": "Built once by `buildTriangleTree`, read-only afterwards.",
+    "summary": "세계 삼각형들 위의 경계 볼륨 계층 구조, 박스로 질의된다: `triangleCollision`과 `capsulePass` 뒤의 광역 단계.",
+    "description": "`buildTriangleTree`로 한 번 구축되며, 이후에는 읽기 전용.",
     "members": {
-      "triangles": "Nine numbers per triangle — three corners — in leaf order.",
-      "bounds": "Per node: min xyz, max xyz.",
-      "links": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent).",
-      "counts": "Per node: triangle count of a leaf, 0 for an inner node.",
-      "bytes": "Bytes the tree keeps.",
-      "triangleCount": "Triangles the tree holds."
+      "triangles": "삼각형당 아홉 개의 숫자 — 세 꼭짓점 — 리프 순서대로.",
+      "bounds": "노드마다: 최소 xyz, 최대 xyz.",
+      "links": "노드마다: 리프의 첫 번째 삼각형, 또는 내부 노드의 오른쪽 자식(왼쪽은 부모 바로 뒤에 이어진다).",
+      "counts": "노드마다: 리프의 삼각형 개수, 내부 노드는 0.",
+      "bytes": "트리가 차지하는 바이트.",
+      "triangleCount": "트리가 보유한 삼각형."
     }
   },
   "world.beforeFrame": {
