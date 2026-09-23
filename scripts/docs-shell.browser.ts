@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Browser, Page } from 'playwright';
+import type { Browser } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { readyEntries } from '../site/app/examples/list.ts';
@@ -33,24 +33,6 @@ async function open(hash: string, width = 1440) {
   return { page, errors };
 }
 
-/** The share of a capture's pixels that are clearly green. */
-function greenShare(page: Page, png: Buffer): Promise<number> {
-  return page.evaluate(
-    async (url) => {
-      const bitmap = await createImageBitmap(await (await fetch(url)).blob());
-      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-      const context = canvas.getContext('2d')!;
-      context.drawImage(bitmap, 0, 0);
-      const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
-      let green = 0;
-      for (let at = 0; at < data.length; at += 4)
-        if (data[at + 1] > data[at] + 60 && data[at + 1] > data[at + 2] + 60) green++;
-      return green / (data.length / 4);
-    },
-    `data:image/png;base64,${png.toString('base64')}`,
-  );
-}
-
 test('the site search finds a page as the reader types and opens it', async () => {
   const { page, errors } = await open('#/fr/learn/home');
   await page.getByRole('heading', { level: 1 }).waitFor();
@@ -75,15 +57,10 @@ test('the site search finds a page as the reader types and opens it', async () =
   await page.context().close();
 });
 
-test('the demo page runs the example and runs an edited colour from its code', async () => {
+test('the demo page runs the example; its actions show its code, share it and drive it', async () => {
   const { page, errors } = await open(`#/en/examples/${example.id}`);
   const frame = page.locator('[data-demo] iframe');
-  const settled = async () => {
-    await page.locator('[data-demo] .render-frame [role="status"]').waitFor({ state: 'detached' });
-    await page.waitForTimeout(2500);
-    return frame.screenshot();
-  };
-  const before = await settled();
+  await page.locator('[data-demo] .render-frame [role="status"]').waitFor({ state: 'detached' });
   const action = async (name: string) => {
     await page.getByRole('button', { name: 'Demo actions' }).focus();
     await page.getByRole('button', { name, exact: true }).click();
@@ -102,23 +79,19 @@ test('the demo page runs the example and runs an edited colour from its code', a
   await action('Share');
   await page.getByRole('status').getByText('Link copied').waitFor();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), page.url());
-  // Code: the source in the panel beside the demo; every colour turned green, then Run.
+  // Code: the file's source, highlighted, in a modal; Copy gives the file as it is.
   await action('Code');
-  const editor = page.locator('[data-code-panel] .cm-content');
-  await editor.getByText('<canvas id="view"></canvas>').waitFor();
+  const modal = page.getByRole('dialog', { name: example.file });
+  await modal.getByText('<canvas id="view"></canvas>').waitFor();
+  await modal.getByRole('button', { name: 'Copy code' }).click();
   const source = await page.evaluate((file) => fetch(file).then((r) => r.text()), example.file);
-  const edited = source.replaceAll(/'#[0-9a-f]{6}'/gi, "'#10e030'");
-  assert.notEqual(edited, source, 'the example sets a colour');
-  await editor.click();
-  await page.keyboard.press('ControlOrMeta+A');
-  await page.keyboard.insertText(edited);
-  await page.getByRole('button', { name: 'Run' }).click();
-  assert.match((await frame.getAttribute('srcdoc')) ?? '', /<base href="examples\//);
-  assert.match((await frame.getAttribute('srcdoc')) ?? '', /'#10e030'/);
-  // The demo stays in view beside the code, and turns green.
-  const after = await settled();
-  const [was, now] = [await greenShare(page, before), await greenShare(page, after)];
-  assert.ok(now > was + 0.05, `the edited colour shows in the render (${was} → ${now})`);
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), source);
+  await modal.getByRole('button', { name: 'Close' }).first().click();
+  await modal.waitFor({ state: 'hidden' });
+  // Restart: the frame loads the file again.
+  await action('Restart');
+  await page.locator('[data-demo] .render-frame [role="status"]').waitFor({ state: 'detached' });
+  assert.equal(await frame.getAttribute('src'), example.file);
   assert.deepEqual(errors, []);
   await page.context().close();
 });

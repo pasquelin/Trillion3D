@@ -51,10 +51,11 @@ body {
   }
 }
 
-/* Prose: repository-authored documentation HTML, set to a readable measure. */
+/* Prose: repository-authored documentation HTML, the width of the content area; the type scale,
+   not a narrow column, keeps it readable. */
 .wg-prose {
-  max-width: 68ch;
-  line-height: 1.75;
+  font-size: 1.0625rem;
+  line-height: 1.7;
 }
 .wg-prose > * + * {
   margin-top: 1em;

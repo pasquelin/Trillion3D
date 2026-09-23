@@ -11,6 +11,7 @@ import { draw, legendAnchors } from '../site/lessons/draw.ts';
 import type { SvgHost } from '../site/lessons/drawPrimitives.ts';
 import { initialState } from '../site/lessons/scenarios.ts';
 import { examples } from '../site/content/catalog.ts';
+import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 import { rendererLessons } from '../site/lessons/rendererLessons.ts';
 import { expectedResultFor } from './docs/expected-result.ts';
 import type { Locale } from '../site/content/locale.ts';
@@ -133,16 +134,16 @@ test('gallery renders visual cards and the real engine scene', () => {
   assert.match(gallery, /#\/en\/lessons\/compose-transform/);
 });
 
-test('the home runs a scene behind its title, its first scene beside its code, and leads to the examples', () => {
+test('the home is the gallery: every ready example a picture that opens it, the flagships first', () => {
   const home = renderToStaticMarkup(createElement(Home, { locale: 'en' }));
-  assert.match(home, /<iframe src="examples\/[^"]+\.html"[^>]*aria-hidden="true"/);
-  assert.match(home, /<h1[^>]*>Stream huge 3D worlds in the browser<\/h1>/);
-  // The code shown is the code run: the frame's page carries the same script.
-  const [, srcdoc] = home.match(/srcDoc="([^"]+)"/i) ?? [];
-  assert.ok(srcdoc?.includes('createWorld(&#x27;view&#x27;'));
-  assert.match(home, /data-code-block/);
-  assert.equal((home.match(/href="#\/en\/examples\/[^"]+"/g) ?? []).length, 6);
-  assert.doesNotMatch(home, /#\/en\/lessons\//);
+  assert.match(home, /<h1[^>]*>Web Geometry<\/h1>/);
+  assert.match(home, /Stream huge 3D worlds in the browser/);
+  const tiles = [...home.matchAll(/<a class="group[^"]*" href="#\/en\/examples\/([^"]+)"/g)];
+  const ready = roadmap.entries.filter(({ file }) => file);
+  assert.ok(tiles.length >= ready.length - 1, `${tiles.length} tiles`);
+  assert.equal(tiles[0][1], 'a-ring-of-lamps');
+  assert.match(tiles[0][0], /col-span-2 row-span-2/);
+  assert.doesNotMatch(home, /#\/en\/lessons\/|<iframe|data-code-block/);
 });
 
 test('all scenarios produce real 3D triangle geometry from SDK results', () => {
