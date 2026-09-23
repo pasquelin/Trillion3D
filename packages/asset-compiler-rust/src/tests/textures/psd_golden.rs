@@ -7,7 +7,7 @@
 //! The scene is the floating golden's quad, its base colour replaced by
 //! `rgb-brut.psd`: a PSD texture enters progressive previews like any eight-bit
 //! source, without refusal and without added loss. Fixture provenance is in
-//! `tests/fixtures/formats/psd/README.md`.
+//! `tests/fixtures/formats/README.md` § "psd".
 //!
 //! Regenerating the expected, from the repository root:
 //!

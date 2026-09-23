@@ -6,7 +6,7 @@ the internal session, the passes, the budgets' mechanics and the diagnostics —
 [FORMAT.md](FORMAT.md).
 
 Every public import uses `web-geometry`; conditional exports select the common, browser or Node
-API ([SDK_FACADE.md](SDK_FACADE.md)). Do not import `packages/` internals. `SDK_VERSION` and
+API ([Entry points](#entry-points)). Do not import `packages/` internals. `SDK_VERSION` and
 `FORMAT_VERSION` are independent.
 
 ## Terms
@@ -21,6 +21,57 @@ API ([SDK_FACADE.md](SDK_FACADE.md)). Do not import `packages/` internals. `SDK_
 
 `explorer` and `backend` are not public vocabulary: a page creates a **world**, never an explorer,
 and never names what draws.
+
+## Principles
+
+Canonical source of architecture and product behavior requirements. These requirements serve as targets to validate: they do not claim all features are implemented today. See the [current limits](#current-limits).
+
+1. **Portable Core.** Engine algorithms, formats, oracles, and contracts remain independent of React and Electron. The interface controls and observes campaigns; it contains no core engine logic.
+2. **Compiled and Versioned Preparation.** Expensive assets are built outside the interactive loop, versioned alongside their schemas, and loaded following manifest validation. No hidden preparation overhead is charged to current frame rendering.
+3. **Standalone Generators.** Any Rust asset preparation or compilation core resides in a standalone package in the Web Geometry repository under `packages/`. A benchmark contains only its manifests, contracts, scenarios, adapters, and tests, consuming the public package API. Engine and generator packages import neither React, Vite, Electron, nor benchmark internals.
+4. **Never Degrade the Host Application.** The SDK negotiates capabilities and maintains a standard baseline. It disables an optimization when measured overhead exceeds benefit and recovers from error, device loss, memory exhaustion, or thrashing on the renderer already in use. A world's `renderer` option (absent = best path the machine grants) is chosen once, from what the machine offers; forced and missing, it is refused by name, never silently swapped for the other. The UI exposes the active renderer, active level, fallback, and reason without inventing metrics.
+5. **Seamless Fallback.** For the end user, fallback is automatic and silent: no technical warning appears during normal startup. Full diagnostic telemetry remains reserved for developer mode. A concise notification appears only when no compatible renderer is available. Recovering on the chosen renderer preserves scene state without flashing, blank screens, or visible restarts; it never switches to the other renderer under a host that did not ask for one.
+
+Web Geometry owns every package it builds under `packages/` ([package architecture](../packages/README.md)). The SDK exposes public entry points producing JavaScript and type declarations. React and Electron adapters remain optional and are not shipped as dedicated packages. Hosts consume public exports only.
+
+## Entry points
+
+Version 0.2.0 exposes one consumer specifier, `web-geometry`. The source facade has three
+environment branches:
+
+| Resolver context                        | Source facade             | Public surface                | Declaration constraints                                                               |
+| --------------------------------------- | ------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
+| Node ESM with NodeNext                  | `packages/sdk/node.mts`   | Common and native compilation | Node types are allowed; DOM and WebGPU types are not introduced by the common branch. |
+| Browser bundler with TypeScript Bundler | `packages/sdk/browser.ts` | Common and browser rendering  | Browser and WebGPU declarations are allowed; no `node:*` module is reachable.         |
+| Worker or common code                   | `packages/sdk/index.ts`   | Common maths and contracts    | Compiles without DOM or WebGPU declarations.                                          |
+| Unknown environment or fallback         | `packages/sdk/index.ts`   | Common maths and contracts    | The safe default never exposes browser or Node APIs by accident.                      |
+
+SSR resolves the Node branch. It therefore exposes native and common APIs, and does not expose
+browser rendering APIs. Importing any branch has no startup action: it does not create a renderer,
+worker, DOM object, GPU object or compiler process.
+
+A fourth branch exists beside these three, and it is not a `web-geometry` resolver condition: the
+measurement entry point, `packages/sdk-browser/src/measurement/measurement.ts`. It re-exports everything the
+browser branch does, plus `openMeasuredWorld`/`createMeasuredWorldJob` (the internal session a
+world opens on itself), the witness backend factories, `chooseBackends`/`autonomousCacheReady` and
+`replicateInstances`. `package.json`'s `exports` map has no subpath for it — the bench, the proofs
+and the comparison views import it by its source path inside this repository, never through the
+published `web-geometry` specifier, so none of it reaches a consumer of the package.
+
+The package maps these built files with conditional JavaScript and matching conditional
+declarations. The `browser` condition precedes the Node and generic import/default paths; the Node
+branch uses the standard `node` condition, and the final default remains the common branch.
+Resolvers that ignore `browser` therefore receive the safe common facade instead of browser code.
+
+`api-inventory.json` is generated with the TypeScript checker. It follows aliases and transitive
+star exports, records binding identity and lists every current entry point. It also records the
+documented source-path imports that the facade newly exposes. Experimental comparison and oracle
+bindings stay classified as experimental.
+
+Measured with esbuild 0.25.12 (ESM, browser platform, minification and tree shaking), a consumer
+importing only `hierarchyUpdateBatch` weighs 1,780 bytes from the common facade and 3,289 bytes from
+the browser facade, which keeps its public maths surface while shedding unrelated rendering code and
+every Node module. This is a bundle-content measurement, not a runtime-performance claim.
 
 ## Create a world
 
@@ -480,7 +531,7 @@ transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
 ```
 
 Every batch, with its unit function, its measured ratio and the exceptions it declares, is listed
-once, in [API.md](API.md#batch-math-for-hosts).
+once, in [Batch functions](#batch-functions).
 
 **Which path ran.** `hierarchyUpdateBatch`, `multiplyMatrix4Batch` and `boxTransformBatch` also
 exist as WebAssembly kernels (`packages/page-codec-wasm/src/math.rs`), bit-identical to the
@@ -492,6 +543,127 @@ plays, `jsNsPerElement` and `wasmNsPerElement` the sliding medians in nanosecond
 the total processed; `clockCoarse` says the thread clock is too coarse to arbitrate, and everything
 then stays on JavaScript. The other batches have no kernel: a kernel is written only where a loop's
 share of the engine's own frame is measured above 0.1 ms, and none of their loops reaches it (#80).
+
+## Maths reference
+
+The maths the engine computes with, exported by `web-geometry`, `packages/sdk-core` and
+`packages/sdk-browser` alike. The public families a page writes against — `createWorld` and
+everything it hands out — are the sections above; this section lists the functions underneath them.
+Conventions shared by every entry:
+
+- **Column-major 4×4 matrices** in sixteen consecutive numbers, `[12..14]` the translation.
+- **Output first, allocation never.** A function writes into the `out` buffer it receives and
+  returns it; one that writes in place or fills several named buffers — `normalizeVector3`,
+  `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
+  nothing. `outAt`/`aAt` offsets let one large buffer hold many operands.
+- **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
+  matrix, a plain array or a `Float32Array` enters as-is.
+
+### Measured against the witness library
+
+Every row names the witness call it is measured against, and its proof. The proof is
+`pnpm run perf:core` (`bench/perf/core/three-vs-core-*.perf.ts`; how a line reads:
+[TESTS.md](TESTS.md#performance-benchmarks)): each line runs Three.js and the engine on the same
+seeded inputs, compares bit for bit and refuses an engine slower than the witness. The ratios are
+the engine's speed-up over the witness, best of three runs on one machine (19 and 20 Sept. 2026,
+Apple M2 Max, Node 26.8.2); they say where, not how much a frame gains. The declared exceptions are
+named on their line. A host arriving from Three.js reads the "Witness call" column as its migration
+table.
+
+### Unit functions
+
+#### Matrices — `packages/sdk-core/src/math/matrix/matrix4.ts`, `packages/sdk-core/src/math/matrix/matrix4Inverse.ts`, `packages/sdk-core/src/math/matrix/matrix4Trs.ts`
+
+| Function                                            | Computes                                                                            | Witness call                           | Proof                                               |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------- | --------------------------------------------------- |
+| `multiplyMatrix4(out, a, b)`                        | `out = a · b`, each term in double then rounded once                                | `Matrix4.multiplyMatrices`             | bench `Matrix4.multiplyMatrices` (×1.2)             |
+| `invertMatrix4(out, m)`                             | the inverse by cofactors; a singular `m` gives sixteen zeros, like the witness      | `Matrix4.invert`                       | bench `Matrix4.invert` (×1.3)                       |
+| `copyMatrix4(out, m, outAt = 0, mAt = 0)`           | sixteen numbers copied at offsets, a loop rather than `set` so untyped outputs work | `Matrix4.copy`, `fromArray`, `toArray` | pure copy, bit equality in every bench line         |
+| `IDENTITY_MATRIX4`                                  | the identity, read and never written                                                | `Matrix4.identity`                     | —                                                   |
+| `composeMatrix4(out, position, quaternion, scale)`  | `out = T · R · S`, quaternion `(x, y, z, w)`                                        | `Matrix4.compose`                      | bench `Matrix4.compose` (×1.4)                      |
+| `decomposeMatrix4(m, position, quaternion, scale)`  | the reverse, the sign of the determinant carried by the x scale, nothing returned   | `Matrix4.decompose`                    | bench `Matrix4.decompose` (×1.1)                    |
+| `basisMatrix4(out, u, v, n, origin, outAt = 0)`     | columns `u`, `v`, `n`, then the origin, last row `(0, 0, 0, 1)`                     | `Matrix4.makeBasis` + `setPosition`    | bench `Matrix4.makeBasis` (×1.7)                    |
+| `uniformScaleMatrix4(out, s, center, outAt = 0)`    | uniform scale `s` placed at `center`                                                | `Matrix4.makeScale` + `setPosition`    | bench `Matrix4.makeScale` (×2.3)                    |
+| `determinantMatrix4(m)`, `linearPartDeterminant(m)` | the 4×4 determinant, and that of the upper 3×3 (sign of a reflection)               | `Matrix4.determinant`                  | `packages/sdk-core/src/math/matrix/matrix4.test.ts` |
+
+#### Vectors — `packages/sdk-core/src/math/primitives/vector.ts`
+
+| Function                                               | Computes                                                                  | Witness call                    | Proof                                                  |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------ |
+| `dotVector3(a, b, aAt = 0, bAt = 0)`                   | `a · b` on three components read at offsets                               | `Vector3.dot`                   | bench `Vector3.dot` (×3.9)                             |
+| `crossVector3(out, a, b, outAt = 0, aAt = 0, bAt = 0)` | `out = a × b`; operands read before the first write, so `out` may alias   | `Vector3.crossVectors`          | bench `Vector3.crossVectors` (×5.0)                    |
+| `lengthSqVector3(v, at = 0)`                           | `x² + y² + z²`; `Math.sqrt` of it is the witness's `length()` bit for bit | `Vector3.lengthSq`, `length`    | bench `Vector3.length` (×1.7)                          |
+| `scaleVector3(out, s)`                                 | the three components multiplied in place                                  | `Vector3.multiplyScalar`        | bench `Vector3.multiplyScalar` (×4.3)                  |
+| `copyScaledVector3(out, a, s, outAt = 0, aAt = 0)`     | `out = a · s`                                                             | `Vector3.copy().multiplyScalar` | same line                                              |
+| `transformAffinePoint(out, m, x, y, z, outAt = 0)`     | `M · (x, y, z, 1)` for an affine `M`, three components                    | `Vector3.applyMatrix4`          | bench `Vector3.applyMatrix4` (×2.4)                    |
+| `normalizeVector3(v)`                                  | `v / ‖v‖` in place, a zero vector left unchanged, nothing returned        | `Vector3.normalize`             | `packages/sdk-core/src/math/primitives/vector.test.ts` |
+
+#### Colours — `packages/sdk-core/src/math/primitives/color.ts`
+
+| Function                           | Computes                                                                           | Witness call                                  | Proof                                                                                                                                                                                     |
+| ---------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `srgbToLinear(c)`                  | the exact sRGB curve, `c / 12.92` below 0.04045, `((c + 0.055) / 1.055)^2.4` above | `Color.convertSRGBToLinear`, `new Color(hex)` | bench `Color.convertSRGBToLinear` (×1.0) — **declared exception**: the witness multiplies by rounded constants, the engine writes the curve; gap ≤ 1e-11 per channel, invisible at 8 bits |
+| `linearToSrgb(c)`                  | the inverse curve                                                                  | `Color.convertLinearToSRGB`                   | `packages/sdk-core/src/math/primitives/color.test.ts`                                                                                                                                     |
+| `hslToLinearRgb(out, at, h, s, l)` | HSL to linear RGB, three stores at `at`                                            | `Color.setHSL`                                | bench `Color.setHSL` (×1.3)                                                                                                                                                               |
+
+#### Camera — `packages/sdk-core/src/math/primitives/camera.ts`, `packages/sdk-browser/src/camera/engineCamera.ts`, `packages/sdk-browser/src/camera/world.ts`
+
+The engine composes its own projection from the declared optics — **reversed depth, infinite
+far plane**: `near` projects to 1, infinity to 0 (`depthConvention.ts`). This is the second
+declared exception: the bench compares the x/y terms of the projection to the witness's,
+the depth terms are the engine's by design. `far` is still read for the frustum far plane,
+the adaptive threshold and the shadow range.
+
+| Function                                                                   | Computes                                                                                                                                          | Witness call                                            | Proof                                                                                                                 |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `perspectiveProjection(out, fov, aspect, near, zoom)`                      | the projection above; `fov` vertical, in degrees                                                                                                  | `PerspectiveCamera.updateProjectionMatrix`              | bench `Matrix4.makePerspective` (×1.1, x/y terms)                                                                     |
+| `createCameraFrame()` / `updateCameraFrame(frame, projection, world, far)` | view = `world⁻¹`, view-projection, six frustum planes, once per frame                                                                             | `matrixWorldInverse`, `Frustum.setFromProjectionMatrix` | bench `Frustum.setFromProjectionMatrix` (×1.6, side planes)                                                           |
+| `createEngineCamera()`                                                     | an `EngineCamera`: the frame above plus `world`, `projection`, `eye`, `near`, `far`, `fov`, `aspect`, allocated once                              | `new PerspectiveCamera()`                               | `engineCamera.test.ts`                                                                                                |
+| `writeEngineCamera(into, { fov, aspect, near, far, zoom })`                | everything a frame reads, derived from `into.world` already set and the optics                                                                    | `updateProjectionMatrix` + `updateMatrixWorld`          | `engineCamera.test.ts`: same bits as a host camera read through `readCameraWorld`                                     |
+| `defaultEngineCamera()`                                                    | the camera at the origin with fov 50, aspect 1, near 0.1, far 2000, zoom 1 — the fallback of oracles called before the first frame                | `new PerspectiveCamera()`                               | `engineCamera.test.ts`                                                                                                |
+| `holdCameraWorld(into, from)`                                              | bit-for-bit copy of an engine camera, nothing recomputed                                                                                          | `PerspectiveCamera.copy`                                | `packages/sdk-browser/src/camera/world.test.ts`                                                                       |
+| `readCameraWorld(into, hostCamera)`                                        | resolves the host camera's ancestors, copies its world matrix, then `writeEngineCamera` — the only translation from a host camera, once per frame | `updateWorldMatrix` + the reads above                   | `packages/sdk-browser/src/camera/world.test.ts` under a hostile rig; `tests/integration/engine-without-three.test.ts` |
+| `enginePose(cam)`                                                          | `{ position, quaternion }` of the drawn frame, from the engine camera                                                                             | `getWorldPosition`, `getWorldQuaternion`                | `packages/sdk-browser/src/camera/world.test.ts`                                                                       |
+
+#### Sides — `packages/sdk-browser/src/scene/materialSide.ts`
+
+| Function                                    | Computes                                                                                                                                                               | Witness call                          | Proof                  |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ---------------------- |
+| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it                                                           | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
+| `sideOf(material)`                          | the `Side` a host material declares, the first of an array deciding, an empty array front — read once at the import boundary, the only place naming the host constants | the host's double-side test           | `materialSide.test.ts` |
+| `materialSide(material)`                    | the host constant itself, for the diagnostic materials still built with the host library                                                                               | —                                     | `materialSide.test.ts` |
+
+### Batch functions
+
+`packages/sdk-core/src/math/batch/batch.ts` and the `mathBatch*.ts` beside it: `n` elements per call, flat
+typed arrays or sub-views of a fixed stride (`packages/sdk-core/src/math/batch/strides.ts`, `BOX_VALUES`,
+`FRUSTUM_PLANE_VALUES`), output first, no allocation, a count as the only return value. Each batch
+repeats its unit function, which stays the oracle; how to lay out and reuse the buffers is in the
+[Batch math for hosts](#batch-math-for-hosts). The proof is `pnpm run perf:core`
+(`three-vs-core-batch-*.perf.ts`). Ratios are the batch's speed-up over the witness's loop, rounded
+from the range of the per-run medians over three runs (PR #105); the three exceptions are declared
+on their line.
+
+| Function                                                                                    | Computes                                                                                      | Witness loop                              | Proof                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frustumKeepsBoxBatch(kept, planes, boxes, n)`                                              | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept                               | `for … frustum.intersectsBox(box)`        | bench `Frustum.intersectsBox batch` (×1.1)                                                                                                                                  |
+| `sphereFromBoundsBatch(out, boxes, n)`                                                      | four values per box, `sphereFromBounds`                                                       | `for … box.getBoundingSphere(s)`          | bench `Box3.getBoundingSphere batch` (×2.2)                                                                                                                                 |
+| `boxUnionBatch(into, boxes, n)`                                                             | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion`                                              | `for … box.union(b)`                      | bench `Box3.union batch` (×1.9)                                                                                                                                             |
+| `boxTransformBatch(out, boxes, mats[], n)`                                                  | `out[i] = boxTransform(boxes[i], mats[i])`                                                    | `for … box.applyMatrix4(m)`               | `packages/sdk-core/src/math/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
+| `boxTransformUnionBatch(into, boxes, mats[], n)`                                            | transform then union, one pass, one scratch box                                               | `Box3.setFromObject`                      | bench `Box3 transform and union batch` (×1.8)                                                                                                                               |
+| `multiplyMatrix4Batch(out[], a[], b[], n)`                                                  | `out[i] = a[i] · b[i]`, sub-views                                                             | `for … m.multiplyMatrices(a, b)`          | `packages/sdk-core/src/math/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`)                   |
+| `invertMatrix4Batch(out[], mats[], n, singular?)`                                           | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]`           | `for … m.invert()`                        | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the witness does less; ceiling 1.2                       |
+| `normalMatrix3Batch(out, mats[], n)`                                                        | nine values per matrix, `normalMatrix3`                                                       | `for … n.getNormalMatrix(m)`              | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/sdk-core/src/math/matrix/singular.ts`) is kept; ceiling 2.2         |
+| `composeMatrix4Batch(out, positions, quaternions, scales, n)`                               | `T · R · S` per element, all flat or all sub-views                                            | `for … m.compose(p, q, s)`                | bench `Matrix4.compose batch` (×1.5)                                                                                                                                        |
+| `decomposeMatrix4Batch(positions[], quaternions[], scales[], mats[], n)`                    | the reverse, `decomposeMatrix4`                                                               | `for … m.decompose(p, q, s)`              | bench `Matrix4.decompose batch` (×1.1)                                                                                                                                      |
+| `transformPointsBatch(out, m, points, n)`                                                   | `n` points by one affine matrix, `transformAffinePoint`                                       | `for … v.applyMatrix4(m)`                 | bench `Vector3.applyMatrix4 batch` (×1.4)                                                                                                                                   |
+| `transformPointsByMatricesBatch(out, mats[], points, n)`                                    | `n` points, one matrix each                                                                   | `for … v[i].applyMatrix4(mats[i])`        | bench `Vector3.applyMatrix4 per-instance batch` (×1.9)                                                                                                                      |
+| `transformDirectionsBatch(out, m, dirs, n)`                                                 | upper 3×3 then normalize, `transformDirectionVector3`                                         | `for … v.transformDirection(m)`           | bench `Vector3.transformDirection batch` (×1.3)                                                                                                                             |
+| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)`                    | one channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts` | `for … color.convertSRGBToLinear()`       | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1          |
+| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4`           | `Object3D.updateMatrixWorld` over a scene | `packages/sdk-browser/src/math/batchHierarchy.test.ts`: JavaScript, WebAssembly (`math_hierarchy.rs`) and the witness's `updateMatrixWorld`, same bits                      |
+
+No engine loop runs above 0.1 ms of the engine's own frame, so no batch replaces one yet (#80): the
+batches are for hosts until a measured share says otherwise.
 
 ## Lights
 
@@ -602,6 +774,27 @@ plain pixels taken aside from the view. For a deterministic image, a page calls
 `await capture.buffer(world, { width, height })`. `awaitPages()` rejects a requested URL that failed
 to load; a failed background load is retried at most three times, then left until the world is
 reopened.
+
+## Integration: web, Electron and Node
+
+- **Web**: `createWorld(canvasOrId)` owns the scene, the camera, the renderer and the loop;
+  `await world.scene.load(manifestUrl)` adds a compiled model to it like anything else. The
+  application owns canvas layout and disposal. With `interactive: false`, the host owns frame
+  scheduling (`world.render()`). See [Create a world](#create-a-world).
+- **Electron**: `prepare` in the main process, `createWorld` in the renderer process. No Electron
+  import in the SDK ([hosts](../packages/README.md#hosts)).
+- **Node**: `prepare`, `prepareMany`, `createCompilationJob`, or the `web-geometry-compile` CLI
+  ([COMPILER.md](COMPILER.md#using-it-from-node)).
+- **Other languages**: spawn `web-geometry-compiler` and read the cache — JSON pointer,
+  `clusters.json` and its sidecar, SHA-256 objects, `source.gltf` ([FORMAT.md](FORMAT.md)). The
+  interface is the versioned manifest.
+
+## Migration from Three.js
+
+No Three.js adapter ships or is planned: a host that already writes Three.js code writes the same
+shapes with this engine's [families](#families) instead (portal guide, "Migration from
+Three.js"; the "Witness call" column of the [maths reference](#measured-against-the-witness-library)).
+Three.js stays a comparison witness of the bench, never mixed with a published world (#79).
 
 ## Current limits
 

@@ -13,7 +13,7 @@
 //! **Patents.** libwebp's patent grant (BSD-3 licence with an *additional IP rights grant*)
 //! covers conforming implementations of the specification, `image-webp` included.
 //! Documentary note, not legal advice: the repository's legal policy is in
-//! `packages/asset-compiler-rust/FORMATS.md`.
+//! `docs/COMPILER.md` § "Input formats".
 use super::crate_image::{self, ANIMATED};
 use super::{ImageDecoded, ImageDecoder, Plugin};
 
