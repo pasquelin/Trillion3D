@@ -69,7 +69,7 @@ function gltfOf(size: number, height: number, subdivisions: number, intensity: n
     intensity,
   });
   const gltf = {
-    asset: { version: '2.0', generator: 'trillion3D fixtureLampes' },
+    asset: { version: '2.0', generator: 'Trillion3D fixtureLampes' },
     extensionsUsed: ['KHR_lights_punctual'],
     extensions: {
       KHR_lights_punctual: {

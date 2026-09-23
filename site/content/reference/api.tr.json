@@ -841,7 +841,7 @@
     "summary": "Bir tanı kanalının bildirdiği her şeyi duyan bir fonksiyon."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "trillion3D gezgininin (MeasuredWorldOptions) tüm başlatma seçeneklerini belgeleyen kapsamlı JSON Şeması.",
+    "summary": "Trillion3D gezgininin (MeasuredWorldOptions) tüm başlatma seçeneklerini belgeleyen kapsamlı JSON Şeması.",
     "description": "LLM'lerin 3D motor yapılandırmasını anlamasını, doğrulamasını ve ayarlamasını sağlar."
   },
   "EngineCamera": {
@@ -3826,13 +3826,13 @@
     }
   },
   "TRILLION3D_RUNTIME_TOOLS": {
-    "summary": "trillion3D'yi bir LLM'den kontrol etmek için mevcut araçların ve çalışma zamanı fonksiyonlarının eksiksiz kataloğu."
+    "summary": "Trillion3D'yi bir LLM'den kontrol etmek için mevcut araçların ve çalışma zamanı fonksiyonlarının eksiksiz kataloğu."
   },
   "TRILLION3D_SYSTEM_PROMPT": {
-    "summary": "Bir LLM'i trillion3D ilkeleri, bütçeleri ve render seçenekleri konusunda yönlendiren sistem promptu."
+    "summary": "Bir LLM'i Trillion3D ilkeleri, bütçeleri ve render seçenekleri konusunda yönlendiren sistem promptu."
   },
   "Trillion3dTool": {
-    "summary": "LLM'ler için genel trillion3D araç tanımı.",
+    "summary": "LLM'ler için genel Trillion3D araç tanımı.",
     "members": {
       "name": "Aracın adı.",
       "description": "Ne yaptığı.",
@@ -5072,7 +5072,7 @@
     "summary": "Bir LLM'i hazırlamak için kullanıma hazır uzman sistem promptunu üretir."
   },
   "getTrillion3dTools": {
-    "summary": "Hedef LLM sağlayıcısı için biçimlendirilmiş, eksiksiz trillion3D araç tanımları dizisini döndürür.",
+    "summary": "Hedef LLM sağlayıcısı için biçimlendirilmiş, eksiksiz Trillion3D araç tanımları dizisini döndürür.",
     "parameters": {
       "format": "Hedef format ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Varsayılan: 'openai'."
     }
@@ -6535,16 +6535,16 @@
     "description": "Şablon derleyiciden gelir ve motor önbellek düzenini bilmez; sayfalarda olduğu gibi, tek bir gerçek. Dört alanı olmayan bir şablon reddedilir: onlarla değişmeyen bir adres, her dokuya aynı görseli sunardı."
   },
   "toAnthropicTool": {
-    "summary": "Genel bir trillion3D aracını Anthropic Tool Use formatına dönüştürür."
+    "summary": "Genel bir Trillion3D aracını Anthropic Tool Use formatına dönüştürür."
   },
   "toGeminiTool": {
-    "summary": "Genel bir trillion3D aracını Google Gemini Function Declaration formatına dönüştürür."
+    "summary": "Genel bir Trillion3D aracını Google Gemini Function Declaration formatına dönüştürür."
   },
   "toMcpTool": {
-    "summary": "Genel bir trillion3D aracını Model Context Protocol (MCP) formatına dönüştürür."
+    "summary": "Genel bir Trillion3D aracını Model Context Protocol (MCP) formatına dönüştürür."
   },
   "toOpenAiTool": {
-    "summary": "Genel bir trillion3D aracını OpenAI Function Calling formatına dönüştürür."
+    "summary": "Genel bir Trillion3D aracını OpenAI Function Calling formatına dönüştürür."
   },
   "toneMapping": {
     "summary": "Sahne parlaklığını ekran aralığına getiren eğri: motorun sıraladığı her eğri."

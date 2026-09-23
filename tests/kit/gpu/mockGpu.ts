@@ -57,7 +57,7 @@ export function mockGpu(
         data,
         destroy() {},
         mapAsync: async () => {
-          if (failMap && label !== 'WG explicit capture') throw new Error('MAP_FAILED');
+          if (failMap && label !== 'Trillion3D explicit capture') throw new Error('MAP_FAILED');
         },
         getMappedRange: () => data.buffer,
         unmap() {},

@@ -1,4 +1,4 @@
-// Mathematical oracles and reference algorithms for trillion3D: pure TypeScript, no DOM
+// Mathematical oracles and reference algorithms for Trillion3D: pure TypeScript, no DOM
 // and no platform dependency.
 
 /** Dot product of two vectors of the same dimension. */

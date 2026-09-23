@@ -23,7 +23,7 @@ export function resizeTileAtlas(
 ): { pool: WebgpuTilePool; evicted: number } {
   const next = createWebgpuTilePool(device, options);
   const encoder = device.createCommandEncoder({
-    label: `WG texture pool ${options.kind} ${options.lane} resize`,
+    label: `Trillion3D texture pool ${options.kind} ${options.lane} resize`,
   });
   const kept = Math.min(pool.layers, next.layers);
   encoder.copyTextureToTexture({ texture: pool.texture }, { texture: next.texture }, [

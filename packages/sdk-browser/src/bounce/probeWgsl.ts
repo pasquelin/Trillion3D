@@ -7,7 +7,7 @@ import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts';
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64;
 /** Label of the measured pass; the "Bounce" step is read under this name, not by its rank. */
-export const BOUNCE_PROBE_PASS = 'WG bounce probes v1';
+export const BOUNCE_PROBE_PASS = 'Trillion3D bounce probes v1';
 
 /**
  * Update of the cascade irradiance probes.

@@ -20,22 +20,22 @@ const releve = (
 test('each pass has its distribution, each block its own, on metrics where everything is measured', () => {
   const resume = passesGpu([
     releve(12, [
-      ['WG DAG selection', 0.25],
-      ['WG visibility primary', 1],
-      ['WG material surfaces v1', 2],
-      ['WG deferred lighting', 6],
+      ['Trillion3D DAG selection', 0.25],
+      ['Trillion3D visibility primary', 1],
+      ['Trillion3D material surfaces v1', 2],
+      ['Trillion3D deferred lighting', 6],
     ]),
     releve(24, [
-      ['WG DAG selection', 0.75],
-      ['WG visibility primary', 1.5],
-      ['WG material surfaces v1', 2.5],
-      ['WG deferred lighting', 7],
+      ['Trillion3D DAG selection', 0.75],
+      ['Trillion3D visibility primary', 1.5],
+      ['Trillion3D material surfaces v1', 2.5],
+      ['Trillion3D deferred lighting', 7],
     ]),
     releve(36, [
-      ['WG DAG selection', null],
-      ['WG visibility primary', 2],
-      ['WG material surfaces v1', 3],
-      ['WG deferred lighting', 8],
+      ['Trillion3D DAG selection', null],
+      ['Trillion3D visibility primary', 2],
+      ['Trillion3D material surfaces v1', 3],
+      ['Trillion3D deferred lighting', 8],
     ]),
   ]);
   if (!resume) throw new Error('expected a summary');
@@ -43,13 +43,13 @@ test('each pass has its distribution, each block its own, on metrics where every
   const parNom = Object.fromEntries(resume.passes.map((p) => [p.name, p]));
   // Harness p50 rank is that of `summarize`: on two values, the lower one.
   assert.deepEqual(
-    [parNom['WG DAG selection'].gpuMs!.p50, parNom['WG DAG selection'].gpuMs!.max],
+    [parNom['Trillion3D DAG selection'].gpuMs!.p50, parNom['Trillion3D DAG selection'].gpuMs!.max],
     [0.25, 0.75],
     'reading without duration does not count as zero',
   );
-  assert.equal(parNom['WG DAG selection'].bloc, 'visibility');
-  assert.equal(parNom['WG deferred lighting'].bloc, 'other');
-  assert.equal(resume.passes[0].name, 'WG deferred lighting', 'heaviest first');
+  assert.equal(parNom['Trillion3D DAG selection'].bloc, 'visibility');
+  assert.equal(parNom['Trillion3D deferred lighting'].bloc, 'other');
+  assert.equal(resume.passes[0].name, 'Trillion3D deferred lighting', 'heaviest first');
   // Visibility block is measured only on the two metrics where selection has a duration.
   assert.deepEqual([resume.blocs.visibilityMs!.p50, resume.blocs.visibilityMs!.max], [1.25, 2.25]);
   assert.equal(resume.blocs.materialsMs!.p50, 2.5, 'all three metrics count for this block');
@@ -58,8 +58,8 @@ test('each pass has its distribution, each block its own, on metrics where every
 
 test('a truncated metric is ignored completely, and without any metric summary is null', () => {
   const resume = passesGpu([
-    releve(12, [['WG visibility primary', 1]], true),
-    releve(24, [['WG visibility primary', 3.0]]),
+    releve(12, [['Trillion3D visibility primary', 1]], true),
+    releve(24, [['Trillion3D visibility primary', 3.0]]),
   ]);
   if (!resume) throw new Error('expected a summary');
   assert.equal(resume.releves, 2);
@@ -72,14 +72,14 @@ test('readable summary names blocks in p50/p95 milliseconds and "unmeasured" wit
   const lignes = passes(
     passesGpu([
       releve(12, [
-        ['WG visibility primary', 1.234],
-        ['WG material surfaces v1', null],
+        ['Trillion3D visibility primary', 1.234],
+        ['Trillion3D material surfaces v1', null],
       ]),
     ]),
   );
   assert.match(lignes[0], /Visibility buffer 1\.234 \/ 1\.234/);
   assert.match(lignes[0], /Materials pass unmeasured/);
   assert.match(lignes[0], /The rest unmeasured/);
-  assert.ok(lignes.includes('| WG visibility primary | 1.234 / 1.234 | visibility |'));
+  assert.ok(lignes.includes('| Trillion3D visibility primary | 1.234 / 1.234 | visibility |'));
   assert.deepEqual(passes(null), ['- GPU passes: no reading', '']);
 });

@@ -16,7 +16,7 @@ export const CHAPTERS: ChapterCode[] = [
     id: 'create-a-world',
     example: 'a-first-world',
     code: [
-      `pnpm add ../trillion3D   # the folder where you cloned and built the engine`,
+      `pnpm add ../Trillion3D   # the folder where you cloned and built the engine`,
       `<canvas id="view" style="width: 100%; height: 400px"></canvas>`,
       `import { createWorld, geometry, material, object, light } from 'trillion3d';
 

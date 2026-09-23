@@ -87,8 +87,8 @@ export function drawnPageIds(
   nodeCount: number,
   pageCount: number,
 ) {
-  const buffer = buffers.find((entry) => entry.label === 'WG DAG flags');
-  if (!buffer) throw new Error('WG DAG flags buffer absent');
+  const buffer = buffers.find((entry) => entry.label === 'Trillion3D DAG flags');
+  if (!buffer) throw new Error('Trillion3D DAG flags buffer absent');
   const marks = new Uint32Array(
     buffer.data.buffer,
     buffer.data.byteOffset,
