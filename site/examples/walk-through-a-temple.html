@@ -98,18 +98,21 @@
     <div id="banner" class="layer" data-example-overlay></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, play } from '../runtime/kit.js';
 
       // ── The course and the runner: data and one pure step, nothing of the engine inside.
       // The temple is built at life size, in metres: the eyes stand 1.65 m above the feet.
       const PIT = -4.5;
-      // The pillars rising out of the lava, [x from, x to, z from, z to, top]. A walking jump
-      // clears about 2.5 m, a sprinting one 4.4 m; a rise of 0.35 m or less is walked up.
+      // The pillars rising out of the lava, [x from, x to, z from, z to, top], in the order they
+      // are crossed. At full speed a walking jump carries about 2.3 m and a sprinting one 4 m; a
+      // rise of 0.35 m or less is walked up. Every move leaves a quarter of its reach spare: four
+      // easy ones first, steady walking jumps after, one sprint over the widest gap, and each
+      // next top in sight from the edge it is jumped from.
       const COURSE = [
-        [-4.5, 4.5, 1.8, 9.6, 0], [-0.9, 0.9, -0.6, 0.9, 0], [-0.9, 0.9, -3.3, -1.8, 0.3], [1.8, 3.3, -5.4, -3.9, 0.6],
-        [1.8, 3.3, -6.9, -5.4, 0.9], [1.8, 3.3, -8.4, -6.9, 1.2], [2.34, 2.76, -13.8, -9.6, 1.2], [-0.6, 3.6, -17.4, -14.7, 1.2],
-        [-4.2, -1.8, -22.2, -20.7, 1.2], [-4.2, -2.7, -24.6, -23.1, 1.65], [-4.2, -2.7, -27, -25.5, 2.1], [-1.5, 0, -29.7, -28.2, 2.1],
-        [-0.6, 4.2, -32.4, -30.3, 2.1], [2.7, 3.9, -35.1, -33.9, 2.4], [0.3, 1.5, -37.8, -36.6, 2.7], [-4.5, 4.5, -42.9, -38.7, 3],
+        [-4.5, 4.5, 1.8, 9.6, 0], [-1.5, 1.5, -1.2, 1.8, 0.15], [-1.5, 1.5, -4.2, -2.2, 0.15], [-1.5, 1.5, -7.2, -5.2, 0.45],
+        [-1.5, 1.5, -10.2, -8.2, 0.75], [-0.5, 3, -13.6, -11.6, 0.75], [0.5, 3.5, -17.2, -15.2, 1.05], [-3.5, -1.1, -17.2, -15.2, 1.05],
+        [-3.5, -1.1, -22.8, -18.8, 1.35], [-3.5, -1.1, -28.8, -25.8, 1.35], [-3.5, -1.1, -32, -30.4, 1.65], [0.3, 2.9, -32, -30.4, 1.95],
+        [0.3, 2.9, -35.6, -33.4, 2.25], [-0.5, 2.5, -38, -36.6, 2.6], [-4.5, 4.5, -42.9, -38.7, 3],
       ].map(([x0, x1, z0, z1, top]) => ({ x0, x1, z0, z1, top, x: (x0 + x1) / 2, z: (z0 + z1) / 2 }));
       const FINISH = COURSE.at(-1);
       const HALL = { x: 12.6, near: 13.5, far: -44 };
@@ -162,6 +165,36 @@
         out.lava = runner.feet < T.LAVA;
         return out;
       }
+
+      // The hands, in the eye's frame (x right, y up, -z ahead, metres). A pose is read as where
+      // the knuckles sit on the screen — [screen x, screen y] from -1 to 1 — with their depth,
+      // the fingers' curl and the hand's roll; the field of view and the aspect turn it into a
+      // point, so the hands keep to the bottom corners of any screen. At rest and walking only
+      // the knuckles peek in; a sprint pumps each hand into its corner on its beat and out
+      // again; a jump reaches both up and open, as for a ledge; a landing drops and braces them.
+      const ARM = { SHOULDER: [0.19, -0.3, 0.06], UPPER: 0.3, FORE: 0.27, HAND: 0.075 };
+      const mix = (a, b, t) => a.map((value, i) => value + (b[i] - value) * t);
+      const along = (a, b, k = 1) => a.map((value, i) => value + b[i] * k);
+      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const unit = (a) => along([0, 0, 0], a, 1 / Math.hypot(...a));
+      // `pose`: move (stride, 0 to 1.6), sprint (0 to 1), phase (the stride's), air and brace (0 to 1).
+      function handPose(side, pose, fov, aspect) {
+        const tan = Math.tan((fov * Math.PI) / 360);
+        const beat = Math.max(0, Math.sin(pose.phase) * side), pump = Math.min(1, pose.move) * 0.25 + pose.sprint * 0.75;
+        let target = [0.74 - 0.14 * beat * pump, -1.08 + pump * (0.42 * beat - 0.2), 0.4 + 0.05 * beat * pump, 0.55 + 0.35 * pump, 0.9];
+        target = mix(target, [0.44, -0.32, 0.46, 0.08, 0.3], pose.air);
+        const [nx, ny, depth, curl, roll] = mix(target, [0.6, -0.98, 0.42, 0.3, 0.2], pose.brace);
+        const reach = unit([-side * 0.25, 0.4 + 0.5 * pose.air, -1]);
+        const shoulder = [side * ARM.SHOULDER[0], ARM.SHOULDER[1], ARM.SHOULDER[2]];
+        const toWrist = along(along([side * nx * tan * aspect * depth, ny * tan * depth, -depth], reach, -ARM.HAND), shoulder, -1);
+        // Two bones of fixed length: the elbow bends down and out, a straight arm stops short.
+        const d = Math.min(Math.hypot(...toWrist), ARM.UPPER + ARM.FORE - 1e-3), u = unit(toWrist);
+        const a = (ARM.UPPER ** 2 - ARM.FORE ** 2 + d * d) / (2 * d), hint = [side * 0.5, -1, 0.25];
+        const bend = unit(along(hint, u, -dot(hint, u)));
+        const elbow = along(along(shoulder, u, a), bend, Math.sqrt(Math.max(0, ARM.UPPER ** 2 - a * a)));
+        const wrist = along(shoulder, u, d);
+        return { shoulder, elbow, wrist, knuckles: along(wrist, reach, ARM.HAND), reach, curl, roll: side * roll };
+      }
       // ── The temple.
 
       // `firstPerson` is the engine's walking head: a click locks the mouse to look around, the
@@ -175,6 +208,9 @@
       // The camera joins the scene so the arms and the head ride on it, posed in the same frame.
       world.scene.add(camera);
       world.scene.background = math.color('#4b3558');
+      // A head turns only so far: about 60° down, where the chest and the boots come into view,
+      // and 70° up. (`minPitch` and `maxPitch` are recent: an older engine simply lacks them.)
+      if ('minPitch' in world.controls) Object.assign(world.controls, { minPitch: -1.05, maxPitch: 1.2 });
       // The first pointer move after the lock is granted can carry the cursor's whole jump to
       // the middle of the screen: the page drops that one move before the controller sees it.
       let fresh = false;
@@ -195,18 +231,32 @@
         parent.add(mesh);
         return mesh;
       }
+      function part(shape, matter, at, parent, scale) {
+        const mesh = put(shape, matter, at, parent);
+        mesh.scale.set(...scale);
+        return mesh;
+      }
+      const ball = geometry.sphere(0.5, 24, 16);
       const box = (size, at, matter, parent) => put(geometry.box(...size), matter, at, parent);
       // A fixed scatter (a sine hash): the same temple on every visit.
       const hash = (index, k) => { const t = Math.sin(index * 12.9898 + k * 78.233) * 43758.5453; return t - Math.floor(t); };
 
-      // The lava: it glows by itself and cools in dark crusts; five warm lamps just above it
-      // light the pillars and the walls from below. They never move and cast no shadow.
-      box([27.4, 0.6, 60], [0, PIT - 0.3, -16], glowing('#ff4a14', 2.5));
-      const hot = glowing('#ffb347', 3), crust = matte('#1c1512', 1);
-      for (let index = 0; index < 60; index++) {
-        const [u, v, w] = [1, 2, 3].map((k) => hash(index, k));
-        const size = 0.9 + w * 2.7;
-        box([size, 0.12, size * (0.6 + u * 0.8)], [u * 25 - 12.5, PIT + 0.06, v * 57 - 43.5], index % 5 ? crust : hot).rotation.set(0, w * 3, 0);
+      // The lava: an orange-red glow that cools in crusts — low rounded lumps of dark red-brown
+      // that still smoulder, smaller and fewer near the course — split by bright yellow cracks.
+      // Five warm lamps just above it light the pillars and the walls from below; they never
+      // move and cast no shadow.
+      box([27.4, 0.6, 60], [0, PIT - 0.3, -16], glowing('#ff3f10', 2.4));
+      const crust = material.meshStandard({ color: '#4a2418', roughness: 0.95, emissive: '#5c1606', emissiveIntensity: 0.7 });
+      const seam = geometry.capsule(0.05, 1, 2, 8), crack = glowing('#ffc45c', 4);
+      for (let index = 0; index < 48; index++) {
+        const [u, v, w] = [1, 2, 3].map((k) => hash(index, k)), x = u * 25 - 12.5, near = Math.abs(x) < 5;
+        if (near && index % 2) continue;
+        const size = (near ? 0.45 : 1) * (0.8 + w * 2);
+        part(ball, crust, [x, PIT, v * 57 - 43.5], world.scene, [size, 0.16 + 0.1 * w, size * (0.6 + u * 0.8)]).rotation.y = w * 3;
+      }
+      for (let index = 0; index < 18; index++) {
+        const [u, v, w] = [8, 9, 10].map((k) => hash(index, k));
+        part(seam, crack, [u * 25 - 12.5, PIT + 0.01, v * 57 - 43.5], world.scene, [0.6 + w * 0.6, 0.8 + w * 1.6, 1.4]).rotation.set(0, w * 6, Math.PI / 2);
       }
       for (const [x, z] of [[-3, 6], [3, -6], [-3, -18], [3, -30], [-3, -40]])
         world.scene.add(light.point({ position: [x, PIT + 1.8, z], color: '#ff6a2a', intensity: 45, distance: 27 }));
@@ -257,17 +307,18 @@
       // Checkpoints: a bronze standard with a gem, dark until reached. Two gems, one shown:
       // lighting a checkpoint changes which mesh is visible, never a material; its lamp rises.
       const gemOff = matte('#1b2a30', 0.3, 0.6), gemOn = glowing('#7cf0ff', 5), gem = geometry.sphere(0.16, 20, 14);
-      const checkpoints = [0, 7, 12].map((index) => {
-        const p = COURSE[index], [x, z] = [p.x1 - 0.5, p.z0 + 0.5];
+      const checkpoints = [0, 4, 8, 12].map((index) => {
+        const p = COURSE[index], [x, z] = [p.x1 - 0.3, p.z1 - 0.3];
         put(geometry.cylinder(0.05, 0.07, 1.6, 12), bronze, [x, p.top + 0.8, z]);
         const lamp = light.point({ position: [x, p.top + 2, z], color: '#7cf0ff', intensity: 0, distance: 8 });
         world.scene.add(lamp);
         return { platform: p, off: put(gem, gemOff, [x, p.top + 1.75, z]), on: put(gem, gemOn, [x, p.top + 1.75, z]), lamp };
       });
       const lit = (entry, on) => ([entry.on.visible, entry.off.visible, entry.lamp.intensity] = [on, !on, on ? 12 : 0]);
-      // The orbs: glowing beads in a turning bronze ring, one hanging over the long jump's gap.
+      // The orbs: glowing beads in a turning bronze ring, two hanging over gaps — one over the
+      // sprint's — and three over tops.
       const glow = glowing('#7cf0ff', 6), pearl = geometry.sphere(0.2, 24, 16), hoop = geometry.torus(0.3, 0.03, 12, 40);
-      const orbs = [[0, 1.2, -2.6], [2.55, 2.2, -11.7], [-1.5, 2.6, -19], [-0.75, 4.1, -28.95], [0.9, 3.6, -37.2]].map((at) => {
+      const orbs = [[0, 1.4, -4.7], [2, 2.15, -16.2], [-2.3, 2.55, -24.3], [1.6, 3.05, -31.2], [1, 3.7, -37.2]].map((at) => {
         const orb = object.group();
         orb.position.set(...at);
         put(pearl, glow, [0, 0, 0], orb);
@@ -297,46 +348,80 @@
       world.scene.add(light.directional({ intensity: 2.6, color: '#ffab66', position: [6, 9, 30], castShadow: true }));
       world.scene.add(light.hemisphere({ color: '#6a5a8c', groundColor: '#ff7a40', intensity: 0.7 }));
 
-      // ── The body. Arms and a head ride on the camera; the head is a one-sided shell the eye
-      // sits inside, so the eye sees none of it while the sun still draws its shadow. Torso and
-      // legs stand on the floor under the eye, turned with it: seen when looking down, and
-      // casting the runner's shadow ahead of him.
+      // ── The body. A head and two arms ride on the camera; the head is a one-sided shell the eye
+      // sits inside, so the eye sees none of it while the sun still draws its shadow. The arms
+      // are posed each frame from `handPose`: an upper arm to the elbow, a forearm to the wrist, a
+      // hand. The torso and the legs stand on the floor under the eye, turned with it, their front
+      // a little ahead of the eye: seen when looking down, casting the runner's shadow ahead of
+      // him. Every part is rounded — stretched spheres, capsules, tapered cylinders on shared
+      // shapes — and all of it exists before the first frame.
       const skin = matte('#c98e6b', 0.6), sleeve = matte('#2f5d73', 0.85), leather = matte('#5a3a22', 0.7);
       const cloth = matte('#4b3b2a'), boot = matte('#2a1e16', 0.8);
-      const forward = (mesh) => ((mesh.rotation.x = -Math.PI / 2), mesh);
-      function joint(parent, at) {
+      function joint(parent, at = [0, 0, 0]) {
         const node = object.group();
         node.position.set(...at);
-        node.rotation.order = 'YXZ';
         parent.add(node);
         return node;
       }
       put(geometry.sphere(0.13, 20, 14), skin, [0, 0, 0.02], camera);
-      const rig = joint(camera, [0, 0, 0]);
+      const rig = joint(camera);
+      // A hand along its +y, its back to +z, the thumb on the inner side: a palm, four fingers of
+      // two joints that curl toward the palm, a thumb of two.
+      const bone = geometry.capsule(0.0095, 0.03, 3, 10), wristBall = geometry.sphere(0.036, 16, 12);
+      const FINGERS = [[0.03, 1], [0.01, 1.08], [-0.01, 1.02], [-0.029, 0.84]];
+      function digit(parent, at, length) {
+        const base = joint(parent, at), tip = joint(base, [0, 0.042 * length, 0]);
+        part(bone, skin, [0, 0.021 * length, 0], base, [1, length, 1]);
+        part(bone, skin, [0, 0.018 * length, 0], tip, [0.92, 0.85 * length, 0.92]);
+        return [base, tip];
+      }
+      function hand(side) {
+        const root = joint(rig);
+        put(wristBall, skin, [0, 0, 0], root);
+        part(ball, skin, [0, 0.045, 0], root, [0.086, 0.095, 0.036]);
+        const fingers = FINGERS.map(([x, length]) => digit(root, [-side * x, 0.086, 0], length));
+        const thumb = digit(root, [-side * 0.04, 0.022, -0.006], 1.05);
+        thumb[0].rotation.z = side * 0.75;
+        return { root, fingers, thumb };
+      }
+      const upperArm = geometry.capsule(0.052, ARM.UPPER, 4, 14), forearm = geometry.cylinder(0.036, 0.047, ARM.FORE, 16);
+      const cuff = geometry.cylinder(0.058, 0.061, 0.12, 16), hem = geometry.torus(0.057, 0.011, 8, 24);
+      const bracer = geometry.cylinder(0.043, 0.047, 0.08, 16);
       const arms = [-1, 1].map((side) => {
-        const shoulder = joint(rig, [side * 0.24, -0.32, 0.1]);
-        forward(put(geometry.cylinder(0.075, 0.07, 0.32, 16), sleeve, [0, 0, -0.15], shoulder));
-        const elbow = joint(shoulder, [0, 0, -0.3]);
-        forward(put(geometry.cylinder(0.07, 0.062, 0.14, 16), sleeve, [0, 0, -0.05], elbow));
-        forward(put(geometry.cylinder(0.05, 0.044, 0.18, 14), skin, [0, 0, -0.18], elbow));
-        forward(put(geometry.cylinder(0.056, 0.052, 0.09, 14), leather, [0, 0, -0.2], elbow));
-        const wrist = joint(elbow, [0, 0, -0.28]);
-        box([0.09, 0.035, 0.1], [0, 0, -0.05], skin, wrist);
-        box([0.085, 0.03, 0.08], [0, -0.015, -0.125], skin, wrist).rotation.x = -0.45;
-        box([0.03, 0.03, 0.07], [-side * 0.055, 0.005, -0.05], skin, wrist).rotation.y = side * 0.5;
-        return { side, shoulder, elbow, wrist };
+        const top = joint(rig), low = joint(rig);
+        put(upperArm, sleeve, [0, ARM.UPPER / 2, 0], top);
+        part(ball, sleeve, [0, 0, 0], low, [0.11, 0.11, 0.11]);
+        put(forearm, skin, [0, ARM.FORE / 2, 0], low);
+        put(cuff, sleeve, [0, 0.06, 0], low);
+        put(hem, cloth, [0, 0.12, 0], low).rotation.x = Math.PI / 2;
+        put(bracer, leather, [0, ARM.FORE - 0.07, 0], low);
+        return { side, top, low, ...hand(side) };
       });
+      const UP = math.vector3(0, 1, 0), toward = math.vector3(), twist = math.quaternion();
+      // Stands a node at `from` with its +y toward `to`.
+      function aim(node, from, to) {
+        node.position.set(...from);
+        node.quaternion.setFromUnitVectors(UP, toward.set(...unit(along(to, from, -1))));
+      }
+      // The torso: a chest and a belly under a tunic, a belt, the hips; the legs: a thigh, a knee,
+      // a shin in a boot's shaft, a foot, jointed at the hip, the knee and the ankle.
       const body = object.group();
       world.scene.add(body);
-      box([0.42, 0.56, 0.24], [0, 1.22, 0.02], sleeve, body);
-      box([0.43, 0.07, 0.25], [0, 0.97, 0.02], bronze, body);
-      box([0.38, 0.16, 0.24], [0, 0.88, 0.02], cloth, body);
+      part(ball, sleeve, [0, 1.3, 0.01], body, [0.4, 0.38, 0.25]);
+      part(ball, sleeve, [0, 1.07, 0], body, [0.33, 0.32, 0.22]);
+      for (const side of [-1, 1]) part(ball, sleeve, [side * 0.18, 1.41, 0.01], body, [0.15, 0.13, 0.15]);
+      part(geometry.cylinder(0.5, 0.5, 1, 28), leather, [0, 0.95, 0], body, [0.34, 0.06, 0.235]);
+      part(ball, cloth, [0, 0.87, 0.01], body, [0.34, 0.2, 0.23]);
+      const thigh = geometry.capsule(0.07, 0.3, 4, 14), shin = geometry.cylinder(0.055, 0.047, 0.3, 14);
+      const shaft = geometry.cylinder(0.062, 0.058, 0.2, 14);
       const legs = [-1, 1].map((side) => {
-        const hip = joint(body, [side * 0.11, 0.86, 0.02]);
-        put(geometry.cylinder(0.08, 0.07, 0.44, 14), cloth, [0, -0.22, 0], hip);
-        const knee = joint(hip, [0, -0.44, 0]);
-        put(geometry.cylinder(0.066, 0.056, 0.38, 14), cloth, [0, -0.19, 0], knee);
-        box([0.13, 0.1, 0.27], [0, -0.37, -0.06], boot, knee);
+        const hip = joint(body, [side * 0.095, 0.86, 0.01]);
+        put(thigh, cloth, [0, -0.2, 0], hip);
+        const knee = joint(hip, [0, -0.4, 0]);
+        part(ball, cloth, [0, 0, 0], knee, [0.13, 0.13, 0.13]);
+        put(shin, cloth, [0, -0.13, 0], knee);
+        put(shaft, boot, [0, -0.28, 0], knee);
+        part(ball, boot, [0, -0.41, -0.06], knee, [0.11, 0.09, 0.27]);
         return { side, hip, knee };
       });
 
@@ -347,7 +432,7 @@
         if (audio) return;
         audio = new AudioContext();
         master = audio.createGain();
-        master.gain.value = muted ? 0 : 0.8;
+        master.gain.value = muted || !game.running ? 0 : 0.8;
         master.connect(audio.destination);
         noise = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
         const deep = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
@@ -434,14 +519,30 @@
           if (event.key.toLowerCase() === 'r') restart();
           if (event.key.toLowerCase() === 'm') toggleSound();
         }, { capture: true });
-      addEventListener('blur', () => held.clear());
       world.canvas.addEventListener('pointerdown', startAudio);
-      document.addEventListener('pointerlockchange', () => state === 'run' && say(document.pointerLockElement ? '' : 'Click to play', KEYS));
+      // The sound's level: silent when muted or paused.
+      const volume = () => master && master.gain.setTargetAtTime(muted || !game.running ? 0 : 0.8, audio.currentTime, 0.02);
       function toggleSound() {
         muted = !muted;
         soundShown.textContent = muted ? 'M muted' : 'M sound';
-        if (master) master.gain.setTargetAtTime(muted ? 0 : 0.8, audio.currentTime, 0.02);
+        volume();
       }
+      // The kit's pause: the game runs only while the mouse is locked to the canvas. Paused, the
+      // frame below stops at its first line — no walking, no looking, no clock, the body still —
+      // the sound falls silent, held keys are dropped and the page's own banner steps aside.
+      const game = play(world, {
+        keys: KEYS,
+        onPause() {
+          held.clear();
+          jumpPressed = false;
+          banner.hidden = true;
+          volume();
+        },
+        onResume() {
+          banner.hidden = false;
+          volume();
+        },
+      });
       function flash() {
         hud.classList.add('flash');
         requestAnimationFrame(() => requestAnimationFrame(() => hud.classList.remove('flash')));
@@ -461,7 +562,8 @@
         for (const { orb } of orbs) orb.visible = true;
         spawn(checkpoint.platform);
         veil.classList.remove('on');
-        say(document.pointerLockElement ? '' : 'Click to play', KEYS);
+        say('');
+        world.invalidate();
       }
       restart();
       controls({
@@ -472,14 +574,49 @@
       }, (values) => (world.controls.lookSpeed = 0.002 * values.look), world);
 
       // What the frame reads back, eased so the body moves without jerks.
-      const eased = { move: 0, air: 0, fov: 75, tilt: 0, dip: 0, dipSpeed: 0 };
+      const eased = { move: 0, air: 0, fov: 75, tilt: 0, dip: 0, dipSpeed: 0, sprint: 0, bob: 0 };
       const ease = (key, to, rate, dt) => (eased[key] += (to - eased[key]) * Math.min(1, dt * rate));
-      let phase = 0, footfall = 0;
-      world.onFrame(({ delta, time }) => {
-        const dt = Math.min(delta, 1 / 20), T = TUNING, q = camera.quaternion;
-        // Where the eye looks, and that direction on the level.
+      let phase = 0, footfall = 0, time = 0;
+      // Where the eye looks, and that direction on the level.
+      function gaze() {
+        const q = camera.quaternion;
         const look = [-2 * (q.x * q.z + q.w * q.y), -2 * (q.y * q.z - q.w * q.x), -(1 - 2 * (q.x * q.x + q.y * q.y))];
-        const flat = Math.hypot(look[0], look[2]) || 1, [fx, fz] = [look[0] / flat, look[2] / flat];
+        const flat = Math.hypot(look[0], look[2]) || 1;
+        return { look, fx: look[0] / flat, fz: look[2] / flat };
+      }
+      // Poses the body from the eased state. The hands: pumped by the stride, reaching in the
+      // air, braced by a landing's dip, placed for this frame's field of view and aspect, the
+      // arms following them. The legs stride, the knee bending as the leg swings through, and
+      // tuck in a jump. Paused, the state stands still and so does the body.
+      function dress() {
+        const { fx, fz } = gaze();
+        const pose = { move: eased.move, sprint: eased.sprint, phase, air: eased.air, brace: Math.max(0, Math.min(1, -eased.dip * 25)) };
+        for (const { side, top, low, root, fingers, thumb } of arms) {
+          const h = handPose(side, pose, camera.fov, camera.aspect);
+          aim(top, h.shoulder, h.elbow);
+          aim(low, h.elbow, h.wrist);
+          root.position.set(...h.wrist);
+          root.quaternion.setFromUnitVectors(UP, toward.set(...h.reach)).premultiply(twist.setFromAxisAngle(toward, h.roll));
+          for (const [base, tip] of fingers) [base.rotation.x, tip.rotation.x] = [-1.1 * h.curl, -1.4 * h.curl];
+          [thumb[0].rotation.x, thumb[1].rotation.x] = [-0.5 * h.curl, -0.7 * h.curl];
+        }
+        rig.position.y = eased.dip * 0.6 + eased.bob * 0.5 + Math.sin(time * 1.7) * 0.006;
+        rig.rotation.z = eased.tilt;
+        body.position.set(runner.x - fx * 0.1, runner.feet + eased.dip * 0.4, runner.z - fz * 0.1);
+        body.rotation.y = Math.atan2(-fx, -fz);
+        for (const { side, hip, knee } of legs) {
+          const turn = phase + (side > 0 ? 0 : Math.PI);
+          hip.rotation.x = Math.sin(turn) * 0.55 * eased.move + eased.air * (side > 0 ? 0.7 : 0.15);
+          knee.rotation.x = -Math.max(0, Math.cos(turn)) * 0.9 * eased.move - eased.air * (side > 0 ? 1.1 : 0.45);
+        }
+      }
+      dress();
+      world.onFrame(({ delta }) => {
+        // Paused, nothing moves: the frame only fits the hands to a resized screen.
+        if (!game.running) return dress();
+        // The game's own clock, which stands still while it is paused.
+        const dt = Math.min(delta, 1 / 20), T = TUNING, { look, fx, fz } = gaze();
+        time += dt;
         const [x0, z0] = [runner.x, runner.z];
         let out = { jumped: false, landed: 0, lava: false };
         if (state === 'run') {
@@ -491,7 +628,7 @@
         if (world.controls.movementSpeed !== speed) world.controls.movementSpeed = speed;
 
         // The walk: the stride's phase, a footstep at each half turn, the head's bob, the dip of
-        // a landing (a spring), the field of view widening at a sprint.
+        // a landing (a spring), the field of view widening at a sprint, a lean into a strafe.
         const [vx, vz] = [(runner.x - x0) / dt, (runner.z - z0) / dt], going = Math.hypot(vx, vz);
         ease('move', runner.grounded ? Math.min(going / T.WALK, 1.6) : eased.move, 10, dt);
         ease('air', runner.grounded ? 0 : 1, 9, dt);
@@ -507,31 +644,12 @@
         }
         eased.dipSpeed += (-160 * eased.dip - 20 * eased.dipSpeed) * dt;
         eased.dip = Math.max(-0.35, eased.dip + eased.dipSpeed * dt);
-        const bob = -0.035 * eased.move * (1 - Math.cos(2 * phase)) * 0.5;
-        camera.position.set(runner.x, runner.feet + T.EYES + bob + eased.dip, runner.z);
-        const sprinting = Math.max(0, Math.min(1, (going - T.WALK) / (T.SPRINT - T.WALK)));
-        if (Math.abs(ease('fov', 75 + 10 * sprinting, 6, dt) - camera.fov) > 0.01) camera.fov = eased.fov;
-
-        // The arms swing opposite to the legs, pump harder at a sprint, reach forward in the air,
-        // sink with a landing and lean into a strafe (the controller keeps the horizon level).
+        eased.bob = -0.035 * eased.move * (1 - Math.cos(2 * phase)) * 0.5;
+        camera.position.set(runner.x, runner.feet + T.EYES + eased.bob + eased.dip, runner.z);
+        eased.sprint = Math.max(0, Math.min(1, (going - T.WALK) / (T.SPRINT - T.WALK)));
+        if (Math.abs(ease('fov', 75 + 10 * eased.sprint, 6, dt) - camera.fov) > 0.01) camera.fov = eased.fov;
         ease('tilt', Math.max(-0.1, Math.min(0.1, (vx * fz - vz * fx) * 0.015)), 8, dt);
-        const breath = Math.sin(time * 1.7) * 0.012;
-        for (const { side, shoulder, elbow, wrist } of arms) {
-          const swing = Math.sin(phase) * side * 0.2 * eased.move;
-          shoulder.rotation.set(0.03 + swing + 0.45 * eased.air + breath, side * 0.12 * (1 - eased.air), 0);
-          elbow.rotation.x = 0.35 + 0.15 * eased.move + Math.max(0, -swing) * 0.5 - 0.25 * eased.air;
-          wrist.rotation.x = 0.1 * eased.air - 0.05;
-        }
-        rig.position.y = eased.dip * 0.6 + bob * 0.5;
-        rig.rotation.z = eased.tilt;
-        // The legs stride, the knee bending as the leg swings through, and tuck in a jump.
-        body.position.set(runner.x - fx * 0.12, runner.feet + eased.dip * 0.4, runner.z - fz * 0.12);
-        body.rotation.y = Math.atan2(-fx, -fz);
-        for (const { side, hip, knee } of legs) {
-          const turn = phase + (side > 0 ? 0 : Math.PI);
-          hip.rotation.x = Math.sin(turn) * 0.55 * eased.move + eased.air * (side > 0 ? 0.7 : 0.15);
-          knee.rotation.x = -Math.max(0, Math.cos(turn)) * 0.9 * eased.move - eased.air * (side > 0 ? 1.1 : 0.45);
-        }
+        dress();
 
         // The game.
         if (state === 'run') {
