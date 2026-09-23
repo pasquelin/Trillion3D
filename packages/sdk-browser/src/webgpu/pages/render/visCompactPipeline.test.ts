@@ -2,24 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { ClusterManifest } from '../../../../../sdk-core/src/index.ts';
 import { webgpuPagesBackend } from '../pages.ts';
-import { collectClusterPages, selectVisiblePages } from '../../../page/selection/selection.ts';
+import { collectClusterPages } from '../../../page/selection/selection.ts';
 import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { indirectDraws, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts';
-import { assertOccluderImage, occluderScene } from '../testOccluder.fixture.ts';
-import { cameraMoteur } from '../../../camera/camera.fixture.ts';
+import {
+  assertOccluderImage,
+  occluderScene,
+  preparedOccluderRun,
+} from '../testOccluder.fixture.ts';
 
 test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the disoccluded vis pass', async () => {
   installGpuGlobals();
-  const {
-    source,
-    metadata: occluderMetadata,
-    indices,
-    associations,
-    geometry,
-    material,
-  } = occluderScene();
+  const scene = occluderScene();
+  const { source, metadata: occluderMetadata, indices, associations, geometry, material } = scene;
   const metadata: ClusterManifest = {
     ...occluderMetadata,
     schema: 1,
@@ -41,26 +38,13 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
     false,
     true,
   );
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 4,
-    viewport,
-  }) as ReturnType<typeof webgpuPagesBackend> & {
-    selectedPageIds(): string[];
-    rasterRgba(): Uint8Array;
-    visibilityIds(): Uint32Array;
-  };
-  const cam = camera();
-  const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
-    pixelError: 0,
-    viewport,
-  });
-  await backend.prepare();
-  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
+  const run = await preparedOccluderRun(scene, metadata, collected.roots, device, viewport);
+  const { cam, cpu } = run,
+    backend = run.backend as ReturnType<typeof webgpuPagesBackend> & {
+      selectedPageIds(): string[];
+      rasterRgba(): Uint8Array;
+      visibilityIds(): Uint32Array;
+    };
   assert.ok(textures.some((texture) => texture.format === 'r32float'));
   backend.render(cam);
   await backend.flush?.();

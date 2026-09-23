@@ -5,7 +5,7 @@ import { collectClusterPages } from '../../../page/selection/selection.ts';
 import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { drawnPageIds, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { quadScene, camera } from '../testScenes.fixture.ts';
+import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts';
 import { coarseQuadScene } from '../testOccluder.fixture.ts';
 import type { WebgpuPagesBackend } from '../runtime.ts';
 
@@ -61,14 +61,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
   );
   const packed = packDagSelection(collected.roots);
   const { device, draws, buffers } = mockGpu(undefined, packed);
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    indices: new Map(),
-    readPage: async (url) => fixture.indices.get(url)!,
-    gpuDevice: device,
-    maxResidentPages: 3,
-    viewport: [32, 32],
-  }) as WebgpuPagesBackend;
+  const backend = streamingQuadBackend(fixture, device) as WebgpuPagesBackend;
   const render = () => {
     draws.length = 0;
     backend.render(camera());
