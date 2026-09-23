@@ -122,7 +122,9 @@ export function slide(
   [body, report, rules] = [moving, into, how];
   const { capsule } = moving;
   const length = Math.hypot(delta[0], delta[1], delta[2]);
-  const parts = Math.max(1, Math.ceil(length / (0.5 * capsule.radius)));
+  // Half a radius a part, so that nothing thinner than the body is crossed; a body with no
+  // thickness (a radius of 0, or not a number) has nothing to part by and moves in one.
+  const parts = capsule.radius > 0 ? Math.max(1, Math.ceil(length / (0.5 * capsule.radius))) : 1;
   for (let k = 0; k < 3; k++) part[k] = delta[k] / parts;
   for (let i = 0; i < parts; i++) {
     for (let k = 0; k < 3; k++) capsule.feet[k] += part[k];
