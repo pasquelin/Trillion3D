@@ -1,7 +1,7 @@
 import { useRef } from 'react';
-import type { MouseEvent } from 'react';
 import { t } from '../../content/i18n/index.ts';
 import { usePortal } from '../layout/PortalContext.ts';
+import { Dropdown } from '../ui/Dropdown.tsx';
 import { LIGHTS, SHAPES, type AddKind } from './objects.ts';
 import type { Editor } from './useEditor.ts';
 
@@ -9,40 +9,6 @@ import type { Editor } from './useEditor.ts';
 const MODELS = ['bust', 'crates', 'hall', 'street-corner'] as const;
 const manifestOf = (id: string) =>
   new URL(`assets/examples/${id}/cache/native/full/manifest.json`, document.baseURI).href;
-
-interface Item {
-  key: string;
-  label: string;
-  run: () => void;
-  disabled?: boolean;
-}
-
-/** One menu of the bar: a DaisyUI dropdown that closes once an item is chosen. */
-function Menu({ label, items }: { label: string; items: Item[] }) {
-  const close = (event: MouseEvent) =>
-    event.currentTarget.closest('details')?.removeAttribute('open');
-  return (
-    <details className="dropdown">
-      <summary className="btn btn-ghost btn-sm list-none">{label}</summary>
-      <ul className="menu dropdown-content z-20 mt-1 w-56 rounded-box border border-base-300 bg-base-200 shadow-lg">
-        {items.map((item) => (
-          <li key={item.key} className={item.disabled ? 'menu-disabled' : ''}>
-            <button
-              type="button"
-              disabled={item.disabled}
-              onClick={(event) => {
-                close(event);
-                item.run();
-              }}
-            >
-              {item.label}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </details>
-  );
-}
 
 /** Hands the scene to the person as a JSON file. */
 function download(json: string) {
@@ -64,10 +30,10 @@ export function MenuBar({ editor }: { editor: Editor }) {
   const file = useRef<HTMLInputElement>(null);
   const kinds: AddKind[] = [...(Object.keys(SHAPES) as AddKind[]), 'group', ...LIGHTS];
   const none = !session.selected;
-  const item = (key: string, run: () => void, disabled = false) => ({
+  const item = (key: string, onSelect: () => void, disabled = false) => ({
     key,
     label: t(locale, `editor.${key}`),
-    run,
+    onSelect,
     disabled,
   });
   return (
@@ -86,7 +52,7 @@ export function MenuBar({ editor }: { editor: Editor }) {
             .catch(failed);
         }}
       />
-      <Menu
+      <Dropdown
         label={t(locale, 'editor.menu.file')}
         items={[
           item('new', actions.newScene),
@@ -100,11 +66,11 @@ export function MenuBar({ editor }: { editor: Editor }) {
           }),
         ]}
       />
-      <Menu
+      <Dropdown
         label={t(locale, 'editor.menu.add')}
         items={kinds.map((kind) => item(`add.${kind}`, () => actions.add(kind)))}
       />
-      <Menu
+      <Dropdown
         label={t(locale, 'editor.menu.edit')}
         items={[
           item('undo', session.undo, !session.history.canUndo),
@@ -113,7 +79,7 @@ export function MenuBar({ editor }: { editor: Editor }) {
           item('delete', actions.remove, none),
         ]}
       />
-      <Menu
+      <Dropdown
         label={t(locale, 'editor.menu.models')}
         items={MODELS.map((id) =>
           item(
