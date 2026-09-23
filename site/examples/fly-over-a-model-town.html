@@ -81,7 +81,7 @@
           world.camera.position.set(3, 3.2, 12);
           world.camera.lookAt(0, 0.8, 2);
         },
-      });
+      }, world);
       world.onFrame(({ delta }) => {
         for (const boat of boats) boat.position.z = ((boat.position.z + 12 + delta * 0.4) % 24) - 12;
         world.invalidate();
