@@ -75,7 +75,7 @@ test('an example is its file, live, on the demo page; the index shows what is re
   const [entry] = ready;
   const page = renderToStaticMarkup(createElement(Example, { id: entry.id, locale: 'en' }));
   assert.match(page, new RegExp(`<h1[^>]*>.*${entry.title.en}</h1>`));
-  assert.match(page, new RegExp(`<div class="render-frame[^"]*"><iframe src="${entry.file}"`));
+  assert.match(page, new RegExp(`<div class="render-frame[^"]*"[^>]*><iframe src="${entry.file}"`));
   assert.match(page, /role="status"[^>]*>.*Preparing the scene/s);
   // One floating button carries the actions; the source waits behind Code, in its modal.
   assert.equal((page.match(/class="fab"/g) ?? []).length, 1);

@@ -39,7 +39,26 @@ body {
   min-height: 0;
   border: 0;
 }
+/* A demo that reads the keyboard: its border says whether it holds it. */
+.render-frame[data-keyboard] {
+  border: 2px solid transparent;
+  transition: border-color 120ms ease;
+}
+.render-frame[data-keyboard='held'] {
+  border-color: var(--color-primary);
+}
+/* A drag that started in a demo selects nothing of the portal around it. */
+:root[data-demo-drag] {
+  user-select: none;
+}
+/* The hint to click the demo speaks to a keyboard and a mouse; a touch screen has neither. */
+.frame-hint {
+  display: none;
+}
 @media (hover: hover) and (pointer: fine) {
+  .frame-hint {
+    display: block;
+  }
   .canvas-overlay {
     opacity: 0;
     transition: opacity 120ms ease;
