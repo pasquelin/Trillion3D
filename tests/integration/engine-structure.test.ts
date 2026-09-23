@@ -24,7 +24,7 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
   }
 });
 
-// THE CAMERA POSE CONTRACT BOUNDARY (`packages/sdk-browser/src/camera/world.ts`).
+// THE CAMERA POSE CONTRACT BOUNDARY (`camera/world.ts`).
 //
 // The engine does not own the camera: the host hands it over, and it may be the child of a rig
 // that nobody else ascends. A module that resolves the pose itself, or reads a LOCAL camera pose,
@@ -83,7 +83,7 @@ const lignesFautives = (text: string, motif: RegExp): string[] =>
     .filter((line) => !/^\s*(?:\/\/|\*|\/\*)/.test(line) && motif.test(line))
     .map((line) => line.trim());
 
-test('camera pose is read only through the `packages/sdk-browser/src/camera/world.ts` contract', async () => {
+test('camera pose is read only through the `camera/world.ts` contract', async () => {
   const fichiers = (await readdir(browser, { recursive: true })).filter(
     (name) => name.endsWith('.ts') && !name.endsWith('.test.ts') && !PUBLIC_FAMILIES.test(name),
   );
