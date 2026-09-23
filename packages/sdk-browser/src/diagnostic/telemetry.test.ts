@@ -58,7 +58,7 @@ test('EngineProfiler records frames and produces accurate statistics and bottlen
   assert.equal(report.bottleneck, 'healthy');
 
   const text = profiler.formatReport();
-  assert.ok(text.includes('WEBGEOMETRY ENGINE TELEMETRY REPORT'));
+  assert.ok(text.includes('TRILLION3D ENGINE TELEMETRY REPORT'));
   assert.ok(text.includes('97.5% culled'));
   assert.ok(text.includes('32 MB VRAM'));
 });

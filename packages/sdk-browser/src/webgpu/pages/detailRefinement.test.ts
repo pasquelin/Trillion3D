@@ -106,7 +106,7 @@ test('streaming completion during image readback preserves the captured frame an
   });
   device.createBuffer = (descriptor) => {
     const buffer = createBuffer(descriptor);
-    if (descriptor.label === 'WG explicit capture')
+    if (descriptor.label === 'Trillion3D explicit capture')
       buffer.mapAsync = async () => {
         mapped();
         await gate;

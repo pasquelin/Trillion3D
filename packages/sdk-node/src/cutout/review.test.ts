@@ -11,7 +11,7 @@ import type { CutoutModel, CutoutReviewSummary } from '../compiler/contracts.ts'
 
 /** A compiled model with a sheet and nothing else: the pass must work without a cache to read. */
 async function model(id: string, textures: Sheet['textures']): Promise<CutoutModel> {
-  const cache = await mkdtemp(join(tmpdir(), `wg-${id}-`));
+  const cache = await mkdtemp(join(tmpdir(), `trillion3d-${id}-`));
   await writeFile(join(cache, SHEET_FILE), JSON.stringify({ version: 1, textures }));
   return { id, source: join(cache, 'source.gltf'), cache };
 }

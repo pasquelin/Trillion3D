@@ -129,7 +129,7 @@ pub(super) fn check_pages(case: &Case, built: &Built, label: &str) {
     for cluster in &built.dag {
         let encoded = geometry_page::encode(&cluster.indices, &case.positions, &carried, exponent)
             .unwrap_or_else(|e| panic!("{label}: encode level {}: {e}", cluster.level));
-        let page = web_geometry_page_codec::decode(&encoded.bytes, 64 << 20)
+        let page = trillion3d_page_codec::decode(&encoded.bytes, 64 << 20)
             .unwrap_or_else(|e| panic!("{label}: decode level {}: {e:?}", cluster.level));
         crate::geometry_page::tests_codec::verify(
             &page,

@@ -55,7 +55,7 @@ export function compileInstalledScene({
     pnpm,
     [
       'exec',
-      'web-geometry-compile',
+      'trillion3d-compile',
       sourceFile,
       join(fixture, `native-cache-${name}`),
       'slice',
@@ -66,7 +66,7 @@ export function compileInstalledScene({
       'none',
     ],
     fixture,
-    { ...process.env, WEB_GEOMETRY_COMPILER_BIN: executable },
+    { ...process.env, TRILLION3D_COMPILER_BIN: executable },
   );
   const result = JSON.parse(stdout) as CompiledScene;
   if (result.status !== 'ready') throw new Error(`installed CLI did not prepare ${name}`);

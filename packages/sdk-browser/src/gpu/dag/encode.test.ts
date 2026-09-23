@@ -32,5 +32,5 @@ test('the dispatch argument is copied outside a pass, between two cut passes', (
     { de: 'work', decalage: CAND, vers: 'dispatchArgs', octets: 4, enPasse: false },
     { de: 'work', decalage: LIVE, vers: 'dispatchArgs', octets: 4, enPasse: false },
   ]);
-  assert.deepEqual(passes, new Array(3).fill('WG DAG selection'));
+  assert.deepEqual(passes, new Array(3).fill('Trillion3D DAG selection'));
 });

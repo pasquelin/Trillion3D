@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 /** What the demo page tells the example in its frame: show or hide its controls panel. */
 interface ControlsMessage {
-  type: 'wg:controls';
+  type: 'trillion3d:controls';
   visible: boolean;
 }
 
@@ -31,7 +31,7 @@ export function useDemo(file: string) {
     return () => request.abort();
   }, [file, attempt]);
   const post = (visible: boolean) => {
-    const message: ControlsMessage = { type: 'wg:controls', visible };
+    const message: ControlsMessage = { type: 'trillion3d:controls', visible };
     frame.current?.contentWindow?.postMessage(message, location.origin);
   };
   return {

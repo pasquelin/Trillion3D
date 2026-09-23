@@ -61,7 +61,7 @@ export const NATIVE_STEPS: readonly string[] = VALIDATE_GROUPS.native.filter((st
 
 /** Whether `env` asks `validate` to skip the native steps. */
 export function skipsNative(env: NodeJS.ProcessEnv): boolean {
-  return env.WEB_GEOMETRY_SKIP_NATIVE === '1';
+  return env.TRILLION3D_SKIP_NATIVE === '1';
 }
 
 /**

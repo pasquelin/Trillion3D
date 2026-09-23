@@ -39,7 +39,7 @@ void i18n.use(LanguageDetector).init({
   detection: {
     order: ['localStorage', 'navigator'],
     convertDetectedLanguage: nearestLanguage,
-    lookupLocalStorage: 'web-geometry.language',
+    lookupLocalStorage: 'trillion3d.language',
     caches: ['localStorage'],
   },
 });

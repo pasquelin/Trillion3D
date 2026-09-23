@@ -59,7 +59,7 @@ test('paged transparent commands disappear outside the view and return with both
         assert.equal(backend.metrics().transparentDrawCalls, blend.length);
         if (!x) assert.ok(blend.every((d) => d.instanceCount === 2));
         assert.equal(
-          mock.writes.filter((w) => w.label === 'WG transparent cluster spans').length,
+          mock.writes.filter((w) => w.label === 'Trillion3D transparent cluster spans').length,
           0,
           'an unchanged cache does not rewrite spans, even after re-entering the view',
         );

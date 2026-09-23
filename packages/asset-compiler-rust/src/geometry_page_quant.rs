@@ -1,10 +1,10 @@
 //! Quantizers of a cluster page: object-grid positions and texture coordinates with per-cluster
 //! widths, octahedral normals, byte colours, and the bit writer that packs them. The inverse
-//! formulas live in the shared codec (`web_geometry_page_codec::bits`): the encoder measures its
+//! formulas live in the shared codec (`trillion3d_page_codec::bits`): the encoder measures its
 //! own error with the very function every reader decodes with.
 
 use crate::{CompilerError, Result};
-use web_geometry_page_codec::bits::{
+use trillion3d_page_codec::bits::{
     bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS, MAX_EXPONENT,
 };
 

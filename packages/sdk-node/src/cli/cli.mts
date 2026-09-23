@@ -13,7 +13,7 @@ const [
 const triangleBudget = Number(budget);
 if (!input || !output || !resourceBaseUrl)
   throw new Error(
-    'Usage: web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints]',
+    'Usage: trillion3d-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints]',
   );
 if (scope !== 'slice' && scope !== 'full') throw new Error('scope must be slice or full');
 if (!Number.isSafeInteger(triangleBudget) || triangleBudget < 1)
@@ -24,11 +24,11 @@ const controller = new AbortController();
 process.once('SIGINT', () => controller.abort());
 // A terminal gets a live bar; a pipe (CI, another program) gets the raw JSON events.
 const progress =
-  process.stderr.isTTY && !process.env.WEB_GEOMETRY_RAW_EVENTS
+  process.stderr.isTTY && !process.env.TRILLION3D_RAW_EVENTS
     ? createTerminalProgress({ label: input })
     : null;
 const result = await prepare(input, output, scope, triangleBudget, {
-  executable: process.env.WEB_GEOMETRY_COMPILER_BIN,
+  executable: process.env.TRILLION3D_COMPILER_BIN,
   resourceBaseUrl,
   threads: Number(threads),
   ramBudgetMb: Number(ramBudgetMb),
