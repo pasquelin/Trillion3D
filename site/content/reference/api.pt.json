@@ -2149,7 +2149,9 @@
       "minPolarAngle": "Menor ângulo polar, em radianos a partir de reto para cima: `0` deixa a câmera olhar reto para baixo. O próprio polo fica fora de alcance, onde o azimute deixaria de estar definido.",
       "maxPolarAngle": "Maior ângulo polar, em radianos a partir de reto para cima: `Math.PI / 2` a mantém acima do chão.",
       "minAzimuthAngle": "Início do arco de azimute permitido, em radianos de +Z em direção a +X; ilimitado em `-Infinity`. Só um par de limites finitos mais estreito que uma volta completa prende a câmera.",
-      "maxAzimuthAngle": "Fim desse arco; ilimitado em `Infinity`. Pode ser menor que `minAzimuthAngle`."
+      "maxAzimuthAngle": "Fim desse arco; ilimitado em `Infinity`. Pode ser menor que `minAzimuthAngle`.",
+      "autoRotate": "Radianos por segundo que a câmera gira sozinha em torno de `target`, azimute de +Z para +X; 0, o padrão, mantém-na parada. A rotação é integrada por `update(delta)` e para de vez no primeiro toque ou passo da roda na superfície: o espectador tomou a câmera.",
+      "update": "Como o `update()` do pivô, com os segundos em que `autoRotate` gira; 0 por padrão."
     }
   },
   "OrthographicBox": {
@@ -3846,7 +3848,7 @@
     "summary": "O controlador de mouse e teclado que move a câmera.",
     "members": {
       "kind": "Qual controlador guia a câmera; defina outro nome para trocar.",
-      "enabled": "Se o controlador escuta o mouse e o teclado.",
+      "enabled": "Se o controlador ouve o mouse e o teclado e move a câmera. `false` o pausa — sem entrada, sem `update` — sem refazê-lo: velocidade, apoio no chão, passada, orientação e rotação são mantidas, e `true` retoma exatamente de onde parou.",
       "target": "O ponto ao redor do qual um controlador de pivô gira.",
       "minDistance": "Mais perto que um controlador de pivô traz a câmera de `target`.",
       "maxDistance": "Mais longe que um controlador de pivô leva a câmera de `target`.",
@@ -3854,12 +3856,13 @@
       "maxPolarAngle": "Só órbita: maior ângulo polar; `Math.PI / 2` mantém a câmera acima do chão.",
       "minAzimuthAngle": "Só órbita: início do arco de azimute permitido, em radianos de +Z em direção a +X.",
       "maxAzimuthAngle": "Só órbita: fim desse arco; pode ser menor que `minAzimuthAngle`.",
+      "autoRotate": "Só órbita: radianos por segundo que ela gira sozinha em torno de `target`, até o primeiro toque ou passo da roda; 0 por padrão.",
       "movementSpeed": "Voo e primeira pessoa: unidades de mundo por segundo no controle máximo; 1 por padrão.",
       "lookSpeed": "Primeira pessoa e personagem: radianos que a visão gira por pixel que o ponteiro se move.",
       "rollSpeed": "Só voo: radianos por segundo que as teclas inclinam, guinam e rolam.",
       "rotateSpeed": "Órbita e trackball: quão rápido arrastar gira; 1 por padrão.",
       "zoomSpeed": "Controladores de pivô: quão rápido a roda e o pinça dão zoom; 1 por padrão.",
-      "update": "Integra um controlador guiado ao longo de `delta` segundos; um de pivô relê sua pose.",
+      "update": "Integra um controlador pilotado ao longo de `delta` segundos; um de pivô relê sua pose, e uma órbita gira por `autoRotate`. Um controlador pausado não faz nada.",
       "follow": "A câmera do mundo mudou: o controlador a segue.",
       "dispose": "Para o controlador e remove seus listeners do canvas.",
       "autoUpdate": "Se o laço do mundo chama `update` antes de cada quadro, antes dos hooks de `world.beforeFrame`. `false` entrega o passo à página, que chama `update` a partir de tal hook, com a frequência e sobre os subpassos que integrar; o mundo então nunca o avança.",

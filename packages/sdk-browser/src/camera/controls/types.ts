@@ -69,6 +69,12 @@ export interface CameraControlBase {
   removeEventListener(type: 'change', listener: ChangeListener): void;
   /** Removes every listener installed on the surface, once; calling it twice is a no-op. */
   dispose(): void;
+  /**
+   * `true` stops listening to the pointer, the wheel and the keys, and lets go of the keys held,
+   * the pointers captured and the pointer lock; `false` listens again. Nothing else is touched:
+   * the controller keeps its pose and its motion, and resumes from them.
+   */
+  pause(paused: boolean): void;
 }
 
 /** A controller that turns around a point it keeps: orbit, trackball, planar pan-zoom. */

@@ -25,6 +25,8 @@ export interface ControlBase {
    * `touch-action`, the pointers still captured. Same register, same guarantee.
    */
   undo(action: () => void): void;
+  /** Runs `action` each time the controller is paused: the input state it holds is let go. */
+  onPause(action: () => void): void;
   emit(): void;
   /** The three methods every controller re-publishes as-is. */
   api: Omit<CameraControlBase, 'object'>;
@@ -32,18 +34,22 @@ export interface ControlBase {
 
 export function createControlBase(): ControlBase {
   const removals: Array<() => void> = [];
-  const listeners = new Set<ChangeListener>();
-  let gone = false;
+  const listeners = new Set<ChangeListener>(),
+    pauses: Array<() => void> = [];
+  let gone = false,
+    paused = false;
   const undo = (action: () => void) => {
     removals.push(action);
   };
   return {
     listen(target, type, handler, options) {
-      const bound = handler as EventListener;
+      // A paused controller hears nothing: every listener of the register is muted at once.
+      const bound = ((event: Event) => paused || handler(event as never)) as EventListener;
       target.addEventListener(type, bound, options);
       undo(() => target.removeEventListener(type, bound, options));
     },
     undo,
+    onPause: (action) => void pauses.push(action),
     emit() {
       for (const listener of [...listeners]) listener();
     },
@@ -53,6 +59,11 @@ export function createControlBase(): ControlBase {
       },
       removeEventListener(type, listener) {
         if (type === 'change') listeners.delete(listener);
+      },
+      pause(on) {
+        if (paused === on) return;
+        paused = on;
+        if (on) for (const action of pauses) action();
       },
       dispose() {
         if (gone) return;
