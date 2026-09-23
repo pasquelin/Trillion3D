@@ -89,10 +89,12 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       context.signal?.throwIfAborted();
       const { gpuDevice } = setup;
       if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
+      // Before any call on it: a device the world keeps is taken once the last session let it go.
+      await watchGpuDevice(rt, gpuDevice, onGpuError);
+      context.signal?.throwIfAborted();
       // The allocation ledger is installed before the first one: everything that follows is counted in it.
       installGpuDeviceLedger(gpuDevice);
       prepareGpuTiming(rt, gpuDevice);
-      watchGpuDevice(rt, gpuDevice, onGpuError);
       try {
         await prepareWebgpuPages(rt, gpuDevice);
         // The batch of root world boxes is reserved last: the module's linear memory will no
