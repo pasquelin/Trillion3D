@@ -4997,7 +4997,7 @@
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, une image, ou `null` pour le fond par défaut.",
       "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
       "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
-      "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON` ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
+      "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON`, ses repères `helper` gardés ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
     }
   },
   "SCENE_ENVIRONMENT_FLOATS": {

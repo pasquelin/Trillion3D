@@ -7,6 +7,7 @@ import { Mesh, type Primitive } from '../../../../sdk-core/src/world/object/mesh
 import { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
+import { isHelper } from '../helper/mark.ts';
 import {
   assertSavedScene,
   notSavable,
@@ -45,10 +46,11 @@ export function readCamera(saved: SavedCamera, camera: Camera) {
 }
 
 /**
- * Fills `scene` with a saved scene (`format.ts`), in place of what it held: every node, shape,
- * material and light built again through the families, each loaded model loaded again from its
- * address, siblings in their order. `camera`, when given, is put where the scene was saved from.
- * Another format or version is refused by name before anything is removed.
+ * Fills `scene` with a saved scene (`format.ts`) in place of what it held, its `helper` marks
+ * excepted: every node, shape, material and light built again through the families, each loaded
+ * model loaded again from its address, siblings in their order. `camera`, when given, is put where
+ * the scene was saved from. Another format or version is refused by name before anything is
+ * removed.
  */
 export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   assertSavedScene(json);
@@ -78,7 +80,8 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
     if (children.length) o.add(...children);
     return o;
   };
-  scene.clear();
+  // The `helper` marks are how the scene is worked on: they stay, as `toJSON` left them out.
+  scene.remove(...scene.children.filter((child) => !isHelper(child)));
   const children = await Promise.all(json.children.map(node));
   if (children.length) scene.add(...children);
   scene.background = json.background && new Color().setRGB(...json.background);

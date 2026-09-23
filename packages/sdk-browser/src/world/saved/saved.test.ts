@@ -47,8 +47,11 @@ test('a saved scene is read back into the same scene, models by address', async 
   assert.equal(saved.children.length, 3, 'the helper marks are not stored');
 
   const again = sceneWithLoads(loads),
-    view = new Camera('perspective');
+    view = new Camera('perspective'),
+    grid = helper.grid();
+  again.add(object.group(), grid);
   await again.fromJSON(saved, view);
+  assert.ok(grid.parent === again, 'the helper marks stay; the content is replaced');
   assert.deepEqual(again.toJSON(view), saved);
   assert.deepEqual(loads, [model.record.manifestUrl, model.record.manifestUrl]);
   const [a, b] = again.getObjectByName('crate')!.children as (typeof box)[];
