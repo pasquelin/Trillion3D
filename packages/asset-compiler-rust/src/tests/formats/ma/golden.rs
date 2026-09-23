@@ -35,7 +35,7 @@ fn regenerate_the_ma_fixture() {
 // refusal named without writing anything.
 #[test]
 fn a_ma_file_truncated_before_its_first_command_is_refused_as_empty() {
-    let root = std::env::temp_dir().join(format!("wg-ma-vide-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("trillion3d-ma-vide-{}", std::process::id()));
     fs::create_dir_all(&root).expect("dir");
     let file = root.join("truncated.ma");
     fs::write(&file, "//Maya ASCII 2024 scene\n// Orig").expect("file");
@@ -47,7 +47,7 @@ fn a_ma_file_truncated_before_its_first_command_is_refused_as_empty() {
 // when extension brings to driver.
 #[test]
 fn a_file_without_the_maya_header_is_refused_by_name() {
-    let root = std::env::temp_dir().join(format!("wg-ma-entete-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("trillion3d-ma-entete-{}", std::process::id()));
     fs::create_dir_all(&root).expect("dir");
     let file = root.join("autre.ma");
     fs::write(&file, "createNode transform -n \"X\";\n").expect("file");

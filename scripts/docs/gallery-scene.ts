@@ -9,10 +9,10 @@ import { join, resolve } from 'node:path';
 
 /** Compiles `<directory>/source/geometry.gltf` into `<directory>/cache` with the full pass at the
  *  budgets every gallery scene uses, and returns the compiler's exit status. The compiler is
- *  `WG_COMPILER`, or the release build; one that cannot start throws. */
+ *  `TRILLION3D_COMPILER`, or the release build; one that cannot start throws. */
 export function compileGalleryScene(root: string, directory: string, simplification: string) {
   const compiler =
-    process.env.WG_COMPILER ??
+    process.env.TRILLION3D_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
   const result = spawnSync(
     compiler,
