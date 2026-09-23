@@ -1,13 +1,8 @@
+import { engineLink } from '../engineLink.ts';
 import type { PortalEntry } from '../model.ts';
 
 /** "How it works": what the engine does inside, one screen each, for a curious reader. */
 const INTERNAL = { section: 'internals', kind: 'Guide' };
-
-const ENGINE_DOCS = 'https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md';
-
-/** A closing line that sends the reader to the part of docs/ENGINE.md that goes deeper. */
-export const engineLink = (anchor: string, label: string) =>
-  `<p>${label}: <a href="${ENGINE_DOCS}#${anchor}">docs/ENGINE.md</a>.</p>`;
 
 export const INTERNALS: PortalEntry[] = [
   {

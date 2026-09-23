@@ -1,4 +1,4 @@
-import { engineLink } from '../entries/internals.ts';
+import { engineLink } from '../engineLink.ts';
 import type { LocaleOverlay } from './entryOverlay.ts';
 
 /** French overlay for the "How it works" guides. */

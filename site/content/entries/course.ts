@@ -1,5 +1,5 @@
-import { courseEntries } from './courseHtml.ts';
-import type { ChapterText, CourseWords } from './courseHtml.ts';
+import { courseEntries } from '../course/page.ts';
+import type { ChapterText, CourseWords } from '../course/page.ts';
 
 /** The course's shared headings, in English. */
 const WORDS: CourseWords = {
@@ -13,7 +13,7 @@ const WORDS: CourseWords = {
 };
 
 /** The words of each chapter, in English. Short sentences; a word is explained the first time. */
-export const COURSE_TEXT: Record<string, ChapterText> = {
+const TEXT: Record<string, ChapterText> = {
   'create-a-world': {
     title: 'Create a world',
     description:
@@ -137,4 +137,4 @@ export const COURSE_TEXT: Record<string, ChapterText> = {
 };
 
 /** The course's nine chapters, in English. */
-export const COURSE = courseEntries(COURSE_TEXT, WORDS, 'en');
+export const COURSE = courseEntries(TEXT, WORDS, 'en');
