@@ -1,13 +1,14 @@
 import type { FrameMetrics, SceneToneMapping } from '../../../../sdk-core/src/index.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import type { Object3D, SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
-import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { openMeasuredWorld, type MeasuredWorld } from '../session/explorer.ts';
 import type { MeasuredWorldOptions } from '../session/options.ts';
 import { buildWorldSource } from './worldSource.ts';
 import { createWorldContents } from './worldContents.ts';
 import { releaseWorldMirror } from './worldMirror.ts';
-import { createWorldLights, isLight, lightsUnder } from './worldLights.ts';
+import { createWorldLights } from './worldLights.ts';
+import { createWorldLink } from './worldLink.ts';
+import { watchFirstFrame } from '../session/openWatch.ts';
 import { copyWorldCamera, createCanvasFit } from './worldCamera.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
@@ -25,6 +26,8 @@ type Inputs = {
   frame: (metrics: FrameMetrics) => void;
   /** The display chain the page set: exposure and curve; the lights add their irradiance. */
   display: () => { exposure: number; toneMapping: SceneToneMapping };
+  /** Whether the world has drawn a frame yet. */
+  drawn: () => boolean;
   /** Settles once the world's renderer — and its device — is granted. */
   ready: Promise<unknown>;
   /** A session that could not open: the world reports it, and keeps the scene. */
@@ -55,15 +58,21 @@ export function createWorldRuntime(inputs: Inputs) {
     seatWanted = false,
     renewWanted = false,
     lightsChanged = true,
-    disposed = false;
+    disposed = false,
+    /** Why no session is open: the first-frame watch says it on the console. */
+    closed = 'the scene has not been read yet';
   const invalidate = () => explorer?.invalidate();
   const relight = () => {
     lightsChanged = true;
     invalidate();
   };
   const reopen = async () => {
+    // Off the caller's turn: `reopening` is held before the loop runs, so an opening with nothing
+    // to open, which awaits nothing, still clears it when it ends.
+    await Promise.resolve();
     while (renewWanted && !disposed) {
       renewWanted = false;
+      closed = 'its session is opening';
       // What was resolved since the last frame opens with this session, not with the next one.
       if (seatWanted) {
         seatWanted = false;
@@ -83,13 +92,17 @@ export function createWorldRuntime(inputs: Inputs) {
       for (const [node, twin] of twins) poses.writeTwin(node, twin, contents.shown(node));
       lights.reset();
       lightsChanged = true;
-      if (!built) continue;
+      if (!built) {
+        closed = 'nothing to draw: the scene holds no mesh and no loaded model';
+        continue;
+      }
       mirror = built.root;
       try {
         // The session reads at the scope its first model was read at, or the default.
         const scope = built.source.metadata.scope;
         explorer = await openMeasuredWorld(canvas, { ...inputs.options(), scope }, built.source);
       } catch (error) {
+        closed = 'its session failed to open';
         if (!disposed) inputs.failed(error); // cut short by disposal, it failed nothing
         continue;
       }
@@ -148,26 +161,12 @@ export function createWorldRuntime(inputs: Inputs) {
     fit.apply(explorer);
     copyWorldCamera(camera(), explorer.camera, canvas.width / Math.max(1, canvas.height));
   };
-  const link: SceneLink = {
-    pose(node: Object3D) {
-      poses.moved(node);
-      if (!isLight(node) || node.children.length) lights.boundsMoved();
-      if (lights.held && lightsUnder(node)) lightsChanged = true;
-      invalidate();
-    },
-    structure(parent: Object3D) {
-      contents.changed(parent);
-      lights.boundsMoved();
-      schedule();
-    },
-    content(node: Object3D) {
-      if (isLight(node)) return relight();
-      contents.stale(node as Mesh);
-      lights.boundsMoved();
-      schedule();
-    },
-  };
-  scene._link = link;
+  // A scene holding something that has drawn nothing says why, once (`openWatch.ts`).
+  watchFirstFrame(() => {
+    if (inputs.drawn() || disposed || !scene.children.length) return null;
+    return explorer ? 'its session is open and draws nothing' : `no session has opened, ${closed}`;
+  });
+  scene._link = createWorldLink({ contents, lights, invalidate, relight, schedule });
   return {
     beforeFrame,
     invalidate,
