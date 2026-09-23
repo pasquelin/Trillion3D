@@ -9,7 +9,7 @@
     "sidecars": [
       {
         "file": "model.bin",
-        "sha256": "a560e2beafaf05fb701dc5f921c8b4aee8a1a05f6a11488de559f3840a4ec903"
+        "sha256": "0246fe995cc1c6305fbe87152358152e560ea0626c5a3cb949b08943857094d4"
       }
     ],
     "trianglesAcrossNodes": 45636
@@ -37,18 +37,18 @@
         "materials": 7,
         "meshNodes": 41,
         "meshes": 41,
-        "ms": 14.305666,
+        "ms": 15.604958,
         "originalUnitMeters": 1.0,
-        "parseMs": 10.251750000000001,
-        "sha256": "ac6e57ff931fed15699b404e43dbd6810708b1fed47bb4b88f694c23c1de319c",
+        "parseMs": 11.279416000000001,
+        "sha256": "0a3ba79401666313f2c1d503e29a92173886ba3268fc9cfce403a82c3c0dcb73",
         "textures": 0,
         "triangles": 45636,
         "unitMeters": 1.0
       }
     ],
     "images": 0,
-    "importMs": 27.340583000000002,
-    "key": "572d69e68576b7869687d1585eda8fbe454c538fac160e32c68632db43cd1f23",
+    "importMs": 28.585333000000002,
+    "key": "21d4e3f586e461c8384b80ce1e54af075094a4956b7d4c652c7fc56229e27ecd",
     "lights": 0,
     "materials": 7,
     "meshes": 41,
