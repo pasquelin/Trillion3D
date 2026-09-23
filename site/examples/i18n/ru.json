@@ -1825,5 +1825,26 @@
       "fieldOfView": "Поле зрения",
       "dollyZoom": "Долли-зум"
     }
+  },
+  "openworld": {
+    "controls": {
+      "keys": "WASD идти · Shift бежать · Пробел прыжок · C присесть · E сесть в машину или самолёт и выйти",
+      "teleport": "Телепорт",
+      "timeOfDay": "Время суток",
+      "daySpeed": "Скорость дня",
+      "pause": "Пауза",
+      "rain": "Дождь",
+      "geometryMB": "Геометрия МБ",
+      "textureMB": "Текстуры МБ",
+      "view": "Вид"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "Стриминг"
+    }
   }
 }

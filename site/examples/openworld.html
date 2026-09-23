@@ -104,22 +104,22 @@
         {
           keys: 'WASD walk · Shift run · Space jump · C crouch · E get in or out of a car or a plane',
           teleport: ['—', ...play.teleports],
-          'time of day': [0, 24, sky.time, 0.05],
-          'day speed': [0, 60, sky.speed, 0.5],
+          timeOfDay: [0, 24, sky.time, 0.05],
+          daySpeed: [0, 60, sky.speed, 0.5],
           pause: false,
           rain: [0, 1, 0, 0.05],
-          'geometry MB': [128, 2048, 512, 32],
-          'texture MB': [64, 1024, 256, 32],
+          geometryMB: [128, 2048, 512, 32],
+          textureMB: [64, 1024, 256, 32],
           view: views,
         },
         (values) => {
           if (values.teleport !== '—') play.teleport(values.teleport);
-          sky.time = values['time of day'];
-          sky.speed = values['day speed'];
+          sky.time = values.timeOfDay;
+          sky.speed = values.daySpeed;
           sky.paused = values.pause;
           sky.rain.amount = values.rain;
-          world.budget.geometryPool = values['geometry MB'] * 2 ** 20;
-          world.budget.texturePool = values['texture MB'] * 2 ** 20;
+          world.budget.geometryPool = values.geometryMB * 2 ** 20;
+          world.budget.texturePool = values.textureMB * 2 ** 20;
           world.diagnostic.mode = values.view;
         },
         world,

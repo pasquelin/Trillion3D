@@ -1825,5 +1825,26 @@
       "fieldOfView": "Bidang pandang",
       "dollyZoom": "Zoom dolly"
     }
+  },
+  "openworld": {
+    "controls": {
+      "keys": "WASD berjalan · Shift berlari · Spasi melompat · C jongkok · E naik atau turun dari mobil atau pesawat",
+      "teleport": "Teleportasi",
+      "timeOfDay": "Waktu",
+      "daySpeed": "Kecepatan hari",
+      "pause": "Jeda",
+      "rain": "Hujan",
+      "geometryMB": "Geometri MB",
+      "textureMB": "Tekstur MB",
+      "view": "Tampilan"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "Streaming"
+    }
   }
 }

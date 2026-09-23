@@ -1825,5 +1825,26 @@
       "fieldOfView": "시야",
       "dollyZoom": "돌리 줌"
     }
+  },
+  "openworld": {
+    "controls": {
+      "keys": "WASD 걷기 · Shift 달리기 · Space 점프 · C 웅크리기 · E 자동차나 비행기 타고 내리기",
+      "teleport": "순간이동",
+      "timeOfDay": "시각",
+      "daySpeed": "하루 속도",
+      "pause": "일시정지",
+      "rain": "비",
+      "geometryMB": "지오메트리 MB",
+      "textureMB": "텍스처 MB",
+      "view": "보기"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "스트리밍"
+    }
   }
 }

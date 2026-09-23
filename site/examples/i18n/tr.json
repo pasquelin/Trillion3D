@@ -1825,5 +1825,26 @@
       "fieldOfView": "Görüş alanı",
       "dollyZoom": "Dolly zoom"
     }
+  },
+  "openworld": {
+    "controls": {
+      "keys": "WASD yürü · Shift koş · Boşluk zıpla · C çömel · E arabaya veya uçağa bin ya da in",
+      "teleport": "Işınlan",
+      "timeOfDay": "Günün saati",
+      "daySpeed": "Gün hızı",
+      "pause": "Duraklat",
+      "rain": "Yağmur",
+      "geometryMB": "Geometri MB",
+      "textureMB": "Doku MB",
+      "view": "Görünüm"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "Akış"
+    }
   }
 }

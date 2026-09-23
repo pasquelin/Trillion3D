@@ -1257,6 +1257,27 @@
       "fansPlayingIt": "Fans playing it"
     }
   },
+  "openworld": {
+    "controls": {
+      "keys": "WASD walk · Shift run · Space jump · C crouch · E get in or out of a car or a plane",
+      "teleport": "Teleport",
+      "timeOfDay": "Time of day",
+      "daySpeed": "Day speed",
+      "pause": "Pause",
+      "rain": "Rain",
+      "geometryMB": "Geometry MB",
+      "textureMB": "Texture MB",
+      "view": "View"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "Streaming"
+    }
+  },
   "orbit-around-a-clockwork": {
     "controls": {
       "mouse": "A product viewer: drag to turn around · right-drag to slide · scroll to zoom in on the teeth",

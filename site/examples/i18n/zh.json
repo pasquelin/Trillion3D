@@ -1825,5 +1825,26 @@
       "fieldOfView": "视野",
       "dollyZoom": "滑动变焦"
     }
+  },
+  "openworld": {
+    "controls": {
+      "keys": "WASD 行走 · Shift 奔跑 · 空格 跳跃 · C 蹲下 · E 上下汽车或飞机",
+      "teleport": "传送",
+      "timeOfDay": "时间",
+      "daySpeed": "昼夜速度",
+      "pause": "暂停",
+      "rain": "雨",
+      "geometryMB": "几何 MB",
+      "textureMB": "纹理 MB",
+      "view": "视图"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "流式加载"
+    }
   }
 }
