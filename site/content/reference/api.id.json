@@ -3968,7 +3968,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "Prompt sistem yang membimbing sebuah LLM tentang prinsip, anggaran, dan opsi rendering trillion3D."
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "Definisi tool trillion3D generik untuk LLM.",
     "members": {
       "name": "Nama tool-nya.",
@@ -5080,10 +5080,10 @@
     "summary": "Batas provenans publik: konsumen tidak pernah membaca jalur implementasi SDK sendiri.",
     "description": "Hanya hash — sumber lengkap tidak dimuat ke dalam snapshot."
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Menghasilkan system prompt ahli siap pakai untuk mempersiapkan sebuah LLM."
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "Mengembalikan array lengkap definisi alat trillion3D yang diformat untuk penyedia LLM target.",
     "parameters": {
       "format": "Format target ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Default: 'openai'."

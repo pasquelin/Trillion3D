@@ -7,16 +7,16 @@ export type {
   LlmToolFormat,
   McpToolDefinition,
   OpenAiToolDefinition,
-  Trillion3DTool,
+  Trillion3dTool,
 } from '../../sdk-core/src/llm/types.ts';
 export { COMPILER_OPTIONS_SCHEMA } from '../../sdk-core/src/llm/compilerOptionsSchema.ts';
 export { EXPLORER_OPTIONS_SCHEMA } from '../../sdk-core/src/llm/explorerOptionsSchema.ts';
 export {
-  getTrillion3DLlmPrompt,
+  getTrillion3dLlmPrompt,
   TRILLION3D_SYSTEM_PROMPT,
 } from '../../sdk-core/src/llm/systemPrompt.ts';
 export {
-  getTrillion3DTools,
+  getTrillion3dTools,
   toAnthropicTool,
   toGeminiTool,
   toMcpTool,
