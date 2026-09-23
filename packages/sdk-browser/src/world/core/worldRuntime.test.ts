@@ -76,8 +76,9 @@ test('a resolution that throws is reported, and the next change resolves again',
   await until(() => failures.length > 0);
   crypto.subtle.digest = digest;
   assert.deepEqual(failures, ['World scene resolution failed']);
-  // The world is not stuck: the next mesh resolves, and a session opening is attempted.
-  scene.add(object.mesh(geometry.box(2, 2, 2)));
+  // The world is not stuck: the next change — an empty group, nothing to draw of its own —
+  // resolves the mesh that failed, and a session opening is attempted for it.
+  scene.add(object.group());
   await until(() => failures.length > 1);
   await runtime.settled();
   runtime.dispose();
