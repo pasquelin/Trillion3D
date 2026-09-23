@@ -893,6 +893,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "trillion3d-compiler"
+version = "0.8.0"
+dependencies = [
+ "basisu",
+ "exr",
+ "flate2",
+ "image",
+ "memmap2",
+ "meshopt",
+ "openusd",
+ "rayon",
+ "ruzstd",
+ "serde_json",
+ "sha2",
+ "tar",
+ "texture2ddecoder",
+ "trillion3d-page-codec",
+ "ufbx",
+ "yaml-rust2",
+ "zip",
+]
+
+[[package]]
+name = "trillion3d-page-codec"
+version = "0.1.0"
+
+[[package]]
 name = "twox-hash"
 version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -940,33 +967,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "trillion3d-compiler"
-version = "0.8.0"
-dependencies = [
- "basisu",
- "exr",
- "flate2",
- "image",
- "memmap2",
- "meshopt",
- "openusd",
- "rayon",
- "ruzstd",
- "serde_json",
- "sha2",
- "tar",
- "texture2ddecoder",
- "ufbx",
- "trillion3d-page-codec",
- "yaml-rust2",
- "zip",
-]
-
-[[package]]
-name = "trillion3d-page-codec"
-version = "0.1.0"
 
 [[package]]
 name = "weezl"

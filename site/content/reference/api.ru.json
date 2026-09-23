@@ -3831,7 +3831,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "Системный промпт, направляющий LLM по принципам, бюджетам и опциям рендеринга trillion3D."
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "Общее определение инструмента trillion3D для LLM.",
     "members": {
       "name": "Имя инструмента.",
@@ -5068,10 +5068,10 @@
     "summary": "Публичная граница происхождения: потребители никогда не читают пути реализации SDK сами.",
     "description": "Только хеши — полный исходный код не загружается в снимок."
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Генерирует готовый к использованию экспертный системный промпт для настройки LLM."
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "Возвращает полный массив определений инструментов trillion3D, отформатированный для целевого провайдера LLM.",
     "parameters": {
       "format": "Целевой формат ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). По умолчанию: 'openai'."

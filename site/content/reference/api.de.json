@@ -2063,10 +2063,10 @@
     "summary": "Öffentliche Herkunftsgrenze: Konsumenten lesen nie selbst die internen Pfade des SDK.",
     "description": "Nur Fingerabdrücke — die vollständige Quelle wird nicht in den Schnappschuss geladen."
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Erstellt die einsatzbereite Experten-Systemaufforderung, um ein LLM vorzubereiten."
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "Gibt das vollständige Array der trillion3D-Werkzeugdefinitionen im Format des Ziel-LLM-Anbieters zurück.",
     "parameters": {
       "format": "Zielformat ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Standard: 'openai'."
@@ -6285,7 +6285,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "Systemaufforderung, die ein LLM zu den Prinzipien, Budgets und Rendering-Optionen von trillion3D anleitet."
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "Generische Definition eines trillion3D-Werkzeugs für LLMs.",
     "members": {
       "name": "Der Name des Werkzeugs.",

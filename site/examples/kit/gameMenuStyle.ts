@@ -12,24 +12,27 @@ export const MENU_STYLE = `
   overflow: auto; display: grid; gap: 14px; padding: 24px; border-radius: var(--radius-box, 1rem);
   background: color-mix(in oklab, var(--color-base-100) 92%, transparent);
   color: var(--color-base-content); box-shadow: 0 20px 60px rgb(0 0 0 / 0.5); text-align: center; }
-.trillion3d-card h1 { margin: 0; font-size: clamp(26px, 7vw, 36px); line-height: 1.1; font-weight: 800;
-  color: var(--color-base-content); }
+.trillion3d-card h1 { margin: 0; font-size: clamp(26px, 7vw, 36px); line-height: 1.1;
+  font-weight: 800; color: var(--color-base-content); }
 .trillion3d-card p { margin: 0; opacity: 0.85; line-height: 1.4; }
 .trillion3d-note { color: var(--color-warning); font-weight: 600; }
 .trillion3d-note:empty, .trillion3d-goal:empty { display: none; }
 .trillion3d-stack { display: grid; gap: 10px; }
 .trillion3d-stack[hidden], .trillion3d-sheet[hidden] { display: none; }
 .trillion3d-button { min-height: 48px; padding: 0 18px; border: 1px solid
-  color-mix(in oklab, var(--color-base-content) 20%, transparent); border-radius: var(--radius-field, 0.5rem);
-  background: var(--color-base-200); color: var(--color-base-content); font: inherit;
-  font-size: 17px; font-weight: 700; cursor: pointer; }
-.trillion3d-button:hover, .trillion3d-button:focus-visible { border-color: var(--color-primary); outline: none; }
-.trillion3d-button.trillion3d-primary { background: var(--color-primary); color: var(--color-primary-content);
-  border-color: var(--color-primary); }
+  color-mix(in oklab, var(--color-base-content) 20%, transparent);
+  border-radius: var(--radius-field, 0.5rem); background: var(--color-base-200);
+  color: var(--color-base-content); font: inherit; font-size: 17px; font-weight: 700;
+  cursor: pointer; }
+.trillion3d-button:hover, .trillion3d-button:focus-visible { border-color: var(--color-primary);
+  outline: none; }
+.trillion3d-button.trillion3d-primary { background: var(--color-primary);
+  color: var(--color-primary-content); border-color: var(--color-primary); }
 .trillion3d-option { display: grid; gap: 6px; text-align: start; font-size: 14px; }
 .trillion3d-choices { display: flex; gap: 6px; }
 .trillion3d-choices .trillion3d-button { flex: 1; min-height: 38px; font-size: 14px; }
-.trillion3d-choices .trillion3d-on { border-color: var(--color-primary); color: var(--color-primary); }
+.trillion3d-choices .trillion3d-on { border-color: var(--color-primary);
+  color: var(--color-primary); }
 .trillion3d-sheet { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px;
   align-items: center; text-align: start; font-size: 14px; }
 .trillion3d-caps { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }

@@ -3968,7 +3968,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "موجّه نظام يرشد نموذج لغة كبيرًا بشأن مبادئ trillion3D وميزانياته وخيارات التصيير فيه."
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "تعريف أداة trillion3D عام لنماذج اللغة الكبيرة.",
     "members": {
       "name": "اسم الأداة.",
@@ -5080,10 +5080,10 @@
     "summary": "حد المنشأ العام: لا يقرأ المستهلكون أبدًا مسارات تنفيذ SDK بأنفسهم.",
     "description": "بصمات فقط — لا يُحمَّل المصدر الكامل في اللقطة (snapshot)."
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "يولّد موجّه نظام خبير جاهزًا للاستخدام لتهيئة نموذج لغوي كبير (LLM)."
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "يعيد المصفوفة الكاملة لتعريفات أدوات trillion3D المنسّقة لمزوّد LLM المستهدف.",
     "parameters": {
       "format": "الصيغة المستهدفة ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). الافتراضي: 'openai'."

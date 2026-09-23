@@ -3968,7 +3968,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "Lời nhắc hệ thống hướng dẫn một LLM về các nguyên tắc, ngân sách và tùy chọn kết xuất của trillion3D."
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "Định nghĩa công cụ trillion3D chung cho các LLM.",
     "members": {
       "name": "Tên của công cụ.",
@@ -5080,10 +5080,10 @@
     "summary": "Ranh giới nguồn gốc công khai: bên tiêu thụ không bao giờ tự đọc các đường dẫn triển khai của SDK.",
     "description": "Chỉ các mã băm — mã nguồn đầy đủ không được tải vào ảnh chụp nhanh (snapshot)."
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Tạo ra prompt hệ thống chuyên gia sẵn sàng sử dụng để mồi cho một LLM."
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "Trả về mảng đầy đủ các định nghĩa công cụ trillion3D được định dạng cho nhà cung cấp LLM mục tiêu.",
     "parameters": {
       "format": "Định dạng mục tiêu ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Mặc định: 'openai'."

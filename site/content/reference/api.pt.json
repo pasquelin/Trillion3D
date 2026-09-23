@@ -3831,7 +3831,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "Prompt de sistema guiando um LLM sobre os princípios, orçamentos e opções de renderização do trillion3D."
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "Definição genérica de ferramenta trillion3D para LLMs.",
     "members": {
       "name": "O nome da ferramenta.",
@@ -5068,10 +5068,10 @@
     "summary": "Fronteira pública de proveniência: consumidores nunca leem os caminhos de implementação do SDK eles mesmos.",
     "description": "Só hashes — o código-fonte completo não é carregado no retrato."
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Gera o prompt de sistema especialista pronto para uso para preparar um LLM."
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "Devolve o array completo de definições de ferramentas trillion3D formatado para o provedor de LLM alvo.",
     "parameters": {
       "format": "Formato alvo ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Padrão: 'openai'."

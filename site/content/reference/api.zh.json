@@ -3831,7 +3831,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "引导 LLM 了解 trillion3D 原则、预算和渲染选项的系统提示词。"
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "面向 LLM 的通用 trillion3D 工具定义。",
     "members": {
       "name": "该工具的名称。",
@@ -5068,10 +5068,10 @@
     "summary": "公开的来源边界:消费者绝不会自己去读取 SDK 的实现路径。",
     "description": "只提供哈希值——完整源码不会被载入这份快照。"
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "生成一份可直接使用的专家系统提示词,用于初始化一个 LLM。"
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "返回按目标 LLM 提供方格式化的完整 trillion3D 工具定义数组。",
     "parameters": {
       "format": "目标格式('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema')。默认值:'openai'。"

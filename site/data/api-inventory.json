@@ -3128,7 +3128,7 @@
       "bindingIdentity": "\"packages/sdk-node/src/compiler/provenance\".getSdkProvenance"
     },
     {
-      "name": "getTrillion3DLlmPrompt",
+      "name": "getTrillion3dLlmPrompt",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/llm/systemPrompt.ts",
       "currentEntryPoints": ["trillion3d (common)"],
@@ -3136,10 +3136,10 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/llm/systemPrompt\".getTrillion3DLlmPrompt"
+      "bindingIdentity": "\"packages/sdk-core/src/llm/systemPrompt\".getTrillion3dLlmPrompt"
     },
     {
-      "name": "getTrillion3DTools",
+      "name": "getTrillion3dTools",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/llm/toolDefinitions.ts",
       "currentEntryPoints": ["trillion3d (common)"],
@@ -3147,7 +3147,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/llm/toolDefinitions\".getTrillion3DTools"
+      "bindingIdentity": "\"packages/sdk-core/src/llm/toolDefinitions\".getTrillion3dTools"
     },
     {
       "name": "GpuFrameMs",
@@ -8452,7 +8452,7 @@
       "bindingIdentity": "\"packages/sdk-core/src/llm/systemPrompt\".TRILLION3D_SYSTEM_PROMPT"
     },
     {
-      "name": "Trillion3DTool",
+      "name": "Trillion3dTool",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/llm/types.ts",
       "currentEntryPoints": ["trillion3d (common)"],
@@ -8460,7 +8460,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/llm/types\".Trillion3DTool"
+      "bindingIdentity": "\"packages/sdk-core/src/llm/types\".Trillion3dTool"
     },
     {
       "name": "uniformScaleMatrix4",

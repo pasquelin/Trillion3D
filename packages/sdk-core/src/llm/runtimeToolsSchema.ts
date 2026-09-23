@@ -1,14 +1,14 @@
-import type { Trillion3DTool } from './types.ts';
+import type { Trillion3dTool } from './types.ts';
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
 import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts';
 
 /**
  * Complete catalog of tools and runtime functions available to control trillion3D from an LLM.
  */
-export const TRILLION3D_RUNTIME_TOOLS: Trillion3DTool[] = [
+export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
   {
     name: 'trillion3d_create_explorer',
-    description: 'Initializes the trillion3D 3D explorer with specified rendering options.',
+    description: 'Initializes the trillion3D explorer with specified rendering options.',
     parameters: EXPLORER_OPTIONS_SCHEMA,
   },
   {
