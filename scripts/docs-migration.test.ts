@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { loadReactComponents } from './docs/render-react.ts';
 import * as publicApi from '../packages/sdk/browser.ts';
+import type { ThreeMigration as ThreeMigrationPage } from '../site/app/migration/ThreeMigration.tsx';
 
 // #79: the migration page sets a Three.js program (text, never run) beside the engine program
 // that does the same; the second is a real example file, on the public API alone.
@@ -41,4 +45,29 @@ test('both programs carry the same section headers in the same order', () => {
   // The left-hand program is text: the repository never imports Three.js to run it.
   assert.match(threeProgram, /import \* as THREE from 'three';/);
   assert.doesNotMatch(engineProgram, /from 'three/);
+});
+
+test('the guide page is the two programs side by side, each header on the same row', async () => {
+  const { ThreeMigration } = (await loadReactComponents(
+    'site/app/migration/ThreeMigration.tsx',
+  )) as { ThreeMigration: typeof ThreeMigrationPage };
+  const entry = {
+    id: 'three-migration',
+    section: 'guides',
+    kind: 'Guide',
+    title: 'T',
+    description: 'D',
+  };
+  const page = renderToStaticMarkup(createElement(ThreeMigration, { entry, locale: 'en' }));
+  const blocks = page.split('data-code-block').slice(1);
+  assert.equal(blocks.length, 2);
+  assert.match(blocks[0], /THREE/);
+  assert.match(blocks[1], /runtime\/engine\.js/);
+  // A header's row is its position among the rendered rows, blank padding rows included.
+  const headerRows = (block: string) =>
+    [...block.matchAll(/<pre[^>]*>.*?<\/pre>/gs)].flatMap(([row], at) =>
+      row.includes('// --- ') ? [at] : [],
+    );
+  assert.equal(headerRows(blocks[0]).length, sections(threeProgram).length);
+  assert.deepEqual(headerRows(blocks[0]), headerRows(blocks[1]));
 });

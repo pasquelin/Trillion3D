@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>A game board from above</title>
-    <meta name="thumbnail" content="2" />
+    <meta name="thumbnail" content="3" />
     <style>
       html,
       body {
@@ -24,51 +24,76 @@
       import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
-      // A sequence in [0, 1) from a seed: the same scene on every run.
-      function random(seed) {
-        let state = seed >>> 0;
-        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
-      }
+      // A famous short game (Paris, 1858), move by move, squares written from and to. Castling moves
+      // the king, then the rook: `+` joins the two.
+      const GAME =
+        'e2e4 e7e5 g1f3 d7d6 d2d4 c8g4 d4e5 g4f3 d1f3 d6e5 f1c4 g8f6 f3b3 d8e7 b1c3 c7c6 c1g5 b7b5 ' +
+        'c3b5 c6b5 c4b5 b8d7 e1c1+a1d1 a8d8 d1d7 d8d7 h1d1 e7e6 b5d7 f6d7 b3b8 d7b8 d1d8';
+      const BACK = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'];
 
       // `panZoom`: a flat view that never turns. The camera looks straight down at the board.
       const world = createWorld('view', { controls: 'panZoom' });
-      const light1 = material.meshStandard({ color: '#e9dcc0', roughness: 0.6 });
-      const dark1 = material.meshStandard({ color: '#6b4630', roughness: 0.6 });
       const table = object.mesh(geometry.box(14, 0.2, 14), material.meshStandard({ color: '#2b3a2f', roughness: 0.9 }));
       table.position.y = -0.2;
       world.scene.add(table);
-      for (let row = 0; row < 8; row++)
-        for (let column = 0; column < 8; column++) {
-          const tile = object.mesh(geometry.box(1, 0.1, 1), (row + column) % 2 ? dark1 : light1);
-          tile.position.set(column - 3.5, -0.05, row - 3.5);
+      const squares = [material.meshStandard({ color: '#6b4630', roughness: 0.6 }), material.meshStandard({ color: '#e9dcc0', roughness: 0.6 })];
+      for (let rank = 1; rank <= 8; rank++)
+        for (let file = 0; file < 8; file++) {
+          const tile = object.mesh(geometry.box(1, 0.1, 1), squares[(rank + file) % 2]);
+          tile.position.set(file - 3.5, -0.05, 4.5 - rank);
           world.scene.add(tile);
         }
-      // Two armies of pieces: pawns, towers and a queen with a crown, each a small stack of shapes.
-      const sides = [material.meshStandard({ color: '#f4efe6', roughness: 0.35 }), material.meshStandard({ color: '#c0392b', roughness: 0.35 })];
-      function piece(kind, matter) {
+      const at = (square) => [square.charCodeAt(0) - 97 - 3.5, 4.5 - Number(square[1])];
+
+      // Each piece is a small stack of shapes on a round foot; its silhouette says what it is.
+      function piece(kind, matter, facing) {
         const group = object.group();
-        const foot = object.mesh(geometry.cylinder(0.32, 0.36, 0.12, 32), matter);
-        foot.position.y = 0.06;
-        const body = object.mesh(kind === 'tower' ? geometry.cylinder(0.24, 0.28, 0.6, 32) : geometry.cone(0.25, 0.55, 32), matter);
-        body.position.y = kind === 'tower' ? 0.42 : 0.4;
-        const head = object.mesh(kind === 'queen' ? geometry.torus(0.14, 0.05, 12, 24) : geometry.sphere(0.14, 24, 16), matter);
-        head.position.y = kind === 'tower' ? 0.8 : 0.72;
-        if (kind === 'queen') head.rotation.x = Math.PI / 2;
-        group.add(foot, body, head);
+        const add = (shape, y, turn = 0) => {
+          const mesh = object.mesh(shape, matter);
+          mesh.position.y = y;
+          mesh.rotation.x = turn;
+          group.add(mesh);
+          return mesh;
+        };
+        add(geometry.cylinder(0.34, 0.38, 0.12, 32), 0.06);
+        if (kind === 'pawn') {
+          add(geometry.cone(0.22, 0.45, 32), 0.34);
+          add(geometry.sphere(0.13, 24, 16), 0.6);
+        }
+        if (kind === 'rook') {
+          add(geometry.cylinder(0.22, 0.26, 0.55, 32), 0.4);
+          add(geometry.cylinder(0.3, 0.3, 0.16, 32), 0.75);
+        }
+        if (kind === 'knight') {
+          add(geometry.cylinder(0.2, 0.26, 0.45, 32), 0.35);
+          add(geometry.box(0.22, 0.5, 0.26), 0.72, 0.5 * facing).position.z = -0.08 * facing;
+        }
+        if (kind === 'bishop') {
+          add(geometry.cone(0.24, 0.8, 32), 0.52);
+          add(geometry.sphere(0.15, 24, 16), 0.85);
+          add(geometry.sphere(0.06, 12, 8), 1.02);
+        }
+        if (kind === 'queen') {
+          add(geometry.cylinder(0.14, 0.27, 0.85, 32), 0.52);
+          add(geometry.torus(0.17, 0.05, 12, 24), 1, Math.PI / 2);
+          add(geometry.sphere(0.1, 16, 12), 1.08);
+        }
+        if (kind === 'king') {
+          add(geometry.cylinder(0.15, 0.28, 0.95, 32), 0.57);
+          add(geometry.box(0.08, 0.34, 0.08), 1.2);
+          add(geometry.box(0.26, 0.08, 0.08), 1.22);
+        }
+        world.scene.add(group);
         return group;
       }
-      const pieces = [];
-      sides.forEach((matter, side) => {
-        for (let column = 0; column < 8; column++) {
-          const kind = column === 0 || column === 7 ? 'tower' : column === 3 ? 'queen' : 'pawn';
-          const item = piece(kind, matter);
-          const row = side ? 0 : 7, pawnRow = side ? 1 : 6;
-          item.position.set(column - 3.5, 0, row - 3.5);
-          const pawn = piece('pawn', matter);
-          pawn.position.set(column - 3.5, 0, pawnRow - 3.5);
-          world.scene.add(item, pawn);
-          pieces.push(pawn, item);
-        }
+      const colours = [material.meshStandard({ color: '#f4efe6', roughness: 0.35 }), material.meshStandard({ color: '#c0392b', roughness: 0.35 })];
+      const start = new Map();
+      [0, 1].forEach((side) => {
+        BACK.forEach((kind, file) => {
+          const column = String.fromCharCode(97 + file);
+          start.set(`${column}${side ? 8 : 1}`, piece(kind, colours[side], side ? -1 : 1));
+          start.set(`${column}${side ? 7 : 2}`, piece('pawn', colours[side], side ? -1 : 1));
+        });
       });
       world.scene.add(light.directional({ intensity: 3, color: '#fff1dc', position: [4, 10, 3], castShadow: true }));
       world.scene.add(light.point({ intensity: 20, color: '#ffb45e', position: [-5, 3, -5], distance: 14 }));
@@ -76,21 +101,45 @@
       world.camera.position.set(0, 10, 0.01);
       world.camera.lookAt(0, 0, 0);
 
-      const ui = controls({ mouse: 'Drag to slide the board · scroll to zoom · arrow keys to pan', play: true });
-      // A piece at a time hops to a free square nearby: a parabola from where it stood.
-      const next = random(3);
-      let moving = null;
+      // The board as it stands: square → piece. A move hops the piece over a parabola; a piece on
+      // the square it lands on is captured and leaves the board.
+      let board, steps, step, hop;
+      function reset() {
+        board = new Map(start);
+        for (const [square, item] of board) {
+          const [x, z] = at(square);
+          item.position.set(x, 0, z);
+          item.visible = true;
+        }
+        steps = GAME.split(/[ +]/);
+        step = 0;
+        hop = { t: -1.5 };
+      }
+      reset();
+      const ui = controls({ mouse: 'Drag to slide the board · scroll to zoom · arrow keys to pan', play: true, speed: [0.3, 3, 1] });
       world.onFrame(({ delta }) => {
         if (!ui.play) return;
-        if (!moving) {
-          const item = pieces[Math.floor(next() * pieces.length)];
-          const to = [Math.max(-3.5, Math.min(3.5, item.position.x + Math.round(next() * 2 - 1))), Math.max(-3.5, Math.min(3.5, item.position.z + (next() < 0.5 ? -1 : 1)))];
-          moving = { item, from: [item.position.x, item.position.z], to, t: 0 };
+        hop.t += delta * ui.speed * 1.2;
+        if (hop.t >= 1 && hop.item) {
+          const [x, z] = at(hop.to);
+          hop.item.position.set(x, 0, z);
+          const taken = board.get(hop.to);
+          if (taken) taken.visible = false;
+          board.delete(hop.from);
+          board.set(hop.to, hop.item);
+          hop = { t: step === steps.length ? -2.5 : 0 };
         }
-        moving.t = Math.min(1, moving.t + delta * 1.5);
-        const { item, from, to, t } = moving;
-        item.position.set(from[0] + (to[0] - from[0]) * t, Math.sin(t * Math.PI) * 0.8, from[1] + (to[1] - from[1]) * t);
-        if (t === 1) moving = null;
+        if (!hop.item && hop.t >= 0) {
+          if (step === steps.length) reset();
+          else {
+            const move = steps[step++];
+            hop = { t: 0, from: move.slice(0, 2), to: move.slice(2, 4), item: board.get(move.slice(0, 2)) };
+          }
+        }
+        if (hop.item) {
+          const [x0, z0] = at(hop.from), [x1, z1] = at(hop.to), t = Math.max(0, hop.t);
+          hop.item.position.set(x0 + (x1 - x0) * t, Math.sin(t * Math.PI) * 0.9, z0 + (z1 - z0) * t);
+        }
         world.invalidate();
       });
       world.invalidate();
