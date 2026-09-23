@@ -130,12 +130,14 @@ test('the header offers every language, each a link to the same page in it', asy
   const html = renderToStaticMarkup(
     createElement(Header, { drawerOpen: false, onMenu: noop, onSearch: noop }),
   );
-  for (const { code, name, hreflang } of LANGUAGES)
+  // Each language behind its flag, a served SVG; the current one's flag on the button too.
+  for (const { code, name, hreflang, flag } of LANGUAGES)
     assert.match(
       html,
       new RegExp(
-        `<a href="#/${code}/learn/home" hrefLang="${hreflang}"[^>]*><span class="truncate">${name}</span>`,
+        `<a href="#/${code}/learn/home" hrefLang="${hreflang}"[^>]*><img[^>]*src="./flags/${flag}.svg" alt=""[^>]*/><span class="truncate">${name}</span>`,
       ),
     );
-  assert.match(html, /aria-current="page"[^>]*><span class="truncate">English</);
+  assert.match(html, /aria-current="page"[^>]*><img[^>]*\/><span class="truncate">English</);
+  assert.match(html, /<summary[^>]*><img[^>]*src=".\/flags\/us.svg" alt="English"/);
 });

@@ -3,6 +3,7 @@
     "name": "简体中文",
     "abbr": "ZH",
     "hreflang": "zh-Hans",
+    "flag": "cn",
     "rtl": false
   },
   "nav": {

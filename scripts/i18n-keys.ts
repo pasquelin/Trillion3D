@@ -4,6 +4,9 @@
 // side only is a page that would show a raw key, or a word nothing reads.
 import generated from '../site/content/reference/api.json' with { type: 'json' };
 import { DEFAULT_LANGUAGE } from '../site/content/i18n/dictionary.ts';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { FLAG_SOURCE } from './docs/build-flags.ts';
 import { readJsonFolder } from '../site/content/i18n/jsonFolder.ts';
 import { referenceKeys } from '../site/content/reference/translate.ts';
 import type { Dictionary } from '../site/content/i18n/dictionary.ts';
@@ -53,13 +56,29 @@ function englishReferenceKeys(): string[] {
   );
 }
 
-/** Every file of a language whose keys are not English's: none when the languages agree. */
+/** A language's `meta.flag` must name a flag the site build can serve: an SVG of `flag-icons`. */
+const flagMismatch = (code: string): KeyMismatch[] => {
+  const flag: unknown = DICTIONARIES[code].meta.flag;
+  return typeof flag === 'string' && existsSync(resolve(FLAG_SOURCE, `${flag}.svg`))
+    ? []
+    : [
+        {
+          file: `site/i18n/${code}.json`,
+          missing: [`meta.flag (no flag "${String(flag)}")`],
+          extra: [],
+        },
+      ];
+};
+
+/** Every file of a language whose keys are not English's, or whose flag is not served: none
+ *  when the languages agree. */
 export function keyMismatches(): KeyMismatch[] {
   const english = leafKeys(DICTIONARIES[DEFAULT_LANGUAGE]);
   const reference = englishReferenceKeys();
   const languages = Object.keys(DICTIONARIES);
   return [
     ...languages.flatMap((code) => [
+      ...flagMismatch(code),
       ...compareKeys(`site/i18n/${code}.json`, english, leafKeys(DICTIONARIES[code])),
       ...(code === DEFAULT_LANGUAGE
         ? []

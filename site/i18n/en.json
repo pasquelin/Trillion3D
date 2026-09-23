@@ -3,6 +3,7 @@
     "name": "English",
     "abbr": "EN",
     "hreflang": "en",
+    "flag": "us",
     "rtl": false
   },
   "nav": {
