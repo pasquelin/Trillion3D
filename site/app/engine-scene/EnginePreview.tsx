@@ -1,3 +1,4 @@
+import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
 import { sceneCopy } from '../../lessons/engine-scene/content.ts';
@@ -7,8 +8,8 @@ import { Loading } from '../ui/Loading.tsx';
 import { SCENE_BACKGROUND } from '../../lessons/scenePalette.ts';
 
 export const engineCopy = (locale: Locale): EngineCopy => ({
-  ...(sceneCopy[locale] ?? sceneCopy.en),
-  ...(sceneControlsCopy[locale] ?? sceneControlsCopy.en),
+  ...local(sceneCopy, locale),
+  ...local(sceneControlsCopy, locale),
 });
 
 /** The engine scene's render, framed and sized by the lesson template like any other viewport. */

@@ -2,6 +2,7 @@ import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { DIAGNOSTICS, diagnosticValue } from '../../reports/diagnostics.ts';
 import { formatValue } from '../../reports/metrics.ts';
+import { fromPair } from './fromPair.ts';
 import type { ReportRecord } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
@@ -12,16 +13,15 @@ interface DiagnosticsProps {
 }
 
 export function Diagnostics({ a, b, locale }: DiagnosticsProps) {
-  const language = locale === 'fr' ? 1 : 0;
   return (
     <>
       {DIAGNOSTICS.map((group) => (
         <section className="grid min-w-0 grid-cols-1 gap-3" key={group.title[0]}>
-          <h3 className="text-lg font-semibold">{group.title[language]}</h3>
+          <h3 className="text-lg font-semibold">{fromPair(group.title, locale)}</h3>
           <Table>
             <thead>
               <tr>
-                <th scope="col">{group.title[language]}</th>
+                <th scope="col">{fromPair(group.title, locale)}</th>
                 <th scope="col">{readingName(a, locale)}</th>
                 {b && <th scope="col">{readingName(b, locale)}</th>}
               </tr>
@@ -29,7 +29,7 @@ export function Diagnostics({ a, b, locale }: DiagnosticsProps) {
             <tbody>
               {group.fields.map(([path, en, fr, unit]) => (
                 <tr key={path}>
-                  <th scope="row">{language ? fr : en}</th>
+                  <th scope="row">{fromPair([en, fr], locale)}</th>
                   {[a, b]
                     .filter((r): r is ReportRecord => Boolean(r))
                     .map((record, i) => (
