@@ -272,11 +272,12 @@ A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU in
 root cover first, then pinned pages, then the most recent — evicts only what no longer fits, and
 rebuilds every bind group that named the old pool on the next image. The geometry pool can grow up to
 `geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
-engine draws its geometry pool by the same rule (`geometryPoolFor`, slots of the largest decoded
-page): the slots bound its cut, and when its pages hold more than the budget, those no frame keeps
-leave oldest first (`evictOldest`, the page streamer's order); a drawn page never leaves, so a
-smaller budget takes effect as the coarser cut arrives. Its `geometryPoolAllocatedBytes` is what the
-pages hold, no pool being reserved. Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
+page, page cap and session ceiling) and bounds its cut by the same ladder (`stepPageBudgetLadder`),
+on the distinct pages its cut asks for. When its pages hold more than the budget, those no cut keeps
+leave oldest first (`evictOldest`, the page streamer's order); a drawn page never leaves, nor a page
+before the next cut has weighed it, so a smaller budget takes effect as the coarser cut arrives. Its
+`geometryPoolAllocatedBytes` is what the pages hold, no pool being reserved. Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 A region keeps a complete resident representation until every replacement page is uploaded; if old
 and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.
