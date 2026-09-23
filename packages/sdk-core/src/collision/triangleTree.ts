@@ -5,9 +5,8 @@
  * BUILD. Top-down: a node's triangles are split near the median of their centres along the
  * longest axis of the centres' box — the left side rounded up to whole leaves — until a node
  * holds at most `LEAF_TRIANGLES`. The split keeps the tree balanced whatever the triangles, so
- * its depth is about `log2(T / LEAF)` and a query's stack is a fixed array. The median is
- * selected in linear time (a partition, not a sort), so the build is `O(T log T)`. Triangles
- * are then copied in leaf order: a leaf reads a contiguous run, no index list survives.
+ * its depth is about `log2(T / LEAF)` and a query's stack is a fixed array. The median is selected in linear time (a partition, not a sort), so the build is `O(T log T)`.
+ * Triangles are then copied in leaf order: a leaf reads a contiguous run, no index list survives.
  *
  * MEMORY. Exactly `36 T` bytes of triangles (nine float32) plus `32` bytes per node (six
  * float32 bounds, two int32 links), exactly `2 ceil(T / LEAF) - 1` nodes: about 52 bytes per
@@ -20,16 +19,17 @@
  *  a query, never its result. */
 const LEAF_TRIANGLES = 4;
 
+/** A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`. Built once by `buildTriangleTree`, read-only afterwards. */
 export interface TriangleTree {
   /** Nine numbers per triangle — three corners — in leaf order. */
   readonly triangles: Float32Array;
   /** Per node: min xyz, max xyz. */
   readonly bounds: Float32Array;
-  /** Per node: first triangle of a leaf, or the right child of an inner node (the left one
-   *  follows its parent). */
+  /** Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent). */
   readonly links: Int32Array;
   /** Per node: triangle count of a leaf, 0 for an inner node. */
   readonly counts: Int32Array;
+  /** Triangles the tree holds. */
   readonly triangleCount: number;
   /** Bytes the tree keeps. */
   readonly bytes: number;
