@@ -44,7 +44,7 @@ export const guidesFr: LocaleOverlay = {
 <li><strong>Compilez</strong> sur la machine qui détient la source avec <code>web-geometry</code>. Le cache reçoit manifeste, pages et textures annexes ; <code>resourceBaseUrl</code> est l’URL que lira le navigateur.</li>
 <li><strong>Explorez</strong> dans le navigateur avec le même import <code>web-geometry</code>. <code>createWorld</code> accepte un ID ou un élément canevas et renvoie un monde vide ; <code>scene.load</code> y ajoute ensuite un modèle compilé, comme tout ce qu’on ajoute à la scène. Le monde soumet des images à la demande et se met en pause une fois l’image tenue. Donnez au canevas une largeur et une hauteur CSS ; appelez <code>dispose()</code> à la fermeture.</li>
 </ol>
-<p>Le contrat complet — options, budgets, éclairage, anticrénelage temporel et diagnostics — se trouve dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a>.</p>`,
+<p>Le contrat complet — options, budgets, éclairage, anticrénelage temporel et diagnostics — se trouve dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a> et <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md">docs/ENGINE.md</a>.</p>`,
   },
   'occlusion-two-phase': {
     title: 'Occlusion : le Hi-Z en deux passes',
@@ -88,7 +88,7 @@ export const guidesFr: LocaleOverlay = {
     title: 'Architecture et règles',
     description:
       'Les promesses du moteur et les conventions suivies par chaque fonction ci-dessous.',
-    html: `<p>La mission décrite dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/PRODUCT_PRINCIPLES.md">Principes du produit</a> est une géométrie virtualisée pour le web : grappes diffusées, une coupe du DAG par image, tampon de visibilité, anticrénelage temporel, budgets mémoire et de diffusion fixes. Les étapes d’éclairage figurent dans <code>docs/LIGHTING_STRATEGY.md</code>.</p>
+    html: `<p>La mission décrite dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md#principles">Principes du produit</a> est une géométrie virtualisée pour le web : grappes diffusées, une coupe du DAG par image, tampon de visibilité, anticrénelage temporel, budgets mémoire et de diffusion fixes. Les étapes d’éclairage figurent dans <code>docs/ENGINE.md</code>.</p>
 <h3 class="text-lg font-bold mt-4">Une image, sur le chemin WebGPU</h3>
 <p>Le GPU coupe le DAG et compacte les grappes à dessiner ; la rastérisation matérielle écrit un <strong>tampon de visibilité</strong> (un identifiant par pixel) derrière un test d’occultation Hi-Z ; la <strong>résolution des matériaux</strong> reconstruit ensuite la surface de chaque pixel — couleur de base, normale, rugosité, émission — <em>une classe de matériau par passe</em> : une passe écrit la classe de chaque pixel comme une profondeur exacte, puis chaque classe trace un triangle plein écran à sa propre profondeur sous le test matériel <code>equal</code>, avec un pipeline compilé pour ses seuls traits (cartes, découpe, normales de sommet, tangentes). Suivent l’éclairage différé, les transparents, l’anticrénelage temporel et la présentation. Observez-le en direct avec <code>world.diagnostic.mode = 'triangles'</code> et le diagnostic <code>material-classes-ready</code> (les classes de la scène).</p>
 <h3 class="text-lg font-bold mt-4">Conventions de l’API du monde</h3>
@@ -126,7 +126,7 @@ export const guidesFr: LocaleOverlay = {
 </tbody></table></div>
 <h3 class="text-lg font-bold mt-4">Où les deux diffèrent vraiment</h3>
 <p>Ce que le moteur calcule lui-même lit les mêmes entrées physiques que Three.js, avec deux écarts déclarés : la conversion sRGB suit la courbe exacte plutôt que les constantes arrondies de Three (écart ≤ 1e-11, invisible sur 8 bits), et la projection de la caméra est à profondeur inversée avec un plan lointain infini (<code>near</code> devient 1, l’infini devient 0) — les mêmes optiques relisent une profondeur différente.</p>
-<p>Les noyaux de calcul par lots sur tableaux plats qu’un hôte pilotant des milliers d’objets à la main pourrait chercher (<code>batch.multiplyMatrix4</code>, <code>batch.transformPoints</code>, …) sont une famille publique, exportée par <code>web-geometry</code> comme les autres : ils sont catalogués lot par lot dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/API.md">docs/API.md</a>.</p>`,
+<p>Les noyaux de calcul par lots sur tableaux plats qu’un hôte pilotant des milliers d’objets à la main pourrait chercher (<code>batch.multiplyMatrix4</code>, <code>batch.transformPoints</code>, …) sont une famille publique, exportée par <code>web-geometry</code> comme les autres : ils sont catalogués lot par lot dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md#maths-reference">docs/SDK.md</a>.</p>`,
   },
   'cluster-format': {
     title: 'Pages de grappes quantifiées',

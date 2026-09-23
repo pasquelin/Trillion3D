@@ -12,7 +12,7 @@
   reflections and shadows, at that same performance, rebuilt for the web's constraints (no hardware
   ray tracing, bounded and unreadable GPU memory, one browser frame).** The geometry, the temporal
   antialiasing and the memory budgets are the foundation; the lighting is what they are for. It is
-  reached by stages, each measured, and the strategy lives in `docs/LIGHTING_STRATEGY.md`.
+  reached by stages, each measured, and the strategy lives in `docs/ENGINE.md` § "Lighting: the target and the stages".
   A stage that is out of order is not out of scope.
 - **Never copy another engine's code, shaders or assets into this repository.** Not one line, ever.
   Commercial engines are not open source and their sources are licence-covered; reimplement from
@@ -41,6 +41,14 @@
   Unmeasured values = `null`, never estimates presented as measurements. Keep diagnostics outside
   measured beauty passes; report unsupported capabilities. Measure on a quiet machine, and publish
   the run-to-run spread whenever a claim rests on a difference smaller than it.
+- **Two scales of proof.** A pull request proves its change on the public test scenes under
+  `.mesure/assets/` (Khronos sample models, the generated facade; `bench/runner/assets.ts` fetches
+  and compiles them), on the scene that exercises the change, in seconds to a minute. The full
+  campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
+  release pull request from `develop` to `main`, and its numbers are the ones published.
+- **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
+  `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
+  the pull request body, and the folder is removed before the pull request is opened.
 - A per-pass GPU duration says _where_, never _how much_: on tile-based GPUs passes overlap and a
   pass's timestamp absorbs its neighbours' work (17 Sept. 2026: a composition pass read 7 ms with
   the sun and 2.4 ms without, having not changed). The frame envelope is the total; a difference
@@ -85,6 +93,12 @@
 - Generic engine: no scene names, hardcoded lights/cameras or object-type special cases. Use imported
   material/light properties; one lighting model for opaque and transparent surfaces, one reflection
   model for reflective surfaces. Benchmark fixes must generalize to any imported scene.
+- **No constant is chosen by sweeping a measurement scene.** Benchmark scenes prove, they never
+  tune. Every algorithmic value is derived from what the imported object carries — texture
+  dimensions, attribute amplitude, triangle density, the screen unit — and must hold on a model
+  nobody has measured. Two errors compared are converted to the same unit, the screen pixel. A value
+  that cannot be derived is declared as such, with what it stands for and its sensitivity. Proof
+  runs on two scenes, one of which was never tuned on.
 - **This repository is self-contained.** It builds, tests, measures and proves itself with only its
   own dependencies (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off
   git). No code, script, test or doc may read another project on disk — no neighbour path, no

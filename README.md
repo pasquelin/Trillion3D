@@ -8,14 +8,13 @@
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-2b2d30?logo=typescript&logoColor=3178c6)](packages/sdk-core)
 [![WebGPU](https://img.shields.io/badge/WebGPU-page%20raster%20%2B%20compute-2b2d30?logo=webgpu&logoColor=6fa8dc)](#what-it-does)
 [![WebGL2](https://img.shields.io/badge/WebGL2-fallback-2b2d30?logo=webgl&logoColor=e06666)](#what-it-does)
-[![Three.js 0.174](https://img.shields.io/badge/Three.js-0.174-2b2d30?logo=three.js&logoColor=ffffff)](packages/sdk-browser)
 [![Node 22](https://img.shields.io/badge/Node-%E2%89%A522.18-2b2d30?logo=node.js&logoColor=6da95f)](#quick-start)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-2b2d30?logo=pnpm&logoColor=f69220)](#quick-start)
 [![Quality](https://github.com/pasquelin/WebGeometry/actions/workflows/quality.yml/badge.svg)](https://github.com/pasquelin/WebGeometry/actions/workflows/quality.yml)
 [![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
 
-**[Documentation ↗](https://pasquelin.github.io/WebGeometry/)** · **[Live report ↗](https://pasquelin.github.io/WebGeometry/report.html)** · **[Why](#why-web-geometry)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE_UE5.md)** · **[Roadmap](#roadmap)**
+**[Documentation ↗](https://pasquelin.github.io/WebGeometry/)** · **[Live report ↗](https://pasquelin.github.io/WebGeometry/report.html)** · **[Why](#why-web-geometry)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE.md)** · **[Roadmap](#roadmap)**
 
 </div>
 
@@ -45,13 +44,13 @@ Parity means four things, and none of them is a pixel count:
 
 | Area                   | Implemented scope                                                                                                                                                                                                                                                                                                                   |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Native compiler**    | glTF, GLB, FBX and OBJ import (no external tool); verified source hashes; a cluster DAG that reaches a single root — clusters grouped, simplified and welded level by level, each carrying its screen error; a flat culling hierarchy; streaming bundles; a bounded worker pool; DAG warnings reported to the CLI and to the engine |
+| **Native compiler**    | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes and packages, with a dozen image formats, read by its own drivers (no external tool); verified source hashes; a cluster DAG that reaches a single root — clusters grouped, simplified and welded level by level, each carrying its screen error; a flat culling hierarchy; streaming bundles; a bounded worker pool; DAG warnings reported to the CLI and to the engine |
 | **Cache**              | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected                                                                                                                                                       |
 | **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing                                                                                                  |
 | **Textures**           | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled                                                                                                                                                                                                             |
 | **Lighting**           | Cook-Torrance GGX, no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun through cascaded shadow maps under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap                                                                                                                                        |
 | **Memory**             | fixed reservoirs for pages and tiles like the reference, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile                                                                                                                                                           |
-| **Fallbacks**          | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; witnesses (bare Three.js, `THREE.LOD`) are never chosen automatically, only named through the separate measurement entry point                                                                                                                                                                                              |
+| **Fallbacks**          | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; a forced renderer the machine lacks is refused by name, never swapped |
 | **Jobs**               | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics                                                                                                                                                                                                                                       |
 
 ## Quick start
@@ -78,7 +77,7 @@ const ball = object.mesh(geometry.sphere(1), material.meshStandard({ color: 0x88
 world.scene.add(ball);
 world.scene.add(light.directional({ intensity: 3, position: [5, 10, 2] }));
 
-await world.scene.load('assets/whisperwind/manifest.json'); // a compiled model, added like anything else
+await world.scene.load('assets/city/manifest.json'); // a compiled model, added like anything else
 
 world.onFrame(({ delta }) => {
   ball.rotation.y += delta;
@@ -145,7 +144,7 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 | [`packages/sdk-core`](packages/sdk-core)                       | Platform-independent TypeScript contracts and policies           |
 | [`packages/sdk-node`](packages/sdk-node)                       | Native process and filesystem integration                        |
 | [`packages/sdk-browser`](packages/sdk-browser)                 | Browser rendering and GPU resource adapters                      |
-| [`bench/runner`](bench/runner)                             | The bench: one harness, campaigns and the HTML report            |
+| [`bench/runner`](bench/runner)                                 | The bench: one harness, campaigns and the HTML report            |
 | [`tests`](tests)                                               | Public package integration tests and GPU proofs                  |
 
 ## Measuring
@@ -159,55 +158,32 @@ node bench/runner/campaign.ts        # the whole campaign
 node bench/runner/summaryGlobal.ts   # one HTML report
 ```
 
-- One harness for every lot: Playwright drives the machine's Chrome, nothing else is needed on
-  disk beyond `.mesure/assets/`.
-- **Before/after in one run**, same poses, same lights, same caches, same server — and the engine
-  facing two witnesses: bare Three.js and Three.js with a three-level `THREE.LOD` (the classic method).
-- Identical input, camera, quality, machine and resource budget; DPR, error threshold, resolution
-  and commit recorded; CPU and GPU times never added; unmeasured values are `null`, never estimates.
-- Per-pass GPU durations say _where_, never _how much_: on tile-based GPUs passes overlap, so a
-  difference is read on the frame envelope only.
-- `0 px`, `tri = selected` and A/A noise are the default proof for geometry and lighting.
+- One harness, Playwright driving the machine's Chrome, nothing on disk beyond `.mesure/assets/`.
+- **Before/after in one run**, same poses, lights, caches and server — and the engine facing two
+  witnesses: bare Three.js and Three.js with a three-level `THREE.LOD` (the classic method).
+- The measurement rules — identical budgets, `null` for the unmeasured, CPU and GPU never added,
+  differences read on the frame envelope — are in [CONTRIBUTING.md](CONTRIBUTING.md#measure-before-optimising).
 
 See [bench/runner/README.md](bench/runner/README.md) and [docs/TESTS.md](docs/TESTS.md).
 
 ## Quality bar
 
-| Gate                        | What it enforces                                                                                                                                                                                                                                                              |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm run check:changed`    | format, lint, line limit, duplicates and the unit tests reached by imports from the changed files                                                                                                                                                                             |
-| `pnpm run check:lines`      | **200 physical lines per source file**, JS/TS/Rust, no legacy exception                                                                                                                                                                                                       |
-| `pnpm run check:duplicates` | no repeated block ≥ 8 lines and ≥ 64 tokens across JS/TS/Rust                                                                                                                                                                                                                  |
-| `pnpm run check:helpers`    | no small helper copied, name, signature and body alike, into a second module of one package                                                                                                                                                                                    |
-| `pnpm run check:structure`  | core/adapter boundaries; `sdk-core` type-checks without DOM                                                                                                                                                                                                                   |
-| `pnpm run validate`         | everything above plus Clippy, unused code/files/dependencies, TS and native builds, declarations, links, and all JS/TS/Rust tests — the CI gate ([`quality.yml`](.github/workflows/quality.yml)), which skips the Rust steps when the sources are unchanged since a green run |
-| `pnpm run test:gpu`         | browser proofs on a real GPU                                                                                                                                                                                                                                                  |
-
-The engine stays generic: no scene names, no hardcoded lights or cameras, no object-type special
-cases. Not one line of any other engine's code, shaders or assets enters this
-repository; everything is reimplemented from papers, talks, documentation and observed behaviour.
+Every source file fits 200 lines, no block is duplicated, core packages never see the DOM, and
+`pnpm run validate` — format, lint, Clippy, unused code, builds, declarations, links, every JS/TS/Rust
+test — gates each pull request in CI ([`quality.yml`](.github/workflows/quality.yml)); `pnpm run
+test:gpu` adds the proofs on a real GPU. The gates, one by one: [docs/TESTS.md](docs/TESTS.md#4-quality-gates).
+The rules a contribution follows: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 
-| Document                                                 | Role                                                                                                          |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [Native compiler](docs/COMPILER.md)                      | Arguments, events, pointer, batch mode, cancellation, FBX/OBJ import, error codes                             |
-| [Cache format](docs/FORMAT.md)                           | Pointer, `clusters.json` and its binary annex, cluster DAG, culling hierarchy, streaming bundles, SHA objects |
-| [SDK guide](docs/SDK.md)                                 | Lifecycle, compatibility and fallback contracts                                                               |
-| [Architecture](packages/README.md)                       | Package contracts and remaining work                                                                          |
-| [Product principles](docs/PRODUCT_PRINCIPLES.md)         | Portable core, capabilities, source ownership, fallback                                                       |
-| [Web / Electron / Node integration](docs/INTEGRATION.md) | Who owns the canvas, the loop, the preparation and the fallback                                               |
-| [Tests and benches](docs/TESTS.md)                       | Unit tests, GPU correctness probes, performance benches                                                       |
-| [The reference in numbers](docs/REFERENCE_UE5.md)        | The reference's published constants, bytes per triangle and profile, against ours                             |
-| [Lighting strategy](docs/LIGHTING_STRATEGY.md)           | The end goal — dynamic global illumination, reflections, shadows — and the stages it is reached by            |
-
-The documentation, the code, its identifiers and this page are in English.
+Every document, and what it is for, is listed once in [docs/README.md](docs/README.md). The
+documentation, the code, its identifiers and this page are in English.
 
 ## Roadmap
 
 The geometry, the temporal antialiasing and the memory budgets are the foundation. What they are
 for is **real-time dynamic global illumination, reflections and shadows** — reached by
-stages, each measured before the next ([lighting strategy](docs/LIGHTING_STRATEGY.md)):
+stages, each measured before the next ([lighting strategy](docs/ENGINE.md#lighting-the-target-and-the-stages)):
 
 | Stage | Content                                                                             | State                                                      |
 | ----- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
@@ -231,8 +207,8 @@ Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/WebGeomet
   enforced peak-memory limit.
 - Specular environment-map IBL, full device-loss recovery and cross-API fallback are not
   implemented; a missing visbuffer format falls back to the untextured page raster with Hi-Z off.
-- No N-API/WASM bindings, published packages, signed native distributions or cross-platform
-  performance CI yet.
+- No N-API binding of the compiler, published packages, signed native distributions or
+  cross-platform performance CI yet; WebAssembly serves only the page decoder and three math kernels.
 
 ## Licence
 

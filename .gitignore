@@ -30,5 +30,5 @@ graphify-out
 /docs/roles/reviewer.md
 # Local files end
 
-# Local test assets (see packages/asset-compiler-rust/FORMATS.md)
+# Local test assets (see docs/COMPILER.md, "Input formats")
 test/assets/

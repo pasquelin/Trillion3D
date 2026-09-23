@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 // THE PARITY TABLE MUST NOT RUST.
 //
-// `docs/REFERENCE_UE5.md` puts reference structural constants side by side with ours.
+// `docs/REFERENCE.md` puts reference structural constants side by side with ours.
 // A table of this kind is only valuable as long as "our side" column tells the truth: the day
 // a constant changes in code without the row changing, the document becomes a false statement
 // about the engine state, and nobody notices. This test re-reads constants at source and
@@ -12,7 +12,7 @@ import { readFile } from 'node:fs/promises';
 // cited at document bottom — nor milliseconds, which are not constants.
 
 const racine = new URL('../../', import.meta.url);
-const doc = new URL('docs/REFERENCE_UE5.md', racine);
+const doc = new URL('docs/REFERENCE.md', racine);
 const sources = new URL('packages/asset-compiler-rust/src/', racine);
 
 const UNITES: Record<string, number> = { KiB: 1024, MiB: 1024 * 1024 };
@@ -65,7 +65,7 @@ test('each structural constant in the parity table matches the code', async () =
   // verifying nothing. The count does not need to be exact: it must not collapse silently.
   assert.ok(
     lignes.length >= 5,
-    `docs/REFERENCE_UE5.md: ${lignes.length} verifiable line(s), the table used to carry six`,
+    `docs/REFERENCE.md: ${lignes.length} verifiable line(s), the table used to carry six`,
   );
   const textes = new Map<string, string>();
   const texteDe = async (fichier: string): Promise<string> => {
@@ -97,11 +97,11 @@ test('nuances declared in the parity table are still true, and only those', asyn
   assert.equal(
     texte.includes('**Group floor is not enforced.**'),
     !/DAG_GROUP_MIN/u.test(groupes),
-    'docs/REFERENCE_UE5.md and dag/groups.rs disagree on whether the group floor is enforced',
+    'docs/REFERENCE.md and dag/groups.rs disagree on whether the group floor is enforced',
   );
   assert.equal(
     texte.includes('**`CLUSTER_TRIANGLES = 256` remains in `lib.rs`**'),
     /pub const CLUSTER_TRIANGLES:\s*usize\s*=\s*256;/u.test(lib),
-    'docs/REFERENCE_UE5.md and lib.rs disagree on whether the dead 256 constant remains',
+    'docs/REFERENCE.md and lib.rs disagree on whether the dead 256 constant remains',
   );
 });

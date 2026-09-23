@@ -7,7 +7,7 @@
 //! Three quads, three materials, three textures: an uncompressed level written
 //! from the specification, a UASTC LDR payload cut from the corner of the
 //! corpus, and an ETC1S payload under BasisLZ supercompression as Khronos's
-//! encoder wrote it. Provenance of each is in `tests/fixtures/formats/ktx2/README.md`.
+//! encoder wrote it. Provenance of each is in `tests/fixtures/formats/README.md` § "ktx2".
 //!
 //! Regenerating the scene and its expected, from the repository root:
 //!

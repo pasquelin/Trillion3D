@@ -58,6 +58,7 @@
     "validate": "node scripts/validate.ts",
     "check:structure": "node --test tests/integration/self-contained-repository.test.ts tests/integration/engine-structure.test.ts tests/integration/engine-without-three.test.ts tests/integration/engine-without-three-math.test.ts && tsc -p tsconfig.core.json --noEmit",
     "check:links": "node scripts/check-links.ts",
+    "check:docs-three": "node scripts/check-docs-three.ts",
     "check:sdk-facade": "node scripts/generate-sdk-facade.ts --check",
     "check:dts": "node scripts/rewrite-dts-extensions.ts --check",
     "check:no-js": "node scripts/check-no-js.ts",
