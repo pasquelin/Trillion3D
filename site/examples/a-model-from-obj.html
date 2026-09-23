@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A model from OBJ</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #231d24;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #e6d6c4;
+        font: 12px system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p>Chess set modelled for these examples, CC0 — see assets/examples/CREDITS.md</p>
+    <script type="module">
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#231d24');
+      // The model was written as a plain OBJ file — `v` positions, `vn` normals, `f` faces, an
+      // `o` per piece and a `usemtl` per material from its `.mtl` — then compiled once by the
+      // repository's compiler: the OBJ became clusters, and the engine streams the ones the view
+      // needs. Everything in the picture comes from that one file; the page adds only the light.
+      await world.scene.load('../assets/examples/a-model-from-obj/cache/native/full/manifest.json');
+
+      // A low evening sun through a window on the left rakes the board and stretches every
+      // piece's shadow; a cool sky fill keeps the black pieces from going flat black.
+      const sun = light.directional({ color: '#ffb15e', intensity: 3.6, castShadow: true });
+      world.scene.add(sun, light.hemisphere({ color: '#8ea8ff', groundColor: '#4a3426', intensity: 0.75 }));
+      const placeSun = (degrees, height) => {
+        const turn = (degrees * Math.PI) / 180;
+        sun.position.set(Math.cos(turn) * 3, height, Math.sin(turn) * 3);
+      };
+
+      const VIEWS = { finished: 'beauty', triangles: 'triangles', clusters: 'clusters', 'level of detail': 'lod' };
+      controls({
+        mouse: 'Drag to turn round the board, scroll to lean in: see what the OBJ became',
+        view: Object.keys(VIEWS),
+        sunAngle: [-180, 180, -150, 1],
+        sunHeight: [0.3, 3, 0.8],
+      }, (values) => {
+        world.diagnostic.mode = VIEWS[values.view];
+        placeSun(values.sunAngle, values.sunHeight);
+        world.invalidate();
+      });
+      const triangles = readout('Triangles drawn');
+
+      // The opening: the camera starts low on white's side, at the height of the pieces,
+      // and rises and draws back round the board; the first press or wheel stops it.
+      const target = math.vector3(0, 0.03, 0);
+      world.camera.position.set(0.2, 0.06, 0.34);
+      world.camera.lookAt(target);
+      world.controls.target.copy(target);
+      world.controls.minDistance = 0.15;
+      world.controls.maxDistance = 2.2;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      let moving = true;
+      for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (moving = false), { passive: true });
+      world.onFrame(({ delta, metrics }) => {
+        triangles(metrics.selectedTriangles?.toLocaleString('en') ?? '?');
+        if (!moving) return;
+        const step = Math.min(delta, 0.1), { position } = world.camera, { target: aim } = world.controls;
+        const x = position.x - aim.x, y = position.y - aim.y, z = position.z - aim.z, flat = Math.hypot(x, z);
+        const turn = step * 0.18, grow = Math.min(0.78, flat + step * Math.max(0.02, (0.78 - flat) * 0.7)) / flat;
+        const rise = Math.min(0.5, y + step * Math.max(0.01, (0.5 - y) * 0.6));
+        position.set(aim.x + (x * Math.cos(turn) - z * Math.sin(turn)) * grow, aim.y + rise, aim.z + (z * Math.cos(turn) + x * Math.sin(turn)) * grow);
+        world.controls.update();
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>
