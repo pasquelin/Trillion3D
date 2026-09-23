@@ -101,7 +101,6 @@ export function encodeShadowAtlas(
     {
       spheres: spheres.buffer,
       source: gpuDraw.instanceBuffer,
-      sourceIndirect: gpuDraw.indirectBuffer,
     },
     regions,
     gpuDraw.slots,
