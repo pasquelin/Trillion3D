@@ -1,17 +1,11 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { readFile } from 'node:fs/promises';
-import type { Page, Route } from 'playwright';
+import type { Page } from 'playwright';
+import { routeThree } from '../../kit/server/threeRoute.ts';
 
 /** Verify the portal's line-based code blocks in both locales and at both widths. */
 export async function startupSite(page: Page, base: string, out: string) {
-  await page.route('https://cdn.jsdelivr.net/npm/three@0.174.0/**', async (route: Route) => {
-    const file = route.request().url().split('three@0.174.0/')[1];
-    await route.fulfill({
-      contentType: 'text/javascript',
-      body: await readFile(resolve(import.meta.dirname, '../../../node_modules/three', file)),
-    });
-  });
+  await routeThree(page);
   for (const locale of ['en', 'fr']) {
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 800 });

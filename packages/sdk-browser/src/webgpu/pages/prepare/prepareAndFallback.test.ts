@@ -5,7 +5,8 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts';
 
-test('webgpu pages never publish an incomplete initial cover', async () => {
+/** The quad prepared with no resident bytes, its first frame rendered. */
+async function firstFrameWithoutBytes() {
   installGpuGlobals();
   const { device, draws } = mockGpu();
   const { source, metadata, associations, geometry, material } = quadScene();
@@ -20,6 +21,11 @@ test('webgpu pages never publish an incomplete initial cover', async () => {
   });
   await backend.prepare();
   backend.render(camera());
+  return { backend, draws, geometry, material };
+}
+
+test('webgpu pages never publish an incomplete initial cover', async () => {
+  const { backend, draws, geometry, material } = await firstFrameWithoutBytes();
   assert.equal(
     draws.filter((draw) => draw.entryPoint === 'vis_vs' || draw.entryPoint === 'vs').length,
     0,
@@ -43,20 +49,7 @@ test('webgpu pages never publish an incomplete initial cover', async () => {
 });
 
 test('webgpu pages prepare without resident bytes and stream the visible set', async () => {
-  installGpuGlobals();
-  const { device, draws } = mockGpu();
-  const { source, metadata, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices: new Map(),
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
-  await backend.prepare();
-  backend.render(camera());
+  const { backend, draws, geometry, material } = await firstFrameWithoutBytes();
   assert.deepEqual(backend.pendingUrls?.().sort(), ['0', '1']);
   assert.equal(
     draws.filter((draw) => draw.entryPoint === 'vis_vs' || draw.entryPoint === 'vs').length,

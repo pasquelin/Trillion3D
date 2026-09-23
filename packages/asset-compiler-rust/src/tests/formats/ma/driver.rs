@@ -79,17 +79,7 @@ pub(in crate::tests) fn normals(run: &GoldenRun, gltf: &Value, part: &Value) -> 
     let from = (view["byteOffset"].as_u64().unwrap_or(0)
         + accessor["byteOffset"].as_u64().unwrap_or(0)) as usize;
     let count = accessor["count"].as_u64().expect("count") as usize;
-    bytes[from..from + count * 12]
-        .as_chunks::<12>()
-        .0
-        .iter()
-        .map(|word| {
-            let read = |axis: usize| {
-                f32::from_le_bytes(word[axis * 4..axis * 4 + 4].try_into().expect("float"))
-            };
-            [read(0), read(1), read(2)]
-        })
-        .collect()
+    float_triples(&bytes[from..], count)
 }
 
 /// Do two normals look alike to the millionth?

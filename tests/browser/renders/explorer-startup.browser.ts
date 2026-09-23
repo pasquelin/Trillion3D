@@ -8,6 +8,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
+import { sdkMounts, threeStackMounts } from '../support/renderHarness.ts';
 import { buildSite, SITE_OUTPUT } from '../../../scripts/docs/site.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
@@ -35,26 +36,12 @@ interface TargetsResult {
 const root = resolve(import.meta.dirname, '../../..');
 const out = resolve(root, 'benchmark-runs/explorer-startup');
 await mkdir(out, { recursive: true });
-const fixture = resolve(root, 'tests/fixtures/formats/coplanar/three-stack');
-const compiler =
-  process.env.WG_COMPILER ??
-  resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
-execFileSync(compiler, [fixture, resolve(out, 'cache'), 'full', '150000', '/fixture/'], {
-  stdio: 'pipe',
-});
+const cacheMounts = threeStackMounts(root, out);
 await buildSite();
 const server = await startServer({
   port: 0,
   captures: new Map(),
-  mounts: [
-    { prefix: '/sdk/', dir: resolve(root, 'dist') },
-    { prefix: '/vendor/three/', dir: resolve(root, 'node_modules/three') },
-    { prefix: '/vendor/meshoptimizer/', dir: resolve(root, 'node_modules/meshoptimizer') },
-    { prefix: '/cache/city/', dir: resolve(out, 'cache/native/full') },
-    { prefix: '/fixture/', dir: fixture },
-    { prefix: '/cache/objects/', dir: resolve(out, 'cache/native/objects') },
-    { prefix: '/site/', dir: SITE_OUTPUT },
-  ],
+  mounts: [...sdkMounts(root), ...cacheMounts, { prefix: '/site/', dir: SITE_OUTPUT }],
 });
 const browser = await launchChrome({ headless: true });
 const errors: string[] = [];
@@ -94,7 +81,7 @@ try {
       controlsReused: e.controls() === e.controls(),
       coverageReady: e.backends[0].metrics().coverageReady,
     };
-  }, '/sdk/sdk-browser/measurement.js');
+  }, '/sdk/sdk-browser/src/measurement/measurement.js');
   assert.deepEqual([opened.width, opened.height], [960, 448]);
   assert.equal(opened.backend, 'webgpu-page-raster');
   assert.equal(opened.controlsReused, true);

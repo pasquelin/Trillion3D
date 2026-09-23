@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import {
   preuveDansLaPage,
-  preuveSaine,
+  publieEtVerifie,
   type ResultatPagePreuve,
 } from '../support/enginePageProof.ts';
 
@@ -35,14 +35,7 @@ const resultat = (await preuveDansLaPage(
   'depthConventionMoteurComplet',
   'Depth convention',
 )) as Resultat;
-console.log(
-  JSON.stringify(
-    { adaptateur: resultat.adaptateur ?? null, passes: resultat.passes, erreurs: resultat.erreurs },
-    null,
-    2,
-  ),
-);
-preuveSaine(resultat);
+publieEtVerifie(resultat);
 
 for (const [passe, r] of Object.entries(resultat.passes)) {
   const dit = (message: string) => `${passe}: ${message}`;

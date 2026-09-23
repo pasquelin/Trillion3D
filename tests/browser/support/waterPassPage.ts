@@ -13,7 +13,7 @@ import {
   type ScenePreparee,
 } from './sharedSceneProof.ts';
 import { difference, image } from './sceneImageProof.ts';
-import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
+import { executerAppareil } from './deviceProof.ts';
 import { BACKGROUND, CASES, GROUND, WATER, type WaterCase } from './waterPassCases.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 
@@ -122,28 +122,11 @@ async function cas(
   }
 }
 
-interface ExecuterResult {
-  indisponible?: string;
-  erreur?: string;
-  adaptateur?: string;
-  cases?: CaseResult[];
-  evenements?: BackendDiagnostic[];
-  erreurs?: string[];
-}
-
-export async function executer(): Promise<ExecuterResult> {
-  const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
-  const { device, erreurs } = appareil;
-  const evenements: BackendDiagnostic[] = [],
-    cases: CaseResult[] = [];
-  try {
+export function executer() {
+  return executerAppareil<{ cases: CaseResult[] }>(async (device, evenements, resultat) => {
+    const cases: CaseResult[] = (resultat.cases = []);
     for (const pagine of [false, true])
-      for (const kase of CASES) cases.push(await cas(device, pagine, kase, evenements));
-  } catch (error) {
-    const trace = error instanceof Error ? (error.stack ?? '') : '';
-    return { erreur: String(error) + trace, cases, evenements, erreurs };
-  }
-  const info = await appareil.fermer();
-  return { adaptateur: info.court, cases, evenements, erreurs };
+      for (const kase of CASES)
+        cases.push(await cas(device, pagine, kase, evenements as BackendDiagnostic[]));
+  });
 }

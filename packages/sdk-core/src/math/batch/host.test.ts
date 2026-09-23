@@ -30,6 +30,8 @@ const frame = createCameraFrame();
 const projection = new Float64Array(16);
 const cameraWorld = Float64Array.from(IDENTITY_MATRIX4); // the host's, moved below
 
+// The guide's example, run as written: the portal demo (`site/demos/batch.ts`) shows its own copy.
+// jscpd:ignore-start
 // A hundred-by-hundred grid of unit boxes on the plane z = -20, half of it behind the camera.
 for (let i = 0; i < N; i++) {
   const at = i * BOX_VALUES,
@@ -43,6 +45,7 @@ for (let i = 0; i < N; i++) {
   boxes[at + 4] = y + 1;
   boxes[at + 5] = z + 1;
 }
+// jscpd:ignore-end
 
 /** One frame: cull, then transform the survivors. Returns how many boxes were kept. */
 function cullThenTransform() {

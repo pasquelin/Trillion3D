@@ -79,16 +79,7 @@ fn a_texture_name_that_needs_escaping_stays_rereadable() {
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
         .expect("png");
     fs::write(options.source.with_file_name("color%red.png"), &png).expect("texture");
-    let keys = std::sync::Mutex::new(Vec::new());
-    let result = compile(&options, |report| {
-        if report["phase"] == "import-source" {
-            if let Some(key) = report["key"].as_str() {
-                keys.lock().expect("keys").push(key.to_string());
-            }
-        }
-    })
-    .expect("compile obj");
-    let key = keys.into_inner().expect("keys").pop().expect("a key");
+    let (result, key) = compile_with_import_key(&options);
     let gltf = read_json(
         &options
             .cache

@@ -33,19 +33,28 @@ async function sortie<T extends { run(): 'js' | 'wasm'; out: Float64Array }>(
   return lot.out.slice();
 }
 
-test('boxTransformBatch: same bits in JavaScript and WebAssembly on hostile boxes', async () => {
-  const lot = await createBoxTransformLot(N);
-  remplitBoites(lot, N);
+type Lot = { run(): 'js' | 'wasm'; out: Float64Array; shared: boolean; release(): void };
+
+/** Both paths' outputs must match to the bit, down to `Object.is`. */
+function assertSameBits(kernel: string, parJs: Float64Array, parWasm: Float64Array) {
+  for (let i = 0; i < parJs.length; i++)
+    assert.ok(Object.is(parJs[i], parWasm[i]), `${kernel}[${i}] : ${parJs[i]} ≠ ${parWasm[i]}`);
+}
+
+/** A filled batch played on both paths, in module memory, then released. */
+async function assertSharedLotMatches(lot: Lot, kernel: string) {
   const parJs = await sortie(lot, 'js');
   const parWasm = await sortie(lot, 'wasm');
   assert.equal(lot.shared, true, 'batch must work in module memory');
   assert.equal(parJs.length, parWasm.length);
-  for (let i = 0; i < parJs.length; i++)
-    assert.ok(
-      Object.is(parJs[i], parWasm[i]),
-      `boxTransformBatch[${i}] : ${parJs[i]} ≠ ${parWasm[i]}`,
-    );
+  assertSameBits(kernel, parJs, parWasm);
   lot.release();
+}
+
+test('boxTransformBatch: same bits in JavaScript and WebAssembly on hostile boxes', async () => {
+  const lot = await createBoxTransformLot(N);
+  remplitBoites(lot, N);
+  await assertSharedLotMatches(lot, 'boxTransformBatch');
 });
 
 test('boxTransformBatch: ±0 resolution of Math.min/Math.max matches at bit level', async () => {
@@ -63,25 +72,12 @@ test('boxTransformBatch: ±0 resolution of Math.min/Math.max matches at bit leve
   const parWasm = await sortie(lot, 'wasm');
   assert.ok(Object.is(parJs[0], -0), 'JS reference: Math.min must resolve to -0');
   assert.ok(Object.is(parJs[3], 0) && !Object.is(parJs[3], -0), 'JS reference: Math.max to +0');
-  for (let i = 0; i < parJs.length; i++)
-    assert.ok(
-      Object.is(parJs[i], parWasm[i]),
-      `boxTransformBatch[${i}] : ${parJs[i]} ≠ ${parWasm[i]}`,
-    );
+  assertSameBits('boxTransformBatch', parJs, parWasm);
   lot.release();
 });
 
 test('multiplyMatrix4Batch: same bits in JavaScript and WebAssembly on hostile matrices', async () => {
   const lot = await createMultiplyLot(N);
   remplitMatrices(lot, N);
-  const parJs = await sortie(lot, 'js');
-  const parWasm = await sortie(lot, 'wasm');
-  assert.equal(lot.shared, true, 'batch must work in module memory');
-  assert.equal(parJs.length, parWasm.length);
-  for (let i = 0; i < parJs.length; i++)
-    assert.ok(
-      Object.is(parJs[i], parWasm[i]),
-      `multiplyMatrix4Batch[${i}] : ${parJs[i]} ≠ ${parWasm[i]}`,
-    );
-  lot.release();
+  await assertSharedLotMatches(lot, 'multiplyMatrix4Batch');
 });

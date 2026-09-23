@@ -54,26 +54,7 @@ fn archive_digest(dir: &Path, run: &GoldenRun) -> Value {
 /// key being same, second re-reads first's cache. Neither `clusters.json` nor report
 /// compared whole: carry durations, not scene properties.
 fn scene_digest(run: &GoldenRun) -> Value {
-    json!({
-      "formatVersion": run.result["formatVersion"],
-      "key": run.result["key"],
-      "manifestBinaryVersion": run.slim["binary"]["version"],
-      "sidecarSha256": hash(&run.binary),
-      "primitives": run.result["primitives"].as_array().expect("primitives").len(),
-      "selectedNodes": run.result["selectedNodes"],
-      "totalNodes": run.result["totalNodes"],
-      "selectedTriangles": run.result["selectedTriangles"],
-      "sourceTriangles": run.result["sourceTriangles"],
-    })
-}
-
-/// `zip` -> internal driver chain, as container published in report.
-fn chain_report(run: &GoldenRun) -> Value {
-    run.reports
-        .iter()
-        .find(|report| report["phase"] == "archive" && report["step"] == "routed")
-        .map(|report| report["chain"].clone())
-        .expect("the container publishes the driver chain")
+    compiled_identity(run, json!({"key": run.result["key"]}))
 }
 
 #[test]

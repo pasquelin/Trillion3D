@@ -22,6 +22,24 @@ export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
 };
 
+/** The DAG selection uniform block as the shader reads it: the camera, and the resident-cut switch. */
+export function readDagUniforms(data: Uint8Array) {
+  const f32 = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
+  const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4);
+  return {
+    uniforms: {
+      planes: f32.slice(0, 24),
+      view: f32.slice(24, 40),
+      pixelScale: [f32[40], f32[41]] as [number, number],
+      pixelError: f32[42],
+      near: f32[43],
+      cameraWorld: [f32[48], f32[49], f32[50]] as [number, number, number],
+      cameraStretch: f32[51],
+    },
+    residentCut: !!u32[47],
+  };
+}
+
 export function simulateComputeDispatch(
   computePipeline: { entryPoint: string } | undefined,
   computeBind: ComputeBind | undefined,
@@ -103,19 +121,7 @@ export function simulateComputeDispatch(
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   );
-  const data = byBinding.get(2)!.data;
-  const f32 = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
-  const uniInts = new Uint32Array(data.buffer);
-  const uniforms = {
-    planes: f32.slice(0, 24),
-    view: f32.slice(24, 40),
-    pixelScale: [f32[40], f32[41]] as [number, number],
-    pixelError: f32[42],
-    near: f32[43],
-    cameraWorld: [f32[48], f32[49], f32[50]] as [number, number, number],
-    cameraStretch: f32[51],
-  };
-  const residentCut = !!uniInts[47];
+  const { uniforms, residentCut } = readDagUniforms(byBinding.get(2)!.data);
   // Residency lives in bits behind the cold records: the double rereads it through the shared
   // decoder, in the buffer the host writes, where the shader reads it.
   const resident = residentCut

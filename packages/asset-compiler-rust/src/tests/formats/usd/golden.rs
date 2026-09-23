@@ -92,26 +92,21 @@ fn corpus_counts(gltf: &Value) -> Value {
 /// nodes, meshes, materials, images, report — and the compiled scene that comes out.
 fn digest(run: &GoldenRun) -> Value {
     let (manifest, gltf) = run.prepared("usd");
-    json!({
-      "scenePlugin": run.result["scenePlugin"],
-      "plugin": manifest["source"]["plugin"],
-      "counts": manifest["source"]["counts"],
-      "unsupported": manifest["unsupported"],
-      "notes": manifest["notes"],
-      "nodes": gltf["nodes"],
-      "meshes": gltf["meshes"],
-      "materials": gltf["materials"],
-      "images": gltf["images"],
-      "samplers": gltf["samplers"],
-      "textures": gltf["textures"],
-      "accessors": gltf["accessors"],
-      "formatVersion": run.result["formatVersion"],
-      "manifestBinaryVersion": run.slim["binary"]["version"],
-      "sidecarSha256": hash(&run.binary),
-      "primitives": run.result["primitives"].as_array().expect("primitives").len(),
-      "selectedNodes": run.result["selectedNodes"],
-      "totalNodes": run.result["totalNodes"],
-      "selectedTriangles": run.result["selectedTriangles"],
-      "sourceTriangles": run.result["sourceTriangles"],
-    })
+    compiled_identity(
+        run,
+        json!({
+          "scenePlugin": run.result["scenePlugin"],
+          "plugin": manifest["source"]["plugin"],
+          "counts": manifest["source"]["counts"],
+          "unsupported": manifest["unsupported"],
+          "notes": manifest["notes"],
+          "nodes": gltf["nodes"],
+          "meshes": gltf["meshes"],
+          "materials": gltf["materials"],
+          "images": gltf["images"],
+          "samplers": gltf["samplers"],
+          "textures": gltf["textures"],
+          "accessors": gltf["accessors"],
+        }),
+    )
 }

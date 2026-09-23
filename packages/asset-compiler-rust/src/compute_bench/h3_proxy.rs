@@ -14,6 +14,8 @@ mod jeux;
 
 /// Copy of old `stage_proxy`: each node re-read all scene primitives for
 /// retrouver celles de son maillage.
+// Frozen "before" copy of `stage_proxy`, kept as the bench oracle: it must not share the live code.
+// jscpd:ignore-start
 fn reference_stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let world = world_matrices(inputs.g)?;
     let nodes = values(inputs.g, "nodes")?;
@@ -41,6 +43,7 @@ fn reference_stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     }
     Ok(assemble(inputs.thresholds, triangles, colours))
 }
+// jscpd:ignore-end
 
 /// Proxies of single run sets, in order.
 type Proxys = Vec<SceneProxy>;

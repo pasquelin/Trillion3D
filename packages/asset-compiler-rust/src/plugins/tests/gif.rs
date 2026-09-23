@@ -4,22 +4,12 @@
 //! here: choosing by default which of an animation's images is *the* texture would be
 //! arbitrary.
 use super::super::image as registry;
-use super::{assert_claims, assert_refusals, decoded_rgba8, fixture, rgba8};
+use super::{
+    assert_claims, assert_refusals, decoded_rgba8, fixture, rgba8, REFERENCE_RGB as REFERENCE,
+};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
-/// Reference image, top row first. The format being indexed, its colours come out of the table
-/// without rounding: they are exactly the bytes written in the table.
-const REFERENCE: [[u8; 3]; 8] = [
-    [255, 0, 0],
-    [0, 255, 0],
-    [0, 0, 255],
-    [255, 255, 255],
-    [0, 0, 0],
-    [247, 206, 8],
-    [16, 49, 239],
-    [132, 239, 66],
-];
 /// Alpha of the file with a transparent index: the last pixel carries the index declared
 /// transparent by the graphic control extension, and it alone.
 const ALPHA_TRANSPARENT: [u8; 8] = [255, 255, 255, 255, 255, 255, 255, 0];

@@ -21,6 +21,7 @@ export const VALIDATE_GROUPS = {
     'format:check',
     'check:lines',
     'check:duplicates',
+    'check:helpers',
     'lint:js',
     'check:unused',
     'check:no-js',

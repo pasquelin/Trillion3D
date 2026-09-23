@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { createServer } from 'node:http';
+import { blankPageServer } from '../../kit/server/blankPage.ts';
 import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -54,16 +54,7 @@ const selectedItems = (sample: (typeof cases)[number]) =>
 const expected = cases.map((sample) =>
   evaluateDrawCompact(selectedItems(sample), maxVertexCount, cap),
 );
-const server = createServer((_request, response) => {
-  response.writeHead(200, { 'content-type': 'text/html' });
-  response.end('<!doctype html><title>WebGeometry GPU scatter to visibility</title>');
-});
-await new Promise<void>((ready: () => void, reject) => {
-  server.once('error', reject);
-  server.listen(0, '127.0.0.1', ready);
-});
-const address = server.address();
-if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
+const { server, port } = await blankPageServer('WebGeometry GPU scatter to visibility');
 const browser = await launchChrome({ headless: true });
 
 interface DrawCaseResult {
@@ -102,7 +93,7 @@ const report: DrawReport = {
 };
 try {
   const page = await browser.newPage();
-  await page.goto(`http://127.0.0.1:${address.port}/`);
+  await page.goto(`http://127.0.0.1:${port}/`);
   await routeBrowserFixtures(page, resolve(import.meta.dirname, '../support'));
   const result = (await page.evaluate(
     (args) => {

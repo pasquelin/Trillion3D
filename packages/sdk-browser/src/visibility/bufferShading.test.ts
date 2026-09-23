@@ -11,7 +11,7 @@ import {
   VIS_INVALID,
   type VisPage,
 } from './buffer.ts';
-import { camera, quadPages, centerId } from './buffer.fixture.ts';
+import { camera, quadPages, centerId, nearestQuadTexture } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 
@@ -64,16 +64,7 @@ test('visbuffer beauty for untextured MeshBasicMaterial matches the documented r
 });
 
 test('the second pass samples the source map at reconstructed UVs', () => {
-  const map = new THREE.DataTexture(
-    new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]),
-    2,
-    2,
-    THREE.RGBAFormat,
-  );
-  map.magFilter = THREE.NearestFilter;
-  map.minFilter = THREE.NearestFilter;
-  map.flipY = false;
-  map.needsUpdate = true;
+  const map = nearestQuadTexture();
   const material = new THREE.MeshBasicMaterial({ color: 0xffffff, map });
   const { pages, geometry } = quadPages(material, [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]);
   const cam = camera(),

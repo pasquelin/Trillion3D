@@ -6,7 +6,9 @@ import {
   packDagSelection,
   packedWorldsToRenderOrigin,
 } from './selection.ts';
-import { dagFixture } from '../../page/selection/dag.fixture.ts';
+import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
+import { mockDagDevice } from './selection.fixture.ts';
+import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 
 export const VIEWPORT: [number, number] = [1280, 720];
 export function packed(fixture: ReturnType<typeof dagFixture>) {
@@ -73,4 +75,17 @@ export function cpuUrls(
   })
     .shown.map((page) => page.url)
     .sort();
+}
+
+/** The wide-camera DAG on a device whose readbacks wait for `release`: a snapshot held in flight. */
+export function gatedDag() {
+  installGpuGlobals();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const fixture = dagFixture();
+  const { dag, roots } = packed(fixture);
+  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0);
+  return { release, fixture, dag, uniforms, device: mockDagDevice(dag, { mapGate: gate }).device };
 }

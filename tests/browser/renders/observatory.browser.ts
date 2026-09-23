@@ -4,14 +4,13 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
+import { openGalleryScene, sdkMounts } from '../support/renderHarness.ts';
 
-// `window.scene`/`firstPixels`/`lastPixels` only exist in the page this harness evaluates code
-// in, never in Node; declared here so the `page.evaluate` callbacks below (type-checked, though
-// they run in the browser) see them.
+// `firstPixels`/`lastPixels` only exist in the page this harness evaluates code in, never in Node;
+// declared here so the `page.evaluate` callbacks below (type-checked, though they run in the
+// browser) see them. `window.scene` is declared by `renderHarness.ts`.
 declare global {
   interface Window {
-    scene: MeasuredWorld;
     firstPixels?: Uint8Array;
     lastPixels?: Uint8Array;
   }
@@ -23,12 +22,7 @@ await mkdir(output, { recursive: true });
 const server = await startServer({
   port: 0,
   captures: new Map(),
-  mounts: [
-    { prefix: '/sdk/', dir: resolve(root, 'dist') },
-    { prefix: '/vendor/three/', dir: resolve(root, 'node_modules/three') },
-    { prefix: '/vendor/meshoptimizer/', dir: resolve(root, 'node_modules/meshoptimizer') },
-    { prefix: '/site/', dir: resolve(root, 'site') },
-  ],
+  mounts: [...sdkMounts(root), { prefix: '/site/', dir: resolve(root, 'site') }],
 });
 const browser = await launchChrome({ headless: true });
 const errors: string[] = [];
@@ -39,31 +33,15 @@ try {
   });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${serverPort(server)}`);
-  await page.evaluate(async (sdkUrl) => {
-    document.body.replaceChildren();
-    document.body.style.margin = '0';
-    const canvas = document.createElement('canvas');
-    canvas.id = 'observatory';
-    canvas.style.cssText = 'width:800px;height:520px;display:block';
-    document.body.append(canvas);
-    const { openMeasuredWorld, webgpuPagesBackend } = await import(sdkUrl);
-    window.scene = await openMeasuredWorld('observatory', {
-      manifestUrl: '/site/assets/gallery/signature-architecture/cache/native/full/manifest.json',
-      scope: 'full',
-      importedLights: true,
-      interactive: false,
-      backends: [webgpuPagesBackend],
-      width: 800,
-      height: 520,
-      pixelRatio: window.devicePixelRatio,
-      temporalAntialiasing: false,
-      geometryPoolBytes: 16 * 1024 * 1024,
-      geometryPoolCeilingBytes: 64 * 1024 * 1024,
-      texturePoolBytes: 128 * 1024 * 1024,
-    });
-    await window.scene.awaitPages();
-    window.scene.setPose({ ...window.scene.homePose(), position: [19, 13, 22], target: [0, 3, 0] });
-  }, '/sdk/sdk-browser/measurement.js');
+  await openGalleryScene(page, {
+    id: 'observatory',
+    width: 800,
+    height: 520,
+    manifestUrl: '/site/assets/gallery/signature-architecture/cache/native/full/manifest.json',
+    texturePoolBytes: 128 * 1024 * 1024,
+    position: [19, 13, 22],
+    target: [0, 3, 0],
+  });
   const samples = [];
   for (const threshold of [0, 1, 8, 0]) {
     const sample = await page.evaluate(async (pixelError) => {
