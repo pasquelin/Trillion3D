@@ -32,7 +32,7 @@ test('mountain terrain is deterministic with deep relief, strata, and a river', 
 });
 
 test('published mountain source is reproduced byte for byte by its original recipe', async () => {
-  await assertSourceReproduced(published, 'wg-mountain-terrain-', (directory) =>
+  await assertSourceReproduced(published, 'trillion3d-mountain-terrain-', (directory) =>
     writeMountainTerrain(directory, mountainTerrain()),
   );
 });

@@ -177,7 +177,7 @@ test('a transparent switched to double-sided still expands all its instances', a
     assert.equal(blend.length, 2, 'both faces are encoded');
     const instances = blend.reduce((total, draw) => total + (draw.instanceCount ?? 0), 0);
     assert.ok(instances > 0, 'both faces expand instances');
-    const etale = buffers.find((buffer) => buffer.label === 'WG blend expanded instances');
+    const etale = buffers.find((buffer) => buffer.label === 'Trillion3D blend expanded instances');
     assert.ok(
       etale && etale.data.length >= instances * 8,
       `the expanded list holds ${instances} instances`,

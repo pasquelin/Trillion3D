@@ -50,7 +50,7 @@ function resolveDist(value: string, label: string, root: string): { dist: string
   const ref = execFileSync('git', ['-C', root, 'rev-parse', '--verify', `${value}^{commit}`], {
     encoding: 'utf8',
   }).trim();
-  const dir = join(tmpdir(), 'web-geometry-mesure', `${label}-${ref.slice(0, 12)}`);
+  const dir = join(tmpdir(), 'trillion3d-mesure', `${label}-${ref.slice(0, 12)}`);
   if (isDist(join(dir, 'dist')))
     return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)} (reused)` };
   mkdirSync(dir, { recursive: true });

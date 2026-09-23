@@ -1,5 +1,5 @@
 SPDX-License-Identifier: CC0-1.0
-Auteur : Corpus WebGeometry, 2026-09-15
+Auteur : Corpus Trillion3D, 2026-09-15
 Origine : fichiers ecrits octet par octet depuis les structures publiques BITMAPFILEHEADER,
 BITMAPINFOHEADER et BITMAPV3HEADER documentees par Microsoft ; tronque.bmp repris de
 test/assets/limites/truncated-bmp/, lui aussi CC0-1.0.

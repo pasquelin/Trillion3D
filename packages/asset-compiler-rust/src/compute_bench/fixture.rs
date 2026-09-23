@@ -77,7 +77,7 @@ fn compile_one(name: &str) -> (f64, Value) {
 
 /// Compiles the five fixtures and writes the survey to `.mesure/out/calculs/`.
 pub(crate) fn run() -> (f64, String) {
-    let label = std::env::var("WG_BANC_LABEL").unwrap_or_else(|_| "banc".into());
+    let label = std::env::var("TRILLION3D_BANC_LABEL").unwrap_or_else(|_| "banc".into());
     let mut total = 0.0;
     let mut records = Vec::new();
     for name in NAMES {

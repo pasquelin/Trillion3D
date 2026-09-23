@@ -8,7 +8,7 @@ const WAIT: std::time::Duration = std::time::Duration::from_secs(30);
 /// Shortens the wait above, in milliseconds: a host that prefers an immediate
 /// refusal, or a trial that does not want to last thirty seconds, sets this
 /// variable. An unreadable value is ignored.
-const WAIT_ENV: &str = "WG_CACHE_LOCK_WAIT_MS";
+const WAIT_ENV: &str = "TRILLION3D_CACHE_LOCK_WAIT_MS";
 /// One wait step: short enough that a cancellation is read without a noticeable
 /// delay, long enough that waiting costs nothing.
 const STEP: std::time::Duration = std::time::Duration::from_millis(20);

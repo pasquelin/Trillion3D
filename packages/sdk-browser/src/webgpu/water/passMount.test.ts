@@ -46,6 +46,10 @@ test('without the pass, the transmission slice draws as one more blend', () => {
   if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true);
   assert.equal(composed, false);
   assert.equal(counters.copies, 0, 'no backdrop copy without the pass');
-  assert.deepEqual(passes, [{ label: 'WG transmission', drawn: [1] }], 'the slice, as a blend');
+  assert.deepEqual(
+    passes,
+    [{ label: 'Trillion3D transmission', drawn: [1] }],
+    'the slice, as a blend',
+  );
   assert.equal(rt.run.blendDrawCalls, 1);
 });

@@ -3,7 +3,7 @@ use super::*;
 /// The geometry-page format every page of the cache is written in, declared once at the top of
 /// the manifest (`geometryPages`): the page header's magic and the sidecar version are the gates.
 pub fn geometry_page_format() -> Value {
-    json!({"formatVersion":web_geometry_page_codec::VERSION,"codec":"quantized"})
+    json!({"formatVersion":trillion3d_page_codec::VERSION,"codec":"quantized"})
 }
 
 /// Writes a geometry page into the content-addressed store and returns its

@@ -56,10 +56,10 @@ test('the ledger sees each allocation, returns it on destroy and installs once',
   const ledger = installGpuDeviceLedger(device);
   assert.equal(installGpuDeviceLedger(device), ledger);
   assert.equal(gpuDeviceLedgerOf(device), ledger);
-  const buffer = device.createBuffer({ label: 'WG pages', size: 1000, usage: 0 });
-  device.createBuffer({ label: 'WG pages', size: 24, usage: 0 });
+  const buffer = device.createBuffer({ label: 'Trillion3D pages', size: 1000, usage: 0 });
+  device.createBuffer({ label: 'Trillion3D pages', size: 24, usage: 0 });
   const texture = device.createTexture({
-    label: 'WG display color',
+    label: 'Trillion3D display color',
     size: [16, 16],
     format: 'rgba8unorm',
     usage: 0,
@@ -67,13 +67,21 @@ test('the ledger sees each allocation, returns it on destroy and installs once',
   device.createBuffer({ size: 8, usage: 0 });
   let snapshot = ledger.snapshot();
   assert.equal(snapshot.bytes, 1024 + 1024 + 8);
-  assert.deepEqual(Object.keys(snapshot.byLabel), ['WG pages', 'WG display color', 'unlabeled']);
+  assert.deepEqual(Object.keys(snapshot.byLabel), [
+    'Trillion3D pages',
+    'Trillion3D display color',
+    'unlabeled',
+  ]);
   assert.equal(snapshot.live, 4);
   assert.equal(snapshot.unknownFormats, 0);
   buffer.destroy();
   texture.destroy();
   texture.destroy();
-  assert.deepEqual(destroyed, ['WG pages', 'WG display color', 'WG display color']);
+  assert.deepEqual(destroyed, [
+    'Trillion3D pages',
+    'Trillion3D display color',
+    'Trillion3D display color',
+  ]);
   snapshot = ledger.snapshot();
   assert.equal(snapshot.bytes, 24 + 8);
   assert.equal(snapshot.live, 2);

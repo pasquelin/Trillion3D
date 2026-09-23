@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const KEY = 'wg-docs-theme';
+const KEY = 'trillion3d-docs-theme';
 
 function readTheme(): string {
   try {
