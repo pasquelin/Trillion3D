@@ -123,7 +123,7 @@
     <div id="banner" data-hud data-example-overlay><h1></h1><p></p></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { play, stats } from '../runtime/kit.js';
+      import { isCapture, play, stats } from '../runtime/kit.js';
 
       // MOUSE AIM, as PC flight games fly: the mouse moves an aim circle through the sky, not the
       // jet; an instructor turns the jet onto it — bank towards it, pull, level the wings — by
@@ -1411,8 +1411,21 @@
         camera.position.set(S.pos[0] - 16, S.pos[1] + 3.5, S.pos[2] - 20);
         camera.lookAt(S.pos[0], S.pos[1] + 0.5, S.pos[2]);
       }
+      // A capture shows the jet's own default view instead: parked in the seat, looking down the
+      // nose a little, as `present` would draw the cockpit view at rest.
+      function cockpitShot() {
+        jet.visible = false;
+        cockpit.visible = fill.visible = true;
+        const eye = S.pos.map((p, i) => p + rotate(S.q, EYE)[i]);
+        cockpit.position.set(...eye);
+        cockpit.quaternion.set(...S.q);
+        camera.position.set(...eye);
+        camera.quaternion.set(...qmul(S.q, qaxis(1, 0, 0, -LOOK_DOWN)));
+        [camera.near, camera.fov] = [COCKPIT_NEAR, COCKPIT_FOV];
+      }
       restart();
-      menuShot();
+      if (isCapture(document)) cockpitShot();
+      else menuShot();
 
       // The keys the page reads by their place on the keyboard (`KeyboardEvent.code`), so an
       // AZERTY keyboard flies the same. They are taken before the controller sees them: its
