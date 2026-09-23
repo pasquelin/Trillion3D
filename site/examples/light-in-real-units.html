@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, language, words } from '../runtime/kit.js';
+      import { controls, readout, language, words, opening, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -170,22 +170,17 @@
       // The opening: the camera starts wide open, the square a white glare, and the exposure
       // closes down to the noon sun like an eye stepping out of a dark room. The camera glides in
       // too, until the viewer presses or scrolls on the canvas.
-      let gliding = true, time = 0, turn = 0;
-      const stop = () => (gliding = false);
-      world.canvas.addEventListener('pointerdown', stop);
-      world.canvas.addEventListener('wheel', stop, { passive: true });
+      let turn = 0;
       // Both ends look in through the open south side of the square, between the trees, so the
       // carousel and the two lamps hold the middle of the frame and no house wall stands close.
       const FROM = [-12, 24, 40], TO = [-7, 8.5, 23];
+      opening(world, (time) => {
+        const t = ease.out(time / 4);
+        world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * t));
+        return t < 1;
+      });
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
-        time += step;
-        if (gliding) {
-          const t = 1 - (1 - Math.min(1, time / 4)) ** 3;
-          world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * t));
-          world.controls.update();
-          if (t >= 1) gliding = false;
-        }
         if (ui.turning) {
           turn += step * 0.6;
           carousel.rotation.set(0, turn, 0);
@@ -197,8 +192,8 @@
           world.exposure = 1 / (1.2 * 2 ** ev);
           shown.ev(`EV ${ev.toFixed(1)}`);
         }
-        // A still square with a settled eye asks for no new frame.
-        if (gliding || ui.turning || adapting) world.invalidate();
+        // A still square with a settled eye asks for no new frame; the opening asks for its own.
+        if (ui.turning || adapting) world.invalidate();
       });
     </script>
   </body>

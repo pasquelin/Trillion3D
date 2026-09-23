@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, animation } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, opening } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#34405e');
@@ -141,20 +141,16 @@
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
       // The opening: the camera sweeps down from high above onto the stands as the wave sets off,
       // and keeps circling until the first press or wheel on the picture.
-      let moving = true;
-      for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (moving = false), { passive: true });
-      world.onFrame(({ delta }) => {
-        if (moving) {
-          const step = Math.min(delta, 0.1), { position } = world.camera, { target } = world.controls;
-          const x = position.x - target.x, y = position.y - target.y, z = position.z - target.z, reach = Math.hypot(x, y, z);
-          const closer = Math.max(20, reach - step * Math.max(0.8, (reach - 20) * 0.8)) / reach, turn = step * 0.12;
-          const lower = Math.max(0.35, y / reach - step * 0.12) / (y / reach);
-          position.set(target.x + (x * Math.cos(turn) - z * Math.sin(turn)) * closer, target.y + y * closer * lower, target.z + (z * Math.cos(turn) + x * Math.sin(turn)) * closer);
-          world.controls.update();
-        }
-        world.invalidate();
+      let last = 0;
+      opening(world, (time) => {
+        const step = time - last, { position } = world.camera, { target } = world.controls;
+        last = time;
+        const x = position.x - target.x, y = position.y - target.y, z = position.z - target.z, reach = Math.hypot(x, y, z);
+        const closer = Math.max(20, reach - step * Math.max(0.8, (reach - 20) * 0.8)) / reach, turn = step * 0.12;
+        const lower = Math.max(0.35, y / reach - step * 0.12) / (y / reach);
+        position.set(target.x + (x * Math.cos(turn) - z * Math.sin(turn)) * closer, target.y + y * closer * lower, target.z + (z * Math.cos(turn) + x * Math.sin(turn)) * closer);
       });
-      world.invalidate();
+      world.onFrame(() => world.invalidate());
     </script>
   </body>
 </html>

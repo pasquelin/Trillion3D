@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, pointerOnPlane, readout, seeded } from '../runtime/kit.js';
+      import { controls, pointerOnPlane, readout, seeded, opening, ease } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#efc493');
@@ -146,8 +146,11 @@
       });
 
       // The opening glides down to the array; the viewer's first press or wheel ends it.
-      let intro = 0;
-      for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
+      opening(world, (time) => {
+        const k = ease.out(time / 5);
+        world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * k));
+        return time < 5;
+      });
 
       // An angle's shortest way round, in (-π, π].
       const wrap = (angle) => angle - Math.PI * 2 * Math.round(angle / (Math.PI * 2));
@@ -155,16 +158,10 @@
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step;
-        if (intro < 1) {
-          intro = Math.min(1, intro + step / 5);
-          const ease = 1 - (1 - intro) ** 3;
-          world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * ease));
-          world.controls.update();
-        }
         // The drone loops a figure of eight over the field, or chases the pointer.
         if (!ui.followPointer) aim.splice(0, 3, Math.sin(time * 0.23) * 24, 11 + Math.sin(time * 0.61) * 3, Math.sin(time * 0.46 + 1) * 15);
-        const at = drone.position, ease = 1 - Math.exp(-step * 2.5);
-        at.set(at.x + (aim[0] - at.x) * ease, at.y + (aim[1] - at.y) * ease, at.z + (aim[2] - at.z) * ease);
+        const at = drone.position, follow = 1 - Math.exp(-step * 2.5);
+        at.set(at.x + (aim[0] - at.x) * follow, at.y + (aim[1] - at.y) * follow, at.z + (aim[2] - at.z) * follow);
         drone.rotation.set(0, time * 2.2, 0);
 
         // Each dish turns toward the drone once it has woken, the nearest to the centre first.

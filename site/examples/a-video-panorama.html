@@ -25,7 +25,7 @@
       // Waits for #362: a texture made from a video shows each new frame of the video by itself,
       // without a change to its material; until then the panorama stands still.
       import { createWorld, geometry, material, object, texture, side } from '../runtime/engine.js';
-      import { controls, playPickedVideo, readout, words } from '../runtime/kit.js';
+      import { controls, playPickedVideo, readout, words, opening } from '../runtime/kit.js';
       const say = words();
 
       // A 360° video: every direction at once, the turn around the viewer across, from straight up
@@ -113,20 +113,18 @@
 
       // The page films its dusk while it plays, and the view pans slowly until the first press or
       // wheel on the canvas.
-      let seconds = 0, panning = true;
-      for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (panning = false), { passive: true });
+      const from = Math.atan2(world.camera.position.x, world.camera.position.z);
+      opening(world, (time) => {
+        const turn = from + time * 0.05;
+        world.camera.position.set(Math.sin(turn) * 0.01, world.camera.position.y, Math.cos(turn) * 0.01);
+        world.camera.lookAt(0, 0, 0);
+      });
+      let seconds = 0;
       world.onFrame(({ delta }) => {
-        const step = Math.min(delta, 0.1);
-        if (panning) {
-          const turn = Math.atan2(world.camera.position.x, world.camera.position.z) + step * 0.05;
-          world.camera.position.set(Math.sin(turn) * 0.01, world.camera.position.y, Math.cos(turn) * 0.01);
-          world.camera.lookAt(0, 0, 0);
-        }
-        if (ui.playing) {
-          seconds += step;
-          if (video.srcObject) film(seconds);
-        }
-        if (panning || ui.playing) world.invalidate();
+        if (!ui.playing) return;
+        seconds += Math.min(delta, 0.1);
+        if (video.srcObject) film(seconds);
+        world.invalidate();
       });
     </script>
   </body>

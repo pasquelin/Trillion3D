@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, readout, seeded, ease } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#0b0d14');
@@ -171,7 +171,6 @@
       // Styles as sizes, in bond lengths: the ball of an atom and the radius of a bond.
       const STYLES = { 'ball and stick': [0.3, 0.09], 'space filling': [0.85, 0], sticks: [0.13, 0.13] };
       let structure = null, flight = 1, sizeFrom = [0.3, 0.09], sizeTo = [0.3, 0.09], morph = 1, atomCount = null, bondCount = null;
-      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
       // A new structure: every atom leaves where it stands for its new place, a little apart in
       // time; spare atoms fly out and vanish. The bonds wait for the atoms to land.
       function assemble(next) {
@@ -208,7 +207,7 @@
           });
         });
       }
-      const sizeNow = () => sizeFrom.map((value, k) => value + (sizeTo[k] - value) * ease(morph));
+      const sizeNow = () => sizeFrom.map((value, k) => value + (sizeTo[k] - value) * ease.inOut(morph));
 
       // The opening: the atoms start scattered in a wide cloud and gather into the buckyball.
       const draw = seeded(9), scatter = () => draw() - 0.5;
@@ -246,7 +245,7 @@
         if (moving || reshaping) {
           const [size] = sizeNow();
           atoms.forEach((atom, k) => {
-            const t = ease(Math.min(1, Math.max(0, (flight - atom.delay) / 1))), swirl = (1 - t) * 1.6;
+            const t = ease.inOut(flight - atom.delay), swirl = (1 - t) * 1.6;
             const [x, y, z] = atom.from.map((value, axis) => value + (atom.to[axis] - value) * t);
             atom.mesh.position.set(x * Math.cos(swirl) - z * Math.sin(swirl), y, x * Math.sin(swirl) + z * Math.cos(swirl));
             const present = k < structure.atoms.length;
