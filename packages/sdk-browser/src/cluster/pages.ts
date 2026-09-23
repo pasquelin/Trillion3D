@@ -20,6 +20,8 @@ export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
       [response, cause] = [undefined, error];
     }
     if (!transient(response)) break;
+    // A refused answer's body is let go before the next request, not left to the collector.
+    if (attempt < attempts) void response?.body?.cancel().catch(() => {});
   }
   // A network failure is the same refusal as an HTTP one, with no status to give.
   if (!response)
