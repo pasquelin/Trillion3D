@@ -47,7 +47,7 @@ function environments(row: ExportRow): string {
 }
 
 function sourceFor(row: ExportRow, facade: string): string {
-  const depth = facade.includes('sdk-core/src/index') ? '../../' : '../';
+  const depth = facade.includes('sdk-core/src/index') || facade === 'nested' ? '../../' : '../';
   return `${depth}${row.module.slice('packages/'.length)}`;
 }
 
@@ -81,9 +81,23 @@ await writeGenerated(
 const browserOnly = rows.filter(
   (row) => row.entries.includes('browser') && !row.entries.includes('core'),
 );
+// The browser-only exports: the world and its families written here, where they win over the
+// common names they shadow (`Scene`, `Material`…); the rest of the engine in a file of its own,
+// which a single facade outgrew the line gate of every maintained source with.
+const worldModule = (row: ExportRow) => /\/world\//.test(row.module);
+await writeGenerated(
+  'packages/sdk/browser/engine.ts',
+  exportLines(
+    browserOnly.filter((row) => !worldModule(row)),
+    'nested',
+  ),
+);
 await writeGenerated(
   'packages/sdk/browser.ts',
-  `export * from './common/index.ts';\n${exportLines(browserOnly, '../sdk-browser/src/index.ts')}`,
+  `export * from './common/index.ts';\nexport * from './browser/engine.ts';\n${exportLines(
+    browserOnly.filter(worldModule),
+    '../sdk-browser/src/index.ts',
+  )}`,
 );
 const nodeOnly = rows.filter(
   (row) => row.entries.includes('node') && !row.entries.includes('core'),

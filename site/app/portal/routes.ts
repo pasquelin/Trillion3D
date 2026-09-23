@@ -30,6 +30,7 @@ export type ResolvedPage =
   | { kind: 'entry'; entry: PortalEntry }
   | { kind: 'examples' }
   | { kind: 'example'; id: string }
+  | { kind: 'editor' }
   | { kind: 'gallery' }
   | { kind: 'engine-scene' }
   | { kind: 'lesson'; id: string }
@@ -39,6 +40,9 @@ export type ResolvedPage =
 const AREA_SET: ReadonlySet<string> = new Set(ROUTE_AREAS);
 const isArea = (value: string | undefined): value is RouteArea =>
   value !== undefined && AREA_SET.has(value);
+/** The scene editor's page, under Examples beside the examples it is not one of. */
+export const EDITOR_ID = 'scene-editor';
+
 /** The entry sections read in Learn, as guides; the others are the API reference. */
 export const LEARN_SECTIONS = ['course', 'guides', 'internals'];
 
@@ -91,6 +95,7 @@ export function resolvePage(
   if (area === 'learn' && id === 'home') return { kind: 'home' };
   if (area === 'learn' && entry && learnEntry) return { kind: 'entry', entry };
   if (area === 'examples' && !id) return { kind: 'examples' };
+  if (area === 'examples' && id === EDITOR_ID) return { kind: 'editor' };
   if (area === 'examples' && exampleIds.includes(id)) return { kind: 'example', id };
   if (area === 'lessons' && !id) return { kind: 'gallery' };
   if (area === 'lessons' && id === 'engine-scene') return { kind: 'engine-scene' };

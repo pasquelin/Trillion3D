@@ -860,7 +860,11 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/helper/index.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/buffer/index\".BufferAttribute"
     },
@@ -908,11 +912,20 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/controls/transform.ts",
+        "packages/sdk-browser/src/world/controls/transformView.ts",
+        "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/world.ts",
         "packages/sdk-browser/src/world/core/worldCamera.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts",
+        "packages/sdk-browser/src/world/core/worldRaycast.test.ts",
+        "packages/sdk-browser/src/world/core/worldRaycast.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "packages/sdk-browser/src/world/saved/write.ts",
         "scripts/docs-camera-lessons.test.ts",
         "scripts/docs-canvas.test.ts"
       ],
@@ -1040,6 +1053,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-node/src/compiler/process\".CANCEL_GRACE_MS"
+    },
+    {
+      "name": "CanvasPoint",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/core/worldRaycast.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/core/worldRaycast\".CanvasPoint"
     },
     {
       "name": "capability",
@@ -1299,7 +1323,12 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/scene.ts",
-        "packages/sdk-browser/src/world/core/world.ts"
+        "packages/sdk-browser/src/world/core/world.ts",
+        "packages/sdk-browser/src/world/core/worldMaterials.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/SurfaceFields.tsx"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/color\".Color"
@@ -1584,6 +1613,17 @@
       "affectedConsumers": ["bench/oracles/browser/volumes.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/projectionOracles\".coneRejects"
+    },
+    {
+      "name": "controls",
+      "kind": "value",
+      "definingModule": "packages/sdk-browser/src/world/controls/index.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/controls/index\".controls"
     },
     {
       "name": "ControlVector",
@@ -2495,9 +2535,11 @@
         "packages/sdk-browser/src/world/api/lightApi.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/capability/worldReady.ts",
+        "packages/sdk-browser/src/world/core/worldRaycast.ts",
         "packages/sdk-browser/src/world/core/worldTarget.ts",
         "packages/sdk-browser/src/world/loader/modelFormat.ts",
         "packages/sdk-browser/src/world/render/draw.ts",
+        "packages/sdk-browser/src/world/saved/format.ts",
         "packages/sdk-browser/src/world/scene/finiteTransform.test.ts",
         "packages/sdk-browser/src/world/scene/scene.ts",
         "packages/sdk-browser/src/world/scene/transformUnstableParent.test.ts",
@@ -2916,7 +2958,10 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/geometry/index\".geometry"
     },
@@ -2928,8 +2973,13 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
-        "packages/sdk-browser/src/world/helper/index.ts"
+        "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/GeometryFields.tsx",
+        "site/app/editor/objects.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/geometry/geometry\".Geometry"
@@ -3165,7 +3215,12 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/helper/index.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/controls/transformHandles.ts",
+        "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/saved/read.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/object/object3d\".Group"
     },
@@ -3685,6 +3740,17 @@
       "bindingIdentity": "\"packages/sdk-core/src/world/buffer/index\".InterleavedBuffer"
     },
     {
+      "name": "Intersection",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/world/object/raycast.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/world/core/worldRaycast.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/object/raycast\".Intersection"
+    },
+    {
       "name": "invertMatrix4",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/matrix/matrix4Inverse.ts",
@@ -3835,6 +3901,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs-lighting-lessons.test.ts",
         "scripts/docs-renderer-lessons.test.ts",
         "site/lessons/lightingLessonRuntime.ts",
@@ -3855,7 +3922,11 @@
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/write.ts",
         "scripts/docs-renderer-lessons.test.ts",
+        "site/app/editor/SurfaceFields.tsx",
+        "site/app/editor/objects.ts",
         "site/lessons/engine-scene/lightingControls.ts",
         "site/lessons/lightingLessonRuntime.ts",
         "site/lessons/rendererLessonApply.ts",
@@ -4181,7 +4252,11 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.test.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/material/index\".material"
     },
@@ -4200,11 +4275,16 @@
         "packages/sdk-browser/src/host/pageObjects.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
+        "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
-        "packages/sdk-browser/src/world/helper/index.ts"
+        "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/SurfaceFields.tsx",
+        "site/app/editor/objects.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/material\".Material"
@@ -4224,11 +4304,16 @@
         "packages/sdk-browser/src/host/pageObjects.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
+        "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
-        "packages/sdk-browser/src/world/helper/index.ts"
+        "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/SurfaceFields.tsx",
+        "site/app/editor/objects.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/material/material\".Material"
@@ -4521,13 +4606,17 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldBatches.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
         "packages/sdk-browser/src/world/core/worldMembers.ts",
         "packages/sdk-browser/src/world/core/worldPoses.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
-        "packages/sdk-browser/src/world/helper/index.ts"
+        "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/objects.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/object/mesh\".Mesh"
@@ -4807,7 +4896,11 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs-scene-editor.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/object/index\".object"
     },
@@ -4819,6 +4912,10 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/controls/transform.ts",
+        "packages/sdk-browser/src/world/controls/transformDrag.ts",
+        "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
@@ -4826,8 +4923,21 @@
         "packages/sdk-browser/src/world/core/worldMembers.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/core/worldPoses.ts",
+        "packages/sdk-browser/src/world/core/worldRaycast.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
-        "packages/sdk-browser/src/world/helper/index.ts"
+        "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/helper/mark.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/GeometryFields.tsx",
+        "site/app/editor/Inspector.tsx",
+        "site/app/editor/Outliner.tsx",
+        "site/app/editor/SurfaceFields.tsx",
+        "site/app/editor/actions.ts",
+        "site/app/editor/commands.ts",
+        "site/app/editor/objects.ts",
+        "site/app/editor/session.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/object/object3d\".Object3D"
@@ -5411,7 +5521,10 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/helper/index.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transformMath.ts",
+        "packages/sdk-browser/src/world/helper/index.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/volumes\".Plane"
     },
@@ -5808,6 +5921,7 @@
         "packages/sdk-browser/src/webgpu/pages/slotReclaim.test.ts",
         "packages/sdk-browser/src/world/core/worldSource.ts",
         "packages/sdk-browser/src/world/page/runtimePrimitive.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/scene/scene.test.ts",
         "tests/browser/support/sharedSceneProof.ts"
       ],
@@ -5831,6 +5945,7 @@
         "packages/sdk-browser/src/webgpu/pages/slotReclaim.test.ts",
         "packages/sdk-browser/src/world/core/worldSource.ts",
         "packages/sdk-browser/src/world/page/runtimePrimitive.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/scene/scene.test.ts",
         "tests/browser/support/sharedSceneProof.ts"
       ],
@@ -6011,8 +6126,13 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transform.ts",
+        "packages/sdk-browser/src/world/controls/transformDrag.ts",
+        "packages/sdk-browser/src/world/controls/transformMath.test.ts",
+        "packages/sdk-browser/src/world/controls/transformMath.ts",
         "packages/sdk-browser/src/world/core/worldCamera.ts",
-        "packages/sdk-browser/src/world/helper/index.ts"
+        "packages/sdk-browser/src/world/helper/index.ts",
+        "site/app/editor/commands.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/quaternion\".Quaternion"
@@ -6041,9 +6161,40 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transformDrag.ts",
+        "packages/sdk-browser/src/world/controls/transformMath.test.ts",
+        "packages/sdk-browser/src/world/controls/transformMath.ts",
+        "packages/sdk-browser/src/world/core/world.ts",
+        "packages/sdk-browser/src/world/core/worldRaycast.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/volumes\".Ray"
+    },
+    {
+      "name": "raycast",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/world/object/raycast.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transformDrag.ts",
+        "packages/sdk-browser/src/world/core/worldRaycast.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/object/raycast\".raycast"
+    },
+    {
+      "name": "RaycastOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/core/worldRaycast.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/core/worldRaycast\".RaycastOptions"
     },
     {
       "name": "RECTS_PER_SLICE",
@@ -6199,6 +6350,61 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/runtime/safety\".SafetyDecision"
+    },
+    {
+      "name": "SavedCamera",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/saved/format.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/saved/format\".SavedCamera"
+    },
+    {
+      "name": "SavedGeometry",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/saved/format.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/saved/format\".SavedGeometry"
+    },
+    {
+      "name": "SavedMaterial",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/saved/format.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/saved/format\".SavedMaterial"
+    },
+    {
+      "name": "SavedNode",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/saved/format.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/saved/format\".SavedNode"
+    },
+    {
+      "name": "SavedScene",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/saved/format.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/saved/format\".SavedScene"
     },
     {
       "name": "scaleVector3",
@@ -7885,6 +8091,28 @@
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/vector\".transformAffinePoint"
     },
     {
+      "name": "TransformControls",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/controls/transform.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transform\".TransformControls"
+    },
+    {
+      "name": "TransformControlsOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/controls/transform.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transform\".TransformControlsOptions"
+    },
+    {
       "name": "transformDirectionsBatch",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/batch/points.ts",
@@ -7907,6 +8135,28 @@
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/vector\".transformDirectionVector3"
     },
     {
+      "name": "TransformEvent",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/controls/transform.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transform\".TransformEvent"
+    },
+    {
+      "name": "TransformHandle",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/controls/transformMath.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transformMath\".TransformHandle"
+    },
+    {
       "name": "transformHomogeneousPoint",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/primitives/vector.ts",
@@ -7919,6 +8169,28 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/vector\".transformHomogeneousPoint"
+    },
+    {
+      "name": "TransformHost",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/controls/transform.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transform\".TransformHost"
+    },
+    {
+      "name": "TransformMode",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/controls/transformMath.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transformMath\".TransformMode"
     },
     {
       "name": "transformPointsBatch",
@@ -7944,6 +8216,28 @@
       "affectedConsumers": ["bench/perf/core/three-vs-core-batch-instances.perf.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/batch/points\".transformPointsByMatricesBatch"
+    },
+    {
+      "name": "TransformSnap",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/controls/transformMath.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transformMath\".TransformSnap"
+    },
+    {
+      "name": "TransformSpace",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/controls/transformMath.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transformMath\".TransformSpace"
     },
     {
       "name": "TransformTree",
@@ -8185,13 +8479,19 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/controls/transform.ts",
+        "packages/sdk-browser/src/world/controls/transformMath.test.ts",
+        "packages/sdk-browser/src/world/controls/transformMath.ts",
+        "packages/sdk-browser/src/world/controls/transformView.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/worldCamera.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/pose/index.ts",
-        "scripts/docs-canvas.test.ts"
+        "scripts/docs-canvas.test.ts",
+        "site/app/editor/commands.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/vector3\".Vector3"

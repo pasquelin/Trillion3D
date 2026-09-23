@@ -1,4 +1,5 @@
 import type { PortalEntry } from '../model.ts';
+import { EDITOR_GUIDES } from './editorGuides.ts';
 
 /** Guides: prose in `html`, rendered by the React Entry component. */
 const GUIDE = { section: 'guides', kind: 'Guide' };
@@ -35,4 +36,5 @@ export const GUIDES: PortalEntry[] = [
 job.subscribe(() => console.log(job.getSnapshot().progress));
 const world = await job.promise;`,
   },
+  ...EDITOR_GUIDES,
 ];
