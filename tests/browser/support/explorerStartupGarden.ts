@@ -64,6 +64,13 @@ export async function startupGarden(page: Page, base: string, out: string) {
         { polling: 100, timeout: 60000 },
       );
     };
+    // A cold page can fall quiet while its first pages still stream: the count is read once the
+    // cut has drawn something, then once the image is still again.
+    await page.waitForFunction(
+      () => /[1-9]/.test(document.querySelector('[data-scene-selected]')?.textContent ?? ''),
+      undefined,
+      { polling: 100, timeout: 60000 },
+    );
     await idle();
     const number = async (name: string) =>
       Number(((await page.locator(`[data-scene-${name}]`).textContent()) ?? '').replace(/\D/g, ''));
