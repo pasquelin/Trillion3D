@@ -15,7 +15,7 @@ path = "src/oracle_main.rs"
 required-features = ["oracle"]
 
 # The indirect-lighting reference path tracer is a measurement tool, never part of the compiler:
-# the unit tests build it, and `pnpm run build:oracle` builds its binary for the bench runner.
+# `pnpm run build:native` and `pnpm run test:native` enable it (`--all-features`) for the bench runner.
 [features]
 oracle = []
 [dependencies]

@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { prepareSdkWasm } from '../page/decode/geometryPageWasm.ts';
 import { prepareMathBatch } from './batchState.ts';
 import { createBoxTransformLot, createMultiplyLot } from './batchRuntime.ts';
+import { assertBits } from '../../../../tests/kit/assert/bits.ts';
 import {
   remplitBoites,
   remplitMatrices,
@@ -35,19 +36,13 @@ async function sortie<T extends { run(): 'js' | 'wasm'; out: Float64Array }>(
 
 type Lot = { run(): 'js' | 'wasm'; out: Float64Array; shared: boolean; release(): void };
 
-/** Both paths' outputs must match to the bit, down to `Object.is`. */
-function assertSameBits(kernel: string, parJs: Float64Array, parWasm: Float64Array) {
-  for (let i = 0; i < parJs.length; i++)
-    assert.ok(Object.is(parJs[i], parWasm[i]), `${kernel}[${i}] : ${parJs[i]} ≠ ${parWasm[i]}`);
-}
-
 /** A filled batch played on both paths, in module memory, then released. */
 async function assertSharedLotMatches(lot: Lot, kernel: string) {
   const parJs = await sortie(lot, 'js');
   const parWasm = await sortie(lot, 'wasm');
   assert.equal(lot.shared, true, 'batch must work in module memory');
   assert.equal(parJs.length, parWasm.length);
-  assertSameBits(kernel, parJs, parWasm);
+  assertBits(parWasm, parJs, kernel);
   lot.release();
 }
 
@@ -72,7 +67,7 @@ test('boxTransformBatch: ±0 resolution of Math.min/Math.max matches at bit leve
   const parWasm = await sortie(lot, 'wasm');
   assert.ok(Object.is(parJs[0], -0), 'JS reference: Math.min must resolve to -0');
   assert.ok(Object.is(parJs[3], 0) && !Object.is(parJs[3], -0), 'JS reference: Math.max to +0');
-  assertSameBits('boxTransformBatch', parJs, parWasm);
+  assertBits(parWasm, parJs, 'boxTransformBatch');
   lot.release();
 });
 

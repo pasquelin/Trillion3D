@@ -13,7 +13,7 @@
 //!
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
-//!   -- --ignored regenere_la_fixture_psd --nocapture
+//!   -- --ignored regenerate_the_psd_fixture --nocapture
 //! npx prettier --write tests/fixtures/formats/psd/expected.json
 //! ```
 //!
@@ -42,7 +42,7 @@ fn psd_texture_previews_match_their_golden_expected_json() {
 
 #[test]
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
-fn regenere_la_fixture_psd() {
+fn regenerate_the_psd_fixture() {
     let dir = golden_dir("psd");
     let run = compile_golden(&dir, "scene");
     write_expected(&dir, previews_digest(&run), CASE, RULE);

@@ -1,6 +1,6 @@
 // The transparent kernels a fake device replays: compaction of the paged items, then expansion
 // of the sorted plan, each through the CPU oracle the shader implements.
-import { evaluateTransparentCompaction } from '../../../packages/sdk-browser/src/webgpu/transparent/compactCpu.ts';
+import { evaluateTransparentCompaction } from '../../../packages/sdk-browser/src/webgpu/transparent/compactCpu.fixture.ts';
 import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts';
 import { EXPAND_UNI, RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
 import type { ComputeBind } from './mockCompute.ts';

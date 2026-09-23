@@ -8,7 +8,7 @@
 //!
 //! ```text
 //! cargo test --manifest-path packages/asset-compiler-rust/Cargo.toml \
-//!   -- --ignored regenere_la_fixture_alembic --nocapture
+//!   -- --ignored regenerate_the_alembic_fixture --nocapture
 //! ```
 //!
 //! Ignored by default: it writes into `tests/fixtures/formats/`, and the diff it produces is
@@ -104,7 +104,7 @@ fn what_the_plugin_leaves_aside_is_counted_and_a_detached_xform_becomes_a_root()
 
 #[test]
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
-fn regenere_la_fixture_alembic() {
+fn regenerate_the_alembic_fixture() {
     let run = compile_golden_source(&fixture().join("scene.abc"), "alembic");
     write_expected(&fixture(), alembic_digest(&run), CASE, RULE);
 }

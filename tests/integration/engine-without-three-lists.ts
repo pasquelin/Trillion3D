@@ -1,14 +1,15 @@
 /**
- * The two closed lists `engine-without-three.test.ts` enforces, and nothing else: the files of
- * `sdk-browser` allowed to name the host library, and those allowed to read the host declaration a
- * page was collected from. They live here so the test that reads them stays readable.
+ * The two closed lists `engine-without-three.test.ts` enforces — the files of `sdk-browser` allowed
+ * to name the host library, and those allowed to read the host declaration a page was collected
+ * from — and the families the pose rules leave out. They live here so the tests stay readable.
  */
 
 /**
  * The page-word families of the world API and the placement rows (`world/core/`, the `index.ts` of
- * each family, `placement/`): they are written on the core's own scene objects, never on a host
- * library, and the host-library rules of these tests do not read them. The declaration rule is the
- * one exception: it reads every source of the package.
+ * each family, `placement/`): they pose the core's own scene objects, so the camera-pose and
+ * host-matrix rules of `engine-structure.test.ts` and `engine-without-three-math.test.ts` do not
+ * read them. The host-library rules of `engine-without-three.test.ts` read them like any other
+ * source: the two files there that build host objects are declared in `AUTORISES`.
  */
 export const PUBLIC_FAMILIES =
   /^(?:placement\/|world\/(?:core|batch|budget|capability|helper|loader|metric|page|pose|texture)\/|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/;
@@ -77,6 +78,10 @@ export const AUTORISES: Record<string, string> = {
     'boundary: the unlit view of that image zeros the host material factors for the frame',
   'host/three/bounds':
     'boundary: bounds written back into a host geometry, as the library computes them',
+  'world/core/worldMirror':
+    'boundary: the one host mesh per drawn resource a world built in code hands the engine paths',
+  'world/core/worldSurface':
+    'boundary: the host surface of a world material’s kind, handed to the host renderer',
   'host/three/sceneAdapter':
     'boundary: the host renderer the witnesses and the WebGL2 page path share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 

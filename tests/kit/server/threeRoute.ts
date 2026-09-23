@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import type { BrowserContext, Page, Route } from 'playwright';
 
 /** Where the portal loads Three from in production. */
-export const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.174.0/';
+const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.174.0/';
 
 /** Serves the portal's CDN copy of Three from `node_modules`: a proof never reaches the network. */
 export async function routeThree(target: Page | BrowserContext): Promise<void> {

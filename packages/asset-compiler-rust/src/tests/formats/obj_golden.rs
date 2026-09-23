@@ -27,7 +27,7 @@ fn the_obj_fixture_compiles_to_its_golden_expected_json() {
 
 #[test]
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
-fn regenere_la_fixture_obj() {
+fn regenerate_the_obj_fixture() {
     let dir = golden_dir("obj");
     let run = compile_golden_source(&fixture(&dir), "obj-minuscule");
     write_expected(&dir, digest(&run), CASE, RULE);

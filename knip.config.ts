@@ -35,8 +35,10 @@ const config: KnipConfig = {
     'bench/runner/lampFixture.ts',
     'bench/perf/*/*.perf.ts',
     'bench/runner/perf/*.ts',
-    // Every test module: probes, render proofs and the pages they serve by URL.
+    // Every test module: probes, render proofs and the pages they serve by URL. The shared kit is
+    // not an entry: an export no test imports is reported.
     'tests/**/*.{ts,mts}',
+    '!tests/kit/**',
   ],
   project: [
     'site/**/*.{ts,tsx}',
