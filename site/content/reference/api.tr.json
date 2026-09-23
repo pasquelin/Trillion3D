@@ -2149,7 +2149,9 @@
       "minPolarAngle": "Dümdüz yukarıdan radyan cinsinden en küçük kutup açısı: `0`, kameranın dümdüz aşağı bakmasına izin verir. Kutbun kendisi, azimutun tanımsız kalacağı, erişilemez kalır.",
       "maxPolarAngle": "Dümdüz yukarıdan radyan cinsinden en büyük kutup açısı: `Math.PI / 2`, onu zeminin üstünde tutar.",
       "minAzimuthAngle": "+Z'den +X'e doğru radyan cinsinden izin verilen azimut yayının başlangıcı; `-Infinity`'de sınırsız. Yalnızca tam bir turdan daha dar bir çift sonlu sınır kamerayı tutar.",
-      "maxAzimuthAngle": "O yayın sonu; `Infinity`'de sınırsız. `minAzimuthAngle`'dan daha küçük olabilir."
+      "maxAzimuthAngle": "O yayın sonu; `Infinity`'de sınırsız. `minAzimuthAngle`'dan daha küçük olabilir.",
+      "autoRotate": "Kameranın `target` çevresinde kendiliğinden döndüğü saniye başına radyan, azimut +Z'den +X'e; varsayılan 0 onu sabit tutar. Dönüş `update(delta)` ile integre edilir ve yüzeydeki ilk basışta ya da tekerlek adımında tamamen durur: izleyici kamerayı eline almıştır.",
+      "update": "Pivotun `update()` yöntemi gibi, `autoRotate`'in döndüğü saniyelerle; varsayılan 0."
     }
   },
   "OrthographicBox": {
@@ -3846,7 +3848,7 @@
     "summary": "Kamerayı hareket ettiren fare ve klavye kontrolcüsü.",
     "members": {
       "kind": "Hangi kontrolcünün kamerayı yönettiği; değiştirmek için başka bir ad ayarlayın.",
-      "enabled": "Kontrolcünün fareyi ve klavyeyi dinleyip dinlemediği.",
+      "enabled": "Denetleyicinin fareyi ve klavyeyi dinleyip kamerayı hareket ettirip ettirmediği. `false` onu yeniden yapmadan duraklatır — girdi yok, `update` yok —: hız, zemin teması, adım, yön ve dönüş korunur, `true` tam durduğu yerden devam ettirir.",
       "target": "Bir pivot kontrolcünün etrafında döndüğü nokta.",
       "minDistance": "Bir pivot kontrolcünün kamerayı `target`'a getirdiği en yakın nokta.",
       "maxDistance": "Bir pivot kontrolcünün kamerayı `target`'dan götürdüğü en uzak nokta.",
@@ -3854,12 +3856,13 @@
       "maxPolarAngle": "Yalnızca yörünge: en büyük kutup açısı; `Math.PI / 2` kamerayı zeminin üstünde tutar.",
       "minAzimuthAngle": "Yalnızca yörünge: +Z'den +X'e doğru radyan cinsinden izin verilen azimut yayının başlangıcı.",
       "maxAzimuthAngle": "Yalnızca yörünge: o yayın sonu; `minAzimuthAngle`'dan küçük olabilir.",
+      "autoRotate": "Yalnızca yörünge: `target` çevresinde kendiliğinden döndüğü saniye başına radyan, ilk basışa ya da tekerlek adımına kadar; varsayılan 0.",
       "movementSpeed": "Uçuş ve birinci şahıs: tam çubukta saniyede dünya birimi; varsayılan 1.",
       "lookSpeed": "Birinci şahıs ve karakter: işaretçinin hareket ettiği piksel başına görünümün döndüğü radyan.",
       "rollSpeed": "Yalnızca uçuş: tuşların yunuslama, sapma ve yatma yaptığı, saniyede radyan.",
       "rotateSpeed": "Yörünge ve trackball: sürüklemenin ne kadar hızlı döndürdüğü; varsayılan 1.",
       "zoomSpeed": "Pivot kontrolcüleri: tekerleğin ve sıkıştırmanın ne kadar hızlı yakınlaştırdığı; varsayılan 1.",
-      "update": "Yönetilen bir kontrolcüyü `delta` saniye üzerinden entegre eder; bir pivot kontrolcü pozunu yeniden okur.",
+      "update": "Yönlendirilen bir denetleyiciyi `delta` saniye boyunca integre eder; pivotlu olan pozunu yeniden okur, yörünge ise `autoRotate` kadar döner. Duraklatılmış bir denetleyici hiçbir şey yapmaz.",
       "follow": "Dünyanın kamerası değişti: kontrolcü onu takip eder.",
       "dispose": "Kontrolcüyü durdurur ve dinleyicilerini canvas'tan kaldırır.",
       "autoUpdate": "Dünyanın döngüsünün, `world.beforeFrame` kancalarından önce, her kareden önce `update`'i çağırıp çağırmadığı. `false`, adımı, böyle bir kancadan `update`'i çağıran, entegre ettiği alt adımlar üzerinden ne sıklıkta olursa olsun çağıran sayfaya verir; dünya o zaman onu asla ilerletmez.",
