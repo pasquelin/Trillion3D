@@ -31,23 +31,23 @@ export interface Provenance {
 export async function sceneProvenance(harnessUrl: string): Promise<Provenance> {
   const sourceFiles = [
     'index.ts',
-    'packages/sdk-browser/src/webgpu/pages/pages.ts',
-    'packages/sdk-browser/src/visibility/buffer.ts',
-    'standardLighting.ts',
-    'packages/sdk-browser/src/texture/mips.ts',
-    'surfaceBuffer.ts',
-    'sceneLighting.ts',
-    'packages/sdk-browser/src/lighting/deferred/deferred.ts',
-    'packages/sdk-browser/src/gpu/core/presentation.ts',
-    'packages/sdk-browser/src/taa/shaderWgsl.ts',
-    'packages/sdk-browser/src/taa/frame.ts',
-    'packages/sdk-browser/src/taa/weights.ts',
-    'temporalAntialiasing.ts',
+    'webgpu/pages/pages.ts',
+    'visibility/buffer.ts',
+    'lighting/standardLighting.ts',
+    'texture/mips.ts',
+    'scene/surfaceBuffer.ts',
+    'lighting/sceneLighting.ts',
+    'lighting/deferred/deferred.ts',
+    'gpu/core/presentation.ts',
+    'taa/shaderWgsl.ts',
+    'taa/frame.ts',
+    'taa/weights.ts',
+    'taa/temporalAntialiasing.ts',
   ];
   const hashes: Record<string, string> = {};
   for (const file of sourceFiles)
     hashes[file] = createHash('sha256')
-      .update(await readFile(resolve('packages/sdk-browser', file)))
+      .update(await readFile(resolve('packages/sdk-browser/src', file)))
       .digest('hex');
   const provenance = {
     startedAt: new Date().toISOString(),
