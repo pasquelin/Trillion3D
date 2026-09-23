@@ -98,7 +98,7 @@
     <div id="banner" class="layer" data-example-overlay data-hud></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, hash, play, words } from '../runtime/kit.js';
+      import { brownNoise, controls, hash, play, whiteNoise, words } from '../runtime/kit.js';
       const say = words();
 
       // ── The course: data, nothing of the engine inside. The temple is built at life size, in
@@ -427,13 +427,8 @@
         master = audio.createGain();
         master.gain.value = muted || !game.running ? 0 : 0.8;
         master.connect(audio.destination);
-        noise = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
-        const deep = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
-        const [white, brown] = [noise.getChannelData(0), deep.getChannelData(0)];
-        for (let i = 0, last = 0; i < white.length; i++) {
-          white[i] = Math.random() * 2 - 1;
-          brown[i] = last = (last + 0.02 * white[i]) / 1.02;
-        }
+        noise = whiteNoise(audio, 2);
+        const deep = brownNoise(audio, 2);
         const source = audio.createBufferSource(), filter = audio.createBiquadFilter();
         [source.buffer, source.loop, filter.type, filter.frequency.value] = [deep, true, 'lowpass', 160];
         rumble = audio.createGain();
