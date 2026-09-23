@@ -27,7 +27,8 @@
   },
   "home": {
     "title": "Trasmetti mondi 3D enormi nel browser",
-    "start": "Inizia il corso"
+    "start": "Inizia il corso",
+    "editor": "Open the scene editor"
   },
   "examples": {
     "lead": "Ogni esempio è un file breve: guardalo funzionare, apri il suo codice, cambialo.",
