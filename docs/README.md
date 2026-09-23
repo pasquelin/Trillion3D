@@ -2,7 +2,7 @@
 
 The one index of the repository's documentation. The learning portal — guides, every public
 function, live demos, examples and the measurement reports — is built from `site/` into
-`dist/site/` and published on [GitHub Pages](https://pasquelin.github.io/Trillion3D/); how it is
+`dist/site/` and published on [www.trillion3d.com](https://www.trillion3d.com/); how it is
 maintained is [LEARNING_PORTAL.md](LEARNING_PORTAL.md).
 
 Start with [Create a world](SDK.md#create-a-world): `createWorld(canvasOrId)` owns the scene, the
