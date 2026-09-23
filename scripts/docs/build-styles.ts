@@ -27,7 +27,6 @@ async function collectCandidates(root: string): Promise<string[]> {
     resolve(root, 'site/index.html'),
     ...(await sourceFiles(resolve(root, 'site/app'))),
     ...(await sourceFiles(resolve(root, 'site/content'))),
-    ...(await sourceFiles(resolve(root, 'site/lessons'))),
     ...(await sourceFiles(resolve(root, 'site/demos'))),
     ...(await sourceFiles(resolve(root, 'site/examples/kit'))),
     ...(await sourceFiles(resolve(root, 'site/reports'))),

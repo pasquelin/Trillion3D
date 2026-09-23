@@ -1,7 +1,7 @@
 import { useWords } from '../i18n.ts';
 import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
-import { ExampleCard, PendingExampleCard } from '../gallery/ExampleCard.tsx';
+import { ExampleCard, PendingExampleCard } from './ExampleCard.tsx';
 import { DocPage } from '../layout/DocPage.tsx';
 import { routeHref } from '../portal/routes.ts';
 import { Grid } from '../ui/Grid.tsx';
@@ -21,15 +21,10 @@ export function Examples({ locale }: { locale: Locale }) {
               entry.file ? (
                 <ExampleCard
                   key={entry.id}
-                  locale={locale}
+                  title={local(entry.title, locale)}
                   href={routeHref({ locale, area: 'examples', id: entry.id })}
                   badge={local(theme.title, locale)}
-                  example={{
-                    id: entry.id,
-                    category: entry.theme,
-                    title: entry.title,
-                    preview: thumbnailOf(entry.id),
-                  }}
+                  thumbnail={thumbnailOf(entry.id)}
                 />
               ) : (
                 <PendingExampleCard

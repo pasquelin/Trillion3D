@@ -45,7 +45,7 @@ export interface CourseChapter {
   code: string[];
   tryIt: string;
   next: { href: string; label: string };
-  words: { picture: string; steps: string; code: string; tryIt: string; open: string };
+  words: { steps: string; code: string; tryIt: string; open: string };
 }
 
 /** One documented item, as the content files declare it. */
