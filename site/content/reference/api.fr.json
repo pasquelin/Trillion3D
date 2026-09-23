@@ -1689,9 +1689,12 @@
   },
   "FlyCameraControls": {
     "summary": "VOL, six degrés de liberté : la caméra ne garde ni axe vertical ni pivot.",
-    "description": "Les touches la déplacent le long de ses propres axes et la tournent autour d’eux, roulis compris ; un glissé regarde autour. Rien n’est intégré tant que l’hôte n’appelle pas `update(delta)` avec les secondes écoulées, et `update` ne renvoie — et n’émet — que lorsqu’une touche est tenue ou qu’un glissé est en attente, donc un manche relâché laisse la scène immobile. `autoForward` est la seule exception : une caméra en croisière bouge à chaque `update` et demande l’image suivante en émettant `change` à chaque fois. TOUCHES, par `KeyboardEvent.code` : W/S avant et arrière, A/D gauche et droite, R/F haut et bas, flèches pour le tangage et le lacet, Q/E pour le roulis. `dragToLook` (par défaut) regarde pendant qu’un pointeur est tenu ; mis à false, le pointeur regarde dès qu’il bouge sur la surface ; avec `pointerLook` mis à false, il ne tourne jamais la vue, les touches seules pilotent. Une touche pressée pendant que Ctrl ou Meta est enfoncé est ignorée, donc un raccourci du navigateur (Ctrl+W, Cmd+S) ne pilote jamais ; il faut relâcher le modificateur pour que la touche suivante compte.",
+    "description": "Les touches la déplacent le long de ses propres axes et la tournent autour d’eux, roulis compris ; un glissé regarde autour. Rien n’est intégré tant que l’hôte n’appelle pas `update(delta)` avec les secondes écoulées, et `update` ne renvoie — et n’émet — que lorsqu’une touche est tenue ou qu’un glissé est en attente, donc un manche relâché laisse la scène immobile. `autoForward` est la seule exception : une caméra en croisière bouge à chaque `update` et demande l’image suivante en émettant `change` à chaque fois. TOUCHES, par `KeyboardEvent.code` : W/S avant et arrière, A/D gauche et droite, R/F haut et bas, flèches pour le tangage et le lacet, Q/E pour le roulis. Rien ne borne un virage : tenir une touche fait boucler ou rouler la caméra encore et encore, donc une boucle, un tonneau, un Immelmann ou un split-S se pilotent comme au manche. `inputResponse` donne aux touches la course de ce manche. `dragToLook` (par défaut) regarde pendant qu’un pointeur est tenu ; mis à false, le pointeur regarde dès qu’il bouge sur la surface ; avec `pointerLook` mis à false, il ne tourne jamais la vue, les touches seules pilotent. Une touche pressée pendant que Ctrl ou Meta est enfoncé est ignorée, donc un raccourci du navigateur (Ctrl+W, Cmd+S) ne pilote jamais ; il faut relâcher le modificateur pour que la touche suivante compte.",
     "members": {
-      "rollSpeed": "Radians par seconde à pleine déviation, pour le tangage, le lacet et le roulis.",
+      "rollSpeed": "Radians par seconde dont tourne le roulis à pleine déviation ; le tangage et le lacet le suivent par défaut.",
+      "pitchSpeed": "Radians par seconde dont tourne le tangage à pleine déviation ; `null` (par défaut) vaut `rollSpeed`.",
+      "yawSpeed": "Radians par seconde dont tourne le lacet à pleine déviation ; `null` (par défaut) vaut `rollSpeed`.",
+      "inputResponse": "Secondes qu’une touche de virage met pour atteindre la pleine déviation, et qu’une touche relâchée met pour revenir à zéro : la vitesse de rotation monte comme un manche poussé à la main. 0, par défaut, est tout ou rien immédiat. Un manche encore en course déplace la caméra, donc les images continuent jusqu’à ce qu’il soit recentré.",
       "dragToLook": "Si glisser tourne la vue.",
       "pointerLook": "Si le pointeur tourne la vue, par glissé ou survol ; true par défaut.",
       "autoForward": "CROISIÈRE, désactivée par défaut : la caméra vole vers l’avant à `movementSpeed` sans aucune touche, comme un avion. W ajoute alors `movementSpeed` (deux fois plus vite) et S le retire (la caméra reste sur place) ; elle ne recule jamais. Rien ne bouge avant le prochain `update`, donc un hôte qui redessine sur `change` demande une image quand il active la croisière."
@@ -6314,7 +6317,10 @@
       "minPitch": "Première personne seulement : le plus bas que regarde la tête, en radians (0 est l’horizon, négatif vers le bas).",
       "maxPitch": "Première personne seulement : le plus haut que regarde la tête, en radians au-dessus de l’horizon.",
       "pointerLook": "Vol seulement : si le pointeur tourne la vue ; à false, les touches seules pilotent.",
-      "rollSpeed": "Vol seulement : radians par seconde dont les touches font tanguer, lacer et rouler.",
+      "rollSpeed": "Vol seulement : radians par seconde dont les touches font rouler, et tanguer et lacer sauf réglage à part.",
+      "pitchSpeed": "Vol seulement : radians par seconde dont les touches font tanguer ; `null` (par défaut) vaut `rollSpeed`.",
+      "yawSpeed": "Vol seulement : radians par seconde dont les touches font lacer ; `null` (par défaut) vaut `rollSpeed`.",
+      "inputResponse": "Vol seulement : secondes qu’une touche de virage met jusqu’à la pleine déviation et retour ; 0 est immédiat.",
       "rotateSpeed": "Orbite et trackball : vitesse à laquelle le glissé tourne ; 1 par défaut.",
       "zoomSpeed": "Contrôleurs à pivot : vitesse à laquelle la molette et le pincement zooment ; 1 par défaut.",
       "autoForward": "Vol seulement : avance à `movementSpeed` sans touche, W plus vite, S jusqu’à l’arrêt.",
