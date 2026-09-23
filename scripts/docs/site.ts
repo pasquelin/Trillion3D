@@ -28,13 +28,21 @@ async function unchanged(source: string, target: string): Promise<boolean> {
   }
 }
 
-/** Copies `source` into `target`, files only when missing or older, sources never. */
+/** Removes from `folder` every entry `keep` does not name: the copy mirrors its sources. */
+async function prune(folder: string, keep: readonly string[]) {
+  for (const name of await readdir(folder))
+    if (!keep.includes(name)) await rm(resolve(folder, name), { recursive: true, force: true });
+}
+
+/** Copies `source` into `target`, files only when missing or older, sources never; what the
+ * sources no longer have, the copy loses. */
 async function copyTree(source: string, target: string) {
   const entry = await stat(source);
   if (entry.isDirectory()) {
     await mkdir(target, { recursive: true });
-    for (const name of await readdir(source))
-      await copyTree(resolve(source, name), resolve(target, name));
+    const names = await readdir(source);
+    for (const name of names) await copyTree(resolve(source, name), resolve(target, name));
+    await prune(target, names);
     return;
   }
   if (SOURCE_EXTENSIONS.has(extname(source)) || (await unchanged(source, target))) return;
@@ -59,6 +67,7 @@ export async function buildBundles(root: string, out: string) {
 export async function copyStatics(source: string, out: string) {
   await mkdir(out, { recursive: true });
   for (const name of STATIC_ENTRIES) await copyTree(resolve(source, name), resolve(out, name));
+  await prune(out, [...STATIC_ENTRIES, ...BUILT_FOLDERS]);
 }
 
 /** Builds the whole site from `root` into `out`. */
