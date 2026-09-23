@@ -13,8 +13,8 @@ import { PortalContext } from './layout/PortalContext.ts';
 import { Shell } from './layout/Shell.tsx';
 import type { PortalRoute, ResolvedPage } from './portal/routes.ts';
 
-// The areas a route may never visit load on demand: the examples, the sandbox and its code
-// editor, the reports and their presentation — none of them on the home page.
+// The areas a route may never visit load on demand: the examples, the scene editor, the sandbox
+// and its code editor, the reports and their presentation — none of them on the home page.
 const Examples = lazy(() =>
   import('./examples/Examples.tsx').then((m) => ({ default: m.Examples })),
 );
@@ -22,6 +22,9 @@ const Example = lazy(() => import('./examples/Example.tsx').then((m) => ({ defau
 const Sandbox = lazy(() => import('./sandbox/Sandbox.tsx').then((m) => ({ default: m.Sandbox })));
 const ThreeMigration = lazy(() =>
   import('./migration/ThreeMigration.tsx').then((m) => ({ default: m.ThreeMigration })),
+);
+const SceneEditor = lazy(() =>
+  import('./editor/SceneEditor.tsx').then((m) => ({ default: m.SceneEditor })),
 );
 const Report = lazy(() => import('./reports/Report.tsx').then((m) => ({ default: m.Report })));
 
@@ -32,6 +35,7 @@ const preloadAreas = () =>
     import('./examples/Example.tsx'),
     import('./sandbox/Sandbox.tsx'),
     import('./reports/Report.tsx'),
+    import('./editor/SceneEditor.tsx'),
   ]);
 
 function Page({ page, route }: { page: ResolvedPage; route: PortalRoute }) {
@@ -41,6 +45,7 @@ function Page({ page, route }: { page: ResolvedPage; route: PortalRoute }) {
   if (page.kind === 'api-index') return <ApiIndex />;
   if (page.kind === 'examples') return <Examples locale={locale} />;
   if (page.kind === 'example') return <Example id={page.id} locale={locale} />;
+  if (page.kind === 'editor') return <SceneEditor />;
   if (page.kind === 'sandbox') return <Sandbox id={page.id} locale={locale} />;
   if (page.kind === 'entry' && page.entry.id === 'three-migration')
     return <ThreeMigration entry={page.entry} locale={locale} />;

@@ -22,6 +22,9 @@ const position = new Vector3(),
   rotation = new Quaternion(),
   scale = new Vector3();
 
+/** The shape a frame is drawn at: the canvas's drawing buffer, its width over its height. */
+export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.max(1, canvas.height);
+
 /**
  * Puts the world's camera on the one a session draws from: its world pose, ancestors resolved,
  * and its optics, at the shape of the canvas. The session's camera is its own object; the world's

@@ -76,7 +76,8 @@ const WORLD_MODES = [
  * the view keeps the mode it had, and a session opening later never inherits it.
  */
 export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
-  let mode = 'beauty';
+  let mode = 'beauty',
+    sessions = 0;
   const said = new Set<string>();
   const warn = (text: string) => {
     if (said.has(text)) return;
@@ -109,6 +110,10 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
       const session = explorer();
       if (!session || put(session, next)) mode = next;
     },
+    /** Sessions the world has opened so far: a change that reopens one shows here. */
+    get sessions() {
+      return sessions;
+    },
     /** Every view mode the current renderer offers. */
     get modes() {
       const current = explorer();
@@ -123,6 +128,7 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     /** Puts the mode on a session just opened; the world's own, never the page's. A mode this
      *  session refuses falls back to `beauty`, so an opening never fails on it. */
     apply(opened: MeasuredWorld) {
+      sessions++;
       if (mode !== 'beauty' && !put(opened, mode)) mode = 'beauty';
     },
   };
