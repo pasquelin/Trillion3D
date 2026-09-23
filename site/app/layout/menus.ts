@@ -31,7 +31,9 @@ function entryGroups(entries: PortalEntry[], route: PortalRoute, learn: boolean)
             id === entry.id
               ? entryRoute(entry, route.locale)
               : routeHref({ locale: route.locale, area: 'api', id }),
-          active: id === route.id || (entry.id === route.id && primary),
+          // Links of one entry that share its route: only the primary one is current.
+          active:
+            (id === route.id && (primary || id !== entry.id)) || (entry.id === route.id && primary),
           dot: entry.issue ? t(route.locale, 'common.inDevelopment') : undefined,
         }),
       ),
