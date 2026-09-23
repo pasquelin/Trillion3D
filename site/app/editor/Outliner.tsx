@@ -38,6 +38,7 @@ function Row({ editor, node, dragged }: RowProps) {
           dragged.current = node;
           event.dataTransfer.effectAllowed = 'move';
         }}
+        onDragEnd={() => (dragged.current = null)}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => dropOn(event, editor, dragged, node)}
         className={`flex min-w-0 items-center gap-1 rounded-field px-1 ${current ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}`}

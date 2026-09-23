@@ -9,18 +9,11 @@ const eye = new Vector3(),
  * what keeps handles one screen size wherever their object stands. A perspective view grows with
  * the depth of the point along the view; an orthographic one is its box, whatever the depth.
  */
-export function handleScreenSize(
-  camera: Camera,
-  point: Vector3,
-  canvas: HTMLElement,
-  share: number,
-) {
+export function handleScreenSize(camera: Camera, point: Vector3, share: number) {
   if (camera.projection === 'orthographic')
     return ((camera.top - camera.bottom) / camera.zoom) * share;
   camera.getWorldPosition(eye);
   camera.getWorldDirection(ahead);
-  const depth = Math.max(point.clone().sub(eye).dot(ahead), camera.near);
-  const height = (2 * depth * Math.tan((camera.fov * Math.PI) / 360)) / camera.zoom;
-  // A canvas of no size yet draws nothing: the handles keep a world size of their own meanwhile.
-  return canvas.clientHeight > 0 ? height * share : share;
+  const depth = Math.max(ahead.dot(point) - ahead.dot(eye), camera.near);
+  return ((2 * depth * Math.tan((camera.fov * Math.PI) / 360)) / camera.zoom) * share;
 }
