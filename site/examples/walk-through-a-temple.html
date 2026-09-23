@@ -168,28 +168,61 @@
 
       // The hands, in the eye's frame (x right, y up, -z ahead, metres). A pose is read as where
       // the knuckles sit on the screen — [screen x, screen y] from -1 to 1 — with their depth,
-      // the fingers' curl and the hand's roll; the field of view and the aspect turn it into a
-      // point, so the hands keep to the bottom corners of any screen. At rest and walking only
-      // the knuckles peek in; a sprint pumps each hand into its corner on its beat and out
-      // again; a jump reaches both up and open, as for a ledge; a landing drops and braces them.
+      // the fingers' curl, the hand's roll about its own length (a quarter turn puts the palm
+      // inward), the hand's direction and the side the elbow bends to; the x of both directions
+      // points outward. The field of view and the aspect turn it into a point, so a hand only
+      // ever shows at the sides of any screen.
       const ARM = { SHOULDER: [0.19, -0.3, 0.06], UPPER: 0.3, FORE: 0.27, HAND: 0.075 };
       const mix = (a, b, t) => a.map((value, i) => value + (b[i] - value) * t);
       const along = (a, b, k = 1) => a.map((value, i) => value + b[i] * k);
       const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
       const unit = (a) => along([0, 0, 0], a, 1 / Math.hypot(...a));
-      // `pose`: move (stride, 0 to 1.6), sprint (0 to 1), phase (the stride's), air and brace (0 to 1).
+      // Running, each arm swings at its side against the leg of that side, the elbow bent near a
+      // right angle, the fist loosely closed, palm in. The swing grows with the stride, so the
+      // fist only rises into its lower corner, a little toward the chest, at the top of a fast
+      // forward swing; standing, the arms hang out of sight.
+      function runPose(side, pose) {
+        const swing = -Math.sin(pose.phase) * side * (Math.min(1, pose.move) * 0.3 + pose.sprint * 0.7);
+        const f = Math.max(0, swing), b = Math.max(0, -swing);
+        return [0.8 - 0.2 * f, -1.3 + 0.45 * f - 0.3 * b, 0.36 + 0.06 * f - 0.14 * b, 0.8, 1.45, -0.25, 0.1 + 0.3 * f, -1, 0.35, -1, 0.5 + 0.5 * b];
+      }
+      // A jump swings the arms down and back at take-off, drives them up past the lower corners
+      // and out to the sides, elbows bent, spreads them a little at the top for balance, and
+      // brings them down in front of the hips for the landing. It is keyed by the jump's own
+      // phase, read from the vertical speed: 0 at take-off, 1 at the top, 2 falling as fast.
+      const LEAP = [
+        [0, [0.85, -1.8, 0.22, 0.6, 1.4, 0.1, -0.6, -0.5, 0.3, -0.6, 1]],
+        [0.35, [0.88, -0.95, 0.32, 0.5, 1.2, 0.25, 0.8, -0.5, 0.8, -0.6, 0.2]],
+        [0.75, [0.9, -0.35, 0.3, 0.35, 0.7, 0.4, 0.8, -0.4, 1, -0.5, 0]],
+        [1, [0.95, -0.3, 0.3, 0.2, 0.4, 0.7, 0.5, -0.5, 1, -0.4, 0]],
+        [1.5, [0.88, -0.75, 0.34, 0.3, 0.6, 0.4, 0.1, -0.8, 0.8, -0.6, 0.2]],
+        [2, [0.6, -1.35, 0.4, 0.4, 1, -0.2, -0.3, -1, 0.4, -1, 0.3]],
+      ];
+      // On the ground the jump's pose waits at its landing, so the next take-off springs from there.
+      function leapPose(vy) {
+        const t = vy > 0 ? 1 - Math.min(1, vy / TUNING.JUMP) : 1 + Math.min(1, -vy / TUNING.JUMP);
+        const k = Math.max(1, LEAP.findIndex(([at]) => at >= t)), [a0, p0] = LEAP[k - 1], [a1, p1] = LEAP[k];
+        return mix(p0, p1, (t - a0) / (a1 - a0));
+      }
+      // A landing braces the hands low at the sides.
+      const BRACE = [0.82, -0.97, 0.34, 0.55, 1.1, 0.1, -0.2, -1, 0.6, -1, 0.3];
+      // A critically damped spring, solved exactly over `dt`: it reaches `to` as fast as it can
+      // without overshooting, at any frame rate.
+      function spring(state, to, omega, dt) {
+        const x = state.x - to, k = (state.v + omega * x) * dt, e = Math.exp(-omega * dt);
+        [state.x, state.v] = [to + (x + k) * e, (state.v - omega * k) * e];
+      }
+      // `pose`: move (stride, 0 to 1.6), sprint (0 to 1), phase (the stride's), air and brace
+      // (0 to 1) and leap, the jump's pose as its spring holds it.
       function handPose(side, pose, fov, aspect) {
         const tan = Math.tan((fov * Math.PI) / 360);
-        const beat = Math.max(0, Math.sin(pose.phase) * side), pump = Math.min(1, pose.move) * 0.25 + pose.sprint * 0.75;
-        let target = [0.74 - 0.14 * beat * pump, -1.08 + pump * (0.42 * beat - 0.2), 0.4 + 0.05 * beat * pump, 0.55 + 0.35 * pump, 0.9];
-        target = mix(target, [0.44, -0.32, 0.46, 0.08, 0.3], pose.air);
-        const [nx, ny, depth, curl, roll] = mix(target, [0.6, -0.98, 0.42, 0.3, 0.2], pose.brace);
-        const reach = unit([-side * 0.25, 0.4 + 0.5 * pose.air, -1]);
+        const [nx, ny, depth, curl, roll, rx, ry, rz, hx, hy, hz] = mix(mix(runPose(side, pose), pose.leap, pose.air), BRACE, pose.brace);
+        const reach = unit([side * rx, ry, rz]), hint = [side * hx, hy, hz];
         const shoulder = [side * ARM.SHOULDER[0], ARM.SHOULDER[1], ARM.SHOULDER[2]];
         const toWrist = along(along([side * nx * tan * aspect * depth, ny * tan * depth, -depth], reach, -ARM.HAND), shoulder, -1);
-        // Two bones of fixed length: the elbow bends down and out, a straight arm stops short.
+        // Two bones of fixed length: the elbow bends toward the hint, a straight arm stops short.
         const d = Math.min(Math.hypot(...toWrist), ARM.UPPER + ARM.FORE - 1e-3), u = unit(toWrist);
-        const a = (ARM.UPPER ** 2 - ARM.FORE ** 2 + d * d) / (2 * d), hint = [side * 0.5, -1, 0.25];
+        const a = (ARM.UPPER ** 2 - ARM.FORE ** 2 + d * d) / (2 * d);
         const bend = unit(along(hint, u, -dot(hint, u)));
         const elbow = along(along(shoulder, u, a), bend, Math.sqrt(Math.max(0, ARM.UPPER ** 2 - a * a)));
         const wrist = along(shoulder, u, d);
@@ -574,8 +607,10 @@
       }, (values) => (world.controls.lookSpeed = 0.002 * values.look), world);
 
       // What the frame reads back, eased so the body moves without jerks.
-      const eased = { move: 0, air: 0, fov: 75, tilt: 0, dip: 0, dipSpeed: 0, sprint: 0, bob: 0 };
+      const eased = { move: 0, fov: 75, tilt: 0, dip: 0, dipSpeed: 0, sprint: 0, bob: 0 };
       const ease = (key, to, rate, dt) => (eased[key] += (to - eased[key]) * Math.min(1, dt * rate));
+      // The jump's weight and pose ride on springs, so no state change pops the arms.
+      const motion = { air: { x: 0, v: 0 }, leap: leapPose(-Infinity).map((x) => ({ x, v: 0 })) };
       let phase = 0, footfall = 0, time = 0;
       // Where the eye looks, and that direction on the level.
       function gaze() {
@@ -584,13 +619,14 @@
         const flat = Math.hypot(look[0], look[2]) || 1;
         return { look, fx: look[0] / flat, fz: look[2] / flat };
       }
-      // Poses the body from the eased state. The hands: pumped by the stride, reaching in the
-      // air, braced by a landing's dip, placed for this frame's field of view and aspect, the
+      // Poses the body from the eased state. The hands: swung by the stride, carried through the
+      // jump, braced by a landing's dip, placed for this frame's field of view and aspect, the
       // arms following them. The legs stride, the knee bending as the leg swings through, and
       // tuck in a jump. Paused, the state stands still and so does the body.
       function dress() {
         const { fx, fz } = gaze();
-        const pose = { move: eased.move, sprint: eased.sprint, phase, air: eased.air, brace: Math.max(0, Math.min(1, -eased.dip * 25)) };
+        const leap = motion.leap.map(({ x }) => x), air = motion.air.x;
+        const pose = { move: eased.move, sprint: eased.sprint, phase, air, leap, brace: Math.max(0, Math.min(1, -eased.dip * 25)) };
         for (const { side, top, low, root, fingers, thumb } of arms) {
           const h = handPose(side, pose, camera.fov, camera.aspect);
           aim(top, h.shoulder, h.elbow);
@@ -606,8 +642,8 @@
         body.rotation.y = Math.atan2(-fx, -fz);
         for (const { side, hip, knee } of legs) {
           const turn = phase + (side > 0 ? 0 : Math.PI);
-          hip.rotation.x = Math.sin(turn) * 0.55 * eased.move + eased.air * (side > 0 ? 0.7 : 0.15);
-          knee.rotation.x = -Math.max(0, Math.cos(turn)) * 0.9 * eased.move - eased.air * (side > 0 ? 1.1 : 0.45);
+          hip.rotation.x = Math.sin(turn) * 0.55 * eased.move + air * (side > 0 ? 0.7 : 0.15);
+          knee.rotation.x = -Math.max(0, Math.cos(turn)) * 0.9 * eased.move - air * (side > 0 ? 1.1 : 0.45);
         }
       }
       dress();
@@ -631,7 +667,8 @@
         // a landing (a spring), the field of view widening at a sprint, a lean into a strafe.
         const [vx, vz] = [(runner.x - x0) / dt, (runner.z - z0) / dt], going = Math.hypot(vx, vz);
         ease('move', runner.grounded ? Math.min(going / T.WALK, 1.6) : eased.move, 10, dt);
-        ease('air', runner.grounded ? 0 : 1, 9, dt);
+        spring(motion.air, runner.grounded ? 0 : 1, 14, dt);
+        leapPose(runner.grounded ? -Infinity : runner.vy).forEach((to, i) => spring(motion.leap[i], to, 25, dt));
         if (runner.grounded && going > 0.3) phase += (going * dt * Math.PI) / (0.7 + 0.07 * going);
         if (Math.floor(phase / Math.PI) !== footfall) {
           footfall = Math.floor(phase / Math.PI);
