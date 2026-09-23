@@ -53,8 +53,9 @@
         add(geometry.sphere(0.08, 16, 12), skin.joint, [0, 0, 0], upper);
         add(geometry.cylinder(0.04, 0.04, 0.9, 12), skin.body, [0, 0.45, 0], upper);
         add(geometry.sphere(0.07, 16, 12), skin.joint, [0, 0, 0], head);
-        // The shade opens along +x: a frustum laid on its side, the bulb in its mouth.
-        add(geometry.cylinder(0.1, 0.32, 0.45, 32, 1, true), skin.body, [0.26, 0, 0], head).rotation.set(0, 0, -Math.PI / 2);
+        // The shade opens along +x: a frustum laid on its side, its narrow top (+y) turned a
+        // quarter turn to −x at the joint, its wide mouth at +x round the bulb.
+        add(geometry.cylinder(0.1, 0.32, 0.45, 32, 1, true), skin.body, [0.26, 0, 0], head).rotation.set(0, 0, Math.PI / 2);
         add(geometry.sphere(0.12, 20, 14), skin.bulb, [0.38, 0, 0], head);
         return root;
       }
