@@ -1709,7 +1709,7 @@
     "summary": "Ce que reçoit un crochet d’image : les secondes depuis la dernière image et depuis le début du monde.",
     "description": "L’unique objet du monde, réécrit à chaque image : un crochet qui garde une valeur la copie.",
     "members": {
-      "delta": "Secondes depuis l’image précédente.",
+      "delta": "Secondes depuis l’image précédente, au plus deux intervalles d’image après une pause ; 0 à la première.",
       "time": "Secondes depuis le début du monde.",
       "frame": "Combien d’images le monde a dessinées.",
       "metrics": "Ce qu’a coûté la dernière image : triangles, pages, temps."
