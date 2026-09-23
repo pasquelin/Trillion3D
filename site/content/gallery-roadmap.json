@@ -565,8 +565,7 @@
         "fr": "La famille des matériaux"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/the-material-family.html"
     },
     {
       "id": "a-texture-turned-and-tiled",
@@ -595,8 +594,7 @@
         "fr": "Tous les formats d’image"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/every-image-format.html"
     },
     {
       "id": "a-video-on-a-screen",
