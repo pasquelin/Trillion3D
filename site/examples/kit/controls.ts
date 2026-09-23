@@ -1,5 +1,8 @@
 import { hideable, overlay } from './overlay.ts';
-import { stats, type StatsWorld } from './stats.ts';
+import { perFrame } from './perFrame.ts';
+import { stats } from './stats.ts';
+import type { StatsWorld } from './statsLines.ts';
+import { exampleWord, kitWord, labelOf } from './words.ts';
 
 /**
  * What an example declares for one control, the kind read from the value itself:
@@ -38,30 +41,34 @@ type Control =
   | { kind: 'colour'; key: string; label: string }
   | { kind: 'note'; key: string; label: string; text: string }
   | { kind: 'toggle'; key: string; label: string }
-  | { kind: 'choice'; key: string; label: string; options: readonly string[] }
+  | { kind: 'choice'; key: string; label: string; options: readonly string[]; shown: string[] }
   | { kind: 'button'; key: string; label: string; press: () => void };
-
-/** `lightIntensity` → `Light intensity`: the label a key reads as. */
-export function labelOf(key: string): string {
-  const words = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
 
 const isSlider = (spec: readonly (number | string)[]): spec is readonly number[] =>
   typeof spec[0] === 'number';
 
-/** Reads the declared specs into the controls to draw and the values they start at. */
+/** A control's label: the example's word for its key, else, for a numbered key (`lamp2`), the
+ * word for its stem and the number, else the key humanised. */
+function labelFor(key: string) {
+  const [, stem = '', number] = /^(.*?)(\d+)$/.exec(key) ?? [];
+  const numbered = number && exampleWord('', 'controls', stem);
+  return exampleWord(numbered ? `${numbered} ${number}` : labelOf(key), 'controls', key);
+}
+
+/** Reads the declared specs into the controls to draw and the values they start at. Labels,
+ * choices and notes read in the page's language (`<id>.controls.<key>`,
+ * `<id>.choices.<key>.<value>`); the values stay the declared identifiers. */
 export function describe(specs: Record<string, ControlSpec>) {
   const controls: Control[] = [];
   const values: Record<string, number | string | boolean> = {};
   for (const [key, spec] of Object.entries(specs)) {
-    const label = labelOf(key);
+    const label = labelFor(key);
     if (typeof spec === 'function') controls.push({ kind: 'button', key, label, press: spec });
     else if (typeof spec === 'boolean') {
       controls.push({ kind: 'toggle', key, label });
       values[key] = spec;
     } else if (typeof spec === 'string' && !spec.startsWith('#'))
-      controls.push({ kind: 'note', key, label, text: spec });
+      controls.push({ kind: 'note', key, label, text: exampleWord(spec, 'controls', key) });
     else if (typeof spec === 'string') {
       if (!/^#[0-9a-f]{6}$/i.test(spec)) throw new Error(`${key}: a colour is '#rrggbb'`);
       controls.push({ kind: 'colour', key, label });
@@ -74,23 +81,28 @@ export function describe(specs: Record<string, ControlSpec>) {
       values[key] = value;
     } else {
       if (!spec.length) throw new Error(`${key}: a choice needs at least one option`);
-      controls.push({ kind: 'choice', key, label, options: spec });
+      const shown = spec.map((option) => exampleWord(option, 'choices', key, option));
+      controls.push({ kind: 'choice', key, label, options: spec, shown });
       values[key] = spec[0];
     }
   }
   return { controls, values };
 }
 
-/** A slider's value as printed beside it: as many decimals as its step carries. */
+/** A slider's value as printed beside it: as many decimals as its step carries, three at most. */
 export function printed(value: number, step: number): string {
-  const decimals = Math.max(0, Math.min(3, -Math.floor(Math.log10(step))));
+  let decimals = 0;
+  while (decimals < 3 && Math.abs(step * 10 ** decimals - Math.round(step * 10 ** decimals)) > 1e-9)
+    decimals++;
   return value.toFixed(decimals);
 }
 
 function field(control: Control, values: Record<string, unknown>, changed: () => void) {
-  const set = (value: unknown) => {
+  const run = perFrame(changed, requestAnimationFrame);
+  // A drag's `input` runs once a frame; the `change` that ends it, or a click, at once.
+  const set = (value: unknown, now = true) => {
     values[control.key] = value;
-    changed();
+    run(now);
   };
   if (control.kind === 'note') {
     const line = document.createElement('p');
@@ -114,7 +126,7 @@ function field(control: Control, values: Record<string, unknown>, changed: () =>
   if (control.kind === 'choice') {
     const select = document.createElement('select');
     select.className = 'select select-xs min-w-0 flex-1';
-    select.append(...control.options.map((option) => new Option(option, option)));
+    select.append(...control.options.map((option, at) => new Option(control.shown[at], option)));
     select.onchange = () => set(select.value);
     row.append(select);
     return row;
@@ -130,7 +142,8 @@ function field(control: Control, values: Record<string, unknown>, changed: () =>
     input.type = 'color';
     input.className = 'h-6 w-10 cursor-pointer rounded border-0 bg-transparent p-0';
     input.value = String(values[control.key]);
-    input.oninput = () => set(input.value);
+    input.oninput = () => set(input.value, false);
+    input.onchange = () => set(input.value);
   } else {
     const { min, max, step } = control;
     Object.assign(input, { type: 'range', min, max, step, value: values[control.key] });
@@ -138,7 +151,8 @@ function field(control: Control, values: Record<string, unknown>, changed: () =>
     const shown = document.createElement('output');
     shown.className = 'w-10 text-right text-xs tabular-nums';
     const show = () => (shown.textContent = printed(input.valueAsNumber, step));
-    input.oninput = () => (show(), set(input.valueAsNumber));
+    input.oninput = () => (show(), set(input.valueAsNumber, false));
+    input.onchange = () => set(input.valueAsNumber);
     show();
     row.append(shown);
   }
@@ -165,11 +179,11 @@ export function controls<const Specs extends Record<string, ControlSpec>>(
   const live = values as ControlValues<Specs>;
   const box = document.createElement('details');
   box.className =
-    'pointer-events-auto absolute top-3 right-3 w-64 max-w-[calc(100vw-1.5rem)] card bg-base-100/85 text-sm shadow-xl backdrop-blur';
+    'pointer-events-auto absolute top-3 end-3 w-64 max-w-[calc(100vw-1.5rem)] card bg-base-100/85 text-sm shadow-xl backdrop-blur';
   box.toggleAttribute('open', innerWidth >= 640);
   const title = document.createElement('summary');
   title.className = 'cursor-pointer select-none px-3 py-2 font-semibold';
-  title.textContent = 'Controls';
+  title.textContent = kitWord('panel', 'controls');
   const rows = document.createElement('div');
   rows.className = 'flex flex-col gap-2 px-3 pb-3';
   rows.dataset.rows = '';

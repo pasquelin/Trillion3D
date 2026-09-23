@@ -1,0 +1,1829 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "Ajustes"
+    },
+    "menu": {
+      "play": "Jugar",
+      "resume": "Continuar",
+      "restart": "Reiniciar",
+      "controls": "Ajustes",
+      "back": "Volver",
+      "paused": "En pausa",
+      "again": "Haz clic otra vez para continuar"
+    },
+    "keys": {
+      "Mouse": "Ratón",
+      "Right button": "Botón derecho",
+      "Wheel": "Rueda",
+      "Shift": "Mayús",
+      "Space": "Espacio",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "FPS": "Imágenes/s",
+      "FPS (held)": "Imágenes/s (congelado)",
+      "triangles": "triángulos",
+      "triangles (scene)": "triángulos (escena)",
+      "draw calls": "llamadas de dibujo",
+      "pages": "páginas",
+      "geometry pool": "reserva de geometría",
+      "lights": "luces",
+      "GPU frame": "imagen GPU",
+      "CPU frame": "imagen CPU",
+      "page hooks": "código de la página",
+      "engine CPU": "CPU del motor"
+    }
+  },
+  "a-city-from-rules": {
+    "controls": {
+      "mouse": "Arrastra para volar alrededor; cada ajuste reconstruye la ciudad con sus reglas",
+      "blocks": "Manzanas",
+      "maxHeight": "Altura máx.",
+      "density": "Densidad",
+      "parks": "Parques",
+      "seed": "Semilla",
+      "hour": "Hora",
+      "traffic": "Tráfico"
+    },
+    "readouts": {
+      "buildings": "Edificios",
+      "parks": "Parques"
+    }
+  },
+  "a-cloud-of-points": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor de la nube; elige otra forma y la vieja se enrolla y se va mientras la nueva se despliega",
+      "shape": "Forma",
+      "spin": "Girar"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "galaxia espiral",
+        "globular cluster": "cúmulo globular",
+        "ring nebula": "nebulosa anular",
+        "Lorenz attractor": "atractor de Lorenz"
+      }
+    },
+    "readouts": {
+      "points": "Puntos",
+      "colourGroups": "Grupos de color"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "controls": {
+      "colour": "Color",
+      "glow": "Brillo",
+      "exposure": "Exposición"
+    }
+  },
+  "a-field-of-pebbles": {
+    "controls": {
+      "sunTurn": "Giro del sol",
+      "sunHeight": "Altura del sol",
+      "first": "Primero",
+      "last": "Último"
+    }
+  },
+  "a-first-world": {
+    "controls": {
+      "colour": "Color"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "controls": {
+      "mouse": "Arrastra para mover el tablero · rueda o pellizco para acercar · flechas para desplazarte",
+      "play": "Jugar",
+      "speed": "Velocidad",
+      "follow": "Seguir",
+      "replay": "Repetir"
+    },
+    "readouts": {
+      "move": "Jugada"
+    },
+    "words": {
+      "takes": "captura"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "controls": {
+      "swing": "Balanceo",
+      "lamp": "Lámpara",
+      "power": "Potencia",
+      "glass": "Cristal"
+    }
+  },
+  "a-lighthouse-beam": {
+    "controls": {
+      "turnsPerMinute": "Vueltas por minuto",
+      "beamWidth": "Ancho del haz",
+      "colour": "Color"
+    }
+  },
+  "a-long-shadowed-street": {
+    "controls": {
+      "mouse": "Arrastra para mirar la avenida, rueda para avanzar; mueve la hora y las sombras se estiran por la calle y trepan por las fachadas",
+      "hour": "Hora",
+      "traffic": "Tráfico",
+      "flyAgain": "Volar otra vez"
+    },
+    "readouts": {
+      "sunHeight": "Altura del sol",
+      "shadow30MHouse": "Sombra de una casa de 30 m"
+    }
+  },
+  "a-matcap-sculpture": {
+    "controls": {
+      "mouse": "Arrastra para rodear la escultura: su luz gira contigo, porque vive en la imagen",
+      "matcap": "Matcap",
+      "sculpture": "Escultura",
+      "gallery": "Galería",
+      "turn": "Girar"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "arcilla roja",
+        "chrome": "cromo",
+        "gold": "oro",
+        "jade": "jade",
+        "pearl": "perla",
+        "obsidian": "obsidiana"
+      },
+      "sculpture": {
+        "knot": "nudo",
+        "rings": "anillos",
+        "vase": "jarrón"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor de las gemas; desmarca las facetas marcadas para compartir las esquinas",
+      "points": "Puntos",
+      "waist": "Cintura",
+      "height": "Altura",
+      "sharpFacets": "Facetas marcadas",
+      "colour": "Color",
+      "spin": "Girar"
+    },
+    "readouts": {
+      "verticesWritten": "Vértices escritos",
+      "triangles": "Triángulos"
+    }
+  },
+  "a-model-from-obj": {
+    "controls": {
+      "mouse": "Arrastra para rodear el tablero, rueda para acercarte: mira en qué se convirtió el OBJ",
+      "view": "Vista",
+      "sunAngle": "Ángulo del sol",
+      "sunHeight": "Altura del sol",
+      "turn": "Girar"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "triangles": "triángulos",
+        "clusters": "clústeres",
+        "lod": "niveles de detalle"
+      }
+    },
+    "words": {
+      "credit": "Ajedrez modelado para estos ejemplos, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-model-from-usdz": {
+    "controls": {
+      "mouse": "Arrastra para rodear el tablero; baja con la rueda hasta las piezas",
+      "view": "Vista",
+      "turn": "Girar"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "materials": "materiales",
+        "clusters": "clústeres",
+        "triangles": "triángulos"
+      }
+    },
+    "readouts": {
+      "source": "Origen",
+      "boardWidth": "Ancho del tablero",
+      "partsPlaced": "Piezas colocadas",
+      "triangles": "Triángulos"
+    },
+    "words": {
+      "credit": "Ajedrez modelado en código para este ejemplo, CC0; el archivo es assets/examples/a-model-from-usdz/source/chess-set.usdz — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-molecule": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor de la molécula; elige otra y sus átomos vuelan a sus nuevos sitios",
+      "molecule": "Molécula",
+      "style": "Estilo",
+      "spin": "Girar"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "buckybola C60",
+        "carbon nanotube": "nanotubo de carbono",
+        "diamond crystal": "cristal de diamante",
+        "DNA double helix": "doble hélice de ADN"
+      },
+      "style": {
+        "ball and stick": "bolas y varillas",
+        "space filling": "esferas llenas",
+        "sticks": "varillas"
+      }
+    },
+    "readouts": {
+      "atoms": "Átomos",
+      "bonds": "Enlaces"
+    }
+  },
+  "a-neon-sign": {
+    "controls": {
+      "star": "Estrella",
+      "wave": "Onda",
+      "glow": "Brillo",
+      "pulse": "Latido",
+      "exposure": "Exposición",
+      "toneMapping": "Mapeo de tonos"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "neutro",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "lineal"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "controls": {
+      "lamps": "Lámparas",
+      "speed": "Velocidad",
+      "power": "Potencia",
+      "shadows": "Sombras"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "controls": {
+      "walk": "Caminar",
+      "wave": "Onda",
+      "dance": "Bailar",
+      "speed": "Velocidad",
+      "colour": "Color"
+    }
+  },
+  "a-scene-of-your-own": {
+    "controls": {
+      "hour": "Hora",
+      "wind": "Viento",
+      "roof": "Tejado"
+    }
+  },
+  "a-softbox-panel": {
+    "controls": {
+      "mouse": "Arrastra para rodear el plató; agranda el panel y mira cómo se suavizan los brillos",
+      "panelWidth": "Ancho del panel",
+      "power": "Potencia",
+      "colour": "Color",
+      "swing": "Balanceo"
+    },
+    "readouts": {
+      "panel": "Panel",
+      "radiance": "Radiancia"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "controls": {
+      "climb": "Subida",
+      "turnPerStep": "Giro por escalón",
+      "lantern": "Farol"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "controls": {
+      "hour": "Hora",
+      "sunColour": "Color del sol",
+      "exposure": "Exposición"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "controls": {
+      "mouse": "Arrastra para mirar alrededor; el panel del fondo es la baldosa tal como se pintó",
+      "tile": "Baldosa",
+      "wrap": "Borde",
+      "tilesAcross": "Baldosas a lo ancho",
+      "turn": "Girar",
+      "slideAcross": "Deslizar a lo ancho",
+      "slideUp": "Deslizar hacia arriba",
+      "flow": "Fluir"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "repetir",
+        "mirror": "espejo",
+        "clamp": "fijar"
+      },
+      "tile": {
+        "terracotta": "terracota",
+        "azulejo": "azulejo",
+        "jade": "jade"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "Baldosas, giro"
+    },
+    "words": {
+      "up": "ARRIBA"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "controls": {
+      "mouse": "Arrastra para mirar alrededor; las cuentas viajan por la curva que sigue el tubo",
+      "path": "Camino",
+      "radius": "Radio",
+      "sides": "Lados",
+      "slices": "Rodajas",
+      "speed": "Velocidad",
+      "beads": "Cuentas",
+      "paint": "Pintura"
+    },
+    "choices": {
+      "path": {
+        "knot": "nudo",
+        "coaster": "montaña rusa",
+        "spiral": "espiral"
+      }
+    },
+    "readouts": {
+      "triangles": "Triángulos"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "controls": {
+      "width": "Ancho",
+      "height": "Altura",
+      "gloss": "Brillo",
+      "spin": "Girar"
+    }
+  },
+  "a-video-on-a-screen": {
+    "controls": {
+      "mouse": "Arrastra para mirar la habitación; la pantalla reproduce un elemento de vídeo real",
+      "playing": "Reproduciendo",
+      "openVideo": "Abrir vídeo"
+    },
+    "readouts": {
+      "playing": "Reproduciendo",
+      "videoTime": "Tiempo del vídeo"
+    },
+    "words": {
+      "yourFile": "tu archivo",
+      "testCard": "carta de ajuste"
+    }
+  },
+  "a-video-panorama": {
+    "controls": {
+      "mouse": "Arrastra para mirar alrededor; la vista gira sola hasta que pulses",
+      "playing": "Reproduciendo",
+      "fieldOfView": "Campo de visión",
+      "openVideo": "Abrir vídeo"
+    },
+    "readouts": {
+      "playing": "Reproduciendo"
+    },
+    "words": {
+      "yourFile": "tu archivo",
+      "duskOverSea": "atardecer sobre el mar"
+    }
+  },
+  "a-wall-of-cameras": {
+    "controls": {
+      "mouse": "Haz clic en una cámara para ponerla en la pantalla grande; dile a las cámaras qué vigilar",
+      "watch": "Vigilar"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "ronda",
+        "car": "el coche",
+        "balloon": "el globo"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "Cámaras que ven el coche"
+    },
+    "words": {
+      "cam": "CÁM",
+      "northGate": "PUERTA NORTE",
+      "fountain": "FUENTE",
+      "eastRoad": "CALLE ESTE",
+      "clockTower": "TORRE DEL RELOJ",
+      "cafe": "CAFÉ",
+      "southCorner": "ESQUINA SUR",
+      "noSignal": "SIN SEÑAL",
+      "patrol": "RONDA",
+      "car": "SIGUIENDO EL COCHE",
+      "balloon": "SIGUIENDO EL GLOBO"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "controls": {
+      "height": "Altura",
+      "speed": "Velocidad",
+      "ripples": "Ondas",
+      "inner": "Interior",
+      "outer": "Exterior"
+    }
+  },
+  "a-world-of-blocks": {
+    "controls": {
+      "mouse": "Arrastra para volar alrededor de la isla; sube el mar y mira cómo se inundan los valles",
+      "seed": "Semilla",
+      "seaLevel": "Nivel del mar",
+      "hour": "Hora",
+      "clouds": "Nubes"
+    },
+    "readouts": {
+      "facesDrawn": "Caras dibujadas"
+    }
+  },
+  "before-and-after-slider": {
+    "controls": {
+      "mouse": "Arrastra el botón redondo para mover la división; arrastra la imagen para girar alrededor de la plaza",
+      "before": "Antes"
+    },
+    "choices": {
+      "before": {
+        "clay": "arcilla",
+        "no shadows": "sin sombras",
+        "no sun": "sin sol",
+        "noon sun": "sol de mediodía"
+      }
+    },
+    "words": {
+      "clay": "arcilla",
+      "no shadows": "sin sombras",
+      "no sun": "sin sol",
+      "noon sun": "sol de mediodía",
+      "finished": "terminado"
+    }
+  },
+  "blobs-that-merge": {
+    "controls": {
+      "mouse": "Arrastra para rodear la lámpara; sube la pegajosidad y las gotas se funden unas con otras",
+      "stickiness": "Pegajosidad",
+      "heat": "Calor",
+      "wax": "Cera"
+    },
+    "readouts": {
+      "piecesWax": "Trozos de cera"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "controls": {
+      "sweep": "Barrido",
+      "lamp": "Lámpara",
+      "colour": "Color",
+      "bricks": "Ladrillos"
+    }
+  },
+  "click-to-pick": {
+    "controls": {
+      "help": "Haz clic en una forma: se ilumina, y el panel dice dónde la tocó el rayo."
+    },
+    "readouts": {
+      "picked": "Elegido",
+      "point": "Punto",
+      "distance": "Distancia"
+    },
+    "words": {
+      "nothing": "nada",
+      "box": "caja",
+      "sphere": "esfera",
+      "cone": "cono",
+      "torus": "toro",
+      "cylinder": "cilindro",
+      "knot": "nudo"
+    }
+  },
+  "colours-on-the-vertices": {
+    "controls": {
+      "mouse": "Arrastra para girar el planeta; cada vértice lleva su propio color",
+      "palette": "Paleta",
+      "seaLevel": "Nivel del mar",
+      "relief": "Relieve",
+      "spin": "Girar"
+    },
+    "choices": {
+      "palette": {
+        "earth": "tierra",
+        "lava": "lava",
+        "ice": "hielo",
+        "candy": "caramelo"
+      }
+    }
+  },
+  "compressed-textures": {
+    "controls": {
+      "mouse": "Arrastra para rodear la fuente; baja con la rueda hasta una baldosa y mira cómo llegan sus detalles",
+      "sunTurn": "Giro del sol",
+      "sunHeight": "Altura del sol"
+    },
+    "readouts": {
+      "texturesBlocks": "Texturas en bloques",
+      "allFullDetail": "Todo al máximo detalle",
+      "poolFormat": "Formato de la reserva",
+      "tilesHeld": "Teselas guardadas",
+      "heldGpu": "Guardado en la GPU"
+    },
+    "words": {
+      "credit": "Patio y texturas dibujados en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md",
+      "someOf": "{some} de {all}",
+      "notPlain": "{held} MiB, no {plain}",
+      "notMeasured": "no medido aquí"
+    }
+  },
+  "copies-along-a-path": {
+    "controls": {
+      "mouse": "Arrastra para mirar el parque; sube las copias hasta que los arcos formen un túnel",
+      "copies": "Copias",
+      "twist": "Torsión",
+      "speed": "Velocidad",
+      "ride": "Viajar"
+    },
+    "readouts": {
+      "archesPlaced": "Arcos colocados"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "controls": {
+      "angle": "Ángulo",
+      "softness": "Suavidad",
+      "colour": "Color",
+      "power": "Potencia"
+    },
+    "words": {
+      "credit": "Modelo de caja de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "create-and-dispose": {
+    "controls": {
+      "mouse": "Arrastra para rodear la fuente · rueda para acercarte",
+      "perSecond": "Por segundo",
+      "copies": "Copias",
+      "burst": "Ráfaga",
+      "clearAll": "Borrar todo"
+    },
+    "choices": {
+      "copies": {
+        "share": "compartir las formas",
+        "fresh": "forma nueva cada vez"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "Piezas vivas",
+      "created": "Creadas",
+      "disposed": "Liberadas",
+      "gpuMemory": "Memoria GPU"
+    },
+    "words": {
+      "notMeasured": "no medido"
+    }
+  },
+  "curved-surfaces": {
+    "controls": {
+      "mouse": "Arrastra para recorrer la galería; baja la cuadrícula para ver los triángulos que forman cada curva",
+      "grid": "Cuadrícula",
+      "facets": "Facetas",
+      "turntable": "Plato giratorio"
+    },
+    "readouts": {
+      "triangles": "Triángulos",
+      "facingYou": "Frente a ti"
+    },
+    "words": {
+      "Klein bottle": "botella de Klein",
+      "Möbius strip": "cinta de Möbius",
+      "Seashell": "concha",
+      "Dini's twist": "giro de Dini",
+      "Enneper saddle": "silla de Enneper"
+    }
+  },
+  "dashed-lines": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor del sol; cambia el trazo y el hueco y cada órbita los sigue",
+      "lines": "Líneas",
+      "dash": "Trazo",
+      "gap": "Hueco",
+      "spin": "Girar"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "discontinua",
+        "solid": "continua"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "Trazos en la órbita del planeta azul"
+    }
+  },
+  "detail-by-pixel-error": {
+    "controls": {
+      "mouse": "Arrastra para recorrer la avenida; acércate a una urna y luego aléjate mucho",
+      "pixelError": "Error en píxeles",
+      "view": "Vista"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "lod": "niveles de detalle",
+        "screen-error": "error en pantalla",
+        "triangles": "triángulos"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Triángulos dibujados",
+      "shareAvenue": "Parte de la avenida",
+      "trianglesAvenue": "Triángulos de la avenida"
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md",
+      "notCounted": "no contado aquí"
+    }
+  },
+  "edges-and-wireframe": {
+    "controls": {
+      "mouse": "Arrastra para mirar alrededor; sube el umbral para quedarte solo con los pliegues marcados",
+      "view": "Vista",
+      "threshold": "Umbral",
+      "lines": "Líneas",
+      "spin": "Girar"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "superficie y aristas",
+        "edges": "aristas",
+        "wireframe": "alambre",
+        "surface and wireframe": "superficie y alambre",
+        "surface": "superficie"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "Segmentos de aristas",
+      "wireframeSegments": "Segmentos de alambre"
+    }
+  },
+  "every-image-format": {
+    "controls": {
+      "mouse": "Arrastra para recorrer los caballetes; baja la calidad y mira de cerca el JPEG y el WebP",
+      "quality": "Calidad",
+      "lookAt": "Mirar"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "los ocho",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "Píxeles en bruto"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "Píxeles en bruto"
+    },
+    "words": {
+      "samePicture": "512 × 512 · la misma imagen",
+      "lossless": "sin pérdida",
+      "lossy": "con pérdida",
+      "colours256": "256 colores",
+      "uncompressed": "sin comprimir",
+      "shapes": "formas, dibujadas al cargar",
+      "painted": "pintado en la página",
+      "bytes": "bytes en memoria",
+      "inMemory": "{size} en memoria · {note}",
+      "sentAs": "enviado como {type}"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "controls": {
+      "mouse": "Arrastra para rodear el reloj de sol; mueve la hora y cada sombra gira con el sol",
+      "hour": "Hora",
+      "darkness": "Oscuridad",
+      "timeLapse": "Cámara rápida",
+      "motion": "Movimiento"
+    },
+    "readouts": {
+      "shadowLength": "Largo de la sombra"
+    },
+    "words": {
+      "timesHeight": "{times} × la altura"
+    }
+  },
+  "fly-over-a-model-town": {
+    "choices": {
+      "view": {
+        "cockpit": "Cabina",
+        "exterior": "Exterior"
+      },
+      "mode": {
+        "arcade": "Arcade — el avión vuela hacia tu punto de mira; sin pérdida, se endereza solo",
+        "expert": "Experto — el ratón es la palanca; entra en pérdida y en barrena"
+      },
+      "sensitivity": {
+        "Low": "Baja",
+        "Medium": "Media",
+        "High": "Alta"
+      },
+      "invert": {
+        "off": "No",
+        "on": "Sí"
+      },
+      "sound": {
+        "on": "Sí",
+        "off": "No"
+      }
+    },
+    "game": {
+      "title": "Avión de caza",
+      "goal": "Despega y atraviesa el cañón pasando por los diez anillos de oro lo más rápido que puedas. Apunta con el ratón: el avión te sigue.",
+      "keys": {
+        "aim": "Apuntar (Arcade) o palanca (Experto)",
+        "fineAim": "Puntería fina (mantener)",
+        "throttle": "Más o menos gas",
+        "afterburner": "Poscombustión (mantener)",
+        "roll": "Alabeo (anula la puntería en Arcade)",
+        "rudder": "Timón",
+        "airBrake": "Aerofreno (mantener)",
+        "lookAround": "Mirar alrededor (mantener)",
+        "view": "Vista de cabina o exterior",
+        "zoom": "Acercar la vista exterior",
+        "startOver": "Empezar de nuevo",
+        "pause": "Pausa"
+      },
+      "options": {
+        "view": "Vista",
+        "mode": "Modo",
+        "sensitivity": "Sensibilidad del ratón",
+        "invert": "Invertir Y",
+        "sound": "Sonido"
+      }
+    },
+    "words": {
+      "testMode": "MODO PRUEBA — ratón no capturado",
+      "rings": "ANILLOS {passed}/{all}",
+      "complete": "RECORRIDO COMPLETADO",
+      "flyAgain": "{time} — R para volar otra vez",
+      "stall": "PÉRDIDA",
+      "pullUp": "SUBE",
+      "turnBack": "DA LA VUELTA",
+      "crashed": "ESTRELLADO",
+      "backToRunway": "Volviendo a la pista…",
+      "backToRing": "Volviendo al último anillo…",
+      "throttleUp": "W — da gas (Z en AZERTY)",
+      "rolling": "Rodando — {knots} nudos",
+      "liftOff": "Ratón arriba — despega"
+    }
+  },
+  "four-ways-to-blend": {
+    "controls": {
+      "mouse": "De izquierda a derecha: normal, aditivo, sustractivo, multiplicar; arrastra para verlos de lado",
+      "inks": "Tintas",
+      "opacity": "Opacidad",
+      "circle": "Rodear"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "rojo, verde, azul",
+        "cyan, magenta, yellow": "cian, magenta, amarillo",
+        "warm and cool": "cálido y frío"
+      }
+    }
+  },
+  "frame-the-model": {
+    "controls": {
+      "mouse": "Haz doble clic en un objeto para encuadrarlo; arrastra para girar, rueda para acercar",
+      "model": "Objeto",
+      "margin": "Margen",
+      "drift": "Deriva"
+    },
+    "choices": {
+      "model": {
+        "everything": "todo",
+        "the gold ring": "el anillo de oro",
+        "the vase": "el jarrón",
+        "the king": "el rey",
+        "the arch": "el arco",
+        "the obelisk": "el obelisco"
+      }
+    },
+    "readouts": {
+      "framing": "Encuadre",
+      "radius": "Radio",
+      "distance": "Distancia"
+    },
+    "words": {
+      "the gold ring": "el anillo de oro",
+      "the vase": "el jarrón",
+      "the king": "el rey",
+      "the arch": "el arco",
+      "the obelisk": "el obelisco"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "controls": {
+      "mouse": "Usa la rueda para acercarte desde un grano de arena hasta el planeta entero; arrastra para girar",
+      "toTheGrain": "Al grano",
+      "toTheBeach": "A la playa",
+      "toTheIsland": "A la isla",
+      "toThePlanet": "Al planeta"
+    },
+    "readouts": {
+      "viewWidth": "Ancho de la vista",
+      "youSee": "Ves"
+    },
+    "words": {
+      "grains of sand": "granos de arena",
+      "sand and shells": "arena y conchas",
+      "pebbles": "guijarros",
+      "the beach": "la playa",
+      "the coast": "la costa",
+      "the island": "la isla",
+      "the planet": "el planeta"
+    }
+  },
+  "from-clay-to-chrome": {
+    "controls": {
+      "colour": "Color",
+      "lamps": "Lámparas",
+      "swing": "Balanceo"
+    }
+  },
+  "from-noon-to-dusk": {
+    "controls": {
+      "speed": "Velocidad",
+      "hour": "Hora",
+      "adaptEyes": "Adaptar los ojos"
+    }
+  },
+  "glass-on-the-table": {
+    "controls": {
+      "refraction": "Refracción",
+      "thickness": "Grosor",
+      "tint": "Tinte",
+      "spin": "Girar"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "controls": {
+      "mouse": "Arrastra para rodear el plató; apaga las ayudas para ver la toma tal como es",
+      "helpers": "Ayudas",
+      "dolly": "Travelling",
+      "bulb": "Bombilla"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "todo",
+        "lights and camera": "luces y cámara",
+        "shapes and bounds": "formas y límites",
+        "nothing": "nada"
+      }
+    },
+    "readouts": {
+      "helpersShown": "Ayudas visibles"
+    }
+  },
+  "inside-a-panorama": {
+    "controls": {
+      "mouse": "Arrastra para girar · rueda para acercarte",
+      "sky": "Cielo",
+      "fieldOfView": "Campo de visión"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "amanecer",
+        "noon": "mediodía",
+        "dusk": "atardecer"
+      }
+    },
+    "words": {
+      "credit": "Panoramas pintados por esta página, en código, al abrirse: no se descarga nada."
+    }
+  },
+  "inside-the-g-buffer": {
+    "controls": {
+      "mouse": "Arrastra para rodear la cancha · elige un búfer para mirar dentro de la imagen",
+      "buffer": "Búfer",
+      "turning": "Girando"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "imagen",
+        "albedo": "color base",
+        "normals": "normales",
+        "depth": "profundidad",
+        "triangle ids": "números de triángulo",
+        "material ids": "números de material"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "Cada píxel guarda"
+    },
+    "words": {
+      "beauty": "la imagen iluminada",
+      "albedo": "el color base, antes de cualquier luz",
+      "normals": "hacia dónde mira la superficie, desde la cámara",
+      "depth": "distancia: claro cerca, oscuro lejos",
+      "triangle ids": "qué triángulo cubre el píxel",
+      "material ids": "qué material colorea el píxel",
+      "notOffered": "no lo ofrece este renderizador"
+    }
+  },
+  "instances-in-colour": {
+    "controls": {
+      "mouse": "Arrastra para inclinar la galaxia; usa la rueda para sumergirte en ella",
+      "count": "Cantidad",
+      "arms": "Brazos",
+      "twist": "Torsión",
+      "core": "Núcleo",
+      "rim": "Borde",
+      "spin": "Girar"
+    },
+    "readouts": {
+      "placementsDrawn": "Copias dibujadas",
+      "materials": "Materiales"
+    }
+  },
+  "keyframes-by-hand": {
+    "controls": {
+      "mouse": "Arrastra para rodear el escritorio; muestra las claves de un salto como copias pálidas de la lámpara",
+      "timing": "Ritmo",
+      "onionSkin": "Papel cebolla",
+      "speed": "Velocidad"
+    },
+    "choices": {
+      "timing": {
+        "eased": "suave",
+        "linear": "lineal"
+      }
+    },
+    "readouts": {
+      "lastKey": "Última clave"
+    },
+    "words": {
+      "rest": "descanso",
+      "crouch": "agachada",
+      "launch": "impulso",
+      "apex": "cima",
+      "land": "aterrizaje",
+      "absorb": "amortiguar",
+      "look up": "mirar arriba",
+      "turn": "girar",
+      "waking up": "despertando"
+    }
+  },
+  "labels-that-follow": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor del Sol, rueda para acercarte; las etiquetas viajan sobre los planetas",
+      "show": "Mostrar",
+      "speed": "Velocidad",
+      "lineThemUp": "Alinearlos"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "distancia al Sol",
+        "year": "año",
+        "moons": "lunas",
+        "names only": "solo nombres"
+      }
+    },
+    "words": {
+      "Sun": "Sol",
+      "Mercury": "Mercurio",
+      "Venus": "Venus",
+      "Earth": "Tierra",
+      "Moon": "Luna",
+      "Mars": "Marte",
+      "Jupiter": "Júpiter",
+      "Saturn": "Saturno",
+      "Uranus": "Urano",
+      "Neptune": "Neptuno",
+      "fromEarth": "a 384 400 km de la Tierra",
+      "ourStar": "nuestra estrella",
+      "au": "{au} UA",
+      "month": "un mes de 27 días",
+      "year": "un año de {days} días",
+      "planets": "8 planetas",
+      "earthsMoon": "la luna de la Tierra",
+      "oneMoon": "1 luna",
+      "moons": "{moons} lunas"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "controls": {
+      "branches": "Ramas",
+      "leaves": "Hojas",
+      "cutoff": "Corte",
+      "sun": "Sol"
+    }
+  },
+  "letters-carved-in-relief": {
+    "controls": {
+      "rake": "Inclinación",
+      "warm": "Cálido",
+      "cool": "Frío",
+      "letters": "Letras"
+    }
+  },
+  "light-from-a-probe": {
+    "controls": {
+      "mouse": "Arrastra para rodear el jardín; elige un lugar y las esculturas toman su luz",
+      "place": "Lugar",
+      "turn": "Girar",
+      "strength": "Fuerza",
+      "keyLight": "Luz principal",
+      "spin": "Girar"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "desierto al atardecer",
+        "forest clearing": "claro del bosque",
+        "neon alley": "callejón de neón",
+        "snowfield": "campo nevado"
+      }
+    },
+    "readouts": {
+      "meanLight": "Luz media"
+    }
+  },
+  "light-in-real-units": {
+    "controls": {
+      "mouse": "Arrastra para recorrer la plaza; elige un momento y mira cómo se adapta la cámara, de 100 000 lux a una noche de luna",
+      "moment": "Momento",
+      "lampLumens": "Lúmenes de las farolas",
+      "autoExposure": "Exposición automática",
+      "exposureValue": "Valor de exposición",
+      "turning": "Girando"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "mediodía despejado",
+        "overcast": "nublado",
+        "golden hour": "hora dorada",
+        "sunset": "puesta de sol",
+        "blue hour": "hora azul",
+        "moonlit night": "noche de luna"
+      }
+    },
+    "readouts": {
+      "sun": "Sol",
+      "sky": "Cielo",
+      "eachLamp": "Cada farola",
+      "exposureValue": "Valor de exposición"
+    },
+    "words": {
+      "off": "apagada"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "controls": {
+      "lamp": "Lámpara",
+      "power": "Potencia",
+      "colour": "Color"
+    }
+  },
+  "lines-in-colour": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor de la figura; elige otra regla y el lápiz la dibuja desde el principio",
+      "figure": "Figura",
+      "palette": "Paleta",
+      "pace": "Paso",
+      "redraw": "Redibujar",
+      "spin": "Girar"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "mariposa de Lorenz",
+        "Aizawa shell": "concha de Aizawa",
+        "Thomas knot": "nudo de Thomas",
+        "Halvorsen propeller": "hélice de Halvorsen"
+      },
+      "palette": {
+        "aurora": "aurora",
+        "sunset": "puesta de sol",
+        "embers": "brasas",
+        "ice": "hielo"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "Trozos coloreados"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "controls": {
+      "lampTurn": "Giro de la lámpara",
+      "lampHeight": "Altura de la lámpara",
+      "colour": "Color",
+      "exposure": "Exposición",
+      "circle": "Rodear"
+    },
+    "words": {
+      "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "memory-on-a-budget": {
+    "controls": {
+      "memory": "Memoria",
+      "view": "Vista"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "lod": "niveles de detalle",
+        "clusters": "clústeres"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caja de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "controls": {
+      "help": "Arrastra un tirador. Arrastra al lado para girar la cámara.",
+      "mode": "Modo",
+      "axes": "Ejes",
+      "snap": "Imán"
+    },
+    "choices": {
+      "mode": {
+        "translate": "mover",
+        "rotate": "girar",
+        "scale": "escalar"
+      },
+      "axes": {
+        "world": "mundo",
+        "local": "local"
+      }
+    },
+    "readouts": {
+      "position": "Posición",
+      "drags": "Arrastres"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "controls": {
+      "mouse": "Arrastra para mirar la galería · la gráfica es el tiempo entre imágenes",
+      "turning": "Girando",
+      "revealAgain": "Mostrar otra vez"
+    },
+    "readouts": {
+      "worstFrameBefore": "Peor imagen antes",
+      "worstFrameAfter": "Peor imagen después"
+    },
+    "words": {
+      "note": "Catorce superficies, cada una con un material o ajuste distinto, todas en la misma imagen. La gráfica traza el tiempo entre imágenes; la línea dorada es el momento en que aparecen.",
+      "measuring": "midiendo",
+      "hidden": "ocultas"
+    }
+  },
+  "normals-and-depth-seen": {
+    "controls": {
+      "mouse": "Arrastra para rodear la cancha; cambia la vista para ver las superficies como las guarda el renderizador",
+      "see": "Ver",
+      "spin": "Girar"
+    },
+    "choices": {
+      "see": {
+        "lit": "iluminado",
+        "normals": "normales",
+        "depth": "profundidad"
+      }
+    },
+    "readouts": {
+      "colourMeans": "El color significa"
+    },
+    "words": {
+      "lit": "luz y material",
+      "normals": "orientación: derecha rojo, arriba verde, hacia ti azul",
+      "depth": "distancia: cerca blanco, lejos oscuro"
+    }
+  },
+  "observatory-streamed": {
+    "controls": {
+      "view": "Vista",
+      "pixelError": "Error en píxeles"
+    },
+    "choices": {
+      "view": {
+        "clusters": "clústeres",
+        "beauty": "imagen",
+        "pages": "páginas",
+        "lod": "niveles de detalle",
+        "triangles": "triángulos"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor del estadio; elige cómo se reparte la misma animación entre los aficionados",
+      "pattern": "Patrón",
+      "speed": "Velocidad"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "ola del estadio",
+        "ripple outwards": "onda hacia fuera",
+        "all at once": "todos a la vez"
+      }
+    },
+    "readouts": {
+      "clips": "Animaciones",
+      "fansPlayingIt": "Aficionados que la juegan"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "controls": {
+      "mouse": "Un visor de producto: arrastra para girar · clic derecho para desplazar · rueda para acercarte a los dientes",
+      "view": "Vista",
+      "speed": "Velocidad",
+      "brass": "Latón"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "tres cuartos",
+        "front": "frente",
+        "side": "lado",
+        "top": "arriba"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "controls": {
+      "checks": "Cuadros",
+      "paint": "Pintura",
+      "second": "Segundo",
+      "spin": "Girar"
+    }
+  },
+  "reading-pixels-back": {
+    "controls": {
+      "mouse": "Arrastra para mirar alrededor · la imagen de abajo a la derecha es la vista leída como números",
+      "sunHeight": "Altura del sol",
+      "live": "En vivo",
+      "turning": "Girando",
+      "savePng": "Guardar PNG"
+    },
+    "readouts": {
+      "meanColour": "Color medio",
+      "brightest": "Lo más claro",
+      "readBack": "Leído en"
+    },
+    "words": {
+      "hover": "Pasa el ratón por la imagen para leer un píxel",
+      "pixel": "píxel {x}, {y}: {colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "controls": {
+      "mouse": "En la atracción, arrastra para girar la cabeza. Apágala para rodear el parque",
+      "ride": "Viajar",
+      "loops": "Rizos"
+    },
+    "readouts": {
+      "speed": "Velocidad",
+      "gForce": "Fuerza G"
+    }
+  },
+  "save-the-scene": {
+    "controls": {
+      "help": "Tira la torre y luego vuelve a abrir la escena guardada.",
+      "knockDown": "Tirar",
+      "save": "Guardar",
+      "open": "Abrir"
+    },
+    "readouts": {
+      "saved": "Guardado"
+    },
+    "words": {
+      "bytes": "{bytes} bytes"
+    }
+  },
+  "scattered-on-a-surface": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor del planeta; sube la pendiente máxima y el bosque trepa por las montañas",
+      "trees": "Árboles",
+      "rocks": "Rocas",
+      "steepest": "Pendiente máx.",
+      "seaLevel": "Nivel del mar",
+      "spin": "Girar"
+    },
+    "readouts": {
+      "treesPlanted": "Árboles plantados",
+      "spotsRefused": "Sitios rechazados"
+    }
+  },
+  "see-the-triangles": {
+    "controls": {
+      "mouse": "Aleja y acerca con la rueda: de lejos el busto necesita menos triángulos, más grandes",
+      "view": "Vista",
+      "pixelError": "Error en píxeles",
+      "sideBySide": "Lado a lado"
+    },
+    "choices": {
+      "view": {
+        "triangles": "triángulos",
+        "clusters": "clústeres",
+        "lod": "niveles de detalle",
+        "pages": "páginas",
+        "beauty": "imagen"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Triángulos dibujados",
+      "pagesMemory": "Páginas en memoria"
+    },
+    "words": {
+      "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "select-with-a-box": {
+    "controls": {
+      "help": "Seleccionar: arrastra un recuadro; Mayús añade, Alt quita. Girar: arrastra para volar sobre el jardín",
+      "mouse": "Ratón",
+      "selectAll": "Seleccionar todo",
+      "clear": "Borrar"
+    },
+    "choices": {
+      "mouse": {
+        "select": "seleccionar",
+        "turn": "girar"
+      }
+    },
+    "readouts": {
+      "selected": "Seleccionados"
+    }
+  },
+  "several-views-one-page": {
+    "controls": {
+      "mouse": "Arrastra la vista grande para girarla; rueda y arrastra en las pequeñas para acercar y desplazar, doble clic para reiniciar",
+      "explode": "Separar",
+      "windFrom": "Viento desde",
+      "windSpeed": "Velocidad del viento"
+    },
+    "readouts": {
+      "sailTurnsMinute": "Vueltas de las aspas por minuto"
+    },
+    "words": {
+      "perspective": "Perspectiva",
+      "top": "Arriba",
+      "front": "Frente",
+      "side": "Lado, desde el este"
+    }
+  },
+  "shadows-from-the-sun": {
+    "controls": {
+      "mouse": "Arrastra para rodear el jardín; mueve la hora y cada sombra gira, la punta del obelisco caminando sobre sus piedras horarias",
+      "hour": "Hora",
+      "day": "Día",
+      "latitude": "Latitud",
+      "sails": "Velas"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "solsticio de verano",
+        "spring equinox": "equinoccio de primavera",
+        "winter solstice": "solsticio de invierno"
+      }
+    },
+    "readouts": {
+      "sunHeight": "Altura del sol",
+      "sunBearing": "Dirección del sol",
+      "obeliskShadow": "Sombra del obelisco"
+    },
+    "words": {
+      "S": "S",
+      "SW": "SO",
+      "W": "O",
+      "NW": "NO",
+      "N": "N",
+      "NE": "NE",
+      "E": "E",
+      "SE": "SE",
+      "belowHorizon": "bajo el horizonte",
+      "bearing": "{point} ({degrees}° desde el norte)"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "controls": {
+      "mouse": "Arrastra para mirar alrededor; una profundidad de cero deja la forma plana recortada",
+      "depth": "Profundidad",
+      "bevel": "Bisel",
+      "bevelSize": "Tamaño del bisel",
+      "bevelSegments": "Segmentos del bisel",
+      "curveSegments": "Segmentos de curva",
+      "spin": "Girar"
+    },
+    "readouts": {
+      "triangles": "Triángulos"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "controls": {
+      "colour": "Color",
+      "speed": "Velocidad",
+      "spin": "Girar"
+    }
+  },
+  "side-by-side-stereo": {
+    "controls": {
+      "mouse": "Arrastra en la imagen izquierda para girar; bizquea hasta que los dos puntos se vuelvan uno",
+      "viewing": "Forma de mirar",
+      "separation": "Separación",
+      "speed": "Velocidad"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "bizqueando",
+        "parallel": "en paralelo"
+      }
+    },
+    "words": {
+      "leftEye": "ojo izquierdo",
+      "rightEye": "ojo derecho"
+    }
+  },
+  "sky-and-ground-light": {
+    "controls": {
+      "mouse": "Arrastra para mirar desde abajo y desde arriba; cada lugar pinta la parte de arriba con su cielo y la de abajo con su suelo",
+      "place": "Lugar",
+      "skyStrength": "Fuerza del cielo",
+      "sun": "Sol",
+      "float": "Flotar"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "prado a mediodía",
+        "snowfield": "campo nevado",
+        "red desert": "desierto rojo",
+        "sunset beach": "playa al atardecer",
+        "tropical lagoon": "laguna tropical",
+        "overcast city": "ciudad nublada"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "Cielo desde arriba",
+      "groundFromBelow": "Suelo desde abajo"
+    }
+  },
+  "smooth-edges-over-time": {
+    "controls": {
+      "mouse": "Arrastra para mirar los cables; apaga el suavizado y mira cómo se rompen en escalones",
+      "smoothing": "Suavizado",
+      "circle": "Rodear"
+    },
+    "readouts": {
+      "temporalAntialiasing": "Antialiasing temporal"
+    },
+    "words": {
+      "on": "encendido",
+      "off": "apagada"
+    }
+  },
+  "snow-of-sprites": {
+    "controls": {
+      "mouse": "Arrastra para rodear la cabaña; conviértelo en ventisca y los copos se espesan y vuelan de lado",
+      "weather": "Tiempo",
+      "wind": "Viento"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "nieve constante",
+        "light flurry": "nevisca ligera",
+        "blizzard": "ventisca"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "Copos cayendo"
+    }
+  },
+  "sound-made-visible": {
+    "controls": {
+      "mouse": "Arrastra para rodear el escenario; las barras son las notas, las perlas la onda misma",
+      "layout": "Disposición",
+      "height": "Altura",
+      "playMelody": "Tocar la melodía",
+      "useMicrophone": "Usar el micrófono",
+      "silence": "Silencio"
+    },
+    "choices": {
+      "layout": {
+        "ring": "anillo",
+        "wall": "pared",
+        "spiral": "espiral"
+      }
+    },
+    "words": {
+      "hint": "Haz clic en el escenario para oír una melodía",
+      "listening": "Escuchando el micrófono: canta, silba, aplaude",
+      "refused": "Se rechazó el micrófono: suena la melodía en su lugar",
+      "silence": "Silencio. Haz clic en el escenario para oír la melodía otra vez"
+    }
+  },
+  "spin-an-astrolabe": {
+    "controls": {
+      "mouse": "Arrastra para girarlo en cualquier dirección, incluso boca abajo · rueda para acercar",
+      "turning": "Girando",
+      "sun": "Sol"
+    }
+  },
+  "street-lamp-at-night": {
+    "controls": {
+      "night": "Noche",
+      "bounce": "Rebote",
+      "sun": "Sol",
+      "lamp": "Lámpara"
+    },
+    "words": {
+      "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "ten-thousand-objects": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor del planeta; entra en el anillo con la rueda hasta que una roca llene la vista",
+      "view": "Vista",
+      "pixelError": "Error en píxeles",
+      "drift": "Deriva"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "clusters": "clústeres",
+        "lod": "niveles de detalle"
+      }
+    },
+    "readouts": {
+      "objectsScene": "Objetos en la escena",
+      "trianglesFile": "Triángulos en el archivo",
+      "trianglesDrawn": "Triángulos dibujados"
+    },
+    "words": {
+      "credit": "Planeta y lunitas modelados en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md",
+      "million": "{count} millones",
+      "notCounted": "no contado aquí"
+    }
+  },
+  "texture-filters-compared": {
+    "controls": {
+      "mouse": "Arrastra para mirar a lo largo de los carriles; de izquierda a derecha: más cercano, lineal, trilineal, anisotrópico",
+      "picture": "Imagen",
+      "anisotropy": "Anisotropía"
+    },
+    "choices": {
+      "picture": {
+        "checker": "tablero",
+        "lettering": "letras"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "Anisotropía del cuarto carril"
+    }
+  },
+  "the-material-family": {
+    "controls": {
+      "mouse": "Arrastra para rodear la familia; pon la luz de noche y mira qué tipos siguen brillando",
+      "light": "Luz",
+      "shape": "Forma",
+      "lookAt": "Mirar",
+      "spin": "Girar"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "toda la familia",
+        "all": "toda la familia",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "hora dorada",
+        "midday": "mediodía",
+        "night": "noche"
+      },
+      "shape": {
+        "knot": "nudo",
+        "sphere": "esfera",
+        "vase": "jarrón",
+        "ring": "anillo"
+      }
+    },
+    "readouts": {
+      "looking": "Mirando",
+      "litByLamps": "Iluminado por las lámparas"
+    },
+    "words": {
+      "meshBasic": "un solo color plano, ciego a toda lámpara",
+      "meshLambert": "mate como la tiza: luz difusa, sin brillo",
+      "meshPhong": "plástico: un punto brillante donde rebota el sol",
+      "meshStandard": "metal y rugosidad, la elección habitual",
+      "meshPhysical": "estándar más cristal: la luz pasa a través",
+      "meshToon": "un dibujo animado: la luz en dos bandas planas",
+      "meshNormal": "hacia dónde mira cada punto, como color",
+      "meshMatcap": "iluminado por la imagen de una bola iluminada, no por lámparas",
+      "allKinds": "los ocho tipos",
+      "yes": "sí",
+      "no": "no",
+      "fiveOfEight": "cinco de ocho"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "controls": {
+      "mouse": "Arrastra para mirar a lo largo de la pared; tu cámara solo se pide cuando pulsas el botón",
+      "useMyCamera": "Usar mi cámara",
+      "layout": "Disposición",
+      "mirror": "Espejo"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "pared de vídeo",
+        "one per screen": "una por pantalla"
+      }
+    },
+    "readouts": {
+      "source": "Origen"
+    },
+    "words": {
+      "noCamera": "sin cámara",
+      "yourCamera": "tu cámara",
+      "refused": "cámara rechazada ({error})",
+      "paintedSignal": "señal pintada"
+    }
+  },
+  "toon-shading": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor de la isla; cambia el sombreado y mira cómo la luz cae en bandas",
+      "shading": "Sombreado",
+      "outlines": "Contornos",
+      "sun": "Sol",
+      "wind": "Viento"
+    },
+    "choices": {
+      "shading": {
+        "toon": "dibujo animado",
+        "matte": "mate",
+        "physical": "físico"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "controls": {
+      "mouse": "Arrastra para mirar alrededor; activa el puntero y guía el dron: cada antena lo sigue",
+      "turn": "Girar",
+      "turnSpeed": "Velocidad de giro",
+      "followPointer": "Seguir el puntero"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "con calma",
+        "at once": "de golpe",
+        "on a spring": "con un muelle"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "Antenas apuntando"
+    }
+  },
+  "two-lenses-one-scene": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor de la ciudad; cambia la lente y mira cómo se enderezan las calles",
+      "lens": "Lente",
+      "fieldOfView": "Campo de visión",
+      "isometric": "Isométrica",
+      "drift": "Deriva"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "perspectiva",
+        "orthographic": "ortográfica"
+      }
+    },
+    "readouts": {
+      "lens": "Lente"
+    },
+    "words": {
+      "orthographic": "ortográfica, {height} m de alto",
+      "perspective": "perspectiva de {degrees}°"
+    }
+  },
+  "uvs-of-every-shape": {
+    "controls": {
+      "mouse": "Arrastra para mirar alrededor; una letra y un número nombran cada casilla de la imagen",
+      "pattern": "Patrón",
+      "repeat": "Repetir",
+      "slide": "Deslizar",
+      "spin": "Girar"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "carta de ajuste",
+        "checks": "cuadros",
+        "arrows": "flechas"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "controls": {
+      "keys": "El control de personaje del motor: Jugar en el menú captura el ratón para mirar, W A S D para correr (Z Q S D en AZERTY), Mayús para esprintar, Espacio para saltar, Esc libera el ratón. La página añade R para correr otra vez, M para silenciar.",
+      "look": "Mirar",
+      "runAgain": "Correr otra vez"
+    },
+    "game": {
+      "title": "Parkour en el templo",
+      "goal": "Llega al ídolo dorado recogiendo los cinco orbes por el camino. La lava te devuelve al último punto de control encendido.",
+      "keys": {
+        "run": "Correr",
+        "look": "Mirar",
+        "sprint": "Esprintar",
+        "jump": "Saltar",
+        "runAgain": "Correr otra vez",
+        "sound": "Sonido sí o no",
+        "pause": "Pausa"
+      }
+    },
+    "words": {
+      "checkpoint": "Punto de control",
+      "finished": "{taken} / {orbs} orbes · R para correr otra vez",
+      "muted": "M silencio",
+      "sound": "M sonido"
+    }
+  },
+  "waves-of-points": {
+    "controls": {
+      "mouse": "Arrastra para girar alrededor del campo; elige un patrón y las olas cambian de forma bajo las boyas",
+      "pattern": "Patrón",
+      "height": "Altura",
+      "speed": "Velocidad"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "marejada",
+        "rain of stones": "lluvia de piedras",
+        "interference": "interferencia",
+        "standing wave": "onda estacionaria",
+        "whirlpool": "remolino"
+      }
+    },
+    "readouts": {
+      "points": "Puntos"
+    }
+  },
+  "what-hides-what": {
+    "controls": {
+      "mouse": "Arrastra para mirar alrededor; los setos esconden los nudos dorados al fondo de los callejones sin salida",
+      "hedgeHeight": "Altura de los setos",
+      "view": "Vista",
+      "aboveOrInside": "Arriba o dentro"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "visibility": "visibilidad"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "Nudos dorados",
+      "clustersTested": "Clústeres probados",
+      "clustersHidden": "Clústeres ocultos",
+      "trianglesHidden": "Triángulos ocultos"
+    },
+    "words": {
+      "notCounted": "no contado aquí"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "controls": {
+      "fieldOfView": "Campo de visión",
+      "dollyZoom": "Zoom de travelling"
+    }
+  }
+}

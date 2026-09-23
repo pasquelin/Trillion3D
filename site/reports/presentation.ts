@@ -37,12 +37,13 @@ export function pairedImages<T extends ReportRecord>(records: T[]): [T, T][] {
         ) as [T, T],
     );
 }
+/** The report's sections, in page order; each is named by `report.sections.<id>`. */
 export const REPORT_SECTIONS = [
-  ['overview', 'Summary', 'Bilan'],
-  ['compare', 'Comparisons', 'Comparaisons'],
-  ['evidence', 'Renders', 'Rendus'],
-  ['experiments', 'Resolution and options', 'Résolution et options'],
-  ['detail', 'CPU / GPU', 'CPU / GPU'],
-  ['all-values', 'Complete figures', 'Chiffres complets'],
-  ['references', 'References', 'Références'],
-];
+  'overview',
+  'compare',
+  'evidence',
+  'experiments',
+  'detail',
+  'all-values',
+  'references',
+] as const;

@@ -38,8 +38,19 @@ globalThis.addEventListener?.('message', (event) => {
   for (const panel of panels) panel.hidden = !visible;
 });
 
+/** Whether a game's menu owns the frame: its panels then start folded, one click away. */
+let folded = false;
+
 /** Puts `panel` under the page's show/hide message, in its current state. */
 export function hideable(panel: HTMLElement) {
   panels.add(panel);
   panel.hidden = !visible;
+  if (folded) panel.removeAttribute('open');
+}
+
+/** Folds every panel, and every panel still to come, down to its title: a game's menu and its
+ * play keep the frame to themselves, the settings one click away. */
+export function foldPanels() {
+  folded = true;
+  for (const panel of panels) panel.removeAttribute('open');
 }

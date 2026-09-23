@@ -1,6 +1,6 @@
+import { useWords } from '../i18n.ts';
 import { Table } from '../ui/Table.tsx';
 import { METRICS, METRIC_KEYS, metricValue, formatValue } from '../../reports/metrics.ts';
-import { metricLabel, reportCopy } from '../../reports/copy.ts';
 import { missingMetric } from '../../reports/availability.ts';
 import { readingName } from '../../reports/presentation.ts';
 import { comparison } from '../../reports/compare.ts';
@@ -15,25 +15,20 @@ interface ComparisonProps {
 }
 
 export function Comparison({ a, b, variable, locale }: ComparisonProps) {
-  const c = reportCopy(locale),
-    fr = locale === 'fr';
+  const t = useWords(locale);
   return (
     <section className="grid min-w-0 grid-cols-1 gap-3">
       <h4 className="font-semibold">
         {readingName(a, locale)} / {readingName(b, locale)}
       </h4>
-      <p className="text-sm leading-relaxed text-base-content/75">
-        {fr
-          ? 'Écart observé = deuxième valeur moins première valeur. Il décrit ces mesures ; sans protocole complet et répétitions, il ne prouve pas un gain reproductible.'
-          : 'Observed difference = second value minus first value. It describes these readings; without a complete protocol and repeated runs, it does not prove a reproducible gain.'}
-      </p>
+      <p className="text-sm leading-relaxed text-base-content/75">{t('report.differenceNote')}</p>
       <Table>
         <thead>
           <tr>
-            <th scope="col">{c.reading}</th>
+            <th scope="col">{t('report.reading')}</th>
             <th scope="col">{readingName(a, locale)}</th>
             <th scope="col">{readingName(b, locale)}</th>
-            <th scope="col">{fr ? 'Écart observé' : 'Observed difference'}</th>
+            <th scope="col">{t('report.difference')}</th>
           </tr>
         </thead>
         <tbody>
@@ -47,7 +42,7 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
             return (
               <tr key={key}>
                 <th scope="row">
-                  {metricLabel(key, locale)}
+                  {t(`report.metrics.${key}`)}
                   {hasStat && <small>p50 · {metric.unit}</small>}
                 </th>
                 {[a, b].map((r, i) => (
@@ -64,9 +59,7 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
                 ))}
                 <td>
                   {difference === null
-                    ? fr
-                      ? 'Non calculable'
-                      : 'Not calculable'
+                    ? t('report.notCalculable')
                     : formatValue(difference, locale, metric.unit)}
                   {controlled.status === 'descriptive' && controlled.percent !== null && (
                     <small>{formatValue(controlled.percent, locale, '%')}</small>
@@ -77,7 +70,7 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
           })}
         </tbody>
       </Table>
-      <p className="text-sm leading-relaxed text-base-content/75">{c.p95}</p>
+      <p className="text-sm leading-relaxed text-base-content/75">{t('report.p95')}</p>
     </section>
   );
 }
