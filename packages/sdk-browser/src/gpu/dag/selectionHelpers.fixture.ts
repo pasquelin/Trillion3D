@@ -87,6 +87,6 @@ export function gatedDag() {
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0);
-  const { device, destroyedCalls } = mockDagDevice(dag, { mapGate: gate });
-  return { release, fixture, dag, uniforms, device, destroyedCalls };
+  const { device, destroyedMaps } = mockDagDevice(dag, { mapGate: gate });
+  return { release, fixture, dag, uniforms, device, destroyedMaps };
 }
