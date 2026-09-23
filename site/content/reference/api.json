@@ -3942,6 +3942,16 @@
         "desc": "Radians turned per pixel of pointer motion."
       },
       {
+        "name": "minPitch",
+        "type": "number",
+        "desc": "Lowest the head looks, in radians below the horizon counted negative (0 is the horizon); by default just short of straight down. Raise it so a walker never looks into its own body."
+      },
+      {
+        "name": "maxPitch",
+        "type": "number",
+        "desc": "Highest the head looks, in radians above the horizon; by default just short of the zenith."
+      },
+      {
         "name": "locked()",
         "type": "boolean",
         "desc": "Whether the pointer is locked to the view."
@@ -3957,7 +3967,7 @@
         "desc": "Frees the pointer."
       }
     ],
-    "description": "The horizon stays level — yaw about world up, pitch clamped just short of the poles, never any roll — and the walk follows the yaw alone, so looking up does not lift the walker off the floor. THE LOCK IS THE HOST'S TO ASK FOR. A browser only grants a pointer lock inside a gesture, so the controller asks on `pointerdown` and publishes `lock()`, `unlock()` and `locked()` for a host that would rather choose its own moment; a lock the viewer escapes simply stops the look. Keys, by `KeyboardEvent.code`: W/S forward and back, A/D strafe, Space and left shift up and down."
+    "description": "The horizon stays level — yaw about world up, pitch clamped to `[minPitch, maxPitch]`, never any roll — and the walk follows the yaw alone, so looking up does not lift the walker off the floor. THE LOCK IS THE HOST'S TO ASK FOR. A browser only grants a pointer lock inside a gesture, so the controller asks on `pointerdown` and publishes `lock()`, `unlock()` and `locked()` for a host that would rather choose its own moment; a lock the viewer escapes simply stops the look. Keys, by `KeyboardEvent.code`: W/S forward and back, A/D strafe, Space and left shift up and down."
   },
   {
     "id": "FloatBatch",
@@ -3989,9 +3999,19 @@
         "name": "dragToLook",
         "type": "boolean",
         "desc": "Whether dragging turns the view."
+      },
+      {
+        "name": "pointerLook",
+        "type": "boolean",
+        "desc": "Whether the pointer turns the view at all, by drag or hover; true by default."
+      },
+      {
+        "name": "autoForward",
+        "type": "boolean",
+        "desc": "CRUISE, off by default: the camera flies forward at `movementSpeed` with no key held, as a plane does. W then adds `movementSpeed` (twice as fast) and S takes it away (the camera hangs in place); it never flies backwards. Nothing moves until the next `update`, so a host that redraws on `change` asks for one frame when it turns cruise on."
       }
     ],
-    "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held or a drag is pending, so a released stick leaves the scene still. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface."
+    "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held or a drag is pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
   },
   {
     "id": "FrameInfo",
@@ -15548,6 +15568,21 @@
         "desc": "First person only: radians the view turns per pixel the pointer moves."
       },
       {
+        "name": "minPitch",
+        "type": "number",
+        "desc": "First person only: lowest the head looks, in radians (0 is the horizon, negative down)."
+      },
+      {
+        "name": "maxPitch",
+        "type": "number",
+        "desc": "First person only: highest the head looks, in radians above the horizon."
+      },
+      {
+        "name": "pointerLook",
+        "type": "boolean",
+        "desc": "Flight only: whether the pointer turns the view; false and the keys alone steer."
+      },
+      {
         "name": "rollSpeed",
         "type": "number",
         "desc": "Flight only: radians per second the keys pitch, yaw and roll."
@@ -15561,6 +15596,11 @@
         "name": "zoomSpeed",
         "type": "number",
         "desc": "Pivot controllers: how fast the wheel and the pinch zoom; 1 by default."
+      },
+      {
+        "name": "autoForward",
+        "type": "boolean",
+        "desc": "Flight only: flies forward at `movementSpeed` with no key, W faster, S to a halt."
       },
       {
         "name": "update(delta?: number)",
