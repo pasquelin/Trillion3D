@@ -144,7 +144,13 @@ export function createOrbitCameraControls(
     if (!api.enablePan) return;
     sample();
     orbitOrientation(orientation, spherical);
-    panOffset(pan, orientation, dx, dy, pixelWorldScale(spherical[0], pose.fov(), height()));
+    panOffset(
+      pan,
+      orientation,
+      dx,
+      dy,
+      pixelWorldScale(spherical[0], pose.fov(), height(), pose.zoom()),
+    );
     for (let i = 0; i < 3; i++) center[i] += pan[i];
     apply();
   };
