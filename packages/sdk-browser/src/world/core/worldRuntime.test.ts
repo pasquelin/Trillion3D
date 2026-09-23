@@ -13,7 +13,7 @@ test('a scene change with nothing to draw does not stop the next one from openin
   const runtime = createWorldRuntime({
     canvas: { clientWidth: 0, clientHeight: 0, width: 300, height: 150 } as HTMLCanvasElement,
     scene,
-    camera: () => new Camera(),
+    camera: () => new Camera('perspective'),
     options: () => ({ manifestUrl: '', interactive: true }),
     opened: () => {},
     frame: () => {},
