@@ -34,7 +34,7 @@ function segmentParameter(p: Numbers, a: Numbers, aAt: number, b: Numbers, bAt: 
  * distance. Inside its three edges the plane's projection is the answer; outside, the nearest
  * point of the nearest edge. A degenerate triangle is its edges alone.
  */
-export function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number) {
+function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number) {
   const area = triangleNormal(normal, v, at);
   if (area > 0) {
     const h =
@@ -114,7 +114,7 @@ function squaredGap(a: Numbers, aAt: number, b: Numbers, bAt: number) {
  * distance. The unconstrained optimum is clamped to the first segment, the second's parameter
  * follows, and is itself clamped with the first recomputed once: the textbook closed form.
  */
-export function closestBetweenSegments(out: Float64Array, first: Numbers, second: Numbers) {
+function closestBetweenSegments(out: Float64Array, first: Numbers, second: Numbers) {
   const d1x = first[3] - first[0],
     d1y = first[4] - first[1],
     d1z = first[5] - first[2];
