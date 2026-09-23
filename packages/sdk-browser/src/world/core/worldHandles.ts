@@ -115,8 +115,10 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     get sessions() {
       return sessions;
     },
-    /** Why the last session could not open, as a named engine error (`code`: `WEBGPU_LOST`, or
-     *  `SESSION_OPEN_FAILED` with the words in `details.cause`); `null` once a session opens. */
+    /** Why the last session could not open, as a named engine error: `code` is `WEBGPU_LOST`
+     *  when WebGPU lost its device, an engine error's own code, or `SESSION_OPEN_FAILED` with the
+     *  error thrown in `details.cause`. `null` once a session opens, or when there is nothing to
+     *  draw and no session is tried. */
     get error() {
       return error;
     },
@@ -128,7 +130,8 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     },
   };
   return {
-    /** What the page holds: the mode, read and written. */
+    /** What the page holds: the view mode, read and written; the sessions opened and why the
+     *  last one failed, read only. */
     handle,
     notices: createWorldNotices(),
     /** Puts the mode on a session just opened; the world's own, never the page's. A mode this
@@ -138,16 +141,24 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
       error = null;
       if (mode !== 'beauty' && !put(opened, mode)) mode = 'beauty';
     },
-    /** A session that could not open: named on the handle and said on the console. An engine
-     *  error is kept as it is; a bare code thrown on the way (`WEBGPU_LOST`) becomes that code. */
+    /** A session that could not open: named on the handle and said on the console with the error
+     *  thrown, stack included. An engine error is kept as it is, and the bare `WEBGPU_LOST` the
+     *  WebGPU renderer throws becomes that code; anything else is `SESSION_OPEN_FAILED`. */
     failed(cause: unknown) {
-      const words = cause instanceof Error ? cause.message : String(cause);
-      const code = /^[A-Z][A-Z0-9_]*$/.test(words) ? words : 'SESSION_OPEN_FAILED';
-      error =
-        cause instanceof EngineError
-          ? cause
-          : new EngineError(code, `The world's session failed to open: ${words}`, { cause: words });
-      console.error('World session failed to open', error);
+      if (cause instanceof EngineError) error = cause;
+      else {
+        const words = cause instanceof Error ? cause.message : String(cause);
+        error = new EngineError(
+          words === 'WEBGPU_LOST' ? words : 'SESSION_OPEN_FAILED',
+          `The world's session failed to open: ${words}`,
+          { cause },
+        );
+      }
+      console.error('World session failed to open', cause);
+    },
+    /** No session is tried any more: a failure that no longer holds is no longer shown. */
+    idle() {
+      error = null;
     },
   };
 }

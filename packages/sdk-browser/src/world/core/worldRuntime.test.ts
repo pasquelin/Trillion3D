@@ -38,13 +38,16 @@ test('a model loaded after the lights still opens a session', async () => {
     ready,
     camera: () => new Camera('perspective'),
     options: () => ({ manifestUrl: '' }),
-    // A canvas stand-in makes the opening fail: that it was attempted is what is asserted.
-    failed: () => (attempted = true),
     opened: () => {},
     frame: () => {},
     drawn: () => false,
     display: () => ({ exposure: 1, toneMapping: 'aces' }),
-    notices: createWorldNotices(),
+    diagnostic: {
+      notices: createWorldNotices(),
+      // A canvas stand-in makes the opening fail: that it was attempted is what is asserted.
+      failed: () => (attempted = true),
+      idle: () => {},
+    },
   });
   // The lights alone open nothing; the model that follows must open the session.
   scene.add(light.directional({ intensity: 3 }), light.hemisphere({ intensity: 1 }));
