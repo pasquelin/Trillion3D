@@ -396,8 +396,10 @@
       "code": "Le code",
       "tryIt": "Essayez",
       "open": "Ouvrez-le en grand, lisez tout son code et modifiez-le",
+      "previous": "Chapitre précédent",
       "next": "Chapitre suivant",
-      "end": "Parcourez maintenant les exemples"
+      "end": "Parcourez maintenant les exemples",
+      "navigation": "Navigation entre chapitres"
     },
     "chapters": {
       "create-a-world": {
