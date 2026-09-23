@@ -25,7 +25,7 @@ export interface PortalParameter {
 }
 
 /** What a function gives back. */
-export interface PortalReturn {
+interface PortalReturn {
   type: string;
   desc: string;
 }

@@ -35,7 +35,10 @@ test('every member of every family has an entry of its own', () => {
       assert.ok(ids.has(`${family}.${member}`), `${family}.${member} has no entry`);
   }
   assert.ok(ids.has('createWorld'));
-  assert.ok(api.some((entry) => entry.id.startsWith('world.')), 'the world lists no member');
+  assert.ok(
+    api.some((entry) => entry.id.startsWith('world.')),
+    'the world lists no member',
+  );
 });
 
 test('every entry says what it is in a summary of its own, and every member row too', () => {
@@ -68,7 +71,8 @@ test('the reference opens on the world and its families, each entry in its modul
 });
 
 test('every code an EngineError is thrown with is explained on its page', () => {
-  const thrown = /(?:new EngineError|sceneNodeFail)\(\s*(?:[^'(),]*\?\s*)?'([A-Z][A-Z0-9_]+)'(?:\s*:\s*'([A-Z][A-Z0-9_]+)')?/g;
+  const thrown =
+    /(?:new EngineError|sceneNodeFail)\(\s*(?:[^'(),]*\?\s*)?'([A-Z][A-Z0-9_]+)'(?:\s*:\s*'([A-Z][A-Z0-9_]+)')?/g;
   const codes = new Set<string>();
   for (const file of repositoryFiles() ?? [])
     if (/^packages\/.*\.m?ts$/.test(file) && !file.includes('.test.'))
@@ -95,9 +99,11 @@ test('every generated entry and row is in French, and the French names nothing e
     if (entry.description && !NOTES.get(entry.id)?.description)
       assert.ok(text.description, `${entry.id} has no French description`);
     if (entry.returns?.desc) assert.ok(text.returns, `${entry.id} has no French return`);
+    const values = NOTES.get(entry.id)?.values ? undefined : entry.values;
     for (const [rows, french] of [
       [entry.parameters, text.parameters],
       [entry.members, text.members],
+      [values, text.values],
     ] as const) {
       const keys = new Set((rows ?? []).filter(({ desc }) => desc).map(({ name }) => rowKey(name)));
       for (const key of keys) assert.ok(french?.[key], `${entry.id}: ${key} has no French`);

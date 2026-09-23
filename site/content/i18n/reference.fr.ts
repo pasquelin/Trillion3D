@@ -9,6 +9,7 @@ export interface ReferenceFrench {
   parameters?: Record<string, string>;
   returns?: string;
   members?: Record<string, string>;
+  values?: Record<string, string>;
 }
 
 /** The name a row is keyed by in `api.fr.json`: `options.renderer`, `add`, without type or `?`. */
@@ -28,12 +29,15 @@ export const referenceFr: LocaleOverlay = Object.fromEntries(
         ...row,
         desc: text.parameters?.[rowKey(row.name)] ?? row.desc,
       }));
-    if (entry.returns) overlay.returns = { ...entry.returns, desc: text.returns ?? entry.returns.desc };
+    if (entry.returns)
+      overlay.returns = { ...entry.returns, desc: text.returns ?? entry.returns.desc };
     if (entry.members)
       overlay.members = entry.members.map((row) => ({
         ...row,
         desc: text.members?.[rowKey(row.name)] ?? row.desc,
       }));
+    if (entry.values && text.values)
+      overlay.values = entry.values.map(({ name }) => ({ desc: text.values?.[name] }));
     return [entry.id, overlay];
   }),
 );
