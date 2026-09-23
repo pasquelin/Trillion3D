@@ -3,6 +3,7 @@ export type { TelemetryReport } from './telemetryTypes.ts';
 import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.ts';
 import { frameStatistics } from '../../../sdk-core/src/index.ts';
 
+/** Watches frame after frame and says how smoothly the engine runs, and what slows it. */
 export class EngineProfiler {
   /** Circular interval buffer: one write per frame, never a shift of the whole
    *  array. `frameStatistics` receives the same values, in the same order, from oldest to
@@ -31,11 +32,13 @@ export class EngineProfiler {
     return ordered;
   }
 
+  /** Tells it which model is loaded. */
   setMetadata(metadata: ClusterManifest) {
     this.sourceTriangles = metadata.sourceTriangles || 0;
     this.totalClusters = metadata.totalNodes || 0;
   }
 
+  /** Records one frame's metrics. */
   record(metrics: FrameMetrics, now = performance.now()) {
     if (this.lastTime > 0) {
       const dt = now - this.lastTime;
@@ -49,6 +52,7 @@ export class EngineProfiler {
     this.lastMetrics = metrics;
   }
 
+  /** A summary of the recent frames. */
   getReport(): TelemetryReport {
     const stats = frameStatistics(this.orderedIntervals());
     const m = this.lastMetrics;
@@ -122,6 +126,7 @@ export class EngineProfiler {
     };
   }
 
+  /** That summary as text. */
   formatReport(): string {
     const r = this.getReport();
     const fpsStr = r.fps != null ? `${r.fps} FPS` : 'Waiting...';
@@ -155,12 +160,14 @@ export class EngineProfiler {
     ].join('\n');
   }
 
+  /** Prints that summary to the console. */
   printReport() {
     if (typeof console !== 'undefined' && console.log) {
       console.log(this.formatReport());
     }
   }
 
+  /** Prints it every few seconds; returns a function that stops. */
   startAutoLog(intervalSeconds = 2): () => void {
     this.stopAutoLog();
     this.autoLogTimer = setInterval(
@@ -172,6 +179,7 @@ export class EngineProfiler {
     return () => this.stopAutoLog();
   }
 
+  /** Stops printing. */
   stopAutoLog() {
     if (this.autoLogTimer != null) {
       clearInterval(this.autoLogTimer);
@@ -179,6 +187,7 @@ export class EngineProfiler {
     }
   }
 
+  /** Stops and forgets everything. */
   dispose() {
     this.stopAutoLog();
     this.intervalCount = 0;

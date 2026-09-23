@@ -1,17 +1,30 @@
+/** Where a job stands: waiting, running, done, cancelled or failed. */
 export type JobStatus = 'queued' | 'running' | 'completed' | 'cancelled' | 'failed';
+/** How far a job has got. */
 export interface JobProgress {
+  /** The step it is in. */
   phase: string;
+  /** Work done. */
   completed?: number;
+  /** Work in all. */
   total?: number;
+  /** Words for a person to read. */
   message?: string;
   [key: string]: unknown;
 }
+/** Everything a job is at one moment: its status, progress, result or error. */
 export interface JobSnapshot<T> {
+  /** Event format version. */
   eventVersion: 1;
+  /** The job's name. */
   id: string;
+  /** Where it stands. */
   status: JobStatus;
+  /** How far it has got. */
   progress: JobProgress | null;
+  /** What it produced. */
   result: T | null;
+  /** What went wrong. */
   error: { code: string; message: string } | null;
 }
 function disposeOwned<T>(value: T, hook?: (result: T) => void) {

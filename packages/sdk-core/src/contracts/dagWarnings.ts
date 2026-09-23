@@ -2,7 +2,14 @@ import type { DagStallSummary, DagWarning } from './dag.ts';
 import type { Primitive } from './geometry.ts';
 
 /** A compiler warning attached to the primitive carrying it, and where it sits in the cache. */
-export type PrimitiveDagWarning = DagWarning & { index: number; mesh: number; primitive: number };
+export type PrimitiveDagWarning = DagWarning & {
+  /** Its rank in the manifest. */
+  index: number;
+  /** Its mesh's number. */
+  mesh: number;
+  /** Its number in the mesh. */
+  primitive: number;
+};
 /** The stall summary of a primitive with at least one stalled group, warned about or not. */
 export type PrimitiveDagStall = DagStallSummary & Omit<PrimitiveDagWarning, keyof DagWarning>;
 

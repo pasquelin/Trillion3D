@@ -9,21 +9,32 @@ export type DagStallCause =
  *  the stalls holding the most triangles (`null` without a stall), and the seam, locked and
  *  texture-island counts summed over its stalled groups. */
 export interface DagStallSummary {
+  /** Triangles left at the roots. */
   rootTriangles: number;
+  /** Why it stopped. */
   cause: DagStallCause | null;
+  /** Vertices on seams. */
   seamVertices: number;
+  /** Vertices it could not move. */
   lockedVertices: number;
+  /** Separate UV pieces. */
   uvIslands: number;
 }
 /** One stalled group: the level it was built for, its cause, its live triangles, its positions
  *  used under several texture coordinates, those shared with another group, and its connected
  *  texture islands. */
 export interface DagStall {
+  /** The level it stopped at. */
   level: number;
+  /** Why it stopped. */
   cause: DagStallCause;
+  /** Triangles left. */
   triangles: number;
+  /** Vertices on seams. */
   seamVertices: number;
+  /** Vertices it could not move. */
   lockedVertices: number;
+  /** Separate UV pieces. */
   uvIslands: number;
 }
 /** A DAG that the compiler did not coarsen: the coarsest level is what renders in the distance;
@@ -31,9 +42,13 @@ export interface DagStall {
  *  `DAG_ROOTS` retains more than one root per 8 pages; `groups` counts groups by outcome, and the
  *  stall summary says why. */
 export interface DagWarning extends DagStallSummary {
+  /** Which warning. */
   code: 'DAG_FLAT' | 'DAG_ROOTS';
+  /** Roots left. */
   roots: number;
+  /** Pages made. */
   pages: number;
+  /** Groups per level. */
   groups: Record<string, number>;
 }
 /** DAG report for a primitive; only its warnings are consumed by the runtime engine. A report
