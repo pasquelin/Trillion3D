@@ -4,14 +4,14 @@ import type {
   LlmToolFormat,
   McpToolDefinition,
   OpenAiToolDefinition,
-  Trillion3DTool,
+  Trillion3dTool,
 } from './types.ts';
 import { TRILLION3D_RUNTIME_TOOLS } from './runtimeToolsSchema.ts';
 
 /**
  * Converts a generic trillion3D tool into OpenAI Function Calling format.
  */
-export function toOpenAiTool(tool: Trillion3DTool): OpenAiToolDefinition {
+export function toOpenAiTool(tool: Trillion3dTool): OpenAiToolDefinition {
   return {
     type: 'function',
     function: {
@@ -25,7 +25,7 @@ export function toOpenAiTool(tool: Trillion3DTool): OpenAiToolDefinition {
 /**
  * Converts a generic trillion3D tool into Anthropic Tool Use format.
  */
-export function toAnthropicTool(tool: Trillion3DTool): AnthropicToolDefinition {
+export function toAnthropicTool(tool: Trillion3dTool): AnthropicToolDefinition {
   return {
     name: tool.name,
     description: tool.description,
@@ -36,7 +36,7 @@ export function toAnthropicTool(tool: Trillion3DTool): AnthropicToolDefinition {
 /**
  * Converts a generic trillion3D tool into Google Gemini Function Declaration format.
  */
-export function toGeminiTool(tool: Trillion3DTool): GeminiFunctionDeclaration {
+export function toGeminiTool(tool: Trillion3dTool): GeminiFunctionDeclaration {
   return {
     name: tool.name,
     description: tool.description,
@@ -47,7 +47,7 @@ export function toGeminiTool(tool: Trillion3DTool): GeminiFunctionDeclaration {
 /**
  * Converts a generic trillion3D tool into Model Context Protocol (MCP) format.
  */
-export function toMcpTool(tool: Trillion3DTool): McpToolDefinition {
+export function toMcpTool(tool: Trillion3dTool): McpToolDefinition {
   return {
     name: tool.name,
     description: tool.description,
@@ -60,13 +60,13 @@ export function toMcpTool(tool: Trillion3DTool): McpToolDefinition {
  *
  * @param format Target format ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Default: 'openai'.
  */
-export function getTrillion3DTools(format: 'openai'): OpenAiToolDefinition[];
-export function getTrillion3DTools(format: 'anthropic'): AnthropicToolDefinition[];
-export function getTrillion3DTools(format: 'gemini'): GeminiFunctionDeclaration[];
-export function getTrillion3DTools(format: 'mcp'): McpToolDefinition[];
-export function getTrillion3DTools(format: 'json-schema'): Trillion3DTool[];
-export function getTrillion3DTools(format?: LlmToolFormat): unknown[];
-export function getTrillion3DTools(format: LlmToolFormat = 'openai'): unknown[] {
+export function getTrillion3dTools(format: 'openai'): OpenAiToolDefinition[];
+export function getTrillion3dTools(format: 'anthropic'): AnthropicToolDefinition[];
+export function getTrillion3dTools(format: 'gemini'): GeminiFunctionDeclaration[];
+export function getTrillion3dTools(format: 'mcp'): McpToolDefinition[];
+export function getTrillion3dTools(format: 'json-schema'): Trillion3dTool[];
+export function getTrillion3dTools(format?: LlmToolFormat): unknown[];
+export function getTrillion3dTools(format: LlmToolFormat = 'openai'): unknown[] {
   switch (format) {
     case 'openai':
       return TRILLION3D_RUNTIME_TOOLS.map(toOpenAiTool);

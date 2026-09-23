@@ -3831,7 +3831,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "Bir LLM'i trillion3D ilkeleri, bütçeleri ve render seçenekleri konusunda yönlendiren sistem promptu."
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "LLM'ler için genel trillion3D araç tanımı.",
     "members": {
       "name": "Aracın adı.",
@@ -5068,10 +5068,10 @@
     "summary": "Herkese açık köken sınırı: tüketiciler SDK uygulama yollarını asla kendileri okumaz.",
     "description": "Yalnızca özetler — tam kaynak anlık görüntüye yüklenmez."
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Bir LLM'i hazırlamak için kullanıma hazır uzman sistem promptunu üretir."
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "Hedef LLM sağlayıcısı için biçimlendirilmiş, eksiksiz trillion3D araç tanımları dizisini döndürür.",
     "parameters": {
       "format": "Hedef format ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Varsayılan: 'openai'."

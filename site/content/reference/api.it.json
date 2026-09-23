@@ -2063,10 +2063,10 @@
     "summary": "Confine pubblico di provenienza: i consumatori non leggono mai da soli i percorsi interni dell'SDK.",
     "description": "Solo impronte — la sorgente completa non viene caricata nell'istantanea."
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Crea il prompt di sistema esperto, pronto all'uso, per preparare un LLM."
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "Restituisce l'array completo delle definizioni di strumenti trillion3D nel formato del fornitore di LLM di destinazione.",
     "parameters": {
       "format": "Formato di destinazione ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Predefinito: 'openai'."
@@ -6285,7 +6285,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "Prompt di sistema che guida un LLM sui principi, i budget e le opzioni di rendering di trillion3D."
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "Definizione generica di uno strumento trillion3D per gli LLM.",
     "members": {
       "name": "Il nome dello strumento.",
