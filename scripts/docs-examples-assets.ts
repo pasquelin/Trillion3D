@@ -4,8 +4,8 @@ import { rm } from 'node:fs/promises';
 import { modelScenes, writeModelScenes } from './docs/examples/models.ts';
 
 /**
- * Writes the sources of the example scenes built around an imported model, under
- * `site/assets/examples/<scene>/source` as merged OBJ folders, then compiles each with this
+ * Writes the sources of the example scenes, under `site/assets/examples/<scene>/source` — an
+ * imported model with its setting, or a scene modelled in code — then compiles each with this
  * checkout's native compiler. An argument limits the run to one scene; `--source-only` skips
  * the compiler.
  */
