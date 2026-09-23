@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { entrySummary } from '../site/content/model.ts';
-import { localizeEntries, supportedLocales, t } from '../site/content/i18n/index.ts';
-import { rawEntries } from '../site/app/portal/data.ts';
+import { supportedLocales, t } from '../site/content/i18n/index.ts';
+import { entriesIn, rawEntries } from '../site/app/portal/data.ts';
 import { localizeDemoText } from '../site/content/i18n/demo.fr.ts';
 import { STRINGS } from '../site/content/i18n/strings.ts';
 import type { Locale } from '../site/content/locale.ts';
 
 test('French content covers every documentation entry and preserves its technical contract', () => {
-  const localized = localizeEntries(rawEntries, 'fr');
+  const localized = entriesIn('fr');
   assert.equal(localized.length, rawEntries.length);
   for (let index = 0; index < rawEntries.length; index += 1) {
     const source = rawEntries[index];
@@ -34,7 +34,7 @@ test('English and unsupported locales preserve source content without sharing en
   // 'de' is deliberately outside the `Locale` union: localizeEntries falls back to source content
   // for any unsupported locale, a guarantee this test checks beyond the static type contract.
   for (const locale of ['en', 'de'] as Locale[]) {
-    const localized = localizeEntries(rawEntries, locale);
+    const localized = entriesIn(locale);
     assert.deepEqual(localized, rawEntries);
     assert.notEqual(localized[0], rawEntries[0]);
   }
@@ -73,7 +73,7 @@ test('legacy demo labels are localized without changing technical symbols', () =
 
 test('both locales describe the world: its options row by row, and each of its members', () => {
   for (const locale of supportedLocales) {
-    const localized = localizeEntries(rawEntries, locale);
+    const localized = entriesIn(locale);
     const world = localized.find(({ id }) => id === 'createWorld');
     assert(world);
     const interactive = world.parameters?.find(({ name }) => name === 'options.interactive?');
@@ -86,16 +86,14 @@ test('both locales describe the world: its options row by row, and each of its m
 
 test('the course is nine chapters in both locales, each linking the next and showing its example live', () => {
   for (const locale of supportedLocales) {
-    const chapters = localizeEntries(rawEntries, locale).filter(
-      ({ section }) => section === 'course',
-    );
+    const chapters = entriesIn(locale).filter(({ section }) => section === 'course');
     assert.equal(chapters.length, 9);
     chapters.forEach((chapter, index) => {
       assert.match(chapter.title ?? '', new RegExp(`^${index + 1}\\. `));
       const next = chapters[index + 1];
       const target = next ? `#/${locale}/learn/${next.id}` : `#/${locale}/examples`;
-      assert.ok(chapter.html?.includes(`href="${target}"`), chapter.id);
-      assert.match(chapter.html ?? '', /<iframe src="examples\/[a-z-]+\.html"/);
+      assert.equal(chapter.chapter?.next.href, target, chapter.id);
+      assert.ok(chapter.chapter.code.length > 0 && chapter.chapter.steps.length > 0, chapter.id);
       assert.doesNotMatch(chapter.description, /<code>/, chapter.id);
     });
   }
