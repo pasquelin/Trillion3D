@@ -15919,17 +15919,17 @@
       {
         "name": "lookSpeed",
         "type": "number",
-        "desc": "First person only: radians the view turns per pixel the pointer moves."
+        "desc": "First person and character: radians the view turns per pixel the pointer moves."
       },
       {
         "name": "minPitch",
         "type": "number",
-        "desc": "First person only: lowest the head looks, in radians (0 is the horizon, negative down)."
+        "desc": "First person and character: lowest the head looks, in radians (0 is the horizon, negative down)."
       },
       {
         "name": "maxPitch",
         "type": "number",
-        "desc": "First person only: highest the head looks, in radians above the horizon."
+        "desc": "First person and character: highest the head looks, in radians above the horizon."
       },
       {
         "name": "pointerLook",
