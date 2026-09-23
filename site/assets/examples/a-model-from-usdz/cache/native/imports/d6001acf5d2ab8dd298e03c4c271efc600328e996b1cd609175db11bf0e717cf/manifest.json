@@ -1,0 +1,45 @@
+{
+  "formatVersion": 1,
+  "notes": [],
+  "runtime": {
+    "bytes": 17483,
+    "file": "model.gltf",
+    "meshNodes": 35,
+    "sha256": "95d446b8268415e87776645846223ef315444970896dc17e4fcc645de9ff91b5",
+    "sidecars": [
+      {
+        "file": "model.bin",
+        "sha256": "a57cae9d79f3bc7e6552c9137d00b2fc9ac5fb095dc038611e917af276b4b72f"
+      }
+    ],
+    "trianglesAcrossNodes": 177468
+  },
+  "source": {
+    "counts": {
+      "abstract": 6,
+      "materials": 5,
+      "meshInstances": 35
+    },
+    "files": [
+      {
+        "bytes": 1534278,
+        "file": "chess-set.usda",
+        "sha256": "dfd09908aba2f99e52bdbe56613c13353efefee834867de76e806efef7dcf66c"
+      }
+    ],
+    "images": 0,
+    "importMs": 39.370625,
+    "materials": 5,
+    "meshes": 15,
+    "path": "cache/native/archives/3491e51cf95d35c2f76cceca26756eebb3cb75e68175eac0143b6933944dc964/content/chess-set.usda",
+    "plugin": {
+      "name": "usd",
+      "version": "usd-openusd-0.7.0-gltf-8"
+    }
+  },
+  "status": "ready",
+  "unsupported": {
+    "usd-clearcoat-unsupported": 2,
+    "usd-ngon-untriangulable": 1152
+  }
+}
