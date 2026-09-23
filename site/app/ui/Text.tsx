@@ -24,22 +24,31 @@ const LEVELS = {
 } as const;
 
 /** A titled part of a page's body: its heading, then what it holds. `id` names the heading, a
- *  stable anchor a page can jump to; `level` nests it in another section. */
+ *  stable anchor a page can jump to; `level` nests it in another section; `spacious` keeps a
+ *  nested section's content at a part's gap; `bare` leaves the heading at the text's own type and
+ *  names the section itself instead. */
 export function Section({
   id,
   title,
   level = 2,
+  spacious = false,
+  bare = false,
   children,
 }: {
   id?: string;
   title: ReactNode;
   level?: keyof typeof LEVELS;
+  spacious?: boolean;
+  bare?: boolean;
   children: ReactNode;
 }) {
   const { Heading, heading, gap } = LEVELS[level];
   return (
-    <section className={`grid min-w-0 grid-cols-1 ${gap}`}>
-      <Heading id={id} className={heading}>
+    <section
+      className={`grid min-w-0 grid-cols-1 ${spacious ? LEVELS[2].gap : gap}`}
+      id={bare ? id : undefined}
+    >
+      <Heading id={bare ? undefined : id} className={bare ? undefined : heading}>
         {title}
       </Heading>
       {children}

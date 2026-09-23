@@ -78,7 +78,7 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
                 );
                 if (!rows.length) return null;
                 return (
-                  <Section level={3} key={group} title={t(`experiments.${group}`)}>
+                  <Section level={3} spacious key={group} title={t(`experiments.${group}`)}>
                     <MetricCharts
                       columns={1}
                       {...{ report, locale, metrics }}
