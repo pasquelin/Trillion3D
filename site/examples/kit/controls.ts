@@ -2,39 +2,40 @@ import { overlay } from './overlay.ts';
 
 /**
  * What an example declares for one control, the kind read from the value itself:
- * `[min, max, value]` or `[min, max, value, step]` a slider, `'#rrggbb'` a colour picker,
- * `true`/`false` a toggle, `['a', 'b', …]` a choice starting on its first option, a function a
- * button.
+ * `[min, max, value]` or `[min, max, value, step]` a slider, `'#rrggbb'` a colour picker, any
+ * other text a line of help (the keys to press), `true`/`false` a toggle, `['a', 'b', …]` a
+ * choice starting on its first option, a function a button.
  */
 export type ControlSpec =
   | readonly [number, number, number]
   | readonly [number, number, number, number]
-  | `#${string}`
+  | string
   | boolean
   | readonly string[]
   | (() => void);
 
-/** The live value of a declared control: a button has none. */
+/** The live value of a declared control: a button has none, a line of help its text. */
 type ControlValue<Spec> = Spec extends readonly number[]
   ? number
   : Spec extends readonly string[]
     ? string
     : Spec extends boolean
       ? boolean
-      : Spec extends () => void
-        ? never
-        : string;
+      : Spec extends `#${string}`
+        ? string
+        : never;
 
 export type ControlValues<Specs> = {
-  -readonly [Key in keyof Specs as Specs[Key] extends () => void ? never : Key]: ControlValue<
-    Specs[Key]
-  >;
+  -readonly [
+    Key in keyof Specs as [ControlValue<Specs[Key]>] extends [never] ? never : Key
+  ]: ControlValue<Specs[Key]>;
 };
 
 /** One control as the panel draws it. */
 type Control =
   | { kind: 'slider'; key: string; label: string; min: number; max: number; step: number }
   | { kind: 'colour'; key: string; label: string }
+  | { kind: 'note'; key: string; label: string; text: string }
   | { kind: 'toggle'; key: string; label: string }
   | { kind: 'choice'; key: string; label: string; options: readonly string[] }
   | { kind: 'button'; key: string; label: string; press: () => void };
@@ -58,7 +59,9 @@ export function describe(specs: Record<string, ControlSpec>) {
     else if (typeof spec === 'boolean') {
       controls.push({ kind: 'toggle', key, label });
       values[key] = spec;
-    } else if (typeof spec === 'string') {
+    } else if (typeof spec === 'string' && !spec.startsWith('#'))
+      controls.push({ kind: 'note', key, label, text: spec });
+    else if (typeof spec === 'string') {
       if (!/^#[0-9a-f]{6}$/i.test(spec)) throw new Error(`${key}: a colour is '#rrggbb'`);
       controls.push({ kind: 'colour', key, label });
       values[key] = spec.toLowerCase();
@@ -88,6 +91,12 @@ function field(control: Control, values: Record<string, unknown>, changed: () =>
     values[control.key] = value;
     changed();
   };
+  if (control.kind === 'note') {
+    const line = document.createElement('p');
+    line.className = 'text-xs opacity-80';
+    line.textContent = control.text;
+    return line;
+  }
   if (control.kind === 'button') {
     const button = document.createElement('button');
     button.className = 'btn btn-xs btn-primary btn-outline w-full';
