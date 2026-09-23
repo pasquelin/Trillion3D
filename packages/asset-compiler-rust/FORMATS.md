@@ -1,10 +1,10 @@
 # Compiler Input Formats — Inventory and Policy
 
-Fidelity and lightness rule (user, Sept 15, 2026): we never add loss. A texture received lossless remains exact (RGBA8 on screen, PNG or Zstd lossless over the wire, progressive levels for the first image); a texture received already compressed for GPU keeps its compressed format on the GPU when supported by the machine, and is decoded only as a fallback. Any optional "light" mode that re-compresses would be a product option with measured and displayed delta, never the default.
+Fidelity rule: no loss is added without a bound. A texture received lossless keeps its lossless levels in the cache; the block-compressed family cooked beside them is kept only where the quality gate of [FORMAT.md](../../docs/FORMAT.md#textures) holds its loss under a declared, measured bound; a texture received already compressed for the GPU keeps its compressed format when the machine supports it, and is decoded only as a fallback.
 
 Goal: a single Rust executable accepting whatever marketplaces deliver (FAB, Unity Asset Store, Quixel, Sketchfab) without third-party tools. Fidelity first: no lossy format is re-encoded, sources are never modified.
 
-Legal policy set by the user: no proprietary format, unless established legal reading. This page is not legal advice; verdicts come from documentary analysis (Directive 2009/24/EC art. 1, 5 § 3, 6; CJEU SAS Institute C‑406/10; 17 USC § 102(b); SAS v. WPL, 4th Cir. 2017 on contract scope). Repository rules: reader written from public specifications or permissive libraries whose license is respected, never any editor code or SDK reused, never any protection bypass, provenance of each reader documented, redistributable test suites.
+Legal policy: no proprietary format, unless established legal reading. This page is not legal advice; verdicts come from documentary analysis (Directive 2009/24/EC art. 1, 5 § 3, 6; CJEU SAS Institute C‑406/10; 17 USC § 102(b); SAS v. WPL, 4th Cir. 2017 on contract scope). Repository rules: reader written from public specifications or permissive libraries whose license is respected, never any editor code or SDK reused, never any protection bypass, provenance of each reader documented, redistributable test suites.
 
 ## Architecture: one driver per format
 
@@ -16,9 +16,9 @@ The compiler knows no format. It routes each source to a driver (interpretation 
 - two versioned contracts: scene driver (produces glTF intermediate scene + bin + report) and image driver (produces RGBA8, or RGBA linear float for EXR and HDR); driver and contract versions enter the cache identity;
 - selected driver (name, version) is recorded in the manifest and report for provenance;
 - an unknown or ambiguous source is rejected with the list of accepted formats, never interpreted by default;
-- instructions for writing a driver are in [`PLUGINS.md`](PLUGINS.md); each future format is assigned to an independent agent touching only its module and registry line.
+- instructions for writing a driver are in [`PLUGINS.md`](PLUGINS.md).
 
-## Safe — To Do
+## Safe
 
 | Format                  | Base                                                    | State | Path                                                                                                                                                                                                                                                                                                                                                            | Priority |
 | ----------------------- | ------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
@@ -35,7 +35,7 @@ The compiler knows no format. It routes each source to a driver (interpretation 
 | BMP, GIF                | open                                                    | done  | `image` features; lossless only — BMP masks with >8 bits per channel and animated GIF rejected by name                                                                                                                                                                                                                                                          | P3       |
 | ZIP                     | open                                                    | done  | —                                                                                                                                                                                                                                                                                                                                                               | —        |
 
-## Conditionally Safe — To Do, condition written in code
+## Conditionally Safe — condition written in code
 
 | Format                                     | Condition                                                                                      | State | Path                                                                                                                                                                                                                                                                                                                                                                                                                 | Priority |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |

@@ -168,7 +168,7 @@ export const fixtures: Fixture[] = [
   // would establish stays missing (#198) — but the image is still after the first frames.
   unlit('blend over the background', BLEND, { holds: false }),
   // Between two drawn surfaces the engine blends in linear radiance and encodes at composition
-  // (`docs/SDK.md` § Separated surfaces and lighting); the witness blends the encoded output.
+  // (`docs/ENGINE.md` § Material surfaces); the witness blends the encoded output.
   // On this pair — red at half opacity over blue — the two spaces are 45 levels apart, and that
   // gap is what is held: a display-space blend, an opaque or a fully transparent square, or
   // another opacity, all leave the window.
