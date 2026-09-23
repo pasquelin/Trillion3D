@@ -147,10 +147,6 @@
     "summary": "Rifiuta un descrittore di proxy che questo motore non saprebbe leggere, prima di richiedere anche un solo byte.",
     "description": "Un manifesto senza descrittore non è un errore: è una cache precedente al rimbalzo, e il motore lo dichiara invece di indovinare una geometria che non ha."
   },
-  "assertSceneTables": {
-    "summary": "Le tabelle, oppure un rifiuto nominato.",
-    "description": "Una versione sconosciuta non viene mai indovinata: un prodotto scritto da un altro compilatore, o uno precedente a un cambio di forma di una tabella, non offre nulla contro cui questo lettore possa verificare una scena, e leggerlo a metà trasformerebbe un cambio di formato in un confronto falso."
-  },
   "AssetScope": {
     "summary": "Come viene compilato un modello: `'slice'` lo fa arrivare per pagine, `'full'` lo mantiene intero."
   },
@@ -3622,9 +3618,6 @@
       "dispose": "Dimentica chi lo porta: un materiale liberato non ridipinge più nessuno."
     }
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "La versione della tabella dei materiali letta da questo motore."
-  },
   "MaterialParameters": {
     "summary": "Ciò che una pagina può dare a un membro di materiale; ogni campo è facoltativo.",
     "members": {
@@ -4038,9 +4031,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: la matrice locale viene ricomposta a partire da posizione, rotazione e dimensione."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "La versione della tabella dei nodi letta da questo motore."
   },
   "nodeWorldDirection": {
     "summary": "Direzione nel mondo: la terza colonna normalizzata (una colonna nulla resta nulla).",
@@ -4669,22 +4659,6 @@
     },
     "returns": "Il manifesto scritto dal compilatore, con ciò che la compilazione ha misurato."
   },
-  "PreparedSceneTables": {
-    "summary": "Le tabelle di nodi e materiali portate da un modello compilato.",
-    "members": {
-      "version": "Versione del prodotto.",
-      "nodeTableVersion": "Versione della tabella dei nodi.",
-      "materialTableVersion": "Versione della tabella dei materiali.",
-      "geometryTableVersion": "Versione della disposizione della geometria.",
-      "scene": "La scena che l’host apre, e i nodi alla sua sommità.",
-      "nodes": "Ogni nodo.",
-      "lights": "Le luci che i nodi portano.",
-      "cameras": "Le telecamere che i nodi portano.",
-      "materials": "I materiali.",
-      "textures": "Le texture.",
-      "documents": "La disposizione della geometria di ogni file di scena pubblicato, per nome."
-    }
-  },
   "prepareMany": {
     "summary": "Compila più modelli in un unico processo del compilatore.",
     "parameters": {
@@ -5047,12 +5021,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "Versione del prodotto di cache «proxy».",
     "description": "Un proxy di un'altra versione viene rifiutato, mai indovinato."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "Il nome del file che contiene le tabelle di nodi e materiali."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Versione dell'intero prodotto; ogni tabella che porta ha la propria versione."
   },
   "SceneEnvironment": {
     "summary": "La luce attorno a una scena: esposizione, curva di visualizzazione e luce da tutte le direzioni.",
@@ -5671,21 +5639,6 @@
       "alphaMode": "Come si legge l’alfa: ignorato, tagliato ad `alphaTest`, o miscelato.",
       "opacity": "L’alfa del fattore di colore di base.",
       "extensions": "Ciò che aggiungono le estensioni fisiche, con i nomi di parametro dell’host: un fattore, un colore o un intervallo come numeri, una mappa come slot."
-    }
-  },
-  "TableNode": {
-    "summary": "Un nodo del grafo della scena, al suo rango glTF: i suoi figli, la mesh e la luce puntiforme che porta, e la sua posa LOCALE esattamente come dichiarata — una matrice, o una qualsiasi fra traslazione, rotazione e scala, ciascuna `null` se taciuta.",
-    "description": "Più nodi che nominano la stessa mesh: questo è qui l’istanziazione.",
-    "members": {
-      "name": "Il nome del nodo.",
-      "children": "I suoi figli, in ordine.",
-      "mesh": "La mesh che disegna.",
-      "light": "La luce che porta.",
-      "camera": "La telecamera che porta.",
-      "matrix": "La sua matrice locale, per colonne.",
-      "translation": "Dove si trova.",
-      "rotation": "Come è ruotato, come quaternione.",
-      "scale": "Come è allungato."
     }
   },
   "TableTexture": {

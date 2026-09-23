@@ -1774,9 +1774,6 @@
     "summary": "A versão 4 transforma as entradas de pré-visualização fixas de 16×16 nos níveis progressivos variáveis: a coluna de pixels não tem mais passo fixo, cada entrada nomeando sua própria faixa de bytes.",
     "description": "Um arquivo de outra versão é recusado por completo: um leitor que recortasse a faixa errada mostraria os níveis de uma textura em outra. A versão 5 amplia uma entrada de pré-visualização de dez para doze palavras — o atlas que ela serve e quantos níveis são pré-processados como arquivos sob `textures/` — e seus pixels seguem a regra de mip da placa gráfica; um leitor de versão 4 percorreria as entradas incorretamente, então recusa esse arquivo. A versão 6 mantém cada coluna e nomeia outra página de geometria no descritor de geometria: a página quantizada `WGP3` (`geometryPage.ts`) no lugar da página float `WGP2`, cujos bytes um leitor de versão 6 recusaria um por um na decodificação; recusar o arquivo diz isso de uma vez. A versão 7 amplia uma entrada de pré-visualização para quatorze palavras — o layout em que cada família de blocos guarda a cadeia, ou nenhuma — e adiciona duas colunas: as caudas comprimidas em blocos, família BC depois ASTC, a faixa de cada entrada mantida seguindo de suas dimensões; um leitor de versão 6 não as conheceria, então recusa."
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "A versão da tabela de materiais que este runtime lê."
-  },
   "MATH_PATH_CONTRACT": {
     "summary": "Versão do contrato deste relatório.",
     "description": "Um host que não a conhece não lê os campos."
@@ -2075,9 +2072,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: a matriz local é recomposta a partir de position, rotation, scale."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "A versão da tabela de nós que este runtime lê."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Uma matriz normal 3×3."
@@ -2586,22 +2580,6 @@
       "onProgress": "Chamado a cada evento."
     }
   },
-  "PreparedSceneTables": {
-    "summary": "As tabelas de nós e materiais que um modelo compilado carrega.",
-    "members": {
-      "version": "Versão do produto.",
-      "nodeTableVersion": "Versão da tabela de nós.",
-      "materialTableVersion": "Versão da tabela de materiais.",
-      "geometryTableVersion": "Versão da disposição da geometria.",
-      "scene": "A cena que o anfitrião abre e os nós no seu topo.",
-      "nodes": "Todos os nós.",
-      "lights": "As luzes que os nós carregam.",
-      "cameras": "As câmaras que os nós carregam.",
-      "materials": "Os materiais.",
-      "textures": "As texturas.",
-      "documents": "A disposição da geometria de cada ficheiro de cena publicado, pelo seu nome."
-    }
-  },
   "Primitive-common": {
     "summary": "Uma parte de mesh de um modelo compilado, com suas páginas e hierarquia.",
     "members": {
@@ -2774,12 +2752,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "Versão do produto de cache \"proxy\".",
     "description": "Um proxy de outra versão é recusado, nunca adivinhado."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "O nome do arquivo que contém as tabelas de nós e materiais."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Versão do produto como um todo; cada tabela que carrega é versionada por sua vez."
   },
   "SDK_VERSION": {
     "summary": "A versão do pacote deste motor."
@@ -3384,21 +3356,6 @@
       "alphaMode": "Como o alfa é lido: ignorado, cortado em `alphaTest`, ou misturado.",
       "opacity": "O alfa do fator de cor base.",
       "extensions": "O que as extensões físicas acrescentam, com os nomes de parâmetro do anfitrião: um fator, uma cor ou um intervalo como números, um mapa como espaço."
-    }
-  },
-  "TableNode": {
-    "summary": "Um nó do grafo da cena, na sua posição glTF: os seus filhos, a malha e a luz pontual que carrega, e a sua pose LOCAL exatamente como declarada — uma matriz, ou qualquer uma de translação, rotação e escala, cada uma `null` quando omitida.",
-    "description": "Vários nós que nomeiam a mesma malha: isso é aqui a instanciação.",
-    "members": {
-      "name": "O nome do nó.",
-      "children": "Os seus filhos, por ordem.",
-      "mesh": "A malha que desenha.",
-      "light": "A luz que carrega.",
-      "camera": "A câmara que carrega.",
-      "matrix": "A sua matriz local, por colunas.",
-      "translation": "Onde está.",
-      "rotation": "Como está rodado, como quaternião.",
-      "scale": "Como está esticado."
     }
   },
   "TableTexture": {
@@ -4282,10 +4239,6 @@
   "assertSceneProxy": {
     "summary": "Rejeita um descritor de proxy que este motor não conseguiu ler, antes de um único byte ser pedido.",
     "description": "Um manifesto sem descritor não é um erro: é um cache de antes do rebote, e o motor diz isso em vez de adivinhar uma geometria que não tem."
-  },
-  "assertSceneTables": {
-    "summary": "As tabelas, ou uma recusa nomeada.",
-    "description": "Uma versão desconhecida nunca é adivinhada: um produto escrito por outro compilador, ou de antes de uma tabela mudar de forma, não diz nada contra o que este leitor possa comparar uma cena, e lê-lo pela metade transformaria uma mudança de formato em uma comparação errada."
   },
   "axisAngleQuaternion": {
     "summary": "Quatérnio de uma rotação de `angle` radianos ao redor de um eixo unitário."

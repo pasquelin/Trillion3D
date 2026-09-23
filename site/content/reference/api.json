@@ -7293,17 +7293,6 @@
     "description": "A file of another version is refused whole: a reader that sliced the wrong range would show one texture's levels on another. Version 5 widens a preview entry from ten to twelve words — the atlas it serves and how many levels are baked as files under `textures/` — and its pixels follow the graphics card's mip rule; a version-4 reader would stride through the entries wrongly, so it refuses this file. Version 6 keeps every column and names another geometry page in the geometry descriptor: the quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a version-6 reader would refuse one by one at decode; refusing the file says it once. Version 7 widens a preview entry to fourteen words — the layout each block family holds the chain in, or none — and adds two columns: the tails block-compressed, BC family then ASTC, each kept entry's range following from its dimensions; a version-6 reader would not know them, so it refuses."
   },
   {
-    "id": "MATERIAL_TABLE_VERSION",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
-    "exports": ["MATERIAL_TABLE_VERSION"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "MATERIAL_TABLE_VERSION",
-    "signature": "const MATERIAL_TABLE_VERSION: 2",
-    "summary": "The version of the material table this runtime reads.",
-    "description": ""
-  },
-  {
     "id": "MATH_PATH_CONTRACT",
     "module": "packages/sdk-core/src/math/path/contracts.ts",
     "exports": ["MATH_PATH_CONTRACT"],
@@ -8565,17 +8554,6 @@
     "title": "NODE_AUTO_UPDATE",
     "signature": "const NODE_AUTO_UPDATE: 1",
     "summary": "`matrixAutoUpdate`: the local matrix is recomposed from position, rotation, scale.",
-    "description": ""
-  },
-  {
-    "id": "NODE_TABLE_VERSION",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
-    "exports": ["NODE_TABLE_VERSION"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "NODE_TABLE_VERSION",
-    "signature": "const NODE_TABLE_VERSION: 2",
-    "summary": "The version of the node table this runtime reads: every node, with its local pose.",
     "description": ""
   },
   {
@@ -10554,74 +10532,6 @@
     "description": ""
   },
   {
-    "id": "PreparedSceneTables",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
-    "exports": ["PreparedSceneTables"],
-    "section": "types",
-    "kind": "Type",
-    "title": "PreparedSceneTables",
-    "signature": "interface PreparedSceneTables",
-    "summary": "The tables a compiled model carries.",
-    "members": [
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Product version."
-      },
-      {
-        "name": "nodeTableVersion",
-        "type": "number",
-        "desc": "Node table version."
-      },
-      {
-        "name": "materialTableVersion",
-        "type": "number",
-        "desc": "Material table version."
-      },
-      {
-        "name": "geometryTableVersion",
-        "type": "number",
-        "desc": "Geometry layout version."
-      },
-      {
-        "name": "scene",
-        "type": "{ name: string; nodes: readonly number[]; }",
-        "desc": "The scene the host opens, and the nodes at its top."
-      },
-      {
-        "name": "nodes",
-        "type": "TableNode[]",
-        "desc": "Every node."
-      },
-      {
-        "name": "lights",
-        "type": "TableLight[]",
-        "desc": "The lights the nodes hang."
-      },
-      {
-        "name": "cameras",
-        "type": "TableCamera[]",
-        "desc": "The cameras the nodes carry."
-      },
-      {
-        "name": "materials",
-        "type": "TableMaterial[]",
-        "desc": "The surfaces."
-      },
-      {
-        "name": "textures",
-        "type": "TableTexture[]",
-        "desc": "The textures."
-      },
-      {
-        "name": "documents",
-        "type": "Readonly<Record<string, TableDocument>>",
-        "desc": "The geometry layout of each published scene file, by its name."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "Primitive-common",
     "module": "packages/sdk-core/src/contracts/geometry.ts",
     "exports": ["Primitive"],
@@ -11361,28 +11271,6 @@
     "signature": "const SCENE_PROXY_VERSION: 2",
     "summary": "Version of the \"proxy\" cache product.",
     "description": "A proxy of another version is rejected, never guessed."
-  },
-  {
-    "id": "SCENE_TABLES_FILE",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
-    "exports": ["SCENE_TABLES_FILE"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "SCENE_TABLES_FILE",
-    "signature": "const SCENE_TABLES_FILE: 'scene-tables.json'",
-    "summary": "The name of the file that holds the scene tables.",
-    "description": ""
-  },
-  {
-    "id": "SCENE_TABLES_VERSION",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
-    "exports": ["SCENE_TABLES_VERSION"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "SCENE_TABLES_VERSION",
-    "signature": "const SCENE_TABLES_VERSION: 2",
-    "summary": "Version of the product as a whole; each table it carries is versioned in turn.",
-    "description": ""
   },
   {
     "id": "SDK_VERSION",
@@ -14110,64 +13998,6 @@
       }
     ],
     "description": "One glTF material is one entry per tangent variant: a host that has to rebuild the tangent frame from screen derivatives flips `normalScaleY`, so the table names a rank a node points at rather than the glTF material rank. `derivativeTangents` says which variant the entry was written for — the autonomous scene publishes its primitives without tangents, so a reader flips the sign back when the geometry it holds disagrees."
-  },
-  {
-    "id": "TableNode",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
-    "exports": ["TableNode"],
-    "section": "types",
-    "kind": "Type",
-    "title": "TableNode",
-    "signature": "interface TableNode",
-    "summary": "One node of the scene graph, at its glTF rank: its children, the mesh, the punctual light and the camera it carries, and its LOCAL pose exactly as declared — a matrix, or any of translation, rotation and scale, each `null` when silent.",
-    "members": [
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "The node's name."
-      },
-      {
-        "name": "children",
-        "type": "readonly number[]",
-        "desc": "Its children, in order."
-      },
-      {
-        "name": "mesh",
-        "type": "number | null",
-        "desc": "The mesh it draws."
-      },
-      {
-        "name": "light",
-        "type": "number | null",
-        "desc": "The light it hangs."
-      },
-      {
-        "name": "camera",
-        "type": "number | null",
-        "desc": "The camera it carries."
-      },
-      {
-        "name": "matrix",
-        "type": "readonly number[] | null",
-        "desc": "Its local matrix, column-major."
-      },
-      {
-        "name": "translation",
-        "type": "readonly number[] | null",
-        "desc": "Where it stands."
-      },
-      {
-        "name": "rotation",
-        "type": "readonly number[] | null",
-        "desc": "How it is turned, as a quaternion."
-      },
-      {
-        "name": "scale",
-        "type": "readonly number[] | null",
-        "desc": "How it is stretched."
-      }
-    ],
-    "description": "Several nodes naming one mesh is what instancing is here."
   },
   {
     "id": "TableTexture",
@@ -18443,28 +18273,6 @@
       }
     ],
     "description": "A manifest without a descriptor is not an error: it is a cache from before bounce, and the engine says so instead of guessing geometry it does not have."
-  },
-  {
-    "id": "assertSceneTables",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
-    "exports": ["assertSceneTables"],
-    "section": "types",
-    "kind": "Function",
-    "title": "assertSceneTables()",
-    "signature": "assertSceneTables(value: unknown): PreparedSceneTables",
-    "summary": "The tables, or a named refusal.",
-    "parameters": [
-      {
-        "name": "value",
-        "type": "unknown",
-        "desc": ""
-      }
-    ],
-    "returns": {
-      "type": "PreparedSceneTables",
-      "desc": ""
-    },
-    "description": "An unknown version is never guessed at: a product written by another compiler, or before a table changed shape, cannot be built into a scene, and reading it half way would turn a format change into a wrong image."
   },
   {
     "id": "axisAngleQuaternion",
