@@ -59,8 +59,10 @@
       const dome = object.mesh(geometry.sphere(40, 64, 32), material.meshStandard({ color: '#1b2350', roughness: 1, side: side.double }));
       world.scene.add(dome);
       const far = material.meshStandard({ color: '#000000', emissive: '#ffffff', emissiveIntensity: 3 }), next = random(2);
+      const speck = geometry.sphere(1, 8, 6);
       for (let index = 0; index < 300; index++) {
-        const point = object.mesh(geometry.sphere(0.08 + next() * 0.1, 8, 6), far);
+        const point = object.mesh(speck, far);
+        point.scale.setScalar(0.08 + next() * 0.1);
         point.position.set(next() - 0.5, next() - 0.5, next() - 0.5).setLength(36);
         world.scene.add(point);
       }

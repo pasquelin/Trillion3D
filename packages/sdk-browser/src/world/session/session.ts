@@ -24,7 +24,7 @@ export type ExplorerSession = ExplorerEmitters & {
 };
 
 /** The session's outlets; `opening` watches it open under `label` until `opening.done()`. */
-export function createExplorerSession(options: MeasuredWorldOptions, label = options.manifestUrl) {
+export function createExplorerSession(options: MeasuredWorldOptions, label: string) {
   // EXPERIENCE screen-error variant, set before any selection and before the DAG
   // shader is compiled. A session without the option restores ours: nothing inherits.
   setScreenErrorVariant(options.screenError);

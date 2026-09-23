@@ -9,7 +9,12 @@ const examples = resolve(import.meta.dirname, '../site/assets/examples');
 
 test('the scenes modelled in code rebuild their committed sources byte for byte', async () => {
   // The courtyard is left out for time alone: its five images take seconds to draw.
-  const scenes = ['a-model-from-usdz', 'detail-by-pixel-error', 'ten-thousand-objects'],
+  const scenes = [
+      'a-model-from-obj',
+      'a-model-from-usdz',
+      'detail-by-pixel-error',
+      'ten-thousand-objects',
+    ],
     out = await mkdtemp(join(tmpdir(), 'example-scenes-'));
   try {
     await writeModelScenes(out, resolve(examples, 'models'), scenes);

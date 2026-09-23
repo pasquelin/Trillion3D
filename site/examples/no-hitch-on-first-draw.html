@@ -53,7 +53,6 @@
       floor.position.y = -0.1;
       const wall = object.mesh(geometry.box(30, 9, 0.4), material.meshStandard({ color: '#8c7a68', roughness: 0.9 }));
       wall.position.set(0, 4.5, -7);
-      floor.receiveShadow = wall.receiveShadow = true;
       world.scene.add(floor, wall);
       const plinth = geometry.box(1.6, 1, 1.6), marble = material.meshStandard({ color: '#e7e2d8', roughness: 0.5 });
 
@@ -83,10 +82,8 @@
         const x = (column - 3) * 3.2 + row * 1.6, z = row === 0 ? -3.4 : 1.2;
         const base = object.mesh(plinth, marble);
         base.position.set(x, 0.5, z);
-        base.castShadow = base.receiveShadow = true;
         const exhibit = object.mesh(shape, matter);
         exhibit.position.set(x, 1.85, z);
-        exhibit.castShadow = true;
         exhibit.visible = false;
         world.scene.add(base, exhibit);
         return exhibit;

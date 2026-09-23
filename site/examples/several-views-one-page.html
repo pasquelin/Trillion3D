@@ -137,6 +137,7 @@
       // Where each part stands, and how far the exploded view lifts it.
       const PARTS = { tower: [2.4, 3], gallery: [4.4, 1.8], cap: [12, 6] };
       const state = { time: 0, last: performance.now(), explode: 0, turn: 0, wind: 0, speed: 0.6 };
+      const turnsAMinute = () => (state.speed * (60 / (Math.PI * 2))).toFixed(1);
       function advance() {
         const now = performance.now(), step = Math.min(0.05, (now - state.last) / 1000);
         if (step <= 0) return;
@@ -209,11 +210,13 @@
           mill.sails.position.z = 4.8 + 3 * lift;
           mill.cap.rotation.set(0, state.wind, 0);
           mill.sails.rotation.set(0, 0, -state.turn);
-          world.invalidate();
+          // Once the mill has settled and the wind has dropped, the four views stand still.
+          if (state.speed || settle > 0) world.invalidate();
         });
         return world;
       });
 
+      let rpm = null;
       controls({
         mouse: 'Drag the big view to turn it; wheel and drag the small ones to zoom and slide, double-click to reset',
         explode: [0, 1, 0, 0.01],
@@ -223,9 +226,11 @@
         state.explode = values.explode;
         state.wind = (values.windFrom * Math.PI) / 180;
         state.speed = values.windSpeed;
+        rpm?.(turnsAMinute());
+        for (const world of worlds) world.invalidate();
       }, worlds[0]);
-      const rpm = readout('Sail turns a minute');
-      setInterval(() => rpm((state.speed * (60 / (Math.PI * 2))).toFixed(1)), 250);
+      rpm = readout('Sail turns a minute');
+      rpm(turnsAMinute());
     </script>
   </body>
 </html>

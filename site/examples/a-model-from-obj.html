@@ -34,54 +34,103 @@
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#231d24');
-      // The model was written as a plain OBJ file — `v` positions, `vn` normals, `f` faces, an
-      // `o` per piece and a `usemtl` per material from its `.mtl` — then compiled once by the
-      // repository's compiler: the OBJ became clusters, and the engine streams the ones the view
-      // needs. Everything in the picture comes from that one file; the page adds only the light.
+      // The model was written as a plain OBJ file — `v` positions, `vn` a smooth normal per vertex,
+      // `f` triangles, an `o` per piece and a `usemtl` per material from its `.mtl` — then compiled
+      // once by the repository's compiler: the OBJ became clusters, and the engine streams the ones
+      // the view needs. Everything in the picture comes from that one file; the page adds the light.
       await world.scene.load('../assets/examples/a-model-from-obj/cache/native/full/manifest.json');
 
-      // A low evening sun through a window on the left rakes the board and stretches every
-      // piece's shadow; a cool sky fill keeps the black pieces from going flat black.
-      const sun = light.directional({ color: '#ffb15e', intensity: 3.6, castShadow: true });
-      world.scene.add(sun, light.hemisphere({ color: '#8ea8ff', groundColor: '#4a3426', intensity: 0.75 }));
+      // The pieces stand five to ten centimetres tall: the near plane comes in to half a centimetre
+      // so the camera can lean down among them without clipping them.
+      world.camera.near = 0.005;
+      world.camera.far = 20;
+
+      // A late-afternoon sun through a window rakes the board and draws every piece's shadow; a cool
+      // rim from behind and the room's soft light keep the black pieces from going flat black.
+      const sun = light.directional({ color: '#ffc58a', intensity: 3.4, castShadow: true });
+      world.scene.add(
+        sun,
+        light.directional({ intensity: 1.1, color: '#9fb6ff', position: [-3, 2, -4] }),
+        light.hemisphere({ color: '#fff1e0', groundColor: '#4a3426', intensity: 0.6 }),
+      );
       const placeSun = (degrees, height) => {
         const turn = (degrees * Math.PI) / 180;
         sun.position.set(Math.cos(turn) * 3, height, Math.sin(turn) * 3);
       };
 
-      const VIEWS = { finished: 'beauty', triangles: 'triangles', clusters: 'clusters', 'level of detail': 'lod' };
-      controls({
-        mouse: 'Drag to turn round the board, scroll to lean in: see what the OBJ became',
-        view: Object.keys(VIEWS),
-        sunAngle: [-180, 180, -150, 1],
-        sunHeight: [0.3, 3, 0.8],
-      }, (values) => {
-        world.diagnostic.mode = VIEWS[values.view];
-        placeSun(values.sunAngle, values.sunHeight);
-        world.invalidate();
-      });
+      const VIEWS = {
+        finished: 'beauty',
+        triangles: 'triangles',
+        clusters: 'clusters',
+        'level of detail': 'lod',
+      };
+      let turning = true;
+      controls(
+        {
+          mouse: 'Drag to turn round the board, scroll to lean in: see what the OBJ became',
+          view: Object.keys(VIEWS),
+          sunAngle: [-180, 180, 30, 1],
+          sunHeight: [0.6, 5, 2.4],
+          turn: () => ((turning = true), world.invalidate()),
+        },
+        (values) => {
+          world.diagnostic.mode = VIEWS[values.view];
+          placeSun(values.sunAngle, values.sunHeight);
+          world.invalidate();
+        },
+      );
       const triangles = readout('Triangles drawn');
 
-      // The opening: the camera starts low on white's side, at the height of the pieces,
-      // and rises and draws back round the board; the first press or wheel stops it.
-      const target = math.vector3(0, 0.03, 0);
-      world.camera.position.set(0.2, 0.06, 0.34);
-      world.camera.lookAt(target);
-      world.controls.target.copy(target);
-      world.controls.minDistance = 0.15;
+      // The opening: the whole board first, from above white's side; then the eye comes down behind
+      // the white pawns to the height of the pieces, rises again over the game and circles the
+      // table slowly. A press or a wheel hands the camera back; the Turn button starts the turn again.
+      const OVER = { eye: [0.3, 0.4, 0.5], look: [0, 0, 0] };
+      const LOW = { eye: [0.07, 0.05, 0.3], look: [0, 0.035, 0.02] };
+      const PATH = [
+        [OVER, 1.2],
+        [LOW, 4],
+        [LOW, 1.5],
+        [OVER, 4],
+      ];
+      const ease = (t) => t * t * (3 - 2 * t);
+      let from = OVER,
+        leg = 0,
+        time = 0;
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => ((leg = PATH.length), (turning = false)), {
+          passive: true,
+        });
+      world.camera.position.set(...OVER.eye);
+      world.controls.target.set(...OVER.look);
+      world.controls.minDistance = 0.08;
       world.controls.maxDistance = 2.2;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
-      let moving = true;
-      for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (moving = false), { passive: true });
+      world.controls.update();
       world.onFrame(({ delta, metrics }) => {
         triangles(metrics.selectedTriangles?.toLocaleString('en') ?? '?');
-        if (!moving) return;
-        const step = Math.min(delta, 0.1), { position } = world.camera, { target: aim } = world.controls;
-        const x = position.x - aim.x, y = position.y - aim.y, z = position.z - aim.z, flat = Math.hypot(x, z);
-        const turn = step * 0.18, grow = Math.min(0.78, flat + step * Math.max(0.02, (0.78 - flat) * 0.7)) / flat;
-        const rise = Math.min(0.5, y + step * Math.max(0.01, (0.5 - y) * 0.6));
-        position.set(aim.x + (x * Math.cos(turn) - z * Math.sin(turn)) * grow, aim.y + rise, aim.z + (z * Math.cos(turn) + x * Math.sin(turn)) * grow);
-        world.controls.update();
+        const step = Math.min(delta, 0.1);
+        if (leg < PATH.length) {
+          const [to, seconds] = PATH[leg];
+          time += step;
+          const t = ease(math.clamp(time / seconds, 0, 1));
+          const at = (a, b) => a.map((value, axis) => value + (b[axis] - value) * t);
+          world.camera.position.set(...at(from.eye, to.eye));
+          world.controls.target.set(...at(from.look, to.look));
+          world.controls.update();
+          if (t === 1) ((from = to), (leg += 1), (time = 0));
+        } else if (turning) {
+          const { position } = world.camera,
+            { target } = world.controls,
+            turn = step * 0.15;
+          const x = position.x - target.x,
+            z = position.z - target.z;
+          position.set(
+            target.x + x * Math.cos(turn) + z * Math.sin(turn),
+            position.y,
+            target.z + z * Math.cos(turn) - x * Math.sin(turn),
+          );
+          world.controls.update();
+        } else return;
         world.invalidate();
       });
       world.invalidate();
