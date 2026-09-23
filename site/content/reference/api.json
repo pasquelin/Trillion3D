@@ -2291,7 +2291,7 @@
       },
       {
         "name": "metrics",
-        "type": "{ importMs: number; clusterHierarchyPagesMs: number | null; wallMs: number; pruneMs: number; outputGeometryBytes: number; threads: number; ramBudgetMb: number; }",
+        "type": "{ importMs: number; clusterHierarchyPagesMs: number | null; wallMs: number; pruneMs: number; outputGeometryBytes: number; threads: number; ramBudgetMb: numbe...",
         "desc": "Time and size."
       },
       {
@@ -6953,7 +6953,7 @@
       },
       {
         "name": "metadata",
-        "type": "{ clusters: number; formatVersion?: number; compilerVersion?: string; errorModel?: string; geometryPages?: GeometryPageFormat; ... 14 more ...; proxy?: ...",
+        "type": "{ clusters: number; formatVersion?: number; compilerVersion?: string; errorModel?: string; geometryPages?: GeometryPageFormat; simplification?: boolean; sche...",
         "desc": "The model's compiled manifest — its primitives, `sourceTriangles` — and `clusters`, the clusters its pages hold, every level of its DAGs counted."
       },
       {
@@ -8222,7 +8222,7 @@
       },
       {
         "name": "scene",
-        "type": "{ source: HostGraphNode; sceneLightingSource: HostTraversable; associations: Map<...>; textureIndices: Map<...>; framingLot: ...",
+        "type": "{ source: HostGraphNode; sceneLightingSource: HostTraversable; associations: Map<HostNode, { meshes?: number; primitives?: number; placements?: PlacementRows...",
         "desc": "The scene graph the loader built from the manifest."
       },
       {
@@ -8614,7 +8614,7 @@
     "section": "types",
     "kind": "Constant",
     "title": "PAGE_DECODE_FAILURES",
-    "signature": "const PAGE_DECODE_FAILURES: readonly ['GEOMETRY_PAGE_HEADER', 'GEOMETRY_PAGE_VERSION', 'GEOMETRY_PAGE_BOUNDS', 'GEOMETRY_PAGE_INDEX', 'GEOMETRY_PAGE_NONFINITE', 'PAGE_DECODE_FAILED', 'PAGE_DECODE_CANCELLED', 'PAGE_DECODE_UNAVAILABLE', 'PAGE_DECODE_WORKER']",
+    "signature": "const PAGE_DECODE_FAILURES: readonly ['GEOMETRY_PAGE_HEADER', 'GEOMETRY_PAGE_VERSION', 'GEOMETRY_PAGE_BOUNDS', 'GEOMETRY_PAGE_INDEX', 'GEOMETRY_PAGE_NONFINITE', 'PAGE_DECODE_FAILED', 'P...",
     "summary": "Failure semantics, closed list.",
     "description": "The first six are the page-decode rejections, taken word for word from `geometryPage.ts`: a caller distinguishes them as before. `PAGE_DECODE_FAILED` carries any other rejection from the decompression library. `PAGE_DECODE_CANCELLED` answers a cancellation, `PAGE_DECODE_WORKER` an executor that vanished — only that one allows the fallback."
   },
@@ -9258,7 +9258,7 @@
       },
       {
         "name": "code",
-        "type": "'GEOMETRY_PAGE_HEADER' | 'GEOMETRY_PAGE_VERSION' | 'GEOMETRY_PAGE_BOUNDS' | 'GEOMETRY_PAGE_INDEX' | 'GEOMETRY_PAGE_NONFINITE' | 'PAGE_DECODE_FAILED' | 'PAGE_DECODE_CANCELLED' | 'PAGE_DECODE_UNAVAILABLE' | 'PAGE_DECODE_WORKER'",
+        "type": "'GEOMETRY_PAGE_HEADER' | 'GEOMETRY_PAGE_VERSION' | 'GEOMETRY_PAGE_BOUNDS' | 'GEOMETRY_PAGE_INDEX' | 'GEOMETRY_PAGE_NONFINITE' | 'PAGE_DECODE_FAILED' | 'PAGE_...",
         "desc": "Why it failed."
       },
       {
@@ -10292,7 +10292,7 @@
       },
       {
         "name": "topology?",
-        "type": "{ triangles: number; edges: { boundary: number; manifold: number; nonManifold: number; }; vertices: { interior: number; boundary: number; locked: number; unused: number; }; manifold: boolean; } | undefined",
+        "type": "{ triangles: number; edges: { boundary: number; manifold: number; nonManifold: number; }; vertices: { interior: number; boundary: number; locked: number; unu...",
         "desc": "What the mesh's edges and corners look like."
       }
     ],
@@ -11444,7 +11444,7 @@
     "members": [
       {
         "name": "settings",
-        "type": "{ readonly maxLights: 64; readonly maxLightsPerTile: 32; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowUpdatesPerFrame: 4; readonly shadowPage: 128; readonly shadowBudgetMs: 1; ... 18 more ...; readonly shadowNormalOffsetTexels: 1.5; }",
+        "type": "{ readonly maxLights: 64; readonly maxLightsPerTile: 32; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowUpdatesPerFrame: 4; readonly shad...",
         "desc": "Published settings of direct lighting. These are named product choices, not buried constants: every runtime bound rereads them, and the diagnostic publishes them as-is."
       },
       {
@@ -12106,17 +12106,17 @@
     "members": [
       {
         "name": "slices",
-        "type": "{ atlas: { size: 4096; cell: 128; grid: number; occupancy(): { used: number; total: number; }; allocate(faces: number, side: number, rects: Int32Array, base: number): number; release(faces: number, rects: Int32Array, base: number): void; }; ... 14 more ...; reset(): void; }",
+        "type": "{ atlas: { size: 4096; cell: 128; grid: number; occupancy(): { used: number; total: number; }; allocate(faces: number, side: number, rects: Int32Array, base:...",
         "desc": "Shadow slices."
       },
       {
         "name": "regions",
-        "type": "{ capacity: number; readonly count: number; readonly pages: number; lightOf: (region: number) => number; sliceOf: (region: number) => number; faceOf: (region: number) => number; x0Of: (region: number) => number; ... 8 more ...; addFace(dirty: ...",
+        "type": "{ capacity: number; readonly count: number; readonly pages: number; lightOf: (region: number) => number; sliceOf: (region: number) => number; faceOf: (region...",
         "desc": "Shadow regions."
       },
       {
         "name": "budget",
-        "type": "{ readonly budgetMs: number; setBudgetMs(value: number): void; readonly msPerPage: number | null; suspend(): void; resume(): void; observe(gpuMs: number | null, pages: number): void; estimate(pages: number): number | null; reset(): void; }",
+        "type": "{ readonly budgetMs: number; setBudgetMs(value: number): void; readonly msPerPage: number | null; suspend(): void; resume(): void; observe(gpuMs: number | nu...",
         "desc": "Time budget."
       },
       {
@@ -12126,7 +12126,7 @@
       },
       {
         "name": "counts",
-        "type": "{ readonly denied: number; readonly reused: number; readonly lights: number; readonly sunLights: number; readonly invalidatedPages: number; readonly pendingPages: number; readonly waitedMs: number; ... 6 more ...; reset(): void; }",
+        "type": "{ readonly denied: number; readonly reused: number; readonly lights: number; readonly sunLights: number; readonly invalidatedPages: number; readonly pendingP...",
         "desc": "Counts for the diagnostic."
       },
       {
@@ -12490,7 +12490,7 @@
       },
       {
         "name": "topology?",
-        "type": "{ triangles: number; edges: { boundary: number; manifold: number; nonManifold: number; }; vertices: { interior: number; boundary: number; locked: number; unused: number; }; manifold: boolean; } | undefined",
+        "type": "{ triangles: number; edges: { boundary: number; manifold: number; nonManifold: number; }; vertices: { interior: number; boundary: number; locked: number; unu...",
         "desc": "What the mesh's edges and corners look like."
       },
       {
@@ -13616,7 +13616,7 @@
       },
       {
         "name": "streaming",
-        "type": "{ residentPages: number | null; pageLoads: number; pageBytesReadMb: number; pagesRequested: number | null; pagesLoading: number | null; cacheHitRate: number | null; }",
+        "type": "{ residentPages: number | null; pageLoads: number; pageBytesReadMb: number; pagesRequested: number | null; pagesLoading: number | null; cacheHitRate: number ...",
         "desc": "Streaming counts."
       },
       {
@@ -15373,7 +15373,7 @@
     "section": "types",
     "kind": "Constant",
     "title": "WEB_GEOMETRY_SYSTEM_PROMPT",
-    "signature": "const WEB_GEOMETRY_SYSTEM_PROMPT: 'You are an expert on the WebGeometry 3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for the Web.\\n\\nFundamental principles and architecture of WebGeometry:\\n1. Virtualized Geometry (Nanite-class):\\n   - Meshes are partitioned into clusters (up to ...",
+    "signature": "const WEB_GEOMETRY_SYSTEM_PROMPT: 'You are an expert on the WebGeometry 3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for...",
     "summary": "System prompt guiding an LLM on WebGeometry principles, budgets, and rendering options.",
     "description": ""
   },
@@ -19415,7 +19415,7 @@
     "section": "types",
     "kind": "Function",
     "title": "createGpuPageCache()",
-    "signature": "createGpuPageCache(device: GPUDevice, source: PageSource, options: { pageBytes: number; slots: number; onDiagnostic?: (d: BackendDiagnostic) => void; }): { unload(key: string): boolean; stats(): { allocatedBytes: number; slots: number; residentPages: number; bytesRead: number; uploadedBytes: number; evictions: number; physicalVramBytes: null; }; ... 8 more ...; drainResidencyChanges(keys: string[], slots: number[]): void; }",
+    "signature": "createGpuPageCache(device: GPUDevice, source: PageSource, options: { pageBytes: number; slots: number; onDiagnostic?: (d: BackendDiagnostic) => void; }): { unload(key: string): boolean; stats(): { allocatedBytes: number; slots: number; residentPages: number; bytesRead: number; uploadedBytes: number; evictions:...",
     "summary": "WebGPU allocation/queue boundary.",
     "parameters": [
       {
@@ -19435,7 +19435,7 @@
       }
     ],
     "returns": {
-      "type": "{ unload(key: string): boolean; stats(): { allocatedBytes: number; slots: number; residentPages: number; bytesRead: number; uploadedBytes: number; evictions: number; physicalVramBytes: null; }; ... 8 more ...; drainResidencyChanges(keys: string[], slots: number[]): void; }",
+      "type": "{ unload(key: string): boolean; stats(): { allocatedBytes: number; slots: number; residentPages: number; bytesRead: number; uploadedBytes: number; evictions:...",
       "desc": ""
     },
     "description": "Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy."
@@ -19524,7 +19524,7 @@
     "section": "types",
     "kind": "Function",
     "title": "createPageStreamer()",
-    "signature": "createPageStreamer(pages: readonly StreamPage[], base: string, signal?: AbortSignal, workerCount?: number, maxPages?: number, onEvict?: (url: string) => void, maxTransferBytes?: number, onDiagnostic?: (diagnostic: BackendDiagnostic) => void, maxCachedBytes?: number): { get(url: string): Uint32Array<ArrayBufferLike> | undefined; getBytes(url: string): Uint8Array<ArrayBufferLike> | undefined; ... 9 more ...; dispose(): void; }",
+    "signature": "createPageStreamer(pages: readonly StreamPage[], base: string, signal?: AbortSignal, workerCount?: number, maxPages?: number, onEvict?: (url: string) => void, maxTransferBytes?: number, onDiagnostic?: (diagnostic: BackendDiagnostic) => void, maxCachedBytes?: number): { get(url: string): Uint32Array<ArrayBufferLike> | undefined; getBytes(url: string): Uint8Array<ArrayBufferLike> | undefined; has(url: string): boolean; load...",
     "summary": "Bounded, prioritized and deduplicated reads.",
     "parameters": [
       {
@@ -19577,7 +19577,7 @@
       }
     ],
     "returns": {
-      "type": "{ get(url: string): Uint32Array<ArrayBufferLike> | undefined; getBytes(url: string): Uint8Array<ArrayBufferLike> | undefined; ... 9 more ...; dispose(): void; }",
+      "type": "{ get(url: string): Uint32Array<ArrayBufferLike> | undefined; getBytes(url: string): Uint8Array<ArrayBufferLike> | undefined; has(url: string): boolean; load...",
       "desc": ""
     },
     "description": "A request still waiting in the queue is dropped once its last consumer leaves; one already transferring is allowed to land in the cache. The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive eviction, so a caller keeps its displayed cover by retaining it."
@@ -19617,7 +19617,7 @@
     "section": "types",
     "kind": "Function",
     "title": "createSafetyPolicy()",
-    "signature": "createSafetyPolicy(config: SafetyConfig): { getDecision: () => SafetyDecision; trip(reason: 'error' | 'oom' | 'device-lost' | 'thrashing' | 'quality-failed', now: number): SafetyDecision; observe(reference: MeasuredCosts, candidate: MeasuredCosts, now: number): SafetyDecision; }",
+    "signature": "createSafetyPolicy(config: SafetyConfig): { getDecision: () => SafetyDecision; trip(reason: 'error' | 'oom' | 'device-lost' | 'thrashing' | 'quality-failed', now: number): SafetyDecision; observe(ref...",
     "summary": "Policy evaluates evidence; it never fabricates a reference or samples a clock itself.",
     "parameters": [
       {
@@ -19627,7 +19627,7 @@
       }
     ],
     "returns": {
-      "type": "{ getDecision: () => SafetyDecision; trip(reason: 'error' | 'oom' | 'device-lost' | 'thrashing' | 'quality-failed', now: number): SafetyDecision; observe(reference: MeasuredCosts, candidate: MeasuredCosts, now: number): SafetyDecision; }",
+      "type": "{ getDecision: () => SafetyDecision; trip(reason: 'error' | 'oom' | 'device-lost' | 'thrashing' | 'quality-failed', now: number): SafetyDecision; observe(ref...",
       "desc": ""
     },
     "description": ""
@@ -20759,7 +20759,7 @@
     "section": "types",
     "kind": "Function",
     "title": "frameStatistics()",
-    "signature": "frameStatistics(intervals: readonly number[]): { fps: null; p50Ms: null; p95Ms: null; p99Ms: null; onePercentLowFps: null; stutters: null; } | { fps: number; p50Ms: number; p95Ms: number; p99Ms: number; onePercentLowFps: number; stutters: number; }",
+    "signature": "frameStatistics(intervals: readonly number[]): { fps: null; p50Ms: null; p95Ms: null; p99Ms: null; onePercentLowFps: null; stutters: null; } | { fps: number; p50Ms: number; p95Ms: number; p99Ms: number; o...",
     "summary": "Frame rate and smoothness from the times between frames.",
     "parameters": [
       {
@@ -20769,7 +20769,7 @@
       }
     ],
     "returns": {
-      "type": "{ fps: null; p50Ms: null; p95Ms: null; p99Ms: null; onePercentLowFps: null; stutters: null; } | { fps: number; p50Ms: number; p95Ms: number; p99Ms: number; onePercentLowFps: number; stutters: number; }",
+      "type": "{ fps: null; p50Ms: null; p95Ms: null; p99Ms: null; onePercentLowFps: null; stutters: null; } | { fps: number; p50Ms: number; p95Ms: number; p99Ms: number; o...",
       "desc": ""
     },
     "description": ""
@@ -23672,7 +23672,7 @@
     "section": "types",
     "kind": "Function",
     "title": "lodQuality()",
-    "signature": "lodQuality(id: string): { readonly id: 'source'; readonly label: 'Maximum source detail'; readonly pixelError: 0; readonly anisotropy: 'source'; readonly adaptive: false; } | { readonly id: 'high'; readonly label: 'High quality'; readonly pixelError: 1; readonly anisotropy: 'maximum'; readonly adaptive: false; } | { ...; } | { ...; }",
+    "signature": "lodQuality(id: string): { readonly id: 'source'; readonly label: 'Maximum source detail'; readonly pixelError: 0; readonly anisotropy: 'source'; readonly adaptive: false; } | { read...",
     "summary": "The detail preset named `id`, or the balanced one.",
     "parameters": [
       {
@@ -23682,7 +23682,7 @@
       }
     ],
     "returns": {
-      "type": "{ readonly id: 'source'; readonly label: 'Maximum source detail'; readonly pixelError: 0; readonly anisotropy: 'source'; readonly adaptive: false; } | { readonly id: 'high'; readonly label: 'High quality'; readonly pixelError: 1; readonly anisotropy: 'maximum'; readonly adaptive: false; } | { ...; } | { ...; }",
+      "type": "{ readonly id: 'source'; readonly label: 'Maximum source detail'; readonly pixelError: 0; readonly anisotropy: 'source'; readonly adaptive: false; } | { read...",
       "desc": ""
     },
     "description": ""
@@ -23775,7 +23775,7 @@
     "section": "types",
     "kind": "Function",
     "title": "manifestBinaryRanges()",
-    "signature": "manifestBinaryRanges(counts: Counts): { ranges: Record<'pageBounds' | 'pageSphere' | 'pageParentSphere' | 'pageError' | 'pageInt' | 'pageU32' | 'pageSha' | 'geometrySha' | 'geometryU32' | 'cullingNodes' | 'groupLevel' | ... 14 more ... | 'texturePreviewAstc', { ...; }>; bytes: number; }",
+    "signature": "manifestBinaryRanges(counts: Counts): { ranges: Record<'pageBounds' | 'pageSphere' | 'pageParentSphere' | 'pageError' | 'pageInt' | 'pageU32' | 'pageSha' | 'geometrySha' | 'geometryU32' | 'cullin...",
     "summary": "Byte ranges of every column, in the fixed order of this version.",
     "parameters": [
       {
@@ -23785,7 +23785,7 @@
       }
     ],
     "returns": {
-      "type": "{ ranges: Record<'pageBounds' | 'pageSphere' | 'pageParentSphere' | 'pageError' | 'pageInt' | 'pageU32' | 'pageSha' | 'geometrySha' | 'geometryU32' | 'cullingNodes' | 'groupLevel' | ... 14 more ... | 'texturePreviewAstc', { ...; }>; bytes: number; }",
+      "type": "{ ranges: Record<'pageBounds' | 'pageSphere' | 'pageParentSphere' | 'pageError' | 'pageInt' | 'pageU32' | 'pageSha' | 'geometrySha' | 'geometryU32' | 'cullin...",
       "desc": ""
     },
     "description": ""
@@ -26902,7 +26902,7 @@
     "section": "metric",
     "kind": "Function",
     "title": "metric.createProfiler()",
-    "signature": "metric.createProfiler(world: object): { cpuSteps: () => CpuStepSummary | null; gpuPasses: () => GpuPassBlockTotals; report: () => ...",
+    "signature": "metric.createProfiler(world: object): { cpuSteps: () => CpuStepSummary | null; gpuPasses: () => GpuPassBlockTotals; report: () => TelemetryReport; }",
     "summary": "The session's profiler (`EngineProfiler`), with the two readings above.",
     "parameters": [
       {
@@ -26912,7 +26912,7 @@
       }
     ],
     "returns": {
-      "type": "{ cpuSteps: () => CpuStepSummary | null; gpuPasses: () => GpuPassBlockTotals; report: () => ...",
+      "type": "{ cpuSteps: () => CpuStepSummary | null; gpuPasses: () => GpuPassBlockTotals; report: () => TelemetryReport; }",
       "desc": ""
     },
     "description": ""
@@ -27632,7 +27632,7 @@
     "section": "page",
     "kind": "Function",
     "title": "page.createCache()",
-    "signature": "page.createCache(device: GPUDevice, source: PageSource, options: { pageBytes: number; slots: number; onDiagnostic?: (d: BackendDiagnostic) => void; }): { unload(key: string): boolean; stats(): { allocatedBytes: number; slots: number; residentPages: number; bytesRead: number; uploadedBytes: number; evictions: number; physicalVramBytes: null; }; ... 8 more ...; drainResidencyChanges(keys: string[], slots: number[]): void; }",
+    "signature": "page.createCache(device: GPUDevice, source: PageSource, options: { pageBytes: number; slots: number; onDiagnostic?: (d: BackendDiagnostic) => void; }): { unload(key: string): boolean; stats(): { allocatedBytes: number; slots: number; residentPages: number; bytesRead: number; uploadedBytes: number; evictions:...",
     "summary": "A pool in GPU memory holding the pages the frame reads, filled from a page source.",
     "parameters": [
       {
@@ -27652,7 +27652,7 @@
       }
     ],
     "returns": {
-      "type": "{ unload(key: string): boolean; stats(): { allocatedBytes: number; slots: number; residentPages: number; bytesRead: number; uploadedBytes: number; evictions: number; physicalVramBytes: null; }; ... 8 more ...; drainResidencyChanges(keys: string[], slots: number[]): void; }",
+      "type": "{ unload(key: string): boolean; stats(): { allocatedBytes: number; slots: number; residentPages: number; bytesRead: number; uploadedBytes: number; evictions:...",
       "desc": ""
     },
     "description": ""
@@ -27708,7 +27708,7 @@
     "section": "types",
     "kind": "Function",
     "title": "pageDecodeFailureCode()",
-    "signature": "pageDecodeFailureCode(message: string): 'GEOMETRY_PAGE_HEADER' | 'GEOMETRY_PAGE_VERSION' | 'GEOMETRY_PAGE_BOUNDS' | 'GEOMETRY_PAGE_INDEX' | 'GEOMETRY_PAGE_NONFINITE' | 'PAGE_DECODE_FAILED' | 'PAGE_DECODE_CANCELLED' | 'PAGE_DECODE_UNAVAILABLE' | 'PAGE_DECODE_WORKER'",
+    "signature": "pageDecodeFailureCode(message: string): 'GEOMETRY_PAGE_HEADER' | 'GEOMETRY_PAGE_VERSION' | 'GEOMETRY_PAGE_BOUNDS' | 'GEOMETRY_PAGE_INDEX' | 'GEOMETRY_PAGE_NONFINITE' | 'PAGE_DECODE_FAILED' | 'PAGE_...",
     "summary": "The named rejection that matches a message, or `PAGE_DECODE_FAILED` for everything else.",
     "parameters": [
       {
@@ -27718,7 +27718,7 @@
       }
     ],
     "returns": {
-      "type": "'GEOMETRY_PAGE_HEADER' | 'GEOMETRY_PAGE_VERSION' | 'GEOMETRY_PAGE_BOUNDS' | 'GEOMETRY_PAGE_INDEX' | 'GEOMETRY_PAGE_NONFINITE' | 'PAGE_DECODE_FAILED' | 'PAGE_DECODE_CANCELLED' | 'PAGE_DECODE_UNAVAILABLE' | 'PAGE_DECODE_WORKER'",
+      "type": "'GEOMETRY_PAGE_HEADER' | 'GEOMETRY_PAGE_VERSION' | 'GEOMETRY_PAGE_BOUNDS' | 'GEOMETRY_PAGE_INDEX' | 'GEOMETRY_PAGE_NONFINITE' | 'PAGE_DECODE_FAILED' | 'PAGE_...",
       "desc": ""
     },
     "description": ""
