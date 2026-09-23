@@ -40,6 +40,12 @@ const PAGE = `<!doctype html><meta charset="utf-8"><title>WebGeometry measuremen
 <style>html,body{margin:0;background:#2a303c}</style>
 `;
 
+/** `source`, the TypeScript module read from `file`, as the ES module a browser runs. */
+export function stripTypes(source: string, file: string): string {
+  return transformSync(source, { loader: 'ts', format: 'esm', target: 'es2022', sourcefile: file })
+    .code;
+}
+
 function serveFile(mount: Mount, pathname: string, res: ServerResponse) {
   const rest = decodeURIComponent(pathname.slice(mount.prefix.length));
   if (rest.includes('..')) {
@@ -52,14 +58,8 @@ function serveFile(mount: Mount, pathname: string, res: ServerResponse) {
     return res.end('not found');
   }
   if (TYPESCRIPT.test(file)) {
-    const { code } = transformSync(readFileSync(file, 'utf8'), {
-      loader: 'ts',
-      format: 'esm',
-      target: 'es2022',
-      sourcefile: file,
-    });
     res.writeHead(200, { 'content-type': MIME['.js'], 'cache-control': 'no-store' });
-    return res.end(code);
+    return res.end(stripTypes(readFileSync(file, 'utf8'), file));
   }
   res.writeHead(200, {
     'content-type': MIME[extname(file)] ?? 'application/octet-stream',

@@ -1,4 +1,4 @@
-import type { CameraControlBase, ChangeListener } from './controlTypes.ts';
+import type { CameraControlBase, ChangeListener } from './types.ts';
 
 /**
  * The socle every camera controller is built on: the `change` emitter the host listens to,

@@ -1,7 +1,7 @@
 import { invalidateOccluderHistory } from '../webgpu/pages/io/drops.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { followPlacementRows } from './placementUpdate.ts';
-import { placedBy, type PlacementRows } from './placementRows.ts';
+import { followPlacementRows } from './update.ts';
+import { placedBy, type PlacementRows } from './rows.ts';
 
 /**
  * Rows of an instance buffer the WebGPU page raster was opened with were written. The roots read

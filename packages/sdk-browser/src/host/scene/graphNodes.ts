@@ -43,7 +43,7 @@ export type HostVector = {
 };
 
 /** The orientation of a pose, as the host stores it: `(x, y, z, w)`. A camera controller writes
- *  exactly this shape, so `../../camera/controls/controlTypes.ts` reads it from here rather than redeclaring it. */
+ *  exactly this shape, so `../../camera/controls/types.ts` reads it from here rather than redeclaring it. */
 export type HostRotation = {
   x: number;
   y: number;

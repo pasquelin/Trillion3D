@@ -97,8 +97,8 @@ export type UnpackedVisibility = { pageIndex: number; triangleIndex: number };
 
 /**
  * CPU mirror of the packing the shaders write inline (`page.packedBase|(triangle&0xffu)` in
- * `shader/shaderId.ts` and `../gpu/raster/pixelWgsl.ts`, `id>>8u` / `id&0xffu` at unpack in
- * `shader/shaderShade.ts`). Two languages: the text is not shared, the layout is.
+ * `shader/visWgsl.ts` and `../gpu/raster/pixelWgsl.ts`, `id>>8u` / `id&0xffu` at unpack in
+ * `shader/shadeWgsl.ts`). Two languages: the text is not shared, the layout is.
  */
 export function packVisibilityId(pageIndex: number, triangleIndex: number) {
   if (

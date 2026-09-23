@@ -80,7 +80,7 @@ export {
   frustumPlanesFromMatrix,
   frustumPlanesToLocal,
 } from './frustum/frustum.ts';
-export { frustumClipBox, frustumExcludesBox } from './frustum/frustumBox.ts';
+export { frustumClipBox, frustumExcludesBox } from './frustum/box.ts';
 export {
   CONE_LENGTH_RATIO,
   CONE_LENGTH_RATIO_WGSL,

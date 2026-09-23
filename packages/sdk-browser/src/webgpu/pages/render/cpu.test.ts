@@ -13,7 +13,7 @@ import {
 import { blendFixture, camera } from '../../../page/selection/blend.fixture.ts';
 import { cameraMoteur } from '../../../camera/camera.fixture.ts';
 import { createHizCounts } from '../../../hiz/hiz.ts';
-import { renderCpuCut } from './renderCpu.ts';
+import { renderCpuCut } from './cpu.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** An engine reduced to what the CPU cut walks before drawing. */

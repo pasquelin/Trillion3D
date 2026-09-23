@@ -57,7 +57,7 @@ const locaux = (
 /** Equivalence lines of the frustum and the cone, without timer options. */
 // The Three oracle of these three computations predates the reversed-depth convention
 // (reversed Z, infinite far plane): it no longer describes the same output. Their
-// correctness is held by `packages/sdk-core/src/math/frustum/frustum.test.ts` and `packages/sdk-core/src/math/frustum/frustumBox.test.ts`, and the bench
+// correctness is held by `packages/sdk-core/src/math/frustum/frustum.test.ts` and `packages/sdk-core/src/math/frustum/box.test.ts`, and the bench
 // line publishes it.
 const Z_INVERSE =
   'Three oracle from before reversed Z — correctness in packages/sdk-core/src/math/frustum/frustum.test.ts';
@@ -96,7 +96,7 @@ export const casTronc: CasVolume[] = [
   casVolume({
     calcul: 'box outside the frustum',
     motif: Z_INVERSE,
-    fichier: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
+    fichier: 'packages/sdk-core/src/math/frustum/box.ts',
     cas: deux(
       'boxes per view, near plane crossed',
       boitesDeVue,
@@ -110,7 +110,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calcul: 'box against the frustum in three states',
-    fichier: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
+    fichier: 'packages/sdk-core/src/math/frustum/box.ts',
     cas: deux(
       'boxes per view, raw and normalized planes',
       boitesDeVue,

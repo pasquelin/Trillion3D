@@ -6,7 +6,7 @@ import { appendAll, markDrawnDiverged, partitionByPass, triangleSum } from '../h
 import { publishCpuProfile } from './cpuSteps.ts';
 import { ensureTargets } from '../prepare/targets.ts';
 import { encodeDraws } from './encodeDraws.ts';
-import { traceCpuFrame, traceCpuFrameWaiting, traceCpuSelection } from './renderTrace.ts';
+import { traceCpuFrame, traceCpuFrameWaiting, traceCpuSelection } from './trace.ts';
 import {
   cpuSampleOf,
   logFirstCpuRenderPath,
@@ -15,7 +15,7 @@ import {
   traceQueueReconstruct,
   traceTargetsEnsured,
   traceTransition,
-} from './renderSteps.ts';
+} from './steps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 function selectCpuCut(

@@ -34,7 +34,7 @@ const options = { chauffe: 2, tours: 12, budgetMs: 500 };
 
 const resPlanes = await mesure({
   name: 'box outside the six planes',
-  fichier: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
+  fichier: 'packages/sdk-core/src/math/frustum/box.ts',
   cas: un('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
   calcul: (liste) =>
     liste.map((c) =>

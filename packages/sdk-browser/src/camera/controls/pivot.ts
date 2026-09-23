@@ -1,10 +1,10 @@
-import { createChangeGate, createControlBase, type ControlBase } from './controlBase.ts';
-import { controlPose, readVector, writeVector, type ControlPose } from './controlPose.ts';
-import { trackPointers, trackWheel, type DragHandlers } from './controlInput.ts';
-import { dollyDistance, panOffset, pixelWorldScale } from './controlMath.ts';
+import { createChangeGate, createControlBase, type ControlBase } from './base.ts';
+import { controlPose, readVector, writeVector, type ControlPose } from './pose.ts';
+import { trackPointers, trackWheel, type DragHandlers } from './input.ts';
+import { dollyDistance, panOffset, pixelWorldScale } from './math.ts';
 import { clampNumber, RADIUS_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import type { ControlCamera, PivotCameraControls } from './controlTypes.ts';
+import type { ControlCamera, PivotCameraControls } from './types.ts';
 
 /**
  * THE PIVOT CORE, shared by the trackball and the planar pan-zoom: a camera, a point it keeps

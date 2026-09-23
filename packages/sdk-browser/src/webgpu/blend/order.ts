@@ -1,7 +1,7 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import { planItem } from './plan.ts';
 import { buildBlendRuns } from './runs.ts';
-import { rowParked } from '../../placement/placementRows.ts';
+import { rowParked } from '../../placement/rows.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 

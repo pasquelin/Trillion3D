@@ -15,8 +15,8 @@
  */
 import { BOX_VALUES } from '../../../sdk-core/src/index.ts';
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts';
-import { forgetRowRoots } from './placementUpdate.ts';
-import { placementWorld, type PlacementOf, type PlacementRows } from './placementRows.ts';
+import { forgetRowRoots } from './update.ts';
+import { placementWorld, type PlacementOf, type PlacementRows } from './rows.ts';
 
 /** A root's pages and itself posed by `placement`, whose world is a view on its row. */
 function pose(root: ClusterRoot<PageRec>, placement: PlacementOf) {

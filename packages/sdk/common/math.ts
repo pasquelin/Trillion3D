@@ -99,7 +99,7 @@ export {
   invertMatrix4Batch,
   normalMatrix3Batch,
 } from '../../sdk-core/src/math/batch/transforms.ts';
-export { frustumClipBox, frustumExcludesBox } from '../../sdk-core/src/math/frustum/frustumBox.ts';
+export { frustumClipBox, frustumExcludesBox } from '../../sdk-core/src/math/frustum/box.ts';
 export {
   frustumKeepsBoxBatch,
   sphereFromBoundsBatch,

@@ -3,7 +3,7 @@ import {
   LIGHT_SETTINGS,
   type SceneProxy,
 } from '../../../../../sdk-core/src/index.ts';
-import { createGpuBounceProxy } from '../../../bounce/bounceProxy.ts';
+import { createGpuBounceProxy } from '../../../bounce/proxy.ts';
 import { createGpuSunFarShadow } from '../../../gpu/shadow/sunFarShadow.ts';
 import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';

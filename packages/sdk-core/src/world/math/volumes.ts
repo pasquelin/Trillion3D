@@ -1,4 +1,4 @@
-import { frustumExcludesBox } from '../../math/frustum/frustumBox.ts';
+import { frustumExcludesBox } from '../../math/frustum/box.ts';
 import { frustumPlanesFromMatrix } from '../../math/frustum/frustum.ts';
 import { Vector3 } from './vector3.ts';
 import type { Box3 } from './box3.ts';

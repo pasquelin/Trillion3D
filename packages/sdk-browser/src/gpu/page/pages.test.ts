@@ -5,7 +5,7 @@ import { createGpuPageCache } from './pages.ts';
 // A slot is the size of the largest cluster: a small page that reuses it writes only its bytes,
 // and the slot's tail keeps those of the previous page without anyone reading them — a row names
 // its page offset and index count, and visibility as well as shading refuse any triangle beyond
-// (`../../visibility/shader/shaderId.ts:50`, `../../visibility/shader/shaderShade.ts:83`). Only the padding to the multiple
+// (`../../visibility/shader/visWgsl.ts:50`, `../../visibility/shader/shadeWgsl.ts:83`). Only the padding to the multiple
 // of four that `writeBuffer` requires goes extra, as zeros. The three pages reuse the same slot,
 // and the sample counts only what is actually transferred.
 test('a reused GPU slot receives only the bytes of its page, padded to what the queue needs', async () => {

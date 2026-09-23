@@ -17,8 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
-import { startServer } from '../../tests/kit/server/staticServer.ts';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import { serverPort, startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { readBounds } from './page.ts';
 import { benchLights } from './lamps.ts';
 import { oracleBuilt } from './oracleCompare.ts';
@@ -85,9 +84,7 @@ async function main() {
   const mounts = options.resolveMounts(ROOT, sides, resources ? resolve(resources) : null);
   const captures = new Map<string, Capture>();
   const server = await startServer({ port: 0, mounts, captures });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('server did not bind a TCP port');
-  const port = address.port;
+  const port = serverPort(server);
   const browser = await launchChrome({
     headless: flag('visible', 'false') !== 'true',
     args: options.ENGINES.webgpu.flags,

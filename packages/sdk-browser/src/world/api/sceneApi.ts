@@ -9,7 +9,7 @@ import type {
 import type { RenderBackend } from '../../backend/types.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { MemoryBudgets } from '../../webgpu/pages/io/memory.ts';
-import type { PlacementRows } from '../../placement/placementRows.ts';
+import type { PlacementRows } from '../../placement/rows.ts';
 
 type Inputs = {
   check: () => void;
@@ -83,7 +83,7 @@ export function createExplorerSceneApi(inputs: Inputs) {
     },
     /** Whether the active path grows an instance buffer in place (`growPlacements`). */
     growsPlacements: () => !!getActive().growPlacements,
-    /** An instance buffer the session holds was replaced by a larger one (`placementGrowth.ts`). */
+    /** An instance buffer the session holds was replaced by a larger one (`placement/growth.ts`). */
     growPlacements(from: PlacementRows, to: PlacementRows) {
       check();
       const active = getActive();

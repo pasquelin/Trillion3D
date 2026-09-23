@@ -10,7 +10,7 @@ import {
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts';
-import { SHADE_REQUEST_WGSL } from './shaderRequest.ts';
+import { SHADE_REQUEST_WGSL } from './request.ts';
 import { SHADOW_SLICE_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts';

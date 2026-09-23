@@ -1,4 +1,4 @@
-import type { ControlCamera, ControlVector } from './controlTypes.ts';
+import type { ControlCamera, ControlVector } from './types.ts';
 
 /**
  * THE ONE PLACE A CONTROLLER TOUCHES A CAMERA. The controllers themselves only ever see the

@@ -1,6 +1,6 @@
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import type { PlacementRows } from '../../placement/placementRows.ts';
+import type { PlacementRows } from '../../placement/rows.ts';
 import type { Batch, Seat } from './worldBatches.ts';
 import { copyElements } from '../../math/matrixElements.ts';
 

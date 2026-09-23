@@ -1,7 +1,7 @@
 /**
  * Oracle D1/D2: `viewProj * world` product computed once and re-read for multiple vertices, against
  * the same product recomputed for each vertex. Both shaders (packages/sdk-browser/src/gpu/raster/shader.ts,
- * packages/sdk-browser/src/visibility/shader/shaderId.ts) apply exactly this transformation; this module holds the JS algebra
+ * packages/sdk-browser/src/visibility/shader/visWgsl.ts) apply exactly this transformation; this module holds the JS algebra
  * (column-major mat4x4f, like WGSL) to verify it on hostile matrices — mirrored,
  * near-singular, large scale — without depending on GPU execution.
  */

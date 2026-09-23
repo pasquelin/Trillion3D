@@ -6,7 +6,7 @@ import {
   type EngineCamera,
   type OrthographicBox,
 } from './engineCamera.ts';
-import type { ControlVector } from './controls/controlTypes.ts';
+import type { ControlVector } from './controls/types.ts';
 import type { HostRotation } from '../host/scene/graphNodes.ts';
 
 export {

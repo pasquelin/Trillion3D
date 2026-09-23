@@ -5,7 +5,7 @@
 // loaded.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ensureSunFarShadow } from '../pages/prepare/prepareSunFar.ts';
+import { ensureSunFarShadow } from '../pages/prepare/sunFar.ts';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { createWebgpuSunFarState } from '../pages/state/sunFar.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';

@@ -31,7 +31,7 @@ const M4A = [
   'world/session/options',
   'world/session/prepare',
   'world/render/render',
-  'world/render/renderFallback',
+  'world/render/fallback',
   'world/scene/scene',
   'world/api/sceneApi',
   'world/api/viewportApi',

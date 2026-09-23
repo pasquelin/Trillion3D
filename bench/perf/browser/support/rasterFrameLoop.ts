@@ -21,7 +21,7 @@ import type { fillReference, Keep } from './rasterBuffer.ts';
 type Triangle = NonNullable<ReturnType<typeof triangleAt>>;
 
 /** The fill's alpha test, the same on both sides: it reads the weights it is given. */
-function alphaGarde(
+function alphaKeep(
   page: VisPage,
   tri: Triangle,
   mat: VisMaterial,
@@ -37,7 +37,7 @@ function alphaGarde(
   const v = uv
     ? uv.getY(tri.i0) * bary.w0 + uv.getY(tri.i1) * bary.w1 + uv.getY(tri.i2) * bary.w2
     : 0;
-  // Guaranteed by the caller: `masque` is only built when `mat.alphaTest > 0 && mat.map`.
+  // Guaranteed by the caller: `mask` is only built when `mat.alphaTest > 0 && mat.map`.
   const texture = mat.map!;
   const rgba = textureRgba(texture);
   if (!rgba) return true;
@@ -49,7 +49,7 @@ function alphaGarde(
 type Fill = typeof fillReference;
 
 /** The frame loop of `packages/sdk-browser/src/visibility/raster.ts`, on the fill it is given. */
-export function rasterAvec(fill: Fill) {
+export function rasterWith(fill: Fill) {
   return (pages: VisPage[], cam: Parameters<typeof triangleAt>[2], viewport: [number, number]) => {
     const [width, height] = viewport,
       ids = new Uint32Array(width * height),
@@ -78,12 +78,12 @@ export function rasterAvec(fill: Fill) {
           } else if (area >= 0) continue;
         }
         const mat = page.material;
-        const masque: Keep | undefined =
+        const mask: Keep | undefined =
           mat.alphaTest > 0 && mat.map
-            ? (x, y, w0, w1, w2) => alphaGarde(page, tri, mat, w0, w1, w2)
+            ? (x, y, w0, w1, w2) => alphaKeep(page, tri, mat, w0, w1, w2)
             : undefined;
         const packed = packVisibilityId(pageIndex, t);
-        fill(ids, depth, width, height, tri.a, tri.b, tri.c, packed, masque);
+        fill(ids, depth, width, height, tri.a, tri.b, tri.c, packed, mask);
       }
     }
     for (let i = 0; i < depth.length; i++) if (depth[i] === -Infinity) depth[i] = DEPTH_CLEAR;

@@ -1,7 +1,7 @@
 import type { HostGeometry, HostMesh } from '../../host/resources.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
-import type { PlacementOf } from '../../placement/placementRows.ts';
+import type { PlacementOf } from '../../placement/rows.ts';
 import {
   FRUSTUM_PLANE_VALUES,
   type DiagnosticMode,

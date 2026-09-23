@@ -5,7 +5,7 @@ import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
 import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
 import { autonomousPagesBackend } from './pages.ts';
 import type { ClusterManifest, Material } from '../../../../sdk-core/src/index.ts';
-import { createPlacementRows, type PlacementRows } from '../../placement/placementRows.ts';
+import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts';
 
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh` placed by `link`. */
 function triangleBackend(link: { placements?: PlacementRows } = {}) {

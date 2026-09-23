@@ -7,7 +7,7 @@ import {
   surfaceCacheBytes,
   surfaceCacheTexels,
 } from './surfaceWgsl.ts';
-import type { GpuBounceProxy } from './bounceProxy.ts';
+import type { GpuBounceProxy } from './proxy.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 
 /** What the cache pass binds: the grid, the proxy and its albedo, lights, frozen probes, the

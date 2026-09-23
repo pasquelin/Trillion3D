@@ -45,7 +45,7 @@ fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
 
 /**
  * Vertex normal of a page, which the surface resolve alone reads: octahedral on the page,
- * three floats on the source buffer. Declared after `vertN` (`shaderShadeDecl.ts`),
+ * three floats on the source buffer. Declared after `vertN` (`shadeDeclWgsl.ts`),
  * which supplies the second half.
  */
 export const PAGE_NORMAL_WGSL = `fn pageNormal(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{

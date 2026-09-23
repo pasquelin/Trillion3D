@@ -1,5 +1,5 @@
 import { FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
-import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/shaderRequest.ts';
+import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { openValidation, validationError } from '../../gpu/core/errorScope.ts';

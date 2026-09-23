@@ -20,7 +20,7 @@ import {
 } from './wrapModes.ts';
 import { visMaterial } from './types.ts';
 import { ROW_WRAP_MODES_WORD } from '../webgpu/row/pageRow.ts';
-import { SHADE_SHADER } from './shader/shaderShade.ts';
+import { SHADE_SHADER } from './shader/shadeWgsl.ts';
 import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
 import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts';
 import {
@@ -120,7 +120,7 @@ test('every WRAP_MAP rank is read by the sample and by the frame feedback of bot
   const fois = (texte: string, motif: string) => texte.split(motif).length - 1;
   for (const rang of Object.values(WRAP_MAP)) {
     // In shading, each map is read by its nibble; the base is read a second time by the tile
-    // request for the sun shadow (`shader/shaderRequest.ts`), and data maps compare their
+    // request for the sun shadow (`shader/request.ts`), and data maps compare their
     // nibble to already-read maps to reuse them (`lectureDonnee`): roughness and occlusion two
     // comparisons, metal two. Frame feedback addresses by the shared rule (`mapRequest`), with
     // no nibble written per map.

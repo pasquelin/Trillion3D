@@ -8,7 +8,7 @@ import {
   invalidateTemporalPyramid,
 } from '../io/drops.ts';
 import { renderGpuCut } from './gpuCut.ts';
-import { renderCpuCut } from './renderCpu.ts';
+import { renderCpuCut } from './cpu.ts';
 import { setWindingEpoch } from './winding.ts';
 import { holdWebgpuFrame } from '../../frame/hold.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';

@@ -32,7 +32,7 @@ export type {
 export type { BackendDiagnostic, PointOfInterest } from './backend/types.ts';
 export type { DiagnosticDetail } from './backend/types.ts';
 /** The rows a mirrored mesh is placed through, reachable from the scene a loader records. */
-export type { PlacementRows } from './placement/placementRows.ts';
+export type { PlacementRows } from './placement/rows.ts';
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
 export type {
@@ -125,7 +125,7 @@ export type {
   ChangeListener,
   ControlVector,
   PivotCameraControls,
-} from './camera/controls/controlTypes.ts';
+} from './camera/controls/types.ts';
 export type { FlyCameraControls } from './camera/controls/flyControls.ts';
 export type { FirstPersonCameraControls } from './camera/controls/firstPersonControls.ts';
 export type { TrackballCameraControls } from './camera/controls/trackballControls.ts';

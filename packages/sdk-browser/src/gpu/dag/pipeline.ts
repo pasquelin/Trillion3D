@@ -1,6 +1,6 @@
 import { DAG_SELECTION_SHADER } from './shader/shader.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
-import { withScreenErrorVariant } from './shader/shaderError.ts';
+import { withScreenErrorVariant } from './shader/error.ts';
 import { screenErrorVariant } from '../../../../sdk-core/src/index.ts';
 import { openValidation, validationError } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';

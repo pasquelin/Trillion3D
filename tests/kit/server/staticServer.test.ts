@@ -7,26 +7,26 @@ import { serverPort, startServer } from './staticServer.ts';
 import { resolve } from 'node:path';
 import { readOptions } from '../../../bench/runner/options.ts';
 
-/** The header `nom` returned by a harness server launched with these options, then closed. */
-async function entete(options: { isolation?: boolean }, nom: string) {
+/** The header `name` returned by a harness server launched with these options, then closed. */
+async function header(options: { isolation?: boolean }, name: string) {
   const server = await startServer({ port: 0, mounts: [], captures: new Map(), ...options });
   try {
-    const reponse = await fetch(`http://127.0.0.1:${serverPort(server)}/`);
-    await reponse.arrayBuffer();
-    return reponse.headers.get(nom);
+    const response = await fetch(`http://127.0.0.1:${serverPort(server)}/`);
+    await response.arrayBuffer();
+    return response.headers.get(name);
   } finally {
     server.close();
   }
 }
 
 test('without isolation — default — no COOP/COEP header leaves the server', async () => {
-  assert.equal(await entete({}, 'cross-origin-opener-policy'), null);
-  assert.equal(await entete({ isolation: false }, 'cross-origin-embedder-policy'), null);
+  assert.equal(await header({}, 'cross-origin-opener-policy'), null);
+  assert.equal(await header({ isolation: false }, 'cross-origin-embedder-policy'), null);
 });
 
 test('with isolation, COOP and COEP leave on every response', async () => {
-  assert.equal(await entete({ isolation: true }, 'cross-origin-opener-policy'), 'same-origin');
-  assert.equal(await entete({ isolation: true }, 'cross-origin-embedder-policy'), 'require-corp');
+  assert.equal(await header({ isolation: true }, 'cross-origin-opener-policy'), 'same-origin');
+  assert.equal(await header({ isolation: true }, 'cross-origin-embedder-policy'), 'require-corp');
 });
 
 test('--isolation is only on or off, and defaults to off when unstated', () => {

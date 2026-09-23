@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
-import { transformSync } from 'esbuild';
 import type { Page } from 'playwright';
+import { stripTypes } from './staticServer.ts';
 
 /** Serve only the fixture modules of `directory` through the current browser origin, their types
  *  stripped on the way out. The caller names the folder: it is the one that knows where its
@@ -19,12 +19,7 @@ export async function routeBrowserFixtures(page: Page, directory: string) {
       await route.abort();
       return;
     }
-    const { code } = transformSync(await readFile(file, 'utf8'), {
-      loader: 'ts',
-      format: 'esm',
-      target: 'es2022',
-      sourcefile: file,
-    });
-    await route.fulfill({ status: 200, contentType: 'text/javascript', body: code });
+    const body = stripTypes(await readFile(file, 'utf8'), file);
+    await route.fulfill({ status: 200, contentType: 'text/javascript', body });
   });
 }

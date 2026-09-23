@@ -6,8 +6,8 @@ import {
 import { PAGES_RING, noteShadowFrame, uploadSceneLights } from '../state/lights.ts';
 import { planShadowRegions } from './encodeShadows.ts';
 import { encodeShadowAtlas } from './encodeShadowPass.ts';
-import { ensureBounce } from '../prepare/prepareBounce.ts';
-import { ensureSunFarShadow } from '../prepare/prepareSunFar.ts';
+import { ensureBounce } from '../prepare/bounce.ts';
+import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** The floats the deferred pass rereads: lights, tiles in X and Y, exposure, display curve. */

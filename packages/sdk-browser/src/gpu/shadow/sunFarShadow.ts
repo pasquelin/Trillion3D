@@ -5,7 +5,7 @@ import {
   PROXY_COUNT_OFFSET,
   PROXY_PARAM_FLOATS,
 } from '../../bounce/nodeWgsl.ts';
-import type { GpuBounceProxy } from '../../bounce/bounceProxy.ts';
+import type { GpuBounceProxy } from '../../bounce/proxy.ts';
 import { createGpuPeriodicReadback } from '../core/periodicReadback.ts';
 
 /** The two sampled counters, in bytes: the copy size as well as the mapping size. */

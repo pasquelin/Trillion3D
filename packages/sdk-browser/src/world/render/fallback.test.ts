@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { handleExplorerRenderError } from './renderFallback.ts';
+import { handleExplorerRenderError } from './fallback.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 
 function fixture(lost: boolean) {

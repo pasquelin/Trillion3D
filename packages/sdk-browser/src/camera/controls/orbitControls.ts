@@ -1,7 +1,7 @@
-import { createChangeGate, createControlBase } from './controlBase.ts';
-import { pivotControlsApi, trackPivotGestures } from './controlPivot.ts';
-import { controlPose, readVector, writeVector } from './controlPose.ts';
-import { dollyDistance, orbitOrientation, panOffset, pixelWorldScale } from './controlMath.ts';
+import { createChangeGate, createControlBase } from './base.ts';
+import { pivotControlsApi, trackPivotGestures } from './pivot.ts';
+import { controlPose, readVector, writeVector } from './pose.ts';
+import { dollyDistance, orbitOrientation, panOffset, pixelWorldScale } from './math.ts';
 import {
   clampNumber,
   fromSpherical,
@@ -9,7 +9,7 @@ import {
   RADIUS_EPSILON,
   toSpherical,
 } from '../../../../sdk-core/src/world/math/spherical.ts';
-import type { ControlCamera, PivotCameraControls } from './controlTypes.ts';
+import type { ControlCamera, PivotCameraControls } from './types.ts';
 
 /**
  * ORBIT, the turntable: the camera turns around `target` at a distance the host bounds, world
@@ -20,7 +20,7 @@ import type { ControlCamera, PivotCameraControls } from './controlTypes.ts';
  * THE POSE IS THE STATE. Every gesture starts by reading `object.position` and `target` back
  * into spherical coordinates, and ends by writing them out again. A host that moves the
  * camera itself — the portal's zoom buttons do — is therefore understood on the next
- * `update()`, and the round trip is what `controlMath.test.ts` pins down.
+ * `update()`, and the round trip is what `math.test.ts` pins down.
  */
 export function createOrbitCameraControls(
   camera: ControlCamera,

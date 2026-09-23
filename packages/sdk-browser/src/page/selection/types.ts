@@ -9,7 +9,7 @@ import type { PageSurface } from '../surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
 import type { CullingLinks } from '../cut/forced.ts';
-import type { PlacementOf } from '../../placement/placementRows.ts';
+import type { PlacementOf } from '../../placement/rows.ts';
 
 export type PageRec = {
   id: number;
@@ -139,7 +139,7 @@ export type ClusterRoot<T> = {
    *  omission visible. */
   boxes?: boolean;
   /** True while the row this root was collected from is parked: every cut skips the root, and
-   *  its tables stay as they are, ready for the row to be taken back (`placementRows.ts`). */
+   *  its tables stay as they are, ready for the row to be taken back (`placement/rows.ts`). */
   parked?: boolean;
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf;

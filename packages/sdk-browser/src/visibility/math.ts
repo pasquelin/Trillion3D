@@ -121,7 +121,7 @@ export function clusterHash(id: string) {
   return Array.from(id).reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 0);
 }
 
-/** CPU mirror of the shading shader's UV derivatives (`shader/shaderShade.ts`): same
+/** CPU mirror of the shading shader's UV derivatives (`shader/shadeWgsl.ts`): same
  *  quotients, same order, two languages — the text is not shared between TypeScript and WGSL. */
 export function uvDerivatives(
   a: Projected,

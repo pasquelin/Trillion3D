@@ -291,7 +291,7 @@
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/diagnostic/frameDiagnostic.ts",
-        "packages/sdk-browser/src/world/render/renderFallback.ts",
+        "packages/sdk-browser/src/world/render/fallback.ts",
         "packages/sdk-browser/src/world/session/manifest.ts",
         "packages/sdk-browser/src/world/session/options.ts",
         "packages/sdk-browser/src/world/session/session.ts",
@@ -320,7 +320,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/camera/controls/controlMath.test.ts",
+        "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/trackballControls.ts"
       ],
       "disposition": "retained",
@@ -343,7 +343,7 @@
     {
       "name": "BackendDiagnostic",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/diagnostic/diagnosticTypes.ts",
+      "definingModule": "packages/sdk-browser/src/diagnostic/types.ts",
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
@@ -506,7 +506,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/bounce/bounceProbes.ts",
+        "packages/sdk-browser/src/bounce/probes.ts",
         "packages/sdk-browser/src/bounce/schedule.ts"
       ],
       "disposition": "retained",
@@ -521,15 +521,15 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/core/bounce-probes.ts",
-        "packages/sdk-browser/src/bounce/bounceProbes.ts",
-        "packages/sdk-browser/src/bounce/bounceSurface.ts",
+        "packages/sdk-browser/src/bounce/probes.ts",
+        "packages/sdk-browser/src/bounce/surface.ts",
         "packages/sdk-browser/src/bounce/gridWgsl.ts",
         "packages/sdk-browser/src/bounce/probeWgsl.ts",
         "packages/sdk-browser/src/bounce/surfaceWgsl.ts",
         "packages/sdk-browser/src/bounce/traceWgsl.ts",
         "packages/sdk-browser/src/bounce/uniform.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareBounce.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareSunFar.ts",
+        "packages/sdk-browser/src/webgpu/pages/prepare/bounce.ts",
+        "packages/sdk-browser/src/webgpu/pages/prepare/sunFar.ts",
         "packages/sdk-browser/src/webgpu/pages/runtime.ts",
         "packages/sdk-browser/src/world/api/lightApi.ts"
       ],
@@ -545,8 +545,8 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/bounce-probes.perf.ts",
-        "packages/sdk-browser/src/bounce/bounceProbes.ts",
-        "packages/sdk-browser/src/bounce/bounceSurface.ts"
+        "packages/sdk-browser/src/bounce/probes.ts",
+        "packages/sdk-browser/src/bounce/surface.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/bounce/budget\".bounceBatchOf"
@@ -625,8 +625,8 @@
         "packages/sdk-browser/src/math/batchRuntime.ts",
         "packages/sdk-browser/src/page/selection/collect.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
-        "packages/sdk-browser/src/placement/placementGrowth.ts",
-        "packages/sdk-browser/src/placement/placementUpdate.ts",
+        "packages/sdk-browser/src/placement/growth.ts",
+        "packages/sdk-browser/src/placement/update.ts",
         "packages/sdk-browser/src/webgl/cluster/copyCulling.ts",
         "packages/sdk-browser/src/webgpu/blend/prepare.ts",
         "packages/sdk-browser/src/webgpu/blend/worlds.test.ts",
@@ -701,7 +701,7 @@
         "packages/sdk-browser/src/host/three/lod.ts",
         "packages/sdk-browser/src/host/world/bounds.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
-        "packages/sdk-browser/src/placement/placementUpdate.ts",
+        "packages/sdk-browser/src/placement/update.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/lightResources.ts",
         "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
         "packages/sdk-browser/src/webgpu/shadow/bounds.ts",
@@ -736,7 +736,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/support/volumeBoxCases.ts",
-        "packages/sdk-browser/src/placement/placementUpdate.ts",
+        "packages/sdk-browser/src/placement/update.ts",
         "packages/sdk-browser/src/scene/replicateInstances.ts",
         "packages/sdk-browser/src/webgpu/blend/worlds.ts",
         "packages/sdk-browser/src/webgpu/pages/render/transform.ts"
@@ -755,7 +755,7 @@
         "bench/perf/browser/support/volumeBoxCases.ts",
         "packages/sdk-browser/src/math/batchBoxes.ts",
         "packages/sdk-browser/src/page/selection/collect.ts",
-        "packages/sdk-browser/src/placement/placementUpdate.ts",
+        "packages/sdk-browser/src/placement/update.ts",
         "packages/sdk-browser/src/webgl/cluster/copyCulling.ts",
         "packages/sdk-browser/src/webgpu/blend/worlds.ts",
         "packages/sdk-browser/src/webgpu/core/transformShear.fixture.ts",
@@ -1086,7 +1086,7 @@
     {
       "name": "ChangeListener",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/camera/controls/controlTypes.ts",
+      "definingModule": "packages/sdk-browser/src/camera/controls/types.ts",
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
@@ -1226,8 +1226,8 @@
         "packages/sdk-browser/src/scene/manifestLoad.ts",
         "packages/sdk-browser/src/scene/manifestPageIndex.ts",
         "packages/sdk-browser/src/scene/sharedInstances.test.ts",
-        "packages/sdk-browser/src/texture/textureSkip.test.ts",
-        "packages/sdk-browser/src/texture/textureSkip.ts",
+        "packages/sdk-browser/src/texture/skip.test.ts",
+        "packages/sdk-browser/src/texture/skip.ts",
         "packages/sdk-browser/src/webgpu/core/materialClasses.test.ts",
         "packages/sdk-browser/src/webgpu/pages/captureAndCoverage.test.ts",
         "packages/sdk-browser/src/webgpu/pages/evictionAndCancel.test.ts",
@@ -1246,8 +1246,8 @@
         "packages/sdk-browser/src/world/diagnostic/metrics.ts",
         "packages/sdk-browser/src/world/scene/scene.test.ts",
         "packages/sdk-browser/src/world/scene/scene.ts",
-        "packages/sdk-browser/src/world/scene/sceneFiniteTransform.test.ts",
-        "packages/sdk-browser/src/world/scene/sceneLoad.test.ts",
+        "packages/sdk-browser/src/world/scene/finiteTransform.test.ts",
+        "packages/sdk-browser/src/world/scene/load.test.ts",
         "packages/sdk-browser/src/world/session/backendsTextureLevels.test.ts",
         "packages/sdk-browser/src/world/session/manifest.ts",
         "packages/sdk-browser/src/world/session/pageSources.ts",
@@ -1585,7 +1585,7 @@
     {
       "name": "ControlVector",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/camera/controls/controlTypes.ts",
+      "definingModule": "packages/sdk-browser/src/camera/controls/types.ts",
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
@@ -1666,7 +1666,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/bounce-probes.perf.ts",
-        "packages/sdk-browser/src/bounce/bounceProbes.ts"
+        "packages/sdk-browser/src/bounce/probes.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/bounce/budget\".createBounceBudget"
@@ -1678,7 +1678,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/bounce/bounceProbes.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/bounce/probes.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/bounce/cascades\".createBounceCascades"
     },
@@ -1689,7 +1689,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/bounce/bounceProbes.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/bounce/probes.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/bounce/occupancy\".createBounceOccupancy"
     },
@@ -2215,7 +2215,7 @@
         "bench/perf/core/coplanar-layers.perf.ts",
         "packages/sdk-browser/src/cluster/batchLayers.test.ts",
         "packages/sdk-browser/src/cluster/batchLayers.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareVisibility.ts",
+        "packages/sdk-browser/src/webgpu/pages/prepare/visibility.ts",
         "packages/sdk-browser/src/webgpu/row/pageRow.ts",
         "packages/sdk-browser/src/webgpu/row/pageRowDepthBias.test.ts",
         "packages/sdk-browser/src/webgpu/visibility/drawLayers.test.ts",
@@ -2321,7 +2321,7 @@
     {
       "name": "DiagnosticDetail",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/diagnostic/diagnosticTypes.ts",
+      "definingModule": "packages/sdk-browser/src/diagnostic/types.ts",
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
@@ -2354,7 +2354,7 @@
         "packages/sdk-browser/src/world/api/diagnosticApi.ts",
         "packages/sdk-browser/src/world/api/selectionApi.ts",
         "packages/sdk-browser/src/world/render/hostState.ts",
-        "packages/sdk-browser/src/world/render/renderFallback.ts"
+        "packages/sdk-browser/src/world/render/fallback.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/runtime/diagnostics\".DiagnosticMode"
@@ -2496,7 +2496,7 @@
         "packages/sdk-browser/src/world/loader/modelFormat.ts",
         "packages/sdk-browser/src/world/render/draw.ts",
         "packages/sdk-browser/src/world/scene/scene.ts",
-        "packages/sdk-browser/src/world/scene/sceneFiniteTransform.test.ts",
+        "packages/sdk-browser/src/world/scene/finiteTransform.test.ts",
         "packages/sdk-browser/src/world/scene/transformUnstableParent.test.ts",
         "packages/sdk-browser/src/world/session/capabilityProbe.ts",
         "packages/sdk-browser/src/world/session/interactive.ts",
@@ -2733,7 +2733,7 @@
         "packages/sdk-browser/src/world/diagnostic/frameDiagnostic.ts",
         "packages/sdk-browser/src/world/diagnostic/metrics.ts",
         "packages/sdk-browser/src/world/render/render.ts",
-        "packages/sdk-browser/src/world/render/renderTriangles.test.ts",
+        "packages/sdk-browser/src/world/render/triangles.test.ts",
         "scripts/docs-scene-telemetry.test.ts",
         "site/lessons/engine-scene/telemetry.ts",
         "site/lessons/lessonShadowPages.ts",
@@ -2800,7 +2800,7 @@
     {
       "name": "frustumClipBox",
       "kind": "value",
-      "definingModule": "packages/sdk-core/src/math/frustum/frustumBox.ts",
+      "definingModule": "packages/sdk-core/src/math/frustum/box.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
@@ -2816,7 +2816,7 @@
     {
       "name": "frustumExcludesBox",
       "kind": "value",
-      "definingModule": "packages/sdk-core/src/math/frustum/frustumBox.ts",
+      "definingModule": "packages/sdk-core/src/math/frustum/box.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
@@ -3909,9 +3909,9 @@
         "packages/sdk-browser/src/lighting/tiles/rankEquivalence.test.ts",
         "packages/sdk-browser/src/lighting/tiles/shader.ts",
         "packages/sdk-browser/src/lighting/tiles/tiles.ts",
-        "packages/sdk-browser/src/visibility/shader/shaderRequest.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareLights.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareSunFar.ts",
+        "packages/sdk-browser/src/visibility/shader/request.ts",
+        "packages/sdk-browser/src/webgpu/pages/prepare/lights.ts",
+        "packages/sdk-browser/src/webgpu/pages/prepare/sunFar.ts",
         "packages/sdk-browser/src/world/api/lightApi.ts",
         "tests/browser/renders/sampled-lighting.browser.ts"
       ],
@@ -4418,7 +4418,7 @@
       "affectedConsumers": [
         "bench/oracles/core/coplanar-layers.ts",
         "packages/sdk-browser/src/gpu/draw/contract.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareVisibility.ts"
+        "packages/sdk-browser/src/webgpu/pages/prepare/visibility.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/lod/depthLayer\".MAX_DEPTH_LAYER"
@@ -4624,7 +4624,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/camera/controls/controlMath.test.ts",
+        "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/flyControls.ts",
         "packages/sdk-browser/src/camera/controls/trackballControls.ts"
       ],
@@ -4730,7 +4730,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/camera/controls/controlMath.test.ts",
+        "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/flyControls.ts",
         "packages/sdk-browser/src/camera/controls/trackballControls.ts"
       ],
@@ -5370,7 +5370,7 @@
     {
       "name": "PivotCameraControls",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/camera/controls/controlTypes.ts",
+      "definingModule": "packages/sdk-browser/src/camera/controls/types.ts",
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
@@ -5392,7 +5392,7 @@
     {
       "name": "PlacementRows",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/placement/placementRows.ts",
+      "definingModule": "packages/sdk-browser/src/placement/rows.ts",
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
@@ -5592,7 +5592,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/prepareTextures.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/textures.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewFormat\".PREVIEW_ATLAS_COLOR"
     },
@@ -5603,7 +5603,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/prepareTextures.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/textures.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewFormat\".PREVIEW_ATLAS_DATA"
     },
@@ -5625,7 +5625,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/prepareTextures.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/textures.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewLevels\".PREVIEW_BASE"
     },
@@ -5730,7 +5730,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/texture/textureSkip.ts",
+        "packages/sdk-browser/src/texture/skip.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts"
       ],
       "disposition": "retained",
@@ -5899,10 +5899,10 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/bounce/bounceProbes.ts",
+        "packages/sdk-browser/src/bounce/probes.ts",
         "packages/sdk-browser/src/bounce/gridWgsl.ts",
         "packages/sdk-browser/src/lighting/deferred/setup.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareBounce.ts"
+        "packages/sdk-browser/src/webgpu/pages/prepare/bounce.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/bounce/contracts\".PROBE_FLOATS"
@@ -5970,7 +5970,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/bounce/bounceProxy.ts",
+        "packages/sdk-browser/src/bounce/proxy.ts",
         "packages/sdk-browser/src/bounce/nodeWgsl.ts",
         "packages/sdk-browser/src/webgpu/residency/residentProxyBuffer.test.ts"
       ],
@@ -6064,7 +6064,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "experimental",
-      "affectedConsumers": ["packages/sdk-browser/src/gpu/dag/shader/shaderError.test.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/gpu/dag/shader/error.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/lod/screenErrorVariant\".referenceScreenError"
     },
@@ -6153,10 +6153,10 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/camera/controls/controlMath.test.ts",
-        "packages/sdk-browser/src/camera/controls/controlMath.ts",
-        "packages/sdk-browser/src/camera/controls/controlPivot.ts",
-        "packages/sdk-browser/src/camera/controls/controlsSteering.test.ts",
+        "packages/sdk-browser/src/camera/controls/math.test.ts",
+        "packages/sdk-browser/src/camera/controls/math.ts",
+        "packages/sdk-browser/src/camera/controls/pivot.ts",
+        "packages/sdk-browser/src/camera/controls/steering.test.ts",
         "packages/sdk-browser/src/camera/controls/firstPersonControls.ts",
         "packages/sdk-browser/src/camera/controls/trackballControls.ts"
       ],
@@ -6486,12 +6486,12 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/bounce/bounceProbes.ts",
-        "packages/sdk-browser/src/bounce/bounceProxy.ts",
+        "packages/sdk-browser/src/bounce/probes.ts",
+        "packages/sdk-browser/src/bounce/proxy.ts",
         "packages/sdk-browser/src/bounce/limits.ts",
         "packages/sdk-browser/src/scene/proxyLoad.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareBounce.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareSunFar.ts",
+        "packages/sdk-browser/src/webgpu/pages/prepare/bounce.ts",
+        "packages/sdk-browser/src/webgpu/pages/prepare/sunFar.ts",
         "packages/sdk-browser/src/webgpu/residency/residentProxyBuffer.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/sunFarHold.test.ts"
       ],
@@ -6590,7 +6590,7 @@
       "affectedConsumers": [
         "bench/runner/measureOptions.ts",
         "bench/runner/sideOptions.ts",
-        "packages/sdk-browser/src/gpu/dag/shader/shaderError.ts",
+        "packages/sdk-browser/src/gpu/dag/shader/error.ts",
         "packages/sdk-browser/src/world/session/options.ts"
       ],
       "disposition": "retained",
@@ -6773,7 +6773,7 @@
         "packages/sdk-browser/src/gpu/shadow/slicePack.test.ts",
         "packages/sdk-browser/src/gpu/shadow/slicePack.ts",
         "packages/sdk-browser/src/lighting/deferred/setup.ts",
-        "packages/sdk-browser/src/visibility/shader/shaderRequest.ts",
+        "packages/sdk-browser/src/visibility/shader/request.ts",
         "packages/sdk-browser/src/webgpu/shadow/drawnMask.test.ts"
       ],
       "disposition": "retained",
@@ -7563,7 +7563,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/prepareTextures.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/textures.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewFormat\".TEXTURE_PREVIEW_VERSION"
     },
@@ -7722,8 +7722,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/texture/blockFormats.ts",
-        "packages/sdk-browser/src/texture/textureSkip.test.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/prepareTextures.ts",
+        "packages/sdk-browser/src/texture/skip.test.ts",
+        "packages/sdk-browser/src/webgpu/pages/prepare/textures.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.test.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
         "tests/fixtures/manifestBinaryPreview.ts"

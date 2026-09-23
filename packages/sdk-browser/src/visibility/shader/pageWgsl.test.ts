@@ -18,8 +18,8 @@ import { WRAP_COORD_WGSL, wrapLinear } from '../wrapModes.ts';
 import { lineaireThree } from '../../../../../tests/browser/probes/addressingCases.ts';
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL, maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts';
 import { rasterSource } from '../../gpu/raster/shader.ts';
-import { SHADE_SHADER } from './shaderShade.ts';
-import { VIS_SHADER } from './shaderId.ts';
+import { SHADE_SHADER } from './shadeWgsl.ts';
+import { VIS_SHADER } from './visWgsl.ts';
 import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 
 const SMALL_SHADER = rasterSource(4, 16);

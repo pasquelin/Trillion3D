@@ -1,4 +1,4 @@
-import type { ControlBase } from './controlBase.ts';
+import type { ControlBase } from './base.ts';
 
 /**
  * The input every camera controller reads: pointers, wheel, keys. Written once here so the

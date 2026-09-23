@@ -1,5 +1,5 @@
 import { BOX_VALUES } from '../primitives/box.ts';
-import { frustumExcludesBox } from '../frustum/frustumBox.ts';
+import { frustumExcludesBox } from '../frustum/box.ts';
 import { sphereFromBounds } from '../primitives/sphere.ts';
 import { SPHERE_VALUES } from './strides.ts';
 

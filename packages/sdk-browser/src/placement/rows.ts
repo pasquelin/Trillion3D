@@ -11,7 +11,7 @@
  *
  * The capacity is the owner's decision; a resource that needs more rows than it holds is given a
  * larger buffer, which the session grows into in place where its engine can
- * (`placementGrowth.ts`), and is opened again with otherwise.
+ * (`growth.ts`), and is opened again with otherwise.
  */
 import type { MatrixElements } from '../math/matrixElements.ts';
 

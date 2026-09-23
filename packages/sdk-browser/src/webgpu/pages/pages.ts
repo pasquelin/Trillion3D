@@ -5,9 +5,9 @@ import { readTransparentOcclusionAudit } from '../transparent/occlusionAudit.ts'
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import type { BackendFactory } from '../../backend/types.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
-import { prepareGpuTiming, watchGpuDevice } from './prepare/prepareTiming.ts';
+import { prepareGpuTiming, watchGpuDevice } from './prepare/timing.ts';
 import { prepareWebgpuPages } from './prepare/prepare.ts';
-import { setWebgpuBounce } from './prepare/prepareBounce.ts';
+import { setWebgpuBounce } from './prepare/bounce.ts';
 import { reserveRootBoxes } from '../../math/batchBoxes.ts';
 import { renderWebgpuPages } from './render/render.ts';
 import { flushWebgpuPages } from './render/flush.ts';
