@@ -60,21 +60,21 @@ export function controlSettingAccessors(
     set movementSpeed(value: number) {
       setting('movementSpeed', value);
     },
-    /** First person only: radians the view turns per pixel the pointer moves. */
+    /** First person and character: radians the view turns per pixel the pointer moves. */
     get lookSpeed() {
       return settings.lookSpeed;
     },
     set lookSpeed(value: number) {
       setting('lookSpeed', value);
     },
-    /** First person only: lowest the head looks, in radians (0 is the horizon, negative down). */
+    /** First person and character: lowest the head looks, in radians (0 is the horizon, negative down). */
     get minPitch() {
       return settings.minPitch;
     },
     set minPitch(value: number) {
       setting('minPitch', value);
     },
-    /** First person only: highest the head looks, in radians above the horizon. */
+    /** First person and character: highest the head looks, in radians above the horizon. */
     get maxPitch() {
       return settings.maxPitch;
     },
