@@ -43,7 +43,7 @@ The decoder never returns an empty image and never panics.
 
 ## What to Provide With It
 
-- **A minimal golden fixture**: the smallest file of the format owned or redistributable, under `fixtures/`, with its `expected.json`, compiled by the shared harness (`src/tests/golden.rs`) — never by a custom harness. `GoldenRun::prepared_dir` finds a driver's prepared directory and `scene_digest` extracts the comparable triplet for `expected.json`; use these rather than re-reading produced files yourself.
+- **A minimal golden fixture**: the smallest file of the format owned or redistributable, under `../../tests/fixtures/formats/`, with its `expected.json`, compiled by the shared harness (`src/tests/golden.rs`) — never by a custom harness. `GoldenRun::prepared_dir` finds a driver's prepared directory and `scene_digest` extracts the comparable triplet for `expected.json`; use these rather than re-reading produced files yourself.
 - **One test per driver behavior**: what it recognizes, what it rejects, what it reports. Router and registry tests already exist: do not duplicate them per format. To read a decode result, use `rgba8()` or `rgba_f32()` from `src/plugins/tests.rs` — never an irrefutable `let` on a `DecodedImage` variant: the contract has two outputs, and a test assuming one must state so via a call that panics on the other.
 - **Provenance**: where the spec comes from, which library, which license. Place it in the module header and commit message.
 

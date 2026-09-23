@@ -2,10 +2,10 @@
 //! than a panic on a ring that nothing makes cuttable. The convex path is proved in
 //! `tests_convex`, against the ears.
 //!
-//! The U ring and the area measure are those of the drivers, in `crate::tests::ngones`: one
+//! The U ring and the area measure are those of the drivers, in `crate::tests::ngons`: one
 //! definition of the audit polygon, and one way to measure what comes out of it.
 use super::*;
-use crate::tests::ngones::{cut_area, U_RING};
+use crate::tests::ngons::{cut_area, U_RING};
 
 /// A planar ring, placed in the plane `z = 0`.
 pub(super) fn flat_ring(points: &[[f64; 2]]) -> Vec<[f64; 3]> {

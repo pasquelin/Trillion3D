@@ -8,17 +8,17 @@
 // ids, frame metrics. A DOM-at-rest comparison, not a pixel claim. Differences are written under
 // `benchmark-runs/site-diff/` and the exit code is 1 when any route differs. A filter keeps the
 // routes containing it, to look again at a few.
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { Browser, Page, Route } from 'playwright';
-import { launchChrome } from './mesure/chrome.ts';
+import type { Browser, Page } from 'playwright';
+import { routeThree } from '../tests/kit/server/threeRoute.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
 import { createDocsServer, listen } from './docs-serve.ts';
 import { examples } from '../site/content/catalog.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { entryRoute, routeHref } from '../site/app/portal/routes.ts';
 import type { Locale } from '../site/content/locale.ts';
 
-const THREE = 'https://cdn.jsdelivr.net/npm/three@0.174.0/';
 const SETTLE_MS = 1500;
 const OUT = resolve(import.meta.dirname, '../benchmark-runs/site-diff');
 const LOCALES: Locale[] = ['en', 'fr'];
@@ -66,13 +66,7 @@ async function render(page: Page, origin: string, route: string) {
 
 async function newPage(browser: Browser): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-  await context.route(`${THREE}**`, async (handler: Route) => {
-    const file = handler.request().url().slice(THREE.length);
-    handler.fulfill({
-      contentType: 'text/javascript',
-      body: await readFile(resolve(import.meta.dirname, '../node_modules/three', file)),
-    });
-  });
+  await routeThree(context);
   return context.newPage();
 }
 
