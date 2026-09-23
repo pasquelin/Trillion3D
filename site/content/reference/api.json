@@ -8575,6 +8575,39 @@
     "description": ""
   },
   {
+    "id": "OrbitCameraControls",
+    "module": "packages/sdk-browser/src/camera/controls/orbitControls.ts",
+    "exports": ["OrbitCameraControls"],
+    "section": "camera",
+    "kind": "Type",
+    "title": "OrbitCameraControls",
+    "signature": "interface OrbitCameraControls extends PivotCameraControls",
+    "summary": "ORBIT, the turntable: the camera turns around `target` at a distance the host bounds, world up kept, so a horizontal drag is an azimuth and a vertical one an elevation.",
+    "members": [
+      {
+        "name": "minPolarAngle",
+        "type": "number",
+        "desc": "Smallest polar angle, in radians from straight up: `0` lets the camera look straight down. The pole itself stays out of reach, where the azimuth would stop being defined."
+      },
+      {
+        "name": "maxPolarAngle",
+        "type": "number",
+        "desc": "Largest polar angle, in radians from straight up: `Math.PI / 2` keeps it above the ground."
+      },
+      {
+        "name": "minAzimuthAngle",
+        "type": "number",
+        "desc": "Start of the arc of azimuth allowed, in radians from +Z towards +X; unlimited at `-Infinity`. Only a pair of finite bounds narrower than a full turn holds the camera."
+      },
+      {
+        "name": "maxAzimuthAngle",
+        "type": "number",
+        "desc": "End of that arc; unlimited at `Infinity`. It may be smaller than `minAzimuthAngle`."
+      }
+    ],
+    "description": "Primary drag rotates, secondary drag or two fingers pan, wheel and pinch zoom between `minDistance` and `maxDistance`. No damping: a pointer that stops, stops the camera, and the scene is still. THE POSE IS THE STATE. Every gesture starts by reading `object.position` and `target` back into spherical coordinates, and ends by writing them out again. A host that moves the camera itself — the portal's zoom buttons do — is therefore understood on the next `update()`, and the round trip is what `math.test.ts` pins down. THE ANGLES ARE BOUNDED like the distance, on every drag and every `update()`: the polar angle between `minPolarAngle` and `maxPolarAngle`, the azimuth on the arc from `minAzimuthAngle` to `maxAzimuthAngle`. Their names and meanings are the ones web 3D libraries commonly use, so a page that already sets them keeps its numbers."
+  },
+  {
     "id": "OrthographicBox",
     "module": "packages/sdk-browser/src/camera/engineCamera.ts",
     "exports": ["OrthographicBox"],

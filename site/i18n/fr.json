@@ -1,0 +1,1110 @@
+{
+  "meta": {
+    "lang": "fr",
+    "name": "Français",
+    "abbr": "FR",
+    "hreflang": "fr",
+    "rtl": false
+  },
+  "nav": {
+    "primary": "Navigation principale",
+    "learn": "Apprendre",
+    "examples": "Exemples",
+    "api": "Référence API",
+    "reports": "Mesures"
+  },
+  "search": {
+    "placeholder": "Rechercher guides, API et exemples",
+    "label": "Rechercher",
+    "short": "Rechercher…"
+  },
+  "sidebar": {
+    "navigation": "Navigation de la documentation",
+    "noResults": "Rien ne correspond.",
+    "lessons": "Leçons",
+    "filterExamples": "Filtrer les exemples"
+  },
+  "home": {
+    "title": "Diffusez des mondes 3D immenses dans le navigateur",
+    "start": "Commencer le cours"
+  },
+  "examples": {
+    "lead": "Chaque exemple est un court fichier : regardez-le tourner, ouvrez son code, modifiez-le.",
+    "inProgress": "En cours de création",
+    "waitsFor": "Attend du moteur :"
+  },
+  "api": {
+    "title": "Référence du moteur",
+    "lead": "Fonctions, types et constantes publics, regroupés par responsabilité."
+  },
+  "reports": {
+    "campaign": "Campagne"
+  },
+  "actions": {
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "switchLanguage": "Changer de langue",
+    "theme": "Changer de thème",
+    "close": "Fermer",
+    "skip": "Aller au contenu"
+  },
+  "common": {
+    "inDevelopment": "En développement"
+  },
+  "entry": {
+    "signature": "Signature",
+    "values": "Valeurs",
+    "arguments": "Arguments",
+    "example": "Exemple",
+    "replaces": "Remplace",
+    "proof": "Preuve",
+    "parameters": "Paramètres",
+    "returns": "Valeur rendue",
+    "members": "Membres",
+    "name": "Nom",
+    "type": "Type",
+    "default": "Par défaut",
+    "meaning": "Rôle",
+    "details": "Détails",
+    "live": "À vous d’essayer",
+    "liveHint": "Manipulez les contrôles : ces valeurs viennent de la fonction du moteur exécutée dans ce navigateur."
+  },
+  "kind": {
+    "Function": "Fonction",
+    "Constant": "Constante",
+    "Type": "Type",
+    "Guide": "Guide",
+    "Chapter": "Cours",
+    "Example": "Exemple",
+    "Lesson": "Leçon"
+  },
+  "demo": {
+    "loading": "Préparation de la scène…",
+    "actions": "Actions de la démo",
+    "code": "Code",
+    "share": "Partager",
+    "controls": "Réglages",
+    "fullscreen": "Plein écran",
+    "restart": "Relancer",
+    "linkCopied": "Lien copié",
+    "copyFailed": "Le lien n’a pas pu être copié",
+    "demoControls": "Commandes de la démonstration"
+  },
+  "section": {
+    "course": "Cours",
+    "guides": "Guides",
+    "internals": "Comment ça marche",
+    "world": "Monde",
+    "constants": "Constantes",
+    "math-utilities": "Outils mathématiques",
+    "node": "Node et compilation",
+    "types": "Types et erreurs"
+  },
+  "gallery": {
+    "engineTitle": "Géométrie streamée en direct",
+    "engineDescription": "Pipeline réel de streaming et LOD.",
+    "engineAlt": "Jardin géométrique rendu par WebGPU",
+    "previewAlt": "Aperçu de la scène WebGPU",
+    "engineBadge": "Scène moteur",
+    "all": "Tous",
+    "more": "Plus",
+    "categories": "Catégories d’exemples",
+    "eyebrow": "Apprendre par l’image",
+    "title": "Leçons",
+    "shown": "{{count}} leçons affichées",
+    "previous": "Charger les résultats précédents",
+    "next": "Charger plus de résultats",
+    "loading": "Chargement…",
+    "end": "Fin des résultats",
+    "none": "Aucune leçon trouvée.",
+    "featuredScenes": "Scènes à la une",
+    "featuredScene": "Scène à la une",
+    "diagram": "Schéma 2D complémentaire",
+    "chooseExperiment": "Choisir une expérience"
+  },
+  "themes": {
+    "transforms": "Transformations",
+    "geometry": "Géométrie et volumes",
+    "camera": "Caméra",
+    "materials": "Matériaux et textures",
+    "lighting": "Lumières et ombres",
+    "performance": "Performance et streaming"
+  },
+  "controls": {
+    "tx": "Translation x",
+    "angle": "Rotation",
+    "scale": "Échelle",
+    "parent": "Angle parent",
+    "child": "Décalage enfant",
+    "fov": "Champ de vision",
+    "depth": "Profondeur",
+    "x": "X",
+    "angleA": "Flèche a",
+    "angleB": "Flèche b",
+    "y": "Y",
+    "points": "Points",
+    "width": "Largeur",
+    "height": "Hauteur",
+    "childX": "Décalage enfant",
+    "left": "Gris gauche",
+    "right": "Gris droit",
+    "base": "Erreur de base",
+    "frame": "Temps de trame",
+    "budget": "Budget",
+    "scaleY": "Échelle verticale"
+  },
+  "playground": {
+    "controls": "Commandes de l’expérience",
+    "reset": "Réinitialiser",
+    "preset": "Préréglage",
+    "pause": "Pause",
+    "animate": "Animer",
+    "mathNote": "Illustration mathématique 3D ; la scène moteur montre le streaming réel.",
+    "enabled": "Activé",
+    "disabled": "Désactivé",
+    "authoredGeometry": "Géométrie préparée avant compilation.",
+    "webgpuImage": "Image calculée par le backend WebGPU public.",
+    "updateRejected": "Mise à jour WebGPU refusée.",
+    "webgpuUnavailable": "Rendu WebGPU indisponible.",
+    "zoomOut": "Zoom arrière",
+    "zoomIn": "Zoom avant",
+    "resetCamera": "Réinitialiser la caméra",
+    "paused": "Pause",
+    "cpuFrame": "Image CPU",
+    "allocatedPool": "Pool alloué",
+    "drawnTriangles": "Triangles dessinés",
+    "shadowRedrawn": "Pages d’ombre redessinées",
+    "shadowPending": "Pages d’ombre en attente",
+    "occludedClusters": "Grappes occultées",
+    "unavailable3d": "Rendu 3D indisponible.",
+    "cpuEncode": "Encodage CPU",
+    "visualBuffers": "Buffers visuels"
+  },
+  "code": {
+    "copied": "Copié",
+    "copyFailed": "Échec de la copie",
+    "copy": "Copier le code",
+    "timeout": "Exécution interrompue après 3 secondes.",
+    "cancelled": "Exécution annulée.",
+    "editable": "Code modifiable",
+    "run": "Exécuter",
+    "cancel": "Annuler",
+    "reset": "Reprendre les paramètres",
+    "editor": "Éditeur JavaScript",
+    "result": "Résultat du code",
+    "stopped": "Exécution arrêtée",
+    "runnable": "Code exécutable"
+  },
+  "learning": {
+    "input": "Entrée",
+    "output": "Sortie moteur",
+    "try": "À essayer",
+    "changes": "Ce qui change"
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "lead": "Cette adresse ne correspond à aucune page du portail.",
+    "wayBack": "Retrouver votre chemin",
+    "home": "Revenir à l’accueil",
+    "examples": "Explorer les exemples",
+    "pause": "Mettre en pause",
+    "illustration": "Orbites géométriques — illustration 3D interactive"
+  },
+  "engineScene": {
+    "qualityHelp": "Une erreur de 0 px conserve les feuilles exactes ; l’augmenter autorise une coupe du DAG plus grossière et bornée."
+  },
+  "report": {
+    "comparedEngines": "Comparé à Web Geometry. Déplacez la poignée pour comparer les images.",
+    "singlesOnly": "Captures individuelles : aucune image de comparaison n’a été enregistrée pour ces vues.",
+    "compareHandle": "Déplacez la poignée sur chaque image pour comparer les deux rendus.",
+    "enlarge": "Agrandir",
+    "families": {
+      "engines": "Moteurs",
+      "drawing": "Méthodes de dessin",
+      "lighting": "Éclairage",
+      "single": "Captures seules"
+    },
+    "comparisonType": "Type de comparaison visuelle",
+    "experiment": "Essai",
+    "engineColors": "Chaque moteur garde sa couleur dans tous les graphiques. Pour les durées, une barre plus courte signifie moins de temps.",
+    "green": "Vert : ≤ 13,33 ms",
+    "yellow": "Jaune : ≤ 16,67 ms",
+    "red": "Rouge : > 16,67 ms",
+    "timingColors": "Couleurs des durées CPU / GPU / rendu synchronisé : marge de 20 %, proche du budget, budget dépassé. Repère de 60 images/s, pas une mesure de FPS. Les quantités sans objectif chiffré restent neutres.",
+    "differenceNote": "Écart observé = deuxième valeur moins première valeur. Il décrit ces mesures ; sans protocole complet et répétitions, il ne prouve pas un gain reproductible.",
+    "difference": "Écart observé",
+    "notCalculable": "Non calculable",
+    "sceneLimit": "Cette scène comporte une limite documentée.",
+    "originalNote": "Note originale de la campagne",
+    "status": {
+      "complete": "Terminée",
+      "failed": "Échec ou incomplète",
+      "missing": "Aucun fichier de mesure"
+    },
+    "viewpoint": "Point de vue",
+    "sceneReading": "seuil : 1 px · valeurs médianes · temps plus court = mieux",
+    "exactFigures": "Chiffres exacts, p95 et limites de comparaison",
+    "notRecorded": "Non enregistré",
+    "yes": "Oui",
+    "no": "Non",
+    "allValues": "Tous les chiffres, sans filtre",
+    "allValuesLead": "Une colonne par mesure, une ligne par champ source. Les réglages, la provenance, les distributions complètes et chaque compteur sont disponibles dans les détails. Faites défiler horizontalement pour comparer les exécutions. Les noms techniques correspondent exactement aux fichiers sources ; les octets restent en octets.",
+    "sourceField": "Champ source",
+    "repeatCapture": "capture répétée",
+    "primaryReading": "mesure principale",
+    "cutTitle": "Origine des triangles de la capture",
+    "cutUnknown": "triangles · pages inconnues :",
+    "cutNote": "Coupe de la capture stabilisée ; elle peut différer de la dernière image mesurée en mouvement.",
+    "notMeasured": "Non mesuré",
+    "missing": "Mesures manquantes",
+    "measurement": "Mesure",
+    "case": "Cas",
+    "explanation": "Explication",
+    "runsAndSources": "Exécutions et sources",
+    "readFigures": "Comment lire les chiffres ?",
+    "counts": "{{readings}} mesures · {{runs}} exécutions",
+    "view": "Position",
+    "threshold": "Seuil de détail",
+    "computeDrawing": "dessin par calcul",
+    "detail": "Détail"
+  },
+  "findings": {
+    "lead": "Vue au sol, caméra mobile, seuil de 1 px. Les deux scènes racontent des situations très différentes.",
+    "over": "Le rendu dépasse le budget de temps visé.",
+    "noGpu": "Le temps GPU n’a pas été mesuré.",
+    "under": "Le temps GPU reste sous 16,67 ms en médiane.",
+    "gpuTime": "Temps GPU",
+    "medianPerFrame": "Médiane par image",
+    "cpuTime": "Temps CPU",
+    "measuredSeparately": "Mesuré séparément",
+    "overDetail": "Le GPU demande trop de temps pour viser une image toutes les 16,67 ms. Les passes GPU et les étapes CPU sont détaillées dans leur onglet.",
+    "noGpuDetail": "Cette mesure ne permet pas de juger la vitesse du GPU.",
+    "underDetail": "Le GPU a de la marge sur ce repère, mais cela ne mesure pas la cadence réellement affichée.",
+    "textures": "Textures résidentes :",
+    "texturesNote": "Cette allocation n’est pas la mémoire GPU physique totale.",
+    "missingTitle": "Ce qui manque pour conclure",
+    "runsOutOf": "{{failed}} exécutions sur {{total}}",
+    "someFailed": "sont absentes ou incomplètes. Les comparaisons ne couvrent donc pas tous les cas.",
+    "noneFailed": "sont absentes ou incomplètes : toutes les exécutions sont disponibles.",
+    "noMachine": "L’identité de la machine manque pour certaines mesures.",
+    "noDpr": "Le DPR manque pour certaines mesures.",
+    "campaignOnly": "Les différences visibles décrivent cette campagne, sans garantir une performance reproductible.",
+    "readTimings": "Comment lire les durées",
+    "timingsNote": "16,67 ms est le temps disponible par image pour viser 60 images/s. CPU et GPU sont mesurés séparément et ne doivent pas être additionnés. p50 est la médiane ; p95 est la durée sous laquelle se trouvent 95 % des échantillons. La variabilité entre exécutions n’a pas été mesurée."
+  },
+  "references": {
+    "clusterTriangles": "Triangles par grappe",
+    "groupClusters": "Grappes par groupe",
+    "streamingPage": "Page de streaming",
+    "geometryPool": "Pool géométrique par défaut (source secondaire)",
+    "triangleFormat": "Format en mémoire par triangle",
+    "gpuVisibility": "Visibilité GPU, démonstration PS5",
+    "gpuMaterials": "Matériaux GPU, démonstration PS5",
+    "cpu": "CPU, démonstration PS5"
+  },
+  "conditions": {
+    "frames": "Images mesurées",
+    "warmup": "Images de préchauffage",
+    "movingCamera": "Caméra mobile",
+    "sun": "Soleil",
+    "lights": "Lumières supplémentaires",
+    "lightShadows": "Ombres activées",
+    "bounce": "Éclairage indirect",
+    "temporalAntialiasing": "Anticrénelage temporel",
+    "stageProfile": "Profilage activé",
+    "visible": "Fenêtre du navigateur visible",
+    "shadowBudgetMs": "Budget des ombres",
+    "geometryPoolBytes": "Budget du pool géométrique",
+    "texturePoolBytes": "Budget du pool de textures"
+  },
+  "profile": {
+    "cpu": "CPU · préparer l’image",
+    "cpuOverall": "Temps CPU global",
+    "gpu": "GPU · dessiner l’image",
+    "conditions": "Caméra mobile, soleil et ombres.",
+    "work": "Travail mesuré",
+    "cpuNote": "La barre montre la durée globale mesurée. Les médianes des étapes ne s’additionnent pas pour retrouver ce total.",
+    "reused": "Cette image a été réutilisée : une partie du travail de rendu a été évitée.",
+    "coarseClock": "Horloge peu précise : 0 ms ne prouve pas qu’une étape ne coûte rien. Les valeurs exactes sont dans les détails.",
+    "gpuNote": "Ces étapes montrent où travaille la carte graphique. Leurs durées se chevauchent : ne les additionnez pas.",
+    "noTimings": "Aucune durée enregistrée pour ces étapes.",
+    "exact": "Valeurs exactes et conditions de mesure"
+  },
+  "experiments": {
+    "resolution": "Résolution et seuil d’erreur",
+    "lights": "Lumières, ombres et rebond",
+    "execution": "Image fixe, anticrénelage et options d’exécution",
+    "memory": "Mémoire, instances et autres moteurs"
+  },
+  "evidence": {
+    "computeDrawing": "Dessin par calcul",
+    "standardDrawing": "Dessin standard",
+    "left": "Gauche",
+    "right": "Droite",
+    "slide": "Glisser pour comparer les images",
+    "figures": "Chiffres et images originales",
+    "original": "image originale",
+    "repeatability": "Répétabilité : pixels différents entre deux captures identiques",
+    "differentPixels": "Pixels différents entre les deux images",
+    "notSpeed": "Cette différence visuelle ne mesure pas la vitesse."
+  },
+  "course": {
+    "words": {
+      "picture": "Ce que vous allez construire",
+      "steps": "Pas à pas",
+      "code": "Le code",
+      "tryIt": "Essayez",
+      "open": "Ouvrez-le en grand, lisez tout son code et modifiez-le",
+      "next": "Chapitre suivant",
+      "end": "Parcourez maintenant les exemples"
+    },
+    "chapters": {
+      "create-a-world": {
+        "title": "Créer un monde",
+        "description": "Un monde est l’endroit où vit votre scène 3D. Un seul appel le crée, et il dessine dans un canvas de votre page.",
+        "steps": [
+          "Récupérez le moteur. Il n’est pas encore sur npm : clonez le dépôt, lancez <code>pnpm install</code> puis <code>pnpm run build</code> dedans, puis ajoutez-le à votre projet depuis ce dossier.",
+          "Placez un <code>&lt;canvas&gt;</code> dans votre page. Un canvas est un rectangle de la page dans lequel un programme peut dessiner. Donnez-lui une largeur et une hauteur.",
+          "Appelez <code>createWorld</code> avec l’id du canvas. Vous obtenez un monde : une <em>scène</em> (la liste des choses à dessiner), une <em>caméra</em> (l’œil qui les regarde) et tout ce qui dessine l’image.",
+          "Ajoutez un cube et une lumière, pour avoir quelque chose à voir. Les chapitres suivants expliquent ces lignes une par une.",
+          "Quand votre page se ferme, appelez <code>world.dispose()</code> pour rendre la mémoire."
+        ],
+        "tryIt": "Faites glisser l’image pour tourner autour du cube. Choisissez une autre couleur dans le panneau."
+      },
+      "add-a-shape": {
+        "title": "Ajouter une forme",
+        "description": "Tout ce que vous voyez est un mesh : une forme avec un matériau dessus. Créez la forme avec `geometry`, enveloppez-la dans un mesh avec `object.mesh`, et ajoutez-la à la scène.",
+        "steps": [
+          "Une forme, ou <em>géométrie</em>, n’est que la silhouette : ses coins et ses faces. <code>geometry.box(1, 1, 1)</code> est un cube d’un mètre de côté, <code>geometry.sphere(0.75)</code> une boule. Il y a aussi des cylindres, des cônes, des anneaux, des tores et d’autres.",
+          "Un <em>mesh</em> est une forme plus un matériau : <code>object.mesh(forme, matériau)</code>. Le matériau, c’est le chapitre suivant.",
+          "Placez un mesh avec <code>position</code>, tournez-le avec <code>rotation</code> et changez sa taille avec <code>scale</code>. Les rotations sont en radians : un tour complet vaut <code>Math.PI * 2</code>.",
+          "<code>object.group()</code> réunit plusieurs meshes pour qu’ils bougent ensemble, comme le plateau tournant.",
+          "Rien n’apparaît tant que vous n’appelez pas <code>world.scene.add(mesh)</code>."
+        ],
+        "tryIt": "Changez la couleur des formes, arrêtez la rotation ou accélérez-la."
+      },
+      "give-it-a-material": {
+        "title": "Lui donner un matériau",
+        "description": "Un matériau dit de quoi une surface est faite : sa couleur, si c’est du métal, si elle est rugueuse. `material.meshStandard` couvre presque tout.",
+        "steps": [
+          "<code>color</code> est la peinture, écrite comme une couleur du web : <code>'#e8a25a'</code>.",
+          "<code>metalness</code> va de 0 (plastique, argile, bois) à 1 (métal). Un métal montre les couleurs de ce qu’il reflète.",
+          "<code>roughness</code> va de 0 (lisse comme un miroir, avec de petits reflets nets) à 1 (rugueux comme la craie, avec une lumière douce partout).",
+          "Changez un matériau quand vous voulez : <code>chrome.roughness = 0.3</code>. Tous les meshes qui l’utilisent changent en même temps.",
+          "Le verre, c’est <code>material.meshPhysical</code> avec <code>transmission: 1</code> : la lumière le traverse. <code>ior</code>, l’indice de réfraction, dit combien il plie la lumière : 1,5 pour une vitre. Voyez-le dans <a href=\"#/fr/examples/glass-on-the-table\">Du verre sur la table</a>."
+        ],
+        "tryIt": "Chaque colonne est plus métallique que la précédente, chaque rangée plus rugueuse. Choisissez une couleur pour toutes, et rendez les lampes plus fortes."
+      },
+      "light-it": {
+        "title": "L’éclairer",
+        "description": "Sans lumière, tout est noir. Ajoutez des lumières avec la famille `light`, et laissez-les projeter des ombres.",
+        "steps": [
+          "<code>light.directional</code> est le soleil : tous ses rayons vont dans le même sens, et <code>position</code> dit d’où il brille.",
+          "<code>light.point</code> est une ampoule : elle éclaire tout autour et faiblit avec <code>distance</code>. <code>light.spot</code> est une lampe torche : un cône de lumière.",
+          "<code>light.ambient</code> est une lumière douce qui vient de partout. Un peu suffit pour que les ombres ne soient pas toutes noires.",
+          "Ajoutez <code>castShadow: true</code> et ce que la lumière touche projette une ombre.",
+          "<code>intensity</code> est la force d’une lumière, <code>color</code> sa couleur. Changez-les quand vous voulez : <code>sun.intensity = 1</code>."
+        ],
+        "tryIt": "Changez l’heure : le soleil traverse le ciel, rougit au crépuscule, et chaque ombre tourne avec lui."
+      },
+      "move-the-camera": {
+        "title": "Déplacer la caméra",
+        "description": "La caméra est votre œil dans le monde. Placez-la dans le code, puis laissez le lecteur la bouger avec `world.controls`.",
+        "steps": [
+          "<code>world.camera.position.set(x, y, z)</code> place l’œil ; <code>world.camera.lookAt(x, y, z)</code> le tourne vers un point.",
+          "Un <em>contrôleur</em> transforme la souris, les doigts et le clavier en mouvements de caméra. Choisissez-le en créant le monde : <code>createWorld('view', { controls: 'orbit' })</code>.",
+          "<code>'orbit'</code> tourne autour d’un point : glissez pour tourner, glissez avec le bouton droit pour décaler, la molette pour zoomer. <code>world.controls.target</code> est ce point.",
+          "Il y en a d’autres : <code>'fly'</code> (touches W A S D, voir <a href=\"#/fr/examples/fly-over-a-model-town\">Survoler une ville miniature</a>), <code>'firstPerson'</code> (marcher, voir <a href=\"#/fr/examples/walk-through-a-temple\">Marcher dans un temple</a>), <code>'trackball'</code>, <code>'panZoom'</code> pour une carte à plat, et <code>'none'</code> quand votre code bouge la caméra lui-même.",
+          "Changez à tout moment : <code>world.controls.kind = 'fly'</code>."
+        ],
+        "tryIt": "Glissez pour tourner autour de l’horloge, et zoomez à la molette sur les dents des engrenages."
+      },
+      "animate": {
+        "title": "Animer",
+        "description": "Pour faire bouger les choses, donnez au monde une fonction à lancer avant chaque image, avec `world.onFrame`.",
+        "steps": [
+          "Le monde dessine une nouvelle image plusieurs fois par seconde. Chaque image est une <em>frame</em>. <code>world.onFrame(fn)</code> lance <code>fn</code> avant chacune.",
+          "<code>fn</code> reçoit <code>delta</code> : les secondes écoulées depuis la dernière image. Multipliez vos vitesses par lui, et tout bouge aussi vite sur un écran rapide que sur un lent.",
+          "Appelez <code>world.invalidate()</code> pour dire « redessine ». Quand personne ne demande d’image, le monde se repose : une scène immobile ne coûte rien.",
+          "Pour un mouvement fait de poses, comme une marche, utilisez le mixeur d’animation. <code>animation.clip</code> liste les poses et leur moment ; <code>animation.createMixer(robot).play(clip)</code> les joue et remplit les instants entre elles. Voyez <a href=\"#/fr/examples/a-robot-that-walks-and-waves\">Robot aux gestes mêlés</a>."
+        ],
+        "tryIt": "Changez la hauteur et la vitesse de la vague. Double-cliquez sur le sol pour lâcher une nouvelle pierre."
+      },
+      "load-a-compiled-model": {
+        "title": "Charger un modèle compilé",
+        "description": "Un modèle fait dans un logiciel 3D est compilé une fois, puis une ligne l’ajoute à votre monde. Le moteur ne charge ensuite que les parties que la caméra voit.",
+        "steps": [
+          "La plupart des logiciels 3D exportent des fichiers <em>glTF</em> (<code>.gltf</code> ou <code>.glb</code>), le format courant des modèles 3D.",
+          "Le compilateur coupe le modèle en petits morceaux appelés <em>clusters</em>, des bouts d’une centaine de triangles, et range chacun à plusieurs niveaux de détail. Lancez-le une fois, dans un terminal : le modèle, le dossier de sortie, <code>full</code> pour garder tout le modèle, un budget de triangles, et l’adresse web où le dossier sera servi.",
+          "Placez le dossier de sortie sur votre serveur web, à cette adresse.",
+          "Dans la page, <code>await world.scene.load(url)</code> ajoute le modèle. Il rend le modèle, avec sa taille dans <code>bounds</code>, pour cadrer la caméra.",
+          "Le modèle n’est jamais téléchargé en entier. Le moteur va chercher les morceaux que la caméra voit, plus fins quand vous approchez. C’est le <em>streaming</em>."
+        ],
+        "tryIt": "Faites tourner la lampe autour de la tête, montez-la, changez sa couleur."
+      },
+      "stay-within-memory": {
+        "title": "Tenir dans la mémoire",
+        "description": "Un gros modèle n’a pas besoin de tenir en mémoire. Vous donnez au moteur une quantité fixe, et il y garde ce dont la vue a le plus besoin.",
+        "steps": [
+          "Le <em>GPU</em>, la puce qui dessine l’image, a sa propre mémoire, et une page web ne peut pas demander combien il en reste. Vous choisissez donc la quantité vous-même.",
+          "<code>world.budget.geometryPool</code> est la mémoire des formes ; <code>world.budget.texturePool</code> celle des images peintes sur les surfaces, les <em>textures</em>. Les deux se comptent en octets.",
+          "Quand la vue demande plus que le budget, rien ne casse : les parties lointaines et petites sont dessinées avec moins de triangles jusqu’à ce que tout tienne. L’image reste entière, juste moins détaillée.",
+          "Relisez la valeur pour voir ce que le moteur garde vraiment.",
+          "Voyez les morceaux avec <code>world.diagnostic.mode = 'clusters'</code> : chaque cluster a sa couleur."
+        ],
+        "tryIt": "Baissez la mémoire : les morceaux grossissent, le bâtiment reste entier. Passez la vue sur <code>clusters</code> pour les voir."
+      },
+      "your-own-scene": {
+        "title": "Votre propre scène",
+        "description": "Vous connaissez maintenant chaque pièce. Ce chapitre les assemble dans une petite scène que vous pouvez copier et faire vôtre.",
+        "steps": [
+          "Commencez comme au chapitre 1 : un canvas, et <code>createWorld</code> avec le contrôleur <code>orbit</code>.",
+          "Construisez avec des formes et des matériaux, comme aux chapitres 2 et 3 : une île, une maison, un arbre et un moulin.",
+          "Éclairez avec un soleil qui projette des ombres (chapitre 4), et déplacez-le avec l’heure.",
+          "Faites tourner les ailes dans <code>world.onFrame</code> (chapitre 6). Ce sont quatre boîtes dans un groupe : tourner le groupe les tourne toutes.",
+          "Ouvrez le code complet, changez un nombre, lancez : la scène est à vous. Chargez ensuite votre propre modèle (chapitre 7)."
+        ],
+        "tryIt": "Changez l’heure, le vent et la couleur du toit."
+      }
+    }
+  },
+  "written": {
+    "three-migration": {
+      "title": "Migration depuis Three.js",
+      "description": "À gauche un programme Three.js complet, à droite le programme du moteur qui dessine la même scène, section par section."
+    },
+    "measurement-entry": {
+      "title": "Le point d’entrée de mesure",
+      "description": "Là où un témoin, un moteur de rendu forcé ou une session interne restent nommables — jamais par le point d’entrée publié `web-geometry`.",
+      "html": "<p>Une page importe <code>web-geometry</code> et ne voit jamais de moteur de rendu interne, de témoin ni de session interne : <code>createWorld</code> dessine avec un seul moteur de rendu, choisi sur la machine ou refusé nommément s’il est forcé et absent. Le banc, les preuves et les vues de comparaison ont encore besoin de nommer un témoin — Three.js nu, <code>THREE.LOD</code>, la session interne <code>openMeasuredWorld</code> — et c’est le seul rôle du point d’entrée de mesure séparé, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Il réexporte tout ce que le point d’entrée publié expose, plus ce qu’un hôte n’a jamais besoin de voir : <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (la session interne qu’un monde ouvre sur lui-même), les fabriques de moteurs (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), et des aides réservées à la mesure comme <code>replicateInstances</code>. Rien de tout cela n’atteint un monde publié, et rien n’est importé par une application.</p>"
+    },
+    "createWorldJob": {
+      "title": "Charger un monde comme une tâche annulable",
+      "description": "Un monde n’a pas d’enveloppe de tâche qui lui soit propre : `scene.load` est une simple promesse, et l’aide générique `createJob` la transforme en tâche annulable avec progression quand un hôte a besoin du même contrat que la compilation."
+    },
+    "architecture": {
+      "title": "Comment une image est dessinée",
+      "description": "Le chemin de votre scène jusqu’à l’image : les morceaux gardés, les pixels remplis, la lumière ajoutée.",
+      "html": "<ol>\n<li><strong>Choisir les morceaux.</strong> Chaque modèle est fait de petits bouts de triangles, les <em>clusters</em>, rangés à plusieurs niveaux de détail. À chaque image, le GPU choisit pour chaque partie du modèle le niveau le plus grossier qui paraît encore exact à l’écran.</li>\n<li><strong>Noter qui est où.</strong> Les triangles choisis sont dessinés une fois dans un <em>tampon de visibilité</em> : pour chaque pixel, seulement le numéro du triangle qu’il montre.</li>\n<li><strong>Peindre les surfaces.</strong> Ensuite chaque pixel lit le matériau de son triangle : couleur, rugosité, métal, carte de normales. Les surfaces du même genre sont peintes ensemble, en une passe.</li>\n<li><strong>Éclairer, puis lisser.</strong> Les lumières et les ombres s’ajoutent, les surfaces transparentes viennent en dernier, et l’<em>antialiasing temporel</em> mélange chaque image avec les précédentes pour garder des bords lisses.</li>\n</ol>\n<p>Quand rien ne bouge, rien de tout cela ne tourne : le monde garde la dernière image.</p>\n<p>Tout le chemin: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
+    },
+    "occlusion-two-phase": {
+      "title": "Sauter ce qui est caché",
+      "description": "Pourquoi un mur cache gratuitement la pièce derrière lui : le moteur ne dessine pas ce que l’image précédente a prouvé caché.",
+      "html": "<p>Une ville a des milliers d’objets derrière la première rangée de maisons. Les dessiner coûterait du temps pour des pixels que personne ne voit. Le moteur dessine donc en deux passes :</p>\n<ol>\n<li>D’abord, ce qui était visible à l’image précédente. Cela donne une idée de la profondeur : à quelle distance se trouve la surface la plus proche, partout sur l’écran.</li>\n<li>Puis chaque autre morceau est testé contre cette profondeur. Un morceau entièrement derrière est sauté ; le reste est dessiné.</li>\n</ol>\n<p>Le test ne saute que ce qui est sûrement caché : une erreur coûte un deuxième test, jamais un pixel manquant. Il n’y a rien à régler ; c’est toujours actif.</p>\n<p>Pour aller plus loin: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
+    },
+    "cluster-format": {
+      "title": "Comment les modèles sont rangés",
+      "description": "Ce que le compilateur écrit : de petites pages de triangles, rangées de façon compacte, chacune lisible seule.",
+      "html": "<p>Le compilateur coupe un modèle en clusters d’au plus cent vingt-huit triangles, et enregistre chacun comme une <em>page</em> que le navigateur peut lire seule.</p>\n<ul>\n<li>Positions, coordonnées de texture et normales sont arrondies sur des grilles fines. Une page devient plusieurs fois plus petite que des nombres bruts, et l’arrondi reste bien en dessous d’un pixel.</li>\n<li>Chaque page dit de combien son arrondi a déplacé un point : le moteur ne devine jamais.</li>\n<li>Les pages sont nommées par leur contenu : deux modèles qui partagent un morceau partagent sa page.</li>\n</ul>\n<p>Le format exact est dans <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/FORMAT.md\">docs/FORMAT.md</a>.</p>"
+    },
+    "water-pass": {
+      "title": "L’eau et le verre",
+      "description": "Comment un matériau transparent plie ce qu’il y a derrière : le moteur relit l’image qu’il a déjà dessinée.",
+      "html": "<p>L’eau et le verre épais ne se dessinent pas comme de la peinture. Le moteur dessine d’abord tout ce qui est solide, garde une copie de cette image, puis, pour chaque pixel d’eau ou de verre, lit la copie un peu à côté, comme la lumière se plie en traversant la surface.</p>\n<ul>\n<li>Combien elle se plie et quelle couleur elle prend viennent du matériau importé : son indice de réfraction, son épaisseur et sa teinte.</li>\n<li>La surface reflète aussi le ciel et les lumières, davantage en lumière rasante, comme une vraie eau.</li>\n<li>Une limite : un verre ne montre pas un autre verre derrière lui.</li>\n</ul>\n<p>Pour aller plus loin: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#transparent-surfaces\">docs/ENGINE.md</a>.</p>"
+    },
+    "memory-pools": {
+      "title": "Où va la mémoire",
+      "description": "Deux quantités fixes de mémoire GPU, une pour les formes et une pour les textures, et ce qui arrive quand une vue en demande plus.",
+      "html": "<p>Le moteur garde deux <em>réserves</em> en mémoire GPU : une pour les pages de formes, une pour les tuiles de textures. Vous fixez leur taille avec <code>world.budget</code> (chapitre 8) ; le moteur ne lit jamais la machine pour la deviner.</p>\n<ul>\n<li>La version la plus grossière de chaque modèle reste toujours dedans : il n’y a jamais de trou.</li>\n<li>Quand une vue demande plus qu’une réserve ne contient, le moteur dessine avec des morceaux plus grossiers jusqu’à ce que tout tienne : moins de détail, jamais de partie manquante.</li>\n<li>Changer une réserve pendant que la scène tourne garde ce qui tient encore et lâche le reste.</li>\n</ul>\n<p>Pour aller plus loin: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#memory\">docs/ENGINE.md</a>.</p>"
+    },
+    "texture-compression": {
+      "title": "Des textures plus petites",
+      "description": "Les textures sont coupées en tuiles, chargées seulement là où l’image en a besoin, et compressées quand cela ne change pas l’image.",
+      "html": "<p>Une texture est une image peinte sur une surface. Le compilateur prépare chacune à toutes les tailles, de la pleine jusqu’à la toute petite, et les coupe en tuiles carrées. Le navigateur ne charge que les tuiles que l’image montre, à la taille où elle les montre.</p>\n<p>Le compilateur peut aussi ranger les tuiles dans un format compressé que le GPU lit directement, environ quatre fois plus petit. Il ne garde la version compressée que si elle a l’air identique à l’originale ; sinon la tuile reste non compressée. Une tuile pas encore arrivée montre une version plus petite d’elle-même, jamais un trou.</p>\n<p>Pour aller plus loin: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#virtual-textures\">docs/ENGINE.md</a>.</p>"
+    },
+    "shadow-pages": {
+      "title": "Des ombres en morceaux",
+      "description": "Pourquoi une caméra qui bouge ne redessine qu’une bande de ses ombres : la carte d’ombres est coupée en pages, comme les modèles.",
+      "html": "<p>Pour savoir ce qui est à l’ombre, chaque lumière dessine la scène depuis son propre point de vue dans une <em>carte d’ombres</em> : une image de distances. Le moteur coupe ces cartes en pages.</p>\n<ul>\n<li>Le soleil couvre la vue avec quelques cartes, fines près de la caméra et plus grossières au loin.</li>\n<li>Quand la caméra bouge un peu, seule la bande de pages entrée dans la vue est redessinée ; les autres sont gardées.</li>\n<li>Une page pas encore prête emprunte la carte plus grossière : une ombre ne manque jamais.</li>\n</ul>\n<p>Pour aller plus loin: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#direct-lighting\">docs/ENGINE.md</a>.</p>"
+    },
+    "IDENTITY_MATRIX4": {
+      "description": "Identité en ordre colonne, lue sans jamais être modifiée : pose d’un nœud ou d’une racine sans pose.",
+      "values": ["Seize nombres, en ordre colonne."]
+    },
+    "DiagnosticMode": {
+      "description": "Ce que dessine une image. La disponibilité décrit les sorties réelles du pipeline, jamais des surcouches artificielles.",
+      "values": [
+        "Image éclairée issue des matériaux glTF.",
+        "Une couleur pleine unique par triangle soumis, sans lignes.",
+        "Identité stable primitive/page, une couleur par grappe ; WebGL2 et WebGPU tous les deux.",
+        "Grappes de niveau 0 face aux réductions plus grossières réellement choisies dans cette image.",
+        "Erreur de chaque grappe projetée par sa sphère, telle que la coupe l’emploie.",
+        "Une couleur par classe de matériau : la passe de classe qui a résolu le pixel. Chemin de visibilité WebGPU seulement.",
+        "Pages visibles sélectionnées ; les nœuds hiérarchiques rejetés sont comptés, pas dessinés.",
+        "Pages d’indices attachées ; les pages absentes ne sont pas dessinées. Ce n’est pas la VRAM physique.",
+        "Indisponible : la résidence des mips de texture n’est pas instrumentée.",
+        "Indisponible : aucun compteur de fragments."
+      ]
+    },
+    "LodQualityId": {
+      "description": "Préréglages de LOD à l’exécution. `pixelError` est le seuil écran consommé par la sélection de grappes exactes ; `0` conserve les feuilles exactes.",
+      "values": [
+        "Détail source maximal : `pixelError: 0`, anisotropie source.",
+        "Haute qualité : `pixelError: 1`, anisotropie maximale.",
+        "Équilibré : `pixelError: 4`.",
+        "Adaptatif : `pixelError: 2`, augmenté avec la vitesse de caméra ; une vue immobile conserve la base."
+      ]
+    },
+    "ScreenErrorVariant": {
+      "description": "Projection de l’erreur de grappe comparée au seuil. Cet état de module est lu par la métrique CPU et intégré au shader de sélection à sa compilation. Source publique : Karis, Stubbe et Wihlidal, SIGGRAPH 2021.",
+      "values": [
+        "Notre borne, par défaut : elle ne sous-estime jamais l’erreur.",
+        "Formule publiée, utilisée par le banc comparatif."
+      ]
+    },
+    "MathPathMode": {
+      "description": "Chemin exécuté par un lot. En `auto`, le gouverneur compare les médianes glissantes en nanosecondes par élément et ne bascule qu’après plusieurs exécutions favorables ; JS reste la référence et le repli.",
+      "values": [
+        "Arbitrage par la mesure, valeur par défaut.",
+        "Chemin JavaScript imposé pour une campagne.",
+        "Noyau WebAssembly imposé lorsqu’il existe pour cette opération."
+      ]
+    },
+    "JobStatus": {
+      "description": "Cycle de vie d’une tâche créée par `createJob`. Une tâche annulée ou échouée libère le résultat qu’elle possédait.",
+      "values": [
+        "Créée, pas encore démarrée.",
+        "En cours ; les événements `progress` portent une phase et un compte.",
+        "Terminée ; `result` contient la valeur.",
+        "Interrompue par son `AbortSignal`.",
+        "Échec ; `error` contient `{ code, message }`."
+      ]
+    },
+    "CapabilityTier": {
+      "description": "Niveau que la politique de sûreté autorise pour une session selon les coûts mesurés. Une `SafetyDecision` indique le niveau, l’activation, la raison et la date du changement.",
+      "values": [
+        "Tous les coûts mesurés respectent le budget.",
+        "Un budget est dépassé : la fonction est réduite.",
+        "Chemin sûr, fonction désactivée."
+      ]
+    },
+    "GpuTimingMethod": {
+      "description": "Méthode de mesure des durées GPU. Une durée par passe localise le coût sans le quantifier : sur un GPU en tuiles, les passes se chevauchent. Le total de l’image est l’enveloppe `gpuImageMs` et les étapes ne s’additionnent pas.",
+      "values": [
+        "Requêtes d’horodatage WebGPU natives.",
+        "Extension WebGL2 utilisée sur ce chemin."
+      ]
+    },
+    "ColumnKind": {
+      "description": "Stockage d’une colonne du manifeste binaire. `COLUMN_KIND` associe chaque nom de colonne à son type afin de choisir la vue sur les octets annexes.",
+      "values": [
+        "Bornes, sphères, erreurs et nœuds d’élimination.",
+        "Indices signés : pages et niveaux de groupe.",
+        "Compteurs et décalages non signés.",
+        "Octets bruts : objets SHA et pixels d’aperçu."
+      ]
+    },
+    "Side-common": {
+      "description": "Faces dessinées d’une surface. Chaque décision de raster, cône, pipeline et mélange compare cette valeur. `sideOf` lit la déclaration du matériau hôte à la frontière d’import ; `materialSide` redonne la constante hôte pour les matériaux de diagnostic.",
+      "values": [
+        "Faces avant uniquement ; un tableau de matériaux vide donne ce choix.",
+        "Faces arrière uniquement.",
+        "Les deux, pour feuilles, tissus et découpes fines."
+      ]
+    },
+    "prepare": {
+      "description": "Compile une scène source vers le cache lu par le navigateur. Lance le compilateur natif puis renvoie le manifeste avec ses mesures. Une source dont le produit est déjà dans le cache n’est pas recompilée : le dossier est vérifié fichier par fichier puis conservé, et `reused` dit ce qui a été contrôlé (`null` quand la tâche a compilé). `resourceBaseUrl` est obligatoire : c’est l’URL depuis laquelle le navigateur chargera pages et textures. Ce que chaque lecteur fait de sa source — faces polygonales coupées en éventail si convexes, en oreilles sinon — est dans `docs/COMPILER.md`."
+    },
+    "prepareMany": {
+      "description": "Prépare plusieurs modèles dans un seul processus du compilateur. Il exécute `workers` tâches à la fois et partage `ramBudgetMb` entre elles. La promesse renvoie le résumé du lot, uniquement des pointeurs."
+    },
+    "createJob": {
+      "description": "Encapsule une opération en attente dans le contrat de tâche du moteur : instantané, abonnement et annulation qui libère ce que la tâche possédait. L’opération doit permettre l’interruption par son propriétaire."
+    },
+    "detectCapabilities": {
+      "description": "Décrit ce que cette machine prend réellement en charge avant la création d’un monde : `{ tier, renderer, adapter, extensions, reason }`. L’enveloppe publique qu’un monde relit est `capability.detect()` — `{ webgpu, webgl2, ... }`, une forme plus simple pour la même sonde. La raison est toujours fournie ; une capacité absente est signalée, jamais supposée."
+    },
+    "perspectiveProjection": {
+      "description": "Projection perspective d’une caméra : `fov` vertical en degrés, ratio `aspect`, plan proche `near` et zoom. **Profondeur inversée, plan lointain infini** : `near` se projette à 1 et l’infini à 0. Aucun plan lointain n’intervient, ce qui préserve la précision en profondeur."
+    },
+    "createCameraFrame": {
+      "description": "Crée les matrices d’une image caméra, allouées une fois puis réécrites à chaque image : `view`, `viewProjection` et les six plans normalisés du frustum."
+    },
+    "updateCameraFrame": {
+      "description": "Réécrit l’image caméra : vue inverse de `world`, vue-projection égale à `projection · view`, puis les six plans. `far` est déclaré par l’hôte : la projection reste infinie, tandis que le frustum conserve cette limite. Omis ou non fini, le plan reste sans limite."
+    },
+    "worldToRenderOrigin": {
+      "description": "Écrit `world` en ramenant sa translation à `origin`. La soustraction se fait avec la précision des entrées et l’arrondi simple précision n’arrive qu’à l’écriture GPU. `at` désigne le premier des seize nombres écrits."
+    },
+    "matrixAtRenderOrigin": {
+      "description": "Écrit `m · T(origin)`. Seule la quatrième colonne change ; elle vaut `m · (origin, 1)`, calculé avec la précision des entrées avant l’arrondi d’écriture."
+    },
+    "viewToRenderOrigin": {
+      "description": "Écrit `view` sans sa translation : la vue d’une caméra de même orientation placée à l’origine du repère de rendu, contrepartie exacte de `worldToRenderOrigin`."
+    },
+    "createEngineCamera": {
+      "description": "Crée une `EngineCamera` : image caméra plus `world`, `projection`, `eye`, `near`, `far`, `fov` et `aspect`, chaque tampon étant alloué une seule fois. Aucun objet de l’hôte n’entre dans le moteur."
+    },
+    "writeEngineCamera": {
+      "description": "Calcule tout ce que lit une image à partir de `into.world` déjà posé et des paramètres optiques déclarés."
+    },
+    "defaultEngineCamera": {
+      "description": "Caméra à l’origine, fov 50, aspect 1, proche 0,1, lointain 2000 et zoom 1 : le repli des oracles appelés avant la première image."
+    },
+    "readCameraWorld": {
+      "description": "Résout les ancêtres de la caméra hôte, copie sa matrice monde puis applique `writeEngineCamera`. C’est l’unique traduction depuis la caméra hôte, une fois par image. Les profondeurs de clip `[-1, 1]` et `[0, 1]` sont respectées."
+    },
+    "holdCameraWorld": {
+      "description": "Copie bit pour bit une caméra moteur, sans rien recalculer."
+    },
+    "enginePose": {
+      "description": "Lit la position et la rotation de l’image dessinée depuis la caméra moteur."
+    },
+    "multiplyMatrix4": {
+      "description": "`out = a · b`. Les trente-deux entrées sont lues avant la première écriture ; `out` peut donc être `a` ou `b`. Chaque terme additionne quatre produits sans zéro initial afin de préserver le signe de zéro. Entrées et sortie utilisent uniquement `Float64Array`."
+    },
+    "invertMatrix4": {
+      "description": "`out = m⁻¹` par cofacteurs. Un déterminant exactement nul produit la matrice nulle, comme la référence. Les seize entrées sont lues avant la première écriture ; `out` peut donc être `m`."
+    },
+    "composeMatrix4": {
+      "description": "`out = T · R · S`, quaternion ordonné `(x, y, z, w)`. La dernière ligne est exactement `(0, 0, 0, 1)` et les produits du quaternion sont doublés par addition, comme la référence."
+    },
+    "decomposeMatrix4": {
+      "description": "Opération inverse : l’échelle d’une colonne est sa longueur et un déterminant négatif est porté uniquement par l’axe `x`. Une matrice cisaillée n’a pas cette décomposition ; la recomposition ne redonne alors plus `m`, comme dans la référence."
+    },
+    "copyMatrix4": {
+      "description": "Copie les seize nombres de `m` vers `out` à leurs décalages. Une boucle évite le coût natif de `TypedArray.set` sur une vue et accepte aussi un tampon GPU simple précision."
+    },
+    "determinantMatrix4": {
+      "description": "Le déterminant 4×4, développé sur la dernière ligne comme la référence, puis celui de la partie linéaire 3×3. Le signe du second indique si la transformation inverse l’orientation et donc quelle face éliminer."
+    },
+    "normalMatrix3": {
+      "description": "`out = transpose(inverse(bloc 3×3 de m))`, en ordre colonne. Sur une matrice singulière, écrit l’adjointe non divisée : elle transporte encore la normale de la surface aplatie. Une échelle nulle ou non finie produit neuf zéros."
+    },
+    "linearPartScale": {
+      "description": "Règle unique de singularité du moteur, identique au noyau WGSL. Les colonnes sont divisées par leur échelle avant le déterminant pour éviter débordement et sous-flux. `adjugateFactor` renvoie l’inverse du déterminant, 1 pour un cas singulier, ou `null` si l’échelle est invalide."
+    },
+    "basisMatrix4": {
+      "description": "Écrit les colonnes `u`, `v`, `n`, puis l’origine et la dernière ligne `(0, 0, 0, 1)` ; ou une échelle uniforme `s` placée en `center`. Chaque fonction remplace deux appels de la bibliothèque hôte par une seule écriture."
+    },
+    "dotVector3": {
+      "description": "`a · b` sur trois composantes lues aux décalages `aAt` et `bAt` : un tampon et un décalage, jamais une vue temporaire."
+    },
+    "crossVector3": {
+      "description": "`out = a × b`. Les six composantes sont lues avant la première écriture ; `out` peut donc être `a` ou `b`."
+    },
+    "lengthSqVector3": {
+      "description": "`x² + y² + z²`, dans le même ordre que la référence. Sa racine carrée reproduit `length()` bit pour bit."
+    },
+    "normalizeVector3": {
+      "description": "`v / ‖v‖` sur place : chaque composante est multipliée par `1 / (length || 1)`, donc un vecteur nul reste inchangé."
+    },
+    "scaleVector3": {
+      "description": "Multiplie les trois composantes sur place ; écrit `out = a · s` à un décalage ; ou accumule `out += a · s`."
+    },
+    "transformAffinePoint": {
+      "description": "`M · (x, y, z, 1)` sans division perspective, pour une matrice affine. Les coordonnées arrivent en paramètres ; `out` peut donc être le vecteur d’entrée."
+    },
+    "transformHomogeneousPoint": {
+      "description": "Écrit les quatre composantes homogènes sans division : le point en espace de clip lorsque `M` est une vue-projection. L’appelant divise par la quatrième après avoir écarté zéro et les valeurs non finies."
+    },
+    "transformDirectionVector3": {
+      "description": "Applique le bloc 3×3 d’une matrice affine à une direction puis la normalise, sans translation. La seconde fonction calcule `M · (x, y, z)` pour une matrice 3×3 en ordre colonne."
+    },
+    "srgbToLinear": {
+      "description": "Courbe sRGB exacte et son inverse, les valeurs négatives étant ramenées à zéro avant l’exposant."
+    },
+    "hslToLinearRgb": {
+      "description": "Convertit teinte, saturation et luminosité en trois composantes linéaires écrites dans `out[o..o+2]`. La teinte boucle, saturation et luminosité sont bornées à `[0, 1]`, et aucune courbe de transfert n’est appliquée."
+    },
+    "boxUnion": {
+      "description": "Une boîte est formée de six nombres consécutifs : trois bornes basses puis trois hautes. Une boîte vide place ses bornes basses à `+Infinity` et ses bornes hautes à `-Infinity`. L’extension et l’union reçoivent directement les bornes et ne créent donc aucun objet temporaire."
+    },
+    "boxTransform": {
+      "description": "La boîte qui contient l’image de `box` par `m` est l’union de ses huit coins transformés. Une boîte vide reste inchangée et `out` peut être `box`, car les bornes sont lues avant la première écriture. `boxCornersInto` écrit les huit coins à plat, soit vingt-quatre nombres."
+    },
+    "sphereFromBounds": {
+      "description": "La sphère englobante d’une boîte, écrite à partir de `o` : centre `x, y, z`, puis rayon. Le centre vaut `(min + max) * 0.5` et le rayon la moitié de la diagonale. Une boîte vide produit une sphère vide, centrée en zéro et de rayon `-1`."
+    },
+    "frustumPlanesFromMatrix": {
+      "description": "Les six plans du frustum d’une matrice de clip. La première fonction les normalise pour obtenir une distance signée ; la seconde conserve les sommes et différences brutes des lignes, dont seul le signe décide, comme le test de clip exact. Une matrice dégénérée produit des plans NaN ou infinis sans lever d’exception."
+    },
+    "frustumFarPlane": {
+      "description": "Le plan lointain d’un frustum dont la projection n’en possède pas. La projection du moteur est infinie : le plan est donc lu dans la matrice de vue. Une distance `far` non finie laisse un plan nul, réellement sans limite. `frustumPlanesToLocal` transporte les plans dans l’espace local d’une transformation."
+    },
+    "frustumExcludesBox": {
+      "description": "Teste une boîte contre le frustum. La première fonction vaut vrai lorsqu’un plan laisse les huit coins derrière lui. La seconde renvoie 0 hors champ, 1 à cheval ou 2 entièrement dedans. Un sous-arbre entièrement dedans évite de retester toutes ses boîtes."
+    },
+    "boxConeRejects": {
+      "description": "Rejette une boîte locale avec son cône de normales vu depuis un point monde. La boîte devient une sphère, l’axe est transporté par la matrice normale puis normalisé. Un cône d’angle ≥ `HALF_PI` ne rejette jamais ; un paramètre refusé non plus. Les variantes `_WGSL` partagent les constantes du shader."
+    },
+    "createTransformTree": {
+      "description": "Hiérarchie de transformations orientée données : un nœud est un indice dans des tableaux plats de parent, pose, matrices et drapeaux. Les vues locales et monde sont créées à la croissance, jamais pendant une mise à jour."
+    },
+    "setNodePosition": {
+      "description": "Les écritures passent par les setters, qui marquent leurs changements. En mise à jour automatique, la prochaine visite recompose la matrice locale depuis la pose ; `setNodeAutoUpdate(..., false)` conserve la matrice fournie."
+    },
+    "reparentTransformNode": {
+      "description": "Attache `node` sous `parent` (`-1` pour une racine) et refuse un parent égal au nœud ou à l’un de ses descendants. La suppression retire aussi les descendants et leurs indices seront réutilisés."
+    },
+    "updateNodeMatrixWorld": {
+      "description": "Met à jour le nœud puis tout son sous-arbre, parents d’abord. Un nœud est visité s’il est automatique, marqué ou forcé. La seconde forme parcourt aussi les ancêtres depuis la racine."
+    },
+    "nodeWorldPosition": {
+      "description": "Lectures de la matrice monde : position, rotation, échelle et direction. Un déterminant négatif est porté par `x`; une caméra ou une lumière regarde vers `−z`. `nodeWorldMirrorsFaces` indique si les faces avant et arrière doivent être échangées."
+    },
+    "lookAtNode": {
+      "description": "Oriente `node` vers le point monde `(x, y, z)`. Une caméra ou une lumière regarde par `−z`, un objet présente `+z`. Les ancêtres puis le nœud sont mis à jour avant le calcul."
+    },
+    "multiplyMatrix4Batch": {
+      "description": "`n` produits `out[i] = a[i] · b[i]`, sur des sous-vues de seize nombres créées une seule fois. Un noyau WebAssembly répète la même formule et le gouverneur choisit le chemin mesuré le plus rapide."
+    },
+    "boxTransformBatch": {
+      "description": "`n` boîtes transformées par `n` matrices. `out` et `boxes` portent six nombres par élément, `mats` une sous-vue de seize."
+    },
+    "hierarchyUpdateBatch": {
+      "description": "Met à jour une hiérarchie complète en une passe, parents avant enfants : composition locale puis multiplication par la matrice monde du parent. `parents[i]` doit désigner un nœud déjà mis à jour ; toute autre valeur crée une racine."
+    },
+    "createPathGovernor": {
+      "description": "Arbitre JS contre WebAssembly par opération : médianes glissantes en nanosecondes par élément, bascule après cinq avances consécutives, puis rééchantillonnage périodique de l’autre chemin."
+    },
+    "frustumKeepsBoxBatch": {
+      "description": "`n` boîtes de six nombres (min puis max) contre les vingt-quatre flottants d’un frustum : `kept[i]` vaut 1 où la boîte coupe ou tient dans le volume, et le nombre gardé est renvoyé — `frustumExcludesBox` inversé, la polarité de la référence. Le lot de sphères écrit `SPHERE_VALUES` nombres par boîte, centre puis rayon jusqu’au coin, comme `sphereFromBounds`. Les deux boucles vivent dans `packages/sdk-core/src/math/batch/culling.ts`."
+    },
+    "boxUnionBatch": {
+      "description": "`into` agrandi de `n` boîtes, ou de `n` boîtes chacune transformée par sa matrice d’abord — une passe, une boîte de brouillon, aucune allocation. Les deux répètent `boxUnion`, le second `boxTransform` avant : les bornes monde d’une scène entière en un appel."
+    },
+    "invertMatrix4Batch": {
+      "description": "`n` inverses, `n` matrices normales de `NORMAL_MATRIX_VALUES` nombres, `n` compositions `T · R · S`, `n` décompositions. Une matrice de déterminant nul est inversée en identité et signalée dans `singular[i]` — jamais d’exception au milieu d’un lot. `composeMatrix4Batch` prend tout à plat ou tout en sous-vues, et tranche la forme avant la boucle. Les quatre boucles vivent dans `packages/sdk-core/src/math/batch/transforms.ts`."
+    },
+    "transformPointsBatch": {
+      "description": "`n` points de trois nombres par une matrice affine, ou une matrice par point ; `n` directions par le bloc 3×3 supérieur puis normalisées, translation ignorée. Ils répètent `transformAffinePoint` et `transformDirectionVector3`."
+    },
+    "srgbToLinearBatch": {
+      "description": "Un canal par élément, les courbes exactes de `packages/sdk-core/src/math/primitives/color.ts` : la référence multiplie par des constantes arrondies, et l’écart — invisible sur 8 bits — est borné une fois, dans le banc qui les oppose."
+    }
+  },
+  "catalog": {
+    "compose-transform": {
+      "title": "Construire une transformation",
+      "description": "Déplacez, tournez et redimensionnez une forme locale dans le monde."
+    },
+    "matrix-chain": {
+      "title": "Enchaîner deux transformations",
+      "description": "Voyez pourquoi l’ordre change la position finale."
+    },
+    "matrix-inverse": {
+      "title": "Faire l’aller-retour",
+      "description": "Inversez une transformation et retrouvez un point local depuis le monde."
+    },
+    "reflection-orientation": {
+      "title": "Quand un miroir retourne les faces",
+      "description": "Suivez le signe du déterminant lors d’une échelle négative."
+    },
+    "quaternion-turn": {
+      "title": "Rotation par quaternion",
+      "description": "Construisez un quaternion unité et tournez une direction sans translation."
+    },
+    "normal-transform": {
+      "title": "Normales sous échelle inégale",
+      "description": "Comparez la normale corrigée à une direction naïvement redimensionnée."
+    },
+    "perspective": {
+      "title": "Projection perspective",
+      "description": "Reliez champ de vision, profondeur et image projetée."
+    },
+    "frustum": {
+      "title": "Décisions du frustum",
+      "description": "Déplacez une boîte parmi les six plans : dehors, à cheval ou dedans."
+    },
+    "dot-product": {
+      "title": "Produit scalaire et alignement",
+      "description": "Tournez deux flèches et lisez leur accord de −1 à +1."
+    },
+    "cross-product": {
+      "title": "Produit vectoriel et orientation",
+      "description": "L’aire signée révèle les rotations horaires et antihoraires."
+    },
+    "normalize": {
+      "title": "Séparer longueur et direction",
+      "description": "La normalisation garde la direction et ramène la longueur à un."
+    },
+    "box-grow": {
+      "title": "Faire grandir une boîte englobante",
+      "description": "Ajoutez les points et observez la plus petite boîte qui les contient."
+    },
+    "sphere-from-box": {
+      "title": "De la boîte à la sphère",
+      "description": "Comparez une boîte serrée à sa sphère conservatrice rapide."
+    },
+    "hierarchy": {
+      "title": "Mouvement parent-enfant",
+      "description": "Un enfant garde son décalage local quand son parent bouge."
+    },
+    "color-space": {
+      "title": "La couleur n’est pas arithmétique",
+      "description": "Comparez une moyenne écran à une moyenne de lumière."
+    },
+    "lod-budget": {
+      "title": "Gouverneur du budget LOD",
+      "description": "Échangez erreur projetée et charge bornée de la trame."
+    }
+  },
+  "showcase": {
+    "runtime-pixel-error": {
+      "title": "Traverser l’observatoire",
+      "description": "Explorez 91 352 triangles originaux, puis affichez où la géométrie streamée se simplifie.",
+      "action": "Explorer le LOD en direct",
+      "alt": "Observatoire éclairé avec colonnades cannelées, dôme de cuivre et sphère armillaire"
+    },
+    "shadow-casting-switch": {
+      "title": "Diriger le théâtre d’ombres",
+      "description": "Coupez l’ombre de la lumière principale tout en gardant les trois marionnettes éclairées.",
+      "action": "Essayer l’interrupteur d’ombre",
+      "alt": "Théâtre de velours où un oiseau, un renard et une branche projettent leurs ombres"
+    }
+  },
+  "canvas": {
+    "phrases": {
+      "kept": "conservé",
+      "rejected": "rejeté",
+      "note": "note",
+      "yes": "oui",
+      "no": "non",
+      "scale": "échelle",
+      "length": "longueur",
+      "radius": "rayon",
+      "determinant": "déterminant",
+      "determinant 1": "déterminant 1",
+      "near": "proche",
+      "far": "lointain",
+      "beauty": "rendu",
+      "wireframe": "fil de fer",
+      "clusters": "grappes",
+      "lod": "LOD",
+      "screen-error": "erreur écran",
+      "materials": "classes de matériaux",
+      "visibility": "visibilité",
+      "pages": "pages",
+      "texture-mip": "mip de texture",
+      "overdraw": "surdessin",
+      "high": "haute",
+      "balanced": "équilibrée",
+      "adaptive": "adaptative",
+      "switches": "bascules",
+      "arbitration": "arbitrage",
+      "box 0": "boîte 0",
+      "box 1": "boîte 1",
+      "box 2": "boîte 2",
+      "box 3": "boîte 3",
+      "what the engine returns": "ce que renvoie le moteur",
+      "what the arrays hold": "ce que contiennent les tableaux",
+      "what the test read": "ce que le test a lu",
+      "what those numbers are": "représentation de ces nombres",
+      "what the two determinants say": "ce qu’indiquent les deux déterminants",
+      "the matrix under test": "la matrice testée",
+      "the six planes it rewrote": "les six plans réécrits",
+      "the six normalised planes (a, b, c, d)": "les six plans normalisés (a, b, c, d)",
+      "the buffer": "le tampon",
+      "the zero vector": "le vecteur nul",
+      "in place": "sur place",
+      "the curve, both ways": "la courbe dans les deux sens",
+      "the same value, encoded and linear": "la même valeur, encodée et linéaire",
+      "the same point, both ways": "le même point, par les deux chemins",
+      "the point before and after, from above": "le point avant et après, vu du dessus",
+      "from above": "vu du dessus",
+      "camera speed (m/s)": "vitesse de la caméra (m/s)",
+      "field of view (°)": "champ de vision (°)",
+      "near plane": "plan proche",
+      "aspect ratio": "rapport de forme",
+      "declared far plane": "plan lointain déclaré",
+      "camera heading (rad)": "orientation de la caméra (rad)",
+      "distance of the scene from the origin (m)": "distance de la scène à l’origine (m)",
+      "rotation of the matrix (rad)": "rotation de la matrice (rad)",
+      "scale of the matrix": "échelle de la matrice",
+      "uniform scale": "échelle uniforme",
+      "rotation (rad)": "rotation (rad)",
+      "translation x": "translation x",
+      "destination offset (matrices)": "décalage de destination (matrices)",
+      "turn of the basis (rad)": "rotation de la base (rad)",
+      "encoded sRGB value": "valeur sRGB encodée",
+      "hue": "teinte",
+      "saturation": "saturation",
+      "lightness": "luminosité",
+      "scalar": "scalaire",
+      "nodes in the batch": "nœuds dans le lot",
+      "products in the batch": "produits dans le lot",
+      "boxes in the batch": "boîtes dans le lot",
+      "boxes tested": "boîtes testées",
+      "kept by the frustum": "gardées par le frustum",
+      "rejected by the frustum": "rejetées par le frustum",
+      "behind the camera, by construction": "derrière la caméra, par construction",
+      "first survivor, view-space z": "première survivante, z en espace vue",
+      "cull, then transform the survivors: two calls, no allocation between them": "trier, puis transformer les survivantes : deux appels, aucune allocation entre eux",
+      "root position x": "position x de la racine",
+      "root rotation (rad)": "rotation de la racine (rad)",
+      "target x": "cible x",
+      "target z": "cible z",
+      "second box, x": "seconde boîte, x",
+      "second box, z": "seconde boîte, z",
+      "cone half-angle (rad)": "demi-angle du cône (rad)",
+      "cone axis, heading (rad)": "orientation de l’axe du cône (rad)",
+      "viewer distance": "distance de l’observateur",
+      "JS nanoseconds per element": "nanosecondes JS par élément",
+      "Wasm nanoseconds per element": "nanosecondes Wasm par élément",
+      "executions observed": "exécutions observées",
+      "contract version": "version du contrat",
+      "path chosen": "chemin choisi",
+      "not decided yet": "pas encore décidé",
+      "read and never written": "lu et jamais modifié",
+      "the constant itself, read from the engine": "la constante elle-même, lue dans le moteur",
+      "reversed depth, infinite far plane": "profondeur inversée, plan lointain infini",
+      "the constants the engine writes": "les constantes écrites par le moteur",
+      "the translation, written into a single-precision buffer": "la translation écrite dans un tampon simple précision",
+      "world matrix, rounded as-is": "matrice monde, arrondie telle quelle",
+      "error carried into the image": "erreur propagée dans l’image",
+      "nodes served": "nœuds traités",
+      "root world position": "position monde de la racine",
+      "after the first update": "après la première mise à jour",
+      "root moved, nothing updated yet": "racine déplacée, rien n’est encore mis à jour",
+      "its forward direction": "sa direction avant",
+      "under the root": "sous la racine",
+      "reparented to the world": "rattaché au monde",
+      "allocations during the call": "allocations pendant l’appel",
+      "largest difference on the last element": "plus grand écart sur le dernier élément",
+      "this frame": "cette image",
+      "a box beyond the declared far plane": "une boîte au-delà du plan lointain déclaré",
+      "a box three metres ahead": "une boîte trois mètres devant",
+      "B · A — the product does not commute": "B · A — le produit n’est pas commutatif",
+      "a pose written is a pose marked; the update decides whom to visit": "une pose écrite est marquée ; la mise à jour décide quels nœuds visiter",
+      "a still view keeps the base; a moving view may coarsen": "une vue immobile conserve la base ; une vue en mouvement peut réduire le détail",
+      "a viewer turned toward the target": "un observateur orienté vers la cible",
+      "angle between them": "angle entre les deux",
+      "height of a": "hauteur de a",
+      "point x": "point x",
+      "point z": "point z",
+      "lower bounds": "bornes basses",
+      "upper bounds": "bornes hautes",
+      "cone axis": "axe du cône",
+      "half-angle": "demi-angle",
+      "encoded for the screen": "encodé pour l’écran",
+      "linear rgb": "RVB linéaire",
+      "linearToSrgb of that": "résultat de linearToSrgb",
+      "boxUnion of the unit box and the one you move": "boxUnion de la boîte unité et de celle que vous déplacez",
+      "sphereFromBounds of that union": "sphereFromBounds de cette union",
+      "the unit box carried by that matrix": "la boîte unité transportée par cette matrice",
+      "the union of the eight transformed corners, never the eight of the result": "union des huit coins transformés, jamais des huit coins du résultat",
+      "one buffer holds many matrices; no view is sliced per frame": "un tampon contient plusieurs matrices ; aucune vue n’est découpée par image",
+      "one chain of nodes, parents before children, in one call": "une chaîne de nœuds, parents avant enfants, en un appel",
+      "none: the buffers are the caller’s": "aucune : les tampons appartiennent à l’appelant",
+      "the unit function stays the oracle; the WebAssembly kernel repeats it term by term": "la fonction unitaire reste l’oracle ; le noyau WebAssembly la répète terme par terme",
+      "the governor, after those executions": "le gouverneur après ces exécutions",
+      "the kernel leads by enough, for long enough, to be worth the switch": "le noyau garde une avance suffisante assez longtemps pour justifier la bascule",
+      "the reads of one node": "les lectures d’un nœud",
+      "the sign alone decides, with no square root: the exact clip test": "seul le signe décide, sans racine carrée : le test de clip exact",
+      "the subtraction happens in double; only the write rounds": "la soustraction se fait en double précision ; seule l’écriture arrondit",
+      "the curve over the whole range": "la courbe sur toute la plage",
+      "m · m⁻¹ — the identity, up to the last bits": "m · m⁻¹ — l’identité, aux derniers bits près",
+      "round-trip error": "erreur d’aller-retour",
+      "non-zero values": "valeurs non nulles",
+      "positive: the draw keeps its front faces": "positif : le dessin conserve ses faces avant",
+      "kept: the cone may still face the viewer": "conservée : le cône peut encore faire face à l’observateur",
+      "rejected — the projection has no far plane, the frustum keeps the one the host declared": "rejetée — la projection n’a pas de plan lointain, le frustum conserve celui déclaré par l’hôte",
+      "threshold at this speed": "seuil à cette vitesse",
+      "translation x of A": "translation x de A",
+      "the same (1, 2, 3), three ways": "le même (1, 2, 3), par trois chemins",
+      "composeMatrix4(out, position, quaternion, scale)": "composeMatrix4(out, position, quaternion, scale)",
+      "column-major; the translation is [12..14]": "ordre colonne ; la translation occupe [12..14]",
+      "scale of B": "échelle de B",
+      "normalMatrix3(out, m) — nine numbers, column-major": "normalMatrix3(out, m) — neuf nombres en ordre colonne",
+      "the engine's singularity rule": "règle de singularité du moteur",
+      "regular: the inverse-transpose, at the reference bits": "régulier : inverse transposée, aux bits de la référence",
+      "uniformScaleMatrix4(out, s, center) — the centre stays put": "uniformScaleMatrix4(out, s, center) — le centre reste fixe",
+      "a and b, seen from above (x to the right, z down)": "a et b vus du dessus (x vers la droite, z vers le bas)",
+      "its length": "sa longueur",
+      "a, b and their cross product, from above": "a, b et leur produit vectoriel vus du dessus",
+      "Math.sqrt of it — the reference length, bit for bit": "sa racine Math.sqrt — longueur de référence, bit pour bit",
+      "length of the normalised vector": "longueur du vecteur normalisé",
+      "all three at zero: nothing changes — the divisor is `length || 1`": "trois zéros : rien ne change, le diviseur vaut `length || 1`",
+      "addScaledVector3(out, a, s) onto (1, 1, 1)": "addScaledVector3(out, a, s) ajouté à (1, 1, 1)",
+      "transformDirectionVector3 — normalised, translation ignored": "transformDirectionVector3 — normalisé, translation ignorée",
+      "applyMatrix3Vector3 on the 3×3 block — not normalised": "applyMatrix3Vector3 sur le bloc 3×3 — non normalisé",
+      "the world from above, each box coloured by what the engine decided": "le monde vu du dessus, chaque boîte colorée selon la décision du moteur",
+      "frustumClipBox — 0 outside, 1 straddling, 2 entirely inside": "frustumClipBox — 0 dehors, 1 à cheval, 2 entièrement dedans",
+      "clipPlanesFromMatrix — the same planes, unnormalised": "clipPlanesFromMatrix — les mêmes plans non normalisés",
+      "the tree from above: the root and its children, after one update": "l’arbre vu du dessus : la racine et ses enfants après une mise à jour",
+      "the child, before and after the root moves": "l’enfant avant et après le déplacement de la racine",
+      "the child, attached then detached": "l’enfant, d’abord attaché puis détaché",
+      "matrices do not move until the next update, like the reference `add`": "les matrices ne bougent qu’à la prochaine mise à jour, comme le `add` de référence",
+      "the batch against the unit function it repeats": "le lot comparé à la fonction unitaire qu’il répète",
+      "frame.view — the inverse of the camera world matrix": "frame.view — inverse de la matrice monde de la caméra",
+      "DIAGNOSTICS — the engine says which modes it can produce, and why not": "DIAGNOSTICS — le moteur indique les modes disponibles et la raison des absences",
+      "LOD_QUALITY, as the engine holds it": "LOD_QUALITY tel que le conserve le moteur",
+      "near 1, clear 0": "proche 1, effacement 0",
+      "negative: the transform mirrors, and the draw swaps front and back": "négatif : la transformation crée un miroir et le dessin échange faces avant et arrière",
+      "null — the adjugate itself is replaced by zero": "null — l’adjointe elle-même est remplacée par zéro",
+      "singular: the adjugate as-is, so the flattened surface keeps a normal": "singulier : l’adjointe telle quelle conserve une normale à la surface aplatie",
+      "no finite scale: nine zeros": "aucune échelle finie : neuf zéros",
+      "rejected: every normal of that cluster faces away from the viewer": "rejetée : toutes les normales de cette grappe tournent le dos à l’observateur",
+      "JS keeps the work: under five samples, or the lead is not a burst": "JS conserve le travail : moins de cinq échantillons ou avance trop peu durable",
+      "nodeWorldDirection (object, +z)": "nodeWorldDirection (objet, +z)",
+      "nodeWorldDirection (viewer, −z)": "nodeWorldDirection (observateur, −z)",
+      "root": "racine",
+      "forward": "avant",
+      "the colour": "la couleur",
+      "4 of 4 boxes survive the six planes": "les 4 boîtes sur 4 franchissent les six plans",
+      "Adaptive mode — pixelError 2, anisotropy source, adaptive": "Mode adaptatif — pixelError 2, anisotropie source, adaptatif",
+      "Balanced quality — pixelError 4, anisotropy source": "Qualité équilibrée — pixelError 4, anisotropie source",
+      "High quality — pixelError 1, anisotropy maximum": "Haute qualité — pixelError 1, anisotropie maximale",
+      "Maximum source detail — pixelError 0, anisotropy source": "Détail source maximal — pixelError 0, anisotropie source",
+      "COLUMN_KIND — every column of the binary manifest, by storage": "COLUMN_KIND — chaque colonne du manifeste binaire par stockage",
+      "adaptivePixelError(base, speed, radius) on the adaptive preset": "adaptivePixelError(base, speed, radius) sur le préréglage adaptatif",
+      "an angle at or above π/2 never rejects": "un angle supérieur ou égal à π/2 ne rejette jamais",
+      "after updateNodeMatrixWorld(tree, root)": "après updateNodeMatrixWorld(tree, root)",
+      "available — Attached index pages; missing pages are not drawn; not physical VRAM": "disponible — pages d’indices attachées ; les pages absentes ne sont pas dessinées ; ce n’est pas la VRAM physique",
+      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "disponible — couleur pleine unique par triangle soumis, sans fil de fer GL_LINES",
+      "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "disponible — grappes de niveau 0 face aux réductions du DAG choisies pour cette image",
+      "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "disponible — erreur écran par grappe projetée par sa sphère, telle que la coupe l’emploie",
+      "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "disponible — pages visibles sélectionnées ; les nœuds rejetés sont comptés, pas dessinés",
+      "available — Stable primitive/page ID, exact-cluster backend only": "disponible — identité primitive/page stable, chemin WebGL2 de grappes exactes uniquement",
+      "available — glTF materials": "disponible — matériaux glTF",
+      "unavailable — No fragment counter": "indisponible — aucun compteur de fragments",
+      "unavailable — Texture mip residency not instrumented": "indisponible — résidence des mips de texture non instrumentée",
+      "child 0 world position": "position monde de l’enfant 0",
+      "child 1 world position": "position monde de l’enfant 1",
+      "child 2 world position": "position monde de l’enfant 2",
+      "column 0": "colonne 0",
+      "column 1": "colonne 1",
+      "column 2": "colonne 2",
+      "out = a, aliased": "out = a, même tampon",
+      "clock resolution the measurement rests on (ms)": "résolution de l’horloge sur laquelle repose la mesure (ms)",
+      "decomposeMatrix4 of that matrix — the round trip": "decomposeMatrix4 de cette matrice — l’aller-retour",
+      "depth against distance: it falls from 1 at the near plane toward 0 at infinity": "profondeur selon la distance : elle va de 1 au plan proche vers 0 à l’infini",
+      "depth at the near plane (0.1 m)": "profondeur au plan proche (0,1 m)",
+      "depth at 1 m": "profondeur à 1 m",
+      "depth at 10 m": "profondeur à 10 m",
+      "depth at 100 m": "profondeur à 100 m",
+      "depth at 1000 m": "profondeur à 1 000 m",
+      "depth at 100000 m": "profondeur à 100 000 m",
+      "direction of a (rad)": "direction de a (rad)",
+      "direction of b (rad)": "direction de b (rad)",
+      "radius of what is on screen (m)": "rayon de ce qui est à l’écran (m)",
+      "rotation about y (rad)": "rotation autour de y (rad)",
+      "rotation of A (rad)": "rotation de A (rad)",
+      "the direction (1, 0, 0) under that matrix": "la direction (1, 0, 0) sous cette matrice",
+      "the identity written at offset 16 of one large buffer": "l’identité écrite au décalage 16 d’un grand tampon",
+      "x of the last node — the sum 0 + 1 + … + (n − 1)": "x du dernier nœud — somme 0 + 1 + … + (n − 1)",
+      "transformHomogeneousPoint — four components": "transformHomogeneousPoint — quatre composantes",
+      "matrixAtRenderOrigin — the same matrix, applied at the origin": "matrixAtRenderOrigin — même matrice appliquée à l’origine",
+      "viewToRenderOrigin — the view without its translation": "viewToRenderOrigin — vue sans sa translation",
+      "worldToRenderOrigin, subtracted first": "worldToRenderOrigin, soustraction avant écriture",
+      "before": "avant",
+      "after": "après",
+      "left": "gauche",
+      "right": "droite",
+      "top": "haut",
+      "bottom": "bas",
+      "centre": "centre",
+      "surface": "surface",
+      "target": "cible",
+      "viewer": "observateur",
+      "expected": "attendu",
+      "orientation": "orientation",
+      "products": "produits",
+      "nodes": "nœuds"
+    },
+    "patterns": {
+      "singular": "déterminant {{value}} : seize zéros comme la référence ; testez le déterminant, jamais la sortie"
+    }
+  }
+}

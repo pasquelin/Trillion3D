@@ -1,26 +1,27 @@
+import { useWords } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
 import { TabsMenu } from '../ui/TabsMenu.tsx';
-import { themeLabel } from './lessonThemes.ts';
+import type { THEMES } from './lessonThemes.ts';
 
 const primary = ['transforms', 'camera', 'geometry', 'lighting'];
 
 interface ThemeTabsProps {
   active: string;
-  available: string[];
+  available: (typeof THEMES)[number][];
   locale: Locale;
   onSelect: (item: string) => void;
 }
 
 export function ThemeTabs({ active, available, locale, onSelect }: ThemeTabsProps) {
-  const french = locale === 'fr';
+  const t = useWords(locale);
   return (
     <TabsMenu
       value={active}
-      options={available.map((value) => ({ value, label: themeLabel(value, locale) }))}
+      options={available.map((value) => ({ value, label: t(`themes.${value}`) }))}
       primary={primary}
-      allLabel={french ? 'Tous' : 'All'}
-      moreLabel={french ? 'Plus' : 'More'}
-      ariaLabel={french ? 'Catégories d’exemples' : 'Example categories'}
+      allLabel={t('gallery.all')}
+      moreLabel={t('gallery.more')}
+      ariaLabel={t('gallery.categories')}
       onChange={onSelect}
     />
   );

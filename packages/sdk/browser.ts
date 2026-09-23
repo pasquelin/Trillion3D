@@ -146,6 +146,7 @@ export { Mesh } from '../sdk-core/src/world/object/mesh.ts';
 export type { Primitive } from '../sdk-core/src/world/object/mesh.ts';
 export { metric } from '../sdk-browser/src/world/metric/index.ts';
 export { object } from '../sdk-core/src/world/object/index.ts';
+export type { OrbitCameraControls } from '../sdk-browser/src/camera/controls/orbitControls.ts';
 export { page } from '../sdk-browser/src/world/page/index.ts';
 export type { PageStreamer, WorldPageSource } from '../sdk-browser/src/world/page/index.ts';
 export type { PanZoomCameraControls } from '../sdk-browser/src/camera/controls/panZoomControls.ts';

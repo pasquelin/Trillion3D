@@ -1,4 +1,4 @@
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import { readyEntries, thumbnailOf } from '../examples/list.ts';
@@ -23,6 +23,7 @@ const HELD_BACK = ['a-robot-that-walks-and-waves'];
 /** The home is the gallery: one line on what the engine does, where to start, then every ready
  * example as a picture that opens it — the flagships large. */
 export function Home({ locale }: { locale: Locale }) {
+  const t = useWords(locale);
   const shown = readyEntries.filter(({ id }) => !HELD_BACK.includes(id));
   // Each flagship, then four of the others: a large tile and the four small ones beside it
   // fill one band of the mosaic.
@@ -37,17 +38,17 @@ export function Home({ locale }: { locale: Locale }) {
   return (
     <DocPage
       title={SITE_NAME}
-      lead={t(locale, 'home.title')}
+      lead={t('home.title')}
       actions={
         <>
           <LinkButton
             variant="primary"
             href={routeHref({ locale, area: 'learn', id: 'create-a-world' })}
           >
-            {t(locale, 'home.start')}
+            {t('home.start')}
           </LinkButton>
           <LinkButton variant="outline" href={routeHref({ locale, area: 'api', id: '' })}>
-            {t(locale, 'nav.api')}
+            {t('nav.api')}
           </LinkButton>
         </>
       }

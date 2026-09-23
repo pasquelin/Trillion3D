@@ -1,13 +1,9 @@
+import { useWords } from '../i18n.ts';
 import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
 import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
 import type { Locale } from '../../content/locale.ts';
 import { Accordion } from '../ui/Accordion.tsx';
 import { Alert } from '../ui/Alert.tsx';
-
-const QUALITY_HELP: Record<Locale, string> = {
-  en: 'Pixel error 0 keeps exact leaves; raising it permits a coarser bounded DAG cut.',
-  fr: 'Une erreur de 0 px conserve les feuilles exactes ; l’augmenter autorise une coupe du DAG plus grossière et bornée.',
-};
 
 interface EngineGuideProps {
   copy: EngineCopy;
@@ -16,6 +12,7 @@ interface EngineGuideProps {
 }
 
 export function EngineGuide({ copy, locale, diagnostic }: EngineGuideProps) {
+  const t = useWords(locale);
   const [what, tryThis, observe] = copy.views[diagnostic];
   return (
     <Accordion title={copy.details}>
@@ -36,7 +33,7 @@ export function EngineGuide({ copy, locale, diagnostic }: EngineGuideProps) {
       </dl>
       <Alert className="my-3">
         <ul className="list-disc pl-5">
-          <li>{QUALITY_HELP[locale]}</li>
+          <li>{t('engineScene.qualityHelp')}</li>
           <li>{copy.taa}</li>
         </ul>
       </Alert>

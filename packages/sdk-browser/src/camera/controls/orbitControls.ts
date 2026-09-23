@@ -1,7 +1,13 @@
 import { createChangeGate, createControlBase } from './base.ts';
 import { pivotControlsApi, trackPivotGestures } from './pivot.ts';
 import { controlPose, readVector, writeVector } from './pose.ts';
-import { dollyDistance, orbitOrientation, panOffset, pixelWorldScale } from './math.ts';
+import {
+  clampAzimuth,
+  dollyDistance,
+  orbitOrientation,
+  panOffset,
+  pixelWorldScale,
+} from './math.ts';
 import {
   clampNumber,
   fromSpherical,
@@ -21,11 +27,33 @@ import type { ControlCamera, PivotCameraControls } from './types.ts';
  * into spherical coordinates, and ends by writing them out again. A host that moves the
  * camera itself — the portal's zoom buttons do — is therefore understood on the next
  * `update()`, and the round trip is what `math.test.ts` pins down.
+ *
+ * THE ANGLES ARE BOUNDED like the distance, on every drag and every `update()`: the polar
+ * angle between `minPolarAngle` and `maxPolarAngle`, the azimuth on the arc from
+ * `minAzimuthAngle` to `maxAzimuthAngle`. Their names and meanings are the ones web 3D
+ * libraries commonly use, so a page that already sets them keeps its numbers.
  */
+export interface OrbitCameraControls extends PivotCameraControls {
+  /**
+   * Smallest polar angle, in radians from straight up: `0` lets the camera look straight
+   * down. The pole itself stays out of reach, where the azimuth would stop being defined.
+   */
+  minPolarAngle: number;
+  /** Largest polar angle, in radians from straight up: `Math.PI / 2` keeps it above the ground. */
+  maxPolarAngle: number;
+  /**
+   * Start of the arc of azimuth allowed, in radians from +Z towards +X; unlimited at
+   * `-Infinity`. Only a pair of finite bounds narrower than a full turn holds the camera.
+   */
+  minAzimuthAngle: number;
+  /** End of that arc; unlimited at `Infinity`. It may be smaller than `minAzimuthAngle`. */
+  maxAzimuthAngle: number;
+}
+
 export function createOrbitCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
-): PivotCameraControls {
+): OrbitCameraControls {
   const pose = controlPose(camera),
     base = createControlBase();
   const position = new Float64Array(3),
@@ -46,7 +74,12 @@ export function createOrbitCameraControls(
   const apply = () => {
     const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON);
     spherical[0] = clampNumber(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far);
-    spherical[2] = clampNumber(spherical[2], POLAR_EPSILON, Math.PI - POLAR_EPSILON);
+    spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle);
+    spherical[2] = clampNumber(
+      spherical[2],
+      Math.max(api.minPolarAngle, POLAR_EPSILON),
+      Math.min(api.maxPolarAngle, Math.PI - POLAR_EPSILON),
+    );
     fromSpherical(offset, spherical);
     for (let i = 0; i < 3; i++) position[i] = center[i] + offset[i];
     pose.write(position, orbitOrientation(orientation, spherical));
@@ -75,10 +108,19 @@ export function createOrbitCameraControls(
     spherical[0] = dollyDistance(spherical[0], steps, api.zoomSpeed);
     apply();
   };
-  const api = pivotControlsApi(base, pose, () => {
-    sample();
-    return apply();
-  });
+  // Unbounded angles by default: only the poles are out of reach.
+  const api: OrbitCameraControls = Object.assign(
+    pivotControlsApi(base, pose, () => {
+      sample();
+      return apply();
+    }),
+    {
+      minPolarAngle: 0,
+      maxPolarAngle: Math.PI,
+      minAzimuthAngle: -Infinity,
+      maxAzimuthAngle: Infinity,
+    },
+  );
   // A wheel notch is 5 % of the distance.
   trackPivotGestures(
     surface,
