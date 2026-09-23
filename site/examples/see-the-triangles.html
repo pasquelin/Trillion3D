@@ -81,7 +81,7 @@
         if (values.sideBySide && !beauty) openBeauty();
         if (beauty) beauty.pixelError = values.pixelError;
         world.invalidate();
-      });
+      }, world);
       const triangles = readout('Triangles drawn'), pages = readout('Pages in memory');
       world.onFrame(({ metrics }) => {
         triangles(metrics.selectedTriangles?.toLocaleString('en') ?? '?');

@@ -60,7 +60,7 @@
         cool.color.set(values.cool);
         letters.color.set(values.letters);
         world.invalidate();
-      });
+      }, world);
       let time = 0;
       world.onFrame(({ delta }) => {
         time += delta * ui.swing;

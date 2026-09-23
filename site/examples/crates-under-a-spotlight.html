@@ -47,7 +47,7 @@
         spot.penumbra = values.softness;
         spot.color.set(values.colour);
         spot.intensity = values.power;
-      });
+      }, world);
 
       // The pointer casts a ray from the camera; where it meets the floor (y = 0), the spot aims.
       world.canvas.addEventListener('pointermove', (event) => {

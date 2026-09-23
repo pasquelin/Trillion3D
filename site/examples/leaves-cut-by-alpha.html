@@ -98,7 +98,7 @@
         const turn = (values.sun * Math.PI) / 180;
         sun.position.set(Math.sin(turn) * 8, 9, Math.cos(turn) * 8);
         world.invalidate();
-      });
+      }, world);
     </script>
   </body>
 </html>

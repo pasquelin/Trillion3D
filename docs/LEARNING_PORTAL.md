@@ -141,7 +141,10 @@ packages; none stays external or is loaded from a CDN.
    `controls({ light: [0, 10, 3], colour: '#88aaff', spin: true, view: ['a', 'b'], reset: () => {} },
    onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb'`), lines of
    help (any other text, such as the keys to press), toggles, choices and buttons, returns the live values and calls `onChange(values, key)` once at start and after every
-   change. `readout(label)`, declared after it, adds a live line to that panel and returns the
+   change. Given the world as its last argument (`controls({ … }, onChange, world)`, or
+   `controls({ … }, world)`), it also opens the stats corner, bottom left: frames drawn per second
+   (marked `held` while the image stands still) and the last frame's measured counters, a line
+   left out when the engine did not measure it; `stats(world)` opens it alone. `readout(label)`, declared after it, adds a live line to that panel and returns the
    function that writes it (a counter read every frame). Name each control so that its label says
    what to try; there is no caption over the
    render. The page hosting the example hides or shows the panel by posting

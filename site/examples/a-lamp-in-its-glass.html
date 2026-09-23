@@ -70,7 +70,7 @@
         filament.emissive.set(values.lamp);
         glass.opacity = values.glass;
         world.invalidate();
-      });
+      }, world);
       // A pendulum: the angle swings, the lamp follows the bulb it hangs from.
       world.onFrame(({ time }) => {
         const angle = Math.sin(time * 1.6) * ui.swing, reach = CHAIN + 0.2;

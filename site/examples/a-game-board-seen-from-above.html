@@ -116,7 +116,7 @@
         hop = { t: -1.5 };
       }
       reset();
-      const ui = controls({ mouse: 'Drag to slide the board · scroll to zoom · arrow keys to pan', play: true, speed: [0.3, 3, 1] });
+      const ui = controls({ mouse: 'Drag to slide the board · scroll to zoom · arrow keys to pan', play: true, speed: [0.3, 3, 1] }, world);
       world.onFrame(({ delta }) => {
         if (!ui.play) return;
         hop.t += delta * ui.speed * 1.2;

@@ -105,7 +105,7 @@
           action.timeScale = values.speed;
         }
         paint.color.set(values.colour);
-      });
+      }, world);
       // Walking moves the robot round the stage, as far as its walk weighs.
       let heading = 0;
       world.onFrame(({ delta }) => {

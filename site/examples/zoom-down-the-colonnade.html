@@ -51,7 +51,7 @@
 
       // The dolly zoom: the field of view narrows while the camera backs away just enough to keep
       // the door the same size, so the colonnade around it seems to stretch.
-      const ui = controls({ fieldOfView: [12, 90, 50, 1], dollyZoom: true }, (values) => place(values.fieldOfView));
+      const ui = controls({ fieldOfView: [12, 90, 50, 1], dollyZoom: true }, (values) => place(values.fieldOfView), world);
       function place(fov) {
         const distance = 1.6 / Math.tan((fov * Math.PI) / 360);
         world.camera.fov = fov;
