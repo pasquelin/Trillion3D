@@ -69,13 +69,22 @@ export function layoutFaults(page: Page): Promise<string[]> {
         (child) => shown(child) && /static|relative|sticky/.test(getComputedStyle(child).position),
       );
       const boxes = children.map((child) => child.getBoundingClientRect());
+      // Children set in one same grid cell on purpose (a hero's picture under its text) stack.
+      const cell = (child: Element) => {
+        const { gridRowStart, gridColumnStart } = getComputedStyle(child);
+        return gridRowStart === 'auto' || gridColumnStart === 'auto'
+          ? null
+          : `${gridRowStart}/${gridColumnStart}`;
+      };
       for (let a = 0; a < boxes.length; a++)
         for (let b = a + 1; b < boxes.length; b++) {
           const x =
             Math.min(boxes[a].right, boxes[b].right) - Math.max(boxes[a].left, boxes[b].left);
           const y =
             Math.min(boxes[a].bottom, boxes[b].bottom) - Math.max(boxes[a].top, boxes[b].top);
-          if (x > 1 && y > 1) faults.push(`${name(children[a])} overlaps ${name(children[b])}`);
+          const stacked = cell(children[a]) !== null && cell(children[a]) === cell(children[b]);
+          if (x > 1 && y > 1 && !stacked)
+            faults.push(`${name(children[a])} overlaps ${name(children[b])}`);
         }
     }
     const header = document.querySelector('body header')!;

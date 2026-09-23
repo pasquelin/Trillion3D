@@ -1,19 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { srcdocFor } from '../ui/srcdoc.ts';
 
 /** What the demo page tells the example in its frame: show or hide its controls panel. */
 interface ControlsMessage {
   type: 'wg:controls';
   visible: boolean;
-}
-
-/** The edited source, run in the frame with its links resolved from the example's own address:
- * a `<base>` first in its head makes `../runtime/engine.js` and `../assets/` load as they do
- * from the file. */
-function withBase(source: string, file: string) {
-  const base = `<base href="${new URL(file, document.baseURI).href}">`;
-  return /<head[^>]*>/i.test(source)
-    ? source.replace(/<head[^>]*>/i, (head) => `${head}${base}`)
-    : `${base}${source}`;
 }
 
 /**
@@ -53,7 +44,7 @@ export function useDemo(file: string) {
       setLoadedRun(count);
       post(controls);
     },
-    runCode: () => setRun(({ count }) => ({ count: count + 1, srcdoc: withBase(code, file) })),
+    runCode: () => setRun(({ count }) => ({ count: count + 1, srcdoc: srcdocFor(code, file) })),
     restart: () => setRun((current) => ({ ...current, count: current.count + 1 })),
     reset: () => {
       setEdited(null);

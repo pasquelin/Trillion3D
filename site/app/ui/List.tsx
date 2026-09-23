@@ -1,31 +1,5 @@
 import type { ReactNode } from 'react';
 
-interface Step {
-  id: string;
-  href: string;
-  title: ReactNode;
-  text: ReactNode;
-}
-
-/** A numbered DaisyUI list: steps in the order the reader takes them, each a link. */
-export function StepList({ steps }: { steps: Step[] }) {
-  return (
-    <ol className="list rounded-box border border-base-300 bg-base-200">
-      {steps.map((step, index) => (
-        <li key={step.id} className="list-row">
-          <span className="font-mono text-2xl font-thin tabular-nums opacity-60">
-            {String(index + 1).padStart(2, '0')}
-          </span>
-          <a className="grid grid-cols-1 gap-1 hover:text-primary" href={step.href}>
-            <strong>{step.title}</strong>
-            <span className="text-sm text-base-content/75">{step.text}</span>
-          </a>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 interface Link {
   id: string;
   href: string;

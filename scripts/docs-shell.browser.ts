@@ -113,12 +113,37 @@ test('the demo page runs the example and runs an edited colour from its code', a
   await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.insertText(edited);
   await page.getByRole('button', { name: 'Run' }).click();
-  assert.match((await frame.getAttribute('srcdoc')) ?? '', /<base href="[^"]+examples\//);
+  assert.match((await frame.getAttribute('srcdoc')) ?? '', /<base href="examples\//);
   assert.match((await frame.getAttribute('srcdoc')) ?? '', /'#10e030'/);
   // The demo stays in view beside the code, and turns green.
   const after = await settled();
   const [was, now] = [await greenShare(page, before), await greenShare(page, after)];
   assert.ok(now > was + 0.05, `the edited colour shows in the render (${was} → ${now})`);
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
+test('moving from one example to the next keeps the sidebar where it was, with no spinner', async () => {
+  const [from, to] = readyEntries.slice(-2);
+  const { page, errors } = await open(`#/en/examples/${from.id}`, 1440);
+  const sidebar = page.locator('#sidebar');
+  await sidebar.locator('li a[aria-current="page"]').waitFor();
+  await page.waitForTimeout(800);
+  const before = await sidebar.evaluate((element) => element.scrollTop);
+  assert.ok(before > 0, 'the current example is scrolled into the sidebar');
+  // The route's content suspends in `main`: a spinner there, even for a frame, is a flash.
+  await page.evaluate(() => {
+    const main = document.getElementById('main-content')!;
+    new MutationObserver(() => {
+      if (main.querySelector(':scope > .loading')) document.body.dataset.spun = 'yes';
+    }).observe(main, { childList: true, subtree: true });
+  });
+  await sidebar.locator(`a[href="#/en/examples/${to.id}"]`).click();
+  await page.waitForURL(`**/#/en/examples/${to.id}`);
+  await sidebar.locator(`a[href="#/en/examples/${to.id}"][aria-current="page"]`).waitFor();
+  await page.waitForTimeout(500);
+  assert.equal(await sidebar.evaluate((element) => element.scrollTop), before);
+  assert.equal(await page.evaluate(() => document.body.dataset.spun), undefined);
   assert.deepEqual(errors, []);
   await page.context().close();
 });

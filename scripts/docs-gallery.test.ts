@@ -133,10 +133,16 @@ test('gallery renders visual cards and the real engine scene', () => {
   assert.match(gallery, /#\/en\/lessons\/compose-transform/);
 });
 
-test('home and gallery reuse the same linked example card', () => {
+test('the home runs a scene behind its title, its first scene beside its code, and leads to the examples', () => {
   const home = renderToStaticMarkup(createElement(Home, { locale: 'en' }));
-  assert.equal((home.match(/<a class="block h-full rounded-box/g) ?? []).length, 3);
-  assert.equal((home.match(/href="#\/en\/lessons\//g) ?? []).length, 3);
+  assert.match(home, /<iframe src="examples\/[^"]+\.html"[^>]*aria-hidden="true"/);
+  assert.match(home, /<h1[^>]*>Stream huge 3D worlds in the browser<\/h1>/);
+  // The code shown is the code run: the frame's page carries the same script.
+  const [, srcdoc] = home.match(/srcDoc="([^"]+)"/i) ?? [];
+  assert.ok(srcdoc?.includes('createWorld(&#x27;view&#x27;'));
+  assert.match(home, /data-code-block/);
+  assert.equal((home.match(/href="#\/en\/examples\/[^"]+"/g) ?? []).length, 6);
+  assert.doesNotMatch(home, /#\/en\/lessons\//);
 });
 
 test('all scenarios produce real 3D triangle geometry from SDK results', () => {
