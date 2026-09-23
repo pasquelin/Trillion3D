@@ -27,7 +27,8 @@ export const FRENCH: LocaleOverlay = [
   worldGuidesFr,
 ].reduce<LocaleOverlay>(
   (merged, overlays) => {
-    for (const [id, overlay] of Object.entries(overlays)) merged[id] = { ...merged[id], ...overlay };
+    for (const [id, overlay] of Object.entries(overlays))
+      merged[id] = { ...merged[id], ...overlay };
     return merged;
   },
   { ...referenceFr },
