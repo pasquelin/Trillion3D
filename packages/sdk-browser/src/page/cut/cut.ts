@@ -1,4 +1,9 @@
-import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
+import {
+  frustumExcludesBox,
+  maxStretch,
+  multiplyMatrix4,
+  openPlanes,
+} from '../../../../sdk-core/src/index.ts';
 import { selectFlat } from './select.ts';
 import {
   IDENTITY_WORLD,
@@ -19,7 +24,8 @@ import type { EngineCamera } from '../../camera/world.ts';
  * only reads and writes `Float64Array`s (`packages/sdk-core/src/math/matrix/matrix4.ts`), and host-library matrices are ordinary
  * arrays.
  */
-const rootWorld = new Float64Array(16);
+const rootWorld = new Float64Array(16),
+  rootPlanes = new Float64Array(24);
 
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
@@ -32,6 +38,8 @@ export function selectVisiblePages<T extends PageRecord>(
     isResident?: (page: T) => boolean;
     rootFallback?: boolean;
     pageBudget?: number;
+    /** Frustum planes that must reject nothing, one bit each: those a shadow caster needs open. */
+    openPlanes?: number;
     wanted?: T[];
     result?: SelectionResult<T>;
   },
@@ -43,7 +51,13 @@ export function selectVisiblePages<T extends PageRecord>(
   const { viewMatrix } = selectionScratch;
   // World frustum planes are those image entry set, in the host's depth convention: an image
   // computes them once, for all of its consumers, and nothing is copied here.
-  const worldPlanes = cam.planes;
+  // A plane a shadow caster needs open is opened on a copy: the camera's own stay whole.
+  const open = options.openPlanes ?? 0;
+  const worldPlanes = open ? rootPlanes : cam.planes;
+  if (open) {
+    rootPlanes.set(cam.planes);
+    openPlanes(rootPlanes, open);
+  }
   pixelScaleOf(cam.projection, viewport, selectionScratch.pixelScale);
   const shown = into ?? ([] as T[]);
   const wanted = options.wanted ?? ([] as T[]);
@@ -72,6 +86,7 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatMissing = false;
   state.flatShort = false;
   state.budget = budget;
+  state.openPlanes = open;
   const sweep = () => {
     state.over = false;
     state.shownCount = 0;

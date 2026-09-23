@@ -166,9 +166,10 @@ try {
   await writeFile(resolve(output, 'proof.json'), JSON.stringify(proof, null, 2));
   console.log(JSON.stringify(proof));
   // Pages awaiting a redraw keep their depth: the stopped frame shades as the settled one,
-  // but for the texture detail that lands at rest and the silhouettes a change of detail moves
-  // (2.0 to 4.2 % of the pixels over three runs, by which pages the budget admitted). Read as
-  // "never drawn", those pages sent the whole street to the proxy: 16.6 %, the road black.
+  // but for the texture detail that lands at rest and the silhouettes a change of detail moves.
+  // On the public scene 15 of 876 096 pixels differ (#281). Read as "never drawn", those pages
+  // sent the whole street to the proxy: 16.6 %, the road black. A cut that dropped the casters
+  // out of view gave 6.6 %: the settled frame then leaked light the stopped one still held.
   const differing = sample.lighter + sample.darker;
   assert.ok(
     differing < sample.pixels / 20,
