@@ -665,7 +665,9 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "कॉलम-मेजर आइडेंटिटी, सिर्फ़ पढ़ी जाती है, कभी लिखी नहीं जाती: किसी नोड का, या बिना पोज़ वाले रूट का, पोज़।",
-      "values": ["सोलह संख्याएँ, कॉलम-मेजर।"]
+      "values": [
+        "सोलह संख्याएँ, कॉलम-मेजर।"
+      ]
     },
     "DiagnosticMode": {
       "description": "एक फ़्रेम क्या बनाती है। उपलब्धता असली पाइपलाइन के नतीजे बताती है, कभी बनावटी ओवरले नहीं: `DIAGNOSTICS` हर मोड के लिए बताता है कि क्या सक्रिय रेंडरर इसे बना सकता है और अगर नहीं तो क्यों नहीं।",
@@ -726,7 +728,10 @@
     },
     "GpuTimingMethod": {
       "description": "किसी चरण की प्रोफ़ाइल के GPU समय कैसे लिए गए। हर चरण का समय बताता है कहाँ, कभी कितना नहीं: टाइल-आधारित GPU पर चरण एक-दूसरे पर चढ़ते हैं और एक चरण अपने पड़ोसी को सोख लेता है। कुल फ़्रेम `gpuImageMs` है, यानी दायरा — चरणों के समय इसमें जुड़ते नहीं।",
-      "values": ["नेटिव WebGPU टाइमस्टैंप क्वेरी।", "उस रास्ते के लिए WebGL2 एक्सटेंशन।"]
+      "values": [
+        "नेटिव WebGPU टाइमस्टैंप क्वेरी।",
+        "उस रास्ते के लिए WebGL2 एक्सटेंशन।"
+      ]
     },
     "ColumnKind": {
       "description": "बाइनरी मैनिफ़ेस्ट के एक कॉलम की भंडारण-विधि। `COLUMN_KIND` हर कॉलम के नाम को उसकी क़िस्म से जोड़ता है, ताकि पढ़ने वाला जान सके कि साथ के बाइट्स को कैसे देखना है।",
@@ -1262,7 +1267,7 @@
       "toon-shading": "टून शेडिंग",
       "a-matcap-sculpture": "एक matcap मूर्ति",
       "normals-and-depth-seen": "नॉर्मल और गहराई",
-      "avif-textures": "AVIF textures",
+      "avif-textures": "AVIF टेक्सचर",
       "object-space-normals": "ऑब्जेक्ट-स्पेस नॉर्मल",
       "a-bumpy-surface": "एक उबड़-खाबड़ सतह",
       "displaced-by-a-map": "एक मैप से विस्थापित",
@@ -1486,8 +1491,8 @@
       "a-section-cut": "क्लिपिंग तल",
       "cut-by-several-planes": "क्लिपिंग तल",
       "a-capped-section": "क्लिपिंग तल: स्टेंसिल कैप",
-      "decals-on-a-surface": "picking (raycast)",
-      "sculpt-a-sphere": "picking (raycast)",
+      "decals-on-a-surface": "चयन (रेकास्ट)",
+      "sculpt-a-sphere": "चयन (रेकास्ट)",
       "a-texture-turned-and-tiled": "WebGPU पर texture दोहराव, ऑफ़सेट और घुमाव",
       "texture-filters-compared": "WebGPU पर texture फ़िल्टर और एनिसोट्रोपी",
       "a-video-on-a-screen": "लाइव वीडियो textures",
@@ -1590,13 +1595,13 @@
       "flames-and-a-tornado": "कस्टम शेडर material",
       "point-clouds-from-a-scan": "पॉइंट-क्लाउड इंपोर्ट",
       "gaussian-splats": "गॉसियन स्प्लैट रेंडरिंग",
-      "hover-over-triangles": "picking (raycast)",
-      "pick-lines-and-points": "picking (raycast)",
-      "pick-an-instance": "picking (raycast)",
-      "paint-where-you-click": "picking (raycast)",
-      "a-voxel-painter": "picking (raycast)",
-      "drag-objects": "picking (raycast)",
-      "edit-a-spline": "picking (raycast)",
+      "hover-over-triangles": "चयन (रेकास्ट)",
+      "pick-lines-and-points": "चयन (रेकास्ट)",
+      "pick-an-instance": "चयन (रेकास्ट)",
+      "paint-where-you-click": "चयन (रेकास्ट)",
+      "a-voxel-painter": "चयन (रेकास्ट)",
+      "drag-objects": "चयन (रेकास्ट)",
+      "edit-a-spline": "चयन (रेकास्ट)",
       "sound-in-space": "पोज़िशनल ऑडियो",
       "smooth-edges-over-time": "टेम्पोरल एंटी-अलायज़िंग सेटिंग",
       "tone-mapping-compared": "टोन-मैपिंग ऑपरेटर चुनाव",
