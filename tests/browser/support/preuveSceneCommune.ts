@@ -14,7 +14,7 @@ import type {
   ClusterStructure,
   Page,
   Primitive,
-} from '../../../packages/sdk-core/index.ts';
+} from '../../../packages/sdk-core/src/index.ts';
 
 export const VIEWPORT: [number, number] = [96, 96];
 

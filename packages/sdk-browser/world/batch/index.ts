@@ -3,7 +3,7 @@ import {
   frustumKeepsBoxBatch,
   multiplyMatrix4Batch,
   transformPointsBatch,
-} from '../../../sdk-core/index.ts';
+} from '../../../sdk-core/src/index.ts';
 
 /** The float arrays a batch reads and writes. */
 export type FloatBatch = Float32Array | Float64Array;

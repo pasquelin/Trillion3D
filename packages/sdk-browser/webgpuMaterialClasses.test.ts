@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { createPageRowWriter } from './webgpuPageRow.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE, isTransmissive } from './visibilityBuffer.ts';

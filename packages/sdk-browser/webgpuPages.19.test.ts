@@ -5,7 +5,7 @@ import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
-import { depthLayerUnits } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/src/index.ts';
 
 // Behaviour 22: writePageRow writes the bias in positive units at the table row's depthBias
 // slot; a layer-0 row keeps that field at zero.

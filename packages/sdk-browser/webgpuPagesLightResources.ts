@@ -4,7 +4,7 @@ import type { PageRec } from './pageSelection.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from './webgpuPageRow.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
-import { boxEmpty } from '../sdk-core/index.ts';
+import { boxEmpty } from '../sdk-core/src/index.ts';
 import { changeBox, changeMax, changeMin, growClusterBox } from './webgpuShadowBounds.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],

@@ -8,7 +8,7 @@ import type { WebglClusterOwner } from './webglClusterOwner.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
 import { drawClusterBatches, type ClusterDrawScene } from './webglClusterBatchDraw.ts';
 import type { SceneCopy } from './webglClusterCopyCulling.ts';
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 export { IndexRangeAllocator, DrawRanges } from './clusterBatchRange.ts';
 export type { BatchPage } from './clusterBatchRange.ts';
 

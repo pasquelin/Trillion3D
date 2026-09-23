@@ -1,11 +1,11 @@
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import type {
   AssetScope,
   CameraPose,
   FrameMetrics,
   Material,
   StablePreview,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import type { MemoryBudgets } from './webgpuPagesMemory.ts';

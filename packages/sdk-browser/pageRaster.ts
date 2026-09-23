@@ -1,4 +1,4 @@
-import { invertMatrix4, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { invertMatrix4, multiplyMatrix4 } from '../sdk-core/src/index.ts';
 import type {
   HostAttribute,
   HostAttributes,

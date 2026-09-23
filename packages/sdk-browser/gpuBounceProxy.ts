@@ -1,4 +1,4 @@
-import { PROXY_NODE_FLOATS, type SceneProxy } from '../sdk-core/index.ts';
+import { PROXY_NODE_FLOATS, type SceneProxy } from '../sdk-core/src/index.ts';
 import { PROXY_HEADER_WORDS, PROXY_LAYOUT_WORD } from './bounceNodeWgsl.ts';
 
 /** Words of an array, whatever its type: a column is a sequence of words, nothing more. */

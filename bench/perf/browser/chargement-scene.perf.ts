@@ -15,7 +15,7 @@ import {
   referenceIndexManifestPages,
 } from '../../oracles/browser/bornes-et-index.ts';
 import { manifesteEtScene } from './support/scenesChargement.ts';
-import { DEFAULT_SCOPE, type ClusterManifest } from '../../../packages/sdk-core/index.ts';
+import { DEFAULT_SCOPE, type ClusterManifest } from '../../../packages/sdk-core/src/index.ts';
 
 const boiteVersTableau = (boite: THREE.Box3 | ArrayLike<number>): number[] =>
   'isBox3' in boite && boite.isBox3
@@ -111,7 +111,7 @@ const passeBounds =
 
 const passeIndex =
   (pages: typeof indexManifestPages, bundles: typeof indexManifestBundles) =>
-  (metadata: import('../../../packages/sdk-core/index.ts').ClusterManifest) => {
+  (metadata: import('../../../packages/sdk-core/src/index.ts').ClusterManifest) => {
     const index = pages(metadata);
     return {
       pages: index.pages.map((page) => page.url),

@@ -1,5 +1,5 @@
 // the geometry of a preview entry.
-import { previewGeometry } from '../../../packages/sdk-core/texturePreviewLevels.ts';
+import { previewGeometry } from '../../../packages/sdk-core/src/texture/previewLevels.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
 import type { MesureCas } from '../../core/index.ts';
 import { referenceExpectedGeometry } from '../../oracles/core/preview-texture.ts';
@@ -40,7 +40,7 @@ const cas: MesureCas<[number, number][]>[] = [
 
 const res = await mesure({
   name: 'preview geometry',
-  fichier: 'packages/sdk-core/texturePreviewLevels.ts',
+  fichier: 'packages/sdk-core/src/texture/previewLevels.ts',
   cas,
   calcul: geometries(previewGeometry),
   attendu: geometries(referenceExpectedGeometry),

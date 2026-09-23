@@ -14,7 +14,7 @@ import {
   type TableTexture,
   type TableTextureSlot,
   type Texture,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /** Two values of the same quantity, one composed in Rust and one in JavaScript: equal to the last

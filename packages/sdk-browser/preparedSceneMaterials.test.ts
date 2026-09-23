@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { foldImageRanks, materialDivergence } from './preparedSceneMaterials.ts';
 import { hostSurface, hostTexture, tableMaterial, tableTexture } from './preparedSceneFixture.ts';
-import type { TableTexture } from '../sdk-core/index.ts';
+import type { TableTexture } from '../sdk-core/src/index.ts';
 
 const TRANSFORM = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 /** Twenty-one glTF textures, of which 2 and 20 share their image and their sampler: Emerald's

@@ -1,16 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-const core = new URL('../../packages/sdk-core/', import.meta.url);
+const core = new URL('../../packages/sdk-core/src/', import.meta.url);
 const browser = new URL('../../packages/sdk-browser/', import.meta.url);
 test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
-  for (const file of (await readdir(core)).filter(
-    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts'),
-  )) {
+  const files = (await readdir(core, { recursive: true })).filter(
+    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts') && !name.endsWith('.fixture.ts'),
+  );
+  assert.ok(files.length > 100, 'the core package must be found');
+  for (const file of files) {
     const text = await readFile(new URL(file, core), 'utf8');
     assert.doesNotMatch(
       text,
-      /from\s+['"](?:node:|react|electron|three|\.\.\/sdk-browser|\.\.\/sdk-node)/,
+      /from\s+['"](?:node:|react|electron|three|(?:\.\.\/)+sdk-browser|(?:\.\.\/)+sdk-node)/,
       file,
     );
     assert.doesNotMatch(

@@ -1,4 +1,4 @@
-import { LTC_SIZE, ltcTable } from '../sdk-core/ltcTable.ts';
+import { LTC_SIZE, ltcTable } from '../sdk-core/src/lighting/ltcTable.ts';
 import { LTC_UNIT, WEBGL_RECT_KIND } from './webglClusterRectGlsl.ts';
 import { WebglClusterProbe, type ProbeLight } from './webglClusterProbe.ts';
 

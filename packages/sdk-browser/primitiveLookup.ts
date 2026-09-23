@@ -1,4 +1,4 @@
-import type { Primitive } from '../sdk-core/index.ts';
+import type { Primitive } from '../sdk-core/src/index.ts';
 
 /**
  * Manifest primitives looked up by their mesh association. A `find` per mesh walked the whole

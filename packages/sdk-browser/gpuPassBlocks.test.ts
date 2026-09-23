@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { GpuPassTimings } from '../sdk-core/index.ts';
+import type { GpuPassTimings } from '../sdk-core/src/index.ts';
 import { gpuPassBlockOf, gpuPassBlockTotals } from './gpuPassBlocks.ts';
 
 const sample = (

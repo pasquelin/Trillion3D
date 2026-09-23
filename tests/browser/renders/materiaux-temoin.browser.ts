@@ -52,7 +52,7 @@ try {
     (urls) => import(`${urls.pageUrl}`).then((m) => m.run(urls)),
     {
       sdkUrl: '/dist/sdk-browser/measurement.js',
-      coreUrl: '/dist/sdk-core/index.js',
+      coreUrl: '/dist/sdk-core/src/index.js',
       pageUrl: '/tests/browser/support/materialPixelsPage.ts',
     },
   );

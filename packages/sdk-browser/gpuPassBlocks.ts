@@ -1,4 +1,4 @@
-import type { GpuPassTimings } from '../sdk-core/index.ts';
+import type { GpuPassTimings } from '../sdk-core/src/index.ts';
 import { gpuPassBlockOf, gpuPassStageOf, gpuTotalsBy, type GpuPassBlock } from './stageMapping.ts';
 
 export { gpuPassBlockOf, gpuPassStageOf, type GpuPassBlock };

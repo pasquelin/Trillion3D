@@ -2,7 +2,7 @@ import { importHostTexture } from './hostSurfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { TexturePreview } from '../sdk-core/index.ts';
+import type { TexturePreview } from '../sdk-core/src/index.ts';
 import { previewLevels } from '../../tests/fixtures/manifestBinary.ts';
 import { tileCatalogue } from './webgpuTileCatalogue.ts';
 import { poolEncoding, WHITE_TAIL } from './textureBlockFormats.ts';

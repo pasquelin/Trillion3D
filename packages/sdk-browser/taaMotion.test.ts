@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
+import { IDENTITY_MATRIX4 } from '../sdk-core/src/index.ts';
 import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { createPlacementMotion } from './taaMotion.ts';
 

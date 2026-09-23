@@ -1,6 +1,6 @@
 // Shadow oracles of batch M1 "math foundation": projection, view, product and cone of a
 // shadow face from before the attachment, copied as-is from `develop` at commit d016f88.
-import { LIGHT_SETTINGS } from '../../../packages/sdk-core/sceneLightContracts.ts';
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
 
 /** `sceneLightShadowMath.ts:14-46` from before, written into a given buffer rather than in the
  *  module. Only the depth row follows the engine convention — reversed, near plane at 1: it is

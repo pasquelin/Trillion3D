@@ -1,5 +1,5 @@
-import type { MathPathMetrics, MathPathMode } from '../sdk-core/index.ts';
-import { createPathGovernor, type PathGovernor } from '../sdk-core/index.ts';
+import type { MathPathMetrics, MathPathMode } from '../sdk-core/src/index.ts';
+import { createPathGovernor, type PathGovernor } from '../sdk-core/src/index.ts';
 import { prepareSdkWasm, type SdkWasm } from './geometryPageWasm.ts';
 import { WASM_ARENA_CONTRACT } from './wasmArena.ts';
 

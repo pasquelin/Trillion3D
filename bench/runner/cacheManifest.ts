@@ -2,9 +2,9 @@
 // the directory its files live in.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { decodeManifestBinary } from '../../packages/sdk-core/manifestBinary.ts';
-import type { SlimClusterManifest } from '../../packages/sdk-core/manifestBinary.ts';
-import type { ClusterManifest } from '../../packages/sdk-core/geometryContracts.ts';
+import { decodeManifestBinary } from '../../packages/sdk-core/src/manifest/binary.ts';
+import type { SlimClusterManifest } from '../../packages/sdk-core/src/manifest/binary.ts';
+import type { ClusterManifest } from '../../packages/sdk-core/src/contracts/geometry.ts';
 
 /** The pointer `manifest.json`, naming the slim manifest JSON to read next to it. */
 interface ManifestPointer {

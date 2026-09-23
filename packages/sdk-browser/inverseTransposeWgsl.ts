@@ -1,4 +1,4 @@
-import { SINGULAR_DETERMINANT_WGSL } from '../sdk-core/index.ts';
+import { SINGULAR_DETERMINANT_WGSL } from '../sdk-core/src/index.ts';
 
 /**
  * 3×3 inverse-transpose in WGSL, written once for the whole engine: the DAG selection kernel
@@ -13,7 +13,7 @@ import { SINGULAR_DETERMINANT_WGSL } from '../sdk-core/index.ts';
  * normalisation — before the determinant. Under 1e-12, s³ itself becomes denormal in f32: only
  * this normalisation crosses that floor. This is THE engine's degeneracy guard; nothing that
  * follows adds another. The THRESHOLD itself is not written here: it comes from
- * `SINGULAR_DETERMINANT` (`packages/sdk-core/mathSingular.ts`), rendered as text and inserted
+ * `SINGULAR_DETERMINANT` (`packages/sdk-core/src/math/matrix/singular.ts`), rendered as text and inserted
  * into the shader, so the CPU (`normalMatrix3`) and the GPU read the same number.
  *
  * WHAT A SINGULAR MATRIX BECOMES. Singular does not mean gone: a scale (1, 1, 0) followed by a

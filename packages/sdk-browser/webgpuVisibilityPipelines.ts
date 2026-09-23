@@ -1,6 +1,6 @@
 import { FEEDBACK_FORMAT, SURFACE_FORMATS } from './surfaceBuffer.ts';
 import { SHADE_UNIFORM_BYTES } from './visibilityShaderRequest.ts';
-import { depthLayerUnits } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/src/index.ts';
 import { DEPTH_COMPARE } from './depthConvention.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
 import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';

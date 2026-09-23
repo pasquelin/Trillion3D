@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { openMeasuredWorld } from './measurement.ts';
-import { CLUSTERED_BLEND_FORMAT_VERSION, EngineError, FORMAT_VERSION } from '../sdk-core/index.ts';
+import {
+  CLUSTERED_BLEND_FORMAT_VERSION,
+  EngineError,
+  FORMAT_VERSION,
+} from '../sdk-core/src/index.ts';
 
 for (const version of [FORMAT_VERSION, CLUSTERED_BLEND_FORMAT_VERSION])
   test(`explorer accepts format ${version} pointer and metadata before loading the source`, async (t) => {

@@ -1,4 +1,4 @@
-import type { CameraPose, DiagnosticMode } from '../sdk-core/index.ts';
+import type { CameraPose, DiagnosticMode } from '../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 import { createComparisonCompositor, type ComparisonLayout } from './comparison.ts';
 import { createFrameComposer } from './explorerCompose.ts';

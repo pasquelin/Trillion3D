@@ -5,7 +5,7 @@ import {
   frustumExcludesBox,
   frustumPlanesFromMatrix,
   frustumPlanesToLocal,
-} from '../../../packages/sdk-core/index.ts';
+} from '../../../packages/sdk-core/src/index.ts';
 import {
   coneContextFor,
   coneCullsPageWith,

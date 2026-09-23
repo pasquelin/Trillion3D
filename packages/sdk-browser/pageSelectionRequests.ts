@@ -1,4 +1,4 @@
-import { adaptivePixelError } from '../sdk-core/index.ts';
+import { adaptivePixelError } from '../sdk-core/src/index.ts';
 import type { CameraMotion, EngineCamera } from './cameraWorld.ts';
 
 export function resolvePixelError(

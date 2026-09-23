@@ -22,7 +22,7 @@ import {
   updateCameraFrame,
   updateNodeMatrixWorld,
   updateNodeWorldMatrix,
-} from '../../../../packages/sdk-core/index.ts';
+} from '../../../../packages/sdk-core/src/index.ts';
 import type { HierarchyOp, CameraSpec } from './hierarchieScenarios.ts';
 
 interface CameraRuntime {

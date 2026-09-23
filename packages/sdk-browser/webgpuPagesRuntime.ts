@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS } from '../sdk-core/src/index.ts';
 import { MOTION_CAPABILITY, TAA_CAPABILITY } from './taaPrepare.ts';
 import { BOUNCE_CAPABILITY } from './webgpuPagesPrepareBounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from './backendTypes.ts';

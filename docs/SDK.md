@@ -410,7 +410,7 @@ reads its operands at constant indices, and a computed offset costs 6 % of the p
 
 **Allocate once, reuse every frame.** The buffers below are the host's; a call writes into `out`
 and nothing else. Culling ten thousand boxes and bringing the survivors' centres into view space is
-two calls — this is `packages/sdk-core/mathBatchHost.test.ts`, run by `pnpm test`:
+two calls — this is `packages/sdk-core/src/math/batch/host.test.ts`, run by `pnpm test`:
 
 ```javascript
 import {

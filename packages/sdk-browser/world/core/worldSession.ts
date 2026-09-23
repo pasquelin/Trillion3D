@@ -1,5 +1,5 @@
 import type { MeasuredWorld } from '../../explorer.ts';
-import type { FrameMetrics } from '../../../sdk-core/index.ts';
+import type { FrameMetrics } from '../../../sdk-core/src/index.ts';
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
 type Access = { session: () => MeasuredWorld | null; last: () => FrameMetrics | null };

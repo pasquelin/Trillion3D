@@ -4,7 +4,7 @@ import { addGpuPasses, directLightTimings } from './stageMapping.ts';
 import { SHADOW_PASS } from './gpuShadowAtlas.ts';
 import { LIGHT_TILES_PASS } from './gpuLightTiles.ts';
 import { DEFERRED_LIGHTING_PASS } from './deferredLighting.ts';
-import type { GpuPassTimings } from '../sdk-core/index.ts';
+import type { GpuPassTimings } from '../sdk-core/src/index.ts';
 
 function sample(passes: GpuPassTimings['passes'], truncated = false): GpuPassTimings {
   return { frame: 1, totalMs: null, truncated, passes };

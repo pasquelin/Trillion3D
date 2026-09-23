@@ -14,7 +14,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { multiplyMatrix4, worldToRenderOrigin } from '../sdk-core/index.ts';
+import { multiplyMatrix4, worldToRenderOrigin } from '../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { sameRenderOrigin } from './cameraRenderOrigin.ts';
 import { cameraMoteur } from './cameraFixture.ts';

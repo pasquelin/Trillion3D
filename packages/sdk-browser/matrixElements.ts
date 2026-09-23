@@ -1,4 +1,4 @@
-import { IDENTITY_MATRIX4, copyMatrix4 } from '../sdk-core/index.ts';
+import { IDENTITY_MATRIX4, copyMatrix4 } from '../sdk-core/src/index.ts';
 
 /**
  * Matrix sixteen floats, compared or copied: knowing if view moved, or if requested

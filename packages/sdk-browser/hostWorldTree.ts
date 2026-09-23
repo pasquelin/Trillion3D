@@ -10,7 +10,7 @@ import {
   createTransformTree,
   updateNodeMatrixWorld,
   type TransformTree,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { pushHostPose } from './hostWorldPose.ts';
 import { createHierarchyLot, type HierarchyLot } from './mathBatchHierarchy.ts';
 

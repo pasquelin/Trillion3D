@@ -1,4 +1,4 @@
-import { type CameraPose, type FrameMetrics } from '../sdk-core/index.ts';
+import { type CameraPose, type FrameMetrics } from '../sdk-core/src/index.ts';
 import { emitExplorerFrameDiagnostic } from './explorerFrameDiagnostic.ts';
 import { handleExplorerRenderError } from './explorerRenderFallback.ts';
 import { createHostFrameCostAudit } from './frameCostAudit.ts';

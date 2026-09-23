@@ -10,7 +10,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { BOX_VALUES, boxTransform, determinantMatrix4 } from '../sdk-core/index.ts';
+import { BOX_VALUES, boxTransform, determinantMatrix4 } from '../sdk-core/src/index.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import {
   cisaillee,

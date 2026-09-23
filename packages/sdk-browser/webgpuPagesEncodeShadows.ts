@@ -9,7 +9,7 @@ import {
   regionRect,
   writeFace,
   type ShadowViewpoint,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { MAX_SHADOW_REGIONS } from './gpuShadowAtlas.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';

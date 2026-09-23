@@ -9,7 +9,7 @@ import {
   SCENE_LIGHT_HEADER_FLOATS,
   createSceneLightStore,
   type SceneLight,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { createExplorerLightApi } from './explorerLightApi.ts';
 import type { RenderBackend } from './backendTypes.ts';
 

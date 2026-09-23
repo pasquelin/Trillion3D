@@ -1,4 +1,4 @@
-import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/index.ts';
+import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/src/index.ts';
 import type { HostNode } from './hostResources.ts';
 import type { HostGraphNode } from './hostGraphNodes.ts';
 import { meshSurface } from './pageSurface.ts';

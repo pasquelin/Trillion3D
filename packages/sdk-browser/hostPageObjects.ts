@@ -17,7 +17,7 @@
  * silently, so `hostPageMesh` is the single writer of the mesh a page is drawn as.
  */
 import * as THREE from 'three';
-import type { Material } from '../sdk-core/index.ts';
+import type { Material } from '../sdk-core/src/index.ts';
 import type { HostDrawScene } from './hostGraphNodes.ts';
 import {
   asHostLibrary,

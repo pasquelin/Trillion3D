@@ -1,7 +1,7 @@
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
 import { LEVEL_QUEUES } from './gpuDagLevelWgsl.ts';
 import { withScreenErrorVariant } from './gpuDagShaderError.ts';
-import { screenErrorVariant } from '../sdk-core/index.ts';
+import { screenErrorVariant } from '../sdk-core/src/index.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 

@@ -1,6 +1,6 @@
 // per-stage profile breakdown, done every frame: CPU bounds deposited on their
 // stages, and GPU passes read by their label.
-import type { GpuPassTimings } from '../../../packages/sdk-core/index.ts';
+import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
 import { addCpuSteps } from '../../../packages/sdk-browser/stageCpuSteps.ts';
 import { addGpuPasses, directLightTimings } from '../../../packages/sdk-browser/stageMapping.ts';
 import type { StageAdd } from '../../../packages/sdk-browser/stageProfiler.ts';

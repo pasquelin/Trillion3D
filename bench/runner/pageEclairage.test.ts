@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { measureView } from './pageEclairage.ts';
 import type { MeasureViewOptions } from './mesureOptions.ts';
 import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
-import type { CameraPose } from '../../packages/sdk-core/index.ts';
+import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 
 /** The fake SDK that `measureView` imports by URL: a `openMeasuredWorld` returning the mock set
  *  on `globalThis` before the call, as Playwright serializes `measureView` into the real page. */

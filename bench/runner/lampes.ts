@@ -6,7 +6,7 @@
 
 import { plancherDuModele } from './poses.ts';
 import type { Bounds } from './poses.ts';
-import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
+import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 import type { LightsSummary } from './report/types.ts';
 
 /** A grid light always has a fixed position, unlike the shared `SceneLight` union. */

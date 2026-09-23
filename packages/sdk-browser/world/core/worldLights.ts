@@ -1,10 +1,10 @@
-import { Box3 } from '../../../sdk-core/world/math/box3.ts';
-import { Vector3 } from '../../../sdk-core/world/math/vector3.ts';
-import type { Light } from '../../../sdk-core/world/light/light.ts';
-import { addLightIrradiance, lampRecord } from '../../../sdk-core/world/light/lightRecord.ts';
-import type { Object3D } from '../../../sdk-core/world/object/object3d.ts';
-import { emptyIrradiance, type SceneLight } from '../../../sdk-core/index.ts';
-import { sameSceneLight } from '../../../sdk-core/sceneLightEqual.ts';
+import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
+import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
+import type { Light } from '../../../sdk-core/src/world/light/light.ts';
+import { addLightIrradiance, lampRecord } from '../../../sdk-core/src/world/light/lightRecord.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { emptyIrradiance, type SceneLight } from '../../../sdk-core/src/index.ts';
+import { sameSceneLight } from '../../../sdk-core/src/scene/light/equal.ts';
 
 /** The light calls of a session (`explorerLightApi.ts`) the world writes its lights through. */
 type LightApi = {

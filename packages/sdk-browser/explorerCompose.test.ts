@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { linearToSrgb } from '../sdk-core/index.ts';
+import { linearToSrgb } from '../sdk-core/src/index.ts';
 import type { HostDrawOutput, RenderBackend } from './backendTypes.ts';
 import { createFrameComposer } from './explorerCompose.ts';
 import { createWebglRenderTarget } from './webglRenderTarget.ts';

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { LIGHT_SETTINGS, type SceneLight } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS, type SceneLight } from '../sdk-core/src/index.ts';
 
 /**
  * ONE CONTRACT LIGHT AS A THREE LIGHT: the WebGL2 path's translation of the store

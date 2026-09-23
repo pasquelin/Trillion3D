@@ -22,7 +22,7 @@ import type {
   BackendDiagnostic,
 } from '../../../packages/sdk-browser/backendTypes.ts';
 import type * as SdkBrowser from '../../../packages/sdk-browser/measurement.ts';
-import type * as SdkCore from '../../../packages/sdk-core/index.ts';
+import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 interface Sides {
   referenceBackend: BackendFactory;

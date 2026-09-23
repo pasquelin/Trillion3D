@@ -1,5 +1,5 @@
-import { DEFAULT_SCOPE, setScreenErrorVariant } from '../sdk-core/index.ts';
-import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/index.ts';
+import { DEFAULT_SCOPE, setScreenErrorVariant } from '../sdk-core/src/index.ts';
+import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions } from './backendTypes.ts';
 import { createDiagnosticChannel } from './diagnosticChannel.ts';
 

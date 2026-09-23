@@ -1,4 +1,4 @@
-import { GEOMETRY_PAGE_FORMAT_VERSION } from '../sdk-core/index.ts';
+import { GEOMETRY_PAGE_FORMAT_VERSION } from '../sdk-core/src/index.ts';
 import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,

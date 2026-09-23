@@ -9,7 +9,7 @@ import { drawnPageIds, installGpuGlobals } from '../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { camera } from './webgpuPagesTestScenes.ts';
 import { twoCoarseQuadsScene } from './webgpuPagesTestOccluder.ts';
-import { type ClusterManifest, type Primitive } from '../sdk-core/index.ts';
+import { type ClusterManifest, type Primitive } from '../sdk-core/src/index.ts';
 
 /** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
  *  general `RenderBackend` contract leaves optional or omits. */

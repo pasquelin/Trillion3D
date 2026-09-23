@@ -11,7 +11,7 @@ import {
   normalMatrix3,
   transformAffinePoint,
   transformHomogeneousPoint,
-} from '../../../../packages/sdk-core/index.ts';
+} from '../../../../packages/sdk-core/src/index.ts';
 import type { Mesure } from '../../../core/index.ts';
 import { chainesHostiles, lectureReference, lectureSocle } from './socleHierarchie.ts';
 import { f64, ligne, m4, normaleReference, trs, trsReference } from './socleLigne.ts';
@@ -28,7 +28,7 @@ async function lignesOperations(): Promise<Mesure[]> {
   return [
     await ligne(
       '4×4 product, double precision',
-      'packages/sdk-core/mathMatrix4.ts',
+      'packages/sdk-core/src/math/matrix/matrix4.ts',
       'paires hostiles',
       paires,
       (l) => l.map(([a, b]) => f64(new THREE.Matrix4().multiplyMatrices(m4(a), m4(b)).elements)),
@@ -36,7 +36,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       '4×4 product written on its input',
-      'packages/sdk-core/mathMatrix4.ts',
+      'packages/sdk-core/src/math/matrix/matrix4.ts',
       'paires hostiles',
       paires,
       (l) => l.map(([a, b]) => f64(m4(b).premultiply(m4(a)).elements)),
@@ -48,7 +48,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       '4×4 product toward single precision',
-      'packages/sdk-core/mathMatrix4.ts',
+      'packages/sdk-core/src/math/matrix/matrix4.ts',
       'paires arrondies',
       paires32,
       (l) =>
@@ -59,7 +59,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       '4×4 inverse, singulars included',
-      'packages/sdk-core/mathMatrix4Inverse.ts',
+      'packages/sdk-core/src/math/matrix/matrix4Inverse.ts',
       'matrices hostiles',
       matrices,
       (l) => l.map((m) => f64(m4(m).invert().elements)),
@@ -71,7 +71,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       '4×4 determinant',
-      'packages/sdk-core/mathMatrix4.ts',
+      'packages/sdk-core/src/math/matrix/matrix4.ts',
       'matrices hostiles',
       matrices,
       (l) => f64(l.map((m) => m4(m).determinant())),
@@ -79,7 +79,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       'matrice normale',
-      'packages/sdk-core/mathMatrix3.ts',
+      'packages/sdk-core/src/math/matrix/matrix3.ts',
       'matrices hostiles',
       matrices,
       (l) => l.map((m) => normaleReference(m4(m))),
@@ -87,7 +87,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       'TRS decomposition',
-      'packages/sdk-core/mathMatrix4Trs.ts',
+      'packages/sdk-core/src/math/matrix/matrix4Trs.ts',
       'matrices hostiles',
       matrices,
       (l) => l.map((m) => trsReference(m4(m))),
@@ -95,7 +95,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       'point affine (matrice affine, point fini)',
-      'packages/sdk-core/mathVector.ts',
+      'packages/sdk-core/src/math/primitives/vector.ts',
       'poses × points',
       affines,
       (l) => croise(l, (m, p) => (fini(p) ? f64(v3(p).applyMatrix4(m4(m)).toArray()) : null)),
@@ -106,7 +106,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       'homogeneous point in clip space',
-      'packages/sdk-core/mathVector.ts',
+      'packages/sdk-core/src/math/primitives/vector.ts',
       'matrices × points',
       matrices,
       (l) =>
@@ -118,7 +118,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       'produits vectoriel et scalaire',
-      'packages/sdk-core/mathVector.ts',
+      'packages/sdk-core/src/math/primitives/vector.ts',
       'vecteurs hostiles',
       points,
       (l) =>
@@ -175,7 +175,7 @@ export async function lignesEquivalence(): Promise<Mesure[]> {
     ...(await lignesOperations()),
     await ligne(
       'hierarchies: world, position, quaternion, scale, determinant and sign, normal, inverse',
-      'packages/sdk-core/mathMatrix4Trs.ts',
+      'packages/sdk-core/src/math/matrix/matrix4Trs.ts',
       `${noeudsHierarchie.length} nodes, depths 1 to 6 and branches`,
       noeudsHierarchie,
       (l) => l.map(lectureReference),

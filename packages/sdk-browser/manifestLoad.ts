@@ -10,7 +10,7 @@ import {
   type AssetScope,
   type ClusterManifest,
   type SlimClusterManifest,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { checked } from './clusterPages.ts';
 
 async function jsonResource(

@@ -1,4 +1,4 @@
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from './backendCommon.ts';
 import { PRIORITY_PREFETCH } from './streamingPriority.ts';
 import { createWebglFrameTimer } from './webglFrameTimer.ts';

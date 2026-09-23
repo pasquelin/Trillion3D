@@ -8,7 +8,7 @@ import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 import { assertOccluderImage, occluderScene } from './webgpuPagesTestOccluder.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
-import { DEFAULT_SCOPE, type ClusterManifest } from '../sdk-core/index.ts';
+import { DEFAULT_SCOPE, type ClusterManifest } from '../sdk-core/src/index.ts';
 
 test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', async () => {
   installGpuGlobals();

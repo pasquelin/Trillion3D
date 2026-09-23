@@ -1,7 +1,7 @@
 // The page side of one series: the payload sent into the page, and running it there.
 // Split from `serie.ts` to keep it under the file line budget.
 import type { Page } from 'playwright';
-import type { CameraPose } from '../../packages/sdk-core/index.ts';
+import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 import { reservoirs } from './serieReservoirs.ts';
 import type { Side } from './optionsCote.ts';
 import type { BenchSettings } from './options.ts';

@@ -4,7 +4,7 @@
 // in `webgpuTransformCisaillementFixture.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { cisaillee, runtime, scene, versGpu } from './webgpuTransformCisaillementFixture.ts';
 

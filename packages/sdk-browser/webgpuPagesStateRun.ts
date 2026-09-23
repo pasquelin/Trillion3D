@@ -1,5 +1,5 @@
 import type { CameraMotion, EngineCamera, HostCamera } from './cameraWorld.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import { createSelectionResult, type PageRec, type SelectionResult } from './pageSelection.ts';
 import {
   createSelectionUniforms,

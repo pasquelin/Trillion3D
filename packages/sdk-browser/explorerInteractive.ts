@@ -1,4 +1,4 @@
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import { createExplorerFrameScheduler } from './explorerFrameScheduler.ts';
 import { interactiveSize } from './explorerInteractiveOptions.ts';
 import type { MeasuredWorldOptions } from './explorerOptions.ts';

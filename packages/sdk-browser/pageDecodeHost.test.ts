@@ -9,7 +9,7 @@
 // to stop serving before releasing it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pageDecodeWorkerCount } from '../sdk-core/index.ts';
+import { pageDecodeWorkerCount } from '../sdk-core/src/index.ts';
 import {
   configurePageDecoders,
   decodePageOffThread,

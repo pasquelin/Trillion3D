@@ -1,4 +1,4 @@
-import { exclusiveScan, packDrawIndirect } from '../sdk-core/index.ts';
+import { exclusiveScan, packDrawIndirect } from '../sdk-core/src/index.ts';
 import { BASE_SLOTS, PAGE_BIND_ALIGN, slotCount } from './gpuDrawContract.ts';
 import type { DrawItem, CompactResult, SlotLayout } from './gpuDrawContract.ts';
 

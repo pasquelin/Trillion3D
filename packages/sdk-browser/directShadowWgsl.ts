@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS, POINT_FACES, SHADOW_PAGE } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS, POINT_FACES, SHADOW_PAGE } from '../sdk-core/src/index.ts';
 
 const POISSON_16 = [
   [-0.94201624, -0.39906216],

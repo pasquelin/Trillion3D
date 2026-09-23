@@ -10,7 +10,7 @@
 // `gpuDagInverseTranspose.test.ts` (selection) and the browser proof all three read the same
 // arithmetic, instead of each holding a copy.
 
-import { SINGULAR_DETERMINANT } from '../../../packages/sdk-core/mathSingular.ts';
+import { SINGULAR_DETERMINANT } from '../../../packages/sdk-core/src/math/matrix/singular.ts';
 import type { Vec3, Mat3 } from './vecTypes.ts';
 
 export const f = Math.fround;

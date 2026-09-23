@@ -155,7 +155,7 @@ test('an example only imports what the file or entry point it names really expor
 });
 
 test('examples cannot treat arbitrary implementation files as public modules', () => {
-  assert.equal(exampleModule('packages/sdk-core/index.ts'), null);
+  assert.equal(exampleModule('packages/sdk-core/src/index.ts'), null);
   assert.equal(exampleModule('packages/sdk-browser/explorer.ts'), null);
 });
 

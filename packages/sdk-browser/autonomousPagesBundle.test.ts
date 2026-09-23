@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 
 /** Two triangles side by side, one cluster page each, both packed in one index bundle. */
 const TRIANGLES = [

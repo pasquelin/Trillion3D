@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS, LIGHT_SETTINGS, type SceneProxy } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS, LIGHT_SETTINGS, type SceneProxy } from '../sdk-core/src/index.ts';
 import { createGpuBounceProxy } from './gpuBounceProxy.ts';
 import { createGpuSunFarShadow } from './gpuSunFarShadow.ts';
 import { grantCapability } from './webgpuPagesDrops.ts';

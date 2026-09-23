@@ -2,7 +2,7 @@ import { mathBatchMetrics } from './mathBatchState.ts';
 import { pageIntegrationStats } from './pageIntegrationHost.ts';
 import { pageDecodeStats } from './pageDecodeHost.ts';
 import { EngineProfiler } from './telemetry.ts';
-import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
+import type { FrameMetrics, ClusterManifest } from '../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 import { BACKEND_METRIC_KEYS } from './backendMetricKeys.ts';
 import type { createPageStreamer } from './streamingPages.ts';

@@ -5,7 +5,7 @@ import {
   type TextureBlockFormat,
   type TextureLayout,
   type TexturePreview,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * Which block family a session's pools take, and everything that follows from it.

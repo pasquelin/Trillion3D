@@ -3,9 +3,9 @@
 // Hostile inputs: a message of another contract version, a cancellation before any work.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
+import { PAGE_DECODE_PROTOCOL } from '../sdk-core/src/index.ts';
 import { NodeDomWorker } from '../../bench/oracles/browser/pageDecodeNodeWorker.ts';
-import type { PageDecodeAnswer } from '../sdk-core/index.ts';
+import type { PageDecodeAnswer } from '../sdk-core/src/index.ts';
 
 const SOURCE = new URL('./pageDecodeWorker.ts', import.meta.url);
 

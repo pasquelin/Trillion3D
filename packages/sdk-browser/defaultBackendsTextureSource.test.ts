@@ -4,7 +4,7 @@ import { chooseBackends, resolveTextureSource } from './defaultBackends.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { exactPagesBackend } from './exactPagesBackend.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 
 /**
  * Behaviour: skipping the source images follows what will DRAW, never the option alone. Only

@@ -1,4 +1,4 @@
-import { srgbToLinear } from '../sdk-core/index.ts';
+import { srgbToLinear } from '../sdk-core/src/index.ts';
 import { backgroundRgb, sampleLinear, sampleMap, triangleAt } from './visibilityMath.ts';
 import { shadingNormal } from './visibilityShadingNormal.ts';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';

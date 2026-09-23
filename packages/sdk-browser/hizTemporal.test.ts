@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { compareImages } from '../sdk-core/index.ts';
+import { compareImages } from '../sdk-core/src/index.ts';
 import { rasterVisibilityIds, shadeVisibility, type VisPage } from './visibilityBuffer.ts';
 import {
   HIZ_BOUNDS_VALUES,

@@ -1,4 +1,4 @@
-import { disabledStageProfile } from '../sdk-core/index.ts';
+import { disabledStageProfile } from '../sdk-core/src/index.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { createStageProfiler } from './stageProfiler.ts';
 import { logFrameCostAudit } from './frameCostAudit.ts';

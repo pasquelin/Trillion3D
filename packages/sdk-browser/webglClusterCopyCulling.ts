@@ -4,7 +4,7 @@ import {
   clipPlanesFromMatrix,
   FRUSTUM_PLANE_VALUES,
   frustumExcludesBox,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { multiplyMatrix4 } from './webglClusterMatrices.ts';
 import { readHostBox } from './hostBoxBounds.ts';
 import { isTransmissive } from './visibilityMaterial.ts';

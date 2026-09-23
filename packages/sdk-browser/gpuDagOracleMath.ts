@@ -4,7 +4,7 @@ import {
   frustumPlanesToLocal,
   multiplyMatrix4,
   screenErrorBound,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { errorFloorAt, viewDepthOf, viewLateralOf } from './pageSelectionProjection.ts';
 import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
 import {

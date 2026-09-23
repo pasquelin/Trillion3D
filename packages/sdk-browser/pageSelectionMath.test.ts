@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { clipPlanesFromMatrix, frustumClipBox } from '../sdk-core/index.ts';
+import { clipPlanesFromMatrix, frustumClipBox } from '../sdk-core/src/index.ts';
 import { referenceBoxClip } from '../../bench/oracles/browser/selection.ts';
 
 const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 100);

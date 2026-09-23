@@ -4,7 +4,7 @@ import type * as PageCoupe from './pageCoupe.ts';
 import type * as PageTemoin from './pageTemoin.ts';
 import type * as PageExplorateur from './pageExplorateur.ts';
 import type * as PageMesure from './pageMesure.ts';
-import type { GpuPassTimings } from '../../packages/sdk-core/index.ts';
+import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts';
 import type { MovingNode } from './report/types.ts';
 
 /** One view, one side, one threshold: durations of each frame, the selected cut, the capture. */

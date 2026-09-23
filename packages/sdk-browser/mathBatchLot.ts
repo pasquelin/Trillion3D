@@ -1,4 +1,4 @@
-import type { MathPath } from '../sdk-core/index.ts';
+import type { MathPath } from '../sdk-core/src/index.ts';
 import type { SdkWasm } from './geometryPageWasm.ts';
 import { mathClock, mathBatchWasm, mathGovernor, loadMathBatch } from './mathBatchState.ts';
 import { blocsJavaScript, reserveArena, type ArenaBloc, type ArenaDemande } from './wasmArena.ts';
