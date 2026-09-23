@@ -2,7 +2,6 @@ import {
   clipPlanesFromMatrix,
   frustumFarPlane,
   multiplyMatrix4,
-  openPlanes,
 } from '../../../../sdk-core/src/index.ts';
 import type { ConeContext } from '../cone/cone.ts';
 import { clearForcedMarks, drawnUnderForcing, forceCoarse, worldStretch } from './logic.ts';
@@ -47,7 +46,6 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   clipPlanesFromMatrix(planes, multiplyMatrix4(clip, s.cam.projection, viewMatrix));
   // The engine projection no longer has a far plane: the frustum keeps the one the host declares.
   frustumFarPlane(planes, 16, viewMatrix, s.cam.far, false);
-  openPlanes(planes, s.openPlanes);
   s.flatStructure = root.structure;
   s.flatForced = root.forced;
   s.flatForcedList = root.forcedList;

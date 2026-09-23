@@ -191,15 +191,6 @@ resident proxy (`proxy.bin`), traced by the same bounded traversal the bounce us
 unaccumulated; the `sun-far-shadow` diagnostic publishes its bounds. Without a proxy, far surfaces
 stay lit: the last cascade is never stretched.
 
-**The cut keeps the shadow casters out of view.** Shadow maps are drawn from the camera's cluster
-cut, so a caster outside the frustum would stop casting and the settled image would leak light. What
-can shade the view lies in the hull of the frustum and the light — the frustum swept toward the sun,
-or joined to a lamp's position —: a frustum plane still rejects a cluster only when every shadow
-light is on its inner side (`shadowCasterPlanes`), on the GPU cut and its CPU fallback alike; with no
-shadow light the frustum is untouched. The clusters kept out of view take the error the camera gives
-them and are clipped by the viewport in the visibility pass. On Sponza with a sun (1280×720, moving
-camera), the cut grows 1.5 to 2.3× and the GPU frame p50 stays inside the A/A spread (#281).
-
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's
 footprint selects, in the visibility raster and in the shadow pass alike, and the material

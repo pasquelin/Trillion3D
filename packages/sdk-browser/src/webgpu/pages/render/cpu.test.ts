@@ -13,7 +13,6 @@ import {
 import { blendFixture, camera } from '../../../page/selection/blend.fixture.ts';
 import { cameraMoteur } from '../../../camera/camera.fixture.ts';
 import { createHizCounts } from '../../../hiz/hiz.ts';
-import { createSceneLightStore } from '../../../../../sdk-core/src/index.ts';
 import { renderCpuCut } from './cpu.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -81,7 +80,6 @@ function banc(options: { ready: boolean; resident: boolean }) {
     gpu: { cache: { get: (url: string) => residents.get(url) }, targetSize: [64, 64] },
     vis: { visEnabled: false, gpuHiz: undefined, textureJobs: [] },
     capture: { capturing: false },
-    lights: { store: createSceneLightStore() },
     blendState: { visibleBlend: [] },
     timing: { marks: { preStart: 0 }, cpuSample: undefined },
     diag: {

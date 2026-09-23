@@ -1,5 +1,4 @@
 import type { EngineCamera } from '../../../camera/world.ts';
-import { openPlanes, shadowCasterPlanes } from '../../../../../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts';
 import { mirrorDrawnFromShown } from '../helpers.ts';
 import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts';
@@ -61,9 +60,6 @@ export function renderGpuCut(
   // on the CPU path.
   const budgeted = Math.max(pixelError, run.budgetPixelError);
   cameraSelectionUniforms(cam, budgeted, viewport, run.selectionUniforms);
-  // A caster out of view still shades the view: the cut keeps what the shadow maps draw from.
-  const { planes } = run.selectionUniforms;
-  openPlanes(planes, shadowCasterPlanes(planes, rt.lights.store, cam.eye));
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.
   run.pagesEntered = 0;
   run.pagesExited = 0;

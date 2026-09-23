@@ -30,14 +30,17 @@ test('a flat cluster cut selects exactly one level per chain and covers the surf
   fixture.geometry.dispose();
 });
 
-/** The test DAG cut from a camera that sees its left half alone. */
-function leftHalfCut(openPlanes = 0) {
+test('a flat cluster cut keeps the frustum cut and reports the root cover', () => {
   const fixture = dagFixture();
   const { roots } = collectClusterPages(
     fixture.source,
     fixture.metadata,
     fixture.indices,
     fixture.associations,
+  );
+  assert.deepEqual(
+    rootCoverage(roots).map((page) => page.url),
+    ['root'],
   );
   const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
   cam.position.set(-1.5, 0, 2);
@@ -47,31 +50,10 @@ function leftHalfCut(openPlanes = 0) {
     pixelError: 0,
     viewport: [1280, 720],
     holdResident: true,
-    openPlanes,
   });
-  fixture.geometry.dispose();
-  return { roots, selected };
-}
-
-test('a flat cluster cut keeps the frustum cut and reports the root cover', () => {
-  const { roots, selected } = leftHalfCut();
-  assert.deepEqual(
-    rootCoverage(roots).map((page) => page.url),
-    ['root'],
-  );
   assert.deepEqual(selected.shown.map((page) => page.url).sort(), ['leaf0', 'leaf1']);
   assert.ok(selected.frustumRejected > 0);
-});
-
-test('frustum planes a shadow caster needs open reject nothing in the flat cut', () => {
-  const { selected } = leftHalfCut(0b111111);
-  assert.equal(selected.frustumRejected, 0);
-  assert.deepEqual(selected.shown.map((page) => page.url).sort(), [
-    'leaf0',
-    'leaf1',
-    'leaf2',
-    'leaf3',
-  ]);
+  fixture.geometry.dispose();
 });
 
 /** The exact wide-camera cut of the test DAG once `missing` clusters are gone from the cache. */

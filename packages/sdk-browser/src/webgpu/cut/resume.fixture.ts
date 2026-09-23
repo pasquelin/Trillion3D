@@ -1,6 +1,6 @@
 // Setup of the GPU-cut resume bench, split from its cases so neither file exceeds the line
 // limit. Cases live in `resume.test.ts`.
-import { IDENTITY_MATRIX4, createSceneLightStore } from '../../../../sdk-core/src/index.ts';
+import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
 import { renderGpuCut } from '../pages/render/gpuCut.ts';
 import { mountCutAdopter } from './adopter.fixture.ts';
 import { cameraSelectionUniforms, createSelectionUniforms } from '../../gpu/core/selection.ts';
@@ -110,7 +110,6 @@ export function banc(panne?: 'debordement' | 'envoi') {
       diagnosticFailure: (code: string) => codes.push(code),
     },
     context: {},
-    lights: { store: createSceneLightStore() },
     layout: { rows, drawSlots: 4 },
     setup: { gpuDevice: {}, viewport: VIEWPORT, clearColor: 0, slots: 10 },
     timing: { marks: {} },

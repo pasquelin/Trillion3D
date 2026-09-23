@@ -1832,9 +1832,7 @@
         "bench/perf/browser/lamp-shadows.perf.ts",
         "packages/sdk-browser/src/backend/autonomous/pagesLighting.test.ts",
         "packages/sdk-browser/src/backend/exact/contractLights.test.ts",
-        "packages/sdk-browser/src/webgpu/cut/resume.fixture.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/lightResources.test.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/cpu.test.ts",
         "packages/sdk-browser/src/webgpu/pages/state/lights.ts",
         "packages/sdk-browser/src/world/api/lightApi.test.ts",
         "packages/sdk-browser/src/world/session/backends.ts",
@@ -4859,21 +4857,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/llm/types\".OpenAiToolDefinition"
     },
     {
-      "name": "openPlanes",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/casterPlanes.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/page/cut/cut.ts",
-        "packages/sdk-browser/src/page/cut/select.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/gpuCut.ts"
-      ],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/casterPlanes\".openPlanes"
-    },
-    {
       "name": "orthographicProjection",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/primitives/camera.ts",
@@ -6809,20 +6792,6 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/gpu/shadow/digest\".ShadowAtlasDigest"
-    },
-    {
-      "name": "shadowCasterPlanes",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/casterPlanes.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/webgpu/pages/render/cpu.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/gpuCut.ts"
-      ],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/casterPlanes\".shadowCasterPlanes"
     },
     {
       "name": "ShadowFrameMetrics",

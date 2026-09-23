@@ -54,10 +54,6 @@ export type {
   Surface,
   Vec3,
 } from '../../sdk-core/src/lighting/scene/types.ts';
-export {
-  openPlanes,
-  shadowCasterPlanes,
-} from '../../sdk-core/src/scene/light-shadow/casterPlanes.ts';
 export { pageRowsOf, SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/pages.ts';
 export {
   PROXY_CHILD_WORDS,

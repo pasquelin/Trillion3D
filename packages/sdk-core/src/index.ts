@@ -192,7 +192,6 @@ export { RECTS_PER_SLICE, createShadowPlan } from './scene/light-shadow/plan.ts'
 export type { ShadowPlan } from './scene/light-shadow/plan.ts';
 export { SHADOW_PAGE, pageRowsOf } from './scene/light-shadow/pages.ts';
 export { forEachShadowFace } from './scene/light-shadow/casters.ts';
-export { openPlanes, shadowCasterPlanes } from './scene/light-shadow/casterPlanes.ts';
 export { regionRect } from './scene/light-shadow/volume.ts';
 export type { NumberSink } from './math/matrix/matrix4.ts';
 export type { Counts } from './manifest/binaryLayout.ts';

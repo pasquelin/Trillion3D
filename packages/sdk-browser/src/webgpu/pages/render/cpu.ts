@@ -1,5 +1,4 @@
 import type { EngineCamera } from '../../../camera/world.ts';
-import { shadowCasterPlanes } from '../../../../../sdk-core/src/index.ts';
 import { selectVisiblePages, type PageRec } from '../../../page/selection/selection.ts';
 import { applyTemporalHiz, resetHizCounts } from '../../../hiz/hiz.ts';
 import { pageAddress } from '../../row/pageSlots.ts';
@@ -18,9 +17,6 @@ import {
   traceTransition,
 } from './steps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-
-/** The camera's world planes sit at the world origin. */
-const WORLD_ORIGIN = [0, 0, 0];
 
 function selectCpuCut(
   rt: WebgpuPagesRuntime,
@@ -45,8 +41,6 @@ function selectCpuCut(
         : poolHolds,
       wanted: result?.wanted,
       result,
-      // A caster out of view still shades the view, as on the GPU cut (`gpuCut.ts`).
-      openPlanes: shadowCasterPlanes(cam.planes, rt.lights.store, WORLD_ORIGIN),
     },
     pinnedOnly ? undefined : rt.run.shown,
   );

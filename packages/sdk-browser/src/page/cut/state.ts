@@ -69,8 +69,6 @@ export interface SelectionState<T extends PageRecord> {
   shownTriangles: number;
   /** Page budget beyond which a pass has nothing left to say; `0` when there is none. */
   budget: number;
-  /** Frustum planes that reject nothing, one bit each (`shadowCasterPlanes`). */
-  openPlanes: number;
   /** This pass overflowed the budget: its result is discarded, the descent stops there. */
   over: boolean;
 }
@@ -179,7 +177,6 @@ const reusedState: SelectionState<PageRecord> = {
   wantedTriangles: 0,
   shownTriangles: 0,
   budget: 0,
-  openPlanes: 0,
   over: false,
 };
 

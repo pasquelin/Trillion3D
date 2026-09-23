@@ -8,7 +8,7 @@ import { faceCountOf } from './faces.ts';
 import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
 
 /** First float of light `slot` in the packed store. */
-export const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
+const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
 
 /** True when the light at `slot` declares a shadow, whether or not it holds a slice yet. */
 export const castsShadow = (store: SceneLightStore, slot: number) =>
