@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ten thousand objects</title>
+    <meta name="thumbnail" content="9" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #161c34;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #cbd5e1;
+        font: 12px system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p>Planet and moonlets modelled in code for this example, CC0 — see assets/examples/CREDITS.md</p>
+    <script type="module">
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#161c34');
+      // A low sun from the side: the planet throws its shadow across the ring. A cool fill from the
+      // sky and a warm one from the planet keep every night side readable.
+      world.scene.add(
+        light.directional({ intensity: 3.6, color: '#fff0da', position: [10, 2.5, -3], castShadow: true }),
+        light.hemisphere({ intensity: 0.7, color: '#8ea6ff', groundColor: '#8a6a4c' }),
+      );
+      // Ten thousand moonlets, every one a cratered rock of 5,120 triangles, in two bands around a
+      // planet: fifty million triangles in the file. Each moonlet places one of four rock shapes in
+      // one of three stones, and the compiler cut each shape once into clusters and coarser versions.
+      const ring = await world.scene.load('../assets/examples/ten-thousand-objects/cache/native/full/manifest.json');
+      world.camera.near = 0.01;
+      world.camera.far = 80;
+      world.controls.minDistance = 0.3;
+      world.controls.maxDistance = 30;
+
+      const { sourceTriangles, totalNodes } = ring.metadata;
+      let flying = true, turning = true, time = 0;
+      controls({
+        mouse: 'Drag to turn around the planet; scroll into the ring until one rock fills the view',
+        view: ['beauty', 'clusters', 'lod'],
+        pixelError: [0.5, 8, 1, 0.5],
+        drift: () => ((turning = true), world.invalidate()),
+      }, (values) => {
+        world.diagnostic.mode = values.view;
+        world.pixelError = values.pixelError;
+        world.invalidate();
+      }, world);
+      readout('Objects in the scene')(totalNodes.toLocaleString('en'));
+      readout('Triangles in the file')(`${(sourceTriangles / 1e6).toFixed(1)} million`);
+      const drawn = readout('Triangles drawn');
+      world.onFrame(({ metrics }) => {
+        const selected = metrics.selectedTriangles;
+        drawn(selected == null ? 'not counted here' : selected.toLocaleString('en'));
+      });
+
+      // The opening: the eye starts inside the outer band, rocks passing close, then pulls back
+      // and up until the whole ring is in view, and drifts around it. A press or a wheel on the
+      // canvas hands the camera back; the Drift button starts the turn again.
+      const START = { eye: [0.5, 0.08, 4.7], look: [-2.4, 0.02, 4.1] };
+      const WIDE = { eye: [6.2, 3.4, 8.4], look: [0, -0.2, 0] };
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => ((flying = false), (turning = false)), { passive: true });
+      world.camera.position.set(...START.eye);
+      world.controls.target.set(...START.look);
+      world.controls.update();
+      const ease = (t) => t * t * (3 - 2 * t);
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.1);
+        time += step;
+        if (flying) {
+          const t = ease(math.clamp((time - 1) / 7, 0, 1));
+          const at = (from, to) => from.map((value, axis) => value + (to[axis] - value) * t);
+          world.camera.position.set(...at(START.eye, WIDE.eye));
+          world.controls.target.set(...at(START.look, WIDE.look));
+          world.controls.update();
+          flying = t < 1;
+        } else if (turning) {
+          // One slow turn about the planet's axis, through the orbit's own pose.
+          const { position } = world.camera, { target } = world.controls, turn = step * 0.05;
+          const x = position.x - target.x, z = position.z - target.z;
+          position.set(target.x + x * Math.cos(turn) + z * Math.sin(turn), position.y, target.z + z * Math.cos(turn) - x * Math.sin(turn));
+          world.controls.update();
+        } else return;
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>

@@ -116,6 +116,27 @@ export function controlSettingAccessors(
     set inputResponse(value: number) {
       setting('inputResponse', value);
     },
+    /** Flight only: pitch stick in [-1, 1] (nose up), added to the arrow keys; 0 by default. */
+    get pitchInput() {
+      return settings.pitchInput;
+    },
+    set pitchInput(value: number) {
+      setting('pitchInput', value);
+    },
+    /** Flight only: yaw stick in [-1, 1] (left), added to the arrow keys; 0 by default. */
+    get yawInput() {
+      return settings.yawInput;
+    },
+    set yawInput(value: number) {
+      setting('yawInput', value);
+    },
+    /** Flight only: roll stick in [-1, 1] (left), added to Q and E; 0 by default. */
+    get rollInput() {
+      return settings.rollInput;
+    },
+    set rollInput(value: number) {
+      setting('rollInput', value);
+    },
     /** Orbit and trackball: how fast dragging turns; 1 by default. */
     get rotateSpeed() {
       return settings.rotateSpeed;

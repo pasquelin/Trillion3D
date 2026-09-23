@@ -139,3 +139,19 @@ test('a window that loses focus releases the keys it will get no release for', (
   assert.equal(controls.update(1), false);
   assert.deepEqual(at(camera), [0, 0, 0]);
 });
+
+test('flight turns on its stick inputs as on held keys, summed with them and bounded', () => {
+  const { camera, surface, controls } = steered(createFlyCameraControls);
+  controls.rollSpeed = 1;
+  controls.update(0);
+  controls.rollInput = 0.5; // Half a stick: half the rate, as a key held halfway.
+  assert.equal(controls.update(1), true);
+  assert.ok(Math.abs(camera.quaternion.z - Math.sin(0.25)) < 1e-12);
+  // Stick and key push the same way: full deflection, never more.
+  surface.key('keydown', { code: 'KeyQ' });
+  controls.update(1);
+  assert.ok(Math.abs(camera.quaternion.z - Math.sin(0.75)) < 1e-12);
+  surface.key('keyup', { code: 'KeyQ' });
+  controls.rollInput = 0; // A centred stick leaves the scene still.
+  assert.equal(controls.update(1), false);
+});

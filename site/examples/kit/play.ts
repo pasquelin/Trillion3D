@@ -1,33 +1,61 @@
+import {
+  createMenu,
+  MENU_LABELS,
+  type GameKey,
+  type GameOption,
+  type MenuActions,
+  type MenuLabels,
+  type MenuView,
+} from './gameMenu.ts';
+
 /**
- * A game's pause, as every web game has it: the game runs only while the mouse is locked to the
- * canvas. Before the first click, after Escape, when the window loses the focus or the tab is
- * hidden, the game is paused — a veil says so, the world's controls are off (no walking, no
- * looking) and `running` is false, which the page's frame reads to stop its simulation. A click
- * on the canvas asks for the lock; the game resumes only once the lock is granted.
+ * A game's menu and pause, as every web game has them: the game runs only while the mouse is
+ * locked to the canvas. Before the first play the start screen shows the title, the goal, a
+ * Play button, the key sheet and the page's options; after Escape, a lost focus or a hidden tab,
+ * the pause screen offers Resume, Restart and the keys. Paused, the world's controls are off and
+ * `running` is false, which the page's frame reads to stop its simulation.
+ *
+ * THE LOCK. Play asks for it on the canvas of this document, and the game resumes only once it
+ * is granted. A browser refuses it for about a second after the player pressed Escape, and on a
+ * canvas that left its document: the menu stays, says to click again, and asks once more by
+ * itself after that cooldown while the pointer is still over the page. Every refusal is caught,
+ * from the promise `requestPointerLock()` returns or, in older browsers, from the
+ * `pointerlockerror` event.
  */
 
 /** The world as `play` uses it: the canvas it locks, the controls it switches, a redraw. */
 export interface PlayWorld {
   canvas: {
-    addEventListener(type: 'click', listener: () => void): void;
     requestPointerLock?(): unknown;
+    readonly isConnected?: boolean;
+    readonly ownerDocument?: unknown;
   };
   controls: { enabled: boolean };
   invalidate(): void;
 }
 
-/** The words on the veil, in the page's language, and what the page does on each change. */
+/** The game's menu, in the page's language, and what the page does on each change. */
 export interface PlayOptions {
-  /** The first words, before the first click. Default `Click to play`. */
+  /** The game's name, big on the start screen. Default `Play`. */
   title?: string;
-  /** The words once the game has started. Default `Paused — click to continue`. */
-  paused?: string;
-  /** A line under them, the keys of the game. */
-  keys?: string;
+  /** One line under it: what the player is to do. */
+  goal?: string;
+  /** The key sheet the Controls button opens. */
+  keys?: GameKey[];
+  /** Choices offered on the menu, reported through `onOption`. */
+  options?: GameOption[];
+  /** The menu's own words; English by default. */
+  labels?: Partial<MenuLabels>;
+  /** Called once, the first time the game runs, before `onResume`. */
+  onStart?: () => void;
   /** Called when the game pauses: mute the sound, drop held keys. */
   onPause?: () => void;
   /** Called when the game resumes. */
   onResume?: () => void;
+  /** Called by the pause screen's Restart, before the game resumes. */
+  onRestart?: () => void;
+  /** Called when the player picks `value` for the option `id`. */
+  onOption?: (id: string, value: string) => void;
 }
 
 /** A paused or running game. */
@@ -38,73 +66,108 @@ export interface Game {
   readonly started: boolean;
 }
 
-/** The part of `document` `play` reads: the lock, the visibility, the events, a new element. */
+/** The part of `document` `play` reads: the lock, the visibility, the events. */
 export interface PlayDocument {
   readonly pointerLockElement: unknown;
   readonly hidden: boolean;
-  readonly body: { append(node: unknown): void };
   readonly defaultView: { addEventListener(type: 'blur', listener: () => void): void } | null;
-  addEventListener(type: 'pointerlockchange' | 'visibilitychange', listener: () => void): void;
-  createElement(tag: 'div'): PlayElement;
+  addEventListener(type: string, listener: (event: { relatedTarget?: unknown }) => void): void;
 }
 
-/** The part of an element the veil writes. */
-export interface PlayElement {
-  textContent: string | null;
-  style: { cssText: string };
-  append(...nodes: unknown[]): void;
-}
+/** What a browser waits after an Escape before it grants the lock again, and a margin. */
+const COOLDOWN_MS = 1100;
 
-const VEIL =
-  'position:fixed;inset:0;display:grid;place-content:center;gap:10px;text-align:center;' +
-  'pointer-events:none;background:rgba(10,6,14,0.55);color:#fff;font:600 15px/1.3 system-ui,sans-serif;' +
-  'text-shadow:0 2px 8px #000;z-index:10';
+/** The menu `play` draws by default, from the page's options. */
+const drawnMenu = (options: PlayOptions) => (actions: MenuActions) =>
+  createMenu(
+    {
+      title: options.title ?? MENU_LABELS.play,
+      goal: options.goal ?? '',
+      keys: options.keys ?? [],
+      options: options.options ?? [],
+      labels: { ...MENU_LABELS, ...options.labels },
+    },
+    actions,
+  );
 
 /**
- * Pauses `world` until its canvas holds the mouse, and pauses it again whenever it lets go.
+ * Pauses `world` behind its menu until its canvas holds the mouse, and again whenever it lets go.
  * @param world - The world whose canvas is locked and whose controls are switched.
- * @param options - The veil's words and the page's pause and resume.
+ * @param options - The menu's words, keys and choices, and the page's callbacks.
  * @param doc - The document; a test passes its own.
+ * @param menu - Draws the menu; a test passes its own.
  */
 export function play(
   world: PlayWorld,
   options: PlayOptions = {},
   doc: PlayDocument = document,
+  menu: (actions: MenuActions) => MenuView = drawnMenu(options),
 ): Game {
-  const { title = 'Click to play', paused = 'Paused — click to continue', keys = '' } = options;
-  const veil = doc.createElement('div'),
-    heading = doc.createElement('div'),
-    line = doc.createElement('div');
-  veil.style.cssText = VEIL;
-  heading.style.cssText = 'font-size:40px;color:#ffd27a';
-  line.style.cssText = 'font-weight:400;max-width:36em';
-  line.textContent = keys;
-  veil.append(heading, line);
-  doc.body.append(veil);
+  const again = options.labels?.again ?? MENU_LABELS.again;
+  const { canvas } = world;
   let running = false,
-    started = false;
+    started = false,
+    inside = true,
+    retried = false,
+    retry: ReturnType<typeof setTimeout> | undefined;
+  const screen = () => (started ? 'pause' : 'start');
   const apply = (now: boolean) => {
     if (now === running) return;
     running = now;
-    started ||= now;
-    heading.textContent = started ? paused : title;
-    veil.style.cssText = now ? 'display:none' : VEIL;
+    clearTimeout(retry);
+    if (now && !started) {
+      started = true;
+      options.onStart?.();
+    }
+    view.show(now ? null : screen());
     // Off, the controls hear nothing: no walking, no looking, and they let go of the lock.
     if (world.controls.enabled !== now) world.controls.enabled = now;
     (now ? options.onResume : options.onPause)?.();
     world.invalidate();
   };
-  const settle = () => apply(doc.pointerLockElement === world.canvas && !doc.hidden);
-  heading.textContent = title;
-  world.controls.enabled = false;
-  world.canvas.addEventListener('click', () => {
+  const settle = () => apply(doc.pointerLockElement === canvas && !doc.hidden);
+  const refused = (retryable: boolean) => {
     if (running) return;
-    if (doc.pointerLockElement === world.canvas) return settle();
-    // A lock asked too soon after Escape is refused by the browser: the next click asks again.
-    Promise.resolve(world.canvas.requestPointerLock?.()).catch(() => {});
+    view.show(screen(), again);
+    if (!retryable || retried || !inside) return;
+    retried = true;
+    retry = setTimeout(() => inside && lock(), COOLDOWN_MS);
+  };
+  function lock() {
+    if (running) return;
+    if (doc.pointerLockElement === canvas) return settle();
+    // A canvas out of this document cannot hold its lock: asking would only be refused.
+    if (canvas.isConnected === false || (canvas.ownerDocument && canvas.ownerDocument !== doc))
+      return refused(false);
+    try {
+      const asked = canvas.requestPointerLock?.() as PromiseLike<void> | undefined;
+      asked?.then?.(undefined, () => refused(true));
+    } catch {
+      refused(true);
+    }
+  }
+  // A press on the menu: a fresh request, with its own one retry.
+  const press = () => {
+    clearTimeout(retry);
+    retried = false;
+    lock();
+  };
+  const view = menu({
+    play: press,
+    restart() {
+      options.onRestart?.();
+      press();
+    },
+    option: (id, value) => options.onOption?.(id, value),
   });
+  view.show('start');
+  world.controls.enabled = false;
   doc.addEventListener('pointerlockchange', settle);
+  doc.addEventListener('pointerlockerror', () => refused(true));
   doc.addEventListener('visibilitychange', settle);
+  // The pointer leaving the page (no element under it) cancels a retry that would pull it back.
+  doc.addEventListener('pointerout', (event) => (inside = event.relatedTarget != null));
+  doc.addEventListener('pointerover', () => (inside = true));
   // A lost focus pauses at once, whether or not the browser has released the lock yet.
   doc.defaultView?.addEventListener('blur', () => apply(false));
   return {
