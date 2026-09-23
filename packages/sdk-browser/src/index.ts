@@ -126,6 +126,7 @@ export type {
   ControlVector,
   PivotCameraControls,
 } from './camera/controls/types.ts';
+export type { OrbitCameraControls } from './camera/controls/orbitControls.ts';
 export type { FlyCameraControls } from './camera/controls/flyControls.ts';
 export type { FirstPersonCameraControls } from './camera/controls/firstPersonControls.ts';
 export type { TrackballCameraControls } from './camera/controls/trackballControls.ts';

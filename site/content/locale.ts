@@ -1,7 +1,9 @@
-/** The portal languages: every route carries one, every authored copy provides both. */
-export type Locale = 'en' | 'fr';
+/** A portal language: the code of one dictionary of `site/i18n/`, which every route carries. */
+export type Locale = string;
 
-/** Copy authored in both portal languages; the data never omits one. */
-export type Localized = Record<Locale, string>;
+/** Copy authored per language; English is always given, the fallback of every other language. */
+export type Localized = { en: string } & Partial<Record<Locale, string>>;
 
-export const local = (value: Localized, locale: Locale) => value[locale];
+/** A table of per-language copy read in `locale`: English when the table has no such language. */
+export const local = <T>(value: { en: T } & Partial<Record<Locale, T>>, locale: Locale): T =>
+  value[locale] ?? value.en;
