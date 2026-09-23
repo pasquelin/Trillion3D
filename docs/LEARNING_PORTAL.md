@@ -103,10 +103,8 @@ fails when git tracks any file of it. The repository's Pages source is "GitHub A
 `build:docs` and deploys `dist/site/` as the Pages artifact. A release (`develop` → `main`)
 therefore publishes the site built from the merged sources, without committing it.
 
-The browser SDK keeps `three` and `three/*` external during the site build. The scene loads the
-repository's current Three.js peer dependency from one pinned CDN URL at runtime. Do not bundle,
-copy or vendor that dependency into the built tree; update the pinned URL together with the peer
-dependency and exercise the live scene after the change.
+The runtime bundle is self-contained: every dependency is bundled at build time from the installed
+packages; none stays external or is loaded from a CDN.
 
 ## Adding an example
 
@@ -184,7 +182,7 @@ The gallery's procedural 3D illustrations explain SDK calculations; the compiled
 the streaming pipeline. Neither proves a speedup over another renderer. Comparative claims require
 the repository measurement harness described in `bench/runner/README.md`, identical input, camera,
 quality and resource budgets, plus resolution, DPR, commit, display cap and run-to-run spread.
-A witness (bare Three.js, `THREE.LOD`, …) is never imported by a portal example or demo: it is
+A bench witness is never imported by a portal example or demo: it is
 named only through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) the bench
 and the report pipeline use.
 

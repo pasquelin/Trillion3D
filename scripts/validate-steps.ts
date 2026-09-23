@@ -26,6 +26,7 @@ export const VALIDATE_GROUPS = {
     'check:unused',
     'check:no-js',
     'check:links',
+    'check:docs-three',
     'check:sdk-facade',
   ],
   typescript: [

@@ -6,7 +6,7 @@ What the reference publishes, compared to what this repository maintains. A sing
 Three categories, each compared differently:
 
 1. **Structural constants** compare directly: they are format numbers, not measurements.
-   `tests/integration/reference-ue5.test.ts` verifies them in code on every `pnpm test` and fails
+   `tests/integration/reference.test.ts` verifies them in code on every `pnpm test` and fails
    when any of them diverges from this table.
 2. **Bytes per triangle** compare per triangle, never per scene: the reference scene is not ours.
 3. **Milliseconds do not compare directly**: their profile was recorded on a console demo, ours
@@ -149,5 +149,5 @@ What can be concluded rigorously:
   pool, excluding root pages: `r.Nanite.Streaming.StreamingPoolSize`, Unreal Directive —
   <https://unrealdirective.com/resources/console-variables/r-nanite-streaming-streamingpoolsize/>.
 - **(3)** **Unsourced.** The talk describes geometry, not the texture streaming system. The statement in §2
-  regarding a cook-compressed fixed texture pool is unsourced here, and `tests/integration/reference-ue5.test.ts`
+  regarding a cook-compressed fixed texture pool is unsourced here, and `tests/integration/reference.test.ts`
   does not assert texture pool constants. Pending source validation.
