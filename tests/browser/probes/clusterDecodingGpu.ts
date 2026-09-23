@@ -64,6 +64,8 @@ fn put(at:u32,v:f32){out[at]=bitcast<u32>(v);}
  }
 }`;
 
+// Serialized into the page, like every page kernel of the probes: it opens the device itself.
+// jscpd:ignore-start
 /** Run in the page: one pipeline, every page decoded, the output words read back. */
 async function executer({
   shader,
@@ -85,6 +87,7 @@ async function executer({
   const { device, erreurs } = appareil;
   const { module, compilation } = await appareil.compile(shader);
   if (compilation.length) return { compilation, erreurs };
+  // jscpd:ignore-end
   const read = { type: 'read-only-storage' } as const;
   const layout = device.createBindGroupLayout({
     entries: [

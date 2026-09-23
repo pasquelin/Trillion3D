@@ -67,6 +67,24 @@ export function quadBackend(
   return { fixture, backend };
 }
 
+/** A pages backend over `scene` that reads its pages on demand: nothing resident at prepare,
+ *  three resident slots, a 32 px viewport. */
+export function streamingQuadBackend(
+  scene: Pick<BackendContext, 'source' | 'metadata' | 'associations'> & {
+    indices: Map<string, Uint32Array>;
+  },
+  gpuDevice: BackendContext['gpuDevice'],
+) {
+  return webgpuPagesBackend({
+    ...scene,
+    indices: new Map(),
+    readPage: async (url) => scene.indices.get(url)!,
+    gpuDevice,
+    maxResidentPages: 3,
+    viewport: [32, 32],
+  });
+}
+
 /**
  * `scene` packed for the GPU cut, mounted on a mock GPU that runs it — two resident pages, a
  * 32 px viewport and whatever `options` add — then prepared, rendered once and flushed.
