@@ -1,5 +1,5 @@
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
-import { DIAGNOSTICS, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
+import { DIAGNOSTICS, EngineError, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
@@ -77,7 +77,8 @@ const WORLD_MODES = [
  */
 export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
   let mode = 'beauty',
-    sessions = 0;
+    sessions = 0,
+    error: EngineError | null = null;
   const said = new Set<string>();
   const warn = (text: string) => {
     if (said.has(text)) return;
@@ -114,6 +115,11 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     get sessions() {
       return sessions;
     },
+    /** Why the last session could not open, as a named engine error (`code`: `WEBGPU_LOST`, or
+     *  `SESSION_OPEN_FAILED` with the words in `details.cause`); `null` once a session opens. */
+    get error() {
+      return error;
+    },
     /** Every view mode the current renderer offers. */
     get modes() {
       const current = explorer();
@@ -129,7 +135,19 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
      *  session refuses falls back to `beauty`, so an opening never fails on it. */
     apply(opened: MeasuredWorld) {
       sessions++;
+      error = null;
       if (mode !== 'beauty' && !put(opened, mode)) mode = 'beauty';
+    },
+    /** A session that could not open: named on the handle and said on the console. An engine
+     *  error is kept as it is; a bare code thrown on the way (`WEBGPU_LOST`) becomes that code. */
+    failed(cause: unknown) {
+      const said = cause instanceof Error ? cause.message : String(cause);
+      const code = /^[A-Z][A-Z0-9_]*$/.test(said) ? said : 'SESSION_OPEN_FAILED';
+      error =
+        cause instanceof EngineError
+          ? cause
+          : new EngineError(code, `The world's session failed to open: ${said}`, { cause: said });
+      console.error('World session failed to open', error);
     },
   };
 }
