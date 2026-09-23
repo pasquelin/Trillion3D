@@ -20,7 +20,7 @@ export const ENGINE_GUIDES: PortalEntry[] = [
 </ul>
 <p><strong>Nothing happens in a still scene.</strong> The world redraws only while the controller is moving the pose, or while the host calls <code>invalidate()</code>; a settled orbit or a released key costs nothing.</p>
 <p><strong><code>world.controls</code> is a live handle, not a one-time choice.</strong> The <code>controls</code> option only sets what the world starts with; <code>world.controls.kind</code> reads or changes which controller drives the camera at any time — the previous one is released and the next built on the world's own camera. <code>world.controls.enabled</code> turns it off without losing it, and <code>world.controls.target</code> is the point a pivot controller turns around.</p>
-<p>Controls live on the world for two reasons: they read input on the canvas the world already owns — a second listener would double the gestures — and they follow <code>world.camera</code> when it is replaced, so a host never rebuilds its controller by hand. Live example: <a class="link link-primary" href="#/en/examples/five-ways-to-move-the-camera">Five ways to move the camera</a>.</p>`,
+<p>Controls live on the world for two reasons: they read input on the canvas the world already owns — a second listener would double the gestures — and they follow <code>world.camera</code> when it is replaced, so a host never rebuilds its controller by hand. Live example: <a class="link link-primary" href="#/en/examples/walk-through-a-temple">Walk through a temple</a>.</p>`,
     example: `const world = createWorld('viewer', { controls: 'orbit' }); // at creation
 world.controls.kind = 'fly';          // switch live
 world.controls.enabled = false;       // pause input

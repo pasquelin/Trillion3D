@@ -1405,13 +1405,49 @@
       }
     },
     {
-      "id": "five-ways-to-move-the-camera",
+      "id": "orbit-around-a-clockwork",
       "title": {
-        "en": "Camera controls",
-        "fr": "Contrôles de caméra"
+        "en": "Orbit a clockwork",
+        "fr": "Tourner autour d’une horloge"
       },
       "theme": "camera",
-      "file": "examples/five-ways-to-move-the-camera.html"
+      "file": "examples/orbit-around-a-clockwork.html"
+    },
+    {
+      "id": "a-game-board-seen-from-above",
+      "title": {
+        "en": "A game board from above",
+        "fr": "Plateau de jeu vu d’en haut"
+      },
+      "theme": "camera",
+      "file": "examples/a-game-board-seen-from-above.html"
+    },
+    {
+      "id": "spin-an-astrolabe",
+      "title": {
+        "en": "Spin an astrolabe",
+        "fr": "Faire tourner un astrolabe"
+      },
+      "theme": "camera",
+      "file": "examples/spin-an-astrolabe.html"
+    },
+    {
+      "id": "fly-over-a-model-town",
+      "title": {
+        "en": "Fly over a model town",
+        "fr": "Survoler une ville miniature"
+      },
+      "theme": "camera",
+      "file": "examples/fly-over-a-model-town.html"
+    },
+    {
+      "id": "walk-through-a-temple",
+      "title": {
+        "en": "Walk through a temple",
+        "fr": "Marcher dans un temple"
+      },
+      "theme": "camera",
+      "file": "examples/walk-through-a-temple.html"
     },
     {
       "id": "zoom-down-the-colonnade",

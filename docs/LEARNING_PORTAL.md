@@ -141,8 +141,8 @@ packages; none stays external or is loaded from a CDN.
    something to play with. `controls` from `../runtime/kit.js` (sources in `site/examples/kit/`,
    bundled beside the engine) draws a panel in the corner of the render:
    `controls({ light: [0, 10, 3], colour: '#88aaff', spin: true, view: ['a', 'b'], reset: () => {} },
-   onChange)` gives sliders (`[min, max, value, step?]`), colour pickers, toggles, choices and
-   buttons, returns the live values and calls `onChange(values, key)` once at start and after every
+   onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb'`), lines of
+   help (any other text, such as the keys to press), toggles, choices and buttons, returns the live values and calls `onChange(values, key)` once at start and after every
    change. Name each control so that its label says what to try; there is no caption over the
    render. The page hosting the example hides or shows the panel by posting
    `{ type: 'wg:controls', visible }` to its frame.
