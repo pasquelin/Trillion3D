@@ -2,6 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sha256Hex } from '../measurement/sha256Hex.ts';
 import { createPageStreamer } from './pages.ts';
+
+/** Three verified pages served whole, two workers, room for two resident pages. */
+async function twoOfThreeStreamer(onEvict?: (url: string) => void) {
+  const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
+  const sha = await sha256Hex(bytes.buffer);
+  globalThis.fetch = async () => new Response(bytes, { status: 200 });
+  return createPageStreamer(
+    [
+      { url: 'a.bin', bytes: bytes.byteLength, sha256: sha },
+      { url: 'b.bin', bytes: bytes.byteLength, sha256: sha },
+      { url: 'c.bin', bytes: bytes.byteLength, sha256: sha },
+    ],
+    'http://cache/',
+    undefined,
+    2,
+    2,
+    onEvict,
+  );
+}
+
 test('streamer fetches only requested pages and counts hits', async () => {
   const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
   const sha = await sha256Hex(bytes.buffer);
@@ -27,20 +47,7 @@ test('streamer fetches only requested pages and counts hits', async () => {
   streamer.dispose();
 });
 test('streamer LRU evicts unpinned pages and retains pinned ones', async () => {
-  const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
-  const sha = await sha256Hex(bytes.buffer);
-  globalThis.fetch = async () => new Response(bytes, { status: 200 });
-  const streamer = createPageStreamer(
-    [
-      { url: 'a.bin', bytes: bytes.byteLength, sha256: sha },
-      { url: 'b.bin', bytes: bytes.byteLength, sha256: sha },
-      { url: 'c.bin', bytes: bytes.byteLength, sha256: sha },
-    ],
-    'http://cache/',
-    undefined,
-    2,
-    2,
-  );
+  const streamer = await twoOfThreeStreamer();
   await streamer.request(['a.bin', 'b.bin']);
   assert.equal(streamer.stats().resident, 2);
   streamer.retain(['a.bin']);
@@ -52,22 +59,8 @@ test('streamer LRU evicts unpinned pages and retains pinned ones', async () => {
   streamer.dispose();
 });
 test('streamer notifies consumers when a page is evicted', async () => {
-  const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
-  const sha = await sha256Hex(bytes.buffer);
-  globalThis.fetch = async () => new Response(bytes, { status: 200 });
   const dropped: string[] = [];
-  const streamer = createPageStreamer(
-    [
-      { url: 'a.bin', bytes: bytes.byteLength, sha256: sha },
-      { url: 'b.bin', bytes: bytes.byteLength, sha256: sha },
-      { url: 'c.bin', bytes: bytes.byteLength, sha256: sha },
-    ],
-    'http://cache/',
-    undefined,
-    2,
-    2,
-    (url) => dropped.push(url),
-  );
+  const streamer = await twoOfThreeStreamer((url) => dropped.push(url));
   await streamer.request(['a.bin', 'b.bin']);
   streamer.retain(['a.bin']);
   await streamer.request(['c.bin']);

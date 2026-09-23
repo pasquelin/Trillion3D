@@ -8,6 +8,8 @@ const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
 /// Reference image, 4 × 2 pixels, top row first. It mixes opaque alpha, partial alpha and zero
 /// alpha so the slightest clipping of the channel shows.
+// The TGA fixtures are their own 4 × 2 image; the DDS surfaces are 4 × 4 and only open alike.
+// jscpd:ignore-start
 const REFERENCE: [[u8; 4]; 8] = [
     [255, 0, 0, 255],
     [0, 255, 0, 128],
@@ -18,6 +20,7 @@ const REFERENCE: [[u8; 4]; 8] = [
     [17, 34, 51, 68],
     [200, 100, 50, 150],
 ];
+// jscpd:ignore-end
 
 /// The same image without an alpha channel: what profiles that carry none yield.
 fn opaque() -> Vec<[u8; 4]> {

@@ -39,6 +39,16 @@ fn appliquer(g: &mut Value, bin: &[u8], decisions: &Decisions) -> CutoutApplied 
     apply_decisions(g, bin, Path::new("."), &BTreeSet::from([0usize]), decisions).expect("apply")
 }
 
+/// Writes a sheet answering `cutout` for the texture `sha`, reads it back and applies it.
+fn answer(directory: &Path, g: &mut Value, bin: &[u8], sha: &str, cutout: bool) -> CutoutApplied {
+    ecrire(
+        directory,
+        &json!({"version":1,"textures":{sha:{"cutout":cutout}}}),
+    );
+    let decisions = load_decisions(directory, directory).expect("read");
+    appliquer(g, bin, &decisions)
+}
+
 // Behavior: without sheet, nothing changes. Blend stays blend, report says so.
 #[test]
 fn sans_feuille_le_melange_reste_du_melange() {
@@ -60,12 +70,7 @@ fn sans_feuille_le_melange_reste_du_melange() {
 fn une_reponse_decoupe_passe_le_materiau_en_masque() {
     let directory = dossier("decoupe");
     let (mut g, bin, sha) = scene();
-    ecrire(
-        &directory,
-        &json!({"version":1,"textures":{&sha:{"cutout":true}}}),
-    );
-    let decisions = load_decisions(&directory, &directory).expect("read");
-    let applied = appliquer(&mut g, &bin, &decisions);
+    let applied = answer(&directory, &mut g, &bin, &sha, true);
     assert_eq!(g["materials"][0]["alphaMode"], json!("MASK"));
     assert_eq!(g["materials"][0]["alphaCutoff"], json!(0.5));
     assert_eq!(applied.applied[0]["texture"], json!(0));
@@ -77,12 +82,7 @@ fn une_reponse_decoupe_passe_le_materiau_en_masque() {
 fn une_reponse_vitre_laisse_la_scene_intacte() {
     let directory = dossier("vitre");
     let (mut g, bin, sha) = scene();
-    ecrire(
-        &directory,
-        &json!({"version":1,"textures":{&sha:{"cutout":false}}}),
-    );
-    let decisions = load_decisions(&directory, &directory).expect("read");
-    appliquer(&mut g, &bin, &decisions);
+    answer(&directory, &mut g, &bin, &sha, false);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
 }
 
@@ -94,12 +94,7 @@ fn une_transmission_est_refusee_malgre_la_reponse() {
     let (mut g, bin, sha) = scene();
     g["materials"][0]["extensions"] =
         json!({"KHR_materials_transmission":{"transmissionFactor":0.8}});
-    ecrire(
-        &directory,
-        &json!({"version":1,"textures":{&sha:{"cutout":true}}}),
-    );
-    let decisions = load_decisions(&directory, &directory).expect("read");
-    let applied = appliquer(&mut g, &bin, &decisions);
+    let applied = answer(&directory, &mut g, &bin, &sha, true);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
     assert_eq!(applied.refused[0]["reason"], json!("transmission"));
 }
@@ -111,12 +106,7 @@ fn un_facteur_alpha_partiel_est_refuse() {
     let directory = dossier("facteur");
     let (mut g, bin, sha) = scene();
     g["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"] = json!([1.0, 1.0, 1.0, 0.4]);
-    ecrire(
-        &directory,
-        &json!({"version":1,"textures":{&sha:{"cutout":true}}}),
-    );
-    let decisions = load_decisions(&directory, &directory).expect("read");
-    let applied = appliquer(&mut g, &bin, &decisions);
+    let applied = answer(&directory, &mut g, &bin, &sha, true);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
     assert_eq!(applied.refused[0]["reason"], json!("alpha-factor"));
 }

@@ -117,12 +117,14 @@ test('eye inside bounding sphere yields spread of π and never rejects', () => {
   );
 });
 
-test('zero cone axis never rejects (neither does reference)', () => {
-  const world = place(1, 1, 1, [0, 0, 0], [0.3, 0.1, 0]);
+/** A unit box turned by `euler`, seen from (20, 0, 0) under a cone of `axe` and `angle`: neither
+ *  the engine nor the reference rejects it. */
+function assertNeitherRejects(euler: number[], axe: number[], angle: number) {
+  const world = place(1, 1, 1, [0, 0, 0], euler);
   const normal = new THREE.Matrix3().getNormalMatrix(world);
   const c = {
-    axe: [0, 0, 0],
-    angle: Math.PI / 6,
+    axe,
+    angle,
     min: [-1, -1, -1],
     max: [1, 1, 1],
     world,
@@ -132,23 +134,14 @@ test('zero cone axis never rejects (neither does reference)', () => {
   };
   assert.equal(appeler(c), false);
   assert.equal(reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil), false);
+}
+
+test('zero cone axis never rejects (neither does reference)', () => {
+  assertNeitherRejects([0.3, 0.1, 0], [0, 0, 0], Math.PI / 6);
 });
 
 test('angle outside [0, π] is refused by coneRejects, so does not reject (try/catch)', () => {
-  const world = place(1, 1, 1, [0, 0, 0], [0, 0, 0]);
-  const normal = new THREE.Matrix3().getNormalMatrix(world);
-  const c = {
-    axe: [0, 1, 0],
-    angle: 5, // > π
-    min: [-1, -1, -1],
-    max: [1, 1, 1],
-    world,
-    normal,
-    echelle: 1,
-    oeil: [20, 0, 0],
-  };
-  assert.equal(appeler(c), false);
-  assert.equal(reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil), false);
+  assertNeitherRejects([0, 0, 0], [0, 1, 0], 5); // angle > π
 });
 
 test('tangent cone rejects exactly like reference, on both sides of tangency', () => {

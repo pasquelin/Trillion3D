@@ -15,6 +15,24 @@ function bitExactPixels(a: Uint8Array, b: Uint8Array) {
     assert.ok(Object.is(a[i], b[i]), `pixel[${i}]: ${a[i]} ≠ ${b[i]}`);
 }
 
+/** One quad of `material` from `min` to `max`, shaded at `size`: bit-exact against the reference. */
+function assertQuadLikeReference(
+  material: THREE.Material,
+  min: [number, number, number],
+  max: [number, number, number],
+  label: string,
+  size: [number, number],
+) {
+  const { page, geometry } = quad(material, min, max, label);
+  const cam = cameraAt();
+  const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
+  const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
+  const reference = referenceShadeVisibility(ids, [page], cam, size);
+  bitExactPixels(optimisee, reference);
+  geometry.dispose();
+  material.dispose();
+}
+
 test('an empty scene is pure background, bit for bit', () => {
   const cam = cameraAt();
   const ids = new Uint32Array(4);
@@ -46,28 +64,12 @@ test('a MeshStandardMaterial quad (reads path) shades identically', () => {
     roughness: 0.6,
     metalness: 0.3,
   });
-  const { page, geometry } = quad(material, [-1, -1, -0.4], [1, 1, -0.4], 'standard');
-  const cam = cameraAt(),
-    size: [number, number] = [11, 11];
-  const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
-  const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
-  const reference = referenceShadeVisibility(ids, [page], cam, size);
-  bitExactPixels(optimisee, reference);
-  geometry.dispose();
-  material.dispose();
+  assertQuadLikeReference(material, [-1, -1, -0.4], [1, 1, -0.4], 'standard', [11, 11]);
 });
 
 test('a triangle whose barycentric weights straddle the accept boundary agrees at the edge pixel', () => {
   // A degenerate sliver: the shared VisibilityFrame's cached triangle should still resolve every
   // pixel exactly like a fresh per-pixel triangleAt would.
   const material = new THREE.MeshBasicMaterial({ color: 0x112233 });
-  const { page, geometry } = quad(material, [-0.02, -1, -0.4], [0.02, 1, -0.4], 'sliver');
-  const cam = cameraAt(),
-    size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
-  const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
-  const reference = referenceShadeVisibility(ids, [page], cam, size);
-  bitExactPixels(optimisee, reference);
-  geometry.dispose();
-  material.dispose();
+  assertQuadLikeReference(material, [-0.02, -1, -0.4], [0.02, 1, -0.4], 'sliver', [16, 16]);
 });

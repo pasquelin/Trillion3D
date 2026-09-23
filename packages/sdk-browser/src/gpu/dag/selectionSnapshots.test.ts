@@ -11,18 +11,11 @@ import { createGpuDagSelection } from './selection.ts';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { mockDagDevice } from './selection.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { kernelUniforms, packed } from './selectionHelpers.fixture.ts';
+import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts';
 
 test('an in-flight snapshot that a world change crosses never becomes the held cut', async () => {
-  installGpuGlobals();
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const fixture = dagFixture();
-  const { dag, roots } = packed(fixture);
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0);
-  const selection = await createGpuDagSelection(mockDagDevice(dag, { mapGate: gate }).device, dag);
+  const { release, fixture, dag, uniforms, device } = gatedDag();
+  const selection = await createGpuDagSelection(device, dag);
   assert.ok(selection);
   selection.dispatch(uniforms);
   // The primitive moves a thousand units WHILE the snapshot is in flight: what it reports

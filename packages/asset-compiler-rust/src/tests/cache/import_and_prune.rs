@@ -34,25 +34,13 @@ fn obj_source_is_imported_into_the_cache_then_compiled() {
             .as_u64()
             .is_some()
     );
-    let steps: Vec<String> = events
-        .lock()
-        .unwrap()
-        .iter()
-        .filter(|e| e["phase"] == "import-source")
-        .map(|e| e["step"].as_str().unwrap_or("").to_string())
-        .collect();
+    let steps = import_steps(&events);
     assert!(steps.contains(&"complete".to_string()), "{steps:?}");
     // A second run reuses the import and only recompiles when the compile key changed (it did not).
     let events = std::sync::Mutex::new(Vec::new());
     let again = compile(&options, |e| events.lock().unwrap().push(e)).expect("compile again");
     assert_eq!(again["key"], result["key"]);
-    let steps: Vec<String> = events
-        .lock()
-        .unwrap()
-        .iter()
-        .filter(|e| e["phase"] == "import-source")
-        .map(|e| e["step"].as_str().unwrap_or("").to_string())
-        .collect();
+    let steps = import_steps(&events);
     assert_eq!(steps, vec!["reused".to_string()]);
     fs::remove_dir_all(root).expect("cleanup");
 }
@@ -131,18 +119,7 @@ fn recompiling_prunes_stale_keys_and_orphan_objects() {
 }
 #[test]
 fn pruning_one_scope_keeps_the_objects_the_other_scope_needs() {
-    let (root, options) = obj_fixture("a.obj", false);
-    let dir = options.source.parent().expect("dir").to_path_buf();
-    fs::write(
-        dir.join("b.obj"),
-        "v 5 0 0\nv 7 0 0\nv 5 3 0\nvn 0 0 1\nf 1//1 2//1 3//1\n",
-    )
-    .expect("second mesh");
-    let options = Options {
-        source: dir,
-        ..options
-    };
-    let full = compile(&options, |_| {}).expect("full");
+    let (root, options, full) = two_mesh_folder();
     assert_eq!(full["selectedTriangles"], 3);
     let slice = Options {
         scope: "slice".into(),

@@ -1,5 +1,4 @@
-import { createPivotControls, pinchSteps } from './controlPivot.ts';
-import { trackPointers, trackWheel } from './controlInput.ts';
+import { createPivotControls, trackPivotGestures } from './controlPivot.ts';
 import {
   axisAngleQuaternion,
   multiplyQuaternion,
@@ -53,14 +52,13 @@ export function createTrackballCameraControls(
     core.apply();
   };
   const api = Object.assign(core.api, { turntable: false });
-  trackPointers(surface, core.base, {
-    drag: (dx, dy, button, event) =>
+  trackPivotGestures(
+    surface,
+    core.base,
+    (dx, dy, button, event) =>
       button === 0 && !event.shiftKey ? rotate(dx, dy) : core.panBy(dx, dy),
-    pinch: (ratio, dx, dy) => {
-      core.panBy(dx, dy);
-      core.dolly(pinchSteps(ratio));
-    },
-  });
-  trackWheel(surface, core.base, (steps) => core.dolly(-steps));
+    core.panBy,
+    core.dolly,
+  );
   return api;
 }

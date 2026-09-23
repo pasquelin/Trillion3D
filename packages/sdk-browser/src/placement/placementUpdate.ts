@@ -1,10 +1,5 @@
-import {
-  BOX_VALUES,
-  boxEmpty,
-  boxIsEmpty,
-  boxTransform,
-  boxUnion,
-} from '../../../sdk-core/src/index.ts';
+import { BOX_VALUES, boxEmpty, boxIsEmpty, boxTransform } from '../../../sdk-core/src/index.ts';
+import { unionBoxInto } from '../math/boxUnionInto.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PlacementRows } from './placementRows.ts';
 
@@ -43,10 +38,6 @@ const moved = new Float64Array(BOX_VALUES),
   movedMin = [0, 0, 0],
   movedMax = [0, 0, 0];
 
-function unionInto(box: Float64Array) {
-  boxUnion(moved, 0, box[0], box[1], box[2], box[3], box[4], box[5]);
-}
-
 /**
  * Brings the roots of rows `from` to `to` level with what the owner wrote in them: each root's
  * world is already the row (a view), so only what the engine DERIVES from it follows — its world
@@ -68,7 +59,7 @@ export function followPlacementRows<T>(
     const entry = list[index];
     if (!entry) continue;
     const { root, rank } = entry;
-    if (root.worldBox && !root.parked) unionInto(root.worldBox);
+    if (root.worldBox && !root.parked) unionBoxInto(moved, root.worldBox);
     const parked = rows.live[index] === 0;
     if (parked !== !!root.parked) {
       root.parked = parked;
@@ -76,7 +67,7 @@ export function followPlacementRows<T>(
     }
     if (root.worldBox && root.localBox)
       boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
-    if (root.worldBox && !parked) unionInto(root.worldBox);
+    if (root.worldBox && !parked) unionBoxInto(moved, root.worldBox);
   }
   if (boxIsEmpty(moved, 0)) return null;
   for (let axis = 0; axis < 3; axis++) {

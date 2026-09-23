@@ -4,11 +4,10 @@
 // so the only way the engine can see that change is the resolution it does itself before
 // inverting the parent's matrix (`resolveHostNode`, in `setWebgpuTransform`).
 import * as THREE from 'three';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import { cameraFace, libere, engine } from './sharedSceneProof.ts';
+import { libere } from './sharedSceneProof.ts';
 import { difference, image, redCount } from './sceneImageProof.ts';
 import { executerPasses } from './deviceProof.ts';
-import { sceneTransparente } from './transparentTransformScene.ts';
+import { ouvrePasse } from './transparentTransformScene.ts';
 
 /** A column-major world matrix, pure translation on `x`. */
 function translation(x: number): Float32Array {
@@ -21,14 +20,8 @@ function translation(x: number): Float32Array {
  * observe the named refusal.
  */
 async function sequence(device: GPUDevice, pagine: boolean, evenements: unknown[]) {
-  const s = sceneTransparente(pagine);
-  const { backend, canvas } = engine(webgpuPagesBackend, s, device, (e) =>
-    evenements.push({ pagine, ...e }),
-  );
-  if (!backend.setTransform) throw new Error('backend missing setTransform');
-  const setTransform = backend.setTransform;
-  const camera = cameraFace(),
-    pivot = s.source.getObjectByName('pivot'),
+  const { s, backend, canvas, setTransform, camera } = ouvrePasse(device, pagine, evenements);
+  const pivot = s.source.getObjectByName('pivot'),
     etapes: { name: string; tenue: boolean | null | undefined; rouge: number }[] = [];
   if (!pivot) throw new Error('scene missing pivot node');
   const etape = async (name: string) => {

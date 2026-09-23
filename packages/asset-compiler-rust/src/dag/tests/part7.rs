@@ -7,6 +7,8 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
     let children: Vec<DagCluster> = cluster_triangles(positions, indices, DAG_CLUSTER_TRIANGLES)
         .expect("clusters")
         .into_iter()
+        // Left to the attribute-aware simplification batch (#46), which rewrites these tests.
+        // jscpd:ignore-start
         .map(|indices| {
             let sphere = bounding_sphere(positions, &indices);
             DagCluster {
@@ -24,6 +26,7 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
         })
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();
+    // jscpd:ignore-end
     let weld = weld_positions(positions, indices);
     let weld_seam = uvs.map_or_else(
         || weld.clone(),

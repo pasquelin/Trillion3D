@@ -11,7 +11,7 @@
 // touched: a stray triangle in the middle of the background or a crack in the middle of a
 // tile fall outside the band, and count.
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
+import { executerAppareil } from './deviceProof.ts';
 import { VIEWPORT, cameraFace, libere, engine } from './sharedSceneProof.ts';
 import { image } from './sceneImageProof.ts';
 import { sceneCarreaux } from './computeRasterScene.ts';
@@ -96,24 +96,15 @@ interface VarianteResult extends Comparaison {
   clusters: number | null | undefined;
 }
 
-interface ExecuterResult {
-  indisponible?: string;
-  erreur?: string;
-  adaptateur?: string;
-  couverts?: number;
-  clusters?: number | null;
-  variantes?: Record<string, VarianteResult>;
-  evenements?: BackendDiagnostic[];
-  erreurs?: string[];
-}
+type ResultatRaster = {
+  couverts: number;
+  clusters: number | null;
+  variantes: Record<string, VarianteResult>;
+};
 
-export async function executer(): Promise<ExecuterResult> {
-  const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
-  const { device, erreurs } = appareil;
-  const evenements: BackendDiagnostic[] = [],
-    onDiag = (e: BackendDiagnostic) => evenements.push(e);
-  try {
+export function executer() {
+  return executerAppareil<ResultatRaster>(async (device, evenements, resultat) => {
+    const onDiag = (e: BackendDiagnostic) => evenements.push(e);
     const materiel = await rendu(device, onDiag, {});
     const bande = bandeDeSilhouette(materiel.pixels);
     // The two ways of handing triangles to compute: the whole cut, or small ones only —
@@ -133,17 +124,6 @@ export async function executer(): Promise<ExecuterResult> {
     let couverts = 0;
     for (let i = 0; i < materiel.pixels.length; i += 4)
       if (!estFond(materiel.pixels, i)) couverts++;
-    const info = await appareil.fermer();
-    return {
-      adaptateur: info.court,
-      couverts,
-      clusters: materiel.metriques.clusters,
-      variantes,
-      evenements,
-      erreurs,
-    };
-  } catch (error) {
-    const trace = error instanceof Error ? (error.stack ?? '') : '';
-    return { erreur: String(error) + trace, evenements, erreurs };
-  }
+    Object.assign(resultat, { couverts, clusters: materiel.metriques.clusters, variantes });
+  });
 }

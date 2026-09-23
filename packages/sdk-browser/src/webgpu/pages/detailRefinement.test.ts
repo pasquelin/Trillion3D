@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './pages.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { quadScene, camera } from './testScenes.fixture.ts';
+import {
+  quadScene,
+  camera,
+  assertBothQuadPagesDrawn,
+  disposeQuadRun,
+} from './testScenes.fixture.ts';
 import { coarseQuadScene } from './testOccluder.fixture.ts';
 
 test('detail replaces the complete GPU fallback only after every replacement is uploaded', async () => {
@@ -37,13 +42,9 @@ test('detail replaces the complete GPU fallback only after every replacement is 
     backend.syncResident!();
     assert.deepEqual(backend.selectedPageIds(), ['2'], 'CPU arrival is not GPU residency');
     await backend.flush?.();
-    backend.render(camera());
-    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
-    assert.equal(backend.metrics().submittedTriangles, 2);
+    assertBothQuadPagesDrawn(backend);
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });
 
@@ -68,9 +69,7 @@ test('a refinement exceeding the GPU budget retains the complete fallback and re
       assert.deepEqual(backend.pendingUrls!(), []);
     }
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });
 
@@ -93,9 +92,7 @@ test('a failed initial page reader rejects preparation before exposing a partial
     assert.equal(draws.length, 0);
     assert.equal(backend.metrics().coverageReady, false);
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });
 
@@ -154,8 +151,6 @@ test('streaming completion during image readback preserves the captured frame an
     );
   } finally {
     release();
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });

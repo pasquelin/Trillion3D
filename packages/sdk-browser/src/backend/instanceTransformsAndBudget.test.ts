@@ -12,17 +12,13 @@ import {
   frontCamera,
   assertSingleCoarseCluster,
   coarseQuadContext,
+  triangleGeometry,
 } from './pagesBackendScenes.fixture.ts';
 import { submittedDraws } from '../cluster/batchMesh.ts';
 
 test('source instance transforms update all three WebGL backends without rebuilding pages', () => {
   for (const factory of [referenceBackend, exactPagesBackend, threeLodBackend]) {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3),
-    );
-    geometry.setIndex([0, 1, 2]);
+    const geometry = triangleGeometry();
     const material = new THREE.MeshBasicMaterial(),
       mesh = new THREE.Mesh(geometry, material),
       source = new THREE.Group();
