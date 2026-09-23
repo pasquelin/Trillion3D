@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A softbox panel</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #14151a;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#14151a');
+
+      // A photographer's sweep: a floor that curves up into a wall with no corner, so the light
+      // falls off smoothly behind the subject. Its profile, point by point with the normal it
+      // faces, is pulled 16 m wide; the curve's normals turn with it, so it shades without facets.
+      const profile = [];
+      for (let k = 0; k <= 8; k++) profile.push([7 - k * 1.125, 0, 0, 1]);
+      for (let k = 1; k <= 24; k++) {
+        const a = (k / 24) * (Math.PI / 2);
+        profile.push([-2 - 3 * Math.sin(a), 3 - 3 * Math.cos(a), Math.sin(a), Math.cos(a)]);
+      }
+      for (let k = 1; k <= 7; k++) profile.push([-5, 3 + k, 1, 0]);
+      const position = [], normal = [], index = [];
+      profile.forEach(([z, y, nz, ny], k) => {
+        position.push(-8, y, z, 8, y, z);
+        normal.push(0, ny, nz, 0, ny, nz);
+        if (k) index.push(2 * k - 2, 2 * k - 1, 2 * k + 1, 2 * k - 2, 2 * k + 1, 2 * k);
+      });
+      const sweep = object.mesh(
+        geometry.createBuffer({ position: buffer.float32(new Float32Array(position), 3), normal: buffer.float32(new Float32Array(normal), 3), index: buffer.uint32(index) }),
+        material.meshStandard({ color: '#d9d6d0', roughness: 0.9 }),
+      );
+      world.scene.add(sweep);
+
+      // The subject on a turntable: lacquer, chrome, gold and glazed ceramic — four ways a
+      // surface shows the light. A mirror shows the panel itself, a matte one only its softness.
+      const table = object.group();
+      table.position.set(0, 0, 1);
+      world.scene.add(table);
+      const put = (mesh, x, y, z) => (mesh.position.set(x, y, z), table.add(mesh), mesh);
+      put(object.mesh(geometry.cylinder(1.9, 1.95, 0.24, 96), material.meshStandard({ color: '#23252b', roughness: 0.25, metalness: 0.3 })), 0, 0.12, 0);
+      const vaseProfile = [[0, 0], [0.34, 0], [0.42, 0.1], [0.52, 0.45], [0.46, 0.85], [0.24, 1.15], [0.17, 1.4], [0.22, 1.55], [0.2, 1.58]];
+      put(object.mesh(geometry.lathe(vaseProfile, 64), material.meshStandard({ color: '#9e1b24', roughness: 0.12 })), -0.7, 0.24, -0.35);
+      put(object.mesh(geometry.sphere(0.45, 64, 32), material.meshStandard({ color: '#f2f2f4', roughness: 0.04, metalness: 1 })), 0.75, 0.69, -0.2);
+      const ring = put(object.mesh(geometry.torus(0.36, 0.09, 32, 96), material.meshStandard({ color: '#e0b04a', roughness: 0.22, metalness: 1 })), 0.35, 0.69, 0.95);
+      ring.rotation.set(0, 0.6, 0);
+      put(object.mesh(geometry.torusKnot(0.3, 0.1, 160, 24), material.meshStandard({ color: '#e9eef2', roughness: 0.45 })), -0.55, 0.78, 0.85);
+      for (const mesh of table.children) mesh.castShadow = mesh.receiveShadow = true;
+
+      // THE SOFTBOX: a rectangle light (`rectArea`), in a frame on an arm that swings round the
+      // table. The light looks down its own −z, so it is turned to face the subject; the glowing
+      // face beside it is just a white panel, drawn to show where the light comes from.
+      const rig = object.group(), arm = object.group();
+      rig.position.set(0, 0, 1);
+      arm.position.set(0, 2.7, 3.6);
+      rig.add(arm);
+      world.scene.add(rig);
+      arm.lookAt(0, 0.9, 1);
+      const frame = object.mesh(geometry.box(1, 1, 0.12), material.meshStandard({ color: '#1c1d22', roughness: 0.6 }));
+      const faceGlow = material.meshBasic({ color: '#fff1e0' });
+      const face = object.mesh(geometry.plane(1, 1), faceGlow);
+      face.position.z = 0.065;
+      const softbox = light.rectArea({ color: '#fff1e0' });
+      softbox.position.z = 0.07;
+      softbox.rotation.set(0, Math.PI, 0);
+      arm.add(frame, face, softbox);
+
+      // A low warm lamp from the open side draws long shadows across the sweep; a cool sky fills.
+      world.scene.add(
+        light.directional({ color: '#ffc58a', intensity: 1.1, position: [8, 2.6, 7], target: [0, 0.6, 1], castShadow: true }),
+        light.hemisphere({ color: '#9fb4ff', groundColor: '#3a3440', intensity: 0.35 }),
+      );
+      world.camera.position.set(0.8, 2.1, 7.6);
+      world.camera.lookAt(0, 0.8, 1);
+      world.controls.target.set(0, 0.8, 1);
+      world.controls.minDistance = 2.5;
+      world.controls.maxDistance = 11;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // The panel's power stays what it is at any size: a small panel shines harder per square
+      // metre. Small, it is a hard light with crisp shadows and pin-point highlights; large, it
+      // wraps round the subject and the highlights on the chrome become a window.
+      let size = null, radiance = null;
+      const ui = controls({
+        mouse: 'Drag to walk round the set; grow the panel and watch the highlights soften',
+        panelWidth: [0.2, 4, 2.4, 0.05],
+        power: [5, 80, 30, 1],
+        colour: '#fff1e0',
+        swing: true,
+      }, (values, key) => {
+        const w = values.panelWidth, h = (values.panelWidth * 2) / 3;
+        softbox.width = w;
+        softbox.height = h;
+        softbox.intensity = values.power / (w * h);
+        frame.scale.set(w + 0.16, h + 0.16, 1);
+        face.scale.set(w, h, 1);
+        if (key === undefined || key === 'colour') {
+          softbox.color.set(values.colour);
+          faceGlow.color.set(values.colour);
+        }
+        size?.(`${w.toFixed(2)} × ${h.toFixed(2)} m`);
+        radiance?.(softbox.intensity.toFixed(1));
+        world.invalidate();
+      }, world);
+      size = readout('Panel');
+      radiance = readout('Radiance');
+      size(`${softbox.width.toFixed(2)} × ${softbox.height.toFixed(2)} m`);
+      radiance(softbox.intensity.toFixed(1));
+
+      // The opening: the panel swings in from behind the set; then it sways, and the table turns.
+      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+      let time = 0, opening = 0, sway = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        if (opening < 1) opening = Math.min(1, opening + step / 3);
+        if (ui.swing) sway += step;
+        rig.rotation.set(0, -2.6 * (1 - ease(opening)) + 0.55 + 0.5 * Math.sin(sway * 0.35), 0);
+        table.rotation.set(0, time * 0.18, 0);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
