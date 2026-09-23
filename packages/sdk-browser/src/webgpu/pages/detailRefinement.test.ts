@@ -8,6 +8,7 @@ import {
   camera,
   assertBothQuadPagesDrawn,
   disposeQuadRun,
+  streamingQuadBackend,
 } from './testScenes.fixture.ts';
 import { coarseQuadScene } from './testOccluder.fixture.ts';
 
@@ -15,14 +16,9 @@ test('detail replaces the complete GPU fallback only after every replacement is 
   installGpuGlobals();
   const fixture = coarseQuadScene(),
     { device } = mockGpu();
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    indices: new Map(),
-    readPage: async (url) => fixture.indices.get(url)!,
-    gpuDevice: device,
-    maxResidentPages: 3,
-    viewport: [32, 32],
-  }) as ReturnType<typeof webgpuPagesBackend> & { selectedPageIds(): string[] };
+  const backend = streamingQuadBackend(fixture, device) as ReturnType<typeof webgpuPagesBackend> & {
+    selectedPageIds(): string[];
+  };
   try {
     await backend.prepare();
     backend.render(camera());
@@ -117,14 +113,7 @@ test('streaming completion during image readback preserves the captured frame an
       };
     return buffer;
   };
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    indices: new Map(),
-    readPage: async (url) => fixture.indices.get(url)!,
-    gpuDevice: device,
-    maxResidentPages: 3,
-    viewport: [32, 32],
-  });
+  const backend = streamingQuadBackend(fixture, device);
   try {
     await backend.prepare();
     backend.render(camera());

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { webgpuPagesBackend } from '../pages.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { quadScene, camera } from '../testScenes.fixture.ts';
+import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts';
 import { coarseQuadScene } from '../testOccluder.fixture.ts';
 import type { WebgpuPagesBackend } from '../runtime.ts';
 
@@ -109,14 +109,7 @@ test('clustered transparency switches LOD with resident coverage and retains bot
   fixture.metadata.primitives[0].pages[2].count = 3;
   fixture.metadata.primitives[0].pages[2].bytes = 12;
   fixture.indices.set('2', new Uint32Array([0, 1, 2]));
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    indices: new Map(),
-    readPage: async (url) => fixture.indices.get(url)!,
-    gpuDevice: device,
-    maxResidentPages: 3,
-    viewport: [32, 32],
-  }) as WebgpuPagesBackend;
+  const backend = streamingQuadBackend(fixture, device) as WebgpuPagesBackend;
   try {
     await backend.prepare();
     backend.render(camera());

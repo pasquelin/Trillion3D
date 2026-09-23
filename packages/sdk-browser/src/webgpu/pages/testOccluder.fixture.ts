@@ -8,9 +8,12 @@ import {
   shadeVisibility,
   unpackVisibilityId,
 } from '../../visibility/buffer.ts';
-import type { webgpuPagesBackend } from './pages.ts';
+import { webgpuPagesBackend } from './pages.ts';
+import { selectVisiblePages, type ClusterRoot } from '../../page/selection/selection.ts';
+import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { dagLevel, dagRoots } from './testDag.fixture.ts';
-import { quadScene } from './testScenes.fixture.ts';
+import { camera, quadScene } from './testScenes.fixture.ts';
 
 export function occluderScene() {
   const geometry = new THREE.BufferGeometry();
@@ -150,4 +153,30 @@ export function twoCoarseQuadsScene() {
       }
     },
   };
+}
+
+/** The occluder scene on a pages backend over `device`, four resident pages, prepared with
+ *  occlusion culling on, and the CPU cut its Hi-Z result must stay inside. */
+export async function preparedOccluderRun(
+  scene: ReturnType<typeof occluderScene>,
+  metadata: ClusterManifest,
+  roots: ClusterRoot<PageRec>[],
+  device: GPUDevice,
+  viewport: [number, number],
+) {
+  const { source, indices, associations } = scene;
+  const backend = webgpuPagesBackend({
+    source,
+    metadata,
+    indices,
+    associations,
+    gpuDevice: device,
+    maxResidentPages: 4,
+    viewport,
+  });
+  const cam = camera();
+  const cpu = selectVisiblePages(roots, cameraMoteur(cam), { pixelError: 0, viewport });
+  await backend.prepare();
+  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
+  return { backend, cam, cpu };
 }
