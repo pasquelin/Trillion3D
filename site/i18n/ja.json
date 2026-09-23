@@ -418,7 +418,7 @@
       },
       "add-a-shape": {
         "title": "形を追加する",
-        "description": "見えているものはすべて、材質(マテリアル)がついた形、つまりメッシュだ。<code>geometry</code>で形をつくり、<code>object.mesh</code>でメッシュにして、シーンに追加しよう。",
+        "description": "見えているものはすべて、材質(マテリアル)がついた形、つまりメッシュだ。`geometry`で形をつくり、`object.mesh`でメッシュにして、シーンに追加しよう。",
         "steps": [
           "形、つまり<em>ジオメトリ</em>は、輪郭と面だけを表す。<code>geometry.box(1, 1, 1)</code>は1メートル四方の立方体、<code>geometry.sphere(0.75)</code>はボール。円柱や円すい、リング、トーラスなどもある。",
           "<em>メッシュ</em>は、形にマテリアルを組み合わせたもの: <code>object.mesh(shape, material)</code>。マテリアルは次の章で説明する。",
@@ -430,7 +430,7 @@
       },
       "give-it-a-material": {
         "title": "マテリアルをつける",
-        "description": "マテリアルは、表面が何でできているかを表す。色、金属かどうか、ざらざら具合など。<code>material.meshStandard</code>があれば、ほぼすべてに対応できる。",
+        "description": "マテリアルは、表面が何でできているかを表す。色、金属かどうか、ざらざら具合など。`material.meshStandard`があれば、ほぼすべてに対応できる。",
         "steps": [
           "<code>color</code>は絵の具のようなもので、ウェブカラーの書き方をする: <code>'#e8a25a'</code>。",
           "<code>metalness</code>は0(プラスチック・粘土・木)から1(金属)まで。金属は周りの色を映しこむ。",
@@ -442,7 +442,7 @@
       },
       "light-it": {
         "title": "光を当てる",
-        "description": "ライトがないと、すべて真っ黒になる。<code>light</code>ファミリーでライトを追加し、影も落とせるようにしよう。",
+        "description": "ライトがないと、すべて真っ黒になる。`light`ファミリーでライトを追加し、影も落とせるようにしよう。",
         "steps": [
           "<code>light.directional</code>は太陽の光。すべての光線が同じ向きに進み、<code>position</code>で光が来る方向を決める。",
           "<code>light.point</code>は電球。四方八方に光り、<code>distance</code>で弱くなっていく。<code>light.spot</code>は懐中電灯のような、円すい状の光。",
@@ -454,7 +454,7 @@
       },
       "move-the-camera": {
         "title": "カメラを動かす",
-        "description": "カメラは、あなたが世界を見るための目だ。コードで配置したら、あとは<code>world.controls</code>で読者に動かしてもらおう。",
+        "description": "カメラは、あなたが世界を見るための目だ。コードで配置したら、あとは`world.controls`で読者に動かしてもらおう。",
         "steps": [
           "<code>world.camera.position.set(x, y, z)</code>で目の位置を決め、<code>world.camera.lookAt(x, y, z)</code>である点の方を向かせる。",
           "<em>コントローラー</em>は、マウスや指、キーボードの操作をカメラの動きに変える。世界をつくるときに選ぼう: <code>createWorld('view', { controls: 'orbit' })</code>。",
@@ -466,7 +466,7 @@
       },
       "animate": {
         "title": "動かす",
-        "description": "ものを動かすには、<code>world.onFrame</code>で、1枚の絵を描くたびに実行する関数を世界に渡そう。",
+        "description": "ものを動かすには、`world.onFrame`で、1枚の絵を描くたびに実行する関数を世界に渡そう。",
         "steps": [
           "世界は1秒間に何度も新しい絵を描く。1枚の絵を<em>フレーム</em>と呼ぶ。<code>world.onFrame(fn)</code>は、フレームごとに<code>fn</code>を実行する。",
           "<code>fn</code>には<code>delta</code>(前のフレームからの経過秒数)が渡される。速さにこれを掛け合わせれば、速い画面でも遅い画面でも同じ速さで動くようになる。",
