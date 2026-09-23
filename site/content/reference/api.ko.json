@@ -369,8 +369,8 @@
       "bottom": "정사영 박스의 아래쪽 경계.",
       "projection": "`'perspective'`는 먼 것을 작게 만들고, `'orthographic'`은 모든 크기를 그대로 유지한다.",
       "updateProjectionMatrix": "그것을 필요로 하는 렌더러를 전제로 작성된 페이지들을 위해 남겨져 있다: 모든 광학 값 쓰기는 이미 다시 그리기를 유발한다.",
-      "set": "눈을 `pose.position`에 두고, `pose.target`을 바라보게 하며, 지정된 화각으로 맞춘다.",
-      "rayThrough": "The world ray through a point of the picture, in the engine's own projection (`engineCamera.ts`): from the eye along the view for a perspective camera, straight down the view from the box for an orthographic one. Its direction is a unit vector."
+      "rayThrough": "그림의 한 점을 지나는 월드 광선으로, 엔진 자체의 투영(`engineCamera.ts`)을 따릅니다: 원근 카메라는 눈에서 시선을 따라, 직교 카메라는 상자에서 시선 방향으로 곧게 나갑니다. 방향은 단위 벡터입니다.",
+      "set": "눈을 `pose.position`에 두고, `pose.target`을 바라보게 하며, 지정된 화각으로 맞춘다."
     }
   },
   "CameraFrame": {
@@ -918,9 +918,9 @@
       "SCENE_COPY_OVERLAP": "씬 루트가 금지하는 어떤 것: 부모를 지정하거나, 그것을 파괴하거나, 두 루트를 섞거나, 어떤 노드를 자기 자신 안으로 복사하는 것.",
       "UNSUPPORTED_SCENE_UPDATE": "이 그리기 경로는 씬에 그런 변경을 가할 수 없다.",
       "BATCHED_WORLD_VIEW": "이 그리기 경로는 씬에 그런 변경을 가할 수 없다.",
-      "RAYCAST_NO_VIEW": "A picture point was asked of a canvas with no size: there is no picture to aim through.",
-      "UNSUPPORTED_SCENE_FORMAT": "A saved scene is of another format or version, or holds what a saved scene cannot store.",
-      "SCENE_NOT_SAVABLE": "A saved scene is of another format or version, or holds what a saved scene cannot store."
+      "RAYCAST_NO_VIEW": "크기가 없는 canvas에 그림의 점을 요청했습니다: 겨눌 그림이 없습니다.",
+      "UNSUPPORTED_SCENE_FORMAT": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
+      "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다."
     }
   },
   "EngineProfiler": {
@@ -1105,6 +1105,7 @@
       "groups": "메시가 여러 재질을 가질 때 `material[materialIndex]`로 그려지는 인덱스 범위.",
       "boundingBox": "계산된 후의, 모든 정점을 둘러싸는 박스; 계산 전에는 `null`.",
       "boundingSphere": "계산된 후의, 모든 정점을 둘러싸는 구; 계산 전에는 `null`.",
+      "recipe": "이 모양을 만든 가족 멤버와 인자로, 모양이 아직 그것들이 만든 그대로일 때만 남습니다: 저장된 장면이 꼭짓점 대신 저장하는 것입니다. 나중에 무엇이든 바꾸면 잊힙니다.",
       "version": "형태가 바뀔 때마다 증가한다: 세계가 페이지를 다시 잘라야 할지 비교하는 값.",
       "setAttribute": "`name` 아래에 정점별 목록을 저장한다.",
       "getAttribute": "`name` 아래에 저장된 정점별 목록(있다면).",
@@ -1124,8 +1125,7 @@
       "scale": "모든 정점을 `(x, y, z)`만큼 확대·축소한다.",
       "center": "지오메트리를, 그 박스가 원점을 중심으로 하도록 옮긴다.",
       "clone": "모든 목록의 복사본을 가진 새 지오메트리.",
-      "dispose": "소유자들을 잊는다: dispose된 지오메트리는 누구에게도 그려지지 않는다.",
-      "recipe": "The family member and arguments that built this shape, while it is still what they built: what a saved scene stores instead of the vertices. Any later change forgets it."
+      "dispose": "소유자들을 잊는다: dispose된 지오메트리는 누구에게도 그려지지 않는다."
     }
   },
   "GeometryPageDescriptor": {
@@ -2868,8 +2868,8 @@
       "fog": "`near`와 `far` 사이에서 오브젝트를 `color`로 서서히 사라지게 하는 안개; 없으면 `null`.",
       "background": "모든 오브젝트 뒤를 채우는 것: 색상, 그림, 또는 기본값이면 `null`.",
       "load": "컴파일된 모델(그 매니페스트 URL)을 로드하여 이 씬에 추가한다.",
-      "toJSON": "The scene as plain JSON, versioned: its objects, shapes by the call that built them, materials, lights and loaded models by address; `camera`'s pose too when one is given.",
-      "fromJSON": "Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept; resolves once its models are loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`). Calls made while one is reading run one after the other, in order, each on what the one before left: two saved scenes never merge."
+      "toJSON": "버전이 붙은 단순한 JSON으로 된 장면: 물체, 모양은 만든 호출로, 재질, 조명, 불러온 모델은 주소로 저장합니다. `camera`를 주면 그 자세도 들어갑니다.",
+      "fromJSON": "장면의 내용을 `toJSON`으로 저장한 장면으로 바꾸고, `helper` 표시는 남깁니다. 모델을 다 불러오면 완료됩니다. 다른 형식이나 버전은 거부됩니다(`UNSUPPORTED_SCENE_FORMAT`). 읽는 도중에 한 호출은 순서대로 하나씩 실행되고, 각각 앞의 호출이 남긴 것 위에서 동작합니다: 저장된 두 장면이 섞이는 일은 없습니다."
     }
   },
   "SceneEnvironment": {
@@ -3941,8 +3941,8 @@
     "summary": "페이지가 보유하는 것: 모드, 읽고 쓸 수 있음.",
     "members": {
       "mode": "뷰 모드: 일반 이미지면 `'beauty'`, 또는 엔진이 어떻게 작동하는지 보여주는 모드.",
-      "modes": "현재 렌더러가 제공하는 모든 뷰 모드.",
-      "sessions": "Sessions the world has opened so far: a change that reopens one shows here."
+      "sessions": "월드가 지금까지 연 세션: 세션을 다시 여는 변경이 여기에 보입니다.",
+      "modes": "현재 렌더러가 제공하는 모든 뷰 모드."
     }
   },
   "world.onFrame": {
@@ -5091,7 +5091,7 @@
   },
   "helper": {
     "summary": "`helper` 계열: 선과 메시로 만들어진, 씬을 작업할 때 쓰는 표시들.",
-    "description": "A world draws them like any object; a pick (`world.raycast`) and a saved scene skip them."
+    "description": "월드는 다른 물체처럼 그리지만, 선택(`world.raycast`)과 저장된 장면은 건너뜁니다."
   },
   "helper.axes": {
     "summary": "원점에서 뻗어 나온 세 개의 색깔 있는 선: x는 빨강, y는 초록, z는 파랑.",
@@ -6729,108 +6729,108 @@
   "CanvasPoint": {
     "summary": "캔버스의 한 점. 왼쪽 위 모서리부터의 CSS 픽셀: `event.offsetX`, `offsetY`.",
     "members": {
-      "x": "CSS pixels from the canvas's left edge.",
-      "y": "CSS pixels from the canvas's top edge."
+      "x": "canvas 왼쪽 가장자리로부터의 CSS 픽셀.",
+      "y": "canvas 위쪽 가장자리로부터의 CSS 픽셀."
     }
   },
   "Intersection": {
     "summary": "광선이 객체와 만나는 곳: 객체 자체, 그곳의 월드 점과 표면 법선, 광선을 따른 거리, 그리고 어느 삼각형인지 (객체의 박스에 맞았으면 `-1`).",
     "members": {
-      "object": "The object hit: the very node the page added.",
-      "point": "The world point hit.",
-      "normal": "The world normal of the face hit, as its winding orients it.",
-      "distance": "Distance from the ray's origin to `point`, world units.",
-      "face": "The rank of the triangle hit, or `-1` for a box."
+      "object": "맞은 물체: 페이지가 추가한 바로 그 노드입니다.",
+      "point": "맞은 월드 점.",
+      "normal": "맞은 면의 월드 법선으로, 꼭짓점을 도는 순서에 따라 방향이 정해집니다.",
+      "distance": "광선의 시작점에서 `point`까지의 거리, 월드 단위.",
+      "face": "맞은 삼각형의 순번, 상자라면 `-1`."
     }
   },
   "RaycastOptions": {
     "summary": "`world.raycast`에 알려 줄 수 있는 것. 모든 필드는 선택 사항입니다.",
     "members": {
-      "objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "objects": "검사할 물체와 그 하위 트리. 정하지 않으면 장면 전체."
     }
   },
   "SavedCamera": {
     "summary": "장면을 저장할 때의 카메라: 자세, 투영, 광학.",
     "members": {
-      "projection": "Perspective or orthographic.",
-      "position": "Where the eye stands.",
-      "quaternion": "How the eye is turned.",
-      "optics": "Field, near, far, zoom and box, by name."
+      "projection": "원근 또는 직교.",
+      "position": "눈이 서 있는 곳.",
+      "quaternion": "눈이 돌아간 방향.",
+      "optics": "시야, near, far, zoom, 상자를 이름별로."
     }
   },
   "SavedGeometry": {
     "summary": "지오메트리: 그것을 만든 패밀리 호출, 또는 어떤 호출로도 다시 만들 수 없을 때는 그 정점들.",
     "members": {
-      "recipe": "The family member and every argument it was built with.",
-      "attributes": "Each per-vertex list, when no call builds the shape again.",
-      "index": "Which vertices make each triangle.",
-      "groups": "Index ranges drawn with one material each."
+      "recipe": "가족 멤버와 모양을 만들 때 쓴 모든 인자.",
+      "attributes": "꼭짓점마다의 각 목록으로, 어떤 호출도 모양을 다시 만들지 않을 때 씁니다.",
+      "index": "각 삼각형을 이루는 꼭짓점.",
+      "groups": "각각 하나의 재질로 그리는 인덱스 범위."
     }
   },
   "SavedMaterial": {
     "summary": "머티리얼: 종류와 모든 매개변수. 색은 선형 `[r, g, b]`.",
     "members": {
-      "kind": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…",
-      "parameters": "Every parameter by name."
+      "kind": "재질을 만들 때의 종류: `'meshStandard'`, `'meshBasic'`…",
+      "parameters": "모든 매개변수를 이름별로."
     }
   },
   "SavedNode": {
     "summary": "노드: 자세와 그것이 무엇인지 — 그룹, 메시, 조명 또는 불러온 모델 — 그리고 그 아래의 것.",
     "members": {
-      "kind": "What the node is.",
-      "name": "Its name.",
-      "position": "Where it stands, from its parent.",
-      "quaternion": "How it is turned, as a quaternion.",
-      "scale": "How it is stretched on each axis.",
-      "visible": "Whether it is drawn.",
-      "castShadow": "Whether it casts shadows.",
-      "receiveShadow": "Whether shadows fall on it.",
-      "renderOrder": "Its drawing order among see-through things.",
-      "userData": "The page's own data, as JSON.",
-      "children": "The nodes below it, in order.",
-      "mesh": "Ranks in `geometries` and `materials`, and how the triangles are read.",
-      "light": "A light's kind, colours, numbers, aim and probe coefficients.",
-      "model": "A compiled model, by the manifest address it was loaded from: never inlined."
+      "kind": "노드의 종류.",
+      "name": "이름.",
+      "position": "부모를 기준으로 서 있는 곳.",
+      "quaternion": "쿼터니언으로 나타낸 회전.",
+      "scale": "각 축으로 늘어난 정도.",
+      "visible": "그려지는지 여부.",
+      "castShadow": "그림자를 만드는지 여부.",
+      "receiveShadow": "그림자가 드리우는지 여부.",
+      "renderOrder": "비쳐 보이는 것들 사이에서 그리는 순서.",
+      "userData": "페이지 자체의 데이터, JSON 형식.",
+      "children": "그 아래의 노드, 순서대로.",
+      "mesh": "`geometries`와 `materials` 안의 순번, 그리고 삼각형을 읽는 방법.",
+      "light": "조명의 종류, 색, 숫자, 방향, 프로브 계수.",
+      "model": "컴파일된 모델로, 불러온 매니페스트 주소로 저장합니다: 절대 안에 복사하지 않습니다."
     }
   },
   "SavedScene": {
     "summary": "`scene.toJSON`이 쓰고 `scene.fromJSON`이 읽는 형태의 장면: 평범한 JSON.",
     "members": {
-      "format": "Always `'web-geometry-scene'`.",
-      "formatVersion": "The version of this layout; another one is refused.",
-      "background": "The background colour, or `null`.",
-      "fog": "The fog, or `null`.",
-      "camera": "The camera saved with the scene, or `null`.",
-      "geometries": "Every shape, once, however many meshes wear it.",
-      "materials": "Every material, once, however many meshes wear it.",
-      "children": "The scene's top nodes, in order."
+      "format": "항상 `'web-geometry-scene'`.",
+      "formatVersion": "이 구조의 버전. 다른 버전은 거부됩니다.",
+      "background": "배경 색, 또는 `null`.",
+      "fog": "안개, 또는 `null`.",
+      "camera": "장면과 함께 저장된 카메라, 또는 `null`.",
+      "geometries": "모든 모양을 한 번씩. 몇 개의 메시가 쓰든 같습니다.",
+      "materials": "모든 재질을 한 번씩. 몇 개의 메시가 쓰든 같습니다.",
+      "children": "장면의 맨 위 노드, 순서대로."
     }
   },
   "TransformControls": {
     "summary": "`controls.transform`이 반환하는 것.",
     "members": {
-      "snap": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional.",
-      "handles": "The group of the handles — a `helper` mark — in the scene while attached.",
-      "object": "The object the handles are on, or `null`.",
-      "dragging": "True while a handle is being dragged.",
-      "mode": "What a drag does: `'translate'`, `'rotate'` or `'scale'`.",
-      "space": "`'world'` or `'local'` axes.",
-      "attach": "Puts the handles on `target`, and in the scene; a drag under way ends first (`dragEnd`).",
-      "detach": "Takes the handles off their object, and out of the scene; a drag under way ends first.",
-      "setMode": "Moves, turns or scales from now on.",
-      "setSpace": "Handles along the world's axes or the object's own.",
-      "addEventListener": "Calls `listener` on each event of `type`.",
-      "removeEventListener": "Stops calling `listener` on events of `type`.",
-      "dispose": "Takes the handles out of the scene and every listener off the canvas."
+      "snap": "드래그를 맞추는 간격: `{ translate, rotate, scale }`, 모두 선택 사항입니다.",
+      "handles": "손잡이 묶음(`helper` 표시)으로, 붙어 있는 동안 장면 안에 있습니다.",
+      "object": "손잡이가 붙어 있는 물체, 또는 `null`.",
+      "dragging": "손잡이를 드래그하는 동안 true.",
+      "mode": "드래그가 하는 일: `'translate'`, `'rotate'`, `'scale'` 중 하나.",
+      "space": "`'world'` 또는 `'local'` 축.",
+      "attach": "손잡이를 `target`과 장면에 붙입니다. 진행 중인 드래그는 먼저 끝납니다(`dragEnd`).",
+      "detach": "손잡이를 물체와 장면에서 뗍니다. 진행 중인 드래그는 먼저 끝납니다.",
+      "setMode": "이제부터 이동, 회전 또는 크기 조절을 합니다.",
+      "setSpace": "손잡이를 월드 축이나 물체 자신의 축에 맞춥니다.",
+      "addEventListener": "`type`의 각 이벤트마다 `listener`를 부릅니다.",
+      "removeEventListener": "`type` 이벤트에서 `listener`를 더 이상 부르지 않습니다.",
+      "dispose": "손잡이를 장면에서 빼고, canvas의 모든 리스너를 뗍니다."
     }
   },
   "TransformControlsOptions": {
     "summary": "`controls.transform`에 알려 줄 수 있는 것. 모든 필드는 선택 사항입니다.",
     "members": {
-      "mode": "Move, turn or scale; `'translate'` by default.",
-      "space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "snap": "Steps each drag is rounded to; none by default.",
-      "size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "mode": "이동, 회전 또는 크기 조절. 기본값은 `'translate'`.",
+      "space": "손잡이를 월드 축이나 물체 자신의 축에 맞춥니다. 기본값은 `'world'`.",
+      "snap": "각 드래그를 맞추는 간격. 기본값은 없음.",
+      "size": "canvas 높이에 대한 비율로 나타낸 손잡이 길이로, 물체가 어디에 있든 같습니다. 기본값은 4분의 1."
     }
   },
   "TransformEvent": {
@@ -6842,10 +6842,10 @@
   "TransformHost": {
     "summary": "변환 컨트롤이 월드에 필요로 하는 것: `createWorld`가 반환합니다.",
     "members": {
-      "canvas": "The canvas the pointer presses on.",
-      "scene": "The scene the handles are added to.",
-      "camera": "The camera the canvas is seen through.",
-      "onFrame": "Runs `hook` after each frame drawn; returns what stops it."
+      "canvas": "포인터가 누르는 canvas.",
+      "scene": "손잡이가 추가되는 장면.",
+      "camera": "canvas를 보여 주는 카메라.",
+      "onFrame": "프레임을 그릴 때마다 `hook`을 실행합니다. 그것을 멈추는 것을 돌려줍니다."
     }
   },
   "TransformMode": {
@@ -6854,9 +6854,9 @@
   "TransformSnap": {
     "summary": "드래그를 반올림하는 단위. 각각 선택 사항: 월드 단위, 라디안, 스케일 배율.",
     "members": {
-      "translate": "World units a move is rounded to, along each axis.",
-      "rotate": "Radians a turn is rounded to.",
-      "scale": "The step a scale factor is rounded to."
+      "translate": "이동을 각 축에서 맞추는 월드 단위.",
+      "rotate": "회전을 맞추는 라디안.",
+      "scale": "크기 배율을 맞추는 간격."
     }
   },
   "TransformSpace": {
@@ -6865,8 +6865,8 @@
   "world.raycast": {
     "summary": "캔버스 점(CSS 픽셀) 아래 또는 월드 광선을 따라 가장 가까운 객체, 또는 `null`: 페이지가 추가한 노드, 맞은 월드 점과 법선, 거리 (`worldRaycast`).",
     "parameters": {
-      "options": "What `world.raycast` may be told; every field is optional.",
-      "options.objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "options": "`world.raycast`에 줄 수 있는 것. 모든 필드는 선택 사항입니다.",
+      "options.objects": "검사할 물체와 그 하위 트리. 정하지 않으면 장면 전체."
     }
   },
   "controls": {
@@ -6875,12 +6875,12 @@
   "controls.transform": {
     "summary": "객체 하나를 마우스로 이동, 회전, 크기 조절하는 핸들 (`transform.ts`).",
     "parameters": {
-      "host": "The world whose scene and camera the handles live in.",
-      "options": "Mode, axes, snapping and screen size; saying nothing is the usual case.",
-      "options.mode": "Move, turn or scale; `'translate'` by default.",
-      "options.space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "options.snap": "Steps each drag is rounded to; none by default.",
-      "options.size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "host": "손잡이가 들어 있는 장면과 카메라를 가진 월드.",
+      "options": "모드, 축, 스냅, 화면 크기. 보통은 아무것도 적지 않습니다.",
+      "options.mode": "이동, 회전 또는 크기 조절. 기본값은 `'translate'`.",
+      "options.space": "손잡이를 월드 축이나 물체 자신의 축에 맞춥니다. 기본값은 `'world'`.",
+      "options.snap": "각 드래그를 맞추는 간격. 기본값은 없음.",
+      "options.size": "canvas 높이에 대한 비율로 나타낸 손잡이 길이로, 물체가 어디에 있든 같습니다. 기본값은 4분의 1."
     }
   },
   "raycast": {

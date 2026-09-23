@@ -99,6 +99,103 @@
     "start": "ابدأ من مثال",
     "open": "افتح في بيئة التجربة"
   },
+  "editor": {
+    "title": "محرّر المشهد",
+    "group": "أدوات",
+    "showcase": "افتح محرّر المشهد",
+    "loading": "جارٍ تجهيز المحرّر…",
+    "canvas": "عرض المشهد: انقر على جسم لتحديده، واسحب لتدوير الكاميرا",
+    "menu": {
+      "file": "ملف",
+      "add": "إضافة",
+      "edit": "تحرير",
+      "models": "نماذج"
+    },
+    "new": "جديد",
+    "openFile": "فتح…",
+    "save": "حفظ",
+    "undo": "تراجع",
+    "redo": "إعادة",
+    "duplicate": "تكرار",
+    "delete": "حذف",
+    "add": {
+      "box": "صندوق",
+      "sphere": "كرة",
+      "cylinder": "أسطوانة",
+      "cone": "مخروط",
+      "torus": "طارة",
+      "plane": "مستوى",
+      "group": "مجموعة",
+      "point": "ضوء نقطي",
+      "spot": "ضوء كشّاف",
+      "directional": "ضوء اتجاهي",
+      "ambient": "ضوء محيط"
+    },
+    "model": {
+      "bust": "تمثال نصفي من الرخام",
+      "crates": "صناديق خشبية",
+      "hall": "قاعة",
+      "street-corner": "زاوية شارع"
+    },
+    "tools": "أدوات التحويل",
+    "translate": "نقل (W)",
+    "rotate": "تدوير (E)",
+    "scale": "تحجيم (R)",
+    "space": {
+      "world": "محاور العالم",
+      "local": "محاور الجسم"
+    },
+    "snap": "التقاط",
+    "outliner": "المشهد",
+    "empty": "المشهد فارغ: أضف جسمًا من قائمة «إضافة».",
+    "show": "إظهار",
+    "hide": "إخفاء",
+    "rename": "إعادة تسمية",
+    "dropRoot": "اسحب سطرًا فوق سطر آخر لتضعه داخله؛ وأفلته هنا لتعيده إلى المستوى الأعلى.",
+    "inspector": "الخصائص",
+    "nothing": "حدّد جسمًا لتعديله.",
+    "name": "الاسم",
+    "position": "الموضع",
+    "rotation": "الدوران (°)",
+    "scaleField": "الحجم",
+    "geometry": "الشكل",
+    "material": "المادة",
+    "color": "اللون",
+    "metalness": "معدنية",
+    "roughness": "خشونة",
+    "emissive": "إشعاع",
+    "opacity": "العتامة",
+    "light": "الضوء",
+    "intensity": "الشدة",
+    "range": "المدى (0: بلا حد)",
+    "shadow": "يُلقي ظلالًا",
+    "param": {
+      "width": "العرض",
+      "height": "الارتفاع",
+      "depth": "العمق",
+      "radius": "نصف القطر",
+      "radiusTop": "نصف القطر العلوي",
+      "radiusBottom": "نصف القطر السفلي",
+      "tube": "نصف قطر الأنبوب",
+      "arc": "القوس (راديان)",
+      "widthSegments": "أجزاء العرض",
+      "heightSegments": "أجزاء الارتفاع",
+      "depthSegments": "أجزاء العمق",
+      "radialSegments": "أجزاء حول المحور",
+      "tubularSegments": "أجزاء الأنبوب"
+    },
+    "stats": "إحصاءات المحرك",
+    "cpu": "إطار المعالج CPU (ms)",
+    "gpu": "إطار بطاقة الرسوميات GPU (ms)",
+    "triangles": "المثلثات",
+    "pages": "الصفحات المحمّلة",
+    "sessions": "الجلسات المفتوحة",
+    "statsHint": "تُقرأ من آخر إطار رُسم؛ والمشهد الساكن لا يرسم أي إطار.",
+    "error": {
+      "format": "يحتوي هذا الملف على صيغة مشهد لا يقرؤها هذا المحرّر.",
+      "read": "تعذّرت قراءة المشهد:"
+    }
+  },
   "section": {
     "course": "الدورة",
     "guides": "الأدلة",
@@ -818,6 +915,26 @@
     },
     "srgbToLinearBatch": {
       "description": "قناة واحدة لكل عنصر، والمنحنيات الدقيقة لـ `packages/sdk-core/src/math/primitives/color.ts`: يضرب المرجع بثوابت مقرَّبة، ويُقيَّد ذلك الفارق — غير المرئي عند 8 بت — مرة واحدة، في المقياس المرجعي الذي يقارنهما."
+    },
+    "scene-editor": {
+      "title": "ابنِ مشهدًا بالمحرّر",
+      "description": "أضف أشكالًا وأضواء، واخترها بالفأرة، وحرّكها بالمقابض، وغيّر ألوانها، واحفظ المشهد ثم افتحه من جديد — داخل البوابة، وبالواجهة البرمجية العامة وحدها.",
+      "html": "<p><a href=\"#/en/examples/scene-editor\">محرّر المشهد</a> صفحة من هذه البوابة مبنية على ثلاثة أبواب من المحرك ولا شيء غيرها. ابدأ من مشهد فارغ: <b>إضافة ← صندوق</b>، ثم <b>إضافة ← ضوء اتجاهي</b>. انقر على الصندوق: يجده <code>world.raycast</code> تحت المؤشر، وتظهر عليه مقابض <code>controls.transform</code>. اسحب سهمًا لتحريكه — تبقى الكاميرا ثابتة ما دام المقبض ممسوكًا — واضغط <kbd>E</kbd> لتدويره، و<kbd>R</kbd> لتغيير حجمه. غيّر لونه في لوحة الخصائص: يعيد المحرك طلاء المادة في مكانها، وتبقى كلفة الإطار ظاهرة في زاوية الإحصاءات. <b>حفظ</b> ينزّل <code>scene.toJSON</code>؛ و<b>جديد</b> ثم <b>فتح</b> يبنيان المشهد نفسه من جديد بـ <code>scene.fromJSON</code>.</p>\n<p>كل خطوة يمكن التراجع عنها بـ <kbd>Ctrl</kbd>+<kbd>Z</kbd>، ويُحفظ المشهد في المتصفح بين زيارة وأخرى. الصفحة نفسها لا ترسم شيئًا ولا تحرّك شيئًا: ما تراه هو المحرك.</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "اختر جسمًا بالمؤشر",
+      "description": "يعيد `world.raycast` أقرب جسم تحت نقطة من الـ canvas: العقدة التي أضافتها الصفحة، والنقطة والعمودي عند موضع الإصابة، والمسافة.",
+      "html": "<p>يجري الاختبار على المعالج CPU، على هندسة المشهد نفسها: الشبكات المثلثية مثلثًا مثلثًا، والنموذج المحمّل على صندوقه، أما الخطوط والنقاط فلا تُختبر أبدًا. وتُتخطّى الأشجار الفرعية المخفية وعلامات <code>helper</code>. شاهده في <a href=\"#/en/examples/click-to-pick\">انقر للاختيار</a>.</p>"
+    },
+    "move-with-handles": {
+      "title": "حرّك ودوّر وغيّر الحجم بالمقابض",
+      "description": "يضع `controls.transform(world)` مقابض على جسم واحد؛ والسحب يكتب وضعيته عبر آبائه، وتبقى الكاميرا ثابتة في أثناء ذلك.",
+      "html": "<p>الأوضاع <code>translate</code> و<code>rotate</code> و<code>scale</code>، بمحاور العالم أو المحاور المحلية، مع خطوات اختيارية. الحدثان <code>dragStart</code> و<code>dragEnd</code> يحيطان بسحبة واحدة — أي خطوة تراجع واحدة. شاهده في <a href=\"#/en/examples/move-rotate-scale-gizmo\">أداة النقل والدوران والتحجيم</a>.</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "احفظ مشهدًا وافتحه",
+      "description": "يكتب `scene.toJSON(camera)` المشهد بصيغة JSON بسيطة ذات إصدار؛ ويبنيه `scene.fromJSON(json, camera)` من جديد.",
+      "html": "<p>تُخزَّن الأشكال بالاستدعاء الذي بناها، والمواد بقيمها، والنماذج المحمّلة بعنوانها — ولا تُنسخ داخله أبدًا — أما علامات <code>helper</code> فلا تُخزَّن إطلاقًا. ويُرفض إصدار آخر من الصيغة مع ذكر اسمه. شاهده في <a href=\"#/en/examples/save-the-scene\">حفظ المشهد</a>.</p>"
     }
   },
   "canvas": {
@@ -1444,7 +1561,6 @@
       "gltf-material-variants": "امتدادات glTF أخرى: متغيّرات المواد",
       "compressed-mesh-input": "امتدادات glTF أخرى: Draco وmeshopt والتكميم",
       "a-medical-scan": "رسم الحجوم",
-      "save-the-scene": "تصدير المشهد",
       "a-city-from-3d-tiles": "إدخال 3D Tiles",
       "rendering-in-a-worker": "رسم بواسطة عامل OffscreenCanvas",
       "a-video-panorama": "نُسُج فيديو حية",
@@ -1474,14 +1590,12 @@
       "flames-and-a-tornado": "مواد بتظليل مخصّص",
       "point-clouds-from-a-scan": "استيراد سحابة نقاط",
       "gaussian-splats": "رسم رذاذ غاوسي",
-      "click-to-pick": "الاختيار (raycast)",
       "hover-over-triangles": "الاختيار (raycast)",
       "pick-lines-and-points": "الاختيار (raycast)",
       "pick-an-instance": "الاختيار (raycast)",
       "paint-where-you-click": "الاختيار (raycast)",
       "a-voxel-painter": "الاختيار (raycast)",
       "drag-objects": "الاختيار (raycast)",
-      "move-rotate-scale-gizmo": "الاختيار (raycast) وأداة التحويل",
       "edit-a-spline": "الاختيار (raycast)",
       "sound-in-space": "الصوت الموضعي",
       "smooth-edges-over-time": "إعداد إزالة التعرّج الزمني",
