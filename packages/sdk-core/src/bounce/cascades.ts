@@ -26,11 +26,15 @@ export interface BounceCascadeLevel {
   moving: boolean;
 }
 
+/** The grids of light probes around the camera, finer near it. */
 export interface BounceCascades {
   /** Probes along one axis and per level. */
   size: number;
+  /** Probes per level. */
   probesPerLevel: number;
+  /** Probes in all. */
   probes: number;
+  /** Each level. */
   levels: BounceCascadeLevel[];
   /** Ray reach: extent diagonal, beyond which there is nothing to hit. */
   reach: number;
@@ -95,6 +99,7 @@ function movingBase(spacing: number, viewpoint: ArrayLike<number>) {
   return baseOf((axis) => Math.floor(viewpoint[axis] / spacing) - half);
 }
 
+/** The probe grids that cover a scene's box. */
 export function createBounceCascades(bounds: readonly number[]): BounceCascades {
   const size = BOUNCE_SETTINGS.cascadeSize;
   const probesPerLevel = size * size * size;

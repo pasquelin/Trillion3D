@@ -1,10 +1,16 @@
 import type { createGpuPageReader } from './reader.ts';
 
+/** One page held in the GPU page pool. */
 export interface ResidentPage {
+  /** Its key. */
   key: string;
+  /** Its slot in the pool. */
   slot: number;
+  /** Its byte offset. */
   offset: number;
+  /** Its size. */
   bytes: number;
+  /** How many times its slot was reused. */
   generation: number;
 }
 export type GpuPageContext = {

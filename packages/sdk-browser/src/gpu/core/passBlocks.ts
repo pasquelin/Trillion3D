@@ -8,9 +8,13 @@ import {
 
 export { gpuPassBlockOf, gpuPassStageOf, type GpuPassBlock };
 
+/** GPU time of a frame in three blocks: visibility, materials, the rest. */
 export type GpuPassBlockTotals = {
+  /** Time to find what is visible. */
   visibilityMs: number | null;
+  /** Time to shade materials. */
   materialsMs: number | null;
+  /** Everything else. */
   otherMs: number | null;
 };
 

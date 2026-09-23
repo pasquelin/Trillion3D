@@ -10,7 +10,15 @@ import type { ComparisonLayout } from '../../measurement/comparison.ts';
 import type { BackendDiagnostic, BackendFactory, DiagnosticDetail } from '../../backend/types.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
 
-export type PointOfInterest = { id: string; label: string; pose: CameraPose };
+/** A named view of a scene a page can jump to. */
+export type PointOfInterest = {
+  /** The view's short name, unique in its scene. */
+  id: string;
+  /** The words a page shows for the view. */
+  label: string;
+  /** Where the camera stands and what it looks at. */
+  pose: CameraPose;
+};
 export interface MeasuredWorldOptions {
   /** Own controls, CSS/DPR sizing and demand-driven rendering. Off by default.
    *  Defaults to direct WebGPU; a missing capability rejects startup. */

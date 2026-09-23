@@ -11,11 +11,15 @@ export type WebglRenderTarget = ReturnType<typeof createWebglRenderTarget>;
 /** Where a host draw lands — the page's drawing buffer for a `null` framebuffer — and whether
  *  the scene's light calls for tone mapping; `width` and `height` are the viewport's. */
 export type HostDrawOutput = {
+  /** Whether the display curve applies. */
   toneMapped: boolean;
   /** The display curve the scene chose; ACES when absent. */
   toneMapping?: SceneToneMapping;
+  /** Where to draw; `null` for the screen. */
   framebuffer: WebGLFramebuffer | null;
+  /** Width in pixels. */
   width: number;
+  /** Height in pixels. */
   height: number;
 };
 

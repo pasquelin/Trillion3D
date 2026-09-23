@@ -21,7 +21,9 @@ export interface BounceOccupancy {
   occupied(level: number, x: number, y: number, z: number): boolean;
   /** Marked cells and total cells of the finest level: published gain. */
   marked: number;
+  /** Cells of the finest level. */
   cells: number;
+  /** Bytes it takes. */
   bytes: number;
 }
 
@@ -66,6 +68,7 @@ function dilate(map: Uint8Array, dims: number[]) {
   return out;
 }
 
+/** Marks which probe cells hold geometry, so empty space gets no probe. */
 export function createBounceOccupancy(
   proxy: SceneProxy,
   cascades: BounceCascades,
