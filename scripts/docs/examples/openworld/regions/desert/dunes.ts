@@ -5,6 +5,7 @@
  * - linear (seif) dunes, where sand is plentiful: long sharp-crested ridges along the wind.
  * Every proportion is a published morphometric ratio, named where it is used.
  */
+import { WORLD } from '../../plan/contract.ts';
 import { FIELD_SEED, fbm, hash01, smoothstep, valueNoise } from './field.ts';
 
 /**
@@ -81,7 +82,10 @@ function seifs(u: number, v: number): number {
 }
 
 /** Sand supply in [-1, 1]: ergs (sand seas) where high, gravel plains (regs) where low. */
-export const sandSupply = (x: number, z: number) => fbm(FIELD_SEED + 31, x / 11000, z / 11000, 3);
+/** Sand supply over the erg; its patches span a fifth of the world, so any desert band holds some. */
+const SUPPLY_SCALE = WORLD.size / 5;
+export const sandSupply = (x: number, z: number) =>
+  fbm(FIELD_SEED + 31, x / SUPPLY_SCALE, z / SUPPLY_SCALE, 3);
 
 /** Dune height at (x, z): barchans on the erg's fringe, seifs in its heart, none on the reg. */
 export function duneHeight(x: number, z: number): number {

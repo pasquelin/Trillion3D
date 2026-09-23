@@ -5,8 +5,9 @@
  * highest dune crests and the sunset viewpoint on the tallest mesa.
  */
 import type { Vec3 } from '../../plan/contract.ts';
-import { WIND_TURBINE, applyPoint, between, trsMatrix } from '../../props/index.ts';
+import { between } from '../../props/index.ts';
 import { facing, teleport, type Build } from './build.ts';
+import { highest, ridgeTurbines, TURBINE_SPACING, turbineAt } from './ridge.ts';
 import { duneHeight, WIND_HEADING } from './dunes.ts';
 import {
   canyonFrame,
@@ -99,30 +100,13 @@ function talus(b: Build, t: Tableland, count: number) {
   }
 }
 
-/** Rotor speed: tip-speed ratio 7 at a 8 m/s rated-region wind, ω = 7 · 8 / R. */
-const RPM = ((7 * 8) / WIND_TURBINE.rotorRadius) * (60 / (2 * Math.PI));
-
 /** Turbines along the plateau's upwind rim, 3.5 rotor diameters apart, rotors into the wind. */
 function turbines(b: Build, p: Tableland) {
-  const upwind = WIND_HEADING + Math.PI,
-    spacing = 3.5 * 2 * WIND_TURBINE.rotorRadius,
-    [ux, uz] = [Math.cos(upwind), Math.sin(upwind)],
-    yaw = facing(ux, uz);
+  const upwind = WIND_HEADING + Math.PI;
   for (let a = upwind - 1.1, k = 0; a < upwind + 1.1; k++) {
-    const r = rimRadius(p, a) - 120,
-      x = p.x + Math.cos(a) * r,
-      z = p.z + Math.sin(a) * r,
-      tower = b.site.place('wind-turbine-tower', x, z, yaw, { name: `desert/wind/turbine-${k}` });
-    if (tower)
-      b.movers.push({
-        kind: 'spin',
-        name: `desert/wind/rotor-${k}`,
-        model: 'wind-turbine-rotor',
-        position: applyPoint(trsMatrix({ at: tower.position, yaw }), WIND_TURBINE.rotorAnchor),
-        axis: [ux, 0, uz],
-        rpm: RPM,
-      });
-    a += spacing / r;
+    const r = rimRadius(p, a) - 120;
+    turbineAt(b, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r, k);
+    a += TURBINE_SPACING / r;
   }
 }
 
@@ -140,6 +124,7 @@ export function land(b: Build, sites: readonly Tableland[]) {
     (t) => t.kind !== 'plateau' && (b.plan.biome(t.x, t.z).weights.desert ?? 0) > 0.99,
   );
   const top = own.sort((p, q) => q.height - p.height)[0] ?? sites[0];
+  if (!sites.some((t) => t.kind === 'plateau')) ridgeTurbines(b, 6);
   if (top) {
     // The west rim, looking west into the sunset.
     const a = Math.PI,
@@ -152,6 +137,10 @@ export function land(b: Build, sites: readonly Tableland[]) {
       [top.x - 10000, top.z],
       -0.12,
     );
+  } else {
+    // No tableland found room: the sunset is watched from the desert's highest ground.
+    const [x, z] = highest(b);
+    teleport(b, 'desert/mesa-sunset', x, z, [x - 10000, z], -0.12);
   }
 }
 
@@ -159,10 +148,12 @@ export function land(b: Build, sites: readonly Tableland[]) {
 export function blowingSand(b: Build, count: number) {
   const { minX, minZ, maxX, maxZ } = b.site.bounds,
     crests: { x: number; z: number; h: number }[] = [];
-  for (let x = minX + 300; x < maxX - 300; x += 450)
-    for (let z = minZ + 300; z < maxZ - 300; z += 450) {
+  // A grid of an eighth of the region's narrow side: the highest dune crests on it blow sand.
+  const step = Math.min(maxX - minX, maxZ - minZ) / 8;
+  for (let x = minX + step / 2; x < maxX; x += step)
+    for (let z = minZ + step / 2; z < maxZ; z += step) {
       const h = duneHeight(x, z);
-      if (h > 12) crests.push({ x, z, h });
+      if (h > 0) crests.push({ x, z, h });
     }
   crests.sort((p, q) => q.h - p.h || p.x - q.x || p.z - q.z);
   crests.slice(0, count).forEach(({ x, z }, i) =>
