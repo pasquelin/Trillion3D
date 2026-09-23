@@ -27,7 +27,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <a
-        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded-box focus:bg-base-100 focus:p-3"
+        className="sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-[100] focus:rounded-box focus:bg-base-100 focus:p-3"
         href="#main-content"
         onClick={(event) => {
           // The hash names routes: the link moves the focus instead of the address.
