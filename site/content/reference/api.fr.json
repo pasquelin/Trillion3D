@@ -1703,6 +1703,14 @@
     "summary": "Format de cache que lit ce moteur.",
     "description": "Le format 5 porte `scene-tables.json`, les tables de nœuds et de matériaux contre lesquelles la scène préparée est vérifiée ; les formats 3 et 4 n’ont pas ce produit et sont refusés par leur numéro plutôt qu’à moitié lus."
   },
+  "BeforeFrameInfo": {
+    "summary": "Ce que reçoit un crochet d’avant-image : les secondes que les contrôleurs viennent d’intégrer, et depuis le début du monde.",
+    "description": "L’unique objet du monde, réécrit à chaque image : un crochet qui garde une valeur la copie.",
+    "members": {
+      "delta": "Secondes depuis l’image précédente, au plus deux intervalles d’image après une pause ; 0 à la première.",
+      "time": "Secondes depuis le début du monde."
+    }
+  },
   "FrameInfo": {
     "summary": "Ce que reçoit un crochet d’image : les secondes depuis la dernière image et depuis le début du monde.",
     "description": "L’unique objet du monde, réécrit à chaque image : un crochet qui garde une valeur la copie.",
@@ -6301,6 +6309,7 @@
       "kind": "Quel contrôleur dirige la caméra ; donne un autre nom pour changer.",
       "enabled": "Si le contrôleur écoute la souris et le clavier.",
       "target": "Le point autour duquel tourne un contrôleur à pivot.",
+      "autoUpdate": "Si la boucle du monde appelle `update` avant chaque image, avant les crochets de `world.beforeFrame`. `false` confie le pas à la page, qui appelle `update` depuis un tel crochet, aussi souvent et en autant de sous-pas qu’elle intègre ; le monde ne le fait alors plus jamais.",
       "minDistance": "Distance minimale à laquelle un contrôleur à pivot amène la caméra de `target`.",
       "maxDistance": "Distance maximale à laquelle un contrôleur à pivot éloigne la caméra de `target`.",
       "minPolarAngle": "Orbite seulement : plus petit angle polaire, en radians depuis la verticale.",
@@ -6382,9 +6391,17 @@
     }
   },
   "world.onFrame": {
-    "summary": "Lance une fonction avant chaque image, avec le temps de l’image.",
+    "summary": "Lance une fonction après chaque image dessinée, avec son temps et ses mesures ; renvoie de quoi l’arrêter.",
     "parameters": {
       "hook": "La fonction à lancer ; elle reçoit le temps et les mesures de l’image."
+    },
+    "returns": "Une fonction qui arrête le crochet."
+  },
+  "world.beforeFrame": {
+    "summary": "Lance une fonction juste avant chaque image dessinée, avec `{ delta, time }` ; renvoie de quoi l’arrêter.",
+    "description": "Une image de la boucle du monde se déroule ainsi : le contrôleur fait avancer la caméra (sauf si `controls.autoUpdate` vaut false), les animations avancent, ces crochets s’exécutent dans l’ordre où ils ont été ajoutés, la scène est écrite et dessinée, puis viennent les crochets `onFrame`. Ce qu’un crochet place — un corps sur la caméra, un cockpit — est dessiné dans cette image même, jamais une image en retard. Un `render()` mené par l’hôte les lance aussi, mais ne fait avancer aucun contrôleur. Un crochet qui appelle `invalidate()` fait venir les images suivantes.",
+    "parameters": {
+      "hook": "La fonction à lancer ; elle reçoit les secondes tout juste intégrées et le temps du monde."
     },
     "returns": "Une fonction qui arrête le crochet."
   },

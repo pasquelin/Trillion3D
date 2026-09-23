@@ -1,4 +1,9 @@
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { advanceMixers } from '../../../../sdk-core/src/world/animation/index.ts';
+
+/** What the loop steps ahead of a frame: `world.controls`. */
+type Stepped = { autoUpdate: boolean; update(delta: number): void };
 
 /** A frame's metrics, with the names a page reads them by; `null` where the path does not count. */
 export type WorldFrameMetrics = FrameMetrics & {
@@ -21,6 +26,10 @@ export interface FrameInfo {
   /** What the last frame cost: triangles, pages, timings. */
   metrics: WorldFrameMetrics;
 }
+
+/** What a before-frame hook receives: the seconds the controllers just integrated, and since the
+ *  world began. The world's one object, rewritten each frame: a hook that keeps a value copies it. */
+export type BeforeFrameInfo = Pick<FrameInfo, 'delta' | 'time'>;
 
 /** The engine's metrics under a page's names: the GPU frame, the clusters the occlusion test
  *  rejected, the shadow pages held (all of them less those still waiting). */
@@ -91,31 +100,64 @@ function boundedDelta() {
   };
 }
 
-/** The per-frame hooks of a world, run in the order they were added, after each drawn frame. */
+/** Adds `hook` to `hooks`; returns the function that removes it. */
+function member<T>(hooks: Set<(info: T) => void>, hook: (info: T) => void) {
+  hooks.add(hook);
+  return () => {
+    hooks.delete(hook);
+  };
+}
+
+/** The per-frame hooks of a world, in the order they were added: `before` ones ahead of each
+ *  drawn frame, the others after it. */
 export function createWorldFrames() {
-  const hooks = new Set<(frame: FrameInfo) => void>();
+  const hooks = new Set<(frame: FrameInfo) => void>(),
+    early = new Set<(frame: BeforeFrameInfo) => void>();
   const start = performance.now();
   let previous = start,
     frame = 0,
     last: WorldFrameMetrics | null = null;
   const pace = boundedDelta();
   const info: FrameInfo = { delta: 0, time: 0, frame: 0, metrics: NOT_DRAWN };
+  const ahead: BeforeFrameInfo = { delta: 0, time: 0 };
+  const delta = () => pace.read(performance.now(), previous, frame === 0);
+  /** A frame is about to be drawn, `seconds` after the last: the early hooks run. */
+  const prepare = (seconds: number) => {
+    ahead.delta = seconds;
+    ahead.time = (performance.now() - start) / 1000;
+    for (const hook of early) hook(ahead);
+  };
   return {
     get last() {
       return last;
     },
     /** Seconds since the last drawn frame, bounded after a pause: what a controller integrates. */
-    delta: () => pace.read(performance.now(), previous, frame === 0),
+    delta,
     /**
-     * Adds a function to run before every frame; returns the function that removes it.
+     * Adds a function to run after every drawn frame.
      * @param hook - The function to run; it gets the frame's time and metrics.
      * @returns A function that stops the hook.
      */
-    add(hook: (frame: FrameInfo) => void) {
-      hooks.add(hook);
-      return () => {
-        hooks.delete(hook);
-      };
+    add: (hook: (frame: FrameInfo) => void) => member(hooks, hook),
+    /**
+     * Adds a function to run ahead of every drawn frame.
+     * @param hook - The function to run; it gets the seconds just integrated and the world's time.
+     * @returns A function that stops the hook.
+     */
+    before: (hook: (frame: BeforeFrameInfo) => void) => member(early, hook),
+    prepare,
+    /**
+     * The loop's work ahead of a frame, in this order: the controller steps the camera unless the
+     * page took the step, the scene's clips advance, the early hooks run. What they move is
+     * written to the renderer after them, so it is drawn in this frame.
+     * @returns Whether a clip still plays, and asks for the next frame.
+     */
+    step(controls: Stepped, scene: Object3D) {
+      const seconds = delta();
+      if (controls.autoUpdate) controls.update(seconds);
+      const playing = advanceMixers(scene, seconds);
+      prepare(seconds);
+      return playing;
     },
     dispatch(metrics: FrameMetrics) {
       const now = performance.now();
@@ -129,6 +171,7 @@ export function createWorldFrames() {
     },
     clear() {
       hooks.clear();
+      early.clear();
     },
   };
 }

@@ -4,14 +4,12 @@ import type { SceneLink } from '../../../../sdk-core/src/world/object/object3d.t
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
 import { probeWorldRenderer, type WorldRenderer } from '../capability/worldReady.ts';
-import { createWorldFrames, type FrameInfo } from './worldFrames.ts';
+import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
 import { Scene, type LoadOptions } from './scene.ts';
-import { loadModel } from './loadedModel.ts';
-import { loadModelOfAnyFormat } from '../loader/modelFormat.ts';
 import { awaitViewPages, registerWorld } from './worldSession.ts';
-import { advanceMixers } from '../../../../sdk-core/src/world/animation/index.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
+import { worldModelLoader } from './loadedModel.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
 
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
@@ -30,7 +28,6 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     exposure = 1,
     pixelError: number | undefined,
     bounce = false,
-    models = 0,
     animating = false,
     disposed = false;
   const ready = probeWorldRenderer(canvas, options.renderer).then((granted) => {
@@ -40,17 +37,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     gpuDevice = granted.gpuDevice;
   });
   ready.catch(() => {});
-  const scene = new Scene(async (url: string, load: LoadOptions) => {
-    await ready;
-    // The one door for every model: its format is read from its content, then its loader —
-    // today the compiled manifest's alone — reads it (`modelFormat.ts`).
-    const read = {
-      scope: load.scope === undefined ? undefined : load.scope === 'full' ? 'full' : 'slice',
-      signal: load.signal ?? options.signal,
-      textureSource: renderer === 'webgpu' && models++ === 0 ? 'cache' : 'host',
-    } as const;
-    return loadModelOfAnyFormat(url, read, { manifest: loadModel });
-  });
+  const scene = new Scene(worldModelLoader(ready, () => renderer, options.signal));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
   const runtime = createWorldRuntime({
@@ -67,9 +54,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         pixelError,
         clearColor: scene.background instanceof Color ? scene.background.getHex() : undefined,
         beforeFrame: () => {
-          const delta = frames.delta();
-          controls.update(delta);
-          animating = advanceMixers(scene, delta);
+          animating = frames.step(controls, scene);
           runtime.beforeFrame();
         },
         onFrame: (metrics) => {
@@ -164,12 +149,22 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       () => frames.last,
     ),
     diagnostic: diagnostic.handle,
-    /** Runs a function before every frame, with the frame's time. */ onFrame: frames.add,
+    /** Runs a function after every drawn frame, with its time and metrics; returns its remover. */
+    onFrame: frames.add,
+    /**
+     * Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.
+     * A frame of the world's loop runs: the controller steps the camera (unless
+     * `controls.autoUpdate` is false), clips advance, these hooks in the order they were added,
+     * the scene is written and drawn, then the `onFrame` hooks. What a hook places — a body on
+     * the camera, a cockpit — is drawn in this very frame, never one late. A host-led `render()`
+     * runs them too but steps no controller. A hook calling `invalidate()` keeps frames coming.
+     */
+    beforeFrame: frames.before,
     /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks for a new frame after a change the world could not see. */ invalidate,
     /** Draws one frame now, whoever leads the loop. */
     render() {
-      live();
+      if (live()) frames.prepare(frames.delta());
       runtime.render();
     },
     /** Tells the world the canvas changed size; unset, it reads the canvas's own size.
@@ -197,4 +192,4 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
 }
 
 /** What `createWorld` returns: one view. */ export type World = ReturnType<typeof createWorld>;
-export type { FrameInfo, WorldTarget, WorldRenderer, LoadOptions, WorldOptions };
+export type { FrameInfo, BeforeFrameInfo, WorldTarget, WorldRenderer, LoadOptions, WorldOptions };

@@ -87,6 +87,10 @@ export function worldControlsHandle(
     get target(): Vector3 {
       return current?.target ?? standingTarget;
     },
+    /** Whether the world's loop calls `update` ahead of each frame, before `world.beforeFrame`
+     *  hooks. `false` hands the step to the page, which calls `update` from such a hook, as
+     *  often and over whatever sub-steps it integrates; the world then never steps it. */
+    autoUpdate: true,
     /**
      * Character only: the meshes the body collides with — one object or a list, their
      * descendants included — or `null`. Setting them builds a static triangle tree from their

@@ -655,7 +655,7 @@
         }
       }
       dress();
-      world.onFrame(({ delta }) => {
+      world.beforeFrame(({ delta }) => {
         // Paused, nothing moves: the frame only fits the hands to a resized screen.
         if (!game.running) return dress();
         // The game's own clock, which stands still while it is paused.
