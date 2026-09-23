@@ -1,4 +1,4 @@
-import { hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
+import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
 import { attachedPages, autonomousPlacements } from '../../placement/autonomousPlacements.ts';
 import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -157,6 +157,11 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     syncResident() {
       gate.resourcesChanged();
       sync();
+    },
+    refreshMaterials() {
+      // The pages draw the repainted surfaces themselves; a vertex-coloured twin is a clone.
+      for (const [original, twin] of colorMaterials) colouredHostSurface(original, twin);
+      gate.sceneChanged();
     },
     metrics() {
       return {

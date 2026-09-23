@@ -10,6 +10,7 @@ import { referenceFr } from './reference.fr.ts';
 import { treeFr } from './tree.fr.ts';
 import { vectorFr } from './vector.fr.ts';
 import { worldGuidesFr } from './worldGuides.fr.ts';
+import { editorGuidesFr } from './editorGuides.fr.ts';
 
 import type { LocaleOverlay } from './entryOverlay.ts';
 
@@ -27,6 +28,7 @@ export const FRENCH: LocaleOverlay = [
   treeFr,
   vectorFr,
   worldGuidesFr,
+  editorGuidesFr,
 ].reduce<LocaleOverlay>(
   (merged, overlays) => {
     for (const [id, overlay] of Object.entries(overlays))
