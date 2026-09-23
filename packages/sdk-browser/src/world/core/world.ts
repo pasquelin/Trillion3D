@@ -41,7 +41,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const diagnostic = worldDiagnostic(() => runtime.explorer);
   const runtime = createWorldRuntime({
     canvas,
-    ready,
+    ready: () => device.pending,
     scene,
     camera: () => camera,
     options: () =>

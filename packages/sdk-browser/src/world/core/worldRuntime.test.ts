@@ -31,11 +31,17 @@ after(() => {
 });
 
 /** A runtime on a canvas stand-in, whose every failure is handed to `failed`. */
-const runtimeOf = (scene: Scene, ready: Promise<void>, failed: (error: unknown) => void) =>
+const runtimeOf = (
+  scene: Scene,
+  ready: Promise<void>,
+  failed: (error: unknown) => void,
+  open?: Parameters<typeof createWorldRuntime>[0]['open'],
+) =>
   createWorldRuntime({
     canvas: { width: 1, height: 1 } as HTMLCanvasElement,
     scene,
-    ready,
+    ready: () => ready,
+    open,
     camera: () => new Camera('perspective'),
     options: () => ({ manifestUrl: '' }),
     failed,
@@ -84,4 +90,48 @@ test('a resolution that throws is reported, and the next change resolves again',
   runtime.dispose();
   assert.equal(failures.length, 2);
   assert.notEqual(failures[1], 'World scene resolution failed');
+});
+
+test('a light added with a resolution that throws is still written to the open session', async () => {
+  const ready = Promise.resolve();
+  const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
+  const added: string[] = [];
+  // A session stand-in: what the runtime writes into it is all this test reads.
+  const session = {
+    camera: {
+      position: { set() {} },
+      quaternion: { set() {} },
+      updateProjectionMatrix() {},
+      updateMatrixWorld() {},
+    },
+    setLightingView() {},
+    invalidate() {},
+    growsPlacements: () => false,
+    refreshMaterials: () => true,
+    updatePlacements() {},
+    setEnvironment() {},
+    addLight: (record: { id: string }) => void added.push(record.id),
+    setLight() {},
+    removeLight() {},
+    render: () => ({}),
+    dispose() {},
+  };
+  const open = (async () => session) as unknown as Parameters<typeof runtimeOf>[3];
+  const failures: string[] = [];
+  const runtime = runtimeOf(scene, ready, (error) => failures.push((error as Error).message), open);
+  scene.add(object.mesh(geometry.box(1, 1, 1)));
+  await runtime.settled();
+  assert.equal(runtime.explorer, session);
+  runtime.render();
+  added.length = 0;
+  // The light enters with a mesh whose resolution throws: the burst fails, the light is kept.
+  const digest = crypto.subtle.digest;
+  crypto.subtle.digest = () => Promise.reject(new Error('crypto.subtle is unavailable'));
+  scene.add(light.point({ intensity: 3 }), object.mesh(geometry.box(2, 2, 2)));
+  await until(() => failures.length > 0);
+  crypto.subtle.digest = digest;
+  runtime.render();
+  runtime.dispose();
+  assert.deepEqual(failures, ['World scene resolution failed']);
+  assert.equal(added.length, 1);
 });
