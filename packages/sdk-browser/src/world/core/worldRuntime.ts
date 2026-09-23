@@ -108,9 +108,10 @@ export function createWorldRuntime(inputs: Inputs) {
       }
       if (disposed) explorer.dispose();
       else {
+        // Lit and a frame asked before the page's own settings: the first image had no lights.
         explorer.setLightingView('lit');
-        inputs.opened(explorer);
         invalidate();
+        inputs.opened(explorer);
       }
     }
     reopening = null;
