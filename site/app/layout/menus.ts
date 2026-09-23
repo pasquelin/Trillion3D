@@ -5,7 +5,14 @@ import { REPORT_SECTIONS } from '../../reports/presentation.ts';
 import type { PortalEntry } from '../../content/model.ts';
 import { exampleTitle, readyThemes, themeTitle, thumbnailOf } from '../examples/list.ts';
 import { expandEntryLinks } from '../portal/entryLinks.ts';
-import { EDITOR_ID, entryRoute, LEARN_SECTIONS, routeHref } from '../portal/routes.ts';
+import {
+  EDITOR_ID,
+  editorHref,
+  entryRoute,
+  isEditorRoute,
+  LEARN_SECTIONS,
+  routeHref,
+} from '../portal/routes.ts';
 import type { PortalRoute } from '../portal/routes.ts';
 import { search } from '../portal/search.ts';
 import type { ExampleGroup } from './ExampleList.tsx';
@@ -104,8 +111,8 @@ export function editorMenu(route: PortalRoute, query = ''): SidebarMenuGroup[] {
   const items = search([{ title: label, text: EDITOR_ID }], query).map(() => ({
     key: EDITOR_ID,
     label,
-    href: routeHref({ locale: route.locale, area: 'examples', id: EDITOR_ID }),
-    active: route.area === 'examples' && route.id === EDITOR_ID,
+    href: editorHref(route.locale),
+    active: isEditorRoute(route),
   }));
   return items.length > 0 ? [{ id: 'editor', title: t('editor.group'), items }] : [];
 }
