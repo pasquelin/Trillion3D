@@ -70,17 +70,18 @@ export function createTransformControls(
     object.matrixWorld.decompose(at, turn, stretch);
     root.position.copy(at);
     root.quaternion.copy(space === 'local' || mode === 'scale' ? turn : still);
-    const scale = handleScreenSize(host.camera, at, host.canvas, size);
+    const scale = handleScreenSize(host.camera, at, size);
     root.scale.set(scale, scale, scale);
-    for (const [name, group] of Object.entries(parts.groups))
+    for (const name in parts.groups) {
+      const group = parts.groups[name as TransformMode];
       if (group.visible !== (name === mode)) group.visible = name === mode;
+    }
   };
   const unhook = host.onFrame(fit);
   const drag = trackTransformDrag(host, parts, {
     object: () => object,
+    // `press` fits the handles first: `at` and `turn` are the object's world pose now.
     start: (handle, from) => {
-      object!.updateWorldMatrix(true, false);
-      object!.matrixWorld.decompose(at, turn, stretch);
       const pose = { position: at.clone(), quaternion: turn.clone(), scale: object!.scale.clone() };
       return { ...pose, mode, handle, space, from, view: from.direction.clone() };
     },
