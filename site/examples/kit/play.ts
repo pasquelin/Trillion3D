@@ -66,19 +66,30 @@ export interface Game {
   readonly started: boolean;
 }
 
-/** The part of `document` `play` reads: the lock, the visibility, the events. */
+/** The part of `document` `play` reads: the lock, the visibility, the events, the URL. */
 export interface PlayDocument {
   readonly pointerLockElement: unknown;
   readonly hidden: boolean;
   readonly defaultView: { addEventListener(type: 'blur', listener: () => void): void } | null;
   addEventListener(type: string, listener: (event: { relatedTarget?: unknown }) => void): void;
+  readonly location?: { search: string };
 }
 
 /** What a browser waits after an Escape before it grants the lock again, and a margin. */
 const COOLDOWN_MS = 1100;
 
-/** The menu `play` draws by default, from the page's options. */
-const drawnMenu = (options: PlayOptions) => (actions: MenuActions) =>
+/**
+ * Whether the page was opened for a screenshot: no menu, no blur, no veil, the `data-hud`
+ * elements hidden and the game left paused. A capture tool asks for it with `?capture` in the
+ * URL, so the page it loads needs nothing of its own to sit still and clean for the shot.
+ */
+export function isCapture(doc: Pick<PlayDocument, 'location'>): boolean {
+  return new URLSearchParams(doc.location?.search ?? '').has('capture');
+}
+
+/** The menu `play` draws by default, from the page's options; frozen, invisible, hud-hiding
+ * still, when the page was opened for a capture. */
+const drawnMenu = (options: PlayOptions, doc: PlayDocument) => (actions: MenuActions) =>
   createMenu(
     {
       title: options.title ?? MENU_LABELS.play,
@@ -86,6 +97,7 @@ const drawnMenu = (options: PlayOptions) => (actions: MenuActions) =>
       keys: options.keys ?? [],
       options: options.options ?? [],
       labels: { ...MENU_LABELS, ...options.labels },
+      capture: isCapture(doc),
     },
     actions,
   );
@@ -101,7 +113,7 @@ export function play(
   world: PlayWorld,
   options: PlayOptions = {},
   doc: PlayDocument = document,
-  menu: (actions: MenuActions) => MenuView = drawnMenu(options),
+  menu: (actions: MenuActions) => MenuView = drawnMenu(options, doc),
 ): Game {
   const again = options.labels?.again ?? MENU_LABELS.again;
   const { canvas } = world;
