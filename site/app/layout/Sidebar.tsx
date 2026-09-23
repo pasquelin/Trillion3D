@@ -78,7 +78,7 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('a')) onClose();
         }}
-        className={`fixed bottom-0 start-0 top-16 z-50 w-[min(20rem,88vw)] overflow-x-hidden overflow-y-auto bg-base-200 p-4 shadow-xl transition-transform lg:static lg:z-auto lg:h-full lg:w-auto lg:translate-x-0 lg:shadow-none lg:visible ${open ? 'translate-x-0' : 'invisible -translate-x-full rtl:translate-x-full'}`}
+        className={`fixed bottom-0 start-0 top-16 z-50 w-[min(20rem,88vw)] overflow-x-hidden overflow-y-auto bg-base-200 p-4 shadow-xl transition-transform lg:static lg:z-auto lg:h-full lg:w-auto lg:translate-x-0 lg:shadow-none lg:visible ${open ? 'translate-x-0' : 'max-lg:invisible max-lg:-translate-x-full max-lg:rtl:translate-x-full'}`}
       >
         <PrimaryNavigation drawer />
         <AreaMenu key={route.area} />
