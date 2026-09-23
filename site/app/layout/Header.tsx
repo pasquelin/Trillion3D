@@ -47,11 +47,11 @@ export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
   const toggleTheme = useTheme();
   const { locale } = route;
   const t = useWords(locale);
-  const languages = LANGUAGES.map(({ lang, name, hreflang }) => ({
-    href: routeHref({ ...route, locale: lang }),
+  const languages = LANGUAGES.map(({ code, name, hreflang }) => ({
+    href: routeHref({ ...route, locale: code }),
     label: name,
     hrefLang: hreflang,
-    current: lang === locale,
+    current: code === locale,
   }));
   return (
     <header className="relative z-40 flex h-16 shrink-0 items-center gap-2 border-b border-base-300 bg-neutral px-3 text-neutral-content sm:gap-4 sm:px-6">
