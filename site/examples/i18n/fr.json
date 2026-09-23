@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "Cet exemple s'est arrêté sur une erreur"
+    },
+    "banner": {
+      "close": "Fermer"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "Glisse pour déplacer le plateau. Fais défiler ou pince pour zoomer.",
+    "banner": "Glisse pour déplacer le plateau. Fais défiler ou pince pour zoomer. Flèches pour te déplacer.",
     "controls": {
       "play": "Jouer",
       "speed": "Vitesse",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "Glisse pour regarder la rue. Change l'heure pour étirer les ombres.",
+    "banner": "Glisse pour regarder la rue. Change l'heure pour étirer les ombres. Molette pour avancer.",
     "controls": {
       "hour": "Heure",
       "traffic": "Circulation",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "Glisse pour tourner autour des gemmes. Chacune est construite point par point.",
+    "banner": "Glisse pour tourner autour des gemmes. Chacune est construite point par point. Décoche les facettes nettes pour partager les coins.",
     "controls": {
       "points": "Points",
       "waist": "Taille",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "Glisse pour regarder autour. Tourne et répète l'image sur les murs.",
+    "banner": "Glisse pour regarder autour. Tourne et répète l'image sur les murs. Le panneau du fond montre le carreau tel qu’il est peint.",
     "controls": {
       "tile": "Carreau",
       "wrap": "Bord",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "Glisse pour regarder tout autour de toi. Ouvre ta propre vidéo si tu veux.",
+    "banner": "Glisse pour regarder tout autour de toi. Ouvre ta propre vidéo si tu veux. La vue tourne toute seule jusqu’à ce que tu appuies.",
     "controls": {
       "playing": "Lecture",
       "fieldOfView": "Champ de vision",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "Glisse pour tourner autour. Regarde des pièces apparaître et disparaître sans arrêt.",
+    "banner": "Glisse pour tourner autour. Regarde des pièces apparaître et disparaître sans arrêt. Molette pour t’approcher.",
     "controls": {
       "perSecond": "Par seconde",
       "copies": "Copies",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "Glisse pour regarder de côté. Chaque panneau mélange les couleurs à sa façon.",
+    "banner": "Glisse pour regarder de côté. Chaque panneau mélange les couleurs à sa façon. De gauche à droite : normal, additif, soustractif, multiplié.",
     "controls": {
       "inks": "Encres",
       "opacity": "Opacité",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "Double-clique sur un objet pour zoomer dessus. Glisse pour tourner.",
+    "banner": "Double-clique sur un objet pour zoomer dessus. Glisse pour tourner. Molette pour zoomer.",
     "controls": {
       "model": "Objet",
       "margin": "Marge",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "Fais défiler pour zoomer d'un grain de sable à la planète entière.",
+    "banner": "Fais défiler pour zoomer d'un grain de sable à la planète entière. Glisse pour tourner.",
     "controls": {
       "toTheGrain": "Vers le grain",
       "toTheBeach": "Vers la plage",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "Glisse pour tourner autour du bureau. Regarde la lampe sauter d'une clé à l'autre.",
+    "banner": "Glisse pour tourner autour du bureau. Regarde la lampe sauter d'une clé à l'autre. Montre les clés d’un saut en copies pâles de la lampe.",
     "controls": {
       "timing": "Rythme",
       "onionSkin": "Pelure d’oignon",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "Glisse pour tourner autour du Soleil. Les étiquettes suivent les planètes.",
+    "banner": "Glisse pour tourner autour du Soleil. Les étiquettes suivent les planètes. Molette pour t’approcher.",
     "controls": {
       "show": "Afficher",
       "speed": "Vitesse",
@@ -1430,7 +1433,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "Glisse la grande vue pour la tourner. Fais défiler et glisse les petites.",
+    "banner": "Glisse la grande vue pour la tourner. Fais défiler et glisse les petites. Elles zooment et glissent ; double-clic pour revenir.",
     "controls": {
       "explode": "Éclater",
       "windFrom": "Vent venant de",
@@ -1574,7 +1577,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "Clique sur la scène pour entendre une mélodie",
+    "banner": "Clique sur la scène pour entendre une mélodie. Glisse pour faire le tour de la scène : les barres sont les notes, les perles l’onde elle-même.",
     "controls": {
       "layout": "Disposition",
       "height": "Hauteur",
@@ -1640,7 +1643,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "Glisse pour regarder le long des allées. Chaque allée lisse l'image à sa façon.",
+    "banner": "Glisse pour regarder le long des allées. Chaque allée lisse l'image à sa façon. De gauche à droite : plus proche, linéaire, trilinéaire, anisotrope.",
     "controls": {
       "picture": "Image",
       "anisotropy": "Anisotropie"

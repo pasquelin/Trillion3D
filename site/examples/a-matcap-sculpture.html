@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
-      import { controls, opening, ease } from '../runtime/kit.js';
+      import { controls, opening, ease, mix } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#1a1614');
@@ -31,7 +31,6 @@
       // ball whose surface faces the camera the same way: the light is baked into the picture, and
       // the scene's lamps do not touch it. Every ball here is painted on a canvas, pixel by pixel,
       // from its normal: a diffuse part, a highlight, a rim, and for metals a reflected room.
-      const mix = (a, b, t) => a.map((value, k) => value + (b[k] - value) * t);
       const clamp = (value) => Math.min(1, Math.max(0, value));
       const KEY = (() => { const l = [-0.5, 0.65, 0.58], n = Math.hypot(...l); return l.map((value) => value / n); })();
       // The room a metal reflects: a warm window high on the left, a dark floor, a bright horizon.

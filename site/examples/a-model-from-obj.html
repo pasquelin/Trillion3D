@@ -70,7 +70,7 @@
           view: ['beauty', 'triangles', 'clusters', 'lod'],
           sunAngle: [-180, 180, 30, 1],
           sunHeight: [0.6, 5, 2.4],
-          turn: () => turn.restart(),
+          turn: () => tour.gliding || turn.restart(),
         },
         (values) => {
           world.diagnostic.mode = values.view;
@@ -97,8 +97,9 @@
       // Once the tour lands, the camera circles the table; the Turn button circles it again.
       const turn = circling(world, 0.15);
       turn.stop();
-      // Each leg eases from where the one before it stopped.
-      opening(world, (time) => {
+      // Each leg eases from where the one before it stopped. While it glides, Turn waits for it:
+      // the circling starts where the tour lands.
+      const tour = opening(world, (time) => {
         let from = OVER;
         for (const [to, seconds] of PATH) {
           if (time < seconds) {

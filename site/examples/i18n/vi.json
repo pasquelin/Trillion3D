@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "Ví dụ này đã dừng vì một lỗi"
+    },
+    "banner": {
+      "close": "Đóng"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "Kéo để trượt bàn cờ. Cuộn hoặc chụm hai ngón để phóng to.",
+    "banner": "Kéo để trượt bàn cờ. Cuộn hoặc chụm hai ngón để phóng to. Phím mũi tên để di chuyển.",
     "controls": {
       "play": "Chơi",
       "speed": "Tốc độ",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "Kéo để nhìn dọc con phố. Kéo giờ để bóng dài ra.",
+    "banner": "Kéo để nhìn dọc con phố. Kéo giờ để bóng dài ra. Con lăn để tiến.",
     "controls": {
       "hour": "Giờ",
       "traffic": "Giao thông",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "Kéo để xoay quanh những viên đá quý. Mỗi viên được dựng từng điểm một.",
+    "banner": "Kéo để xoay quanh những viên đá quý. Mỗi viên được dựng từng điểm một. Tắt mặt cắt sắc để các góc dùng chung.",
     "controls": {
       "points": "Điểm",
       "waist": "Eo",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "Kéo để nhìn quanh. Xoay và lặp lại bức hình trên tường.",
+    "banner": "Kéo để nhìn quanh. Xoay và lặp lại bức hình trên tường. Tấm phía sau là viên gạch đúng như khi được vẽ.",
     "controls": {
       "tile": "Gạch",
       "wrap": "Mép",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "Kéo để nhìn khắp xung quanh. Mở video của riêng bạn nếu muốn.",
+    "banner": "Kéo để nhìn khắp xung quanh. Mở video của riêng bạn nếu muốn. Cảnh tự quay cho tới khi bạn nhấn.",
     "controls": {
       "playing": "Đang phát",
       "fieldOfView": "Trường nhìn",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "Kéo để đi quanh. Xem các mảnh liên tục xuất hiện rồi biến mất.",
+    "banner": "Kéo để đi quanh. Xem các mảnh liên tục xuất hiện rồi biến mất. Con lăn để lại gần.",
     "controls": {
       "perSecond": "Mỗi giây",
       "copies": "Bản sao",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "Kéo để nhìn từ bên cạnh. Mỗi tấm trộn màu theo cách riêng.",
+    "banner": "Kéo để nhìn từ bên cạnh. Mỗi tấm trộn màu theo cách riêng. Từ trái sang phải: bình thường, cộng, trừ, nhân.",
     "controls": {
       "inks": "Mực",
       "opacity": "Độ mờ đục",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "Bấm đúp vào một vật để phóng tới nó. Kéo để xoay.",
+    "banner": "Bấm đúp vào một vật để phóng tới nó. Kéo để xoay. Con lăn để thu phóng.",
     "controls": {
       "model": "Vật",
       "margin": "Lề",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "Cuộn để phóng từ một hạt cát tới cả hành tinh.",
+    "banner": "Cuộn để phóng từ một hạt cát tới cả hành tinh. Kéo để xoay.",
     "controls": {
       "toTheGrain": "Tới hạt cát",
       "toTheBeach": "Tới bãi biển",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "Kéo để xoay quanh bàn làm việc. Xem chiếc đèn nhảy từ khóa này sang khóa khác.",
+    "banner": "Kéo để xoay quanh bàn làm việc. Xem chiếc đèn nhảy từ khóa này sang khóa khác. Hiện các khóa của một cú nhảy thành bản sao mờ của chiếc đèn.",
     "controls": {
       "timing": "Nhịp",
       "onionSkin": "Da hành",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "Kéo để xoay quanh Mặt Trời. Các nhãn đi theo các hành tinh.",
+    "banner": "Kéo để xoay quanh Mặt Trời. Các nhãn đi theo các hành tinh. Con lăn để lại gần.",
     "controls": {
       "show": "Hiện",
       "speed": "Tốc độ",
@@ -1408,7 +1411,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "Kéo khung nhìn lớn để xoay nó. Cuộn và kéo các khung nhỏ.",
+    "banner": "Kéo khung nhìn lớn để xoay nó. Cuộn và kéo các khung nhỏ. Như vậy để thu phóng và trượt; bấm đúp để đặt lại.",
     "controls": {
       "explode": "Tách rời",
       "windFrom": "Gió từ",
@@ -1552,7 +1555,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "Bấm vào sân khấu để nghe một giai điệu",
+    "banner": "Bấm vào sân khấu để nghe một giai điệu. Kéo để đi quanh sân khấu: các thanh là cao độ, các hạt ngọc là chính sóng âm.",
     "controls": {
       "layout": "Bố cục",
       "height": "Chiều cao",
@@ -1618,7 +1621,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "Kéo để nhìn dọc các làn. Mỗi làn làm mịn bức hình theo cách riêng.",
+    "banner": "Kéo để nhìn dọc các làn. Mỗi làn làm mịn bức hình theo cách riêng. Từ trái sang phải: gần nhất, tuyến tính, tam tuyến tính, dị hướng.",
     "controls": {
       "picture": "Ảnh",
       "anisotropy": "Dị hướng"

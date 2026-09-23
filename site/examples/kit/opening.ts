@@ -22,10 +22,16 @@ export const ease = {
   out: (t: number) => 1 - (1 - unit(t)) ** 3,
 };
 
+/** The numbers of `a` moved a fraction `t` of the way to those of `b`, one by one: a position,
+ *  a colour, a whole camera pose. */
+export const mix = (a: readonly number[], b: readonly number[], t: number) =>
+  a.map((value, i) => value + (b[i] - value) * t);
+
 /** The world as far as the opening goes: its canvas, its loop and its camera controls. */
 export interface OpeningWorld {
-  canvas: Pick<HTMLElement, 'addEventListener'>;
-  onFrame(hook: (frame: { delta: number }) => void): unknown;
+  canvas: Pick<HTMLElement, 'addEventListener' | 'removeEventListener'>;
+  /** Adds a hook run every frame; what it returns removes it. */
+  onFrame(hook: (frame: { delta: number }) => void): () => void;
   invalidate(): void;
   controls?: { update(): unknown } | null;
 }
@@ -38,6 +44,8 @@ export interface Opening {
   restart(): void;
   /** Ends the glide where it is. */
   stop(): void;
+  /** Ends it for good: the canvas listeners and the frame hook go. */
+  dispose(): void;
 }
 
 /**
@@ -55,9 +63,9 @@ export function opening(world: OpeningWorld, pose: (time: number) => boolean | v
     world.invalidate();
   };
   const stop = () => void (gliding = false);
-  for (const type of ['pointerdown', 'wheel'])
-    world.canvas.addEventListener(type, stop, { passive: true });
-  world.onFrame(({ delta }) => {
+  const events = ['pointerdown', 'wheel'];
+  for (const type of events) world.canvas.addEventListener(type, stop, { passive: true });
+  const unhook = world.onFrame(({ delta }) => {
     if (!gliding) return;
     time += Math.min(delta, 0.05);
     place();
@@ -73,6 +81,11 @@ export function opening(world: OpeningWorld, pose: (time: number) => boolean | v
       place();
     },
     stop,
+    dispose() {
+      stop();
+      for (const type of events) world.canvas.removeEventListener(type, stop);
+      unhook();
+    },
   };
 }
 
@@ -129,8 +142,7 @@ export function flights(world: CirclingWorld, curve = ease.inOut) {
     delay = 0;
   const glide = opening(world, (time) => {
     if (!to.length) return false;
-    const e = curve((time - delay) / seconds),
-      [x, y, z, tx, ty, tz] = from.map((value, i) => value + (to[i] - value) * e);
+    const [x, y, z, tx, ty, tz] = mix(from, to, curve((time - delay) / seconds));
     position.set(x, y, z);
     target.set(tx, ty, tz);
     return time < delay + seconds;
