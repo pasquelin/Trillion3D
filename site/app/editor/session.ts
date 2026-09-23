@@ -27,6 +27,7 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
   const gizmo = engine.controls.transform(world, { mode: 'translate', space: 'world' });
   const helpers = new Set<Object3D>([engine.helper.grid(10, 10), engine.helper.axes(1)]);
   scene.add(...helpers);
+  helpers.add(gizmo.handles);
   const history = createHistory(HISTORY_CAPACITY);
   let selected: Object3D | null = null,
     outline: Object3D | null = null,
@@ -47,7 +48,8 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
         outline.removeFromParent();
         helpers.delete(outline);
       }
-      outline = shape && engine.helper.box(engine.object.mesh(shape), '#ffcc00');
+      outline =
+        shape && engine.helper.box(shape.boundingBox ?? shape.computeBoundingBox(), '#ffcc00');
       if (outline) {
         helpers.add(outline);
         scene.add(outline);
@@ -62,12 +64,8 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
   };
   const select = (node: Object3D | null) => {
     selected = node && inScene(node) ? node : null;
-    if (selected) {
-      // The handles' root is a helper mark the control adds on its first attach.
-      const before = new Set(scene.children);
-      gizmo.attach(selected);
-      for (const child of scene.children) if (!before.has(child)) helpers.add(child);
-    } else gizmo.detach();
+    if (selected) gizmo.attach(selected);
+    else gizmo.detach();
     refreshOutline();
     changed();
   };
