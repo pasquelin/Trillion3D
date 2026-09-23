@@ -15,6 +15,7 @@ await loadWords(document);
 
 export { controls, type ControlSpec, type ControlValues } from './controls.ts';
 export { playPickedVideo } from './media.ts';
+export { circling, ease, flights, opening } from './opening.ts';
 export { pointerOnPlane } from './pointer.ts';
 export { hash, seeded } from './random.ts';
 export { readout } from './readout.ts';

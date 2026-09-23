@@ -30,7 +30,7 @@
     <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout, words, language } from '../runtime/kit.js';
+      import { controls, readout, words, language, opening, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -61,15 +61,15 @@
       // from the exact surface before the engine draws a finer one. Far urns cover few pixels:
       // a coarse version is already exact to the eye there, and it is the one drawn.
       const OPENING = 24;
-      let opening = true;
+      let settling = true;
       const ui = controls({
         mouse: 'Drag to walk around the avenue; scroll close to one urn, then far away',
         pixelError: [0, OPENING, 1, 0.5],
         view: ['beauty', 'lod', 'screen-error', 'triangles'],
       }, (values, key) => {
         // A hand on the slider ends the opening sweep: the slider leads from then on.
-        if (key === 'pixelError') opening = false;
-        if (!opening) world.pixelError = values.pixelError;
+        if (key === 'pixelError') settling = false;
+        if (!settling) world.pixelError = values.pixelError;
         world.diagnostic.mode = values.view;
         world.invalidate();
       }, world);
@@ -85,29 +85,23 @@
       // The opening: the avenue appears at a coarse 24 pixels, every urn a few dozen facets;
       // the error then falls to the slider's value and the detail pours in, while the eye walks
       // down the avenue. A press or a wheel on the canvas hands the camera back at once.
-      let walking = true, time = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (walking = false), { passive: true });
-      const ease = (t) => t * t * (3 - 2 * t);
-      world.pixelError = OPENING;
-      world.onFrame(({ delta }) => {
-        time += Math.min(delta, 0.1);
-        if (opening) {
-          const fall = ease(math.clamp((time - 1.2) / 3.5, 0, 1));
-          world.pixelError = OPENING + (ui.pixelError - OPENING) * fall;
-          opening = fall < 1;
-        }
-        if (walking) {
-          const t = ease(math.clamp((time - 0.5) / 12, 0, 1));
-          const at = (from, to) => from.map((value, axis) => value + (to[axis] - value) * t);
-          world.camera.position.set(...at(START.eye, END.eye));
-          world.controls.target.set(...at(START.look, END.look));
-          world.controls.update();
-          walking = t < 1;
-        }
-        if (opening || walking) world.invalidate();
+      opening(world, (time) => {
+        const t = ease.smooth((time - 0.5) / 12);
+        const at = (from, to) => from.map((value, axis) => value + (to[axis] - value) * t);
+        world.camera.position.set(...at(START.eye, END.eye));
+        world.controls.target.set(...at(START.look, END.look));
+        return t < 1;
       });
-      world.invalidate();
+      world.pixelError = OPENING;
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        if (!settling) return;
+        time += Math.min(delta, 0.1);
+        const fall = ease.smooth((time - 1.2) / 3.5);
+        world.pixelError = OPENING + (ui.pixelError - OPENING) * fall;
+        settling = fall < 1;
+        world.invalidate();
+      });
     </script>
   </body>
 </html>
