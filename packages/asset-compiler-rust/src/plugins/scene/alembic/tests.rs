@@ -11,7 +11,7 @@ use std::fs;
 /// A throwaway file carrying these bytes, named by the case that uses it.
 fn written(tag: &str, bytes: &[u8]) -> std::path::PathBuf {
     let path = std::env::temp_dir().join(format!(
-        "wg-alembic-{tag}-{}-{}.abc",
+        "trillion3d-alembic-{tag}-{}-{}.abc",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

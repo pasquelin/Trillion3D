@@ -27,7 +27,7 @@ test('writePageRow writes the layer bias in positive units at the table row dept
     await backend.prepare();
     backend.render(view);
     await backend.flush?.();
-    const table = buffers.find((buffer) => buffer.label === 'WG page table');
+    const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table');
     assert.ok(table, 'the page table is allocated once');
     const words = PAGE_INFO_STRIDE / 4;
     const rows = new Uint32Array(

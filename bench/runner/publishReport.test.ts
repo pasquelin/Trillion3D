@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { publierRapport } from './publishReport.ts';
 
 test('publication keeps immutable campaigns and portal entry, and validates evidence before copying', () => {
-  const root = mkdtempSync(join(tmpdir(), 'wg-publish-'));
+  const root = mkdtempSync(join(tmpdir(), 'trillion3d-publish-'));
   try {
     const source = join(root, 'source'),
       dest = join(root, 'site');

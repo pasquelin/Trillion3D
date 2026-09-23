@@ -29,13 +29,13 @@ export function createBackdrop(
   const size = { width: active ? width : 1, height: active ? height : 1 };
   const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST;
   const color = device.createTexture({
-    label: 'WG backdrop color',
+    label: 'Trillion3D backdrop color',
     size,
     format: 'rgba16float',
     usage,
   });
   const waterDepth = device.createTexture({
-    label: 'WG water depth',
+    label: 'Trillion3D water depth',
     size,
     format: 'depth32float',
     usage: usage | GPUTextureUsage.RENDER_ATTACHMENT,
@@ -87,7 +87,7 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
 /** Volume buffer, sized to the scene's transmissive-item count. */
 export function createVolumeBuffer(device: GPUDevice, transmissive: number) {
   return device.createBuffer({
-    label: 'WG transmissive volumes',
+    label: 'Trillion3D transmissive volumes',
     size: Math.max(1, transmissive) * VOLUME_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

@@ -96,7 +96,7 @@ nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame
 
 `BROWSER_ECARTES` is empty: every render proof runs. The reference-scene proof
 (`scene-webgpu`) reads the compiled cache of `DEFAULT_SCENE` (`sponza-derived`) under
-`.mesure/assets/`, off git, and a sibling worktree has none of its own: point `WG_ASSETS` at the
+`.mesure/assets/`, off git, and a sibling worktree has none of its own: point `TRILLION3D_ASSETS` at the
 shared folder. Without it the proof stops by name on the cache it could not find, and
 `pnpm run test:gpu` fails with it — loudly, never in silence. `node bench/runner/assets.ts`
 fetches and compiles every scene the proofs read (`bench/runner/README.md` § Assets). The material proof (`witness-materials`) needs no asset:
@@ -125,7 +125,7 @@ node tests/browser/test-gpu.ts tests/browser/probes/reflection-cone.ts   # run s
 `test:gpu` drives a real GPU, so its result belongs to a machine: a batch declares the failures it
 inherited rather than the ones it caused, and the baseline lives here so the next batch compares
 against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
-`WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23, head of #281: **2 fail** of
+`TRILLION3D_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23, head of #281: **2 fail** of
 64, always these two —
 - `explorer-startup`: the portal checks pass, then the geometry-garden lesson opens its world
   (`scene.load` resolves, the controls enable, a manual `world.render()` returns metrics), yet

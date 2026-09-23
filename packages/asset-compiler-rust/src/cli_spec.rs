@@ -3,7 +3,7 @@
 use super::Cancellation;
 use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
-use web_geometry_compiler::{
+use trillion3d_compiler::{
     compiler_budget::{batch_share, fit_workers},
     texture_formats, Options, TEXTURE_FORMAT_DEFAULT,
 };

@@ -34,7 +34,7 @@ export const COMPARISON_LIBRARIES: readonly CompetitorRecord[] = [
   },
   {
     id: 'exact-cluster-pages',
-    name: 'WebGeometry clusters',
+    name: 'Trillion3D clusters',
     status: 'integrated',
     license: 'MIT',
     maintained: 'yes — this SDK',

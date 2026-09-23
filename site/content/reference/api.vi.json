@@ -848,7 +848,7 @@
     "summary": "Một hàm lắng nghe mỗi điều mà một kênh chẩn đoán báo cáo."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "Lược đồ JSON toàn diện ghi lại tài liệu mọi tùy chọn khởi tạo cho explorer của WebGeometry (MeasuredWorldOptions).",
+    "summary": "Lược đồ JSON toàn diện ghi lại tài liệu mọi tùy chọn khởi tạo cho explorer của Trillion3D (MeasuredWorldOptions).",
     "description": "Cho phép các LLM hiểu, xác thực và tinh chỉnh cấu hình của bộ máy 3D."
   },
   "EngineCamera": {
@@ -2923,7 +2923,7 @@
   "SavedScene": {
     "summary": "Một cảnh như `scene.toJSON` ghi ra và `scene.fromJSON` đọc vào: JSON đơn giản.",
     "members": {
-      "format": "Luôn là `'web-geometry-scene'`.",
+      "format": "Luôn là `'trillion3d-scene'`.",
       "formatVersion": "Phiên bản của cách bố trí này; phiên bản khác bị từ chối.",
       "background": "Màu nền, hoặc `null`.",
       "fog": "Sương mù, hoặc `null`.",
@@ -3962,14 +3962,14 @@
       "toArray": "Bốn con số đó dưới dạng một danh sách."
     }
   },
-  "WEB_GEOMETRY_RUNTIME_TOOLS": {
-    "summary": "Danh mục đầy đủ các công cụ và hàm thời gian chạy có sẵn để điều khiển WebGeometry từ một LLM."
+  "TRILLION3D_RUNTIME_TOOLS": {
+    "summary": "Danh mục đầy đủ các công cụ và hàm thời gian chạy có sẵn để điều khiển Trillion3D từ một LLM."
   },
-  "WEB_GEOMETRY_SYSTEM_PROMPT": {
-    "summary": "Lời nhắc hệ thống hướng dẫn một LLM về các nguyên tắc, ngân sách và tùy chọn kết xuất của WebGeometry."
+  "TRILLION3D_SYSTEM_PROMPT": {
+    "summary": "Lời nhắc hệ thống hướng dẫn một LLM về các nguyên tắc, ngân sách và tùy chọn kết xuất của Trillion3D."
   },
-  "WebGeometryTool": {
-    "summary": "Định nghĩa công cụ WebGeometry chung cho các LLM.",
+  "Trillion3dTool": {
+    "summary": "Định nghĩa công cụ Trillion3D chung cho các LLM.",
     "members": {
       "name": "Tên của công cụ.",
       "description": "Nó làm gì.",
@@ -5080,11 +5080,11 @@
     "summary": "Ranh giới nguồn gốc công khai: bên tiêu thụ không bao giờ tự đọc các đường dẫn triển khai của SDK.",
     "description": "Chỉ các mã băm — mã nguồn đầy đủ không được tải vào ảnh chụp nhanh (snapshot)."
   },
-  "getWebGeometryLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "Tạo ra prompt hệ thống chuyên gia sẵn sàng sử dụng để mồi cho một LLM."
   },
-  "getWebGeometryTools": {
-    "summary": "Trả về mảng đầy đủ các định nghĩa công cụ WebGeometry được định dạng cho nhà cung cấp LLM mục tiêu.",
+  "getTrillion3dTools": {
+    "summary": "Trả về mảng đầy đủ các định nghĩa công cụ Trillion3D được định dạng cho nhà cung cấp LLM mục tiêu.",
     "parameters": {
       "format": "Định dạng mục tiêu ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Mặc định: 'openai'."
     }
@@ -6551,16 +6551,16 @@
     "description": "Mẫu đến từ trình biên dịch và bộ máy không biết bố cục bộ nhớ đệm; một sự thật duy nhất, như đối với các trang. Một mẫu thiếu bốn trường của nó bị từ chối: một địa chỉ không thay đổi theo chúng sẽ phục vụ cùng một hình ảnh cho mọi kết cấu."
   },
   "toAnthropicTool": {
-    "summary": "Chuyển đổi một công cụ WebGeometry chung thành định dạng Anthropic Tool Use."
+    "summary": "Chuyển đổi một công cụ Trillion3D chung thành định dạng Anthropic Tool Use."
   },
   "toGeminiTool": {
-    "summary": "Chuyển đổi một công cụ WebGeometry chung thành định dạng Google Gemini Function Declaration."
+    "summary": "Chuyển đổi một công cụ Trillion3D chung thành định dạng Google Gemini Function Declaration."
   },
   "toMcpTool": {
-    "summary": "Chuyển đổi một công cụ WebGeometry chung thành định dạng Model Context Protocol (MCP)."
+    "summary": "Chuyển đổi một công cụ Trillion3D chung thành định dạng Model Context Protocol (MCP)."
   },
   "toOpenAiTool": {
-    "summary": "Chuyển đổi một công cụ WebGeometry chung thành định dạng OpenAI Function Calling."
+    "summary": "Chuyển đổi một công cụ Trillion3D chung thành định dạng OpenAI Function Calling."
   },
   "toneMapping": {
     "summary": "Đường cong đưa độ chói của cảnh vào phạm vi hiển thị: mọi đường cong mà bộ máy xếp hạng."

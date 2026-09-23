@@ -70,7 +70,7 @@ fn a18_killed_owner_lock_no_longer_blocks_cache() {
         "nothing was published before the forced stop"
     );
     let output = compiler(&source, &cache)
-        .env("WG_CACHE_LOCK_WAIT_MS", "0")
+        .env("TRILLION3D_CACHE_LOCK_WAIT_MS", "0")
         .stdin(Stdio::null())
         .output()
         .expect("relaunch");
@@ -88,7 +88,7 @@ fn a18_living_owner_makes_second_give_up_within_announced_timeout() {
     let held = hold(&cache);
     let started = Instant::now();
     let output = compiler(&source, &cache)
-        .env("WG_CACHE_LOCK_WAIT_MS", "300")
+        .env("TRILLION3D_CACHE_LOCK_WAIT_MS", "300")
         .stdin(Stdio::null())
         .output()
         .expect("second");

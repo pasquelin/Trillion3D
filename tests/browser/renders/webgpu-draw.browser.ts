@@ -54,7 +54,7 @@ const selectedItems = (sample: (typeof cases)[number]) =>
 const expected = cases.map((sample) =>
   evaluateDrawCompact(selectedItems(sample), maxVertexCount, cap),
 );
-const { server, port } = await blankPageServer('WebGeometry GPU scatter to visibility');
+const { server, port } = await blankPageServer('Trillion3D GPU scatter to visibility');
 const browser = await launchChrome({ headless: true });
 
 interface DrawCaseResult {

@@ -26,7 +26,7 @@ test('an admitted cluster puts its quantized page bytes at its own pool slot', a
     await backend.prepare();
     backend.render(frontCamera());
     await backend.flush?.();
-    const pool = gpu.buffers.find((buffer) => buffer.label === 'WG geometry page cache');
+    const pool = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D geometry page cache');
     assert.ok(pool, 'no geometry page pool');
     const declared = events.find((event) => event.phase === 'geometry-pages');
     const slotBytes = Number(declared?.context.slotBytes);

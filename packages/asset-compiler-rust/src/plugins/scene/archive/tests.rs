@@ -12,7 +12,7 @@ mod zip;
 /// A throwaway directory, named by the case that uses it.
 fn scratch(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "wg-conteneur-{tag}-{}-{}",
+        "trillion3d-conteneur-{tag}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

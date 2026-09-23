@@ -86,7 +86,7 @@ export function encodeWebgpuVisibilityPasses(
     ];
   };
   const visPass = encoder.beginRenderPass({
-    label: 'WG visibility primary',
+    label: 'Trillion3D visibility primary',
     colorAttachments: visColors('clear'),
     depthStencilAttachment: {
       view: depthTarget,
@@ -106,7 +106,7 @@ export function encodeWebgpuVisibilityPasses(
   // the image to weigh the occluders alone, and therefore yields an incomplete image.
   if (tested && !skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
     const restPass = encoder.beginRenderPass({
-      label: 'WG visibility secondary',
+      label: 'Trillion3D visibility secondary',
       colorAttachments: visColors('load'),
       depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
     });
