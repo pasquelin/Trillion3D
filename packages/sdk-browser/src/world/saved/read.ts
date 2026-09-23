@@ -23,6 +23,18 @@ type Target = Object3D & {
   load(url: string): Promise<Object3D>;
 };
 
+/** The typed arrays a saved attribute may name: its values come back in the type they had. */
+const TYPED: Record<string, new (values: number[]) => ArrayLike<number>> = {
+  Float32Array,
+  Float64Array,
+  Int8Array,
+  Uint8Array,
+  Int16Array,
+  Uint16Array,
+  Int32Array,
+  Uint32Array,
+};
+
 /** A shape again: its family call, or its vertices. */
 function readGeometry(saved: SavedGeometry): Geometry {
   if (saved.recipe) {
@@ -31,8 +43,12 @@ function readGeometry(saved: SavedGeometry): Geometry {
     return build(...saved.recipe.args);
   }
   const g = new Geometry();
-  for (const [name, a] of Object.entries(saved.attributes ?? {}))
-    g.setAttribute(name, new BufferAttribute(new Float32Array(a.array), a.itemSize));
+  for (const [name, a] of Object.entries(saved.attributes ?? {})) {
+    const Typed = TYPED[a.type] ?? Float32Array;
+    const attribute = new BufferAttribute(new Typed(a.array) as never, a.itemSize);
+    attribute.normalized = a.normalized;
+    g.setAttribute(name, attribute);
+  }
   if (saved.index) g.setIndex(saved.index);
   for (const group of saved.groups ?? []) g.addGroup(group.start, group.count, group.materialIndex);
   return g;
@@ -49,13 +65,15 @@ function readCamera(saved: SavedCamera, camera: Camera) {
  * Fills `scene` with a saved scene (`format.ts`) in place of what it held, its `helper` marks
  * excepted: every node, shape, material and light built again through the families, each loaded
  * model loaded again from its address, siblings in their order. `camera`, when given, is put where
- * the scene was saved from. Another format or version is refused by name before anything is
- * removed.
+ * the scene was saved from. Another format or version, or a model that cannot be loaded, is
+ * refused by name and the scene is left as it was.
  */
 export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   assertSavedScene(json);
   const geometries = json.geometries.map(readGeometry);
   const materials = json.materials.map((m) => new Material(m.kind, m.parameters));
+  /** The models loaded so far: `load` adds each to the scene at once. */
+  const loaded: Object3D[] = [];
   const node = async (saved: SavedNode): Promise<Object3D> => {
     let o: Object3D;
     if (saved.mesh) {
@@ -65,7 +83,7 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
     } else if (saved.light) {
       const { kind, color, groundColor, values, target, sh } = saved.light;
       o = new Light(kind, { ...values, color, groundColor, target, sh: sh ?? undefined });
-    } else if (saved.model) o = await scene.load(saved.model.url);
+    } else if (saved.model) loaded.push((o = await scene.load(saved.model.url)));
     else o = saved.kind === 'group' ? new Group() : new Object3D();
     o.name = saved.name;
     o.position.fromArray(saved.position);
@@ -81,8 +99,16 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
     return o;
   };
   // The `helper` marks are how the scene is worked on: they stay, as `toJSON` left them out.
-  scene.remove(...scene.children.filter((child) => !isHelper(child)));
-  const children = await Promise.all(json.children.map(node));
+  const before = scene.children.filter((child) => !isHelper(child));
+  let children: Object3D[];
+  try {
+    children = await Promise.all(json.children.map(node));
+  } catch (error) {
+    // A model that could not be read leaves the scene as it was: what was loaded goes again.
+    for (const model of loaded) model.removeFromParent();
+    throw error;
+  }
+  if (before.length) scene.remove(...before);
   if (children.length) scene.add(...children);
   scene.background = json.background && new Color().setRGB(...json.background);
   scene.fog = json.fog && {

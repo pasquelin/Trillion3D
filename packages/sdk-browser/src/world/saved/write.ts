@@ -36,7 +36,12 @@ function saveGeometry(g: Geometry): SavedGeometry {
   if (g.recipe) return { recipe: plain(g.recipe) };
   const attributes: SavedGeometry['attributes'] = {};
   for (const [name, a] of Object.entries(g.attributes))
-    attributes[name] = { itemSize: a.itemSize, array: Array.from(a.array) };
+    attributes[name] = {
+      itemSize: a.itemSize,
+      array: Array.from(a.array),
+      type: a.array.constructor.name,
+      normalized: a.normalized,
+    };
   const index = g.index ? Array.from(g.index.array) : undefined;
   return { attributes, index, groups: g.groups.map((group) => ({ ...group })) };
 }

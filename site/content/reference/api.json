@@ -11404,7 +11404,7 @@
       },
       {
         "name": "attributes?",
-        "type": "Record<string, { itemSize: number; array: number[]; }> | undefined",
+        "type": "Record<string, { itemSize: number; array: number[]; type: string; normalized: boolean; }> | undefined",
         "desc": "Each per-vertex list, when no call builds the shape again."
       },
       {
