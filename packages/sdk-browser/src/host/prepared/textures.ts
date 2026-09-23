@@ -6,8 +6,9 @@
  * - one host texture per image AND sampler rank: two table ranks naming both alike share it, and
  *   the rank it answers to is the first of them (the preview the sidecar bakes is found by it);
  * - one image decoded per image rank: a second texture of the same image is a copy sharing it;
- * - a slot reading another coordinate set, or declaring a transform, is a copy of its texture that
- *   keeps the texture's rank, the transform composed by the host from what the slot declares;
+ * - a slot reading another coordinate set, or declaring a transform, is a copy of its texture —
+ *   the transform composed by the host from what the slot declares — and only a copy on the
+ *   first coordinate set keeps the texture's rank;
  * - colour maps are sRGB, the rest linear; rows are not flipped.
  */
 import * as THREE from 'three';
@@ -101,7 +102,9 @@ export function preparedTextures(
       if (transform && transform.rotation !== null) texture.rotation = transform.rotation;
       if (transform?.scale) texture.repeat.fromArray(transform.scale);
       if (moved) texture.needsUpdate = true;
-      if (rank !== undefined) ranks.set(texture, rank);
+      // A copy that reads another coordinate set answers to no rank, as the loader published none
+      // for it; a copy that only moves the coordinates keeps its texture's.
+      if (rank !== undefined && texCoord === 0) ranks.set(texture, rank);
     }
     if (colorSpace) texture.colorSpace = colorSpace;
     return texture;

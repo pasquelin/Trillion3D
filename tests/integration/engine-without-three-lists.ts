@@ -63,8 +63,10 @@ export const AUTORISES: Record<string, string> = {
   'host/three/lod': 'witness: the host level-of-detail selection, `LOD.update` included',
 
   // 2. Host boundaries: scene, camera, renderer, lights, poses.
+  'host/prepared/accessors':
+    'boundary: the host attributes of the prepared scene, viewed on the binary the tables lay out',
   'host/prepared/geometry':
-    'boundary: the host geometries of the prepared scene, viewed on the binary the tables lay out',
+    'boundary: the host geometries of the prepared scene — attributes, morph targets, bounds',
   'host/prepared/textures':
     'boundary: the host textures of the prepared scene, from the texture table and its images',
   'host/prepared/materials':

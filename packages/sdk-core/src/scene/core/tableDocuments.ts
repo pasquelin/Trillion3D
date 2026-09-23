@@ -41,13 +41,21 @@ export interface TableAccessor {
   min: readonly number[] | null;
   /** The highest value of each component, when declared. */
   max: readonly number[] | null;
+  /** Elements substituted in the run: how many, where their ranks and their values are. */
+  sparse: {
+    count: number;
+    indices: { view: number; offset: number; componentType: 5121 | 5123 | 5125 };
+    values: { view: number; offset: number };
+  } | null;
 }
 
 /** One drawn primitive of a mesh: its attributes by glTF semantic, its index list and the rank of
  *  the surface it wears in the material table. */
-interface TablePrimitive {
+export interface TablePrimitive {
   /** Accessor rank of each attribute, by glTF semantic (`POSITION`, `TEXCOORD_0`, …). */
   attributes: Readonly<Record<string, number>>;
+  /** Its morph targets, each a set of accessor ranks by glTF semantic; `null` for none. */
+  targets: readonly Readonly<Record<string, number>>[] | null;
   /** Accessor rank of the index list, `null` for an unindexed list. */
   indices: number | null;
   /** The surface it wears. */
@@ -58,6 +66,8 @@ interface TablePrimitive {
 interface TableMesh {
   /** Its name. */
   name: string;
+  /** The default weight of each morph target; `null` when silent. */
+  weights: readonly number[] | null;
   /** What it draws. */
   primitives: readonly TablePrimitive[];
 }

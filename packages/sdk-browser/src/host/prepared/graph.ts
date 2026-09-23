@@ -14,7 +14,8 @@
  */
 import * as THREE from 'three';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
-import { camera, light, pose, uniqueNames } from './nodes.ts';
+import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
+import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
 import type { SurfaceVariant } from './materials.ts';
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks. */
@@ -22,7 +23,7 @@ export type MeshRanks = { meshes?: number; primitives?: number };
 
 type Inputs = {
   tables: PreparedSceneTables;
-  meshes: readonly { name: string; primitives: readonly { material: number }[] }[];
+  meshes: TableDocument['meshes'];
   geometryOf: (mesh: number, primitive: number) => THREE.BufferGeometry;
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<THREE.Material>;
 };
@@ -102,6 +103,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     const parts: THREE.Mesh[] = [];
     for (const [p, { geometry, material }] of drawn[at].entries()) {
       const mesh = new THREE.Mesh(geometry, await material);
+      if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights);
       mesh.name = unique(meshes[rank].name || `mesh_${rank}`);
       ranks.set(mesh, { meshes: rank, primitives: p });
       parts.push(mesh);
@@ -117,8 +119,12 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   const assemble = (id: number): THREE.Object3D => {
     const declared = tables.nodes[id];
     const carried: THREE.Object3D[] = [];
-    if (declared.mesh !== null)
-      carried.push(reference('mesh', declared.mesh, built.get(declared.mesh)!));
+    if (declared.mesh !== null) {
+      const mesh = reference('mesh', declared.mesh, built.get(declared.mesh)!);
+      // Weights a node declares override its mesh's, on every primitive it draws.
+      if (declared.weights) mesh.traverse((part) => weigh(part as THREE.Mesh, declared.weights));
+      carried.push(mesh);
+    }
     if (declared.camera !== null)
       carried.push(reference('camera', declared.camera, cameras.get(declared.camera)!));
     if (declared.light !== null)

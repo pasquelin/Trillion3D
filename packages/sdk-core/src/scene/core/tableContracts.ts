@@ -38,6 +38,8 @@ export interface TableNode {
   light: number | null;
   /** The camera it carries. */
   camera: number | null;
+  /** Morph weights that override its mesh's; `null` when silent. */
+  weights: readonly number[] | null;
   /** Its local matrix, column-major. */
   matrix: readonly number[] | null;
   /** Where it stands. */

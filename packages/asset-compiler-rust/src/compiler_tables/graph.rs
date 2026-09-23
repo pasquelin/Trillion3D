@@ -70,6 +70,7 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
             "mesh": mesh,
             "light": light,
             "camera": camera,
+            "weights": declared(node, "weights"),
             "matrix": declared(node, "matrix"),
             "translation": declared(node, "translation"),
             "rotation": declared(node, "rotation"),

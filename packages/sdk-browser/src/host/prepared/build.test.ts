@@ -5,9 +5,8 @@
  * graphs are walked side by side and must agree on every object, pose, name, geometry byte, bound,
  * surface field, sampler and light the engine or a host renderer reads.
  *
- * The loader is the witness here and only here: this test is the one place it still reads a
- * document, to prove it has nothing left to read. Images are decoded by a stand-in that answers
- * with the size of the bytes it was given, so both sides fetch the same files and compare them.
+ * The loader is the witness here and only here, to prove it has nothing left to read. Images are
+ * decoded by a stand-in answering the size of the bytes given, so both sides compare the same files.
  */
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
@@ -75,8 +74,14 @@ function geometry(g: THREE.BufferGeometry) {
   const attributes = Object.fromEntries(
     Object.entries(g.attributes).map(([name, a]) => [name, attribute(a)]),
   );
+  const morphs = Object.entries(g.morphAttributes).map(([name, list]) => [
+    name,
+    list.map(attribute),
+  ]);
   return {
     attributes,
+    morphs: Object.fromEntries(morphs),
+    relative: g.morphTargetsRelative,
     index: g.index && attribute(g.index),
     box: g.boundingBox && [...g.boundingBox.min.toArray(), ...g.boundingBox.max.toArray()],
     sphere: g.boundingSphere && [...g.boundingSphere.center.toArray(), g.boundingSphere.radius],
@@ -131,6 +136,7 @@ function describe(root: THREE.Object3D, ranks: Ranks) {
       pose: [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray()],
       ranks: mesh.isMesh ? { meshes, primitives } : undefined,
       geometry: mesh.isMesh ? geometry(mesh.geometry) : undefined,
+      morph: mesh.isMesh ? mesh.morphTargetInfluences : undefined,
       material: mesh.isMesh ? material(mesh.material as THREE.Material, ranks) : undefined,
       light: light.isLight
         ? [

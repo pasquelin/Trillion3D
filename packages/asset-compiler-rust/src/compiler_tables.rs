@@ -14,6 +14,7 @@ mod documents;
 mod graph;
 mod materials;
 mod physical;
+mod sparse;
 use documents::document_table;
 use graph::{camera_table, light_table, node_table, scene_roots};
 use materials::{material_entry, texture_table};

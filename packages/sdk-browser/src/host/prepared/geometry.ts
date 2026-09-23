@@ -10,23 +10,12 @@
  * and the local box is the one the positions declare, not one recomputed from them.
  */
 import * as THREE from 'three';
-import { EngineError } from '../../../../sdk-core/src/index.ts';
 import type {
-  TableAccessor,
   TableDocument,
+  TablePrimitive,
 } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
+import { NORMALISED, preparedAccessors } from './accessors.ts';
 
-/** Storage of each glTF component type. */
-const COMPONENTS = {
-  5120: Int8Array,
-  5121: Uint8Array,
-  5122: Int16Array,
-  5123: Uint16Array,
-  5125: Uint32Array,
-  5126: Float32Array,
-} as const;
-/** Components per element of each glTF element type. */
-const WIDTHS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 } as const;
 /** The host's attribute names for the glTF semantics it knows; any other is lower-cased. */
 const NAMES: Record<string, string> = {
   POSITION: 'position',
@@ -40,94 +29,74 @@ const NAMES: Record<string, string> = {
   WEIGHTS_0: 'skinWeight',
   JOINTS_0: 'skinIndex',
 };
-/** What one unit of a normalised integer is worth: the scale a declared box is read at. */
-const NORMALISED: Partial<Record<keyof typeof COMPONENTS, number>> = {
-  5120: 1 / 127,
-  5121: 1 / 255,
-  5122: 1 / 32767,
-  5123: 1 / 65535,
-};
+/** A set of runs as the loader keys it: semantics in order, each with its accessor rank. */
+const runs = (set: Readonly<Record<string, number>>) =>
+  Object.keys(set)
+    .sort()
+    .map((semantic) => `${semantic}:${set[semantic]};`)
+    .join('');
 
-type Attribute = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+/** The morph targets of a primitive, laid on its geometry as the loader lays them: one list per
+ *  morphed attribute, the base attribute standing in for a target that leaves it alone. */
+function morph(
+  geometry: THREE.BufferGeometry,
+  declared: TablePrimitive,
+  attributeOf: ReturnType<typeof preparedAccessors>,
+) {
+  const targets = declared.targets ?? [];
+  for (const [semantic, name] of MORPHED) {
+    if (!targets.some((target) => target[semantic] !== undefined)) continue;
+    geometry.morphAttributes[name] = targets.map((target) =>
+      target[semantic] !== undefined ? attributeOf(target[semantic]) : geometry.attributes[name],
+    ) as THREE.BufferAttribute[];
+  }
+  if (Object.keys(geometry.morphAttributes).length) geometry.morphTargetsRelative = true;
+}
+
+/** The attributes a morph target may move, by glTF semantic and host name. */
+const MORPHED = [
+  ['POSITION', 'position'],
+  ['NORMAL', 'normal'],
+  ['COLOR_0', 'color'],
+] as const;
 
 /**
  * The geometry of each primitive of `document`, built on first request and shared after it.
  * `binary` is the document's buffer; `null` only for a document that lays out no view.
  */
 export function preparedGeometries(document: TableDocument, binary: ArrayBuffer | null) {
-  const views = new Map<number, ArrayBuffer>();
-  const attributes = new Map<number, Attribute>();
-  const interleaved = new Map<string, THREE.InterleavedBuffer>();
+  const attributeOf = preparedAccessors(document, binary);
   const geometries = new Map<string, THREE.BufferGeometry>();
 
-  /** A copy of one view, as the host loader held it: attributes view into it, never beyond. */
-  const viewOf = (rank: number) => {
-    let held = views.get(rank);
-    if (!held) {
-      const view = document.views[rank];
-      if (!binary || view.offset + view.length > binary.byteLength)
-        throw new EngineError('PREPARED_SCENE_MISMATCH', `view ${rank} lies outside the binary`, {
-          view: rank,
-          bytes: binary?.byteLength ?? 0,
-        });
-      held = binary.slice(view.offset, view.offset + view.length);
-      views.set(rank, held);
-    }
-    return held;
-  };
-
-  const build = (accessor: TableAccessor): Attribute => {
-    const Storage = COMPONENTS[accessor.componentType];
-    const width = WIDTHS[accessor.type];
-    const stride = accessor.view === null ? null : document.views[accessor.view].stride;
-    const itemBytes = Storage.BYTES_PER_ELEMENT * width;
-    if (accessor.view === null)
-      return new THREE.BufferAttribute(
-        new Storage(accessor.count * width),
-        width,
-        accessor.normalized,
-      );
-    const view = viewOf(accessor.view);
-    if (!stride || stride === itemBytes)
-      return new THREE.BufferAttribute(
-        new Storage(view, accessor.offset, accessor.count * width),
-        width,
-        accessor.normalized,
-      );
-    // Interleaved: one host buffer per slice of `count` vertices, shared by the runs it holds.
-    const slice = Math.floor(accessor.offset / stride);
-    const key = `${accessor.view}:${accessor.componentType}:${slice}:${accessor.count}`;
-    let buffer = interleaved.get(key);
-    if (!buffer) {
-      const elements = (accessor.count * stride) / Storage.BYTES_PER_ELEMENT;
-      buffer = new THREE.InterleavedBuffer(
-        new Storage(view, slice * stride, elements),
-        stride / Storage.BYTES_PER_ELEMENT,
-      );
-      interleaved.set(key, buffer);
-    }
-    const offset = (accessor.offset % stride) / Storage.BYTES_PER_ELEMENT;
-    return new THREE.InterleavedBufferAttribute(buffer, width, offset, accessor.normalized);
-  };
-
-  const attributeOf = (rank: number) => {
-    let held = attributes.get(rank);
-    if (!held) {
-      held = build(document.accessors[rank]);
-      attributes.set(rank, held);
-    }
-    return held;
-  };
-
-  /** The box the positions declare, at the scale a normalised run is read at. */
-  const bound = (geometry: THREE.BufferGeometry, position: number | undefined) => {
-    const accessor = position === undefined ? undefined : document.accessors[position];
-    if (!accessor?.min || !accessor.max) return;
+  /** A run's declared corner, at the scale a normalised run is read at. */
+  const corner = (rank: number, which: 'min' | 'max') => {
+    const accessor = document.accessors[rank];
     const scale = accessor.normalized ? (NORMALISED[accessor.componentType] ?? 1) : 1;
-    const box = new THREE.Box3(
-      new THREE.Vector3().fromArray(accessor.min).multiplyScalar(scale),
-      new THREE.Vector3().fromArray(accessor.max).multiplyScalar(scale),
-    );
+    return accessor[which] && new THREE.Vector3().fromArray(accessor[which]).multiplyScalar(scale);
+  };
+
+  /** The box the positions declare, grown by the largest displacement a morph target declares
+   *  (the loader's rule: not conservative, but the size of the shapes it blends). */
+  const bound = (geometry: THREE.BufferGeometry, declared: TablePrimitive) => {
+    const position = declared.attributes.POSITION;
+    const low = position === undefined ? null : corner(position, 'min');
+    const high = position === undefined ? null : corner(position, 'max');
+    if (!low || !high) return;
+    const box = new THREE.Box3(low, high);
+    const displacement = new THREE.Vector3();
+    for (const target of declared.targets ?? []) {
+      if (target.POSITION === undefined) continue;
+      const [min, max] = [corner(target.POSITION, 'min'), corner(target.POSITION, 'max')];
+      if (!min || !max) continue;
+      displacement.max(
+        new THREE.Vector3(
+          Math.max(Math.abs(min.x), Math.abs(max.x)),
+          Math.max(Math.abs(min.y), Math.abs(max.y)),
+          Math.max(Math.abs(min.z), Math.abs(max.z)),
+        ),
+      );
+    }
+    if (declared.targets) box.expandByVector(displacement);
     geometry.boundingBox = box;
     const sphere = new THREE.Sphere();
     box.getCenter(sphere.center);
@@ -138,9 +107,8 @@ export function preparedGeometries(document: TableDocument, binary: ArrayBuffer 
   return (mesh: number, primitive: number): THREE.BufferGeometry => {
     const declared = document.meshes[mesh].primitives[primitive];
     const semantics = Object.keys(declared.attributes);
-    const key = `${declared.indices}:${[...semantics]
-      .sort()
-      .map((semantic) => `${semantic}:${declared.attributes[semantic]};`)
+    const key = `${declared.indices}:${runs(declared.attributes)}${(declared.targets ?? [])
+      .map((target) => `:${runs(target)}`)
       .join('')}`;
     let geometry = geometries.get(key);
     if (geometry) return geometry;
@@ -152,7 +120,8 @@ export function preparedGeometries(document: TableDocument, binary: ArrayBuffer 
     }
     if (declared.indices !== null)
       geometry.setIndex(attributeOf(declared.indices) as THREE.BufferAttribute);
-    bound(geometry, declared.attributes.POSITION);
+    bound(geometry, declared);
+    morph(geometry, declared, attributeOf);
     geometries.set(key, geometry);
     return geometry;
   };
