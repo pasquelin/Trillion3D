@@ -64,8 +64,9 @@ export class Scene extends Object3D {
   toJSON(camera?: Camera): SavedScene {
     return saveScene(this, camera);
   }
-  /** Replaces what the scene holds with a scene `toJSON` saved; resolves once its models are
-   *  loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`).
+  /** Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept;
+   *  resolves once its models are loaded. Another format or version is refused
+   *  (`UNSUPPORTED_SCENE_FORMAT`).
    *  @param json - The saved scene. @param camera - A camera to put where the scene was saved from. */
   fromJSON(json: unknown, camera?: Camera) {
     return readScene(this, json, camera);
