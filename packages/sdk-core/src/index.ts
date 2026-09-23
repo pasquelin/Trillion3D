@@ -98,15 +98,6 @@ export type { SceneState } from './scene/core/nodeContracts.ts';
 export { SceneRoot, createSceneRoot } from './scene/core/root.ts';
 export type { AlphaMode, LinearRgb, Material, Side } from './contracts/material.ts';
 export type { Texture, TextureColorSpace, TextureFilter, WrapMode } from './texture/contract.ts';
-export {
-  MATERIAL_TABLE_VERSION,
-  NODE_TABLE_VERSION,
-  SCENE_TABLES_FILE,
-  SCENE_TABLES_VERSION,
-  assertSceneTables,
-  type PreparedSceneTables,
-  type TableNode,
-} from './scene/core/tableContracts.ts';
 export * from './scene/core/tableSurfaces.ts';
 export { compareImages } from './runtime/compareImages.ts';
 

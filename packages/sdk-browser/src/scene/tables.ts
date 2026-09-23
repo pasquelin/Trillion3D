@@ -3,12 +3,12 @@
  * and the only thing the scene the engine draws is built from — no glTF is parsed at runtime
  * (`../world/scene/scene.ts`).
  */
+import { EngineError } from '../../../sdk-core/src/index.ts';
 import {
-  EngineError,
   SCENE_TABLES_FILE,
   assertSceneTables,
   type PreparedSceneTables,
-} from '../../../sdk-core/src/index.ts';
+} from '../../../sdk-core/src/scene/core/tableContracts.ts';
 import { checked } from '../cluster/pages.ts';
 
 /** The tables of a prepared cache, with the size of the product read: this read is on the load

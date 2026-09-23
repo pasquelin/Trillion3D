@@ -1774,9 +1774,6 @@
     "summary": "Sürüm 4, sabit 16×16 önizleme girdilerini değişken ilerlemeli seviyelere dönüştürür: piksel sütununun artık bir adımı yoktur, her girdi kendi bayt aralığını adlandırır.",
     "description": "Başka bir sürümdeki bir dosya tamamen reddedilir: yanlış aralığı dilimleyen bir okuyucu, bir dokunun seviyelerini başka birinde gösterirdi. Sürüm 5, bir önizleme girdisini ondan on iki kelimeye genişletir — hizmet ettiği atlas ve `textures/` altında kaç seviyenin dosya olarak pişirildiği — ve pikselleri grafik kartının mip kuralını takip eder; sürüm 4 bir okuyucu girdiler arasında yanlış adımlardı, bu yüzden bu dosyayı reddeder. Sürüm 6, her sütunu korur ve geometri tanımlayıcısında başka bir geometri sayfasını adlandırır: `WGP2` float sayfası yerine kuantalanmış `WGP3` sayfası (`geometryPage.ts`), sürüm 6 bir okuyucunun çözmede baytlarını teker teker reddedeceği; dosyayı reddetmek bunu bir kerede söyler. Sürüm 7, bir önizleme girdisini on dört kelimeye genişletir — her blok ailesinin zinciri tuttuğu düzen, ya da hiçbiri — ve iki sütun ekler: blok sıkıştırılmış kuyruklar, BC ailesi sonra ASTC, tutulan her girdinin aralığı boyutlarından çıkarılarak; sürüm 6 bir okuyucu bunları bilmezdi, bu yüzden reddeder."
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Bu çalışma zamanının okuduğu malzeme tablosunun sürümü."
-  },
   "MATH_PATH_CONTRACT": {
     "summary": "Bu raporun sözleşmesinin sürümü.",
     "description": "Onu bilmeyen bir host alanları okumaz."
@@ -2075,9 +2072,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: yerel matris position, rotation, scale'den yeniden oluşturulur."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Bu çalışma zamanının okuduğu düğüm tablosunun sürümü."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Bir 3×3 normal matris."
@@ -2586,22 +2580,6 @@
       "onProgress": "Her olayda çağrılır."
     }
   },
-  "PreparedSceneTables": {
-    "summary": "Derlenmiş bir modelin taşıdığı düğüm ve malzeme tabloları.",
-    "members": {
-      "version": "Ürün sürümü.",
-      "nodeTableVersion": "Düğüm tablosu sürümü.",
-      "materialTableVersion": "Malzeme tablosu sürümü.",
-      "geometryTableVersion": "Geometri düzeni sürümü.",
-      "scene": "Ana makinenin açtığı sahne ve tepesindeki düğümler.",
-      "nodes": "Her düğüm.",
-      "lights": "Düğümlerin taşıdığı ışıklar.",
-      "cameras": "Düğümlerin taşıdığı kameralar.",
-      "materials": "Malzemeler.",
-      "textures": "Dokular.",
-      "documents": "Yayımlanan her sahne dosyasının geometri düzeni, adına göre."
-    }
-  },
   "Primitive-common": {
     "summary": "Derlenmiş bir modelin, sayfaları ve hiyerarşisiyle birlikte bir mesh parçası.",
     "members": {
@@ -2774,12 +2752,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "\"Proxy\" önbellek ürününün sürümü.",
     "description": "Başka bir sürümün proxy'si reddedilir, asla tahmin edilmez."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "Düğüm ve malzeme tablolarını tutan dosyanın adı."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Bir bütün olarak ürünün sürümü; taşıdığı her tablo kendi sırasında sürümlenir."
   },
   "SDK_VERSION": {
     "summary": "Bu motorun paketinin sürümü."
@@ -3384,21 +3356,6 @@
       "alphaMode": "Alfanın nasıl okunduğu: yok sayılır, `alphaTest` değerinde kesilir ya da karıştırılır.",
       "opacity": "Temel renk çarpanının alfası.",
       "extensions": "Fiziksel uzantıların eklediği, ana makinenin parametre adlarıyla: bir çarpan, bir renk ya da bir aralık sayılar olarak, bir harita yuva olarak."
-    }
-  },
-  "TableNode": {
-    "summary": "Sahne grafiğinin bir düğümü, glTF sırasında: çocukları, taşıdığı ağ ve noktasal ışık, ve tam bildirildiği gibi YEREL pozu — bir matris ya da öteleme, dönme ve ölçekten herhangi biri, belirtilmediğinde her biri `null`.",
-    "description": "Aynı ağı adlandıran birden fazla düğüm: burada örnekleme budur.",
-    "members": {
-      "name": "Düğümün adı.",
-      "children": "Çocukları, sırasıyla.",
-      "mesh": "Çizdiği ağ.",
-      "light": "Taşıdığı ışık.",
-      "camera": "Taşıdığı kamera.",
-      "matrix": "Yerel matrisi, sütun sütun.",
-      "translation": "Nerede durduğu.",
-      "rotation": "Nasıl döndürüldüğü, bir kuaterniyon olarak.",
-      "scale": "Nasıl gerildiği."
     }
   },
   "TableTexture": {
@@ -4282,10 +4239,6 @@
   "assertSceneProxy": {
     "summary": "Tek bir bayt istenmeden önce, bu motorun okuyamadığı bir proxy açıklayıcısını reddeder.",
     "description": "Açıklayıcısı olmayan bir manifesto bir hata değildir: bu, yansımadan önceki bir önbellektir, ve motor, sahip olmadığı bir geometriyi tahmin etmek yerine bunu söyler."
-  },
-  "assertSceneTables": {
-    "summary": "Tablolar, ya da adlandırılmış bir ret.",
-    "description": "Bilinmeyen bir sürüm asla tahmin edilmez: başka bir derleyici tarafından yazılmış, ya da bir tablo şekil değiştirmeden önceki bir ürün, bu okuyucunun bir sahneyi karşı karşılaştırabileceği hiçbir şey söylemez, ve onu yarı yarıya okumak bir format değişikliğini yanlış bir karşılaştırmaya dönüştürürdü."
   },
   "axisAngleQuaternion": {
     "summary": "Birim bir eksen etrafında `angle` radyanlık bir dönüşün kuaterniyonu."

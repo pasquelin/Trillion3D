@@ -9,7 +9,7 @@
 
 /** A slice of the scene file's binary: where it starts, how long it is, and the step between two
  *  vertices when several attributes are interleaved in it. */
-export interface TableView {
+interface TableView {
   /** Offset of its first byte in the binary. */
   offset: number;
   /** Its length in bytes. */
@@ -19,9 +19,9 @@ export interface TableView {
 }
 
 /** The component types an attribute or an index list is stored in, by their glTF numbers. */
-export type TableComponentType = 5120 | 5121 | 5122 | 5123 | 5125 | 5126;
+type TableComponentType = 5120 | 5121 | 5122 | 5123 | 5125 | 5126;
 /** How many components an element carries, by its glTF name. */
-export type TableElementType = 'SCALAR' | 'VEC2' | 'VEC3' | 'VEC4' | 'MAT2' | 'MAT3' | 'MAT4';
+type TableElementType = 'SCALAR' | 'VEC2' | 'VEC3' | 'VEC4' | 'MAT2' | 'MAT3' | 'MAT4';
 
 /** One typed run of elements inside a view: a vertex attribute or an index list. */
 export interface TableAccessor {
@@ -45,7 +45,7 @@ export interface TableAccessor {
 
 /** One drawn primitive of a mesh: its attributes by glTF semantic, its index list and the rank of
  *  the surface it wears in the material table. */
-export interface TablePrimitive {
+interface TablePrimitive {
   /** Accessor rank of each attribute, by glTF semantic (`POSITION`, `TEXCOORD_0`, …). */
   attributes: Readonly<Record<string, number>>;
   /** Accessor rank of the index list, `null` for an unindexed list. */
@@ -55,7 +55,7 @@ export interface TablePrimitive {
 }
 
 /** A mesh: a name and the primitives it draws. */
-export interface TableMesh {
+interface TableMesh {
   /** Its name. */
   name: string;
   /** What it draws. */
@@ -63,7 +63,7 @@ export interface TableMesh {
 }
 
 /** An image a texture samples: an address beside the scene file, or a view of its binary. */
-export interface TableImage {
+interface TableImage {
   /** Its name. */
   name: string;
   /** Its address, relative to the scene file; `null` when it lives in the binary. */

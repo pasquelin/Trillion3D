@@ -147,10 +147,6 @@
     "summary": "Rechaza un descriptor de proxy que este motor no sabría leer, antes de pedir un solo byte.",
     "description": "Un manifiesto sin descriptor no es un error: es una caché de antes del rebote, y el motor lo dice en lugar de adivinar una geometría que no tiene."
   },
-  "assertSceneTables": {
-    "summary": "Las tablas, o un rechazo con nombre.",
-    "description": "Una versión desconocida nunca se adivina: un producto escrito por otro compilador, o uno de antes de que una tabla cambiara de forma, no da nada contra lo que este lector pueda comprobar una escena, y leerlo a medias convertiría un cambio de formato en una comparación falsa."
-  },
   "AssetScope": {
     "summary": "Cómo se compila un modelo: `'slice'` lo hace llegar por páginas, `'full'` lo conserva entero."
   },
@@ -3622,9 +3618,6 @@
       "dispose": "Olvida a quienes lo llevan: un material liberado ya no repinta a nadie."
     }
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "La versión de la tabla de materiales que lee este motor."
-  },
   "MaterialParameters": {
     "summary": "Lo que una página puede dar a un miembro de material; cada campo es opcional.",
     "members": {
@@ -4038,9 +4031,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: la matriz local se recompone a partir de la posición, la rotación y el tamaño."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "La versión de la tabla de nodos que lee este motor."
   },
   "nodeWorldDirection": {
     "summary": "Dirección en el mundo: la tercera columna normalizada (una columna nula permanece nula).",
@@ -4669,22 +4659,6 @@
     },
     "returns": "El manifiesto escrito por el compilador, con lo que la compilación midió."
   },
-  "PreparedSceneTables": {
-    "summary": "Las tablas de nodos y materiales que lleva un modelo compilado.",
-    "members": {
-      "version": "Versión del producto.",
-      "nodeTableVersion": "Versión de la tabla de nodos.",
-      "materialTableVersion": "Versión de la tabla de materiales.",
-      "geometryTableVersion": "Versión de la disposición de la geometría.",
-      "scene": "La escena que abre el anfitrión y los nodos en su cima.",
-      "nodes": "Todos los nodos.",
-      "lights": "Las luces que llevan los nodos.",
-      "cameras": "Las cámaras que llevan los nodos.",
-      "materials": "Los materiales.",
-      "textures": "Las texturas.",
-      "documents": "La disposición de la geometría de cada archivo de escena publicado, por su nombre."
-    }
-  },
   "prepareMany": {
     "summary": "Compila varios modelos en un único proceso del compilador.",
     "parameters": {
@@ -5047,12 +5021,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "Versión del producto de caché «proxy».",
     "description": "Un proxy de otra versión se rechaza, nunca se adivina."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "El nombre del archivo que contiene las tablas de nodos y materiales."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Versión del producto entero; cada tabla que lleva tiene su propia versión."
   },
   "SceneEnvironment": {
     "summary": "La luz alrededor de una escena: exposición, curva de visualización y luz desde todas las direcciones.",
@@ -5671,21 +5639,6 @@
       "alphaMode": "Cómo se lee el alfa: ignorado, recortado en `alphaTest` o mezclado.",
       "opacity": "El alfa del factor de color base.",
       "extensions": "Lo que añaden las extensiones físicas, con los nombres de parámetro del anfitrión: un factor, un color o un intervalo como números, un mapa como ranura."
-    }
-  },
-  "TableNode": {
-    "summary": "Un nodo del grafo de la escena, en su rango glTF: sus hijos, la malla y la luz puntual que lleva, y su pose LOCAL exactamente como se declara — una matriz, o cualquiera de traslación, rotación y escala, cada una `null` cuando se omite.",
-    "description": "Varios nodos que nombran una misma malla: eso es aquí la instanciación.",
-    "members": {
-      "name": "El nombre del nodo.",
-      "children": "Sus hijos, en orden.",
-      "mesh": "La malla que dibuja.",
-      "light": "La luz que lleva.",
-      "camera": "La cámara que lleva.",
-      "matrix": "Su matriz local, por columnas.",
-      "translation": "Dónde está.",
-      "rotation": "Cómo está girado, como cuaternión.",
-      "scale": "Cómo está estirado."
     }
   },
   "TableTexture": {

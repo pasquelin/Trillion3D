@@ -14,13 +14,13 @@ import type { TableMaterial, TableTexture } from './tableSurfaces.ts';
 /** The name of the file that holds the scene tables. */
 export const SCENE_TABLES_FILE = 'scene-tables.json';
 /** Version of the product as a whole; each table it carries is versioned in turn. */
-export const SCENE_TABLES_VERSION = 2;
+const SCENE_TABLES_VERSION = 2;
 /** The version of the node table this runtime reads: every node, with its local pose. */
-export const NODE_TABLE_VERSION = 2;
+const NODE_TABLE_VERSION = 2;
 /** The version of the material table this runtime reads. */
-export const MATERIAL_TABLE_VERSION = 2;
+const MATERIAL_TABLE_VERSION = 2;
 /** The version of the geometry layout this runtime reads. */
-export const GEOMETRY_TABLE_VERSION = 1;
+const GEOMETRY_TABLE_VERSION = 1;
 
 /**
  * One node of the scene graph, at its glTF rank: its children, the mesh, the punctual light and

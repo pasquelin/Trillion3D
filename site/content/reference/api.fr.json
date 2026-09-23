@@ -147,10 +147,6 @@
     "summary": "Refuse un descripteur de proxy que ce moteur ne saurait pas lire, avant de demander un seul octet.",
     "description": "Un manifeste sans descripteur n’est pas une erreur : c’est un cache d’avant le rebond, et le moteur le dit au lieu de deviner une géométrie qu’il n’a pas."
   },
-  "assertSceneTables": {
-    "summary": "Les tables, ou un refus nommé.",
-    "description": "Une version inconnue n’est jamais devinée : un produit écrit par un autre compilateur, ou avant qu’une table change de forme, ne dit rien contre quoi ce lecteur puisse vérifier une scène, et le lire à moitié changerait un changement de format en une fausse comparaison."
-  },
   "AssetScope": {
     "summary": "Comment un modèle est compilé : `'slice'` le fait arriver par pages, `'full'` le garde entier."
   },
@@ -3630,9 +3626,6 @@
       "dispose": "Oublie ceux qui le portent : un matériau libéré ne repeint plus personne."
     }
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "La version de la table des matériaux que lit ce moteur."
-  },
   "MaterialParameters": {
     "summary": "Ce qu’une page peut donner à un membre de matériau ; chaque champ est facultatif.",
     "members": {
@@ -4046,9 +4039,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate` : la matrice locale est recomposée à partir de la position, de la rotation et de la taille."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "La version de la table des nœuds que lit ce moteur."
   },
   "nodeWorldDirection": {
     "summary": "Direction dans le monde : la troisième colonne normalisée (une colonne nulle reste nulle).",
@@ -4677,22 +4667,6 @@
     },
     "returns": "Le manifeste écrit par le compilateur, avec ce que la compilation a mesuré."
   },
-  "PreparedSceneTables": {
-    "summary": "Les tables de nœuds et de matériaux que porte un modèle compilé.",
-    "members": {
-      "version": "Version du produit.",
-      "nodeTableVersion": "Version de la table des nœuds.",
-      "materialTableVersion": "Version de la table des matériaux.",
-      "geometryTableVersion": "Version de la disposition de la géométrie.",
-      "scene": "La scène que l’hôte ouvre, et les nœuds à son sommet.",
-      "nodes": "Tous les nœuds.",
-      "lights": "Les lumières que portent les nœuds.",
-      "cameras": "Les caméras que portent les nœuds.",
-      "materials": "Les matériaux.",
-      "textures": "Les textures.",
-      "documents": "La disposition de la géométrie de chaque fichier de scène publié, par son nom."
-    }
-  },
   "prepareMany": {
     "summary": "Compile plusieurs modèles dans un seul processus du compilateur.",
     "parameters": {
@@ -5055,12 +5029,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "Version du produit de cache « proxy ».",
     "description": "Un proxy d’une autre version est refusé, jamais deviné."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "Le nom du fichier qui contient les tables de nœuds et de matériaux."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Version du produit entier ; chaque table qu’il porte a sa propre version."
   },
   "SceneEnvironment": {
     "summary": "La lumière autour d’une scène : exposition, courbe d’affichage et lumière de toutes les directions.",
@@ -5679,21 +5647,6 @@
       "alphaMode": "Comment l’alpha est lu : ignoré, coupé à `alphaTest`, ou mélangé.",
       "opacity": "L’alpha du facteur de couleur de base.",
       "extensions": "Ce que les extensions physiques ajoutent, sous les noms de paramètres de l’hôte : un facteur, une couleur ou un intervalle en nombres, une image en emplacement."
-    }
-  },
-  "TableNode": {
-    "summary": "Un nœud du graphe de la scène, à son rang glTF : ses enfants, le maillage et la lumière ponctuelle qu’il porte, et sa pose LOCALE exactement telle que déclarée — une matrice, ou n’importe lesquelles de la translation, de la rotation et de l’échelle, chacune `null` quand elle est tue.",
-    "description": "Plusieurs nœuds qui nomment un même maillage, c’est ce qu’est l’instanciation ici.",
-    "members": {
-      "name": "Le nom du nœud.",
-      "children": "Ses enfants, dans l’ordre.",
-      "mesh": "Le maillage qu’il dessine.",
-      "light": "La lumière qu’il porte.",
-      "camera": "La caméra qu’il porte.",
-      "matrix": "Sa matrice locale, par colonnes.",
-      "translation": "Où il se tient.",
-      "rotation": "Comment il est tourné, en quaternion.",
-      "scale": "Comment il est étiré."
     }
   },
   "TableTexture": {

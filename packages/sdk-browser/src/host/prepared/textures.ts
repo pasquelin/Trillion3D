@@ -11,12 +11,8 @@
  * - colour maps are sRGB, the rest linear; rows are not flipped.
  */
 import * as THREE from 'three';
-import type {
-  PreparedSceneTables,
-  TableTextureSlot,
-  TextureFilter,
-  WrapMode,
-} from '../../../../sdk-core/src/index.ts';
+import type { TableTextureSlot, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
+import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 
 const FILTERS: Record<TextureFilter, THREE.TextureFilter> = {

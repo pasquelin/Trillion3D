@@ -266,20 +266,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/scene/core/proxy\".assertSceneProxy"
     },
     {
-      "name": "assertSceneTables",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/core/tableContracts.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/host/prepared/build.test.ts",
-        "packages/sdk-browser/src/scene/tables.ts"
-      ],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableContracts\".assertSceneTables"
-    },
-    {
       "name": "AssetScope",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/contracts/base.ts",
@@ -4383,17 +4369,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/world/material/material\".Material"
     },
     {
-      "name": "MATERIAL_TABLE_VERSION",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/core/tableContracts.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableContracts\".MATERIAL_TABLE_VERSION"
-    },
-    {
       "name": "MaterialParameters",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/world/material/material.ts",
@@ -4803,17 +4778,6 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/transform-tree/transformTree\".NODE_AUTO_UPDATE"
-    },
-    {
-      "name": "NODE_TABLE_VERSION",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/core/tableContracts.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableContracts\".NODE_TABLE_VERSION"
     },
     {
       "name": "nodeWorldDirection",
@@ -5745,22 +5709,6 @@
       "bindingIdentity": "\"packages/sdk-node/src/index\".prepare"
     },
     {
-      "name": "PreparedSceneTables",
-      "kind": "type",
-      "definingModule": "packages/sdk-core/src/scene/core/tableContracts.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/host/prepared/build.ts",
-        "packages/sdk-browser/src/host/prepared/graph.ts",
-        "packages/sdk-browser/src/host/prepared/textures.ts",
-        "packages/sdk-browser/src/scene/tables.ts"
-      ],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableContracts\".PreparedSceneTables"
-    },
-    {
       "name": "prepareMany",
       "kind": "value",
       "definingModule": "packages/sdk-node/src/index.mts",
@@ -6649,28 +6597,6 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/proxy\".SCENE_PROXY_VERSION"
-    },
-    {
-      "name": "SCENE_TABLES_FILE",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/core/tableContracts.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/scene/tables.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableContracts\".SCENE_TABLES_FILE"
-    },
-    {
-      "name": "SCENE_TABLES_VERSION",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/core/tableContracts.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableContracts\".SCENE_TABLES_VERSION"
     },
     {
       "name": "SceneEnvironment",
@@ -7691,17 +7617,6 @@
       "affectedConsumers": ["packages/sdk-browser/src/host/prepared/materials.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableSurfaces\".TableMaterial"
-    },
-    {
-      "name": "TableNode",
-      "kind": "type",
-      "definingModule": "packages/sdk-core/src/scene/core/tableContracts.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/host/prepared/nodes.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableContracts\".TableNode"
     },
     {
       "name": "TableTexture",

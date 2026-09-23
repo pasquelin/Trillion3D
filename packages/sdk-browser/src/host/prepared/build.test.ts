@@ -16,7 +16,8 @@ import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { assertSceneTables, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import { buildPreparedScene } from './build.ts';
 
 const site = new URL('../../../../../site/assets/', import.meta.url);
