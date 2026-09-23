@@ -5,7 +5,7 @@
 //!
 //! These containers carry neither a format descriptor, nor keys, nor global supercompression
 //! data: the driver does not read them when `vkFormat` names the codec, and the files of
-//! `fixtures/ktx2/` cover the case where it reads them.
+//! `tests/fixtures/formats/ktx2/` cover the case where it reads them.
 
 /// Absolute offsets of the fields the golden later modifies, identifier included.
 pub(super) const FORMAT: usize = 12;

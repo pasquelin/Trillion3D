@@ -73,8 +73,8 @@ fn profil(description: &str) -> Vec<u8> {
 
 /// JPEG of the preview golden, which carries no APP2 segment.
 fn jpeg_sans_profil() -> Vec<u8> {
-    let path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/apercus/atlas-couleur/lueur.jpg");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/formats/previews/atlas-couleur/lueur.jpg");
     std::fs::read(path).expect("lueur.jpg")
 }
 
