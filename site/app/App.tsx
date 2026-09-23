@@ -13,12 +13,13 @@ import { PortalContext } from './layout/PortalContext.ts';
 import { Shell } from './layout/Shell.tsx';
 import type { PortalRoute, ResolvedPage } from './portal/routes.ts';
 
-// The areas a route may never visit load on demand: the examples and their code editor, the
-// reports and their presentation — none of them on the home page.
+// The areas a route may never visit load on demand: the examples, the sandbox and its code
+// editor, the reports and their presentation — none of them on the home page.
 const Examples = lazy(() =>
   import('./examples/Examples.tsx').then((m) => ({ default: m.Examples })),
 );
 const Example = lazy(() => import('./examples/Example.tsx').then((m) => ({ default: m.Example })));
+const Sandbox = lazy(() => import('./sandbox/Sandbox.tsx').then((m) => ({ default: m.Sandbox })));
 const ThreeMigration = lazy(() =>
   import('./migration/ThreeMigration.tsx').then((m) => ({ default: m.ThreeMigration })),
 );
@@ -29,6 +30,7 @@ const preloadAreas = () =>
   Promise.all([
     import('./examples/Examples.tsx'),
     import('./examples/Example.tsx'),
+    import('./sandbox/Sandbox.tsx'),
     import('./reports/Report.tsx'),
   ]);
 
@@ -39,6 +41,7 @@ function Page({ page, route }: { page: ResolvedPage; route: PortalRoute }) {
   if (page.kind === 'api-index') return <ApiIndex />;
   if (page.kind === 'examples') return <Examples locale={locale} />;
   if (page.kind === 'example') return <Example id={page.id} locale={locale} />;
+  if (page.kind === 'sandbox') return <Sandbox id={page.id} locale={locale} />;
   if (page.kind === 'entry' && page.entry.id === 'three-migration')
     return <ThreeMigration entry={page.entry} locale={locale} />;
   if (page.kind === 'entry' && page.entry.chapter)

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 import { useWords } from '../i18n.ts';
+import { hasSidebar } from '../portal/routes.ts';
 import { SearchInput } from '../ui/Input.tsx';
 import { Note } from '../ui/Text.tsx';
 import { PrimaryNavigation } from './Header.tsx';
@@ -37,6 +38,7 @@ function ExamplesMenu() {
 /** The menu of the current area: each area has its own. */
 function AreaMenu() {
   const { route, entries } = usePortal();
+  if (!hasSidebar(route)) return null;
   if (route.area === 'examples') return <ExamplesMenu />;
   if (route.area === 'reports') return <SidebarMenu groups={reportMenu(route)} />;
   if (route.area === 'api') return <SidebarMenu groups={apiMenu(entries, route)} />;
@@ -50,7 +52,8 @@ interface SidebarProps {
 }
 
 /** The sidebar: a column the height of the page on wide screens, whose menu stays in view as the
- * page scrolls; a drawer over the page on narrow ones, with the areas at its top. */
+ * page scrolls; a drawer over the page on narrow ones, with the areas at its top. An area without
+ * a sidebar keeps the drawer, for the areas alone. */
 export function Sidebar({ open, panel, onClose }: SidebarProps) {
   const { route } = usePortal();
   const t = useWords(route.locale);
@@ -65,7 +68,9 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
       aside.scrollTop += item.top - box.top - box.height / 3;
   }, [panel, route]);
   return (
-    <div className="contents lg:block lg:min-h-0 lg:border-r lg:border-base-300 lg:bg-base-200">
+    <div
+      className={`contents ${hasSidebar(route) ? 'lg:block lg:min-h-0 lg:border-r lg:border-base-300 lg:bg-base-200' : 'lg:hidden'}`}
+    >
       <aside
         ref={panel}
         id="sidebar"

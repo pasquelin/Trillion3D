@@ -10,8 +10,8 @@ function decodeId(value: string) {
   }
 }
 
-/** The areas of the header, in navigation order; each has its own sidebar. */
-const AREAS = ['learn', 'examples', 'api', 'reports'] as const;
+/** The areas of the header, in navigation order; each but the sandbox has its own sidebar. */
+const AREAS = ['learn', 'sandbox', 'examples', 'api', 'reports'] as const;
 type NavArea = (typeof AREAS)[number];
 
 export interface PortalRoute {
@@ -27,6 +27,8 @@ export type ResolvedPage =
   | { kind: 'entry'; entry: PortalEntry }
   | { kind: 'examples' }
   | { kind: 'example'; id: string }
+  /** The sandbox, started from the example `id`, or from the default one when `id` is empty. */
+  | { kind: 'sandbox'; id: string }
   | { kind: 'api-index' }
   | { kind: 'not-found' };
 
@@ -43,6 +45,9 @@ export const navLinks = (route: PortalRoute) =>
     href: routeHref({ locale: route.locale, area, id: area === 'learn' ? 'home' : '' }),
     current: route.area === area,
   }));
+
+/** Whether the area has a sidebar on wide screens: the sandbox takes the whole width. */
+export const hasSidebar = (route: PortalRoute) => route.area !== 'sandbox';
 
 /**
  * Reads `#/<locale>/<area>/<id>`. A hash without a locale opens the home page in
@@ -81,6 +86,7 @@ export function resolvePage(
   if (area === 'learn' && entry && learnEntry) return { kind: 'entry', entry };
   if (area === 'examples' && !id) return { kind: 'examples' };
   if (area === 'examples' && exampleIds.includes(id)) return { kind: 'example', id };
+  if (area === 'sandbox' && (!id || exampleIds.includes(id))) return { kind: 'sandbox', id };
   if (area === 'api' && !id) return { kind: 'api-index' };
   if (area === 'api' && entry && !learnEntry) return { kind: 'entry', entry };
   return { kind: 'not-found' };

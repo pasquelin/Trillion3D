@@ -8,6 +8,7 @@
   "nav": {
     "primary": "Primary navigation",
     "learn": "Learn",
+    "sandbox": "Try it live",
     "examples": "Examples",
     "api": "API reference",
     "reports": "Measurements"
@@ -87,6 +88,11 @@
     "copyFailed": "The link could not be copied",
     "demoControls": "Demo controls"
   },
+  "sandbox": {
+    "title": "Try it live",
+    "start": "Start from an example",
+    "open": "Open in the sandbox"
+  },
   "section": {
     "course": "Course",
     "guides": "Guides",
@@ -101,15 +107,9 @@
     "copied": "Copied",
     "copyFailed": "Copy failed",
     "copy": "Copy code",
-    "timeout": "Execution stopped after 3 seconds.",
-    "cancelled": "Execution cancelled.",
-    "editable": "Editable code",
     "run": "Run",
-    "cancel": "Cancel",
-    "reset": "Reset from controls",
-    "editor": "JavaScript editor",
-    "result": "Code result",
-    "stopped": "Execution stopped",
+    "reset": "Reset",
+    "editor": "Code editor",
     "runnable": "Runnable code"
   },
   "learning": {
