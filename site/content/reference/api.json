@@ -12981,7 +12981,7 @@
     "kind": "Function",
     "title": "light.rectArea()",
     "signature": "light.rectArea(p?: LightParameters): Light",
-    "summary": "A glowing rectangle, like a window or a screen.",
+    "summary": "A glowing rectangle, like a lit panel or a screen.",
     "parameters": [
       {
         "name": "p?",
@@ -25568,7 +25568,7 @@
       {
         "name": "windowFrames",
         "type": "number",
-        "desc": "Frames in the window."
+        "desc": "Frames in the sliding span."
       },
       {
         "name": "gpuMethod",
