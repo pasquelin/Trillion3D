@@ -6,6 +6,8 @@ import { readDoc, type SymbolDoc } from './docs.ts';
 
 const FORMAT =
   ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseSingleQuotesForStringLiteralType;
+/** The length a shortened type is cut at, the one TypeScript's own truncation aims for. */
+const SHORT = 160;
 /** An options object a function takes is listed field by field: `options.renderer`, … */
 const OPTIONS_TYPE = /(?:Options|Parameters)$/;
 
@@ -53,10 +55,10 @@ export class Shapes {
   text(type: ts.Type, node?: ts.Node, full = true): string {
     const named = this.names.get(type);
     if (named) return named;
-    const flags = full ? FORMAT : ts.TypeFormatFlags.UseSingleQuotesForStringLiteralType;
-    return this.checker
-      .typeToString(type, node, flags)
-      .replace(/import\("[^"]*(?:"\)\.|\.\.\.$)/g, (path) => (path.endsWith('...') ? '...' : ''));
+    // Spelt in full, file paths removed, then shortened here: TypeScript's own truncation counts
+    // the absolute path of the machine it runs on, so its cut would differ from machine to machine.
+    const text = this.checker.typeToString(type, node, FORMAT).replace(/import\("[^"]*"\)\./g, '');
+    return full || text.length <= SHORT ? text : `${text.slice(0, SHORT - 3)}...`;
   }
 
   /** `name(a: A, b?: B): R`, spelt with the names `text` gives the types. */
