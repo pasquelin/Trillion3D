@@ -6,7 +6,7 @@
  */
 import type { Instance, LampLight, MeshPart, Mover, PropMesh, Vec3 } from '../../plan/contract.ts';
 import { placeLamps, prop, SURFACES, tube } from '../../props/index.ts';
-import { BASEMENT } from './chalet.ts';
+import { TERRACES } from './chalet.ts';
 import { CABLE_HEIGHT, GAUGE, PYLON_HEIGHTS, SHEAVE, STATION_LAMPS } from './cableway.ts';
 import { headingYaw } from './route.ts';
 import type { Placer } from './space.ts';
@@ -21,18 +21,19 @@ const SPEED = 6;
 
 /** Places a station near (x, z), its front turned toward (tx, tz); tries a spiral around it. */
 function station(placer: Placer, x: number, z: number, tx: number, tz: number, name: string) {
-  for (let k = 0; k < 120; k++) {
-    const r = k * 6,
-      [sx, sz] = [x + Math.cos(k * 2.4) * r, z + Math.sin(k * 2.4) * r],
-      yaw = headingYaw(tx - sx, tz - sz),
-      placed = placer.place('mountains/cable-station', sx, sz, {
-        seat: 'high',
-        basement: BASEMENT,
-        yaw,
-        name,
-      });
-    if (placed) return placed;
-  }
+  for (const basement of TERRACES)
+    for (let k = 0; k < 120; k++) {
+      const r = k * 6,
+        [sx, sz] = [x + Math.cos(k * 2.4) * r, z + Math.sin(k * 2.4) * r],
+        yaw = headingYaw(tx - sx, tz - sz),
+        placed = placer.place('mountains/cable-station', sx, sz, {
+          seat: 'high',
+          basement,
+          yaw,
+          name,
+        });
+      if (placed) return placed;
+    }
   return undefined;
 }
 
