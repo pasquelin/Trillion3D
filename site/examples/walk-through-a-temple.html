@@ -100,14 +100,14 @@
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
       import { controls, play } from '../runtime/kit.js';
 
-      // ── The course and the runner: data and one pure step, nothing of the engine inside.
-      // The temple is built at life size, in metres: the eyes stand 1.65 m above the feet.
+      // ── The course: data, nothing of the engine inside. The temple is built at life size, in
+      // metres, for the engine's character and its defaults: a 4.5 m/s run, a 7 m/s sprint, a
+      // jump to 1.1 m, a 0.5 m step walked up.
       const PIT = -4.5;
       // The pillars rising out of the lava, [x from, x to, z from, z to, top], in the order they
-      // are crossed. At full speed a walking jump carries about 2.3 m and a sprinting one 4 m; a
-      // rise of 0.35 m or less is walked up. Every move leaves a quarter of its reach spare: four
-      // easy ones first, steady walking jumps after, one sprint over the widest gap, and each
-      // next top in sight from the edge it is jumped from.
+      // are crossed. Four easy moves first, steady jumps after, the widest gap last but one, each
+      // next top in sight from the edge it is jumped from; every move leaves more than a quarter
+      // of the character's reach spare.
       const COURSE = [
         [-4.5, 4.5, 1.8, 9.6, 0], [-1.5, 1.5, -1.2, 1.8, 0.15], [-1.5, 1.5, -4.2, -2.2, 0.15], [-1.5, 1.5, -7.2, -5.2, 0.45],
         [-1.5, 1.5, -10.2, -8.2, 0.75], [-0.5, 3, -13.6, -11.6, 0.75], [0.5, 3.5, -17.2, -15.2, 1.05], [-3.5, -1.1, -17.2, -15.2, 1.05],
@@ -115,56 +115,10 @@
         [0.3, 2.9, -35.6, -33.4, 2.25], [-0.5, 2.5, -38, -36.6, 2.6], [-4.5, 4.5, -42.9, -38.7, 3],
       ].map(([x0, x1, z0, z1, top]) => ({ x0, x1, z0, z1, top, x: (x0 + x1) / 2, z: (z0 + z1) / 2 }));
       const FINISH = COURSE.at(-1);
-      const HALL = { x: 12.6, near: 13.5, far: -44 };
-      const TUNING = {
-        EYES: 1.65, RADIUS: 0.3, FOOT: 0.2, STEP: 0.35, GRAVITY: 22, FALL: 1.6, TERMINAL: 30, JUMP: 7.6, CUT: 0.45,
-        COYOTE: 0.1, BUFFER: 0.13, WALK: 4, SPRINT: 7, ACCEL: 16, AIR: 4, LAVA: PIT + 0.6,
-      };
+      // The lava is no floor: feet this low have fallen in.
+      const LAVA = PIT + 0.6;
       // Whether the point (x, z) is within r of a pillar's footprint.
       const touches = (p, x, z, r) => Math.hypot(Math.max(p.x0 - x, 0, x - p.x1), Math.max(p.z0 - z, 0, z - p.z1)) <= r;
-      // A pillar more than a step above the feet is a wall to the body.
-      const blocked = (x, z, feet) => COURSE.some((p) => p.top > feet + TUNING.STEP && touches(p, x, z, TUNING.RADIUS));
-      // The highest top under the sole, no higher than `below`: an edge holds while the sole is on it.
-      const floorUnder = (x, z, below) =>
-        COURSE.reduce((best, p) => (p.top <= below && p.top > best && touches(p, x, z, TUNING.FOOT) ? p.top : best), -Infinity);
-      const standsOn = (runner, p) => runner.grounded && runner.feet === p.top && touches(p, runner.x, runner.z, TUNING.FOOT);
-      function createRunner(x, z, feet) {
-        return { x, z, feet, vy: 0, speed: 0, grounded: true, coyote: 0, buffer: 0, rising: false };
-      }
-      // One frame. The controller proposed where the keys walk (`input.x`, `input.z`); the step
-      // slides that along the walls, then owns the vertical: the jump forgiven a little late
-      // (coyote time) or a little early (buffer), cut short when Space is let go, gravity
-      // heavier on the way down, landing on tops and walking up steps. The walking speed it
-      // keeps ramps up to a walk or a sprint on the ground, and changes slowly in the air.
-      function step(runner, input, dt) {
-        const T = TUNING, out = { jumped: false, landed: 0, lava: false };
-        const x = Math.max(-HALL.x, Math.min(HALL.x, input.x)), z = Math.max(HALL.far, Math.min(HALL.near, input.z));
-        if (!blocked(x, z, runner.feet)) [runner.x, runner.z] = [x, z];
-        else if (!blocked(x, runner.z, runner.feet)) runner.x = x;
-        else if (!blocked(runner.x, z, runner.feet)) runner.z = z;
-        const target = input.moving ? (input.sprint ? T.SPRINT : T.WALK) : 0;
-        const rate = (runner.grounded ? T.ACCEL : T.AIR) * dt;
-        if (!input.moving && runner.grounded) runner.speed = 0;
-        else runner.speed += Math.max(-rate, Math.min(rate, target - runner.speed));
-        runner.buffer = input.jumpPressed ? T.BUFFER : Math.max(0, runner.buffer - dt);
-        runner.coyote = runner.grounded ? T.COYOTE : Math.max(0, runner.coyote - dt);
-        if (runner.buffer > 0 && runner.coyote > 0) {
-          Object.assign(runner, { vy: T.JUMP, grounded: false, coyote: 0, buffer: 0, rising: true });
-          out.jumped = true;
-        }
-        if (runner.rising && !input.jumpHeld && runner.vy > 0) runner.vy *= T.CUT;
-        if (!input.jumpHeld || runner.vy <= 0) runner.rising = false;
-        const was = runner.grounded, before = runner.feet, falling = runner.vy;
-        runner.vy = Math.max(-T.TERMINAL, runner.vy - (runner.vy > 0 ? T.GRAVITY : T.GRAVITY * T.FALL) * dt);
-        runner.feet += runner.vy * dt;
-        const top = floorUnder(runner.x, runner.z, before + (runner.vy <= 0 ? T.STEP : 0));
-        if (runner.vy <= 0 && runner.feet <= top + (was ? T.STEP : 0)) {
-          if (!was) out.landed = Math.max(0.1, -falling);
-          Object.assign(runner, { feet: top, vy: 0, grounded: true });
-        } else runner.grounded = false;
-        out.lava = runner.feet < T.LAVA;
-        return out;
-      }
 
       // The hands, in the eye's frame (x right, y up, -z ahead, metres). A pose is read as where
       // the knuckles sit on the screen — [screen x, screen y] from -1 to 1 — with their depth,
@@ -200,7 +154,8 @@
       ];
       // On the ground the jump's pose waits at its landing, so the next take-off springs from there.
       function leapPose(vy) {
-        const t = vy > 0 ? 1 - Math.min(1, vy / TUNING.JUMP) : 1 + Math.min(1, -vy / TUNING.JUMP);
+        const launch = world.controls.jumpSpeed;
+        const t = vy > 0 ? 1 - Math.min(1, vy / launch) : 1 + Math.min(1, -vy / launch);
         const k = Math.max(1, LEAP.findIndex(([at]) => at >= t)), [a0, p0] = LEAP[k - 1], [a1, p1] = LEAP[k];
         return mix(p0, p1, (t - a0) / (a1 - a0));
       }
@@ -230,20 +185,21 @@
       }
       // ── The temple.
 
-      // `firstPerson` is the engine's walking head: a click locks the mouse to look around, the
-      // keys W A S D walk by their place on the keyboard (Z Q S D on AZERTY), Escape frees the
-      // mouse, `movementSpeed` and `lookSpeed` set its pace. The page adds what walking on a
-      // level cannot: the vertical axis (gravity, the jump), the sprint by ramping
-      // `movementSpeed`, a body, the sound and the game.
-      const world = createWorld('view', { controls: 'firstPerson' });
+      // `character` is the engine's runner: a click locks the mouse to look around, the keys
+      // W A S D walk by their place on the keyboard (Z Q S D on AZERTY), Shift sprints, Space
+      // jumps, Escape frees the mouse. The body gathers speed and brakes, falls, climbs steps,
+      // slides along walls and lands on whatever mesh is given as `colliders`. The page adds
+      // the arms and the legs, the sound and the game.
+      const world = createWorld('view', { controls: 'character' });
       const camera = world.camera;
       [camera.fov, camera.near, camera.far] = [75, 0.05, 300];
       // The camera joins the scene so the arms and the head ride on it, posed in the same frame.
       world.scene.add(camera);
       world.scene.background = math.color('#4b3558');
       // A head turns only so far: about 60° down, where the chest and the boots come into view,
-      // and 70° up. (`minPitch` and `maxPitch` are recent: an older engine simply lacks them.)
-      if ('minPitch' in world.controls) Object.assign(world.controls, { minPitch: -1.05, maxPitch: 1.2 });
+      // and 70° up.
+      Object.assign(world.controls, { minPitch: -1.05, maxPitch: 1.2 });
+      const PACE = { walkSpeed: world.controls.walkSpeed, sprintSpeed: world.controls.sprintSpeed };
       // The first pointer move after the lock is granted can carry the cursor's whole jump to
       // the middle of the screen: the page drops that one move before the controller sees it.
       let fresh = false;
@@ -271,6 +227,10 @@
       }
       const ball = geometry.sphere(0.5, 24, 16);
       const box = (size, at, matter, parent) => put(geometry.box(...size), matter, at, parent);
+      // What the body stands on and runs into: the walls, the columns and the pillars. The lava,
+      // the lamps and the ornaments are not in it.
+      const solid = object.group();
+      world.scene.add(solid);
       // A fixed scatter (a sine hash): the same temple on every visit.
       const hash = (index, k) => { const t = Math.sin(index * 12.9898 + k * 78.233) * 43758.5453; return t - Math.floor(t); };
 
@@ -302,15 +262,15 @@
       // plinths under capitals, an architrave, a pilaster behind each shaft and an arch of three
       // stones between each pair. The hall is open to the sky and to the setting sun behind.
       for (const side of [-1, 1]) {
-        box([1.2, 15, 60], [side * 14.1, PIT + 7.5, -15.6], stone);
-        box([0.42, 1.8, 60], [side * 13.29, PIT + 0.9, -15.6], darkStone);
-        box([1.5, 0.9, 58.8], [side * 12.3, PIT + 13.05, -15.6], marble);
+        box([1.2, 15, 60], [side * 14.1, PIT + 7.5, -15.6], stone, solid);
+        box([0.42, 1.8, 60], [side * 13.29, PIT + 0.9, -15.6], darkStone, solid);
+        box([1.5, 0.9, 58.8], [side * 12.3, PIT + 13.05, -15.6], marble, solid);
         for (let index = 0; index < 7; index++) {
           const z = 12 - index * 9.6;
-          put(geometry.cylinder(0.66, 0.78, 10.8, 32), marble, [side * 12.3, PIT + 6.3, z]);
-          box([1.98, 0.9, 1.98], [side * 12.3, PIT + 0.45, z], darkStone);
+          put(geometry.cylinder(0.66, 0.78, 10.8, 32), marble, [side * 12.3, PIT + 6.3, z], solid);
+          box([1.98, 0.9, 1.98], [side * 12.3, PIT + 0.45, z], darkStone, solid);
           box([1.8, 0.9, 1.8], [side * 12.3, PIT + 12.15, z], marble);
-          box([0.3, 15, 1.8], [side * 13.38, PIT + 7.5, z], darkStone);
+          box([0.3, 15, 1.8], [side * 13.38, PIT + 7.5, z], darkStone, solid);
           if (index === 6) continue;
           box([0.9, 3, 2.7], [side * 12.3, PIT + 11.1, z - 1.65], darkStone);
           box([0.9, 3, 2.7], [side * 12.3, PIT + 11.1, z - 7.95], darkStone);
@@ -318,14 +278,14 @@
         }
       }
       // The far wall, with two marble pilasters and a lintel framing the idol's niche.
-      box([29.4, 15, 1.2], [0, PIT + 7.5, -45.6], stone);
+      box([29.4, 15, 1.2], [0, PIT + 7.5, -45.6], stone, solid);
       box([29.4, 1.8, 0.3], [0, PIT + 0.9, -44.9], darkStone);
       box([8, 9, 0.3], [0, 5.5, -44.85], darkStone);
       for (const x of [-4.6, 4.6]) box([1, 14, 1], [x, PIT + 7, -44.6], marble);
       box([10.6, 1.2, 1.2], [0, 10.4, -44.6], marble);
       // Broken columns standing in the lava, and one fallen across it.
       for (const [x, z, height] of [[-7.5, 3, 7], [7, -4, 9.5], [-8, -15, 5.5], [8, -24, 8], [-7, -33, 10], [7.5, -38, 6]]) {
-        put(geometry.cylinder(0.6, 0.7, height, 28), marble, [x, PIT + height / 2, z]);
+        put(geometry.cylinder(0.6, 0.7, height, 28), marble, [x, PIT + height / 2, z], solid);
         box([1.6, 0.6, 1.6], [x, PIT + 0.3, z], darkStone);
       }
       put(geometry.cylinder(0.6, 0.6, 9, 28), marble, [6, PIT + 0.3, -12]).rotation.set(Math.PI / 2, 0.7, 0);
@@ -333,9 +293,9 @@
       // The pillars of the course: dark stone out of the lava, a bronze band, a marble top.
       for (const p of COURSE) {
         const [w, d] = [p.x1 - p.x0, p.z1 - p.z0];
-        box([w, p.top - 0.27 - PIT, d], [p.x, (p.top - 0.27 + PIT) / 2, p.z], darkStone);
-        box([w + 0.18, 0.12, d + 0.18], [p.x, p.top - 0.21, p.z], bronze);
-        box([w + 0.12, 0.15, d + 0.12], [p.x, p.top - 0.075, p.z], marble);
+        box([w, p.top - 0.27 - PIT, d], [p.x, (p.top - 0.27 + PIT) / 2, p.z], darkStone, solid);
+        box([w + 0.18, 0.12, d + 0.18], [p.x, p.top - 0.21, p.z], bronze, solid);
+        box([w + 0.12, 0.15, d + 0.12], [p.x, p.top - 0.075, p.z], marble, solid);
       }
       // Checkpoints: a bronze standard with a gem, dark until reached. Two gems, one shown:
       // lighting a checkpoint changes which mesh is visible, never a material; its lamp rises.
@@ -360,11 +320,13 @@
         return { orb, ring };
       });
       // The golden idol on its pedestal: gold that glows, and a lamp of its own that stays put.
-      box([1.4, 1.2, 1.4], [0, FINISH.top + 0.6, -41.4], marble);
+      box([1.4, 1.2, 1.4], [0, FINISH.top + 0.6, -41.4], marble, solid);
       const IDOL = math.vector3(0, FINISH.top + 2.05, -41.4);
       const gold = material.meshStandard({ color: '#d4a24c', metalness: 0.9, roughness: 0.25, emissive: '#ff9d2a', emissiveIntensity: 0.6 });
       const idol = put(geometry.torusKnot(0.5, 0.15, 220, 28), gold, [IDOL.x, IDOL.y, IDOL.z]);
       world.scene.add(light.point({ position: [0, IDOL.y, -40.2], color: '#ffc45a', intensity: 30, distance: 14 }));
+      // Everything solid now stands: the body's triangle tree is built from it, once.
+      world.controls.colliders = solid;
       // Braziers at the start and the finish: a bowl of coals on a stand, a flame over it, a lamp
       // without shadows that flickers — the lamp by its intensity, the flame by its size.
       const flame = glowing('#ff9a3c', 6), coals = glowing('#ff5a1f', 4);
@@ -526,16 +488,15 @@
         crackle: () => hiss(3500, 0.02 + Math.random() * 0.03, 0.03, { type: 'highpass' }),
       };
 
-      // ── The heads-up display and the keys. Walking stays the controller's: the page reads the
-      // walking keys by their code, and takes Space (the jump) and Shift (the sprint) on the
-      // window before the controller, which would rise and sink with them.
+      // ── The heads-up display and the keys. Walking, sprinting and jumping are the controller's;
+      // the page adds R and M.
       const $ = (id) => document.getElementById(id);
       const [hud, orbsShown, clockShown, soundShown, veil, banner] = ['hud', 'orbs', 'clock', 'sound', 'veil', 'banner'].map($);
       const KEYS = [
-        { action: 'Walk', keys: ['W', 'A', 'S', 'D'], azerty: ['Z', 'Q', 'S', 'D'] },
+        { action: 'Run', keys: ['W', 'A', 'S', 'D'], azerty: ['Z', 'Q', 'S', 'D'] },
         { action: 'Look', keys: ['Mouse'] },
         { action: 'Sprint', keys: ['Shift'] },
-        { action: 'Jump (hold to jump higher)', keys: ['Space'] },
+        { action: 'Jump', keys: ['Space'] },
         { action: 'Run again', keys: ['R'] },
         { action: 'Sound on or off', keys: ['M'] },
         { action: 'Pause', keys: ['Esc'] },
@@ -545,22 +506,12 @@
         banner.style.opacity = title ? 1 : 0;
         if (title) banner.innerHTML = `<b>${title}</b><span>${line}</span>`;
       }
-      const WALKING = ['KeyW', 'KeyA', 'KeyS', 'KeyD'], held = new Set();
-      let jumpPressed = false;
-      for (const type of ['keydown', 'keyup'])
-        addEventListener(type, (event) => {
-          const down = type === 'keydown';
-          down ? held.add(event.code) : held.delete(event.code);
-          if (event.code === 'Space' || event.code.startsWith('Shift')) {
-            event.stopPropagation();
-            event.preventDefault();
-            if (down && event.code === 'Space' && !event.repeat) jumpPressed = true;
-          }
-          // R and M are letters, not places: read by the character they type on any layout.
-          if (!down || event.repeat) return;
-          if (event.key.toLowerCase() === 'r') restart();
-          if (event.key.toLowerCase() === 'm') toggleSound();
-        }, { capture: true });
+      // R and M are letters, not places: read by the character they type on any layout.
+      addEventListener('keydown', (event) => {
+        if (event.repeat) return;
+        if (event.key.toLowerCase() === 'r') restart();
+        if (event.key.toLowerCase() === 'm') toggleSound();
+      });
       world.canvas.addEventListener('pointerdown', startAudio);
       // The sound's level: silent when muted or paused.
       const volume = () => master && master.gain.setTargetAtTime(muted || !game.running ? 0 : 0.8, audio.currentTime, 0.02);
@@ -570,19 +521,15 @@
         volume();
       }
       // The kit's menu and pause: the game runs only while the mouse is locked to the canvas.
-      // Paused, the frame below stops at its first line — no walking, no looking, no clock, the
-      // body still — the sound falls silent and held keys are dropped; the kit's menu hides the
-      // page's display (marked `data-hud`) until the run goes on.
+      // Paused, the kit turns the controller off and the frame below stops at its first line —
+      // no running, no looking, no clock, the body still — and the sound falls silent; the kit's
+      // menu hides the page's display (marked `data-hud`) until the run goes on.
       const game = play(world, {
         title: 'Temple parkour',
         goal: GOAL,
         keys: KEYS,
         onRestart: restart,
-        onPause() {
-          held.clear();
-          jumpPressed = false;
-          volume();
-        },
+        onPause: () => volume(),
         onResume: () => volume(),
       });
       function flash() {
@@ -591,17 +538,28 @@
       }
 
       // ── The game: orbs, a clock, checkpoints, the lava, the idol.
-      let runner, state, checkpoint, started, finished, taken, burnt;
+      // Where the runner stands, read from the camera the controller moved: the eye is
+      // `eyeHeight` above the feet.
+      const me = { x: 0, z: 0, feet: 0, grounded: true };
+      function locate() {
+        const { x, y, z } = camera.position;
+        [me.x, me.z, me.feet, me.grounded] = [x, z, y - world.controls.eyeHeight, world.controls.onGround];
+      }
+      // On a top, perched on its edge or standing on its band.
+      const standsOn = (p) => me.grounded && Math.abs(me.feet - p.top) < 0.2 && touches(p, me.x, me.z, world.controls.capsuleRadius);
+      let state, checkpoint, started, finished, taken, burnt;
+      // Moving the camera teleports the body there, at rest.
       function spawn(p) {
-        const z = p === COURSE[0] ? 6 : p.z;
-        camera.position.set(p.x, p.top + TUNING.EYES, z);
-        camera.lookAt(IDOL.x, p.top + TUNING.EYES - 0.35, IDOL.z);
-        runner = createRunner(p.x, z, p.top);
+        const z = p === COURSE[0] ? 6 : p.z, eye = p.top + world.controls.eyeHeight;
+        camera.position.set(p.x, eye, z);
+        camera.lookAt(IDOL.x, eye - 0.35, IDOL.z);
+        locate();
       }
       function restart() {
         [state, checkpoint, started, finished, taken] = ['run', checkpoints[0], null, null, 0];
         checkpoints.forEach((entry, index) => lit(entry, index === 0));
         for (const { orb } of orbs) orb.visible = true;
+        Object.assign(world.controls, PACE);
         spawn(checkpoint.platform);
         veil.classList.remove('on');
         say('');
@@ -609,7 +567,7 @@
       }
       restart();
       controls({
-        keys: 'The engine\'s firstPerson control: the menu\'s Play locks the mouse to look, W A S D to walk (Z Q S D on AZERTY), Escape frees the mouse. The page adds Shift to sprint, Space to jump (hold it to jump higher), R to run again, M to mute.',
+        keys: 'The engine\'s character control: the menu\'s Play locks the mouse to look, W A S D to run (Z Q S D on AZERTY), Shift to sprint, Space to jump, Escape frees the mouse. The page adds R to run again, M to mute.',
         look: [0.5, 3, 1],
         runAgain: restart,
       }, (values) => (world.controls.lookSpeed = 0.002 * values.look), world);
@@ -620,6 +578,13 @@
       // The jump's weight and pose ride on springs, so no state change pops the arms.
       const motion = { air: { x: 0, v: 0 }, leap: leapPose(-Infinity).map((x) => ({ x, v: 0 })) };
       let phase = 0, footfall = 0, time = 0;
+      // The controller tells the take-off and the landing: a sound, and a dip of the arms and
+      // the body as deep as the fall was fast.
+      world.controls.onJump = () => sound.jump();
+      world.controls.onLand = (impact) => {
+        eased.dipSpeed -= Math.min(1.8, impact * 0.18);
+        sound.land(impact);
+      };
       // Where the eye looks, and that direction on the level.
       function gaze() {
         const q = camera.quaternion;
@@ -646,7 +611,7 @@
         }
         rig.position.y = eased.dip * 0.6 + eased.bob * 0.5 + Math.sin(time * 1.7) * 0.006;
         rig.rotation.z = eased.tilt;
-        body.position.set(runner.x - fx * 0.1, runner.feet + eased.dip * 0.4, runner.z - fz * 0.1);
+        body.position.set(me.x - fx * 0.1, me.feet + eased.dip * 0.4, me.z - fz * 0.1);
         body.rotation.y = Math.atan2(-fx, -fz);
         for (const { side, hip, knee } of legs) {
           const turn = phase + (side > 0 ? 0 : Math.PI);
@@ -655,60 +620,53 @@
         }
       }
       dress();
+      // The page steps the controller itself, so a runner fallen in the lava stops: it sinks,
+      // and nothing the keys do moves it. Placed after the step, the body is drawn where the
+      // eye is in this frame.
+      world.controls.autoUpdate = false;
       world.beforeFrame(({ delta }) => {
         // Paused, nothing moves: the frame only fits the hands to a resized screen.
         if (!game.running) return dress();
         // The game's own clock, which stands still while it is paused.
-        const dt = Math.min(delta, 1 / 20), T = TUNING, { look, fx, fz } = gaze();
+        const dt = Math.min(delta, 1 / 20);
         time += dt;
-        const [x0, z0] = [runner.x, runner.z];
-        let out = { jumped: false, landed: 0, lava: false };
-        if (state === 'run') {
-          const sprint = held.has('ShiftLeft') || held.has('ShiftRight'), moving = WALKING.some((code) => held.has(code));
-          out = step(runner, { x: camera.position.x, z: camera.position.z, moving, sprint, jumpHeld: held.has('Space'), jumpPressed }, dt);
-        } else if (state === 'dead') runner.feet -= dt * 0.8;
-        jumpPressed = false;
-        const speed = state === 'run' ? runner.speed : 0;
-        if (world.controls.movementSpeed !== speed) world.controls.movementSpeed = speed;
+        if (state === 'dead') camera.position.y -= dt * 0.8;
+        else world.controls.update(dt);
+        locate();
+        const { look, fx, fz } = gaze(), v = world.controls.velocity;
 
-        // The walk: the stride's phase, a footstep at each half turn, the head's bob, the dip of
-        // a landing (a spring), the field of view widening at a sprint, a lean into a strafe.
-        const [vx, vz] = [(runner.x - x0) / dt, (runner.z - z0) / dt], going = Math.hypot(vx, vz);
-        ease('move', runner.grounded ? Math.min(going / T.WALK, 1.6) : eased.move, 10, dt);
-        spring(motion.air, runner.grounded ? 0 : 1, 14, dt);
-        leapPose(runner.grounded ? -Infinity : runner.vy).forEach((to, i) => spring(motion.leap[i], to, 25, dt));
-        if (runner.grounded && going > 0.3) phase += (going * dt * Math.PI) / (0.7 + 0.07 * going);
+        // The run: the stride's phase, a footstep at each half turn, the arms' bob, the dip of a
+        // landing (a spring), the field of view widening at a sprint, a lean into a strafe.
+        const [vx, vz] = state === 'dead' ? [0, 0] : [v.x, v.z], going = Math.hypot(vx, vz);
+        ease('move', me.grounded ? Math.min(going / PACE.walkSpeed, 1.6) : eased.move, 10, dt);
+        spring(motion.air, me.grounded ? 0 : 1, 14, dt);
+        leapPose(me.grounded ? -Infinity : v.y).forEach((to, i) => spring(motion.leap[i], to, 25, dt));
+        if (me.grounded && going > 0.3) phase += (going * dt * Math.PI) / (0.7 + 0.07 * going);
         if (Math.floor(phase / Math.PI) !== footfall) {
           footfall = Math.floor(phase / Math.PI);
           sound.step(going);
         }
-        if (out.jumped) sound.jump();
-        if (out.landed) {
-          eased.dipSpeed -= Math.min(1.8, out.landed * 0.18);
-          sound.land(out.landed);
-        }
         eased.dipSpeed += (-160 * eased.dip - 20 * eased.dipSpeed) * dt;
         eased.dip = Math.max(-0.35, eased.dip + eased.dipSpeed * dt);
         eased.bob = -0.035 * eased.move * (1 - Math.cos(2 * phase)) * 0.5;
-        camera.position.set(runner.x, runner.feet + T.EYES + eased.bob + eased.dip, runner.z);
-        eased.sprint = Math.max(0, Math.min(1, (going - T.WALK) / (T.SPRINT - T.WALK)));
+        eased.sprint = Math.max(0, Math.min(1, (going - PACE.walkSpeed) / (PACE.sprintSpeed - PACE.walkSpeed)));
         if (Math.abs(ease('fov', 75 + 10 * eased.sprint, 6, dt) - camera.fov) > 0.01) camera.fov = eased.fov;
         ease('tilt', Math.max(-0.1, Math.min(0.1, (vx * fz - vz * fx) * 0.015)), 8, dt);
         dress();
 
         // The game.
         if (state === 'run') {
-          if (started === null && (runner.z < COURSE[0].z0 || !runner.grounded)) started = time;
+          if (started === null && (me.z < COURSE[0].z0 || !me.grounded)) started = time;
           for (const { orb } of orbs) {
-            const near = Math.hypot(orb.position.x - runner.x, orb.position.z - runner.z) < 0.55;
-            if (!orb.visible || !near || orb.position.y < runner.feet - 0.2 || orb.position.y > runner.feet + 1.9) continue;
+            const near = Math.hypot(orb.position.x - me.x, orb.position.z - me.z) < 0.55;
+            if (!orb.visible || !near || orb.position.y < me.feet - 0.2 || orb.position.y > me.feet + 1.9) continue;
             orb.visible = false;
             taken += 1;
             sound.orb(taken);
             flash();
           }
           const rank = checkpoints.indexOf(checkpoint);
-          const reached = checkpoints.find((entry, index) => index > rank && standsOn(runner, entry.platform));
+          const reached = checkpoints.find((entry, index) => index > rank && standsOn(entry.platform));
           if (reached) {
             checkpoint = reached;
             lit(reached, true);
@@ -716,12 +674,14 @@
             say('Checkpoint');
             setTimeout(() => state === 'run' && say(''), 1200);
           }
-          if (out.lava) {
+          if (me.feet < LAVA) {
             [state, burnt] = ['dead', time];
             veil.classList.add('on');
             sound.burn();
-          } else if (standsOn(runner, FINISH)) {
+          } else if (standsOn(FINISH)) {
+            // At the idol the run is over: the runner looks, and walks no more.
             [state, finished] = ['done', time - (started ?? time)];
+            Object.assign(world.controls, { walkSpeed: 0, sprintSpeed: 0 });
             sound.win();
             say(`${finished.toFixed(1)} s`, `${taken} / ${orbs.length} orbs · R to run again`);
           }
@@ -755,7 +715,7 @@
           fire.scale.set(1, 0.9 + 0.35 * flicker, 1);
         });
         if (audio) {
-          rumble.gain.setTargetAtTime(0.25 + 0.6 * Math.max(0, 1 - (runner.feet - PIT) / 6), audio.currentTime, 0.2);
+          rumble.gain.setTargetAtTime(0.25 + 0.6 * Math.max(0, 1 - (me.feet - PIT) / 6), audio.currentTime, 0.2);
           if (Math.random() < dt * 4) sound.crackle();
         }
         world.invalidate();
