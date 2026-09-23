@@ -28,7 +28,7 @@
   "home": {
     "title": "브라우저에서 거대한 3D 세계를 스트리밍하기",
     "start": "코스 시작하기",
-    "editor": "Open the scene editor"
+    "editor": "장면 편집기 열기"
   },
   "examples": {
     "lead": "예제는 모두 짧은 파일 하나로 되어 있습니다: 실행해 보고, 코드를 열어 보고, 직접 바꿔 보세요.",
@@ -896,7 +896,7 @@
     "geometryPool": "기본 지오메트리 풀(2차 출처)",
     "triangleFormat": "삼각형당 메모리 형식",
     "gpuVisibility": "GPU 가시성, PS5 데모",
-    "gpuMaterials": "GPU 머티리얼, PS5 데모",
+    "gpuMaterials": "GPU 재질, PS5 데모",
     "cpu": "CPU, PS5 데모"
   },
   "conditions": {
@@ -971,7 +971,7 @@
       },
       "add-a-shape": {
         "title": "모양 추가하기",
-        "description": "여러분이 보는 모든 것은 메시입니다: 재질(머티리얼)이 입혀진 모양이죠. `geometry`로 모양을 만들고, `object.mesh`로 메시로 감싼 뒤, 씬에 추가하세요.",
+        "description": "여러분이 보는 모든 것은 메시입니다: 재질이 입혀진 모양이죠. `geometry`로 모양을 만들고, `object.mesh`로 메시로 감싼 뒤, 씬에 추가하세요.",
         "steps": [
           "모양, 즉 <em>지오메트리</em>는 형태만을 나타냅니다: 모서리와 면이죠. <code>geometry.box(1, 1, 1)</code>은 한 변이 1미터인 정육면체이고, <code>geometry.sphere(0.75)</code>는 공입니다. 원기둥, 원뿔, 고리, 토러스 등도 있습니다.",
           "<em>메시</em>는 모양에 재질을 더한 것입니다: <code>object.mesh(shape, material)</code>. 재질은 다음 챕터에서 다룹니다.",
@@ -1369,9 +1369,9 @@
       "description": "요소마다 채널 하나씩, `packages/sdk-core/src/math/primitives/color.ts`의 정확한 곡선을 사용합니다: 참조 구현은 반올림된 상수를 곱하며, 그 차이(8비트에서는 보이지 않음)는 그것과 겨루는 벤치에서 한 번에 경계가 정해져 있습니다."
     },
     "scene-editor": {
-      "title": "에디터로 장면 만들기",
+      "title": "편집기로 장면 만들기",
       "description": "도형과 조명을 추가하고, 마우스로 고르고, 핸들로 옮기고, 색을 바꾸고, 장면을 저장했다가 다시 여세요 — 포털 안에서, 공개 API만으로.",
-      "html": "<p><a href=\"#/ko/editor\">장면 에디터</a>는 엔진의 세 가지 문 위에만 지어진 이 포털의 페이지입니다. 빈 장면에서 시작하세요: <b>Add → Box</b>, 그다음 <b>Add → Directional light</b>. 박스를 클릭하면 <code>world.raycast</code>가 포인터 아래에서 그것을 찾고, <code>controls.transform</code>의 핸들이 나타납니다. 화살표를 끌어 옮기세요 — 핸들을 잡고 있는 동안 카메라는 멈춥니다 — <kbd>E</kbd>로 회전, <kbd>R</kbd>로 크기 조절. 인스펙터에서 색을 바꾸면 엔진이 머티리얼을 그 자리에서 다시 칠하고, 프레임 비용은 통계 구석에 표시됩니다. <b>Save</b>는 <code>scene.toJSON</code>을 내려받고, <b>New</b> 다음 <b>Open</b>은 <code>scene.fromJSON</code>으로 같은 장면을 다시 만듭니다.</p>\n<p>모든 단계는 <kbd>Ctrl</kbd>+<kbd>Z</kbd>로 되돌릴 수 있고, 장면은 다음 방문까지 브라우저에 보관됩니다. 페이지는 스스로 아무것도 그리거나 움직이지 않습니다: 보이는 것은 엔진입니다.</p>"
+      "html": "<p><a href=\"#/ko/editor\">장면 편집기</a>는 엔진의 세 가지 문 위에만 지어진 이 포털의 페이지입니다. 빈 장면에서 시작하세요: <b>Add → Box</b>, 그다음 <b>Add → Directional light</b>. 박스를 클릭하면 <code>world.raycast</code>가 포인터 아래에서 그것을 찾고, <code>controls.transform</code>의 핸들이 나타납니다. 화살표를 끌어 옮기세요 — 핸들을 잡고 있는 동안 카메라는 멈춥니다 — <kbd>E</kbd>로 회전, <kbd>R</kbd>로 크기 조절. 속성 패널에서 색을 바꾸면 엔진이 재질을 그 자리에서 다시 칠하고, 프레임 비용은 통계 구석에 표시됩니다. <b>Save</b>는 <code>scene.toJSON</code>을 내려받고, <b>New</b> 다음 <b>Open</b>은 <code>scene.fromJSON</code>으로 같은 장면을 다시 만듭니다.</p>\n<p>모든 단계는 <kbd>Ctrl</kbd>+<kbd>Z</kbd>로 되돌릴 수 있고, 장면은 다음 방문까지 브라우저에 보관됩니다. 페이지는 스스로 아무것도 그리거나 움직이지 않습니다: 보이는 것은 엔진입니다.</p>"
     },
     "pick-with-the-pointer": {
       "title": "포인터로 객체 고르기",
@@ -1386,7 +1386,7 @@
     "save-and-open-a-scene": {
       "title": "장면 저장하고 열기",
       "description": "`scene.toJSON(camera)`는 장면을 평범한 버전 있는 JSON으로 쓰고, `scene.fromJSON(json, camera)`가 그것을 다시 만듭니다.",
-      "html": "<p>도형은 그것을 만든 호출로, 머티리얼은 값으로, 불러온 모델은 주소로 저장되며 — 절대 포함되지 않습니다 — <code>helper</code> 표시는 전혀 저장되지 않습니다. 다른 형식 버전은 이름을 밝혀 거부됩니다. <a href=\"#/ko/examples/save-the-scene\">Save the scene</a>에서 확인하세요.</p>"
+      "html": "<p>도형은 그것을 만든 호출로, 재질은 값으로, 불러온 모델은 주소로 저장되며 — 절대 포함되지 않습니다 — <code>helper</code> 표시는 전혀 저장되지 않습니다. 다른 형식 버전은 이름을 밝혀 거부됩니다. <a href=\"#/ko/examples/save-the-scene\">Save the scene</a>에서 확인하세요.</p>"
     }
   },
   "canvas": {
