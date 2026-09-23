@@ -1,6 +1,6 @@
 import { engineTone } from '../../reports/assessment.ts';
 import { engineName } from '../../reports/names.ts';
-import { StatusBadge } from '../components/StatusBadge.tsx';
+import { Badge } from '../ui/Badge.tsx';
 import type { Locale } from '../../content/locale.ts';
 
 interface ReadingLegendProps {
@@ -12,12 +12,12 @@ export function ReadingLegend({ locale, engines = false }: ReadingLegendProps) {
   const fr = locale === 'fr';
   if (engines)
     return (
-      <div className="grid gap-2 text-sm">
+      <div className="grid grid-cols-1 gap-2 text-sm">
         <div className="flex flex-wrap gap-2">
           {['three-nu', 'three-lod', 'webgpu-page-raster'].map((engine) => (
-            <StatusBadge key={engine} tone={engineTone(engine)}>
+            <Badge size="sm" key={engine} tone={engineTone(engine)}>
               {engineName(engine)}
-            </StatusBadge>
+            </Badge>
           ))}
         </div>
         <p>
@@ -28,11 +28,17 @@ export function ReadingLegend({ locale, engines = false }: ReadingLegendProps) {
       </div>
     );
   return (
-    <div className="grid gap-2 text-sm">
+    <div className="grid grid-cols-1 gap-2 text-sm">
       <div className="flex flex-wrap gap-2">
-        <StatusBadge tone="success">{fr ? 'Vert : ≤ 13,33 ms' : 'Green: ≤ 13.33 ms'}</StatusBadge>
-        <StatusBadge tone="warning">{fr ? 'Jaune : ≤ 16,67 ms' : 'Yellow: ≤ 16.67 ms'}</StatusBadge>
-        <StatusBadge tone="error">{fr ? 'Rouge : > 16,67 ms' : 'Red: > 16.67 ms'}</StatusBadge>
+        <Badge size="sm" tone="success">
+          {fr ? 'Vert : ≤ 13,33 ms' : 'Green: ≤ 13.33 ms'}
+        </Badge>
+        <Badge size="sm" tone="warning">
+          {fr ? 'Jaune : ≤ 16,67 ms' : 'Yellow: ≤ 16.67 ms'}
+        </Badge>
+        <Badge size="sm" tone="error">
+          {fr ? 'Rouge : > 16,67 ms' : 'Red: > 16.67 ms'}
+        </Badge>
       </div>
       <p>
         {fr

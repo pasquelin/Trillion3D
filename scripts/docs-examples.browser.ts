@@ -7,23 +7,19 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 
 const ready = roadmap.entries.filter(({ file }) => file);
 
-test('every example file renders an image on its own, and the portal page frames it', async () => {
+test('every example file renders an image on its own, and the portal page fills with it', async () => {
   const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   try {
     const [entry] = ready;
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await page.goto(`http://127.0.0.1:${port}/#/en/examples/${entry.id}`);
-    const source = page.locator('[data-code-block]');
-    await source.getByText("import { openMeasuredWorld } from '../runtime/engine.js';").waitFor();
-    const frame = page.locator('.render-frame iframe');
+    const frame = page.locator('[data-demo] iframe');
     assert.equal(await frame.getAttribute('src'), entry.file);
-    const [code, view] = await Promise.all([source.boundingBox(), frame.boundingBox()]);
-    assert.ok(code);
-    assert.ok(view);
-    assert.ok(code.x + code.width <= view.x, 'source left, render right');
-    await page.getByRole('button', { name: 'Copy code' }).click();
-    await page.getByRole('status').getByText('Copied').waitFor();
+    // The live render is the page: the iframe takes most of the height under the header.
+    const view = await frame.boundingBox();
+    assert.ok(view && view.height > 900 * 0.7, `the demo fills the content area (${view?.height})`);
+    await page.close();
     // #276: with the machine's WebGPU device, then with none — a published example renders on
     // both, since it names no backend and the engine reads the machine it was opened on. Every
     // page is opened before the verdict, so the list names every example that stayed blank.

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Locale } from '../../content/locale.ts';
 import { routeHref } from '../portal/routes.ts';
-import { Card } from '../components/UI.tsx';
+import { Card } from '../ui/Card.tsx';
 import { local } from '../../content/locale.ts';
 import { showcaseScenes as scenes } from '../../content/showcase.ts';
 
@@ -11,9 +11,9 @@ export function GalleryShowcase({ locale }: { locale: Locale }) {
     selected = scenes.find(({ id }) => id === selectedId) ?? scenes[0];
   return (
     <Card className="mb-8 overflow-hidden shadow-lg" data-gallery-showcase>
-      <div className="grid gap-5">
+      <div className="grid grid-cols-1 gap-5">
         <div
-          className="grid gap-3 sm:grid-cols-2"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2"
           role="list"
           aria-label={french ? 'Scènes à la une' : 'Featured scenes'}
         >
@@ -36,10 +36,10 @@ export function GalleryShowcase({ locale }: { locale: Locale }) {
           ))}
         </div>
         <a
-          className="grid gap-4 rounded-box focus-visible:outline-2 focus-visible:outline-primary"
+          className="grid grid-cols-1 gap-4 rounded-box focus-visible:outline-2 focus-visible:outline-primary"
           href={routeHref({ locale, area: 'lessons', id: selected.id })}
         >
-          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-primary">
                 {french ? 'Scène à la une' : 'Featured scene'}
