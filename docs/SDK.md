@@ -24,7 +24,7 @@ and never names what draws.
 
 ## Principles
 
-Canonical source of architecture and product behavior requirements. These requirements serve as targets to validate: they do not claim all features are implemented today. See the [current limits](#current-limits).
+The rules the architecture and the product are held to. They are targets to validate, not a claim that every feature exists today: see the [current limits](#current-limits).
 
 1. **Portable Core.** Engine algorithms, formats, oracles, and contracts remain independent of React and Electron. The interface controls and observes campaigns; it contains no core engine logic.
 2. **Compiled and Versioned Preparation.** Expensive assets are built outside the interactive loop, versioned alongside their schemas, and loaded following manifest validation. No hidden preparation overhead is charged to current frame rendering.
