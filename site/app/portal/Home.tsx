@@ -2,7 +2,7 @@ import { t } from '../../content/i18n/index.ts';
 import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import { readyEntries, thumbnailOf } from '../examples/list.ts';
-import { DocPage } from '../layout/DocPage.tsx';
+import { DocPage, SITE_NAME } from '../layout/DocPage.tsx';
 import { LinkButton } from '../ui/Button.tsx';
 import { Mosaic } from '../ui/Mosaic.tsx';
 import { routeHref } from './routes.ts';
@@ -36,7 +36,7 @@ export function Home({ locale }: { locale: Locale }) {
   ];
   return (
     <DocPage
-      title="Web Geometry"
+      title={SITE_NAME}
       lead={t(locale, 'home.title')}
       actions={
         <>

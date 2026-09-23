@@ -5,6 +5,7 @@ import { Fab } from '../ui/Fab.tsx';
 import { Modal } from '../ui/Modal.tsx';
 import { RenderFrame } from '../ui/RenderFrame.tsx';
 import { Toast, useToast } from '../ui/Toast.tsx';
+import { SITE_NAME } from './DocPage.tsx';
 import { usePortal } from './PortalContext.ts';
 import { useDemo } from './useDemo.ts';
 
@@ -32,7 +33,7 @@ export function DemoPage({ file, title }: DemoPageProps) {
     );
   return (
     <section className="grid h-full min-h-80 grid-cols-1 grid-rows-1" data-demo={file}>
-      <title>{`${title} · Web Geometry`}</title>
+      <title>{`${title} · ${SITE_NAME}`}</title>
       <h1 className="sr-only">{title}</h1>
       <RenderFrame fill ref={view} pending={demo.pending} loadingLabel={t(locale, 'demo.loading')}>
         <iframe
