@@ -130,7 +130,7 @@
       "ambient": "Cahaya sekitar"
     },
     "model": {
-      "bust": "Patung dada marmer",
+      "marble-bust": "Patung dada marmer",
       "crates": "Peti kayu",
       "hall": "Aula",
       "street-corner": "Sudut jalan"
@@ -143,6 +143,8 @@
       "world": "Sumbu dunia",
       "local": "Sumbu objek"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Magnet",
     "outliner": "Scene",
     "empty": "Scene masih kosong: tambahkan objek dari menu Tambah.",
@@ -182,13 +184,6 @@
       "radialSegments": "Segmen melingkar",
       "tubularSegments": "Segmen tabung"
     },
-    "stats": "Statistik mesin",
-    "cpu": "Bingkai CPU (ms)",
-    "gpu": "Bingkai GPU (ms)",
-    "triangles": "Segitiga",
-    "pages": "Halaman dimuat",
-    "sessions": "Sesi dibuka",
-    "statsHint": "Dibaca dari bingkai terakhir yang digambar; scene yang diam tidak menggambar apa pun.",
     "error": {
       "format": "File ini berisi format scene yang tidak bisa dibaca editor ini.",
       "read": "Scene tidak bisa dibaca:"
