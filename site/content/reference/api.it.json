@@ -6344,7 +6344,12 @@
       "coyoteTime": "Solo personaggio: secondi dopo essere usciti da un bordo durante i quali un salto viene ancora concesso; 0,1 di default.",
       "jumpBuffer": "Solo personaggio: secondi durante i quali un salto premuto prima dell'atterraggio viene conservato per l'atterraggio; 0,1 di default.",
       "onLand": "Solo personaggio: chiamata all'atterraggio con la velocità di discesa in m/s; `null` di default.",
-      "onJump": "Solo personaggio: chiamata quando il corpo lascia il suolo con un salto; `null` di default."
+      "onJump": "Solo personaggio: chiamata quando il corpo lascia il suolo con un salto; `null` di default.",
+      "stride": "Solo personaggio: la fase del passo in radianti, un piede colpisce a 0 e a π; altrimenti 0.",
+      "fallGravity": "Solo personaggio: accelerazione verso il basso durante la caduta, in m/s²; 1,6 g di default, perché un salto non fluttui.",
+      "stopTime": "Solo personaggio: secondi per perdere il 95 % della velocità una volta rilasciato ogni tasto, al suolo; 0,08 di default.",
+      "headBob": "Solo personaggio: metri di cui l'occhio sale e scende a ogni passo al trotto; 0,035 di default, 0 lo mantiene livellato.",
+      "landingDip": "Solo personaggio: secondi dal contatto al suolo fino al punto più basso dell'abbassamento di atterraggio dell'occhio, tanto profondo quanto è veloce l'impatto; 0,06 di default, 0 lo disattiva."
     }
   },
   "world.renderer": {
@@ -6674,7 +6679,8 @@
       "onLand": "Chiamata all'atterraggio con la velocità di discesa, in metri al secondo: un suono, uno scossone.",
       "onJump": "Chiamata quando il corpo lascia il suolo con un salto.",
       "collision": "Con cosa collide il corpo — i collisori del mondo, o il mondo di un backend fisico tramite la stessa giuntura (`CharacterCollision`). `null` cammina in piano dove si trova il corpo, senza mai cadere.",
-      "update": "Vive `delta` secondi; restituisce se la telecamera si è mossa, ed emette `change` quando è successo."
+      "update": "Vive `delta` secondi; restituisce se la telecamera si è mossa, ed emette `change` quando è successo.",
+      "stride": "La fase del passo in radianti, in [0, 2π): un piede colpisce a 0, l'altro a π."
     }
   },
   "CharacterCollision": {
