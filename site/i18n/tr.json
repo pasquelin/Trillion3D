@@ -27,7 +27,8 @@
   },
   "home": {
     "title": "Tarayıcıda devasa 3D dünyaları akıtın",
-    "start": "Kursu başlat"
+    "start": "Kursu başlat",
+    "editor": "Open the scene editor"
   },
   "examples": {
     "lead": "Her örnek kısa bir dosyadır: çalışırken izleyin, kodunu açın, değiştirin.",

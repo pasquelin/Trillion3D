@@ -27,7 +27,8 @@
   },
   "home": {
     "title": "在浏览器里流式渲染巨大的 3D 世界",
-    "start": "开始课程"
+    "start": "开始课程",
+    "editor": "Open the scene editor"
   },
   "examples": {
     "lead": "每个示例都只是一个简短的文件:看它运行,打开它的代码,动手改一改。",

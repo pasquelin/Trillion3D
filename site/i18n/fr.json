@@ -27,7 +27,8 @@
   },
   "home": {
     "title": "Diffusez des mondes 3D immenses dans le navigateur",
-    "start": "Commencer le cours"
+    "start": "Commencer le cours",
+    "editor": "Ouvrir l’éditeur de scène"
   },
   "examples": {
     "lead": "Chaque exemple est un court fichier : regardez-le tourner, ouvrez son code, modifiez-le.",
