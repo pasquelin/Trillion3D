@@ -1825,5 +1825,26 @@
       "fieldOfView": "Campo de visión",
       "dollyZoom": "Zoom de travelling"
     }
+  },
+  "openworld": {
+    "controls": {
+      "keys": "WASD caminar · Mayús correr · Espacio saltar · C agacharse · E subir o bajar de un coche o un avión",
+      "teleport": "Teletransporte",
+      "timeOfDay": "Hora del día",
+      "daySpeed": "Velocidad del día",
+      "pause": "Pausa",
+      "rain": "Lluvia",
+      "geometryMB": "Geometría MB",
+      "textureMB": "Texturas MB",
+      "view": "Vista"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "Streaming"
+    }
   }
 }
