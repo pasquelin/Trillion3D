@@ -91,6 +91,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
         await prepareWebgpuPages(rt, gpuDevice);
         // The batch of root world boxes is reserved last: the module's linear memory will no
         // longer grow behind it, and a node move will allocate nothing more.
+        context.preparationStep?.('root boxes');
         rt.layout.rootBoxes = await reserveRootBoxes(rt.layout.selectionRoots);
       } catch (error) {
         diag.diagnosticFailure('webgpu-prepare-failed', error);
