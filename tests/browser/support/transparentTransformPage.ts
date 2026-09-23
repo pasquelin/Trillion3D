@@ -4,9 +4,9 @@
 import * as THREE from 'three';
 import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import { VIEWPORT, cameraFace, libere, engine, versApi } from './preuveSceneCommune.ts';
-import { estRouge, image } from './preuveSceneImage.ts';
-import { executerPasses } from './preuveAppareil.ts';
+import { VIEWPORT, cameraFace, libere, engine, versApi } from './sharedSceneProof.ts';
+import { estRouge, image } from './sceneImageProof.ts';
+import { executerPasses } from './deviceProof.ts';
 import { sceneTransparente } from './transparentTransformScene.ts';
 
 const point = new THREE.Vector3();

@@ -6,7 +6,7 @@ import { INVERSE_PI, INVERSE_TWO_PI, PI } from '../shaderConstants.ts';
 /**
  * A RECTANGULAR LIGHT, one-sided: a Lambertian rectangle of uniform radiance L, centred on
  * `positionRange.xyz`, emitting along `directionCone.xyz`, with `shape.xyz` its half-width axis
- * and `shape.w` its half height (`sceneLightFields.ts`). No cast shadow.
+ * and `shape.w` its half height (`packages/sdk-core/src/scene/light/fields.ts`). No cast shadow.
  *
  * Both lobes are integrated over the rectangle in closed form with linearly transformed cosines
  * (Heitz, Dupuy, Hill and Neubelt 2016, "Real-time polygonal-light shading with linearly

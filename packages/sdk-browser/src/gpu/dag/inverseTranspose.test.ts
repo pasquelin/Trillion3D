@@ -2,11 +2,11 @@
 // on its NORMALISED determinant, never on the raw determinant. An absolute threshold judges
 // scale: a uniform-scale rotation s has determinant ±s³, so s ≲ 2.15e-7 fell under 1e-20 and
 // the kernel returned the unrotated local axis — cone rejection then culled front faces.
-// Real GPU behaviour is proved by `tests/browser/renders/inverse-transposee-petite-echelle.browser.ts`;
+// Real GPU behaviour is proved by `tests/browser/renders/inverse-transpose-small-scale.browser.ts`;
 // this test replays the same f32 arithmetic so `pnpm test` catches the regression without GPU.
 // The f32 model lives in `tests/browser/probes/inverseTransposeF32.ts`, shared with the lighting
 // proof: one writing of the arithmetic, tied to the shader actually executed by
-// `tests/browser/renders/normal-transform-arithmetique.browser.ts`.
+// `tests/browser/renders/normal-transform-arithmetic.browser.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './shader/shader.ts';
@@ -46,7 +46,7 @@ test('the shipped kernel rotates the axis at every scale, from 1e6 to 1e-18', ()
 // Normalisation changes f32 rounding by a few ULPs: the direction returned outside the
 // threshold band is therefore not bitwise the previous one, it is collinear to within
 // 1e-6 radian. What matters is the reject decision, measured unchanged outside the band
-// on a real GPU — see `tests/browser/probes/inverse-transposee-petite-echelle.ts`.
+// on a real GPU — see `tests/browser/probes/inverse-transpose-small-scale.ts`.
 test('outside the threshold band, the returned direction matches the previous one to 1e-6 radian', () => {
   for (const s of [1e6, 1e3, 1, 1e-3, 1e-4, 1e-5, 1e-6])
     for (const axe of [
@@ -98,7 +98,7 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
   assert.match(corps, /let a=m\[0\]\/t;let b=m\[1\]\/t;let c=m\[2\]\/t;/, 'normalisation absente');
   assert.match(corps, /fini&&abs\(det\)>1e-20/, 'garde relative absente');
   // And this number is not written in the shader: it comes from the constant shared with
-  // the CPU (`mathSingular.ts`), rendered as text. A threshold changed on one side only is
+  // the CPU (`packages/sdk-core/src/math/matrix/singular.ts`), rendered as text. A threshold changed on one side only is
   // impossible.
   assert.equal(
     SINGULAR_DETERMINANT_WGSL,
@@ -133,8 +133,8 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
 // unseen. A reproduction that no longer reproduces reassures wrongly: this test holds
 // what makes its value, the absolute threshold on the raw 3×3, present on one side and
 // absent on the other. The substitution itself is established, not assumed, by
-// `tests/browser/probes/substitutionAvant.ts`. The real GPU is measured by
-// `tests/browser/probes/inverse-transposee-petite-echelle.ts`, which separates face culls the
+// `tests/browser/probes/substitutionBefore.ts`. The real GPU is measured by
+// `tests/browser/probes/inverse-transpose-small-scale.ts`, which separates face culls the
 // engine draws (656 before the lot, 0 after) from those it does not.
 test('the defect-6 reproduction form still carries the absolute threshold, and it alone', () => {
   const prep = (texte: string) => texte.split('fn invTranspose3Prep')[1].split('\n}')[0];

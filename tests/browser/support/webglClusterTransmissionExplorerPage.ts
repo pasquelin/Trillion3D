@@ -31,7 +31,7 @@ export async function execute() {
   backend.render(camera);
   draw(backend, null);
   const repeatPixel = pixel(gl, 32, 32);
-  // The composer binds the target before asking the engine to draw (`explorerCompose.ts`).
+  // The composer binds the target before asking the engine to draw (`packages/sdk-browser/src/world/render/compose.ts`).
   draw(backend, target);
   const targetPixel = mounted.targetPixel(32, 32);
   const targetMetrics = backend.metrics();

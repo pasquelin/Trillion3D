@@ -1,11 +1,11 @@
 // A2: visMaterial and the projected triangle are cached per frame (VisibilityFrame) instead
 // of being rebuilt at each pixel. Oracle: the pre-batch-A reference in
-// `../../../../../bench/oracles/browser/ombrage-image.ts`.
+// `../../../../../bench/oracles/browser/image-shading.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { rasterVisibilityIds, shadeVisibility } from '../buffer.ts';
-import { referenceShadeVisibility } from '../../../../../bench/oracles/browser/ombrage-image.ts';
+import { referenceShadeVisibility } from '../../../../../bench/oracles/browser/image-shading.ts';
 import { cameraAt, quad } from '../../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 

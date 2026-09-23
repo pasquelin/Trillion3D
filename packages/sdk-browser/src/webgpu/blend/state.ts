@@ -32,7 +32,7 @@ export type BlendGpuItem = {
   placement?: PlacementOf;
   sourceMesh?: HostMesh;
   sourceGeometry: HostGeometry;
-  /** World box of the item, six bounds flat (`mathBox.ts`); absent, the item is not rejected. */
+  /** World box of the item, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`); absent, the item is not rejected. */
   bounds?: Float64Array;
   /** Buffer this box occupies, allocated once for the item when the frustum can reject it.
    *  Absent, the item never has a box; present, `bounds` points at it or is `undefined` because

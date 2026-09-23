@@ -1,18 +1,18 @@
 // A local Chromium page where WebGPU is available, written once for every "GPU actually run"
-// reproduction: the DAG selection kernel (`noyauSelectionGpu.ts`), rasterisation
-// (`noyauRasterGpu.ts`), lighting normals (`normaleEclairageGpu.ts`), wrap batches
-// (`adressageGpuPage.ts`) and the parented camera (`camera-parentee-gpu.ts`) use it. Playwright
+// reproduction: the DAG selection kernel (`selectionKernelGpu.ts`), rasterisation
+// (`rasterKernelGpu.ts`), lighting normals (`lightingNormalGpu.ts`), wrap batches
+// (`addressingGpuPage.ts`) and the parented camera (`parented-camera-gpu.ts`) use it. Playwright
 // and esbuild are the repo's dev dependencies: the engine proves itself, with no other project
 // on the machine.
 import { createServer } from 'node:http';
 import * as esbuild from 'esbuild';
 import type { Format } from 'esbuild';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { serverPort } from '../../kit/server/serveur.ts';
-import { ouvrirAppareil } from './appareilWebgpu.ts';
+import { serverPort } from '../../kit/server/staticServer.ts';
+import { ouvrirAppareil } from './webgpuDevice.ts';
 
 declare global {
-  var ouvrirAppareil: typeof import('./appareilWebgpu.ts').ouvrirAppareil;
+  var ouvrirAppareil: typeof import('./webgpuDevice.ts').ouvrirAppareil;
 }
 
 /**
@@ -43,7 +43,7 @@ export async function empaquetePage(
 /**
  * Serves an empty page on a free port, opens it in Chromium and evaluates `fonction(argument)`
  * there. `fonction` runs in the page: it sees only its argument, serialised, and returns JSON.
- * `globalThis.ouvrirAppareil` is installed ahead of time (`appareilWebgpu.ts`), since a
+ * `globalThis.ouvrirAppareil` is installed ahead of time (`webgpuDevice.ts`), since a
  * serialised function does not see its module's scope.
  *
  * Options: `titre` (the page title), `script` (a bundle served on `/page.js` and loaded by the

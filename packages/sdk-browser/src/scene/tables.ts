@@ -11,7 +11,7 @@
  * each, their world poses, and every surface field the engine reads including sampler state.
  * What is not: node names, which the loader renames when a mesh has several primitives, and the
  * boxes, which the autonomous scene publishes degenerate — both are proven on the compiler side
- * by `packages/asset-compiler-rust/src/tests/tables_scene.rs`.
+ * by `packages/asset-compiler-rust/src/tests/scene/scene_tables.rs`.
  */
 import {
   EngineError,

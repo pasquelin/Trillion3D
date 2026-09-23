@@ -1,7 +1,7 @@
 // Comparison of the audit to the REFERENCE, cluster by cluster.
 //
 // The reference is not transcribed: it is the production code itself, `projectCornersInto`
-// (hizCorners.ts) followed by `hizNearestBound` (hizNearestBound.ts) — the double-precision
+// (packages/sdk-browser/src/hiz/corners.ts) followed by `hizNearestBound` (packages/sdk-browser/src/hiz/nearestBound.ts) — the double-precision
 // arithmetic the CPU did per row before the partition moved to the GPU, and that the CPU cut
 // and the oracles still do. The page module is bundled from the repository sources, so the
 // proof reads exactly what the engine reads.

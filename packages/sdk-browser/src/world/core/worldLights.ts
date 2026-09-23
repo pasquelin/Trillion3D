@@ -9,7 +9,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { emptyIrradiance, type SceneLight } from '../../../../sdk-core/src/index.ts';
 import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts';
 
-/** The light calls of a session (`explorerLightApi.ts`) the world writes its lights through. */
+/** The light calls of a session (`world/api/lightApi.ts`) the world writes its lights through. */
 type LightApi = {
   addLight(light: SceneLight): void;
   setLight(id: string, patch: Partial<Omit<SceneLight, 'id'>>): void;

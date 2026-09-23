@@ -20,7 +20,7 @@ const load = (into: Float64Array, q: Q) => {
   return into;
 };
 
-/** A rotation as a unit quaternion over `mathQuaternion.ts`. Written components notify the owner. */
+/** A rotation as a unit quaternion over `math/matrix/quaternion.ts`. Written components notify the owner. */
 export class Quaternion extends ObservedComponents {
   readonly isQuaternion = true as const;
 

@@ -55,7 +55,7 @@ export const VECTORS: PortalEntry[] = [
     description:
       '`v / ‖v‖` in place — each component multiplied by `1 / (length || 1)`, so a zero vector is left unchanged.',
     replaces: 'Vector3.normalize',
-    proof: 'mathVector.test.ts',
+    proof: 'packages/sdk-core/src/math/primitives/vector.test.ts',
   },
   {
     ...V,

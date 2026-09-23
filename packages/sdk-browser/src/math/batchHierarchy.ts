@@ -9,7 +9,7 @@ import { f64, joue, taille, tampon, u32, vuesF64, type MathLot } from './batchLo
 /**
  * HIERARCHY batch: `n` nodes ordered parent before children, whose world matrices are
  * recomputed in a single pass — local matrix composed from pose, then multiplied by parent's
- * world matrix. This is the work of `mathTransformTreeUpdate.ts` across an entire hierarchy,
+ * world matrix. This is the work of `packages/sdk-core/src/math/transform-tree/update.ts` across an entire hierarchy,
  * during loading and for scene moving as a block, where cost is proportional to node count.
  *
  * The five buffers live in the arena: WebAssembly kernel reads and writes them in place, without

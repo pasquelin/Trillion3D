@@ -7,7 +7,7 @@
  *  the tail of a source's mip chain in the sidecar, RGBA8 in the atlas's own encoding, from the
  *  finest level no side of which exceeds `PREVIEW_BASE` down to 1×1 — and, above it, one lossless
  *  PNG per level in the cache, `bakedLevels` of them from level 0 up. Every level follows the mip
- *  rule the card applied when it regenerated the chain itself (`textureMips.ts`): linear mean of
+ *  rule the card applied when it regenerated the chain itself (`packages/sdk-browser/src/texture/mips.ts`): linear mean of
  *  the colours, median alpha, level `k` from the quantized level `k - 1`. Their sizes are not
  *  written down: they follow from the source dimensions, which `previewLevels.ts` recomputes.
  *  Version 4 bakes every level above the tail, and the tail itself, in the block families the cook

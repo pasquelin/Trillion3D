@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { startServer, serverPort } from '../../kit/server/serveur.ts';
+import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 

@@ -1,8 +1,8 @@
 import { coneRejects } from '../projectionOracles.ts';
 
 /**
- * Cone rejection tolerances, shared by the processor mirror (`pageCone.ts`) and the shader
- * (`gpuDagShader.ts`): a transformation is conformal when its columns have the same length within
+ * Cone rejection tolerances, shared by the processor mirror (`packages/sdk-browser/src/page/cone/cone.ts`) and the shader
+ * (`packages/sdk-browser/src/gpu/dag/shader/shader.ts`): a transformation is conformal when its columns have the same length within
  * `CONE_LENGTH_RATIO` and are orthogonal within `CONE_ORTHO_EPS`, relatively; a cone with angle
  * ≥ `HALF_PI` never rejects. The `_WGSL` variants are the text inserted into the shader, like
  * `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`).

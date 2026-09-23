@@ -15,7 +15,7 @@ import {
   BARY_WEIGHTS_WGSL,
 } from './pageWgsl.ts';
 import { WRAP_COORD_WGSL, wrapLinear } from '../wrapModes.ts';
-import { lineaireThree } from '../../../../../tests/browser/probes/adressageCas.ts';
+import { lineaireThree } from '../../../../../tests/browser/probes/addressingCases.ts';
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL, maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts';
 import { rasterSource } from '../../gpu/raster/shader.ts';
 import { SHADE_SHADER } from './shaderShade.ts';
@@ -76,9 +76,9 @@ test('BARY_WEIGHTS_WGSL declares fn baryWeights only once in shading, never in t
 });
 
 // Defect 7: under linear filtering with `Repeat`, a period's seam must mix the last texel and
-// the first. The reference rule is `lineaireThree` (tests/browser/probes/adressageCas.ts), written
+// the first. The reference rule is `lineaireThree` (tests/browser/probes/addressingCases.ts), written
 // independently of `wrapLinear` and already checked against the real WebGL2 and WebGPU samplers
-// by `tests/browser/probes/adressage-gpu.ts`: the low rank comes from the coordinate shifted by a
+// by `tests/browser/probes/addressing-gpu.ts`: the low rank comes from the coordinate shifted by a
 // half-texel, and each of the two ranks undergoes the mode for itself (OpenGL ES 3.0 § 3.8.10,
 // the same rule as WebGPU). Copying it here used to make a third write of the same rule.
 const regle = lineaireThree as (

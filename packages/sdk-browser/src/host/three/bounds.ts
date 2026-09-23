@@ -1,6 +1,6 @@
 /**
  * Bounds written back INTO a Three.js geometry, for the witnesses whose pages are host
- * geometries. No computation here: the sphere comes from `mathSphere.ts`, and reading a host
+ * geometries. No computation here: the sphere comes from `packages/sdk-core/src/math/primitives/sphere.ts`, and reading a host
  * box needs no library at all (`../boxBounds.ts`).
  */
 import { sphereFromBounds } from '../../../../sdk-core/src/index.ts';

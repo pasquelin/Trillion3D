@@ -33,7 +33,7 @@ const nextFrame = () =>
  * `world.awaitPages`: resolves once the pages the CURRENT view reads are resident. The view may
  * move while it waits — an orbit, a resize, the world's own loop —: the wait then follows it to
  * the next frame's view instead of failing. The strict page-and-capture flush, which refuses a
- * view that changed, stays the measurement entry's (`explorerLifecycle.ts`).
+ * view that changed, stays the measurement entry's (`world/session/lifecycle.ts`).
  */
 export async function awaitViewPages(
   runtime: { settled(): Promise<void> },

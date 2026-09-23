@@ -16,7 +16,7 @@ import {
   preuveDansLaPage,
   preuveSaine,
   type ResultatPagePreuve,
-} from '../support/preuvePageMoteur.ts';
+} from '../support/enginePageProof.ts';
 
 interface EtapeRig {
   x: number;

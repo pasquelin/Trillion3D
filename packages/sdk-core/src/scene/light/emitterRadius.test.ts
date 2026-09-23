@@ -110,7 +110,7 @@ test("the audit's diagonal point passes the projection and falls outside the sph
   assert.ok(distance > 0.2, `distance ${distance} should exceed radius 0.2`);
   assert.ok(Math.abs(distance - 0.3121) < 1e-3);
   // A point 0.19 m from the centre, for its part, falls in the sphere: that is the fragment the
-  // shadow shader discards (`gpuShadowShader.ts`), not the face that still accepts it.
+  // shadow shader discards (`packages/sdk-browser/src/gpu/shadow/shader.ts`), not the face that still accepts it.
   assert.ok(Math.hypot(0.19, 0, 0) < 0.2);
 });
 

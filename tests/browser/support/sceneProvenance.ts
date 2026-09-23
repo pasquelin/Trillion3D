@@ -31,17 +31,17 @@ export interface Provenance {
 export async function sceneProvenance(harnessUrl: string): Promise<Provenance> {
   const sourceFiles = [
     'index.ts',
-    'webgpuPages.ts',
-    'visibilityBuffer.ts',
+    'packages/sdk-browser/src/webgpu/pages/pages.ts',
+    'packages/sdk-browser/src/visibility/buffer.ts',
     'standardLighting.ts',
-    'textureMips.ts',
+    'packages/sdk-browser/src/texture/mips.ts',
     'surfaceBuffer.ts',
     'sceneLighting.ts',
-    'deferredLighting.ts',
-    'gpuPresentation.ts',
-    'taaShaderWgsl.ts',
-    'taaFrame.ts',
-    'taaWeights.ts',
+    'packages/sdk-browser/src/lighting/deferred/deferred.ts',
+    'packages/sdk-browser/src/gpu/core/presentation.ts',
+    'packages/sdk-browser/src/taa/shaderWgsl.ts',
+    'packages/sdk-browser/src/taa/frame.ts',
+    'packages/sdk-browser/src/taa/weights.ts',
     'temporalAntialiasing.ts',
   ];
   const hashes: Record<string, string> = {};

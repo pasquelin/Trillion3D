@@ -2,8 +2,8 @@
  * The local box a host geometry carries, read by its two corners into a flat array.
  *
  * Reading a box is not a computation and needs no rendering library: a host box is two points,
- * and the engine copies their six numbers. Volumes themselves are computed in `mathBox.ts` and
- * `mathSphere.ts`. Writing a box back INTO a host geometry is the opposite crossing and belongs
+ * and the engine copies their six numbers. Volumes themselves are computed in `packages/sdk-core/src/math/primitives/box.ts` and
+ * `packages/sdk-core/src/math/primitives/sphere.ts`. Writing a box back INTO a host geometry is the opposite crossing and belongs
  * to the boundary that owns the library, `three/bounds.ts`.
  */
 import type { HostBox } from './resources.ts';

@@ -19,7 +19,7 @@ import { copyElements } from '../../math/matrixElements.ts';
  * only composition call that remains keeps the HOST's scene up to date for its own readers —
  * replication (`../../scene/replicateInstances.ts`) starts from the world matrices it carries; no number
  * the engine draws comes from there, its own are those of `placements.ts`. The test
- * `tests/integration/moteur-sans-three-math.test.ts` holds this frontier.
+ * `tests/integration/engine-without-three-math.test.ts` holds this frontier.
  */
 
 /** Whole subtree of `node` updated IN THE HOST SCENE, for its own readers. */

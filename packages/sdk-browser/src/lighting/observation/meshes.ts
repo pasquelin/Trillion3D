@@ -24,7 +24,7 @@ export function createObservationMeshes(
 ) {
   const { surfaceCount, expectedIds } = resources;
   // Every matrix here is an OWNED buffer: the core's product and inverse only read and write
-  // `Float64Array`s (`mathMatrix4.ts`), and the world poses come from the engine's own tree.
+  // `Float64Array`s (`packages/sdk-core/src/math/matrix/matrix4.ts`), and the world poses come from the engine's own tree.
   const copies: ObservationMesh[] = [];
   const { basis, surfaceBasis, sphereBasis } = createObservationTransforms(state);
   let triangles = 0,

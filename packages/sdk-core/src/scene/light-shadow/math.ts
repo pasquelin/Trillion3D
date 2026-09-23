@@ -31,7 +31,7 @@ const planes = { near: 0, far: 0, halfFov: 0 };
  * An emitter envelope radius does not touch this plane: raising a face's near plane
  * removes a cube, up to √3 times its value on the diagonals, not the announced sphere. The
  * radius is therefore applied where shadow depth is written, by distance to the light centre
- * (`gpuShadowShader.ts`), and this near plane remains the one range gives every light.
+ * (`packages/sdk-browser/src/gpu/shadow/shader.ts`), and this near plane remains the one range gives every light.
  */
 export function shadowProjection(fov: number, range: number) {
   const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),

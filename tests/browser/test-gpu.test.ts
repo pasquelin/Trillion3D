@@ -89,16 +89,16 @@ test('buildTestGpuArgs builds the complete list by default, serially', () => {
     '--test',
     '--test-concurrency=1',
   ]);
-  assert.ok(args.includes('tests/browser/renders/cisaillement-transform.browser.ts'));
-  assert.ok(args.some((a) => a.includes('erreur-ecran-borne.ts')));
+  assert.ok(args.includes('tests/browser/renders/shear-transform.browser.ts'));
+  assert.ok(args.some((a) => a.includes('screen-error-bound.ts')));
   assert.equal(args.length, 3 + listJustesseTests().length + listBrowserTests().length);
 });
 
 test('buildTestGpuArgs passes targets provided on the command line', () => {
-  assert.deepEqual(buildTestGpuArgs(['tests/browser/probes/reflexion-cone.ts']), [
+  assert.deepEqual(buildTestGpuArgs(['tests/browser/probes/reflection-cone.ts']), [
     '--experimental-strip-types',
     '--test',
     '--test-concurrency=1',
-    'tests/browser/probes/reflexion-cone.ts',
+    'tests/browser/probes/reflection-cone.ts',
   ]);
 });

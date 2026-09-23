@@ -2,7 +2,7 @@
 // transparent tile named `vitre` under a `pivot` node. The engine distinguishes it only by the
 // declared pass and by its material.
 import * as THREE from 'three';
-import { batisseur, carre, type ScenePreparee } from './preuveSceneCommune.ts';
+import { batisseur, carre, type ScenePreparee } from './sharedSceneProof.ts';
 
 /** Half-width of the transparent tile: the sampling window depends on it, not the reverse. */
 export const DEMI = 0.35;
