@@ -11,8 +11,9 @@ import { triangleCollision } from './characterCollision.ts';
  *
  * Only drawn triangles collide: a mesh whose `primitive` is not `'triangles'` (points, lines,
  * sprites) is skipped, and so is anything without a position list. Invisible meshes collide —
- * an invisible wall is a level designer's tool —, the nodes `skip` names do not (`forEachReadNode`). A mesh that moves afterwards is not followed:
- * the tree is rebuilt on demand. Compiled models, whose triangles live in GPU pages, are not
+ * an invisible wall is a level designer's tool —, the nodes `skip` names do not (the `helper`
+ * marks, `forEachReadNode`). A mesh that moves afterwards is not followed: the tree is rebuilt
+ * on demand. Compiled models, whose triangles live in GPU pages, are not
  * read; a level made of them gives a simple mesh stand-in to collide with.
  *
  * COST. One pass over the triangles to place them, then the tree build, `O(T log T)`; the
