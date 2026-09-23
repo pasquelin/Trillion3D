@@ -44,6 +44,7 @@ export function sceneOf(fixture: Fixture, sun: THREE.Object3D): ScenePreparee {
   const material = fixture.material();
   const mesh = new THREE.Mesh(square(fixture), material);
   if (fixture.back) mesh.rotation.y = Math.PI;
+  if (fixture.tilt) mesh.rotation.x = fixture.tilt;
   builder.source.add(mesh);
   builder.ajoute(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
   if (fixture.behind !== undefined) {

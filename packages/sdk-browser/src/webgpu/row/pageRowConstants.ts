@@ -13,9 +13,11 @@ type MaterialRow = { version: number; mat: PageSurface; wrap: number };
  * Twelve placements of the same scene share their materials and clusters: one memo per surface
  * record and one per cluster id is enough to compute them once and for all, however many pages
  * arrive in the image. A memo is reread when the host bumps the declaration's version, the only
- * mutation the engine honours — the record itself is refilled in place (`../../page/surface.ts`).
+ * mutation the engine honours — the record itself is refilled in place (`../../page/surface.ts`) —,
+ * and `changed` hears of each version read: what the row does not carry, its maps' sampling,
+ * follows there.
  */
-export function createPageRowConstants() {
+export function createPageRowConstants(changed?: (surface: PageSurface) => void) {
   const materials = new Map<PageSurface, MaterialRow>();
   const hashes = new Map<string, number>();
   return {
@@ -26,6 +28,7 @@ export function createPageRowConstants() {
       if (held && held.version === mat.version) return held;
       const row = { version: mat.version, mat, wrap: wrapModes(mat) };
       materials.set(mat, row);
+      changed?.(mat);
       return row;
     },
     /** Hash of a cluster id, computed at its first row. */

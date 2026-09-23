@@ -6,8 +6,7 @@ import {
   type TileLayout,
   type TilePlace,
 } from '../../texture/tiles.ts';
-import type { Texture } from '../../../../sdk-core/src/index.ts';
-import { SAMPLING_WORDS, samplingWords } from './sampling.ts';
+import { TRANSFORM_WORDS, samplingWords } from './sampling.ts';
 
 /**
  * Page table of an atlas: for each tile of each streamed level of each texture, the pool place
@@ -19,17 +18,15 @@ import { SAMPLING_WORDS, samplingWords } from './sampling.ts';
  * searches: one read, one tile, always showable.
  *
  * One buffer per atlas, in words: `[feedback offset, textures, start of entries, start of
- * levels]`, then eleven words per texture (`width | height << 16`, first tail level, last level,
- * tail place with the texture's pool tap in its top byte, then its sampling — filter word and
- * UV transform, `sampling.ts`), then sixteen words per texture (the
- * first word of each streamed level, absolute), then the entries. Writes go out per texture, over
- * the span it has touched since the last flush.
+ * levels]`, then ten words per texture (`width | height << 16`, first tail level, last level
+ * under the filter word, tail place under the pool tap, its UV transform — `sampling.ts`), then
+ * sixteen words per texture (the first word of each streamed level, absolute), then the entries.
+ * Writes go out per texture, over the span it has touched since the last flush.
  */
 export const PAGE_HEADER_WORDS = 4;
-/** Header words of a texture: its geometry (four), then its sampling. */
-export const PAGE_SLOT_WORDS = 4 + SAMPLING_WORDS;
-/** Where a texture's sampling starts in its header. */
-export const PAGE_SAMPLING_WORD = 4;
+export const PAGE_SLOT_WORDS = 4 + TRANSFORM_WORDS,
+  PAGE_TRANSFORM_WORD = 4,
+  PAGE_FILTER_SHIFT = 8;
 
 export type TileKey = { slot: number; level: number; tx: number; ty: number };
 
@@ -45,8 +42,8 @@ export type WebgpuTilePageTable = {
   /** The tail's place, and the tap every tile of the texture — this one included — is read by. */
   setTail(slot: number, place: TilePlace, tap: number): void;
   setTile(key: TileKey, place: TilePlace): void;
-  /** Filter and UV transform of a texture, as its record declares them now. */
-  setSampling(slot: number, texture: Texture): void;
+  /** Filter and UV transform of a texture as its record declares them; true when a word moved. */
+  setSampling(slot: number, texture: Parameters<typeof samplingWords>[0]): boolean;
   clearTile(key: TileKey): void;
   /** Sends the GPU what has changed; nothing when nothing moved. */
   flush(device: Pick<GPUDevice, 'queue'>): void;
@@ -105,9 +102,10 @@ export function createWebgpuTilePageTable(
     return entriesAt + bases[slot] + layout.offsets[level] + ty * tw + tx;
   };
   const write = (slot: number, index: number, word: number) => {
-    if (words[index] === word) return;
+    if (words[index] === word) return false;
     words[index] = word;
     touch(slot, index, index);
+    return true;
   };
   /** Entries finer than a tile, under it: those its presence or departure serves. */
   const descend = (key: TileKey, visit: (index: number) => void) => {
@@ -152,9 +150,12 @@ export function createWebgpuTilePageTable(
       write(slot, header + 3, place.x | (place.y << 8) | (place.layer << 16) | (tap << 24));
     },
     setSampling(slot, texture) {
-      const at = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS + PAGE_SAMPLING_WORD,
+      const at = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS,
         sampling = samplingWords(texture);
-      for (let i = 0; i < SAMPLING_WORDS; i++) write(slot, at + i, sampling[i]);
+      let moved = write(slot, at + 2, layouts[slot].last | (sampling[0] << PAGE_FILTER_SHIFT));
+      for (let i = 1; i <= TRANSFORM_WORDS; i++)
+        moved = write(slot, at + PAGE_TRANSFORM_WORD - 1 + i, sampling[i]) || moved;
+      return moved;
     },
     setTile(key, place) {
       const word = packEntry(place, key.level);

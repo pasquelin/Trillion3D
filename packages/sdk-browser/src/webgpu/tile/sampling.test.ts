@@ -42,13 +42,14 @@ test('each filter name sets its base filter and mip rule', () => {
   assert.equal(filterOf({ minFilter: 'linear-mip-nearest' }), SAMPLE_MIP_NEAREST);
 });
 
-test('anisotropy is clamped to the ceiling, and granted under linear filters only', () => {
+// As the WebGL2 binder sets it (`webgl/cluster/textures.ts`): whatever the filters.
+test('anisotropy is clamped to the ceiling, and granted whatever the filters', () => {
   const granted = (word: number) => ((word >> SAMPLE_ANISOTROPY_SHIFT) & 15) + 1;
   assert.equal(granted(filterOf({ anisotropy: 8 })), 8);
   assert.equal(granted(filterOf({ anisotropy: 64 })), MAX_ANISOTROPY);
   assert.equal(granted(filterOf({ anisotropy: 0 })), 1);
-  assert.equal(granted(filterOf({ anisotropy: 16, magFilter: 'nearest' })), 1);
-  assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linear-mip-nearest' })), 1);
+  assert.equal(granted(filterOf({ anisotropy: 16, magFilter: 'nearest' })), 16);
+  assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linear-mip-nearest' })), 16);
 });
 
 test('the affine part of the transform is carried, and flagged when it is not the identity', () => {

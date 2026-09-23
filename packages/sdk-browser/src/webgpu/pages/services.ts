@@ -2,6 +2,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { updateTransparentSpan } from '../transparent/spans.ts';
 import { createWebgpuResidencyMirror } from '../residency/mirror.ts';
 import { createPageRowWriter } from '../row/pageRow.ts';
+import { followSurfaceSampling } from './prepare/textureSampling.ts';
 import { createWebgpuRowCommit } from '../row/commit.ts';
 import { noteResidenceChange } from '../shadow/bounds.ts';
 import { createWebgpuRowSync } from '../row/sync.ts';
@@ -45,6 +46,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     mapLayer: rt.vis.mapLayer,
     dataLayer: rt.vis.dataLayer,
     markRowDirty: rows.markRowDirty,
+    surfaceChanged: (surface) => followSurfaceSampling(rt, surface),
   });
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting.

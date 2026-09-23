@@ -126,17 +126,14 @@ test('atlas reads receive their map nibble and mix four taps', () => {
     DATA_SAMPLE_WGSL,
   })) {
     assert.match(bloc, /,uv:vec2f,wrap:u32/, `${nom} must receive its map nibble`);
-    // #360, #361: the texture's transform and filter word reach every read, blended and shadow alike.
+    // #360, #361: a texture at the defaults takes the read it had, at the level it had, before
+    // anything else; any other reaches its transform and filter word, blended and shadow alike.
     assert.match(
       bloc,
-      /let r=(color|data)Read\(slot,s,uv,ddx,ddy\);/,
-      `${nom} must read its sampling`,
+      /let s=(color|data)Slot\(slot\);\n if\(s\.sampling==0u\)\{return \w+Tap\(s,uv,wrap,slotLod\(s,ddx,ddy\),false\);\}\n let r=(color|data)Read\(slot,s,uv,ddx,ddy\);/,
+      `${nom} must read its sampling after the default read`,
     );
-    assert.match(
-      bloc,
-      /if\(!t\.couture\|\|r\.nearest\)\{return /,
-      `${nom} must keep the unique read`,
-    );
+    assert.match(bloc, /if\(!t\.couture\|\|nearest\)\{return /, `${nom} must keep the unique read`);
     assert.match(
       bloc,
       /mix\(mix\(s00,s10,t\.poids\.x\),mix\(s01,s11,t\.poids\.x\),t\.poids\.y\)/,

@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createWebgpuTilePageTable,
+  PAGE_FILTER_SHIFT,
   PAGE_HEADER_WORDS,
-  PAGE_SAMPLING_WORD,
   PAGE_SLOT_WORDS,
+  PAGE_TRANSFORM_WORD,
 } from './pageTable.ts';
 import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from './sampling.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
@@ -120,28 +121,40 @@ test("a texture's queue is posted in its header with its lane, and sent alone", 
   assert.deepEqual(entryPlace(word), { x: 4, y: 2, layer: 1 });
 });
 
+// #360, #361: the filter word shares the last-level word the shader already reads, so a texture
+// at the defaults reads no more words than before; its transform follows, fetched only when set.
 test("a texture's sampling rides in its header, and only the words that moved are sent", () => {
   const { device, writes } = fakeDevice();
   const table = createWebgpuTilePageTable(device, layouts(), { kind: 'color', feedbackOffset: 0 });
   const map = {
-    magFilter: 'nearest',
+    magFilter: 'linear',
     minFilter: 'linear-mip-linear',
     anisotropy: 1,
-    transform: [4, 0, 0, 0, 4, 0, 0, 0, 1],
-  } as unknown as Texture & { transform: number[] };
-  const at = PAGE_HEADER_WORDS + 2 * PAGE_SLOT_WORDS + PAGE_SAMPLING_WORD;
-  writes.length = 0;
+    transform: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+  } as unknown as Texture & { transform: number[]; magFilter: string };
+  const header = PAGE_HEADER_WORDS + 2 * PAGE_SLOT_WORDS,
+    last = layouts()[2].last,
+    transform = header + PAGE_TRANSFORM_WORD;
   table.setSampling(2, map);
   table.flush(device);
-  assert.deepEqual(writes, [[at, 5]], 'the filter word to the second scale, one span');
-  assert.equal(table.words[at], SAMPLE_MAG_NEAREST | SAMPLE_TRANSFORMED);
-  assert.deepEqual([...new Float32Array(table.words.buffer, (at + 1) * 4, 6)], [4, 0, 0, 4, 0, 0]);
+  assert.equal(table.words[header + 2], last, 'the defaults leave the last-level word as it was');
   writes.length = 0;
-  table.setSampling(2, map);
+  assert.equal(table.setSampling(2, map), false, 'nothing moved');
   table.flush(device);
   assert.deepEqual(writes, [], 'nothing moved, nothing sent');
+  map.magFilter = 'nearest';
+  map.transform[0] = map.transform[4] = 4;
+  assert.equal(table.setSampling(2, map), true);
+  table.flush(device);
+  assert.deepEqual(writes, [[header + 2, 6]], 'the filter word to the second scale, one span');
+  assert.equal(
+    table.words[header + 2],
+    last | ((SAMPLE_MAG_NEAREST | SAMPLE_TRANSFORMED) << PAGE_FILTER_SHIFT),
+  );
+  assert.deepEqual([...new Float32Array(table.words.buffer, transform * 4, 6)], [4, 0, 0, 4, 0, 0]);
+  writes.length = 0;
   map.transform[6] = 0.5;
   table.setSampling(2, map);
   table.flush(device);
-  assert.deepEqual(writes, [[at + 5, 1]], 'an offset alone sends its word');
+  assert.deepEqual(writes, [[transform + 4, 1]], 'an offset alone sends its word');
 });

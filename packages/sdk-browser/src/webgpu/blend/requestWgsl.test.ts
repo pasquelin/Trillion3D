@@ -12,11 +12,32 @@ import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts';
 test('both passes request their tiles by the same rule, phase then position', () => {
   assert.match(TILE_REQUEST_WGSL, /fn requestPick\(pos:vec2f,choices:u32\)/);
   assert.match(TILE_REQUEST_WGSL, /let px=u32\(pos\.x\)\+u32\(pos\.y\);/);
-  assert.match(TILE_REQUEST_WGSL, /RequestPick\(px%choices,\(\(px\/choices\)&1u\)==1u\)/);
+  assert.match(
+    TILE_REQUEST_WGSL,
+    /RequestPick\(px%choices,\(\(px\/choices\)&1u\)==1u,\(px\/choices\/2u\)%3u\)/,
+  );
   for (const [nom, hote] of Object.entries({ BLEND_REQUEST_WGSL, SHADE_REQUEST_WGSL })) {
     assert.match(hote, /feedbackPhase\([a-z.]+,uni\.feedback\)/, `${nom}: phase first`);
     assert.match(hote, /requestPick\(/, `${nom}: choice by position`);
     assert.match(hote, /mapRequest\(p\.sel,/, `${nom}: map by the shared rule`);
     assert.doesNotMatch(hote, /%6u|%10u/, `${nom} does not rewrite the choice`);
+  }
+});
+
+// #361: an anisotropic read spreads its taps along the footprint, into tiles its centre does not
+// touch; the pixels of the footprint ask for the first tap, the centre and the last by position.
+// A texture at the defaults asks for its level as before, and one tap puts all three on the centre.
+test('an anisotropic footprint asks for the tiles of its end taps, a default one as before', () => {
+  assert.match(TILE_REQUEST_WGSL, /if\(s\.sampling==0u\)\{lod=slotLod\(s,ddx,ddy\);\}/);
+  assert.match(
+    TILE_REQUEST_WGSL,
+    /at=r\.uv\+r\.axis\*\(f32\(i32\(along\)-1\)\*\(0\.5-0\.5\/f32\(r\.taps\)\)\);/,
+  );
+  assert.match(TILE_REQUEST_WGSL, /slotWrapped\(s,at,wrap\)/);
+  // The ends asked are the ends read: tap i of n sits at (i + 0.5) / n - 0.5 (`../tile/wgsl.ts`).
+  for (const taps of [1, 2, 7, 16]) {
+    const end = 0.5 - 0.5 / taps;
+    assert.ok(Math.abs(-end - (0.5 / taps - 0.5)) < 1e-12, `${taps} taps: the first`);
+    assert.ok(Math.abs(end - ((taps - 0.5) / taps - 0.5)) < 1e-12, `${taps} taps: the last`);
   }
 });
