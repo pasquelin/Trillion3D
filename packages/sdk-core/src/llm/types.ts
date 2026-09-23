@@ -42,9 +42,9 @@ export interface JsonSchemaObject {
 }
 
 /**
- * Generic WebGeometry tool definition for LLMs.
+ * Generic Trillion3D tool definition for LLMs.
  */
-export interface WebGeometryTool {
+export interface Trillion3dTool {
   /** The tool's name. */
   name: string;
   /** What it does. */

@@ -11,8 +11,8 @@ test('a failed WebGPU path is said on the console once per kind, with no channel
   assert.deepEqual(
     warned.mock.calls.map((call) => call.arguments[0]),
     [
-      '[web-geometry] WebGPU visibility-render-failed: bind group invalid',
-      '[web-geometry] WebGPU coverage-upload-failed: slot refused',
+      '[trillion3d] WebGPU visibility-render-failed: bind group invalid',
+      '[trillion3d] WebGPU coverage-upload-failed: slot refused',
     ],
   );
 });

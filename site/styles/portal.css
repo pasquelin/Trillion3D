@@ -72,43 +72,43 @@ body {
 
 /* Prose: repository-authored documentation HTML, the width of the content area; the type scale,
    not a narrow column, keeps it readable. */
-.wg-prose {
+.trillion3d-prose {
   font-size: 1.0625rem;
   line-height: 1.7;
 }
-.wg-prose > * + * {
+.trillion3d-prose > * + * {
   margin-top: 1em;
 }
-.wg-prose :is(h2, h3) {
+.trillion3d-prose :is(h2, h3) {
   margin-top: 2em;
   font-weight: 700;
   line-height: 1.3;
 }
-.wg-prose h2 {
+.trillion3d-prose h2 {
   font-size: 1.375rem;
 }
-.wg-prose h3 {
+.trillion3d-prose h3 {
   font-size: 1.125rem;
 }
-.wg-prose :is(ul, ol) {
+.trillion3d-prose :is(ul, ol) {
   padding-inline-start: 1.5em;
   list-style: revert;
 }
-.wg-prose li + li {
+.trillion3d-prose li + li {
   margin-top: 0.35em;
 }
-.wg-prose :not(pre) > code {
+.trillion3d-prose :not(pre) > code {
   padding: 0.1em 0.3em;
   border-radius: 0.3rem;
   background: var(--color-base-200);
   font-size: 0.9em;
   overflow-wrap: anywhere;
 }
-.wg-prose a {
+.trillion3d-prose a {
   color: var(--color-primary);
   text-decoration: underline;
 }
-.wg-prose pre {
+.trillion3d-prose pre {
   max-width: 100%;
   overflow: auto;
 }

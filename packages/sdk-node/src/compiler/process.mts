@@ -13,11 +13,11 @@ export function resolveCompilerExecutable(
   platform = process.platform,
 ) {
   if (explicit) return explicit;
-  if (environment.WEB_GEOMETRY_COMPILER_BIN) return environment.WEB_GEOMETRY_COMPILER_BIN;
+  if (environment.TRILLION3D_COMPILER_BIN) return environment.TRILLION3D_COMPILER_BIN;
   const ext = platform === 'win32' ? '.exe' : '';
   return fileURLToPath(
     new URL(
-      `../../../../packages/asset-compiler-rust/target/release/web-geometry-compiler${ext}`,
+      `../../../../packages/asset-compiler-rust/target/release/trillion3d-compiler${ext}`,
       import.meta.url,
     ),
   );

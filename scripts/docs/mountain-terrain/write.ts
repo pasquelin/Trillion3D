@@ -55,7 +55,7 @@ export async function writeMountainTerrain(directory: string, geometry: Terrain)
     chunks.push(Buffer.from(group.buffer));
   }
   const gltf = {
-    asset: { version: '2.0', generator: 'Web Geometry original mountain authoring' },
+    asset: { version: '2.0', generator: 'Trillion3D original mountain authoring' },
     scene: 0,
     scenes: [{ nodes: [0, 1] }],
     extensionsUsed: ['KHR_lights_punctual'],

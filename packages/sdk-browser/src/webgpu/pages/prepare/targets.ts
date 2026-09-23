@@ -80,25 +80,25 @@ export function ensureTargets(
   const usage =
     GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC;
   gpu.colorTexture = device.createTexture({
-    label: 'WG display color',
+    label: 'Trillion3D display color',
     size: { width, height },
     format: 'rgba8unorm',
     usage,
   });
   gpu.depthTexture = device.createTexture({
-    label: 'WG opaque depth',
+    label: 'Trillion3D opaque depth',
     size: { width, height },
     format: 'depth32float',
     usage: usage | GPUTextureUsage.COPY_DST,
   });
   gpu.hdrTexture = device.createTexture({
-    label: 'WG HDR lighting',
+    label: 'Trillion3D HDR lighting',
     size: { width, height },
     format: 'rgba16float',
     usage,
   });
   gpu.feedbackTexture = device.createTexture({
-    label: 'WG texture feedback target',
+    label: 'Trillion3D texture feedback target',
     size: { width, height },
     format: FEEDBACK_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
@@ -115,7 +115,7 @@ export function ensureTargets(
   gpu.targetSize = [width, height];
   try {
     vis.visTexture = device.createTexture({
-      label: 'WG visibility',
+      label: 'Trillion3D visibility',
       size: { width, height },
       format: 'r32uint',
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,

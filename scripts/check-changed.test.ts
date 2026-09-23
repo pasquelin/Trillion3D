@@ -36,7 +36,7 @@ test('selects a test when an imported source file was deleted', () => {
 
 test('the public facade conservatively follows common, browser, and Node changes', () => {
   const files = new Map([
-    ['tests/integration/public.test.ts', "import {api} from 'web-geometry';"],
+    ['tests/integration/public.test.ts', "import {api} from 'trillion3d';"],
     ['packages/sdk/index.ts', "export {api} from './common/api.ts';"],
     ['packages/sdk/browser.ts', "export {api} from './browser/api.ts';"],
     ['packages/sdk/node.mts', "export {api} from './node/api.mts';"],

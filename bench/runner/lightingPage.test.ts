@@ -157,13 +157,13 @@ test('measureView keeps an explicit `false`, distinct from an absent counter', a
 test('measureView keeps a table of numbers — bytes per label — and filters the rest', async () => {
   const { metrics } = await mesurer({
     triangles: 500,
-    gpuAllocatedByLabel: { 'WG display color': 4, unlabelled: 8 },
+    gpuAllocatedByLabel: { 'Trillion3D display color': 4, unlabelled: 8 },
     scene: { nested: { deep: 1 } },
     pending: [1, 'two'],
     absent: undefined,
   });
   assert.equal(metrics.triangles, 500);
-  assert.deepEqual(metrics.gpuAllocatedByLabel, { 'WG display color': 4, unlabelled: 8 });
+  assert.deepEqual(metrics.gpuAllocatedByLabel, { 'Trillion3D display color': 4, unlabelled: 8 });
   assert.equal('scene' in metrics, false, 'an object with a non-number value does not pass');
   assert.equal('pending' in metrics, false, 'an array neither');
   assert.equal('absent' in metrics, false, '`undefined` stays an absence, not a published value');

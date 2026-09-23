@@ -30,7 +30,7 @@ export async function createTransparentOcclusion(
 ) {
   if (typeof device.createComputePipeline !== 'function' || entryCount < 1) return undefined;
   const corners = device.createBuffer({
-    label: 'WG transparent occlusion corners v1',
+    label: 'Trillion3D transparent occlusion corners v1',
     size: entryCount * CORNER_VALUES * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
@@ -89,7 +89,7 @@ export async function createTransparentOcclusion(
           return;
         }
         if (pyramid !== bound || !bindGroup) bindTo(pyramid);
-        const pass = encoder.beginComputePass({ label: 'WG transparent occlusion' });
+        const pass = encoder.beginComputePass({ label: 'Trillion3D transparent occlusion' });
         pass.setPipeline(pipeline);
         pass.setBindGroup(0, bindGroup!);
         pass.dispatchWorkgroups(groups);

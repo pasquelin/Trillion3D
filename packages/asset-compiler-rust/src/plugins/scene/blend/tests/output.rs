@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicBool;
 /// manifest it wrote — the manifest carries the counts and the report codes.
 pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
     let root = std::env::temp_dir().join(format!(
-        "wg-blend-{tag}-{}-{}",
+        "trillion3d-blend-{tag}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

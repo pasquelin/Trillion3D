@@ -23,7 +23,7 @@ export function watchOpening(manifestUrl: string, delayMs = OPENING_REPORT_MS) {
   const timer = later(
     () =>
       console.warn(
-        `[web-geometry] ${manifestUrl || 'world'}: the session has not opened after ` +
+        `[trillion3d] ${manifestUrl || 'world'}: the session has not opened after ` +
           `${delayMs / 1000} s; last step: ${step}`,
       ),
     delayMs,
@@ -48,8 +48,6 @@ export function watchFirstFrame(stage: () => string | null, delayMs = OPENING_RE
   later(() => {
     const at = stage();
     if (at)
-      console.warn(
-        `[web-geometry] no frame drawn ${delayMs / 1000} s after the world began: ${at}`,
-      );
+      console.warn(`[trillion3d] no frame drawn ${delayMs / 1000} s after the world began: ${at}`);
   }, delayMs);
 }

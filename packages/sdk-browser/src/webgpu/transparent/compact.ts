@@ -69,7 +69,7 @@ async function compactPasses(
     uniData[4] = table.maxVertexWords;
     if (mask !== boundMask) bindGroup = bindTo((boundMask = mask));
     device.queue.writeBuffer(uniforms, 0, uniData);
-    const pass = encoder.beginComputePass({ label: 'WG transparent compaction' });
+    const pass = encoder.beginComputePass({ label: 'Trillion3D transparent compaction' });
     pass.setBindGroup(0, bindGroup);
     for (let step = 0; step < 3; step++) {
       pass.setPipeline(pipelines[step]);
@@ -101,29 +101,29 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
   };
   try {
     const items = Math.max(1, table.pagedItems.length);
-    const entriesBuf = make('WG transparent entries', table.capacity * 4);
-    const itemRangesBuf = make('WG transparent item ranges', items * 8);
+    const entriesBuf = make('Trillion3D transparent entries', table.capacity * 4);
+    const itemRangesBuf = make('Trillion3D transparent item ranges', items * 8);
     const uniforms = make(
-      'WG transparent compaction uniforms',
+      'Trillion3D transparent compaction uniforms',
       UNIFORM_WORDS * 4,
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     );
-    const groupCounts = make('WG transparent group counts', table.groupCount * 4);
-    const groupOffsets = make('WG transparent group offsets', table.groupCount * 4);
-    const instanceBuffer = make('WG transparent instances', table.capacity * 4);
-    const spanBuffer = make('WG transparent cluster spans', table.capacity * 8);
+    const groupCounts = make('Trillion3D transparent group counts', table.groupCount * 4);
+    const groupOffsets = make('Trillion3D transparent group offsets', table.groupCount * 4);
+    const instanceBuffer = make('Trillion3D transparent instances', table.capacity * 4);
+    const spanBuffer = make('Trillion3D transparent cluster spans', table.capacity * 8);
     // Occlusion verdict of each entry, written by the transparent Hi-Z test a little earlier in the
     // same submission. Zero before any image, and zero on an image without a pyramid: nothing is then
     // dropped from the table.
     // `COPY_SRC` only serves the audit, which rereads the verdicts; no image copies them.
     const occludedBuffer = make(
-      'WG transparent occlusion verdicts',
+      'Trillion3D transparent occlusion verdicts',
       table.capacity * 4,
       storage | GPUBufferUsage.COPY_SRC,
     );
-    const diagnosticBuffer = make('WG transparent cluster identity', table.capacity * 4);
+    const diagnosticBuffer = make('Trillion3D transparent cluster identity', table.capacity * 4);
     const indirectBuffer = make(
-      'WG transparent indirect',
+      'Trillion3D transparent indirect',
       items * 16,
       storage | GPUBufferUsage.INDIRECT,
     );

@@ -41,12 +41,12 @@ export async function createGpuBounceSurface(
   const texels = surfaceCacheTexels(proxy.triangleCount);
   const bytes = surfaceCacheBytes(proxy.triangleCount);
   const buffer = device.createBuffer({
-    label: 'WG bounce surface cache v1',
+    label: 'Trillion3D bounce surface cache v1',
     size: bytes,
     usage: GPUBufferUsage.STORAGE,
   });
   const span = device.createBuffer({
-    label: 'WG bounce surface span v1',
+    label: 'Trillion3D bounce surface span v1',
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });

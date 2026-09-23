@@ -12,7 +12,7 @@ const leaf = feuille(3);
 const glass: SheetTexture = { ...feuille(1), image: 'vitre.png', proposal: 'blend' };
 
 async function model(sheet: Sheet): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), 'wg-feuille-'));
+  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-feuille-'));
   await writeFile(join(directory, SHEET_FILE), JSON.stringify(sheet));
   return directory;
 }
@@ -80,5 +80,5 @@ test('the answer only enters sheets that know the texture', async () => {
 test('an unknown sheet is refused, a missing sheet says nothing', async () => {
   const directory = await model({ version: 99, textures: {} });
   await assert.rejects(() => readSheet(directory), /version 99/);
-  assert.equal(await readSheet(await mkdtemp(join(tmpdir(), 'wg-vide-'))), null);
+  assert.equal(await readSheet(await mkdtemp(join(tmpdir(), 'trillion3d-vide-'))), null);
 });
