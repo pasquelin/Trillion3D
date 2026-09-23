@@ -37,7 +37,7 @@
     <div id="hint" data-words="hint"></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, words } from '../runtime/kit.js';
+      import { controls, whiteNoise, words } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -112,9 +112,7 @@
         music = audio.createGain();
         music.connect(analyser);
         // A twentieth of a second of white noise fading out, the hat's one sample.
-        noise = audio.createBuffer(1, audio.sampleRate * 0.05, audio.sampleRate);
-        const data = noise.getChannelData(0);
-        for (let k = 0; k < data.length; k++) data[k] = (Math.random() * 2 - 1) * (1 - k / data.length);
+        noise = whiteNoise(audio, 0.05, (at) => 1 - at);
       }
       // The analyser feeds the speakers for the melody; for the microphone it only listens, or
       // the room would ring.
