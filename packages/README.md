@@ -1,7 +1,7 @@
 # Package architecture — version 0.2.0
 
 This repository builds ESM JavaScript and TypeScript declarations into `dist/`, behind one public
-specifier, `web-geometry` ([SDK_FACADE.md](../docs/SDK_FACADE.md)). npm publication and
+specifier, `web-geometry` ([SDK.md, "Entry points"](../docs/SDK.md#entry-points)). npm publication and
 cross-platform binary distribution are not configured.
 
 | Package               | Public API                                                                             | Implementation                                                                                                                                                       |

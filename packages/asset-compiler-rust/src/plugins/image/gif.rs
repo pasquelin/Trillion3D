@@ -5,7 +5,7 @@
 //!
 //! Unisys's patent on LZW compression, which made this format's legal history, expired
 //! everywhere in 2004. Documentary note, not legal advice: the repository's legal policy is in
-//! `FORMATS.md`.
+//! `docs/COMPILER.md` § "Input formats".
 //!
 //! **Profiles read, all lossless to RGBA8.** The format is indexed by construction: each pixel
 //! is a rank in a colour table, global or local to the image, and each entry of that table is

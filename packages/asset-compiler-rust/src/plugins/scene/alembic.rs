@@ -1,6 +1,6 @@
 //! Alembic scene driver: a static-geometry `.abc` becomes an intermediate glTF scene.
 //!
-//! **Provenance and licence, written here as in `FORMATS.md`.** The reader is written in this
+//! **Provenance and licence, written here as in `docs/COMPILER.md` § "Input formats".** The reader is written in this
 //! repository from Alembic's public specification and its reference sources, under the
 //! BSD-3-Clause licence (Sony Pictures Imageworks, Lucasfilm): Ogawa container, metadata, objects,
 //! compound properties, scalars and arrays, samples. No library is added to the repository for
