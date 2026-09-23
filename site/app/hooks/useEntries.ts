@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { localizeEntries } from '../../content/i18n/index.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { PortalEntry } from '../../content/model.ts';
 import { writtenEntries } from '../portal/written.ts';
@@ -10,7 +9,7 @@ import { writtenEntries } from '../portal/written.ts';
  * search), or a moment after the first page, so that it is there before the reader asks.
  */
 export function useEntries(locale: Locale, wanted: boolean) {
-  const written = useMemo(() => localizeEntries(writtenEntries, locale), [locale]);
+  const written = useMemo(() => writtenEntries(locale), [locale]);
   const [all, setAll] = useState<{ locale: Locale; entries: PortalEntry[] } | null>(null);
   const [asked, setAsked] = useState(false);
   useEffect(() => {

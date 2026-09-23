@@ -179,8 +179,7 @@
         "fr": "Un maillage fait main"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-mesh-built-by-hand.html"
     },
     {
       "id": "colours-on-the-vertices",
@@ -199,8 +198,7 @@
         "fr": "Les UV de chaque forme"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/uvs-of-every-shape.html"
     },
     {
       "id": "helpers-to-see-the-scene",
@@ -219,8 +217,7 @@
         "fr": "Arêtes et fil de fer"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/edges-and-wireframe.html"
     },
     {
       "id": "lines-in-colour",
@@ -249,8 +246,7 @@
         "fr": "Formes découpées, extrudées"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/shapes-cut-and-extruded.html"
     },
     {
       "id": "a-tube-along-a-spline",
@@ -259,8 +255,7 @@
         "fr": "Un tube sur une courbe"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-tube-along-a-spline.html"
     },
     {
       "id": "curved-surfaces",
@@ -279,8 +274,7 @@
         "fr": "Instances en couleur"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/instances-in-colour.html"
     },
     {
       "id": "copies-along-a-path",
@@ -319,8 +313,7 @@
         "fr": "Une ville par règles"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-city-from-rules.html"
     },
     {
       "id": "a-molecule",
