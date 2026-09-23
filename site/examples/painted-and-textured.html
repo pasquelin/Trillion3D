@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Painted and textured</title>
-    <meta name="thumbnail" content="1.5" />
+    <meta name="thumbnail" content="2" />
     <style>
       html,
       body {
@@ -42,30 +42,35 @@
       const slab = object.mesh(geometry.box(7, 0.3, 5), material.meshStandard({ color: '#2a2f3a', roughness: 0.85 }));
       slab.position.y = -0.15;
       world.scene.add(slab);
-      // The same three shapes twice: painted with a colour, then wrapped in the picture.
+      // The same three shapes twice: painted with one colour, then wrapped in the picture.
       const painted = material.meshStandard({ color: '#e0663c', roughness: 0.4 });
       const textured = material.meshStandard({ map: checks, roughness: 0.5 });
+      const shapes = [];
       for (const [row, matter] of [[-1.1, painted], [1.1, textured]]) {
-        const sphere = object.mesh(geometry.sphere(0.7, 64, 32), matter);
-        sphere.position.set(-2, 0.7, row);
-        const box = object.mesh(geometry.box(1.2, 1.2, 1.2), matter);
-        box.position.set(0, 0.6, row);
-        box.rotation.y = 0.5;
-        const cylinder = object.mesh(geometry.cylinder(0.6, 0.6, 1.4, 64), matter);
-        cylinder.position.set(2, 0.7, row);
-        world.scene.add(sphere, box, cylinder);
+        for (const [shape, x, y] of [[geometry.sphere(0.7, 64, 32), -2, 0.7], [geometry.box(1.2, 1.2, 1.2), 0, 0.6], [geometry.torusKnot(0.42, 0.16, 160, 24), 2, 0.75]]) {
+          const mesh = object.mesh(shape, matter);
+          mesh.position.set(x, y, row);
+          world.scene.add(mesh);
+          shapes.push(mesh);
+        }
       }
       world.scene.add(light.directional({ intensity: 3, color: '#fff3e2', position: [6, 10, 8], castShadow: true }));
-      world.scene.add(light.directional({ intensity: 0.6, color: '#8fb4ff', position: [-8, 5, -6] }));
+      world.scene.add(light.point({ intensity: 30, color: '#6fa8ff', position: [-4, 3, 3], distance: 12 }));
       world.camera.position.set(0.6, 3.2, 5.4);
       world.camera.lookAt(0, 0.4, 0);
       world.controls.target.set(0, 0.4, 0);
 
       // A new picture drawn on the same canvas reaches the surface once the texture is told so.
-      controls({ checks: [2, 16, 8, 1], paint: '#e0663c', second: '#f2efe6' }, (values) => {
+      const ui = controls({ checks: [2, 24, 8, 1], paint: '#e0663c', second: '#f2efe6', spin: true }, (values, key) => {
+        if (key === 'spin') return;
         paintChecks(values.checks, values.second, values.paint);
         checks.needsUpdate = true;
         painted.color.set(values.paint);
+        world.invalidate();
+      });
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        for (const mesh of shapes) mesh.rotation.y += delta * 0.6;
         world.invalidate();
       });
     </script>

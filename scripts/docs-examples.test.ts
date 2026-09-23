@@ -23,6 +23,11 @@ test('every example is one standalone HTML file that imports the built engine', 
     assert.ok(themes.has(entry.theme), entry.id);
     assert.ok(entry.title.en && entry.title.fr, entry.id);
     assert.doesNotMatch(`${entry.id} ${entry.title.en} ${entry.title.fr}`, /three|unreal|babylon/i);
+    // An example still to write says whether it waits on the engine, and then on what.
+    const { status, missing } = entry as { status?: string; missing?: { en: string; fr: string } };
+    if (entry.file) assert.equal(status, undefined, entry.id);
+    else assert.ok(status === 'buildable' || status === 'needs-engine', entry.id);
+    assert.equal(Boolean(missing?.en && missing.fr), status === 'needs-engine', entry.id);
   }
   assert.ok(ready.length >= 10);
   for (const entry of ready) {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Spiral staircase</title>
-    <meta name="thumbnail" content="1.5" />
+    <meta name="thumbnail" content="3" />
     <style>
       html,
       body {
@@ -44,23 +44,34 @@
         group.add(tread, baluster);
         return group;
       }
-      const flights = Array.from({ length: 48 }, (_, index) => {
+      const flights = Array.from({ length: 36 }, (_, index) => {
         const flight = step();
         flight.position.y = 0.18 + index * 0.18;
         world.scene.add(flight);
         return flight;
       });
-      world.scene.add(light.directional({ intensity: 3, color: '#fff1e0', position: [5, 12, 7], castShadow: true }));
-      world.scene.add(light.ambient({ intensity: 0.25, color: '#8fb4ff' }));
-      world.camera.position.set(3.4, 10.5, 4.1);
-      world.camera.lookAt(0, 2.6, 0);
-      world.controls.target.set(0, 2.6, 0);
+      // A lantern climbs the stairs: a glowing bulb and its point light, whose shadows of the
+      // balusters sweep round the column.
+      const bulb = object.mesh(geometry.sphere(0.07, 16, 12), material.meshStandard({ color: '#000000', emissive: '#ffb45e', emissiveIntensity: 8 }));
+      const lantern = light.point({ color: '#ffb45e', intensity: 10, distance: 8, radius: 0.07, castShadow: true });
+      world.scene.add(bulb, lantern, light.ambient({ intensity: 0.3, color: '#8fb4ff' }));
+      world.scene.add(light.directional({ intensity: 0.8, color: '#8fa8e0', position: [-6, 10, 4] }));
+      world.camera.position.set(5.6, 6.2, 6.8);
+      world.camera.lookAt(0, 3.2, 0);
+      world.controls.target.set(0, 3.2, 0);
 
-      controls({ steps: [4, 48, 36, 1], turnPerStep: [0, 45, 16, 1] }, (values) => {
-        flights.forEach((flight, index) => {
-          flight.visible = index < values.steps;
-          flight.rotation.y = (index * values.turnPerStep * Math.PI) / 180;
-        });
+      const ui = controls({ climb: [0, 6, 2], turnPerStep: [5, 30, 16, 1], lantern: '#ffb45e' }, (values) => {
+        flights.forEach((flight, index) => (flight.rotation.y = (index * values.turnPerStep * Math.PI) / 180));
+        lantern.color.set(values.lantern);
+        world.invalidate();
+      });
+      let at = 0;
+      world.onFrame(({ delta }) => {
+        at = (at + delta * ui.climb) % 34;
+        const turn = (at * ui.turnPerStep * Math.PI) / 180;
+        const position = [Math.cos(turn) * 1.1, 0.75 + at * 0.18, -Math.sin(turn) * 1.1];
+        bulb.position.set(...position);
+        lantern.position.set(...position);
         world.invalidate();
       });
     </script>

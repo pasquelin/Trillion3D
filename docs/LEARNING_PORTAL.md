@@ -124,7 +124,9 @@ packages; none stays external or is loaded from a CDN.
    `site/assets/examples/CREDITS.md`, then run `pnpm build:native` and
    `node scripts/docs-examples-assets.ts <scene>`.
 3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, in
-   learning order within its theme, and capture its thumbnail:
+   learning order within its theme, or turn its "in progress" entry into it: an entry with no
+   `file` carries `status` (`buildable`, or `needs-engine` with the engine feature it waits for in
+   `missing`, in both languages). Then capture its thumbnail:
    `node scripts/docs-examples-thumbnails.ts <id>`. The capture hides the kit's panels and the
    credit line and waits for the example's most telling moment, the seconds it declares in
    `<meta name="thumbnail" content="3">` (1.5 when it declares none).

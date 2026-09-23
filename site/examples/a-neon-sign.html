@@ -52,27 +52,26 @@
       world.controls.target.set(0, 2, 0);
 
       const ui = controls({
-        star: '#ff3d9a', wave: '#2de2ff', glow: [0, 20, 8], flicker: true,
+        star: '#ff3d9a', wave: '#2de2ff', glow: [0, 20, 8], pulse: true,
         exposure: [0.2, 4, 1], toneMapping: ['aces', 'agx', 'neutral', 'reinhard', 'cineon', 'linear'],
       }, (values) => {
         signs.forEach(({ tube, glow }, index) => {
           const colour = index ? values.wave : values.star;
           tube.emissive.set(colour);
+          tube.emissiveIntensity = glow.intensity = values.glow;
           glow.color.set(colour);
         });
         world.exposure = values.exposure;
         world.toneMapping = values.toneMapping;
       });
-      // A neon tube hums: now and then the star dims, its light with it.
+      // The light each sign throws on the wall breathes; the tubes' own material stays as set,
+      // so nothing but a light changes from frame to frame.
       world.onFrame(({ time }) => {
-        const dim = ui.flicker && Math.sin(time * 7) + Math.sin(time * 23) > 1.6 ? 0.25 : 1;
-        signs.forEach(({ tube, glow }, index) => {
-          const strength = ui.glow * (index ? 1 : dim);
-          tube.emissiveIntensity = strength;
-          glow.intensity = strength;
-        });
+        if (!ui.pulse) return;
+        signs.forEach(({ glow }, index) => (glow.intensity = ui.glow * (0.75 + 0.25 * Math.sin(time * 2 + index * 2))));
         world.invalidate();
       });
+      world.invalidate();
     </script>
   </body>
 </html>

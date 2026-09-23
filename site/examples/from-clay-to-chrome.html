@@ -43,7 +43,7 @@
 
       // A sun for the shadows, and two coloured lamps circling above: a metal shows only what it
       // reflects, so its highlights are the lamps themselves.
-      world.scene.add(light.directional({ intensity: 2, color: '#fff1dd', position: [5, 12, 8], castShadow: true }));
+      world.scene.add(light.directional({ intensity: 3, color: '#fff1dd', position: [9, 5, 3], castShadow: true }));
       const lamps = ['#ffb070', '#70b8ff'].map((colour) => {
         const lamp = light.point({ color: colour, intensity: 40, distance: 16, radius: 0.1, castShadow: true });
         world.scene.add(lamp);
