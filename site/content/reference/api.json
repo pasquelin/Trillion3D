@@ -15538,6 +15538,31 @@
         "desc": "Orbit only: end of that arc; it may be smaller than `minAzimuthAngle`."
       },
       {
+        "name": "movementSpeed",
+        "type": "number",
+        "desc": "Flight and first person: world units per second at full stick; 1 by default."
+      },
+      {
+        "name": "lookSpeed",
+        "type": "number",
+        "desc": "First person only: radians the view turns per pixel the pointer moves."
+      },
+      {
+        "name": "rollSpeed",
+        "type": "number",
+        "desc": "Flight only: radians per second the keys pitch, yaw and roll."
+      },
+      {
+        "name": "rotateSpeed",
+        "type": "number",
+        "desc": "Orbit and trackball: how fast dragging turns; 1 by default."
+      },
+      {
+        "name": "zoomSpeed",
+        "type": "number",
+        "desc": "Pivot controllers: how fast the wheel and the pinch zoom; 1 by default."
+      },
+      {
         "name": "update(delta?: number)",
         "type": "void",
         "desc": "Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose."
