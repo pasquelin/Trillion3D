@@ -30,13 +30,19 @@ export function Fab({ label, actions }: FabProps) {
       </div>
       {actions.map((action) => (
         <div key={action.id}>
-          <span aria-hidden="true">{action.label}</span>
+          <span aria-hidden="true" className="rounded-box bg-base-100 px-2 py-1 shadow">
+            {action.label}
+          </span>
           <button
             type="button"
             className="btn btn-lg btn-circle"
             aria-label={action.label}
             aria-pressed={action.pressed}
-            onClick={action.onClick}
+            onClick={(event) => {
+              // The actions fold away once one is chosen: they open while the button has focus.
+              event.currentTarget.blur();
+              action.onClick();
+            }}
           >
             <Icon name={action.icon} />
           </button>
