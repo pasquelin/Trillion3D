@@ -5,9 +5,9 @@
 // normal map, double-sided. A gap outside the fixture's declared window, a missing render
 // diagnostic, a GPU failure or an engine image that never holds turns the run red.
 //
-// The harness server of `bench/runner` serves the page and its import map, the SDK and the
-// page modules of `test/`; nothing outside this repository is read. Per-fixture readings and both
-// images land under `benchmark-runs/material-pixels/<run>/`.
+// The harness server of `bench/runner` serves the page and its import map, the SDK, the page
+// modules of `tests/` and the engine sources they import; nothing outside this repository is
+// read. Per-fixture readings and both images land under `benchmark-runs/material-pixels/<run>/`.
 //
 //   node tests/browser/renders/witness-materials.browser.ts [run-name]
 import assert from 'node:assert/strict';
@@ -33,6 +33,8 @@ const mounts = [
   ...resolveMounts(ROOT, []),
   { prefix: '/dist/', dir: resolve(ROOT, 'dist') },
   { prefix: '/tests/', dir: resolve(ROOT, 'tests') },
+  // The page modules under `tests/` import engine sources by relative path (`DAG`, `asHostLibrary`).
+  { prefix: '/packages/', dir: resolve(ROOT, 'packages') },
 ];
 const server = await startServer({ port: 0, mounts, captures: new Map() });
 const browser = await launchChrome({ headless: true });
