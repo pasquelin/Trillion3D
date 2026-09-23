@@ -4,7 +4,8 @@ interface TableProps {
   children: ReactNode;
   label?: string;
   wide?: boolean;
-  /** Small type, as wide as its figures rather than its column: a matrix, a short grid. */
+  /** Small type, unstriped, as wide as its figures rather than its column: a matrix, a short
+   *  grid. */
   compact?: boolean;
   className?: string;
 }
@@ -17,6 +18,13 @@ export function Table({
   compact = false,
   className = '',
 }: TableProps) {
+  if (compact) {
+    return (
+      <div className="overflow-x-auto">
+        <table className="table table-xs w-auto">{children}</table>
+      </div>
+    );
+  }
   return (
     <div
       className="min-w-0 max-w-full overflow-x-auto"
@@ -25,7 +33,7 @@ export function Table({
       tabIndex={label ? 0 : undefined}
     >
       <table
-        className={`table table-zebra ${compact ? 'table-xs w-auto' : 'w-full'} tabular-nums [&_small]:block [&_small]:text-base-content/70 ${wide ? '[&_th]:min-w-56 [&_td]:min-w-56 [&_td]:max-w-96 [&_td]:break-words [&_th]:whitespace-normal' : ''} ${className}`}
+        className={`table table-zebra w-full tabular-nums [&_small]:block [&_small]:text-base-content/70 ${wide ? '[&_th]:min-w-56 [&_td]:min-w-56 [&_td]:max-w-96 [&_td]:break-words [&_th]:whitespace-normal' : ''} ${className}`}
       >
         {children}
       </table>

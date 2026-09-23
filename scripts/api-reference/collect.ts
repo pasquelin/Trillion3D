@@ -26,17 +26,6 @@ function isPublicMember(member: ts.Symbol, owner: ts.Symbol | null): boolean {
   });
 }
 
-/** A destructured parameter by the names it binds, `{ stream }`. */
-function bindingName(name: ts.BindingName): string {
-  if (ts.isIdentifier(name)) return name.text;
-  const names = name.elements.map((element) =>
-    ts.isOmittedExpression(element)
-      ? ''
-      : (element.propertyName?.getText() ?? bindingName(element.name)),
-  );
-  return ts.isObjectBindingPattern(name) ? `{ ${names.join(', ')} }` : `[${names.join(', ')}]`;
-}
-
 /** Reads shapes and TSDoc through one type checker, and turns them into portal rows. */
 export class Shapes {
   readonly checker: ts.TypeChecker;
@@ -74,7 +63,7 @@ export class Shapes {
 
   /** A parameter's name as a reader calls it, never the `__0` TypeScript gives a destructured
    *  one: that is the last word of its named type (`world: World`, `options: TerminalOptions`),
-   *  or the names it binds when its type has none. */
+   *  or `options` when its type has none. */
   parameterName(
     parameter: ts.Symbol,
     declaration: ts.ParameterDeclaration | undefined,
@@ -83,7 +72,7 @@ export class Shapes {
     if (!declaration || ts.isIdentifier(declaration.name)) return parameter.name;
     const named = this.names.get(type) ?? (type.aliasSymbol ?? type.getSymbol())?.name;
     const word = named && /^[A-Z]/.test(named) ? /[A-Z][a-z0-9]*$/.exec(named)?.[0] : undefined;
-    return word ? word.toLowerCase() : bindingName(declaration.name);
+    return word ? word.toLowerCase() : 'options';
   }
 
   /** `name(a: A, b?: B): R`, spelt with the names `text` gives the types. */
