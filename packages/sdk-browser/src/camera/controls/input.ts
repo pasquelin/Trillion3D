@@ -147,7 +147,7 @@ export function trackKeys(
   surface: HTMLElement,
   base: ControlBase,
   onChange: () => void,
-  used: readonly KeyAxis[],
+  used: readonly (KeyAxis | readonly string[])[],
 ) {
   const pressed = new Set<string>(),
     steering = new Set(used.flat(2));

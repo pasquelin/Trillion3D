@@ -1,7 +1,7 @@
 import { createChangeGate, createControlBase } from './base.ts';
 import { axisOf, trackKeys, type KeyAxis } from './input.ts';
 import { controlPose } from './pose.ts';
-import { createHead, FIRST_PERSON_PITCH, type PersonHead } from './look.ts';
+import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts';
 import { createCharacterBody } from '../../../../sdk-core/src/collision/characterBody.ts';
 import { createCharacterEye } from '../../../../sdk-core/src/collision/characterEye.ts';
 import {
@@ -77,9 +77,7 @@ export function createCharacterCameraControls(
     ...base.api,
     ...HUMAN_BODY,
     object: pose.object,
-    lookSpeed: 0.002,
-    minPitch: FIRST_PERSON_PITCH[0],
-    maxPitch: FIRST_PERSON_PITCH[1],
+    ...HEAD_DEFAULTS,
     onLand: null,
     onJump: null,
     get velocity() {
@@ -139,7 +137,7 @@ export function createCharacterCameraControls(
       jumpHeld = keys.has(JUMP);
       base.emit();
     },
-    [STRAFE, ADVANCE, [SPRINT, [JUMP]]],
+    [STRAFE, ADVANCE, SPRINT, [JUMP]],
   );
   return api;
 }

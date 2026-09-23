@@ -31,7 +31,7 @@ const EXAMPLE_WORDS = readJsonFolder<object>(
 );
 
 /** One file whose keys differ from English's, and how. */
-export interface KeyMismatch {
+interface KeyMismatch {
   file: string;
   missing: string[];
   extra: string[];
@@ -39,7 +39,7 @@ export interface KeyMismatch {
 
 /** The leaf keys of a JSON value, `a.b.0`: what a translation must give, whatever its words;
  *  each followed by what `describe` says of its text. */
-export function leafKeys(
+function leafKeys(
   value: unknown,
   prefix = '',
   describe: (text: unknown) => string = () => '',
@@ -90,11 +90,10 @@ const blanks = (text: unknown) =>
     .join('');
 
 /** The examples' dictionary of `code` against English's: its keys, and the blanks of each word. */
-function exampleMismatch(code: string): KeyMismatch[] {
+function exampleMismatch(code: string, english: string[]): KeyMismatch[] {
   const file = `site/examples/i18n/${code}.json`;
   const given = EXAMPLE_WORDS[code];
   if (!given) return [{ file, missing: [file], extra: [] }];
-  const english = leafKeys(EXAMPLE_WORDS[DEFAULT_LANGUAGE], '', blanks);
   return compareKeys(file, english, leafKeys(given, '', blanks));
 }
 
@@ -103,11 +102,12 @@ function exampleMismatch(code: string): KeyMismatch[] {
 export function keyMismatches(): KeyMismatch[] {
   const english = leafKeys(DICTIONARIES[DEFAULT_LANGUAGE]);
   const reference = englishReferenceKeys();
+  const examples = leafKeys(EXAMPLE_WORDS[DEFAULT_LANGUAGE], '', blanks);
   const languages = Object.keys(DICTIONARIES);
   return [
     ...languages.flatMap((code) => [
       ...flagMismatch(code),
-      ...exampleMismatch(code),
+      ...exampleMismatch(code, examples),
       ...compareKeys(`site/i18n/${code}.json`, english, leafKeys(DICTIONARIES[code])),
       ...(code === DEFAULT_LANGUAGE
         ? []

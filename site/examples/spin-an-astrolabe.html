@@ -22,14 +22,9 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, side } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, seeded } from '../runtime/kit.js';
 
       // A sequence in [0, 1) from a seed: the same scene on every run.
-      function random(seed) {
-        let state = seed >>> 0;
-        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
-      }
-
       // `trackball`: drag spins the object any way at all, over the top and upside down, roll
       // included; there is no horizon to keep.
       const world = createWorld('view', { controls: 'trackball' });
@@ -58,7 +53,7 @@
       // The night sky around it: a dome seen from inside, and a few hundred far stars.
       const dome = object.mesh(geometry.sphere(40, 64, 32), material.meshStandard({ color: '#1b2350', roughness: 1, side: side.double }));
       world.scene.add(dome);
-      const far = material.meshStandard({ color: '#000000', emissive: '#ffffff', emissiveIntensity: 3 }), next = random(2);
+      const far = material.meshStandard({ color: '#000000', emissive: '#ffffff', emissiveIntensity: 3 }), next = seeded(2);
       const speck = geometry.sphere(1, 8, 6);
       for (let index = 0; index < 300; index++) {
         const point = object.mesh(speck, far);

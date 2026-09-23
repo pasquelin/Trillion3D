@@ -37,11 +37,13 @@ export interface PersonHead extends HeadSettings {
   unlock(): void;
 }
 
-/** The default pitch range: just short of either pole, where the yaw would lose its meaning. */
-export const FIRST_PERSON_PITCH = [
-  POLAR_EPSILON - Math.PI / 2,
-  Math.PI / 2 - POLAR_EPSILON,
-] as const;
+/** A head's defaults: its look speed, and a pitch range just short of either pole, where the
+ *  yaw would lose its meaning. */
+export const HEAD_DEFAULTS = {
+  lookSpeed: 0.002,
+  minPitch: POLAR_EPSILON - Math.PI / 2,
+  maxPitch: Math.PI / 2 - POLAR_EPSILON,
+};
 
 export function createHead(
   pose: ControlPose,

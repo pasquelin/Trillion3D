@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, camera } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, seeded } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -30,7 +30,7 @@
 
       // A toy city on a table: six by six blocks between streets, each block a few buildings or a
       // park, and cars running down the streets. Seeded, so every visit builds the same town.
-      const random = ((state) => () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296)(27);
+      const random = seeded(27);
       const matte = (color) => material.meshStandard({ color, roughness: 0.8 });
       const WALLS = ['#e9d8bf', '#d9a78a', '#c9d3dc', '#f0e6d2', '#b9c7a8', '#e2b6a0'].map(matte);
       const ROOF = matte('#6d6a70'), PAVING = matte('#d8d4cc'), GRASS = matte('#78a15a'), LEAF = matte('#3f7d45'), BARK = matte('#6b4a30');

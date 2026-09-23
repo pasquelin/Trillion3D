@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, side } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, seeded } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#8cc3ee');
@@ -59,7 +59,7 @@
         parts.push({ body, paint });
         return holder;
       }
-      const random = ((state) => () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296)(21);
+      const random = seeded(21);
 
       // The island: a sea to the horizon, a beach, a grass top and three soft hills.
       part(geometry.cylinder(60, 60, 0.2, 96), 'sea', 60, [0, -0.5, 0], world.scene, false);
