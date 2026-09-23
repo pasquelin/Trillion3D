@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Run } from './installed-package-contracts.ts';
 
-export function writeInstalledScene(
+function writeInstalledScene(
   directory: string,
   variant = 0,
   columns = 96,

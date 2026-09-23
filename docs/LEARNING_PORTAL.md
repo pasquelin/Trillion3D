@@ -272,8 +272,10 @@ pnpm docs:scene
 ```
 
 `docs:scene` runs `scripts/docs-scene.ts`, regenerates the deterministic glTF source, then invokes
-this checkout's native compiler to write the published cache. `TRILLION3D_COMPILER` may select a compatible
-compiler binary. Never replace source assets with compiler outputs or import assets from a
+this checkout's native compiler to write the published cache; `docs:gallery` does the same for the
+gallery scenes modelled in code, the observatory and the mountain terrain. Every generator runs the
+compiler through `scripts/native-compiler.ts`, which follows the SDK's rule:
+`TRILLION3D_COMPILER_BIN` may select a compatible compiler binary. Never replace source assets with compiler outputs or import assets from a
 neighbouring project. Review the generated manifest provenance and run
 `node --test scripts/docs-scene.test.ts` before publishing a regenerated cache.
 

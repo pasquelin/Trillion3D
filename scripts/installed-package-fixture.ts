@@ -6,7 +6,7 @@ import type { Metafile } from 'esbuild';
 import type { Bundle, Run, Write } from './installed-package-contracts.ts';
 
 /** One child-process invocation the installed-package proof made, kept for the failure report. */
-export interface LogEntry {
+interface LogEntry {
   command: string[];
   cwd: string;
   stdout: string;

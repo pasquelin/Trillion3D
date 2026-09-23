@@ -21,14 +21,13 @@ import { parseArgs } from './options.ts';
 import { ASSETS, sceneDerived } from './scene.ts';
 import { SAMPLE_MODELS, kebab, sceneGltfFile, scenesOnDisk } from './assetsCatalogue.ts';
 import { fetchModels } from './assetsFetch.ts';
+import { resolveCompilerExecutable } from '../../packages/sdk-node/src/compiler/process.mts';
+import { TRIANGLE_BUDGET } from '../../scripts/native-compiler.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const CLI = join(ROOT, 'dist/sdk-node/src/cli/cli.mjs');
-const COMPILER =
-  process.env.TRILLION3D_COMPILER_BIN ??
-  join(ROOT, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
-/** The triangle budget of a `full` cache, as `README.md` § Assets states it for every scene. */
-const TRIANGLE_BUDGET = '150000';
+/** The executable the CLI runs, resolved by the CLI's own rule; checked here before any job. */
+const COMPILER = resolveCompilerExecutable();
 
 /**
  * What a compile job is given of the machine, read off the machine and never chosen by hand:
@@ -70,11 +69,7 @@ function compile(scene: string, budget: ReturnType<typeof machineBudget>) {
     String(budget.ramMb),
     'qem-endpoints',
   ];
-  const run = spawnSync('node', args, {
-    cwd: ROOT,
-    stdio: ['ignore', 'inherit', 'inherit'],
-    env: { ...process.env, TRILLION3D_COMPILER_BIN: COMPILER },
-  });
+  const run = spawnSync('node', args, { cwd: ROOT, stdio: ['ignore', 'inherit', 'inherit'] });
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error(`compiling ${scene} failed (${run.status})`);
 }
