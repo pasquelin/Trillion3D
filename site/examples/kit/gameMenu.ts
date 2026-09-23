@@ -51,6 +51,8 @@ export interface MenuSpec {
   keys: GameKey[];
   options: GameOption[];
   labels: MenuLabels;
+  /** A screenshot is wanted: the menu never draws, though it still hides `data-hud`. */
+  capture: boolean;
 }
 
 /** What a press on the menu asks of the game. */
@@ -118,7 +120,7 @@ export function createMenu(spec: MenuSpec, actions: MenuActions): MenuView {
   const hud = document.createElement('style');
   hud.textContent = HUD_RULE;
   document.head.append(hud);
-  const { labels } = spec;
+  const { labels, capture } = spec;
   const menu = make('div', 'wg-menu'),
     card = make('div', 'wg-card');
   const heading = make('h1'),
@@ -152,8 +154,11 @@ export function createMenu(spec: MenuSpec, actions: MenuActions): MenuView {
   return {
     show(screen, words = '') {
       document.documentElement.dataset.game = screen ? 'menu' : 'playing';
-      menu.hidden = !screen;
-      if (!screen) return foldPanels();
+      // A capture keeps the hud hidden (`data-game` above) but never draws the card, its veil or
+      // its blur: `menu` stays hidden whatever screen play.ts asks for.
+      const shown = screen && !capture;
+      menu.hidden = !shown;
+      if (!shown) return foldPanels();
       const paused = screen === 'pause';
       heading.textContent = paused ? labels.paused : spec.title;
       goal.hidden = paused;
