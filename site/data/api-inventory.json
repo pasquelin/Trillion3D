@@ -2602,6 +2602,7 @@
         "packages/sdk-browser/src/world/api/lightApi.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/capability/worldReady.ts",
+        "packages/sdk-browser/src/world/core/worldDevice.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.ts",
         "packages/sdk-browser/src/world/core/worldTarget.ts",
         "packages/sdk-browser/src/world/loader/modelFormat.ts",
