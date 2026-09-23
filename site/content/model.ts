@@ -142,6 +142,14 @@ export function entrySummary(entry: Pick<PortalEntry, 'description' | 'summary'>
   return (/^.+?[.!?](?=\s+[A-Z`(]|$)/s.exec(text)?.[0] ?? text).trim();
 }
 
+/** The description past the summary: the rest of it when the summary is its first sentence, all
+ *  of it when the summary is a line of its own. */
+export function entryRest(entry: Pick<PortalEntry, 'description' | 'summary'>): string {
+  const summary = entrySummary(entry);
+  const { description } = entry;
+  return (description.startsWith(summary) ? description.slice(summary.length) : description).trim();
+}
+
 const REPOSITORY = 'https://github.com/pasquelin/WebGeometry';
 
 /** What each open issue delivers, as the badge of an entry in development says it. */

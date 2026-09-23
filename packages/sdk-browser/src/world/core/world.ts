@@ -166,7 +166,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** Asks for a new frame after a change the world could not see. */ invalidate,
     /** Draws one frame now, whoever leads the loop. */
     render() {
-      if (live()) frames.prepare(frames.delta());
+      if (live()) frames.prepare(frames.advance());
       runtime.render();
     },
     /** Tells the world the canvas changed size; unset, it reads the canvas's own size.

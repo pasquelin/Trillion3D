@@ -61,6 +61,7 @@ export function createOrbitCameraControls(
     offset = new Float64Array(3),
     spherical = new Float64Array(3),
     orientation = new Float64Array(4),
+    facing = new Float64Array(4),
     pan = new Float64Array(3),
     moved = new Float64Array(6),
     bounds = new Float64Array(6),
@@ -83,7 +84,8 @@ export function createOrbitCameraControls(
     bounds[5] = api.maxAzimuthAngle;
   };
   /**
-   * Whether the sampled pose is the one last written, under the bounds it was written with.
+   * Whether the sampled pose — position and orientation — is the one last written, under the
+   * bounds it was written with; a host that only turned the camera is aimed back at the target.
    * Re-clamping it would not be a no-op: an angle read back from a pose on a bound lands one
    * ULP to either side of it, and a still scene would emit on every `update()`.
    */
@@ -93,7 +95,7 @@ export function createOrbitCameraControls(
     for (let i = 0; i < 3; i++)
       if (position[i] !== moved[i] || center[i] !== moved[3 + i]) return false;
     for (let i = 0; i < 6; i++) if (bounds[i] !== applied[i]) return false;
-    return true;
+    return pose.readOrientation(facing).every((value, i) => value === orientation[i]);
   };
   const apply = () => {
     readBounds();

@@ -88,7 +88,7 @@ The learning portal under `site/` has its own proofs, run on demand in system Ch
 `scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site into
 `dist/site/` before serving it, so they need no committed bundle. A behaviour-neutral change to the
 site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
-(entries and examples in both locales, examples index, API index, reports, not found),
+(entries and examples in every language, examples index, API index, reports, not found),
 served from two built trees, settled, its DOM compared after normalising what is dynamic by
 nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame metrics).
 `node scripts/site-first-load.ts <siteDir> [route ...]` measures a route's first load
