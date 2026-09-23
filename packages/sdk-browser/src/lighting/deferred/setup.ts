@@ -101,7 +101,9 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   });
   const slices = device.createBuffer({
     label: 'WG empty shadow records',
-    size: MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4 + 4,
+    // One table word, rounded up to the struct's 16-byte alignment: WGSL sizes `ShadowData` so,
+    // and a binding four bytes short invalidates every pass that reads it.
+    size: MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4 + 16,
     usage: GPUBufferUsage.STORAGE,
   });
   const requests = device.createBuffer({

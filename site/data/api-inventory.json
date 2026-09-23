@@ -4407,6 +4407,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
+        "packages/sdk-browser/src/lighting/deferred/placeholders.test.ts",
         "packages/sdk-browser/src/lighting/deferred/setup.ts",
         "packages/sdk-browser/src/lighting/direct/shadowWgsl.ts"
       ],
@@ -6684,6 +6685,7 @@
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.test.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
+        "packages/sdk-browser/src/lighting/deferred/placeholders.test.ts",
         "packages/sdk-browser/src/lighting/deferred/setup.ts",
         "packages/sdk-browser/src/visibility/shader/request.ts"
       ],
