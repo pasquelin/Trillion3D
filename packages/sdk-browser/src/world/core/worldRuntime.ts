@@ -27,11 +27,15 @@ type Inputs = {
   frame: (metrics: FrameMetrics) => void;
   /** The display chain the page set: exposure and curve; the lights add their irradiance. */
   display: () => { exposure: number; toneMapping: SceneToneMapping };
-  /** Whether the world has drawn a frame yet. */ drawn: () => boolean;
-  /** Settles once the world's renderer — and its device — is granted. */ ready: Promise<unknown>;
+  /** Whether the world has drawn a frame yet. */
+  drawn: () => boolean;
+  /** Settles once the world's renderer — and its device — is granted, a lost one asked again. */
+  ready: () => Promise<unknown>;
   /** A session that failed to open, or a scene that failed to resolve: reported, scene kept. */
   failed: (error: unknown) => void;
   notices: WorldNotices;
+  /** Opens a session; stands for the engine's own. */
+  open?: typeof openMeasuredWorld;
 };
 
 /**
@@ -43,7 +47,7 @@ type Inputs = {
  * does not hold: a resource or material entry it never had, rows it cannot grow, a model.
  */
 export function createWorldRuntime(inputs: Inputs) {
-  const { canvas, scene, camera } = inputs;
+  const { canvas, scene, camera, open = openMeasuredWorld } = inputs;
   const contents = createWorldContents(scene, inputs.notices),
     lights = createWorldLights();
   const { poses, cuts } = contents;
@@ -68,10 +72,8 @@ export function createWorldRuntime(inputs: Inputs) {
     if (disposed) return;
     closed = 'its session is opening';
     // What was resolved since the last frame opens with this session, not with the next one.
-    if (seatWanted) {
-      seatWanted = false;
-      contents.seat();
-    }
+    if (seatWanted) contents.seat();
+    seatWanted = false;
     const plan = contents.plan();
     const built = buildWorldSource(plan);
     const held = new Set(plan.batches.map((item) => item.cut));
@@ -94,19 +96,18 @@ export function createWorldRuntime(inputs: Inputs) {
     try {
       // The session reads at the scope its first model was read at, or the default.
       const scope = built.source.metadata.scope;
-      explorer = await openMeasuredWorld(canvas, { ...inputs.options(), scope }, built.source);
+      await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
+      explorer = await open(canvas, { ...inputs.options(), scope }, built.source);
     } catch (error) {
       closed = 'its session failed to open';
       if (!disposed) inputs.failed(error); // cut short by disposal, it failed nothing
       return;
     }
-    if (disposed) explorer.dispose();
-    else {
-      // Lit and a frame asked before the page's own settings: the first image had no lights.
-      explorer.setLightingView('lit');
-      invalidate();
-      inputs.opened(explorer);
-    }
+    if (disposed) return explorer.dispose();
+    // Lit and a frame asked before the page's own settings: the first image had no lights.
+    explorer.setLightingView('lit');
+    invalidate();
+    inputs.opened(explorer);
   };
   const reopens = createRequestLoop(reopen),
     requestReopen = reopens.request;
@@ -123,13 +124,14 @@ export function createWorldRuntime(inputs: Inputs) {
       }
     } catch (error) {
       closed = 'the scene could not be resolved';
+      lightsChanged = true; // a light taken with the burst that threw is written all the same
       if (!disposed) inputs.failed(new Error('World scene resolution failed', { cause: error }));
     }
     resolving = null;
   };
   const schedule = () => {
     structureChanged = true;
-    resolving ??= inputs.ready.then(resolve, resolve);
+    resolving ??= inputs.ready().then(resolve, resolve);
   };
   /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
   const apply = () => {
@@ -149,11 +151,9 @@ export function createWorldRuntime(inputs: Inputs) {
       poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),
       );
-    if (lightsChanged) {
-      const irradiance = lights.sync(scene, session);
-      session.setEnvironment({ ...inputs.display(), irradiance });
-      lightsChanged = false;
-    }
+    if (lightsChanged)
+      session.setEnvironment({ ...inputs.display(), irradiance: lights.sync(scene, session) });
+    lightsChanged = false;
   };
   const fit = createCanvasFit(canvas, inputs.options().interactive === false);
   const beforeFrame = () => {

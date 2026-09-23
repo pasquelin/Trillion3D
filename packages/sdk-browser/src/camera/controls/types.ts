@@ -10,7 +10,8 @@
  *
  * `target`, `object.position`, `minDistance`, `maxDistance`, `enableZoom`, `update()`,
  * `addEventListener('change')` and `dispose()` are the ORBIT contract a world's `controls`
- * publishes (`world/core/worldCamera.ts`); nothing outside that list is part of it. The other controllers publish the same base plus what their own motion needs.
+ * publishes (`world/core/worldCamera.ts`); nothing outside that list is part of it. The other
+ * controllers publish the same base plus what their own motion needs.
  */
 import type { HostRotation } from '../../host/scene/graphNodes.ts';
 

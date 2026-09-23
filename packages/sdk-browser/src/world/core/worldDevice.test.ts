@@ -61,3 +61,37 @@ test('a lost device is asked for again, and the session reopened on the new one'
   assert.equal(devices[1].device.destroyed, true);
   assert.equal(asked, 2);
 });
+
+test('a session opened while a device is asked again waits on it, and a WebGL2 grant fails', async () => {
+  const first = fakeDevice();
+  let answer!: (granted: { renderer: 'webgpu' | 'webgl2'; gpuDevice?: GPUDevice }) => void;
+  let asked = 0,
+    reopened = 0;
+  const probe = () =>
+    asked++ === 0
+      ? Promise.resolve({ renderer: 'webgpu' as const, gpuDevice: first.device as never })
+      : new Promise<{ renderer: 'webgpu' | 'webgl2'; gpuDevice?: GPUDevice }>((r) => (answer = r));
+  const held = holdWorldDevice(canvas, undefined, () => reopened++, probe);
+  await held.ready;
+  const warn = console.warn;
+  console.warn = () => {};
+  first.lose({ reason: 'unknown', message: 'driver reset' });
+  for (let turn = 0; turn < 10 && asked < 2; turn++) await new Promise(setImmediate);
+  console.warn = warn;
+  // In the window, no device is held: an opening waits on the grant instead of taking WebGL2.
+  assert.equal(held.gpuDevice, undefined);
+  assert.notEqual(held.pending, held.ready);
+  let settled = false;
+  const opening = held.pending.then(
+    () => (settled = true),
+    (error: Error) => error,
+  );
+  await new Promise(setImmediate);
+  assert.equal(settled, false);
+  // The machine now grants WebGL2 alone: the canvas holds a WebGPU context, the grant fails by name.
+  answer({ renderer: 'webgl2' });
+  assert.match(String(await opening), /WebGPU device was lost, none granted again/);
+  for (let turn = 0; turn < 10 && !reopened; turn++) await new Promise(setImmediate);
+  assert.equal(reopened, 1, 'the session reopens, and reports the refusal');
+  held.dispose();
+});
