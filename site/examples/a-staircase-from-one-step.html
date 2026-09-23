@@ -50,15 +50,20 @@
         world.scene.add(flight);
         return flight;
       });
-      // A lantern climbs the stairs: a glowing bulb and its point light, whose shadows of the
-      // balusters sweep round the column.
+      // A lantern climbs the stairs: a glowing bulb and its point light, warming each tread it
+      // passes. It casts no shadow — a lamp that moves every frame would redraw its shadow every
+      // frame —; the still sun draws the balusters' shadows on the column and the floor, and the
+      // sky lights the sides it misses.
       const bulb = object.mesh(geometry.sphere(0.07, 16, 12), material.meshStandard({ color: '#000000', emissive: '#ffb45e', emissiveIntensity: 8 }));
-      const lantern = light.point({ color: '#ffb45e', intensity: 10, distance: 8, radius: 0.07, castShadow: true });
-      world.scene.add(bulb, lantern, light.ambient({ intensity: 0.3, color: '#8fb4ff' }));
-      world.scene.add(light.directional({ intensity: 0.8, color: '#8fa8e0', position: [-6, 10, 4] }));
-      world.camera.position.set(5.6, 6.2, 6.8);
-      world.camera.lookAt(0, 3.2, 0);
-      world.controls.target.set(0, 3.2, 0);
+      const lantern = light.point({ color: '#ffb45e', intensity: 10, distance: 8, radius: 0.07 });
+      world.scene.add(bulb, lantern);
+      world.scene.add(light.directional({ intensity: 2.6, color: '#fff0dc', position: [6, 12, 5], castShadow: true }));
+      world.scene.add(light.hemisphere({ intensity: 1.2, color: '#bcd4ff', groundColor: '#6b5a48' }));
+      // The whole stair in view, from the floor to the last baluster, 7.5 m up.
+      world.camera.position.set(8.5, 6, 10.5);
+      world.camera.lookAt(0, 3.6, 0);
+      world.controls.target.set(0, 3.6, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       const ui = controls({ climb: [0, 6, 2], turnPerStep: [5, 30, 16, 1], lantern: '#ffb45e' }, (values) => {
         flights.forEach((flight, index) => (flight.rotation.y = (index * values.turnPerStep * Math.PI) / 180));

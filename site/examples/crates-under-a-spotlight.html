@@ -18,7 +18,7 @@
       }
       p {
         position: absolute;
-        bottom: 0;
+        top: 0;
         margin: 0.5rem;
         color: #cbd5e1;
         font: 12px system-ui;
@@ -37,10 +37,11 @@
       // One spot light, high above: `angle` is the cone's half-angle in radians, `penumbra` the
       // share of it that fades out, `radius` the lamp's size, which softens the shadows.
       const spot = light.spot({ position: [0, 6, 2], intensity: 400, distance: 16, castShadow: true, radius: 0.1 });
-      world.scene.add(spot, light.ambient({ intensity: 0.12, color: '#8fb4ff' }));
+      world.scene.add(spot, light.hemisphere({ intensity: 0.9, color: '#8fb4ff', groundColor: '#5a4a3c' }));
       world.camera.position.set(3, 2.3, 4.3);
       world.camera.lookAt(0, 0.6, 0);
       world.controls.target.set(0, 0.6, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       controls({ angle: [0.1, 0.8, 0.4], softness: [0, 1, 0.4], colour: '#ffe2b8', power: [50, 1200, 400, 10] }, (values) => {
         spot.angle = values.angle;

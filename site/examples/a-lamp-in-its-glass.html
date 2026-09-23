@@ -25,12 +25,19 @@
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
+      // A closed cellar, 7.6 m wide, 4.3 m high and 5 m deep: floor, ceiling and four walls.
       const stone = material.meshStandard({ color: '#8a7f73', roughness: 0.9 });
-      const floor = object.mesh(geometry.box(8, 0.2, 6), stone);
-      floor.position.y = -0.1;
-      const wall = object.mesh(geometry.box(8, 4.5, 0.3), stone);
-      wall.position.set(0, 2.25, -2);
-      world.scene.add(floor, wall);
+      const slab = (width, height, depth, x, y, z) => {
+        const mesh = object.mesh(geometry.box(width, height, depth), stone);
+        mesh.position.set(x, y, z);
+        world.scene.add(mesh);
+      };
+      slab(8, 0.2, 5.5, 0, -0.1, 0.7);
+      slab(8, 0.2, 5.5, 0, 4.4, 0.7);
+      slab(8, 4.3, 0.3, 0, 2.15, -2);
+      slab(8, 4.3, 0.3, 0, 2.15, 3.35);
+      slab(0.3, 4.3, 5.5, -3.95, 2.15, 0.7);
+      slab(0.3, 4.3, 5.5, 3.95, 2.15, 0.7);
       // Crates and a barrel below the lantern, to throw shadows that swing.
       const wood = material.meshStandard({ color: '#8a5a32', roughness: 0.8 });
       for (const [x, z, size] of [[-1.3, -0.8, 0.8], [-0.6, -1.2, 0.6], [1.4, -0.6, 0.9]]) {
@@ -40,12 +47,12 @@
         world.scene.add(crate);
       }
       const barrel = object.mesh(geometry.cylinder(0.35, 0.35, 0.9, 32), material.meshStandard({ color: '#3f6e8c', metalness: 0.6, roughness: 0.4 }));
-      barrel.position.set(0.4, 0.45, 0.4);
+      barrel.position.set(0.5, 0.45, -0.9);
       world.scene.add(barrel);
 
-      // The lantern hangs 1.4 m below a hook: a bulb in a glass globe. The light's `radius` is the
-      // bulb's, so the bulb and its globe do not block their own lamp.
-      const HOOK = [0, 4, -0.2], CHAIN = 1.4, bulbRadius = 0.07;
+      // The lantern hangs 1.4 m below a hook in the ceiling: a bulb in a glass globe. The light's
+      // `radius` is the bulb's, so the bulb and its globe do not block their own lamp.
+      const HOOK = [0, 4.3, -0.2], CHAIN = 1.4, bulbRadius = 0.07;
       const iron = material.meshStandard({ color: '#202124', metalness: 0.8, roughness: 0.45 });
       const filament = material.meshStandard({ color: '#000000', emissive: '#ffcf8a', emissiveIntensity: 5 });
       const glass = material.meshStandard({ color: '#e6f0ff', roughness: 0.1, opacity: 0.25, transparent: true });
@@ -59,10 +66,19 @@
       globe.position.y = -CHAIN - 0.2;
       lantern.add(chain, bulb, globe);
       const lamp = light.point({ intensity: 10, distance: 10, radius: bulbRadius, castShadow: true });
-      world.scene.add(lantern, lamp, light.ambient({ intensity: 0.05, color: '#8fb4ff' }));
-      world.camera.position.set(2.6, 2.2, 4.4);
-      world.camera.lookAt(0, 1.4, -0.4);
-      world.controls.target.set(0, 1.4, -0.4);
+      world.scene.add(lantern, lamp, light.ambient({ intensity: 0.2, color: '#8fb4ff' }));
+      // The camera turns on an arc facing the lantern, never above the ceiling, below its own eye
+      // level or farther than the front wall: no drag takes it outside the cellar, so none shows
+      // the back of a wall. Panning, which would carry the arc along, is off.
+      world.controls.target.set(0, 1.4, 0.3);
+      world.controls.maxDistance = 2.7;
+      world.controls.minAzimuthAngle = -0.9;
+      world.controls.maxAzimuthAngle = 0.9;
+      world.controls.minPolarAngle = 0.7;
+      world.controls.maxPolarAngle = Math.PI / 2;
+      world.controls.enablePan = false;
+      world.camera.position.set(0.9, 2.2, 2.65);
+      world.camera.lookAt(0, 1.4, 0.3);
 
       const ui = controls({ swing: [0, 0.7, 0.45], lamp: '#ffcf8a', power: [0, 30, 10], glass: [0, 1, 0.25] }, (values) => {
         lamp.color.set(values.lamp);
