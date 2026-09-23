@@ -66,7 +66,8 @@ export function worldBudget(
 /** `world.diagnostic`: the view mode, applied to every session the world opens, and the world's
  *  own channel, whose notices reach every page channel (`worldNotices.ts`). */
 export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
-  let mode = 'beauty';
+  let mode = 'beauty',
+    sessions = 0;
   // `triangles` is the page's word for the per-triangle view, which the engine names `wireframe`
   // (one colour per submitted triangle, `triangleDiagnostic.ts`).
   const engineMode = (name: string) => (name === 'triangles' ? 'wireframe' : name) as never;
@@ -78,6 +79,10 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     set mode(next: string) {
       explorer()?.setDiagnostic(engineMode(next));
       mode = next;
+    },
+    /** Sessions the world has opened so far: a change that reopens one shows here. */
+    get sessions() {
+      return sessions;
     },
     /** Every view mode the current renderer offers. */
     get modes() {
@@ -92,6 +97,7 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     notices: createWorldNotices(),
     /** Puts the mode on a session just opened; the world's own, never the page's. */
     apply(opened: MeasuredWorld) {
+      sessions++;
       if (mode !== 'beauty') opened.setDiagnostic(engineMode(mode));
     },
   };

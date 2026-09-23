@@ -93,6 +93,10 @@ export function fromArrays(
   return builder.build();
 }
 
+/** A count of pieces as a shape can build it: a whole number, at least `least` — the fewest a
+ *  shape of that family closes with. What its recipe records, so the recipe says what was built. */
+export const pieces = (count: number, least: number) => Math.max(least, Math.floor(count));
+
 export const normalize = (x: number, y: number, z: number): [number, number, number] => {
   const out: [number, number, number] = [x, y, z];
   normalizeVector3(out);

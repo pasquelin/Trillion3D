@@ -4,12 +4,13 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { openMeasuredWorld, type MeasuredWorld } from '../session/explorer.ts';
 import type { MeasuredWorldOptions } from '../session/options.ts';
 import { buildWorldSource } from './worldSource.ts';
+import { createRequestLoop } from './requestLoop.ts';
 import { createWorldContents } from './worldContents.ts';
 import { releaseWorldMirror } from './worldMirror.ts';
 import { createWorldLights } from './worldLights.ts';
 import { createWorldLink } from './worldLink.ts';
 import { watchFirstFrame } from '../session/openWatch.ts';
-import { copyWorldCamera, createCanvasFit } from './worldCamera.ts';
+import { copyWorldCamera, createCanvasFit, drawnAspect } from './worldCamera.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
 import type { Scene } from './scene.ts';
@@ -49,14 +50,12 @@ export function createWorldRuntime(inputs: Inputs) {
     lights = createWorldLights();
   const { poses, cuts } = contents;
   let explorer: MeasuredWorld | null = null,
-    mirror: NonNullable<ReturnType<typeof buildWorldSource>>['root'] | null = null,
+    drawn: NonNullable<ReturnType<typeof buildWorldSource>> | null = null,
     twins = new Map<Object3D, PosedTwin>(),
     heldCuts = new Set<Cut>(),
     resolving: Promise<void> | null = null,
-    reopening: Promise<void> | null = null,
     structureChanged = false,
     seatWanted = false,
-    renewWanted = false,
     lightsChanged = true,
     disposed = false,
     /** Why no session is open: the first-frame watch says it on the console. */
@@ -66,59 +65,52 @@ export function createWorldRuntime(inputs: Inputs) {
     lightsChanged = true;
     invalidate();
   };
+  /** One opening: the session in place closed, the next one opened on what the scene holds. */
   const reopen = async () => {
-    // Off the caller's turn: `reopening` is held before the loop runs, so an opening with nothing
-    // to open, which awaits nothing, still clears it when it ends.
-    await Promise.resolve();
-    while (renewWanted && !disposed) {
-      renewWanted = false;
-      closed = 'its session is opening';
-      // What was resolved since the last frame opens with this session, not with the next one.
-      if (seatWanted) {
-        seatWanted = false;
-        contents.seat();
-      }
-      const plan = contents.plan();
-      const built = buildWorldSource(plan);
-      const held = new Set(plan.batches.map((item) => item.cut));
-      for (const cut of held) cuts.hold(cut, true);
-      explorer?.dispose();
-      if (mirror) releaseWorldMirror(mirror);
-      explorer = mirror = null;
-      fit.reset();
-      for (const cut of heldCuts) if (!held.has(cut)) cuts.hold(cut, false);
-      heldCuts = held;
-      twins = (built?.twins ?? new Map()) as Map<Object3D, PosedTwin>;
-      for (const [node, twin] of twins) poses.writeTwin(node, twin, contents.shown(node));
-      lights.reset();
-      lightsChanged = true;
-      if (!built) {
-        closed = 'nothing to draw: the scene holds no mesh and no loaded model';
-        continue;
-      }
-      mirror = built.root;
-      try {
-        // The session reads at the scope its first model was read at, or the default.
-        const scope = built.source.metadata.scope;
-        explorer = await openMeasuredWorld(canvas, { ...inputs.options(), scope }, built.source);
-      } catch (error) {
-        closed = 'its session failed to open';
-        if (!disposed) inputs.failed(error); // cut short by disposal, it failed nothing
-        continue;
-      }
-      if (disposed) explorer.dispose();
-      else {
-        explorer.setLightingView('lit');
-        inputs.opened(explorer);
-        invalidate();
-      }
+    if (disposed) return;
+    closed = 'its session is opening';
+    // What was resolved since the last frame opens with this session, not with the next one.
+    if (seatWanted) {
+      seatWanted = false;
+      contents.seat();
     }
-    reopening = null;
+    const plan = contents.plan();
+    const built = buildWorldSource(plan);
+    const held = new Set(plan.batches.map((item) => item.cut));
+    for (const cut of held) cuts.hold(cut, true);
+    explorer?.dispose();
+    if (drawn) releaseWorldMirror(drawn.root);
+    explorer = drawn = null;
+    fit.reset();
+    for (const cut of heldCuts) if (!held.has(cut)) cuts.hold(cut, false);
+    heldCuts = held;
+    twins = (built?.twins ?? new Map()) as Map<Object3D, PosedTwin>;
+    for (const [node, twin] of twins) poses.writeTwin(node, twin, contents.shown(node));
+    lights.reset();
+    lightsChanged = true;
+    if (!built) {
+      closed = 'nothing to draw: the scene holds no mesh and no loaded model';
+      return;
+    }
+    drawn = built;
+    try {
+      // The session reads at the scope its first model was read at, or the default.
+      const scope = built.source.metadata.scope;
+      explorer = await openMeasuredWorld(canvas, { ...inputs.options(), scope }, built.source);
+    } catch (error) {
+      closed = 'its session failed to open';
+      if (!disposed) inputs.failed(error); // cut short by disposal, it failed nothing
+      return;
+    }
+    if (disposed) explorer.dispose();
+    else {
+      explorer.setLightingView('lit');
+      inputs.opened(explorer);
+      invalidate();
+    }
   };
-  const requestReopen = () => {
-    renewWanted = true;
-    reopening ??= reopen();
-  };
+  const reopens = createRequestLoop(reopen);
+  const requestReopen = reopens.request;
   // Every change made before the renderer is granted, and while a resolution runs, is folded
   // into the next resolution: one for the burst, never one per call.
   const resolve = async () => {
@@ -126,7 +118,7 @@ export function createWorldRuntime(inputs: Inputs) {
       structureChanged = false;
       if (await contents.resolve()) lightsChanged = true;
       seatWanted = true;
-      if (!explorer && !reopening) apply();
+      if (!explorer && !reopens.running) apply();
       invalidate();
     }
     resolving = null;
@@ -141,9 +133,14 @@ export function createWorldRuntime(inputs: Inputs) {
     if (seatWanted) {
       seatWanted = false;
       contents.seat(session?.growsPlacements() ? session.growPlacements : undefined);
-      if (contents.reopenNeeded() || (!session && !reopening)) requestReopen();
+      if (contents.reopenNeeded() || (!session && !reopens.running)) requestReopen();
+      // A material written on its values alone repaints the surface already built (#335).
+      const painted = contents.repainted().filter((entry) => drawn?.repaint(entry.material));
+      // A reopen requested above disposed `session` at once: the next one is built repainted.
+      if (painted.length && session && explorer === session && !session.refreshMaterials())
+        requestReopen();
     }
-    if (!session) return;
+    if (!session || explorer !== session) return;
     if (poses.pending)
       poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),
@@ -159,7 +156,7 @@ export function createWorldRuntime(inputs: Inputs) {
     apply();
     if (!explorer) return;
     fit.apply(explorer);
-    copyWorldCamera(camera(), explorer.camera, canvas.width / Math.max(1, canvas.height));
+    copyWorldCamera(camera(), explorer.camera, drawnAspect(canvas));
   };
   // A scene holding something that has drawn nothing says why, once (`openWatch.ts`).
   watchFirstFrame(() => {
@@ -179,7 +176,7 @@ export function createWorldRuntime(inputs: Inputs) {
     },
     /** Settles once the session reflects every change made so far. */
     async settled() {
-      while (resolving || reopening) await (resolving ?? reopening);
+      while (resolving || reopens.running) await (resolving ?? reopens.running);
     },
     render() {
       if (!explorer) return null;
@@ -191,7 +188,7 @@ export function createWorldRuntime(inputs: Inputs) {
     dispose() {
       disposed = true;
       explorer?.dispose();
-      if (mirror) releaseWorldMirror(mirror);
+      if (drawn) releaseWorldMirror(drawn.root);
       cuts.dispose();
       scene._link = null;
     },
