@@ -147,7 +147,7 @@ test('the layout holds on every page type, at every width, in every language', a
 });
 
 test('the header marks the current area, and a long sidebar label ends on an ellipsis', async () => {
-  const { page } = await open('#/fr/lessons/matrix-inverse', 1440);
+  const { page } = await open('#/fr/learn/create-a-world', 1440);
   const current = page.locator('header nav a[aria-current="page"]');
   assert.equal(await current.count(), 1);
   assert.equal(await current.getAttribute('data-nav'), 'learn');
@@ -159,7 +159,7 @@ test('the header marks the current area, and a long sidebar label ends on an ell
         whole: span.parentElement!.title === span.textContent,
       })),
   );
-  assert.ok(cut.length > 0, 'a French lesson title is longer than the sidebar');
+  assert.ok(cut.length > 0, 'a French guide title is longer than the sidebar');
   assert.ok(cut.every(({ overflow, whole }) => overflow === 'ellipsis' && whole));
   await page.context().close();
 });

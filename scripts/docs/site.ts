@@ -6,7 +6,6 @@
 import { copyFile, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { gitPathsSync } from '../git-paths.ts';
-import { buildDemo } from './build-demo.ts';
 import { buildPortal } from './build-portal.ts';
 import { buildRuntime } from './build-runtime.ts';
 import { buildStyles } from './build-styles.ts';
@@ -50,16 +49,15 @@ async function copyTree(source: string, target: string) {
 }
 
 /** The folders of `out` the build writes: emptied first, so no chunk of an earlier build stays. */
-const BUILT_FOLDERS = ['css', 'js', 'runtime'];
+const BUILT_FOLDERS = ['css', 'runtime'];
 
-/** Writes the build products into `out`: styles, engine runtime, demo maths, portal. */
+/** Writes the build products into `out`: styles, engine runtime, portal. */
 export async function buildBundles(root: string, out: string) {
   for (const folder of BUILT_FOLDERS)
     await rm(resolve(out, folder), { recursive: true, force: true });
   await mkdir(out, { recursive: true });
   await buildStyles(root, { output: resolve(out, 'css/site.css') });
   await buildRuntime(root, resolve(out, 'runtime'));
-  await buildDemo(root, resolve(out, 'js/engine.js'));
   await buildPortal(root, resolve(out, 'runtime'));
 }
 

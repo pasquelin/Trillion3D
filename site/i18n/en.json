@@ -20,7 +20,6 @@
   "sidebar": {
     "navigation": "Documentation navigation",
     "noResults": "Nothing matches.",
-    "lessons": "Lessons",
     "filterExamples": "Filter the examples"
   },
   "home": {
@@ -74,8 +73,7 @@
     "Type": "Type",
     "Guide": "Guide",
     "Chapter": "Course",
-    "Example": "Example",
-    "Lesson": "Lesson"
+    "Example": "Example"
   },
   "demo": {
     "loading": "Preparing the scene…",
@@ -98,86 +96,6 @@
     "math-utilities": "Math utilities",
     "node": "Node and compilation",
     "types": "Types and errors"
-  },
-  "gallery": {
-    "engineTitle": "Live streamed geometry",
-    "engineDescription": "Actual streaming and LOD pipeline.",
-    "engineAlt": "Geometry garden rendered by WebGPU",
-    "previewAlt": "WebGPU scene preview",
-    "engineBadge": "Engine scene",
-    "all": "All",
-    "more": "More",
-    "categories": "Example categories",
-    "eyebrow": "Learn by seeing",
-    "title": "Lessons",
-    "shown": "{{count}} lessons shown",
-    "previous": "Load previous results",
-    "next": "Load more results",
-    "loading": "Loading…",
-    "end": "End of results",
-    "none": "No lessons found.",
-    "featuredScenes": "Featured scenes",
-    "featuredScene": "Featured scene",
-    "diagram": "Complementary 2D diagram",
-    "chooseExperiment": "Choose an experiment"
-  },
-  "themes": {
-    "transforms": "Transforms",
-    "geometry": "Geometry and bounds",
-    "camera": "Camera",
-    "materials": "Materials and textures",
-    "lighting": "Lights and shadows",
-    "performance": "Performance and streaming"
-  },
-  "controls": {
-    "tx": "Translation x",
-    "angle": "Rotation",
-    "scale": "Scale",
-    "parent": "Parent angle",
-    "child": "Child offset",
-    "fov": "Field of view",
-    "depth": "Depth",
-    "x": "X",
-    "angleA": "Arrow a",
-    "angleB": "Arrow b",
-    "y": "Y",
-    "points": "Points",
-    "width": "Width",
-    "height": "Height",
-    "childX": "Child offset",
-    "left": "Left grey",
-    "right": "Right grey",
-    "base": "Base error",
-    "frame": "Frame time",
-    "budget": "Budget",
-    "scaleY": "Vertical scale"
-  },
-  "playground": {
-    "controls": "Experiment controls",
-    "reset": "Reset",
-    "preset": "Preset",
-    "pause": "Pause",
-    "animate": "Animate",
-    "mathNote": "3D mathematical illustration; the engine scene shows actual streaming.",
-    "enabled": "Enabled",
-    "disabled": "Disabled",
-    "authoredGeometry": "Geometry authored before compilation.",
-    "webgpuImage": "Image computed by the public WebGPU backend.",
-    "updateRejected": "WebGPU update rejected.",
-    "webgpuUnavailable": "WebGPU rendering unavailable.",
-    "zoomOut": "Zoom out",
-    "zoomIn": "Zoom in",
-    "resetCamera": "Reset camera",
-    "paused": "Paused",
-    "cpuFrame": "CPU frame",
-    "allocatedPool": "Allocated pool",
-    "drawnTriangles": "Drawn triangles",
-    "shadowRedrawn": "Shadow pages redrawn",
-    "shadowPending": "Shadow pages pending",
-    "occludedClusters": "Occluded clusters",
-    "unavailable3d": "3D rendering unavailable.",
-    "cpuEncode": "CPU encode",
-    "visualBuffers": "Visual buffers"
   },
   "code": {
     "copied": "Copied",
@@ -205,12 +123,7 @@
     "lead": "This address does not match a page in the portal.",
     "wayBack": "Find your way back",
     "home": "Return home",
-    "examples": "Explore examples",
-    "pause": "Pause animation",
-    "illustration": "Geometric orbits — interactive 3D illustration"
-  },
-  "engineScene": {
-    "qualityHelp": "Pixel error 0 keeps exact leaves; raising it permits a coarser bounded DAG cut."
+    "examples": "Explore examples"
   },
   "report": {
     "comparedEngines": "Compared with Web Geometry. Move the handle to compare images.",
@@ -479,7 +392,6 @@
   },
   "course": {
     "words": {
-      "picture": "What you will build",
       "steps": "Step by step",
       "code": "The code",
       "tryIt": "Try it",
@@ -898,86 +810,6 @@
     },
     "srgbToLinearBatch": {
       "description": "One channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts`: the reference multiplies by rounded constants, and the gap — invisible at 8 bits — is bounded once, in the bench that duels it."
-    }
-  },
-  "catalog": {
-    "compose-transform": {
-      "title": "Build a transform",
-      "description": "Move, rotate and scale a local shape into world space."
-    },
-    "matrix-chain": {
-      "title": "Chain two transforms",
-      "description": "See why transform order changes the final position."
-    },
-    "matrix-inverse": {
-      "title": "Travel out and back",
-      "description": "Invert a transform and recover a local point from world space."
-    },
-    "reflection-orientation": {
-      "title": "When a mirror flips faces",
-      "description": "Watch determinant sign track orientation through negative scale."
-    },
-    "quaternion-turn": {
-      "title": "Quaternion axis rotation",
-      "description": "Build a unit quaternion and rotate a direction without translation."
-    },
-    "normal-transform": {
-      "title": "Normals under uneven scale",
-      "description": "Compare a corrected surface normal with a naively scaled direction."
-    },
-    "perspective": {
-      "title": "Perspective projection",
-      "description": "Connect field of view and depth to the projected image."
-    },
-    "frustum": {
-      "title": "Frustum decisions",
-      "description": "Move a box through six camera planes: outside, crossing or inside."
-    },
-    "dot-product": {
-      "title": "Dot product as alignment",
-      "description": "Turn two arrows and read agreement from −1 to +1."
-    },
-    "cross-product": {
-      "title": "Cross product and orientation",
-      "description": "The signed area reveals clockwise and counter-clockwise turns."
-    },
-    "normalize": {
-      "title": "Separate length from direction",
-      "description": "Normalization keeps direction and makes length one."
-    },
-    "box-grow": {
-      "title": "Grow a bounding box",
-      "description": "Add points one by one and watch the smallest enclosing box."
-    },
-    "sphere-from-box": {
-      "title": "Box to bounding sphere",
-      "description": "Compare a tight box with its fast conservative sphere."
-    },
-    "hierarchy": {
-      "title": "Parent and child motion",
-      "description": "A child keeps its local offset while its parent moves."
-    },
-    "color-space": {
-      "title": "Colour is not arithmetic",
-      "description": "Compare a screen-space midpoint with a light-space midpoint."
-    },
-    "lod-budget": {
-      "title": "LOD budget governor",
-      "description": "Trade projected error for a bounded frame workload."
-    }
-  },
-  "showcase": {
-    "runtime-pixel-error": {
-      "title": "Cross the observatory",
-      "description": "Explore 91,352 authored triangles, then reveal where the streamed cut becomes coarser.",
-      "action": "Explore live LOD",
-      "alt": "Sunlit observatory with fluted colonnades, copper dome and brass armillary"
-    },
-    "shadow-casting-switch": {
-      "title": "Direct the shadow theatre",
-      "description": "Switch the key light shadow while three distinct puppets and the theatre stay lit.",
-      "action": "Try the shadow switch",
-      "alt": "Velvet puppet theatre with a bird, fox and leafy branch casting shadows"
     }
   },
   "canvas": {

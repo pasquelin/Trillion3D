@@ -1,4 +1,3 @@
-import { examples as lessons } from '../../content/catalog.ts';
 import { dictionaryOf, wordFor } from '../../content/i18n/dictionary.ts';
 import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -43,19 +42,9 @@ function entryGroups(entries: PortalEntry[], route: PortalRoute, learn: boolean)
     .filter(({ items }) => items.length > 0);
 }
 
-/** Learn: the guides, the SDK examples, then the lessons. */
-export function learnMenu(entries: PortalEntry[], route: PortalRoute): SidebarMenuGroup[] {
-  const lessonItems = lessons.map((lesson) => ({
-    key: lesson.id,
-    label: local(lesson.title, route.locale),
-    href: routeHref({ locale: route.locale, area: 'lessons', id: lesson.id }),
-    active: route.area === 'lessons' && route.id === lesson.id,
-  }));
-  return [
-    ...entryGroups(entries, route, true),
-    { id: 'lessons', title: wordsOf(route.locale)('sidebar.lessons'), items: lessonItems },
-  ];
-}
+/** Learn: the guides, section by section. */
+export const learnMenu = (entries: PortalEntry[], route: PortalRoute): SidebarMenuGroup[] =>
+  entryGroups(entries, route, true);
 
 /** The API reference: one group per family of functions and types. */
 export const apiMenu = (entries: PortalEntry[], route: PortalRoute) =>

@@ -6,7 +6,6 @@ import type { KnipConfig } from 'knip';
 const config: KnipConfig = {
   entry: [
     'site/app/main.tsx',
-    'site/demos/engine.ts',
     'site/examples/kit/index.ts',
     'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
     'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
