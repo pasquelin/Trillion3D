@@ -2,8 +2,8 @@ import { pathToFileURL } from 'node:url';
 import type { Plugin } from 'esbuild';
 
 /**
- * A `.inline.ts` module of the site reads files at load — the dictionaries of `site/i18n/`, the
- * translations of the API reference — so a language is added by adding its file. The bundle
+ * A `.inline.ts` module of the site reads files at load — the languages of `site/i18n/` — so a
+ * language is added by adding its file. The bundle
  * never ships that reading: this plugin runs the module at build time and bundles its exports as
  * the JSON they hold.
  */

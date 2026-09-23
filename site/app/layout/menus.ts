@@ -1,10 +1,9 @@
 import { dictionaryOf, wordFor } from '../../content/i18n/dictionary.ts';
-import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import { entrySummary, SECTIONS } from '../../content/model.ts';
 import { REPORT_SECTIONS } from '../../reports/presentation.ts';
 import type { PortalEntry } from '../../content/model.ts';
-import { readyThemes, thumbnailOf } from '../examples/list.ts';
+import { exampleTitle, readyThemes, themeTitle, thumbnailOf } from '../examples/list.ts';
 import { expandEntryLinks } from '../portal/entryLinks.ts';
 import { entryRoute, LEARN_SECTIONS, routeHref } from '../portal/routes.ts';
 import type { PortalRoute } from '../portal/routes.ts';
@@ -78,12 +77,12 @@ export function apiIndex(entries: PortalEntry[], route: PortalRoute) {
 export function examplesMenu(route: PortalRoute, query = ''): ExampleGroup[] {
   return readyThemes
     .map(({ theme, entries }) => ({
-      id: theme.id,
-      title: local(theme.title, route.locale),
+      id: theme,
+      title: themeTitle(theme, route.locale),
       items: search(
         entries.map((entry) => ({
           entry,
-          title: local(entry.title, route.locale),
+          title: exampleTitle(entry.id, route.locale),
           text: entry.id,
         })),
         query,

@@ -3,11 +3,12 @@ import test from 'node:test';
 import type { Browser } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
-import { readyEntries } from '../site/app/examples/list.ts';
+import { exampleTitle, readyEntries } from '../site/app/examples/list.ts';
 import { layoutFaults, ROUTES } from './docs/layout-faults.ts';
-import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
+import { LANGUAGES, loadDictionary } from '../site/content/i18n/dictionary.ts';
 
 const [example] = readyEntries;
+await loadDictionary('fr');
 const { server, port } = await startDocsServer();
 const browser: Browser = await launchChrome({ headless: true });
 test.after(async () => {
@@ -39,7 +40,7 @@ test('the site search finds a page as the reader types and opens it', async () =
   await page.getByRole('heading', { level: 1 }).waitFor();
   await page.keyboard.press('/');
   const input = page.getByRole('combobox', { name: 'Rechercher' });
-  await input.fill(example.title.fr);
+  await input.fill(exampleTitle(example.id, 'fr'));
   await page.getByRole('option').first().waitFor();
   await page.keyboard.press('Enter');
   await page.waitForURL(`**/#/fr/examples/${example.id}`);

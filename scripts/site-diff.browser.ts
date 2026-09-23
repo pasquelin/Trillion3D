@@ -15,7 +15,7 @@ import { routeThree } from '../tests/kit/server/threeRoute.ts';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { createDocsServer, listen } from './docs-serve.ts';
 import { readyExampleIds } from '../site/app/examples/list.ts';
-import { rawEntries } from '../site/app/portal/data.ts';
+import { entriesIn } from '../site/app/portal/data.ts';
 import { entryRoute, routeHref } from '../site/app/portal/routes.ts';
 import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
 
@@ -28,7 +28,7 @@ export function portalRoutes() {
   const routes: string[] = [];
   for (const locale of LOCALES) {
     routes.push(routeHref({ locale, area: 'learn', id: 'home' }));
-    for (const entry of rawEntries) routes.push(entryRoute(entry, locale));
+    for (const entry of entriesIn('en')) routes.push(entryRoute(entry, locale));
     for (const id of readyExampleIds) routes.push(routeHref({ locale, area: 'examples', id }));
     routes.push(routeHref({ locale, area: 'examples', id: '' }));
     routes.push(routeHref({ locale, area: 'api', id: '' }));
