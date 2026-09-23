@@ -1,15 +1,13 @@
 import { useWords } from '../i18n.ts';
-import { assessment, ASSESSMENT_LABELS, engineTone } from '../../reports/assessment.ts';
+import { assessment, engineTone } from '../../reports/assessment.ts';
 import { engineName } from '../../reports/names.ts';
 import { missingMetric } from '../../reports/availability.ts';
 import { METRICS, metricValue, formatValue } from '../../reports/metrics.ts';
-import { metricLabel } from '../../reports/copy.ts';
 import { recordLabel, runOf } from '../../reports/presentation.ts';
 import { ChartGrid } from '../ui/ChartGrid.tsx';
 import { BarChart } from '../ui/BarChart.tsx';
 import { Collapse } from '../ui/Collapse.tsx';
 import { Table } from '../ui/Table.tsx';
-import { fromPair } from './fromPair.ts';
 import type { Report, ReportRecord } from '../../reports/types.ts';
 import type { MetricKey } from '../../reports/metrics.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -52,7 +50,7 @@ export function MetricCharts({
           return (
             <BarChart
               key={key}
-              title={metricLabel(key, locale)}
+              title={t(`report.metrics.${key}`)}
               format={(v) => formatValue(v, locale, METRICS[key].unit)}
               missingLabel={t('report.notMeasured')}
               rows={records.map((r) => ({
@@ -65,7 +63,7 @@ export function MetricCharts({
                 status:
                   colorByEngine || assessment(r, key).code === 'noTarget'
                     ? null
-                    : fromPair(ASSESSMENT_LABELS[assessment(r, key).code], locale),
+                    : t(`report.assessment.${assessment(r, key).code}`),
               }))}
             />
           );
@@ -84,7 +82,7 @@ export function MetricCharts({
             <tbody>
               {missing.map(({ key, record }) => (
                 <tr key={`${key}-${record.id}`}>
-                  <th scope="row">{metricLabel(key, locale)}</th>
+                  <th scope="row">{t(`report.metrics.${key}`)}</th>
                   <td>{label(record)}</td>
                   <td>{missingMetric(record, key, locale)}</td>
                 </tr>
