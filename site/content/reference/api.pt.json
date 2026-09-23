@@ -369,8 +369,8 @@
       "bottom": "Borda inferior da caixa ortográfica.",
       "projection": "`'perspective'` faz coisas distantes ficarem pequenas; `'orthographic'` mantém todo tamanho.",
       "updateProjectionMatrix": "Mantido para páginas escritas contra um renderizador que precise dele: toda escrita de ótica já redesenha.",
-      "set": "Coloca o olho em `pose.position`, olhando para `pose.target`, no campo que ela nomeia.",
-      "rayThrough": "The world ray through a point of the picture, in the engine's own projection (`engineCamera.ts`): from the eye along the view for a perspective camera, straight down the view from the box for an orthographic one. Its direction is a unit vector."
+      "rayThrough": "O raio do mundo que passa por um ponto da imagem, segundo a projeção própria do motor (`engineCamera.ts`): a partir do olho ao longo da vista para uma câmera em perspectiva, reto no eixo da vista a partir da caixa para uma ortográfica. Sua direção é um vetor unitário.",
+      "set": "Coloca o olho em `pose.position`, olhando para `pose.target`, no campo que ela nomeia."
     }
   },
   "CameraFrame": {
@@ -918,9 +918,9 @@
       "SCENE_COPY_OVERLAP": "Algo que a raiz da cena proíbe: um pai para ela, destruí-la, misturar duas raízes, copiar um nó dentro de si mesmo.",
       "UNSUPPORTED_SCENE_UPDATE": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "BATCHED_WORLD_VIEW": "Este caminho de desenho não consegue fazer essa mudança na cena.",
-      "RAYCAST_NO_VIEW": "A picture point was asked of a canvas with no size: there is no picture to aim through.",
-      "UNSUPPORTED_SCENE_FORMAT": "A saved scene is of another format or version, or holds what a saved scene cannot store.",
-      "SCENE_NOT_SAVABLE": "A saved scene is of another format or version, or holds what a saved scene cannot store."
+      "RAYCAST_NO_VIEW": "Um ponto de imagem foi pedido a um canvas sem tamanho: não há imagem através da qual mirar.",
+      "UNSUPPORTED_SCENE_FORMAT": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar.",
+      "SCENE_NOT_SAVABLE": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar."
     }
   },
   "EngineProfiler": {
@@ -1105,6 +1105,7 @@
       "groups": "Faixas de índice desenhadas com `material[materialIndex]` quando um mesh carrega vários.",
       "boundingBox": "A caixa ao redor de cada vértice, uma vez calculada; `null` até então.",
       "boundingSphere": "A esfera ao redor de cada vértice, uma vez calculada; `null` até então.",
+      "recipe": "O membro da família e os argumentos que construíram esta forma, enquanto ela ainda for o que eles construíram: o que uma cena salva armazena no lugar dos vértices. Qualquer mudança posterior o esquece.",
       "version": "Incrementado a cada mudança de forma: o que o mundo compara para cortar as páginas de novo.",
       "setAttribute": "Guarda uma lista por vértice sob `name`.",
       "getAttribute": "A lista por vértice guardada sob `name`, se houver.",
@@ -1124,8 +1125,7 @@
       "scale": "Estica cada vértice por `(x, y, z)`.",
       "center": "Move a geometria para que sua caixa fique centrada na origem.",
       "clone": "Uma nova geometria com cópias de cada lista.",
-      "dispose": "Esquece os detentores: uma geometria descartada não é desenhada por ninguém.",
-      "recipe": "The family member and arguments that built this shape, while it is still what they built: what a saved scene stores instead of the vertices. Any later change forgets it."
+      "dispose": "Esquece os detentores: uma geometria descartada não é desenhada por ninguém."
     }
   },
   "GeometryPageDescriptor": {
@@ -2868,8 +2868,8 @@
       "fog": "Névoa que esmaece objetos em direção a `color` entre `near` e `far`; `null` para nenhuma.",
       "background": "O que preenche a imagem por trás de cada objeto: uma cor, uma imagem, ou `null` para o padrão.",
       "load": "Carrega um modelo compilado — a URL de seu manifesto — e o adiciona a esta cena.",
-      "toJSON": "The scene as plain JSON, versioned: its objects, shapes by the call that built them, materials, lights and loaded models by address; `camera`'s pose too when one is given.",
-      "fromJSON": "Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept; resolves once its models are loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`). Calls made while one is reading run one after the other, in order, each on what the one before left: two saved scenes never merge."
+      "toJSON": "A cena como JSON simples e versionado: seus objetos, as formas pela chamada que as construiu, os materiais, as luzes e os modelos carregados por endereço; também a pose de `camera` quando uma é informada.",
+      "fromJSON": "Substitui o que a cena contém por uma cena salva com `toJSON`, mantendo suas marcas `helper`; é resolvida quando seus modelos estão carregados. Outro formato ou outra versão é recusado (`UNSUPPORTED_SCENE_FORMAT`). Chamadas feitas enquanto uma está sendo lida rodam uma depois da outra, em ordem, cada uma sobre o que a anterior deixou: duas cenas salvas nunca se misturam."
     }
   },
   "SceneEnvironment": {
@@ -3941,8 +3941,8 @@
     "summary": "O que a página contém: o modo, lido e escrito.",
     "members": {
       "mode": "O modo de visão: `'beauty'` para a imagem normal, ou um modo que mostra como o motor funciona.",
-      "modes": "Cada modo de visão que o renderizador atual oferece.",
-      "sessions": "Sessions the world has opened so far: a change that reopens one shows here."
+      "sessions": "As sessões que o mundo abriu até agora: uma mudança que reabre uma aparece aqui.",
+      "modes": "Cada modo de visão que o renderizador atual oferece."
     }
   },
   "world.onFrame": {
@@ -5091,7 +5091,7 @@
   },
   "helper": {
     "summary": "A família `helper`: as marcas com que uma cena é trabalhada, construídas de linhas e meshes.",
-    "description": "A world draws them like any object; a pick (`world.raycast`) and a saved scene skip them."
+    "description": "Um mundo os desenha como qualquer objeto; uma seleção (`world.raycast`) e uma cena salva os ignoram."
   },
   "helper.axes": {
     "summary": "Três linhas coloridas a partir da origem: x vermelho, y verde, z azul.",
@@ -6729,108 +6729,108 @@
   "CanvasPoint": {
     "summary": "Um ponto do canvas, em pixels CSS a partir do seu canto superior esquerdo: `event.offsetX`, `offsetY`.",
     "members": {
-      "x": "CSS pixels from the canvas's left edge.",
-      "y": "CSS pixels from the canvas's top edge."
+      "x": "Pixels CSS a partir da borda esquerda do canvas.",
+      "y": "Pixels CSS a partir da borda de cima do canvas."
     }
   },
   "Intersection": {
     "summary": "Onde um raio encontra um objeto: o próprio objeto, o ponto do mundo e a normal da superfície ali, a distância ao longo do raio e qual triângulo (`-1` quando a caixa do objeto foi atingida).",
     "members": {
-      "object": "The object hit: the very node the page added.",
-      "point": "The world point hit.",
-      "normal": "The world normal of the face hit, as its winding orients it.",
-      "distance": "Distance from the ray's origin to `point`, world units.",
-      "face": "The rank of the triangle hit, or `-1` for a box."
+      "object": "O objeto atingido: exatamente o nó que a página adicionou.",
+      "point": "O ponto do mundo atingido.",
+      "normal": "A normal no mundo da face atingida, orientada pelo seu sentido de percurso.",
+      "distance": "Distância da origem do raio até `point`, em unidades do mundo.",
+      "face": "O número do triângulo atingido, ou `-1` para uma caixa."
     }
   },
   "RaycastOptions": {
     "summary": "O que se pode indicar a `world.raycast`; cada campo é opcional.",
     "members": {
-      "objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "objects": "Os objetos testados, com suas subárvores; sem nada, a cena inteira."
     }
   },
   "SavedCamera": {
     "summary": "A câmera com que uma cena foi salva: sua pose, projeção e óptica.",
     "members": {
-      "projection": "Perspective or orthographic.",
-      "position": "Where the eye stands.",
-      "quaternion": "How the eye is turned.",
-      "optics": "Field, near, far, zoom and box, by name."
+      "projection": "Perspectiva ou ortográfica.",
+      "position": "Onde o olho está.",
+      "quaternion": "Como o olho está girado.",
+      "optics": "Campo, near, far, zoom e caixa, por nome."
     }
   },
   "SavedGeometry": {
     "summary": "Uma geometria: a chamada de família que a construiu, ou seus vértices quando nenhuma chamada pode reconstruí-la.",
     "members": {
-      "recipe": "The family member and every argument it was built with.",
-      "attributes": "Each per-vertex list, when no call builds the shape again.",
-      "index": "Which vertices make each triangle.",
-      "groups": "Index ranges drawn with one material each."
+      "recipe": "O membro da família e cada argumento com que ela foi construída.",
+      "attributes": "Cada lista por vértice, quando nenhuma chamada reconstrói a forma.",
+      "index": "Quais vértices formam cada triângulo.",
+      "groups": "Intervalos de índices desenhados cada um com um material."
     }
   },
   "SavedMaterial": {
     "summary": "Um material: seu tipo e cada parâmetro, as cores como `[r, g, b]` linear.",
     "members": {
-      "kind": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…",
-      "parameters": "Every parameter by name."
+      "kind": "O tipo com que o material foi criado: `'meshStandard'`, `'meshBasic'`…",
+      "parameters": "Cada parâmetro, por nome."
     }
   },
   "SavedNode": {
     "summary": "Um nó: sua pose e o que ele é — um grupo, uma malha, uma luz ou um modelo carregado — e o que está abaixo dele.",
     "members": {
-      "kind": "What the node is.",
-      "name": "Its name.",
-      "position": "Where it stands, from its parent.",
-      "quaternion": "How it is turned, as a quaternion.",
-      "scale": "How it is stretched on each axis.",
-      "visible": "Whether it is drawn.",
-      "castShadow": "Whether it casts shadows.",
-      "receiveShadow": "Whether shadows fall on it.",
-      "renderOrder": "Its drawing order among see-through things.",
-      "userData": "The page's own data, as JSON.",
-      "children": "The nodes below it, in order.",
-      "mesh": "Ranks in `geometries` and `materials`, and how the triangles are read.",
-      "light": "A light's kind, colours, numbers, aim and probe coefficients.",
-      "model": "A compiled model, by the manifest address it was loaded from: never inlined."
+      "kind": "O que o nó é.",
+      "name": "Seu nome.",
+      "position": "Onde ele está, a partir do seu pai.",
+      "quaternion": "Como ele está girado, como quatérnio.",
+      "scale": "Quanto ele está esticado em cada eixo.",
+      "visible": "Se ele é desenhado.",
+      "castShadow": "Se ele projeta sombras.",
+      "receiveShadow": "Se sombras caem sobre ele.",
+      "renderOrder": "Sua ordem de desenho entre as coisas transparentes.",
+      "userData": "Os dados próprios da página, em JSON.",
+      "children": "Os nós abaixo dele, em ordem.",
+      "mesh": "Números em `geometries` e `materials`, e como os triângulos são lidos.",
+      "light": "O tipo de uma luz, suas cores, seus números, sua mira e os coeficientes de sonda.",
+      "model": "Um modelo compilado, pelo endereço do manifesto de onde foi carregado: nunca copiado para dentro."
     }
   },
   "SavedScene": {
     "summary": "Uma cena como `scene.toJSON` a escreve e `scene.fromJSON` a lê: JSON simples.",
     "members": {
-      "format": "Always `'web-geometry-scene'`.",
-      "formatVersion": "The version of this layout; another one is refused.",
-      "background": "The background colour, or `null`.",
-      "fog": "The fog, or `null`.",
-      "camera": "The camera saved with the scene, or `null`.",
-      "geometries": "Every shape, once, however many meshes wear it.",
-      "materials": "Every material, once, however many meshes wear it.",
-      "children": "The scene's top nodes, in order."
+      "format": "Sempre `'web-geometry-scene'`.",
+      "formatVersion": "A versão desta estrutura; outra é recusada.",
+      "background": "A cor de fundo, ou `null`.",
+      "fog": "A névoa, ou `null`.",
+      "camera": "A câmera salva com a cena, ou `null`.",
+      "geometries": "Cada forma, uma só vez, não importa quantas malhas a usem.",
+      "materials": "Cada material, uma só vez, não importa quantas malhas o usem.",
+      "children": "Os nós do topo da cena, em ordem."
     }
   },
   "TransformControls": {
     "summary": "O que `controls.transform` retorna.",
     "members": {
-      "snap": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional.",
-      "handles": "The group of the handles — a `helper` mark — in the scene while attached.",
-      "object": "The object the handles are on, or `null`.",
-      "dragging": "True while a handle is being dragged.",
-      "mode": "What a drag does: `'translate'`, `'rotate'` or `'scale'`.",
-      "space": "`'world'` or `'local'` axes.",
-      "attach": "Puts the handles on `target`, and in the scene; a drag under way ends first (`dragEnd`).",
-      "detach": "Takes the handles off their object, and out of the scene; a drag under way ends first.",
-      "setMode": "Moves, turns or scales from now on.",
-      "setSpace": "Handles along the world's axes or the object's own.",
-      "addEventListener": "Calls `listener` on each event of `type`.",
-      "removeEventListener": "Stops calling `listener` on events of `type`.",
-      "dispose": "Takes the handles out of the scene and every listener off the canvas."
+      "snap": "Passos para os quais os arrastos são arredondados: `{ translate, rotate, scale }`, cada um opcional.",
+      "handles": "O grupo das alças — uma marca `helper` — na cena enquanto estão presas.",
+      "object": "O objeto em que estão as alças, ou `null`.",
+      "dragging": "Verdadeiro enquanto uma alça está sendo arrastada.",
+      "mode": "O que um arrasto faz: `'translate'`, `'rotate'` ou `'scale'`.",
+      "space": "Eixos `'world'` ou `'local'`.",
+      "attach": "Coloca as alças em `target`, e na cena; um arrasto em andamento termina antes (`dragEnd`).",
+      "detach": "Tira as alças do seu objeto, e da cena; um arrasto em andamento termina antes.",
+      "setMode": "Move, gira ou escala a partir de agora.",
+      "setSpace": "Alças ao longo dos eixos do mundo ou dos eixos do próprio objeto.",
+      "addEventListener": "Chama `listener` a cada evento do tipo `type`.",
+      "removeEventListener": "Para de chamar `listener` nos eventos do tipo `type`.",
+      "dispose": "Tira as alças da cena e todos os ouvintes do canvas."
     }
   },
   "TransformControlsOptions": {
     "summary": "O que se pode indicar a `controls.transform`; cada campo é opcional.",
     "members": {
-      "mode": "Move, turn or scale; `'translate'` by default.",
-      "space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "snap": "Steps each drag is rounded to; none by default.",
-      "size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "mode": "Mover, girar ou escalar; `'translate'` por padrão.",
+      "space": "Alças ao longo dos eixos do mundo ou dos eixos do próprio objeto; `'world'` por padrão.",
+      "snap": "Passos para os quais cada arrasto é arredondado; nenhum por padrão.",
+      "size": "O comprimento das alças como fração da altura do canvas, o mesmo onde quer que o objeto esteja; um quarto por padrão."
     }
   },
   "TransformEvent": {
@@ -6842,10 +6842,10 @@
   "TransformHost": {
     "summary": "O que um controle de transformação precisa de um mundo: `createWorld` retorna um.",
     "members": {
-      "canvas": "The canvas the pointer presses on.",
-      "scene": "The scene the handles are added to.",
-      "camera": "The camera the canvas is seen through.",
-      "onFrame": "Runs `hook` after each frame drawn; returns what stops it."
+      "canvas": "O canvas em que o ponteiro pressiona.",
+      "scene": "A cena à qual as alças são adicionadas.",
+      "camera": "A câmera através da qual o canvas é visto.",
+      "onFrame": "Executa `hook` depois de cada quadro desenhado; retorna o que o interrompe."
     }
   },
   "TransformMode": {
@@ -6854,9 +6854,9 @@
   "TransformSnap": {
     "summary": "Passos aos quais um arrasto é arredondado, cada um opcional: unidades do mundo, radianos, fator de escala.",
     "members": {
-      "translate": "World units a move is rounded to, along each axis.",
-      "rotate": "Radians a turn is rounded to.",
-      "scale": "The step a scale factor is rounded to."
+      "translate": "Unidades do mundo para as quais um movimento é arredondado, ao longo de cada eixo.",
+      "rotate": "Radianos para os quais uma rotação é arredondada.",
+      "scale": "O passo para o qual um fator de escala é arredondado."
     }
   },
   "TransformSpace": {
@@ -6865,8 +6865,8 @@
   "world.raycast": {
     "summary": "O objeto mais próximo sob um ponto do canvas (pixels CSS) ou ao longo de um raio do mundo, ou `null`: o nó que a página adicionou, o ponto do mundo e a normal atingidos, a distância (`worldRaycast`).",
     "parameters": {
-      "options": "What `world.raycast` may be told; every field is optional.",
-      "options.objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "options": "O que se pode dizer a `world.raycast`; cada campo é opcional.",
+      "options.objects": "Os objetos testados, com suas subárvores; sem nada, a cena inteira."
     }
   },
   "controls": {
@@ -6875,12 +6875,12 @@
   "controls.transform": {
     "summary": "Alças que movem, giram e escalam um objeto com o mouse (`transform.ts`).",
     "parameters": {
-      "host": "The world whose scene and camera the handles live in.",
-      "options": "Mode, axes, snapping and screen size; saying nothing is the usual case.",
-      "options.mode": "Move, turn or scale; `'translate'` by default.",
-      "options.space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "options.snap": "Steps each drag is rounded to; none by default.",
-      "options.size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "host": "O mundo em cuja cena e câmera as alças vivem.",
+      "options": "Modo, eixos, encaixe e tamanho na tela; não informar nada é o caso normal.",
+      "options.mode": "Mover, girar ou escalar; `'translate'` por padrão.",
+      "options.space": "Alças ao longo dos eixos do mundo ou dos eixos do próprio objeto; `'world'` por padrão.",
+      "options.snap": "Passos para os quais cada arrasto é arredondado; nenhum por padrão.",
+      "options.size": "O comprimento das alças como fração da altura do canvas, o mesmo onde quer que o objeto esteja; um quarto por padrão."
     }
   },
   "raycast": {

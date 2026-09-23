@@ -99,6 +99,103 @@
     "start": "Bắt đầu từ một ví dụ",
     "open": "Mở trong sandbox"
   },
+  "editor": {
+    "title": "Trình chỉnh sửa cảnh",
+    "group": "Công cụ",
+    "showcase": "Mở trình chỉnh sửa cảnh",
+    "loading": "Đang chuẩn bị trình chỉnh sửa…",
+    "canvas": "Khung nhìn cảnh: nhấp vào một vật thể để chọn nó, kéo để xoay camera",
+    "menu": {
+      "file": "Tệp",
+      "add": "Thêm",
+      "edit": "Chỉnh sửa",
+      "models": "Mô hình"
+    },
+    "new": "Mới",
+    "openFile": "Mở…",
+    "save": "Lưu",
+    "undo": "Hoàn tác",
+    "redo": "Làm lại",
+    "duplicate": "Nhân bản",
+    "delete": "Xóa",
+    "add": {
+      "box": "Hộp",
+      "sphere": "Hình cầu",
+      "cylinder": "Hình trụ",
+      "cone": "Hình nón",
+      "torus": "Hình xuyến",
+      "plane": "Mặt phẳng",
+      "group": "Nhóm",
+      "point": "Đèn điểm",
+      "spot": "Đèn chiếu",
+      "directional": "Ánh sáng định hướng",
+      "ambient": "Ánh sáng môi trường"
+    },
+    "model": {
+      "bust": "Tượng bán thân bằng đá cẩm thạch",
+      "crates": "Thùng gỗ",
+      "hall": "Sảnh",
+      "street-corner": "Góc phố"
+    },
+    "tools": "Công cụ biến đổi",
+    "translate": "Di chuyển (W)",
+    "rotate": "Xoay (E)",
+    "scale": "Co giãn (R)",
+    "space": {
+      "world": "Trục thế giới",
+      "local": "Trục của vật thể"
+    },
+    "snap": "Hít lưới",
+    "outliner": "Cảnh",
+    "empty": "Cảnh đang trống: hãy thêm một vật thể từ menu Thêm.",
+    "show": "Hiện",
+    "hide": "Ẩn",
+    "rename": "Đổi tên",
+    "dropRoot": "Kéo một dòng lên dòng khác để đặt nó vào bên trong; thả nó ở đây để đưa nó về cấp trên cùng.",
+    "inspector": "Thuộc tính",
+    "nothing": "Chọn một vật thể để chỉnh sửa.",
+    "name": "Tên",
+    "position": "Vị trí",
+    "rotation": "Góc xoay (°)",
+    "scaleField": "Tỉ lệ",
+    "geometry": "Hình dạng",
+    "material": "Vật liệu",
+    "color": "Màu",
+    "metalness": "Độ kim loại",
+    "roughness": "Độ nhám",
+    "emissive": "Phát sáng",
+    "opacity": "Độ mờ đục",
+    "light": "Ánh sáng",
+    "intensity": "Cường độ",
+    "range": "Tầm chiếu (0: không giới hạn)",
+    "shadow": "Đổ bóng",
+    "param": {
+      "width": "Chiều rộng",
+      "height": "Chiều cao",
+      "depth": "Chiều sâu",
+      "radius": "Bán kính",
+      "radiusTop": "Bán kính trên",
+      "radiusBottom": "Bán kính dưới",
+      "tube": "Bán kính ống",
+      "arc": "Cung (radian)",
+      "widthSegments": "Số đoạn theo chiều rộng",
+      "heightSegments": "Số đoạn theo chiều cao",
+      "depthSegments": "Số đoạn theo chiều sâu",
+      "radialSegments": "Số đoạn quanh trục",
+      "tubularSegments": "Số đoạn của ống"
+    },
+    "stats": "Thống kê bộ máy",
+    "cpu": "Khung hình CPU (ms)",
+    "gpu": "Khung hình GPU (ms)",
+    "triangles": "Tam giác",
+    "pages": "Trang đang nạp",
+    "sessions": "Phiên đã mở",
+    "statsHint": "Đọc từ khung hình vẽ gần nhất; một cảnh đứng yên không vẽ khung hình nào.",
+    "error": {
+      "format": "Tệp này chứa một định dạng cảnh mà trình chỉnh sửa này không đọc được.",
+      "read": "Không đọc được cảnh:"
+    }
+  },
   "section": {
     "course": "Khóa học",
     "guides": "Hướng dẫn",
@@ -818,6 +915,26 @@
     },
     "srgbToLinearBatch": {
       "description": "Một kênh cho mỗi phần tử, các đường cong chính xác của `packages/sdk-core/src/math/primitives/color.ts`: mốc tham chiếu nhân với các hằng số đã làm tròn, và khoảng chênh lệch đó — vô hình ở mức 8 bit — được giới hạn một lần, trong bộ đo hiệu năng đối chọi chúng với nhau."
+    },
+    "scene-editor": {
+      "title": "Dựng một cảnh bằng trình chỉnh sửa",
+      "description": "Thêm hình khối và ánh sáng, chọn chúng bằng chuột, di chuyển chúng bằng tay cầm, đổi màu chúng, lưu cảnh rồi mở lại — ngay trong cổng tài liệu, chỉ với API công khai.",
+      "html": "<p><a href=\"#/en/examples/scene-editor\">Trình chỉnh sửa cảnh</a> là một trang của cổng tài liệu này, được xây trên ba cánh cửa của bộ máy và không gì khác. Hãy bắt đầu từ một cảnh trống: <b>Thêm → Hộp</b>, rồi <b>Thêm → Ánh sáng định hướng</b>. Nhấp vào hộp: <code>world.raycast</code> tìm thấy nó dưới con trỏ, và các tay cầm của <code>controls.transform</code> hiện lên trên nó. Kéo một mũi tên để di chuyển nó — camera đứng yên khi bạn đang giữ tay cầm — nhấn <kbd>E</kbd> để xoay nó, <kbd>R</kbd> để co giãn nó. Đổi màu của nó trong bảng thuộc tính: bộ máy tô lại vật liệu ngay tại chỗ, và chi phí của khung hình vẫn hiện ở góc thống kê. <b>Lưu</b> tải xuống <code>scene.toJSON</code>; <b>Mới</b>, rồi <b>Mở</b>, dựng lại đúng cảnh đó bằng <code>scene.fromJSON</code>.</p>\n<p>Mọi bước đều hoàn tác được bằng <kbd>Ctrl</kbd>+<kbd>Z</kbd>, và cảnh được giữ trong trình duyệt giữa hai lần ghé thăm. Bản thân trang không vẽ hay di chuyển gì cả: những gì bạn thấy chính là bộ máy.</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "Chọn một vật thể bằng con trỏ",
+      "description": "`world.raycast` trả về vật thể gần nhất dưới một điểm của canvas: node mà trang đã thêm, điểm và pháp tuyến bị chạm, và khoảng cách.",
+      "html": "<p>Phép thử chạy trên CPU, trên chính hình học của cảnh: mesh tam giác được thử từng tam giác một, mô hình đã nạp được thử trên hộp bao của nó, còn đường và điểm thì không bao giờ. Các cây con bị ẩn và các dấu <code>helper</code> được bỏ qua. Xem nó trong <a href=\"#/en/examples/click-to-pick\">Nhấp để chọn</a>.</p>"
+    },
+    "move-with-handles": {
+      "title": "Di chuyển, xoay và co giãn bằng tay cầm",
+      "description": "`controls.transform(world)` đặt tay cầm lên một vật thể; một lần kéo ghi tư thế của nó thông qua các cha của nó, và camera đứng yên trong lúc đó.",
+      "html": "<p>Các chế độ <code>translate</code>, <code>rotate</code> và <code>scale</code>, trục thế giới hoặc trục cục bộ, bước nhảy tùy chọn. Các sự kiện <code>dragStart</code> và <code>dragEnd</code> bao quanh một lần kéo — một bước hoàn tác. Xem nó trong <a href=\"#/en/examples/move-rotate-scale-gizmo\">Gizmo di chuyển, xoay, co giãn</a>.</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "Lưu và mở một cảnh",
+      "description": "`scene.toJSON(camera)` ghi cảnh thành JSON đơn giản có phiên bản; `scene.fromJSON(json, camera)` dựng lại nó.",
+      "html": "<p>Hình khối được lưu bằng lệnh gọi đã tạo ra chúng, vật liệu bằng giá trị của chúng, mô hình đã nạp bằng địa chỉ của chúng — không bao giờ chép vào trong — còn các dấu <code>helper</code> thì hoàn toàn không được lưu. Một phiên bản định dạng khác bị từ chối kèm theo tên. Xem nó trong <a href=\"#/en/examples/save-the-scene\">Lưu cảnh</a>.</p>"
     }
   },
   "canvas": {
@@ -1444,7 +1561,6 @@
       "gltf-material-variants": "phần mở rộng glTF khác: biến thể vật liệu",
       "compressed-mesh-input": "phần mở rộng glTF khác: Draco, meshopt, lượng tử hóa",
       "a-medical-scan": "dựng hình thể tích",
-      "save-the-scene": "xuất cảnh",
       "a-city-from-3d-tiles": "đầu vào 3D Tiles",
       "rendering-in-a-worker": "dựng hình worker OffscreenCanvas",
       "a-video-panorama": "kết cấu video trực tiếp",
@@ -1474,14 +1590,12 @@
       "flames-and-a-tornado": "vật liệu shader tùy chỉnh",
       "point-clouds-from-a-scan": "nhập đám mây điểm",
       "gaussian-splats": "dựng hình gaussian splat",
-      "click-to-pick": "picking (raycast)",
       "hover-over-triangles": "picking (raycast)",
       "pick-lines-and-points": "picking (raycast)",
       "pick-an-instance": "picking (raycast)",
       "paint-where-you-click": "picking (raycast)",
       "a-voxel-painter": "picking (raycast)",
       "drag-objects": "picking (raycast)",
-      "move-rotate-scale-gizmo": "picking (raycast) và gizmo biến đổi",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "âm thanh định vị",
       "smooth-edges-over-time": "cài đặt khử răng cưa theo thời gian",
