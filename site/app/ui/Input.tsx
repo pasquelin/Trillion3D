@@ -1,5 +1,10 @@
 import { createContext, useContext, useId } from 'react';
-import type { ComponentPropsWithoutRef, ComponentPropsWithRef, ReactNode } from 'react';
+import type {
+  ComponentPropsWithoutRef,
+  ComponentPropsWithRef,
+  KeyboardEvent,
+  ReactNode,
+} from 'react';
 import { Icon } from './Icon.tsx';
 
 interface FieldProps extends ComponentPropsWithoutRef<'fieldset'> {
@@ -90,6 +95,86 @@ export function SearchInput({
       <Icon name="search" />
       <input type="search" className={`grow ${QUIET_FOCUS}`} autoComplete="off" {...props} />
       {hint && <kbd className="kbd kbd-sm">{hint}</kbd>}
+    </label>
+  );
+}
+
+/** What a number field shows: three decimals at most, so a float's tail never fills the box. */
+const shown = (value: number) => Number(value.toFixed(3));
+
+/** Commits a field on Enter; Escape puts back what it showed. */
+function keys(event: KeyboardEvent<HTMLInputElement>, shownValue: string) {
+  if (event.key === 'Enter') event.currentTarget.blur();
+  if (event.key === 'Escape') {
+    event.currentTarget.value = shownValue;
+    event.currentTarget.blur();
+  }
+}
+
+interface NumberFieldProps {
+  label: string;
+  value: number;
+  step?: number;
+  min?: number;
+  max?: number;
+  onCommit: (value: number) => void;
+}
+
+/**
+ * A number the person types, committed once — on Enter or when the field is left — so that one
+ * edit is one command. It shows the object's value again whenever that changes elsewhere (a drag
+ * of the handles, an undo): the field is keyed by it.
+ */
+export function NumberField({ label, value, step = 0.1, min, max, onCommit }: NumberFieldProps) {
+  const text = String(shown(value));
+  return (
+    <label className="input input-sm w-full min-w-0">
+      <span className="label">{label}</span>
+      <input
+        key={text}
+        type="number"
+        className="min-w-0"
+        defaultValue={text}
+        step={step}
+        min={min}
+        max={max}
+        onKeyDown={(event) => keys(event, text)}
+        onBlur={(event) => {
+          const typed = event.currentTarget.value,
+            next = Number(typed);
+          // The field shows the object's value: the new one once the edit lands, which may be
+          // another than typed (a count below a shape's fewest), or the old one again.
+          event.currentTarget.value = text;
+          if (typed !== '' && Number.isFinite(next) && next !== shown(value)) onCommit(next);
+        }}
+      />
+    </label>
+  );
+}
+
+/** A line of text committed once, on Enter or when the field is left, like `NumberField`. */
+export function TextField({
+  label,
+  value,
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  onCommit: (value: string) => void;
+}) {
+  return (
+    <label className="input input-sm w-full min-w-0">
+      <span className="label">{label}</span>
+      <input
+        key={value}
+        type="text"
+        className="min-w-0"
+        defaultValue={value}
+        onKeyDown={(event) => keys(event, value)}
+        onBlur={(event) => {
+          if (event.currentTarget.value !== value) onCommit(event.currentTarget.value);
+        }}
+      />
     </label>
   );
 }
