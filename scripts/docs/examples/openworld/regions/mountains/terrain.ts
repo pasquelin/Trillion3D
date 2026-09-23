@@ -11,9 +11,12 @@
 import { WORLD } from '../../plan/contract.ts';
 import { hash01 } from '../../props/index.ts';
 
-/** Where trees stop growing (alpine climate, 46° N), and the plan's snowline, metres. */
-export const TREE_LINE = 2_000;
+/**
+ * The plan's snowline, and where trees stop growing below it, metres: the alpine ratio (46° N,
+ * trees to 2 000 m under a 2 900 m snowline), so the forest stops short of any range's snow.
+ */
 export const SNOW_LINE = WORLD.peak * 0.75;
+export const TREE_LINE = SNOW_LINE * (2_000 / 2_900);
 
 /** Crest spacing of the ridges, metres: a range's main valleys are ~10 km apart. */
 const RIDGE_SCALE = 10_000;
