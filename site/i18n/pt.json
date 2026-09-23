@@ -28,7 +28,7 @@
   "home": {
     "title": "Transmita mundos 3D enormes no navegador",
     "start": "Começar o curso",
-    "editor": "Open the scene editor"
+    "editor": "Abrir o editor de cena"
   },
   "examples": {
     "lead": "Cada exemplo é um arquivo curto: veja-o rodando, abra o código, mude-o.",
@@ -1012,7 +1012,7 @@
           "<code>world.camera.position.set(x, y, z)</code> coloca o olho em algum lugar; <code>world.camera.lookAt(x, y, z)</code> o vira em direção a um ponto.",
           "Um <em>controlador</em> transforma o mouse, os dedos e o teclado em movimentos de câmera. Escolha-o ao criar o mundo: <code>createWorld('view', { controls: 'orbit' })</code>.",
           "<code>'orbit'</code> circula um ponto: arraste para girar, arraste com o botão direito para deslizar, role para dar zoom. <code>world.controls.target</code> é o ponto ao redor do qual ele circula.",
-          "Há outros: <code>'fly'</code> (teclas W A S D, veja <a href=\"#/pt/examples/fly-over-a-model-town\">Pilotar um avião por entre anéis</a>), <code>'firstPerson'</code> (andar, veja <a href=\"#/pt/examples/walk-through-a-temple\">Parkour em um templo</a>), <code>'trackball'</code>, <code>'panZoom'</code> para um mapa plano, e <code>'none'</code> quando seu próprio código move a câmera.",
+          "Há outros: <code>'fly'</code> (teclas W A S D, veja <a href=\"#/pt/examples/fly-over-a-model-town\">Um caça no desfiladeiro</a>), <code>'character'</code> (correr e pular, esbarrando nas paredes, veja <a href=\"#/pt/examples/walk-through-a-temple\">Parkour em um templo</a>), <code>'firstPerson'</code> (andar através de tudo), <code>'trackball'</code>, <code>'panZoom'</code> para um mapa plano, e <code>'none'</code> quando seu próprio código move a câmera.",
           "Troque a qualquer momento: <code>world.controls.kind = 'fly'</code>."
         ],
         "tryIt": "Arraste para girar ao redor do relógio, role para olhar de perto os dentes das engrenagens."
@@ -1024,7 +1024,7 @@
           "O mundo desenha uma nova imagem muitas vezes por segundo. Cada imagem é um <em>quadro</em>. <code>world.onFrame(fn)</code> roda <code>fn</code> antes de cada um.",
           "<code>fn</code> recebe <code>delta</code>: os segundos desde o último quadro. Multiplique suas velocidades por ele, e as coisas se movem na mesma velocidade em uma tela rápida ou lenta.",
           "Chame <code>world.invalidate()</code> para dizer “desenhe de novo”. Quando nada pede um novo quadro, o mundo descansa: uma cena parada não custa nada.",
-          "Para um movimento feito de poses, como uma caminhada, use o mixer de animação. <code>animation.clip</code> lista as poses e quando acontecem; <code>animation.createMixer(robot).play(clip)</code> as reproduz e preenche os momentos entre elas. Veja <a href=\"#/pt/examples/a-robot-that-walks-and-waves\">Combinando movimentos de um robô</a>."
+          "Para um movimento feito de poses, como uma caminhada, use o mixer de animação. <code>animation.clip</code> lista as poses e quando acontecem; <code>animation.createMixer(robot).play(clip)</code> as reproduz e preenche os momentos entre elas. Veja <a href=\"#/pt/examples/a-robot-that-walks-and-waves\">Movimentos de robô misturados</a>."
         ],
         "tryIt": "Mude a altura e a velocidade da onda. Clique duas vezes no chão para soltar uma nova pedra."
       },
@@ -1379,17 +1379,17 @@
     "pick-with-the-pointer": {
       "title": "Escolher um objeto com o ponteiro",
       "description": "`world.raycast` retorna o objeto mais próximo sob um ponto do canvas: o nó que a página adicionou, o ponto e a normal atingidos, a distância.",
-      "html": "<p>O teste roda na CPU sobre a própria geometria da cena: malhas de triângulos triângulo por triângulo, um modelo carregado sobre sua caixa, linhas e pontos nunca. Subárvores ocultas e marcas <code>helper</code> são puladas. Veja em <a href=\"#/pt/examples/click-to-pick\">Click to pick</a>.</p>"
+      "html": "<p>O teste roda na CPU sobre a própria geometria da cena: malhas de triângulos triângulo por triângulo, um modelo carregado sobre sua caixa, linhas e pontos nunca. Subárvores ocultas e marcas <code>helper</code> são puladas. Veja em <a href=\"#/pt/examples/click-to-pick\">Clique para escolher</a>.</p>"
     },
     "move-with-handles": {
       "title": "Mover, girar e escalar com alças",
       "description": "`controls.transform(world)` coloca alças em um objeto; um arrasto escreve sua pose através dos pais, e a câmera fica parada enquanto isso.",
-      "html": "<p>Modos <code>translate</code>, <code>rotate</code> e <code>scale</code>, eixos do mundo ou locais, passos opcionais. Os eventos <code>dragStart</code> e <code>dragEnd</code> delimitam um arrasto — um passo de desfazer. Veja em <a href=\"#/pt/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
+      "html": "<p>Modos <code>translate</code>, <code>rotate</code> e <code>scale</code>, eixos do mundo ou locais, passos opcionais. Os eventos <code>dragStart</code> e <code>dragEnd</code> delimitam um arrasto — um passo de desfazer. Veja em <a href=\"#/pt/examples/move-rotate-scale-gizmo\">Mover, girar, escalar</a>.</p>"
     },
     "save-and-open-a-scene": {
       "title": "Salvar e abrir uma cena",
       "description": "`scene.toJSON(camera)` escreve a cena como JSON simples e versionado; `scene.fromJSON(json, camera)` a reconstrói.",
-      "html": "<p>As formas são guardadas pela chamada que as construiu, os materiais por seus valores, os modelos carregados por seu endereço — nunca embutidos — e as marcas <code>helper</code> de forma alguma. Outra versão do formato é recusada pelo nome. Veja em <a href=\"#/pt/examples/save-the-scene\">Save the scene</a>.</p>"
+      "html": "<p>As formas são guardadas pela chamada que as construiu, os materiais por seus valores, os modelos carregados por seu endereço — nunca embutidos — e as marcas <code>helper</code> de forma alguma. Outra versão do formato é recusada pelo nome. Veja em <a href=\"#/pt/examples/save-the-scene\">Salvar a cena</a>.</p>"
     }
   },
   "canvas": {
