@@ -1674,15 +1674,7 @@
   },
   "FirstPersonCameraControls": {
     "summary": "PRIMERA PERSONA, puntero bloqueado: el puntero gira la cabeza, las teclas hacen caminar.",
-    "description": "El horizonte se mantiene recto — guiñada alrededor de la parte superior del mundo, cabeceo acotado a `[minPitch, maxPitch]`, nunca alabeo — y la marcha sigue solo la guiñada, así que mirar hacia arriba no levanta al caminante del suelo. ES COSA DEL HOST PEDIR EL BLOQUEO. Un navegador solo concede el bloqueo del puntero durante un gesto, así que el controlador lo solicita en `pointerdown` y publica `lock()`, `unlock()` y `locked()` para un host que prefiera elegir su propio momento; un bloqueo del que el usuario escapa simplemente detiene la mirada. Teclas, por `KeyboardEvent.code`: W/S adelante y atrás, A/D lateral, Espacio y Shift izquierdo para subir y bajar.",
-    "members": {
-      "lookSpeed": "Radianes girados por píxel de movimiento del puntero.",
-      "locked": "Si el puntero está bloqueado en la vista.",
-      "lock": "Bloquea el puntero en la vista.",
-      "unlock": "Libera el puntero.",
-      "minPitch": "Lo más bajo que mira la cabeza, en radianes por debajo del horizonte contados como negativos (0 es el horizonte); por defecto justo antes de mirar hacia abajo del todo. Súbelo para que un caminante nunca mire dentro de su propio cuerpo.",
-      "maxPitch": "Lo más alto que mira la cabeza, en radianes por encima del horizonte; por defecto justo antes del cenit."
-    }
+    "description": "El horizonte se mantiene recto — guiñada alrededor de la parte superior del mundo, cabeceo acotado a `[minPitch, maxPitch]`, nunca alabeo — y la marcha sigue solo la guiñada, así que mirar hacia arriba no levanta al caminante del suelo. ES COSA DEL HOST PEDIR EL BLOQUEO. Un navegador solo concede el bloqueo del puntero durante un gesto, así que el controlador lo solicita en `pointerdown` y publica `lock()`, `unlock()` y `locked()` para un host que prefiera elegir su propio momento; un bloqueo del que el usuario escapa simplemente detiene la mirada. Teclas, por `KeyboardEvent.code`: W/S adelante y atrás, A/D lateral, Espacio y Shift izquierdo para subir y bajar."
   },
   "FloatBatch": {
     "summary": "Los arrays de números que un lote lee y escribe."
@@ -6309,6 +6301,14 @@
       "kind": "Qué controlador dirige la cámara; da otro nombre para cambiar.",
       "enabled": "Si el controlador escucha el ratón y el teclado.",
       "target": "El punto alrededor del cual gira un controlador de pivote.",
+      "autoUpdate": "Si el bucle del mundo llama a `update` antes de cada fotograma, antes de los hooks de `world.beforeFrame`. `false` entrega el paso a la página, que llama a `update` desde uno de esos hooks, tan a menudo y con las subetapas que integre; el mundo entonces ya nunca lo hace.",
+      "colliders": "Solo personaje: las mallas con las que choca el cuerpo — un objeto o una lista, descendientes incluidos — o `null`. Asignarlas construye un árbol de triángulos estático a partir de sus triángulos en espacio mundo tal como están ahora: una pasada sobre los triángulos y una construcción `O(T log T)`, unos 52 bytes por triángulo. Los modelos compilados aún no se leen: dales una malla simple como sustituto.",
+      "rebuildColliders": "Solo personaje: reconstruye el árbol de colisión, después de que los colisionadores se hayan movido o cambiado.",
+      "velocity": "Solo personaje: la velocidad del cuerpo en metros por segundo, una copia; cero en otro caso.",
+      "onGround": "Solo personaje: si los pies están sobre un suelo; `false` para cualquier otro controlador.",
+      "update": "Hace avanzar un controlador pilotado `delta` segundos; un controlador de pivote vuelve a leer su pose.",
+      "follow": "La cámara del mundo ha cambiado: el controlador la sigue.",
+      "dispose": "Detiene el controlador y quita sus escuchadores del lienzo.",
       "minDistance": "Distancia mínima a la que un controlador de pivote acerca la cámara a `target`.",
       "maxDistance": "Distancia máxima a la que un controlador de pivote aleja la cámara de `target`.",
       "minPolarAngle": "Solo órbita: ángulo polar más pequeño, en radianes desde la vertical.",
@@ -6317,22 +6317,34 @@
       "maxAzimuthAngle": "Solo órbita: fin de ese arco; puede ser más pequeño que `minAzimuthAngle`.",
       "movementSpeed": "Vuelo y primera persona: unidades del mundo por segundo a tecla completa; 1 por defecto.",
       "lookSpeed": "Solo primera persona: radianes que gira la vista por píxel de movimiento del puntero.",
-      "rollSpeed": "Solo vuelo: radianes por segundo que hacen cabecear, guiñar y alabear las teclas.",
-      "rotateSpeed": "Órbita y trackball: velocidad a la que gira el arrastre; 1 por defecto.",
-      "zoomSpeed": "Controladores de pivote: velocidad a la que la rueda y el pellizco hacen zoom; 1 por defecto.",
-      "update": "Hace avanzar un controlador pilotado `delta` segundos; un controlador de pivote vuelve a leer su pose.",
-      "follow": "La cámara del mundo ha cambiado: el controlador la sigue.",
-      "dispose": "Detiene el controlador y quita sus escuchadores del lienzo.",
       "minPitch": "Solo primera persona: lo más bajo que mira la cabeza, en radianes (0 es el horizonte, negativo hacia abajo).",
       "maxPitch": "Solo primera persona: lo más alto que mira la cabeza, en radianes por encima del horizonte.",
       "pointerLook": "Solo vuelo: si el puntero gira la vista; en false, solo las teclas pilotan.",
+      "rollSpeed": "Solo vuelo: radianes por segundo que hacen cabecear, guiñar y alabear las teclas.",
       "pitchSpeed": "Solo vuelo: radianes por segundo que las teclas hacen cabecear; `null` (por defecto) equivale a `rollSpeed`.",
       "yawSpeed": "Solo vuelo: radianes por segundo que las teclas hacen guiñar; `null` (por defecto) equivale a `rollSpeed`.",
       "inputResponse": "Solo vuelo: segundos que tarda una tecla de giro hasta la máxima desviación y vuelta; 0 es instantáneo.",
       "pitchInput": "Solo vuelo: palanca de cabeceo en [-1, 1] (morro arriba), sumada a las flechas; 0 por defecto.",
       "yawInput": "Solo vuelo: palanca de guiñada en [-1, 1] (izquierda), sumada a las flechas; 0 por defecto.",
       "rollInput": "Solo vuelo: palanca de alabeo en [-1, 1] (izquierda), sumada a Q y E; 0 por defecto.",
-      "autoForward": "Solo vuelo: avanza a `movementSpeed` sin tecla, W más rápido, S hasta detenerse."
+      "rotateSpeed": "Órbita y trackball: velocidad a la que gira el arrastre; 1 por defecto.",
+      "zoomSpeed": "Controladores de pivote: velocidad a la que la rueda y el pellizco hacen zoom; 1 por defecto.",
+      "autoForward": "Solo vuelo: avanza a `movementSpeed` sin tecla, W más rápido, S hasta detenerse.",
+      "walkSpeed": "Solo personaje: metros por segundo a pie; 4,5 por defecto, una carrera constante.",
+      "sprintSpeed": "Solo personaje: metros por segundo con Mayús pulsada; 7 por defecto.",
+      "jumpSpeed": "Solo personaje: velocidad ascendente con la que empieza un salto, en m/s; `sqrt(2 g h)` alcanza `h`, 1,1 m por defecto.",
+      "gravity": "Solo personaje: aceleración hacia abajo, en m/s²; 9,80665 por defecto.",
+      "airControl": "Solo personaje: qué tan rápido dirigen las teclas en el aire, como fracción de la respuesta en tierra; 0,3 por defecto, 0 es balístico.",
+      "responseTime": "Solo personaje: segundos para alcanzar el 95 % de la velocidad deseada, o para detenerse, en el suelo; por defecto un paso de zancada (1 / 1,8 s).",
+      "capsuleRadius": "Solo personaje: radio del cuerpo, en metros; media anchura de hombros (0,23 m) por defecto.",
+      "capsuleHeight": "Solo personaje: altura del cuerpo, en metros; 1,75 por defecto.",
+      "eyeHeight": "Solo personaje: altura de la cámara sobre los pies, en metros; 1,64 por defecto.",
+      "stepHeight": "Solo personaje: repisa más alta subida sin saltar, en metros; la altura de la rodilla (0,5 m) por defecto.",
+      "maxSlope": "Solo personaje: suelo más empinado sobre el que se sostiene, en radianes desde la horizontal; 45° por defecto.",
+      "coyoteTime": "Solo personaje: segundos tras salir de un borde durante los que aún se concede un salto; 0,1 por defecto.",
+      "jumpBuffer": "Solo personaje: segundos durante los que un salto pulsado antes de aterrizar se conserva para el aterrizaje; 0,1 por defecto.",
+      "onLand": "Solo personaje: se llama al aterrizar con la velocidad de descenso en m/s; `null` por defecto.",
+      "onJump": "Solo personaje: se llama cuando el cuerpo deja el suelo en un salto; `null` por defecto."
     }
   },
   "world.renderer": {
@@ -6377,6 +6389,14 @@
     },
     "returns": "Una función que detiene el gancho."
   },
+  "world.beforeFrame": {
+    "summary": "Ejecuta una función antes de cada fotograma dibujado, con `{ delta, time }`; devuelve lo que lo detiene.",
+    "description": "Un fotograma del bucle del mundo transcurre así: el controlador hace avanzar la cámara (a menos que `controls.autoUpdate` sea false), los clips avanzan, estos hooks en el orden en que se añadieron, la escena se escribe y se dibuja, luego los hooks de `onFrame`. Lo que un hook coloca — un cuerpo sobre la cámara, una cabina — se dibuja en ese mismo fotograma, nunca uno tarde. Un `render()` dirigido por el anfitrión también los ejecuta, pero no hace avanzar ningún controlador. Un hook que llama a `invalidate()` mantiene llegando fotogramas.",
+    "parameters": {
+      "hook": "La función a ejecutar; recibe los segundos recién integrados y el tiempo del mundo."
+    },
+    "returns": "Una función que detiene el hook."
+  },
   "world.loop": {
     "summary": "Otro nombre para `onFrame`.",
     "parameters": {
@@ -6407,7 +6427,8 @@
     "summary": "Detiene el mundo y devuelve todo lo que tomó: memoria de GPU, bucle, controles."
   },
   "WorldControls": {
-    "summary": "Las formas en que una página puede dirigir la cámara con el ratón y el teclado, o `'none'`."
+    "summary": "Las formas en que una página puede dirigir la cámara con el ratón y el teclado, o `'none'`.",
+    "description": "`'firstPerson'` mueve una cámara; `'character'` mueve un cuerpo — masa, gravedad, saltos, colisiones con `world.controls.colliders` — y mira a través de sus ojos."
   },
   "WorldFrameMetrics": {
     "summary": "Las medidas de un fotograma, con los nombres bajo los cuales una página las lee; `null` donde el camino no cuenta.",
@@ -6606,6 +6627,79 @@
       "z": "El tercer número.",
       "w": "El cuarto número.",
       "set": "Escribe los cuatro números."
+    }
+  },
+  "BeforeFrameInfo": {
+    "summary": "Lo que recibe un gancho previo al fotograma: los segundos que los controladores acaban de integrar, y desde que comenzó el mundo.",
+    "description": "El único objeto del mundo, reescrito en cada fotograma: un gancho que quiere conservar un valor lo copia.",
+    "members": {
+      "delta": "Segundos desde el fotograma anterior, como máximo dos intervalos de fotograma tras una pausa; 0 en el primero.",
+      "time": "Segundos desde que comenzó el mundo."
+    }
+  },
+  "Capsule": {
+    "summary": "UNA CÁPSULA VERTICAL contra un árbol de triángulos: la fase estrecha del cuerpo del personaje.",
+    "description": "La cápsula se apoya en `feet` — el punto más bajo de su esfera inferior — y es cada punto a menos de `radius` del segmento vertical que va de `feet + radius` a `feet + height - radius`. Una pasada encuentra cada triángulo más cercano que `radius` a ese segmento y entrega cada solapamiento a `push` de inmediato (`CapsuleContact`). Quien llama mueve `feet`; el siguiente triángulo de la pasada se mide desde la cápsula desplazada, así que dos paredes que se encuentran en una esquina se dejan ambas en una sola pasada.",
+    "members": {
+      "feet": "El punto más bajo, en espacio mundo; `push` lo mueve.",
+      "radius": "Radio del cuerpo, en metros.",
+      "height": "Altura desde los pies hasta la parte superior de la cabeza, en metros; al menos dos radios."
+    }
+  },
+  "CapsuleContact": {
+    "summary": "Un solapamiento entre una cápsula y una superficie.",
+    "description": "Los arrays se reutilizan: un push los lee solo durante la llamada.",
+    "members": {
+      "normal": "Dirección unitaria que sale de la superficie hacia la cápsula: el camino de salida.",
+      "surface": "Normal unitaria de la propia superficie, del lado de la cápsula. Difiere de `normal` cuando la cápsula toca una arista o una esquina: indica a qué cara pertenece esa arista.",
+      "point": "El punto tocado de la superficie, en espacio mundo.",
+      "depth": "Cuánto está la cápsula dentro de la superficie a lo largo de `normal`, > 0."
+    }
+  },
+  "CapsulePush": {
+    "summary": "Responde a un contacto, normalmente moviendo los `feet` de la cápsula fuera de él."
+  },
+  "CharacterCameraControls": {
+    "summary": "UN PERSONAJE, visto a través de sus ojos: un cuerpo con masa que camina, corre, salta y cae, y choca con los triángulos del mundo como una cápsula vertical.",
+    "description": "El puntero gira la cabeza como en primera persona (`look.ts`). Las teclas, por `KeyboardEvent.code` para que cada distribución de teclado toque las mismas teclas: W/S o las flechas arriba y abajo caminan adelante y atrás, A/D o las flechas laterales se desplazan de lado, Mayús esprinta, Espacio salta. El cuerpo no arranca ni se detiene de golpe: gana velocidad y frena en `responseTime`, conserva su impulso en el aire, cae bajo `gravity`, sube repisas hasta `stepHeight`, se desliza a lo largo de las paredes y se sostiene en pendientes hasta `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La cámara es el ojo, a `eyeHeight` sobre los pies. Un anfitrión que mueve la cámara él mismo teletransporta el cuerpo allí, en reposo. Un personaje quieto — en el suelo, sin velocidad, sin tecla — no emite nada, así que la escena permanece quieta.",
+    "members": {
+      "velocity": "La velocidad del cuerpo en metros por segundo, en vivo: `[x, y, z]`, y hacia arriba.",
+      "onGround": "Si los pies están sobre un suelo.",
+      "onLand": "Se llama al aterrizar con la velocidad de descenso, en metros por segundo: un sonido, una sacudida.",
+      "onJump": "Se llama cuando el cuerpo deja el suelo en un salto.",
+      "collision": "Con qué choca el cuerpo — los colisionadores del mundo, o el mundo de un motor de física por la misma costura (`CharacterCollision`). `null` camina a nivel donde se encuentra el cuerpo, sin caer nunca.",
+      "update": "Vive `delta` segundos; devuelve si la cámara se movió, y emite `change` cuando lo hizo."
+    }
+  },
+  "CharacterCollision": {
+    "summary": "LA COSTURA ENTRE UN PERSONAJE Y EL MUNDO CON EL QUE CHOCA.",
+    "description": "El cuerpo del personaje (`characterBody.ts`) nunca lee triángulos: mueve su cápsula en partes más cortas que su radio y, tras cada una, pregunta qué solapa la cápsula y por dónde salir; y un caminante pregunta dónde está el suelo bajo sus pies. Todo lo demás — velocidad, gravedad, escalones, pendientes, saltos — es propio del cuerpo. Un motor de física implementa esta interfaz para poner un personaje en su mundo: responde al solapamiento desde sus propias formas y su propia fase amplia, y el cuerpo camina sobre ellas sin cambios. La implementación por defecto es el árbol de triángulos estático de `triangleCollision`.",
+    "members": {
+      "resolveCapsule": "Encuentra qué solapa `capsule` y llama a `push(contact)` para cada solapamiento, de inmediato (`CapsuleContact`: el camino de salida, la superficie, el punto tocado, la profundidad). `push` mueve `capsule.feet`; una implementación mide cada solapamiento siguiente desde la cápsula desplazada, así que una esquina se deja en una sola llamada. Devuelve si algo se solapaba.",
+      "groundBelow": "Baja la esfera inferior de la cápsula en línea recta hacia abajo, como máximo `depth`, y devuelve cuánto avanza antes de descansar por primera vez sobre una superficie que `accepts` acepta — el apoyo más alto de esos; negativo cuando la cápsula ya se hunde en él y debe subir. `null` cuando no hay ninguno. `capsule.feet` se deja donde estaba. `accepts` ve cada contacto candidato como un contacto: `point`, `normal` del punto al centro de la esfera, `surface` la cara vuelta hacia arriba."
+    }
+  },
+  "HeadSettings": {
+    "summary": "LA CABEZA DE UN CAMINANTE, puntero bloqueado: el puntero la gira, el horizonte permanece nivelado — guiñada alrededor del cenit del mundo, cabeceo limitado a `[minPitch, maxPitch]`, nunca alabeo.",
+    "description": "Compartido por todo controlador que mira a través de los ojos de una persona. EL BLOQUEO ES COSA DEL ANFITRIÓN PEDIRLO. Un navegador solo concede un bloqueo de puntero dentro de un gesto, así que la cabeza lo pide en `pointerdown` y publica `lock()`, `unlock()` y `locked()` para un anfitrión que prefiera elegir su propio momento; un bloqueo del que el usuario escapa simplemente detiene la mirada, y un arrastre sin bloqueo sigue girando la cabeza.",
+    "members": {
+      "lookSpeed": "Radianes girados por píxel de movimiento del puntero.",
+      "minPitch": "Lo más bajo que mira la cabeza, en radianes bajo el horizonte contados negativos (0 es el horizonte); por defecto justo antes de mirar recto hacia abajo. Súbelo para que un caminante nunca mire dentro de su propio cuerpo.",
+      "maxPitch": "Lo más alto que mira la cabeza, en radianes sobre el horizonte; por defecto justo antes del cenit."
+    }
+  },
+  "PersonHead": {
+    "summary": "Lo que publica un controlador que mira a través de los ojos de una persona: la cabeza y su bloqueo.",
+    "members": {
+      "locked": "Si el puntero está bloqueado en la vista.",
+      "lock": "Bloquea el puntero en la vista.",
+      "unlock": "Libera el puntero."
+    }
+  },
+  "TriangleCollision": {
+    "summary": "El mundo de colisión por defecto: un árbol de triángulos estático.",
+    "members": {
+      "tree": "El árbol desde el que se responde: su `triangleCount` y sus `bytes` son el coste del mundo."
     }
   }
 }

@@ -1674,15 +1674,7 @@
   },
   "FirstPersonCameraControls": {
     "summary": "ICH-PERSPEKTIVE, gesperrter Zeiger: der Zeiger dreht den Kopf, die Tasten lassen laufen.",
-    "description": "Der Horizont bleibt gerade — Gieren um die Oberseite der Welt, Nicken begrenzt auf `[minPitch, maxPitch]`, nie Rollen — und das Laufen folgt allein dem Gieren, sodass Aufschauen den Läufer nicht vom Boden abhebt. ES IST SACHE DES HOSTS, DIE SPERRE ANZUFORDERN. Ein Browser gewährt die Zeigersperre nur während einer Geste, also fordert der Controller sie bei `pointerdown` an und veröffentlicht `lock()`, `unlock()` und `locked()` für einen Host, der seinen Zeitpunkt selbst wählt; eine Sperre, aus der der Betrachter entkommt, stoppt einfach den Blick. Tasten, nach `KeyboardEvent.code`: W/S vor und zurück, A/D seitwärts, Leertaste und linke Umschalttaste zum Steigen und Sinken.",
-    "members": {
-      "lookSpeed": "Radiant gedreht pro Pixel Zeigerbewegung.",
-      "locked": "Ob der Zeiger in der Ansicht gesperrt ist.",
-      "lock": "Sperrt den Zeiger in der Ansicht.",
-      "unlock": "Gibt den Zeiger frei.",
-      "minPitch": "Am tiefsten, wohin der Kopf blickt, in Radiant unterhalb des Horizonts, negativ gezählt (0 ist der Horizont); standardmäßig knapp vor senkrecht nach unten. Erhöhe ihn, damit ein Läufer nie in den eigenen Körper blickt.",
-      "maxPitch": "Am höchsten, wohin der Kopf blickt, in Radiant oberhalb des Horizonts; standardmäßig knapp vor dem Zenit."
-    }
+    "description": "Der Horizont bleibt gerade — Gieren um die Oberseite der Welt, Nicken begrenzt auf `[minPitch, maxPitch]`, nie Rollen — und das Laufen folgt allein dem Gieren, sodass Aufschauen den Läufer nicht vom Boden abhebt. ES IST SACHE DES HOSTS, DIE SPERRE ANZUFORDERN. Ein Browser gewährt die Zeigersperre nur während einer Geste, also fordert der Controller sie bei `pointerdown` an und veröffentlicht `lock()`, `unlock()` und `locked()` für einen Host, der seinen Zeitpunkt selbst wählt; eine Sperre, aus der der Betrachter entkommt, stoppt einfach den Blick. Tasten, nach `KeyboardEvent.code`: W/S vor und zurück, A/D seitwärts, Leertaste und linke Umschalttaste zum Steigen und Sinken."
   },
   "FloatBatch": {
     "summary": "Die Zahlenarrays, die ein Stapel liest und schreibt."
@@ -6309,6 +6301,14 @@
       "kind": "Welcher Controller die Kamera lenkt; gib einen anderen Namen an, um zu wechseln.",
       "enabled": "Ob der Controller auf Maus und Tastatur hört.",
       "target": "Der Punkt, um den sich ein Drehpunkt-Controller dreht.",
+      "autoUpdate": "Ob die Schleife der Welt `update` vor jedem Bild aufruft, vor den `world.beforeFrame`-Hooks. `false` überlässt den Schritt der Seite, die `update` aus einem solchen Hook aufruft, so oft und über so viele Teilschritte, wie sie integriert; die Welt macht ihn dann nie mehr.",
+      "colliders": "Nur Charakter: die Meshes, mit denen der Körper kollidiert — ein Objekt oder eine Liste, Nachkommen eingeschlossen — oder `null`. Sie zu setzen baut einen statischen Dreiecksbaum aus ihren Dreiecken im Weltraum, so wie sie jetzt stehen: ein Durchlauf über die Dreiecke und ein `O(T log T)`-Aufbau, etwa 52 Bytes pro Dreieck. Kompilierte Modelle werden noch nicht gelesen: gib ihnen ein einfaches Mesh als Platzhalter.",
+      "rebuildColliders": "Nur Charakter: baut den Kollisionsbaum erneut, nachdem sich die Kollidierer bewegt oder geändert haben.",
+      "velocity": "Nur Charakter: die Geschwindigkeit des Körpers in Metern pro Sekunde, eine Kopie; sonst null.",
+      "onGround": "Nur Charakter: ob die Füße auf einem Boden stehen; `false` für jeden anderen Controller.",
+      "update": "Lässt einen gesteuerten Controller um `delta` Sekunden voranschreiten; ein Drehpunkt-Controller liest seine Pose erneut.",
+      "follow": "Die Kamera der Welt hat sich geändert: der Controller folgt ihr.",
+      "dispose": "Stoppt den Controller und entfernt seine Listener vom Canvas.",
       "minDistance": "Mindestentfernung, auf die ein Drehpunkt-Controller die Kamera an `target` heranbringt.",
       "maxDistance": "Maximale Entfernung, auf die ein Drehpunkt-Controller die Kamera von `target` entfernt.",
       "minPolarAngle": "Nur Umlaufbahn: kleinster Polarwinkel, in Radiant von der Senkrechten.",
@@ -6317,22 +6317,34 @@
       "maxAzimuthAngle": "Nur Umlaufbahn: Ende dieses Bogens; er kann kleiner sein als `minAzimuthAngle`.",
       "movementSpeed": "Flug und Ich-Perspektive: Welteinheiten pro Sekunde bei voller Taste; standardmäßig 1.",
       "lookSpeed": "Nur Ich-Perspektive: Radiant, um die sich die Ansicht pro Pixel Zeigerbewegung dreht.",
-      "rollSpeed": "Nur Flug: Radiant pro Sekunde, um die die Tasten nicken, gieren und rollen lassen.",
-      "rotateSpeed": "Umlaufbahn und Trackball: Geschwindigkeit, mit der der Zug dreht; standardmäßig 1.",
-      "zoomSpeed": "Drehpunkt-Controller: Geschwindigkeit, mit der Rad und Pinch zoomen; standardmäßig 1.",
-      "update": "Lässt einen gesteuerten Controller um `delta` Sekunden voranschreiten; ein Drehpunkt-Controller liest seine Pose erneut.",
-      "follow": "Die Kamera der Welt hat sich geändert: der Controller folgt ihr.",
-      "dispose": "Stoppt den Controller und entfernt seine Listener vom Canvas.",
       "minPitch": "Nur Ich-Perspektive: am tiefsten, wohin der Kopf blickt, in Radiant (0 ist der Horizont, negativ nach unten).",
       "maxPitch": "Nur Ich-Perspektive: am höchsten, wohin der Kopf blickt, in Radiant oberhalb des Horizonts.",
       "pointerLook": "Nur Flug: ob der Zeiger die Ansicht dreht; bei false steuern allein die Tasten.",
+      "rollSpeed": "Nur Flug: Radiant pro Sekunde, um die die Tasten nicken, gieren und rollen lassen.",
       "pitchSpeed": "Nur Flug: Radiant pro Sekunde, um die die Tasten nicken lassen; `null` (Standard) entspricht `rollSpeed`.",
       "yawSpeed": "Nur Flug: Radiant pro Sekunde, um die die Tasten gieren lassen; `null` (Standard) entspricht `rollSpeed`.",
       "inputResponse": "Nur Flug: Sekunden, die eine Wende-Taste bis zur vollen Auslenkung und zurück braucht; 0 ist sofort.",
       "pitchInput": "Nur Flug: Nick-Steuerknüppel in [-1, 1] (Bug nach oben), zu den Pfeiltasten addiert; standardmäßig 0.",
       "yawInput": "Nur Flug: Gier-Steuerknüppel in [-1, 1] (links), zu den Pfeiltasten addiert; standardmäßig 0.",
       "rollInput": "Nur Flug: Roll-Steuerknüppel in [-1, 1] (links), zu Q und E addiert; standardmäßig 0.",
-      "autoForward": "Nur Flug: fliegt ohne Taste mit `movementSpeed` nach vorn, W schneller, S bis zum Halt."
+      "rotateSpeed": "Umlaufbahn und Trackball: Geschwindigkeit, mit der der Zug dreht; standardmäßig 1.",
+      "zoomSpeed": "Drehpunkt-Controller: Geschwindigkeit, mit der Rad und Pinch zoomen; standardmäßig 1.",
+      "autoForward": "Nur Flug: fliegt ohne Taste mit `movementSpeed` nach vorn, W schneller, S bis zum Halt.",
+      "walkSpeed": "Nur Charakter: Meter pro Sekunde zu Fuß; standardmäßig 4,5, ein stetiger Lauf.",
+      "sprintSpeed": "Nur Charakter: Meter pro Sekunde bei gehaltener Umschalttaste; standardmäßig 7.",
+      "jumpSpeed": "Nur Charakter: Aufwärtsgeschwindigkeit, mit der ein Sprung beginnt, in m/s; `sqrt(2 g h)` erreicht `h`, standardmäßig 1,1 m.",
+      "gravity": "Nur Charakter: Abwärtsbeschleunigung, in m/s²; standardmäßig 9,80665.",
+      "airControl": "Nur Charakter: wie schnell die Tasten in der Luft steuern, als Anteil der Bodenreaktion; standardmäßig 0,3, 0 ist ballistisch.",
+      "responseTime": "Nur Charakter: Sekunden, um 95 % der gewünschten Geschwindigkeit zu erreichen, oder um am Boden zu stoppen; standardmäßig ein Schritt-Takt (1 / 1,8 s).",
+      "capsuleRadius": "Nur Charakter: Radius des Körpers, in Metern; standardmäßig eine halbe Schulterbreite (0,23 m).",
+      "capsuleHeight": "Nur Charakter: Höhe des Körpers, in Metern; standardmäßig 1,75.",
+      "eyeHeight": "Nur Charakter: Höhe der Kamera über den Füßen, in Metern; standardmäßig 1,64.",
+      "stepHeight": "Nur Charakter: höchste ohne Sprung erklommene Kante, in Metern; standardmäßig die Kniehöhe (0,5 m).",
+      "maxSlope": "Nur Charakter: steilster Boden, auf dem gestanden wird, in Radiant von der Waagerechten; standardmäßig 45°.",
+      "coyoteTime": "Nur Charakter: Sekunden, nach denen ein Sprung nach dem Verlassen einer Kante noch gewährt wird; standardmäßig 0,1.",
+      "jumpBuffer": "Nur Charakter: Sekunden, für die ein vor der Landung gedrückter Sprung für die Landung vorgemerkt bleibt; standardmäßig 0,1.",
+      "onLand": "Nur Charakter: wird bei der Landung mit der Sinkgeschwindigkeit in m/s aufgerufen; standardmäßig `null`.",
+      "onJump": "Nur Charakter: wird aufgerufen, wenn der Körper bei einem Sprung den Boden verlässt; standardmäßig `null`."
     }
   },
   "world.renderer": {
@@ -6377,6 +6389,14 @@
     },
     "returns": "Eine Funktion, die den Hook stoppt."
   },
+  "world.beforeFrame": {
+    "summary": "Führt eine Funktion vor jedem gezeichneten Bild aus, mit `{ delta, time }`; gibt zurück, was ihn stoppt.",
+    "description": "Ein Bild der Schleife der Welt läuft so ab: der Controller lässt die Kamera voranschreiten (außer `controls.autoUpdate` ist false), Clips schreiten voran, diese Hooks in der Reihenfolge, in der sie hinzugefügt wurden, die Szene wird geschrieben und gezeichnet, dann die `onFrame`-Hooks. Was ein Hook platziert — ein Körper auf der Kamera, ein Cockpit — wird in genau diesem Bild gezeichnet, nie ein Bild zu spät. Ein von einem Host geführtes `render()` führt sie auch aus, lässt aber keinen Controller voranschreiten. Ein Hook, der `invalidate()` aufruft, lässt weitere Bilder kommen.",
+    "parameters": {
+      "hook": "Die auszuführende Funktion; sie erhält die gerade integrierten Sekunden und die Zeit der Welt."
+    },
+    "returns": "Eine Funktion, die den Hook stoppt."
+  },
   "world.loop": {
     "summary": "Ein anderer Name für `onFrame`.",
     "parameters": {
@@ -6407,7 +6427,8 @@
     "summary": "Stoppt die Welt und gibt alles zurück, was sie genommen hat: GPU-Speicher, Schleife, Steuerungen."
   },
   "WorldControls": {
-    "summary": "Die Arten, wie eine Seite die Kamera mit Maus und Tastatur lenken kann, oder `'none'`."
+    "summary": "Die Arten, wie eine Seite die Kamera mit Maus und Tastatur lenken kann, oder `'none'`.",
+    "description": "`'firstPerson'` bewegt eine Kamera; `'character'` bewegt einen Körper — Masse, Schwerkraft, Sprünge, Kollisionen mit `world.controls.colliders` — und blickt durch seine Augen."
   },
   "WorldFrameMetrics": {
     "summary": "Die Messwerte eines Bildes, mit den Namen, unter denen eine Seite sie liest; `null`, wo der Pfad nicht zählt.",
@@ -6606,6 +6627,79 @@
       "z": "Die dritte Zahl.",
       "w": "Die vierte Zahl.",
       "set": "Schreibt die vier Zahlen."
+    }
+  },
+  "BeforeFrameInfo": {
+    "summary": "Was ein Vor-Bild-Hook erhält: die Sekunden, die die Controller gerade integriert haben, und seit Beginn der Welt.",
+    "description": "Das eine Objekt der Welt, bei jedem Bild neu geschrieben: ein Hook, der einen Wert behalten will, kopiert ihn.",
+    "members": {
+      "delta": "Sekunden seit dem vorherigen Bild, höchstens zwei Bildintervalle nach einer Pause; 0 beim ersten.",
+      "time": "Sekunden seit Beginn der Welt."
+    }
+  },
+  "Capsule": {
+    "summary": "EINE AUFRECHTE KAPSEL gegen einen Dreiecksbaum: die enge Phase des Charakterkörpers.",
+    "description": "Die Kapsel steht auf `feet` — dem tiefsten Punkt ihrer unteren Kugel — und ist jeder Punkt innerhalb von `radius` des senkrechten Segments von `feet + radius` bis `feet + height - radius`. Ein Durchlauf findet jedes Dreieck, das näher als `radius` an diesem Segment liegt, und übergibt jede Überschneidung sofort an `push` (`CapsuleContact`). Der Aufrufer bewegt `feet`; das nächste Dreieck des Durchlaufs wird von der bewegten Kapsel aus gemessen, sodass zwei Wände, die sich in einer Ecke treffen, in einem Durchlauf beide verlassen werden.",
+    "members": {
+      "feet": "Der tiefste Punkt, im Weltraum; `push` bewegt ihn.",
+      "radius": "Radius des Körpers, in Metern.",
+      "height": "Höhe von den Füßen bis zur Kopfoberseite, in Metern; mindestens zwei Radien."
+    }
+  },
+  "CapsuleContact": {
+    "summary": "Eine Überschneidung zwischen einer Kapsel und einer Oberfläche.",
+    "description": "Die Arrays werden wiederverwendet: ein Push liest sie nur während des Aufrufs.",
+    "members": {
+      "normal": "Einheitsrichtung aus der Oberfläche in die Kapsel hinein: der Weg hinaus.",
+      "surface": "Einheitsnormale der Oberfläche selbst, auf der Seite der Kapsel. Sie unterscheidet sich von `normal`, wenn die Kapsel eine Kante oder eine Ecke berührt: sie sagt, zu welcher Fläche diese Kante gehört.",
+      "point": "Der berührte Punkt der Oberfläche, im Weltraum.",
+      "depth": "Wie weit die Kapsel entlang `normal` in der Oberfläche steckt, > 0."
+    }
+  },
+  "CapsulePush": {
+    "summary": "Beantwortet einen Kontakt, üblicherweise indem sie die `feet` der Kapsel daraus herausbewegt."
+  },
+  "CharacterCameraControls": {
+    "summary": "EIN CHARAKTER, gesehen durch seine Augen: ein Körper mit Masse, der geht, läuft, springt und fällt, und mit den Dreiecken der Welt als aufrechte Kapsel kollidiert.",
+    "description": "Der Zeiger dreht den Kopf wie in der Ich-Perspektive (`look.ts`). Die Tasten, nach `KeyboardEvent.code`, damit jede Tastaturbelegung dieselben Tasten spielt: W/S oder die Pfeiltasten hoch und runter gehen vor und zurück, A/D oder die seitlichen Pfeiltasten schieben seitwärts, Umschalttaste sprintet, Leertaste springt. Der Körper startet und stoppt nicht sofort: er nimmt Fahrt auf und bremst über `responseTime`, behält seinen Schwung in der Luft, fällt unter `gravity`, klettert Kanten bis zu `stepHeight` hoch, gleitet an Wänden entlang und steht auf Hängen bis zu `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Die Kamera ist das Auge, `eyeHeight` über den Füßen. Ein Host, der die Kamera selbst bewegt, teleportiert den Körper dorthin, in Ruhe. Ein ruhender Charakter — am Boden, ohne Geschwindigkeit, ohne Taste — sendet nichts, sodass die Szene ruhig bleibt.",
+    "members": {
+      "velocity": "Die Geschwindigkeit des Körpers in Metern pro Sekunde, live: `[x, y, z]`, y nach oben.",
+      "onGround": "Ob die Füße auf einem Boden stehen.",
+      "onLand": "Wird bei der Landung mit der Sinkgeschwindigkeit in Metern pro Sekunde aufgerufen: ein Ton, ein Rütteln.",
+      "onJump": "Wird aufgerufen, wenn der Körper bei einem Sprung den Boden verlässt.",
+      "collision": "Womit der Körper kollidiert — den Kollidierern der Welt, oder der Welt eines Physik-Backends über dieselbe Schnittstelle (`CharacterCollision`). `null` geht eben dort, wo der Körper steht, und fällt nie.",
+      "update": "Lebt `delta` Sekunden; gibt zurück, ob sich die Kamera bewegt hat, und sendet `change`, wenn das der Fall war."
+    }
+  },
+  "CharacterCollision": {
+    "summary": "DIE NAHTSTELLE ZWISCHEN EINEM CHARAKTER UND DER WELT, MIT DER ER KOLLIDIERT.",
+    "description": "Der Charakterkörper (`characterBody.ts`) liest nie Dreiecke: er bewegt seine Kapsel in Abschnitten, die kürzer sind als ihr Radius, und fragt nach jedem, was die Kapsel überschneidet und in welche Richtung hinaus; und ein Läufer fragt, wo der Boden unter seinen Füßen ist. Alles andere — Geschwindigkeit, Schwerkraft, Stufen, Hänge, Sprünge — gehört dem Körper selbst. Ein Physik-Backend implementiert diese Schnittstelle, um einen Charakter in seine Welt zu setzen: es beantwortet die Überschneidung aus seinen eigenen Formen und seiner eigenen Breitphase, und der Körper geht darauf unverändert. Die Standardimplementierung ist der statische Dreiecksbaum von `triangleCollision`.",
+    "members": {
+      "resolveCapsule": "Findet, was `capsule` überschneidet, und ruft für jede Überschneidung sofort `push(contact)` auf (`CapsuleContact`: der Weg hinaus, die Oberfläche, der berührte Punkt, die Tiefe). `push` bewegt `capsule.feet`; eine Implementierung misst jede nächste Überschneidung von der bewegten Kapsel aus, sodass eine Ecke in einem Aufruf verlassen wird. Gibt zurück, ob sich etwas überschnitten hat.",
+      "groundBelow": "Senkt die untere Kugel der Kapsel senkrecht nach unten, um höchstens `depth`, und gibt zurück, wie weit sie geht, bevor sie zum ersten Mal auf einer Oberfläche ruht, die `accepts` annimmt — die höchste solche Stütze; negativ, wenn die Kapsel bereits darin versinkt und aufsteigen muss. `null`, wenn es keine gibt. `capsule.feet` bleibt, wo es war. `accepts` sieht jede Kandidatenberührung als Kontakt: `point`, `normal` vom Punkt zum Mittelpunkt der Kugel, `surface` die nach oben gewandte Fläche."
+    }
+  },
+  "HeadSettings": {
+    "summary": "DER KOPF EINES LÄUFERS, Zeiger gesperrt: der Zeiger dreht ihn, der Horizont bleibt gerade — Gieren um die Oberseite der Welt, Nicken begrenzt auf `[minPitch, maxPitch]`, nie Rollen.",
+    "description": "Gemeinsam für jeden Controller, der durch die Augen einer Person blickt. ES IST SACHE DES HOSTS, DIE SPERRE ANZUFORDERN. Ein Browser gewährt eine Zeigersperre nur innerhalb einer Geste, also fordert der Kopf sie bei `pointerdown` an und veröffentlicht `lock()`, `unlock()` und `locked()` für einen Host, der lieber seinen eigenen Moment wählt; eine Sperre, aus der der Betrachter entkommt, stoppt einfach den Blick, und ein Ziehen ohne Sperre dreht den Kopf trotzdem.",
+    "members": {
+      "lookSpeed": "Radiant gedreht pro Pixel Zeigerbewegung.",
+      "minPitch": "Am tiefsten, wohin der Kopf blickt, in Radiant unterhalb des Horizonts, negativ gezählt (0 ist der Horizont); standardmäßig knapp vor senkrecht nach unten. Erhöhe ihn, damit ein Läufer nie in den eigenen Körper blickt.",
+      "maxPitch": "Am höchsten, wohin der Kopf blickt, in Radiant oberhalb des Horizonts; standardmäßig knapp vor dem Zenit."
+    }
+  },
+  "PersonHead": {
+    "summary": "Was ein Controller veröffentlicht, der durch die Augen einer Person blickt: der Kopf und seine Sperre.",
+    "members": {
+      "locked": "Ob der Zeiger an die Ansicht gesperrt ist.",
+      "lock": "Sperrt den Zeiger an die Ansicht.",
+      "unlock": "Gibt den Zeiger frei."
+    }
+  },
+  "TriangleCollision": {
+    "summary": "Die Standard-Kollisionswelt: ein statischer Dreiecksbaum.",
+    "members": {
+      "tree": "Der Baum, aus dem geantwortet wird: sein `triangleCount` und seine `bytes` sind die Kosten der Welt."
     }
   }
 }
