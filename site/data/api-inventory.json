@@ -2447,7 +2447,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/visibility/shader/materialClass.test.ts",
         "packages/sdk-browser/src/world/api/api.ts",
-        "packages/sdk-browser/src/world/api/diagnosticApi.ts"
+        "packages/sdk-browser/src/world/api/diagnosticApi.ts",
+        "packages/sdk-browser/src/world/core/worldHandles.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/runtime/diagnostics\".DIAGNOSTICS"
