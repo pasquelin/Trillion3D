@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>The lights the scene file brought</title>
+    <title>Lights from the file</title>
     <meta name="thumbnail" content="3" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0e1621;
+        background: #171d28;
       }
       canvas {
         display: block;
@@ -22,9 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld } from '../runtime/engine.js';
-      import { controls, banner } from '../runtime/kit.js';
+      import { controls } from '../runtime/kit.js';
 
-      banner('The lights the scene file brought', 'This file declares its own lamps. Dim, recolour or switch off each one.');
       const world = createWorld('view', { controls: 'orbit' });
       // No `light.*` call here. The scene file declares its lamps (`KHR_lights_punctual`); the
       // compiler read them, converted candela to the engine's radiometric unit, and the loaded

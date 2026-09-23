@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Crates under one spotlight</title>
+    <title>Spotlight on crates</title>
     <meta name="thumbnail" content="2" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0e1621;
+        background: #171d28;
       }
       canvas {
         display: block;
@@ -30,16 +30,15 @@
     <p>Crate model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md</p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, banner } from '../runtime/kit.js';
+      import { controls } from '../runtime/kit.js';
 
-      banner('Crates under one spotlight', 'Move the pointer: the spotlight follows it. Widen the cone, soften its edge.');
       const world = createWorld('view', { controls: 'orbit' });
       await world.scene.load('../assets/examples/crates/cache/native/full/manifest.json');
       // One spot light, high above: `angle` is the cone's half-angle in radians, `penumbra` the
       // share of it that fades out, `radius` the lamp's size, which softens the shadows.
       const spot = light.spot({ position: [0, 6, 2], intensity: 400, distance: 16, castShadow: true, radius: 0.1 });
       world.scene.add(spot, light.ambient({ intensity: 0.12, color: '#8fb4ff' }));
-      world.camera.position.set(4.5, 3.4, 6.5);
+      world.camera.position.set(3, 2.3, 4.3);
       world.camera.lookAt(0, 0.6, 0);
       world.controls.target.set(0, 0.6, 0);
 

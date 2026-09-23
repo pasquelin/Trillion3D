@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Memory on a budget</title>
+    <title>Memory budget</title>
     <meta name="thumbnail" content="5" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0e1621;
+        background: #171d28;
       }
       canvas {
         display: block;
@@ -22,15 +22,14 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, pose } from '../runtime/engine.js';
-      import { controls, banner } from '../runtime/kit.js';
+      import { controls } from '../runtime/kit.js';
 
-      const info = banner('Memory on a budget', 'Each colour is a level of detail, blue the exact one. Give the geometry more memory and the coarse colours go; zoom in and the budget follows your eye.');
       const world = createWorld('view', { controls: 'orbit' });
       const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
       const framing = pose.fromBounds(model.bounds);
       world.camera.set(framing);
       world.controls.target.set(...framing.target);
-      world.camera.position.lerp(world.controls.target, 0.3);
+      world.camera.position.lerp(world.controls.target, 0.4);
 
       // `world.budget.geometryPool` is a fixed size in bytes, never read from the machine; the
       // slider counts it in KiB. The engine keeps what fits and draws the rest coarser, raising
@@ -40,9 +39,6 @@
         world.budget.geometryPool = values.memory * KiB;
         world.diagnostic.mode = values.view;
         world.invalidate();
-      });
-      world.onFrame(({ metrics }) => {
-                info.status(`${Math.round(world.budget.geometryPool / KiB)} KiB held — drawn at ${metrics.budgetPixelError ?? 0} px of error — ${metrics.residentPages ?? '?'} pages`);
       });
       world.invalidate();
     </script>

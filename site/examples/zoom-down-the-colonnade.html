@@ -2,29 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Zooming down a colonnade</title>
+    <title>Colonnade zoom</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      // Host-led loop: the field of view breathes every frame, so the world schedules nothing.
-      const world = createWorld('view', { interactive: false, controls: 'orbit', pixelRatio: devicePixelRatio });
-      const sand = material.meshStandard({ color: [0.6, 0.55, 0.45], roughness: 0.9 });
-      const chalk = material.meshStandard({ color: [0.88, 0.85, 0.78], roughness: 0.7 });
+      const world = createWorld('view', { controls: 'orbit' });
+      const sand = material.meshStandard({ color: '#9a8c73', roughness: 0.9 });
+      const chalk = material.meshStandard({ color: '#e0d9c7', roughness: 0.7 });
       const floor = object.mesh(geometry.box(6, 0.3, 14), sand);
       floor.position.y = -0.15;
       world.scene.add(floor);
       const profile = [[0, 0], [0.42, 0], [0.42, 0.25], [0.3, 0.25], [0.28, 2.7], [0.4, 2.7], [0.42, 2.95], [0, 2.95]];
       for (const side of [-1, 1]) {
         for (let index = 0; index < 6; index++) {
-          const column = object.mesh(geometry.lathe(profile, 24), chalk);
+          const column = object.mesh(geometry.lathe(profile, 32), chalk);
           column.position.set(side * 1.8, 0, index * 2.4 - 6);
           world.scene.add(column);
         }
@@ -32,20 +41,22 @@
         lintel.position.set(side * 1.8, 3.15, 0);
         world.scene.add(lintel);
       }
-      world.scene.add(light.directional({
-        intensity: 3, color: [1, 0.95, 0.85], position: [9, 9, 14], target: [0, 0, 0], castShadow: true,
-      }));
+      world.scene.add(light.directional({ intensity: 3, color: '#fff1dc', position: [9, 9, 14], castShadow: true }));
+      world.scene.add(light.ambient({ intensity: 0.3, color: '#8fb4ff' }));
       world.camera.position.set(0, 1.8, 11);
       world.camera.lookAt(0, 1.5, -6);
       world.controls.target.set(0, 1.5, -6);
 
-      // The camera stays at one end; only the field of view breathes between 20 and 90 degrees.
-      function zoom(time) {
-        world.camera.fov = 55 - Math.cos(time / 4000) * 35;
-        world.render();
-        requestAnimationFrame(zoom);
-      }
-      requestAnimationFrame(zoom);
+      // The camera does not move: only its field of view, in degrees, narrows and widens.
+      const ui = controls({ fieldOfView: [15, 100, 55, 1], breathe: true }, (values) => {
+        world.camera.fov = values.fieldOfView;
+      });
+      world.onFrame(({ time }) => {
+        if (!ui.breathe) return;
+        world.camera.fov = 55 - Math.cos(time / 4) * 35;
+        world.invalidate();
+      });
+      world.invalidate();
     </script>
   </body>
 </html>

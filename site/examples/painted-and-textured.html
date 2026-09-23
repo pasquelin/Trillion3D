@@ -2,80 +2,72 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Painted and textured surfaces</title>
+    <title>Painted and textured</title>
+    <meta name="thumbnail" content="1.5" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, texture } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      const rgb = ([r, g, b]) => `rgb(${r * 255},${g * 255},${b * 255})`;
-      function checkerTexture(n, c1, c2) {
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 256;
-        const ctx = canvas.getContext('2d'), cell = 256 / n;
-        for (let y = 0; y < n; y++)
-          for (let x = 0; x < n; x++) {
-            ctx.fillStyle = (x + y) % 2 ? rgb(c1) : rgb(c2);
-            ctx.fillRect(x * cell, y * cell, cell, cell);
+      // A picture drawn on a canvas: checks of two colours, `count` by `count`.
+      const board = document.createElement('canvas');
+      board.width = board.height = 256;
+      function paintChecks(count, first, second) {
+        const context = board.getContext('2d'), cell = 256 / count;
+        for (let y = 0; y < count; y++)
+          for (let x = 0; x < count; x++) {
+            context.fillStyle = (x + y) % 2 ? first : second;
+            context.fillRect(x * cell, y * cell, cell, cell);
           }
-        return texture.canvas(canvas);
       }
-      function stripesTexture(n, c1, c2) {
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 256;
-        const ctx = canvas.getContext('2d'), band = 256 / n;
-        for (let i = 0; i < n; i++) {
-          ctx.fillStyle = i % 2 ? rgb(c1) : rgb(c2);
-          ctx.fillRect(0, i * band, 256, band);
-        }
-        return texture.canvas(canvas);
-      }
+      paintChecks(8, '#f2efe6', '#e0663c');
+      const checks = texture.canvas(board);
 
       const world = createWorld('view', { controls: 'orbit' });
-      const slab = object.mesh(geometry.box(7, 0.3, 7), material.meshStandard({ color: [0.22, 0.24, 0.27], roughness: 0.85 }));
+      const slab = object.mesh(geometry.box(7, 0.3, 5), material.meshStandard({ color: '#2a2f3a', roughness: 0.85 }));
       slab.position.y = -0.15;
       world.scene.add(slab);
-
-      // Three painted solids beside three textured ones, the same shapes twice: the far row
-      // reads its base colour from a material constant, the near row from an image.
-      const shapes = (row, sphereMat, boxMat, cylinderMat) => {
-        const sphere = object.mesh(geometry.sphere(0.7, 32, 32), sphereMat);
+      // The same three shapes twice: painted with a colour, then wrapped in the picture.
+      const painted = material.meshStandard({ color: '#e0663c', roughness: 0.4 });
+      const textured = material.meshStandard({ map: checks, roughness: 0.5 });
+      for (const [row, matter] of [[-1.1, painted], [1.1, textured]]) {
+        const sphere = object.mesh(geometry.sphere(0.7, 64, 32), matter);
         sphere.position.set(-2, 0.7, row);
-        const box = object.mesh(geometry.box(1.2, 1.2, 1.2), boxMat);
+        const box = object.mesh(geometry.box(1.2, 1.2, 1.2), matter);
         box.position.set(0, 0.6, row);
-        const cylinder = object.mesh(geometry.cylinder(0.6, 0.6, 1.4, 32), cylinderMat);
+        box.rotation.y = 0.5;
+        const cylinder = object.mesh(geometry.cylinder(0.6, 0.6, 1.4, 64), matter);
         cylinder.position.set(2, 0.7, row);
         world.scene.add(sphere, box, cylinder);
-      };
-      shapes(
-        -1.2,
-        material.meshStandard({ color: [0.8, 0.2, 0.12], roughness: 0.35 }),
-        material.meshStandard({ color: [0.1, 0.25, 0.7], roughness: 0.35 }),
-        material.meshStandard({ color: [0.9, 0.85, 0.7], roughness: 0.35 }),
-      );
-      shapes(
-        1.2,
-        material.meshStandard({ color: [1, 1, 1], roughness: 0.7, map: checkerTexture(8, [0.9, 0.88, 0.82], [0.15, 0.15, 0.18]) }),
-        material.meshStandard({ color: [1, 1, 1], roughness: 0.7, map: stripesTexture(10, [0.85, 0.3, 0.25], [0.95, 0.9, 0.8]) }),
-        material.meshStandard({ color: [1, 1, 1], roughness: 0.7, map: checkerTexture(4, [0.2, 0.45, 0.5], [0.8, 0.8, 0.7]) }),
-      );
+      }
+      world.scene.add(light.directional({ intensity: 3, color: '#fff3e2', position: [6, 10, 8], castShadow: true }));
+      world.scene.add(light.directional({ intensity: 0.6, color: '#8fb4ff', position: [-8, 5, -6] }));
+      world.camera.position.set(0.6, 3.2, 5.4);
+      world.camera.lookAt(0, 0.4, 0);
+      world.controls.target.set(0, 0.4, 0);
 
-      world.scene.add(light.directional({
-        intensity: 3, color: [1, 0.96, 0.9], position: [10, 14, 10], target: [0, 0, 0], castShadow: true,
-      }));
-      world.scene.add(light.directional({
-        intensity: 0.6, color: [0.6, 0.7, 0.9], position: [-12, 6, -14], target: [0, 0, 0],
-      }));
-      world.camera.position.set(0.5, 3.4, 6.2);
-      world.camera.lookAt(0, 0.5, 0);
-      world.controls.target.set(0, 0.5, 0);
-      world.invalidate();
+      // A new picture drawn on the same canvas reaches the surface once the texture is told so.
+      controls({ checks: [2, 16, 8, 1], paint: '#e0663c', second: '#f2efe6' }, (values) => {
+        paintChecks(values.checks, values.second, values.paint);
+        checks.needsUpdate = true;
+        painted.color.set(values.paint);
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

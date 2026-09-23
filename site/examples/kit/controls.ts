@@ -1,4 +1,4 @@
-import { panel } from './overlay.ts';
+import { overlay } from './overlay.ts';
 
 /**
  * What an example declares for one control, the kind read from the value itself:
@@ -15,7 +15,7 @@ export type ControlSpec =
   | (() => void);
 
 /** The live value of a declared control: a button has none. */
-export type ControlValue<Spec> = Spec extends readonly number[]
+type ControlValue<Spec> = Spec extends readonly number[]
   ? number
   : Spec extends readonly string[]
     ? string
@@ -32,7 +32,7 @@ export type ControlValues<Specs> = {
 };
 
 /** One control as the panel draws it. */
-export type Control =
+type Control =
   | { kind: 'slider'; key: string; label: string; min: number; max: number; step: number }
   | { kind: 'colour'; key: string; label: string }
   | { kind: 'toggle'; key: string; label: string }
@@ -44,6 +44,9 @@ export function labelOf(key: string): string {
   const words = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+const isSlider = (spec: readonly (number | string)[]): spec is readonly number[] =>
+  typeof spec[0] === 'number';
 
 /** Reads the declared specs into the controls to draw and the values they start at. */
 export function describe(specs: Record<string, ControlSpec>) {
@@ -59,17 +62,16 @@ export function describe(specs: Record<string, ControlSpec>) {
       if (!/^#[0-9a-f]{6}$/i.test(spec)) throw new Error(`${key}: a colour is '#rrggbb'`);
       controls.push({ kind: 'colour', key, label });
       values[key] = spec.toLowerCase();
-    } else if (typeof spec[0] === 'number') {
-      const [min, max, value, step = 10 ** Math.floor(Math.log10((max - min) / 100))] =
-        spec as number[];
+    } else if (isSlider(spec)) {
+      const [min, max, value, step = 10 ** Math.floor(Math.log10((max - min) / 100))] = spec;
       if (!(min < max) || value < min || value > max)
         throw new Error(`${key}: a slider is [min, max, value], the value between the two`);
       controls.push({ kind: 'slider', key, label, min, max, step });
       values[key] = value;
     } else {
       if (!spec.length) throw new Error(`${key}: a choice needs at least one option`);
-      controls.push({ kind: 'choice', key, label, options: spec as readonly string[] });
-      values[key] = spec[0] as string;
+      controls.push({ kind: 'choice', key, label, options: spec });
+      values[key] = spec[0];
     }
   }
   return { controls, values };
@@ -145,7 +147,9 @@ export function controls<const Specs extends Record<string, ControlSpec>>(
 ): ControlValues<Specs> {
   const { controls: declared, values } = describe(specs);
   const live = values as ControlValues<Specs>;
-  const box = panel('top-3 right-3 w-64 max-w-[calc(100vw-1.5rem)]', 'details');
+  const box = document.createElement('details');
+  box.className =
+    'pointer-events-auto absolute top-3 right-3 w-64 max-w-[calc(100vw-1.5rem)] card bg-base-100/85 text-sm shadow-xl backdrop-blur';
   box.toggleAttribute('open', innerWidth >= 640);
   const title = document.createElement('summary');
   title.className = 'cursor-pointer select-none px-3 py-2 font-semibold';
@@ -155,6 +159,7 @@ export function controls<const Specs extends Record<string, ControlSpec>>(
   for (const control of declared)
     rows.append(field(control, values, () => onChange(live, control.key as never)));
   box.append(title, rows);
+  overlay().append(box);
   addEventListener('message', (event) => {
     const data = event.data as { type?: unknown; visible?: unknown } | null;
     if (event.source !== parent || data?.type !== 'wg:controls') return;

@@ -39,7 +39,8 @@ test('a declared control takes its kind from its value, and starts at it', () =>
     max: 10,
     step: 0.1,
   });
-  assert.equal(controls.at(-1)?.kind === 'button' && controls.at(-1)?.press, press);
+  const button = controls.at(-1);
+  assert.equal(button?.kind === 'button' && button.press, press);
 });
 
 test('a control that cannot be drawn is refused by name', () => {

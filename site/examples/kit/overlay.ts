@@ -1,11 +1,11 @@
 /**
  * The layer the example kit draws on: one element over the whole page, whose shadow root holds
- * the site's stylesheet and the dark theme, so the kit wears the portal's DaisyUI components and
+ * the site's stylesheet and the dark theme, so the panel wears the portal's DaisyUI components and
  * neither the example's own styles nor the kit's leak into the other.
  */
 let layer: HTMLElement | undefined;
 
-/** The shadow layer's container, created on first use; the kit's panels are appended to it. */
+/** The shadow layer's container, created on first use; the controls panel is appended to it. */
 export function overlay(): HTMLElement {
   if (layer) return layer;
   const host = document.createElement('div');
@@ -23,12 +23,4 @@ export function overlay(): HTMLElement {
   root.append(sheet, layer);
   document.body.append(host);
   return layer;
-}
-
-/** A panel of the layer: a translucent DaisyUI card placed by `position` classes. */
-export function panel(position: string, tag = 'div'): HTMLElement {
-  const card = document.createElement(tag);
-  card.className = `pointer-events-auto absolute ${position} card bg-base-100/85 shadow-xl backdrop-blur text-sm`;
-  overlay().append(card);
-  return card;
 }

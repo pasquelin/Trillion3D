@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A robot that walks, waves and dances</title>
+    <title>Blending robot motions</title>
     <meta name="thumbnail" content="2.3" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #101722;
+        background: #171d28;
       }
       canvas {
         display: block;
@@ -21,12 +21,10 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, animation, math } from '../runtime/engine.js';
-      import { controls, banner } from '../runtime/kit.js';
+      import { createWorld, geometry, material, object, light, animation } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      banner('A robot that walks, waves and dances', 'Each slider weighs one motion: mix them. Drag to turn around the robot.');
       const world = createWorld('view', { controls: 'orbit' });
-      world.scene.background = math.color('#101722');
 
       // The robot is a tree of named groups: each joint is a group turned by the clips.
       const paint = material.meshStandard({ color: '#f2b134', metalness: 0.3, roughness: 0.35 });
@@ -96,9 +94,9 @@
       }
       const spot = light.spot({ color: '#fff4e0', intensity: 400, distance: 20, angle: 0.4, penumbra: 0.5, castShadow: true, position: [3, 9, 4] });
       world.scene.add(spot, light.directional({ intensity: 0.4, color: '#8fb4ff', position: [-5, 6, -4] }));
-      world.camera.position.set(0, 3.6, 9.5);
-      world.camera.lookAt(0, 1.4, 0);
-      world.controls.target.set(0, 1.4, 0);
+      world.camera.position.set(0, 2.9, 6.8);
+      world.camera.lookAt(0, 1.3, 0);
+      world.controls.target.set(0, 1.3, 0);
 
       const ui = controls({ walk: [0, 1, 1], wave: [0, 1, 1], dance: [0, 1, 0], speed: [0.1, 2, 1], colour: '#f2b134' }, (values) => {
         for (const [name, action] of Object.entries(actions)) {
