@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useWords } from '../i18n.ts';
 import type { ReactNode } from 'react';
 import { Collapse } from '../ui/Collapse.tsx';
 import { Tabs } from '../ui/Tabs.tsx';
@@ -23,14 +24,14 @@ interface ProfileReadingProps {
 /** One reading's CPU and GPU charts, with its exact values and conditions folded below. */
 export function ProfileReading({ record: r, report, locale, filters }: ProfileReadingProps) {
   const [clock, setClock] = useState('cpu');
-  const fr = locale === 'fr';
+  const t = useWords(locale);
   const charts: { id: string; label: string; rows: BarChartRow[] }[] = [
     {
       id: 'cpu',
-      label: fr ? 'CPU · préparer l’image' : 'CPU · prepare the image',
+      label: t('profile.cpu'),
       rows: [
         {
-          label: fr ? 'Temps CPU global' : 'Overall CPU time',
+          label: t('profile.cpuOverall'),
           value: metricValue(r, 'cpu'),
           p95: r.data.cpuFrameMs?.p95,
           tone: 'info',
@@ -39,7 +40,7 @@ export function ProfileReading({ record: r, report, locale, filters }: ProfileRe
     },
     {
       id: 'gpu',
-      label: fr ? 'GPU · dessiner l’image' : 'GPU · draw the image',
+      label: t('profile.gpu'),
       rows: (r.data.passesGpu?.passes ?? []).map((p) => ({
         id: p.name,
         label: p.name,
@@ -51,13 +52,12 @@ export function ProfileReading({ record: r, report, locale, filters }: ProfileRe
   return (
     <>
       <p>
-        {r.canvas?.width} × {r.canvas?.height} ·{' '}
-        {fr ? 'Caméra mobile, soleil et ombres.' : 'Moving camera, sun and shadows.'}
+        {r.canvas?.width} × {r.canvas?.height} · {t('profile.conditions')}
       </p>
       <Tabs
         sticky
         accessory={filters}
-        label={fr ? 'Travail mesuré' : 'Measured work'}
+        label={t('profile.work')}
         value={clock}
         onChange={setClock}
         items={charts.map(({ id, label, rows }) => ({
@@ -65,58 +65,27 @@ export function ProfileReading({ record: r, report, locale, filters }: ProfileRe
           label,
           render: () => (
             <>
-              {id === 'cpu' && (
-                <p>
-                  {fr
-                    ? 'La barre montre la durée globale mesurée. Les médianes des étapes ne s’additionnent pas pour retrouver ce total.'
-                    : 'The bar shows the measured overall duration. Stage medians do not add up to this total.'}
-                </p>
-              )}
-              {id === 'cpu' && r.data.imageTenue && (
-                <p>
-                  {fr
-                    ? 'Cette image a été réutilisée : une partie du travail de rendu a été évitée.'
-                    : 'This image was reused, avoiding part of the rendering work.'}
-                </p>
-              )}
+              {id === 'cpu' && <p>{t('profile.cpuNote')}</p>}
+              {id === 'cpu' && r.data.imageTenue && <p>{t('profile.reused')}</p>}
               {id === 'cpu' && r.data.cheminCalcul?.clockCoarse && (
-                <p>
-                  {fr
-                    ? 'Horloge peu précise : 0 ms ne prouve pas qu’une étape ne coûte rien. Les valeurs exactes sont dans les détails.'
-                    : 'Coarse clock: 0 ms does not prove a stage is free. Exact readings are in the details.'}
-                </p>
+                <p>{t('profile.coarseClock')}</p>
               )}
-              {id === 'gpu' && (
-                <p>
-                  {fr
-                    ? 'Ces étapes montrent où travaille la carte graphique. Leurs durées se chevauchent : ne les additionnez pas.'
-                    : 'These stages show where the GPU works. Their timings overlap: do not add them.'}
-                </p>
-              )}
+              {id === 'gpu' && <p>{t('profile.gpuNote')}</p>}
               {rows.length ? (
                 <BarChart
                   title={label}
                   format={(v) => formatValue(v, locale, 'ms')}
-                  missingLabel={fr ? 'Non mesuré' : 'Not measured'}
+                  missingLabel={t('report.notMeasured')}
                   rows={rows}
                 />
               ) : (
-                <Alert>
-                  {fr
-                    ? 'Aucune durée enregistrée pour ces étapes.'
-                    : 'No timings recorded for these stages.'}
-                </Alert>
+                <Alert>{t('profile.noTimings')}</Alert>
               )}
             </>
           ),
         }))}
       />
-      <Collapse
-        surface="nested"
-        title={
-          fr ? 'Valeurs exactes et conditions de mesure' : 'Exact values and measurement conditions'
-        }
-      >
+      <Collapse surface="nested" title={t('profile.exact')}>
         {() => (
           <>
             <Conditions a={r} locale={locale} />

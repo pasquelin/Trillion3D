@@ -1,4 +1,4 @@
-import { t } from '../content/i18n/index.ts';
+import { useWords } from './i18n.ts';
 import type { Locale } from '../content/locale.ts';
 import type { PortalEntry } from '../content/model.ts';
 import { Card } from './ui/Card.tsx';
@@ -9,11 +9,12 @@ const code = (text: string | undefined) => (text ? <code>{text}</code> : null);
 
 /** What a function takes: one row per parameter, its type, its default and what it does. */
 export function Parameters({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
+  const t = useWords(locale);
   if (!entry.parameters?.length) return null;
   return (
-    <Card title={t(locale, 'entry.parameters')}>
+    <Card title={t('entry.parameters')}>
       <FieldTable
-        head={['name', 'type', 'default', 'meaning'].map((key) => t(locale, `entry.${key}`))}
+        head={(['name', 'type', 'default', 'meaning'] as const).map((key) => t(`entry.${key}`))}
         rows={entry.parameters.map((row) => ({
           key: row.name,
           cells: [
@@ -30,9 +31,10 @@ export function Parameters({ entry, locale }: { entry: PortalEntry; locale: Loca
 
 /** What a function gives back: its type, and what it is. */
 export function Returns({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
+  const t = useWords(locale);
   if (!entry.returns) return null;
   return (
-    <Card title={t(locale, 'entry.returns')}>
+    <Card title={t('entry.returns')}>
       <p>
         {code(entry.returns.type)} — <Inline text={entry.returns.desc} />
       </p>
@@ -42,6 +44,7 @@ export function Returns({ entry, locale }: { entry: PortalEntry; locale: Locale 
 
 /** What an object or a type holds: one row per member, and a written entry's own values. */
 export function Members({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
+  const t = useWords(locale);
   const members = entry.members ?? [];
   const values = entry.values ?? [];
   if (!members.length && !values.length) return null;
@@ -50,15 +53,12 @@ export function Members({ entry, locale }: { entry: PortalEntry; locale: Locale 
     <Card
       title={
         entry.valuesTitle ??
-        t(
-          locale,
-          typed ? 'entry.members' : entry.kind === 'Type' ? 'entry.values' : 'entry.arguments',
-        )
+        t(typed ? 'entry.members' : entry.kind === 'Type' ? 'entry.values' : 'entry.arguments')
       }
     >
       <FieldTable
-        head={(typed ? ['name', 'type', 'meaning'] : ['name', 'meaning']).map((key) =>
-          t(locale, `entry.${key}`),
+        head={(typed ? (['name', 'type', 'meaning'] as const) : (['name', 'meaning'] as const)).map(
+          (key) => t(`entry.${key}`),
         )}
         rows={[
           ...members.map((row) => ({
