@@ -8,7 +8,7 @@ import { createBeams } from './beam.ts';
 import type { NodeLike, SkyEngine, SkyWorld } from './engine.ts';
 import { createParticleSystem, type ParticleSystem } from './particles.ts';
 import { isParticleKind, PRESETS, type ParticleKind } from './presets.ts';
-import { seeded } from '../../random.ts';
+import { mulberry32 } from '../../random.ts';
 import type { Wind } from './wind.ts';
 
 type Emitter = Extract<Marker, { kind: 'emitter' }>;
@@ -53,7 +53,7 @@ export function createEffects(
   },
 ): Effects {
   const emitters = options.markers.filter((m): m is Emitter => m.kind === 'emitter');
-  const next = seeded(options.seed);
+  const next = mulberry32(options.seed);
   const node = engine.object.group();
   const systems = new Map<ParticleKind, ParticleSystem>();
   for (const kind of Object.keys(PRESETS) as ParticleKind[]) {

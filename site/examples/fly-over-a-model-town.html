@@ -98,7 +98,7 @@
     <div id="testmode" data-example-overlay hidden data-words="testMode"></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { announce, isCapture, play, seeded, stats, whiteNoise, words } from '../runtime/kit.js';
+      import { announce, ease, isCapture, play, seeded, stats, whiteNoise, words } from '../runtime/kit.js';
       const say = words();
 
       // MOUSE AIM, as PC flight games fly: the mouse moves an aim circle through the sky, not the
@@ -115,13 +115,10 @@
       [camera.near, camera.far, camera.fov] = [0.5, 12000, 62];
       Object.assign(world.controls, { pointerLook: false, autoForward: true, movementSpeed: 0, inputResponse: 0.08 });
 
-      // FLIGHT-WORLD-START — the valley as numbers, shared with the proof run in Node.
       const deg = Math.PI / 180;
       const clamp = (x, a = -1, b = 1) => Math.min(b, Math.max(a, x));
-      const smooth = (a, b, x) => {
-        const t = clamp((x - a) / (b - a), 0, 1);
-        return t * t * (3 - 2 * t);
-      };
+      // The kit's smoothstep, from `a` to `b` instead of 0 to 1.
+      const smooth = (a, b, x) => ease.smooth((x - a) / (b - a));
       // A seeded sequence (the kit's `seeded`): the same valley on every run.
       const next = seeded(7);
       // THE CANYON: a gorge on an arc of 1100 m around (1100, -600), from just north of the
@@ -176,10 +173,6 @@
         const [, height, , , up] = sample(x, z);
         return height < WATER ? [WATER, false] : [height, up > 0.97];
       }
-      // FLIGHT-WORLD-END
-
-      // FLIGHT-MODEL-START — the jet as numbers: no DOM and no engine object, so the proof run in
-      // Node flies the very same code through the very same controller.
       const G = 9.81, GEAR = 1.95;
       // Speeds in metres per second: the slowest a flying jet goes, where the wing stalls, where
       // it lifts off, what idle holds in the air, full military power, full afterburner, Mach 1.
@@ -422,8 +415,6 @@
         const t = length ? clamp(along.reduce((s, v, i) => s + v * (centre[i] - a[i]), 0) / length, 0, 1) : 0;
         return Math.hypot(...a.map((v, i) => v + along[i] * t - centre[i])) < radius;
       }
-      // FLIGHT-MODEL-END
-
       // COCKPIT-START — the seat, in metres from the pilot's eye (x right, y up, -z ahead). The
       // eye sits in the jet 1.05 m over its axis and 5 m ahead of its middle, under the canopy.
       const EYE = [0, 1.05, -5];

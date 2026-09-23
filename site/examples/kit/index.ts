@@ -4,8 +4,8 @@
  * a corner of the frame's measured counters, a game's menu and pause while the mouse is free,
  * the point the pointer shows on the ground, a video file the viewer picks, and a seeded
  * sequence that places the same scene on every run, noise to make sounds from, and a card that
- * names the error an example stops on; the line of what to do and the news it gives go to the
- * banner of the page hosting it (`banner.ts`). Its words, and the page's own, are read in
+ * names the error an example stops on, and a banner at the top of the frame for the line of what
+ * to do and the news the example gives (`banner.ts`). Its words, and the page's own, are read in
  * the reader's language before the example runs (`words.ts`).
  */
 import { announceWhatToDo } from './banner.ts';
@@ -19,9 +19,9 @@ announceWhatToDo();
 export { announce } from './banner.ts';
 export { controls, type ControlSpec, type ControlValues } from './controls.ts';
 export { playPickedVideo } from './media.ts';
-export { circling, ease, flights, opening } from './opening.ts';
+export { circling, ease, flights, mix, opening } from './opening.ts';
 export { pointerOnPlane } from './pointer.ts';
-export { hash, seeded } from './random.ts';
+export { seeded, sineHash } from './random.ts';
 export { readout } from './readout.ts';
 export { brownNoise, whiteNoise } from './sound.ts';
 export { stats } from './stats.ts';

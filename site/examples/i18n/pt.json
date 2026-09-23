@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "Este exemplo parou por causa de um erro"
+    },
+    "banner": {
+      "close": "Fechar"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "Arraste para mover o tabuleiro. Role ou belisque para dar zoom.",
+    "banner": "Arraste para mover o tabuleiro. Role ou belisque para dar zoom. Setas para andar.",
     "controls": {
       "play": "Jogar",
       "speed": "Velocidade",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "Arraste para olhar a rua. Mude a hora para esticar as sombras.",
+    "banner": "Arraste para olhar a rua. Mude a hora para esticar as sombras. Roda para andar.",
     "controls": {
       "hour": "Hora",
       "traffic": "Trânsito",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "Arraste para girar em volta das joias. Cada uma é feita ponto a ponto.",
+    "banner": "Arraste para girar em volta das joias. Cada uma é feita ponto a ponto. Desmarque as facetas vivas para dividir os cantos.",
     "controls": {
       "points": "Pontos",
       "waist": "Cintura",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "Arraste para olhar em volta. Gire e repita a imagem nas paredes.",
+    "banner": "Arraste para olhar em volta. Gire e repita a imagem nas paredes. O painel do fundo é o azulejo como foi pintado.",
     "controls": {
       "tile": "Azulejo",
       "wrap": "Borda",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "Arraste para olhar tudo à sua volta. Abra o seu próprio vídeo, se quiser.",
+    "banner": "Arraste para olhar tudo à sua volta. Abra o seu próprio vídeo, se quiser. A vista gira sozinha até você apertar.",
     "controls": {
       "playing": "Tocando",
       "fieldOfView": "Campo de visão",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "Arraste para andar em volta. Veja peças aparecerem e sumirem o tempo todo.",
+    "banner": "Arraste para andar em volta. Veja peças aparecerem e sumirem o tempo todo. Roda para chegar perto.",
     "controls": {
       "perSecond": "Por segundo",
       "copies": "Cópias",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "Arraste para olhar de lado. Cada painel mistura as cores do seu jeito.",
+    "banner": "Arraste para olhar de lado. Cada painel mistura as cores do seu jeito. Da esquerda para a direita: normal, aditivo, subtrativo, multiplicar.",
     "controls": {
       "inks": "Tintas",
       "opacity": "Opacidade",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "Dê um duplo clique num objeto para enquadrá-lo. Arraste para girar.",
+    "banner": "Dê um duplo clique num objeto para enquadrá-lo. Arraste para girar. Roda para zoom.",
     "controls": {
       "model": "Objeto",
       "margin": "Margem",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "Role para ir de um grão de areia ao planeta inteiro.",
+    "banner": "Role para ir de um grão de areia ao planeta inteiro. Arraste para girar.",
     "controls": {
       "toTheGrain": "Até o grão",
       "toTheBeach": "Até a praia",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "Arraste para girar em volta da mesa. Veja a luminária pular de chave em chave.",
+    "banner": "Arraste para girar em volta da mesa. Veja a luminária pular de chave em chave. Mostre as chaves de um pulo como cópias pálidas da luminária.",
     "controls": {
       "timing": "Ritmo",
       "onionSkin": "Papel cebola",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "Arraste para girar em volta do Sol. As etiquetas andam com os planetas.",
+    "banner": "Arraste para girar em volta do Sol. As etiquetas andam com os planetas. Roda para chegar perto.",
     "controls": {
       "show": "Mostrar",
       "speed": "Velocidade",
@@ -1408,7 +1411,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "Arraste a vista grande para girá-la. Role e arraste as pequenas.",
+    "banner": "Arraste a vista grande para girá-la. Role e arraste as pequenas. Assim dão zoom e deslizam; clique duplo para voltar.",
     "controls": {
       "explode": "Explodir",
       "windFrom": "Vento vindo de",
@@ -1552,7 +1555,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "Clique no palco para ouvir uma melodia",
+    "banner": "Clique no palco para ouvir uma melodia. Arraste para dar a volta no palco: as barras são as notas, as pérolas a própria onda.",
     "controls": {
       "layout": "Arranjo",
       "height": "Altura",
@@ -1618,7 +1621,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "Arraste para olhar ao longo das faixas. Cada faixa suaviza a imagem do seu jeito.",
+    "banner": "Arraste para olhar ao longo das faixas. Cada faixa suaviza a imagem do seu jeito. Da esquerda para a direita: mais próximo, linear, trilinear, anisotrópico.",
     "controls": {
       "picture": "Imagem",
       "anisotropy": "Anisotropia"
