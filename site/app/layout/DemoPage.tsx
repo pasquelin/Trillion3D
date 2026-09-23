@@ -33,8 +33,8 @@ interface DemoPageProps {
  * The page of a live demo: the demo fills the content area, and one floating button carries its
  * actions — its source (in a modal, to read and copy), the link to share, the demo's own controls
  * panel, fullscreen and restart. A banner over the render says what to do, in a line the example
- * gives, and what its game announces. In the sandbox, the source is edited beside the demo instead —
- * left of it on wide screens, above it on narrow ones — and runs when asked.
+ * gives, and what its game announces. In the sandbox, the source is edited beside the demo
+ * instead — left of it on wide screens, above it on narrow ones — and runs when asked.
  */
 export function DemoPage({ file, title, sandbox, sandboxHref }: DemoPageProps) {
   const { locale } = usePortal().route;
