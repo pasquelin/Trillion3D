@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { buildBundles, copyStatics, SITE_URL } from './docs/site.ts';
-import { MEASUREMENT_TAG } from './docs/measurement.ts';
+import { FRAMED_MEASUREMENT_TAG, MEASUREMENT_TAG } from './docs/measurement.ts';
 import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
 const root = resolve(import.meta.dirname, '..');
 
@@ -42,7 +42,8 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await mkdir(join(source, 'assets'), { recursive: true });
     await mkdir(join(source, 'data'), { recursive: true });
     await mkdir(join(source, 'examples'), { recursive: true });
-    await writeFile(join(source, 'examples/cube.html'), '<!doctype html>');
+    const example = '<!doctype html>\n<head>\n</head>\n';
+    await writeFile(join(source, 'examples/cube.html'), example);
     await writeFile(join(source, 'index.html'), '<!doctype html>\n<head>\n  </head>\n');
     await writeFile(join(source, 'reports/index.json'), '[]');
     await writeFile(join(source, 'reports/contract.ts'), 'export {};');
@@ -55,22 +56,33 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await copyStatics(source, out);
     await assert.rejects(stat(join(out, 'examples/removed.html')));
     await assert.rejects(stat(join(out, 'report.html')));
-    /* The root page is written from its source after the copy, so it is the one page that could
-       lose the measurement without any other test noticing. */
-    assert.equal(
-      await readFile(join(out, 'index.html'), 'utf8'),
-      `<!doctype html>\n<head>\n    <link rel="canonical" href="${SITE_URL}" />\n` +
-        `    ${MEASUREMENT_TAG}\n  </head>\n`,
-    );
+    const root = `<!doctype html>\n<head>\n    <link rel="canonical" href="${SITE_URL}" />\n`;
+    // A local or proof build calls no audience host.
+    assert.equal(await readFile(join(out, 'index.html'), 'utf8'), `${root}  </head>\n`);
+    assert.equal(await readFile(join(out, 'examples/cube.html'), 'utf8'), example);
     assert.equal(await readFile(join(out, 'robots.txt'), 'utf8'), 'User-agent: *\nAllow: /\n');
     assert.equal(await readFile(join(out, 'reports/campaign/report.json'), 'utf8'), '{}');
     assert.equal(await readFile(join(out, 'assets/manifest.json'), 'utf8'), '{}');
-    assert.equal(await readFile(join(out, 'examples/cube.html'), 'utf8'), '<!doctype html>');
     await assert.rejects(stat(join(out, 'reports/contract.ts')));
     await assert.rejects(stat(join(out, 'styles')));
     const copied = (await stat(join(out, 'assets/manifest.json'))).mtimeMs;
     await copyStatics(source, out);
     assert.equal((await stat(join(out, 'assets/manifest.json'))).mtimeMs, copied);
+    /* The published build measures the portal, and the examples only when they are not framed.
+       The root page is written from its source after the copy, so it is the one page that could
+       lose the measurement without any other test noticing. */
+    await copyStatics(source, out, true);
+    assert.equal(
+      await readFile(join(out, 'index.html'), 'utf8'),
+      `${root}    ${MEASUREMENT_TAG}\n  </head>\n`,
+    );
+    assert.equal(
+      await readFile(join(out, 'examples/cube.html'), 'utf8'),
+      example.replace('</head>', `  ${FRAMED_MEASUREMENT_TAG}\n</head>`),
+    );
+    // Back to a local build: the published copies, longer by their tag, are replaced.
+    await copyStatics(source, out);
+    assert.equal(await readFile(join(out, 'examples/cube.html'), 'utf8'), example);
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

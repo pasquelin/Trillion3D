@@ -1,15 +1,23 @@
 name: Site
 
 # The documentation portal, built from the sources into dist/site and deployed to the site's own
-# server (docs/LEARNING_PORTAL.md, "Deploy"). A pull request that touches the site only builds it;
-# a push to main, or a manual run asked to deploy, also publishes it.
+# server (docs/LEARNING_PORTAL.md, "Deploy"). A pull request that touches anything the build reads
+# only builds it — the engine packages, the native compiler that cooks the open world, the build
+# scripts and the dependencies; a push to main, or a manual run asked to deploy, also publishes it.
+# The required `validate` check builds the site too (`build:docs`, `scripts/validate-steps.ts`),
+# without the open world's cook, which only this workflow runs.
 on:
   pull_request:
     paths:
       - 'site/**'
+      - 'packages/**'
       - 'scripts/docs/**'
       - 'scripts/docs-build.ts'
-      - 'packages/sdk-browser/**'
+      - 'scripts/docs-openworld.ts'
+      - 'scripts/native-compiler.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/actions/node/**'
       - '.github/workflows/pages.yml'
   push:
     branches: [main]
@@ -39,8 +47,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: pnpm run build:native
       - run: node scripts/docs-openworld.ts
-      # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone.
-      - run: pnpm run build:docs
+      # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone;
+      # `--published` adds the audience measurement, which no local or proof build carries.
+      - run: node scripts/docs-build.ts --published
       # Whether this run publishes, decided once: only main is ever published.
       # The file-count floor of a sound output: the build copies every tracked served static of
       # site/ (sources .ts/.tsx excluded) and writes index.html and robots.txt beside them, so a
