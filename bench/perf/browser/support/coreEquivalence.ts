@@ -150,7 +150,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       "pose de repos de l'observation : base⁻¹ · monde, puis base · repos",
-      'packages/sdk-browser/src/lighting/observation/meshes.ts',
+      'tests/kit/lighting/meshes.ts',
       'paires hostiles',
       paires,
       (l) =>

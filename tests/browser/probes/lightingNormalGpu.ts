@@ -12,7 +12,7 @@ import {
 import { dansPageWebgpu } from './pageWebgpu.ts';
 import type { CasEclairage, LigneGpu } from './lightingNormalCases.ts';
 
-export const GROUPE = 64;
+const GROUPE = 64;
 
 /**
  * `xformNormal` SUBSTITUTIONS, to exercise the PROOF itself.
@@ -34,7 +34,7 @@ export const SUBSTITUTIONS = {
 };
 
 /** Fixed view, albedo and hemisphere: only the normal's orientation changes from case to case. */
-export const SHADER_ECLAIRAGE = (transform = NORMAL_TRANSFORM_WGSL, substitution = 'N') => `
+const SHADER_ECLAIRAGE = (transform = NORMAL_TRANSFORM_WGSL, substitution = 'N') => `
 struct Cas{world:mat4x4f,normale:vec4f,vraie:vec4f,lumiere:vec4f,matiere:vec4f,}
 @group(0) @binding(0) var<storage, read> cas:array<Cas>;
 @group(0) @binding(1) var<storage, read_write> out:array<vec4f>;

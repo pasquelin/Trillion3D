@@ -20,7 +20,7 @@ fn ratios(options: &Options) -> Vec<(String, f64)> {
 // Behaviour: on a complete compilation, progress grows without ever going down
 // and finishes exactly at one.
 #[test]
-fn a17_l_avancement_d_une_compilation_ne_recule_jamais() {
+fn a17_a_compilation_progress_never_goes_back() {
     let (root, options) = grid_fixture_displaced(24, 24, 1.0);
     let steps = ratios(&options);
     let mut previous = 0.0;
@@ -38,7 +38,7 @@ fn a17_l_avancement_d_une_compilation_ne_recule_jamais() {
 // Behaviour: the resident proxy and lights are known phases, placed between
 // coplanar cuts and prune — not unknowns brought back to zero.
 #[test]
-fn a17_le_proxy_et_les_lampes_sont_des_phases_connues() {
+fn a17_proxy_and_lamps_are_known_phases() {
     let (root, options) = grid_fixture_displaced(24, 24, 1.0);
     let steps = ratios(&options);
     for name in ["proxy", "lights"] {

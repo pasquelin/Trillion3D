@@ -8,7 +8,7 @@
 // reference against the real samplers, case by case.
 import * as THREE from 'three';
 
-export const MODES: [string, THREE.Wrapping][] = [
+const MODES: [string, THREE.Wrapping][] = [
   ['ClampToEdge', THREE.ClampToEdgeWrapping],
   ['Repeat', THREE.RepeatWrapping],
   ['MirroredRepeat', THREE.MirroredRepeatWrapping],
@@ -79,7 +79,7 @@ export const surCouture = (t: number, taille: number, wrap: THREE.Wrapping) => {
 };
 
 /** True when the coordinate falls, to 1e-3 texel, on the boundary of two texels. */
-export const surFrontiere = (t: number, taille: number) =>
+const surFrontiere = (t: number, taille: number) =>
   Math.abs(t * taille - Math.round(t * taille)) < 1e-3;
 
 /**
@@ -87,7 +87,7 @@ export const surFrontiere = (t: number, taille: number) =>
  * them: integers, texel centres (half-texel), boundaries, negatives, neighbours of 0 and 1,
  * and large (±1e3) on both period parities.
  */
-export function coordonnees(taille: number) {
+function coordonnees(taille: number) {
   const out = [-1001, -1000, -3, -2, -1, 0, 1, 2, 3, 1000, 1001, 0.999, -0.001, 1.001, -0.999];
   for (const p of [-3, -2, -1, 0, 1, 2])
     for (let k = 0; k < taille; k++) out.push(p + (k + 0.5) / taille);
@@ -98,7 +98,7 @@ export function coordonnees(taille: number) {
 }
 
 /** The other axis, fixed off-boundary at 1.3: the three modes read three different texels there. */
-export const AUTRE_AXE = Math.fround(1.3);
+const AUTRE_AXE = Math.fround(1.3);
 
 /**
  * Test textures, one even size and one odd on each axis. Texel (x, y): red 20 + 40x, green

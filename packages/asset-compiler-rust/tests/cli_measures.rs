@@ -14,7 +14,7 @@ fn measure(pointer: &Value, name: &str) -> f64 {
 }
 
 #[test]
-fn v02_le_pointeur_porte_les_mesures_prises_apres_le_manifeste() {
+fn v02_the_pointer_carries_measures_taken_after_the_manifest() {
     let (root, obj, cache) = fixture("mesures");
     let output = run_ok(&mut compiler(&obj, &cache));
     let stdout = lines(&String::from_utf8_lossy(&output.stdout));
