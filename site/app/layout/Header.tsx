@@ -3,6 +3,7 @@ import { LANGUAGES } from '../../content/i18n/dictionary.ts';
 import { useTheme } from '../hooks/useTheme.ts';
 import { Button, NavLink } from '../ui/Button.tsx';
 import { Icon } from '../ui/Icon.tsx';
+import { Flag } from '../ui/Flag.tsx';
 import { LinkDropdown } from '../ui/LinkDropdown.tsx';
 import { navLinks, routeHref } from '../portal/routes.ts';
 import { usePortal } from './PortalContext.ts';
@@ -47,12 +48,15 @@ export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
   const toggleTheme = useTheme();
   const { locale } = route;
   const t = useWords(locale);
-  const languages = LANGUAGES.map(({ code, name, hreflang }) => ({
+  const languages = LANGUAGES.map(({ code, name, hreflang, flag }) => ({
     href: routeHref({ ...route, locale: code }),
     label: name,
     hrefLang: hreflang,
     current: code === locale,
+    // The name follows the flag: the flag says nothing more to assistive technology.
+    icon: <Flag region={flag} label="" />,
   }));
+  const current = LANGUAGES.find(({ code }) => code === locale)!;
   return (
     <header className="relative z-40 flex h-16 shrink-0 items-center gap-2 border-b border-base-300 bg-neutral px-3 text-neutral-content sm:gap-4 sm:px-6">
       <Button
@@ -93,6 +97,7 @@ export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
           label={t('actions.switchLanguage')}
           items={languages}
         >
+          <Flag region={current.flag} label={current.name} />
           {t('meta.abbr')}
         </LinkDropdown>
         <Button
