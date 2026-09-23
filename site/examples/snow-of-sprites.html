@@ -205,7 +205,6 @@
           intro = Math.min(1, intro + step / 4);
           const e = 1 - (1 - intro) ** 3;
           world.camera.position.set(...from.map((value, k) => value + (to[k] - value) * e));
-          world.controls.target.set(0, 1.6, 0);
           world.controls.update();
         }
         // A sprite is a square: each one is turned to face the camera, then about its own centre.

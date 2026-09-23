@@ -125,11 +125,13 @@
         slide: [0, 1, 0],
         spin: true,
       }, (values, key) => {
-        if (key === 'spin') return;
-        patterns[values.pattern]();
+        // The picture is drawn again only when it changes; repeat and offset are read as they are.
+        if (key === undefined || key === 'pattern') {
+          patterns[values.pattern]();
+          picture.needsUpdate = true;
+        }
         picture.repeat.set(values.repeat, values.repeat);
         picture.offset.set(values.slide, 0);
-        picture.needsUpdate = true;
         world.invalidate();
       }, world);
 
