@@ -1197,6 +1197,15 @@
       "status": "buildable"
     },
     {
+      "id": "shadows-case-by-case",
+      "title": {
+        "en": "Shadows, case by case",
+        "fr": "Les ombres, cas par cas"
+      },
+      "theme": "lights",
+      "file": "examples/shadows-case-by-case.html"
+    },
+    {
       "id": "flat-shadows-on-the-floor",
       "title": {
         "en": "Flat projected shadows",

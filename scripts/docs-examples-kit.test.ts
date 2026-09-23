@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { describe, labelOf, printed } from '../site/examples/kit/controls.ts';
-import { sceneTriangles, statLines } from '../site/examples/kit/stats.ts';
+import { describe, printed } from '../site/examples/kit/controls.ts';
+import { labelOf, sceneTriangles, shadowLines, statLines } from '../site/examples/kit/stats.ts';
 
 test('a declared control takes its kind from its value, and starts at it', () => {
   const press = () => {};
@@ -88,6 +88,30 @@ test('the stats corner shows only what was measured, and never a dash or a zero'
       ['FPS', '60 held'],
       ['triangles (scene)', '12'],
     ],
+  );
+});
+
+test('a shadow counter shows under the name the engine publishes, zero included, and only when measured', () => {
+  assert.deepEqual(
+    shadowLines({
+      shadowLightCuts: 0,
+      shadowPagesDrawn: 1234,
+      shadowPagesPending: null,
+      shadowWaitMs: 1.5,
+      shadowsUpdated: 2,
+      shadowNotACount: 'text',
+      drawCalls: 3,
+    }),
+    [
+      ['Shadow light cuts', '0'],
+      ['Shadow pages drawn', '1,234'],
+      ['Shadow wait', '1.50 ms'],
+      ['Shadows updated', '2'],
+    ],
+  );
+  assert.deepEqual(
+    statLines({ fps: null, held: false, sceneTriangles: null, shadowLightCuts: 0 }),
+    [['Shadow light cuts', '0']],
   );
 });
 
