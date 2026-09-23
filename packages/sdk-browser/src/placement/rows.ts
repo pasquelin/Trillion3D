@@ -15,11 +15,13 @@
  */
 import type { MatrixElements } from '../math/matrixElements.ts';
 
+/** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
   /** Sixteen column-major floats per row, written by the owner. */
   readonly matrices: Float64Array;
   /** 1 where the row places the resource, 0 where it is parked. */
   readonly live: Uint8Array;
+  /** Rows that fit before it grows. */
   readonly capacity: number;
 };
 

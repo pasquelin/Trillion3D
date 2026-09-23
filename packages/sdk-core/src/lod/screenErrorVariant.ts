@@ -34,6 +34,7 @@
  */
 
 import { clipWeight } from '../math/primitives/camera.ts';
+/** How a cluster's screen error is measured: the proven bound, or the reference formula. */
 export type ScreenErrorVariant = 'certifiee' | 'reference';
 
 let current: ScreenErrorVariant = 'certifiee';

@@ -20,6 +20,7 @@ import { f64, joue, taille, tampon, vuesF64, type MathLot } from './batchLot.ts'
 const BOX_TRANSFORM_BATCH = 'boxTransformBatch';
 const MULTIPLY_MATRIX4_BATCH = 'multiplyMatrix4Batch';
 
+/** A batch of boxes to move by matrices, with its buffers. */
 export interface BoxTransformLot extends MathLot {
   /** `6 · n` numbers: input boxes, `minX, minY, minZ, maxX, maxY, maxZ` per element. */
   readonly boxes: Float64Array;
@@ -29,9 +30,13 @@ export interface BoxTransformLot extends MathLot {
   readonly out: Float64Array;
 }
 
+/** A batch of matrix products, with its buffers. */
 export interface MultiplyLot extends MathLot {
+  /** The left matrices. */
   readonly a: Float64Array;
+  /** The right matrices. */
   readonly b: Float64Array;
+  /** Where the products go. */
   readonly out: Float64Array;
 }
 

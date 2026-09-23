@@ -16,7 +16,9 @@ export interface GpuMemoryFrameMetrics {
   gpuFrameTargetBytes?: number | null;
   /** Geometry page pool metrics: target bytes, discrete slots, and allocated bytes. */
   geometryPoolBytes?: number | null;
+  /** Geometry pool slots. */
   geometryPoolSlots?: number | null;
+  /** Geometry pool bytes. */
   geometryPoolAllocatedBytes?: number | null;
   /** Reason for pool size clamping: `root-cover`, `scene`, `page-cap`, `device-limit`, `ceiling`. */
   geometryPoolClamp?: string | null;

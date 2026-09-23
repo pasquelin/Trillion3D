@@ -41,6 +41,7 @@ async function sheetsOf(models: CutoutModel[]): Promise<Loaded[]> {
   return read.flatMap(({ model, sheet }) => (sheet ? [{ model, name: nameOf(model), sheet }] : []));
 }
 
+/** Asks, model by model, whether each cut-out surface looks right, and records the answers. */
 export async function reviewCutouts(
   models: CutoutModel[],
   options: CutoutReviewOptions = {},

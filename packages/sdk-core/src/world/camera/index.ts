@@ -5,9 +5,20 @@ import { Camera, type CameraParameters, type CameraPose } from './camera.ts';
  * children; the world draws from the one it is given.
  */
 export const camera = {
+  /**
+   * A camera like an eye: things far away look smaller.
+   * @param p - The camera's optics; every field is optional.
+   */
   perspective: (p?: CameraParameters) => new Camera('perspective', p),
+  /**
+   * A camera with no perspective: things keep their size at any distance.
+   * @param p - The camera's view box; every field is optional.
+   */
   orthographic: (p?: CameraParameters) => new Camera('orthographic', p),
-  /** Six eyes of 90° on the axes, children of one node. */
+  /**
+   * Six eyes of 90° on the axes, children of one node.
+   * @param p - The nearest and farthest distances the six eyes draw.
+   */
   cube(p: { near?: number; far?: number } = {}) {
     const rig = new Camera('perspective', { fov: 90, near: p.near, far: p.far });
     for (const [x, y, z] of [
@@ -34,7 +45,10 @@ export const camera = {
     right.position.x = eyeSep / 2;
     return { left, right, eyeSep };
   },
-  /** One node holding the given eyes. */
+  /**
+   * One node holding the given eyes.
+   * @param cameras - The eyes to hold.
+   */
   array(cameras: Camera[]) {
     const rig = new Camera('perspective');
     rig.add(...cameras);

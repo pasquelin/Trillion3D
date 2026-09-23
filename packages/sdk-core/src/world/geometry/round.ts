@@ -5,7 +5,14 @@ import type { Curve } from '../math/curves.ts';
 type V3 = [number, number, number];
 const TAU = Math.PI * 2;
 
-/** A ring of radius `radius` around the `z` axis, its tube `tube` thick, swept over `arc`. */
+/**
+ * A ring of radius `radius` around the `z` axis, its tube `tube` thick, swept over `arc`.
+ * @param radius - Distance from the centre to the middle of the tube.
+ * @param tube - Radius of the tube.
+ * @param radialSegments - Slices around the tube.
+ * @param tubularSegments - Slices along the ring.
+ * @param arc - How much of a full turn the ring covers, in radians.
+ */
 export function torus(
   radius = 1,
   tube = 0.4,
@@ -24,7 +31,15 @@ export function torus(
   return b.build();
 }
 
-/** The `(p, q)` torus knot: a tube along the curve winding `p` times around the axis, `q` through. */
+/**
+ * The `(p, q)` torus knot: a tube along the curve winding `p` times around the axis, `q` through.
+ * @param radius - Size of the knot.
+ * @param tube - Radius of the tube.
+ * @param tubularSegments - Slices along the knot.
+ * @param radialSegments - Slices around the tube.
+ * @param p - How many times it winds around its axis.
+ * @param q - How many times it winds through the hole.
+ */
 export function torusKnot(
   radius = 1,
   tube = 0.4,
@@ -44,6 +59,11 @@ export function torusKnot(
 /**
  * A tube of `radius` along a curve: rings carried by frames that turn with the curve without
  * twisting about it, closed on request.
+ * @param path - The curve the tube follows.
+ * @param tubularSegments - Slices along the curve.
+ * @param radius - Radius of the tube.
+ * @param radialSegments - Slices around the tube.
+ * @param closed - Joins the end back to the start when true.
  */
 export function tube(
   path: Curve,
@@ -64,6 +84,10 @@ export function tube(
 /**
  * A profile of `(radius, height)` points turned about the `y` axis. Its normals are the profile's
  * own, turned with it, so the seam and the poles shade as the surface does.
+ * @param points - The profile to spin, as 2D points.
+ * @param segments - Slices around.
+ * @param phiStart - Angle where the spin starts, in radians.
+ * @param phiLength - How much of a full turn it spins, in radians.
  */
 export function lathe(
   points: ReadonlyArray<readonly [number, number] | { x: number; y: number }>,
@@ -87,7 +111,13 @@ export function lathe(
   return b.build();
 }
 
-/** A cylinder of `length` capped by two half spheres of `radius`, the `y` axis through it. */
+/**
+ * A cylinder of `length` capped by two half spheres of `radius`, the `y` axis through it.
+ * @param radius - Radius of the round ends.
+ * @param length - Length of the straight middle.
+ * @param capSegments - Slices in each round end.
+ * @param radialSegments - Straight pieces around.
+ */
 export function capsule(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
   const profile: [number, number][] = [];
   const caps = Math.max(1, Math.floor(capSegments));

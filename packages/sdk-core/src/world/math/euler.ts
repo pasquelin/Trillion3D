@@ -11,6 +11,7 @@ const rotation = new Float64Array(16),
 
 /** Three angles in radians, applied in `order` (intrinsic, the first letter outermost). */
 export class Euler extends Observed {
+  /** Always `true`: tells a set of angles apart from anything else. */
   readonly isEuler = true as const;
   private _x: number;
   private _y: number;
@@ -24,6 +25,7 @@ export class Euler extends Observed {
     this._z = z;
     this._order = order;
   }
+  /** The turn around the x axis, in radians. */
   get x() {
     return this._x;
   }
@@ -31,6 +33,7 @@ export class Euler extends Observed {
     this._x = value;
     this._changed();
   }
+  /** The turn around the y axis, in radians. */
   get y() {
     return this._y;
   }
@@ -38,6 +41,7 @@ export class Euler extends Observed {
     this._y = value;
     this._changed();
   }
+  /** The turn around the z axis, in radians. */
   get z() {
     return this._z;
   }
@@ -45,6 +49,7 @@ export class Euler extends Observed {
     this._z = value;
     this._changed();
   }
+  /** The order the three turns apply in, such as `'XYZ'`. */
   get order() {
     return this._order;
   }
@@ -60,9 +65,11 @@ export class Euler extends Observed {
     this._order = order;
     return quiet ? this : this._changed();
   }
+  /** Takes the angles and order of another set. */
   copy(e: { x: number; y: number; z: number; order: string }) {
     return this.set(e.x, e.y, e.z, e.order);
   }
+  /** A new set with the same angles and order. */
   clone() {
     return new Euler(this._x, this._y, this._z, this._order);
   }
@@ -119,10 +126,12 @@ export class Euler extends Observed {
     }
     return this.set(x, y, z, order, quiet);
   }
+  /** The three angles that make the same turn as a quaternion. */
   setFromQuaternion(q: Q, order = this._order, quiet = false) {
     composeMatrix4(rotation, ORIGIN, [q.x, q.y, q.z, q.w], UNIT);
     return this.setFromRotationMatrix({ elements: rotation }, order, quiet);
   }
+  /** The three angles and the order, as a list. */
   toArray(): [number, number, number, string] {
     return [this._x, this._y, this._z, this._order];
   }

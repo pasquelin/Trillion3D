@@ -30,8 +30,11 @@ export const SLICE_WORDS = 1;
 /** Page rank, copied from the sheet: the main thread no longer looks it up. */
 export const SLICE_PAGE_INDEX = 2;
 
+/** A message asking a worker to plan where arriving pages go. */
 export interface PageIntegrationRequest {
+  /** Message format version. */
   protocol: number;
+  /** Request number. */
   id: number;
   /** Address of the arrived request: the key under which the executor keeps its sheet. */
   url: string;
@@ -44,10 +47,15 @@ export interface PageIntegrationRequest {
   specs: ArrayBuffer | null;
 }
 
+/** A worker's answer when an arrival was planned. */
 export interface PageIntegrationDone {
+  /** Message format version. */
   protocol: number;
+  /** The request answered. */
   id: number;
+  /** Always `true`. */
   ok: true;
+  /** The bundle that arrived. */
   url: string;
   /** `PAGE_SLICE_STRIDE` integers per record, in the sheet order. Transferred. */
   slices: ArrayBuffer;
@@ -55,6 +63,7 @@ export interface PageIntegrationDone {
   count: number;
   /** Distinct and increasing page ranks that the arrival moves. Transferred. */
   pages: ArrayBuffer;
+  /** Pages in it. */
   pageCount: number;
   /** Task time, measured by the executor itself. */
   taskMs: number;
@@ -69,15 +78,24 @@ export const PAGE_INTEGRATION_FAILURES = [
   'PAGE_INTEGRATION_UNKNOWN',
   'PAGE_INTEGRATION_WORKER',
 ] as const;
+/** The name of a way an arrival plan can fail. */
 export type PageIntegrationFailureCode = (typeof PAGE_INTEGRATION_FAILURES)[number];
 
+/** A worker's answer when an arrival could not be planned. */
 export interface PageIntegrationFailed {
+  /** Message format version. */
   protocol: number;
+  /** The request answered. */
   id: number;
+  /** Always `false`. */
   ok: false;
+  /** The bundle that arrived. */
   url: string;
+  /** Why it failed. */
   code: PageIntegrationFailureCode;
+  /** Words for a person to read. */
   message: string;
 }
 
+/** A worker's answer to an arrival: planned or failed. */
 export type PageIntegrationAnswer = PageIntegrationDone | PageIntegrationFailed;

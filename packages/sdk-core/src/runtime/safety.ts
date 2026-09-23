@@ -1,28 +1,52 @@
+/** How much of the engine a machine may run: everything, a reduced set, or the basics. */
 export type CapabilityTier = 'full' | 'degraded' | 'baseline';
+/** What the safety policy decided, and why. */
 export interface SafetyDecision {
+  /** The level granted. */
   tier: CapabilityTier;
+  /** Whether the feature is on. */
   enabled: boolean;
+  /** Why. */
   reason: string;
+  /** When it last changed. */
   changedAt: number;
+  /** How many times it changed. */
   revision: number;
 }
+/** What a feature cost, measured on this machine. */
 export interface MeasuredCosts {
+  /** Where it was measured. */
   contextKey: string;
+  /** Always `'measured'`: never a guess. */
   provenance: 'measured';
+  /** CPU time. */
   cpuMs: number;
+  /** GPU time. */
   gpuMs: number | null;
+  /** Delay it added. */
   latencyMs: number;
+  /** Memory it used. */
   memoryBytes: number | null;
+  /** Evictions it caused per second. */
   evictionsPerSecond: number | null;
 }
+/** When the safety policy turns a feature off or back on. */
 export interface SafetyConfig {
+  /** Samples needed before deciding. */
   minimumSamples: number;
+  /** Shortest time between two changes. */
   minimumPeriodMs: number;
+  /** Cost ratio that turns it off. */
   disableRatio: number;
+  /** Cost ratio that turns it back on. */
   enableRatio: number;
+  /** Bad samples in a row before turning off. */
   consecutiveViolations: number;
+  /** Memory ceiling. */
   memoryBudgetBytes?: number;
+  /** Eviction ceiling per second. */
   maxEvictionsPerSecond?: number;
+  /** Whether GPU time must be measured. */
   requireGpuTiming?: boolean;
 }
 /** Policy evaluates evidence; it never fabricates a reference or samples a clock itself. */

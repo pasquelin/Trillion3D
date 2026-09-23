@@ -28,7 +28,10 @@ export const geometry = {
   polyhedron,
   edges,
   wireframe,
-  /** A geometry written by hand, attribute by attribute. */
+  /**
+   * A geometry written by hand, attribute by attribute.
+   * @param attributes - The per-vertex lists by name, and the optional `index`.
+   */
   createBuffer(attributes: {
     position: BufferAttribute;
     normal?: BufferAttribute;

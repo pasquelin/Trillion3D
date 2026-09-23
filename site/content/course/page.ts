@@ -71,7 +71,7 @@ export function courseEntries(
     const next = following
       ? {
           href: `#/${locale}/learn/${following.id}`,
-          label: `${words.next}: ${texts[following.id].title}`,
+          label: `${words.next} — ${texts[following.id].title}`,
         }
       : { href: `#/${locale}/examples`, label: words.end };
     return {

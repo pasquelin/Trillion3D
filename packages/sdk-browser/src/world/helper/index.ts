@@ -58,12 +58,17 @@ function following(target: Object3D, marks: Object3D[]) {
 
 /** The `helper` family: the marks a scene is worked on with, built from lines and meshes. */
 export const helper = {
+  /** Three coloured lines from the origin: x red, y green, z blue.
+   *  @param size - Length of each line. */
   axes(size = 1) {
     const group = new Group();
     group.add(lines([0, 0, 0, size, 0, 0], 0xff0000), lines([0, 0, 0, 0, size, 0], 0x00ff00));
     group.add(lines([0, 0, 0, 0, 0, size], 0x0000ff));
     return group;
   },
+  /** A flat square grid on the ground, its centre lines in their own colour.
+   *  @param size - Width of the whole grid. @param divisions - Squares along a side.
+   *  @param centre - Colour of the two centre lines. @param rest - Colour of the other lines. */
   grid(size = 10, divisions = 10, centre: ColorInput = 0x444444, rest: ColorInput = 0x888888) {
     const half = size / 2,
       step = size / divisions;
@@ -78,6 +83,9 @@ export const helper = {
     group.add(lines(main, centre), lines(other, rest));
     return group;
   },
+  /** A round grid on the ground: spokes and rings.
+   *  @param radius - Radius of the outer ring. @param sectors - Spokes. @param rings - Rings.
+   *  @param color - Colour of the lines. */
   polarGrid(radius = 10, sectors = 16, rings = 8, color: ColorInput = 0x888888) {
     const out: number[] = [];
     for (let s = 0; s < sectors; s++) {
@@ -87,16 +95,24 @@ export const helper = {
     for (let r = 1; r <= rings; r++) out.push(...circle((radius * r) / rings, 64));
     return lines(out, color);
   },
+  /** The outline of the box around an object.
+   *  @param target - The object to outline. @param color - Colour of the lines. */
   box(target: Object3D, color: ColorInput = 0xffff00) {
     const box = new Box3().setFromObject(target);
     return lines(boxEdges(box.min, box.max), color);
   },
+  /** A square outline lying on a plane.
+   *  @param p - The plane to show. @param size - Width of the square.
+   *  @param color - Colour of the lines. */
   plane(p: Plane, size = 1, color: ColorInput = 0xffff00) {
     const outline = lines(square(size / 2), color);
     outline.quaternion.setFromUnitVectors({ x: 0, y: 0, z: 1 }, p.normal);
     outline.position.copy(p.normal.clone().multiplyScalar(-p.constant));
     return outline;
   },
+  /** An arrow from `origin` pointing along `dir`.
+   *  @param dir - Which way it points. @param origin - Where it starts.
+   *  @param length - How long it is. @param color - Its colour. */
   arrow(dir: Vector3, origin = new Vector3(), length = 1, color: ColorInput = 0xffff00) {
     const head = Math.min(length * 0.2, length),
       shaft = lines([0, 0, 0, 0, length - head, 0], color);
@@ -110,6 +126,8 @@ export const helper = {
     );
     return group;
   },
+  /** The outline of what a camera sees: its pyramid from near to far.
+   *  @param c - The camera to outline. */
   camera(c: Camera) {
     const t = Math.tan((c.fov * Math.PI) / 360);
     const corners = [c.near, c.far].flatMap((d) =>
@@ -130,12 +148,18 @@ export const helper = {
         out.push(...corners[a], ...corners[b]);
     return following(c, [lines(out, 0xffaa00)]);
   },
+  /** A square and a line showing where a directional light points.
+   *  @param l - The light to show. @param size - Size of the square. */
   directionalLight(l: Light, size = 1) {
     return following(l, [lines([...square(size / 2), 0, 0, 0, 0, 0, -size * 2], l.color)]);
   },
+  /** Two circles around a point light.
+   *  @param l - The light to show. @param size - Radius of the circles. */
   pointLight(l: Light, size = 1) {
     return following(l, [lines([...circle(size, 32, 'xz'), ...circle(size, 32, 'xy')], l.color)]);
   },
+  /** The cone a spot light shines through.
+   *  @param l - The light to show. */
   spotLight(l: Light) {
     const length = l.distance || 1,
       r = Math.tan(l.angle) * length;
@@ -150,6 +174,8 @@ export const helper = {
       out.push(0, 0, 0, x, y, -length);
     return following(l, [lines(out, l.color)]);
   },
+  /** Two circles in a hemisphere light's sky and ground colours.
+   *  @param l - The light to show. @param size - Radius of the circles. */
   hemisphereLight(l: Light, size = 1) {
     return following(l, [
       lines(circle(size, 32, 'xz'), l.color),

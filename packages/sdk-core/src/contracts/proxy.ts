@@ -49,9 +49,13 @@ export interface SceneProxyColumns {
  * frame of a scene that declares no light.
  */
 export interface SceneProxyDescriptor {
+  /** Format version. */
   version: number;
+  /** Where it is read. */
   url: string;
+  /** Fingerprint of its bytes. */
   sha256: string;
+  /** Its size. */
   bytes: number;
   /** Geometric error of the proxy in metres: that of the cut, plus that of simplification. */
   errorMetres: number;
@@ -63,11 +67,14 @@ export interface SceneProxyDescriptor {
   triangleBudget: number;
   /** World extent of the proxy: three lower bounds then three upper. */
   bounds: [number, number, number, number, number, number];
+  /** Triangles. */
   triangles: number;
+  /** Tree nodes. */
   nodes: number;
 }
 
 /** The read proxy: its descriptor and its columns, views on the bytes of its cache object. */
 export interface SceneProxy extends SceneProxyDescriptor {
+  /** Its columns. */
   data: SceneProxyColumns;
 }

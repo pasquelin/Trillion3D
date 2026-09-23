@@ -17,7 +17,11 @@ function rings(shape: Shape, curveSegments: number) {
   return { outline, holes };
 }
 
-/** A flat shape in the `xy` plane, facing `+z`, holes left open. */
+/**
+ * A flat shape in the `xy` plane, facing `+z`, holes left open.
+ * @param outline - The flat outline to fill.
+ * @param curveSegments - Straight pieces for each curve of the outline.
+ */
 export function shape(outline: Shape, curveSegments = 12) {
   const { outline: ring, holes } = rings(outline, curveSegments);
   const { points, triangles } = triangulate(ring, holes);
@@ -29,13 +33,21 @@ export function shape(outline: Shape, curveSegments = 12) {
   );
 }
 
+/** How `geometry.extrude` pushes a flat shape into a solid. */
 export interface ExtrudeOptions {
+  /** How far the shape is pushed. */
   depth?: number;
+  /** How many slices the push is cut into. */
   steps?: number;
+  /** Whether the edges are rounded off. */
   bevelEnabled?: boolean;
+  /** How deep the rounded edge goes into the solid. */
   bevelThickness?: number;
+  /** How far the rounded edge reaches out from the outline. */
   bevelSize?: number;
+  /** How many steps the rounded edge is cut into. */
   bevelSegments?: number;
+  /** How many straight pieces each curve of the outline becomes. */
   curveSegments?: number;
 }
 
@@ -61,6 +73,8 @@ const norm = ([x, y]: P): P => {
  * A shape swept along `z` over `depth`, its rims rounded by a bevel when enabled: `bevelThickness`
  * deep, `bevelSize` wide, in `bevelSegments` quarter-circle steps. Faces are flat, as a solid cut
  * from a plank is.
+ * @param outline - The flat shape to push.
+ * @param options - How far and how it is pushed.
  */
 export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
   const depth = options.depth ?? 1,

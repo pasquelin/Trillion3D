@@ -1,47 +1,45 @@
 // The portal may only name what the repository delivers: every entry that is not marked as
-// carried by an open issue declares the symbols it documents, each must be exported by the file
-// it names, and a documented signature must take the arguments the function really takes. An
+// carried by an open issue declares the symbols it documents, and each must be exported by the
+// file it names (the reference's signatures are read from the declarations themselves). An
 // entry that is marked must name an issue the portal lists. Every demo must belong to an entry.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import ts from 'typescript';
 import { ISSUES, SECTIONS } from '../../site/content/model.ts';
 import type { PortalEntry } from '../../site/content/model.ts';
 import { DEMOS } from '../../site/demos/registry.ts';
+import { rawEntries } from '../../site/app/portal/data.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-const CONTENT = join(ROOT, 'site/content');
+const ENTRIES: PortalEntry[] = rawEntries;
 
-const modules = await Promise.all(
-  readdirSync(join(CONTENT, 'entries')).map(
-    (name) => import(join(CONTENT, 'entries', name)) as Promise<Record<string, PortalEntry[]>>,
-  ),
-);
-const ENTRIES: PortalEntry[] = modules.flatMap((module) => Object.values(module).flat());
-
-/** Names a file declares or re-exports, read once per file. */
+/** Names a file declares or re-exports, read once per file from its syntax tree. */
 const exportsOf = new Map<string, Set<string>>();
 function exported(module: string): Set<string> {
   const known = exportsOf.get(module);
   if (known) return known;
-  const source = readFileSync(join(ROOT, module), 'utf8');
-  const names = new Set([
-    ...[
-      ...source.matchAll(/export\s+(?:async\s+)?(?:function|const|class|type|interface)\s+(\w+)/g),
-    ].map((match) => match[1]),
-    ...[...source.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)].flatMap((match) =>
-      match[1]
-        .split(',')
-        .map((name) =>
-          name
-            .trim()
-            .split(/\s+as\s+|\s+/)
-            .pop(),
-        )
-        .filter((name): name is string => name !== undefined),
-    ),
-  ]);
+  const file = join(ROOT, module);
+  const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest);
+  const names = new Set<string>();
+  for (const statement of source.statements) {
+    if (
+      ts.isExportDeclaration(statement) &&
+      statement.exportClause &&
+      ts.isNamedExports(statement.exportClause)
+    )
+      for (const element of statement.exportClause.elements) names.add(element.name.text);
+    const exporting =
+      ts.canHaveModifiers(statement) &&
+      ts.getModifiers(statement)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
+    if (!exporting) continue;
+    if (ts.isVariableStatement(statement))
+      for (const declaration of statement.declarationList.declarations)
+        if (ts.isIdentifier(declaration.name)) names.add(declaration.name.text);
+    const named = (statement as { name?: ts.Node }).name;
+    if (named && ts.isIdentifier(named)) names.add(named.text);
+  }
   exportsOf.set(module, names);
   return names;
 }
@@ -65,31 +63,6 @@ test('every symbol a delivered entry documents is exported by the file it names'
     const names = exported(entry.module);
     for (const symbol of entry.exports)
       assert.ok(names.has(symbol), `${entry.id}: ${entry.module} does not export ${symbol}`);
-  }
-});
-
-/** The parameters a `name(a, b, c)` line of a signature declares, in order. */
-function signatureArguments(signature: string, name: string): string[] | null {
-  const match = new RegExp(`\\b${name}\\s*(?:<[^>]*>)?\\s*\\(([^)]*)\\)`).exec(signature);
-  if (!match) return null;
-  const inside = match[1].trim();
-  return inside === '' ? [] : inside.split(',').map((argument) => argument.trim());
-}
-
-test('a documented signature takes the arguments the function really takes', async () => {
-  const engine = (await import(join(ROOT, 'site/demos/engine.ts'))) as Record<string, unknown>;
-  for (const entry of ENTRIES) {
-    if (entry.issue || !entry.signature || !entry.exports) continue;
-    for (const symbol of entry.exports) {
-      const shown = signatureArguments(entry.signature, symbol);
-      const real = engine[symbol];
-      if (shown === null || typeof real !== 'function') continue;
-      const optional = shown.filter((argument) => argument.includes('=') || argument.includes('?'));
-      assert.ok(
-        shown.length >= real.length && shown.length - optional.length <= real.length,
-        `${entry.id}: ${symbol} shows ${shown.length} arguments, the engine takes ${real.length}`,
-      );
-    }
   }
 });
 

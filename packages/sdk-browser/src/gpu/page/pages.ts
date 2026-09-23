@@ -176,6 +176,7 @@ export function createGpuPageCache(
     },
   };
 }
+/** A page source that fetches pages over HTTP, by key, from `baseUrl`. */
 export function httpPageSource(baseUrl: string): PageSource {
   return {
     async read(key, signal) {
