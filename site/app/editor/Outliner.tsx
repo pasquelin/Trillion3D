@@ -16,10 +16,7 @@ export function Outliner({ editor }: { editor: Editor }) {
   const { session, actions } = editor;
   const roots = session.content;
   return (
-    <nav
-      aria-label={t('editor.outliner')}
-      className="flex min-h-0 flex-col gap-2 overflow-y-auto"
-    >
+    <nav aria-label={t('editor.outliner')} className="flex min-h-0 flex-col gap-2 overflow-y-auto">
       <h2 className="text-xs font-bold uppercase tracking-widest opacity-60">
         {t('editor.outliner')}
       </h2>
