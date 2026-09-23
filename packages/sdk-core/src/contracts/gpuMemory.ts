@@ -18,7 +18,7 @@ export interface GpuMemoryFrameMetrics {
   geometryPoolBytes?: number | null;
   /** Geometry pool slots. */
   geometryPoolSlots?: number | null;
-  /** Geometry pool bytes: the pool reserved on WebGPU, what the pages hold on WebGL2. */
+  /** Geometry pool bytes. */
   geometryPoolAllocatedBytes?: number | null;
   /** Reason for pool size clamping: `root-cover`, `scene`, `page-cap`, `device-limit`, `ceiling`. */
   geometryPoolClamp?: string | null;
