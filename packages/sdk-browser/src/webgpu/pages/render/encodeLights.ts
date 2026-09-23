@@ -33,6 +33,7 @@ export function encodeDirectLights(
     [width, height] = gpu.targetSize;
   const active = store.count;
   lights.lightsActive = active;
+  lights.lightRuns = 0;
   const environment = store.environment;
   directParams.fill(0);
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything

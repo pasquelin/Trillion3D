@@ -78,7 +78,6 @@ export function createDagLightCut(resources: DagResources, runs: number) {
   let mapped = false,
     requests: readonly number[] | null = null;
   return {
-    runs,
     /** Where `dagMask` leaves the light's draw flags: what the light compaction reads. */
     maskBuffer: flags,
     maskOffset: nodeCount,

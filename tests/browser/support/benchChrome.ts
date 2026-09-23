@@ -1,5 +1,5 @@
 // A Chrome page serving this tree's engine (`dist/`), the bench runner and the in-page helpers of
-// `benchWorld.ts`, with the bench's WebGPU flags: what the proofs on the bench scene open.
+// `benchScenePage.ts`, with the bench's WebGPU flags: what the proofs on the bench scene open.
 import { resolve } from 'node:path';
 import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
@@ -32,7 +32,7 @@ export async function openBenchPage(width: number, height: number) {
     urls: {
       sdkUrl: '/sdk/sdk-browser/src/measurement/measurement.js',
       posesUrl: '/runner/poses.ts',
-      worldUrl: '/support/benchWorld.ts',
+      worldUrl: '/support/benchScenePage.ts',
     },
     async close() {
       await browser.close();

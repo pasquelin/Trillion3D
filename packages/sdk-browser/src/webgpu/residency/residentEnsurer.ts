@@ -80,7 +80,13 @@ export function createWebgpuResidentEnsurer({
       if (skip(rec) || cache.get(address)) continue;
       signal?.throwIfAborted();
       if (isLost() || getCache() !== cache) return;
-      await cache.load(address, signal);
+      try {
+        await cache.load(address, signal);
+      } catch (error) {
+        // The camera's own burst took the last slot meanwhile: the tier waits, as it does.
+        if (String(error).includes('ALL_PAGES_PINNED')) return;
+        throw error;
+      }
       spare--;
     }
   };

@@ -71,7 +71,8 @@ export function createShadowRuns() {
       run.count = 0;
       run.side = side;
       run.near = near;
-      run.rect.set([Infinity, -Infinity, Infinity, -Infinity]);
+      run.rect[0] = run.rect[2] = Infinity;
+      run.rect[1] = run.rect[3] = -Infinity;
       run.pages.rows = rows;
       run.pages.mask.fill(0);
       return run;

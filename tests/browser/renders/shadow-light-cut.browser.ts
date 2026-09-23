@@ -12,7 +12,7 @@ import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/scene.ts';
 import { SUN } from '../../../bench/runner/lamps.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
-import { openBenchPage } from '../support/benchPage.ts';
+import { openBenchPage } from '../support/benchChrome.ts';
 
 const output = measureOutput('shadow-light-cut');
 const WIDTH = 1280,

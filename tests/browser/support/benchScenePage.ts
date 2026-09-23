@@ -1,4 +1,4 @@
-// Imported BY THE PAGE, served under `/support/` (`benchPage.ts`): the bench scene opened the way
+// Imported BY THE PAGE, served under `/support/` (`benchChrome.ts`): the bench scene opened the way
 // the shadow proofs read it, and the settling loop they share. Nothing here runs in Node.
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 

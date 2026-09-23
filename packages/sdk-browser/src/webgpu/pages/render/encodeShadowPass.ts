@@ -91,7 +91,6 @@ export function encodeShadowAtlas(
   const { lights, vis, run } = rt,
     { shadows, cull } = lights;
   lights.shadowDraws = 0;
-  lights.lightRuns = 0;
   if (!regions || !shadows || !cull || !vis.visBindGroupLayout) return false;
   const first = shadowRegionGroup(rt, device, 0);
   if (!first) return false;
