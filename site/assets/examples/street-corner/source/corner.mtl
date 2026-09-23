@@ -1,5 +1,13 @@
+newmtl road
+Kd 0.07 0.07 0.08
+Ks 0 0 0
+
 newmtl pavement
 Kd 0.4 0.4 0.38
+Ks 0 0 0
+
+newmtl kerb
+Kd 0.55 0.55 0.52
 Ks 0 0 0
 
 newmtl wall

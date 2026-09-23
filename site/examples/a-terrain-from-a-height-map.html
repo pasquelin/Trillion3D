@@ -82,6 +82,7 @@
       world.camera.position.set(6.5, 5, 8);
       world.camera.lookAt(0, 0.9, 0);
       world.controls.target.set(0, 0.9, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       // The hour moves the sun across the range, and the peaks' shadows swing across the valley.
       controls({ hour: [6, 18, 9, 0.25], sunColour: '#ffe2b8', exposure: [0.4, 2.5, 1.1] }, (values) => {
