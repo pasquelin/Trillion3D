@@ -21,7 +21,7 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math, side } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, side } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       // A sequence in [0, 1) from a seed: the same scene on every run.
@@ -43,7 +43,7 @@
         const ring = object.mesh(geometry.torus(radius, 0.05, 16, 160), matter);
         ring.rotation.set(x, y, z);
         astrolabe.add(ring);
-        return { ring, rate: 0.2 + index * 0.12 };
+        return { ring, tilt: z, rate: 0.2 + index * 0.12 };
       });
       // A glowing sun at the heart, and twelve stars pinned on the outer ring.
       const sun = object.mesh(geometry.sphere(0.45, 64, 32), material.meshStandard({ color: '#000000', emissive: '#ffb347', emissiveIntensity: 6 }));
@@ -77,10 +77,12 @@
         glow.color.set(values.sun);
         world.invalidate();
       }, world);
-      const tilt = math.vector3();
+      // Each ring turns in its own plane: the last of its three angles, applied first, is the spin.
+      let time = 0;
       world.onFrame(({ delta }) => {
         if (!ui.turning) return;
-        for (const { ring, rate } of spinning) ring.rotateOnAxis(tilt.set(0, 0, 1), delta * rate);
+        time += delta;
+        for (const { ring, tilt, rate } of spinning) ring.rotation.z = tilt + time * rate;
         world.invalidate();
       });
     </script>

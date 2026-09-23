@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Walk through a temple</title>
+    <title>Temple parkour</title>
     <meta name="thumbnail" content="2" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #171d28;
+        background: #7fa6d6;
       }
       canvas {
         display: block;
@@ -21,77 +21,148 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
 
-      // `firstPerson`: a walker's head. A click takes the mouse (pointer lock) to look around; the
-      // keys walk on the level. Escape gives the mouse back.
+      // `firstPerson`: a runner's head. A click takes the mouse (pointer lock) to look around, the
+      // keys run on the level, Escape gives the mouse back. The controller runs one unit a second,
+      // so the temple is built at a third of life size: the eyes stand half a unit above the feet.
       const world = createWorld('view', { controls: 'firstPerson' });
-      const stone = material.meshStandard({ color: '#cbbd9f', roughness: 0.85 });
-      const marble = material.meshStandard({ color: '#ece6da', roughness: 0.4 });
-      const dark = material.meshStandard({ color: '#3b2f28', roughness: 0.9 });
+      world.scene.background = math.color('#7fa6d6');
+      const stone = material.meshStandard({ color: '#b9a88a', roughness: 0.85 });
+      const marble = material.meshStandard({ color: '#efe8da', roughness: 0.35 });
+      const lava = material.meshStandard({ color: '#000000', emissive: '#ff5a1f', emissiveIntensity: 2.5 });
       function box(size, at, matter) {
         const mesh = object.mesh(geometry.box(...size), matter);
         mesh.position.set(...at);
         world.scene.add(mesh);
         return mesh;
       }
-      // The hall: a floor, outer walls with a doorway, two rows of columns, a roof.
-      box([14, 0.2, 22], [0, -0.1, -4], stone);
-      box([0.4, 5, 22], [-7, 2.5, -4], stone);
-      box([0.4, 5, 22], [7, 2.5, -4], stone);
-      box([14, 5, 0.4], [0, 2.5, -15], stone);
-      box([5.5, 5, 0.4], [-4.25, 2.5, 7], stone);
-      box([5.5, 5, 0.4], [4.25, 2.5, 7], stone);
-      box([3, 1.4, 0.4], [0, 4.3, 7], stone);
-      box([14.4, 0.3, 22.4], [0, 5.15, -4], dark);
-      const profile = [[0, 0], [0.45, 0], [0.45, 0.3], [0.32, 0.3], [0.3, 4.2], [0.45, 4.3], [0.5, 4.6], [0, 4.6]];
-      for (const side of [-1, 1])
-        for (let index = 0; index < 5; index++) {
-          const column = object.mesh(geometry.lathe(profile, 32), marble);
-          column.position.set(side * 3.5, 0, 4 - index * 3.4);
+
+      // The ruin: a lava pit between two long walls, open to the sky, columns along the walls.
+      const PIT = -1.5;
+      box([9, 0.2, 20], [0, PIT - 0.1, -5], lava);
+      for (const side of [-1, 1]) {
+        box([0.4, 5, 20], [side * 4.7, PIT + 2.5, -5], stone);
+        for (let index = 0; index < 6; index++) {
+          const column = object.mesh(geometry.cylinder(0.22, 0.26, 4.2, 24), marble);
+          column.position.set(side * 4.1, PIT + 2.1, 2 - index * 3.2);
           world.scene.add(column);
         }
-      // Steps up to a raised altar at the back, and the idol on it: the thing to walk to.
-      const STEP = 0.18, STEPS = 5, ALTAR = -9;
-      for (let index = 0; index < STEPS; index++) box([6, STEP, 0.5], [0, STEP * (index + 0.5), ALTAR + 2.5 - index * 0.5], marble);
-      box([6, STEP * STEPS, 3.5], [0, (STEP * STEPS) / 2, -12.75], marble);
-      const idol = object.mesh(geometry.torusKnot(0.45, 0.15, 180, 24), material.meshStandard({ color: '#d4a24c', metalness: 0.9, roughness: 0.25 }));
-      idol.position.set(0, STEP * STEPS + 1.4, -12.5);
+      }
+      box([9.8, 5, 0.4], [0, PIT + 2.5, -15.2], stone);
+
+      // The course: pillars rising out of the pit, [x from, x to, z from, z to, top]. A gap is at
+      // most 0.4 and a climb 0.2, what one jump clears at the starting gravity.
+      const COURSE = [
+        [-1.5, 1.5, 0.5, 3, 0], [-0.4, 0.4, -0.6, 0.1, 0], [-0.4, 0.4, -1.6, -1, 0.2], [0.5, 1.2, -2.4, -1.6, 0.35],
+        [0.5, 1.2, -3.4, -2.8, 0.35], [-0.2, 0.3, -4, -3.5, 0.15], [-1.3, -0.6, -4.6, -3.9, 0.3], [-1.3, -0.6, -5.7, -5, 0.5],
+        [-1.3, -0.6, -6.7, -6.1, 0.7], [-1.07, -0.83, -9, -6.7, 0.7], [-1.2, 0.6, -10.2, -9.4, 0.7], [-0.2, 0.6, -11, -10.6, 0.9],
+        [-1.5, 1.5, -13.5, -11.4, 1.1],
+      ].map(([x0, x1, z0, z1, top]) => ({ x0, x1, z0, z1, top, x: (x0 + x1) / 2, z: (z0 + z1) / 2 }));
+      const FINISH = COURSE.at(-1);
+      for (const p of COURSE) {
+        box([p.x1 - p.x0, p.top - 0.05 - PIT, p.z1 - p.z0], [p.x, (p.top - 0.05 + PIT) / 2, p.z], stone);
+        box([p.x1 - p.x0 + 0.04, 0.05, p.z1 - p.z0 + 0.04], [p.x, p.top - 0.025, p.z], marble);
+      }
+      // The idol on the finish platform, and the glowing orbs floating over the course.
+      const idol = object.mesh(geometry.torusKnot(0.2, 0.06, 160, 20), material.meshStandard({ color: '#d4a24c', metalness: 0.9, roughness: 0.25 }));
+      idol.position.set(0, FINISH.top + 0.6, -12.8);
       world.scene.add(idol);
-      // Braziers along the walls: flames that flicker, each a warm point light.
+      const glow = material.meshStandard({ color: '#000000', emissive: '#7cf0ff', emissiveIntensity: 6 });
+      const orbs = [3, 6, 8, 9, 11].map((index) => {
+        const orb = object.mesh(geometry.sphere(0.07, 20, 14), glow);
+        const p = COURSE[index];
+        orb.position.set(p.x, p.top + 0.3, p.z);
+        world.scene.add(orb);
+        return { orb, platform: p };
+      });
+      // Braziers on the start and finish: warm flames that flicker, lamps without shadows.
       const flame = material.meshStandard({ color: '#000000', emissive: '#ff9a3c', emissiveIntensity: 6 });
-      const fires = [[-6, 2], [6, 2], [-6, -6], [6, -6], [-2.5, -12], [2.5, -12]].map(([x, z]) => {
-        const bowl = object.mesh(geometry.cylinder(0.3, 0.15, 0.3, 24), dark);
-        bowl.position.set(x, 1.2, z);
-        const fire = object.mesh(geometry.sphere(0.2, 16, 12), flame);
-        fire.position.set(x, 1.45, z);
-        const lamp = light.point({ position: [x, 1.7, z], color: '#ff9a3c', intensity: 10, distance: 9, radius: 0.25, castShadow: true });
-        world.scene.add(bowl, fire, lamp);
+      const fires = [[-1.3, 2.8, 0], [1.3, 2.8, 0], [-1.3, -13.3, 1.1], [1.3, -13.3, 1.1]].map(([x, z, y]) => {
+        box([0.16, 0.3, 0.16], [x, y + 0.15, z], stone);
+        const fire = object.mesh(geometry.sphere(0.08, 16, 12), flame);
+        fire.position.set(x, y + 0.36, z);
+        const lamp = light.point({ position: [x, y + 0.5, z], color: '#ff9a3c', intensity: 3, distance: 4, radius: 0.08 });
+        world.scene.add(fire, lamp);
         return lamp;
       });
-      world.scene.add(light.ambient({ intensity: 0.12, color: '#8fb4ff' }));
+      const sun = light.directional({ intensity: 3, color: '#ffe2b0', position: [4, 8, 3], castShadow: true });
+      world.scene.add(sun, light.hemisphere({ color: '#bcd4ff', groundColor: '#ff8a50', intensity: 0.9 }));
 
-      // The floor under the head: the altar's steps raise it; eyes stay 1.6 m above it.
-      const EYES = 1.6;
-      function floorAt(x, z) {
-        if (Math.abs(x) > 3 || z > ALTAR + 2.75) return 0;
-        return Math.min(STEPS, Math.max(0, Math.ceil((ALTAR + 2.75 - z) / 0.5))) * STEP;
+      // The runner: feet on a platform, eyes above them. The controller runs on the level; the
+      // vertical axis is this page's own game — gravity, a jump, landing, falling into the lava.
+      const EYES = 0.5, STEP = 0.05, JUMP = 2.2;
+      const on = (p, x, z) => x > p.x0 && x < p.x1 && z > p.z0 && z < p.z1;
+      const groundUnder = (x, z, feet) =>
+        COURSE.filter((p) => on(p, x, z) && p.top <= feet + STEP).reduce((best, p) => (best && best.top > p.top ? best : p), null);
+      const wall = (x, z, feet) => COURSE.some((p) => on(p, x, z) && p.top > feet + STEP);
+      let feet, rise, standing, checkpoint, clock, done, taken;
+      function respawn(p) {
+        world.camera.position.set(p.x, p.top + EYES, p.z);
+        world.camera.lookAt(0, p.top + EYES, -13);
+        [feet, rise, standing] = [p.top, 0, p];
       }
-      world.camera.position.set(1.2, EYES, 5);
-      world.camera.lookAt(0, EYES + 0.3, -12);
+      function restart() {
+        [checkpoint, clock, done, taken] = [COURSE[0], null, null, 0];
+        respawn(checkpoint);
+        for (const { orb } of orbs) orb.visible = true;
+      }
+      restart();
+      // Space is the jump, not the controller's "rise": this page takes it (and Shift, the "sink")
+      // on the window, before the controller's listeners on the document ever see it.
+      for (const type of ['keydown', 'keyup'])
+        addEventListener(type, (event) => {
+          if (event.code !== 'Space' && event.code !== 'ShiftLeft') return;
+          event.stopPropagation();
+          event.preventDefault();
+          if (type === 'keydown' && event.code === 'Space' && standing && !event.repeat) [rise, standing] = [JUMP, null];
+        }, { capture: true });
 
-      const ui = controls({ keys: 'Click to look with the mouse · W A S D to walk · Escape to stop', fire: [0, 30, 10], flame: '#ff9a3c' }, (values) => {
-        for (const lamp of fires) lamp.color.set(values.flame);
-        flame.emissive.set(values.flame);
+      const ui = controls({
+        keys: 'Click to look with the mouse · W A S D to run · Space to jump · Escape frees the mouse',
+        goal: 'Reach the golden idol, grabbing the orbs on the way. The lava sends you back to the last orb you took.',
+        gravity: [2, 12, 6],
+        sky: ['day', 'dusk'],
+        restart,
+      }, (values, key) => {
+        if (key !== undefined && key !== 'sky') return;
+        const dusk = values.sky === 'dusk';
+        sun.position.set(dusk ? 7 : 4, dusk ? 2.5 : 8, dusk ? -2 : 3);
+        sun.color.set(dusk ? '#ff9a5a' : '#ffe2b0');
         world.invalidate();
       }, world);
-      world.onFrame(({ time }) => {
-        fires.forEach((lamp, index) => (lamp.intensity = ui.fire * (0.8 + 0.2 * Math.sin(time * 13 + index * 7) * Math.sin(time * 5 + index))));
-        idol.rotation.y = time * 0.5;
-        // The walker stays inside the hall, and at eye height above whatever floor is under it.
-        const { position } = world.camera;
-        position.set(Math.max(-6.4, Math.min(6.4, position.x)), floorAt(position.x, position.z) + EYES, Math.max(-14.4, Math.min(12, position.z)));
+      const orbsShown = readout('Orbs'), timeShown = readout('Time');
+      const last = math.vector3();
+      world.onFrame(({ delta, time }) => {
+        const dt = Math.min(delta, 0.05), head = world.camera.position;
+        // A pillar taller than a step stops the run, and so do the hall's walls.
+        if (wall(head.x, head.z, feet)) head.set(last.x, head.y, last.z);
+        head.x = Math.max(-4.3, Math.min(4.3, head.x));
+        head.z = Math.max(-14.8, Math.min(3.3, head.z));
+        const below = groundUnder(head.x, head.z, feet);
+        rise -= ui.gravity * dt;
+        feet += rise * dt;
+        if (below && feet <= below.top) [feet, rise, standing] = [below.top, 0, below];
+        else standing = null;
+        if (feet < PIT + 0.4) respawn(checkpoint);
+        head.y = feet + EYES;
+        last.copy(head);
+
+        if (clock === null && head.z < 0.5) clock = time;
+        orbs.forEach(({ orb, platform }, index) => {
+          orb.scale.setScalar(1 + 0.15 * Math.sin(time * 4 + index));
+          const near = Math.hypot(orb.position.x - head.x, orb.position.z - head.z) < 0.2 && Math.abs(orb.position.y - feet - 0.3) < 0.35;
+          if (!orb.visible || !near) return;
+          orb.visible = false;
+          taken += 1;
+          checkpoint = platform;
+        });
+        if (standing === FINISH && clock !== null && done === null) done = time - clock;
+        orbsShown(`${taken} / ${orbs.length}`);
+        timeShown(done !== null ? `${done.toFixed(1)} s, finished!` : clock === null ? 'run to start' : `${(time - clock).toFixed(1)} s`);
+        idol.rotation.y = time * 0.8;
+        fires.forEach((lamp, index) => (lamp.intensity = 3 * (0.85 + 0.15 * Math.sin(time * 13 + index * 7))));
         world.invalidate();
       });
     </script>
