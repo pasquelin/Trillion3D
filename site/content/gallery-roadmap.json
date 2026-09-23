@@ -2408,8 +2408,7 @@
         "fr": "Un nuage de points"
       },
       "theme": "particles",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-cloud-of-points.html"
     },
     {
       "id": "waves-of-points",
@@ -2418,8 +2417,7 @@
         "fr": "Vagues de points"
       },
       "theme": "particles",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/waves-of-points.html"
     },
     {
       "id": "snow-of-sprites",
@@ -2428,8 +2426,7 @@
         "fr": "Neige de sprites"
       },
       "theme": "particles",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/snow-of-sprites.html"
     },
     {
       "id": "a-depth-camera-in-points",
