@@ -6713,15 +6713,15 @@
     }
   },
   "TriangleTree": {
-    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
-    "description": "Built once by `buildTriangleTree`, read-only afterwards.",
+    "summary": "世界の三角形に対するバウンディングボリューム階層、ボックスで問い合わせる: `triangleCollision` と `capsulePass` の背後にあるブロードフェーズ。",
+    "description": "`buildTriangleTree` によって一度構築され、以後は読み取り専用。",
     "members": {
-      "triangles": "Nine numbers per triangle — three corners — in leaf order.",
-      "bounds": "Per node: min xyz, max xyz.",
-      "links": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent).",
-      "counts": "Per node: triangle count of a leaf, 0 for an inner node.",
-      "bytes": "Bytes the tree keeps.",
-      "triangleCount": "Triangles the tree holds."
+      "triangles": "三角形ごとに9個の数値 — 3つの頂点 — 葉の順で。",
+      "bounds": "ノードごとに: 最小xyz、最大xyz。",
+      "links": "ノードごとに: 葉の最初の三角形、または内部ノードの右の子(左の子は親の直後に続く)。",
+      "counts": "ノードごとに: 葉の三角形数、内部ノードは0。",
+      "bytes": "ツリーが保持するバイト数。",
+      "triangleCount": "ツリーが保持する三角形数。"
     }
   },
   "world.beforeFrame": {

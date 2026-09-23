@@ -6713,15 +6713,15 @@
     }
   },
   "TriangleTree": {
-    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
-    "description": "Built once by `buildTriangleTree`, read-only afterwards.",
+    "summary": "Иерархия ограничивающих объёмов над треугольниками мира, опрашиваемая боксом: широкая фаза за `triangleCollision` и `capsulePass`.",
+    "description": "Строится один раз функцией `buildTriangleTree`, затем доступна только для чтения.",
     "members": {
-      "triangles": "Nine numbers per triangle — three corners — in leaf order.",
-      "bounds": "Per node: min xyz, max xyz.",
-      "links": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent).",
-      "counts": "Per node: triangle count of a leaf, 0 for an inner node.",
-      "bytes": "Bytes the tree keeps.",
-      "triangleCount": "Triangles the tree holds."
+      "triangles": "Девять чисел на треугольник — три вершины — в порядке листьев.",
+      "bounds": "На узел: min xyz, max xyz.",
+      "links": "На узел: первый треугольник листа, или правый потомок внутреннего узла (левый идёт сразу за родителем).",
+      "counts": "На узел: число треугольников листа, 0 для внутреннего узла.",
+      "bytes": "Байты, которые занимает дерево.",
+      "triangleCount": "Треугольники, которые хранит дерево."
     }
   },
   "world.beforeFrame": {
