@@ -11,6 +11,7 @@
     "learn": "学ぶ",
     "sandbox": "その場で試す",
     "examples": "サンプル",
+    "editor": "Editor",
     "api": "APIリファレンス",
     "reports": "計測"
   },
@@ -558,8 +559,6 @@
   },
   "editor": {
     "title": "Scene editor",
-    "group": "Tools",
-    "showcase": "Open the scene editor",
     "loading": "Preparing the editor…",
     "canvas": "Scene view: click an object to select it, drag to turn the camera",
     "menu": {
@@ -1376,7 +1375,7 @@
     "scene-editor": {
       "title": "エディターでシーンを組み立てる",
       "description": "形状とライトを追加し、マウスで選び、ハンドルで動かし、色を変え、シーンを保存してもう一度開く — ポータルの中で、公開 API だけで。",
-      "html": "<p><a href=\"#/ja/examples/scene-editor\">シーンエディター</a>は、エンジンの 3 つの扉だけで作られたこのポータルのページです。空のシーンから始めます: <b>Add → Box</b>、続いて <b>Add → Directional light</b>。ボックスをクリックすると、<code>world.raycast</code> がポインターの下にそれを見つけ、<code>controls.transform</code> のハンドルが現れます。矢印をドラッグして動かします — ハンドルを掴んでいる間カメラは止まります — <kbd>E</kbd> で回転、<kbd>R</kbd> で拡大縮小。インスペクターで色を変えると、エンジンはマテリアルをその場で塗り直し、フレームのコストは統計の隅に表示されたままです。<b>Save</b> は <code>scene.toJSON</code> をダウンロードし、<b>New</b> の後 <b>Open</b> で <code>scene.fromJSON</code> により同じシーンが再構築されます。</p>\n<p>どの操作も <kbd>Ctrl</kbd>+<kbd>Z</kbd> で元に戻せ、シーンは次の訪問までブラウザーに保存されます。ページ自身は何も描かず、何も動かしません: 見えているのはエンジンです。</p>"
+      "html": "<p><a href=\"#/ja/editor\">シーンエディター</a>は、エンジンの 3 つの扉だけで作られたこのポータルのページです。空のシーンから始めます: <b>Add → Box</b>、続いて <b>Add → Directional light</b>。ボックスをクリックすると、<code>world.raycast</code> がポインターの下にそれを見つけ、<code>controls.transform</code> のハンドルが現れます。矢印をドラッグして動かします — ハンドルを掴んでいる間カメラは止まります — <kbd>E</kbd> で回転、<kbd>R</kbd> で拡大縮小。インスペクターで色を変えると、エンジンはマテリアルをその場で塗り直し、フレームのコストは統計の隅に表示されたままです。<b>Save</b> は <code>scene.toJSON</code> をダウンロードし、<b>New</b> の後 <b>Open</b> で <code>scene.fromJSON</code> により同じシーンが再構築されます。</p>\n<p>どの操作も <kbd>Ctrl</kbd>+<kbd>Z</kbd> で元に戻せ、シーンは次の訪問までブラウザーに保存されます。ページ自身は何も描かず、何も動かしません: 見えているのはエンジンです。</p>"
     },
     "pick-with-the-pointer": {
       "title": "ポインターでオブジェクトを選ぶ",

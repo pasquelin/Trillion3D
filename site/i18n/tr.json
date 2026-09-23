@@ -11,6 +11,7 @@
     "learn": "Öğren",
     "sandbox": "Canlı dene",
     "examples": "Örnekler",
+    "editor": "Editor",
     "api": "API referansı",
     "reports": "Ölçümler"
   },
@@ -558,8 +559,6 @@
   },
   "editor": {
     "title": "Scene editor",
-    "group": "Tools",
-    "showcase": "Open the scene editor",
     "loading": "Preparing the editor…",
     "canvas": "Scene view: click an object to select it, drag to turn the camera",
     "menu": {
@@ -1376,7 +1375,7 @@
     "scene-editor": {
       "title": "Düzenleyiciyle bir sahne kurmak",
       "description": "Şekiller ve ışıklar eklemek, onları fareyle seçmek, tutamaçlarla taşımak, yeniden renklendirmek, sahneyi kaydedip yeniden açmak — portalda, yalnızca genel API ile.",
-      "html": "<p><a href=\"#/tr/examples/scene-editor\">Sahne düzenleyicisi</a>, bu portalın motorun üç kapısı üzerine kurulu, başka hiçbir şey kullanmayan bir sayfasıdır. Boş bir sahneyle başlayın: <b>Add → Box</b>, ardından <b>Add → Directional light</b>. Kutuya tıklayın: <code>world.raycast</code> onu işaretçinin altında bulur ve <code>controls.transform</code> tutamaçları üzerinde belirir. Taşımak için bir oku sürükleyin — bir tutamaç tutulurken kamera durur — döndürmek için <kbd>E</kbd>, ölçeklemek için <kbd>R</kbd> tuşuna basın. Rengini denetleyicide değiştirin: motor malzemeyi yerinde yeniden boyar, karenin maliyeti istatistik köşesinde kalır. <b>Save</b>, <code>scene.toJSON</code> dosyasını indirir; <b>New</b>, ardından <b>Open</b>, aynı sahneyi <code>scene.fromJSON</code> ile yeniden kurar.</p>\n<p>Her adım <kbd>Ctrl</kbd>+<kbd>Z</kbd> ile geri alınır ve sahne iki ziyaret arasında tarayıcıda saklanır. Sayfa kendi başına hiçbir şey çizmez ya da taşımaz: gördüğünüz motordur.</p>"
+      "html": "<p><a href=\"#/tr/editor\">Sahne düzenleyicisi</a>, bu portalın motorun üç kapısı üzerine kurulu, başka hiçbir şey kullanmayan bir sayfasıdır. Boş bir sahneyle başlayın: <b>Add → Box</b>, ardından <b>Add → Directional light</b>. Kutuya tıklayın: <code>world.raycast</code> onu işaretçinin altında bulur ve <code>controls.transform</code> tutamaçları üzerinde belirir. Taşımak için bir oku sürükleyin — bir tutamaç tutulurken kamera durur — döndürmek için <kbd>E</kbd>, ölçeklemek için <kbd>R</kbd> tuşuna basın. Rengini denetleyicide değiştirin: motor malzemeyi yerinde yeniden boyar, karenin maliyeti istatistik köşesinde kalır. <b>Save</b>, <code>scene.toJSON</code> dosyasını indirir; <b>New</b>, ardından <b>Open</b>, aynı sahneyi <code>scene.fromJSON</code> ile yeniden kurar.</p>\n<p>Her adım <kbd>Ctrl</kbd>+<kbd>Z</kbd> ile geri alınır ve sahne iki ziyaret arasında tarayıcıda saklanır. Sayfa kendi başına hiçbir şey çizmez ya da taşımaz: gördüğünüz motordur.</p>"
     },
     "pick-with-the-pointer": {
       "title": "İşaretçiyle bir nesne seçmek",

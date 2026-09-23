@@ -11,6 +11,7 @@
     "learn": "学习",
     "sandbox": "在线试用",
     "examples": "示例",
+    "editor": "Editor",
     "api": "API 参考",
     "reports": "测量数据"
   },
@@ -558,8 +559,6 @@
   },
   "editor": {
     "title": "Scene editor",
-    "group": "Tools",
-    "showcase": "Open the scene editor",
     "loading": "Preparing the editor…",
     "canvas": "Scene view: click an object to select it, drag to turn the camera",
     "menu": {
@@ -1373,7 +1372,7 @@
     "scene-editor": {
       "title": "用编辑器搭建场景",
       "description": "添加形状和灯光,用鼠标选中它们,用手柄移动,重新着色,保存场景并再次打开 —— 在门户中,仅用公开 API。",
-      "html": "<p><a href=\"#/zh/examples/scene-editor\">场景编辑器</a>是本门户的一个页面,只建立在引擎的三扇门之上,别无其他。从空场景开始:<b>Add → Box</b>,然后 <b>Add → Directional light</b>。点击盒子:<code>world.raycast</code> 在指针下找到它,<code>controls.transform</code> 的手柄随即出现在上面。拖动箭头来移动它 —— 按住手柄时相机保持不动 —— 按 <kbd>E</kbd> 旋转,按 <kbd>R</kbd> 缩放。在检查器中更改颜色:引擎就地重绘材质,帧的开销留在统计角落里。<b>Save</b> 下载 <code>scene.toJSON</code>;<b>New</b> 之后 <b>Open</b>,用 <code>scene.fromJSON</code> 重新构建同一个场景。</p>\n<p>每一步都可以用 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销,场景在两次访问之间保存在浏览器中。页面本身不绘制也不移动任何东西:您看到的是引擎。</p>"
+      "html": "<p><a href=\"#/zh/editor\">场景编辑器</a>是本门户的一个页面,只建立在引擎的三扇门之上,别无其他。从空场景开始:<b>Add → Box</b>,然后 <b>Add → Directional light</b>。点击盒子:<code>world.raycast</code> 在指针下找到它,<code>controls.transform</code> 的手柄随即出现在上面。拖动箭头来移动它 —— 按住手柄时相机保持不动 —— 按 <kbd>E</kbd> 旋转,按 <kbd>R</kbd> 缩放。在检查器中更改颜色:引擎就地重绘材质,帧的开销留在统计角落里。<b>Save</b> 下载 <code>scene.toJSON</code>;<b>New</b> 之后 <b>Open</b>,用 <code>scene.fromJSON</code> 重新构建同一个场景。</p>\n<p>每一步都可以用 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销,场景在两次访问之间保存在浏览器中。页面本身不绘制也不移动任何东西:您看到的是引擎。</p>"
     },
     "pick-with-the-pointer": {
       "title": "用指针选取对象",

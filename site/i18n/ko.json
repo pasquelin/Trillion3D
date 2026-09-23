@@ -11,6 +11,7 @@
     "learn": "배우기",
     "sandbox": "바로 해보기",
     "examples": "예제",
+    "editor": "Editor",
     "api": "API 레퍼런스",
     "reports": "측정 결과"
   },
@@ -558,8 +559,6 @@
   },
   "editor": {
     "title": "Scene editor",
-    "group": "Tools",
-    "showcase": "Open the scene editor",
     "loading": "Preparing the editor…",
     "canvas": "Scene view: click an object to select it, drag to turn the camera",
     "menu": {
@@ -1376,7 +1375,7 @@
     "scene-editor": {
       "title": "에디터로 장면 만들기",
       "description": "도형과 조명을 추가하고, 마우스로 고르고, 핸들로 옮기고, 색을 바꾸고, 장면을 저장했다가 다시 여세요 — 포털 안에서, 공개 API만으로.",
-      "html": "<p><a href=\"#/ko/examples/scene-editor\">장면 에디터</a>는 엔진의 세 가지 문 위에만 지어진 이 포털의 페이지입니다. 빈 장면에서 시작하세요: <b>Add → Box</b>, 그다음 <b>Add → Directional light</b>. 박스를 클릭하면 <code>world.raycast</code>가 포인터 아래에서 그것을 찾고, <code>controls.transform</code>의 핸들이 나타납니다. 화살표를 끌어 옮기세요 — 핸들을 잡고 있는 동안 카메라는 멈춥니다 — <kbd>E</kbd>로 회전, <kbd>R</kbd>로 크기 조절. 인스펙터에서 색을 바꾸면 엔진이 머티리얼을 그 자리에서 다시 칠하고, 프레임 비용은 통계 구석에 표시됩니다. <b>Save</b>는 <code>scene.toJSON</code>을 내려받고, <b>New</b> 다음 <b>Open</b>은 <code>scene.fromJSON</code>으로 같은 장면을 다시 만듭니다.</p>\n<p>모든 단계는 <kbd>Ctrl</kbd>+<kbd>Z</kbd>로 되돌릴 수 있고, 장면은 다음 방문까지 브라우저에 보관됩니다. 페이지는 스스로 아무것도 그리거나 움직이지 않습니다: 보이는 것은 엔진입니다.</p>"
+      "html": "<p><a href=\"#/ko/editor\">장면 에디터</a>는 엔진의 세 가지 문 위에만 지어진 이 포털의 페이지입니다. 빈 장면에서 시작하세요: <b>Add → Box</b>, 그다음 <b>Add → Directional light</b>. 박스를 클릭하면 <code>world.raycast</code>가 포인터 아래에서 그것을 찾고, <code>controls.transform</code>의 핸들이 나타납니다. 화살표를 끌어 옮기세요 — 핸들을 잡고 있는 동안 카메라는 멈춥니다 — <kbd>E</kbd>로 회전, <kbd>R</kbd>로 크기 조절. 인스펙터에서 색을 바꾸면 엔진이 머티리얼을 그 자리에서 다시 칠하고, 프레임 비용은 통계 구석에 표시됩니다. <b>Save</b>는 <code>scene.toJSON</code>을 내려받고, <b>New</b> 다음 <b>Open</b>은 <code>scene.fromJSON</code>으로 같은 장면을 다시 만듭니다.</p>\n<p>모든 단계는 <kbd>Ctrl</kbd>+<kbd>Z</kbd>로 되돌릴 수 있고, 장면은 다음 방문까지 브라우저에 보관됩니다. 페이지는 스스로 아무것도 그리거나 움직이지 않습니다: 보이는 것은 엔진입니다.</p>"
     },
     "pick-with-the-pointer": {
       "title": "포인터로 객체 고르기",
