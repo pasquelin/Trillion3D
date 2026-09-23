@@ -651,8 +651,7 @@
         "fr": "Normales et profondeur"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/normals-and-depth-seen.html"
     },
     {
       "id": "avif-textures",
@@ -1144,8 +1143,7 @@
         "fr": "Lumière ciel et sol"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/sky-and-ground-light.html"
     },
     {
       "id": "light-in-real-units",
@@ -1154,8 +1152,7 @@
         "fr": "Lumière en unités réelles"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/light-in-real-units.html"
     },
     {
       "id": "shadows-from-the-sun",
@@ -1164,8 +1161,7 @@
         "fr": "Ombres du soleil"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/shadows-from-the-sun.html"
     },
     {
       "id": "a-long-shadowed-street",
@@ -1174,8 +1170,7 @@
         "fr": "Une longue rue ombrée"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-long-shadowed-street.html"
     },
     {
       "id": "flat-shadows-on-the-floor",
