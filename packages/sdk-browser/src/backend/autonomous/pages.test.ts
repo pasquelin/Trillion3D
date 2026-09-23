@@ -161,3 +161,27 @@ test('a full instance buffer grows in place: its rows kept, the new ones drawn o
     material.dispose();
   }
 });
+
+test('the WebGL2 path holds the geometry pool and publishes it in its metrics', async () => {
+  const { backend, camera, encoded, geometry, material } = triangleBackend();
+  try {
+    await backend.prepare();
+    backend.render(camera);
+    const held = backend.metrics();
+    assert.equal(held.geometryPoolBytes, 512 * 1024 * 1024);
+    assert.equal(held.geometryPoolAllocatedBytes, encoded.uncompressedBytes);
+    assert.equal(held.geometryPoolClamp, 'scene');
+    // A budget under the root cover is raised to it, by name, and evicts nothing drawn.
+    const report = await backend.setMemoryBudgets!({ geometryPoolBytes: 1 });
+    assert.equal(report.geometryPool.clamp, 'root-cover');
+    assert.equal(report.evictedPages, 0);
+    assert.equal(report.texturePool, null);
+    backend.render(camera);
+    assert.equal(backend.metrics().geometryPoolBytes, 1);
+    assert.equal(backend.metrics().submittedTriangles, 1);
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
