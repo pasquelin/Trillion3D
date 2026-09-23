@@ -50,7 +50,7 @@ export function createWorldRuntime(inputs: Inputs) {
     lights = createWorldLights();
   const { poses, cuts } = contents;
   let explorer: MeasuredWorld | null = null,
-    drawn: NonNullable<ReturnType<typeof buildWorldSource>> | null = null,
+    mirror: NonNullable<ReturnType<typeof buildWorldSource>> | null = null,
     twins = new Map<Object3D, PosedTwin>(),
     heldCuts = new Set<Cut>(),
     resolving: Promise<void> | null = null,
@@ -79,8 +79,8 @@ export function createWorldRuntime(inputs: Inputs) {
     const held = new Set(plan.batches.map((item) => item.cut));
     for (const cut of held) cuts.hold(cut, true);
     explorer?.dispose();
-    if (drawn) releaseWorldMirror(drawn.root);
-    explorer = drawn = null;
+    if (mirror) releaseWorldMirror(mirror.root);
+    explorer = mirror = null;
     fit.reset();
     for (const cut of heldCuts) if (!held.has(cut)) cuts.hold(cut, false);
     heldCuts = held;
@@ -92,7 +92,7 @@ export function createWorldRuntime(inputs: Inputs) {
       closed = 'nothing to draw: the scene holds no mesh and no loaded model';
       return;
     }
-    drawn = built;
+    mirror = built;
     try {
       // The session reads at the scope its first model was read at, or the default.
       const scope = built.source.metadata.scope;
@@ -136,7 +136,7 @@ export function createWorldRuntime(inputs: Inputs) {
       contents.seat(session?.growsPlacements() ? session.growPlacements : undefined);
       if (contents.reopenNeeded() || (!session && !reopens.running)) requestReopen();
       // A material written on its values alone repaints the surface already built (#335).
-      const painted = contents.repainted().filter((entry) => drawn?.repaint(entry.material));
+      const painted = contents.repainted().filter((entry) => mirror?.repaint(entry.material));
       // A reopen requested above disposed `session` at once: the next one is built repainted.
       if (painted.length && session && explorer === session && !session.refreshMaterials())
         requestReopen();
@@ -189,7 +189,7 @@ export function createWorldRuntime(inputs: Inputs) {
     dispose() {
       disposed = true;
       explorer?.dispose();
-      if (drawn) releaseWorldMirror(drawn.root);
+      if (mirror) releaseWorldMirror(mirror.root);
       cuts.dispose();
       scene._link = null;
     },

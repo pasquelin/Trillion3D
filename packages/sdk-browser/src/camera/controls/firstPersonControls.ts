@@ -2,7 +2,7 @@ import { createChangeGate, createControlBase } from './base.ts';
 import { axisOf, trackKeys, type KeyAxis } from './input.ts';
 import { controlPose } from './pose.ts';
 import { moveLocal, orbitOrientation } from './math.ts';
-import { createHead, FIRST_PERSON_PITCH, type PersonHead } from './look.ts';
+import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts';
 import type { ControlCamera, SteeredCameraControls } from './types.ts';
 
 /**
@@ -38,9 +38,7 @@ export function createFirstPersonCameraControls(
     ...base.api,
     object: pose.object,
     movementSpeed: 1,
-    lookSpeed: 0.002,
-    minPitch: FIRST_PERSON_PITCH[0],
-    maxPitch: FIRST_PERSON_PITCH[1],
+    ...HEAD_DEFAULTS,
     locked: () => head.locked(),
     lock: () => head.lock(),
     unlock: () => head.unlock(),

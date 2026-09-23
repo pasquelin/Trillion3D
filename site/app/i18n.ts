@@ -51,8 +51,10 @@ export const detectedLanguage = (): Locale =>
 /** Reads the dictionary of `locale` and gives it to i18next, once; a page in `locale` renders
  *  after it. */
 export async function loadLanguage(locale: Locale) {
-  const dictionary = await loadDictionary(locale);
-  if (!i18n.hasResourceBundle(locale, 'translation'))
+  // A chunk that cannot be fetched leaves the page on English's words, never a dead link; the
+  // next visit to the language fetches it again.
+  const dictionary = await loadDictionary(locale).catch(() => null);
+  if (dictionary && !i18n.hasResourceBundle(locale, 'translation'))
     i18n.addResourceBundle(locale, 'translation', dictionary);
 }
 
