@@ -9,26 +9,33 @@ type Controller = NonNullable<ReturnType<typeof worldControls>> & {
   update?: (delta?: number) => boolean;
 };
 
-/** The limits the handle keeps for its controller, at the orbit controller's own defaults. */
-const UNBOUNDED = {
+/** The limits and speeds the handle keeps for its controller, at the controllers' own defaults. */
+const DEFAULTS = {
   minDistance: 0,
   maxDistance: Infinity,
   minPolarAngle: 0,
   maxPolarAngle: Math.PI,
   minAzimuthAngle: -Infinity,
   maxAzimuthAngle: Infinity,
+  movementSpeed: 1,
+  lookSpeed: 0.002,
+  rollSpeed: 0.4,
+  rotateSpeed: 1,
+  zoomSpeed: 1,
 };
-type Limit = keyof typeof UNBOUNDED;
+type Setting = keyof typeof DEFAULTS;
 
 /**
  * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
  * `kind` or `enabled` releases the one in place and makes the next; a gesture redraws.
  *
- * THE LIMITS BELONG TO THE HANDLE, not to the controller in place: a write is kept, handed to
- * the live controller when it has that limit, and handed again to every controller `kind`
- * makes later. A controller without that limit ignores it — the distances bound the pivot
- * controllers (orbit, trackball, pan-zoom), the angles the orbit alone, and flight and first
- * person neither — so a page may set them before or after it picks its controller.
+ * THE LIMITS AND SPEEDS BELONG TO THE HANDLE, not to the controller in place: a write is kept,
+ * handed to the live controller when it has that setting, and handed again to every controller
+ * `kind` makes later. A controller without that setting ignores it — the distances bound the
+ * pivot controllers (orbit, trackball, pan-zoom), the angles the orbit alone; `movementSpeed`
+ * drives flight and first person, `lookSpeed` first person, `rollSpeed` flight, `rotateSpeed`
+ * and `zoomSpeed` the pivot controllers — so a page may set them before or after it picks its
+ * controller.
  */
 export function worldControlsHandle(
   initial: WorldControls,
@@ -40,17 +47,18 @@ export function worldControlsHandle(
     enabled = true,
     current: Controller | null = null;
   const standingTarget = new Vector3(),
-    limits = { ...UNBOUNDED };
-  /** Hands the kept limits to the controller in place, where it has them. */
+    settings = { ...DEFAULTS };
+  /** Hands the kept settings to the controller in place, where it has them. */
   const bound = () => {
     const live = current as Record<string, unknown> | null;
     if (!live) return;
-    for (const name of Object.keys(limits) as Limit[]) if (name in live) live[name] = limits[name];
+    for (const name of Object.keys(settings) as Setting[])
+      if (name in live) live[name] = settings[name];
   };
-  const limit = (name: Limit, value: number) => {
-    limits[name] = value;
+  const setting = (name: Setting, value: number) => {
+    settings[name] = value;
     bound();
-    // A pivot controller re-reads its pose under the new limit, and redraws if it moved.
+    // A pivot controller re-reads its pose under the new setting, and redraws if it moved.
     if (current?.target) current.update?.();
   };
   const rebuild = () => {
@@ -88,45 +96,80 @@ export function worldControlsHandle(
     },
     /** Closest a pivot controller brings the camera to `target`. */
     get minDistance() {
-      return limits.minDistance;
+      return settings.minDistance;
     },
     set minDistance(value: number) {
-      limit('minDistance', value);
+      setting('minDistance', value);
     },
     /** Farthest a pivot controller takes the camera from `target`. */
     get maxDistance() {
-      return limits.maxDistance;
+      return settings.maxDistance;
     },
     set maxDistance(value: number) {
-      limit('maxDistance', value);
+      setting('maxDistance', value);
     },
     /** Orbit only: smallest polar angle, in radians from straight up. */
     get minPolarAngle() {
-      return limits.minPolarAngle;
+      return settings.minPolarAngle;
     },
     set minPolarAngle(value: number) {
-      limit('minPolarAngle', value);
+      setting('minPolarAngle', value);
     },
     /** Orbit only: largest polar angle; `Math.PI / 2` keeps the camera above the ground. */
     get maxPolarAngle() {
-      return limits.maxPolarAngle;
+      return settings.maxPolarAngle;
     },
     set maxPolarAngle(value: number) {
-      limit('maxPolarAngle', value);
+      setting('maxPolarAngle', value);
     },
     /** Orbit only: start of the arc of azimuth allowed, in radians from +Z towards +X. */
     get minAzimuthAngle() {
-      return limits.minAzimuthAngle;
+      return settings.minAzimuthAngle;
     },
     set minAzimuthAngle(value: number) {
-      limit('minAzimuthAngle', value);
+      setting('minAzimuthAngle', value);
     },
     /** Orbit only: end of that arc; it may be smaller than `minAzimuthAngle`. */
     get maxAzimuthAngle() {
-      return limits.maxAzimuthAngle;
+      return settings.maxAzimuthAngle;
     },
     set maxAzimuthAngle(value: number) {
-      limit('maxAzimuthAngle', value);
+      setting('maxAzimuthAngle', value);
+    },
+    /** Flight and first person: world units per second at full stick; 1 by default. */
+    get movementSpeed() {
+      return settings.movementSpeed;
+    },
+    set movementSpeed(value: number) {
+      setting('movementSpeed', value);
+    },
+    /** First person only: radians the view turns per pixel the pointer moves. */
+    get lookSpeed() {
+      return settings.lookSpeed;
+    },
+    set lookSpeed(value: number) {
+      setting('lookSpeed', value);
+    },
+    /** Flight only: radians per second the keys pitch, yaw and roll. */
+    get rollSpeed() {
+      return settings.rollSpeed;
+    },
+    set rollSpeed(value: number) {
+      setting('rollSpeed', value);
+    },
+    /** Orbit and trackball: how fast dragging turns; 1 by default. */
+    get rotateSpeed() {
+      return settings.rotateSpeed;
+    },
+    set rotateSpeed(value: number) {
+      setting('rotateSpeed', value);
+    },
+    /** Pivot controllers: how fast the wheel and the pinch zoom; 1 by default. */
+    get zoomSpeed() {
+      return settings.zoomSpeed;
+    },
+    set zoomSpeed(value: number) {
+      setting('zoomSpeed', value);
     },
     /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose. */
     update(delta = 0) {
