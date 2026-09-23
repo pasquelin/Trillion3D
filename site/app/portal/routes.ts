@@ -40,7 +40,7 @@ const AREA_SET: ReadonlySet<string> = new Set(ROUTE_AREAS);
 const isArea = (value: string | undefined): value is RouteArea =>
   value !== undefined && AREA_SET.has(value);
 /** The entry sections read in Learn, as guides; the others are the API reference. */
-export const LEARN_SECTIONS = ['guides', 'examples'];
+export const LEARN_SECTIONS = ['course', 'guides', 'internals'];
 
 /** The header area a route belongs to: the lessons are read from Learn. */
 const navArea = (area: RouteArea): NavArea => (area === 'lessons' ? 'learn' : area);

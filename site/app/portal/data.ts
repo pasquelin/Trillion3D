@@ -1,10 +1,7 @@
 import type { PortalEntry } from '../../content/model.ts';
-import { EXAMPLES } from '../../content/entries/examples.ts';
-import { FORMAT_GUIDES } from '../../content/entries/format.ts';
+import { COURSE } from '../../content/entries/course.ts';
 import { GUIDES } from '../../content/entries/guides.ts';
-import { RENDERING_GUIDES } from '../../content/entries/guidesRendering.ts';
-import { ENGINE_GUIDES } from '../../content/entries/guidesEngine.ts';
-import { LIGHTING_GUIDES } from '../../content/entries/lighting.ts';
+import { INTERNALS } from '../../content/entries/internals.ts';
 import { ENUMS_IMAGE } from '../../content/entries/enums.ts';
 import { ENUMS_RUNTIME } from '../../content/entries/enumsRuntime.ts';
 import { LIFECYCLE } from '../../content/entries/lifecycle.ts';
@@ -16,12 +13,9 @@ import { TREE } from '../../content/entries/tree.ts';
 import { BATCHES } from '../../content/entries/batches.ts';
 
 export const rawEntries: PortalEntry[] = [
+  ...COURSE,
   ...GUIDES,
-  ...FORMAT_GUIDES,
-  ...RENDERING_GUIDES,
-  ...ENGINE_GUIDES,
-  ...LIGHTING_GUIDES,
-  ...EXAMPLES,
+  ...INTERNALS,
   ...ENUMS_IMAGE,
   ...ENUMS_RUNTIME,
   ...LIFECYCLE,

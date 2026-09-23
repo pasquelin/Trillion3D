@@ -6,78 +6,10 @@ export const GUIDE = { section: 'guides', kind: 'Guide' };
 export const GUIDES: PortalEntry[] = [
   {
     ...GUIDE,
-    id: 'quick-start',
-    title: 'Quick start',
-    description:
-      'From a glTF file to a streamed scene in a canvas: compile once, explore in the browser.',
-    html: `<p>The engine streams geometry by clusters: a native compiler cuts a source scene into pages once, a browser world then reads only the pages the camera needs, within fixed memory budgets. Both environments use the same public package specifier.</p>
-<ol>
-<li><strong>Compile</strong> on the machine that holds the source, with <code>web-geometry</code>. The Node condition provides preparation. The cache directory receives the manifest, the pages and the texture sidecars; <code>resourceBaseUrl</code> is the URL the browser will read them from.</li>
-<li><strong>Explore</strong> in the browser, also with <code>web-geometry</code>. The browser condition provides rendering. <code>createWorld</code> accepts a canvas ID or element and returns an empty world; <code>scene.load</code> then adds a compiled model to it, like anything else added to the scene. The world submits frames on demand and pauses once the image has held; give the canvas a CSS width and height, and dispose on unmount.</li>
-</ol>
-<p>The full contract — options, budgets, lighting, temporal antialiasing, diagnostics — is in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a> and <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md">docs/ENGINE.md</a>.</p>`,
-    example: `// 1. Node — compile once (set \`executable\` or WEB_GEOMETRY_COMPILER_BIN).
-import { prepare, type PrepareOptions } from 'web-geometry';
-const compilation: PrepareOptions = { resourceBaseUrl: '/cache/city/' };
-await prepare('scenes/city', 'cache/city', 'full', 150000, compilation);
-
-// 2. Browser — HTML: <canvas id="viewer" style="width:100%;height:70vh"></canvas>
-import { createWorld } from 'web-geometry';
-const world = createWorld('viewer');
-await world.scene.load('/cache/city/manifest.json');
-// A first image is submitted; detail and temporal antialiasing settle progressively.
-// In your page/component teardown: world.dispose();`,
-  },
-  {
-    ...GUIDE,
-    id: 'architecture',
-    title: 'Architecture & rules',
-    description: 'What the engine promises and the conventions every function below follows.',
-    html: `<p>The mission, in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md#principles">Product principles</a>: virtualized geometry for the web at the performance of the best desktop engines — geometry streamed by clusters, one cut through a DAG per frame, a visibility buffer, temporal antialiasing, fixed streaming and memory budgets. The lighting is what the geometry is for; its stages are in <code>docs/ENGINE.md</code>.</p>
-<h3 class="text-lg font-bold mt-4">One frame, on the WebGPU path</h3>
-<p>The GPU cuts the DAG and compacts the clusters to draw; the hardware raster writes a <strong>visibility buffer</strong> (one identifier per pixel) behind a Hi-Z occlusion test; the <strong>material resolve</strong> then rebuilds each pixel's surface — base colour, normal, roughness, emission — <em>one material class per pass</em>: a pass writes every pixel's class as an exact depth, and each class draws one full-screen triangle at its own depth under the hardware <code>equal</code> test, with a pipeline compiled for that class's features alone (maps, cut-out, vertex normals, tangents). Deferred lighting, transparents, temporal antialiasing and presentation follow. Observe it live with <code>world.diagnostic.mode = 'triangles'</code> and the <code>material-classes-ready</code> diagnostic (the scene's classes).</p>
-<h3 class="text-lg font-bold mt-4">Conventions of the world API</h3>
-<p>State read and written is a property (<code>camera.near = 0.1</code>, <code>world.exposure</code>); a value with several components is an object with <code>.set()</code> (<code>position.set(0, 1, 0)</code>); a method is an action or a computation (<code>lookAt</code>, <code>add</code>, <code>load</code>, <code>world.stageProfile()</code>) — a setter applies its own consequences, so nothing is ever updated by hand. Families are singular; a member that produces a thing of the scene is named after the thing (<code>geometry.box</code>), one that sets up machinery is <code>create</code> + its name (<code>page.createStreamer</code>). Full contract, every family and an example each: <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md#api-rule">docs/SDK.md</a>.</p>
-<h3 class="text-lg font-bold mt-4">Conventions of the math API</h3>
-<ul class="list-disc pl-6 space-y-1">
-<li><strong>Column-major 4×4 matrices</strong> in sixteen consecutive numbers, <code>[12..14]</code> the translation — a host-library matrix copies without reordering.</li>
-<li><strong>Output first, allocation never.</strong> A function writes into the <code>out</code> buffer it receives and returns it; <code>outAt</code>/<code>aAt</code> offsets let one large buffer hold many operands.</li>
-<li><strong><code>Float64Array</code> for what is computed</strong>, <code>ArrayLike&lt;number&gt;</code> for what is only read. Single precision is a send conversion, done when a result is copied into a GPU buffer.</li>
-<li><strong>Same bits as the reference</strong>, proven by <code>pnpm run perf:core</code>: each line runs the host library and the engine on the same seeded inputs and refuses an engine slower than the reference. Two declared exceptions: the sRGB curve (gap ≤ 1e-11) and the depth terms of the projection (reversed, infinite far plane).</li>
-<li><strong>Measure before optimising.</strong> A per-step CPU profile (<code>cpu-timing</code> diagnostic) and a GPU stage profile (<code>world.stageProfile()</code>) say where a frame goes; nothing is optimised on a supposition.</li>
-<li><strong>Materials proven on screen.</strong> <code>pnpm run test:gpu</code> renders twelve material fixtures — base colour and its map, alpha MASK at its cutoff, BLEND, back faces, metal-roughness, emissive, normal map — with the engine and with the Three witness, both from <code>dist/</code>, and holds every read pixel within one level of the witness; the one declared gap, a blend over an opaque surface, is measured at 45 levels and held there (<code>docs/SDK.md</code> § Separated surfaces and lighting).</li>
-</ul>
-<h3 class="text-lg font-bold mt-4">Reading this portal</h3>
-<p>Every application example imports <code>web-geometry</code>. The source-module link on each entry is implementation provenance, not a consumer import path. An entry with an <span class="badge badge-warning badge-sm">in development</span> badge names a function the repository does not deliver yet: its page states the issue that carries it and the signature that issue commits to. Everything else is on <code>develop</code> today.</p>`,
-  },
-  {
-    ...GUIDE,
     id: 'three-migration',
     title: 'Migration from Three.js',
     description:
       'On the left a complete Three.js program, on the right the engine program that draws the same scene, section by section.',
-  },
-  {
-    ...GUIDE,
-    id: 'occlusion-two-phase',
-    title: 'Occlusion: the two-phase Hi-Z',
-    description:
-      'How a cluster hidden behind another leaves the image, what decides it, and the counters that say so.',
-    html: `<p>The WebGPU visibility path draws its opaque clusters in two passes, following the published two-phase design. There is no option to set: the mechanism is fixed, automatic, and reads its own history.</p>
-<ol class="list-decimal pl-6 space-y-1">
-<li><strong>Main pass.</strong> A cluster is an <em>occluder</em> when the previous image drew it and the previous image's depth pyramid does not hide it: its rectangle and depth bound from that image are read against that pyramid, still in its buffer. The occluders are rasterised first.</li>
-<li><strong>Pyramid.</strong> The depth of the main pass becomes a Hi-Z pyramid: a mip chain where each texel keeps the farthest depth of its footprint.</li>
-<li><strong>Post pass.</strong> Every other cluster — withdrawn from the occluders, or rejected last image — is tested against that pyramid: a footprint clipped to the viewport, the mip that covers it in sixteen texels, and the comparison of the cluster's nearest depth to the farthest depth read there. What stays hidden is not drawn; what is not is rasterised in a second pass over the same targets.</li>
-</ol>
-<p>The post-pass test is the only thing allowed to reject, and it is conservative to the ulp: the rectangle contains the reference's, the depth bound stays below it, a box that crosses the near plane is never rejected. The main-pass verdict only decides <em>draw order</em>: a wrong one costs a second test, never a pixel. That is why a moved world, a resized target or a page that changed rank need no invalidation — only a rank that changed page forgets what it held.</p>
-<p>In a still view the two halves converge within one antialiasing jitter cycle: a cluster the test kept stays an occluder until the view, or a world, moves. The image is then held — no pass runs — which a moving pyramid would forbid.</p>
-<h3 class="text-lg font-bold mt-4">Reading it</h3>
-<ul class="list-disc pl-6 space-y-1">
-<li><code>metric.frame(world)</code> carries <code>hizTestedClusters</code>, <code>hizRejectedClusters</code>, <code>hizRejectedTriangles</code> and <code>hizCountedFrame</code>: what the post pass tested and rejected on the image the last periodic sample described — the device counts, the host rereads one image in fifteen, and <code>null</code> means no sample yet, never zero.</li>
-<li><code>world.stageProfile()</code> carries the partition stage: <code>lignes</code> (resident rows), <code>occulteurs</code>, <code>testees</code>, <code>historiqueOcculteurs</code> (rows the previous image drew) and <code>retiresParLaPyramide</code> (rows that pyramid withdrew), with the GPU milliseconds of the <code>WG partition</code>, <code>WG HiZ pyramid</code>, <code>WG HiZ test</code>, <code>WG visibility primary</code> and <code>WG visibility secondary</code> passes.</li>
-<li>The measurement harness prints the same numbers per view as <em>Hi-Z tested/rejected</em>; the street view of the reference scene rejects 5,131 of 24,902 rows where the former history rejected 440.</li>
-</ul>
-<p>The lesson <a class="link link-primary" href="#/en/lessons/occlusion-two-phase">Hide a ring behind a ring</a> shows the counters move on the garden as the eye drops to ring height.</p>`,
   },
   {
     ...GUIDE,
