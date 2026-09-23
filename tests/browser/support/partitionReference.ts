@@ -12,9 +12,12 @@
 //   2. a box the reference says is clipped by the near plane carries the clip flag on the
 //      GPU side, so it can never be rejected;
 //   3. the GPU depth UNDERESTIMATES that of the reference, coplanar-layer bias included.
-import { HIZ_BOUNDS_VALUES, projectCornersInto } from '../../../packages/sdk-browser/hizCorners.ts';
-import { hizNearestBound } from '../../../packages/sdk-browser/hizNearestBound.ts';
-import type { PartitionAudit } from '../../../packages/sdk-browser/webgpuPartitionAudit.ts';
+import {
+  HIZ_BOUNDS_VALUES,
+  projectCornersInto,
+} from '../../../packages/sdk-browser/src/hiz/corners.ts';
+import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.ts';
+import type { PartitionAudit } from '../../../packages/sdk-browser/src/webgpu/core/partitionAudit.ts';
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
 

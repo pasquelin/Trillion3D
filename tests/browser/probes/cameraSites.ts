@@ -1,32 +1,32 @@
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 // Engine sites that read a camera pose, each called by its real code. A site is
 // `{ name, cree, mesure }`: `cree()` returns the state of a frame sequence (Hi-Z hold, cut,
 // engine), `mesure(state, camera)` returns as JSON what the site took from the camera for that
 // frame.
 import * as THREE from 'three';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
-import { collectClusterPages } from '../../../packages/sdk-browser/pageSelection.ts';
-import { selectVisiblePages } from '../../../packages/sdk-browser/pageSelectionCut.ts';
-import { boundsFor, projectBoxesFlat } from '../../../packages/sdk-browser/hizProjection.ts';
-import { applyTemporalHiz, sameHizView } from '../../../packages/sdk-browser/hizTemporal.ts';
-import type { TemporalHizState } from '../../../packages/sdk-browser/hizTemporal.ts';
-import { visibilityDepth } from '../../../packages/sdk-browser/hizDepth.ts';
-import { rasterPages } from '../../../packages/sdk-browser/pageRaster.ts';
-import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
-import { shadeVisibility } from '../../../packages/sdk-browser/visibilityShade.ts';
-import type { VisPage } from '../../../packages/sdk-browser/visibilityTypes.ts';
-import type { HizPage } from '../../../packages/sdk-browser/hizTypes.ts';
-import { projectedPageError } from '../../../packages/sdk-browser/pageSelectionDiagnostic.ts';
-import { resolvePixelError } from '../../../packages/sdk-browser/pageSelectionRequests.ts';
-import type { CameraMotion } from '../../../packages/sdk-browser/cameraWorld.ts';
-import { dagFixture } from '../../../packages/sdk-browser/pageSelectionDagFixture.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
+import { boundsFor, projectBoxesFlat } from '../../../packages/sdk-browser/src/hiz/projection.ts';
+import { applyTemporalHiz, sameHizView } from '../../../packages/sdk-browser/src/hiz/temporal.ts';
+import type { TemporalHizState } from '../../../packages/sdk-browser/src/hiz/temporal.ts';
+import { visibilityDepth } from '../../../packages/sdk-browser/src/hiz/depth.ts';
+import { rasterPages } from '../../../packages/sdk-browser/src/page/raster.ts';
+import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
+import { shadeVisibility } from '../../../packages/sdk-browser/src/visibility/shader/shade.ts';
+import type { VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
+import type { HizPage } from '../../../packages/sdk-browser/src/hiz/types.ts';
+import { projectedPageError } from '../../../packages/sdk-browser/src/page/selection/diagnostic.ts';
+import { resolvePixelError } from '../../../packages/sdk-browser/src/page/selection/requests.ts';
+import type { CameraMotion } from '../../../packages/sdk-browser/src/camera/world.ts';
+import { dagFixture } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
 import { sitesMoteurs } from './cameraSitesMoteurs.ts';
 import type { Site } from './cameraSitesMoteurs.ts';
 import {
   createEngineCamera,
   readCameraWorld,
   type HostCamera,
-} from '../../../packages/sdk-browser/cameraWorld.ts';
+} from '../../../packages/sdk-browser/src/camera/world.ts';
 
 const VIEWPORT: [number, number] = [1280, 720],
   RASTER: [number, number] = [64, 36];

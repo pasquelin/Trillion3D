@@ -4,14 +4,14 @@
 // `pagePosition`, `pageUv` over a page-table row —, then a readback. The page sits at a non-zero
 // word offset, as it does in the engine's pool: what is proved is the addressing too, not only
 // the arithmetic. The Chromium harness is that of `pageWebgpu.ts`.
-import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/clusterDecodeWgsl.ts';
-import { PAGE_GEOMETRY_WGSL } from '../../../packages/sdk-browser/visibilityPageGeometryWgsl.ts';
-import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/visibilityPageWgsl.ts';
-import { ROW_FLAGS_WORD } from '../../../packages/sdk-browser/webgpuPageRow.ts';
+import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/src/cluster/decodeWgsl.ts';
+import { PAGE_GEOMETRY_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageGeometryWgsl.ts';
+import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts';
+import { ROW_FLAGS_WORD } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
 import {
   FLAG_CLUSTER_PAGE,
   PAGE_INFO_STRIDE,
-} from '../../../packages/sdk-browser/visibilityBuffer.ts';
+} from '../../../packages/sdk-browser/src/visibility/buffer.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
 
 /** Word the page sits at in its slot: never zero, so an accessor that forgot the offset fails. */

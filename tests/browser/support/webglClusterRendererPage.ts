@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { WebglClusterRenderer } from '../../../packages/sdk-browser/webglClusterRenderer.ts';
-import * as host from '../../../packages/sdk-browser/cameraWorld.ts';
+import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
+import * as host from '../../../packages/sdk-browser/src/camera/world.ts';
 import { curvedComparison, planarWitness } from './webglClusterCurvedPage.ts';
 import { curvedOracleQuality } from './webglClusterOraclePage.ts';
 import { heldRestore } from './webglClusterRestorePage.ts';

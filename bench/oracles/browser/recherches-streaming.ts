@@ -1,5 +1,5 @@
 // Oracles of points G5 and G6, copied as-is before batch G.
-import type { Job } from '../../../packages/sdk-browser/streamingTypes.ts';
+import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts';
 
 /**
  * `streamingQueue.ts`: a request still in the queue, whose last consumer withdraws, was

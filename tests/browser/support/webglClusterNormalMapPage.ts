@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import type { ClusterDrawMesh } from '../../../packages/sdk-browser/clusterBatchMesh.ts';
-import type { WebglClusterRenderer } from '../../../packages/sdk-browser/webglClusterRenderer.ts';
-import type { HostDrawCamera } from '../../../packages/sdk-browser/cameraWorld.ts';
+import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
+import type { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
+import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { pixel as pixelType } from './webglClusterPixels.ts';
 
 /** A one-texel normal map storing the tangent-space normal `[r, g, b]` as bytes. */

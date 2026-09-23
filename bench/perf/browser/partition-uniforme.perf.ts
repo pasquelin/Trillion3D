@@ -3,9 +3,9 @@
 import {
   UNIFORM_U32,
   writeSplitDouble,
-} from '../../../packages/sdk-browser/gpuPartitionContract.ts';
-import { packPartitionUniform } from '../../../packages/sdk-browser/gpuPartitionUniform.ts';
-import type { PartitionFrame } from '../../../packages/sdk-browser/gpuPartitionUniform.ts';
+} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts';
+import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
+import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
 import { graine, mesure, rapport } from '../../core/index.ts';
 import {
   referencePartitionUniform,
@@ -46,7 +46,7 @@ const decompose =
 
 const mesureSplit = await mesure({
   name: 'split-double decomposition',
-  fichier: 'packages/sdk-browser/gpuPartitionContract.ts',
+  fichier: 'packages/sdk-browser/src/gpu/partition/contract.ts',
   cas: [
     {
       name: '50 000 doubles',
@@ -83,7 +83,7 @@ const words = new Uint32Array(UNIFORM_U32),
 
 const mesureUniforme = await mesure({
   name: 'partition uniform',
-  fichier: 'packages/sdk-browser/gpuPartitionUniform.ts',
+  fichier: 'packages/sdk-browser/src/gpu/partition/uniform.ts',
   cas: [
     { name: '12 Hi-Z levels', input: image(12), size: 1 },
     { name: '0 levels', input: image(0), size: 1 },

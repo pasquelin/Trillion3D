@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type * as THREE from 'three';
 import { creerEclairageTemoin } from '../bench/runner/pageTemoin.ts';
-import type { MeasuredWorld } from '../packages/sdk-browser/measurement.ts';
+import type { MeasuredWorld } from '../packages/sdk-browser/src/measurement/measurement.ts';
 
 const DOUCEUR = 0.02;
 

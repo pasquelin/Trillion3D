@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { AUTORISES, DECLARATION } from './moteur-sans-three-listes.ts';
+import { AUTORISES, DECLARATION, PUBLIC_FAMILIES } from './moteur-sans-three-listes.ts';
 
-const browser = new URL('../../packages/sdk-browser/', import.meta.url);
+const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
 const root = new URL('../../', import.meta.url);
 /** The benches of the browser package, keyed by their path from the repository root. */
 const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/'];
@@ -43,7 +43,9 @@ const TRAVERSE = /\basHostLibrary\s*[<(]/;
  *  measurement harness, whose oracles and scene mounts are written with the host library by
  *  design — they are what the engine is compared against. */
 const sources = async () =>
-  (await readdir(browser)).filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'));
+  (await readdir(browser, { recursive: true })).filter(
+    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts') && !PUBLIC_FAMILIES.test(name),
+  );
 
 /** Every source under `base`, keyed by its path from `base` behind `prefix`. */
 async function sousArbre(base: URL, prefix = ''): Promise<string[]> {
@@ -144,12 +146,12 @@ const COMPOSE_LA_CAMERA = [
   /\bupdateCameraFrame\b/,
 ];
 test('`cameraWorld.ts` remains the only translation from host camera to engine camera', async () => {
-  const texte = await readFile(new URL('cameraWorld.ts', browser), 'utf8');
+  const texte = await readFile(new URL('camera/world.ts', browser), 'utf8');
   assert.match(texte, /export type HostCamera = \{/);
   assert.match(texte, /export function readCameraWorld\(/);
   const secondes: string[] = [];
   for (const file of await sources()) {
-    if (file === 'cameraWorld.ts') continue;
+    if (file === 'camera/world.ts') continue;
     const code = sansCommentaires(await readFile(new URL(file, browser), 'utf8'));
     if (/\bHostCamera\b/.test(code) && COMPOSE_LA_CAMERA.some((motif) => motif.test(code)))
       secondes.push(file);
@@ -159,7 +161,7 @@ test('`cameraWorld.ts` remains the only translation from host camera to engine c
     [],
     'a host camera becomes an engine camera in `cameraWorld.ts` alone',
   );
-  const moteur = await readFile(new URL('engineCamera.ts', browser), 'utf8');
+  const moteur = await readFile(new URL('camera/engineCamera.ts', browser), 'utf8');
   for (const champ of ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'])
     assert.match(moteur, new RegExp(`\\b${champ}\\b`), champ);
 });

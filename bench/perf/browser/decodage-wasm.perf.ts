@@ -1,16 +1,16 @@
 // Rust/WebAssembly page decoder against JavaScript.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeGeometryPage } from '../../../packages/sdk-browser/geometryPage.ts';
-import type { DecodedGeometryPage } from '../../../packages/sdk-browser/geometryPage.ts';
+import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
+import type { DecodedGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 import {
   decodeGeometryPageWasm,
   prepareSdkWasm,
-} from '../../../packages/sdk-browser/geometryPageWasm.ts';
+} from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts';
 import { RACINE, mesure, stress, rapport } from '../../core/index.ts';
 import { page, pageForgee } from './support/pagesWasm.ts';
 
-const MODULE = join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm');
+const MODULE = join(RACINE, 'packages/sdk-browser/src/page/decode/pageCodec.wasm');
 const codec = await prepareSdkWasm(readFileSync(MODULE));
 if (!codec) throw new Error('H2B_WASM_ABSENT: run `pnpm run build:wasm`');
 
@@ -45,7 +45,7 @@ const tour =
 
 const resWasm = await mesure({
   name: 'page decode, wasm against JS',
-  fichier: 'packages/sdk-browser/geometryPageWasm.ts',
+  fichier: 'packages/sdk-browser/src/page/decode/geometryPageWasm.ts',
   cas: [
     { name: 'full page: 65 535 vertices, all attributes', input: [dense], size: 65535 },
     { name: '2 048 vertices, all attributes', input: [moyenne], size: 2048 },
@@ -59,7 +59,7 @@ const resWasm = await mesure({
 
 const resRefus = await mesure({
   name: 'page rejection, wasm against JS',
-  fichier: 'packages/sdk-browser/geometryPageWasm.ts',
+  fichier: 'packages/sdk-browser/src/page/decode/geometryPageWasm.ts',
   cas: [
     { name: 'index out of bounds', input: [horsBorne], size: 3 },
     { name: 'field wider than the format', input: [tropLarge], size: tropLarge.length },

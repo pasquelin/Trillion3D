@@ -10,11 +10,14 @@
 // bounds — tighter than the GPU's — rejects it too. In other words `nearest < far − bias` still
 // holds when everything is refused to the GPU: its error margin, its enlarged rectangle and its
 // coarser mip. Zero violations is the only acceptable value.
-import { HIZ_BOUNDS_VALUES, projectCornersInto } from '../../../packages/sdk-browser/hizCorners.ts';
-import { hizNearestBound } from '../../../packages/sdk-browser/hizNearestBound.ts';
-import { buildHizPyramid } from '../../../packages/sdk-browser/hizDepth.ts';
-import { hizRejectsFlat } from '../../../packages/sdk-browser/hizOcclusion.ts';
-import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/webgpuTransparentOcclusionAudit.ts';
+import {
+  HIZ_BOUNDS_VALUES,
+  projectCornersInto,
+} from '../../../packages/sdk-browser/src/hiz/corners.ts';
+import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.ts';
+import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts';
+import { hizRejectsFlat } from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
+import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
 /** Doubles of a world box in the `createBoxCorners` layout. */

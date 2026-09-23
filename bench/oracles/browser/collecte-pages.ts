@@ -1,26 +1,29 @@
 // Batch F oracles, loading side: `pageSelectionCollect.ts:34-153`, `explorerScene.ts:18-36` and
 // `explorerPageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
-import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   DAG_ERROR_MODEL,
   EngineError,
   primitiveUsesClusterErrors,
   type ClusterManifest,
 } from '../../../packages/sdk-core/src/index.ts';
-import type { BackendContext } from '../../../packages/sdk-browser/backendTypes.ts';
-import type { PageRec, ClusterRoot } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
-import { isTransmissive } from '../../../packages/sdk-browser/visibilityBuffer.ts';
+import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
+import type {
+  PageRec,
+  ClusterRoot,
+} from '../../../packages/sdk-browser/src/page/selection/types.ts';
+import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/buffer.ts';
 import {
   objects,
   streamPlacement,
   clusterErrorFields,
   cullingNodes,
-} from '../../../packages/sdk-browser/pageSelectionHelpers.ts';
-import { structureIndex } from '../../../packages/sdk-browser/pageSelectionStructure.ts';
-import { cullingBounds } from '../../../packages/sdk-browser/pageSelectionCutBounds.ts';
-import { indexPageRequests } from '../../../packages/sdk-browser/pageSelectionRequests.ts';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
+} from '../../../packages/sdk-browser/src/page/selection/helpers.ts';
+import { structureIndex } from '../../../packages/sdk-browser/src/page/selection/structure.ts';
+import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
+import { indexPageRequests } from '../../../packages/sdk-browser/src/page/selection/requests.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 
 type Primitive = ClusterManifest['primitives'][number];
 

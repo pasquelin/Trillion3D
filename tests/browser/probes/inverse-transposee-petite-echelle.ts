@@ -19,12 +19,12 @@
 // node --experimental-strip-types \
 //   tests/browser/probes/inverse-transposee-petite-echelle.ts
 import assert from 'node:assert/strict';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/gpuDagShader.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
 import {
   INVERSE_TRANSPOSE_BEFORE_WGSL,
   INVERSE_TRANSPOSE_WGSL,
-} from '../../../packages/sdk-browser/inverseTransposeWgsl.ts';
+} from '../../../packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
 import {
   vue,
   VIEWPORT,
@@ -47,7 +47,7 @@ const SHADER_AVANT = substitueFormeAvant({
   livre: INVERSE_TRANSPOSE_WGSL,
   before: INVERSE_TRANSPOSE_BEFORE_WGSL,
   name: 'DAG_SELECTION_SHADER (gpuDagShader.ts)',
-  origine: 'packages/sdk-browser/inverseTransposeWgsl.ts',
+  origine: 'packages/sdk-browser/src/math/inverseTransposeWgsl.ts',
   marqueur: 'abs(det)<1e-20',
 });
 

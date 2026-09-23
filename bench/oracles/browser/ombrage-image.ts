@@ -1,7 +1,7 @@
 // Pure A2 oracles, no side effects: `ombrage.bench.ts` measures them; unit tests import
 // them as reference.
 import * as THREE from 'three';
-import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/pageRaster.ts';
+import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts';
 import {
   attr2,
   backgroundRgb,
@@ -11,15 +11,18 @@ import {
   sampleLinear,
   sampleMap,
   triangleAt,
-} from '../../../packages/sdk-browser/visibilityMath.ts';
-import { shadeLit } from '../../../packages/sdk-browser/visibilityLighting.ts';
-import { unpackVisibilityId, type VisPage } from '../../../packages/sdk-browser/visibilityTypes.ts';
+} from '../../../packages/sdk-browser/src/visibility/math.ts';
+import { shadeLit } from '../../../packages/sdk-browser/src/visibility/shader/lighting.ts';
+import {
+  unpackVisibilityId,
+  type VisPage,
+} from '../../../packages/sdk-browser/src/visibility/types.ts';
 import {
   createEngineCamera,
   readCameraWorld,
   type EngineCamera,
-} from '../../../packages/sdk-browser/cameraWorld.ts';
-import type { DepthCamera } from '../../../packages/sdk-browser/depthConvention.ts';
+} from '../../../packages/sdk-browser/src/camera/world.ts';
+import type { DepthCamera } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
 
 /** The oracle compares per-frame caching, not the camera read: it copies the host
  *  camera as the frame input does, and shading reads the same. */

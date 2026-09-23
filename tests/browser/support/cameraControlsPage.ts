@@ -3,7 +3,7 @@
 // the explorer, the drawing, the pose reading — hangs off `globalThis.probe`, which the first
 // call installs. It owns one manual explorer, swaps the controller under test, keeps the image
 // of the pose a gesture starts from, and counts what differs once the gesture is undone.
-import type { MeasuredWorld } from '../../../packages/sdk-browser/measurement.ts';
+import type { MeasuredWorld } from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 
 type Controls = {
   object: { position: { x: number; y: number; z: number } };

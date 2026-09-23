@@ -20,7 +20,7 @@
 // off` on both sides, otherwise the measured delta first carries the shadows only the
 // engine draws.
 import * as THREE from 'three';
-import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/src/measurement/measurement.ts';
 import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 
 /** Physical inverse-square of the contract: `directIncidence` knows no other falloff. */

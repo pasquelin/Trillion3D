@@ -2,7 +2,7 @@
 // transformed box centre, radius inflated term by term, written in f32 at its place as the
 // pass does — and a lamp's screen coverage, square of its apparent angle over the half-field.
 import type { ShadowViewpoint } from '../../../packages/sdk-core/src/index.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 export function referenceClusterSphere(
   { matrix: { elements: e }, min, max }: Pick<PageRec, 'matrix' | 'min' | 'max'>,

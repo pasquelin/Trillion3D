@@ -16,9 +16,9 @@
 import {
   SELECTION_UNIFORM_BYTES,
   SELECTION_WORKGROUP,
-} from '../../../packages/sdk-browser/gpuSelection.ts';
-import { FRAME_VEC4 } from '../../../packages/sdk-browser/gpuDagTypes.ts';
-import { ESCALATION_ROUNDS } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+} from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { FRAME_VEC4 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import { ESCALATION_ROUNDS } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 export { DAG_LEVEL_WGSL_AVANT } from './coupe-lancements-wgsl.ts';
 
 /** What `ressourcesAvant` reads of the bench's packed scene: the same fields the shipped

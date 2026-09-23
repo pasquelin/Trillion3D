@@ -7,7 +7,7 @@ import { POINT_FACE_AXES } from '../../../../packages/sdk-core/src/scene/light-s
 import { FULL_FACE } from '../../../../packages/sdk-core/src/scene/light-shadow/volume.ts';
 import { BORDS, affines, matrices } from './scenesSocle.ts';
 import { pageRecFixture } from './pageRecFixture.ts';
-import type { PageRec } from '../../../../packages/sdk-browser/pageSelectionTypes.ts';
+import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
 
 const alea = graine(0xc0de5);
 const bord = () => BORDS[Math.floor(alea() * BORDS.length)];

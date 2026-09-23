@@ -5,10 +5,14 @@
 // batches already moved out of host — `matrixWindingCw`, `normalMatrix3` — remains as is on both
 // sides: this benchmark only proves vector algebra moved in this batch.
 import * as THREE from 'three';
-import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { matrixWindingCw, normalMatrix3 } from '../../../packages/sdk-core/src/index.ts';
-import { attr2, sampleLinear, triangleAt } from '../../../packages/sdk-browser/visibilityMath.ts';
-import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/visibilityTypes.ts';
+import {
+  attr2,
+  sampleLinear,
+  triangleAt,
+} from '../../../packages/sdk-browser/src/visibility/math.ts';
+import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 
 const normalScratch = new THREE.Matrix3();
 const frameNormals = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];

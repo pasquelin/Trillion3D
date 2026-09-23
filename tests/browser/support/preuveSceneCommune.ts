@@ -7,8 +7,8 @@ import type {
   BackendDiagnostic,
   BackendFactory,
   RenderBackend,
-} from '../../../packages/sdk-browser/backendTypes.ts';
-import { DAG } from '../../../packages/sdk-browser/pagesBackendFixture.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts';
+import { DAG } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
 import type {
   ClusterManifest,
   ClusterStructure,
@@ -87,7 +87,7 @@ export function batisseur() {
       source.updateMatrixWorld(true);
       // The identity fields (`schema`, `status`, `key`, `scope`, the triangle/node counts) are
       // not read by this rig; `DAG` and these placeholders are the same minimal manifest the
-      // engine's own scene fixtures use (`packages/sdk-browser/pagesBackendFixture.ts`).
+      // engine's own scene fixtures use (`packages/sdk-browser/src/backend/pagesBackend.fixture.ts`).
       const metadata: ClusterManifest = {
         ...DAG,
         schema: 1,

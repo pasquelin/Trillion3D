@@ -2,14 +2,14 @@
 // lighting constants — sun direction, length, ground colour, sky colour — are recomputed
 // and reallocated every pixel, and channels go through temporary arrays.
 import * as THREE from 'three';
-import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   attr2,
   sampleLinear,
   sampleMap,
   triangleAt,
-} from '../../../packages/sdk-browser/visibilityMath.ts';
-import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/visibilityTypes.ts';
+} from '../../../packages/sdk-browser/src/visibility/math.ts';
+import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 
 const normalScratch = new THREE.Matrix3();
 const frameNormals = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];

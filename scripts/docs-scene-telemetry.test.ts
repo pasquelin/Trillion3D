@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSceneTelemetry } from '../site/lessons/engine-scene/telemetry.ts';
 import { sceneCopy } from '../site/lessons/engine-scene/content.ts';
-import type { FrameMetrics, World } from '../packages/sdk-browser/index.ts';
+import type { FrameMetrics, World } from '../packages/sdk-browser/src/index.ts';
 
 // `telemetry.frame` only reads `world.budget`; cast at this boundary rather than modelling the
 // whole `World` surface.

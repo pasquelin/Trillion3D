@@ -2,7 +2,7 @@
 // still posable matrix, and the helper that moves it and its light together for the directional
 // translation proof.
 import * as THREE from 'three';
-import * as host from '../../../packages/sdk-browser/cameraWorld.ts';
+import * as host from '../../../packages/sdk-browser/src/camera/world.ts';
 import { drawMatrix } from './webglClusterPixels.ts';
 
 /** One triangle, basic-lit, as a `ClusterDrawMesh` batch record; its material kept apart, typed,

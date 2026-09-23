@@ -1,15 +1,15 @@
 // Defect 8: the material whose six maps do not share the same wrap mode, and the page row the
 // real `createPageRowWriter` writes for it. The GPU bench and the non-regression test both read
 // this fixture: one material exercised, hence one thing to reread when the modes change.
-import { importHostTexture } from '../../../packages/sdk-browser/hostSurfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
 import type { Texture } from '../../../packages/sdk-core/src/index.ts';
 import * as THREE from 'three';
-import { createPageRowWriter } from '../../../packages/sdk-browser/webgpuPageRow.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelection.ts';
-import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/visibilityTypes.ts';
-import { WRAP_MAP } from '../../../packages/sdk-browser/visibilityWrapModes.ts';
+import { createPageRowWriter } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts';
+import { WRAP_MAP } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 import { octetsTexture } from './adressageCas.ts';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 
 const {
   ClampToEdgeWrapping: SERRE,

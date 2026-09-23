@@ -3,11 +3,11 @@ import {
   HIZ_BOUNDS_VALUES,
   createBoxCorners,
   projectBoxesFlat,
-} from '../../../packages/sdk-browser/hiz.ts';
+} from '../../../packages/sdk-browser/src/hiz/hiz.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
 import { boites, camera } from './support/scenes.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import type { HizPage } from '../../../packages/sdk-browser/hizTypes.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import type { HizPage } from '../../../packages/sdk-browser/src/hiz/types.ts';
 
 const LARGEUR = 640,
   HAUTEUR = 360;
@@ -43,7 +43,7 @@ const jeux = [
 
 const resCoins = await mesure({
   name: 'world-space corners of the Hi-Z cut',
-  fichier: ['packages/sdk-browser/hizUnoccluded.ts', 'packages/sdk-browser/hizSplit.ts'],
+  fichier: ['packages/sdk-browser/src/hiz/unoccluded.ts', 'packages/sdk-browser/src/hiz/split.ts'],
   cas: jeux,
   calcul: (e) => {
     projectBoxesFlat(e.pages, e.pages.length, cameraMoteur(cam), viewport, e.avecCache);

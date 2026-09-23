@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
-import { WebglClusterRenderer } from '../../../packages/sdk-browser/webglClusterRenderer.ts';
-import type { ClusterDrawMesh } from '../../../packages/sdk-browser/clusterBatchMesh.ts';
+import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
+import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import {
   createHostDrawCamera,
   readHostDrawCamera,
-} from '../../../packages/sdk-browser/cameraWorld.ts';
+} from '../../../packages/sdk-browser/src/camera/world.ts';
 
 export function pixel(gl: WebGL2RenderingContext, x = 16, y = 16): number[] {
   const value = new Uint8Array(4);

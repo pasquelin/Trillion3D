@@ -6,9 +6,9 @@
 // from. The reference is recomputed on those same inputs and the two are compared
 // cluster by cluster (`partitionReference.ts`).
 
-import type * as SdkBrowser from '../../../packages/sdk-browser/measurement.ts';
+import type * as SdkBrowser from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/backendTypes.ts';
+import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { compareAudit, emptyTotals } from './partitionReference.ts';
 import { checkOcclusionAudit, emptyOcclusionTotals } from './transparentOcclusionReference.ts';
 

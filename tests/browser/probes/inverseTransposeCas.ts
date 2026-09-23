@@ -11,17 +11,17 @@ import {
   coneCullsPageWith,
   createConeContext,
   triangleCone,
-} from '../../../packages/sdk-browser/pageCone.ts';
+} from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import {
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/gpuDagSelection.ts';
-import { selectVisiblePages } from '../../../packages/sdk-browser/pageSelectionCut.ts';
-import type { NormalCone } from '../../../packages/sdk-browser/pageCone.ts';
-import type { DagRoot } from '../../../packages/sdk-browser/gpuDagTypes.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
+import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
+import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import { poseMonde } from './normaleEclairageCas.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 
 type Vec3T = [number, number, number];
 interface Boite {

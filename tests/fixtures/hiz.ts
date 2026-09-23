@@ -1,14 +1,14 @@
-import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
+import { surfaceOf } from '../../packages/sdk-browser/src/page/surface.ts';
 import * as THREE from 'three';
-import type { VisPage } from '../../packages/sdk-browser/visibilityBuffer.ts';
-import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
-import type { EngineCamera } from '../../packages/sdk-browser/cameraWorld.ts';
+import type { VisPage } from '../../packages/sdk-browser/src/visibility/buffer.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts';
 import {
   HIZ_BOUNDS_VALUES,
   projectBoxesFlat,
   type HizBounds,
   type HizPage,
-} from '../../packages/sdk-browser/hiz.ts';
+} from '../../packages/sdk-browser/src/hiz/hiz.ts';
 
 export function cameraAt(z = 5, near = 0.1) {
   const cam = new THREE.PerspectiveCamera(55, 1, near, 100);

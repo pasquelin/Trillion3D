@@ -3,7 +3,7 @@
 // to "geometry"; a `null` duration leaves its stage unmeasured, a truncated or missing sample
 // deposits nothing.
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
-import type { StageAdd } from '../../../packages/sdk-browser/stageProfiler.ts';
+import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts';
 
 const ETAPE_DE: Record<string, string> = {
   'WG DAG selection': 'selection',

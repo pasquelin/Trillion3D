@@ -20,7 +20,7 @@ test('cisaillement-transform.browser.ts and cone-echelle-non-uniforme.browser.ts
     const texte = await readFile(new URL(fichier, navigateur), 'utf8');
     assert.match(
       texte,
-      /import \{ cameraMoteur \} from '(?:\.\.\/)+packages\/sdk-browser\/cameraFixture\.ts'/,
+      /import \{ cameraMoteur \} from '(?:\.\.\/)+packages\/sdk-browser\/src\/camera\/camera\.fixture\.ts'/,
       `${fichier} must import cameraMoteur`,
     );
     const appels = texte.match(/cameraSelectionUniforms\(\s*cameraMoteur\(/g) ?? [];
@@ -75,7 +75,7 @@ test('`vue` (inverseTransposeCas.ts) is indeed cameraMoteur(camera), not raw hos
   );
   assert.match(
     texte,
-    /import \{ cameraMoteur \} from '(?:\.\.\/)+packages\/sdk-browser\/cameraFixture\.ts'/,
+    /import \{ cameraMoteur \} from '(?:\.\.\/)+packages\/sdk-browser\/src\/camera\/camera\.fixture\.ts'/,
   );
   assert.match(texte, /export const vue = cameraMoteur\(camera\);/);
 });

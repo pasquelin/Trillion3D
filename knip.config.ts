@@ -7,9 +7,9 @@ const config: KnipConfig = {
   entry: [
     'site/app/main.tsx',
     'site/demos/engine.ts',
-    'packages/sdk-browser/pageDecodeWorker.ts',
-    'packages/sdk-browser/pageIntegrationWorker.ts',
-    'packages/sdk-node/{index,cli}.mts',
+    'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
+    'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
+    'packages/sdk-node/src/index.mts',
     'packages/sdk/{index,browser,node}.{ts,mts}',
     'scripts/generate-sdk-facade.ts',
     'packages/page-codec/geometryPage.ts',
@@ -26,7 +26,7 @@ const config: KnipConfig = {
     'bench/runner/pageThreeLod.ts',
     'bench/runner/pageMesure.ts',
     // The measurement entry: served as `measurement.js` and imported by URL by those pages.
-    'packages/sdk-browser/measurement.ts',
+    'packages/sdk-browser/src/measurement/measurement.ts',
     // Full campaign and its report, launched manually.
     'bench/runner/campagne.ts',
     'bench/runner/rapportGlobal.ts',

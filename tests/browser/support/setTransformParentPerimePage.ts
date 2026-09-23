@@ -4,7 +4,7 @@
 // so the only way the engine can see that change is the resolution it does itself before
 // inverting the parent's matrix (`resolveHostNode`, in `setWebgpuTransform`).
 import * as THREE from 'three';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { cameraFace, libere, engine } from './preuveSceneCommune.ts';
 import { difference, image, redCount } from './preuveSceneImage.ts';
 import { executerPasses } from './preuveAppareil.ts';

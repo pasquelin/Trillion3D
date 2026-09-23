@@ -1,5 +1,8 @@
 import type * as THREE from 'three';
-import { dagFixture, wideCamera } from '../../packages/sdk-browser/pageSelectionDagFixture.ts';
+import {
+  dagFixture,
+  wideCamera,
+} from '../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
 
 /** Four leaves, two mid clusters, one root; the root bundle is pinned, the rest follows. */
 export function fixture() {

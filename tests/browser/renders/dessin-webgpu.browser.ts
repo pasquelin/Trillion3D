@@ -12,10 +12,13 @@ import {
   drawBindEntries,
   evaluateDrawCompact,
   indirectForDraw,
-} from '../../../packages/sdk-browser/gpuDraw.ts';
-import { VIS_SHADER, PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/visibilityBuffer.ts';
-import { VIS_BINDINGS } from '../../../packages/sdk-browser/webgpuBindLayout.ts';
-import type { DrawItem } from '../../../packages/sdk-browser/gpuDraw.ts';
+} from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
+import {
+  VIS_SHADER,
+  PAGE_INFO_STRIDE,
+} from '../../../packages/sdk-browser/src/visibility/buffer.ts';
+import { VIS_BINDINGS } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
+import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
 
 const cap = 192,
   maxVertexCount = 3;

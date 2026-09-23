@@ -1,5 +1,5 @@
 /**
- * Verbatim body of the `DRAW_SHADER` template literal from `packages/sdk-browser/gpuDrawShader.ts`
+ * Verbatim body of the `DRAW_SHADER` template literal from `packages/sdk-browser/src/gpu/draw/shader.ts`
  * at commit 5ae3b83, the last commit to touch that file before the coplanar depth layers landed.
  *
  * A versioned fixture replaces a `git show` at test time: once the layers are merged, `develop`

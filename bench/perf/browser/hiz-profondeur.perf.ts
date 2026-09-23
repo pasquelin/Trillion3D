@@ -1,13 +1,13 @@
 // Absolute Hi-Z measurement: visbuffer depth and rectangle occlusion test. No oracle here:
 // these two computations have no prior implementation to confront; their correctness is held by
 // `hizDepth.test.ts` and `hizOcclusion.test.ts`. Each line says so rather than staying silent.
-import { hizTestRect } from '../../../packages/sdk-browser/hizOcclusion.ts';
-import { visibilityDepth } from '../../../packages/sdk-browser/hizDepth.ts';
-import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
+import { hizTestRect } from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
+import { visibilityDepth } from '../../../packages/sdk-browser/src/hiz/depth.ts';
+import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
 import { camera, coupe, rectangles, type SceneRect } from './support/scenes.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import type { VisPage } from '../../../packages/sdk-browser/visibilityTypes.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import type { VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 
 const image = (largeur: number, hauteur: number, pages: VisPage[]) => {
   const cam = camera(6, 0.1, largeur / hauteur),
@@ -19,7 +19,7 @@ const pages = coupe({ pages: 900, triangles: 48 });
 // ── Mesure visibilityDepth ───────────────────────────────────────────
 const depthResult = await mesure({
   name: 'visibilityDepth',
-  fichier: 'packages/sdk-browser/hizDepth.ts',
+  fichier: 'packages/sdk-browser/src/hiz/depth.ts',
   cas: [
     { name: '320×180 900p', input: image(320, 180, pages), size: 320 * 180 },
     { name: '64×36 no pages', input: image(64, 36, []), size: 64 * 36 },
@@ -46,7 +46,7 @@ const parcours = (rectangles_: SceneRect[]) => {
 
 const hizResult = await mesure({
   name: 'hizTestRect',
-  fichier: 'packages/sdk-browser/hizOcclusion.ts',
+  fichier: 'packages/sdk-browser/src/hiz/occlusion.ts',
   cas: [
     { name: '20k rects 12 niveaux', input: rects, size: rects.length },
     { name: 'no rectangles', input: [], size: 0 },

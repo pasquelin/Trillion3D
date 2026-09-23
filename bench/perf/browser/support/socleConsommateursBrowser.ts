@@ -3,12 +3,15 @@
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three';
 import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts';
-import { orderPendingUrls } from '../../../../packages/sdk-browser/streamingPriority.ts';
-import { linearToSrgb8 } from '../../../../packages/sdk-browser/visibilityMath.ts';
-import { projectVisibilityVertex } from '../../../../packages/sdk-browser/visibilityProjection.ts';
-import { setWindingEpoch, windingCw } from '../../../../packages/sdk-browser/webgpuPagesWinding.ts';
-import { noteResidenceChange } from '../../../../packages/sdk-browser/webgpuShadowBounds.ts';
-import { createWebgpuLightState } from '../../../../packages/sdk-browser/webgpuPagesStateLights.ts';
+import { orderPendingUrls } from '../../../../packages/sdk-browser/src/streaming/priority.ts';
+import { linearToSrgb8 } from '../../../../packages/sdk-browser/src/visibility/math.ts';
+import { projectVisibilityVertex } from '../../../../packages/sdk-browser/src/visibility/projection.ts';
+import {
+  setWindingEpoch,
+  windingCw,
+} from '../../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts';
+import { noteResidenceChange } from '../../../../packages/sdk-browser/src/webgpu/shadow/bounds.ts';
+import { createWebgpuLightState } from '../../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts';
 import { pageRecFixture } from './pageRecFixture.ts';
 import * as ancien from '../../../oracles/browser/socle-math.ts';
 import { referenceOrder } from '../../../oracles/browser/socle-math-priorite.ts';
@@ -18,8 +21,8 @@ import { essaie, ligne } from './socleLigne.ts';
 import {
   createEngineCamera,
   readCameraWorld,
-} from '../../../../packages/sdk-browser/cameraWorld.ts';
-import type { PageRec } from '../../../../packages/sdk-browser/pageSelectionTypes.ts';
+} from '../../../../packages/sdk-browser/src/camera/world.ts';
+import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
 
 // One light, so `store.count` holds and `noteResidenceChange` actually notes a change; its
 // scheduler's `representationChanged` is replaced per case below to capture the bounds it is
@@ -53,7 +56,7 @@ export async function lignesConsommateursBrowser() {
   return [
     await ligne(
       'streaming queue: rendered order',
-      'packages/sdk-browser/streamingPriority.ts',
+      'packages/sdk-browser/src/streaming/priority.ts',
       'hostile records, in batches of 30',
       paquets,
       (l) => l.map((p) => essaie(() => referenceOrder(p, camera, echelle))),
@@ -61,7 +64,7 @@ export async function lignesConsommateursBrowser() {
     ),
     await ligne(
       'world-space cluster sphere for shadows',
-      'packages/sdk-browser/webgpuShadowBounds.ts',
+      'packages/sdk-browser/src/webgpu/shadow/bounds.ts',
       'poses × boxes',
       liste,
       (l) =>
@@ -82,7 +85,7 @@ export async function lignesConsommateursBrowser() {
     ),
     await ligne(
       'winding order of a cluster',
-      'packages/sdk-browser/webgpuPagesWinding.ts',
+      'packages/sdk-browser/src/webgpu/pages/render/winding.ts',
       'hostile matrices',
       matrices,
       (l) => l.map((e) => ancien.referenceWindingCw(e)),
@@ -94,7 +97,7 @@ export async function lignesConsommateursBrowser() {
     ),
     await ligne(
       'projected vertex of the visibility buffer',
-      'packages/sdk-browser/visibilityProjection.ts',
+      'packages/sdk-browser/src/visibility/projection.ts',
       'poses × view-projections × vertices',
       affines.slice(0, 60),
       (l) =>
@@ -130,7 +133,7 @@ export async function lignesConsommateursBrowser() {
     ),
     await ligne(
       'sRGB: byte table and 8-bit encoding',
-      'packages/sdk-browser/visibilityMath.ts',
+      'packages/sdk-browser/src/visibility/math.ts',
       '256 bytes and hostile values',
       octets,
       (l) =>

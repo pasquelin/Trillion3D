@@ -3,13 +3,13 @@
 import {
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
-} from '../../../packages/sdk-browser/visibilityBuffer.ts';
+} from '../../../packages/sdk-browser/src/visibility/buffer.ts';
 import {
   ROW_ID_BASE_WORD,
   ROW_HIZ_SLOT_WORD,
-} from '../../../packages/sdk-browser/webgpuPageRow.ts';
-import { createWebgpuRowJournal } from '../../../packages/sdk-browser/webgpuRowJournal.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+} from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
+import { createWebgpuRowJournal } from '../../../packages/sdk-browser/src/webgpu/row/journal.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 /** A row writer exactly as `webgpuPageRow.ts` types it: `createWebgpuRowCommit`'s own signature
  *  in the fixture that mounts both sides requires this exact shape. The corner count a row draws

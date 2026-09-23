@@ -1,12 +1,15 @@
 // what a frame used to rebuild for no reason.
 import * as THREE from 'three';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
-import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';
-import { surfaceColorAttachments } from '../../../packages/sdk-browser/webgpuPagesAttachments.ts';
-import { anneauFroid } from '../../../packages/sdk-browser/explorerDraw.ts';
-import { deplaceInstance } from '../../../packages/sdk-browser/autonomousInstances.ts';
-import type { SurfaceBuffer } from '../../../packages/sdk-browser/surfaceBuffer.ts';
-import type { PageRec, ClusterRoot } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
+import { surfaceColorAttachments } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/attachments.ts';
+import { anneauFroid } from '../../../packages/sdk-browser/src/world/render/draw.ts';
+import { deplaceInstance } from '../../../packages/sdk-browser/src/backend/autonomous/instances.ts';
+import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts';
+import type {
+  PageRec,
+  ClusterRoot,
+} from '../../../packages/sdk-browser/src/page/selection/types.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
 import {
   referenceAnneauFroid,
@@ -135,7 +138,7 @@ const streamer = {
 
 const resAttachments = await mesure({
   name: 'surface attachments',
-  fichier: 'packages/sdk-browser/webgpuPagesEncodeVisSetup.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/pages/render/encodeVisSetup.ts',
   cas: [
     { name: '2 000 frames without resize', input: imagesSurfaces, size: 2000 },
     { name: 'resizes and a disposed target', input: redimensionnee, size: 7 },
@@ -147,7 +150,7 @@ const resAttachments = await mesure({
 
 const resInstance = await mesure({
   name: 'instance displacement',
-  fichier: 'packages/sdk-browser/autonomousInstances.ts',
+  fichier: 'packages/sdk-browser/src/backend/autonomous/instances.ts',
   cas: [
     { name: '5 000 pages', input: grosseInstance, size: 5000 },
     { name: '100 pages', input: petiteInstance, size: 100 },
@@ -166,7 +169,7 @@ const resInstance = await mesure({
 
 const resAnneau = await mesure({
   name: 'view-frame ring',
-  fichier: 'packages/sdk-browser/explorerDraw.ts',
+  fichier: 'packages/sdk-browser/src/world/render/draw.ts',
   cas: [
     {
       name: '10 000 addresses, batch of 64',

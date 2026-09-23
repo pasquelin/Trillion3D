@@ -2,11 +2,11 @@
 // them as reference. Importing this module runs neither a bench nor a file write.
 import * as THREE from 'three';
 import { perspectiveProjection } from '../../../packages/sdk-core/src/index.ts';
-import { DEPTH_CLEAR } from '../../../packages/sdk-browser/depthConvention.ts';
-import { HIZ_KERNEL_TEXELS } from '../../../packages/sdk-browser/hizCounts.ts';
-import { projectVisibilityVertex } from '../../../packages/sdk-browser/visibilityProjection.ts';
-import { unpackVisibilityId } from '../../../packages/sdk-browser/visibilityTypes.ts';
-import type { VisPage } from '../../../packages/sdk-browser/visibilityBuffer.ts';
+import { DEPTH_CLEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
+import { HIZ_KERNEL_TEXELS } from '../../../packages/sdk-browser/src/hiz/counts.ts';
+import { projectVisibilityVertex } from '../../../packages/sdk-browser/src/visibility/projection.ts';
+import { unpackVisibilityId } from '../../../packages/sdk-browser/src/visibility/types.ts';
+import type { VisPage } from '../../../packages/sdk-browser/src/visibility/buffer.ts';
 
 const viewProjScratch = new THREE.Matrix4(),
   projScratch = new THREE.Matrix4();

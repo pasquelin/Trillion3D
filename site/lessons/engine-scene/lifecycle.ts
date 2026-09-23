@@ -3,7 +3,7 @@ import { createSceneTelemetry } from './telemetry.ts';
 import { configureSceneCamera } from './cameraControls.ts';
 import { createLightingControls } from './lightingControls.ts';
 import { addSceneFillLight } from '../sceneFillLight.ts';
-import type { World } from '../../../packages/sdk-browser/index.ts';
+import type { World } from '../../../packages/sdk-browser/src/index.ts';
 import { isDiagnosticMode } from './diagnosticModes.ts';
 import type { SceneCopy } from './content.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -74,7 +74,7 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
         math,
         pose,
         light: lightFamily,
-      } = await import('../../../packages/sdk-browser/index.ts');
+      } = await import('../../../packages/sdk-browser/src/index.ts');
       if (disposed) return;
       const created = createWorld(canvas, {
         pixelRatio: window.devicePixelRatio,

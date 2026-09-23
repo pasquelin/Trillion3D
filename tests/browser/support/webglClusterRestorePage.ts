@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { WebglClusterOwner } from '../../../packages/sdk-browser/webglClusterOwner.ts';
-import { createFrameComposer } from '../../../packages/sdk-browser/explorerCompose.ts';
-import { prepareExplorerWebglSurface } from '../../../packages/sdk-browser/explorerWebglHost.ts';
-import { baseCapabilities } from '../../../packages/sdk-browser/backendCommon.ts';
-import type { HostDrawCamera } from '../../../packages/sdk-browser/cameraWorld.ts';
+import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
+import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
+import { prepareExplorerWebglSurface } from '../../../packages/sdk-browser/src/world/render/webglHost.ts';
+import { baseCapabilities } from '../../../packages/sdk-browser/src/backend/common.ts';
+import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 
 const readPixel = (gl: WebGL2RenderingContext) => {

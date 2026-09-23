@@ -1,12 +1,12 @@
 // preparing normal cones and the page catalogue.
 import * as THREE from 'three';
-import { prepareCones } from '../../../packages/sdk-browser/webgpuPagesPrepare.ts';
+import { prepareCones } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts';
 import {
   compteMateriauxEtTangentes,
   indexSourceBytes,
-} from '../../../packages/sdk-browser/webgpuPagesCatalogue.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
-import type { WebgpuPagesRuntime } from '../../../packages/sdk-browser/webgpuPagesRuntime.ts';
+} from '../../../packages/sdk-browser/src/webgpu/pages/io/catalogue.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
+import type { WebgpuPagesRuntime } from '../../../packages/sdk-browser/src/webgpu/pages/runtime.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
   entreeCones,
@@ -60,7 +60,7 @@ const casPages = [
 
 const resCones = await mesure({
   name: 'page normal cones',
-  fichier: 'packages/sdk-browser/webgpuPagesPrepare.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts',
   cas: casPages,
   calcul: passeCones(prepareCones),
   attendu: passeCones(referencePrepareCones),
@@ -69,7 +69,7 @@ const resCones = await mesure({
 
 const resOctets = await mesure({
   name: 'source-byte table',
-  fichier: 'packages/sdk-browser/webgpuPagesCatalogue.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/pages/io/catalogue.ts',
   cas: casPages,
   calcul: indexSourceBytes,
   attendu: referenceIndexSourceBytes,
@@ -78,7 +78,7 @@ const resOctets = await mesure({
 
 const resDiagnostic = await mesure({
   name: 'texture diagnostic counters',
-  fichier: 'packages/sdk-browser/webgpuPagesCatalogue.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/pages/io/catalogue.ts',
   cas: [
     { name: '20 000 pages, 4 000 blocks', input: { pages, blocs }, size: 24000 },
     { name: 'no blocks', input: { pages: unePage, blocs: blocVide }, size: 1 },

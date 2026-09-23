@@ -10,7 +10,7 @@
 //
 // node --experimental-strip-types tests/browser/renders/reflexion-face-eliminee.browser.ts
 import assert from 'node:assert/strict';
-import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
+import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { decisionCpu, vue } from '../probes/inverseTransposeCas.ts';
 import { tousLesCas } from '../probes/inverseTransposeEchantillon.ts';
 import { chargeRaster, pageVisible, VUE } from '../probes/reflexionCas.ts';

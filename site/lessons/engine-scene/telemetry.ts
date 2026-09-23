@@ -1,4 +1,4 @@
-import type { FrameMetrics, World } from '../../../packages/sdk-browser/index.ts';
+import type { FrameMetrics, World } from '../../../packages/sdk-browser/src/index.ts';
 import type { SceneCopy } from './content.ts';
 import type { Locale } from '../../content/locale.ts';
 

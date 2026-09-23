@@ -34,7 +34,7 @@ for (const scene of scenes) {
     resultats.push(
       await mesure({
         name: `orders and arguments — ${scene.name}, ${regime}`,
-        fichier: 'packages/sdk-browser/webgpuBlendDraw.ts',
+        fichier: 'packages/sdk-browser/src/webgpu/blend/draw.ts',
         cas: casDe(images),
         calcul: scene.tourApres,
         attendu: scene.tourAvant,
@@ -44,7 +44,7 @@ for (const scene of scenes) {
     resultats.push(
       await mesure({
         name: `CPU fallback — ${scene.name}, ${regime}`,
-        fichier: 'packages/sdk-browser/webgpuBlendExpandCpu.ts',
+        fichier: 'packages/sdk-browser/src/webgpu/blend/expandCpu.ts',
         cas: casDe(images),
         calcul: scene.tourApresSeq,
         attendu: scene.tourAvantSeq,

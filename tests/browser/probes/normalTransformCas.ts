@@ -1,7 +1,7 @@
 // Cases on which `xformNormal` (NORMAL_TRANSFORM_WGSL, standardLighting.ts) is probed:
 // ordinary on one side — a world pose, a local normal, the true world normal in f64 —,
 // singular on the other, flattened then collapsed. The same list serves the no-GPU
-// arithmetic test (`packages/sdk-browser/normalTransform.test.ts`) and running the shipped
+// arithmetic test (`packages/sdk-browser/src/math/normalTransform.test.ts`) and running the shipped
 // shader in Chromium (`tests/browser/renders/normal-transform-arithmetique.browser.ts`): the f32
 // model and the real shader answer on the SAME inputs, or else agreement between them
 // would mean nothing.

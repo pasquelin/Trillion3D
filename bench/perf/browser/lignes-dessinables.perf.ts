@@ -1,11 +1,11 @@
 // the drawable-row table.
 import * as THREE from 'three';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
-import { createWebgpuRowState } from '../../../packages/sdk-browser/webgpuRowState.ts';
-import { createWebgpuRowCommit } from '../../../packages/sdk-browser/webgpuRowCommit.ts';
-import { createWebgpuRowSync } from '../../../packages/sdk-browser/webgpuRowSync.ts';
-import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/visibilityTypes.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { createWebgpuRowState } from '../../../packages/sdk-browser/src/webgpu/row/state.ts';
+import { createWebgpuRowCommit } from '../../../packages/sdk-browser/src/webgpu/row/commit.ts';
+import { createWebgpuRowSync } from '../../../packages/sdk-browser/src/webgpu/row/sync.ts';
+import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceRowCommit, referenceRowState } from '../../oracles/browser/lignes-dessinables.ts';
 
@@ -130,7 +130,7 @@ const cas = [
 
 const resLignes = await mesure({
   name: 'drawable-row table',
-  fichier: 'packages/sdk-browser/webgpuRowCommit.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/row/commit.ts',
   cas,
   calcul: passe(createWebgpuRowCommit),
   attendu: passe(referenceRowCommit),
@@ -160,7 +160,7 @@ const rangs =
 
 const resRangs = await mesure({
   name: 'rank of a catalogue page',
-  fichier: 'packages/sdk-browser/webgpuRowState.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/row/state.ts',
   cas: [
     { name: '20 000 requests, 10% outside the catalogue', input: demandes, size: demandes.length },
     { name: 'a single page', input: [pagesF5[0]], size: 1 },

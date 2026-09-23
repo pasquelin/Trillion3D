@@ -2,7 +2,7 @@
 // a real reread image. A transmissive tile in front of an opaque ground, or of nothing, rendered
 // through the water pass and read at its centre; nothing internal is inspected.
 import * as THREE from 'three';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import {
   VIEWPORT,
   batisseur,
@@ -15,7 +15,7 @@ import {
 import { difference, image } from './preuveSceneImage.ts';
 import { ouvrirAppareil } from '../probes/appareilWebgpu.ts';
 import { BACKGROUND, CASES, GROUND, WATER, type WaterCase } from './waterPassCases.ts';
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/backendTypes.ts';
+import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 
 function scene(pagine: boolean, kase: WaterCase): ScenePreparee {
   const bati = batisseur();

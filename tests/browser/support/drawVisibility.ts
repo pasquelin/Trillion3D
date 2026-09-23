@@ -1,5 +1,5 @@
 import type { ComputeSetup } from './drawCompute.ts';
-import type { AtlasBindings } from '../../../packages/sdk-browser/webgpuBindLayout.ts';
+import type { AtlasBindings } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
 
 /** Binding numbers the WGSL interpolates from `VIS_BINDINGS` (`webgpuBindLayout.ts`). */
 export interface VisBindings {

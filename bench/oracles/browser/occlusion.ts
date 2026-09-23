@@ -2,10 +2,17 @@
 // import them as reference.
 import * as THREE from 'three';
 import { perspectiveProjection } from '../../../packages/sdk-core/src/index.ts';
-import { HIZ_BOUNDS_VALUES, projectBoxInto } from '../../../packages/sdk-browser/hizCorners.ts';
-import { hizOversized, type HizCounts } from '../../../packages/sdk-browser/hizCounts.ts';
-import { hizRejects } from '../../../packages/sdk-browser/hizOcclusion.ts';
-import type { HizBounds, HizPage, HizPyramid } from '../../../packages/sdk-browser/hizTypes.ts';
+import {
+  HIZ_BOUNDS_VALUES,
+  projectBoxInto,
+} from '../../../packages/sdk-browser/src/hiz/corners.ts';
+import { hizOversized, type HizCounts } from '../../../packages/sdk-browser/src/hiz/counts.ts';
+import { hizRejects } from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
+import type {
+  HizBounds,
+  HizPage,
+  HizPyramid,
+} from '../../../packages/sdk-browser/src/hiz/types.ts';
 
 const viewProjScratch = new THREE.Matrix4(),
   projScratch = new THREE.Matrix4();

@@ -134,7 +134,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       'node displacement: parent⁻¹ · world, then TRS',
-      'packages/sdk-browser/webgpuPagesTransform.ts',
+      'packages/sdk-browser/src/webgpu/pages/render/transform.ts',
       'paires hostiles',
       paires,
       (l) =>
@@ -150,7 +150,7 @@ async function lignesOperations(): Promise<Mesure[]> {
     ),
     await ligne(
       "pose de repos de l'observation : base⁻¹ · monde, puis base · repos",
-      'packages/sdk-browser/lightingObservationMeshes.ts',
+      'packages/sdk-browser/src/lighting/observation/meshes.ts',
       'paires hostiles',
       paires,
       (l) =>

@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
+import { PUBLIC_FAMILIES } from './moteur-sans-three-listes.ts';
 
-const browser = new URL('../../packages/sdk-browser/', import.meta.url);
+const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
 
 // COMPUTATION BOUNDARY OF LOADING AND EXPLORER (M4a batch).
 // Engine numbers are computed by `sdk-core`, never by the host 3D library: same formulas,
@@ -14,46 +15,46 @@ const browser = new URL('../../packages/sdk-browser/', import.meta.url);
 
 /** Batch files: scene loading, explorer, and their contracts. */
 const M4A = [
-  'awaitBackendPages',
-  'backendCommon',
-  'backendTypes',
-  'exactPagesBounds',
-  'explorerBackends',
-  'explorerCamera',
-  'explorerCameraApi',
-  'explorerCapabilities',
-  'explorerCapture',
-  'explorerDisposeSource',
-  'explorerDraw',
-  'explorerHostState',
-  'explorerLifecycle',
-  'explorerOptions',
-  'explorerPrepare',
-  'explorerRender',
-  'explorerRenderFallback',
-  'explorerScene',
-  'explorerSceneApi',
-  'explorerViewportApi',
-  'hostGraphObjects',
-  'hostSceneHookCore',
-  'hostSceneHooks',
-  'hostSceneScan',
-  'hostSceneWatch',
-  'hostWorldBounds',
-  'hostWorldChain',
-  'hostWorldMatrices',
-  'hostWorldPlacements',
-  'hostWorldPose',
-  'hostWorldTree',
-  'pageSelectionCollect',
-  'pageSelectionHelpers',
-  'pagesBackendScenes',
-  'replicateInstances',
-  'sceneMeshes',
-  'webgpuGeometryPrepare',
-  'webgpuPagesPrepare',
-  'webgpuPagesSetup',
-  'webgpuPresentationSetup',
+  'backend/awaitBackendPages',
+  'backend/common',
+  'backend/types',
+  'backend/exact/bounds',
+  'world/session/backends',
+  'world/camera/camera',
+  'world/api/cameraApi',
+  'world/session/capabilities',
+  'world/capture/capture',
+  'world/session/disposeSource',
+  'world/render/draw',
+  'world/render/hostState',
+  'world/session/lifecycle',
+  'world/session/options',
+  'world/session/prepare',
+  'world/render/render',
+  'world/render/renderFallback',
+  'world/scene/scene',
+  'world/api/sceneApi',
+  'world/api/viewportApi',
+  'host/scene/graphObjects',
+  'host/scene/hookCore',
+  'host/scene/hooks',
+  'host/scene/scan',
+  'host/scene/watch',
+  'host/world/bounds',
+  'host/world/chain',
+  'host/world/matrices',
+  'host/world/placements',
+  'host/world/pose',
+  'host/world/tree',
+  'page/selection/collect',
+  'page/selection/helpers',
+  'backend/pagesBackendScenes.fixture',
+  'scene/replicateInstances',
+  'scene/meshes',
+  'webgpu/core/geometryPrepare',
+  'webgpu/pages/prepare/prepare',
+  'webgpu/pages/prepare/setup',
+  'webgpu/frame/presentationSetup',
 ].map((nom) => `${nom}.ts`);
 
 /** Host library COMPUTATION methods and constructors, replaced by core. */
@@ -80,14 +81,14 @@ const CALCULS = [
 
 /** File -> exact line -> why this line is a host boundary and not a computation. */
 const FRONTIERE: Record<string, Record<string, string>> = {
-  'hostWorldMatrices.ts': {
+  'host/world/matrices.ts': {
     'node.updateMatrixWorld(true);':
       'the scene belongs to the host: it stays up to date FOR IT, and the engine no longer reads it',
   },
-  'explorerCamera.ts': {
+  'world/camera/camera.ts': {
     'camera.updateMatrixWorld();': 'the host SETS its camera; the written pose is resolved once',
   },
-  'hostGraphObjects.ts': {
+  'host/scene/graphObjects.ts': {
     'new THREE.Box3(':
       '`explorer.bounds` is returned to the host: the bench computes its trajectory from it',
     'new THREE.Vector3(flat[0], flat[1], flat[2]),': 'low bound of this box returned to the host',
@@ -95,13 +96,13 @@ const FRONTIERE: Record<string, Record<string, string>> = {
     'new THREE.Vector3(x, y, z);':
       '`explorer.center` and the home offset, returned to the host whose controls aim at them',
   },
-  'explorerCameraApi.ts': {
+  'world/api/cameraApi.ts': {
     'camera.updateMatrixWorld();': 'return to the home pose: the host camera, reset',
   },
-  'explorerHostState.ts': {
+  'world/render/hostState.ts': {
     'camera.updateMatrixWorld();': 'the host restores a recorded pose into its camera',
   },
-  'explorerViewportApi.ts': {
+  'world/api/viewportApi.ts': {
     'view.updateMatrixWorld();': 'the capture view is a host camera, set then resolved',
   },
 };
@@ -150,7 +151,7 @@ const CALCULE_UNE_MATRICE =
 
 /** Witness files are written with host library: rule does not target them. */
 const TEMOINS =
-  /^(?:referenceBackend|threeLod|threeBounds|exactPages|autonomous|clusterBatch|blendCopyMesh|comparison|lightingObservation)/;
+  /^(?:backend\/(?:referenceBackend|exact\/|autonomous\/)|host\/three\/(?:lod|bounds)|cluster\/(?:batch|blendCopyMesh)|measurement\/comparison|lighting\/observation\/(?!experimentBackend))/;
 
 /** File -> exact line -> why it SETS a host matrix instead of computing one. Empty since the
  *  second capture view became the host camera itself, read at the aspect ratio of the surface
@@ -160,8 +161,8 @@ const TEMOINS =
 const ECRIT_L_HOTE: Record<string, Record<string, string>> = {};
 
 test('engine reads the host matrix, it does not compute with it', async () => {
-  const fichiers = (await readdir(browser)).filter(
-    (nom) => nom.endsWith('.ts') && !nom.endsWith('.test.ts'),
+  const fichiers = (await readdir(browser, { recursive: true })).filter(
+    (nom) => nom.endsWith('.ts') && !nom.endsWith('.test.ts') && !PUBLIC_FAMILIES.test(nom),
   );
   assert.ok(fichiers.length > 100, 'the browser package must be found');
   const fuites: string[] = [],

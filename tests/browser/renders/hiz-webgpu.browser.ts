@@ -4,12 +4,12 @@ import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { HIZ_SHADER, hizBindEntries } from '../../../packages/sdk-browser/gpuHiz.ts';
+import { HIZ_SHADER, hizBindEntries } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts';
 import {
   STATE_WORDS,
   ST_TESTED,
   TESTED_U32,
-} from '../../../packages/sdk-browser/gpuPartitionContract.ts';
+} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts';
 import { BOX_NEAREST, cases, height, width } from '../support/hizCas.ts';
 import { executerHiz } from './hizWebgpuPage.ts';
 
@@ -42,7 +42,7 @@ const browser = await launchChrome({ headless: true });
 const report: HizReport = {
   version: 1,
   startedAt: new Date().toISOString(),
-  shader: 'packages/sdk-browser/gpuHiz.ts',
+  shader: 'packages/sdk-browser/src/gpu/hiz/hiz.ts',
   shaderSha256: createHash('sha256').update(HIZ_SHADER).digest('hex'),
   width,
   height,

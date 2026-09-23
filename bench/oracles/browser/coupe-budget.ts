@@ -2,7 +2,7 @@
 // Unit tests import them to check that the zero-threshold paths yield the exact same
 // decision, and that the shared distance does not change a bit.
 import { clusterErrorPixels } from '../../../packages/sdk-core/src/index.ts';
-import type { ClusterCut } from '../../../packages/sdk-browser/pageSelectionMath.ts';
+import type { ClusterCut } from '../../../packages/sdk-browser/src/page/selection/math.ts';
 
 /** Bound-array offsets read at fixed slots, as `pageSelectionCutBounds.ts` lays them out. */
 interface BoundSlots {

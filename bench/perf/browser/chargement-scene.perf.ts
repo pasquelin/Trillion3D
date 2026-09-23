@@ -1,13 +1,13 @@
 // loading a scene.
 import * as THREE from 'three';
-import { collectClusterPages } from '../../../packages/sdk-browser/pageSelectionCollect.ts';
-import { exactPagesBounds } from '../../../packages/sdk-browser/exactPagesBounds.ts';
+import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts';
+import { exactPagesBounds } from '../../../packages/sdk-browser/src/backend/exact/bounds.ts';
 import {
   indexManifestBundles,
   indexManifestPages,
-} from '../../../packages/sdk-browser/manifestPageIndex.ts';
+} from '../../../packages/sdk-browser/src/scene/manifestPageIndex.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 import { referenceCollectClusterPages } from '../../oracles/browser/collecte-pages.ts';
 import {
   referenceExactPagesBounds,
@@ -132,7 +132,7 @@ const cas = [
 
 const resCollect = await mesure({
   name: 'cluster page collection',
-  fichier: 'packages/sdk-browser/pageSelectionCollect.ts',
+  fichier: 'packages/sdk-browser/src/page/selection/collect.ts',
   cas,
   calcul: passeCollect(collectClusterPages),
   attendu: passeCollect(referenceCollectClusterPages),
@@ -141,7 +141,7 @@ const resCollect = await mesure({
 
 const resBounds = await mesure({
   name: 'exact page bounds',
-  fichier: 'packages/sdk-browser/exactPagesBounds.ts',
+  fichier: 'packages/sdk-browser/src/backend/exact/bounds.ts',
   cas,
   calcul: passeBounds(exactPagesBounds),
   attendu: passeBounds(referenceExactPagesBounds),
@@ -150,7 +150,7 @@ const resBounds = await mesure({
 
 const resIndex = await mesure({
   name: 'manifest indexing',
-  fichier: 'packages/sdk-browser/manifestPageIndex.ts',
+  fichier: 'packages/sdk-browser/src/scene/manifestPageIndex.ts',
   cas: [
     { name: '2 400 pages', input: grande.metadata, size: 2400 },
     { name: 'one page', input: petite.metadata, size: 1 },

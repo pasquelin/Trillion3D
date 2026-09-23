@@ -1,6 +1,6 @@
 //! Decoder of a `WGP3` geometry page — quantized cluster geometry —, exact mirror of
-//! `packages/sdk-browser/geometryPage.ts` and of the WGSL routines of
-//! `packages/sdk-browser/clusterDecodeWgsl.ts`.
+//! `packages/sdk-browser/src/page/decode/geometryPage.ts` and of the WGSL routines of
+//! `packages/sdk-browser/src/cluster/decodeWgsl.ts`.
 //!
 //! The same code serves two hosts: the native compiler, which encodes with the format's own
 //! definitions (`bits.rs`) and proves that what it writes rereads identically, and the

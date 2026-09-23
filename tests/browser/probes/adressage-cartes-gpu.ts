@@ -8,8 +8,8 @@
 // Blocking: any bit-for-bit discrepancy off a period seam, and on the seam any read that
 // departs from the exact rule by more than half a level in 255.
 import type * as THREE from 'three';
-import { wrapOf } from '../../../packages/sdk-browser/visibilityWrapModes.ts';
-import { ROW_WRAP_MODES_WORD } from '../../../packages/sdk-browser/webgpuPageRow.ts';
+import { wrapOf } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
+import { ROW_WRAP_MODES_WORD } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
 import { ADRESSE, regleNormalisee, surCouture, TOLERANCE } from './adressageCas.ts';
 import { executerDansChromium, MELANGE, NUANCEUR_PRISES } from './adressageGpuPage.ts';
 import { CARTES, ligneDePageMelangee, TEXTURE, UV } from './adressageCartes.ts';

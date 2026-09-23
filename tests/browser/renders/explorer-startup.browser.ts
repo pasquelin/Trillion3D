@@ -9,12 +9,12 @@ import { resolve } from 'node:path';
 import { startServer, serverPort } from '../../kit/server/serveur.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { buildSite, SITE_OUTPUT } from '../../../scripts/docs/site.ts';
-import type { MeasuredWorld } from '../../../packages/sdk-browser/measurement.ts';
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/backendTypes.ts';
+import type { MeasuredWorld } from '../../../packages/sdk-browser/src/measurement/measurement.ts';
+import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 
 declare global {
   var framesRequested: number;
-  var sdk: typeof import('../../../packages/sdk-browser/measurement.ts');
+  var sdk: typeof import('../../../packages/sdk-browser/src/measurement/measurement.ts');
   var diagnostics: BackendDiagnostic[];
   var explorer: MeasuredWorld;
 }

@@ -2,7 +2,7 @@
 import type {
   MeasuredWorldOptions,
   MeasuredWorldTarget,
-} from '../../../packages/sdk-browser/measurement.ts';
+} from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 
 export async function startupTargets() {
   const { openMeasuredWorld, createMeasuredWorldJob, webgpuPagesBackend } = window.sdk;

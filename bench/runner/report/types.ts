@@ -7,7 +7,7 @@ import type {
   FrameMetrics,
   StageProfile,
 } from '../../../packages/sdk-core/src/index.ts';
-import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/index.ts';
+import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/index.ts';
 import type { Distribution, PassesGpu } from '../rapportPasses.ts';
 import type { BenchSettings } from '../options.ts';
 import type { Bounds } from '../poses.ts';

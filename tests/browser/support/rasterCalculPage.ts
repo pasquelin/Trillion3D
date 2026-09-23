@@ -10,7 +10,7 @@
 // rules can differ by one pixel. The band is read on an image the compute has not
 // touched: a stray triangle in the middle of the background or a crack in the middle of a
 // tile fall outside the band, and count.
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { ouvrirAppareil } from '../probes/appareilWebgpu.ts';
 import { VIEWPORT, cameraFace, libere, engine } from './preuveSceneCommune.ts';
 import { image } from './preuveSceneImage.ts';
@@ -19,8 +19,8 @@ import type {
   BackendContext,
   BackendDiagnostic,
   RenderBackend,
-} from '../../../packages/sdk-browser/backendTypes.ts';
-import type { DiagnosticGpuVariant } from '../../../packages/sdk-browser/diagnosticGpuVariant.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts';
+import type { DiagnosticGpuVariant } from '../../../packages/sdk-browser/src/diagnostic/gpuVariant.ts';
 
 const estFond = (pixels: Uint8Array, i: number): boolean =>
   pixels[i] === 0 && pixels[i + 1] === 0 && pixels[i + 2] === 0;

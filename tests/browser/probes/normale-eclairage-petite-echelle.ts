@@ -11,11 +11,11 @@
 // node --experimental-strip-types \
 //   tests/browser/probes/normale-eclairage-petite-echelle.ts
 import assert from 'node:assert/strict';
-import { NORMAL_TRANSFORM_WGSL } from '../../../packages/sdk-browser/standardLighting.ts';
+import { NORMAL_TRANSFORM_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts';
 import {
   INVERSE_TRANSPOSE_BEFORE_WGSL,
   INVERSE_TRANSPOSE_WGSL,
-} from '../../../packages/sdk-browser/inverseTransposeWgsl.ts';
+} from '../../../packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
 import { campagne, construireCas, ecart, luminance } from './normaleEclairageCas.ts';
 import type { CasNormale } from './normaleEclairageCas.ts';
 import { eclairageGpu } from './normaleEclairageGpu.ts';
@@ -29,7 +29,7 @@ const AVANT = substitueFormeAvant({
   livre: INVERSE_TRANSPOSE_WGSL,
   before: INVERSE_TRANSPOSE_BEFORE_WGSL,
   name: 'NORMAL_TRANSFORM_WGSL (standardLighting.ts)',
-  origine: 'packages/sdk-browser/inverseTransposeWgsl.ts',
+  origine: 'packages/sdk-browser/src/math/inverseTransposeWgsl.ts',
   marqueur: 'abs(det)<1e-20',
 });
 

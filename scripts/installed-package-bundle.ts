@@ -46,7 +46,8 @@ export function emitInstalledBrowserBundle({
 }: BrowserModesOptions): EmittedBrowserBundle {
   const outputRoot = join(fixture, 'browser-output');
   const packageRoot = join(fixture, 'node_modules', packageName);
-  const resourceRoot = join(packageRoot, 'dist/sdk-browser');
+  const decodeRoot = join(packageRoot, 'dist/sdk-browser/src/page/decode');
+  const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/page/integration');
   const explorer = join(fixture, 'explorer.ts');
   const metafile = join(outputRoot, 'metafile.json');
   mkdirSync(outputRoot, { recursive: true });
@@ -59,8 +60,8 @@ export function emitInstalledBrowserBundle({
     bundler,
     [
       explorer,
-      join(resourceRoot, 'pageDecodeWorker.js'),
-      join(resourceRoot, 'pageIntegrationWorker.js'),
+      join(decodeRoot, 'pageDecodeWorker.js'),
+      join(integrationRoot, 'pageIntegrationWorker.js'),
       '--bundle',
       '--format=esm',
       '--platform=browser',
@@ -72,7 +73,7 @@ export function emitInstalledBrowserBundle({
     ],
     fixture,
   );
-  const wasm = join(resourceRoot, 'pageCodec.wasm');
+  const wasm = join(decodeRoot, 'pageCodec.wasm');
   for (const { path } of filesAt(outputRoot))
     if (
       path.endsWith('.js') &&

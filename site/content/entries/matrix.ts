@@ -99,7 +99,8 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
     description:
       "`out = transpose(inverse(3×3 block of m))` on nine numbers, column-major: the matrix that carries the normals of a surface transformed by `m`, shear and non-uniform scale included. The inverse is the reference one, cofactors and product order included, then transposed with no floating-point operation. **On a singular matrix it writes the adjugate, undivided**, not the reference's zero matrix: a singular pose does not erase a surface, it flattens it onto a plane, and the adjugate applied to a local normal *is* the cross product of the transformed edges, sign included — every consumer then normalises. Only a zero, infinite or NaN scale is written apart, as nine zeros.",
     replaces: 'Matrix3.getNormalMatrix',
-    proof: 'the same rule as the WGSL kernel in packages/sdk-browser/inverseTransposeWgsl.ts',
+    proof:
+      'the same rule as the WGSL kernel in packages/sdk-browser/src/math/inverseTransposeWgsl.ts',
   },
   {
     ...SING,

@@ -7,15 +7,18 @@
 import type {
   BackendDiagnostic,
   RenderBackend,
-} from '../../../packages/sdk-browser/backendTypes.ts';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
-import { dagFixture, wideCamera } from '../../../packages/sdk-browser/pageSelectionDagFixture.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
+import {
+  dagFixture,
+  wideCamera,
+} from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
 import { ouvrirAppareil } from '../probes/appareilWebgpu.ts';
 
 const IMAGES = 30;
 
 /** `RenderBackend` does not declare `cpuFrameEnd` publicly; the object `webgpuPagesBackend`
- *  returns still carries it (`packages/sdk-browser/webgpuPages.ts`). Read here through a local
+ *  returns still carries it (`packages/sdk-browser/src/webgpu/pages/pages.ts`). Read here through a local
  *  extension of the public type rather than widening it in the engine. */
 interface BackendAvecCpuFrameEnd extends RenderBackend {
   cpuFrameEnd?(): void;

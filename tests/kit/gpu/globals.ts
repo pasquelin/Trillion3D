@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/gpuDagLayout.ts';
-import { BASE_SLOTS, PAGE_BIND_ALIGN } from '../../../packages/sdk-browser/gpuDraw.ts';
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import { BASE_SLOTS, PAGE_BIND_ALIGN } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
 import type { MockDraw } from './mockEncoder.ts';
 
 /**
@@ -58,7 +58,7 @@ export function bytesOf(data: BufferSource, dataOffset = 0, size?: number) {
 
 /**
  * Replays the compaction the GPU does of draw flags: the count, then the ranks of drawable pages in
- * increasing order, like the kernels of `../../../packages/sdk-browser/gpuDagCompactWgsl.ts`. It extends the sample, behind the
+ * increasing order, like the kernels of `../../../packages/sdk-browser/src/gpu/dag/shader/compactWgsl.ts`. It extends the sample, behind the
  * wanted pages, in the same buffer.
  */
 export function compactDrawnPages(

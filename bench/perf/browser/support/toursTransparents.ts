@@ -3,16 +3,16 @@
 // Each scene has its own: a lap shared between two scenes is a polymorphic call site, and
 // the timer pays for it. Likewise, each loop is in the function where the engine holds it —
 // a loop written inline in the lap slows the others, at strictly identical work.
-import { orderBlendPasses } from '../../../../packages/sdk-browser/webgpuBlendOrder.ts';
+import { orderBlendPasses } from '../../../../packages/sdk-browser/src/webgpu/blend/order.ts';
 import {
   expandBlendPlan,
   itemKept,
-} from '../../../../packages/sdk-browser/webgpuBlendExpandCpu.ts';
+} from '../../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts';
 import {
   RUN_SHARED,
   RUN_WORDS,
   runOwner,
-} from '../../../../packages/sdk-browser/webgpuBlendRuns.ts';
+} from '../../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
 import { pose, spans, type BenchItem, type BenchSide, type Frame } from './scenesTransparents.ts';
 import {
   argumentsReference,

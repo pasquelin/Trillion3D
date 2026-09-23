@@ -6,9 +6,9 @@ import type {
   GeometryPageDescriptor,
   Page,
 } from '../../../packages/sdk-core/src/index.ts';
-import type { BackendContext } from '../../../packages/sdk-browser/backendTypes.ts';
-import { meshes as objects } from '../../../packages/sdk-browser/sceneMeshes.ts';
-import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';
+import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
+import { meshes as objects } from '../../../packages/sdk-browser/src/scene/meshes.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 
 /** A manifest page whose optional `geometry` descriptor is present. */
 type PageWithGeometry = Page & { geometry: GeometryPageDescriptor };

@@ -1,8 +1,8 @@
 // Runs in the browser through Playwright serialization: one explorer per case, the image kept
 // on `window` so two cases of the same context can be compared pixel for pixel (#274).
 import type { FrameMetrics, SceneLight } from '../../../packages/sdk-core/src/index.ts';
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/backendTypes.ts';
-import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/measurement.ts';
+import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
+import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 
 export type DefaultBackendCase = {
   manifestUrl: string;

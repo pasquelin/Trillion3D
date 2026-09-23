@@ -20,7 +20,7 @@ import { adjugateFactor } from './singular.ts';
  * itself, and the normal comes out zero with no special case writing it. A zero, infinite
  * or NaN scale is the only case written apart: nine zeros, because a NaN term is not fixed
  * by multiplying it. This is the engine convention, the same as the WGSL kernel in
- * `packages/sdk-browser/inverseTransposeWgsl.ts`, where it is written in full; the reference
+ * `packages/sdk-browser/src/math/inverseTransposeWgsl.ts`, where it is written in full; the reference
  * returns zero on every singular matrix and loses the surface.
  */
 export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>, outOffset = 0) {

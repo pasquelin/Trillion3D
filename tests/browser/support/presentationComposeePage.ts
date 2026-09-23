@@ -4,7 +4,7 @@
 // a texture and a material of a rendering library. What is checked here is the copy itself:
 // every channel goes through unchanged, and the rows come out in the convention the SDK
 // publishes — the first row read is the last row presented.
-import { createSynchronousCanvasCapture } from '../../../packages/sdk-browser/gpuPresentation.ts';
+import { createSynchronousCanvasCapture } from '../../../packages/sdk-browser/src/gpu/core/presentation.ts';
 import { createChecks, type CheckRecord } from './presentationChecks.ts';
 
 const WIDTH = 64,

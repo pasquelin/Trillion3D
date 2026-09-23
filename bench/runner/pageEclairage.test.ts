@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measureView } from './pageEclairage.ts';
 import type { MeasureViewOptions } from './mesureOptions.ts';
-import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/src/measurement/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 
 /** The fake SDK that `measureView` imports by URL: a `openMeasuredWorld` returning the mock set

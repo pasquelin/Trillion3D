@@ -36,7 +36,7 @@ test('Missing/incomparable evidence and memory pressure cannot enable optimizati
   assert.match(p.getDecision().reason, /memory budget/);
 });
 test('WebGL probing matches production attributes, loses the probe context, and does not touch WebGPU', async () => {
-  const { detectCapabilities } = await import('../../../sdk-browser/index.ts');
+  const { detectCapabilities } = await import('../../../sdk-browser/src/index.ts');
   let gpuCalls = 0,
     hostCalls = 0,
     probeCalls = 0,

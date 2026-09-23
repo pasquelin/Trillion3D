@@ -1,0 +1,106 @@
+import type { BatchPage } from './batchRange.ts';
+import { BatchGroup } from './batchPrimitive.ts';
+import { ClusterDrawMesh } from './batchMesh.ts';
+import { groupForPage } from './batchLayers.ts';
+import type { ClusterBatchStats } from './batches.ts';
+
+const bySourceOrder = (a: BatchPage, b: BatchPage) =>
+  (a.sourceOrder ?? a.id) - (b.sourceOrder ?? b.id);
+const byDrawOrder = (a: BatchGroup, b: BatchGroup) =>
+  Number(a.transparent) - Number(b.transparent) ||
+  a.sample!.renderOrder - b.sample!.renderOrder ||
+  a.layer - b.layer;
+
+type BatchUpdateState = {
+  groups: Array<BatchGroup | undefined>;
+  /** Twin batches of coplanar layers, by `renderOrder` then by layer. */
+  layerGroups: Array<Map<number, BatchGroup> | undefined>;
+  active: BatchGroup[];
+  touched: BatchGroup[];
+  stats: ClusterBatchStats;
+  indexCapacityBytes: number;
+  attributeBytes: number;
+};
+
+/** Updates the sub-draws and the draw records without copying the indices. */
+export function updateClusterBatches(state: BatchUpdateState, display: readonly BatchPage[]) {
+  const touched = state.touched;
+  touched.length = 0;
+  for (let i = 0; i < display.length; i++) {
+    const rec = display[i];
+    if (!rec.array) continue;
+    // A cluster of a coplanar layer above 0 joins the twin batch that carries the bias.
+    const group = groupForPage(state.groups, state.layerGroups, rec);
+    if (!group) continue;
+    const urlIndex = group.primitive.urlIndexByPage[rec.id];
+    if (urlIndex < 0) continue;
+    const slot = group.primitive.slots[urlIndex];
+    if (!slot) continue;
+    if (!group.touched) {
+      group.touched = true;
+      group.ranges.reset();
+      group.triangles = 0;
+      group.pendingCount = 0;
+      group.sample = rec;
+      touched.push(group);
+    }
+    if (group.transparent) {
+      group.pending[group.pendingCount++] = rec;
+      continue;
+    }
+    group.ranges.push(slot.offset, slot.length);
+    group.triangles += rec.triangles;
+  }
+  // Transparent groups keep source order: multi-draw draws the ranges in the given order.
+  for (let i = 0; i < touched.length; i++) {
+    const group = touched[i];
+    if (!group.transparent) continue;
+    const pending = group.pending;
+    pending.length = group.pendingCount;
+    // The cut almost always already arrives in source order: checking it costs a walk,
+    // sorting it costs a sort per transparent group and per frame.
+    let ordered = true;
+    for (let k = 1; k < pending.length && ordered; k++)
+      if (bySourceOrder(pending[k - 1], pending[k]) > 0) ordered = false;
+    if (!ordered) pending.sort(bySourceOrder);
+    for (let k = 0; k < pending.length; k++) {
+      const rec = pending[k];
+      const slot = group.primitive.slots[group.primitive.urlIndexByPage[rec.id]]!;
+      group.ranges.push(slot.offset, slot.length);
+      group.triangles += rec.triangles;
+    }
+  }
+  let draws = 0,
+    subDraws = 0,
+    triangles = 0;
+  for (let i = 0; i < touched.length; i++) {
+    const group = touched[i];
+    group.touched = false;
+    const sample = group.sample!;
+    let mesh = group.mesh;
+    if (!mesh)
+      mesh = group.mesh = new ClusterDrawMesh(
+        group.primitive.geometry,
+        sample.declaration,
+        group.ranges,
+        sample.renderOrder,
+        group.polygonOffsetUnits,
+      );
+    else mesh.material = sample.declaration;
+    mesh.matrix.elements.set(sample.matrix.elements);
+    // Arrays are reused; their identity changes only when they had to grow.
+    mesh._multiDrawStarts = group.ranges.starts;
+    mesh._multiDrawCounts = group.ranges.counts;
+    mesh._multiDrawCount = group.ranges.count;
+    draws++;
+    subDraws += group.ranges.count;
+    triangles += group.triangles;
+  }
+  touched.sort(byDrawOrder);
+  state.touched = state.active;
+  state.active = touched;
+  state.stats.drawCalls = draws;
+  state.stats.subDraws = subDraws;
+  state.stats.submittedTriangles = triangles;
+  state.stats.allocationBytes = state.indexCapacityBytes + state.attributeBytes;
+}

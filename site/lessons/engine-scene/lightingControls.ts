@@ -1,4 +1,4 @@
-import type { Light } from '../../../packages/sdk-browser/index.ts';
+import type { Light } from '../../../packages/sdk-browser/src/index.ts';
 import type { SceneCopy } from './content.ts';
 
 export function createLightingControls(

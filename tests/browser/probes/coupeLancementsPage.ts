@@ -12,19 +12,19 @@
  * therefore measures the WHOLE SEQUENCE of a frame, never an isolated kernel, and alternates
  * variants so thermal drift falls on both sides.
  */
-import { createDagResources } from '../../../packages/sdk-browser/gpuDagResources.ts';
-import { encodeDagKernels } from '../../../packages/sdk-browser/gpuDagEncode.ts';
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/gpuDagPack.ts';
+import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts';
+import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
 import * as THREE from 'three';
 import {
   cameraSelectionUniforms,
   SELECTION_UNIFORM_BYTES,
-} from '../../../packages/sdk-browser/gpuSelection.ts';
-import { writeDagUniforms } from '../../../packages/sdk-browser/gpuDagUniforms.ts';
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/gpuDagLayout.ts';
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/gpuDagShader.ts';
-import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/gpuDagLevelWgsl.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+} from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
+import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import {
   DAG_LEVEL_WGSL_AVANT,
   encodeAvant,

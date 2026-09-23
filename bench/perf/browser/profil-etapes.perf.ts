@@ -1,13 +1,16 @@
 // per-stage profile breakdown, done every frame: CPU bounds deposited on their
 // stages, and GPU passes read by their label.
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
-import { addCpuSteps } from '../../../packages/sdk-browser/stageCpuSteps.ts';
-import { addGpuPasses, directLightTimings } from '../../../packages/sdk-browser/stageMapping.ts';
-import type { StageAdd } from '../../../packages/sdk-browser/stageProfiler.ts';
+import { addCpuSteps } from '../../../packages/sdk-browser/src/stage/cpuSteps.ts';
+import {
+  addGpuPasses,
+  directLightTimings,
+} from '../../../packages/sdk-browser/src/stage/mapping.ts';
+import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts';
 import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
-} from '../../../packages/sdk-browser/webgpuPagesCpuSteps.ts';
+} from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuSteps.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
   referenceAddCpuSteps,
@@ -33,7 +36,7 @@ const depose =
 
 const mesureCpu = await mesure({
   name: 'CPU bounds per stage',
-  fichier: 'packages/sdk-browser/stageCpuSteps.ts',
+  fichier: 'packages/sdk-browser/src/stage/cpuSteps.ts',
   cas: [
     { name: `${NB_BORNES} bounds × 200 frames`, input: lignes(200), size: 200 * NB_BORNES },
     { name: 'no frames', input: [], size: 0 },
@@ -76,7 +79,7 @@ const sansEchantillon: (GpuPassTimings | null)[] = [null];
 
 const mesureGpu = await mesure({
   name: 'GPU passes per stage',
-  fichier: 'packages/sdk-browser/stageMapping.ts',
+  fichier: 'packages/sdk-browser/src/stage/mapping.ts',
   cas: [
     { name: '200 samples of 22 passes', input: releves(200, 22), size: 200 * 22 },
     { name: 'truncated sample', input: echantillonTronque, size: 1 },
@@ -88,7 +91,7 @@ const mesureGpu = await mesure({
 
 const mesureEclairage = await mesure({
   name: 'direct-lighting durations',
-  fichier: 'packages/sdk-browser/stageMapping.ts',
+  fichier: 'packages/sdk-browser/src/stage/mapping.ts',
   cas: [{ name: '1 000 samples', input: releves(1000, 11), size: 1000 }],
   calcul: (input: GpuPassTimings[]) => input.map(directLightTimings),
   attendu: (input: GpuPassTimings[]) => input.map(referenceDirectLightTimings),

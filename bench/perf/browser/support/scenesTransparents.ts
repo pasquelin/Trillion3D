@@ -6,11 +6,11 @@ import * as THREE from 'three';
 import {
   createWebgpuBlendState,
   type BlendGpuItem,
-} from '../../../../packages/sdk-browser/webgpuBlendState.ts';
+} from '../../../../packages/sdk-browser/src/webgpu/blend/state.ts';
 import {
   buildBlendStatics,
   refreshBlendPlan,
-} from '../../../../packages/sdk-browser/webgpuBlendPlan.ts';
+} from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts';
 import { graine } from '../../../core/index.ts';
 import { planReference } from '../../../oracles/browser/transparents-ordres.ts';
 

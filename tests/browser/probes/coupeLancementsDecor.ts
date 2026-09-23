@@ -1,13 +1,16 @@
 // Set dressing of the dispatch measurement: the measured scene, the median, and the command
 // count an encode opens. Split from the page so each of the two keeps its responsibility.
 import * as THREE from 'three';
-import { packDagSelection } from '../../../packages/sdk-browser/gpuDagPack.ts';
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
 import {
   dagRecords,
   residentBase,
   residentWords,
-} from '../../../packages/sdk-browser/gpuDagLayout.ts';
-import { scenePages, sceneRoots } from '../../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import {
+  scenePages,
+  sceneRoots,
+} from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
 
 /** The scene: a pyramid of levels, one pose, every page resident, front view. The hierarchy is
  *  the compiler's, one node per detail tier under the root. */

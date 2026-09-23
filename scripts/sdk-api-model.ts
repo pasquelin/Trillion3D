@@ -6,8 +6,8 @@ import { repositoryFiles } from './repository-files.ts';
 export const ROOT = resolve(import.meta.dirname, '..');
 export const ENTRIES = {
   core: 'packages/sdk-core/src/index.ts',
-  browser: 'packages/sdk-browser/index.ts',
-  node: 'packages/sdk-node/index.mts',
+  browser: 'packages/sdk-browser/src/index.ts',
+  node: 'packages/sdk-node/src/index.mts',
 } as const;
 export type ExportEntry = keyof typeof ENTRIES;
 export type ExportKind = 'value' | 'type' | 'both';

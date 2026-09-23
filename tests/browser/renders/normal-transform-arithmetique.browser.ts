@@ -1,6 +1,6 @@
 // What ties `xformNormal`'s f32 model to the shader actually executed.
 //
-// `packages/sdk-browser/normalTransform.test.ts` probes lighting-normal transform
+// `packages/sdk-browser/src/math/normalTransform.test.ts` probes lighting-normal transform
 // arithmetic on an f32 MODEL (`tests/browser/probes/inverseTransposeF32.ts`), without GPU:
 // it catches a regression in `pnpm test`, but a model is a second implementation,
 // free to drift from the shipped text unseen. This file closes the loop: the engine's

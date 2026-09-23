@@ -1,8 +1,8 @@
 // Batch F oracles, frame side: `webgpuPagesEncodeVis.ts:93-98`, `autonomousInstances.ts:76-86`,
 // and `explorerDraw.ts:72-74` from before batch F, copied as-is.
 import type * as THREE from 'three';
-import type { SurfaceBuffer } from '../../../packages/sdk-browser/surfaceBuffer.ts';
-import { createPageStreamer } from '../../../packages/sdk-browser/streamingPages.ts';
+import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts';
+import { createPageStreamer } from '../../../packages/sdk-browser/src/streaming/pages.ts';
 
 /** A page or root as the instance oracle mutates it: only `matrix`/`mesh`/`world` are read or
  *  written, never the rest of `PageRec`/`ClusterRoot`. */

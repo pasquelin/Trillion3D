@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
+import { PUBLIC_FAMILIES } from './moteur-sans-three-listes.ts';
 const core = new URL('../../packages/sdk-core/src/', import.meta.url);
-const browser = new URL('../../packages/sdk-browser/', import.meta.url);
+const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
 test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
   const files = (await readdir(core, { recursive: true })).filter(
     (name) => name.endsWith('.ts') && !name.endsWith('.test.ts') && !name.endsWith('.fixture.ts'),
@@ -23,7 +24,7 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
   }
 });
 
-// THE CAMERA POSE CONTRACT BOUNDARY (`packages/sdk-browser/cameraWorld.ts`).
+// THE CAMERA POSE CONTRACT BOUNDARY (`packages/sdk-browser/src/camera/world.ts`).
 //
 // The engine does not own the camera: the host hands it over, and it may be the child of a rig
 // that nobody else ascends. A module that resolves the pose itself, or reads a LOCAL camera pose,
@@ -33,25 +34,26 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
 
 /** Who is allowed to RESOLVE a world pose, and for which subject. */
 const RESOLVENT: Record<string, string> = {
-  'cameraWorld.ts': 'the contract itself: the package’s only camera-pose resolution',
-  'sceneLighting.ts': 'light target, not a camera',
-  'webgpuPagesTransform.ts': 'scene subtree moved by the host, not a camera',
+  'camera/world.ts': 'the contract itself: the package’s only camera-pose resolution',
+  'lighting/sceneLighting.ts': 'light target, not a camera',
+  'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
 };
 
 /** Who is allowed to touch a LOCAL camera pose, or resolve it via a Three accessor. */
 const POSE_LOCALE: Record<string, string> = {
-  'cameraWorld.ts': 'the contract: it is what translates local pose into world pose',
-  'explorerCamera.ts': 'the host POSES its camera; the local pose is what it writes',
-  'cameraControlPose.ts': 'the camera-controller boundary: a controller writes a local pose',
-  'explorerCameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
-  'explorerHostState.ts': 'the host restores the local pose it had recorded',
-  'gpuDagOraclePredicates.ts': 'the oracle POSES a parentless camera from a world position',
-  'pageSelectionDagFixture.ts': 'test scene builder: it poses the camera',
-  'pageSelectionBlendFixture.ts': 'test scene builder: it poses the camera',
-  'visibilityBufferFixture.ts': 'test scene builder: it poses the camera',
-  'webgpuCutRepriseFixture.ts': 'test scene builder: it poses the camera',
-  'pagesBackendScenes.ts': 'test scene builder: it poses the camera',
-  'webgpuPagesTestScenes.ts': 'test scene builder: it poses the camera',
+  'camera/world.ts': 'the contract: it is what translates local pose into world pose',
+  'world/camera/camera.ts': 'the host POSES its camera; the local pose is what it writes',
+  'camera/controls/controlPose.ts':
+    'the camera-controller boundary: a controller writes a local pose',
+  'world/api/cameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
+  'world/render/hostState.ts': 'the host restores the local pose it had recorded',
+  'gpu/dag/oracle/predicates.ts': 'the oracle POSES a parentless camera from a world position',
+  'page/selection/dag.fixture.ts': 'test scene builder: it poses the camera',
+  'page/selection/blend.fixture.ts': 'test scene builder: it poses the camera',
+  'visibility/buffer.fixture.ts': 'test scene builder: it poses the camera',
+  'webgpu/cut/reprise.fixture.ts': 'test scene builder: it poses the camera',
+  'backend/pagesBackendScenes.fixture.ts': 'test scene builder: it poses the camera',
+  'webgpu/pages/testScenes.fixture.ts': 'test scene builder: it poses the camera',
 };
 
 /**
@@ -63,8 +65,8 @@ const POSE_LOCALE: Record<string, string> = {
  * Only the contract and the oracle traversing host graph remain here.
  */
 const LISENT_LA_POSE: Record<string, string> = {
-  'cameraWorld.ts': 'the contract',
-  'pageRaster.ts': 'host-graph raster oracle — resolves (callable alone)',
+  'camera/world.ts': 'the contract',
+  'page/raster.ts': 'host-graph raster oracle — resolves (callable alone)',
 };
 
 const RESOUT = /\.updateWorldMatrix\s*\(/;
@@ -82,8 +84,8 @@ const lignesFautives = (text: string, motif: RegExp): string[] =>
     .map((line) => line.trim());
 
 test('camera pose is read only through the `cameraWorld.ts` contract', async () => {
-  const fichiers = (await readdir(browser)).filter(
-    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts'),
+  const fichiers = (await readdir(browser, { recursive: true })).filter(
+    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts') && !PUBLIC_FAMILIES.test(name),
   );
   assert.ok(fichiers.length > 100, 'the browser package must be found');
   const fuites: string[] = [];

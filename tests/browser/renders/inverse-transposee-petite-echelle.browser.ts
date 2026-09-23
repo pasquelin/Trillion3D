@@ -8,7 +8,7 @@
 //
 // node --experimental-strip-types tests/browser/renders/inverse-transposee-petite-echelle.browser.ts
 import assert from 'node:assert/strict';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
   vue,
   VIEWPORT,

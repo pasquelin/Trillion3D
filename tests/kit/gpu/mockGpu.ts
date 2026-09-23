@@ -1,4 +1,4 @@
-import type { PackedDag } from '../../../packages/sdk-browser/gpuDagSelection.ts';
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
 import { bytesOf } from './globals.ts';
 

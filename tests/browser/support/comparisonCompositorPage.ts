@@ -4,12 +4,12 @@
 import {
   createComparisonCompositor,
   type ComparisonLayout,
-} from '../../../packages/sdk-browser/comparison.ts';
+} from '../../../packages/sdk-browser/src/measurement/comparison.ts';
 import {
   bindWebglTarget,
   createWebglRenderTarget,
-} from '../../../packages/sdk-browser/webglRenderTarget.ts';
-import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/webglSurface.ts';
+} from '../../../packages/sdk-browser/src/webgl/core/renderTarget.ts';
+import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/src/webgl/core/surface.ts';
 import { pixel } from './webglClusterPixels.ts';
 
 const WIDTH = 64,

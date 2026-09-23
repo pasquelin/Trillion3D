@@ -6,7 +6,7 @@
 // pixel, and the held image must STAY held — there is nothing left to recompute when the host
 // changes its mind.
 import * as THREE from 'three';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { cameraFace, libere, engine } from './preuveSceneCommune.ts';
 import { difference, image, redCount } from './preuveSceneImage.ts';
 import { executerPasses } from './preuveAppareil.ts';

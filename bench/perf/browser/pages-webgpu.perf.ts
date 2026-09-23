@@ -1,17 +1,20 @@
 // winding of a cluster and view-camera comparison.
 import * as THREE from 'three';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
-import { sameHizView } from '../../../packages/sdk-browser/hizTemporal.ts';
-import { setWindingEpoch, windingCw } from '../../../packages/sdk-browser/webgpuPagesWinding.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { sameHizView } from '../../../packages/sdk-browser/src/hiz/temporal.ts';
+import {
+  setWindingEpoch,
+  windingCw,
+} from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceWindingCw } from '../../oracles/browser/pages-webgpu.ts';
 import {
   createEngineCamera,
   holdCameraWorld,
   readCameraWorld,
-} from '../../../packages/sdk-browser/cameraWorld.ts';
-import type { EngineCamera } from '../../../packages/sdk-browser/engineCamera.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+} from '../../../packages/sdk-browser/src/camera/world.ts';
+import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 const alea = graine(67);
 
@@ -97,7 +100,7 @@ const optimiseeVue = parcoursDeVue((camera) => {
 
 const resWinding = await mesure({
   name: 'windingCw',
-  fichier: 'packages/sdk-browser/webgpuPagesWinding.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/pages/render/winding.ts',
   cas: [
     { name: '20 000 clusters, 4 reads', input: gros, size: gros.length },
     { name: 'one cluster', input: seul, size: 1 },
@@ -110,7 +113,7 @@ const resWinding = await mesure({
 
 const resSameView = await mesure({
   name: 'comparison camera',
-  fichier: 'packages/sdk-browser/webgpuPagesRender.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/pages/render/render.ts',
   cas: [
     { name: '400 frames', input: 400, size: 400 },
     { name: 'one frame', input: 1, size: 1 },

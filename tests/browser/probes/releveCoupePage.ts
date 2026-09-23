@@ -14,16 +14,16 @@ import { mediane, scene } from './coupeLancementsDecor.ts';
  * `encodage` splits it from what the CPU spends writing commands.
  */
 import * as THREE from 'three';
-import { createDagResources } from '../../../packages/sdk-browser/gpuDagResources.ts';
-import { encodeDagKernels } from '../../../packages/sdk-browser/gpuDagEncode.ts';
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/gpuDagPack.ts';
+import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts';
+import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
 import {
   cameraSelectionUniforms,
   SELECTION_UNIFORM_BYTES,
-} from '../../../packages/sdk-browser/gpuSelection.ts';
-import { writeDagUniforms } from '../../../packages/sdk-browser/gpuDagUniforms.ts';
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/gpuDagLayout.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+} from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { ouvrirAppareil } from './appareilWebgpu.ts';
 
 interface ExecuterParams {

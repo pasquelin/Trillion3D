@@ -4,18 +4,18 @@ import {
   hizFootprintFar,
   hizOccluded,
 } from '../../../packages/sdk-core/src/index.ts';
-import { buildHizPyramid } from '../../../packages/sdk-browser/hizDepth.ts';
+import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts';
 import {
   hizRejects,
   hizTestRect,
   HIZ_TEST_VALUES,
-} from '../../../packages/sdk-browser/hizOcclusion.ts';
-import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
-import type { HizBounds, HizPyramid } from '../../../packages/sdk-browser/hizTypes.ts';
+} from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
+import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
+import type { HizBounds, HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts';
 import type { ScenePage } from './support/scenes.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { camera, coupe, rectangles } from './support/scenes.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 
 function referenceRowsOf(depth: Float32Array, width: number, height: number): number[][] {
   const rows: number[][] = [];
@@ -128,7 +128,7 @@ const plein = (input: Entree): Entree => ({ ...input, complet: true });
 
 const resHiz = await mesure({
   name: 'Hi-Z pyramid',
-  fichier: 'packages/sdk-browser/hizDepth.ts',
+  fichier: 'packages/sdk-browser/src/hiz/depth.ts',
   cas: [
     { name: '1280×720, every level', input: plein(image), size: 921600, mesure: false },
     { name: '33×19, every level', input: plein(impaire), size: 627, mesure: false },

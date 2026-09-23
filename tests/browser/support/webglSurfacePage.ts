@@ -1,4 +1,4 @@
-import { prepareExplorerWebglSurface } from '../../../packages/sdk-browser/explorerWebglHost.ts';
+import { prepareExplorerWebglSurface } from '../../../packages/sdk-browser/src/world/render/webglHost.ts';
 
 const waitFor = <T>(read: () => T | false | undefined, timeout = 2000) =>
   new Promise<T>((resolve, reject) => {

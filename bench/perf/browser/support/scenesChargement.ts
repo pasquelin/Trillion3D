@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { graine } from '../../../core/index.ts';
 import { materiau, porte } from './scenesCoupe.ts';
-import type { PageRec } from '../../../../packages/sdk-browser/pageSelectionTypes.ts';
+import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../packages/sdk-core/src/index.ts';
 
 /** A page as `manifesteEtScene` builds it: bounds, cluster error, sphere, index triplet it covers,

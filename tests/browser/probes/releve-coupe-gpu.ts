@@ -14,7 +14,7 @@ import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
 import {
   SELECTION_HEADER_WORDS,
   SELECTION_LIST_CAP,
-} from '../../../packages/sdk-browser/gpuDagLayout.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import type { executer, Ligne } from './releveCoupePage.ts';
 
 declare global {

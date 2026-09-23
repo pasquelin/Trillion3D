@@ -2,8 +2,8 @@
 // reread image. No internal state is inspected — the public `setTransform` call on one side,
 // pixels and public counters on the other.
 import * as THREE from 'three';
-import type { RenderBackend } from '../../../packages/sdk-browser/backendTypes.ts';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
+import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { VIEWPORT, cameraFace, libere, engine, versApi } from './preuveSceneCommune.ts';
 import { estRouge, image } from './preuveSceneImage.ts';
 import { executerPasses } from './preuveAppareil.ts';

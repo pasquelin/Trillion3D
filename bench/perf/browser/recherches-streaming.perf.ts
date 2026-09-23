@@ -1,7 +1,7 @@
 // the two linear searches of the streaming path.
-import { compacteFile } from '../../../packages/sdk-browser/streamingQueueOrder.ts';
-import { empileEnAttente } from '../../../packages/sdk-browser/explorerDraw.ts';
-import type { Job } from '../../../packages/sdk-browser/streamingTypes.ts';
+import { compacteFile } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts';
+import { empileEnAttente } from '../../../packages/sdk-browser/src/world/render/draw.ts';
+import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
   referenceEmpileEnAttente,
@@ -61,7 +61,7 @@ function adresses(total: number, depart: number) {
 
 const resG5 = await mesure({
   name: 'removing a cancelled request from the queue',
-  fichier: 'packages/sdk-browser/streamingQueue.ts',
+  fichier: 'packages/sdk-browser/src/streaming/queue.ts',
   cas: [
     { name: '4 000 jobs, 2 000 cancellations', input: rafale(4000, 2000, 0x51), size: 4000 },
     { name: '4 000 jobs, one cancellation', input: rafale(4000, 1, 0x52), size: 4000 },
@@ -74,7 +74,7 @@ const resG5 = await mesure({
 const urlsEmpilees = adresses(4000, 0x61);
 const resG6 = await mesure({
   name: 'pending stack',
-  fichier: 'packages/sdk-browser/explorerDraw.ts',
+  fichier: 'packages/sdk-browser/src/world/render/draw.ts',
   cas: [{ name: '4 000 addresses to stack', input: urlsEmpilees, size: 4000 }],
   calcul: (urls: readonly string[]) => {
     const set = new Set<string>();

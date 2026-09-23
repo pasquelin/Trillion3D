@@ -2,10 +2,10 @@
 // browser proofs share. Split from `preuveSceneCommune.ts` (scene construction and mounting)
 // to keep each file under the line gate.
 import type * as THREE from 'three';
-import type { RenderBackend } from '../../../packages/sdk-browser/backendTypes.ts';
+import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
 
 /** `RenderBackend` does not declare `cpuFrameEnd` publicly; the object `webgpuPagesBackend`
- *  returns still carries it (`packages/sdk-browser/webgpuPages.ts`). Read here through a local
+ *  returns still carries it (`packages/sdk-browser/src/webgpu/pages/pages.ts`). Read here through a local
  *  extension of the public type rather than widening it in the engine. */
 interface BackendAvecCpuFrameEnd extends RenderBackend {
   cpuFrameEnd?(): void;

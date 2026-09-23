@@ -4,6 +4,15 @@
  * page was collected from. They live here so the test that reads them stays readable.
  */
 
+/**
+ * The page-word families of the world API and the placement rows (`world/core/`, the `index.ts` of
+ * each family, `placement/`): they are written on the core's own scene objects, never on a host
+ * library, and the host-library rules of these tests do not read them. The declaration rule is the
+ * one exception: it reads every source of the package.
+ */
+export const PUBLIC_FAMILIES =
+  /^(?:placement\/|world\/(?:core|batch|budget|capability|helper|loader|metric|page|pose|texture)\/|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/;
+
 // CLOSED LIST OF `sdk-browser` FILES ALLOWED TO IMPORT THE HOST LIBRARY.
 //
 // The rule is inverted: it is no longer a watch list of files, it is the list of EVERYTHING
@@ -40,46 +49,48 @@
 // `tests/integration/moteur-sans-three-math.test.ts`.
 export const AUTORISES: Record<string, string> = {
   // 1. Witness engines.
-  blendCopyMesh: 'witness: its transparent copy is a host mesh, handed to the host renderer',
-  clusterBatchesFixture: 'batch-witness mount',
-  exactPagesAttachment: 'exact witness: it attaches its pages to the host graph',
-  exactPagesBackend: 'exact witness: engine written with the host library',
-  exactPagesMaterials: 'exact witness: its materials are the host’s',
-  exactPagesMetrics: 'exact witness: the host meshes and geometries it counts and disposes',
-  exactPagesRender: 'exact witness: the host camera and scene copies its frame reads',
-  exactPagesRequests: 'exact witness: its requests start from its host graph',
-  referenceBackend: 'reference witness: the host engine, as-is',
-  threeLod: 'witness: the host level-of-detail selection, `LOD.update` included',
+  'cluster/blendCopyMesh':
+    'witness: its transparent copy is a host mesh, handed to the host renderer',
+  'cluster/batches.fixture': 'batch-witness mount',
+  'backend/exact/attachment': 'exact witness: it attaches its pages to the host graph',
+  'backend/exact/backend': 'exact witness: engine written with the host library',
+  'backend/exact/materials': 'exact witness: its materials are the host’s',
+  'backend/exact/metrics': 'exact witness: the host meshes and geometries it counts and disposes',
+  'backend/exact/render': 'exact witness: the host camera and scene copies its frame reads',
+  'backend/exact/requests': 'exact witness: its requests start from its host graph',
+  'backend/referenceBackend': 'reference witness: the host engine, as-is',
+  'host/three/lod': 'witness: the host level-of-detail selection, `LOD.update` included',
 
   // 2. Host boundaries: scene, camera, renderer, lights, poses.
-  explorerScene: 'boundary: it builds the host’s prepared scene',
-  hostGraphObjects:
+  'world/scene/scene': 'boundary: it builds the host’s prepared scene',
+  'host/scene/graphObjects':
     'boundary: the host camera, framing points and instance copies the explorer builds for its host',
-  hostPageObjects:
+  'host/pageObjects':
     'boundary: the scene, meshes, geometries and surfaces the WebGL2 page path is drawn with',
-  hostSceneObjects:
+  'host/scene/objects':
     'boundary: the host colours, lights and nodes an engine drawn by the host renderer hangs on its display graph',
-  exactPagesContractLights:
+  'backend/exact/contractLights':
     'boundary: the contract lights of an image the host renderer draws, mapped to host lights',
-  exactPagesLightWrite:
+  'backend/exact/lightWrite':
     'boundary: one contract light built and written as its host light, split from the file above',
-  exactPagesUnlitAlbedo:
+  'backend/exact/unlitAlbedo':
     'boundary: the unlit view of that image zeros the host material factors for the frame',
-  threeBounds: 'boundary: bounds written back into a host geometry, as the library computes them',
-  threeSceneAdapter:
+  'host/three/bounds':
+    'boundary: bounds written back into a host geometry, as the library computes them',
+  'host/three/sceneAdapter':
     'boundary: the host renderer the witnesses and the WebGL2 page path share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 
   // 2 bis. Test-scene mounts that walk the host graph.
-  pageSelectionBlendFixture: 'test-scene mount: it sets the camera and materials',
-  pageSelectionDagFixture: 'test-scene mount: it sets the camera and materials',
-  pagedQuadFixture: 'test-scene mount: the quad clustered into quantized pages',
-  pagesBackendScenes: 'test-scene mount: it sets the camera',
-  visibilityBufferFixture: 'test-scene mount: it sets the camera and pages',
-  webgpuPagesTestOccluder: 'test-scene mount: the occluder and its camera',
-  webgpuPagesTestScenes: 'test-scene mounts: meshes and materials',
-  webgpuTransformCisaillementFixture:
+  'page/selection/blend.fixture': 'test-scene mount: it sets the camera and materials',
+  'page/selection/dag.fixture': 'test-scene mount: it sets the camera and materials',
+  'webgpu/pages/pagedQuad.fixture': 'test-scene mount: the quad clustered into quantized pages',
+  'backend/pagesBackendScenes.fixture': 'test-scene mount: it sets the camera',
+  'visibility/buffer.fixture': 'test-scene mount: it sets the camera and pages',
+  'webgpu/pages/testOccluder.fixture': 'test-scene mount: the occluder and its camera',
+  'webgpu/pages/testScenes.fixture': 'test-scene mounts: meshes and materials',
+  'webgpu/core/transformCisaillement.fixture':
     'test mount: minimal scene and runtime for `setWebgpuTransform`',
-  webgpuWaterPassFixture: 'test mount: three transparent host meshes, one of which transmits',
+  'webgpu/water/pass.fixture': 'test mount: three transparent host meshes, one of which transmits',
 };
 
 // CLOSED LIST OF FILES ALLOWED TO READ `declaration` — the host material a page was read from.
@@ -93,19 +104,19 @@ export const AUTORISES: Record<string, string> = {
 // from the repository root: the rule reads the benches too, since a bench builds the page records
 // the engine path then reads.
 export const DECLARATION: Record<string, string> = {
-  clusterBatchRange: 'contract: it declares the field on a batch page',
-  pageSelectionTypes: 'contract: it declares the field on a page record',
-  pageSelectionCollect: 'the collection sets it, once, beside the record it built',
-  autonomousGeometry: 'WebGL2 page path: it repaints its pages with host materials',
-  autonomousInstances: 'WebGL2 page path: it repaints its instances with host materials',
-  autonomousPages: 'WebGL2 page path: it keeps the base paint of each page',
+  'cluster/batchRange': 'contract: it declares the field on a batch page',
+  'page/selection/types': 'contract: it declares the field on a page record',
+  'page/selection/collect': 'the collection sets it, once, beside the record it built',
+  'backend/autonomous/geometry': 'WebGL2 page path: it repaints its pages with host materials',
+  'backend/autonomous/instances': 'WebGL2 page path: it repaints its instances with host materials',
+  'backend/autonomous/pages': 'WebGL2 page path: it keeps the base paint of each page',
   'placement/webglPageBatches':
     'WebGL2 page path: the pages rows place are drawn instanced, one mesh per page and declaration',
-  hostPageObjects: 'boundary: the declaration it gives back to the library that draws it',
-  clusterBatchUpdate: 'the WebGL2 draw record hands the declaration to the host renderer',
-  clusterBatchesFixture: 'batch-witness mount',
-  exactPagesMaterials: 'exact witness: the host material each page is drawn with',
-  webglClusterCompatibility: 'the admission gate reads the declaration it refuses',
+  'host/pageObjects': 'boundary: the declaration it gives back to the library that draws it',
+  'cluster/batchUpdate': 'the WebGL2 draw record hands the declaration to the host renderer',
+  'cluster/batches.fixture': 'batch-witness mount',
+  'backend/exact/materials': 'exact witness: the host material each page is drawn with',
+  'webgl/cluster/compatibility': 'the admission gate reads the declaration it refuses',
 
   // Benches and oracles: they mount the page records the engine path is measured on, and a record
   // carries the declaration its witness repaints from.

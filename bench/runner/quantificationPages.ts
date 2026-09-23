@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readCacheManifest } from './cacheManifest.ts';
-import { decodeGeometryPage } from '../../packages/sdk-browser/geometryPage.ts';
+import { decodeGeometryPage } from '../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 
 const ITEMS: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
 

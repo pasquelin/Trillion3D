@@ -23,7 +23,7 @@ import { SAMPLE_MODELS, kebab, sceneGltfFile, scenesOnDisk } from './assetsCatal
 import { fetchModels } from './assetsFetch.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-const CLI = join(ROOT, 'dist/sdk-node/cli.mjs');
+const CLI = join(ROOT, 'dist/sdk-node/src/cli/cli.mjs');
 const COMPILER =
   process.env.WEB_GEOMETRY_COMPILER_BIN ??
   join(ROOT, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');

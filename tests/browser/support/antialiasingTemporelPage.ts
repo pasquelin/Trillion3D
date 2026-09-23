@@ -4,8 +4,8 @@
 // move of the tile.
 // Nothing internal is read: `setTransform` on one side, reread pixels and `frameHeld` on the other.
 import * as THREE from 'three';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/backendTypes.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
+import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 import {
   VIEWPORT,
   batisseur,

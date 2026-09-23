@@ -11,11 +11,11 @@ import {
   UNI_SCALARS,
   UNI_VIEW,
   UNI_VIEW_PROJ,
-} from '../../../packages/sdk-browser/gpuPartitionContract.ts';
+} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts';
 import type {
   ForgottenRows,
   PartitionFrame,
-} from '../../../packages/sdk-browser/gpuPartitionUniform.ts';
+} from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
 
 export function referenceSplitDouble(out: Float32Array, haut: number, bas: number, value: number) {
   out[haut] = value;

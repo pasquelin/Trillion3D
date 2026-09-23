@@ -1,8 +1,8 @@
 // Cases of the Hi-Z occlusion probe: a pyramid packed by the engine itself, and the verdict
 // each must produce. The module is split from the proof so the proof holds under its line
 // limit; it is never launched alone.
-import { packHizPyramid } from '../../../packages/sdk-browser/gpuHiz.ts';
-import { DEPTH_CLEAR } from '../../../packages/sdk-browser/depthConvention.ts';
+import { packHizPyramid } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts';
+import { DEPTH_CLEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
 
 export const width = 33,
   height = 19;
