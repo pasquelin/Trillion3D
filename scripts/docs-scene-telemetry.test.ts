@@ -30,10 +30,21 @@ const baseMetrics: FrameMetrics = {
 // Observed frame diagnostics cannot stand in for a measured rAF interval.
 test('automatic telemetry reports counters without invented FPS and stops its activity timer', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const nodes = new Map<string, { textContent: string }>();
+  type Node = {
+    textContent: string;
+    held?: boolean;
+    toggleAttribute(name: string, on: boolean): void;
+  };
+  const nodes = new Map<string, Node>();
   const host = {
     querySelector(selector: string) {
-      if (!nodes.has(selector)) nodes.set(selector, { textContent: '' });
+      if (!nodes.has(selector))
+        nodes.set(selector, {
+          textContent: '',
+          toggleAttribute(name, on) {
+            if (name === 'data-scene-held') this.held = on;
+          },
+        });
       return nodes.get(selector);
     },
     // `telemetry.frame` only calls `querySelector`; cast at this boundary rather than
@@ -64,7 +75,9 @@ test('automatic telemetry reports counters without invented FPS and stops its ac
   assert.equal(textOf('[data-scene-texture-memory]'), '3.0 MiB', 'resident texture bytes');
   t.mock.timers.tick(250);
   assert.equal(textOf('[data-scene-fps]'), 'No recent frame');
-  telemetry.frame(world, metrics);
+  assert.equal(nodes.get('[data-scene-fps]')?.held, false, 'a drawn frame is not a held one');
+  telemetry.frame(world, { ...metrics, frameHeld: true });
+  assert.equal(nodes.get('[data-scene-fps]')?.held, true, 'the engine says the image is final');
   telemetry.stop();
   t.mock.timers.tick(250);
   assert.equal(textOf('[data-scene-fps]'), 'Unavailable');

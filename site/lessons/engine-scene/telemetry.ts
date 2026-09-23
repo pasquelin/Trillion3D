@@ -25,6 +25,11 @@ export function createSceneTelemetry(host: ParentNode, copy: SceneCopy, locale: 
       text('[data-scene-selected]', format(metrics.selectedTriangles));
       text('[data-scene-drawn]', format(metrics.drawnTriangles));
       text('[data-scene-fps]', copy.unavailableMetric);
+      // The engine's own word that nothing moved and nothing is in flight: a quiet page is not
+      // one, since a frame waits unscheduled while its pages stream.
+      host
+        .querySelector('[data-scene-fps]')!
+        .toggleAttribute('data-scene-held', metrics.frameHeld === true);
       text('[data-scene-cpu]', milliseconds(metrics.cpuFrameMs));
       text('[data-scene-gpu]', milliseconds(metrics.gpuFrameMs));
       text('[data-scene-geometry-memory]', bytes(metrics.geometryAllocationBytes));

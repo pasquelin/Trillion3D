@@ -53,24 +53,17 @@ export async function startupGarden(page: Page, base: string, out: string) {
             window.startupQuiet = { frames, since: now };
             return false;
           }
+          // Frames stop while the engine awaits its pages, and before its first frame: only a
+          // held frame says the image is final.
           return (
             now - window.startupQuiet.since >= 600 &&
-            /No recent frame|Aucune image récente/.test(
-              document.querySelector('[data-scene-fps]')?.textContent ?? '',
-            )
+            document.querySelector('[data-scene-fps]')?.hasAttribute('data-scene-held') === true
           );
         },
         undefined,
         { polling: 100, timeout: 60000 },
       );
     };
-    // A cold page can fall quiet while its first pages still stream: the count is read once the
-    // cut has drawn something, then once the image is still again.
-    await page.waitForFunction(
-      () => /[1-9]/.test(document.querySelector('[data-scene-selected]')?.textContent ?? ''),
-      undefined,
-      { polling: 100, timeout: 60000 },
-    );
     await idle();
     const number = async (name: string) =>
       Number(((await page.locator(`[data-scene-${name}]`).textContent()) ?? '').replace(/\D/g, ''));
