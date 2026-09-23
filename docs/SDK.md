@@ -374,7 +374,7 @@ beside every emitted chunk that keeps its relative URL, and serve that output di
 with the compiled scene cache. `pnpm run proof:package -- --browser` is the repository's executable
 esbuild configuration and verifies both worker tasks and WASM selection.
 
-### Migration note: the `three` peer dependency
+### Install requirement during the migration: the `three` peer dependency
 
 Until the witnesses leave the published package (#275), `sdk-browser` still declares `three` as a
 peer dependency, so a browser host installs `three` and `@types/three` beside `@webgpu/types`. No

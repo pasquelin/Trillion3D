@@ -1,10 +1,11 @@
 # Engine internals
 
-How a world draws. None of this is public API: a page writes against [SDK.md](SDK.md) and reads
-what follows through the `world` families (`metric.frame(world)`, `world.diagnostic.mode`,
-`capability.lighting(world)`, …). The internal names below — `openMeasuredWorld`, backend ids,
-explorer options — are reachable only through the measurement entry point
-(`packages/sdk-browser/src/measurement/measurement.ts`), for the bench, the proofs and the
+How a world draws. A page writes against [SDK.md](SDK.md) and reads what follows through the `world`
+families (`metric.frame(world)`, `world.diagnostic.mode`, `capability.lighting(world)`, …). Two
+functions below are public, for a standalone host that drives pages or diagnostics itself:
+`createGpuPageCache` and `createDiagnosticChannel`, exported by `web-geometry`. Every other internal
+name — `openMeasuredWorld`, backend ids, session options — is reachable only through the measurement
+entry point (`packages/sdk-browser/src/measurement/measurement.ts`), for the bench, the proofs and the
 comparison views ([SDK_FACADE.md](SDK_FACADE.md)).
 
 ## The internal session
