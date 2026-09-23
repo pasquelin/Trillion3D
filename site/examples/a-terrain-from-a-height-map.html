@@ -2,27 +2,47 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A terrain from a height map</title>
+    <title>Mountain terrain</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      // The relief is a grid of heights: 97 by 97 samples of a height function
-      // (`scripts/docs/mountain-terrain/model.mjs`) turned into one surface at compile time, its
-      // material chosen by altitude band. The mountain light came with the scene file.
-      await world.scene.load('../assets/gallery/offline/terrain/cache/native/full/manifest.json');
-      world.camera.position.set(7.5, 6, 9);
-      world.camera.lookAt(0, 1.2, 0);
-      world.controls.target.set(0, 1.2, 0);
-      world.invalidate();
+      // The relief is 97 by 97 height samples turned into one surface when the file was compiled; its
+      // sun came with the scene file, on `lights`.
+      const terrain = await world.scene.load('../assets/gallery/offline/terrain/cache/native/full/manifest.json');
+      const [sun] = terrain.lights, noon = sun?.intensity ?? 1;
+      world.camera.position.set(6.5, 5, 8);
+      world.camera.lookAt(0, 0.9, 0);
+      world.controls.target.set(0, 0.9, 0);
+
+      const ui = controls({ spin: true, sun: [0.2, 3, 1], exposure: [0.4, 2.5, 1] }, (values) => {
+        if (sun) sun.intensity = values.sun * noon;
+        world.exposure = values.exposure;
+        world.invalidate();
+      });
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        terrain.rotation.y += delta * 0.15;
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

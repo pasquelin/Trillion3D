@@ -2,53 +2,64 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A lamp housed in its own glass</title>
+    <title>Lamp in a glass globe</title>
+    <meta name="thumbnail" content="1.5" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      const pavement = material.meshStandard({ color: [0.45, 0.44, 0.42], roughness: 0.9 });
-      const slab = object.mesh(geometry.box(8, 0.3, 8), pavement);
-      slab.position.y = -0.15;
-      const wall = object.mesh(geometry.box(8, 4, 0.3), pavement);
-      wall.position.set(0, 2, -2.5);
-
-      const iron = material.meshStandard({ color: [0.12, 0.12, 0.13], metalness: 0.8, roughness: 0.5 });
-      const post = object.mesh(geometry.cylinder(0.08, 0.08, 2.2, 24), iron);
+      const pavement = material.meshStandard({ color: '#77736c', roughness: 0.9 });
+      const ground = object.mesh(geometry.cylinder(4, 4, 0.3, 64), pavement);
+      ground.position.y = -0.15;
+      const wall = object.mesh(geometry.box(8, 4, 0.3), material.meshStandard({ color: '#8a7f73', roughness: 0.9 }));
+      wall.position.set(0, 2, -2);
+      const iron = material.meshStandard({ color: '#202124', metalness: 0.8, roughness: 0.45 });
+      const post = object.mesh(geometry.cylinder(0.08, 0.1, 2.2, 32), iron);
       post.position.y = 1.1;
-      const foot = object.mesh(geometry.cylinder(0.3, 0.3, 0.1, 24), iron);
-      foot.position.y = 0.05;
+      const foot = object.mesh(geometry.cylinder(0.3, 0.34, 0.12, 32), iron);
+      foot.position.y = 0.06;
+      world.scene.add(ground, wall, post, foot);
 
+      // A glowing bulb inside a glass globe. The light's `radius` is the bulb's: the globe and the
+      // bulb do not block their own lamp, and its shadows soften over the bulb's size.
       const bulbRadius = 0.09;
-      const bulb = object.mesh(geometry.sphere(bulbRadius, 16, 16), material.meshStandard({
-        color: [1, 0.9, 0.7], roughness: 0.5, emissive: [1, 0.8, 0.5], emissiveIntensity: 1,
-      }));
+      const filament = material.meshStandard({ color: '#000000', emissive: '#ffcf8a', emissiveIntensity: 4 });
+      const bulb = object.mesh(geometry.sphere(bulbRadius, 24, 16), filament);
       bulb.position.set(0, 2.4, 0);
-      // The bulb sits inside a glass globe, geometry like any other, lit from within by the point
-      // light below and shaded from outside by the sun-less night sky.
-      const globe = object.mesh(geometry.sphere(0.32, 32, 32), material.meshStandard({
-        color: [0.9, 0.95, 1], roughness: 0.1, opacity: 0.22, transparent: true,
-      }));
+      const glass = material.meshStandard({ color: '#e6f0ff', roughness: 0.1, opacity: 0.22, transparent: true });
+      const globe = object.mesh(geometry.sphere(0.32, 48, 32), glass);
       globe.position.set(0, 2.4, 0);
-      world.scene.add(slab, wall, post, foot, bulb, globe);
+      const lamp = light.point({ position: [0, 2.4, 0], intensity: 12, distance: 10, radius: bulbRadius, castShadow: true });
+      world.scene.add(bulb, globe, lamp);
+      world.camera.position.set(2.2, 2.3, 3.2);
+      world.camera.lookAt(0, 1.5, -0.3);
+      world.controls.target.set(0, 1.5, -0.3);
 
-      // The emitter's radius is the bulb's own: a shadow's edge softens over the size of the
-      // glowing sphere it left, not the point the engine approximates it with.
-      world.scene.add(light.point({
-        position: [0, 2.4, 0], color: [1, 0.8, 0.5], intensity: 12, distance: 10, radius: bulbRadius, castShadow: true,
-      }));
-      world.camera.position.set(2.8, 2.2, 3.4);
-      world.camera.lookAt(0, 1.4, -0.5);
-      world.controls.target.set(0, 1.4, -0.5);
-      world.invalidate();
+      controls({ lamp: '#ffcf8a', power: [0, 30, 12], glass: [0, 1, 0.22] }, (values) => {
+        lamp.color.set(values.lamp);
+        filament.emissive.set(values.lamp);
+        lamp.intensity = values.power;
+        filament.emissiveIntensity = values.power / 3;
+        glass.opacity = values.glass;
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

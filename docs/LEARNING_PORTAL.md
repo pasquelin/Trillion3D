@@ -111,12 +111,13 @@ packages; none stays external or is loaded from a CDN.
 1. Write `site/examples/<id>.html`: one file, a `<canvas id="view">`, no import map, and a module
    script that imports `createWorld` and the families it needs (`object`, `geometry`, `material`,
    `light`, …) from `../runtime/engine.js`. Keep it as short as the feature allows, and make it
-   something to play with. From `../runtime/kit.js` (sources in `site/examples/kit/`, bundled beside
-   the engine): `banner(title, tip)` says what you see and what to try, and returns `status(text)`
-   for a live line; `controls({ light: [0, 10, 3], colour: '#88aaff', spin: true, view: ['a', 'b'],
-   reset: () => {} }, onChange)` draws a panel of sliders (`[min, max, value, step?]`), colour
-   pickers, toggles, choices and buttons, and calls `onChange(values, key)` once at start and after
-   every change. The page hosting the example hides or shows that panel by posting
+   something to play with. `controls` from `../runtime/kit.js` (sources in `site/examples/kit/`,
+   bundled beside the engine) draws a panel in the corner of the render:
+   `controls({ light: [0, 10, 3], colour: '#88aaff', spin: true, view: ['a', 'b'], reset: () => {} },
+   onChange)` gives sliders (`[min, max, value, step?]`), colour pickers, toggles, choices and
+   buttons, returns the live values and calls `onChange(values, key)` once at start and after every
+   change. Name each control so that its label says what to try; there is no caption over the
+   render. The page hosting the example hides or shows the panel by posting
    `{ type: 'wg:controls', visible }` to its frame.
 2. A scene of primitives is built in code, with `geometry.*`, directly in the example's HTML. A
    scene built around an imported model is added to `scripts/docs/examples/models.ts`, credited in

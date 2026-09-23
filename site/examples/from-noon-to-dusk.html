@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>From noon to dusk</title>
+    <title>Noon to dusk</title>
     <meta name="thumbnail" content="7" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0e1621;
+        background: #171d28;
       }
       canvas {
         display: block;
@@ -21,12 +21,10 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, banner } from '../runtime/kit.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      const info = banner('From noon to dusk', 'The sun crosses the sky and the shadows turn. Speed up the day, or stop it at the hour you like.');
       const world = createWorld('view', { controls: 'orbit' });
-      world.scene.background = math.color('#0e1621');
 
       // A sundial in a ring of columns: every shadow turns with the sun.
       const stone = material.meshStandard({ color: '#d6cbb4', roughness: 0.8 });
@@ -53,7 +51,7 @@
       // The sun, and the blue sky's own light filling the shadows it leaves.
       const sun = light.directional({ intensity: 3, castShadow: true });
       world.scene.add(sun, light.ambient({ intensity: 0.25, color: '#8fb4ff' }));
-      world.camera.position.set(9, 6, 10);
+      world.camera.position.set(7, 4.4, 7.8);
       world.camera.lookAt(0, 0.6, 0);
       world.controls.target.set(0, 0.6, 0);
 
@@ -70,8 +68,6 @@
         sun.color.setRGB(1, 0.55 + 0.45 * height, 0.25 + 0.75 * height);
         sun.intensity = 0.4 + 2.8 * height;
         world.exposure = ui.adaptEyes ? 1 + (1 - height) * 1.5 : 1;
-        const minutes = Math.floor((hour % 1) * 60);
-        info.status(`${Math.floor(hour)}:${String(minutes).padStart(2, '0')} — exposure ${world.exposure.toFixed(2)}`);
         world.invalidate();
       });
       world.invalidate();
