@@ -9,6 +9,7 @@ import french from '../site/content/reference/api.fr.json' with { type: 'json' }
 import * as browser from '../packages/sdk/browser.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { expandEntryLinks } from '../site/app/portal/entryLinks.ts';
+import { LEARN_SECTIONS } from '../site/app/portal/routes.ts';
 import { NOTES, REFERENCE } from '../site/content/entries/reference.ts';
 import { rowKey, type ReferenceFrench } from '../site/content/i18n/reference.fr.ts';
 import { entrySummary, FAMILIES, SECTIONS } from '../site/content/model.ts';
@@ -16,7 +17,7 @@ import type { PortalEntry } from '../site/content/model.ts';
 import { repositoryFiles } from './repository-files.ts';
 import { apiProgram, entryModules, PUBLIC_ENTRIES } from './sdk-api-model.ts';
 
-const api = rawEntries.filter((entry) => !['guides', 'examples'].includes(entry.section));
+const api = rawEntries.filter((entry) => !LEARN_SECTIONS.includes(entry.section));
 const ids = new Set(api.map((entry) => entry.id));
 
 test('every export of the three public conditions has an entry of its own', () => {

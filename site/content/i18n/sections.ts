@@ -16,8 +16,9 @@ export const sectionStrings: Record<Locale, Record<string, string>> = {
     ),
   ),
   fr: titled({
+    course: 'Cours',
     guides: 'Guides',
-    examples: 'Exemples SDK',
+    internals: 'Comment ça marche',
     world: 'Monde',
     constants: 'Constantes',
     'math-utilities': 'Outils mathématiques',
