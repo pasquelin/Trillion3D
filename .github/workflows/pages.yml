@@ -30,6 +30,11 @@ jobs:
           node-version: '22.18.0'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The open world (#332) is generated from its seed and compiled at deploy time: its cache is
+      # never committed. The native compiler builds first, then the generator writes the world.
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm run build:native
+      - run: node scripts/docs-openworld.ts
       # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone.
       - run: pnpm run build:docs
       - uses: actions/configure-pages@v6

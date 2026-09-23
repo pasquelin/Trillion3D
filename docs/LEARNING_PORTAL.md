@@ -161,6 +161,14 @@ packages; none stays external or is loaded from a CDN.
    `node scripts/docs-examples-thumbnails.ts <id>`. The capture hides the kit's panels and the
    credit line and waits for the example's most telling moment, the seconds it declares in
    `<meta name="thumbnail" content="3">` (1.5 when it declares none).
+   A scene too large to commit is generated at build time instead. The open world
+   (`examples/openworld.html`, #332) is one: `node scripts/docs-openworld.ts` builds it from
+   one seed — the plan and terrain (`scripts/docs/examples/openworld/plan/`), six regions
+   (`regions/`), shared props and vehicles (`props/`) — writes one glTF with its ground textures,
+   then compiles it into `site/assets/examples/openworld/cache` (git-ignored), with the physics
+   heights, the collision meshes and `world.json` beside it. The Pages workflow runs it before
+   `build:docs`. Its play layer (Jolt in a worker) and sky are kit modules,
+   `site/examples/kit/openworld/`, served as `runtime/openworld.js`.
 4. Run `node --test scripts/docs-examples.test.ts`, then the browser proofs
    `node --test scripts/docs-examples.browser.ts` and `node --test scripts/docs-shell.browser.ts`.
 

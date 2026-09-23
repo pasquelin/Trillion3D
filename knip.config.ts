@@ -8,6 +8,9 @@ const config: KnipConfig = {
     'site/app/main.tsx',
     'site/demos/engine.ts',
     'site/examples/kit/index.ts',
+    // The open world's play layer and its simulation worker, built as runtime entries.
+    'site/examples/kit/openworld/index.ts',
+    'site/examples/kit/openworld/play/sim.worker.ts',
     'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
     'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
     'packages/sdk-node/src/index.mts',
