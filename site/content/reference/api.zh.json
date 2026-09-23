@@ -369,8 +369,8 @@
       "bottom": "正交视野盒的下边界。",
       "projection": "`'perspective'` 会让远处的物体变小;`'orthographic'` 则保持所有尺寸不变。",
       "updateProjectionMatrix": "为了兼容那些针对需要它的渲染器而写的页面而保留:任何光学参数的写入本身就已经会触发重绘。",
-      "set": "把眼睛放在 `pose.position`,朝向 `pose.target` 看,并使用指定的视场角。",
-      "rayThrough": "The world ray through a point of the picture, in the engine's own projection (`engineCamera.ts`): from the eye along the view for a perspective camera, straight down the view from the box for an orthographic one. Its direction is a unit vector."
+      "rayThrough": "穿过画面上某一点的世界射线，按引擎自己的投影计算（`engineCamera.ts`）：透视相机从眼睛出发沿视线方向，正交相机从盒子出发笔直沿视线方向。它的方向是单位向量。",
+      "set": "把眼睛放在 `pose.position`,朝向 `pose.target` 看,并使用指定的视场角。"
     }
   },
   "CameraFrame": {
@@ -918,9 +918,9 @@
       "SCENE_COPY_OVERLAP": "场景根节点所禁止的某件事:给它设置父节点、销毁它、把两个根节点混在一起、把某个节点复制进它自身。",
       "UNSUPPORTED_SCENE_UPDATE": "这条绘制路径无法对场景做出那种改动。",
       "BATCHED_WORLD_VIEW": "这条绘制路径无法对场景做出那种改动。",
-      "RAYCAST_NO_VIEW": "A picture point was asked of a canvas with no size: there is no picture to aim through.",
-      "UNSUPPORTED_SCENE_FORMAT": "A saved scene is of another format or version, or holds what a saved scene cannot store.",
-      "SCENE_NOT_SAVABLE": "A saved scene is of another format or version, or holds what a saved scene cannot store."
+      "RAYCAST_NO_VIEW": "向一个没有尺寸的 canvas 请求画面上的点：没有可以瞄准的画面。",
+      "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
+      "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。"
     }
   },
   "EngineProfiler": {
@@ -1105,6 +1105,7 @@
       "groups": "当一个网格携带多种材质时,用 `material[materialIndex]` 绘制的索引范围。",
       "boundingBox": "计算之后得到的、包住每个顶点的包围盒;计算之前为 `null`。",
       "boundingSphere": "计算之后得到的、包住每个顶点的包围球;计算之前为 `null`。",
+      "recipe": "构建这个形状的家族成员和参数，只要形状仍是它们构建的样子：这就是保存的场景用来代替顶点存储的内容。之后的任何修改都会让它被忘掉。",
       "version": "每次形状变化都会递增:世界据此比较是否需要重新切分页面。",
       "setAttribute": "把一个逐顶点列表保存在 `name` 下。",
       "getAttribute": "保存在 `name` 下的逐顶点列表(如果存在)。",
@@ -1124,8 +1125,7 @@
       "scale": "把每个顶点按 `(x, y, z)` 缩放。",
       "center": "移动这个几何体,使其包围盒以原点为中心。",
       "clone": "一个新的几何体,包含每个列表的副本。",
-      "dispose": "释放持有者:被释放的几何体不会再被任何东西绘制。",
-      "recipe": "The family member and arguments that built this shape, while it is still what they built: what a saved scene stores instead of the vertices. Any later change forgets it."
+      "dispose": "释放持有者:被释放的几何体不会再被任何东西绘制。"
     }
   },
   "GeometryPageDescriptor": {
@@ -2868,8 +2868,8 @@
       "fog": "在 `near` 和 `far` 之间把物体渐渐淡化成 `color` 的雾效;没有时为 `null`。",
       "background": "填充每个物体背后画面的内容:一种颜色、一张图片,或者留空使用默认值 `null`。",
       "load": "加载一个已编译模型——通过它的清单 URL——并把它添加到这个场景中。",
-      "toJSON": "The scene as plain JSON, versioned: its objects, shapes by the call that built them, materials, lights and loaded models by address; `camera`'s pose too when one is given.",
-      "fromJSON": "Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept; resolves once its models are loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`). Calls made while one is reading run one after the other, in order, each on what the one before left: two saved scenes never merge."
+      "toJSON": "场景的纯 JSON 表示，带版本号：它的物体、按构建它们的调用记录的形状、材质、光源，以及按地址记录的已加载模型；给出 `camera` 时，也包括它的位姿。",
+      "fromJSON": "用 `toJSON` 保存的场景替换场景当前的内容，保留其 `helper` 标记；模型加载完后完成。其他格式或版本会被拒绝（`UNSUPPORTED_SCENE_FORMAT`）。读取期间发起的调用会按顺序一个接一个执行，每个都基于前一个留下的结果：两个保存的场景绝不会混在一起。"
     }
   },
   "SceneEnvironment": {
@@ -3941,8 +3941,8 @@
     "summary": "页面持有的内容:模式,可读写。",
     "members": {
       "mode": "视图模式:正常画面用 `'beauty'`,或者用来展示引擎工作方式的某种模式。",
-      "modes": "当前渲染器提供的所有视图模式。",
-      "sessions": "Sessions the world has opened so far: a change that reopens one shows here."
+      "sessions": "世界到目前为止打开过的会话：重新打开会话的修改会显示在这里。",
+      "modes": "当前渲染器提供的所有视图模式。"
     }
   },
   "world.onFrame": {
@@ -5091,7 +5091,7 @@
   },
   "helper": {
     "summary": "`helper` 系列:用来标注场景的标记物,由线条和网格构建而成。",
-    "description": "A world draws them like any object; a pick (`world.raycast`) and a saved scene skip them."
+    "description": "世界会像绘制其他物体一样绘制它们；选取（`world.raycast`）和保存的场景会跳过它们。"
   },
   "helper.axes": {
     "summary": "从原点发出的三条彩色线段:x 轴为红色,y 轴为绿色,z 轴为蓝色。",
@@ -6729,108 +6729,108 @@
   "CanvasPoint": {
     "summary": "画布上的一个点,以距其左上角的 CSS 像素计:`event.offsetX`、`offsetY`。",
     "members": {
-      "x": "CSS pixels from the canvas's left edge.",
-      "y": "CSS pixels from the canvas's top edge."
+      "x": "距 canvas 左边缘的 CSS 像素。",
+      "y": "距 canvas 上边缘的 CSS 像素。"
     }
   },
   "Intersection": {
     "summary": "射线与对象相交之处:对象本身、该处的世界坐标点和表面法线、沿射线的距离,以及哪个三角形(击中对象包围盒时为 `-1`)。",
     "members": {
-      "object": "The object hit: the very node the page added.",
-      "point": "The world point hit.",
-      "normal": "The world normal of the face hit, as its winding orients it.",
-      "distance": "Distance from the ray's origin to `point`, world units.",
-      "face": "The rank of the triangle hit, or `-1` for a box."
+      "object": "被击中的物体：就是页面添加的那个节点本身。",
+      "point": "被击中的世界点。",
+      "normal": "被击中面的世界法线，方向由顶点的环绕顺序决定。",
+      "distance": "从射线起点到 `point` 的距离，单位为世界单位。",
+      "face": "被击中三角形的序号，盒子则为 `-1`。"
     }
   },
   "RaycastOptions": {
     "summary": "可以告诉 `world.raycast` 的内容;每个字段都是可选的。",
     "members": {
-      "objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "objects": "要测试的物体及其子树；不设置则为整个场景。"
     }
   },
   "SavedCamera": {
     "summary": "保存场景时所用的相机:它的姿态、投影和光学参数。",
     "members": {
-      "projection": "Perspective or orthographic.",
-      "position": "Where the eye stands.",
-      "quaternion": "How the eye is turned.",
-      "optics": "Field, near, far, zoom and box, by name."
+      "projection": "透视或正交。",
+      "position": "眼睛所在的位置。",
+      "quaternion": "眼睛朝向哪里。",
+      "optics": "视场、near、far、zoom 和盒子，按名称。"
     }
   },
   "SavedGeometry": {
     "summary": "一个几何体:构建它的家族调用,或者在没有调用能重建它时,它的顶点。",
     "members": {
-      "recipe": "The family member and every argument it was built with.",
-      "attributes": "Each per-vertex list, when no call builds the shape again.",
-      "index": "Which vertices make each triangle.",
-      "groups": "Index ranges drawn with one material each."
+      "recipe": "家族成员，以及构建形状时用的每个参数。",
+      "attributes": "每个逐顶点列表，在没有调用能重新构建形状时使用。",
+      "index": "哪些顶点组成每个三角形。",
+      "groups": "索引范围，每段用一种材质绘制。"
     }
   },
   "SavedMaterial": {
     "summary": "一个材质:它的种类和每个参数,颜色为线性 `[r, g, b]`。",
     "members": {
-      "kind": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…",
-      "parameters": "Every parameter by name."
+      "kind": "创建材质时的类型：`'meshStandard'`、`'meshBasic'`…",
+      "parameters": "每个参数，按名称。"
     }
   },
   "SavedNode": {
     "summary": "一个节点:它的姿态和它是什么 —— 组、网格、灯光或已加载的模型 —— 以及它下面的内容。",
     "members": {
-      "kind": "What the node is.",
-      "name": "Its name.",
-      "position": "Where it stands, from its parent.",
-      "quaternion": "How it is turned, as a quaternion.",
-      "scale": "How it is stretched on each axis.",
-      "visible": "Whether it is drawn.",
-      "castShadow": "Whether it casts shadows.",
-      "receiveShadow": "Whether shadows fall on it.",
-      "renderOrder": "Its drawing order among see-through things.",
-      "userData": "The page's own data, as JSON.",
-      "children": "The nodes below it, in order.",
-      "mesh": "Ranks in `geometries` and `materials`, and how the triangles are read.",
-      "light": "A light's kind, colours, numbers, aim and probe coefficients.",
-      "model": "A compiled model, by the manifest address it was loaded from: never inlined."
+      "kind": "节点是什么。",
+      "name": "它的名称。",
+      "position": "它相对于父节点的位置。",
+      "quaternion": "它的朝向，用四元数表示。",
+      "scale": "它在每个轴上被拉伸多少。",
+      "visible": "是否绘制它。",
+      "castShadow": "是否投射阴影。",
+      "receiveShadow": "阴影是否落在它上面。",
+      "renderOrder": "它在透明物体之间的绘制顺序。",
+      "userData": "页面自己的数据，JSON 格式。",
+      "children": "它下面的节点，按顺序。",
+      "mesh": "在 `geometries` 和 `materials` 中的序号，以及三角形的读取方式。",
+      "light": "光源的类型、颜色、数值、朝向和探针系数。",
+      "model": "编译好的模型，按它加载时的清单地址记录：从不内嵌。"
     }
   },
   "SavedScene": {
     "summary": "`scene.toJSON` 写出、`scene.fromJSON` 读取的场景:纯 JSON。",
     "members": {
-      "format": "Always `'web-geometry-scene'`.",
-      "formatVersion": "The version of this layout; another one is refused.",
-      "background": "The background colour, or `null`.",
-      "fog": "The fog, or `null`.",
-      "camera": "The camera saved with the scene, or `null`.",
-      "geometries": "Every shape, once, however many meshes wear it.",
-      "materials": "Every material, once, however many meshes wear it.",
-      "children": "The scene's top nodes, in order."
+      "format": "总是 `'web-geometry-scene'`。",
+      "formatVersion": "这种布局的版本；其他版本会被拒绝。",
+      "background": "背景颜色，或 `null`。",
+      "fog": "雾，或 `null`。",
+      "camera": "与场景一起保存的相机，或 `null`。",
+      "geometries": "每个形状只存一次，不管有多少网格使用它。",
+      "materials": "每个材质只存一次，不管有多少网格使用它。",
+      "children": "场景的顶层节点，按顺序。"
     }
   },
   "TransformControls": {
     "summary": "`controls.transform` 返回的内容。",
     "members": {
-      "snap": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional.",
-      "handles": "The group of the handles — a `helper` mark — in the scene while attached.",
-      "object": "The object the handles are on, or `null`.",
-      "dragging": "True while a handle is being dragged.",
-      "mode": "What a drag does: `'translate'`, `'rotate'` or `'scale'`.",
-      "space": "`'world'` or `'local'` axes.",
-      "attach": "Puts the handles on `target`, and in the scene; a drag under way ends first (`dragEnd`).",
-      "detach": "Takes the handles off their object, and out of the scene; a drag under way ends first.",
-      "setMode": "Moves, turns or scales from now on.",
-      "setSpace": "Handles along the world's axes or the object's own.",
-      "addEventListener": "Calls `listener` on each event of `type`.",
-      "removeEventListener": "Stops calling `listener` on events of `type`.",
-      "dispose": "Takes the handles out of the scene and every listener off the canvas."
+      "snap": "拖动时取整的步长：`{ translate, rotate, scale }`，每项都可选。",
+      "handles": "手柄组（一个 `helper` 标记），附着期间位于场景中。",
+      "object": "手柄所在的物体，或 `null`。",
+      "dragging": "拖动手柄时为 true。",
+      "mode": "拖动的作用：`'translate'`、`'rotate'` 或 `'scale'`。",
+      "space": "`'world'` 或 `'local'` 坐标轴。",
+      "attach": "把手柄放到 `target` 上并放进场景；正在进行的拖动会先结束（`dragEnd`）。",
+      "detach": "把手柄从物体上取下并移出场景；正在进行的拖动会先结束。",
+      "setMode": "从现在起移动、旋转或缩放。",
+      "setSpace": "手柄沿世界坐标轴，或沿物体自己的坐标轴。",
+      "addEventListener": "每次发生 `type` 事件时调用 `listener`。",
+      "removeEventListener": "不再为 `type` 事件调用 `listener`。",
+      "dispose": "把手柄移出场景，并移除 canvas 上的所有监听器。"
     }
   },
   "TransformControlsOptions": {
     "summary": "可以告诉 `controls.transform` 的内容;每个字段都是可选的。",
     "members": {
-      "mode": "Move, turn or scale; `'translate'` by default.",
-      "space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "snap": "Steps each drag is rounded to; none by default.",
-      "size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "mode": "移动、旋转或缩放；默认为 `'translate'`。",
+      "space": "手柄沿世界坐标轴，或沿物体自己的坐标轴；默认为 `'world'`。",
+      "snap": "每次拖动取整的步长；默认没有。",
+      "size": "手柄的长度，按 canvas 高度的比例计算，无论物体在哪里都一样；默认为四分之一。"
     }
   },
   "TransformEvent": {
@@ -6842,10 +6842,10 @@
   "TransformHost": {
     "summary": "变换控件对世界的需求:`createWorld` 返回的就是一个。",
     "members": {
-      "canvas": "The canvas the pointer presses on.",
-      "scene": "The scene the handles are added to.",
-      "camera": "The camera the canvas is seen through.",
-      "onFrame": "Runs `hook` after each frame drawn; returns what stops it."
+      "canvas": "指针按下的 canvas。",
+      "scene": "手柄被添加到的场景。",
+      "camera": "用来观看 canvas 的相机。",
+      "onFrame": "每画完一帧后运行 `hook`；返回用来停止它的东西。"
     }
   },
   "TransformMode": {
@@ -6854,9 +6854,9 @@
   "TransformSnap": {
     "summary": "拖动取整的步长,每项可选:世界单位、弧度、缩放系数。",
     "members": {
-      "translate": "World units a move is rounded to, along each axis.",
-      "rotate": "Radians a turn is rounded to.",
-      "scale": "The step a scale factor is rounded to."
+      "translate": "移动在每个轴上取整到的世界单位。",
+      "rotate": "旋转取整到的弧度。",
+      "scale": "缩放系数取整的步长。"
     }
   },
   "TransformSpace": {
@@ -6865,8 +6865,8 @@
   "world.raycast": {
     "summary": "画布上某点(CSS 像素)下方或沿一条世界射线的最近对象,或 `null`:页面添加的节点、击中的世界坐标点和法线、距离(`worldRaycast`)。",
     "parameters": {
-      "options": "What `world.raycast` may be told; every field is optional.",
-      "options.objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "options": "可以传给 `world.raycast` 的内容；每个字段都是可选的。",
+      "options.objects": "要测试的物体及其子树；不设置则为整个场景。"
     }
   },
   "controls": {
@@ -6875,12 +6875,12 @@
   "controls.transform": {
     "summary": "用鼠标移动、旋转和缩放一个对象的手柄(`transform.ts`)。",
     "parameters": {
-      "host": "The world whose scene and camera the handles live in.",
-      "options": "Mode, axes, snapping and screen size; saying nothing is the usual case.",
-      "options.mode": "Move, turn or scale; `'translate'` by default.",
-      "options.space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "options.snap": "Steps each drag is rounded to; none by default.",
-      "options.size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "host": "手柄所在的场景和相机所属的世界。",
+      "options": "模式、坐标轴、吸附和屏幕上的大小；通常什么都不用写。",
+      "options.mode": "移动、旋转或缩放；默认为 `'translate'`。",
+      "options.space": "手柄沿世界坐标轴，或沿物体自己的坐标轴；默认为 `'world'`。",
+      "options.snap": "每次拖动取整的步长；默认没有。",
+      "options.size": "手柄的长度，按 canvas 高度的比例计算，无论物体在哪里都一样；默认为四分之一。"
     }
   },
   "raycast": {
