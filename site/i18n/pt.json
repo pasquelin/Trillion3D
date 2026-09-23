@@ -405,7 +405,6 @@
       "gltf-material-variants": "more glTF extensions: material variants",
       "compressed-mesh-input": "more glTF extensions: Draco, meshopt, quantisation",
       "a-medical-scan": "volume rendering",
-      "save-the-scene": "scene export",
       "a-city-from-3d-tiles": "3D Tiles input",
       "rendering-in-a-worker": "OffscreenCanvas worker rendering",
       "a-video-panorama": "live video textures",
@@ -435,14 +434,12 @@
       "flames-and-a-tornado": "custom shader materials",
       "point-clouds-from-a-scan": "point-cloud import",
       "gaussian-splats": "gaussian splat rendering",
-      "click-to-pick": "picking (raycast)",
       "hover-over-triangles": "picking (raycast)",
       "pick-lines-and-points": "picking (raycast)",
       "pick-an-instance": "picking (raycast)",
       "paint-where-you-click": "picking (raycast)",
       "a-voxel-painter": "picking (raycast)",
       "drag-objects": "picking (raycast)",
-      "move-rotate-scale-gizmo": "picking (raycast) and transform gizmo",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "positional audio",
       "smooth-edges-over-time": "the temporal antialiasing setting",
@@ -558,6 +555,103 @@
     "title": "Testar ao vivo",
     "start": "Começar a partir de um exemplo",
     "open": "Abrir no sandbox"
+  },
+  "editor": {
+    "title": "Scene editor",
+    "group": "Tools",
+    "showcase": "Open the scene editor",
+    "loading": "Preparing the editor…",
+    "canvas": "Scene view: click an object to select it, drag to turn the camera",
+    "menu": {
+      "file": "File",
+      "add": "Add",
+      "edit": "Edit",
+      "models": "Models"
+    },
+    "new": "New",
+    "openFile": "Open…",
+    "save": "Save",
+    "undo": "Undo",
+    "redo": "Redo",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "add": {
+      "box": "Box",
+      "sphere": "Sphere",
+      "cylinder": "Cylinder",
+      "cone": "Cone",
+      "torus": "Torus",
+      "plane": "Plane",
+      "group": "Group",
+      "point": "Point light",
+      "spot": "Spot light",
+      "directional": "Directional light",
+      "ambient": "Ambient light"
+    },
+    "model": {
+      "bust": "Marble bust",
+      "crates": "Crates",
+      "hall": "Hall",
+      "street-corner": "Street corner"
+    },
+    "tools": "Transform tools",
+    "translate": "Move (W)",
+    "rotate": "Rotate (E)",
+    "scale": "Scale (R)",
+    "space": {
+      "world": "World axes",
+      "local": "Local axes"
+    },
+    "snap": "Snap",
+    "outliner": "Scene",
+    "empty": "The scene is empty: add an object from the Add menu.",
+    "show": "Show",
+    "hide": "Hide",
+    "rename": "Rename",
+    "dropRoot": "Drag a row onto another to put it inside; drop it here to bring it back to the top.",
+    "inspector": "Properties",
+    "nothing": "Select an object to edit it.",
+    "name": "Name",
+    "position": "Position",
+    "rotation": "Rotation (°)",
+    "scaleField": "Scale",
+    "geometry": "Shape",
+    "material": "Material",
+    "color": "Colour",
+    "metalness": "Metalness",
+    "roughness": "Roughness",
+    "emissive": "Emissive",
+    "opacity": "Opacity",
+    "light": "Light",
+    "intensity": "Intensity",
+    "range": "Range (0: no limit)",
+    "shadow": "Casts shadows",
+    "param": {
+      "width": "Width",
+      "height": "Height",
+      "depth": "Depth",
+      "radius": "Radius",
+      "radiusTop": "Top radius",
+      "radiusBottom": "Bottom radius",
+      "tube": "Tube radius",
+      "arc": "Arc (radians)",
+      "widthSegments": "Width segments",
+      "heightSegments": "Height segments",
+      "depthSegments": "Depth segments",
+      "radialSegments": "Radial segments",
+      "tubularSegments": "Tube segments"
+    },
+    "stats": "Engine statistics",
+    "cpu": "CPU frame (ms)",
+    "gpu": "GPU frame (ms)",
+    "triangles": "Triangles",
+    "pages": "Pages resident",
+    "sessions": "Sessions opened",
+    "statsHint": "Read from the last frame drawn; a still scene draws none.",
+    "error": {
+      "format": "This file holds a scene format this editor does not read.",
+      "read": "The scene could not be read:"
+    }
   },
   "section": {
     "course": "Curso",
@@ -1281,6 +1375,26 @@
     },
     "srgbToLinearBatch": {
       "description": "Um canal por elemento, com as curvas exatas de `packages/sdk-core/src/math/primitives/color.ts`: a referência multiplica por constantes arredondadas, e a diferença — invisível a 8 bits — é limitada de uma vez, no benchmark que os confronta."
+    },
+    "scene-editor": {
+      "title": "Construir uma cena com o editor",
+      "description": "Adicionar formas e luzes, escolhê-las com o mouse, movê-las com alças, recolori-las, salvar a cena e reabri-la — no portal, apenas com a API pública.",
+      "html": "<p>O <a href=\"#/pt/examples/scene-editor\">editor de cenas</a> é uma página deste portal construída sobre três portas do motor e nada mais. Comece com uma cena vazia: <b>Add → Box</b>, depois <b>Add → Directional light</b>. Clique na caixa: <code>world.raycast</code> a encontra sob o ponteiro, e as alças de <code>controls.transform</code> aparecem sobre ela. Arraste uma seta para movê-la — a câmera fica parada enquanto uma alça é segurada — pressione <kbd>E</kbd> para girá-la, <kbd>R</kbd> para escalá-la. Mude sua cor no inspetor: o motor repinta o material no lugar, e o custo da imagem fica no canto das estatísticas. <b>Save</b> baixa <code>scene.toJSON</code>; <b>New</b>, depois <b>Open</b>, reconstrói a mesma cena com <code>scene.fromJSON</code>.</p>\n<p>Cada passo é desfeito com <kbd>Ctrl</kbd>+<kbd>Z</kbd>, e a cena é guardada no navegador entre duas visitas. A página não desenha nem move nada por si mesma: o que você vê é o motor.</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "Escolher um objeto com o ponteiro",
+      "description": "`world.raycast` retorna o objeto mais próximo sob um ponto do canvas: o nó que a página adicionou, o ponto e a normal atingidos, a distância.",
+      "html": "<p>O teste roda na CPU sobre a própria geometria da cena: malhas de triângulos triângulo por triângulo, um modelo carregado sobre sua caixa, linhas e pontos nunca. Subárvores ocultas e marcas <code>helper</code> são puladas. Veja em <a href=\"#/pt/examples/click-to-pick\">Click to pick</a>.</p>"
+    },
+    "move-with-handles": {
+      "title": "Mover, girar e escalar com alças",
+      "description": "`controls.transform(world)` coloca alças em um objeto; um arrasto escreve sua pose através dos pais, e a câmera fica parada enquanto isso.",
+      "html": "<p>Modos <code>translate</code>, <code>rotate</code> e <code>scale</code>, eixos do mundo ou locais, passos opcionais. Os eventos <code>dragStart</code> e <code>dragEnd</code> delimitam um arrasto — um passo de desfazer. Veja em <a href=\"#/pt/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "Salvar e abrir uma cena",
+      "description": "`scene.toJSON(camera)` escreve a cena como JSON simples e versionado; `scene.fromJSON(json, camera)` a reconstrói.",
+      "html": "<p>As formas são guardadas pela chamada que as construiu, os materiais por seus valores, os modelos carregados por seu endereço — nunca embutidos — e as marcas <code>helper</code> de forma alguma. Outra versão do formato é recusada pelo nome. Veja em <a href=\"#/pt/examples/save-the-scene\">Save the scene</a>.</p>"
     }
   },
   "canvas": {
