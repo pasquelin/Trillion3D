@@ -907,10 +907,6 @@
     },
     {
       "id": "openworld",
-      "title": {
-        "en": "Open world",
-        "fr": "Monde ouvert"
-      },
       "theme": "streaming",
       "file": "examples/openworld.html"
     },

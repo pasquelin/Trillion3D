@@ -318,7 +318,8 @@
       "hands-in-vr": "Hände in VR",
       "teleport-in-vr": "Teleportieren in VR",
       "controllers-in-vr": "Controller in VR",
-      "ar-on-the-table": "AR auf dem Tisch"
+      "ar-on-the-table": "AR auf dem Tisch",
+      "openworld": "Offene Welt"
     },
     "missing": {
       "colours-on-the-vertices": "Vertexfarben unter WebGPU",

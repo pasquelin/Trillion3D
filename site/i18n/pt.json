@@ -318,7 +318,8 @@
       "hands-in-vr": "Mãos em RV",
       "teleport-in-vr": "Teletransportar-se em RV",
       "controllers-in-vr": "Controles em RV",
-      "ar-on-the-table": "RA sobre a mesa"
+      "ar-on-the-table": "RA sobre a mesa",
+      "openworld": "Mundo aberto"
     },
     "missing": {
       "colours-on-the-vertices": "cores por vértice no WebGPU",
