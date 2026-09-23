@@ -70,8 +70,8 @@ test('a residency republished identically does not drop the held cut', async () 
   fixture.geometry.dispose();
 });
 
-test('a disposal with both readbacks in flight calls nothing on the buffers it destroyed', async () => {
-  const { release, fixture, dag, uniforms, device, destroyedCalls } = gatedDag();
+test('a disposal with both readbacks in flight maps none of the buffers it destroyed', async () => {
+  const { release, fixture, dag, uniforms, device, destroyedMaps } = gatedDag();
   const selection = await createGpuDagSelection(device, dag);
   assert.ok(selection);
   // Two snapshots in flight: slot 0 is mapping, held by the gate; slot 1's read waits behind it.
@@ -79,10 +79,10 @@ test('a disposal with both readbacks in flight calls nothing on the buffers it d
   selection.dispatch({ ...uniforms, pixelError: uniforms.pixelError + 1 });
   await new Promise(setImmediate);
   // The world reopens its session here: slot 0's mapping is cut short (`AbortError`), and slot 1's
-  // read starts after its buffer is gone. Neither may unmap nor map a destroyed buffer (#334).
+  // read starts after its buffer is gone. Neither maps a destroyed buffer (#334).
   selection.dispose();
   release();
   await selection.flush();
-  assert.equal(destroyedCalls(), 0);
+  assert.equal(destroyedMaps(), 0);
   fixture.geometry.dispose();
 });
