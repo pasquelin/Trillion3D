@@ -3,6 +3,7 @@ export type {
   World,
   WorldOptions,
   FrameInfo,
+  BeforeFrameInfo,
   WorldTarget,
   WorldRenderer,
   LoadOptions,
