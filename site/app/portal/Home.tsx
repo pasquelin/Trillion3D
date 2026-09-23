@@ -5,7 +5,7 @@ import { readyEntries, thumbnailOf } from '../examples/list.ts';
 import { DocPage, SITE_NAME } from '../layout/DocPage.tsx';
 import { LinkButton } from '../ui/Button.tsx';
 import { Mosaic } from '../ui/Mosaic.tsx';
-import { routeHref } from './routes.ts';
+import { EDITOR_ID, routeHref } from './routes.ts';
 
 /** The flagships, shown large, one per band of the mosaic. */
 const FLAGSHIPS = [
@@ -20,8 +20,9 @@ const FLAGSHIPS = [
 /** Examples kept off the home while a defect of the engine shows in them. */
 const HELD_BACK = ['a-robot-that-walks-and-waves'];
 
-/** The home is the gallery: one line on what the engine does, where to start, then every ready
- * example as a picture that opens it — the flagships large. */
+/** The home is the gallery: one line on what the engine does, where to start (the course, the
+ * reference, the scene editor running live), then every ready example as a picture that opens
+ * it — the flagships large. */
 export function Home({ locale }: { locale: Locale }) {
   const shown = readyEntries.filter(({ id }) => !HELD_BACK.includes(id));
   // Each flagship, then four of the others: a large tile and the four small ones beside it
@@ -48,6 +49,12 @@ export function Home({ locale }: { locale: Locale }) {
           </LinkButton>
           <LinkButton variant="outline" href={routeHref({ locale, area: 'api', id: '' })}>
             {t(locale, 'nav.api')}
+          </LinkButton>
+          <LinkButton
+            variant="secondary"
+            href={routeHref({ locale, area: 'examples', id: EDITOR_ID })}
+          >
+            {t(locale, 'editor.showcase')}
           </LinkButton>
         </>
       }

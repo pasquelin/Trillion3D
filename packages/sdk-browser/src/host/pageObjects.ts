@@ -184,10 +184,13 @@ export function colouredTwin(
   return twin;
 }
 
-/** The same surface, reading the colour attribute a decoded page carries. */
-export function colouredHostSurface(original: HostMaterial): HostMaterial {
-  const twin = asHostLibrary<THREE.Material>(original).clone();
+/** The same surface, reading the colour attribute a decoded page carries: a new clone, or `into`
+ *  taking the original's values again once it was repainted in place. */
+export function colouredHostSurface(original: HostMaterial, into?: HostMaterial): HostMaterial {
+  const source = asHostLibrary<THREE.Material>(original);
+  const twin = into ? asHostLibrary<THREE.Material>(into).copy(source) : source.clone();
   (twin as THREE.MeshStandardMaterial).vertexColors = true;
+  twin.needsUpdate = true;
   return twin;
 }
 

@@ -55,3 +55,4 @@ export const object = {
 
 export { Object3D, Group, Mesh, type Primitive };
 export type { SceneLink } from './object3d.ts';
+export { raycast, type Intersection } from './raycast.ts';
