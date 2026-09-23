@@ -1,5 +1,5 @@
 import { shaderErrors } from '../../gpu/core/shaderModule.ts';
-import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/shaderRequest.ts';
+import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { VIS_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
 import {

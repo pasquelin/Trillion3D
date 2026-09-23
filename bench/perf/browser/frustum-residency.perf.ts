@@ -1,6 +1,6 @@
 // Absolute selection measurement: frustum clip and autonomous residency. No oracle here: these
 // two computations have no prior implementation to confront; their correctness is held by
-// `packages/sdk-core/src/math/frustum/frustumBox.test.ts` and `packages/sdk-browser/src/backend/autonomous/residency.test.ts`. Each line says so rather than staying silent.
+// `packages/sdk-core/src/math/frustum/box.test.ts` and `packages/sdk-browser/src/backend/autonomous/residency.test.ts`. Each line says so rather than staying silent.
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core/src/index.ts';
 import { collectPendingUrls } from '../../../packages/sdk-browser/src/page/selection/requests.ts';
@@ -47,13 +47,13 @@ const clipper = (plat: Float64Array) => {
 // ── Mesure frustumClipBox ────────────────────────────────────────────
 const clipResult = await mesure({
   name: 'frustumClipBox',
-  fichier: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
+  fichier: 'packages/sdk-core/src/math/frustum/box.ts',
   cas: [
     { name: '20k boxes including degenerates', input: grande, size: 20000 },
     { name: 'no boxes', input: vide, size: 0 },
   ],
   calcul: clipper,
-  motif: 'time only — correctness in packages/sdk-core/src/math/frustum/frustumBox.test.ts',
+  motif: 'time only — correctness in packages/sdk-core/src/math/frustum/box.test.ts',
   options: { tours: 200, budgetMs: 1000 },
 });
 

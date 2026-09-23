@@ -1,5 +1,5 @@
-import { createPivotControls, trackPivotGestures } from './controlPivot.ts';
-import type { ControlCamera, PivotCameraControls } from './controlTypes.ts';
+import { createPivotControls, trackPivotGestures } from './pivot.ts';
+import type { ControlCamera, PivotCameraControls } from './types.ts';
 
 /**
  * PLANAR PAN-ZOOM, the flat view: the camera never turns. Whatever direction it was pointing

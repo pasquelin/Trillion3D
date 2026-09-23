@@ -43,8 +43,7 @@ const RESOLVENT: Record<string, string> = {
 const POSE_LOCALE: Record<string, string> = {
   'camera/world.ts': 'the contract: it is what translates local pose into world pose',
   'world/camera/camera.ts': 'the host POSES its camera; the local pose is what it writes',
-  'camera/controls/controlPose.ts':
-    'the camera-controller boundary: a controller writes a local pose',
+  'camera/controls/pose.ts': 'the camera-controller boundary: a controller writes a local pose',
   'world/api/cameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
   'world/render/hostState.ts': 'the host restores the local pose it had recorded',
   'gpu/dag/oracle/predicates.ts': 'the oracle POSES a parentless camera from a world position',

@@ -1,13 +1,13 @@
-import { createChangeGate, createControlBase } from './controlBase.ts';
-import { axisOf, trackKeys, trackPointers, type KeyAxis } from './controlInput.ts';
-import { controlPose } from './controlPose.ts';
-import { moveLocal } from './controlMath.ts';
+import { createChangeGate, createControlBase } from './base.ts';
+import { axisOf, trackKeys, trackPointers, type KeyAxis } from './input.ts';
+import { controlPose } from './pose.ts';
+import { moveLocal } from './math.ts';
 import {
   multiplyQuaternion,
   normalizeQuaternion,
   localTurnQuaternion,
 } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import type { ControlCamera, SteeredCameraControls } from './controlTypes.ts';
+import type { ControlCamera, SteeredCameraControls } from './types.ts';
 
 /**
  * FLIGHT, six degrees of freedom: the camera keeps no up axis and no pivot. Keys translate

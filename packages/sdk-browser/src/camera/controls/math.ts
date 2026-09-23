@@ -2,7 +2,7 @@ import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quatern
 import { DEG2RAD } from '../../../../sdk-core/src/world/math/spherical.ts';
 /**
  * The arithmetic every camera controller shares, on flat numbers alone: no DOM, no host
- * vector, no allocation beyond the buffers the caller owns. `controlMath.test.ts`
+ * vector, no allocation beyond the buffers the caller owns. `math.test.ts`
  * proves it without a browser.
  *
  * SPHERICAL CONVENTION, for the controllers that turn around a target: `radius` is the

@@ -1,5 +1,5 @@
 import { addCpuSteps, cpuStepTable } from '../../../stage/cpuSteps.ts';
-import { sunFarCounts } from '../prepare/prepareSunFar.ts';
+import { sunFarCounts } from '../prepare/sunFar.ts';
 import {
   frameCostAuditEnabled,
   gpuFrameCostSnapshot,

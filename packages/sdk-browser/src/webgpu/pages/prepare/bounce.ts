@@ -3,7 +3,7 @@ import {
   PROBE_FLOATS,
   type SceneProxy,
 } from '../../../../../sdk-core/src/index.ts';
-import { createGpuBounceProbes } from '../../../bounce/bounceProbes.ts';
+import { createGpuBounceProbes } from '../../../bounce/probes.ts';
 import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 

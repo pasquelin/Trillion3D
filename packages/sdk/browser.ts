@@ -13,10 +13,7 @@ export type {
   LaneCounts,
   TextureCompression,
 } from '../sdk-browser/src/texture/blockFormats.ts';
-export type {
-  BackendDiagnostic,
-  DiagnosticDetail,
-} from '../sdk-browser/src/diagnostic/diagnosticTypes.ts';
+export type { BackendDiagnostic, DiagnosticDetail } from '../sdk-browser/src/diagnostic/types.ts';
 export { batch } from '../sdk-browser/src/world/batch/index.ts';
 export type { FloatBatch } from '../sdk-browser/src/world/batch/index.ts';
 export {
@@ -51,7 +48,7 @@ export type {
   ChangeListener,
   ControlVector,
   PivotCameraControls,
-} from '../sdk-browser/src/camera/controls/controlTypes.ts';
+} from '../sdk-browser/src/camera/controls/types.ts';
 export { Color } from '../sdk-core/src/world/math/color.ts';
 export type { ColorInput } from '../sdk-core/src/world/math/color.ts';
 export type { ComparisonLayout } from '../sdk-browser/src/measurement/comparison.ts';
@@ -155,7 +152,7 @@ export type { PanZoomCameraControls } from '../sdk-browser/src/camera/controls/p
 export type { PartitionAudit } from '../sdk-browser/src/webgpu/core/partitionAudit.ts';
 export { texture } from '../sdk-browser/src/world/texture/index.ts';
 export type { PixelImage } from '../sdk-browser/src/world/texture/index.ts';
-export type { PlacementRows } from '../sdk-browser/src/placement/placementRows.ts';
+export type { PlacementRows } from '../sdk-browser/src/placement/rows.ts';
 export type { PointOfInterest } from '../sdk-browser/src/world/session/options.ts';
 export { pose } from '../sdk-browser/src/world/pose/index.ts';
 export type { PosedWorld } from '../sdk-browser/src/world/pose/index.ts';

@@ -1,5 +1,5 @@
-import { SHADE_DECL_WGSL } from './shaderShadeDecl.ts';
-import { lecture, lectureDonnee, siCarte } from './shaderMaps.ts';
+import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts';
+import { lecture, lectureDonnee, siCarte } from './maps.ts';
 import { MODEL_FLAG, MODEL_SHIFT, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 
 /**

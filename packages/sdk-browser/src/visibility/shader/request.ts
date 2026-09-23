@@ -1,6 +1,6 @@
 import { LIGHT_SETTINGS, SHADOW_SLICE_FLOATS } from '../../../../sdk-core/src/index.ts';
 import type { WebgpuLightState } from '../../webgpu/pages/state/lights.ts';
-import { quartet } from './shaderMaps.ts';
+import { quartet } from './maps.ts';
 
 /**
  * What an opaque pixel asks of virtual textures: ONE tile rank, placed in the frame's

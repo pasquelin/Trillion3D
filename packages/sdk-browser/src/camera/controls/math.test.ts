@@ -1,12 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  dollyDistance,
-  moveLocal,
-  orbitOrientation,
-  panOffset,
-  pixelWorldScale,
-} from './controlMath.ts';
+import { dollyDistance, moveLocal, orbitOrientation, panOffset, pixelWorldScale } from './math.ts';
 import {
   clampNumber,
   fromSpherical,

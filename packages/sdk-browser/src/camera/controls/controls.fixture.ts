@@ -1,4 +1,4 @@
-import type { ControlCamera, ControlVector } from './controlTypes.ts';
+import type { ControlCamera, ControlVector } from './types.ts';
 
 /**
  * A camera and a surface with no DOM behind them, so the five controllers are proved on a

@@ -17,10 +17,10 @@ import { surfaceFrontOnly } from '../../../page/surface.ts';
 import { ensureTargets } from './targets.ts';
 import { ensureUniform } from './pipelineFor.ts';
 import { dropVis, grantCapability } from '../io/drops.ts';
-import { prepareWebgpuTextures } from './prepareTextures.ts';
-import { prepareWebgpuVisibility } from './prepareVisibility.ts';
-import { prepareDirectLights } from './prepareLights.ts';
-import { createWebgpuPagesCache } from './prepareCache.ts';
+import { prepareWebgpuTextures } from './textures.ts';
+import { prepareWebgpuVisibility } from './visibility.ts';
+import { prepareDirectLights } from './lights.ts';
+import { createWebgpuPagesCache } from './cache.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Every cluster carries its own cone; a double-sided or back-facing material keeps it open.

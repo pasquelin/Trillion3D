@@ -1,11 +1,11 @@
-import { createPivotControls, trackPivotGestures } from './controlPivot.ts';
+import { createPivotControls, trackPivotGestures } from './pivot.ts';
 import {
   axisAngleQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
   rotateByQuaternion,
 } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import type { ControlCamera, PivotCameraControls } from './controlTypes.ts';
+import type { ControlCamera, PivotCameraControls } from './types.ts';
 
 /**
  * TRACKBALL: the camera rolls around its pivot as if the scene were a ball under the cursor.

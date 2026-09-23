@@ -19,8 +19,8 @@ import type { BackendDrawCounters, BackendMetrics } from '../diagnostic/metricKe
 import type { SceneToneMapping } from '../../../sdk-core/src/scene/core/environment.ts';
 import type { MemoryBudgets, MemoryBudgetsReport } from '../webgpu/pages/io/memory.ts';
 import type { CpuStepSummary } from '../stage/cpuProfile.ts';
-import type { BackendDiagnostic, DiagnosticDetail } from '../diagnostic/diagnosticTypes.ts';
-import type { PlacementRows } from '../placement/placementRows.ts';
+import type { BackendDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts';
+import type { PlacementRows } from '../placement/rows.ts';
 import type { BackendSceneUpdates } from '../placement/backendSceneUpdates.ts';
 export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
 
@@ -125,7 +125,7 @@ export interface BackendContext {
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
   /** Node → primitive. `placements`: the instance buffer the node's primitive is drawn at, in
-   *  place of the node's own pose (`../placement/placementRows.ts`). */
+   *  place of the node's own pose (`../placement/rows.ts`). */
   associations: Map<HostNode, { meshes?: number; primitives?: number; placements?: PlacementRows }>;
   /** glTF rank of each texture of the prepared scene, to tie an atlas layer to its preview. */
   textureIndices?: Map<HostTexture, number>;

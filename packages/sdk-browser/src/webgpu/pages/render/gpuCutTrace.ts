@@ -1,6 +1,6 @@
 import type { EngineCamera } from '../../../camera/world.ts';
 import { CPU_STEP } from './cpuSteps.ts';
-import { frameTraceSnapshot } from './renderTrace.ts';
+import { frameTraceSnapshot } from './trace.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Files the image's CPU steps into the profile and the sample the progress diagnostic reports. */

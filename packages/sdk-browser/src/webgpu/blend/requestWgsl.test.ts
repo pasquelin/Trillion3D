@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
 
 import { TILE_REQUEST_WGSL } from '../tile/requestWgsl.ts';
-import { SHADE_REQUEST_WGSL } from '../../visibility/shader/shaderRequest.ts';
+import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts';
 
 // A pixel's request — transparent or opaque — follows one rule, that of `TILE_REQUEST_WGSL`:
 // the phase picks which pixels speak, POSITION picks the map and the level, so two complete

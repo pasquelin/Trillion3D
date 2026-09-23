@@ -85,7 +85,7 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  * A drained pose: textures converged AND shadows drained, alternating until calm, and the same
  * predicate as the held image (`unsettledMask`) to say whether it is acquired. Order alone is not
  * enough: what a foliage shadow asks of textures is read in the sun cascades
- * (`../../visibility/shader/shaderRequest.ts`), and a cascade redrawn by the drain moves that request; an arrived
+ * (`../../visibility/shader/request.ts`), and a cascade redrawn by the drain moves that request; an arrived
  * tile, conversely, voids every shadow. A turn whose drain redrew nothing has converged its textures
  * on the final cascades: that is the stop.
  *

@@ -1,7 +1,7 @@
 import type { HostAttributes } from '../../../host/resources.ts';
 import type { Texture } from '../../../../../sdk-core/src/index.ts';
 import type { GpuPartition } from '../../../gpu/partition/types.ts';
-import { SHADE_UNIFORM_WORDS } from '../../../visibility/shader/shaderRequest.ts';
+import { SHADE_UNIFORM_WORDS } from '../../../visibility/shader/request.ts';
 import type { GpuHiz } from '../../../gpu/hiz/hiz.ts';
 import type { GpuRaster } from '../../../gpu/raster/raster.ts';
 import type { GpuDraw } from '../../../gpu/draw/draw.ts';

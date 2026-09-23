@@ -13,8 +13,8 @@ import { ensureBounceFits } from './limits.ts';
 import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 import { createBounceSchedule } from './schedule.ts';
 import { createBounceUniform } from './uniform.ts';
-import { createGpuBounceProxy } from './bounceProxy.ts';
-import { createGpuBounceSurface, type GpuBounceSurface } from './bounceSurface.ts';
+import { createGpuBounceProxy } from './proxy.ts';
+import { createGpuBounceSurface, type GpuBounceSurface } from './surface.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 
 /** What the probe pass binds: the cascades, the proxy and its albedo, the frame queue, frozen

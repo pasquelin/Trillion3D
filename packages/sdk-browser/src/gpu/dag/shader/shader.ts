@@ -1,4 +1,4 @@
-import { DAG_ERROR_WGSL } from './shaderError.ts';
+import { DAG_ERROR_WGSL } from './error.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts';
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts';
@@ -37,7 +37,7 @@ struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>
 const INF:f32=3.4e38;
 const FRAME:u32=7u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
- *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/frustumBox.ts): same corners, same sum. */
+ *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/box.ts): same corners, same sum. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  for(var i=0u;i<6u;i++){
   let plane=frames[base+i];
