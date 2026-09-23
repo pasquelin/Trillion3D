@@ -305,7 +305,7 @@
       // The quality of the two lossy files: each change writes them again and the easels show
       // the new pictures, only once the new files are decoded.
       let waiting = 0, asked = 0;
-      const ui = controls({
+      controls({
         mouse: 'Drag to walk along the easels; lower the quality and look closely at JPEG and WebP',
         quality: [0.02, 1, QUALITY, 0.01],
         lookAt: ['all eight', ...FORMATS.map(({ name }) => name)],
@@ -345,10 +345,12 @@
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step;
-        easels.forEach(({ frame }, k) => {
-          const turn = ease(Math.min(1, Math.max(0, (time - 0.8 - k * 0.3) / 1.1)));
-          frame.rotation.set(-0.12, Math.PI * (1 - turn), 0);
-        });
+        // The last picture has turned by 4 s; after that the frames are never written again.
+        if (time < 4.5)
+          easels.forEach(({ frame }, k) => {
+            const turn = ease(Math.min(1, Math.max(0, (time - 0.8 - k * 0.3) / 1.1)));
+            frame.rotation.set(-0.12, Math.PI * (1 - turn), 0);
+          });
         if (flight) {
           flight.time = Math.min(1, flight.time + step / flight.seconds);
           const e = ease(flight.time), [x, y, z, tx, ty, tz] = flight.from.map((value, i) => value + (flight.to[i] - value) * e);

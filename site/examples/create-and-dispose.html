@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#26324a');
@@ -140,8 +140,8 @@
       // when it opens, so the fountain opens full — every kind's pieces already in flight on the
       // first frame — and each later piece takes the place a disposed one left.
       const PER_KIND = 6, live = [], flying = KINDS.map(() => 0);
-      let created = 0, disposed = 0, next = 1, rota = 0;
-      const random = () => (next = (Math.imul(next, 1664525) + 1013904223) >>> 0) / 4294967296;
+      let created = 0, disposed = 0, rota = 0;
+      const random = seeded(1);
       const GRAVITY = 9.8;
       // One step of a piece's flight: gravity, a bounce on the basin floor and off its rim.
       function fly(item, step) {
