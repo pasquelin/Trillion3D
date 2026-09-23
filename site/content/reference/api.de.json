@@ -6344,7 +6344,12 @@
       "coyoteTime": "Nur Charakter: Sekunden, nach denen ein Sprung nach dem Verlassen einer Kante noch gewährt wird; standardmäßig 0,1.",
       "jumpBuffer": "Nur Charakter: Sekunden, für die ein vor der Landung gedrückter Sprung für die Landung vorgemerkt bleibt; standardmäßig 0,1.",
       "onLand": "Nur Charakter: wird bei der Landung mit der Sinkgeschwindigkeit in m/s aufgerufen; standardmäßig `null`.",
-      "onJump": "Nur Charakter: wird aufgerufen, wenn der Körper bei einem Sprung den Boden verlässt; standardmäßig `null`."
+      "onJump": "Nur Charakter: wird aufgerufen, wenn der Körper bei einem Sprung den Boden verlässt; standardmäßig `null`.",
+      "stride": "Nur Charakter: die Phase des Schritts in Radiant, ein Fuß trifft bei 0 und π auf; sonst 0.",
+      "fallGravity": "Nur Charakter: Abwärtsbeschleunigung während des Fallens, in m/s²; standardmäßig 1,6 g, damit ein Sprung nicht schwebt.",
+      "stopTime": "Nur Charakter: Sekunden, um 95 % der Geschwindigkeit zu verlieren, sobald keine Taste mehr gedrückt ist, am Boden; standardmäßig 0,08.",
+      "headBob": "Nur Charakter: Meter, um die das Auge bei jedem Schritt im Trab steigt und fällt; standardmäßig 0,035, 0 hält es waagerecht.",
+      "landingDip": "Nur Charakter: Sekunden vom Aufsetzen bis zum tiefsten Punkt des Landungsabsenkens des Auges, so tief wie der Aufprall schnell ist; standardmäßig 0,06, 0 schaltet es aus."
     }
   },
   "world.renderer": {
@@ -6674,7 +6679,8 @@
       "onLand": "Wird bei der Landung mit der Sinkgeschwindigkeit in Metern pro Sekunde aufgerufen: ein Ton, ein Rütteln.",
       "onJump": "Wird aufgerufen, wenn der Körper bei einem Sprung den Boden verlässt.",
       "collision": "Womit der Körper kollidiert — den Kollidierern der Welt, oder der Welt eines Physik-Backends über dieselbe Schnittstelle (`CharacterCollision`). `null` geht eben dort, wo der Körper steht, und fällt nie.",
-      "update": "Lebt `delta` Sekunden; gibt zurück, ob sich die Kamera bewegt hat, und sendet `change`, wenn das der Fall war."
+      "update": "Lebt `delta` Sekunden; gibt zurück, ob sich die Kamera bewegt hat, und sendet `change`, wenn das der Fall war.",
+      "stride": "Die Phase des Schritts in Radiant, in [0, 2π): ein Fuß trifft bei 0 auf den Boden, der andere bei π."
     }
   },
   "CharacterCollision": {
