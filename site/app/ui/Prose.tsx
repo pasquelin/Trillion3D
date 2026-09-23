@@ -21,3 +21,16 @@ interface ProseProps {
 export function Prose({ html }: ProseProps) {
   return <div className="wg-prose" dangerouslySetInnerHTML={{ __html: html }} />;
 }
+
+/** Repository-authored HTML steps, numbered in reading order. */
+export function Steps({ steps }: { steps: string[] }) {
+  return (
+    <div className="wg-prose">
+      <ol>
+        {steps.map((step) => (
+          <li key={step} dangerouslySetInnerHTML={{ __html: step }} />
+        ))}
+      </ol>
+    </div>
+  );
+}
