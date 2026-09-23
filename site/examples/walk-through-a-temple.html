@@ -9,7 +9,7 @@
       body {
         margin: 0;
         height: 100%;
-        background: #7fa6d6;
+        background: #4b3558;
       }
       canvas {
         display: block;
@@ -28,10 +28,20 @@
       // keys run on the level, Escape gives the mouse back. The controller runs one unit a second,
       // so the temple is built at a third of life size: the eyes stand half a unit above the feet.
       const world = createWorld('view', { controls: 'firstPerson' });
-      world.scene.background = math.color('#7fa6d6');
-      const stone = material.meshStandard({ color: '#b9a88a', roughness: 0.85 });
-      const marble = material.meshStandard({ color: '#efe8da', roughness: 0.35 });
-      const lava = material.meshStandard({ color: '#000000', emissive: '#ff5a1f', emissiveIntensity: 2.5 });
+      // The first pointer move after the lock is granted can carry the whole jump of the cursor
+      // to the middle of the screen, which throws the head at the sky: the page drops that one
+      // move on the window, before the controller on the canvas sees it.
+      let fresh = false;
+      document.addEventListener('pointerlockchange', () => (fresh = document.pointerLockElement !== null));
+      addEventListener('pointermove', (event) => {
+        if (!fresh || document.pointerLockElement === null) return;
+        fresh = false;
+        event.stopPropagation();
+      }, { capture: true });
+      const stone = material.meshStandard({ color: '#5a4d43', roughness: 0.9 });
+      const darkStone = material.meshStandard({ color: '#3a302b', roughness: 0.95 });
+      const marble = material.meshStandard({ color: '#efe8da', roughness: 0.3 });
+      const bronze = material.meshStandard({ color: '#8a6334', metalness: 0.8, roughness: 0.4 });
       function box(size, at, matter) {
         const mesh = object.mesh(geometry.box(...size), matter);
         mesh.position.set(...at);
@@ -39,18 +49,44 @@
         return mesh;
       }
 
-      // The ruin: a lava pit between two long walls, open to the sky, columns along the walls.
+      // The ruin: a lava pit between two long walls, open to the sky. The lava glows by itself
+      // and cools in dark crusts; two warm lights rise from it, still and without shadows, so
+      // the walls and the pillars' flanks catch its red from below.
       const PIT = -1.5;
-      box([9, 0.2, 20], [0, PIT - 0.1, -5], lava);
+      box([9, 0.2, 20], [0, PIT - 0.1, -5], material.meshStandard({ color: '#000000', emissive: '#ff4a14', emissiveIntensity: 2.5 }));
+      const hot = material.meshStandard({ color: '#000000', emissive: '#ffb347', emissiveIntensity: 3 });
+      const crust = material.meshStandard({ color: '#1c1512', roughness: 1 });
+      for (let index = 0; index < 60; index++) {
+        // A fixed scatter (a sine hash), the same crusts on every visit.
+        const [u, v, w] = [1, 2, 3].map((k) => { const t = Math.sin(index * 12.9898 + k * 78.233) * 43758.5453; return t - Math.floor(t); });
+        const size = 0.3 + w * 0.9;
+        box([size, 0.04, size * (0.6 + u * 0.8)], [u * 8.4 - 4.2, PIT + 0.02, v * 19 - 14.5], index % 5 ? crust : hot).rotation.set(0, w * 3, 0);
+      }
+      for (const [x, z] of [[-2.2, -3.5], [2.4, -9.5]])
+        world.scene.add(light.point({ position: [x, PIT + 0.6, z], color: '#ff6a2a', intensity: 5, distance: 9 }));
+      // The walls: dark ashlar with a base course, and a colonnade before each — marble shafts on
+      // plinths under capitals, carrying an architrave, a pilaster on the wall behind each one and
+      // an arch of three stones between each pair, all the way down the hall.
       for (const side of [-1, 1]) {
         box([0.4, 5, 20], [side * 4.7, PIT + 2.5, -5], stone);
+        box([0.14, 0.6, 20], [side * 4.43, PIT + 0.3, -5], darkStone);
+        box([0.5, 0.3, 19.6], [side * 4.1, PIT + 4.35, -5], marble);
         for (let index = 0; index < 6; index++) {
-          const column = object.mesh(geometry.cylinder(0.22, 0.26, 4.2, 24), marble);
-          column.position.set(side * 4.1, PIT + 2.1, 2 - index * 3.2);
+          const z = 2 - index * 3.2;
+          const column = object.mesh(geometry.cylinder(0.22, 0.26, 3.6, 24), marble);
+          column.position.set(side * 4.1, PIT + 2.1, z);
           world.scene.add(column);
+          box([0.66, 0.3, 0.66], [side * 4.1, PIT + 0.15, z], darkStone);
+          box([0.6, 0.3, 0.6], [side * 4.1, PIT + 4.05, z], marble);
+          box([0.1, 5, 0.6], [side * 4.46, PIT + 2.5, z], darkStone);
+          if (index === 5) continue;
+          box([0.3, 1, 0.9], [side * 4.1, PIT + 3.7, z - 0.55], darkStone);
+          box([0.3, 1, 0.9], [side * 4.1, PIT + 3.7, z - 2.65], darkStone);
+          box([0.28, 0.6, 1.4], [side * 4.1, PIT + 3.9, z - 1.6], darkStone);
         }
       }
       box([9.8, 5, 0.4], [0, PIT + 2.5, -15.2], stone);
+      box([9.8, 0.6, 0.1], [0, PIT + 0.3, -14.96], darkStone);
 
       // The course: pillars rising out of the pit, [x from, x to, z from, z to, top]. A gap is at
       // most 0.4 and a climb 0.2, what one jump clears at the starting gravity.
@@ -62,7 +98,8 @@
       ].map(([x0, x1, z0, z1, top]) => ({ x0, x1, z0, z1, top, x: (x0 + x1) / 2, z: (z0 + z1) / 2 }));
       const FINISH = COURSE.at(-1);
       for (const p of COURSE) {
-        box([p.x1 - p.x0, p.top - 0.05 - PIT, p.z1 - p.z0], [p.x, (p.top - 0.05 + PIT) / 2, p.z], stone);
+        box([p.x1 - p.x0, p.top - 0.09 - PIT, p.z1 - p.z0], [p.x, (p.top - 0.09 + PIT) / 2, p.z], darkStone);
+        box([p.x1 - p.x0 + 0.06, 0.04, p.z1 - p.z0 + 0.06], [p.x, p.top - 0.07, p.z], bronze);
         box([p.x1 - p.x0 + 0.04, 0.05, p.z1 - p.z0 + 0.04], [p.x, p.top - 0.025, p.z], marble);
       }
       // The idol on the finish platform, and the glowing orbs floating over the course.
@@ -77,18 +114,27 @@
         world.scene.add(orb);
         return { orb, platform: p };
       });
-      // Braziers on the start and finish: warm flames that flicker, lamps without shadows.
+      // Braziers on the start and finish: a bronze bowl of glowing coals on a stand, a flame over
+      // it, and a warm lamp without shadows that flickers.
       const flame = material.meshStandard({ color: '#000000', emissive: '#ff9a3c', emissiveIntensity: 6 });
+      const coals = material.meshStandard({ color: '#000000', emissive: '#ff5a1f', emissiveIntensity: 4 });
       const fires = [[-1.3, 2.8, 0], [1.3, 2.8, 0], [-1.3, -13.3, 1.1], [1.3, -13.3, 1.1]].map(([x, z, y]) => {
-        box([0.16, 0.3, 0.16], [x, y + 0.15, z], stone);
-        const fire = object.mesh(geometry.sphere(0.08, 16, 12), flame);
-        fire.position.set(x, y + 0.36, z);
+        const stand = object.mesh(geometry.cylinder(0.03, 0.06, 0.26, 12), bronze);
+        const bowl = object.mesh(geometry.cylinder(0.13, 0.07, 0.08, 24), bronze);
+        const embers = object.mesh(geometry.cylinder(0.11, 0.11, 0.02, 24), coals);
+        const fire = object.mesh(geometry.sphere(0.07, 16, 12), flame);
+        stand.position.set(x, y + 0.13, z);
+        bowl.position.set(x, y + 0.3, z);
+        embers.position.set(x, y + 0.34, z);
+        fire.position.set(x, y + 0.42, z);
+        world.scene.add(stand, bowl, embers);
         const lamp = light.point({ position: [x, y + 0.5, z], color: '#ff9a3c', intensity: 3, distance: 4, radius: 0.08 });
         world.scene.add(fire, lamp);
         return lamp;
       });
       const sun = light.directional({ intensity: 3, color: '#ffe2b0', position: [4, 8, 3], castShadow: true });
-      world.scene.add(sun, light.hemisphere({ color: '#bcd4ff', groundColor: '#ff8a50', intensity: 0.9 }));
+      const sky = light.hemisphere({ color: '#bcd4ff', groundColor: '#ff8a50', intensity: 0.9 });
+      world.scene.add(sun, sky);
 
       // The runner: feet on a platform, eyes above them. The controller runs on the level; the
       // vertical axis is this page's own game — gravity, a jump, landing, falling into the lava.
@@ -120,16 +166,20 @@
         }, { capture: true });
 
       const ui = controls({
-        keys: 'Click to look with the mouse · W A S D to run · Space to jump · Escape frees the mouse',
+        keys: 'Click to look with the mouse · W A S D to run (Z Q S D on a French keyboard) · Space to jump · Escape frees the mouse',
         goal: 'Reach the golden idol, grabbing the orbs on the way. The lava sends you back to the last orb you took.',
         gravity: [2, 12, 6],
-        sky: ['day', 'dusk'],
+        sky: ['dusk', 'day'],
         restart,
       }, (values, key) => {
         if (key !== undefined && key !== 'sky') return;
         const dusk = values.sky === 'dusk';
         sun.position.set(dusk ? 7 : 4, dusk ? 2.5 : 8, dusk ? -2 : 3);
         sun.color.set(dusk ? '#ff9a5a' : '#ffe2b0');
+        sun.intensity = dusk ? 2.2 : 3;
+        sky.color.set(dusk ? '#6a5a8c' : '#bcd4ff');
+        sky.intensity = dusk ? 0.6 : 0.9;
+        world.scene.background = math.color(dusk ? '#4b3558' : '#8fb0d8');
         world.invalidate();
       }, world);
       const orbsShown = readout('Orbs'), timeShown = readout('Time');

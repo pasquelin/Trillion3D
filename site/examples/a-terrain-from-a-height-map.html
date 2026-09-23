@@ -21,7 +21,7 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, buffer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, buffer, math } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -41,40 +41,63 @@
       // Sampled on a 12 m square, 192 cells a side: one vertex per sample, two triangles per cell.
       // The normals are averaged over the triangles around each vertex, so the slopes shade
       // smoothly and the edge of the sun's light follows the relief, not the triangles.
-      const SIZE = 12, CELLS = 192, row = CELLS + 1;
-      const positions = new Float32Array(row * row * 3);
+      const SIZE = 12, CELLS = 192, row = CELLS + 1, WATER = -0.55;
+      const positions = new Float32Array(row * row * 3), colors = new Float32Array(row * row * 3);
+      // Each vertex takes the colour of its height — soil, grass, rock, then stone at the top —,
+      // blended over 30 cm around each boundary, so a band ends on a soft line, not on the
+      // triangles' staircase.
+      const tints = ['#2e4029', '#4a6133', '#614a33', '#b8b3a6'].map((hex) => math.color(hex));
+      const tint = math.color();
+      const smooth = (y, edge) => { const t = Math.min(1, Math.max(0, (y - edge) / 0.3 + 0.5)); return t * t * (3 - 2 * t); };
       for (let i = 0; i < row; i++)
         for (let j = 0; j < row; j++) {
-          const x = (i / CELLS - 0.5) * SIZE, z = (j / CELLS - 0.5) * SIZE;
-          positions.set([x, height(x, z), z], (i * row + j) * 3);
+          const x = (i / CELLS - 0.5) * SIZE, z = (j / CELLS - 0.5) * SIZE, y = height(x, z);
+          positions.set([x, y, z], (i * row + j) * 3);
+          tint.copy(tints[0]);
+          [0.45, 1.45, 2.7].forEach((edge, index) => tint.lerp(tints[index + 1], smooth(y, edge)));
+          colors.set([tint.r, tint.g, tint.b], (i * row + j) * 3);
         }
-      // Each triangle goes to a band by its mean height: soil, grass, rock, then stone at the top.
-      const bands = [[], [], [], []], all = [];
-      const band = (y) => (y < 0.45 ? 0 : y < 1.45 ? 1 : y < 2.7 ? 2 : 3);
+      const indices = [];
       for (let i = 0; i < CELLS; i++)
         for (let j = 0; j < CELLS; j++) {
           const a = i * row + j, b = a + row, c = b + 1, d = a + 1;
-          for (const triangle of [[a, d, c], [a, c, b]]) {
-            const mean = triangle.reduce((sum, v) => sum + positions[v * 3 + 1], 0) / 3;
-            bands[band(mean)].push(...triangle);
-            all.push(...triangle);
-          }
+          indices.push(a, d, c, a, c, b);
         }
-      const position = buffer.float32(positions, 3);
-      const whole = geometry.createBuffer({ position, index: buffer.uint32(all) });
-      whole.computeVertexNormals();
-      const normal = whole.getAttribute('normal');
-      const colours = ['#2e4029', '#4a6133', '#614a33', '#b8b3a6'];
-      bands.forEach((indices, index) => {
-        const ground = geometry.createBuffer({ position, normal, index: buffer.uint32(indices) });
-        world.scene.add(object.mesh(ground, material.meshStandard({ color: colours[index], roughness: 0.9 })));
-      });
+      const ground = geometry.createBuffer({ position: buffer.float32(positions, 3), color: buffer.float32(colors, 3), index: buffer.uint32(indices) });
+      ground.computeVertexNormals();
+      world.scene.add(object.mesh(ground, material.meshStandard({ color: '#ffffff', vertexColors: true, roughness: 0.9 })));
 
       // The water lies flat at one level: wherever the valley floor dips below it, a river shows.
+      // It covers the same square as the ground, no more.
       const water = object.mesh(geometry.plane(SIZE, SIZE), material.meshStandard({ color: '#0b5a80', metalness: 0.1, roughness: 0.2 }));
       water.rotation.set(-Math.PI / 2, 0, 0);
-      water.position.y = -0.55;
+      water.position.y = WATER;
       world.scene.add(water);
+
+      // A skirt closes the block on its four sides, from the ground — or the water where the
+      // river crosses the edge — down to a base below the lowest point: the edge is a clean cut
+      // of earth, never a sheet of water or a slope hanging in the air.
+      let lowest = Infinity;
+      for (let v = 1; v < positions.length; v += 3) lowest = Math.min(lowest, positions[v]);
+      const base = lowest - 0.4, wall = [], cuts = [];
+      const edges = [[(k) => k, [-1, 0]], [(k) => CELLS * row + k, [1, 0]], [(k) => k * row, [0, -1]], [(k) => k * row + CELLS, [0, 1]]];
+      for (const [vertex, [ox, oz]] of edges) {
+        const first = wall.length / 3;
+        for (let k = 0; k < row; k++) {
+          const at = vertex(k) * 3, x = positions[at], z = positions[at + 2];
+          wall.push(x, Math.max(positions[at + 1], WATER), z, x, base, z);
+        }
+        // The side runs along z when it faces x, and along x when it faces z: the winding that
+        // turns its face outward follows from the sign of the facing.
+        const out = ox + oz > 0 === (ox !== 0);
+        for (let k = 0; k < CELLS; k++) {
+          const top = first + k * 2, bottom = top + 1, nextTop = top + 2, nextBottom = top + 3;
+          cuts.push(...(out ? [top, nextBottom, bottom, top, nextTop, nextBottom] : [top, bottom, nextBottom, top, nextBottom, nextTop]));
+        }
+      }
+      const skirt = geometry.createBuffer({ position: buffer.float32(new Float32Array(wall), 3), index: buffer.uint32(cuts) });
+      skirt.computeVertexNormals();
+      world.scene.add(object.mesh(skirt, material.meshStandard({ color: '#3a2e24', roughness: 0.95 })));
 
       // A sun that casts the peaks' shadows, and the sky's light on the slopes it misses.
       const sun = light.directional({ intensity: 3, color: '#ffe2b8', castShadow: true });
