@@ -64,6 +64,17 @@ export function Range({ className = '', ...props }: ComponentPropsWithoutRef<'in
   );
 }
 
+export function Toggle({ className = '', ...props }: ComponentPropsWithoutRef<'input'>) {
+  return (
+    <input
+      aria-labelledby={labelledBy(props, useContext(FieldLabel))}
+      type="checkbox"
+      className={`toggle toggle-primary toggle-sm ${QUIET_FOCUS} ${className}`}
+      {...props}
+    />
+  );
+}
+
 /** A DaisyUI search field: the magnifier inside the `input` label, then the field, then an
  * optional key hint. */
 export function SearchInput({

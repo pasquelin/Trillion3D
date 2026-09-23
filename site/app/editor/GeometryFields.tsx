@@ -7,6 +7,9 @@ import { NumberField } from './fields.tsx';
 import { isMesh, shapeBuilder, SHAPES } from './objects.ts';
 import type { Editor } from './useEditor.ts';
 
+/** A number a shape is built from, as the dictionary names it (`editor.param.<name>`). */
+type ShapeParameter = (typeof SHAPES)[keyof typeof SHAPES][number];
+
 /**
  * The numbers the selected mesh's shape was built from (`geometry.recipe`), each one editable:
  * a commit builds the shape again through its family member and swaps it in, one command. A shape
@@ -19,7 +22,7 @@ export function GeometryFields({ editor, node }: { editor: Editor; node: Object3
   const recipe = isMesh(node) ? node.geometry.recipe : null;
   const rebuild = recipe && shapeBuilder(session.engine, recipe.type);
   if (!isMesh(node) || !recipe || !rebuild) return null;
-  const names: readonly string[] = SHAPES[recipe.type as keyof typeof SHAPES] ?? [];
+  const names: readonly ShapeParameter[] = SHAPES[recipe.type as keyof typeof SHAPES] ?? [];
   const setArg = (index: number, value: number) => {
     const args = [...recipe.args];
     args[index] = value;

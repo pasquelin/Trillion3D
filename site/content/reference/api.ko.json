@@ -6727,14 +6727,14 @@
     "summary": "새로운 `cpuSteps()` 윈도우를 연다."
   },
   "CanvasPoint": {
-    "summary": "A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`.",
+    "summary": "캔버스의 한 점. 왼쪽 위 모서리부터의 CSS 픽셀: `event.offsetX`, `offsetY`.",
     "members": {
       "x": "CSS pixels from the canvas's left edge.",
       "y": "CSS pixels from the canvas's top edge."
     }
   },
   "Intersection": {
-    "summary": "Where a ray meets an object: the object itself, the world point and the surface's normal there, how far along the ray, and which triangle (`-1` when the object's box was hit).",
+    "summary": "광선이 객체와 만나는 곳: 객체 자체, 그곳의 월드 점과 표면 법선, 광선을 따른 거리, 그리고 어느 삼각형인지 (객체의 박스에 맞았으면 `-1`).",
     "members": {
       "object": "The object hit: the very node the page added.",
       "point": "The world point hit.",
@@ -6744,13 +6744,13 @@
     }
   },
   "RaycastOptions": {
-    "summary": "What `world.raycast` may be told; every field is optional.",
+    "summary": "`world.raycast`에 알려 줄 수 있는 것. 모든 필드는 선택 사항입니다.",
     "members": {
       "objects": "The objects tested, with their subtrees; unset, the whole scene."
     }
   },
   "SavedCamera": {
-    "summary": "The camera a scene was saved with: its pose, projection and optics.",
+    "summary": "장면을 저장할 때의 카메라: 자세, 투영, 광학.",
     "members": {
       "projection": "Perspective or orthographic.",
       "position": "Where the eye stands.",
@@ -6759,7 +6759,7 @@
     }
   },
   "SavedGeometry": {
-    "summary": "A geometry: the family call that built it, or its vertices when no call can build it again.",
+    "summary": "지오메트리: 그것을 만든 패밀리 호출, 또는 어떤 호출로도 다시 만들 수 없을 때는 그 정점들.",
     "members": {
       "recipe": "The family member and every argument it was built with.",
       "attributes": "Each per-vertex list, when no call builds the shape again.",
@@ -6768,14 +6768,14 @@
     }
   },
   "SavedMaterial": {
-    "summary": "A material: its kind and every parameter, colours as linear `[r, g, b]`.",
+    "summary": "머티리얼: 종류와 모든 매개변수. 색은 선형 `[r, g, b]`.",
     "members": {
       "kind": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…",
       "parameters": "Every parameter by name."
     }
   },
   "SavedNode": {
-    "summary": "A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it.",
+    "summary": "노드: 자세와 그것이 무엇인지 — 그룹, 메시, 조명 또는 불러온 모델 — 그리고 그 아래의 것.",
     "members": {
       "kind": "What the node is.",
       "name": "Its name.",
@@ -6794,7 +6794,7 @@
     }
   },
   "SavedScene": {
-    "summary": "A scene as `scene.toJSON` writes it and `scene.fromJSON` reads it: plain JSON.",
+    "summary": "`scene.toJSON`이 쓰고 `scene.fromJSON`이 읽는 형태의 장면: 평범한 JSON.",
     "members": {
       "format": "Always `'web-geometry-scene'`.",
       "formatVersion": "The version of this layout; another one is refused.",
@@ -6807,7 +6807,7 @@
     }
   },
   "TransformControls": {
-    "summary": "What `controls.transform` returns.",
+    "summary": "`controls.transform`이 반환하는 것.",
     "members": {
       "snap": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional.",
       "handles": "The group of the handles — a `helper` mark — in the scene while attached.",
@@ -6825,7 +6825,7 @@
     }
   },
   "TransformControlsOptions": {
-    "summary": "What `controls.transform` may be told; every field is optional.",
+    "summary": "`controls.transform`에 알려 줄 수 있는 것. 모든 필드는 선택 사항입니다.",
     "members": {
       "mode": "Move, turn or scale; `'translate'` by default.",
       "space": "Handles along the world axes or the object's own; `'world'` by default.",
@@ -6834,13 +6834,13 @@
     }
   },
   "TransformEvent": {
-    "summary": "The events a transform control emits: every pose it writes, and the start and end of a drag."
+    "summary": "변환 컨트롤이 내보내는 이벤트: 기록하는 모든 자세, 그리고 드래그의 시작과 끝."
   },
   "TransformHandle": {
-    "summary": "A handle: one axis, the plane of two, or `'xyz'` — the centre: free move, uniform scale."
+    "summary": "핸들: 축 하나, 두 축의 평면, 또는 `'xyz'` — 중심: 자유 이동, 균일 스케일."
   },
   "TransformHost": {
-    "summary": "What a transform control needs of a world: `createWorld` returns one.",
+    "summary": "변환 컨트롤이 월드에 필요로 하는 것: `createWorld`가 반환합니다.",
     "members": {
       "canvas": "The canvas the pointer presses on.",
       "scene": "The scene the handles are added to.",
@@ -6849,10 +6849,10 @@
     }
   },
   "TransformMode": {
-    "summary": "What a transform control does to its object."
+    "summary": "변환 컨트롤이 대상 객체에 하는 일."
   },
   "TransformSnap": {
-    "summary": "Steps a drag is rounded to, each optional: world units, radians, scale factor.",
+    "summary": "드래그를 반올림하는 단위. 각각 선택 사항: 월드 단위, 라디안, 스케일 배율.",
     "members": {
       "translate": "World units a move is rounded to, along each axis.",
       "rotate": "Radians a turn is rounded to.",
@@ -6860,20 +6860,20 @@
     }
   },
   "TransformSpace": {
-    "summary": "The frame the handles are aligned with; a scale is always along the object's own axes."
+    "summary": "핸들을 정렬하는 좌표계. 스케일은 항상 객체 자신의 축을 따릅니다."
   },
   "world.raycast": {
-    "summary": "The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`: the node the page added, the world point and normal hit, the distance (`worldRaycast`).",
+    "summary": "캔버스 점(CSS 픽셀) 아래 또는 월드 광선을 따라 가장 가까운 객체, 또는 `null`: 페이지가 추가한 노드, 맞은 월드 점과 법선, 거리 (`worldRaycast`).",
     "parameters": {
       "options": "What `world.raycast` may be told; every field is optional.",
       "options.objects": "The objects tested, with their subtrees; unset, the whole scene."
     }
   },
   "controls": {
-    "summary": "The `controls` family: controllers a page attaches to a world, beside the camera controller `world.controls` already drives."
+    "summary": "`controls` 패밀리: `world.controls`가 이미 움직이는 카메라 컨트롤러 옆에, 페이지가 월드에 붙이는 컨트롤러."
   },
   "controls.transform": {
-    "summary": "Handles that move, turn and scale one object with the mouse (`transform.ts`).",
+    "summary": "객체 하나를 마우스로 이동, 회전, 크기 조절하는 핸들 (`transform.ts`).",
     "parameters": {
       "host": "The world whose scene and camera the handles live in.",
       "options": "Mode, axes, snapping and screen size; saying nothing is the usual case.",
@@ -6884,7 +6884,7 @@
     }
   },
   "raycast": {
-    "summary": "Every object under `roots` that `ray` meets, nearest first, one hit per object: the nearest of its own.",
-    "description": "The direction is made a unit vector at the door, so every `distance` is in world units whatever length the page gave it. Hidden subtrees are skipped — a root under a hidden ancestor too — and so are the nodes `skip` names with their subtrees: the marks a page works with, never its content."
+    "summary": "`ray`가 만나는 `roots` 아래의 모든 객체. 가까운 순서로, 객체마다 하나의 교차: 그중 가장 가까운 것.",
+    "description": "방향은 입구에서 단위 벡터로 바뀌므로, 페이지가 준 길이와 관계없이 모든 `distance`는 월드 단위입니다. 숨겨진 하위 트리는 건너뜁니다 — 숨겨진 조상 아래의 루트도 — 그리고 `skip`이 가리키는 노드도 하위 트리와 함께 건너뜁니다: 페이지가 작업에 쓰는 표시이지, 결코 그 내용이 아닙니다."
   }
 }
