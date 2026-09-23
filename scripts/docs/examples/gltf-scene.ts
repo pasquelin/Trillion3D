@@ -2,7 +2,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { bufferPacker } from './gltf.ts';
 import type { GltfDocument, GltfMaterial, GltfNode, Primitive } from './gltf-types.ts';
-import type { Mesh } from './mesh.ts';
+import { snapped, type Mesh } from './mesh.ts';
+import { snap } from './random.ts';
 
 type Colour = readonly [number, number, number];
 
@@ -64,9 +65,9 @@ export class SceneGltf {
     return textures.push({ sampler: 0, source: images.length - 1 }) - 1;
   }
 
-  /** The accessors of `mesh`, as one primitive drawn with `material`. */
+  /** The accessors of `mesh`, snapped to the grid, as one primitive drawn with `material`. */
   primitive(mesh: Mesh, material: number): Primitive {
-    return this.pack.primitive(mesh, material);
+    return this.pack.primitive(snapped(mesh), material);
   }
 
   /** A mesh of one primitive per part: a `Mesh` with its material, or a packed primitive. */
@@ -93,5 +94,8 @@ export class SceneGltf {
   }
 }
 
-/** A turn of `angle` radians about +Y, as the quaternion a node's `rotation` takes. */
-export const yaw = (angle: number) => [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)];
+/** A turn of `angle` radians about +Y, as the quaternion a node's `rotation` takes, rounded. */
+export const yaw = (angle: number) =>
+  [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)].map(
+    (value) => Math.round(snap(value) * 1e6) / 1e6,
+  );

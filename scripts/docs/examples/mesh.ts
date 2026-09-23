@@ -1,5 +1,5 @@
 import type { Mesh } from '../shadow-theatre/geometry.ts';
-import type { Vec3 } from './random.ts';
+import { snap, type Vec3 } from './random.ts';
 
 /**
  * The mesh toolkit of the scenes modelled in code: flat position, normal, (u, v) and index
@@ -35,6 +35,17 @@ function normalized(vectors: number[]) {
     for (let k = 0; k < 3; k++) vectors[v + k] /= length;
   }
   return vectors;
+}
+
+/** The mesh on the `snap` grid; its normals, once snapped, are brought back to unit length. */
+export function snapped(mesh: Mesh): Mesh {
+  const normals = mesh.normals.map(snap);
+  for (let v = 0; v < normals.length; v += 3) {
+    const [x, y, z] = normals.slice(v, v + 3),
+      length = Math.sqrt(x * x + y * y + z * z) || 1;
+    for (let k = 0; k < 3; k++) normals[v + k] /= length;
+  }
+  return { ...mesh, positions: mesh.positions.map(snap), normals, uvs: mesh.uvs.map(snap) };
 }
 
 /** A mesh from its positions and triangles; its normals are computed unless given. */

@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { boardMeshes, pieceTurn, playOpening, SQUARE, type Placed } from './chess-game.ts';
 import { chessPieces } from './chess-pieces.ts';
 import { moved, type Mesh } from './mesh.ts';
+import { snap } from './random.ts';
 import { box } from './solids.ts';
 
 /**
@@ -94,8 +95,8 @@ export async function writeChessObj(directory: string) {
   for (const [name, material, mesh] of parts()) {
     lines.push(`o ${name}`, `usemtl ${material}`);
     for (let v = 0; v < mesh.positions.length; v += 3) {
-      const at = mesh.positions.slice(v, v + 3).map((value) => (value / 100).toFixed(5)),
-        normal = mesh.normals.slice(v, v + 3).map((value) => value.toFixed(4));
+      const at = mesh.positions.slice(v, v + 3).map((value) => snap(value / 100).toFixed(5)),
+        normal = mesh.normals.slice(v, v + 3).map((value) => snap(value).toFixed(4));
       lines.push(`v ${at.join(' ')}`, `vn ${normal.join(' ')}`);
     }
     for (let t = 0; t < mesh.indices.length; t += 3) {
