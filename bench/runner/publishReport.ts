@@ -27,7 +27,6 @@ export function publierRapport(source: string, dest: string): string {
         .sort()[0] ?? null,
   });
   writeFileSync(indexPath, JSON.stringify(index) + '\n');
-  writeFileSync(join(dest, '.nojekyll'), '');
   return folder;
 }
 if (import.meta.filename === process.argv[1]) {

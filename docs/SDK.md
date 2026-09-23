@@ -862,7 +862,7 @@ reopened.
 
 No Three.js adapter ships or is planned: a host that already writes Three.js code writes the same
 shapes with this engine's [families](#families) instead. The portal's
-[migration page](https://pasquelin.github.io/Trillion3D/#/en/learn/three-migration) sets one
+[migration page](https://www.trillion3d.com/#/en/learn/three-migration) sets one
 complete Three.js program beside the engine program that draws the same scene
 ([`site/examples/migrating-from-three.html`](../site/examples/migrating-from-three.html)); the
 maths map through the "Witness call" column of the [maths reference](#measured-against-the-witness-library).
