@@ -74,7 +74,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     drawn: () => frames.last !== null,
     display: () => ({ exposure, toneMapping }),
     notices: diagnostic.notices,
-    failed: (error) => console.error('World session failed to open', error),
+    failed: diagnostic.failed,
   });
   /** The camera outside the scene still redraws when it moves. */
   const cameraLink: SceneLink = { pose: invalidate, structure: () => {}, content: () => {} };
