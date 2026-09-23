@@ -93,7 +93,7 @@
         world.scene.add(band);
       }
       const spot = light.spot({ color: '#fff4e0', intensity: 400, distance: 20, angle: 0.4, penumbra: 0.5, castShadow: true, position: [3, 9, 4] });
-      world.scene.add(spot, light.directional({ intensity: 0.4, color: '#8fb4ff', position: [-5, 6, -4] }));
+      world.scene.add(spot, light.directional({ intensity: 0.8, color: '#8fb4ff', position: [-5, 6, -4] }), light.ambient({ intensity: 0.3, color: '#8fb4ff' }));
       world.camera.position.set(0, 2.9, 6.8);
       world.camera.lookAt(0, 1.3, 0);
       world.controls.target.set(0, 1.3, 0);
