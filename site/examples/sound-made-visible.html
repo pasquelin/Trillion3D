@@ -155,7 +155,11 @@
           beat++;
         }
       }
+      // Each button counts as a new request: a microphone granted after another button was
+      // pressed since is let go at once.
+      let request = 0;
       function stopAll() {
+        request++;
         clearInterval(timer);
         timer = 0;
         microphone?.mediaStream.getTracks().forEach((track) => track.stop());
@@ -175,13 +179,16 @@
       async function useMicrophone() {
         stopAll();
         start();
+        const asked = request;
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          if (asked !== request) return stream.getTracks().forEach((track) => track.stop());
           microphone = audio.createMediaStreamSource(stream);
           route(false);
           microphone.connect(analyser);
           hint.textContent = 'Listening to the microphone: sing, whistle, clap';
         } catch {
+          if (asked !== request) return;
           hint.textContent = 'The microphone was refused: the melody plays instead';
           playMelody();
         }
