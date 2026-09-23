@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { describe, labelOf, printed } from '../site/examples/kit/controls.ts';
+import { sceneTriangles, statLines } from '../site/examples/kit/stats.ts';
 
 test('a declared control takes its kind from its value, and starts at it', () => {
   const press = () => {};
@@ -58,4 +59,43 @@ test('labels and printed values read as a person would write them', () => {
   assert.equal(printed(0.5, 0.01), '0.50');
   assert.equal(printed(400, 10), '400');
   assert.equal(printed(3, 1), '3');
+});
+
+test('the stats corner shows only what was measured, and never a dash or a zero', () => {
+  const unmeasured = { fps: null, held: false, sceneTriangles: null };
+  assert.deepEqual(statLines(unmeasured), []);
+  assert.deepEqual(
+    statLines({
+      ...unmeasured,
+      fps: 59.6,
+      selectedTriangles: 17504,
+      drawCalls: 0,
+      residentPages: null,
+      geometryPoolBytes: 3 * 2 ** 20,
+      gpuFrameMs: 1.234,
+    }),
+    [
+      ['FPS', '60'],
+      ['triangles', '17,504'],
+      ['geometry pool', '3.0 MiB'],
+      ['GPU frame', '1.23 ms'],
+    ],
+  );
+  // A still image keeps its last rate; a frame with no triangle count falls back on the scene's.
+  assert.deepEqual(
+    statLines({ ...unmeasured, fps: 60, held: true, selectedTriangles: null, sceneTriangles: 12 }),
+    [
+      ['FPS', '60 held'],
+      ['triangles (scene)', '12'],
+    ],
+  );
+});
+
+test('the scene count reads indexed and plain geometries of the visible nodes', () => {
+  const nodes = [
+    { geometry: { index: { count: 36 } } },
+    { geometry: { attributes: { position: { count: 9 } } } },
+    {},
+  ];
+  assert.equal(sceneTriangles({ traverseVisible: (visit) => nodes.forEach(visit) }), 15);
 });

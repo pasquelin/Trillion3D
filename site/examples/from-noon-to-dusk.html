@@ -55,7 +55,7 @@
       world.camera.lookAt(0, 0.6, 0);
       world.controls.target.set(0, 0.6, 0);
 
-      const ui = controls({ speed: [0, 3, 0.8], hour: [6, 20, 12, 0.5], adaptEyes: true });
+      const ui = controls({ speed: [0, 3, 0.8], hour: [6, 20, 12, 0.5], adaptEyes: true }, world);
       // The sun rises in the east at six and sets in the west at twenty. Near the horizon it
       // reddens and its light thins; `exposure` then rises like an eye adapting to the dusk.
       let hour = ui.hour, from = ui.hour;

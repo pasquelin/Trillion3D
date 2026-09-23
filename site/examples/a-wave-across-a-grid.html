@@ -51,7 +51,7 @@
       const ui = controls({ height: [0, 3, 1.4], speed: [0, 3, 1], ripples: [1, 8, 3, 1], inner: '#ff4f7b', outer: '#2fd4ff' }, (values) => {
         const from = math.color(values.inner), to = math.color(values.outer);
         palette.forEach((matter, band) => matter.color.copy(from).lerp(to, band / 11));
-      });
+      }, world);
 
       // Every frame each cube's height reads the distance to the last stone dropped.
       let stone = [0, 0], time = 0;

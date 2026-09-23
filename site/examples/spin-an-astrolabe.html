@@ -76,7 +76,7 @@
       const ui = controls({ mouse: 'Drag to spin it any way, even upside down · scroll to zoom', turning: true, sun: '#ffb347' }, (values) => {
         glow.color.set(values.sun);
         world.invalidate();
-      });
+      }, world);
       const tilt = math.vector3();
       world.onFrame(({ delta }) => {
         if (!ui.turning) return;
