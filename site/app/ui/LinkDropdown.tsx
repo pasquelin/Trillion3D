@@ -7,6 +7,8 @@ interface LinkDropdownItem {
   /** The language the link's page is in, when it is one. */
   hrefLang?: string;
   current: boolean;
+  /** A picture before the label: a language's flag. */
+  icon?: ReactNode;
 }
 
 interface LinkDropdownProps {
@@ -18,8 +20,9 @@ interface LinkDropdownProps {
   className?: string;
 }
 
-/** A DaisyUI dropdown of links: a small button that opens a list of places to go, the current
- *  one marked; a label too long for the list ends in an ellipsis. */
+/** A DaisyUI dropdown of links: a small button that opens a list of places to go, each after its
+ *  icon if it has one, the current one marked; a label too long for the list ends in an
+ *  ellipsis. */
 export function LinkDropdown({ children, label, items, className = '' }: LinkDropdownProps) {
   const menu = useRef<HTMLDetailsElement | null>(null);
   const close = () => {
@@ -40,9 +43,10 @@ export function LinkDropdown({ children, label, items, className = '' }: LinkDro
               href={item.href}
               hrefLang={item.hrefLang}
               aria-current={item.current ? 'page' : undefined}
-              className={`min-w-0 ${item.current ? 'menu-active' : ''}`}
+              className={`min-w-0 flex-nowrap ${item.current ? 'menu-active' : ''}`}
               onClick={close}
             >
+              {item.icon}
               <span className="truncate">{item.label}</span>
             </a>
           </li>

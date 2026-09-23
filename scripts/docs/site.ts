@@ -6,6 +6,7 @@
 import { copyFile, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { gitPathsSync } from '../git-paths.ts';
+import { buildFlags } from './build-flags.ts';
 import { buildPortal } from './build-portal.ts';
 import { buildRuntime } from './build-runtime.ts';
 import { buildStyles } from './build-styles.ts';
@@ -49,9 +50,9 @@ async function copyTree(source: string, target: string) {
 }
 
 /** The folders of `out` the build writes: emptied first, so no chunk of an earlier build stays. */
-const BUILT_FOLDERS = ['css', 'runtime'];
+const BUILT_FOLDERS = ['css', 'runtime', 'flags'];
 
-/** Writes the build products into `out`: styles, engine runtime, portal. */
+/** Writes the build products into `out`: styles, engine runtime, portal, language flags. */
 export async function buildBundles(root: string, out: string) {
   for (const folder of BUILT_FOLDERS)
     await rm(resolve(out, folder), { recursive: true, force: true });
@@ -59,6 +60,7 @@ export async function buildBundles(root: string, out: string) {
   await buildStyles(root, { output: resolve(out, 'css/site.css') });
   await buildRuntime(root, resolve(out, 'runtime'));
   await buildPortal(root, resolve(out, 'runtime'));
+  await buildFlags(resolve(out, 'flags'));
 }
 
 /** Copies the served statics of the site `source` tree into `out`, sources excluded. */
