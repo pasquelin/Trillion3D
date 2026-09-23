@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "Kare/sn",
-      "fpsHeld": "Kare/sn (durdu)",
+      "FPS": "Kare/sn",
+      "FPS (held)": "Kare/sn (durdu)",
       "triangles": "üçgen",
-      "sceneTriangles": "üçgen (sahne)",
-      "drawCalls": "çizim çağrısı",
+      "triangles (scene)": "üçgen (sahne)",
+      "draw calls": "çizim çağrısı",
       "pages": "sayfa",
-      "geometryPool": "geometri deposu",
+      "geometry pool": "geometri deposu",
       "lights": "ışık",
-      "gpuFrame": "GPU karesi",
-      "cpuFrame": "CPU karesi",
-      "pageHooks": "sayfa kodu",
-      "engineCpu": "motor CPU"
+      "GPU frame": "GPU karesi",
+      "CPU frame": "CPU karesi",
+      "page hooks": "sayfa kodu",
+      "engine CPU": "motor CPU"
     }
   },
   "a-city-from-rules": {

@@ -1,7 +1,8 @@
 import type { Geometry, Object3D } from '../../../packages/sdk-browser/src/index.ts';
 import { useWords } from '../i18n.ts';
 import { usePortal } from '../layout/PortalContext.ts';
-import { Field, NumberField } from '../ui/Input.tsx';
+import { Field } from '../ui/Input.tsx';
+import { NumberField } from '../ui/NumberField.tsx';
 import { valueCommand } from './commands.ts';
 import { isMesh, shapeBuilder, SHAPES } from './objects.ts';
 import type { Editor } from './useEditor.ts';

@@ -6712,6 +6712,18 @@
       "tree": "可供查询的那棵树:它的 `triangleCount` 和 `bytes` 就是世界的开销。"
     }
   },
+  "TriangleTree": {
+    "summary": "世界三角形上的一个包围体层级结构,以盒子查询: `triangleCollision` 和 `capsulePass` 背后的粗筛阶段。",
+    "description": "由 `buildTriangleTree` 构建一次,此后只读。",
+    "members": {
+      "triangles": "每个三角形九个数——三个顶点——按叶子顺序排列。",
+      "bounds": "每个节点: 最小 xyz、最大 xyz。",
+      "links": "每个节点: 叶子的第一个三角形,或内部节点的右子节点(左子节点紧跟其父节点)。",
+      "counts": "每个节点: 叶子的三角形数,内部节点为 0。",
+      "bytes": "树占用的字节数。",
+      "triangleCount": "树持有的三角形数。"
+    }
+  },
   "world.beforeFrame": {
     "summary": "在每一个将要绘制的帧之前,以 `{ delta, time }` 为参数执行一个函数;返回用于移除它的函数。",
     "description": "世界循环的一帧会依次执行:控制器推进摄像机(除非 `controls.autoUpdate` 为 false),剪辑片段推进,这些钩子按添加顺序执行,场景被写入并绘制,然后执行 `onFrame` 钩子。某个钩子所放置的东西——摄像机上方的身体、驾驶舱——正是在这一帧内被绘制的,绝不会晚一帧。由宿主驱动的 `render()` 同样会执行这些钩子,但不会推进控制器。调用 `invalidate()` 的钩子会让帧持续到来。",
