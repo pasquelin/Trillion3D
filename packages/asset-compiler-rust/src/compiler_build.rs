@@ -167,9 +167,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Cache products of the published scene, each under its own name: the lights the source
     // declares, in the engine contract, then its node and material tables (`compiler_tables.rs`).
     let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
-    let tables = stage_scene_tables(&source, &directory, &progress)?;
-    let (autonomous_scene, autonomous_refusal, mut products) =
+    let (autonomous_scene, autonomous_refusal, autonomous, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
+    let tables = stage_scene_tables(&source, autonomous.as_ref(), &directory, &progress)?;
     products.extend([source_bin, source_gltf, lights, tables]);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);

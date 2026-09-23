@@ -59,10 +59,7 @@ fn the_material_table_carries_every_field_the_engine_reads() {
         json!(0.4),
         "the cutoff of a masked material"
     );
-    assert_eq!(
-        m["map"],
-        json!({"texture":0,"texCoord":1,"transform":[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]})
-    );
+    assert_eq!(m["map"], json!({"texture":0,"texCoord":1,"transform":null}));
     assert_eq!(m["metalnessMap"]["texture"], json!(0));
     assert_eq!(
         m["roughnessMap"]["texture"],
@@ -94,10 +91,23 @@ fn the_material_table_carries_every_field_the_engine_reads() {
     // Sampler state travels with the texture, at the texture's own rank.
     assert_eq!(
         tables["textures"][0],
-        json!({"image":0,"wrapS":"clamp","wrapT":"mirror","magFilter":"nearest",
-            "minFilter":"linear-mip-nearest"})
+        json!({"name":"","sampler":0,"image":0,"wrapS":"clamp","wrapT":"mirror",
+            "magFilter":"nearest","minFilter":"linear-mip-nearest"})
     );
-    assert_eq!(tables["nodes"][0]["material"], json!(0));
+    assert_eq!(
+        tables["documents"]["source.gltf"]["meshes"][0]["primitives"][0]["material"],
+        json!(0)
+    );
+    // What the host builds the surface as: physical, since the transmission volume is declared;
+    // masked; opaque alpha from the colour factor's fourth number.
+    assert_eq!(
+        (
+            m["kind"].clone(),
+            m["alphaMode"].clone(),
+            m["opacity"].clone()
+        ),
+        (json!("physical"), json!("MASK"), json!(1.0))
+    );
     assert_eq!(
         tables["materials"].as_array().expect("materials").len(),
         1,
@@ -138,19 +148,19 @@ fn an_unlit_material_answers_no_light() {
 }
 
 #[test]
-fn a_texture_transform_is_composed_as_the_loader_composes_it() {
+fn a_texture_transform_is_carried_as_declared() {
     let (_root, tables) = published(|gltf| {
         gltf["textures"] = json!([{"source":0}]);
         gltf["images"] = json!([{"uri":"albedo.png"}]);
         gltf["materials"] = json!([{"pbrMetallicRoughness":{"baseColorTexture":{"index":0,
-            "extensions":{"KHR_texture_transform":{"offset":[0.25,0.5],"scale":[2.0,4.0],
+            "extensions":{"KHR_texture_transform":{"offset":[0.25,0.5],"rotation":0.5,
                 "texCoord":1}}}}}]);
         gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
     });
     assert_eq!(
         tables["materials"][0]["map"],
         json!({"texture":0,"texCoord":1,
-            "transform":[2.0,0.0,0.0,0.0,4.0,0.0,0.25,0.5,1.0]}),
-        "scale on the diagonal, offset in the last column, as the host holds it"
+            "transform":{"offset":[0.25,0.5],"rotation":0.5,"scale":null}}),
+        "the host composes the matrix from what the slot declares; a silent scale stays silent"
     );
 }
