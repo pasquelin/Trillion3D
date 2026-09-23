@@ -665,7 +665,9 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Identitas column-major, dibaca dan tidak pernah ditulis: pose sebuah node atau sebuah root tanpa pose.",
-      "values": ["Enam belas angka, column-major."]
+      "values": [
+        "Enam belas angka, column-major."
+      ]
     },
     "DiagnosticMode": {
       "description": "Apa yang digambar sebuah bingkai. Ketersediaannya menjelaskan keluaran pipeline sungguhan, tidak pernah overlay buatan: `DIAGNOSTICS` memberikan, untuk tiap mode, apakah perender yang aktif bisa menghasilkannya dan kenapa tidak.",
@@ -726,7 +728,10 @@
     },
     "GpuTimingMethod": {
       "description": "Bagaimana durasi GPU sebuah profil tahap diambil. Durasi per-tahap menunjukkan di mana, tidak pernah seberapa banyak: pada GPU berbasis ubin tahap-tahap saling tumpang tindih dan sebuah tahap menyerap tahap tetangganya. Total bingkainya adalah `gpuImageMs`, selangnya — durasi tahap tidak dijumlahkan ke dalamnya.",
-      "values": ["Native WebGPU timestamp queries.", "Ekstensi WebGL2, untuk jalur itu."]
+      "values": [
+        "Native WebGPU timestamp queries.",
+        "Ekstensi WebGL2, untuk jalur itu."
+      ]
     },
     "ColumnKind": {
       "description": "Penyimpanan satu kolom manifest biner. `COLUMN_KIND` memetakan tiap nama kolom ke jenisnya, jadi sebuah pembaca tahu tampilan mana yang dipakai atas byte sidecar-nya.",
@@ -1001,9 +1006,9 @@
       "destination offset (matrices)": "offset tujuan (matriks)",
       "turn of the basis (rad)": "putaran basis (rad)",
       "encoded sRGB value": "nilai sRGB terkode",
-      "hue": "hue",
-      "saturation": "saturation",
-      "lightness": "lightness",
+      "hue": "rona",
+      "saturation": "saturasi",
+      "lightness": "kecerahan",
       "scalar": "skalar",
       "nodes in the batch": "node dalam batch",
       "products in the batch": "hasil kali dalam batch",
@@ -1429,8 +1434,8 @@
       "a-first-post-effect": "Efek pasca pertama",
       "a-glow-around-lights": "Kilau di sekitar cahaya",
       "glow-on-chosen-objects": "Kilau selektif",
-      "depth-of-field": "Depth of field",
-      "motion-blur": "Motion blur",
+      "depth-of-field": "Kedalaman bidang",
+      "motion-blur": "Blur gerakan",
       "lens-flares": "Lens flare",
       "lens-artefacts": "Artefak lensa",
       "colour-grading-with-a-lut": "Grading warna (LUT)",
@@ -1486,8 +1491,8 @@
       "a-section-cut": "bidang clipping",
       "cut-by-several-planes": "bidang clipping",
       "a-capped-section": "bidang clipping: tutup stencil",
-      "decals-on-a-surface": "picking (raycast)",
-      "sculpt-a-sphere": "picking (raycast)",
+      "decals-on-a-surface": "pemilihan (raycast)",
+      "sculpt-a-sphere": "pemilihan (raycast)",
       "a-texture-turned-and-tiled": "pengulangan, offset dan rotasi tekstur di WebGPU",
       "texture-filters-compared": "filter tekstur dan anisotropi di WebGPU",
       "a-video-on-a-screen": "tekstur video langsung",
@@ -1511,7 +1516,7 @@
       "brushed-metal": "lapisan material fisik: anisotropy",
       "a-prism-that-disperses": "lapisan material fisik: dispersion",
       "retroreflective-paint": "material shader kustom",
-      "light-through-skin": "subsurface scattering",
+      "light-through-skin": "hamburan bawah permukaan",
       "a-custom-surface-shader": "material shader kustom",
       "custom-vertex-attributes": "material shader kustom",
       "procedural-wood-and-noise": "material shader kustom",
@@ -1590,13 +1595,13 @@
       "flames-and-a-tornado": "material shader kustom",
       "point-clouds-from-a-scan": "impor awan titik",
       "gaussian-splats": "rendering gaussian splat",
-      "hover-over-triangles": "picking (raycast)",
-      "pick-lines-and-points": "picking (raycast)",
-      "pick-an-instance": "picking (raycast)",
-      "paint-where-you-click": "picking (raycast)",
-      "a-voxel-painter": "picking (raycast)",
-      "drag-objects": "picking (raycast)",
-      "edit-a-spline": "picking (raycast)",
+      "hover-over-triangles": "pemilihan (raycast)",
+      "pick-lines-and-points": "pemilihan (raycast)",
+      "pick-an-instance": "pemilihan (raycast)",
+      "paint-where-you-click": "pemilihan (raycast)",
+      "a-voxel-painter": "pemilihan (raycast)",
+      "drag-objects": "pemilihan (raycast)",
+      "edit-a-spline": "pemilihan (raycast)",
       "sound-in-space": "audio posisional",
       "smooth-edges-over-time": "pengaturan antialiasing temporal",
       "tone-mapping-compared": "pilihan operator tone-mapping",
