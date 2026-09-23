@@ -1,9 +1,13 @@
 import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { theatreWorkshop } from '../shadow-theatre/geometry.ts';
+import { writeAvenue } from './avenue.ts';
+import { writeChessSet } from './chess-set.ts';
+import { writeCourtyard } from './courtyard.ts';
 import { appendSurfacesGltf } from './gltf.ts';
 import { placeObj, writeBoxesObj, type BoxRow } from './obj.ts';
 import type { GltfDocument } from './gltf-types.ts';
+import { writeRing } from './ring.ts';
 
 /**
  * The scenes built around an imported model (`site/assets/examples/models/`, credited in
@@ -146,7 +150,26 @@ async function crates(models: string, directory: string) {
   });
 }
 
-export const modelScenes = { bust, 'street-corner': streetCorner, crates };
+/** The chess set on its table, an OBJ model kept as imported and compiled as it stands. */
+async function chessOnATable(models: string, directory: string) {
+  await copyModel(models, 'chess-set', ['chess.obj', 'chess.mtl'], directory);
+}
+
+/** A scene modelled in code: it reads no model, its writer draws every file of its folder. */
+const inCode =
+  (write: (directory: string) => Promise<void>) => (_models: string, directory: string) =>
+    write(directory);
+
+export const modelScenes = {
+  bust,
+  'street-corner': streetCorner,
+  crates,
+  'a-model-from-obj': chessOnATable,
+  'a-model-from-usdz': inCode(writeChessSet),
+  'compressed-textures': inCode(writeCourtyard),
+  'detail-by-pixel-error': inCode(writeAvenue),
+  'ten-thousand-objects': inCode(writeRing),
+};
 
 /** Assembles the source folder of the model scenes `names` under `examples` from `models`. */
 export async function writeModelScenes(
