@@ -14,7 +14,7 @@ What the reference is made of, and our counterpart:
 
 | Reference piece                                   | Role                                                         | What we have today                                           | What is missing |
 | ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | --------------- |
-| Temporal antialiasing                             | denoises everything stochastic                               | shipped (Lumière 16), 0 px A/A                               | —               |
+| Temporal antialiasing                             | denoises everything stochastic                               | shipped, 0 px A/A                                            | —               |
 | Screen traces                                     | first shot of every ray: image depth and normal, almost free | nothing                                                      | L1              |
 | Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                 | certified-error resident proxy, walked triangle by triangle  | L4              |
 | Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget | L4              |
@@ -29,10 +29,8 @@ What the web imposes, and the answer:
   fields next — is the one taken; the distance field is baked by the compiler, like textures, at a
   resolution fixed by the budget.
 - **Bounded, unreadable memory**: what streams enters a host-set byte reservoir, never read off
-  the machine (§3, `geometryPoolBytes` and `texturePoolBytes`, adjustable in session by
-  `setMemoryBudgets`), and displays coarser if it does not fit, never refused; image targets
-  follow resolution with no ceiling; textures and geometry first return what they take (T2bis, T5,
-  Geometry 5 and 11).
+  the machine ([memory budgets](SDK.md#memory-budgets), adjustable in session), and displays coarser if it does not fit, never refused; image targets
+  follow resolution with no ceiling.
 - **One browser frame**: each piece has a millisecond budget and a reading by envelope difference;
   lot order follows what the measurement says costs, not preference.
 - **No persistent threads, eight storage buffers per stage**: worked around as for the DAG cut
@@ -40,7 +38,7 @@ What the web imposes, and the answer:
 
 Stages, each with its proof (0 px A/A at rest, budget held, before/after published):
 
-- **L0** — done (Lumière 17, campaign 18 Sept. 2026, Emerald 2496×1404): the sun is 4.7 ms of
+- **L0** — done (campaign of 18 Sept. 2026, Emerald 2496×1404): the sun is 4.7 ms of
   envelope on the ground view and 5.8 ms on the street view (`mobile` − `sans-lumiere`); lighting
   without maps ≤ 0.96 ms (`lampes-4-sans-ombres` − `sans-lumiere`); still camera: 0 page redrawn,
   envelope no lower. What remained, the sampling, is L2 below — not a cascade ring.
@@ -51,14 +49,14 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
   shades the four it draws — exactly those worth a sample's share, stratified for the rest —
   and the history averages the draws; a still image shades every light and converges to the
   exact sum, 0 px A/A. Envelope 39.9 → 17.9 ms GPU on a moving camera; the grain left in motion
-  is measured in `docs/SDK.md`. What remains of L2: a spatial denoise before the history,
+  is declared in [ENGINE.md](ENGINE.md#direct-lighting). What remains of L2: a spatial denoise before the history,
   where the reference has one.
-- **L3** — shadows in virtual pages from the hardware raster (Lumière 2, 6, 12): only the pages
-  seen, cached. The compute raster has been off since Geometry 26, measurement done.
+- **L3** — shadows in virtual pages from the hardware raster: only the pages seen,
+  cached. The compute raster stays off; measurement kept it off.
 - **L4** — baked global distance field, walked in compute, reading the proxy's surface cache.
 - **L5** — screen probes gathering L1 and L4, filtered by temporal history; world probes
-  (Lumière 11) for the far field; bounce on by default when its budget holds.
-- **L6** — rough reflections and materials (Lumière 7, 10).
+  for the far field; bounce on by default when its budget holds.
+- **L6** — rough reflections and materials.
 
-Exit criterion: on the same scene and the same machine as the reference (Geometry 25), same image
+Exit criterion: on the same scene and the same machine as the reference, same image
 to the eye, same byte budgets, same millisecond envelope.
