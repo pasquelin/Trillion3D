@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, camera } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#cfe0f2');
@@ -131,7 +132,7 @@
         if (key === 'drift') drift = values.drift;
         world.invalidate();
       }, world);
-      lens = readout('Lens');
+      lens = readout('lens');
 
       // A hand on the view stops every automatic move, and finishes a lens change at once.
       const takeOver = () => {
@@ -203,7 +204,7 @@
           if (k === kAim) limit(fovRef);
         } else standAt(d, length);
         if (k === 1) frameOrtho();
-        lens(k === 1 ? `orthographic, ${(2 * half).toFixed(1)} m tall` : `${eye.fov.toFixed(1)}° perspective`);
+        lens(k === 1 ? say('orthographic', { height: (2 * half).toFixed(1) }) : say('perspective', { degrees: eye.fov.toFixed(1) }));
         world.invalidate();
       });
     </script>

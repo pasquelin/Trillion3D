@@ -26,14 +26,14 @@ export const MENU_STYLE = `
 .wg-button:hover, .wg-button:focus-visible { border-color: var(--color-primary); outline: none; }
 .wg-button.wg-primary { background: var(--color-primary); color: var(--color-primary-content);
   border-color: var(--color-primary); }
-.wg-option { display: grid; gap: 6px; text-align: left; font-size: 14px; }
+.wg-option { display: grid; gap: 6px; text-align: start; font-size: 14px; }
 .wg-choices { display: flex; gap: 6px; }
 .wg-choices .wg-button { flex: 1; min-height: 38px; font-size: 14px; }
 .wg-choices .wg-on { border-color: var(--color-primary); color: var(--color-primary); }
 .wg-sheet { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px;
-  align-items: center; text-align: left; font-size: 14px; }
+  align-items: center; text-align: start; font-size: 14px; }
 .wg-caps { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
-.wg-caps small { flex-basis: 100%; text-align: right; opacity: 0.6; font-size: 11px; }
+.wg-caps small { flex-basis: 100%; text-align: end; opacity: 0.6; font-size: 11px; }
 kbd.wg-cap { min-width: 26px; padding: 3px 7px; border-radius: 6px; text-align: center;
   font: 600 13px/1.2 ui-monospace, 'SF Mono', Menlo, monospace; background: var(--color-base-300);
   border: 1px solid color-mix(in oklab, var(--color-base-content) 25%, transparent);

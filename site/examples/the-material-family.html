@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#1d1a2a');
@@ -50,14 +51,14 @@
       // lit kinds answer the lamps; the others show a colour, a direction or a picture instead.
       const PAINT = '#e0894f';
       const KINDS = [
-        { name: 'meshBasic', note: 'one flat colour, blind to every lamp', lit: false, matter: material.meshBasic({ color: PAINT }) },
-        { name: 'meshLambert', note: 'matte like chalk: diffuse light, no shine', lit: true, matter: material.meshLambert({ color: PAINT }) },
-        { name: 'meshPhong', note: 'plastic: a bright spot where the sun bounces', lit: true, matter: material.meshPhong({ color: PAINT, shininess: 120 }) },
-        { name: 'meshStandard', note: 'metalness and roughness, the usual choice', lit: true, matter: material.meshStandard({ color: PAINT, metalness: 0.55, roughness: 0.28 }) },
-        { name: 'meshPhysical', note: 'standard plus glass: light passes through', lit: true, matter: material.meshPhysical({ color: '#fff1de', roughness: 0.04, transmission: 1, ior: 1.5, thickness: 0.9 }) },
-        { name: 'meshToon', note: 'a cartoon: the light in two flat bands', lit: true, matter: material.meshToon({ color: PAINT }) },
-        { name: 'meshNormal', note: 'the way each point faces, as a colour', lit: false, matter: material.meshNormal() },
-        { name: 'meshMatcap', note: 'lit by a picture of a lit ball, not by lamps', lit: false, matter: material.meshMatcap({ matcap }) },
+        { name: 'meshBasic', lit: false, matter: material.meshBasic({ color: PAINT }) },
+        { name: 'meshLambert', lit: true, matter: material.meshLambert({ color: PAINT }) },
+        { name: 'meshPhong', lit: true, matter: material.meshPhong({ color: PAINT, shininess: 120 }) },
+        { name: 'meshStandard', lit: true, matter: material.meshStandard({ color: PAINT, metalness: 0.55, roughness: 0.28 }) },
+        { name: 'meshPhysical', lit: true, matter: material.meshPhysical({ color: '#fff1de', roughness: 0.04, transmission: 1, ior: 1.5, thickness: 0.9 }) },
+        { name: 'meshToon', lit: true, matter: material.meshToon({ color: PAINT }) },
+        { name: 'meshNormal', lit: false, matter: material.meshNormal() },
+        { name: 'meshMatcap', lit: false, matter: material.meshMatcap({ matcap }) },
       ];
 
       // Four sculptures to try them on, each built once and shared by every plinth.
@@ -159,7 +160,7 @@
         mouse: 'Drag to walk round the family; turn the light to night and see which kinds still shine',
         light: Object.keys(HOURS),
         shape: Object.keys(SHAPES),
-        lookAt: ['the whole family', ...KINDS.map(({ name }) => name)],
+        lookAt: ['all', ...KINDS.map(({ name }) => name)],
         spin: true,
       }, (values, key) => {
         if (key === undefined || key === 'light') {
@@ -185,12 +186,12 @@
         }
         world.invalidate();
       }, world);
-      looking = readout('Looking at');
-      lit = readout('Lit by the lamps');
+      looking = readout('looking');
+      lit = readout('litByLamps');
       function describe(name) {
         const kind = KINDS.find((one) => one.name === name);
-        looking(kind ? `${kind.name}: ${kind.note}` : 'all eight kinds');
-        lit(kind ? (kind.lit ? 'yes' : 'no') : 'five of eight');
+        looking(kind ? `${kind.name}: ${say(kind.name)}` : say('allKinds'));
+        lit(say(kind ? (kind.lit ? 'yes' : 'no') : 'fiveOfEight'));
       }
       describe(ui.lookAt);
       function show(stand, name) {

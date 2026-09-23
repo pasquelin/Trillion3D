@@ -27,10 +27,11 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p>Planet and moonlets modelled in code for this example, CC0 — see assets/examples/CREDITS.md</p>
+    <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words, language } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#161c34');
@@ -61,12 +62,12 @@
         world.pixelError = values.pixelError;
         world.invalidate();
       }, world);
-      readout('Objects in the scene')(totalNodes.toLocaleString('en'));
-      readout('Triangles in the file')(`${(sourceTriangles / 1e6).toFixed(1)} million`);
-      const drawn = readout('Triangles drawn');
+      readout('objectsScene')(totalNodes.toLocaleString(language()));
+      readout('trianglesFile')(say('million', { count: (sourceTriangles / 1e6).toFixed(1) }));
+      const drawn = readout('trianglesDrawn');
       world.onFrame(({ metrics }) => {
         const selected = metrics.selectedTriangles;
-        drawn(selected == null ? 'not counted here' : selected.toLocaleString('en'));
+        drawn(selected == null ? say('notCounted') : selected.toLocaleString(language()));
       });
 
       // The opening: the eye starts inside the outer band, rocks passing close, then pulls back

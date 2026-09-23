@@ -27,10 +27,11 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p>Avenue of urns modelled in code for this example, CC0 — see assets/examples/CREDITS.md</p>
+    <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words, language } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#a9c6e4');
@@ -72,12 +73,12 @@
         world.diagnostic.mode = values.view;
         world.invalidate();
       }, world);
-      const drawn = readout('Triangles drawn'), share = readout('Share of the avenue');
+      const drawn = readout('trianglesDrawn'), share = readout('shareAvenue');
       const total = avenue.metadata.sourceTriangles;
-      readout('Triangles in the avenue')(total.toLocaleString('en'));
+      readout('trianglesAvenue')(total.toLocaleString(language()));
       world.onFrame(({ metrics }) => {
         const selected = metrics.selectedTriangles;
-        drawn(selected == null ? 'not counted here' : selected.toLocaleString('en'));
+        drawn(selected == null ? say('notCounted') : selected.toLocaleString(language()));
         share(selected == null ? '—' : `${((100 * selected) / total).toFixed(1)} %`);
       });
 

@@ -61,7 +61,8 @@
     <div id="labels"></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, words, language } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#070a14');
@@ -115,15 +116,15 @@
         const tag = document.createElement('div'), name = document.createElement('b'), fact = document.createElement('small');
         tag.className = 'label';
         tag.style.setProperty('--tint', body.colour);
-        name.textContent = body.name;
+        name.textContent = say(body.name);
         tag.append(name, fact, document.createElement('i'));
         layer.append(tag);
         body.tag = { element: tag, fact, shown: null, place: '', depth: '', text: null };
       }
       const FACTS = {
-        'distance to the Sun': (body) => (body.au === null ? '384 400 km from Earth' : body.au === 0 ? 'our star' : `${body.au} AU`),
-        year: (body) => (body.days === null ? '' : body.name === 'Moon' ? 'a month of 27 days' : `a year of ${body.days.toLocaleString('en')} days`),
-        moons: (body) => (body.name === 'Sun' ? '8 planets' : body.name === 'Moon' ? "Earth's moon" : `${body.moons} moon${body.moons === 1 ? '' : 's'}`),
+        'distance to the Sun': (body) => (body.au === null ? say('fromEarth') : body.au === 0 ? say('ourStar') : say('au', { au: body.au })),
+        year: (body) => (body.days === null ? '' : body.name === 'Moon' ? say('month') : say('year', { days: body.days.toLocaleString(language()) })),
+        moons: (body) => (body.name === 'Sun' ? say('planets') : body.name === 'Moon' ? say('earthsMoon') : say(body.moons === 1 ? 'oneMoon' : 'moons', { moons: body.moons })),
         'names only': () => '',
       };
 

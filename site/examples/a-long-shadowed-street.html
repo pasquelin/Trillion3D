@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, readout, seeded, language } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#d9bf9f');
@@ -205,13 +205,13 @@
         sun.color.set('#ff7a36').lerp(math.color('#fff1dc'), Math.min(1, elevation / math.degToRad(30)));
         sun.intensity = 2.2 + 1.4 * Math.min(1, elevation / math.degToRad(10));
         heightShown?.(`${math.radToDeg(elevation).toFixed(1)}°`);
-        shadowShown?.(`${Math.round(30 / Math.tan(elevation)).toLocaleString('en')} m`);
+        shadowShown?.(`${Math.round(30 / Math.tan(elevation)).toLocaleString(language())} m`);
         world.invalidate();
       }, world);
-      heightShown = readout('Sun height');
-      shadowShown = readout('Shadow of a 30 m house');
+      heightShown = readout('sunHeight');
+      shadowShown = readout('shadow30MHouse');
       heightShown(`${math.radToDeg(elevation).toFixed(1)}°`);
-      shadowShown(`${Math.round(30 / Math.tan(elevation)).toLocaleString('en')} m`);
+      shadowShown(`${Math.round(30 / Math.tan(elevation)).toLocaleString(language())} m`);
 
       // The opening: from high over the near end, the camera swoops down into the avenue, then
       // glides along it at the height of a first floor. A press or a wheel on the canvas hands it

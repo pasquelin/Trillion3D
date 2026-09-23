@@ -1,0 +1,1829 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "Ayarlar"
+    },
+    "menu": {
+      "play": "Oyna",
+      "resume": "Devam et",
+      "restart": "Yeniden başla",
+      "controls": "Ayarlar",
+      "back": "Geri",
+      "paused": "Duraklatıldı",
+      "again": "Devam etmek için yeniden tıkla"
+    },
+    "keys": {
+      "Mouse": "Fare",
+      "Right button": "Sağ tuş",
+      "Wheel": "Tekerlek",
+      "Shift": "Shift",
+      "Space": "Boşluk",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "FPS": "Kare/sn",
+      "FPS (held)": "Kare/sn (durdu)",
+      "triangles": "üçgen",
+      "triangles (scene)": "üçgen (sahne)",
+      "draw calls": "çizim çağrısı",
+      "pages": "sayfa",
+      "geometry pool": "geometri deposu",
+      "lights": "ışık",
+      "GPU frame": "GPU karesi",
+      "CPU frame": "CPU karesi",
+      "page hooks": "sayfa kodu",
+      "engine CPU": "motor CPU"
+    }
+  },
+  "a-city-from-rules": {
+    "controls": {
+      "mouse": "Etrafta uçmak için sürükle; her ayar şehri kendi kurallarıyla yeniden kurar",
+      "blocks": "Bloklar",
+      "maxHeight": "En fazla yükseklik",
+      "density": "Yoğunluk",
+      "parks": "Parklar",
+      "seed": "Tohum",
+      "hour": "Saat",
+      "traffic": "Trafik"
+    },
+    "readouts": {
+      "buildings": "Binalar",
+      "parks": "Parklar"
+    }
+  },
+  "a-cloud-of-points": {
+    "controls": {
+      "mouse": "Bulutun etrafında dönmek için sürükle; başka bir şekil seç, eskisi dönerek kaybolurken yenisi açılır",
+      "shape": "Şekil",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "sarmal gökada",
+        "globular cluster": "küresel yıldız kümesi",
+        "ring nebula": "halka bulutsusu",
+        "Lorenz attractor": "Lorenz çekeri"
+      }
+    },
+    "readouts": {
+      "points": "Noktalar",
+      "colourGroups": "Renk grupları"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "controls": {
+      "colour": "Renk",
+      "glow": "Parıltı",
+      "exposure": "Pozlama"
+    }
+  },
+  "a-field-of-pebbles": {
+    "controls": {
+      "sunTurn": "Güneşin dönüşü",
+      "sunHeight": "Güneşin yüksekliği",
+      "first": "İlk",
+      "last": "Son"
+    }
+  },
+  "a-first-world": {
+    "controls": {
+      "colour": "Renk"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "controls": {
+      "mouse": "Tahtayı kaydırmak için sürükle · yakınlaştırmak için tekerlek ya da iki parmak · kaymak için ok tuşları",
+      "play": "Oyna",
+      "speed": "Hız",
+      "follow": "Takip et",
+      "replay": "Tekrar oynat"
+    },
+    "readouts": {
+      "move": "Hamle"
+    },
+    "words": {
+      "takes": "alır"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "controls": {
+      "swing": "Sallanma",
+      "lamp": "Lamba",
+      "power": "Güç",
+      "glass": "Cam"
+    }
+  },
+  "a-lighthouse-beam": {
+    "controls": {
+      "turnsPerMinute": "Dakikadaki tur",
+      "beamWidth": "Işın genişliği",
+      "colour": "Renk"
+    }
+  },
+  "a-long-shadowed-street": {
+    "controls": {
+      "mouse": "Caddeye bakmak için sürükle, ilerlemek için tekerlek; saati kaydır, gölgeler sokağa uzanıp cephelere tırmansın",
+      "hour": "Saat",
+      "traffic": "Trafik",
+      "flyAgain": "Yeniden uç"
+    },
+    "readouts": {
+      "sunHeight": "Güneşin yüksekliği",
+      "shadow30MHouse": "30 m'lik bir evin gölgesi"
+    }
+  },
+  "a-matcap-sculpture": {
+    "controls": {
+      "mouse": "Heykelin etrafında dolaşmak için sürükle: ışığı seninle döner, çünkü resmin içinde yaşar",
+      "matcap": "Matcap",
+      "sculpture": "Heykel",
+      "gallery": "Galeri",
+      "turn": "Döndür"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "kırmızı kil",
+        "chrome": "krom",
+        "gold": "altın",
+        "jade": "yeşim",
+        "pearl": "inci",
+        "obsidian": "obsidyen"
+      },
+      "sculpture": {
+        "knot": "düğüm",
+        "rings": "halkalar",
+        "vase": "vazo"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "controls": {
+      "mouse": "Taşların etrafında dönmek için sürükle; köşeleri paylaşmak için keskin yüzleri kapat",
+      "points": "Noktalar",
+      "waist": "Bel",
+      "height": "Yükseklik",
+      "sharpFacets": "Keskin yüzler",
+      "colour": "Renk",
+      "spin": "Dönüş"
+    },
+    "readouts": {
+      "verticesWritten": "Yazılan köşeler",
+      "triangles": "Üçgenler"
+    }
+  },
+  "a-model-from-obj": {
+    "controls": {
+      "mouse": "Tahtanın etrafında dönmek için sürükle, yaklaşmak için tekerlek: OBJ neye dönüştü, gör",
+      "view": "Görünüm",
+      "sunAngle": "Güneş açısı",
+      "sunHeight": "Güneşin yüksekliği",
+      "turn": "Döndür"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "triangles": "üçgen",
+        "clusters": "kümeler",
+        "lod": "ayrıntı düzeyleri"
+      }
+    },
+    "words": {
+      "credit": "Bu örnekler için modellenmiş satranç takımı, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "a-model-from-usdz": {
+    "controls": {
+      "mouse": "Tahtanın etrafında dolaşmak için sürükle; taşlara inmek için tekerleği kullan",
+      "view": "Görünüm",
+      "turn": "Döndür"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "materials": "malzemeler",
+        "clusters": "kümeler",
+        "triangles": "üçgen"
+      }
+    },
+    "readouts": {
+      "source": "Kaynak",
+      "boardWidth": "Tahta genişliği",
+      "partsPlaced": "Yerleştirilen parçalar",
+      "triangles": "Üçgenler"
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş satranç takımı, CC0; dosya assets/examples/a-model-from-usdz/source/chess-set.usdz — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "a-molecule": {
+    "controls": {
+      "mouse": "Molekülün etrafında dönmek için sürükle; başkasını seç, atomları yeni yerlerine uçsun",
+      "molecule": "Molekül",
+      "style": "Stil",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "C60 fulleren",
+        "carbon nanotube": "karbon nanotüp",
+        "diamond crystal": "elmas kristali",
+        "DNA double helix": "DNA çift sarmalı"
+      },
+      "style": {
+        "ball and stick": "top ve çubuk",
+        "space filling": "dolu küreler",
+        "sticks": "çubuklar"
+      }
+    },
+    "readouts": {
+      "atoms": "Atomlar",
+      "bonds": "Bağlar"
+    }
+  },
+  "a-neon-sign": {
+    "controls": {
+      "star": "Yıldız",
+      "wave": "Dalga",
+      "glow": "Parıltı",
+      "pulse": "Nabız",
+      "exposure": "Pozlama",
+      "toneMapping": "Ton eşleme"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "nötr",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "doğrusal"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "controls": {
+      "lamps": "Lambalar",
+      "speed": "Hız",
+      "power": "Güç",
+      "shadows": "Gölgeler"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "controls": {
+      "walk": "Yürü",
+      "wave": "Dalga",
+      "dance": "Dans et",
+      "speed": "Hız",
+      "colour": "Renk"
+    }
+  },
+  "a-scene-of-your-own": {
+    "controls": {
+      "hour": "Saat",
+      "wind": "Rüzgâr",
+      "roof": "Çatı"
+    }
+  },
+  "a-softbox-panel": {
+    "controls": {
+      "mouse": "Setin etrafında dolaşmak için sürükle; paneli büyüt ve parlamaların yumuşamasını izle",
+      "panelWidth": "Panel genişliği",
+      "power": "Güç",
+      "colour": "Renk",
+      "swing": "Sallanma"
+    },
+    "readouts": {
+      "panel": "Panel",
+      "radiance": "Işınım"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "controls": {
+      "climb": "Tırmanış",
+      "turnPerStep": "Basamak başına dönüş",
+      "lantern": "Fener"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "controls": {
+      "hour": "Saat",
+      "sunColour": "Güneş rengi",
+      "exposure": "Pozlama"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "controls": {
+      "mouse": "Etrafa bakmak için sürükle; arkadaki panel karonun boyandığı hâli",
+      "tile": "Karo",
+      "wrap": "Kenar",
+      "tilesAcross": "Yan yana karo",
+      "turn": "Döndür",
+      "slideAcross": "Yana kaydır",
+      "slideUp": "Yukarı kaydır",
+      "flow": "Akış"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "tekrarla",
+        "mirror": "ayna",
+        "clamp": "sabitle"
+      },
+      "tile": {
+        "terracotta": "pişmiş toprak",
+        "azulejo": "azulejo",
+        "jade": "yeşim"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "Karolar, dönüş"
+    },
+    "words": {
+      "up": "YUKARI"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "controls": {
+      "mouse": "Etrafa bakmak için sürükle; boncuklar borunun izlediği eğri üzerinde gider",
+      "path": "Yol",
+      "radius": "Yarıçap",
+      "sides": "Kenarlar",
+      "slices": "Dilimler",
+      "speed": "Hız",
+      "beads": "Boncuklar",
+      "paint": "Boya"
+    },
+    "choices": {
+      "path": {
+        "knot": "düğüm",
+        "coaster": "hız treni",
+        "spiral": "sarmal"
+      }
+    },
+    "readouts": {
+      "triangles": "Üçgenler"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "controls": {
+      "width": "Genişlik",
+      "height": "Yükseklik",
+      "gloss": "Parlaklık",
+      "spin": "Dönüş"
+    }
+  },
+  "a-video-on-a-screen": {
+    "controls": {
+      "mouse": "Odaya bakmak için sürükle; ekran gerçek bir video öğesi oynatır",
+      "playing": "Oynuyor",
+      "openVideo": "Video aç"
+    },
+    "readouts": {
+      "playing": "Oynuyor",
+      "videoTime": "Video zamanı"
+    },
+    "words": {
+      "yourFile": "senin dosyan",
+      "testCard": "test kartı"
+    }
+  },
+  "a-video-panorama": {
+    "controls": {
+      "mouse": "Etrafa bakmak için sürükle; sen basana kadar görünüm kendi kendine döner",
+      "playing": "Oynuyor",
+      "fieldOfView": "Görüş alanı",
+      "openVideo": "Video aç"
+    },
+    "readouts": {
+      "playing": "Oynuyor"
+    },
+    "words": {
+      "yourFile": "senin dosyan",
+      "duskOverSea": "denizde alacakaranlık"
+    }
+  },
+  "a-wall-of-cameras": {
+    "controls": {
+      "mouse": "Büyük ekrana almak için bir kameraya tıkla; kameralara neyi izleyeceklerini söyle",
+      "watch": "İzle"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "devriye",
+        "car": "araba",
+        "balloon": "balon"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "Arabayı gören kameralar"
+    },
+    "words": {
+      "cam": "KAM",
+      "northGate": "KUZEY KAPISI",
+      "fountain": "ÇEŞME",
+      "eastRoad": "DOĞU YOLU",
+      "clockTower": "SAAT KULESİ",
+      "cafe": "KAFE",
+      "southCorner": "GÜNEY KÖŞESİ",
+      "noSignal": "SİNYAL YOK",
+      "patrol": "DEVRİYE",
+      "car": "ARABAYI İZLİYOR",
+      "balloon": "BALONU İZLİYOR"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "controls": {
+      "height": "Yükseklik",
+      "speed": "Hız",
+      "ripples": "Halkalar",
+      "inner": "İç",
+      "outer": "Dış"
+    }
+  },
+  "a-world-of-blocks": {
+    "controls": {
+      "mouse": "Adanın etrafında uçmak için sürükle; denizi yükselt ve vadilerin dolmasını izle",
+      "seed": "Tohum",
+      "seaLevel": "Deniz seviyesi",
+      "hour": "Saat",
+      "clouds": "Bulutlar"
+    },
+    "readouts": {
+      "facesDrawn": "Çizilen yüzler"
+    }
+  },
+  "before-and-after-slider": {
+    "controls": {
+      "mouse": "Ayırıcıyı taşımak için yuvarlak düğmeyi sürükle; meydanın etrafında dönmek için resmi sürükle",
+      "before": "Önce"
+    },
+    "choices": {
+      "before": {
+        "clay": "kil",
+        "no shadows": "gölgesiz",
+        "no sun": "güneşsiz",
+        "noon sun": "öğle güneşi"
+      }
+    },
+    "words": {
+      "clay": "kil",
+      "no shadows": "gölgesiz",
+      "no sun": "güneşsiz",
+      "noon sun": "öğle güneşi",
+      "finished": "bitmiş"
+    }
+  },
+  "blobs-that-merge": {
+    "controls": {
+      "mouse": "Lambanın etrafında dolaşmak için sürükle; yapışkanlığı artır, damlalar birbirine karışsın",
+      "stickiness": "Yapışkanlık",
+      "heat": "Isı",
+      "wax": "Balmumu"
+    },
+    "readouts": {
+      "piecesWax": "Balmumu parçaları"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "controls": {
+      "sweep": "Tarama",
+      "lamp": "Lamba",
+      "colour": "Renk",
+      "bricks": "Tuğlalar"
+    }
+  },
+  "click-to-pick": {
+    "controls": {
+      "help": "Bir şekle tıkla: yanar ve panel ışının ona nerede değdiğini söyler."
+    },
+    "readouts": {
+      "picked": "Seçilen",
+      "point": "Nokta",
+      "distance": "Uzaklık"
+    },
+    "words": {
+      "nothing": "hiçbir şey",
+      "box": "kutu",
+      "sphere": "küre",
+      "cone": "koni",
+      "torus": "simit",
+      "cylinder": "silindir",
+      "knot": "düğüm"
+    }
+  },
+  "colours-on-the-vertices": {
+    "controls": {
+      "mouse": "Gezegeni döndürmek için sürükle; her köşenin kendi rengi var",
+      "palette": "Palet",
+      "seaLevel": "Deniz seviyesi",
+      "relief": "Kabartma",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "palette": {
+        "earth": "toprak",
+        "lava": "lav",
+        "ice": "buz",
+        "candy": "şeker"
+      }
+    }
+  },
+  "compressed-textures": {
+    "controls": {
+      "mouse": "Çeşmenin etrafında dolaşmak için sürükle; bir karoya in ve ayrıntıların gelmesini izle",
+      "sunTurn": "Güneşin dönüşü",
+      "sunHeight": "Güneşin yüksekliği"
+    },
+    "readouts": {
+      "texturesBlocks": "Bloklardaki dokular",
+      "allFullDetail": "Hepsi tam ayrıntıda",
+      "poolFormat": "Depo biçimi",
+      "tilesHeld": "Tutulan parçalar",
+      "heldGpu": "GPU'da tutulan"
+    },
+    "words": {
+      "credit": "Bu örnek için kodla çizilmiş avlu ve dokuları, CC0 — bkz. assets/examples/CREDITS.md",
+      "someOf": "{all} içinde {some}",
+      "notPlain": "{held} MiB, {plain} değil",
+      "notMeasured": "burada ölçülmedi"
+    }
+  },
+  "copies-along-a-path": {
+    "controls": {
+      "mouse": "Parka bakmak için sürükle; kemerler tünele dönene kadar kopyaları artır",
+      "copies": "Kopyalar",
+      "twist": "Burgu",
+      "speed": "Hız",
+      "ride": "Bin"
+    },
+    "readouts": {
+      "archesPlaced": "Yerleştirilen kemerler"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "controls": {
+      "angle": "Açı",
+      "softness": "Yumuşaklık",
+      "colour": "Renk",
+      "power": "Güç"
+    },
+    "words": {
+      "credit": "Sandık modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "create-and-dispose": {
+    "controls": {
+      "mouse": "Çeşmenin etrafında dolaşmak için sürükle · yaklaşmak için tekerlek",
+      "perSecond": "Saniyede",
+      "copies": "Kopyalar",
+      "burst": "Patlama",
+      "clearAll": "Hepsini temizle"
+    },
+    "choices": {
+      "copies": {
+        "share": "şekilleri paylaş",
+        "fresh": "her seferinde yeni şekil"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "Canlı parçalar",
+      "created": "Oluşturulan",
+      "disposed": "Serbest bırakılan",
+      "gpuMemory": "GPU belleği"
+    },
+    "words": {
+      "notMeasured": "ölçülmedi"
+    }
+  },
+  "curved-surfaces": {
+    "controls": {
+      "mouse": "Galeride dolaşmak için sürükle; her eğriyi oluşturan üçgenleri görmek için ızgarayı küçült",
+      "grid": "Izgara",
+      "facets": "Yüzeycikler",
+      "turntable": "Döner tabla"
+    },
+    "readouts": {
+      "triangles": "Üçgenler",
+      "facingYou": "Sana dönük"
+    },
+    "words": {
+      "Klein bottle": "Klein şişesi",
+      "Möbius strip": "Möbius şeridi",
+      "Seashell": "deniz kabuğu",
+      "Dini's twist": "Dini burgusu",
+      "Enneper saddle": "Enneper eyeri"
+    }
+  },
+  "dashed-lines": {
+    "controls": {
+      "mouse": "Güneşin etrafında dönmek için sürükle; çizgiyi ve boşluğu değiştir, her yörünge uysun",
+      "lines": "Çizgiler",
+      "dash": "Çizgi",
+      "gap": "Boşluk",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "kesikli",
+        "solid": "düz"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "Mavi gezegenin yörüngesindeki çizgiler"
+    }
+  },
+  "detail-by-pixel-error": {
+    "controls": {
+      "mouse": "Caddede dolaşmak için sürükle; bir vazoya çok yaklaş, sonra çok uzaklaş",
+      "pixelError": "Piksel hatası",
+      "view": "Görünüm"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "lod": "ayrıntı düzeyleri",
+        "screen-error": "ekran hatası",
+        "triangles": "üçgen"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Çizilen üçgenler",
+      "shareAvenue": "Caddenin payı",
+      "trianglesAvenue": "Caddedeki üçgenler"
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md",
+      "notCounted": "burada sayılmadı"
+    }
+  },
+  "edges-and-wireframe": {
+    "controls": {
+      "mouse": "Etrafa bakmak için sürükle; yalnızca keskin kıvrımları tutmak için eşiği yükselt",
+      "view": "Görünüm",
+      "threshold": "Eşik",
+      "lines": "Çizgiler",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "yüzey ve kenarlar",
+        "edges": "kenarlar",
+        "wireframe": "tel kafes",
+        "surface and wireframe": "yüzey ve tel kafes",
+        "surface": "yüzey"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "Kenar parçaları",
+      "wireframeSegments": "Tel kafes parçaları"
+    }
+  },
+  "every-image-format": {
+    "controls": {
+      "mouse": "Şövaleler boyunca yürümek için sürükle; kaliteyi düşür ve JPEG ile WebP'ye yakından bak",
+      "quality": "Kalite",
+      "lookAt": "Bak"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "sekizi birden",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "Ham pikseller"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "Ham pikseller"
+    },
+    "words": {
+      "samePicture": "512 × 512 · aynı resim",
+      "lossless": "kayıpsız",
+      "lossy": "kayıplı",
+      "colours256": "256 renk",
+      "uncompressed": "sıkıştırılmamış",
+      "shapes": "şekiller, yüklenirken çizilir",
+      "painted": "sayfada boyanmış",
+      "bytes": "bellekteki baytlar",
+      "inMemory": "bellekte {size} · {note}",
+      "sentAs": "{type} olarak gönderildi"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "controls": {
+      "mouse": "Güneş saatinin etrafında dolaşmak için sürükle; saati kaydır, her gölge güneşle dönsün",
+      "hour": "Saat",
+      "darkness": "Karanlık",
+      "timeLapse": "Hızlandırılmış",
+      "motion": "Hareket"
+    },
+    "readouts": {
+      "shadowLength": "Gölge uzunluğu"
+    },
+    "words": {
+      "timesHeight": "{times} × yükseklik"
+    }
+  },
+  "fly-over-a-model-town": {
+    "choices": {
+      "view": {
+        "cockpit": "Kokpit",
+        "exterior": "Dış"
+      },
+      "mode": {
+        "arcade": "Arcade — jet nişana doğru uçar; stall yok, kendi kendine toparlanır",
+        "expert": "Uzman — fare lövyedir; stall olur ve viril yapar"
+      },
+      "sensitivity": {
+        "Low": "Düşük",
+        "Medium": "Orta",
+        "High": "Yüksek"
+      },
+      "invert": {
+        "off": "Kapalı",
+        "on": "Açık"
+      },
+      "sound": {
+        "on": "Açık",
+        "off": "Kapalı"
+      }
+    },
+    "game": {
+      "title": "Savaş uçağı",
+      "goal": "Kalkış yap, sonra kanyonda on altın halkanın içinden olabildiğince hızlı uç. Fareyle nişan al: jet takip eder.",
+      "keys": {
+        "aim": "Nişan (Arcade) ya da lövye (Uzman)",
+        "fineAim": "İnce nişan (basılı tut)",
+        "throttle": "Gaz arttır, azalt",
+        "afterburner": "Art yakıcı (basılı tut)",
+        "roll": "Yatış (Arcade'de nişanı geçersiz kılar)",
+        "rudder": "Dümen",
+        "airBrake": "Hava freni (basılı tut)",
+        "lookAround": "Etrafa bak (basılı tut)",
+        "view": "Kokpit ya da dış görünüm",
+        "zoom": "Dış görünümü yakınlaştır",
+        "startOver": "Baştan başla",
+        "pause": "Duraklat"
+      },
+      "options": {
+        "view": "Görünüm",
+        "mode": "Mod",
+        "sensitivity": "Fare hassasiyeti",
+        "invert": "Y'yi ters çevir",
+        "sound": "Ses"
+      }
+    },
+    "words": {
+      "testMode": "TEST MODU — fare kilitli değil",
+      "rings": "HALKALAR {passed}/{all}",
+      "complete": "PARKUR TAMAM",
+      "flyAgain": "{time} — yeniden uçmak için R",
+      "stall": "STALL",
+      "pullUp": "YÜKSEL",
+      "turnBack": "GERİ DÖN",
+      "crashed": "DÜŞTÜ",
+      "backToRunway": "Piste dönülüyor…",
+      "backToRing": "Son halkaya dönülüyor…",
+      "throttleUp": "W — gaz ver (AZERTY'de Z)",
+      "rolling": "Kalkış koşusu — {knots} knot",
+      "liftOff": "Fare yukarı — havalan"
+    }
+  },
+  "four-ways-to-blend": {
+    "controls": {
+      "mouse": "Soldan sağa: normal, toplama, çıkarma, çarpma; yandan görmek için sürükle",
+      "inks": "Mürekkepler",
+      "opacity": "Opaklık",
+      "circle": "Dön"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "kırmızı, yeşil, mavi",
+        "cyan, magenta, yellow": "camgöbeği, eflatun, sarı",
+        "warm and cool": "sıcak ve soğuk"
+      }
+    }
+  },
+  "frame-the-model": {
+    "controls": {
+      "mouse": "Çerçevelemek için bir nesneye çift tıkla; döndürmek için sürükle, yakınlaştırmak için tekerlek",
+      "model": "Nesne",
+      "margin": "Pay",
+      "drift": "Sürüklenme"
+    },
+    "choices": {
+      "model": {
+        "everything": "her şey",
+        "the gold ring": "altın halka",
+        "the vase": "vazo",
+        "the king": "şah",
+        "the arch": "kemer",
+        "the obelisk": "dikilitaş"
+      }
+    },
+    "readouts": {
+      "framing": "Çerçeveleme",
+      "radius": "Yarıçap",
+      "distance": "Uzaklık"
+    },
+    "words": {
+      "the gold ring": "altın halka",
+      "the vase": "vazo",
+      "the king": "şah",
+      "the arch": "kemer",
+      "the obelisk": "dikilitaş"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "controls": {
+      "mouse": "Bir kum tanesinden tüm gezegene kadar yakınlaşmak için tekerleği kullan; döndürmek için sürükle",
+      "toTheGrain": "Kum tanesine",
+      "toTheBeach": "Plaja",
+      "toTheIsland": "Adaya",
+      "toThePlanet": "Gezegene"
+    },
+    "readouts": {
+      "viewWidth": "Görüş genişliği",
+      "youSee": "Gördüğün"
+    },
+    "words": {
+      "grains of sand": "kum taneleri",
+      "sand and shells": "kum ve deniz kabukları",
+      "pebbles": "çakıllar",
+      "the beach": "plaj",
+      "the coast": "kıyı",
+      "the island": "ada",
+      "the planet": "gezegen"
+    }
+  },
+  "from-clay-to-chrome": {
+    "controls": {
+      "colour": "Renk",
+      "lamps": "Lambalar",
+      "swing": "Sallanma"
+    }
+  },
+  "from-noon-to-dusk": {
+    "controls": {
+      "speed": "Hız",
+      "hour": "Saat",
+      "adaptEyes": "Gözleri alıştır"
+    }
+  },
+  "glass-on-the-table": {
+    "controls": {
+      "refraction": "Kırılma",
+      "thickness": "Kalınlık",
+      "tint": "Renk tonu",
+      "spin": "Dönüş"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "controls": {
+      "mouse": "Setin etrafında dolaşmak için sürükle; çekimi olduğu gibi görmek için yardımcıları kapat",
+      "helpers": "Yardımcılar",
+      "dolly": "Kaydırma",
+      "bulb": "Ampul"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "her şey",
+        "lights and camera": "ışıklar ve kamera",
+        "shapes and bounds": "şekiller ve sınırlar",
+        "nothing": "hiçbir şey"
+      }
+    },
+    "readouts": {
+      "helpersShown": "Gösterilen yardımcılar"
+    }
+  },
+  "inside-a-panorama": {
+    "controls": {
+      "mouse": "Döndürmek için sürükle · yaklaşmak için tekerlek",
+      "sky": "Gökyüzü",
+      "fieldOfView": "Görüş alanı"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "şafak",
+        "noon": "öğle",
+        "dusk": "alacakaranlık"
+      }
+    },
+    "words": {
+      "credit": "Panoramalar bu sayfa açılırken kodla boyanır: hiçbir şey indirilmez."
+    }
+  },
+  "inside-the-g-buffer": {
+    "controls": {
+      "mouse": "Sahanın etrafında dolaşmak için sürükle · karenin içine bakmak için bir tampon seç",
+      "buffer": "Tampon",
+      "turning": "Dönüyor"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "görüntü",
+        "albedo": "temel renk",
+        "normals": "normaller",
+        "depth": "derinlik",
+        "triangle ids": "üçgen numaraları",
+        "material ids": "malzeme numaraları"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "Her piksel tutar"
+    },
+    "words": {
+      "beauty": "ışıklı görüntü",
+      "albedo": "temel renk, her ışıktan önce",
+      "normals": "yüzeyin kameradan bakınca hangi yöne baktığı",
+      "depth": "uzaklık: yakın açık, uzak koyu",
+      "triangle ids": "pikseli hangi üçgenin kapladığı",
+      "material ids": "pikseli hangi malzemenin boyadığı",
+      "notOffered": "bu çizici bunu sunmuyor"
+    }
+  },
+  "instances-in-colour": {
+    "controls": {
+      "mouse": "Gökadayı eğmek için sürükle; içine dalmak için tekerlek",
+      "count": "Sayı",
+      "arms": "Kollar",
+      "twist": "Burgu",
+      "core": "Çekirdek",
+      "rim": "Kenar",
+      "spin": "Dönüş"
+    },
+    "readouts": {
+      "placementsDrawn": "Çizilen kopyalar",
+      "materials": "Malzemeler"
+    }
+  },
+  "keyframes-by-hand": {
+    "controls": {
+      "mouse": "Masanın etrafında dönmek için sürükle; bir zıplamanın anahtarlarını lambanın soluk kopyaları olarak göster",
+      "timing": "Zamanlama",
+      "onionSkin": "Soğan kabuğu",
+      "speed": "Hız"
+    },
+    "choices": {
+      "timing": {
+        "eased": "yumuşak",
+        "linear": "doğrusal"
+      }
+    },
+    "readouts": {
+      "lastKey": "Son anahtar"
+    },
+    "words": {
+      "rest": "dinlenme",
+      "crouch": "çömelme",
+      "launch": "sıçrama",
+      "apex": "tepe",
+      "land": "iniş",
+      "absorb": "sönümleme",
+      "look up": "yukarı bak",
+      "turn": "dön",
+      "waking up": "uyanıyor"
+    }
+  },
+  "labels-that-follow": {
+    "controls": {
+      "mouse": "Güneşin etrafında dönmek için sürükle, yaklaşmak için tekerlek; etiketler gezegenlerle birlikte gider",
+      "show": "Göster",
+      "speed": "Hız",
+      "lineThemUp": "Sıraya diz"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "Güneş'e uzaklık",
+        "year": "yıl",
+        "moons": "uydular",
+        "names only": "yalnızca adlar"
+      }
+    },
+    "words": {
+      "Sun": "Güneş",
+      "Mercury": "Merkür",
+      "Venus": "Venüs",
+      "Earth": "Dünya",
+      "Moon": "Ay",
+      "Mars": "Mars",
+      "Jupiter": "Jüpiter",
+      "Saturn": "Satürn",
+      "Uranus": "Uranüs",
+      "Neptune": "Neptün",
+      "fromEarth": "Dünya'dan 384 400 km",
+      "ourStar": "yıldızımız",
+      "au": "{au} AB",
+      "month": "27 günlük bir ay",
+      "year": "{days} günlük bir yıl",
+      "planets": "8 gezegen",
+      "earthsMoon": "Dünya'nın uydusu",
+      "oneMoon": "1 uydu",
+      "moons": "{moons} uydu"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "controls": {
+      "branches": "Dallar",
+      "leaves": "Yapraklar",
+      "cutoff": "Kesim eşiği",
+      "sun": "Güneş"
+    }
+  },
+  "letters-carved-in-relief": {
+    "controls": {
+      "rake": "Eğim",
+      "warm": "Sıcak",
+      "cool": "Soğuk",
+      "letters": "Harfler"
+    }
+  },
+  "light-from-a-probe": {
+    "controls": {
+      "mouse": "Bahçede dolaşmak için sürükle; bir yer seç, heykeller onun ışığını alsın",
+      "place": "Yer",
+      "turn": "Döndür",
+      "strength": "Güç",
+      "keyLight": "Ana ışık",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "gün batımında çöl",
+        "forest clearing": "orman açıklığı",
+        "neon alley": "neon sokak",
+        "snowfield": "kar alanı"
+      }
+    },
+    "readouts": {
+      "meanLight": "Ortalama ışık"
+    }
+  },
+  "light-in-real-units": {
+    "controls": {
+      "mouse": "Meydanda dolaşmak için sürükle; bir an seç ve kameranın 100 000 lükstan mehtaplı bir geceye kadar alışmasını izle",
+      "moment": "An",
+      "lampLumens": "Lamba lümeni",
+      "autoExposure": "Otomatik pozlama",
+      "exposureValue": "Pozlama değeri",
+      "turning": "Dönüyor"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "açık öğle",
+        "overcast": "kapalı hava",
+        "golden hour": "altın saat",
+        "sunset": "gün batımı",
+        "blue hour": "mavi saat",
+        "moonlit night": "mehtaplı gece"
+      }
+    },
+    "readouts": {
+      "sun": "Güneş",
+      "sky": "Gökyüzü",
+      "eachLamp": "Her lamba",
+      "exposureValue": "Pozlama değeri"
+    },
+    "words": {
+      "off": "kapalı"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "controls": {
+      "lamp": "Lamba",
+      "power": "Güç",
+      "colour": "Renk"
+    }
+  },
+  "lines-in-colour": {
+    "controls": {
+      "mouse": "Şeklin etrafında dönmek için sürükle; başka bir kural seç, kalem onu baştan çizsin",
+      "figure": "Şekil",
+      "palette": "Palet",
+      "pace": "Tempo",
+      "redraw": "Yeniden çiz",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "Lorenz kelebeği",
+        "Aizawa shell": "Aizawa kabuğu",
+        "Thomas knot": "Thomas düğümü",
+        "Halvorsen propeller": "Halvorsen pervanesi"
+      },
+      "palette": {
+        "aurora": "kutup ışığı",
+        "sunset": "gün batımı",
+        "embers": "köz",
+        "ice": "buz"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "Renkli parçalar"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "controls": {
+      "lampTurn": "Lamba dönüşü",
+      "lampHeight": "Lamba yüksekliği",
+      "colour": "Renk",
+      "exposure": "Pozlama",
+      "circle": "Dön"
+    },
+    "words": {
+      "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "memory-on-a-budget": {
+    "controls": {
+      "memory": "Bellek",
+      "view": "Görünüm"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "lod": "ayrıntı düzeyleri",
+        "clusters": "kümeler"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; sandık: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "controls": {
+      "help": "Bir tutamacı sürükle. Kamerayı döndürmek için yanında sürükle.",
+      "mode": "Mod",
+      "axes": "Eksenler",
+      "snap": "Yapıştır"
+    },
+    "choices": {
+      "mode": {
+        "translate": "taşı",
+        "rotate": "döndür",
+        "scale": "ölçekle"
+      },
+      "axes": {
+        "world": "dünya",
+        "local": "yerel"
+      }
+    },
+    "readouts": {
+      "position": "Konum",
+      "drags": "Sürüklemeler"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "controls": {
+      "mouse": "Galeriye bakmak için sürükle · grafik kareler arasındaki süredir",
+      "turning": "Dönüyor",
+      "revealAgain": "Yeniden göster"
+    },
+    "readouts": {
+      "worstFrameBefore": "Önceki en kötü kare",
+      "worstFrameAfter": "Sonraki en kötü kare"
+    },
+    "words": {
+      "note": "On dört yüzey, her biri farklı bir malzeme ya da ayarla, hepsi aynı karede. Grafik kareler arasındaki süreyi çizer; altın çizgi onların göründüğü andır.",
+      "measuring": "ölçülüyor",
+      "hidden": "gizli"
+    }
+  },
+  "normals-and-depth-seen": {
+    "controls": {
+      "mouse": "Sahanın etrafında dolaşmak için sürükle; yüzeyleri çizicinin sakladığı gibi görmek için görünümü değiştir",
+      "see": "Gör",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "see": {
+        "lit": "ışıklı",
+        "normals": "normaller",
+        "depth": "derinlik"
+      }
+    },
+    "readouts": {
+      "colourMeans": "Rengin anlamı"
+    },
+    "words": {
+      "lit": "ışık ve malzeme",
+      "normals": "yön: sağ kırmızı, yukarı yeşil, sana doğru mavi",
+      "depth": "uzaklık: yakın beyaz, uzak koyu"
+    }
+  },
+  "observatory-streamed": {
+    "controls": {
+      "view": "Görünüm",
+      "pixelError": "Piksel hatası"
+    },
+    "choices": {
+      "view": {
+        "clusters": "kümeler",
+        "beauty": "görüntü",
+        "pages": "sayfa",
+        "lod": "ayrıntı düzeyleri",
+        "triangles": "üçgen"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "controls": {
+      "mouse": "Arenanın etrafında dönmek için sürükle; tek animasyonun taraftarlara nasıl dağıtılacağını seç",
+      "pattern": "Desen",
+      "speed": "Hız"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "meksika dalgası",
+        "ripple outwards": "dışa doğru dalga",
+        "all at once": "hepsi birden"
+      }
+    },
+    "readouts": {
+      "clips": "Animasyonlar",
+      "fansPlayingIt": "Onu oynatan taraftarlar"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "controls": {
+      "mouse": "Bir ürün görüntüleyici: döndürmek için sürükle · kaydırmak için sağ tuşla sürükle · dişlere yaklaşmak için tekerlek",
+      "view": "Görünüm",
+      "speed": "Hız",
+      "brass": "Pirinç"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "dörtte üç",
+        "front": "ön",
+        "side": "yan",
+        "top": "üst"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "controls": {
+      "checks": "Kareler",
+      "paint": "Boya",
+      "second": "İkinci",
+      "spin": "Dönüş"
+    }
+  },
+  "reading-pixels-back": {
+    "controls": {
+      "mouse": "Etrafa bakmak için sürükle · sağ alttaki resim, sayılara geri okunan görünümdür",
+      "sunHeight": "Güneşin yüksekliği",
+      "live": "Canlı",
+      "turning": "Dönüyor",
+      "savePng": "PNG kaydet"
+    },
+    "readouts": {
+      "meanColour": "Ortalama renk",
+      "brightest": "En parlak",
+      "readBack": "Geri okuma süresi"
+    },
+    "words": {
+      "hover": "Bir pikseli okumak için resmin üzerine gel",
+      "pixel": "piksel {x}, {y}: {colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "controls": {
+      "mouse": "Trendeyken başını çevirmek için sürükle. Parkın etrafında dönmek için treni durdur",
+      "ride": "Bin",
+      "loops": "Takla"
+    },
+    "readouts": {
+      "speed": "Hız",
+      "gForce": "G kuvveti"
+    }
+  },
+  "save-the-scene": {
+    "controls": {
+      "help": "Kuleyi yık, sonra kaydedilmiş sahneyi yeniden aç.",
+      "knockDown": "Yık",
+      "save": "Kaydet",
+      "open": "Aç"
+    },
+    "readouts": {
+      "saved": "Kaydedildi"
+    },
+    "words": {
+      "bytes": "{bytes} bayt"
+    }
+  },
+  "scattered-on-a-surface": {
+    "controls": {
+      "mouse": "Gezegenin etrafında dönmek için sürükle; en dik eğimi artır, orman dağlara tırmansın",
+      "trees": "Ağaçlar",
+      "rocks": "Kayalar",
+      "steepest": "En dik",
+      "seaLevel": "Deniz seviyesi",
+      "spin": "Dönüş"
+    },
+    "readouts": {
+      "treesPlanted": "Dikilen ağaçlar",
+      "spotsRefused": "Reddedilen yerler"
+    }
+  },
+  "see-the-triangles": {
+    "controls": {
+      "mouse": "Tekerlekle uzaklaş ve yaklaş: uzaktan büst daha az ama daha büyük üçgene ihtiyaç duyar",
+      "view": "Görünüm",
+      "pixelError": "Piksel hatası",
+      "sideBySide": "Yan yana"
+    },
+    "choices": {
+      "view": {
+        "triangles": "üçgen",
+        "clusters": "kümeler",
+        "lod": "ayrıntı düzeyleri",
+        "pages": "sayfa",
+        "beauty": "görüntü"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Çizilen üçgenler",
+      "pagesMemory": "Bellekteki sayfalar"
+    },
+    "words": {
+      "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "select-with-a-box": {
+    "controls": {
+      "help": "Seç: bir kutu sürükle; Shift ekler, Alt çıkarır. Döndür: bahçenin üstünde uçmak için sürükle",
+      "mouse": "Fare",
+      "selectAll": "Hepsini seç",
+      "clear": "Temizle"
+    },
+    "choices": {
+      "mouse": {
+        "select": "seç",
+        "turn": "dön"
+      }
+    },
+    "readouts": {
+      "selected": "Seçilen"
+    }
+  },
+  "several-views-one-page": {
+    "controls": {
+      "mouse": "Döndürmek için büyük görünümü sürükle; küçüklerde yakınlaştırmak ve kaydırmak için tekerlek ve sürükle, sıfırlamak için çift tıkla",
+      "explode": "Parçala",
+      "windFrom": "Rüzgârın yönü",
+      "windSpeed": "Rüzgâr hızı"
+    },
+    "readouts": {
+      "sailTurnsMinute": "Dakikada kanat turu"
+    },
+    "words": {
+      "perspective": "Perspektif",
+      "top": "Üst",
+      "front": "Ön",
+      "side": "Yan, doğudan"
+    }
+  },
+  "shadows-from-the-sun": {
+    "controls": {
+      "mouse": "Bahçede dolaşmak için sürükle; saati kaydır, her gölge dönsün, dikilitaşın ucu saat taşlarının üzerinde yürüsün",
+      "hour": "Saat",
+      "day": "Gün",
+      "latitude": "Enlem",
+      "sails": "Yelkenler"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "yaz gündönümü",
+        "spring equinox": "ilkbahar ekinoksu",
+        "winter solstice": "kış gündönümü"
+      }
+    },
+    "readouts": {
+      "sunHeight": "Güneşin yüksekliği",
+      "sunBearing": "Güneşin yönü",
+      "obeliskShadow": "Dikilitaşın gölgesi"
+    },
+    "words": {
+      "S": "G",
+      "SW": "GB",
+      "W": "B",
+      "NW": "KB",
+      "N": "K",
+      "NE": "KD",
+      "E": "D",
+      "SE": "GD",
+      "belowHorizon": "ufkun altında",
+      "bearing": "{point} (kuzeyden {degrees}°)"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "controls": {
+      "mouse": "Etrafa bakmak için sürükle; sıfır derinlik düz kesilmiş şekli bırakır",
+      "depth": "Derinlik",
+      "bevel": "Pah",
+      "bevelSize": "Pah boyutu",
+      "bevelSegments": "Pah parçaları",
+      "curveSegments": "Eğri parçaları",
+      "spin": "Dönüş"
+    },
+    "readouts": {
+      "triangles": "Üçgenler"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "controls": {
+      "colour": "Renk",
+      "speed": "Hız",
+      "spin": "Dönüş"
+    }
+  },
+  "side-by-side-stereo": {
+    "controls": {
+      "mouse": "Döndürmek için soldaki resmi sürükle; iki nokta tek olana kadar şaşı bak",
+      "viewing": "Bakış",
+      "separation": "Aralık",
+      "speed": "Hız"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "şaşı",
+        "parallel": "paralel"
+      }
+    },
+    "words": {
+      "leftEye": "sol göz",
+      "rightEye": "sağ göz"
+    }
+  },
+  "sky-and-ground-light": {
+    "controls": {
+      "mouse": "Alttan ve üstten bakmak için sürükle; her yer üst yüzleri gökyüzüyle, alt yüzleri toprağıyla boyar",
+      "place": "Yer",
+      "skyStrength": "Gökyüzü gücü",
+      "sun": "Güneş",
+      "float": "Süzül"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "öğlende çayır",
+        "snowfield": "kar alanı",
+        "red desert": "kızıl çöl",
+        "sunset beach": "gün batımında plaj",
+        "tropical lagoon": "tropik lagün",
+        "overcast city": "bulutlu şehir"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "Yukarıdan gökyüzü",
+      "groundFromBelow": "Aşağıdan toprak"
+    }
+  },
+  "smooth-edges-over-time": {
+    "controls": {
+      "mouse": "Tellere bakmak için sürükle; yumuşatmayı kapat ve basamaklara bölünmelerini izle",
+      "smoothing": "Yumuşatma",
+      "circle": "Dön"
+    },
+    "readouts": {
+      "temporalAntialiasing": "Zamansal kenar yumuşatma"
+    },
+    "words": {
+      "on": "açık",
+      "off": "kapalı"
+    }
+  },
+  "snow-of-sprites": {
+    "controls": {
+      "mouse": "Kulübenin etrafında dolaşmak için sürükle; tipiye çevir, kar taneleri yoğunlaşıp yana uçsun",
+      "weather": "Hava",
+      "wind": "Rüzgâr"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "düzenli kar",
+        "light flurry": "hafif serpinti",
+        "blizzard": "tipi"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "Düşen kar taneleri"
+    }
+  },
+  "sound-made-visible": {
+    "controls": {
+      "mouse": "Sahnenin etrafında dolaşmak için sürükle; çubuklar notalar, inciler dalganın kendisi",
+      "layout": "Düzen",
+      "height": "Yükseklik",
+      "playMelody": "Melodiyi çal",
+      "useMicrophone": "Mikrofonu kullan",
+      "silence": "Sessizlik"
+    },
+    "choices": {
+      "layout": {
+        "ring": "halka",
+        "wall": "duvar",
+        "spiral": "sarmal"
+      }
+    },
+    "words": {
+      "hint": "Bir melodi duymak için sahneye tıkla",
+      "listening": "Mikrofon dinleniyor: şarkı söyle, ıslık çal, el çırp",
+      "refused": "Mikrofon reddedildi: yerine melodi çalıyor",
+      "silence": "Sessizlik. Melodiyi yeniden duymak için sahneye tıkla"
+    }
+  },
+  "spin-an-astrolabe": {
+    "controls": {
+      "mouse": "Onu her yöne, baş aşağı bile döndürmek için sürükle · yakınlaştırmak için tekerlek",
+      "turning": "Dönüyor",
+      "sun": "Güneş"
+    }
+  },
+  "street-lamp-at-night": {
+    "controls": {
+      "night": "Gece",
+      "bounce": "Sekme",
+      "sun": "Güneş",
+      "lamp": "Lamba"
+    },
+    "words": {
+      "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "ten-thousand-objects": {
+    "controls": {
+      "mouse": "Gezegenin etrafında dönmek için sürükle; bir kaya görüntüyü doldurana kadar tekerlekle halkaya gir",
+      "view": "Görünüm",
+      "pixelError": "Piksel hatası",
+      "drift": "Sürüklenme"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "clusters": "kümeler",
+        "lod": "ayrıntı düzeyleri"
+      }
+    },
+    "readouts": {
+      "objectsScene": "Sahnedeki nesneler",
+      "trianglesFile": "Dosyadaki üçgenler",
+      "trianglesDrawn": "Çizilen üçgenler"
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş gezegen ve küçük aylar, CC0 — bkz. assets/examples/CREDITS.md",
+      "million": "{count} milyon",
+      "notCounted": "burada sayılmadı"
+    }
+  },
+  "texture-filters-compared": {
+    "controls": {
+      "mouse": "Şeritler boyunca bakmak için sürükle; soldan sağa: en yakın, doğrusal, üç doğrusal, anizotropik",
+      "picture": "Resim",
+      "anisotropy": "Anizotropi"
+    },
+    "choices": {
+      "picture": {
+        "checker": "dama",
+        "lettering": "yazı"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "Dördüncü şeridin anizotropisi"
+    }
+  },
+  "the-material-family": {
+    "controls": {
+      "mouse": "Ailenin etrafında dolaşmak için sürükle; ışığı geceye çevir ve hangi türlerin hâlâ parladığını gör",
+      "light": "Işık",
+      "shape": "Şekil",
+      "lookAt": "Bak",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "bütün aile",
+        "all": "bütün aile",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "altın saat",
+        "midday": "öğle",
+        "night": "gece"
+      },
+      "shape": {
+        "knot": "düğüm",
+        "sphere": "küre",
+        "vase": "vazo",
+        "ring": "halka"
+      }
+    },
+    "readouts": {
+      "looking": "Bakılan",
+      "litByLamps": "Lambalarla aydınlanan"
+    },
+    "words": {
+      "meshBasic": "tek düz renk, hiçbir lambayı görmez",
+      "meshLambert": "tebeşir gibi mat: dağınık ışık, parlaklık yok",
+      "meshPhong": "plastik: güneşin sektiği yerde parlak bir nokta",
+      "meshStandard": "metallik ve pürüzlülük, alışılmış seçim",
+      "meshPhysical": "standart artı cam: ışık içinden geçer",
+      "meshToon": "bir çizgi film: ışık iki düz bantta",
+      "meshNormal": "her noktanın baktığı yön, renk olarak",
+      "meshMatcap": "lambalarla değil, ışıklı bir topun resmiyle aydınlanır",
+      "allKinds": "sekiz türün hepsi",
+      "yes": "evet",
+      "no": "hayır",
+      "fiveOfEight": "sekizde beş"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "controls": {
+      "mouse": "Duvar boyunca bakmak için sürükle; kameran yalnızca düğmeye bastığında istenir",
+      "useMyCamera": "Kameramı kullan",
+      "layout": "Düzen",
+      "mirror": "Ayna"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "video duvarı",
+        "one per screen": "ekran başına bir"
+      }
+    },
+    "readouts": {
+      "source": "Kaynak"
+    },
+    "words": {
+      "noCamera": "kamera yok",
+      "yourCamera": "senin kameran",
+      "refused": "kamera reddedildi ({error})",
+      "paintedSignal": "boyanmış sinyal"
+    }
+  },
+  "toon-shading": {
+    "controls": {
+      "mouse": "Adanın etrafında dönmek için sürükle; gölgelendirmeyi değiştir ve ışığın bantlar hâlinde düşmesini izle",
+      "shading": "Gölgelendirme",
+      "outlines": "Dış hatlar",
+      "sun": "Güneş",
+      "wind": "Rüzgâr"
+    },
+    "choices": {
+      "shading": {
+        "toon": "çizgi film",
+        "matte": "mat",
+        "physical": "fiziksel"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "controls": {
+      "mouse": "Etrafa bakmak için sürükle; imleci aç ve dronu yönlendir, her çanak takip eder",
+      "turn": "Döndür",
+      "turnSpeed": "Dönüş hızı",
+      "followPointer": "İmleci takip et"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "düzenli",
+        "at once": "bir anda",
+        "on a spring": "yay üstünde"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "Kilitlenen çanaklar"
+    }
+  },
+  "two-lenses-one-scene": {
+    "controls": {
+      "mouse": "Şehrin etrafında dönmek için sürükle; merceği değiştir ve sokakların düzleşmesini izle",
+      "lens": "Mercek",
+      "fieldOfView": "Görüş alanı",
+      "isometric": "İzometrik",
+      "drift": "Sürüklenme"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "perspektif",
+        "orthographic": "ortografik"
+      }
+    },
+    "readouts": {
+      "lens": "Mercek"
+    },
+    "words": {
+      "orthographic": "ortografik, {height} m yüksek",
+      "perspective": "{degrees}° perspektif"
+    }
+  },
+  "uvs-of-every-shape": {
+    "controls": {
+      "mouse": "Etrafa bakmak için sürükle; bir harf ve bir rakam resmin her karesine ad verir",
+      "pattern": "Desen",
+      "repeat": "Tekrar",
+      "slide": "Kaydır",
+      "spin": "Dönüş"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "test kartı",
+        "checks": "kareler",
+        "arrows": "oklar"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "controls": {
+      "keys": "Motorun karakter kontrolü: menüdeki Oyna bakmak için fareyi kilitler, koşmak için W A S D (AZERTY'de Z Q S D), hızlı koşmak için Shift, zıplamak için Boşluk, Esc fareyi bırakır. Sayfa yeniden koşmak için R, sesi kapatmak için M ekler.",
+      "look": "Bakış",
+      "runAgain": "Yeniden koş"
+    },
+    "game": {
+      "title": "Tapınak parkuru",
+      "goal": "Yolda beş küreyi toplayarak altın puta ulaş. Lav seni en son yanan kontrol noktasına geri gönderir.",
+      "keys": {
+        "run": "Koş",
+        "look": "Bakış",
+        "sprint": "Hızlı koş",
+        "jump": "Zıpla",
+        "runAgain": "Yeniden koş",
+        "sound": "Ses açık ya da kapalı",
+        "pause": "Duraklat"
+      }
+    },
+    "words": {
+      "checkpoint": "Kontrol noktası",
+      "finished": "{taken} / {orbs} küre · yeniden koşmak için R",
+      "muted": "M sessiz",
+      "sound": "M ses"
+    }
+  },
+  "waves-of-points": {
+    "controls": {
+      "mouse": "Alanın etrafında dönmek için sürükle; bir desen seç, şamandıraların altındaki dalgalar biçim değiştirsin",
+      "pattern": "Desen",
+      "height": "Yükseklik",
+      "speed": "Hız"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "okyanus dalgası",
+        "rain of stones": "taş yağmuru",
+        "interference": "girişim",
+        "standing wave": "duran dalga",
+        "whirlpool": "girdap"
+      }
+    },
+    "readouts": {
+      "points": "Noktalar"
+    }
+  },
+  "what-hides-what": {
+    "controls": {
+      "mouse": "Etrafa bakmak için sürükle; çitler çıkmaz sokakların sonundaki altın düğümleri gizler",
+      "hedgeHeight": "Çit yüksekliği",
+      "view": "Görünüm",
+      "aboveOrInside": "Üstten ya da içeriden"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "visibility": "görünürlük"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "Altın düğümler",
+      "clustersTested": "Denenen kümeler",
+      "clustersHidden": "Gizlenen kümeler",
+      "trianglesHidden": "Gizlenen üçgenler"
+    },
+    "words": {
+      "notCounted": "burada sayılmadı"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "controls": {
+      "fieldOfView": "Görüş alanı",
+      "dollyZoom": "Dolly zoom"
+    }
+  }
+}

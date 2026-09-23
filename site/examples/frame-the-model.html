@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#dcc6a8');
@@ -118,7 +119,7 @@
         flight = { from, to: { target: centre, d, length: to }, t: 0, span: 1.2 + 0.35 * Math.abs(Math.log(to / from.length)), nearest: r * 0.8 };
         // The wheel's range is the framed object's once the flight lands; open while it flies.
         world.controls.minDistance = 0;
-        name?.(node.name);
+        name?.(say(node.name));
         radius?.(`${r < 1 ? (r * 100).toFixed(1) + ' cm' : r.toFixed(2) + ' m'}`);
         world.invalidate();
       };
@@ -132,9 +133,9 @@
         if (key === 'model' || key === 'margin') frame(pick(values.model), values.margin);
         if (key === 'drift') drift = values.drift;
       }, world);
-      name = readout('Framing');
-      radius = readout('Radius');
-      distance = readout('Distance');
+      name = readout('framing');
+      radius = readout('radius');
+      distance = readout('distance');
 
       // Double-click: a ray from the eye through the pointer, tested against every object's
       // sphere; the nearest one hit is framed.
@@ -160,7 +161,7 @@
       {
         const { centre, radius: r } = bounds(pick('the gold ring')), d = [0.55, 0.42, 0.72].map((v) => v / Math.hypot(0.55, 0.42, 0.72));
         place(centre, d, fitDistance(r, 1.1));
-        name('the gold ring');
+        name(say('the gold ring'));
         radius(`${(r * 100).toFixed(1)} cm`);
       }
       let time = 0, opening = 1.4;

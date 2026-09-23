@@ -59,11 +59,12 @@
     <canvas id="view"></canvas>
     <canvas id="right"></canvas>
     <div id="seam"></div>
-    <div class="eye" style="left: 0"><b></b><span id="leftEye">right eye</span></div>
-    <div class="eye" style="left: 50%"><b></b><span id="rightEye">left eye</span></div>
+    <div class="eye" style="left: 0"><b></b><span id="leftEye"></span></div>
+    <div class="eye" style="left: 50%"><b></b><span id="rightEye"></span></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, words } from '../runtime/kit.js';
+      const say = words();
 
       // Two worlds, one per eye, each drawing its own copy of the same orrery. The left half takes
       // the mouse; the right half's camera is the left one moved sideways by the eye separation
@@ -157,8 +158,8 @@
       }, (values) => {
         // Cross-eyed: the left picture is for the right eye, so the other eye stands to its left.
         const crossed = values.viewing === 'cross-eyed';
-        document.getElementById('leftEye').textContent = crossed ? 'right eye' : 'left eye';
-        document.getElementById('rightEye').textContent = crossed ? 'left eye' : 'right eye';
+        document.getElementById('leftEye').textContent = say(crossed ? 'rightEye' : 'leftEye');
+        document.getElementById('rightEye').textContent = say(crossed ? 'leftEye' : 'rightEye');
         world.invalidate();
       });
 

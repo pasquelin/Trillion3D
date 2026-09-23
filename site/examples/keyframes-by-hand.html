@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, animation } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#15171d');
@@ -180,7 +181,7 @@
         for (const ghost of ghosts) ghost.visible = values.onionSkin;
         world.invalidate();
       });
-      const shownKey = readout('Last key');
+      const shownKey = readout('lastKey');
 
       world.onFrame(() => {
         // Once awake, both hop clips start together, whichever of them is seen.
@@ -191,7 +192,7 @@
         const t = plain.playingNow ? plain.clipTime() : 0;
         let k = 0;
         while (k < keys.time.length - 1 && keys.time[k + 1] <= t) k++;
-        shownKey(plain.playingNow ? `${keys.name[k]} · ${t.toFixed(2)} s` : 'waking up');
+        shownKey(plain.playingNow ? `${say(keys.name[k])} · ${t.toFixed(2)} s` : say('waking up'));
         world.invalidate();
       });
       world.invalidate();

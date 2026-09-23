@@ -75,10 +75,11 @@
   <body>
     <canvas id="view"></canvas>
     <canvas id="before"></canvas>
-    <div id="split"><div id="knob">&#8596;</div><span class="tag" id="tagBefore">clay</span><span class="tag" id="tagAfter">finished</span></div>
+    <div id="split"><div id="knob">&#8596;</div><span class="tag" id="tagBefore"></span><span class="tag" id="tagAfter" data-words="finished"></span></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, words } from '../runtime/kit.js';
+      const say = words();
 
       // Two worlds draw the same courtyard: "after" fills the page and takes the mouse, "before"
       // is laid on top and cut at the split. Each owns its meshes, built by the same function.
@@ -231,7 +232,7 @@
         before: Object.keys(LOOKS).filter((name) => name !== 'finished'),
       }, (values) => {
         beforeScene.look(values.before);
-        document.getElementById('tagBefore').textContent = values.before;
+        document.getElementById('tagBefore').textContent = say(values.before);
         before.invalidate();
       });
 
