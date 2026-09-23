@@ -1,0 +1,126 @@
+import { useRef } from 'react';
+import type { MouseEvent } from 'react';
+import { t } from '../../content/i18n/index.ts';
+import { usePortal } from '../layout/PortalContext.ts';
+import { LIGHTS, SHAPES, type AddKind } from './objects.ts';
+import type { Editor } from './useEditor.ts';
+
+/** The public cooked models the Models menu loads, each committed under `site/assets/examples`. */
+const MODELS = ['bust', 'crates', 'hall', 'street-corner'] as const;
+const manifestOf = (id: string) =>
+  new URL(`assets/examples/${id}/cache/native/full/manifest.json`, document.baseURI).href;
+
+interface Item {
+  key: string;
+  label: string;
+  run: () => void;
+  disabled?: boolean;
+}
+
+/** One menu of the bar: a DaisyUI dropdown that closes once an item is chosen. */
+function Menu({ label, items }: { label: string; items: Item[] }) {
+  const close = (event: MouseEvent) =>
+    event.currentTarget.closest('details')?.removeAttribute('open');
+  return (
+    <details className="dropdown">
+      <summary className="btn btn-ghost btn-sm list-none">{label}</summary>
+      <ul className="menu dropdown-content z-20 mt-1 w-56 rounded-box border border-base-300 bg-base-200 shadow-lg">
+        {items.map((item) => (
+          <li key={item.key} className={item.disabled ? 'menu-disabled' : ''}>
+            <button
+              type="button"
+              disabled={item.disabled}
+              onClick={(event) => {
+                close(event);
+                item.run();
+              }}
+            >
+              {item.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/** Hands the scene to the person as a JSON file. */
+function download(json: string) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  link.download = 'scene.json';
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+/**
+ * The editor's menu bar: File (new, open a JSON file, save one), Add (the shapes, a group, the
+ * lights), Edit (undo, redo, duplicate, delete) and Models (a public cooked model, loaded).
+ */
+export function MenuBar({ editor }: { editor: Editor }) {
+  const { locale } = usePortal().route;
+  const { session, actions, failed } = editor;
+  const file = useRef<HTMLInputElement>(null);
+  const kinds: AddKind[] = [...(Object.keys(SHAPES) as AddKind[]), 'group', ...LIGHTS];
+  const none = !session.selected;
+  const item = (key: string, run: () => void, disabled = false) => ({
+    key,
+    label: t(locale, `editor.${key}`),
+    run,
+    disabled,
+  });
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <input
+        ref={file}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(event) => {
+          const chosen = event.currentTarget.files?.[0];
+          event.currentTarget.value = '';
+          chosen
+            ?.text()
+            .then((text) => actions.open(JSON.parse(text)))
+            .catch(failed);
+        }}
+      />
+      <Menu
+        label={t(locale, 'editor.menu.file')}
+        items={[
+          item('new', actions.newScene),
+          item('openFile', () => file.current?.click()),
+          item('save', () => {
+            try {
+              download(actions.save());
+            } catch (error) {
+              failed(error);
+            }
+          }),
+        ]}
+      />
+      <Menu
+        label={t(locale, 'editor.menu.add')}
+        items={kinds.map((kind) => item(`add.${kind}`, () => actions.add(kind)))}
+      />
+      <Menu
+        label={t(locale, 'editor.menu.edit')}
+        items={[
+          item('undo', session.undo, !session.history.canUndo),
+          item('redo', session.redo, !session.history.canRedo),
+          item('duplicate', actions.duplicate, none),
+          item('delete', actions.remove, none),
+        ]}
+      />
+      <Menu
+        label={t(locale, 'editor.menu.models')}
+        items={MODELS.map((id) =>
+          item(
+            `model.${id}`,
+            () => void actions.loadSample(manifestOf(id), t(locale, `editor.model.${id}`)),
+          ),
+        )}
+      />
+    </div>
+  );
+}
