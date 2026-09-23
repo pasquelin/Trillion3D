@@ -36,10 +36,14 @@ dispose them before the next route. `docs/` holds the repository documentation o
 - `site/i18n/<language>.json` holds every word of the portal, one file per language, English the
   reference and the fallback: a `meta` block (`lang`, `name`, `abbr`, `hreflang`, `rtl`), the
   interface namespaces, then the content — the course (`course`), the written text of the guides
-  and notes (`written`) and the demo canvas labels. The languages are the files of the folder: `site/content/i18n/languages.inline.ts` reads
-  it, and the portal build runs that module and bundles its result (`scripts/docs/inline-modules.ts`),
-  so adding a language is adding its file (and its `api.<language>.json`, below). `site/app/i18n.ts`
-  is the one i18next instance: the language comes from the route (`#/<language>/…`), then the
+  and notes (`written`), the examples' titles, themes and awaited features (`gallery`) and the
+  demo canvas labels. The languages are the files of the folder: `site/content/i18n/languages.inline.ts`
+  reads each one's `meta`, and the portal build runs that module and bundles its result
+  (`scripts/docs/inline-modules.ts`), so adding a language is adding its file (and its
+  `api.<language>.json`, below). English is bundled with the portal; every other dictionary, and
+  each `api.<language>.json`, is a chunk of its own, read (`loadDictionary`,
+  `loadReferenceTranslation`) before a page first shows in that language. `site/app/i18n.ts` is
+  the one i18next instance: the language comes from the route (`#/<language>/…`), then the
   reader's last choice (`localStorage`), then the browser, then English; the header lists every
   language. `check:i18n` in `validate`, and `scripts/docs-i18n.test.ts`, fail when a language's keys
   differ from English's, naming each missing and extra key.
@@ -52,8 +56,9 @@ dispose them before the next route. `docs/` holds the repository documentation o
 - `site/examples/` owns the examples: one standalone HTML file per example, `<id>.html`, which
   imports the built engine as `../runtime/engine.js`, loads a compiled scene from `../assets/` and
   runs as-is from the built site — or copied into a user's project, paths adjusted. The list is
-  `site/content/gallery-roadmap.json`: the themes, then one entry per example with `id`, a
-  bilingual `title`, its `theme` and its `file`, empty until the example exists. The Examples area's
+  `site/content/gallery-roadmap.json`: the theme ids, then one entry per example with `id`, its
+  `theme` and its `file`, empty until the example exists; their words are each dictionary's
+  `gallery`. The Examples area's
   sidebar lists the ready ones (an entry with a `file`) theme by theme, each a card with its
   thumbnail, under a filter box; its landing page shows every entry theme by theme — a ready one
   as a card with its settled render (`site/assets/examples/thumbnails/<id>.png`, captured by
@@ -152,7 +157,8 @@ packages; none stays external or is loaded from a CDN.
 3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, in
    learning order within its theme, or turn its "in progress" entry into it: an entry with no
    `file` carries `status` (`buildable`, or `needs-engine` with the engine feature it waits for in
-   `missing`, in both languages). Then capture its thumbnail:
+   `gallery.missing.<id>` of every dictionary), and its title under `gallery.titles.<id>`. Then
+   capture its thumbnail:
    `node scripts/docs-examples-thumbnails.ts <id>`. The capture hides the kit's panels and the
    credit line and waits for the example's most telling moment, the seconds it declares in
    `<meta name="thumbnail" content="3">` (1.5 when it declares none).

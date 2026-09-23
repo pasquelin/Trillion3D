@@ -9,7 +9,6 @@ import { pairedImages } from '../site/reports/presentation.ts';
 import { readingGroups } from '../site/reports/sources.ts';
 import { metricValue } from '../site/reports/metrics.ts';
 import { baseRecord, baseRun, baseReport } from './docs/report-fixtures.ts';
-import { loadLanguage } from '../site/app/i18n.ts';
 import {
   Comparison,
   Evidence,
@@ -18,8 +17,6 @@ import {
   Findings,
   SceneNotice,
 } from './docs/report-components.ts';
-
-await loadLanguage('fr');
 
 test('report routes resolve in each language; names are its words, an unknown id kept', () => {
   for (const locale of ['en', 'fr'] as const) {

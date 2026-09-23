@@ -1,3 +1,4 @@
+import { loadLanguage } from '../../site/app/i18n.ts';
 import { loadReactComponents } from './render-react.ts';
 import type { Comparison as ComparisonComponent } from '../../site/app/reports/Comparison.tsx';
 import type { Evidence as EvidenceComponent } from '../../site/app/reports/Evidence.tsx';
@@ -5,6 +6,9 @@ import type { AllReadings as AllReadingsComponent } from '../../site/app/reports
 import type { BarChart as BarChartComponent } from '../../site/app/ui/BarChart.tsx';
 import type { Findings as FindingsComponent } from '../../site/app/reports/Findings.tsx';
 import type { SceneNotice as SceneNoticeComponent } from '../../site/app/reports/SceneNotice.tsx';
+
+// The report names the test reads from the sources are in French too: its words are read first.
+await loadLanguage('fr');
 
 /** The report test's six React components, typed against their real prop signatures instead
  * of the `unknown` `loadReactComponents` returns for its esbuild-compiled module. */
