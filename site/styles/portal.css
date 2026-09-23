@@ -513,6 +513,15 @@ kbd {
   flex: 1;
   min-height: 0;
 }
+/* The engine scene keeps the height its canvas declares; the readings under it scroll instead
+   of squeezing the render to a strip. */
+.lesson-viewport [data-engine-scene] {
+  min-height: clamp(220px, 42dvh, 480px);
+}
+.lesson-viewport > .scene-stats {
+  min-height: 0;
+  overflow: auto;
+}
 .lesson-note {
   display: flex;
   flex-direction: column;

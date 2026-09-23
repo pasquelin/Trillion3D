@@ -1,6 +1,6 @@
 import type { FrameMetrics, SceneToneMapping } from '../../../../sdk-core/src/index.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import type { Object3D, SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { openMeasuredWorld, type MeasuredWorld } from '../session/explorer.ts';
 import type { MeasuredWorldOptions } from '../session/options.ts';
@@ -65,10 +65,8 @@ export function createWorldRuntime(inputs: Inputs) {
     while (renewWanted && !disposed) {
       renewWanted = false;
       // What was resolved since the last frame opens with this session, not with the next one.
-      if (seatWanted) {
-        seatWanted = false;
-        contents.seat();
-      }
+      if (seatWanted) contents.seat();
+      seatWanted = false;
       const plan = contents.plan();
       const built = buildWorldSource(plan);
       const held = new Set(plan.batches.map((item) => item.cut));
@@ -100,14 +98,16 @@ export function createWorldRuntime(inputs: Inputs) {
         invalidate();
       }
     }
-    reopening = null;
   };
+  // Cleared after the loop returns, not inside it: one with nothing to open ends synchronously.
   const requestReopen = () => {
     renewWanted = true;
-    reopening ??= reopen();
+    reopening ??= reopen().finally(() => {
+      reopening = null;
+      if (renewWanted && !disposed) requestReopen(); // asked while the handle was held
+    });
   };
-  // Every change made before the renderer is granted, and while a resolution runs, is folded
-  // into the next resolution: one for the burst, never one per call.
+  // Changes made before the renderer is granted or during a resolution fold into the next one.
   const resolve = async () => {
     while ((structureChanged || contents.staleCount) && !disposed) {
       structureChanged = false;
@@ -148,7 +148,7 @@ export function createWorldRuntime(inputs: Inputs) {
     fit.apply(explorer);
     copyWorldCamera(camera(), explorer.camera, canvas.width / Math.max(1, canvas.height));
   };
-  const link: SceneLink = {
+  scene._link = {
     pose(node: Object3D) {
       poses.moved(node);
       if (!isLight(node) || node.children.length) lights.boundsMoved();
@@ -167,7 +167,6 @@ export function createWorldRuntime(inputs: Inputs) {
       schedule();
     },
   };
-  scene._link = link;
   return {
     beforeFrame,
     invalidate,

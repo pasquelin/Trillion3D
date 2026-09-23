@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import type { Page } from 'playwright';
+import { DIAGNOSTIC_MODES } from '../../../site/lessons/engine-scene/diagnosticModes.ts';
 
 // Counters an init script installs on the page's own `window`, read back through `evaluate`.
 declare global {
@@ -72,16 +73,8 @@ export async function startupGarden(page: Page, base: string, out: string) {
     assert.match(code, /createWorld\('garden'\)/);
     assert.match(code, /world\.scene\.load\(/);
     assert.doesNotMatch(code, /querySelector|requestAnimationFrame|ResizeObserver/);
-    for (const view of [
-      'clusters',
-      'pages',
-      'wireframe',
-      'lod',
-      'screen-error',
-      'materials',
-      'visibility',
-      'beauty',
-    ]) {
+    // The lesson's own list, beauty last: a hand copy drifted from it once (#281).
+    for (const view of [...DIAGNOSTIC_MODES.slice(1), DIAGNOSTIC_MODES[0]]) {
       if (await mode.locator(`option[value="${view}"]`).isDisabled()) continue;
       await mode.selectOption(view);
       await idle();
