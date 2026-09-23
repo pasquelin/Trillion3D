@@ -243,7 +243,7 @@ pnpm docs:scene
 ```
 
 `docs:scene` runs `scripts/docs-scene.ts`, regenerates the deterministic glTF source, then invokes
-this checkout's native compiler to write the published cache. `WG_COMPILER` may select a compatible
+this checkout's native compiler to write the published cache. `TRILLION3D_COMPILER` may select a compatible
 compiler binary. Never replace source assets with compiler outputs or import assets from a
 neighbouring project. Review the generated manifest provenance and run
 `node --test scripts/docs-scene.test.ts` before publishing a regenerated cache.
