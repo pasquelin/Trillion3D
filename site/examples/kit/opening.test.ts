@@ -112,5 +112,8 @@ test('a flight eases from where the camera stands to the view asked for, then la
   assert.deepEqual([position.x, position.y, position.z], [2, 1, 8]);
   fake.frame(0.05);
   fake.frame(0.05);
-  assert.deepEqual([position.x, position.y, position.z, target.x, target.y, target.z], [4, 2, 6, 1, 1, 1]);
+  assert.deepEqual(
+    [position.x, position.y, position.z, target.x, target.y, target.z],
+    [4, 2, 6, 1, 1, 1],
+  );
 });
