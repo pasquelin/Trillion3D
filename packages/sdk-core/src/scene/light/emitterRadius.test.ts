@@ -17,15 +17,6 @@ const lanterne = (emitterRadius?: number): SceneLight => ({
   ...(emitterRadius === undefined ? {} : { emitterRadius }),
 });
 
-const view = {
-  position: [0, 2, 10] as const,
-  forward: [0, 0, -1] as const,
-  halfFovY: 0.5,
-  aspect: 1,
-  near: 0.1,
-  far: 100,
-};
-
 test('the emitter radius passes validation, and is accepted only in (0, range)', () => {
   assert.equal(validateSceneLight(lanterne(0.2)).emitterRadius, 0.2);
   assert.equal(validateSceneLight(lanterne()).emitterRadius, undefined);
@@ -61,17 +52,8 @@ test("a shadow map's near plane comes only from the light's range", () => {
 
 test('the shadow face keeps this near plane, whether the light declares an envelope or not', () => {
   const matrices = new Float32Array(16);
-  const nu = writeFace(matrices, 0, null, 0, validateSceneLight(lanterne()), 0, view, 1024).near;
-  const enveloppe = writeFace(
-    matrices,
-    0,
-    null,
-    0,
-    validateSceneLight(lanterne(0.25)),
-    0,
-    view,
-    1024,
-  ).near;
+  const nu = writeFace(matrices, 0, null, 0, validateSceneLight(lanterne()), 0).near;
+  const enveloppe = writeFace(matrices, 0, null, 0, validateSceneLight(lanterne(0.25)), 0).near;
   assert.equal(nu, 0.15);
   // The envelope is no longer removed by a recorded near plane — which would remove a cube, up to √3
   // times the radius on the diagonals — but by the distance to the light centre, where
@@ -88,7 +70,7 @@ test("the audit's diagonal point passes the projection and falls outside the sph
   const point = [0.19, 0.18, 0.17] as const;
   const accepted = Array.from({ length: 6 }, (_, face) => {
     const matrices = new Float32Array(16);
-    writeFace(matrices, 0, null, 0, light, face, view, 1024);
+    writeFace(matrices, 0, null, 0, light, face);
     const clip = Array.from(
       { length: 4 },
       (_, i) =>

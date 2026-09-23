@@ -39,7 +39,7 @@ export function createWaterCompositeLayout(device: GPUDevice) {
   return device.createBindGroupLayout({
     label: 'WG water composite',
     entries: [
-      ...deferredLayoutEntries(true, true, readOnly),
+      ...deferredLayoutEntries(true, true, readOnly, false),
       { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
       { binding: b.backdropDepth, visibility: fragment, texture: { sampleType: 'depth' } },
       { binding: b.uniform, visibility: fragment, buffer: { type: 'uniform' } },

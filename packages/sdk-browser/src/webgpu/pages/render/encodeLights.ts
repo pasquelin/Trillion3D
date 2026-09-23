@@ -9,6 +9,7 @@ import { encodeShadowAtlas } from './encodeShadowPass.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { POOL_PAGES } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** The floats the deferred pass rereads: lights, tiles in X and Y, exposure, display curve. */
 const directParams = new Float32Array(8);
@@ -49,9 +50,7 @@ export function encodeDirectLights(
     if (!store.unlit) uploadSceneLights(device, lights);
     return directParams;
   }
-  const frame = rt.run.frame,
-    nowMs = performance.now(),
-    pagesSlot = frame % PAGES_RING;
+  const pagesSlot = rt.run.frame % PAGES_RING;
   const regions = planImageShadows(rt, cam);
   // The pass timer comes back late: the image must leave behind how many pages it redrew, or the
   // sample would not know what it is numbering.
@@ -64,12 +63,17 @@ export function encodeDirectLights(
   // is encoded before the lighting pass that will fill them.
   ensureSunFarShadow(rt, device);
   rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
-  // The pass may refuse to encode (reject or missing selection): pages the scheduler just took out
-  // of the queue then go back in, or their map would keep a stale depth with nothing saying so.
-  // Their held-page mask, pushed with the plan, says "held" for this one frame; `reissue`
-  // gives them back what they held before, and the next plan pushes that mask.
+  // The pass may refuse to encode (reject or missing selection): its pages then stay stale, and
+  // their table words say what they said — a page is readable only once its draw has landed.
   const encoded = !regions || encodeShadowAtlas(rt, device, encoder, regions);
-  if (!encoded) lights.plan.reissue(frame, nowMs);
+  if (encoded) lights.plan.commit();
+  else lights.plan.reissue();
+  if (lights.shadows) {
+    // Records and table words go out after the draws are encoded, before the resolve reads them;
+    // the request buffer is zeroed for the resolve to record into.
+    lights.shadows.flushData(lights.plan.table);
+    lights.pageRequests?.clear(encoder);
+  }
   noteShadowFrame(lights, pagesSlot, encoded);
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
@@ -163,12 +167,11 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     unlit: lights.store.unlit,
     shadowsUpdated: lights.shadowsUpdated,
     sunShadowsUpdated: lights.plan.counts.sunLights,
-    shadowsReused: lights.plan.counts.reused,
     shadowFaces: lights.shadowFaces,
-    sunCascades: lights.sunCascades,
     shadowDraws: lights.shadowDraws,
-    shadowRegions: lights.shadowRegions,
     shadowPagesDrawn: lights.shadowPages,
+    shadowPagesRequested: lights.plan.requests.counts.requested,
+    shadowPagesCached: lights.plan.counts.cachedPages,
     shadowPagesInvalidated: lights.plan.counts.invalidatedPages,
     shadowPagesPending: lights.plan.counts.pendingPages,
     shadowWaitMs: lights.plan.counts.waitedMs,
@@ -176,7 +179,7 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowBudgetMs: lights.plan.budget.budgetMs,
     shadowMsPerPage: lights.plan.budget.msPerPage,
     shadowsDenied: lights.plan.counts.denied,
-    atlasCells: lights.shadows ? lights.plan.slices.atlas.occupancy() : null,
+    poolPages: lights.shadows ? { used: lights.plan.counts.poolPages, total: POOL_PAGES } : null,
     unavailable: lights.shadowReason,
   };
 }

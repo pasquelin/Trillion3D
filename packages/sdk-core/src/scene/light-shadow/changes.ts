@@ -27,7 +27,7 @@ const readMin = new Float64Array(3),
  * that enters or leaves residency, a colour tile that arrives — describes the same world at
  * another precision: it is held in one union box while the camera moves, and enters the list
  * at the first frame the camera rests. Under a moving camera the cut churns every frame, and
- * staling the far cascades for a sub-texel change of detail cost a whole scene draw per frame;
+ * staling the far pages for a sub-texel change of detail cost a whole scene draw per frame;
  * at rest the union restales exactly what changed, so a settled map is that of the current
  * cut, whatever the history (#159).
  */

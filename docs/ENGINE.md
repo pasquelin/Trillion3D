@@ -171,46 +171,64 @@ where lights of different colours overlap, while the camera moves
 (`tests/browser/renders/sampled-lighting.browser.ts`). What remains: a spatial denoise before the
 history.
 
-**Shadow maps are invalidated page by page, under a millisecond budget.** The atlas is cut into
-128-texel pages. A light that moves invalidates its whole map; an object that moves invalidates only
-the pages its projected box covers on each face, and only those are redrawn — with the face's own
-frame and a scissor, so a page carries exactly the depth a full redraw would write.
-`diagnostic.shadowAtlas(world)` returns the raw depth hash to check it. What a frame redraws is
-bounded by `shadowBudgetMs` (1.0 ms), measured on the shadow pass's timestamps; refused pages wait,
-ordered by the light's screen coverage and their age, and are never dropped (`shadowPagesDrawn`,
-`shadowPagesTotal`, `shadowPagesPending`, `shadowWaitMs`). Without GPU timestamps there is no budget,
-only the region ceiling.
+**Shadow maps are virtual, and only the pages the image reads exist.** Every shadow light has a
+virtual map cut into pages of 128 texels, and one page-table word per virtual page; the pages are
+drawn in a fixed pool, a 4096² depth texture of 1024 physical pages (`shadowAtlasSize`, 64 MiB).
+The table holds 2^20 words, 4 MiB (`shadowTableEntries`): sixteen suns or 128 point lights, and a
+light that finds no room is denied its shadow and counted (`shadowsDenied`).
 
-**The sun** has four cascades following the camera, stored like a point light's faces. A cascade's
-extent is a whole number of pages on the light plane, addressed modulo the face — a ring — so a
-camera moving less than a page changes nothing and one moving by whole pages redraws only the strip
-that entered. Each region rejects, before drawing, the clusters outside its box; alpha-masked
-materials keep their real cut-out. Cascades cover a fifth of the far plane, split in a geometric
-series of ratio 4. Beyond the last cascade, the sun's shadow is one ray per pixel against the
-resident proxy (`proxy.bin`), traced by the same bounded traversal the bounce uses, deterministic and
-unaccumulated; the `sun-far-shadow` diagnostic publishes its bounds. Without a proxy, far surfaces
-stay lit: the last cascade is never stretched.
+- **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
+  the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps
+  every page that stays inside. Sixteen levels (`sunLevels`) start at the near plane's pixel
+  footprint. The depth range is the scene's box along the sun, snapped outward to its own
+  power-of-two grid: every caster lies inside, and a small growth changes nothing.
+- **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, the pool's own side, down to one
+  page. Six faces for a point, one for a spot.
+- **The level is chosen per pixel, from its footprint** — the world distance between two adjacent
+  pixels at its depth: a sun reads the level whose texel is at most that footprint, a lamp the mip
+  whose texel at the point's distance is. A texel is never larger than a pixel where the map offers
+  one, near or far, and a caster's error counted in texels is counted in pixels. A page not readable
+  yet hands the point to the next coarser level; beyond a sun's last level, the far-shadow ray
+  against the resident proxy (`proxy.bin`) answers, deterministic and unaccumulated (the
+  `sun-far-shadow` diagnostic publishes its bounds). The PCF taps each find their own page: a tap
+  within a texel of a seam compares the four texels of its footprint in their own pages, weighted
+  by hand — no seam, no guard band.
+- **Receivers mark the pages.** The opaque resolve records each page it reads — a bit per table
+  word, tested before the atomic, and a list — and the list comes back in one readback per image,
+  as the texture feedback does (`webgpu/shadow/pageRequests.ts`). A page asked for and unmapped is
+  allocated from the free list, or from the page least recently asked for, the finest first among
+  equals; a page the latest report named is never evicted, and coarse levels are served first.
+  Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
+  pixels asked for, and keep their early depth reject.
+- **Only stale pages the image reads are drawn**, coarse first, under the Shadows budget
+  (`shadowBudgetMs`, 1.0 ms, measured on the pass's timestamps) and at most `shadowPagesPerFrame`
+  (24) a frame. A moving light stales every page it maps; an object that moves stales only the
+  mapped pages its projected box covers; a representation change stales them once the camera rests.
+  A stale page is still read until its redraw lands; a page never drawn is not read. A page is drawn
+  with its own projection into its physical page — viewport and scissor —, so no other page of the
+  pool is touched. `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`,
+  `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
+  `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
+  and asks for nothing; the image holds once a report proves it reads only pages drawn.
 
-**Shadow casters are selected from the light.** Each face a frame redraws runs the cluster cut on its
-own view: the camera's kernels, pipelines, clusters and residency bits, with flags, counters and output
-of its own (`gpu/dag/lightCut.ts`). Its planes bound the pages the scheduler gave the face, and a node
-or cluster that covers none of those pages is dropped: the L-shaped strip a cascade redraws when the
-camera moves diagonally selects the strip, not its bounding square. Its error is counted in the face's
-texels — per metre for a cascade, at unit depth for a lamp — against the camera's pixel threshold, and
-the normal cone is off, since the shadow raster culls no face. The light's mask is compacted over the
-same draw items as the camera's, and each region culls that list. The camera's cut, its escalation and
-its pinned fallback are untouched: a caster the light wants and the pool lacks raises the light's own
-threshold. What the light cuts request is a second residency tier, loaded after the camera's pages into
-slots no one holds and never pinned: a camera page evicts it, never the reverse. The CPU cut does the
-same, reading the face as a camera (`webgpu/shadow/cpuCasters.ts`); its casters take rows behind its
-own. A still frame runs no light cut; the camera cut moving stales no shadow page. On Sponza with the
-sun, a moving camera runs at most four light cuts a frame, one per cascade, about one on average (#10,
-#26).
+**Shadow casters are selected from the light.** The pages of one light view a frame draws — a sun
+level, a lamp face at one mip — form a run, and each run runs the cluster cut on its own view: the
+camera's kernels, pipelines, clusters and residency bits, with flags, counters and output of its own
+(`gpu/dag/lightCut.ts`). Its window is the square that bounds its pages, cut in eight by eight cells
+of whole pages; a node or cluster that covers no cell a drawn page lies in is dropped. Its error is
+counted in the view's texels against the camera's pixel threshold — a texel of the level a pixel
+reads is at most that pixel —, and the normal cone is off, since the shadow raster culls no face. The
+light's mask is compacted over the same draw items as the camera's, and each page culls that list
+against its own box or cone. The camera's cut, its escalation and its pinned fallback are untouched:
+a caster the light wants and the pool lacks raises the light's own threshold. What the light cuts
+request is a second residency tier, loaded after the camera's pages into slots no one holds and never
+pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
+its casters take rows behind its own (#10, #26).
 
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's
 footprint selects, in the visibility raster and in the shadow pass alike, and the material
-resolution requests the tiles each sun cascade will read. Known limit: a caster the camera never sees
+resolution requests the tiles of the sun level each masked pixel's own footprint reads. Known limit: a caster the camera never sees
 has no one to request its tiles; the shadow pass then reads the finest tile resident.
 
 `setLightingView(view)` selects what the opaque path outputs: `'lit'` (a world's view), `'unlit'`
@@ -403,16 +421,16 @@ performance, on the web.
 
 What the reference is made of, and our counterpart:
 
-| Reference piece                                   | Role                                                         | What we have today                                           | What is missing |
-| ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | --------------- |
-| Temporal antialiasing                             | denoises everything stochastic                               | shipped, 0 px A/A                                            | —               |
-| Screen traces                                     | first shot of every ray: image depth and normal, almost free | nothing                                                      | L1              |
-| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                 | certified-error resident proxy, walked triangle by triangle  | L4              |
-| Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget | L4              |
-| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                   | L5              |
-| Reflections                                       | screen traces, then distance fields reading the cache        | none                                                         | L1, L6          |
-| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, page-cached sliding cascades, 1 ms budget        | L3              |
-| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest    | L2 (denoise)    |
+| Reference piece                                   | Role                                                         | What we have today                                                 | What is missing |
+| ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------ | --------------- |
+| Temporal antialiasing                             | denoises everything stochastic                               | shipped, 0 px A/A                                                  | —               |
+| Screen traces                                     | first shot of every ray: image depth and normal, almost free | nothing                                                            | L1              |
+| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                 | certified-error resident proxy, walked triangle by triangle        | L4              |
+| Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget       | L4              |
+| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                         | L5              |
+| Reflections                                       | screen traces, then distance fields reading the cache        | none                                                               | L1, L6          |
+| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | page table, 1024-page pool, per-pixel level, receiver-marked pages | L3              |
+| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest          | L2 (denoise)    |
 
 What the web imposes, and the answer:
 

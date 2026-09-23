@@ -17,11 +17,16 @@ export const createRenderEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
 export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   (rt.timing.frameEncoder = newEncoder(rt, device));
 
-/** The light cuts' requests rode in the image's command buffer: read them, or give the slot back. */
+/** The light cuts' requests and the shading's page requests rode in the image's command buffer:
+ *  read them, or give their slots back. */
 function settleShadowRequests(rt: WebgpuPagesCore, submitted: boolean) {
-  const settle = rt.timing.shadowRequests;
-  rt.timing.shadowRequests = undefined;
-  settle?.(submitted);
+  const { timing } = rt;
+  const cuts = timing.shadowRequests,
+    pages = timing.shadowPageRequests;
+  timing.shadowRequests = undefined;
+  timing.shadowPageRequests = undefined;
+  cuts?.(submitted);
+  pages?.(submitted);
 }
 
 /** Drops the open command buffer and settles the selection whose readback would have ridden in it. */

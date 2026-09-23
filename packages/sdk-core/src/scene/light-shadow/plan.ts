@@ -1,196 +1,185 @@
-import {
-  LIGHT_KIND,
-  LIGHT_SETTINGS,
-  SCENE_LIGHT_FLOATS,
-  SCENE_LIGHT_HEADER_FLOATS,
-  type ShadowViewpoint,
-} from '../light/contracts.ts';
-import { desiredFaceSide } from './atlas.ts';
-import { faceCountOf } from './faces.ts';
-import { createShadowSliceTable, RECTS_PER_SLICE } from './slices.ts';
+import { LIGHT_KIND, lightDirection, type ShadowViewpoint } from '../light/contracts.ts';
 import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
 import { createShadowChanges } from './changes.ts';
 import { createShadowBudget } from './budget.ts';
-import { createShadowRegions } from './regions.ts';
 import { invalidateLightPages } from './invalidate.ts';
-import { pageRowsOf } from './pages.ts';
-import { createShadowCounts, screenCoverage } from './counts.ts';
+import { createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
-import { createShadowRelease } from './release.ts';
-import { castsShadow, countShadowCasters } from './casters.ts';
+import { baseOf, castsShadow } from './casters.ts';
+import { createShadowTable } from './table.ts';
+import { createShadowPool } from './pool.ts';
+import { createSunLevels } from './sunLevels.ts';
+import { createShadowRecords } from './records.ts';
+import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
+import { POOL_PAGES } from './virtual.ts';
 
-/** Which shadow regions are drawn this frame, and which wait. */
+/** The frame's shadow work: which virtual pages are drawn, and which wait. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
- * The shadow scheduler. Work of a frame is no longer "four lights" but **the most
- * priority stale pages, up to a millisecond budget** (RX3, X4): a light or a
- * cascade that moves stales its whole map, an object that moves only stales the pages its projected
- * box covers, and pages refused this frame wait for the next — never lost,
- * their lag published. A fixed light in a still scene still costs nothing (X5).
+ * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
+ * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
+ * the mapped pages it covers. A frame then draws the stale pages the image reads — coarse first,
+ * up to a millisecond budget —, and the rest waits, never lost, its lag published. A still scene,
+ * whose shading runs no more, asks for nothing and draws nothing.
  *
- * All arrays are allocated once; `plan()` will never allocate.
+ * All arrays are allocated once; `plan()` allocates nothing.
  */
 export function createShadowPlan(capacity: number) {
-  const slices = createShadowSliceTable();
-  const changes = createShadowChanges();
-  const budget = createShadowBudget();
-  const regions = createShadowRegions(capacity);
-  const counts = createShadowCounts();
-  // Per-page invalidation can be turned off: the whole face then restarts, as before the batch.
-  // This is the only way to compare the two rules on the same engine, to the same frame.
-  let byPage = true;
-  const coverage = new Float64Array(LIGHT_SETTINGS.maxLights);
-  const queue = createShadowAdmission(regions, budget, counts);
-  const release = createShadowRelease();
+  const table = createShadowTable(),
+    pool = createShadowPool(),
+    sun = createSunLevels(),
+    records = createShadowRecords(table, pool, sun),
+    requests = createShadowRequests(table, pool, records, sun),
+    changes = createShadowChanges(),
+    budget = createShadowBudget(),
+    counts = createShadowCounts(),
+    admission = createShadowAdmission(capacity);
+  let byPage = true,
+    report: ShadowRequestReport | null = null,
+    views = 0,
+    settledStamp = -1;
+  const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
   return {
-    /** Shadow slices. */
-    slices,
-    /** Shadow regions. */
-    regions,
-    /** Time budget. */
+    /** The page table: one word per virtual page, and the range each light holds in it. */
+    table,
+    /** The physical pages of the pool and the virtual page each one holds. */
+    pool,
+    /** Each sun's clipmap: its frame, depth range, finest level and extents. */
+    sun,
+    /** The shadow slices, one per light that casts a shadow. */
+    records,
+    /** The request reports read back: what the latest one named, allocated or refused. */
+    requests,
+    /** The Shadows-stage millisecond budget and the measured cost of a page. */
     budget,
-    /** What each light covers. */
-    coverage,
-    /** Counts for the diagnostic. */
+    /** What the last plan did, in pages. */
     counts,
-    /** A node has moved: its box enters the list the scheduler will consume next frame. */
+    /** This frame's pages, in admission order. */
+    admission,
+    /** A node has moved: its box stales the pages it covers at the next plan. */
     worldChanged: changes.worldChanged,
-    /** The same world at another precision — level of detail, residency, colour tile —: its box
-     *  waits for the camera to rest, then enters the list (`changes.ts`). */
+    /** The same world at another precision: its box waits for the camera to rest. */
     representationChanged: changes.representationChanged,
-    /** True while a representation change waits for the camera to rest: the frame must not
-     *  hold before a plan consumes it. */
+    /** True while a representation change waits for the camera to rest. */
     get deferredChanges() {
       return changes.deferred;
     },
-    /** The frame plans no shadow — no atlas, no light, unlit view —: the held union enters the
-     *  list at once, where the next plan reads it, rather than keeping the frame from holding. */
+    /** The frame plans no shadow: the held union enters the list at once. */
     releaseDeferred: changes.releaseDeferred,
-    /** Timer of a frame's Shadows pass, reported to the pages it had redrawn. */
+    /** Timer of a frame's Shadows pass, reported to the pages it drew. */
     observeCost: budget.observe,
+    /** Budget published by the host, in GPU milliseconds per frame. */
     setBudgetMs: budget.setBudgetMs,
-    /** Turns off per-page invalidation: every touched face restarts in full. On by default. */
+    /** Turns off per-page invalidation: a moving object stales every page of the lights it
+     *  touches. On by default. */
     setPageInvalidation(on: boolean) {
       byPage = on;
     },
-    /** Pages to draw again. */
+    /** Whether a moving object stales only the pages its box covers. */
     get pageInvalidation() {
       return byPage;
     },
-    /**
-     * Chooses the regions of this frame. Returns their count; `plan.regions` describes them one by
-     * one, and the pages they cover are already removed from the queue.
-     */
-    plan(store: SceneLightStore, view: ShadowViewpoint, frame: number, nowMs: number) {
-      const { packed } = store;
-      regions.reset();
-      queue.reset();
+    /** What the shading, the lights and the view hand the next image: a report stamped with it
+     *  and naming nothing new proves the image reads only what is drawn. */
+    stamp: stampOf,
+    /** True once a report proves the current state asks for nothing: the image may hold. */
+    settled: (store: SceneLightStore) => settledStamp === stampOf(store),
+    /** A request report came back; the next plan reads it. A newer one replaces an unread one. */
+    receive(next: ShadowRequestReport) {
+      if (!report || next.frame > report.frame) report = next;
+    },
+    /** Plans a frame: stales what moved, reads the last report, admits the pages to draw. */
+    plan(
+      store: SceneLightStore,
+      view: ShadowViewpoint,
+      sceneMin: ArrayLike<number>,
+      sceneMax: ArrayLike<number>,
+      frame: number,
+      nowMs: number,
+    ) {
       counts.beginFrame();
-      slices.dirty.beginFrame();
-      // Before any slice request: those that no live shadow light claims anymore
-      // go back to the common pot. This is the only place a slice is released.
-      release(slices, store);
-      changes.observeView(view);
-      const casters = countShadowCasters(store);
+      records.release(store);
+      if (!changes.observeView(view)) views++;
       for (let slot = 0; slot < store.count; slot++) {
-        const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
-        coverage[slot] = 0;
-        // Its slice has already been released by `release`: the light skips its turn, with no other effect.
         if (!castsShadow(store, slot)) continue;
+        const rank = store.packed[baseOf(slot) + LIGHT_FIELD.kind];
         let slice = store.sliceOf(slot);
-        const kind = packed[base + LIGHT_FIELD.kind];
-        const sun = kind === LIGHT_KIND.directional;
-        // The sun lights the whole screen: its priority is maximal. A point is worth the
-        // screen share its influence sphere occupies — the nearest light therefore goes first.
-        coverage[slot] = sun
-          ? 1
-          : screenCoverage(
-              view,
-              packed[base],
-              packed[base + 1],
-              packed[base + 2],
-              packed[base + LIGHT_FIELD.range],
-            );
-        const faces = faceCountOf(kind);
-        if (slice < 0) slice = slices.claim();
-        const side = desiredFaceSide(coverage[slot], faces, casters);
-        if (slice < 0 || !slices.fit(slice, faces, side)) {
+        if (slice < 0) slice = records.claim();
+        if (slice < 0 || !records.fit(slice, rank)) {
           counts.deny();
-          coverage[slot] = 0;
           store.assignSlice(slot, -1);
           continue;
         }
         store.assignSlice(slot, slice);
         const light = store.light(store.ids[slot]);
         if (!light) continue;
-        invalidateLightPages(
-          slices,
+        let whole = records.moved(slice, store.revision[slot]);
+        if (rank === LIGHT_KIND.directional) {
+          if (sun.update(slice, lightDirection(light), view, sceneMin, sceneMax, frame))
+            whole = true;
+          for (let page = 0; page < POOL_PAGES; page++)
+            if (pool.owner[page] >= 0 && pool.slice[page] === slice)
+              if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))
+                pool.release(table, page);
+        }
+        counts.invalidatedPages += invalidateLightPages(
+          pool,
+          sun,
           changes,
           light,
           slice,
-          faces,
-          slices.side[slice],
-          store.revision[slot],
-          view,
-          nowMs,
-          frame,
+          whole,
           byPage,
-        );
-        const rows = pageRowsOf(slices.side[slice]);
-        let waiting = false;
-        for (let face = 0; face < faces; face++) {
-          if (!slices.dirty.isDirty(slice, face)) continue;
-          waiting = true;
-          // Priority: the most visible light first, a never-drawn map before everything, and
-          // the wait already suffered, which rises frame by frame and prevents starvation.
-          queue.add(
-            slot,
-            slice,
-            face,
-            rows,
-            coverage[slot] +
-              (slices.drawn[slice] ? 0 : 1) +
-              slices.dirty.waitedFrames(slice, face, frame) * LIGHT_SETTINGS.shadowAgingPerFrame,
-          );
-        }
-        if (!waiting) counts.reusedLight();
-      }
-      // The boxes are consumed: it is the pages that now carry the remaining work.
-      changes.settled();
-      queue.run(slices, store, frame);
-      counts.endFrame(slices, store, frame, nowMs);
-      return regions.count;
-    },
-    /**
-     * The regions of this frame could not be encoded: their pages return to the queue. They
-     * had left it at admission, because the scheduler and the pass only talk through
-     * this list; if the pass draws nothing, the queue must find them again.
-     */
-    reissue(frame: number, nowMs: number) {
-      for (let region = 0; region < regions.count; region++)
-        slices.dirty.undrew(
-          regions.sliceOf(region),
-          regions.faceOf(region),
-          regions.x0Of(region),
-          regions.x1Of(region),
-          regions.y0Of(region),
-          regions.y1Of(region),
-          regions.heldLowOf(region),
-          regions.heldHighOf(region),
           nowMs,
           frame,
         );
-      regions.reset();
+      }
+      changes.settled();
+      if (report) {
+        const before = stampOf(store),
+          read = report;
+        report = null;
+        requests.consume(read, nowMs, frame);
+        if (read.stamp === before && !requests.counts.allocated && !requests.counts.refused)
+          settledStamp = stampOf(store);
+      }
+      const waiting = admission.run(pool, records, sun, budget, requests.latest, frame);
+      for (let i = 0; i < admission.count; i++) {
+        const slice = pool.slice[admission.list[i]];
+        counts.drewLight(slice, records.kind[slice], frame);
+      }
+      counts.endFrame(
+        pool,
+        records,
+        requests.latest,
+        waiting + requests.counts.refused,
+        nowMs,
+        frame,
+      );
+      return admission.count;
+    },
+    /** The frame's pages were encoded: their draws land before anything reads them. */
+    commit() {
+      for (let i = 0; i < admission.count; i++) pool.drew(table, admission.list[i]);
+      admission.reset();
+    },
+    /** The frame's pages could not be encoded: they stay stale, and wait for the next frame. */
+    reissue() {
+      admission.reset();
     },
     /** Starts over. */
     reset() {
-      slices.reset();
+      records.reset();
+      table.reset();
+      pool.reset();
+      requests.reset();
       changes.reset();
       budget.reset();
-      regions.reset();
       counts.reset();
+      admission.reset();
+      report = null;
+      settledStamp = -1;
     },
   };
 }
-export { RECTS_PER_SLICE };

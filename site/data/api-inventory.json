@@ -707,6 +707,7 @@
         "packages/sdk-browser/src/webgpu/pages/prepare/lightResources.ts",
         "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
         "packages/sdk-browser/src/webgpu/shadow/bounds.ts",
+        "packages/sdk-browser/src/webgpu/shadow/sceneBox.ts",
         "packages/sdk-browser/src/world/page/runtimeCut.ts"
       ],
       "disposition": "retained",
@@ -826,7 +827,8 @@
         "bench/perf/core/three-vs-core-batch-volumes.perf.ts",
         "packages/sdk-browser/src/math/batchBoxes.ts",
         "packages/sdk-browser/src/placement/update.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/transform.ts"
+        "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
+        "packages/sdk-browser/src/webgpu/shadow/sceneBox.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/batch/batch\".boxUnionBatch"
@@ -2229,17 +2231,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/lod/depthLayer\".depthLayerUnits"
     },
     {
-      "name": "desiredFaceSide",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/atlas.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/atlas\".desiredFaceSide"
-    },
-    {
       "name": "detectCapabilities",
       "kind": "value",
       "definingModule": "packages/sdk-browser/src/measurement/capabilities.ts",
@@ -2604,17 +2595,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/world/geometry/shape\".ExtrudeOptions"
     },
     {
-      "name": "faceCountOf",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/faces.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/faces\".faceCountOf"
-    },
-    {
       "name": "filter",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/world/constants/index.ts",
@@ -2668,17 +2648,6 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/flyControls\".FlyCameraControls"
-    },
-    {
-      "name": "forEachShadowFace",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/casters.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/shadow/drawnMask.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/casters\".forEachShadowFace"
     },
     {
       "name": "FORMAT_VERSION",
@@ -3887,7 +3856,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/lighting/direct/lightWgsl.ts",
         "packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts"
+        "packages/sdk-browser/src/webgpu/shadow/pages.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light/contracts\".LIGHT_KIND"
@@ -3901,12 +3870,10 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/browser/core-math-shadows.ts",
-        "bench/oracles/core/sun-cascades.ts",
-        "bench/perf/core/sun-cascades.perf.ts",
         "packages/sdk-browser/src/backend/exact/contractLights.test.ts",
         "packages/sdk-browser/src/backend/exact/lightWrite.ts",
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
-        "packages/sdk-browser/src/gpu/shadow/slicePack.ts",
+        "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
         "packages/sdk-browser/src/gpu/shadow/sunFarShadow.ts",
         "packages/sdk-browser/src/lighting/direct/lightSamplingWgsl.test.ts",
         "packages/sdk-browser/src/lighting/direct/lightSamplingWgsl.ts",
@@ -3915,9 +3882,9 @@
         "packages/sdk-browser/src/lighting/tiles/rankEquivalence.test.ts",
         "packages/sdk-browser/src/lighting/tiles/shader.ts",
         "packages/sdk-browser/src/lighting/tiles/tiles.ts",
-        "packages/sdk-browser/src/visibility/shader/request.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/lights.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/sunFar.ts",
+        "packages/sdk-browser/src/webgpu/shadow/pageRequests.ts",
         "packages/sdk-browser/src/world/api/lightApi.ts",
         "tests/browser/renders/sampled-lighting.browser.ts"
       ],
@@ -4438,7 +4405,9 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
-        "packages/sdk-browser/src/gpu/shadow/slicePack.ts"
+        "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
+        "packages/sdk-browser/src/lighting/deferred/setup.ts",
+        "packages/sdk-browser/src/lighting/direct/shadowWgsl.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light/contracts\".MAX_SHADOW_SLICES"
@@ -5261,17 +5230,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/page/integrationContracts\".PageIntegrationRequest"
     },
     {
-      "name": "pageRowsOf",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/pages.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/pages\".pageRowsOf"
-    },
-    {
       "name": "PageSource",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/contracts/cache.ts",
@@ -5448,8 +5406,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/gpu/shadow/slicePack.ts",
         "packages/sdk-browser/src/lighting/direct/lightWgsl.ts",
+        "packages/sdk-browser/src/lighting/direct/shadowFactorWgsl.ts",
         "packages/sdk-browser/src/lighting/direct/shadowWgsl.ts"
       ],
       "disposition": "retained",
@@ -6049,22 +6007,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/world/math/volumes\".Ray"
     },
     {
-      "name": "RECTS_PER_SLICE",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/slices.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/gpu/shadow/atlas.test.ts",
-        "packages/sdk-browser/src/gpu/shadow/slicePack.test.ts",
-        "packages/sdk-browser/src/gpu/shadow/slicePack.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts"
-      ],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/slices\".RECTS_PER_SLICE"
-    },
-    {
       "name": "referenceScreenError",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/lod/screenErrorVariant.ts",
@@ -6082,10 +6024,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts",
-        "packages/sdk-browser/src/webgpu/shadow/runs.fixture.ts"
-      ],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/volume\".regionRect"
     },
@@ -6410,7 +6349,6 @@
         "packages/sdk-browser/src/backend/exact/lightWrite.ts",
         "packages/sdk-browser/src/lighting/importedLights.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/lightResources.test.ts",
-        "packages/sdk-browser/src/webgpu/shadow/drawnMask.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/frameCounts.test.ts",
         "packages/sdk-browser/src/world/api/lightApi.test.ts",
         "packages/sdk-browser/src/world/api/lightApi.ts",
@@ -6708,68 +6646,28 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/gpu/shadow/cull.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts"
+        "packages/sdk-browser/src/webgpu/shadow/pages.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/faces\".SHADOW_CULL_FLOATS"
     },
     {
-      "name": "SHADOW_FACE_FLOATS",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/faces.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/gpu/shadow/slicePack.test.ts",
-        "packages/sdk-browser/src/gpu/shadow/slicePack.ts",
-        "packages/sdk-browser/src/webgpu/shadow/drawnMask.test.ts"
-      ],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/faces\".SHADOW_FACE_FLOATS"
-    },
-    {
-      "name": "SHADOW_FACE_MASK_WORD",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/faces.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/gpu/shadow/slicePack.test.ts",
-        "packages/sdk-browser/src/gpu/shadow/slicePack.ts",
-        "packages/sdk-browser/src/webgpu/shadow/drawnMask.test.ts"
-      ],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/faces\".SHADOW_FACE_MASK_WORD"
-    },
-    {
-      "name": "SHADOW_FACE_SIDES",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/atlas.ts",
-      "currentEntryPoints": ["web-geometry (common)"],
-      "proposedEnvironments": "common, browser, node, worker",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/atlas\".SHADOW_FACE_SIDES"
-    },
-    {
       "name": "SHADOW_PAGE",
       "kind": "value",
-      "definingModule": "packages/sdk-core/src/scene/light-shadow/pages.ts",
+      "definingModule": "packages/sdk-core/src/scene/light-shadow/virtual.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
         "packages/sdk-browser/src/lighting/direct/shadowWgsl.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts"
+        "packages/sdk-browser/src/webgpu/shadow/pages.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/pages\".SHADOW_PAGE"
+      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/virtual\".SHADOW_PAGE"
     },
     {
-      "name": "SHADOW_SLICE_FLOATS",
+      "name": "SHADOW_RECORD_FLOATS",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/scene/light-shadow/faces.ts",
       "currentEntryPoints": ["web-geometry (common)"],
@@ -6777,14 +6675,13 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
-        "packages/sdk-browser/src/gpu/shadow/slicePack.test.ts",
-        "packages/sdk-browser/src/gpu/shadow/slicePack.ts",
+        "packages/sdk-browser/src/gpu/shadow/recordPack.test.ts",
+        "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
         "packages/sdk-browser/src/lighting/deferred/setup.ts",
-        "packages/sdk-browser/src/visibility/shader/request.ts",
-        "packages/sdk-browser/src/webgpu/shadow/drawnMask.test.ts"
+        "packages/sdk-browser/src/visibility/shader/request.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/faces\".SHADOW_SLICE_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/faces\".SHADOW_RECORD_FLOATS"
     },
     {
       "name": "ShadowAtlasDigest",
@@ -6820,6 +6717,17 @@
       "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/plan\".ShadowPlan"
     },
     {
+      "name": "ShadowRequestReport",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/scene/light-shadow/requests.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/webgpu/shadow/pageRequests.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/requests\".ShadowRequestReport"
+    },
+    {
       "name": "ShadowViewpoint",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/scene/light/contracts.ts",
@@ -6827,12 +6735,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "bench/oracles/browser/lamp-shadows.ts",
-        "bench/oracles/core/sun-cascades.ts",
         "bench/perf/browser/lamp-shadows.perf.ts",
-        "bench/perf/core/sun-cascades.perf.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts",
-        "packages/sdk-browser/src/webgpu/shadow/drawnMask.test.ts"
+        "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light/contracts\".ShadowViewpoint"
@@ -8409,7 +8313,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/webgpu/shadow/pages.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/faces\".writeFace"
     },

@@ -13,6 +13,8 @@ import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts';
 import { createShadowRuns, type ShadowRuns } from '../../shadow/runs.ts';
 import type { CpuCasterLists } from '../../shadow/cpuCasters.ts';
 import type { DagLightCut } from '../../../gpu/dag/lightCut.ts';
+import type { ShadowPageRequests } from '../../shadow/pageRequests.ts';
+import { createShadowSceneBox } from '../../shadow/sceneBox.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
@@ -25,7 +27,11 @@ export interface WebgpuLightState {
   buffer: GPUBuffer | undefined;
   tiles: GpuLightTiles | undefined;
   shadows: GpuShadowAtlas | undefined;
-  /** Per-face cull and the world spheres it reads; absent while the atlas does not exist. */
+  /** The return path of the pages the resolve reads; absent while the pool does not exist. */
+  pageRequests: ShadowPageRequests | undefined;
+  /** The scene's world box, what a sun's depth range spans (`../../shadow/sceneBox.ts`). */
+  sceneBox: ReturnType<typeof createShadowSceneBox>;
+  /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
   cull: GpuShadowCull | undefined;
   spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
   /** Bind groups of shadow faces, and the resources they were built on. */
@@ -33,13 +39,13 @@ export interface WebgpuLightState {
   shadowGroupsKey: unknown[];
   /** Store revision already pushed to the GPU: an image with no change writes nothing. */
   uploadedEpoch: number;
-  /** Face matrices of the image, one per updated face. */
+  /** Matrices of the image's drawn pages, one per page. */
   faceMatrices: Float32Array;
-  /** The image's redrawn faces, one light cut each (`../../shadow/runs.ts`). */
+  /** The image's drawn light views, one light cut each (`../../shadow/runs.ts`). */
   runs: ShadowRuns;
   /** Threshold the last light cuts selected at, −1 before the first (`followLightThreshold`). */
   lightThreshold: number;
-  /** Image whose shadow regions are planned: a plan is made once per image (`planImageShadows`). */
+  /** Image whose shadow pages are planned: a plan is made once per image (`planImageShadows`). */
   plannedFrame: number;
   /** Light cuts the last image ran: one per redrawn face, zero on a still frame. */
   lightRuns: number;
@@ -47,25 +53,21 @@ export interface WebgpuLightState {
   lightCut: DagLightCut | undefined;
   /** The casters the CPU cut selected from the light, when it draws the image (`cpuCasters.ts`). */
   cpuCasters: CpuCasterLists | undefined;
-  /** Contract lights kept by the last image, and lights whose map was redrawn. The wait queue and its
-   *  lag are read on the scheduler (`plan.counts`). */
+  /** Contract lights kept by the last image, and lights with a page drawn by it. The wait queue
+   *  and its lag are read on the scheduler (`plan.counts`). */
   lightsActive: number;
   shadowsUpdated: number;
-  /** Faces actually touched by the last image, all regions together. */
+  /** Light views the last image drew in — a sun level, a lamp face at one mip —, a light cut each. */
   shadowFaces: number;
-  /** Redrawn regions and pages they cover: the unit of work and that of the budget. */
-  shadowRegions: number;
+  /** Pages the last image drew: the unit of work and that of the budget. */
   shadowPages: number;
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
-  /** Pages redrawn per image, by image rank: the GPU timer comes back late and must find the work of
+  /** Pages drawn per image, by image rank: the GPU timer comes back late and must find the work of
    *  the image it describes to deduce the cost of a page. */
   pagesByFrame: Uint32Array;
-  /** Share of those faces that are sun cascades: the sun's cost, split from punctuals. */
-  sunCascades: number;
   shadowDraws: number;
-  /** Draw calls actually encoded by the shadow pass: a clear-to-far and an indirect draw per redrawn
-   *  face. That is the cost per shadow light. */
+  /** Draw calls actually encoded by the shadow pass: a clear to far and an indirect draw per page. */
   shadowDrawCalls: number;
   /** Why the shadow atlas does not exist, when it does not. */
   shadowReason: string | null;
@@ -83,6 +85,8 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,
+    pageRequests: undefined,
+    sceneBox: createShadowSceneBox(),
     cull: undefined,
     spheres: undefined,
     shadowGroups: new Array(MAX_SHADOW_REGIONS).fill(undefined),
@@ -98,11 +102,9 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     lightsActive: 0,
     shadowsUpdated: 0,
     shadowFaces: 0,
-    shadowRegions: 0,
     shadowPages: 0,
     shadowPagesTotal: 0,
     pagesByFrame: new Uint32Array(PAGES_RING),
-    sunCascades: 0,
     shadowDraws: 0,
     shadowDrawCalls: 0,
     shadowReason: null,
@@ -144,8 +146,20 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
 export function noteShadowFrame(lights: WebgpuLightState, pagesSlot: number, encoded: boolean) {
   if (!encoded) {
     lights.shadowPages = 0;
-    lights.shadowRegions = 0;
     lights.pagesByFrame[pagesSlot] = 0;
   }
   lights.shadowPagesTotal += lights.shadowPages;
+}
+
+/**
+ * True while the shadow pages can still change what the image shows: a page stale and read, a
+ * representation change waiting for the camera to rest, a request report still on its way, or
+ * no report yet proving that the image reads only pages already drawn. A scene without a shadow
+ * light, or an unlit view, reads no page and waits for nothing.
+ */
+export function shadowsUnsettled(lights: WebgpuLightState) {
+  const { plan, store, shadows, pageRequests } = lights;
+  if (plan.deferredChanges || plan.counts.pendingPages > 0) return true;
+  if (!shadows || !store.count || store.unlit || !plan.records.count) return false;
+  return (pageRequests?.inFlight ?? 0) > 0 || !plan.settled(store);
 }

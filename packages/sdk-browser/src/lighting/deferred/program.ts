@@ -2,6 +2,7 @@ import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { createDeferredLayouts } from './setup.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
+import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
 
 /** Builds a render pipeline, asynchronously when the device offers it. */
 export const buildRenderPipeline = (device: GPUDevice, descriptor: GPURenderPipelineDescriptor) =>
@@ -28,7 +29,9 @@ export function makeFullscreenPipeline(
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. */
 export interface DirectLightResources {
   tiles?: GPUBuffer;
+  /** Shadow records and page table, and the buffer the resolve records its shadow reads in. */
   slices?: GPUBuffer;
+  requests?: GPUBuffer;
   atlas?: GPUTextureView;
   /** Probe grid and their coefficients; when absent, bounce is not of this frame. */
   bounceGrid?: GPUBuffer;
@@ -50,6 +53,7 @@ export interface DeferredBindings {
   placeholders: {
     tiles: GPUBuffer;
     slices: GPUBuffer;
+    requests: GPUBuffer;
     atlasView: GPUTextureView;
     sampler: GPUSampler;
     proxy: GPUBuffer;
@@ -85,6 +89,7 @@ export async function createDeferredProgram(
   let boundSurface: SurfaceBuffer | undefined,
     boundTiles: GPUBuffer | undefined,
     boundAtlas: GPUTextureView | undefined,
+    boundRequests: GPUBuffer | undefined,
     boundProbes: GPUBuffer | undefined,
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
@@ -125,7 +130,8 @@ export async function createDeferredProgram(
       const { placeholders } = bindings;
       const tiles = direct.tiles ?? placeholders.tiles,
         slices = direct.slices ?? placeholders.slices,
-        atlas = direct.atlas ?? placeholders.atlasView;
+        atlas = direct.atlas ?? placeholders.atlasView,
+        requests = direct.requests ?? placeholders.requests;
       const probes = direct.probes;
       const proxy = direct.proxy ?? placeholders.proxy;
       if (boundHdr !== hdr) composeGroups.clear();
@@ -134,6 +140,7 @@ export async function createDeferredProgram(
         boundSurface === surface &&
         boundTiles === tiles &&
         boundAtlas === atlas &&
+        boundRequests === requests &&
         boundProbes === probes &&
         boundProxy === proxy
       )
@@ -141,6 +148,7 @@ export async function createDeferredProgram(
       boundSurface = surface;
       boundTiles = tiles;
       boundAtlas = atlas;
+      boundRequests = requests;
       boundProbes = probes;
       boundProxy = proxy;
       const entries: GPUBindGroupEntry[] = [
@@ -158,6 +166,7 @@ export async function createDeferredProgram(
           // The resident proxy, as-is: the sun's distant shadow traverses it without keeping
           // a second copy, and its header says whether there is something to traverse.
           { binding: SUN_FAR_PROXY_BINDING, resource: { buffer: proxy } },
+          { binding: CONTRACT_SHADOW_BINDINGS.requests, resource: { buffer: requests } },
         );
       if (sources.bounce && direct.bounceGrid && direct.probes)
         entries.push(
@@ -170,6 +179,7 @@ export async function createDeferredProgram(
       boundSurface = undefined;
       boundTiles = undefined;
       boundAtlas = undefined;
+      boundRequests = undefined;
       boundProbes = undefined;
       boundProxy = undefined;
       boundHdr = undefined;

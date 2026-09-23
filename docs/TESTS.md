@@ -8,8 +8,8 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 <!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/src/       71 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    335 *.test.ts
+  sdk-core/src/       72 *.test.ts — unit tests, next to their source
+  sdk-browser/src/    334 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        21 *.test.ts — architecture, boundaries, public contracts
@@ -20,9 +20,9 @@ tests/
   fixtures/           12 test data builders; formats/ holds the compiler goldens
 bench/
   core/               14 modules: measure, report, diff, ulp, baseline
-  perf/core/          15 *.perf.ts
+  perf/core/          14 *.perf.ts
   perf/browser/       38 *.perf.ts + 32 support modules
-  oracles/            46 reference implementations, copied verbatim
+  oracles/            45 reference implementations, copied verbatim
   runner/             81 modules: the measurement harness (README)
 ```
 <!-- tests-inventory:end -->
@@ -44,12 +44,12 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 
 ## 2. The Four Commands
 
-| Command             | What it runs                                                                  |
-| ------------------- | ----------------------------------------------------------------------------- |
-| `pnpm test`         | every unit, integration, kit, bench-runner and script test                    |
-| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially          |
-| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report                  |
-| `pnpm run validate` | full pre-merge validation gate                                                |
+| Command             | What it runs                                                         |
+| ------------------- | -------------------------------------------------------------------- |
+| `pnpm test`         | every unit, integration, kit, bench-runner and script test           |
+| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially |
+| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report         |
+| `pnpm run validate` | full pre-merge validation gate                                       |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`.
@@ -202,15 +202,15 @@ identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
-| Command                       | Role                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------ |
-| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                |
-| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                           |
-| `pnpm run check:helpers`      | No small helper copied into a second module of the same package          |
-| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                   |
-| `pnpm run check:unused`       | Dead exports and files (`knip`)                                          |
-| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript               |
+| Command                       | Role                                                                         |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                    |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                               |
+| `pnpm run check:helpers`      | No small helper copied into a second module of the same package              |
+| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                       |
+| `pnpm run check:unused`       | Dead exports and files (`knip`)                                              |
+| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                   |
 | `pnpm run check:docs-three`   | Three.js named only in witness, benchmark, measurement or migration sections |
-| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git            |
-| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off) |
-| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links      |
+| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git                |
+| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off)     |
+| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links          |

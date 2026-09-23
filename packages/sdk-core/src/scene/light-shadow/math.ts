@@ -52,7 +52,7 @@ export function shadowProjection(fov: number, range: number) {
 }
 
 /**
- * Orthographic projection of a cascade, REVERSED depth in `[0, 1]`, column-major: the eye
+ * Orthographic projection of a square of sun pages, REVERSED depth in `[0, 1]`, column-major: the eye
  * projects onto 1 and the far plane onto 0. The near plane is at the eye: it is already pulled
  * back toward the light by the whole wanted depth. An orthography has neither a near plane nor an
  * aperture to publish: both come out zero.
@@ -83,7 +83,7 @@ const right = new Float64Array(3),
 
 /**
  * Right and up axes of a face looking along `forward`: the frame its view matrix is composed
- * with. A sun cascade aligns its page grid on these same two axes, so the map slides by whole
+ * with. A sun's clipmap aligns its page grid on these same two axes, so its extents slide by whole
  * pages under the camera — one calculation for the view and for the grid, nothing can diverge.
  */
 export function faceFrame(

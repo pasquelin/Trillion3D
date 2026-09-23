@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { RECTS_PER_SLICE } from '../../../../sdk-core/src/index.ts';
 import { createGpuShadowAtlas } from './atlas.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 
@@ -9,7 +8,7 @@ installGpuGlobals();
 /**
  * A `GPUDevice` reduced to what `createGpuShadowAtlas` asks of it: enough to build its resources
  * without a real GPU, and a `queue.writeBuffer` that captures what it receives. None of these
- * calls needs a device: only `flushRegions` actually writes, and that is what we observe.
+ * calls needs a device: only `flushPages` actually writes, and that is what we observe.
  */
 function fakeDevice() {
   const writes: Float32Array[] = [];
@@ -56,23 +55,20 @@ test('the face bind group declares 96 bytes, read at the fragment as at the vert
   assert.equal(resource.size, 96);
 });
 
-test("a face's uniform carries the matrix, the rectangle, then the emitter's centre and radius", async () => {
+test("a page's uniform carries its matrix, its physical page, then the emitter's centre and radius", async () => {
   const { device, writes } = fakeDevice();
   const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
   const matrices = new Float32Array(16);
   for (let i = 0; i < 16; i++) matrices[i] = i + 1;
-  const rects = new Int32Array(RECTS_PER_SLICE);
-  rects[0] = 512;
-  rects[1] = 256;
-  rects[2] = 1024;
-  atlas.writeRegion(0, 0, 0, matrices, 0, rects, [1, 2, 3], 0.5);
-  atlas.flushRegions(1);
+  // Physical page 33 of a pool 32 pages wide: column 1, row 1.
+  atlas.writePage(0, matrices, 0, 33, [1, 2, 3], 0.5);
+  atlas.flushPages(1);
   assert.equal(writes.length, 1);
   const entry = writes[0];
   // The first sixteen floats are the matrix as-is, never recomposed.
   assert.deepEqual(Array.from(entry.slice(0, 16)), Array.from(matrices));
-  // Atlas rectangle: normalised x, y then span, and the side in texels as-is (not a pass).
-  assert.deepEqual(Array.from(entry.slice(16, 20)), [512 / 4096, 256 / 4096, 1024 / 4096, 1024]);
+  // The page's atlas rectangle: normalised x, y then span, and its side in texels.
+  assert.deepEqual(Array.from(entry.slice(16, 20)), [128 / 4096, 128 / 4096, 128 / 4096, 128]);
   // Envelope centre then radius, at bytes 80 to 95 (indices 20 to 23).
   assert.deepEqual(Array.from(entry.slice(20, 24)), [1, 2, 3, 0.5]);
 });
@@ -80,9 +76,7 @@ test("a face's uniform carries the matrix, the rectangle, then the emitter's cen
 test('a light without an envelope — directional, or zero radius — carries a zero centre and radius', async () => {
   const { device, writes } = fakeDevice();
   const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
-  const matrices = new Float32Array(16);
-  const rects = new Int32Array(RECTS_PER_SLICE);
-  atlas.writeRegion(0, 0, 0, matrices, 0, rects, undefined, 0);
-  atlas.flushRegions(1);
+  atlas.writePage(0, new Float32Array(16), 0, 0, undefined, 0);
+  atlas.flushPages(1);
   assert.deepEqual(Array.from(writes[0].slice(20, 24)), [0, 0, 0, 0]);
 });

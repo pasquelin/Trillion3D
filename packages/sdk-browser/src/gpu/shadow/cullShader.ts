@@ -1,7 +1,7 @@
 /**
  * Per-shadow-region reject: from the instance list the LIGHT CUT of the region's face produced,
  * a region keeps only clusters whose world sphere touches its volume — for a perspective face,
- * the light's range and the region's cone; for a cascade region, the box the region cuts in the
+ * the light's range and the region's cone; for a sun page, the box the page cuts in the
  * extent, its rectangle on the light plane by the whole depth of the map, flagged by a negative
  * half-angle. The others would be rejected anyway by the far plane or by the projection's side
  * planes and the scissor: the atlas comes out texel-for-texel identical.

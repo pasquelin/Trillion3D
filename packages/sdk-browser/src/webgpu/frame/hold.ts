@@ -2,6 +2,7 @@ import { sampleWebgpuFrame } from './signature.ts';
 import { CPU_STEP } from '../pages/render/cpuSteps.ts';
 import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { shadowsUnsettled } from '../pages/state/lights.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -65,10 +66,9 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // A requested tile not yet served will change the frame when it arrives; and a settle must
   // render to read what the pose asks for, never hold.
   if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending;
-  // A representation change held until the camera rests must find a frame to enter the queue:
-  // a frame that plans no shadow releases it to the list, which the next plan reads.
-  if (lights.plan.counts.pendingPages > 0 || lights.plan.deferredChanges)
-    mask |= BIT.shadowsPending;
+  // A shadow page stale and read, a request report on its way, a representation change held
+  // until the camera rests: each must find a frame (`shadowsUnsettled`).
+  if (shadowsUnsettled(lights)) mask |= BIT.shadowsPending;
   // Every page of the requested cut carries its bytes. A still-pending page can still change the
   // cut, hence the frame: holding it would open a hole. This count is held by the cut difference,
   // never reread on the list.

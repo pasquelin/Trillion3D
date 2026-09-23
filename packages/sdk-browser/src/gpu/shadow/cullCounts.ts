@@ -1,6 +1,6 @@
 import { DRAW_INDIRECT_STRIDE } from '../draw/draw.ts';
 import { createGpuPeriodicReadback } from '../core/periodicReadback.ts';
-import { MAX_SHADOW_REGIONS } from './slicePack.ts';
+import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /** Words of one indirect draw command; the instance count is its second word. */
 const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;

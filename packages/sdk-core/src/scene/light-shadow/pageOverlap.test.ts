@@ -14,7 +14,7 @@ const box = (x: number, y: number, half = 0.2) => [
 
 test('an L-shaped strip keeps what it covers and drops the corner its rectangle only bounds', () => {
   const pages = face();
-  // The last column and the bottom row: what a diagonal cascade slide redraws.
+  // The last column and the bottom row: an L of drawn cells, bounded by the whole extent.
   markLightPages(pages, 7, 7, 0, 7);
   markLightPages(pages, 0, 7, 7, 7);
   // Column 7 spans x in [3, 4]; row 7, at the bottom, spans y in [−4, −3].

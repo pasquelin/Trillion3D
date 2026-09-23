@@ -7,6 +7,7 @@ import {
 } from '../frame/hold.ts';
 import { dropTaaHistory } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { shadowsUnsettled } from '../pages/state/lights.ts';
 
 /** Convergence turns at most: beyond that, what is missing is published, never waited for forever. */
 const CONVERGE_LIMIT = 64;
@@ -14,7 +15,7 @@ const CONVERGE_LIMIT = 64;
  *  whose pages have all just been voided by an arrived tile takes a few; a moving camera voids pages
  *  every image and never converges: the bound is there for it. */
 const SHADOW_DRAIN_LIMIT = 64;
-/** Texture → shadow round-trips at most: each turn that redraws a cascade can move what the shadow
+/** Texture → shadow round-trips at most: each turn that redraws a sun page can move what the shadow
  *  asks of textures, and each arrived tile voids the shadows. */
 const POSE_ROUNDS = 4;
 
@@ -60,20 +61,22 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 }
 
 /**
- * Drains shadow maps: pending pages — invalidated by an arriving tile, a moving camera or a
- * geometry page that entered or left — are redrawn until none wait. The 1 ms budget stays that
- * of the measured loop: during the barrier it is suspended, otherwise a GPU timestamp arriving
- * mid-drain tightens admission and two identical captures diverge (#25, 0 / 1,392 / 6,278 px).
- * Returns the number of frames drained.
+ * Drains shadow maps: images are rendered until the pages the image reads are all mapped and
+ * drawn — a report of the last one proves it —, whatever staled them: an arriving tile, a moving
+ * camera or a geometry page that entered or left. Each image's request report is awaited before
+ * the next is planned. The 1 ms budget stays that of the measured loop: during the barrier it is
+ * suspended, otherwise a GPU timestamp arriving mid-drain tightens admission and two identical
+ * captures diverge (#25, 0 / 1,392 / 6,278 px). Returns the number of frames drained.
  */
 async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { budget } = rt.lights.plan;
   budget.suspend();
   let drains = 0;
   try {
-    for (; drains < SHADOW_DRAIN_LIMIT && rt.lights.plan.counts.pendingPages > 0; drains++) {
+    for (; drains < SHADOW_DRAIN_LIMIT && shadowsUnsettled(rt.lights); drains++) {
       renderWebgpuPages(rt, rt.run.lastCamera!);
       await gpuDevice.queue.onSubmittedWorkDone();
+      await rt.lights.pageRequests?.settled();
     }
   } finally {
     budget.resume();
@@ -84,10 +87,10 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 /**
  * A drained pose: textures converged AND shadows drained, alternating until calm, and the same
  * predicate as the held image (`unsettledMask`) to say whether it is acquired. Order alone is not
- * enough: what a foliage shadow asks of textures is read in the sun cascades
- * (`../../visibility/shader/request.ts`), and a cascade redrawn by the drain moves that request; an arrived
+ * enough: what a foliage shadow asks of textures is read at the sun levels
+ * (`../../visibility/shader/request.ts`), and a page redrawn by the drain moves that request; an arrived
  * tile, conversely, voids every shadow. A turn whose drain redrew nothing has converged its textures
- * on the final cascades: that is the stop.
+ * on the final pages: that is the stop.
  *
  * These images replay the last ordinary image (`textureConverging`): every pixel speaks, temporal
  * accumulation does not advance, none is held. What the barrier did, and what still keeps the pose

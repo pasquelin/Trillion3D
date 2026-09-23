@@ -23,14 +23,12 @@ export interface FrameInfo {
 }
 
 /** The engine's metrics under a page's names: the GPU frame, the clusters the occlusion test
- *  rejected, the shadow pages held (all of them less those still waiting). */
+ *  rejected, the shadow pages the pool holds. */
 function named(m: FrameMetrics): WorldFrameMetrics {
-  const total = m.shadowPagesTotal,
-    pending = m.shadowPagesPending;
   return Object.assign(m, {
     gpuFrameMs: m.gpuMs,
     hizCulled: m.hizRejectedClusters ?? null,
-    shadowPagesResident: total != null && pending != null ? total - pending : null,
+    shadowPagesResident: m.shadowPoolPages ?? null,
   });
 }
 

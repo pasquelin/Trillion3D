@@ -57,7 +57,7 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
     functions: ['scene.add(light.*)', 'light.intensity =', 'capability.lighting'],
     title: text('Turn the shadow sun', 'Tourner le soleil des ombres'),
     description: text(
-      'Rotate a directional light whose cascaded shadow pages follow the camera and are cached.',
+      'Rotate a directional light whose virtual shadow pages follow the camera and are cached.',
       'Tournez une lumière directionnelle dont les pages d’ombre en cascades suivent la caméra et restent en cache.',
     ),
     controls: [

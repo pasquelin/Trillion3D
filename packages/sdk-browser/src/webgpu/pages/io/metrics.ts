@@ -97,6 +97,10 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowFacesDrawn: lights.shadowFaces,
     shadowDrawCalls: lights.shadowDrawCalls,
     shadowLightCuts: lights.lightRuns,
+    shadowPagesRequested: lights.plan.requests.counts.requested,
+    shadowPagesCached: lights.plan.counts.cachedPages,
+    shadowPoolPages: lights.plan.counts.poolPages,
+    shadowCastersKept: lights.cull?.counts.counts()?.kept ?? null,
     shadowPagesDrawn: lights.shadowPages,
     shadowPagesTotal: lights.shadowPagesTotal,
     shadowPagesPending: lights.plan.counts.pendingPages,
@@ -155,6 +159,8 @@ export function disposeWebgpuPages(
   gpu.temporal = undefined;
   rt.lights.tiles?.dispose();
   rt.lights.shadows?.dispose();
+  rt.lights.pageRequests?.dispose();
+  rt.lights.pageRequests = undefined;
   rt.bounce.probes?.dispose();
   rt.bounce.probes = undefined;
   rt.sunFar.gpu?.dispose();

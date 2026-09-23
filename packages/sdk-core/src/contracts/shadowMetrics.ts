@@ -11,8 +11,8 @@ export interface ShadowFrameMetrics {
    *  false when every pixel shaded every light, as a still image does. Null on an engine that
    *  ignores the lights. */
   lightsSampled?: boolean | null;
-  /** Shadow slices redrawn by this frame, at most the scheduler's published ceiling.
-   *  Zero is the normal value of a still scene: a fixed light keeps its slice. */
+  /** Shadow lights with a page drawn by this frame. Zero is the normal value of a still scene:
+   *  a fixed light keeps its pages. */
   shadowsUpdated?: number | null;
   /**
    * GPU durations of the three direct-lighting passes, read by their label in the same
@@ -21,13 +21,23 @@ export interface ShadowFrameMetrics {
    * soon as the device exposes no timestamps, the sample was truncated, or the pass did not
    * run — a frame without a light launches neither lists nor shadows. Never added to a `cpu*`.
    */
-  /** What the shadow pass redrew: faces (views) and draw calls actually encoded.
-   *  This is the cost per shadow light, split from the rest. Null on an engine that draws no shadow. */
+  /** Light views the shadow pass drew in — a sun clipmap level, a lamp face at one mip —, and the
+   *  draw calls actually encoded. Null on an engine that draws no shadow. */
   shadowFacesDrawn?: number | null;
   /** Shadow draw calls. */
   shadowDrawCalls?: number | null;
-  /** Cluster cuts run from the lights: one per redrawn face, zero on a still frame. */
+  /** Cluster cuts run from the lights: one per light view drawn in, zero on a still frame. */
   shadowLightCuts?: number | null;
+  /** Virtual shadow pages the image read, as its latest request report named them: what the
+   *  camera's receivers mark. */
+  shadowPagesRequested?: number | null;
+  /** Of those, pages read straight from the pool: current, no draw. */
+  shadowPagesCached?: number | null;
+  /** Physical pages of the fixed pool that hold a virtual page. */
+  shadowPoolPages?: number | null;
+  /** Casters the per-page cull kept, all drawn pages together, on the frame the device last
+   *  sampled — one in fifteen; `null` until a sample has returned. */
+  shadowCastersKept?: number | null;
   /** What page invalidation produced: pages redrawn by the frame, pages left in
    *  the queue for lack of budget, and the lag in milliseconds of the oldest of them. Zero
    *  everywhere is the normal value of a still scene; `null` on an engine without a shadow atlas. */

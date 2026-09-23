@@ -6356,14 +6356,14 @@
         "desc": "Lights shaded in full — shadow read included — per pixel of a MOVING image (X2): the others are weighed without their shadow, and the shaded ones are drawn in proportion, so the estimate is unbiased and temporal antialiasing averages it. A still image shades every light of its tile and converges to the exact sum; there, this number plays no part."
       },
       {
-        "name": "shadowUpdatesPerFrame",
-        "type": "4",
-        "desc": "Shadow regions at most per frame: the buffer ceiling, never a quality setting. The millisecond budget almost always stops first; this ceiling is only an ultimate bound, and the only limit on a device without a GPU clock."
+        "name": "shadowPagesPerFrame",
+        "type": "24",
+        "desc": "Shadow pages drawn at most per frame: the buffer ceiling, never a quality setting. The millisecond budget almost always stops first; this ceiling is only an ultimate bound, and the only limit on a device without a GPU clock."
       },
       {
         "name": "shadowPage",
         "type": "128",
-        "desc": "Side of a shadow-atlas page, in texels: the invalidation cell of a face. A moving object only stales the pages its projected box covers, never the whole face."
+        "desc": "Side of a shadow page, in texels: the unit of the physical pool, of the virtual maps and of invalidation. A moving object only stales the pages its projected box covers."
       },
       {
         "name": "shadowBudgetMs",
@@ -6383,17 +6383,17 @@
       {
         "name": "shadowAtlasSize",
         "type": "4096",
-        "desc": "Side of the depth shadow atlas, in texels."
+        "desc": "Side of the physical shadow pool, in texels: 32 × 32 pages of 128, a 64 MiB depth texture."
       },
       {
-        "name": "shadowSliceMax",
-        "type": "1024",
-        "desc": "Maximum side of a shadow slice; a point-light face occupies one sixth of its area."
+        "name": "shadowTableEntries",
+        "type": "number",
+        "desc": "Entries of the shadow page table, one word per virtual page: a fixed 4 MiB buffer. It holds sixteen suns or 128 point lights; a light that finds no room is denied its shadow, and counted."
       },
       {
-        "name": "shadowSliceMin",
-        "type": "128",
-        "desc": "Minimum side of a shadow slice: below that, the light keeps its slice without refining it."
+        "name": "shadowRequestCap",
+        "type": "4096",
+        "desc": "Virtual pages the shading may request per frame; the rest ask again the next frame."
       },
       {
         "name": "pcfTaps",
@@ -6406,19 +6406,14 @@
         "desc": "Width of the softened edge of a spot cone, in cosine units: against staircasing."
       },
       {
-        "name": "sunCascades",
-        "type": "4",
-        "desc": "Cascades of a directional light: at least three, never more than the faces of a slice."
+        "name": "sunLevels",
+        "type": "16",
+        "desc": "Clipmap levels of a directional light. Level `L` has texels of `2^L` metres, and a pixel reads the level whose texel is at most its own footprint: sixteen levels cover a far/near ratio of 2^15. Beyond the last level, the far shadow takes over."
       },
       {
-        "name": "sunShadowFarFraction",
-        "type": "0.2",
-        "desc": "Share of the camera frustum the cascades cover, from the near plane toward the far. Beyond, a surface stays lit without a cast shadow: named approximation, published in the diagnostic."
-      },
-      {
-        "name": "sunCascadeRatioMax",
-        "type": "4",
-        "desc": "Ratio between two consecutive cascade-split bounds: at a seam, texel density changes by exactly this ratio, and nothing else decides the sharpness jump between cascades. The near-plane floor is deduced from it — `shadow distance / ratio^cascades`."
+        "name": "sunLevelPages",
+        "type": "64",
+        "desc": "Pages per side of a clipmap level's extent around the camera. It is a capacity, not a tuning: every pixel reads its own density while `height / tan(halfFovY)` stays within `sunLevelPages · shadowPage / 2` = 4096 (a 4K canvas at a 55° vertical field); beyond, the outer pixels read the next level, at half the density."
       },
       {
         "name": "sunFarShadowOffsetMetres",
@@ -6428,12 +6423,7 @@
       {
         "name": "sunFarShadowStartCells",
         "type": "1",
-        "desc": "Start of the far-shadow ray along its own direction, in proxy cells. The lit point comes from the fine geometry, the occluder from the coarse proxy: where the proxy sits above the real surface, a ray started at zero would hit the surface it lights. A proxy cell is the scale below which the proxy says nothing; starting from there skips that false contact without inventing a shadow. The consequence is named: an occluder closer than one cell along the ray carries no far shadow, and that one stays with the cascades."
-      },
-      {
-        "name": "sunCascadeDepthScale",
-        "type": "4",
-        "desc": "Pull-back of a cascade's near plane, in radii of its sphere: what sits above the cascade, between it and the sun, must enter the map to cast its shadow there. The extent adds two radii on either side, the play its depth anchor leaves the sphere (`../light-shadow/sunFaces.ts`)."
+        "desc": "Start of the far-shadow ray along its own direction, in proxy cells. The lit point comes from the fine geometry, the occluder from the coarse proxy: where the proxy sits above the real surface, a ray started at zero would hit the surface it lights. A proxy cell is the scale below which the proxy says nothing; starting from there skips that false contact without inventing a shadow. The consequence is named: an occluder closer than one cell along the ray carries no far shadow, and that one stays with the clipmap levels."
       },
       {
         "name": "shadowDepthBias",
@@ -8714,7 +8704,7 @@
     "kind": "Constant",
     "title": "POINT_FACES",
     "signature": "const POINT_FACES: 6",
-    "summary": "Faces of a slice: six for a point, one for a spot, the sun's cascades.",
+    "summary": "Faces of a point light's slice: six.",
     "description": ""
   },
   {
@@ -10685,17 +10675,6 @@
     "description": "Written components notify the owner."
   },
   {
-    "id": "RECTS_PER_SLICE",
-    "module": "packages/sdk-core/src/scene/light-shadow/slices.ts",
-    "exports": ["RECTS_PER_SLICE"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "RECTS_PER_SLICE",
-    "signature": "const RECTS_PER_SLICE: number",
-    "summary": "Rectangles of a slice: `(x, y, side)` per face, six faces reserved for every slice.",
-    "description": ""
-  },
-  {
     "id": "Ray",
     "module": "packages/sdk-core/src/world/math/volumes.ts",
     "exports": ["Ray"],
@@ -10994,62 +10973,29 @@
     "kind": "Constant",
     "title": "SHADOW_CULL_FLOATS",
     "signature": "const SHADOW_CULL_FLOATS: 16",
-    "summary": "Floats of a region volume: centre and far plane, face axis and half-angle, then — for a box, flagged by a negative half-angle — the two other axes with their half-extents.",
-    "description": ""
-  },
-  {
-    "id": "SHADOW_FACE_FLOATS",
-    "module": "packages/sdk-core/src/scene/light-shadow/faces.ts",
-    "exports": ["SHADOW_FACE_FLOATS"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "SHADOW_FACE_FLOATS",
-    "signature": "const SHADOW_FACE_FLOATS: 24",
-    "summary": "Floats of a face in the slice buffer: the matrix, the atlas rectangle — its fourth float 1 once drawn, 0 never —, then four words: the held-page mask, one bit per physical page that holds a depth of the current extent, rows of eight in two words, and the physical page of the extent origin, `x` then `y`, the read wraps extent coordinates with.",
-    "description": "An extent page that entered but is not yet drawn still holds what the far side left there: the read must know it and fall back to the next cascade, never sample it. A page merely awaiting a redraw is still held, and read."
-  },
-  {
-    "id": "SHADOW_FACE_MASK_WORD",
-    "module": "packages/sdk-core/src/scene/light-shadow/faces.ts",
-    "exports": ["SHADOW_FACE_MASK_WORD"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "SHADOW_FACE_MASK_WORD",
-    "signature": "const SHADOW_FACE_MASK_WORD: 20",
-    "summary": "Word of a light's shadow faces in its GPU record.",
-    "description": ""
-  },
-  {
-    "id": "SHADOW_FACE_SIDES",
-    "module": "packages/sdk-core/src/scene/light-shadow/atlas.ts",
-    "exports": ["SHADOW_FACE_SIDES"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "SHADOW_FACE_SIDES",
-    "signature": "const SHADOW_FACE_SIDES: readonly number[]",
-    "summary": "Face sides the atlas knows how to place, from largest to smallest.",
+    "summary": "Floats of a cull volume: centre and far plane, face axis and half-angle, then — for a box, flagged by a negative half-angle — the two other axes with their half-extents.",
     "description": ""
   },
   {
     "id": "SHADOW_PAGE",
-    "module": "packages/sdk-core/src/scene/light-shadow/pages.ts",
+    "module": "packages/sdk-core/src/scene/light-shadow/virtual.ts",
     "exports": ["SHADOW_PAGE"],
     "section": "types",
     "kind": "Constant",
     "title": "SHADOW_PAGE",
-    "signature": "const SHADOW_PAGE: 128",
-    "summary": "Side of an atlas page, in texels: the invalidation cell of a face.",
+    "signature": "const SHADOW_PAGE: number",
+    "summary": "Side of a shadow page, in texels: the unit of the pool, of the virtual maps and of invalidation.",
     "description": ""
   },
   {
-    "id": "SHADOW_SLICE_FLOATS",
+    "id": "SHADOW_RECORD_FLOATS",
     "module": "packages/sdk-core/src/scene/light-shadow/faces.ts",
-    "exports": ["SHADOW_SLICE_FLOATS"],
+    "exports": ["SHADOW_RECORD_FLOATS"],
     "section": "types",
     "kind": "Constant",
-    "title": "SHADOW_SLICE_FLOATS",
-    "signature": "const SHADOW_SLICE_FLOATS: number",
-    "summary": "Floats of a slice: six faces plus a header `vec4f` (faces, kind, side, pad).",
+    "title": "SHADOW_RECORD_FLOATS",
+    "signature": "const SHADOW_RECORD_FLOATS: number",
+    "summary": "Floats of a shadow record, the one a light's shading reads: six lamp-face matrices, then the sun's light-plane frame — `right, zNear`, `up, zFar`, `axis, 0` —, then the extent origin of each clipmap slot as two integers, then a header `vec4f`: faces (a lamp) or levels (a sun), the lamp's tangent half-field or the sun's finest level, the lamp's near plane, and the record's first page-table entry.",
     "description": ""
   },
   {
@@ -11430,7 +11376,7 @@
         "desc": "Whether it casts shadows."
       }
     ],
-    "description": "Units are radiometric and linear (P1): `color` is a linear colour and `intensity` a strictly positive radiometric intensity — a radiance for a `rect`. Four kinds, and nothing else makes light in this engine (P6): - `point`: a position and a range in metres beyond which it lights nothing; - `spot`: the same plus a direction and a cone half-angle in radians; - `directional`: the sun or an overcast sky — a propagation direction, no position and no range, the same irradiance everywhere, and cascade shadows that follow the camera; - `rect`: a one-sided rectangle of `size` metres centred on `position`, emitting along `direction`, its width along `right`; no cast shadow (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Fields a kind does not use are rejected at validation: a directional light with a position would be a promise the engine would not keep."
+    "description": "Units are radiometric and linear (P1): `color` is a linear colour and `intensity` a strictly positive radiometric intensity — a radiance for a `rect`. Four kinds, and nothing else makes light in this engine (P6): - `point`: a position and a range in metres beyond which it lights nothing; - `spot`: the same plus a direction and a cone half-angle in radians; - `directional`: the sun or an overcast sky — a propagation direction, no position and no range, the same irradiance everywhere, and clipmap shadows that follow the camera; - `rect`: a one-sided rectangle of `size` metres centred on `position`, emitting along `direction`, its width along `right`; no cast shadow (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Fields a kind does not use are rejected at validation: a directional light with a position would be a promise the engine would not keep."
   },
   {
     "id": "SceneLightStore",
@@ -11444,7 +11390,7 @@
     "members": [
       {
         "name": "settings",
-        "type": "{ readonly maxLights: 64; readonly maxLightsPerTile: 32; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowUpdatesPerFrame: 4; readonly shad...",
+        "type": "{ readonly maxLights: 64; readonly maxLightsPerTile: 32; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowPagesPerFrame: 24; readonly shado...",
         "desc": "Published settings of direct lighting. These are named product choices, not buried constants: every runtime bound rereads them, and the diagnostic publishes them as-is."
       },
       {
@@ -12044,12 +11990,12 @@
       {
         "name": "shadowsUpdated?",
         "type": "number | null | undefined",
-        "desc": "Shadow slices redrawn by this frame, at most the scheduler's published ceiling. Zero is the normal value of a still scene: a fixed light keeps its slice."
+        "desc": "Shadow lights with a page drawn by this frame. Zero is the normal value of a still scene: a fixed light keeps its pages."
       },
       {
         "name": "shadowFacesDrawn?",
         "type": "number | null | undefined",
-        "desc": "What the shadow pass redrew: faces (views) and draw calls actually encoded. This is the cost per shadow light, split from the rest. Null on an engine that draws no shadow."
+        "desc": "Light views the shadow pass drew in — a sun clipmap level, a lamp face at one mip —, and the draw calls actually encoded. Null on an engine that draws no shadow."
       },
       {
         "name": "shadowDrawCalls?",
@@ -12059,7 +12005,27 @@
       {
         "name": "shadowLightCuts?",
         "type": "number | null | undefined",
-        "desc": "Cluster cuts run from the lights: one per redrawn face, zero on a still frame."
+        "desc": "Cluster cuts run from the lights: one per light view drawn in, zero on a still frame."
+      },
+      {
+        "name": "shadowPagesRequested?",
+        "type": "number | null | undefined",
+        "desc": "Virtual shadow pages the image read, as its latest request report named them: what the camera's receivers mark."
+      },
+      {
+        "name": "shadowPagesCached?",
+        "type": "number | null | undefined",
+        "desc": "Of those, pages read straight from the pool: current, no draw."
+      },
+      {
+        "name": "shadowPoolPages?",
+        "type": "number | null | undefined",
+        "desc": "Physical pages of the fixed pool that hold a virtual page."
+      },
+      {
+        "name": "shadowCastersKept?",
+        "type": "number | null | undefined",
+        "desc": "Casters the per-page cull kept, all drawn pages together, on the frame the device last sampled — one in fifteen; `null` until a sample has returned."
       },
       {
         "name": "shadowPagesDrawn?",
@@ -12107,87 +12073,160 @@
     "kind": "Type",
     "title": "ShadowPlan",
     "signature": "type ShadowPlan = ReturnType<typeof createShadowPlan>",
-    "summary": "Which shadow regions are drawn this frame, and which wait.",
+    "summary": "The frame's shadow work: which virtual pages are drawn, and which wait.",
     "members": [
       {
-        "name": "slices",
-        "type": "{ atlas: { size: 4096; cell: 128; grid: number; occupancy(): { used: number; total: number; }; allocate(faces: number, side: number, rects: Int32Array, base:...",
-        "desc": "Shadow slices."
+        "name": "table",
+        "type": "{ words: Uint32Array<ArrayBuffer>; readonly entries: number; readonly layoutEpoch: number; readonly version: number; baseOf: (slice: number) => number; sizeO...",
+        "desc": "The page table: one word per virtual page, and the range each light holds in it."
       },
       {
-        "name": "regions",
-        "type": "{ capacity: number; readonly count: number; readonly pages: number; lightOf: (region: number) => number; sliceOf: (region: number) => number; faceOf: (region...",
-        "desc": "Shadow regions."
+        "name": "pool",
+        "type": "{ owner: Int32Array<ArrayBuffer>; slice: Int32Array<ArrayBuffer>; view: Int32Array<ArrayBuffer>; x: Int32Array<ArrayBuffer>; y: Int32Array<ArrayBuffer>; rank...",
+        "desc": "The physical pages of the pool and the virtual page each one holds."
+      },
+      {
+        "name": "sun",
+        "type": "{ frame: Float64Array<ArrayBuffer>; depth: Float64Array<ArrayBuffer>; finest: Int32Array<ArrayBuffer>; origins: Int32Array<ArrayBuffer>; levelIn: (low: numbe...",
+        "desc": "Each sun's clipmap: its frame, depth range, finest level and extents."
+      },
+      {
+        "name": "records",
+        "type": "{ taken: Uint8Array<ArrayBuffer>; kind: Int32Array<ArrayBuffer>; readonly count: number; dropPages: (slice: number) => void; free: (slice: number) => void; c...",
+        "desc": "The shadow slices, one per light that casts a shadow."
+      },
+      {
+        "name": "requests",
+        "type": "{ counts: { requested: number; allocated: number; refused: number; latest: number; }; readonly latest: number; consume(report: ShadowRequestReport, nowMs: nu...",
+        "desc": "The request reports read back: what the latest one named, allocated or refused."
       },
       {
         "name": "budget",
         "type": "{ readonly budgetMs: number; setBudgetMs(value: number): void; readonly msPerPage: number | null; suspend(): void; resume(): void; observe(gpuMs: number | nu...",
-        "desc": "Time budget."
-      },
-      {
-        "name": "coverage",
-        "type": "Float64Array<ArrayBuffer>",
-        "desc": "What each light covers."
+        "desc": "The Shadows-stage millisecond budget and the measured cost of a page."
       },
       {
         "name": "counts",
-        "type": "{ readonly denied: number; readonly reused: number; readonly lights: number; readonly sunLights: number; readonly invalidatedPages: number; readonly pendingP...",
-        "desc": "Counts for the diagnostic."
+        "type": "{ denied: number; lights: number; sunLights: number; invalidatedPages: number; pendingPages: number; cachedPages: number; poolPages: number; waitedMs: number...",
+        "desc": "What the last plan did, in pages."
+      },
+      {
+        "name": "admission",
+        "type": "{ list: Int32Array<ArrayBuffer>; readonly count: number; run(pool: ShadowPool, records: ShadowRecords, sun: SunLevels, budget: ShadowBudget, latest: number, ...",
+        "desc": "This frame's pages, in admission order."
       },
       {
         "name": "worldChanged",
         "type": "(lo: ArrayLike<number>, hi: ArrayLike<number>) => void",
-        "desc": "A node has moved: its box enters the list the scheduler will consume next frame."
+        "desc": "A node has moved: its box stales the pages it covers at the next plan."
       },
       {
         "name": "representationChanged",
         "type": "(lo: ArrayLike<number>, hi: ArrayLike<number>) => void",
-        "desc": "The same world at another precision — level of detail, residency, colour tile —: its box waits for the camera to rest, then enters the list (`changes.ts`)."
+        "desc": "The same world at another precision: its box waits for the camera to rest."
       },
       {
         "name": "deferredChanges",
         "type": "boolean",
-        "desc": "True while a representation change waits for the camera to rest: the frame must not hold before a plan consumes it."
+        "desc": "True while a representation change waits for the camera to rest."
       },
       {
         "name": "releaseDeferred",
         "type": "() => void",
-        "desc": "The frame plans no shadow — no atlas, no light, unlit view —: the held union enters the list at once, where the next plan reads it, rather than keeping the frame from holding."
+        "desc": "The frame plans no shadow: the held union enters the list at once."
       },
       {
         "name": "observeCost",
         "type": "(gpuMs: number | null, pages: number) => void",
-        "desc": "Timer of a frame's Shadows pass, reported to the pages it had redrawn."
+        "desc": "Timer of a frame's Shadows pass, reported to the pages it drew."
       },
       {
         "name": "setBudgetMs",
         "type": "(value: number) => void",
-        "desc": "Budget published by the host; a non-finite or negative value is rejected, not rounded."
+        "desc": "Budget published by the host, in GPU milliseconds per frame."
       },
       {
         "name": "setPageInvalidation(on: boolean)",
         "type": "void",
-        "desc": "Turns off per-page invalidation: every touched face restarts in full. On by default."
+        "desc": "Turns off per-page invalidation: a moving object stales every page of the lights it touches. On by default."
       },
       {
         "name": "pageInvalidation",
         "type": "boolean",
-        "desc": "Pages to draw again."
+        "desc": "Whether a moving object stales only the pages its box covers."
       },
       {
-        "name": "plan(store: SceneLightStore, view: ShadowViewpoint, frame: number, nowMs: number)",
-        "type": "number",
-        "desc": "Chooses the regions of this frame. Returns their count; `plan.regions` describes them one by one, and the pages they cover are already removed from the queue."
+        "name": "stamp",
+        "type": "(store: SceneLightStore) => number",
+        "desc": "What the shading, the lights and the view hand the next image: a report stamped with it and naming nothing new proves the image reads only what is drawn."
       },
       {
-        "name": "reissue(frame: number, nowMs: number)",
+        "name": "settled",
+        "type": "(store: SceneLightStore) => boolean",
+        "desc": "True once a report proves the current state asks for nothing: the image may hold."
+      },
+      {
+        "name": "receive(next: ShadowRequestReport)",
         "type": "void",
-        "desc": "The regions of this frame could not be encoded: their pages return to the queue. They had left it at admission, because the scheduler and the pass only talk through this list; if the pass draws nothing, the queue must find them again."
+        "desc": "A request report came back; the next plan reads it. A newer one replaces an unread one."
+      },
+      {
+        "name": "plan(store: SceneLightStore, view: ShadowViewpoint, sceneMin: ArrayLike<number>, sceneMax: ArrayLike<number>, frame: number, nowMs: number)",
+        "type": "number",
+        "desc": "Plans a frame: stales what moved, reads the last report, admits the pages to draw."
+      },
+      {
+        "name": "commit()",
+        "type": "void",
+        "desc": "The frame's pages were encoded: their draws land before anything reads them."
+      },
+      {
+        "name": "reissue()",
+        "type": "void",
+        "desc": "The frame's pages could not be encoded: they stay stale, and wait for the next frame."
       },
       {
         "name": "reset()",
         "type": "void",
         "desc": "Starts over."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "ShadowRequestReport",
+    "module": "packages/sdk-core/src/scene/light-shadow/requests.ts",
+    "exports": ["ShadowRequestReport"],
+    "section": "types",
+    "kind": "Type",
+    "title": "ShadowRequestReport",
+    "signature": "interface ShadowRequestReport",
+    "summary": "What the shading read in one frame: the table entries it asked for, in no order.",
+    "members": [
+      {
+        "name": "frame",
+        "type": "number",
+        "desc": "Frame whose shading wrote the report."
+      },
+      {
+        "name": "layoutEpoch",
+        "type": "number",
+        "desc": "Table layout that frame read with (`ShadowTable.layoutEpoch`)."
+      },
+      {
+        "name": "stamp",
+        "type": "number",
+        "desc": "The plan's stamp when that frame was encoded (`ShadowPlan.stamp`)."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "Entries asked for, possibly more than `entries` holds: the rest ask again next frame."
+      },
+      {
+        "name": "entries",
+        "type": "Uint32Array<ArrayBufferLike>",
+        "desc": "The entries asked for, the first `count` of them at most."
       }
     ],
     "description": ""
@@ -12231,6 +12270,11 @@
         "name": "far",
         "type": "number",
         "desc": "Farthest distance."
+      },
+      {
+        "name": "pixelNear",
+        "type": "number",
+        "desc": "World size of one pixel at the near plane: the finest footprint any pixel of the view has."
       }
     ],
     "description": ""
@@ -16034,12 +16078,12 @@
       {
         "name": "shadowsUpdated?",
         "type": "number | null | undefined",
-        "desc": "Shadow slices redrawn by this frame, at most the scheduler's published ceiling. Zero is the normal value of a still scene: a fixed light keeps its slice."
+        "desc": "Shadow lights with a page drawn by this frame. Zero is the normal value of a still scene: a fixed light keeps its pages."
       },
       {
         "name": "shadowFacesDrawn?",
         "type": "number | null | undefined",
-        "desc": "What the shadow pass redrew: faces (views) and draw calls actually encoded. This is the cost per shadow light, split from the rest. Null on an engine that draws no shadow."
+        "desc": "Light views the shadow pass drew in — a sun clipmap level, a lamp face at one mip —, and the draw calls actually encoded. Null on an engine that draws no shadow."
       },
       {
         "name": "shadowDrawCalls?",
@@ -16049,7 +16093,27 @@
       {
         "name": "shadowLightCuts?",
         "type": "number | null | undefined",
-        "desc": "Cluster cuts run from the lights: one per redrawn face, zero on a still frame."
+        "desc": "Cluster cuts run from the lights: one per light view drawn in, zero on a still frame."
+      },
+      {
+        "name": "shadowPagesRequested?",
+        "type": "number | null | undefined",
+        "desc": "Virtual shadow pages the image read, as its latest request report named them: what the camera's receivers mark."
+      },
+      {
+        "name": "shadowPagesCached?",
+        "type": "number | null | undefined",
+        "desc": "Of those, pages read straight from the pool: current, no draw."
+      },
+      {
+        "name": "shadowPoolPages?",
+        "type": "number | null | undefined",
+        "desc": "Physical pages of the fixed pool that hold a virtual page."
+      },
+      {
+        "name": "shadowCastersKept?",
+        "type": "number | null | undefined",
+        "desc": "Casters the per-page cull kept, all drawn pages together, on the frame the device last sampled — one in fifteen; `null` until a sample has returned."
       },
       {
         "name": "shadowPagesDrawn?",
@@ -19698,7 +19762,7 @@
     "kind": "Function",
     "title": "createShadowPlan()",
     "signature": "createShadowPlan(capacity: number): ShadowPlan",
-    "summary": "The shadow scheduler.",
+    "summary": "The shadow scheduler of the virtual maps.",
     "parameters": [
       {
         "name": "capacity",
@@ -19710,7 +19774,7 @@
       "type": "ShadowPlan",
       "desc": ""
     },
-    "description": "Work of a frame is no longer \"four lights\" but **the most priority stale pages, up to a millisecond budget** (RX3, X4): a light or a cascade that moves stales its whole map, an object that moves only stales the pages its projected box covers, and pages refused this frame wait for the next — never lost, their lag published. A fixed light in a still scene still costs nothing (X5). All arrays are allocated once; `plan()` will never allocate."
+    "description": "The shading records the pages it reads; their report, read back frames later, allocates what is missing from the fixed pool. What moved stales the mapped pages it covers. A frame then draws the stale pages the image reads — coarse first, up to a millisecond budget —, and the rest waits, never lost, its lag published. A still scene, whose shading runs no more, asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing."
   },
   {
     "id": "createTerminalProgress",
@@ -20176,39 +20240,6 @@
     "description": "Every path reads this one function and signs it for its own depth test."
   },
   {
-    "id": "desiredFaceSide",
-    "module": "packages/sdk-core/src/scene/light-shadow/atlas.ts",
-    "exports": ["desiredFaceSide"],
-    "section": "types",
-    "kind": "Function",
-    "title": "desiredFaceSide()",
-    "signature": "desiredFaceSide(screenCoverage: number, faces: number, casters?: number): number",
-    "summary": "Face side a light deserves: its range projected on screen, capped by its share of the atlas.",
-    "parameters": [
-      {
-        "name": "screenCoverage",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "faces",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "casters",
-        "type": "number",
-        "default": "1",
-        "desc": ""
-      }
-    ],
-    "returns": {
-      "type": "number",
-      "desc": ""
-    },
-    "description": "A light that covers the whole screen and is alone takes `shadowSliceMax`; at thirty shadow lights, each steps down by itself rather than leaving the last ones without a slice. The floor is `shadowSliceMin`: no light disappears for lack of room as long as some remains."
-  },
-  {
     "id": "detectCapabilities",
     "module": "packages/sdk-browser/src/measurement/capabilities.ts",
     "exports": ["detectCapabilities"],
@@ -20641,28 +20672,6 @@
     "description": ""
   },
   {
-    "id": "faceCountOf",
-    "module": "packages/sdk-core/src/scene/light-shadow/faces.ts",
-    "exports": ["faceCountOf"],
-    "section": "types",
-    "kind": "Function",
-    "title": "faceCountOf()",
-    "signature": "faceCountOf(rank: number): number",
-    "summary": "Faces actually drawn for a light: six for a point, one for a spot, and the cascades for a directional — never more than the six faces reserved per slice.",
-    "parameters": [
-      {
-        "name": "rank",
-        "type": "number",
-        "desc": ""
-      }
-    ],
-    "returns": {
-      "type": "number",
-      "desc": ""
-    },
-    "description": ""
-  },
-  {
     "id": "filter",
     "module": "packages/sdk-core/src/world/constants/index.ts",
     "exports": ["filter"],
@@ -20738,29 +20747,6 @@
     "signature": "filter.linearMipLinear: 'linearMipLinear'",
     "summary": "Smooth pixel, mixed between two smaller copies: the smoothest.",
     "description": ""
-  },
-  {
-    "id": "forEachShadowFace",
-    "module": "packages/sdk-core/src/scene/light-shadow/casters.ts",
-    "exports": ["forEachShadowFace"],
-    "section": "types",
-    "kind": "Function",
-    "title": "forEachShadowFace()",
-    "signature": "forEachShadowFace(store: SceneLightStore, fn: (slot: number, slice: number, face: number) => void): void",
-    "summary": "Visits every face of every light that declares a shadow and holds a slice: the one scan the counters, the held-mask publication and every other per-face reader share.",
-    "parameters": [
-      {
-        "name": "store",
-        "type": "SceneLightStore",
-        "desc": ""
-      },
-      {
-        "name": "fn",
-        "type": "(slot: number, slice: number, face: number) => void",
-        "desc": ""
-      }
-    ],
-    "description": "The face count is that of the light's kind; `fn` is bounded by the published slices and faces."
   },
   {
     "id": "frameStatistics",
@@ -20922,12 +20908,12 @@
     "section": "math-utilities",
     "kind": "Function",
     "title": "frustumFarPlane()",
-    "signature": "frustumFarPlane(out: Float32Array<ArrayBufferLike> | Float64Array<ArrayBufferLike>, at: number, view: ArrayLike<number>, far: number, normalize: boolean): void",
+    "signature": "frustumFarPlane(out: Float64Array<ArrayBufferLike> | Float32Array<ArrayBufferLike>, at: number, view: ArrayLike<number>, far: number, normalize: boolean): void",
     "summary": "The FAR plane of a frustum whose projection does not have one, written into `out` at `at`.",
     "parameters": [
       {
         "name": "out",
-        "type": "Float32Array<ArrayBufferLike> | Float64Array<ArrayBufferLike>",
+        "type": "Float64Array<ArrayBufferLike> | Float32Array<ArrayBufferLike>",
         "desc": ""
       },
       {
@@ -20997,12 +20983,12 @@
     "section": "math-utilities",
     "kind": "Function",
     "title": "frustumPlanesFromMatrix()",
-    "signature": "frustumPlanesFromMatrix(out: Float32Array<ArrayBufferLike> | Float64Array<ArrayBufferLike>, m: ArrayLike<number>): void",
+    "signature": "frustumPlanesFromMatrix(out: Float64Array<ArrayBufferLike> | Float32Array<ArrayBufferLike>, m: ArrayLike<number>): void",
     "summary": "The six normalized planes of the frustum of a clip matrix — a view-projection, or a projection alone for planes in view space.",
     "parameters": [
       {
         "name": "out",
-        "type": "Float32Array<ArrayBufferLike> | Float64Array<ArrayBufferLike>",
+        "type": "Float64Array<ArrayBufferLike> | Float32Array<ArrayBufferLike>",
         "desc": ""
       },
       {
@@ -27767,28 +27753,6 @@
     "description": "A missing or non-integer value equals a single executor: on a platform that reports nothing, we do not invent parallelism."
   },
   {
-    "id": "pageRowsOf",
-    "module": "packages/sdk-core/src/scene/light-shadow/pages.ts",
-    "exports": ["pageRowsOf"],
-    "section": "types",
-    "kind": "Function",
-    "title": "pageRowsOf()",
-    "signature": "pageRowsOf(side: number): number",
-    "summary": "Pages per side of a `side`-texel face, bounded by what the mask can carry.",
-    "parameters": [
-      {
-        "name": "side",
-        "type": "number",
-        "desc": ""
-      }
-    ],
-    "returns": {
-      "type": "number",
-      "desc": ""
-    },
-    "description": ""
-  },
-  {
     "id": "perspectiveProjection",
     "module": "packages/sdk-core/src/math/primitives/camera.ts",
     "exports": ["perspectiveProjection"],
@@ -29976,12 +29940,12 @@
     "section": "math-utilities",
     "kind": "Function",
     "title": "transformPointsBatch()",
-    "signature": "transformPointsBatch(out: Float32Array<ArrayBufferLike> | Float64Array<ArrayBufferLike>, m: ArrayLike<number>, points: ArrayLike<number>, n: number): void",
+    "signature": "transformPointsBatch(out: Float64Array<ArrayBufferLike> | Float32Array<ArrayBufferLike>, m: ArrayLike<number>, points: ArrayLike<number>, n: number): void",
     "summary": "Transforms `n` 3D points by a single 4×4 affine matrix: `out[i] = m · points[i]`.",
     "parameters": [
       {
         "name": "out",
-        "type": "Float32Array<ArrayBufferLike> | Float64Array<ArrayBufferLike>",
+        "type": "Float64Array<ArrayBufferLike> | Float32Array<ArrayBufferLike>",
         "desc": ""
       },
       {
@@ -30382,8 +30346,8 @@
     "section": "types",
     "kind": "Function",
     "title": "writeFace()",
-    "signature": "writeFace(matrices: Float32Array<ArrayBufferLike>, matBase: number, cull: Float32Array<ArrayBufferLike> | null, cullBase: number, light: SceneLight, face: number, view: ShadowViewpoint, side: number, rect?: Float64Array<ArrayBufferLike>): { near: number; far: number; halfFov: number; }",
-    "summary": "Writes the view-projection matrix of a face at its slot in `matrices`, and, if reject is armed, the volume it opposes to region `rect` of that face.",
+    "signature": "writeFace(matrices: Float32Array<ArrayBufferLike>, matBase: number, cull: Float32Array<ArrayBufferLike> | null, cullBase: number, light: SceneLight, face: number, rect?: Float64Array<ArrayBufferLike>): { near: number; far: number; halfFov: number; }",
+    "summary": "Writes the view-projection matrix of a lamp face at its slot in `matrices`, and, if the cull is armed, the volume it opposes to rectangle `rect` of that face.",
     "parameters": [
       {
         "name": "matrices",
@@ -30416,16 +30380,6 @@
         "desc": ""
       },
       {
-        "name": "view",
-        "type": "ShadowViewpoint",
-        "desc": ""
-      },
-      {
-        "name": "side",
-        "type": "number",
-        "desc": ""
-      },
-      {
         "name": "rect",
         "type": "Float64Array<ArrayBufferLike>",
         "default": "FULL_FACE",
@@ -30436,6 +30390,6 @@
       "type": "{ near: number; far: number; halfFov: number; }",
       "desc": ""
     },
-    "description": "Both start from the same axis and the same field — one calculation, so no risk they aim at different directions. A point takes the `POINT_FACE_AXES` axis and 90°; a spot takes its direction and its widened cone; a directional takes cascade `face`, which follows the camera. The emitter radius, for its part, touches neither projection nor reject: its exclusion is exactly a sphere, written where shadow depth is written, and a raised near plane would remove a cube from it. `rect` is the part of the face to redraw, in normalised coordinates; `FULL_FACE` by default, and the volume is then exactly that from before per-page invalidation. A cluster whose world sphere touches neither the range nor this volume can write nothing in the region: the projection and the scissor would reject it anyway. Reject is therefore exact, never a quality approximation — the region does not change by a texel."
+    "description": "Both start from the same axis and the same field — one calculation, so no risk they aim at different directions. A point takes the `POINT_FACE_AXES` axis and 90°; a spot takes its direction and its widened cone. The emitter radius touches neither projection nor cull: its exclusion is exactly a sphere, written where shadow depth is written. `rect` is the part of the face to draw, in normalised coordinates; `FULL_FACE` by default. A cluster whose world sphere touches neither the range nor this volume can write nothing in it: the projection and the viewport would reject it anyway, so the cull is exact."
   }
 ]

@@ -67,22 +67,22 @@ function recordStages(rt: WebgpuPagesRuntime) {
       cpu: 'no image feedback: no tile to serve',
       gpu: 'transfers go through the GPU queue, with no timestamped pass',
     });
-  // What the shadow pass actually redrew: counts, never durations. The six earlier counts are kept
-  // as-is — a host reads them — and pages join them: `pagesInvalidees` is what entered the queue
-  // this image, `pagesRedessinees` what the kept regions cover, `pagesEnAttente` what the budget
-  // left for later, and `retardMaxMs` the wait of the oldest page in that queue.
+  // What the shadow pass actually did: counts, never durations. `pagesDemandees` is what the image
+  // read, `pagesEnCache` what it read straight from the pool, `pagesInvalidees` what staled this
+  // image, `pagesRedessinees` what it drew, `pagesEnAttente` what the budget left for later, and
+  // `retardMaxMs` the wait of the oldest page in that queue.
   const { counts } = lights.plan;
   // What the region culls kept, sampled on the device one frame in fifteen: the frame it
   // describes is named, and until a sample has returned there is no count at all.
   const culled = lights.cull?.counts.counts();
   stages.setCounts('shadows', {
     lampesRedessinees: lights.shadowsUpdated,
-    cartesReutilisees: counts.reused,
     facesRedessinees: lights.shadowFaces,
     appelsDeDessin: lights.shadowDrawCalls,
     soleilsRedessines: counts.sunLights,
-    cascadesRedessinees: lights.sunCascades,
-    regionsRedessinees: lights.shadowRegions,
+    pagesDemandees: lights.plan.requests.counts.requested,
+    pagesEnCache: counts.cachedPages,
+    pagesDuPool: counts.poolPages,
     pagesInvalidees: counts.invalidatedPages,
     pagesRedessinees: lights.shadowPages,
     pagesEnAttente: counts.pendingPages,

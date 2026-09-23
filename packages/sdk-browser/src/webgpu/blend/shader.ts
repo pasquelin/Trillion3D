@@ -25,7 +25,7 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
  */
 /** The view uniform of the pass (`uniforms.ts`), declared once for every stage that
  *  reads it: the two forward stages here, and the water composite that reads the same buffer. */
-export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pad0:u32,pad1:u32,pad2:u32,}`;
+export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,pad1:u32,pad2:u32,}`;
 
 export const BLEND_SHADER = `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}
@@ -39,10 +39,9 @@ ${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 ${tileDeclarations(BLEND_BINDINGS.data, 'data')}
 @group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(BLEND_BINDINGS.proxy)}
+${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
-@group(0) @binding(${BLEND_BINDINGS.shadowSlices}) var<storage,read> shadows:ShadowSlices;
 @group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d;
 @group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
 @group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
@@ -147,6 +146,9 @@ ${BLEND_SURFACE_WGSL}
  let clamped=clamp(s.rough,0.0525,1.0);
  if(!unlit&&(flags&1u)!=0u){
   let m=clamp(s.metal,0.0,1.0);
+  // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
+  // itself under an orthographic camera.
+  shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
  }
  return BlendOut(vec4f(rgb,s.alpha),s.request);

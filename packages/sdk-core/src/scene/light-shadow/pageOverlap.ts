@@ -1,22 +1,22 @@
-import { rowSpan } from './pages.ts';
+/** Bits of the columns `[x0, x1]`, bounds included, in a row byte. */
+const rowSpan = (x0: number, x1: number) => (((1 << (x1 - x0 + 1)) - 1) << x0) & 0xff;
 
 /**
  * THE PAGES A LIGHT CUT DRAWS INTO, and the test that keeps a box only if it can reach one.
  *
- * A shadow face is a square of `rows × rows` pages, at most eight by eight, so the pages a frame
- * redraws in it fit two words: row `r` is the byte `r & 3` of word `r >> 2`, column `c` its
- * bit `c`. That is the layout of the scheduler's own page masks (`pages.ts`), read here in
- * extent coordinates — the frame the region rectangles are written in.
+ * A light cut selects in an extent of its view cut into cells of whole pages, eight by eight at
+ * most (`../../../../sdk-browser/src/webgpu/shadow/runs.ts`), so the cells a frame draws in fit
+ * two words: row `r` is the byte `r & 3` of word `r >> 2`, column `c` its bit `c`.
  *
- * A cascade sliding diagonally redraws an L-shaped strip: the rectangle that bounds it is the
- * whole face, and a cut bounded by planes alone would select the face entire. The box is
- * projected on the face instead, and dropped when none of the pages its rectangle covers is
- * redrawn this frame: what it would write there would be clipped anyway.
+ * Pages of one level drawn in a frame are scattered: the rectangle that bounds them is the whole
+ * extent, and a cut bounded by planes alone would select it entire. The box is projected on the
+ * extent instead, and dropped when none of the cells its rectangle covers is drawn this frame:
+ * what it would write there would be clipped anyway.
  */
 export interface LightPages {
-  /** Pages per side of the face. */
+  /** Cells per side of the extent. */
   rows: number;
-  /** Redrawn pages, two words of four row bytes. */
+  /** Cells drawn in, two words of four row bytes. */
   mask: Uint32Array;
   /** First term of the face projection: clip x and y per unit of view length, at unit depth. */
   clipScale: number;

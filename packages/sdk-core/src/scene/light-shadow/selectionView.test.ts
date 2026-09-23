@@ -13,7 +13,7 @@ const inside = (planes: Float32Array, p: readonly number[]) => {
   return true;
 };
 
-test('a cascade region: its planes bound the region box, and its error is counted in its texels', () => {
+test('a sun extent: its planes bound the extent box, and its error is counted in its texels', () => {
   // A sun looking down −z from z = 10, over a 4 m half-extent and 20 m of depth, on 1024 texels.
   shadowOrthographic(4, 20);
   composeFace(new Float32Array(16), 0, [0, 0, 10], [0, 0, -1]);

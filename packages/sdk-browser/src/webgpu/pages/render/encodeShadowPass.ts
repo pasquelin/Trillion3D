@@ -1,7 +1,7 @@
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../../../gpu/draw/draw.ts';
 import { SHADOW_PASS } from '../../../gpu/shadow/atlas.ts';
 import { visBindEntries } from '../../core/bindEntries.ts';
-import { regionScissor, regionViewport } from './encodeShadows.ts';
+import { regionViewport } from '../../shadow/pages.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { encodeShadowCasters } from '../../shadow/casters.ts';
 
@@ -72,15 +72,13 @@ function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: nu
 }
 
 /**
- * Shadow depth pass: first the casters of each redrawn face, selected from the light and culled
- * per region (`encodeShadowCasters`); then one render pass for all regions, and one indirect draw
- * per region.
+ * Shadow depth pass: first the casters of each light view drawn, selected from the light and
+ * culled per page (`encodeShadowCasters`); then one render pass for every page, and two draws per
+ * page — a clear to far, then the page's casters.
  *
- * **The viewport stays that of the whole face; only the scissor bounds the region.** That is the
- * whole rule: a vertex lands on exactly the same texel as in a full redraw, and the scissor only
- * drops pixels outside the region. Clear-to-far follows the same scissor, so pages the region does
- * not cover keep the depth they had. Two draw calls per region, whatever the scene's coplanar layer
- * count.
+ * **The viewport is the physical page, the matrix the virtual page's own projection.** The page
+ * fills the clip square, so the rasterizer clips every caster at its edge and no other page of the
+ * pool is touched; the scissor says the same square once more.
  */
 export function encodeShadowAtlas(
   rt: WebgpuPagesRuntime,
@@ -104,19 +102,15 @@ export function encodeShadowAtlas(
     depthStencilAttachment: { view: shadows.view, depthLoadOp: 'load', depthStoreOp: 'store' },
   });
   for (let region = 0; region < regions; region++) {
-    const viewport = region * 3,
-      scissor = region * 4;
-    const side = regionViewport[viewport + 2];
+    const at = region * 3,
+      x = regionViewport[at],
+      y = regionViewport[at + 1],
+      side = regionViewport[at + 2];
     if (side <= 0) continue;
     const group = shadowRegionGroup(rt, device, region);
     if (!group) continue;
-    pass.setViewport(regionViewport[viewport], regionViewport[viewport + 1], side, side, 0, 1);
-    pass.setScissorRect(
-      regionScissor[scissor],
-      regionScissor[scissor + 1],
-      regionScissor[scissor + 2],
-      regionScissor[scissor + 3],
-    );
+    pass.setViewport(x, y, side, side, 0, 1);
+    pass.setScissorRect(x, y, side, side);
     pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
     pass.setBindGroup(0, group);
     pass.setPipeline(shadows.clear);

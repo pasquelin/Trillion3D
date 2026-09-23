@@ -81,7 +81,7 @@ test('both lighting passes fire the same ray, counters aside', () => {
   // the two layouts neither number nor declare the same.
   const socle = (wgsl: string) => wgsl.slice(0, wgsl.indexOf('fn pixelTile('));
   assert.notEqual(
-    socle(declaredLightingWgsl(BLEND_BINDINGS.proxy)),
+    socle(declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData)),
     socle(DIRECT_LIGHTING_WGSL),
     'the blend takes neither the rank nor the access of deferred resolve',
   );

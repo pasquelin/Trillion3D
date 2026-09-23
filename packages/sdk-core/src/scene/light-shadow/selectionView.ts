@@ -20,7 +20,7 @@ export interface FaceSelection {
   focal: number;
   /** The same scale in clip units, the projection's first term: `focal / (side / 2)`. */
   clipScale: number;
-  /** Clip-w weight of the face's projection: 1 for a lamp face, 0 for a sun cascade. */
+  /** Clip-w weight of the face's projection: 1 for a lamp face, 0 for a sun level. */
   perspective: number;
   near: number;
   stretch: number;
@@ -34,7 +34,7 @@ export interface FaceSelection {
  * precision, and a caster that grazes the region must never fall on the wrong side of one.
  *
  * The error scale is the face's: `focal` is half the side times the projection's first term,
- * which is `1 / tan(halfFov)` for a lamp and `1 / halfExtent` for a cascade — texels per
+ * which is `1 / tan(halfFov)` for a lamp and `1 / halfExtent` for a sun level — texels per
  * unit, at unit depth for the first and everywhere for the second. A cluster's error is then
  * counted in the texels the map it casts into actually has, never in the camera's pixels.
  */

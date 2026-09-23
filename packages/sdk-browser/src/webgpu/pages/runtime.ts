@@ -54,7 +54,7 @@ export interface WebgpuPagesRuntime {
   lights: WebgpuLightState;
   /** Resident proxy and probe grid of bouncing light. */
   bounce: WebgpuBounceState;
-  /** The sun's shadow beyond the last cascade, traced against the resident proxy. */
+  /** The sun's shadow beyond the last clipmap level, traced against the resident proxy. */
   sunFar: WebgpuSunFarState;
   run: WebgpuRunState;
   capture: WebgpuCaptureState;
@@ -94,7 +94,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       BOUNCE_CAPABILITY,
       MOTION_CAPABILITY,
       TAA_CAPABILITY,
-      'sun shadows beyond the last cascade',
+      'sun shadows beyond the last clipmap level',
       'textured PBR maps',
       'visibility buffer',
       'direct WebGPU present',

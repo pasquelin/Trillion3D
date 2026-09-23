@@ -11,6 +11,7 @@ import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShad
 import { encodeDirectLights } from '../pages/render/encodeLights.ts';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
+import { sunEntry } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 
 installGpuGlobals();
@@ -18,7 +19,6 @@ installGpuGlobals();
 test('shadowPagesTotal accumulates drawn pages and skips a frame whose pass was refused', () => {
   const lights = createWebgpuLightState();
   lights.shadowPages = 12;
-  lights.shadowRegions = 2;
   lights.pagesByFrame[3] = 12;
   noteShadowFrame(lights, 3, true);
   assert.equal(lights.shadowPagesTotal, 12);
@@ -26,7 +26,7 @@ test('shadowPagesTotal accumulates drawn pages and skips a frame whose pass was 
   lights.pagesByFrame[4] = 8;
   noteShadowFrame(lights, 4, false);
   assert.equal(lights.shadowPagesTotal, 12, 'a refused pass drew nothing');
-  assert.deepEqual([lights.shadowPages, lights.shadowRegions, lights.pagesByFrame[4]], [0, 0, 0]);
+  assert.deepEqual([lights.shadowPages, lights.pagesByFrame[4]], [0, 0]);
 });
 
 test('the sampled cull counts sum the instance count of each region command', () => {
@@ -39,11 +39,14 @@ test('the sampled cull counts sum the instance count of each region command', ()
 const CAM = {
   eye: [0, 5, 0],
   world: new Float64Array(16),
+  projection: Float32Array.of(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0),
   fov: 60,
   aspect: 1,
   near: 0.1,
   far: 100,
 };
+const BOX_MIN = [-10, 0, -10],
+  BOX_MAX = [10, 5, 10];
 const SUN: SceneLight = {
   id: 'sun',
   kind: 'directional',
@@ -72,14 +75,25 @@ test('a representation change under an unlit frame stales its pages once the vie
   rt.gpu.targetSize = [8, 8];
   const { store, plan } = lights;
   store.add(SUN);
-  const view = shadowViewpointOf(CAM as never);
-  let frame = 0;
-  for (; frame < 8 && (frame === 0 || plan.counts.pendingPages > 0); frame++)
-    plan.plan(store, view, frame, frame * 16);
-  assert.equal(plan.counts.pendingPages, 0, 'the maps are settled');
+  const view = shadowViewpointOf(CAM as never, 8);
+  const planAt = (frame: number) => plan.plan(store, view, BOX_MIN, BOX_MAX, frame, frame * 16);
+  planAt(0);
+  const slice = store.sliceOf(0);
+  // The shading read one page; it is mapped and drawn.
+  const entry = plan.table.baseOf(slice) + sunEntry(plan.sun.finest[slice] + 4, 0, 0);
+  plan.receive({
+    frame: 0,
+    layoutEpoch: plan.table.layoutEpoch,
+    stamp: 0,
+    count: 1,
+    entries: Uint32Array.of(entry),
+  });
+  planAt(1);
+  plan.commit();
+  assert.equal(plan.pool.used, 1, 'the page is mapped');
   // The slices survive the unlit view: what changes meanwhile must reach them.
   store.setView('unlit');
-  plan.representationChanged([-1, 0, -1], [1, 2, 1]);
+  plan.representationChanged([-1e3, 0, -1e3], [1e3, 2, 1e3]);
   encodeDirectLights(
     rt,
     undefined as never,
@@ -89,8 +103,8 @@ test('a representation change under an unlit frame stales its pages once the vie
   );
   assert.equal(plan.deferredChanges, false, 'the unlit frame holds no union');
   store.setView('auto');
-  plan.plan(store, view, frame, frame * 16);
-  assert.ok(plan.counts.invalidatedPages > 0, 'the first lit plan stales the changed pages');
+  planAt(2);
+  assert.equal(plan.counts.invalidatedPages, 1, 'the first lit plan stales the changed page');
 });
 
 /**
