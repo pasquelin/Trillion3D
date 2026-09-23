@@ -1,9 +1,9 @@
 import type { Color, Light, Material, Object3D } from '../../../packages/sdk-browser/src/index.ts';
 import { useWords } from '../i18n.ts';
 import { usePortal } from '../layout/PortalContext.ts';
-import { Field, Toggle } from '../ui/Input.tsx';
+import { ColorField } from '../ui/ColorField.tsx';
+import { Field, NumberField, Toggle } from '../ui/Input.tsx';
 import { valueCommand } from './commands.ts';
-import { ColorField, NumberField } from './fields.tsx';
 import { isLight, materialOf } from './objects.ts';
 import type { Editor } from './useEditor.ts';
 
