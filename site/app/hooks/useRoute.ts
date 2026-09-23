@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import { parseRoute } from '../portal/routes.ts';
 
 const currentRoute = () =>
@@ -8,7 +8,8 @@ const currentRoute = () =>
 export function useRoute() {
   const [route, setRoute] = useState(currentRoute);
   useEffect(() => {
-    const update = () => setRoute(currentRoute());
+    // A transition: the page on screen stays until the next one is ready, never a spinner.
+    const update = () => startTransition(() => setRoute(currentRoute()));
     addEventListener('hashchange', update);
     return () => removeEventListener('hashchange', update);
   }, []);

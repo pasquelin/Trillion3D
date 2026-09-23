@@ -56,7 +56,7 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
   // The current page's entry comes into view, in the sidebar's own scroll only.
   useEffect(() => {
     const aside = panel.current;
-    const current = aside?.querySelector('[aria-current="page"]');
+    const current = aside?.querySelector('li [aria-current="page"]');
     if (!aside || !current) return;
     const box = aside.getBoundingClientRect();
     const item = current.getBoundingClientRect();
