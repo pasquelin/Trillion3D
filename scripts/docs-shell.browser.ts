@@ -51,6 +51,30 @@ function greenShare(page: Page, png: Buffer): Promise<number> {
   );
 }
 
+test('the site search finds a page as the reader types and opens it', async () => {
+  const { page, errors } = await open('#/fr/learn/home');
+  await page.getByRole('heading', { level: 1 }).waitFor();
+  await page.keyboard.press('/');
+  const input = page.getByRole('combobox', { name: 'Rechercher' });
+  await input.fill(example.title.fr);
+  await page.getByRole('option').first().waitFor();
+  await page.keyboard.press('Enter');
+  await page.waitForURL(`**/#/fr/examples/${example.id}`);
+  assert.equal(await input.isVisible(), false, 'the search closes on the page it opened');
+  await page.getByRole('button', { name: 'Rechercher' }).click();
+  await input.fill('createWorld');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowUp');
+  await page
+    .getByRole('option', { name: /createWorld/ })
+    .first()
+    .click();
+  await page.waitForURL('**/#/fr/api/createWorld');
+  await page.getByRole('heading', { level: 1, name: /createWorld/ }).waitFor();
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('the demo page runs the example and runs an edited colour from its code', async () => {
   const { page, errors } = await open(`#/en/examples/${example.id}`);
   const frame = page.locator('[data-demo] iframe');
