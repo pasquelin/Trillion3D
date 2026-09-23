@@ -6344,7 +6344,12 @@
       "coyoteTime": "Solo personaje: segundos tras salir de un borde durante los que aún se concede un salto; 0,1 por defecto.",
       "jumpBuffer": "Solo personaje: segundos durante los que un salto pulsado antes de aterrizar se conserva para el aterrizaje; 0,1 por defecto.",
       "onLand": "Solo personaje: se llama al aterrizar con la velocidad de descenso en m/s; `null` por defecto.",
-      "onJump": "Solo personaje: se llama cuando el cuerpo deja el suelo en un salto; `null` por defecto."
+      "onJump": "Solo personaje: se llama cuando el cuerpo deja el suelo en un salto; `null` por defecto.",
+      "stride": "Solo personaje: la fase de la zancada en radianes, un pie golpea en 0 y en π; 0 en otro caso.",
+      "fallGravity": "Solo personaje: aceleración hacia abajo mientras cae, en m/s²; 1,6 g por defecto, para que un salto no flote.",
+      "stopTime": "Solo personaje: segundos para perder el 95 % de la velocidad una vez que no se mantiene ninguna tecla, en el suelo; 0,08 por defecto.",
+      "headBob": "Solo personaje: metros que sube y baja el ojo en cada paso al trote; 0,035 por defecto, 0 lo mantiene nivelado.",
+      "landingDip": "Solo personaje: segundos desde el contacto con el suelo hasta el punto más bajo de la caída de aterrizaje del ojo, tan profunda como rápido sea el impacto; 0,06 por defecto, 0 lo desactiva."
     }
   },
   "world.renderer": {
@@ -6674,7 +6679,8 @@
       "onLand": "Se llama al aterrizar con la velocidad de descenso, en metros por segundo: un sonido, una sacudida.",
       "onJump": "Se llama cuando el cuerpo deja el suelo en un salto.",
       "collision": "Con qué choca el cuerpo — los colisionadores del mundo, o el mundo de un motor de física por la misma costura (`CharacterCollision`). `null` camina a nivel donde se encuentra el cuerpo, sin caer nunca.",
-      "update": "Vive `delta` segundos; devuelve si la cámara se movió, y emite `change` cuando lo hizo."
+      "update": "Vive `delta` segundos; devuelve si la cámara se movió, y emite `change` cuando lo hizo.",
+      "stride": "La fase de la zancada en radianes, en [0, 2π): un pie golpea en 0, el otro en π."
     }
   },
   "CharacterCollision": {
