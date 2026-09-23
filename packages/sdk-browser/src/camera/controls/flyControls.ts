@@ -15,17 +15,17 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts';
  * along its own axes and turn it about them, roll included; a drag looks around. Nothing is
  * integrated until the host calls `update(delta)` with the seconds elapsed, and `update`
  * returns — and emits — only when a key is held, a stick input set or a drag pending, so a
- * released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every
- * `update`, and asks for the next frame by emitting `change` each time.
+ * released stick leaves the scene still. `autoForward` is the one exception: a cruising
+ * camera moves on every `update`, and asks for the next frame by emitting `change` each time.
  *
  * KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down,
  * arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the
  * camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is
- * on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held;
- * set false and the pointer looks as soon as it moves over the surface; set `pointerLook`
- * false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or
- * Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier
- * must be released before the key that follows it counts.
+ * on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default)
+ * looks while a pointer is held; set false and the pointer looks as soon as it moves over the
+ * surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A
+ * key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S)
+ * never steers; the modifier must be released before the key that follows it counts.
  */
 export interface FlyCameraControls extends SteeredCameraControls {
   /** Radians per second the roll turns at full deflection; pitch and yaw follow it by default. */
