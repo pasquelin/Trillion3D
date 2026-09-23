@@ -1,4 +1,5 @@
 import { hideable, overlay } from './overlay.ts';
+import { profileLines, profiling, startProfile, type ProfiledWorld } from './profile.ts';
 
 /** What the stats corner reads of a frame: the engine's own counters, `null` when not measured. */
 interface FrameCounters {
@@ -17,9 +18,8 @@ interface SceneNode {
   traverseVisible?: (visit: (node: SceneNode) => void) => void;
 }
 
-/** The world the corner watches: its frame hook and its scene. */
-export interface StatsWorld {
-  onFrame: (hook: (frame: { metrics: FrameCounters }) => void) => unknown;
+/** The world the corner watches: its frame hook and its scene; under `?profile`, its CPU steps. */
+export interface StatsWorld extends ProfiledWorld<{ metrics: FrameCounters }> {
   scene: SceneNode;
 }
 
@@ -70,7 +70,8 @@ export const statsCorners = { 'bottom-left': 'bottom-3 left-3', 'top-left': 'top
 /**
  * A small corner of the example, at the bottom left unless `corner` says otherwise: the frames
  * the world drew per second, and the engine's counters of the last frame, refreshed twice a
- * second.
+ * second. With `?profile` in the page's address, it adds each second's CPU profile (`profile.ts`),
+ * also kept as `window.__profile`.
  */
 export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bottom-left') {
   const card = document.createElement('dl');
@@ -84,6 +85,13 @@ export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bo
     drawn.push(performance.now());
     last = metrics;
   });
+  let profiled: [string, string][] = [],
+    shown = '';
+  if (profiling())
+    startProfile(world, (latest) => {
+      Object.assign(globalThis, { __profile: latest });
+      profiled = profileLines(latest);
+    });
   setInterval(() => {
     const now = performance.now();
     while (drawn.length && drawn[0] < now - 1000) drawn.shift();
@@ -93,8 +101,12 @@ export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bo
     if (!held) fps = ((drawn.length - 1) * 1000) / (drawn[drawn.length - 1] - drawn[0]);
     const sample: StatsSample = { ...last, fps, held: held && fps !== null, sceneTriangles: null };
     if (!last.selectedTriangles) sample.sceneTriangles = sceneTriangles(world.scene);
+    const lines = [...statLines(sample), ...profiled],
+      key = lines.join('\n');
+    if (key === shown) return;
+    shown = key;
     card.replaceChildren(
-      ...statLines(sample).flatMap(([label, value]) => {
+      ...lines.flatMap(([label, value]) => {
         const term = document.createElement('dt'),
           text = document.createElement('dd');
         term.className = 'opacity-70';

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { describe, labelOf, printed } from '../site/examples/kit/controls.ts';
 import { sceneTriangles, statLines, statsCorners } from '../site/examples/kit/stats.ts';
+import { profileLines, profileWindow } from '../site/examples/kit/profile.ts';
 
 test('a declared control takes its kind from its value, and starts at it', () => {
   const press = () => {};
@@ -103,4 +104,29 @@ test('the scene count reads indexed and plain geometries of the visible nodes', 
     {},
   ];
   assert.equal(sceneTriangles({ traverseVisible: (visit) => nodes.forEach(visit) }), 15);
+});
+
+test('the profile ranks the engine steps by p95, leaves the sums out, and shows only what was measured', () => {
+  const step = (p50: number, p95: number) => ({ p50, p95 });
+  const latest = profileWindow([4, 2, 3, 10], [], {
+    steps: {
+      totalMs: step(3, 5),
+      encodeSubmitMs: step(2, 4),
+      worldMs: step(0.5, 1),
+      lightsMs: step(0.2, 2),
+      tilesPumpMs: step(NaN, NaN),
+    },
+  });
+  assert.deepEqual(latest.frameMs, { p50: 4, p95: 10 });
+  assert.equal(latest.hooksMs, null);
+  assert.deepEqual(
+    latest.steps.map(({ name }) => name),
+    ['lightsMs', 'worldMs'],
+  );
+  assert.deepEqual(profileLines(latest), [
+    ['CPU frame', '4.00 / 10.00 ms'],
+    ['engine CPU', '3.00 / 5.00 ms'],
+    ['lights', '0.20 / 2.00 ms'],
+    ['world', '0.50 / 1.00 ms'],
+  ]);
 });

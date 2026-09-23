@@ -16238,6 +16238,36 @@
     "description": ""
   },
   {
+    "id": "world.cpuSteps",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.cpuSteps()",
+    "signature": "world.cpuSteps(): CpuStepSummary | null",
+    "summary": "CPU bounds of the frames since `resetCpuSteps()` (p50, p95, max per step); `null` unmeasured.",
+    "returns": {
+      "type": "CpuStepSummary | null",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
+    "id": "world.resetCpuSteps",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.resetCpuSteps()",
+    "signature": "world.resetCpuSteps(): void | undefined",
+    "summary": "Opens a new `cpuSteps()` window.",
+    "returns": {
+      "type": "void | undefined",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
     "id": "world.awaitPages",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["createWorld"],
