@@ -110,11 +110,12 @@ export function createWorldCuts() {
       const fresh = !reading || reading.version !== mesh.geometry.version;
       if (fresh) {
         const drawn = drawnTriangles(mesh.geometry, mesh.primitive, options);
-        reading = {
-          version: mesh.geometry.version,
-          read: drawn ? readContent(drawn) : Promise.resolve(null),
-        };
+        const read = drawn ? readContent(drawn) : Promise.resolve(null);
+        reading = { version: mesh.geometry.version, read };
         ways.set(way, reading);
+        // A read that failed (no digest on this origin) is forgotten: the next asks again.
+        const held = ways;
+        read.catch(() => held.get(way)?.read === read && held.delete(way));
       }
       const content = await reading!.read;
       const cut = content ? await resourceOf(content, fresh) : null;
