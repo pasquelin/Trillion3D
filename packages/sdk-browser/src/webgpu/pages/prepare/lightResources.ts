@@ -56,6 +56,24 @@ export function shadowsFollowTextures(
 }
 
 /**
+ * The threshold the light cuts select casters at: the camera's, budget included. When it moves,
+ * every map drawn at the previous one describes the world at another precision — a
+ * representation change everywhere, redrawn once the camera rests, as a residency change is.
+ * Returns the threshold.
+ */
+export function followLightThreshold(
+  lights: WebgpuLightState,
+  pixelError: number,
+  budgetPixelError: number,
+) {
+  const threshold = Math.max(pixelError, budgetPixelError);
+  if (threshold !== lights.lightThreshold && lights.lightThreshold >= 0)
+    lights.plan.representationChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
+  lights.lightThreshold = threshold;
+  return threshold;
+}
+
+/**
  * Serves tiles requested by the previous image, except during a pose barrier: the shadow
  * drain replays the image without admitting new ones. An arriving tile invalidates every
  * map (`shadowsFollowTextures`) and the queue would never empty (#25).

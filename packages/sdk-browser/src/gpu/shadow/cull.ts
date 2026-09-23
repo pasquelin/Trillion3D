@@ -147,16 +147,14 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         if (!faces) return;
         // Group buffers, in bind order. The group is rebuilt only if one of them has changed
         // identity: the GPU cut and the CPU cut each hand the same two every frame.
-        const buffers = [
-          from.spheres,
-          from.source,
-          from.indirect,
-          kept,
-          indirect,
-          uniforms,
-          faceVolumes,
-        ];
-        if (!group || buffers.some((buffer, index) => bound[index] !== buffer)) {
+        if (
+          !group ||
+          bound[0] !== from.spheres ||
+          bound[1] !== from.source ||
+          bound[2] !== from.indirect
+        ) {
+          const buffers = [from.spheres, from.source, from.indirect];
+          buffers.push(kept, indirect, uniforms, faceVolumes);
           bound = buffers;
           group = device.createBindGroup({
             layout,

@@ -14,6 +14,10 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  * face selects its casters with it exactly as the camera selects its surfaces, in its own texels
  * and against its own pages (`DagViewUniforms.light`).
  *
+ * The per-placement planes its prepare step writes land in the shared `frames` buffer, over the
+ * camera's: safe because only the kernels read them, and every camera run prepares its own again
+ * before reading them — a camera frame that reuses its cut runs no kernel at all.
+ *
  * Its escalation and its pinned fallback live in its own `work`: a caster the light wants and
  * the cache lacks can raise the light's threshold, never the one an object on screen is drawn at.
  *

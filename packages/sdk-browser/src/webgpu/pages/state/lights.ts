@@ -37,6 +37,8 @@ export interface WebgpuLightState {
   faceMatrices: Float32Array;
   /** The image's redrawn faces, one light cut each (`../../shadow/runs.ts`). */
   runs: ShadowRuns;
+  /** Threshold the last light cuts selected at, −1 before the first (`followLightThreshold`). */
+  lightThreshold: number;
   /** Image whose shadow regions are planned: a plan is made once per image (`planImageShadows`). */
   plannedFrame: number;
   /** Light cuts the last image ran: one per redrawn face, zero on a still frame. */
@@ -88,6 +90,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     uploadedEpoch: 0,
     faceMatrices: new Float32Array(MAX_SHADOW_REGIONS * 16),
     runs: createShadowRuns(),
+    lightThreshold: -1,
     plannedFrame: -1,
     lightRuns: 0,
     lightCut: undefined,

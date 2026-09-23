@@ -1,6 +1,10 @@
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { lightCutOf } from '../../gpu/dag/selection.ts';
+import type { ShadowCullSource } from '../../gpu/shadow/cull.ts';
+
+/** Where the current face's list lies, rewritten face by face: a frame allocates no record. */
+const source = {} as ShadowCullSource;
 
 /**
  * The frame's shadow casters, selected FROM THE LIGHT: each redrawn face runs its own cut, and the
@@ -33,14 +37,12 @@ export function encodeShadowCasters(
   lights.lightCut = light;
   if (light) {
     const compaction = gpuDraw.lightCompaction();
-    const source = {
-      spheres: spheres.buffer,
-      source: compaction.instanceBuffer,
-      base: 0,
-      indirect: compaction.indirectBuffer,
-      indirectBase: 0,
-      commands: gpuDraw.slots,
-    };
+    source.spheres = spheres.buffer;
+    source.source = compaction.instanceBuffer;
+    source.base = 0;
+    source.indirect = compaction.indirectBuffer;
+    source.indirectBase = 0;
+    source.commands = gpuDraw.slots;
     for (let r = 0; r < runs.count; r++) {
       const face = runs.list[r];
       light.encode(encoder, r, face.uniforms);
@@ -48,19 +50,17 @@ export function encodeShadowCasters(
       cull.encode(encoder, source, r, face.first, face.count, rows);
     }
     lights.lightRuns = runs.count;
-    timing.shadowRequests = light.encodeReadback(encoder);
+    // A copy still being read keeps its settlement pending: only a new copy takes its place.
+    const settle = light.encodeReadback(encoder);
+    if (settle) timing.shadowRequests = settle;
     return true;
   }
   const lists = lights.cpuCasters;
   if (run.gpuFrameActive || !lists || lists.frame !== run.frame) return false;
-  const source = {
-    spheres: spheres.buffer,
-    source: lists.source,
-    base: 0,
-    indirect: lists.indirect,
-    indirectBase: 0,
-    commands: 1,
-  };
+  source.spheres = spheres.buffer;
+  source.source = lists.source;
+  source.indirect = lists.indirect;
+  source.commands = 1;
   for (let r = 0; r < runs.count; r++) {
     const face = runs.list[r];
     source.base = lists.bases[r];

@@ -1,3 +1,4 @@
+import { followLightThreshold } from '../prepare/lightResources.ts';
 import {
   LIGHT_KIND,
   RECTS_PER_SLICE,
@@ -88,11 +89,11 @@ export function planShadowRegions(
     plan.releaseDeferred();
     return 0;
   }
+  // The light cuts measure their error at the camera's threshold, budget included.
+  const pixelError = followLightThreshold(lights, rt.run.gate.pixelError, rt.run.budgetPixelError);
   const view = shadowViewpointOf(cam);
   const count = plan.plan(store, view, frame, nowMs);
   const { regions, slices } = plan;
-  // The light cuts measure their error at the camera's threshold, budget included.
-  const pixelError = Math.max(rt.run.gate.pixelError, rt.run.budgetPixelError);
   let lastSlice = -1,
     lastFace = -1;
   for (let region = 0; region < count; region++) {

@@ -69,8 +69,11 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
     { rows } = layout;
   if (!lights.cull || !planImageShadows(rt, cam)) return undefined;
   const pageCount = rows.residentOffsetWords.length;
-  if (!lights.cpuCasters || lights.cpuCasters.marks.length !== pageCount)
+  if (!lights.cpuCasters || lights.cpuCasters.marks.length !== pageCount) {
+    lights.cpuCasters?.source.destroy();
+    lights.cpuCasters?.indirect.destroy();
     lights.cpuCasters = createCpuCasterLists(device, pageCount);
+  }
   const lists = lights.cpuCasters,
     { casters, marks, shown, wanted, camera, viewport } = lists;
   casters.length = 0;

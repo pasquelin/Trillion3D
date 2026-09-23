@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts';
-import { wantsContractLighting } from './lightResources.ts';
+import { followLightThreshold, wantsContractLighting } from './lightResources.ts';
+import { createWebgpuLightState } from '../state/lights.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 const LAMPE: SceneLight = {
@@ -56,4 +57,15 @@ test('`unlit` stays the diagnostic view, lights or not', () => {
   assert.equal(wantsContractLighting(b.rt), false);
   b.store.add({ ...LAMPE });
   assert.equal(wantsContractLighting(b.rt), false);
+});
+
+test('a new light-cut threshold stales every shadow page, an unchanged one none', () => {
+  const lights = createWebgpuLightState();
+  const staled = () => lights.plan.deferredChanges;
+  assert.equal(followLightThreshold(lights, 1, 0), 1);
+  assert.equal(staled(), false, 'the first threshold draws the maps, it stales nothing');
+  assert.equal(followLightThreshold(lights, 1, 0.5), 1);
+  assert.equal(staled(), false, 'a budget under the threshold changes nothing');
+  assert.equal(followLightThreshold(lights, 8, 0), 8);
+  assert.equal(staled(), true, 'a coarser threshold waits for the camera to rest, everywhere');
 });
