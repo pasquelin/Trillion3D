@@ -160,7 +160,15 @@
         drag = null;
       };
       world.canvas.addEventListener('pointerup', release);
-      world.canvas.addEventListener('pointercancel', release);
+      // A cancelled drag selects nothing: the halos go back to the selection as it stood.
+      world.canvas.addEventListener('pointercancel', () => {
+        if (!drag) return;
+        for (const entry of pieces) show(entry, entry.selected);
+        count?.(String(pieces.filter(({ selected }) => selected).length));
+        marquee.style.display = 'none';
+        drag = null;
+        world.invalidate();
+      });
 
       const everything = (on) => () => {
         for (const entry of pieces) show(entry, (entry.selected = on));
