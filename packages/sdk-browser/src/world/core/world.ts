@@ -175,6 +175,9 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     },
     /** Per-step profile of the session's frames. */
     stageProfile: () => live()?.stageProfile() ?? null,
+    /** CPU bounds of the frames since `resetCpuSteps()` (p50, p95, max per step); `null` unmeasured. */
+    cpuSteps: () => live()?.cpuSteps() ?? null,
+    /** Opens a new `cpuSteps()` window. */ resetCpuSteps: () => live()?.resetStageProfile(),
     /** Resolves once the pages the current view reads are resident (`awaitViewPages`). */
     awaitPages: () => awaitViewPages(runtime, live),
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
