@@ -4,6 +4,8 @@ export interface CardProps extends Omit<ComponentPropsWithoutRef<'section'>, 'ti
   title?: ReactNode;
   /** A picture above the title: the card of a page a list opens. */
   media?: ReactNode;
+  /** A short tag between the picture and the title: the theme or state of what the card opens. */
+  eyebrow?: ReactNode;
   surface?: 'default' | 'nested' | 'inset';
 }
 
@@ -21,6 +23,7 @@ export function Card({
   children,
   title,
   media,
+  eyebrow,
   className = '',
   surface = 'default',
   ...props
@@ -32,6 +35,7 @@ export function Card({
     >
       <div className="card-body gap-4 p-4">
         {media}
+        {eyebrow}
         {title && <h2 className="card-title text-lg">{title}</h2>}
         {children}
       </div>

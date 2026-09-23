@@ -23,12 +23,14 @@ export function ExampleCard({ title, href, badge, thumbnail }: ExampleCardProps)
     >
       <Card
         className="h-full overflow-hidden shadow-sm"
-        media={<Cover src={thumbnail} />}
+        media={<Cover look="card" src={thumbnail} />}
+        eyebrow={
+          <Badge tone="primary" soft>
+            {badge}
+          </Badge>
+        }
         title={title}
       >
-        <Badge tone="primary" soft>
-          {badge}
-        </Badge>
         <span className="self-end text-xl text-primary" aria-hidden="true">
           →
         </span>
@@ -54,12 +56,14 @@ export function PendingExampleCard({ title, locale, missing, issue }: PendingPro
     <div aria-disabled="true" className="h-full opacity-75">
       <Card
         className="h-full overflow-hidden shadow-sm"
-        media={<Cover src="./assets/example-in-progress.svg" />}
+        media={<Cover look="placeholder" src="./assets/example-in-progress.svg" />}
+        eyebrow={
+          <Badge tone="info" soft>
+            {t(issue ? 'examples.waitingEngine' : 'examples.inProgress')}
+          </Badge>
+        }
         title={title}
       >
-        <Badge tone="info" soft>
-          {t(issue ? 'examples.waitingEngine' : 'examples.inProgress')}
-        </Badge>
         {missing && (
           <Note>
             {`${t('examples.waitsFor')} ${missing}`}

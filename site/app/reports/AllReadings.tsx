@@ -28,7 +28,7 @@ export function AllReadings({ report, sources, locale }: AllReadingsProps) {
   const t = useWords(locale);
   const groups = readingGroups(sources);
   return (
-    <Section id="report-all-values" title={t('report.allValues')}>
+    <Section bare id="report-all-values" title={t('report.allValues')}>
       <p>{t('report.allValuesLead')}</p>
       {[...groups].map(([key, records]) => {
         const maps: Map<string, unknown>[] = records.map((r) => flattenFields(r.complete));

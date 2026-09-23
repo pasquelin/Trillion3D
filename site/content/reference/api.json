@@ -20413,7 +20413,7 @@
     "section": "node",
     "kind": "Function",
     "title": "createBatchProgress()",
-    "signature": "createBatchProgress({ stream }?: { stream?: ProgressStream; }): { event(event: CompilerEvent): void; }",
+    "signature": "createBatchProgress(options?: { stream?: ProgressStream; }): { event(event: CompilerEvent): void; }",
     "summary": "Batch companion for `prepareMany({onEvent})`: one line per job id, in arrival order.",
     "parameters": [
       {
