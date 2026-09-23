@@ -1,5 +1,5 @@
 import type { NodeLike, SkyEngine } from './engine.ts';
-import { random } from './random.ts';
+import { seeded } from '../../random.ts';
 import type { Wind } from './wind.ts';
 
 /** Espy's rule: a cloud base rises 125 m per degree between air temperature and dew point. */
@@ -53,7 +53,7 @@ export type Clouds = {
  * geometry and one material (the engine instances what shares a mesh), casting shadows.
  */
 export function createClouds(engine: SkyEngine, seed: number, settings: CloudSettings): Clouds {
-  const next = random(seed);
+  const next = seeded(seed);
   const base = METRES_PER_DEGREE * settings.dewSpread;
   const window = cloudWindow(settings);
   const puff = engine.geometry.sphere(1, 12, 8);
