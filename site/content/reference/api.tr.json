@@ -2592,9 +2592,13 @@
       "version": "Ürün sürümü.",
       "nodeTableVersion": "Düğüm tablosu sürümü.",
       "materialTableVersion": "Malzeme tablosu sürümü.",
-      "nodes": "Düğümler.",
+      "geometryTableVersion": "Geometri düzeni sürümü.",
+      "scene": "Ana makinenin açtığı sahne ve tepesindeki düğümler.",
+      "nodes": "Her düğüm.",
+      "lights": "Düğümlerin taşıdığı ışıklar.",
       "materials": "Malzemeler.",
-      "textures": "Dokular."
+      "textures": "Dokular.",
+      "documents": "Yayımlanan her sahne dosyasının geometri düzeni, adına göre."
     }
   },
   "Primitive-common": {
@@ -3374,27 +3378,32 @@
       "roughnessMap": "Pürüzlülük görseli.",
       "normalMap": "Normal görseli.",
       "aoMap": "Ortam gizlenme görseli.",
-      "emissiveMap": "Parlama görseli."
+      "emissiveMap": "Parlama görseli.",
+      "kind": "Ana makinenin kurduğu yüzey: ışıksız, standart ya da fiziksel bir uzantı bildirildiğinde fiziksel.",
+      "alphaMode": "Alfanın nasıl okunduğu: yok sayılır, `alphaTest` değerinde kesilir ya da karıştırılır.",
+      "opacity": "Temel renk çarpanının alfası.",
+      "extensions": "Fiziksel uzantıların eklediği, ana makinenin parametre adlarıyla: bir çarpan, bir renk ya da bir aralık sayılar olarak, bir harita yuva olarak."
     }
   },
   "TableNode": {
-    "summary": "Çizilen bir primitif: onu taşıyan düğüm, dünya pozu, giydiği yüzey ve aynı primitifin kopyaları arasındaki sırası — burada instancing budur, birkaç düğüm tarafından adlandırılan bir geometri.",
-    "description": "`bounds`, kaynak geometrinin dünya kutusudur; otonom sahne onun yerine yozlaşmış üçgenler yayımlar, bu yüzden bu, önbelleğin yanıtıdır, yükleyicinin değil.",
+    "summary": "Sahne grafiğinin bir düğümü, glTF sırasında: çocukları, taşıdığı ağ ve noktasal ışık, ve tam bildirildiği gibi YEREL pozu — bir matris ya da öteleme, dönme ve ölçekten herhangi biri, belirtilmediğinde her biri `null`.",
+    "description": "Aynı ağı adlandıran birden fazla düğüm: burada örnekleme budur.",
     "members": {
       "name": "Düğümün adı.",
-      "node": "Düğümün numarası.",
-      "parent": "Ebeveyninin numarası.",
-      "mesh": "Mesh'inin numarası.",
-      "primitive": "Primitifinin numarası.",
-      "material": "Malzemesinin sırası.",
-      "instance": "Hangi kopya olduğu.",
-      "matrix": "Dünya matrisi.",
-      "bounds": "Dünya kutusu."
+      "children": "Çocukları, sırasıyla.",
+      "mesh": "Çizdiği ağ.",
+      "light": "Taşıdığı ışık.",
+      "matrix": "Yerel matrisi, sütun sütun.",
+      "translation": "Nerede durduğu.",
+      "rotation": "Nasıl döndürüldüğü, bir kuaterniyon olarak.",
+      "scale": "Nasıl gerildiği."
     }
   },
   "TableTexture": {
     "summary": "Bir glTF dokusunun örnekleyici durumu, motorun kelimeleriyle.",
     "members": {
+      "name": "Adı.",
+      "sampler": "Bildirdiği glTF örnekleyicisinin sırası, yoksa `null`.",
       "image": "Hangi görsel.",
       "wrapS": "Yatayda tekrar.",
       "wrapT": "Dikeyde tekrar.",
@@ -3403,11 +3412,11 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "Bir dolu harita slotu: hangi doku, hangi koordinat seti, ve onun için oluşturulan 3×3.",
+    "summary": "Dolu bir harita yuvası: hangi doku, hangi koordinat takımı ve bildirdiği dönüşüm.",
     "members": {
       "texture": "Hangi doku.",
       "texCoord": "Hangi UV seti.",
-      "transform": "UV dönüşümü, 3×3."
+      "transform": "Yuvanın bildirdiği `KHR_texture_transform` — kaydırma, radyan cinsinden dönme, germe, belirtilmediğinde her biri `null` — ya da hiç yoksa `null`."
     }
   },
   "TelemetryReport": {

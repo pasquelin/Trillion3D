@@ -2592,9 +2592,13 @@
       "version": "产物版本。",
       "nodeTableVersion": "节点表版本。",
       "materialTableVersion": "材质表版本。",
-      "nodes": "各个节点。",
+      "geometryTableVersion": "几何布局版本。",
+      "scene": "宿主打开的场景，以及它顶层的节点。",
+      "nodes": "所有节点。",
+      "lights": "节点携带的光源。",
       "materials": "各种材质。",
-      "textures": "各个纹理。"
+      "textures": "各个纹理。",
+      "documents": "每个已发布场景文件的几何布局，按其名称。"
     }
   },
   "Primitive-common": {
@@ -3374,27 +3378,32 @@
       "roughnessMap": "粗糙度贴图。",
       "normalMap": "法线贴图。",
       "aoMap": "环境光遮蔽贴图。",
-      "emissiveMap": "自发光贴图。"
+      "emissiveMap": "自发光贴图。",
+      "kind": "宿主构建的表面：无光照、标准，或在声明了物理扩展时为物理。",
+      "alphaMode": "如何读取 alpha：忽略、在 `alphaTest` 处裁剪，或混合。",
+      "opacity": "基础颜色因子的 alpha。",
+      "extensions": "物理扩展添加的内容，使用宿主的参数名：因子、颜色或范围为数字，贴图为槽。"
     }
   },
   "TableNode": {
-    "summary": "一个被绘制的图元:携带它的节点、它的世界姿态、它所穿的表面材质,以及它在同一图元的多份副本中的编号——这正是这里“实例化”的含义:一个几何体被多个节点所指向。",
-    "description": "`bounds` 是源几何体的世界包围盒;自治场景会以退化三角形取而代之来发布这个字段,因此这个值来自缓存,而不是加载器自己算出来的。",
+    "summary": "场景图中的一个节点，位于其 glTF 序号：它的子节点、它携带的网格和点光源，以及完全按声明的局部位姿——一个矩阵，或平移、旋转和缩放中的任意几项，未声明的各为 `null`。",
+    "description": "多个节点指向同一网格，这就是这里的实例化。",
     "members": {
-      "name": "该节点的名称。",
-      "node": "该节点的编号。",
-      "parent": "其父节点的编号。",
-      "mesh": "它所属网格的编号。",
-      "primitive": "它所属图元的编号。",
-      "material": "它所用材质的编号。",
-      "instance": "它是第几份副本。",
-      "matrix": "它的世界矩阵。",
-      "bounds": "它的世界包围盒。"
+      "name": "节点的名称。",
+      "children": "它的子节点，按顺序。",
+      "mesh": "它绘制的网格。",
+      "light": "它携带的光源。",
+      "matrix": "它的局部矩阵，按列。",
+      "translation": "它所在的位置。",
+      "rotation": "它如何旋转，以四元数表示。",
+      "scale": "它如何拉伸。"
     }
   },
   "TableTexture": {
     "summary": "一个 glTF 纹理的采样器状态,以引擎自己的措辞表示。",
     "members": {
+      "name": "它的名称。",
+      "sampler": "它声明的 glTF 采样器的序号，若无则为 `null`。",
       "image": "对应哪张图像。",
       "wrapS": "水平方向的重复方式。",
       "wrapT": "垂直方向的重复方式。",
@@ -3403,11 +3412,11 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "一个已填充的贴图槽位:使用哪张纹理、哪一套坐标,以及为其组合出的 3×3 矩阵。",
+    "summary": "一个已填的贴图槽：哪张纹理、哪组坐标，以及它声明的变换。",
     "members": {
       "texture": "使用哪张纹理。",
       "texCoord": "使用哪一套 UV。",
-      "transform": "UV 变换矩阵,3×3。"
+      "transform": "该槽声明的 `KHR_texture_transform`——偏移、以弧度计的旋转、拉伸，未声明的各为 `null`——若无则为 `null`。"
     }
   },
   "TelemetryReport": {
