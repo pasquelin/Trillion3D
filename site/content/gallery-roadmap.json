@@ -1529,8 +1529,7 @@
         "fr": "Curseur avant/après"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/before-and-after-slider.html"
     },
     {
       "id": "side-by-side-stereo",
@@ -1539,8 +1538,7 @@
         "fr": "Stéréo côte à côte"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/side-by-side-stereo.html"
     },
     {
       "id": "red-cyan-anaglyph",
@@ -1595,8 +1593,7 @@
         "fr": "Images clés à la main"
       },
       "theme": "animation",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/keyframes-by-hand.html"
     },
     {
       "id": "one-clip-many-objects",
@@ -1605,8 +1602,7 @@
         "fr": "Un clip, plusieurs objets"
       },
       "theme": "animation",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/one-clip-many-objects.html"
     },
     {
       "id": "animation-from-the-file",
@@ -1792,8 +1788,7 @@
         "fr": "Un modèle OBJ"
       },
       "theme": "loaders",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-model-from-obj.html"
     },
     {
       "id": "a-model-from-usdz",
