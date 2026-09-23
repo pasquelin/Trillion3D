@@ -16,7 +16,7 @@ import { createWebgpuVisibilityShaders } from './shaders.ts';
 import { createWebgpuCoplanarLayerPipelines } from './pipelines.ts';
 
 // Follow-up of `../pages/layersState.test.ts`: the per-image draw modules, where the coplanar-
-// layer lot was reapplied too. `../row/pageRow.ts` stays covered by `../pages/pages.19.test.ts` and has
+// layer lot was reapplied too. `../row/pageRow.ts` stays covered by `../row/pageRowDepthBias.test.ts` and has
 // no test here.
 
 // itemWords.ts

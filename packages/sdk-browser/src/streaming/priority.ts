@@ -42,7 +42,7 @@ function project(view: ArrayLike<number>, sphere: ArrayLike<number>, out: Float6
 const centre = new Float64Array(4),
   bounds = new Float64Array(4),
   // The host pose copied into an owned buffer: the base product only reads and writes
-  // `Float64Array`s (`mathMatrix4.ts`). Sixteen numbers per DISTINCT matrix, not per record.
+  // `Float64Array`s (`packages/sdk-core/src/math/matrix/matrix4.ts`). Sixteen numbers per DISTINCT matrix, not per record.
   worldMirror = new Float64Array(16);
 /** Sphere `[x, y, z, r]` of a six-bound box, written at `at`: centre in the middle, radius to the corner. */
 function boxSphere(

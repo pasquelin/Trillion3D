@@ -56,7 +56,7 @@
     "check:duplicates": "jscpd packages scripts tests bench site --format typescript,rust --min-lines 12 --min-tokens 100 --reporters console --exit-code 1 --no-tips",
     "check:unused": "knip",
     "validate": "node scripts/validate.ts",
-    "check:structure": "node --test tests/integration/depot-autonome.test.ts tests/integration/structure-moteur.test.ts tests/integration/moteur-sans-three.test.ts tests/integration/moteur-sans-three-math.test.ts && tsc -p tsconfig.core.json --noEmit",
+    "check:structure": "node --test tests/integration/self-contained-repository.test.ts tests/integration/engine-structure.test.ts tests/integration/engine-without-three.test.ts tests/integration/engine-without-three-math.test.ts && tsc -p tsconfig.core.json --noEmit",
     "check:links": "node scripts/check-links.ts",
     "check:dts": "node scripts/rewrite-dts-extensions.ts --check",
     "check:no-js": "node scripts/check-no-js.ts",
@@ -66,12 +66,13 @@
     "proof:package": "node scripts/prove-installed-package.ts",
     "perf:browser": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/browser/*.perf.ts",
     "perf:core": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/core/*.perf.ts",
-    "perf:all": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/runner/perf/agrege.ts",
+    "perf:all": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/runner/perf/aggregate.ts",
     "perf:baseline": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/runner/perf/baseline-save.ts",
     "build:docs": "node scripts/docs-build.ts",
     "docs:scene": "node scripts/docs-scene.ts",
     "docs:serve": "node scripts/docs-serve.ts",
-    "check:local": "node scripts/check-local-files.ts"
+    "check:local": "node scripts/check-local-files.ts",
+    "graphify:libelles": "node scripts/graphify-labels.ts"
   },
   "jscpd": {
     "ignore": [

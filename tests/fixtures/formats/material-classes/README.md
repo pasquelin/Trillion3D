@@ -65,7 +65,7 @@ cargo build --release --locked --manifest-path packages/asset-compiler-rust/Carg
 ./packages/asset-compiler-rust/target/release/web-geometry-compiler \
   tests/fixtures/formats/material-classes/<name>.gltf <CACHE> full 1000000 /assets
 
-node bench/runner/banc.ts --moteur webgpu --avant <ref> --apres <ref> \
+node bench/runner/bench.ts --moteur webgpu --avant <ref> --apres <ref> \
      --cache-avant <CACHE> --cache-apres <CACHE> --vues generale,detail \
      --images 60 --pixelError 0.1
 ```

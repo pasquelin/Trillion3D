@@ -11,7 +11,7 @@ import { camera, quadBackend } from '../testScenes.fixture.ts';
 test('coupe processeur (visibility buffer indisponible) : drawnTriangles = selectedTriangles, uncoveredTriangles = 0', async () => {
   installGpuGlobals();
   // `rejectR32 = true`: the visbuffer r32uint target fails, the engine falls back to the page raster
-  // and the CPU cut — the same fallback as in ../pages.08.test.ts.
+  // and the CPU cut — the same fallback as in ./hizOcclusion.test.ts.
   const { device } = mockGpu(undefined, undefined, false, true);
   const { fixture, backend } = quadBackend(device);
   await backend.prepare();

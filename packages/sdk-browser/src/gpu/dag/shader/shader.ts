@@ -2,7 +2,7 @@ import { DAG_ERROR_WGSL } from './shaderError.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts';
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts';
-import { DAG_RELEVE_WGSL } from './releveWgsl.ts';
+import { DAG_RELEVE_WGSL } from './snapshotWgsl.ts';
 import { DAG_REQUEST_WGSL } from '../request.ts';
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
@@ -37,7 +37,7 @@ struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>
 const INF:f32=3.4e38;
 const FRAME:u32=7u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
- *  GPU mirror of \`frustumExcludesBox\` (sdk-core, mathFrustumBox.ts): same corners, same sum. */
+ *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/frustumBox.ts): same corners, same sum. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  for(var i=0u;i<6u;i++){
   let plane=frames[base+i];
@@ -58,7 +58,7 @@ fn isConformal(m:mat3x3f)->bool{
  let eps=maxl*${CONE_ORTHO_EPS_WGSL};
  return abs(dot(a,b))<=eps&&abs(dot(a,c))<=eps&&abs(dot(b,c))<=eps;
 }
-/** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (mathCone.ts), same operands.
+/** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (packages/sdk-core/src/math/primitives/cone.ts), same operands.
  *  \`world\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
  *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
  *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space. */

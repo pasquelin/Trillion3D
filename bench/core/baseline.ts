@@ -3,8 +3,8 @@
 // measurement/case, never by its source file: multiple benchmarks measure the same file.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { RACINE, cheminBaseline, dossierBaselines } from './chemins.ts';
-import type { Mesure } from './mesure.ts';
+import { RACINE, cheminBaseline, dossierBaselines } from './paths.ts';
+import type { Mesure } from './measure.ts';
 
 /** One stored baseline row, keyed by measurement/case pair. */
 interface BaselineRow {
@@ -140,7 +140,7 @@ export interface Bilan extends Required<Seuils> {
 }
 
 /**
- * The verdict of a measurement batch, from the discrepancies that `rapport.ts` already calculated against the
+ * The verdict of a measurement batch, from the discrepancies that `report.ts` already calculated against the
  * baseline. It does NOT recalculate: a discrepancy calculated twice can diverge.
  * `absent` when no case has a baseline — which is not the same thing as "nothing slowed down".
  */

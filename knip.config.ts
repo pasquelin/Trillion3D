@@ -15,24 +15,24 @@ const config: KnipConfig = {
     'packages/page-codec/geometryPage.ts',
     'packages/**/*.test.ts',
     'scripts/*.ts',
-    'bench/runner/banc.ts',
+    'bench/runner/bench.ts',
     // Served to the harness page and imported by URL, never by local import.
-    'bench/runner/pageCoupe.ts',
-    'bench/runner/pageTemoin.ts',
-    'bench/runner/pageExplorateur.ts',
-    'bench/runner/pageEclairage.ts',
+    'bench/runner/cutPage.ts',
+    'bench/runner/witnessPage.ts',
+    'bench/runner/explorerPage.ts',
+    'bench/runner/lightingPage.ts',
     'bench/runner/poses.ts',
-    'bench/runner/pageThreeNu.ts',
-    'bench/runner/pageThreeLod.ts',
-    'bench/runner/pageMesure.ts',
+    'bench/runner/threeBarePage.ts',
+    'bench/runner/threeLodPage.ts',
+    'bench/runner/measurePage.ts',
     // The measurement entry: served as `measurement.js` and imported by URL by those pages.
     'packages/sdk-browser/src/measurement/measurement.ts',
     // Full campaign and its report, launched manually.
-    'bench/runner/campagne.ts',
-    'bench/runner/rapportGlobal.ts',
-    'bench/runner/quantificationPages.ts',
+    'bench/runner/campaign.ts',
+    'bench/runner/summaryGlobal.ts',
+    'bench/runner/pageQuantization.ts',
     'bench/runner/oracle.ts',
-    'bench/runner/fixtureLampes.ts',
+    'bench/runner/lampFixture.ts',
     'bench/perf/*/*.perf.ts',
     'bench/runner/perf/*.ts',
     // Every test module: probes, render proofs and the pages they serve by URL.
@@ -53,7 +53,7 @@ const config: KnipConfig = {
   ignoreDependencies: ['daisyui'],
   ignoreBinaries: ['rustc'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
-  ignoreUnresolved: ['/mesure/pageTemoin.ts'],
+  ignoreUnresolved: ['/runner/witnessPage.ts'],
 };
 
 export default config;

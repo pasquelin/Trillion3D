@@ -1,14 +1,14 @@
 // A cluster's world sphere went from an inline matrix × point product to `transformAffinePoint`:
-// that formula never had a sum initialised to zero (see the note in `mathMatrix4.ts`), so no signed-
+// that formula never had a sum initialised to zero (see the note in `packages/sdk-core/src/math/matrix/matrix4.ts`), so no signed-
 // zero regression is expected here, unlike matrix × matrix products. This test checks it on matrices
 // and boxes hostile to signed zeros, against the previous code copied into
-// `../../../../../bench/oracles/browser/socle-math.ts`.
+// `../../../../../bench/oracles/browser/core-math.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { noteResidenceChange } from './bounds.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
-import { referenceClusterSphere } from '../../../../../bench/oracles/browser/socle-math.ts';
+import { referenceClusterSphere } from '../../../../../bench/oracles/browser/core-math.ts';
 import type { PageRec } from '../../page/selection/types.ts';
 
 function record(matrice: number[], min: number[], max: number[]) {

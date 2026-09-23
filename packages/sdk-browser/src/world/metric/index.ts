@@ -4,7 +4,7 @@ import { NOT_DRAWN } from '../core/worldFrames.ts';
 
 /** GPU pass durations of the last frame, grouped by block (`gpuPassBlockTotals`). */
 const gpuPasses = (world: object) => gpuPassBlockTotals(lastFrameOf(world)?.gpuPassMs ?? null);
-/** CPU bounds of the frames since the last reset (`webgpuPagesCpuSteps.ts`), read once. */
+/** CPU bounds of the frames since the last reset (`webgpu/pages/render/cpuSteps.ts`), read once. */
 const cpuSteps = (world: object) => sessionOf(world).cpuSteps();
 
 /** The `metric` family: what the image cost, as measured, never estimated. */

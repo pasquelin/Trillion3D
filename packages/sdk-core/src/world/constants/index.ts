@@ -2,7 +2,7 @@ import type { Side as EngineSide } from '../../contracts/material.ts';
 import type { WrapMode } from '../../texture/contract.ts';
 import { TONE_MAPPING_RANK, type SceneToneMapping } from '../../scene/core/environment.ts';
 
-/** Which faces a surface draws: the engine's own `Side` words (`materialContract.ts`). */
+/** Which faces a surface draws: the engine's own `Side` words (`contracts/material.ts`). */
 export const side = Object.freeze({
   front: 'front',
   back: 'back',

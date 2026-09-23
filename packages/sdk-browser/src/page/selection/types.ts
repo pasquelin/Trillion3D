@@ -50,7 +50,7 @@ export type PageRec = {
   /** The host declaration the record was read from, carried for the ONE use that needs the object
    *  itself: handing a surface back to the library that owns it — the WebGL2 witness draw, the
    *  transparent copy, the diagnostic materials. The closed list of
-   *  `tests/integration/moteur-sans-three.test.ts` says who may read it. */
+   *  `tests/integration/engine-without-three.test.ts` says who may read it. */
   declaration: HostMaterials;
   transparent?: boolean;
   sourceMesh?: HostMesh;
@@ -117,7 +117,7 @@ export type ClusterRoot<T> = {
     links?: CullingLinks;
     marks?: Int32Array;
   };
-  /** Root world box, six bounds flat (`mathBox.ts`). */
+  /** Root world box, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`). */
   worldBox?: Float64Array;
   /** The local box of which `worldBox` is the image: what a node move reprojects (R8). Shared by
    *  every placement of the primitive, so it is read, never written. */

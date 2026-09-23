@@ -1,5 +1,5 @@
 import { fingerprintBuild } from '../../../scripts/write-build-provenance.ts';
-import { analyseFile, neighboringCut } from '../coupeAnalyse.ts';
+import { analyseFile, neighboringCut } from '../cutAnalysis.ts';
 import { sceneDerived } from '../scene.ts';
 import { assetIdentity } from './provenance.ts';
 import type { SideBase } from '../dists.ts';

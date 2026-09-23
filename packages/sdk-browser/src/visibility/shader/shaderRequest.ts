@@ -9,7 +9,7 @@ import { quartet } from './shaderMaps.ts';
  * and what that cost, is said in `../../webgpu/tile/reduce.ts`.
  *
  * The sun shadow thus asks for its tiles from the screen: the depth pass reads the cutout
- * at its shadow texel but cannot ask for anything (`../../webgpu/blend/rejetAnticipe.test.ts`).
+ * at its shadow texel but cannot ask for anything (`../../webgpu/blend/earlyRejection.test.ts`).
  * To the six maps are therefore added, for a masked-material pixel, as many choices as
  * cascades: the triangle is projected into the cascade, the coordinate derivative per shadow
  * texel comes out — the affine `dpdx` of the shadow pass — and the requested rank is that of

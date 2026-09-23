@@ -1,16 +1,16 @@
 // Defect 4: `wrapTexel` (math.ts) must follow the GPU's integer rule for
 // the three addressing modes — the same as MIRRORED_REPEAT in OpenGL ES 3.0 / WebGPU: i = ⌊t·size⌋,
 // then clamp, modulo one period (Repeat), or modulo two periods whose second is read backwards
-// (MirroredRepeat). `texelThree` (tests/browser/probes/adressageCas.ts) encodes that same rule
+// (MirroredRepeat). `texelThree` (tests/browser/probes/addressingCases.ts) encodes that same rule
 // independently; it is the oracle already checked against real WebGL2 and WebGPU samplers by
-// `tests/browser/probes/adressage-gpu.ts`, reused here to sweep cases that the frozen values
+// `tests/browser/probes/addressing-gpu.ts`, reused here to sweep cases that the frozen values
 // do not write explicitly.
 import { importWrapMode } from '../host/surfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { wrapTexel } from './math.ts';
-import { texelThree } from '../../../../tests/browser/probes/adressageCas.ts';
+import { texelThree } from '../../../../tests/browser/probes/addressingCases.ts';
 
 const CLAMP = THREE.ClampToEdgeWrapping,
   REPEAT = THREE.RepeatWrapping,

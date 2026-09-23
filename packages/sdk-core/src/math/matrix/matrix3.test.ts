@@ -85,7 +85,7 @@ test('normalMatrix3: a non-finite scale yields nine zeros, like the WGSL kernel'
   // Zero, infinite or NaN scale: the normalised 3×3 is worthless, the WGSL kernel then replaces its
   // adjugate with zero, and the CPU does the same. This is an ASSUMED discrepancy with the
   // reference library, which propagated NaNs; a non-finite pose is rejected at engine entry
-  // (`hostWorldMatrices.ts`), and nothing non-finite must go back into lighting.
+  // (`packages/sdk-browser/src/host/world/matrices.ts`), and nothing non-finite must go back into lighting.
   for (const m of [
     Float64Array.from([NaN, 0, 0, 0, 0, -0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     Float64Array.from([Infinity, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),

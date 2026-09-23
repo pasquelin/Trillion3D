@@ -9,8 +9,8 @@ import assert from 'node:assert/strict';
 import { cross, length } from './math.ts';
 import { validateScene } from '../transport/validation.ts';
 import { sceneWithBlocker } from '../../../../../tests/fixtures/lightingTransportScene.ts';
-import { referenceLength } from '../../../../../bench/oracles/core/vecteurs-transport.ts';
-import { referenceCross } from '../../../../../bench/oracles/browser/socle-math.ts';
+import { referenceLength } from '../../../../../bench/oracles/core/transport-vectors.ts';
+import { referenceCross } from '../../../../../bench/oracles/browser/core-math.ts';
 import type { Vec3 } from './types.ts';
 
 test('length returns exactly Math.hypot(...v) on hostile vectors', () => {
@@ -46,7 +46,7 @@ test('validateScene still accepts a facet normal at the tolerance limit (1e-6)',
 // `cross` moved from an inlined cross product to `crossVector3` of the math kernel.
 // The formula is identical term by term (no sum started at zero on one side only), so no signed-zero
 // regression is expected here, unlike the matrix × matrix products tested in
-// `../../scene/light-shadow/math.test.ts` and `streamingPriority.test.ts`.
+// `../../scene/light-shadow/math.test.ts` and `packages/sdk-browser/src/streaming/priority.test.ts`.
 test('cross returns exactly the previous cross product, signed zeros included', () => {
   const vecteurs: Vec3[] = [
     [1, 0, 0],

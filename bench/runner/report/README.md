@@ -3,13 +3,13 @@
 Reports are part of the bilingual learning portal. Measurement, export and site build are
 separate operations; rebuilding the interface never launches Chrome or benchmarks.
 
-1. Build the engine and run `node bench/runner/campagne.ts --out .mesure/out/<campaign>`.
+1. Build the engine and run `node bench/runner/campaign.ts --out .mesure/out/<campaign>`.
    Resume requires the same execution arguments, repository state, built JavaScript, asset
    manifest, browser version and machine, and a completed measurement without errors. A mismatch refuses to
    overwrite evidence: select another output directory. Browser-version changes invalidate resume and comparisons.
-2. Export with `node bench/runner/rapportGlobal.ts --dossier .mesure/out/<campaign>
+2. Export with `node bench/runner/summaryGlobal.ts --dossier .mesure/out/<campaign>
 --vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
-3. Stage with `node bench/runner/publierRapport.ts --dossier .mesure/out/<campaign>-report`.
+3. Stage with `node bench/runner/publishReport.ts --dossier .mesure/out/<campaign>-report`.
    Campaign IDs are immutable. The script writes `site/reports/<id>/`, updates the catalogue,
    and keeps `report.html` as an entry to the portal. It does not deploy or push anything.
 4. Validate, then preview with `pnpm docs:serve` (it builds the bundles first).

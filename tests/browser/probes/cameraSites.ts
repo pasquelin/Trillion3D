@@ -20,8 +20,8 @@ import { projectedPageError } from '../../../packages/sdk-browser/src/page/selec
 import { resolvePixelError } from '../../../packages/sdk-browser/src/page/selection/requests.ts';
 import type { CameraMotion } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { dagFixture } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
-import { sitesMoteurs } from './cameraSitesMoteurs.ts';
-import type { Site } from './cameraSitesMoteurs.ts';
+import { sitesMoteurs } from './cameraSitesEngines.ts';
+import type { Site } from './cameraSitesEngines.ts';
 import {
   createEngineCamera,
   readCameraWorld,

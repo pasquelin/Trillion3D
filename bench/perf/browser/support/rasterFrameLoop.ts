@@ -1,5 +1,5 @@
 // The frame loop of `visibility/raster.ts`, on the fill it is given, and the alpha test both fills
-// share: split from `rasterTampon.ts`, which holds the two fills themselves.
+// share: split from `rasterBuffer.ts`, which holds the two fills themselves.
 import * as THREE from 'three';
 import { DEPTH_CLEAR } from '../../../../packages/sdk-browser/src/camera/depthConvention.ts';
 import {
@@ -16,7 +16,7 @@ import {
   type VisMaterial,
   type VisPage,
 } from '../../../../packages/sdk-browser/src/visibility/types.ts';
-import type { fillReference, Keep } from './rasterTampon.ts';
+import type { fillReference, Keep } from './rasterBuffer.ts';
 
 type Triangle = NonNullable<ReturnType<typeof triangleAt>>;
 
@@ -48,7 +48,7 @@ function alphaGarde(
 
 type Fill = typeof fillReference;
 
-/** The frame loop of `visibilityRaster.ts`, on the fill it is given. */
+/** The frame loop of `packages/sdk-browser/src/visibility/raster.ts`, on the fill it is given. */
 export function rasterAvec(fill: Fill) {
   return (pages: VisPage[], cam: Parameters<typeof triangleAt>[2], viewport: [number, number]) => {
     const [width, height] = viewport,

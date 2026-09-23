@@ -15,7 +15,7 @@ import {
   preuveDansLaPage,
   preuveSaine,
   type ResultatPagePreuve,
-} from '../support/preuvePageMoteur.ts';
+} from '../support/enginePageProof.ts';
 import { BACKGROUND, GROUND, WATER } from '../support/waterPassCases.ts';
 
 interface CasEau {

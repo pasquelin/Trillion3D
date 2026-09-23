@@ -76,7 +76,7 @@ lines.push(
     name: 'NormalMatrix3 batch',
     fichier: BATCH,
     // Not the same computation: `normalMatrix3` carries the singularity decision the WGSL kernel
-    // mirrors (`mathSingular.ts`, `inverseTransposeWgsl.ts`), which `getNormalMatrix` does not have.
+    // mirrors (`packages/sdk-core/src/math/matrix/singular.ts`, `inverseTransposeWgsl.ts`), which `getNormalMatrix` does not have.
     slower: {
       atMost: 2.2,
       reason: 'carries the singularity decision the WGSL kernel mirrors, which Three has not',

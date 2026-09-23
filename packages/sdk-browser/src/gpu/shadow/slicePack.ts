@@ -31,7 +31,7 @@ export function createShadowSlicePack(size: number, faceStride: number) {
     facePacked,
     /**
      * Held-page mask of a face, two words of eight rows — the physical pages that hold a depth
-     * of the face's extent (`sceneLightShadowHeld.ts`), not the complement of the stale mask —
+     * of the face's extent (`packages/sdk-core/src/scene/light-shadow/held.ts`), not the complement of the stale mask —
      * and the physical page of the extent origin, `(wx, wy)`, the read wraps extent coordinates
      * with. A change flags the slice to push even on a frame that drew nothing in it: a slide
      * alone unholds a strip and moves the origin.

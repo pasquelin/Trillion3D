@@ -1,5 +1,5 @@
 // A11: parseDagOutput sizes its arrays ahead of time instead of a typed-array spread and a
-// `push` with no capacity. Oracle: the version from before batch A, in `../../../../../bench/oracles/browser/residence.ts`.
+// `push` with no capacity. Oracle: the version from before batch A, in `../../../../../bench/oracles/browser/residency.ts`.
 //
 // THE HEADER HAS CHANGED WIDTH since then: four words at first — a count, frustum reject, the
 // level, the flags — eight now, the next four carrying the triangle totals the GPU holds
@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { parseDagOutput } from './uniforms.ts';
 import { SELECTION_HEADER_WORDS } from './layout.ts';
 import { REQUEST_PRIORITY_MAX, packRequest } from './request.ts';
-import { referenceParseDagOutput } from '../../../../../bench/oracles/browser/residence.ts';
+import { referenceParseDagOutput } from '../../../../../bench/oracles/browser/residency.ts';
 import type { SelectionResult } from '../core/selection.ts';
 
 /** The oracle's header: four words, those from before the totals. */

@@ -1,11 +1,11 @@
 // G1: `geometry.ts` detaches by the set of pages actually attached (`attachees`,
 // a `Set` held by `attach`/`detach`) instead of scanning `allPages` — the whole DAG — at each frame.
-// Oracle: the version before batch G, copied as is in `../../../../../bench/oracles/browser/backend-autonome.ts`.
+// Oracle: the version before batch G, copied as is in `../../../../../bench/oracles/browser/autonomous-backend.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createAutonomousGeometry } from './geometry.ts';
-import { referenceAutonomousSync } from '../../../../../bench/oracles/browser/backend-autonome.ts';
+import { referenceAutonomousSync } from '../../../../../bench/oracles/browser/autonomous-backend.ts';
 import type { PageRec } from '../../page/selection/types.ts';
 import { surfaceOf } from '../../page/surface.ts';
 

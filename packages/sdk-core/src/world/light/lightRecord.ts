@@ -17,7 +17,7 @@ const eye = new Vector3(),
   right = new Vector3();
 
 /**
- * A lamp as the engine's store holds it (`sceneLightContracts.ts`), placed by its world matrix,
+ * A lamp as the engine's store holds it (`scene/light/contracts.ts`), placed by its world matrix,
  * or null for a kind the store does not hold or a light giving nothing. `range` is the page's
  * `distance`, or `reach` — what the world derives from its own extent — when the page left it
  * unbounded.
@@ -59,7 +59,7 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
 
 /**
  * Adds what `light` gives from every direction — its irradiance, a function of the normal alone —
- * to the nine coefficients `sh` (`sceneEnvironment.ts`): an ambient its colour times intensity
+ * to the nine coefficients `sh` (`scene/core/environment.ts`): an ambient its colour times intensity
  * everywhere; a sky over a ground (`hemisphere`) its colour on normals toward its position seen
  * from the origin and `groundColor` on the opposite ones; a probe its coefficients, or its colour
  * everywhere when it carries none. A lamp adds nothing here. Returns whether it added anything.

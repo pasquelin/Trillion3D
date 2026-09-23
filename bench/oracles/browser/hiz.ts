@@ -15,7 +15,7 @@ const viewProjScratch = new THREE.Matrix4(),
  *  `Float64Array` specifically, so the matrix elements are copied into one rather than shared. */
 const viewProjFlat = new Float64Array(16);
 const depthCam = { viewProjection: viewProjFlat };
-/** `hizDepth.ts:25-84` before batch A: three projections per pixel. */
+/** `packages/sdk-browser/src/hiz/depth.ts:25-84` before batch A: three projections per pixel. */
 export function referenceVisibilityDepth(
   ids: Uint32Array,
   pages: readonly (VisPage | undefined)[],
@@ -57,7 +57,7 @@ export function referenceVisibilityDepth(
   return depth;
 }
 
-/** `hizOcclusion.ts:37-81` before batch A: linear search of the level, from mip 0 to the last. */
+/** `packages/sdk-browser/src/hiz/occlusion.ts:37-81` before batch A: linear search of the level, from mip 0 to the last. */
 export function referenceHizTestRect(
   minX: number,
   minY: number,

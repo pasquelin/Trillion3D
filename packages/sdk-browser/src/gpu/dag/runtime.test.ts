@@ -1,7 +1,7 @@
 // A11: requested residency is stored as bits — one word for thirty-two clusters, which
 // is its own mirror — instead of a float per page reread through the cones; `maxStretch`
 // now receives a subarray instead of a recopied array. Oracle: the residency column
-// from before lot A, in `../../../../../bench/oracles/browser/residence.ts`.
+// from before lot A, in `../../../../../bench/oracles/browser/residency.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { maxStretch } from '../../../../sdk-core/src/index.ts';
@@ -10,7 +10,7 @@ import { residentWords } from './layout.ts';
 import {
   referenceUpdateResidency,
   residencyColumn,
-} from '../../../../../bench/oracles/browser/residence.ts';
+} from '../../../../../bench/oracles/browser/residency.ts';
 
 const STRIDE = 12,
   FLAG = 11;

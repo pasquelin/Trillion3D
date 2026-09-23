@@ -1,5 +1,5 @@
 /**
- * THE FITTED SPECULAR LOBE OF THE RECTANGLES, as data (`directRectLightWgsl.ts`).
+ * THE FITTED SPECULAR LOBE OF THE RECTANGLES, as data (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`).
  *
  * `fitLtcTable(LTC_SIZE, 24)` (`scripts/ltc-fit.ts`) fits the engine's own GGX lobe in 64 × 64 cells in
  * about two minutes; its result changes only when the lobe does, so it is fitted once and kept

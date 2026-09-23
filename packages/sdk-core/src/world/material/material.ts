@@ -48,7 +48,7 @@ export const MATERIAL_BOOKKEEPING: ReadonlySet<string> = new Set([
 
 /**
  * The matter alone: the parameters of one material kind. The engine lights every kind with its
- * one surface model (`materialContract.ts`); `surface()` is how a kind reads in that model. Any
+ * one surface model (`contracts/material.ts`); `surface()` is how a kind reads in that model. Any
  * write — a field, a colour, `needsUpdate` — reaches the meshes that wear it.
  */
 export class Material {
@@ -114,7 +114,7 @@ export class Material {
   get needsUpdate() {
     return false;
   }
-  /** The engine's physical surface record of this material (`materialContract.ts`). A kind
+  /** The engine's physical surface record of this material (`contracts/material.ts`). A kind
    *  outside the physical family is drawn through the host family of its name, which the engine
    *  maps onto its one lighting model (`surfaceModel.ts`). */
   surface(): EngineMaterial {

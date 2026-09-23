@@ -1,9 +1,9 @@
-// Options, harness views, and server mounts for `banc.ts`.
+// Options, harness views, and server mounts for `bench.ts`.
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { VIEWS } from './poses.ts';
 import { ASSETS } from './scene.ts';
-import { lightingSettings } from './optionsEclairage.ts';
+import { lightingSettings } from './lightingOptions.ts';
 import type { SideBase } from './dists.ts';
 import type { BenchSettings } from './benchSettings.ts';
 export type { BenchSettings } from './benchSettings.ts';
@@ -11,8 +11,8 @@ export type { BenchSettings } from './benchSettings.ts';
 export { PATH_VERSION, VIEWS, poseAt } from './poses.ts';
 export { applySceneFlag, assetsManifest, sceneGltf, sceneOf, scenesOf } from './scene.ts';
 export { resolveSides, sdkEntryUrl } from './dists.ts';
-export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './optionsCote.ts';
-import { ENGINES } from './optionsCote.ts';
+export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './sideOptions.ts';
+import { ENGINES } from './sideOptions.ts';
 
 /** An installed package directory, searched like Node searches: root upwards.
  *  A worktree without its own `node_modules` thus finds those of the main worktree. */
@@ -32,8 +32,8 @@ function packageDir(root: string, name: string) {
 export function resolveMounts(root: string, sides: SideBase[], resources: string | null = null) {
   return [
     { prefix: '/vendor/three/', dir: packageDir(root, 'three') },
-    // Modules imported by the page via URL: `pageCoupe.ts`, `pageTemoin.ts`.
-    { prefix: '/mesure/', dir: join(root, 'bench/runner') },
+    // Modules imported by the page via URL: `cutPage.ts`, `witnessPage.ts`.
+    { prefix: '/runner/', dir: join(root, 'bench/runner') },
     { prefix: '/vendor/meshoptimizer/', dir: packageDir(root, 'meshoptimizer') },
     { prefix: '/benchmark-assets/', dir: ASSETS },
     ...(resources ? [{ prefix: '/assets/', dir: resources }] : []),

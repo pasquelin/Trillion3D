@@ -35,7 +35,7 @@ export const hostSide = (side: Side): number =>
  * is, its opacity, its alpha cutoff, whether it is drawn blended, whether the host draws a
  * double-sided blended surface in one pass, and whether it is declared as one material per
  * geometry group. The cache's material
- * table declares none of them (`sceneTableContracts.ts`), so they are read here, at the same
+ * table declares none of them (`packages/sdk-core/src/scene/core/tableContracts.ts`), so they are read here, at the same
  * boundary as the side, and travel on inside the engine's own surface record (`../page/surface.ts`).
  * They are written INTO the record given: this runs per page row and per plan entry.
  */

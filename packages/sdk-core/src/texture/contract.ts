@@ -4,7 +4,7 @@
  * or a wrap word as this record and nothing else.
  *
  * The addressing and filtering words are the engine's enums, not a host library's integers: the
- * rules that read them (`visibilityWrapModes.ts`, `visibilityMath.ts`) compute on the name, and the
+ * rules that read them (`packages/sdk-browser/src/visibility/wrapModes.ts`, `packages/sdk-browser/src/visibility/math.ts`) compute on the name, and the
  * two graphics boundaries — the WebGL2 binder, the WebGPU tile pool — are the only places that turn
  * one back into an API constant.
  */

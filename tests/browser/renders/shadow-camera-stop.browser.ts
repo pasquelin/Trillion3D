@@ -8,10 +8,10 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { startServer, serverPort } from '../../kit/server/serveur.ts';
+import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { resolveMounts } from '../../../bench/runner/options.ts';
-import { ENGINES } from '../../../bench/runner/optionsCote.ts';
+import { ENGINES } from '../../../bench/runner/sideOptions.ts';
 import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/scene.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 
@@ -70,7 +70,7 @@ try {
         clearColor: 0x2a303c,
       });
       window.scene = scene;
-      // The bench sun (`bench/runner/lampes.ts`), with its shadow.
+      // The bench sun (`bench/runner/lamps.ts`), with its shadow.
       scene.addLight({
         id: 'sun',
         kind: 'directional',
@@ -117,7 +117,7 @@ try {
     },
     {
       sdkUrl: '/sdk/sdk-browser/measurement.js',
-      posesUrl: '/mesure/poses.ts',
+      posesUrl: '/runner/poses.ts',
       manifestUrl: assetsManifest(DEFAULT_SCENE, true),
       width: WIDTH,
       height: HEIGHT,

@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { launchChrome } from '../bench/runner/chrome.ts';
-import { startServer, serverPort } from '../tests/kit/server/serveur.ts';
+import { startServer, serverPort } from '../tests/kit/server/staticServer.ts';
 import { buildSite, SITE_OUTPUT } from './docs/site.ts';
 
 interface FossilProof {

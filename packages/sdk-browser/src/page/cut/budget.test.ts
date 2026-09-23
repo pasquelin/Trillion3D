@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createSelectionResult, selectVisiblePages } from '../selection/selection.ts';
-import { dag, racine, type DagPage } from '../../../../../bench/perf/browser/support/dagCoupe.ts';
+import { dag, racine, type DagPage } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 
 function camera() {

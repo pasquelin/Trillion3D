@@ -2,12 +2,12 @@
 // side: same operation order, same rounding on every product and every sum (`Math.fround`),
 // same guards. This is the MODEL — it says what the shader must compute, not what it computes.
 // What ties it to the actually executed text is measured elsewhere:
-// `tests/browser/renders/normal-transform-arithmetique.browser.ts` compares, case by case, this model
+// `tests/browser/renders/normal-transform-arithmetic.browser.ts` compares, case by case, this model
 // to the shipped shader's output in Chromium WebGPU. Without that measurement the model would
 // be only a second implementation, free to drift in silence.
 //
 // Written here rather than in a test: `normalTransform.test.ts` (lighting),
-// `gpuDagInverseTranspose.test.ts` (selection) and the browser proof all three read the same
+// `packages/sdk-browser/src/gpu/dag/inverseTranspose.test.ts` (selection) and the browser proof all three read the same
 // arithmetic, instead of each holding a copy.
 
 import { SINGULAR_DETERMINANT } from '../../../packages/sdk-core/src/math/matrix/singular.ts';

@@ -16,7 +16,7 @@
     "erasableSyntaxOnly": true,
     "baseUrl": ".",
     "paths": {
-      "/mesure/*": ["bench/runner/*"]
+      "/runner/*": ["bench/runner/*"]
     }
   },
   "include": [

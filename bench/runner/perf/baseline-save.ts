@@ -2,7 +2,7 @@
 // Drops `.mesure/perf/` fragments as this machine's reference baselines.
 // Launched by `pnpm run perf:baseline`, after a complete bench run.
 import { sauveBaseline } from '../../core/baseline.ts';
-import { lisFragments } from '../../core/rapport.ts';
+import { lisFragments } from '../../core/report.ts';
 
 const fragments = lisFragments();
 if (fragments.length === 0) {

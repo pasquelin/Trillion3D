@@ -11,7 +11,7 @@ interface SourceSeriesEntry {
   sides?: Record<string, SourceSideMeasurement>;
 }
 
-/** The shape bench/runner/serie.ts writes to each run's own measurement file; unlike report.json
+/** The shape bench/runner/series.ts writes to each run's own measurement file; unlike report.json
  * this is fetched raw and never runs through `assertReport`, so it is trusted, not validated. */
 interface SourceData {
   scene?: string;

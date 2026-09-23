@@ -17,7 +17,7 @@ import type {
 const viewProjScratch = new THREE.Matrix4(),
   projScratch = new THREE.Matrix4();
 const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
-/** `hizProjection.ts:65-92` before batch A: an `HizBounds` object allocated per box per frame. */
+/** `packages/sdk-browser/src/hiz/projection.ts:65-92` before batch A: an `HizBounds` object allocated per box per frame. */
 function referenceProjectBoxToScreen(
   min: readonly number[],
   max: readonly number[],
@@ -46,7 +46,7 @@ function referenceProjectBoxToScreen(
   return { minX: b[0], minY: b[1], maxX: b[2], maxY: b[3], nearestDepth: b[4], clipsNear: false };
 }
 
-/** `hizSplit.ts:70-91` before batch A: `.map` of objects, `.sort` by comparator, two `.filter`.
+/** `packages/sdk-browser/src/hiz/split.ts:70-91` before batch A: `.map` of objects, `.sort` by comparator, two `.filter`.
  *  Reversed depth: nearest carries GREATER depth, so order is descending. */
 export function referenceSplitOccluders<T extends HizPage>(
   pages: T[],
@@ -68,7 +68,7 @@ export function referenceSplitOccluders<T extends HizPage>(
   };
 }
 
-/** `hizOcclusion.ts:152-178` before batch A: un-cached projection, allocation per page. */
+/** `packages/sdk-browser/src/hiz/occlusion.ts:152-178` before batch A: un-cached projection, allocation per page. */
 export function referenceCountUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
   pyramid: HizPyramid,

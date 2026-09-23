@@ -1,6 +1,6 @@
-// Shared shapes of the harness measurement: what `serie.ts` builds, `banc.ts` assembles into
-// `mesure.json`, and everything under `bench/runner/` (`rapport.ts`, `rapportCalcul.ts`,
-// `rapportMemoire.ts`, `rapportTextures.ts`, `report/`) reads back. One record type here, typed
+// Shared shapes of the harness measurement: what `series.ts` builds, `bench.ts` assembles into
+// `mesure.json`, and everything under `bench/runner/` (`summary.ts`, `summaryCompute.ts`,
+// `summaryMemory.ts`, `summaryTextures.ts`, `report/`) reads back. One record type here, typed
 // once from the engine contracts, rather than cast at every reader.
 import type {
   CameraPose,
@@ -8,12 +8,12 @@ import type {
   StageProfile,
 } from '../../../packages/sdk-core/src/index.ts';
 import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/index.ts';
-import type { Distribution, PassesGpu } from '../rapportPasses.ts';
+import type { Distribution, PassesGpu } from '../summaryPasses.ts';
 import type { BenchSettings } from '../options.ts';
 import type { Bounds } from '../poses.ts';
-import type { LightsPlan } from '../lampes.ts';
+import type { LightsPlan } from '../lamps.ts';
 
-/** What `banc.ts` builds before playing series, and `serie.ts` reads to run one. */
+/** What `bench.ts` builds before playing series, and `series.ts` reads to run one. */
 export interface RunContext {
   MANIFEST: string | null;
   OUT: string;
@@ -23,7 +23,7 @@ export interface RunContext {
   bounds?: Bounds;
 }
 
-/** The selected cut of a series, read inside the page (`pageCoupe.ts`). */
+/** The selected cut of a series, read inside the page (`cutPage.ts`). */
 export interface Coupe {
   source: string | null;
   ids: string[];
@@ -40,7 +40,7 @@ interface HiZCounters {
   image: number | null;
 }
 
-/** The page budget as the last frame saw it (`serieReservoirs.ts`). */
+/** The page budget as the last frame saw it (`seriesPools.ts`). */
 export interface BudgetPages {
   demande: number | null;
   residentes: number | null;
@@ -48,7 +48,7 @@ export interface BudgetPages {
   seuilBudget: number | null;
 }
 
-/** The geometry pool as the engine held it (`serieReservoirs.ts`). */
+/** The geometry pool as the engine held it (`seriesPools.ts`). */
 export interface PoolGeometrie {
   octets: number | null;
   fentes: number | null;
@@ -74,7 +74,7 @@ type ErreurPage =
   | { kind: 'console'; message: string }
   | { kind: 'cut-analysis'; message: string };
 
-/** A generic-rule light placement summary (`lampes.ts`), for `mesure.json` and `resume.md`. */
+/** A generic-rule light placement summary (`lamps.ts`), for `mesure.json` and `resume.md`. */
 export interface LightsSummary {
   nombre: number;
   ponctuelles: number;
@@ -86,11 +86,11 @@ export interface LightsSummary {
   mobile: boolean;
 }
 
-/** Delta between two RGBA captures (`rapport.ts::imageDiff`). */
+/** Delta between two RGBA captures (`summary.ts::imageDiff`). */
 export type ImageDiff =
   null | { erreur: string } | { pixels: number; maxCanal: number; total: number };
 
-/** One row of the series table: one side, one view, one threshold (`serie.ts::runSerie`). */
+/** One row of the series table: one side, one view, one threshold (`series.ts::runSerie`). */
 export interface Row {
   cpuFrameMs: Distribution;
   cpuSelectMs: Distribution;
@@ -161,7 +161,7 @@ interface SideIdentity {
   buildHash?: string;
 }
 
-/** The whole harness report: `mesure.json`, built by `banc.ts` and read by `rapport.ts`. */
+/** The whole harness report: `mesure.json`, built by `bench.ts` and read by `summary.ts`. */
 export interface Report {
   startedAt: string;
   provenance: { machine: unknown; browser: unknown; displayCapHz: number | null };

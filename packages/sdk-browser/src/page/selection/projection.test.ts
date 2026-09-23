@@ -1,5 +1,5 @@
 // Lot 4c: the zero-threshold paths decide without projecting, and the shared distance does not
-// change a bit. Oracle: the general path from before the lot, copied into `../../../../../bench/oracles/browser/coupe-budget.ts`.
+// change a bit. Oracle: the general path from before the lot, copied into `../../../../../bench/oracles/browser/cut-budget.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -19,7 +19,7 @@ import {
   referenceErrorFloorPixels,
   referenceProjectCentre,
   referenceProjectedClusterError,
-} from '../../../../../bench/oracles/browser/coupe-budget.ts';
+} from '../../../../../bench/oracles/browser/cut-budget.ts';
 
 const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.25, 500);
 camera.position.set(3, 2, 9);

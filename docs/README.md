@@ -4,7 +4,7 @@
 
 [Create a world](SDK.md#create-a-world): `createWorld(canvasOrId)` owns the scene, the camera, the renderer and the loop; every family a page writes with is listed in [SDK.md#families](SDK.md#families).
 
-This folder is the repository documentation only. The learning portal lives under `site/`, one TypeScript folder organised by role, and is published from the tree `pnpm build:docs` writes into `dist/site/` (see [LEARNING_PORTAL.md](LEARNING_PORTAL.md)): `index.html` is the portal (guides, constants and enums, every public function, the live WebGPU demo, the measurement reports staged by `node bench/runner/publierRapport.ts`); the demos run the engine's own kernels, bundled into `js/engine.js` at build time.
+This folder is the repository documentation only. The learning portal lives under `site/`, one TypeScript folder organised by role, and is published from the tree `pnpm build:docs` writes into `dist/site/` (see [LEARNING_PORTAL.md](LEARNING_PORTAL.md)): `index.html` is the portal (guides, constants and enums, every public function, the live WebGPU demo, the measurement reports staged by `node bench/runner/publishReport.ts`); the demos run the engine's own kernels, bundled into `js/engine.js` at build time.
 
 The delivered SDK is described by the [SDK guide](SDK.md), [package architecture](../packages/README.md), [native compiler](COMPILER.md), and [cache format](FORMAT.md). Anything not listed here is not part of the release.
 

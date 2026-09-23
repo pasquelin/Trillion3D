@@ -5,7 +5,7 @@ import {
   previewLevelSize,
 } from '../../../packages/sdk-core/src/texture/previewLevels.ts';
 
-/** `texturePreviewLevels.ts`: each number restarted from the dimensions, without a shared bound. */
+/** `packages/sdk-core/src/texture/previewLevels.ts`: each number restarted from the dimensions, without a shared bound. */
 function referencePreviewPixelBytes(width: number, height: number) {
   let bytes = 0;
   const last = previewLastLevel(width, height);

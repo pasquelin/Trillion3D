@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
 import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
-import type { Capture } from '../../tests/kit/server/serveur.ts';
+import type { Capture } from '../../tests/kit/server/staticServer.ts';
 
 /** Compiler oracle binary, built by `pnpm run build:oracle`: a measurement tool, not the compiler. */
 const ORACLE_BIN = 'packages/asset-compiler-rust/target/release/web-geometry-oracle';

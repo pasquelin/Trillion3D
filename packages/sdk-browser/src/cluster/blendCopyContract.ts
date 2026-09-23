@@ -26,7 +26,7 @@ export type BlendCopy = {
   /** What the engine reads of the surface: its own record, never the host declaration. A witness
    *  copy is a host mesh and still carries that declaration for the renderer that draws it, but the
    *  contract does not hand it out — `blendCopyMesh.ts` is where it is set, and `PageRec.declaration`
-   *  is the one field the closed list of `tests/integration/moteur-sans-three.test.ts` governs. */
+   *  is the one field the closed list of `tests/integration/engine-without-three.test.ts` governs. */
   readonly surface: PageSurface;
   readonly matrix: MatrixElements;
   /** The row of an instance buffer the copy is posed by, when its mesh is placed by rows: one

@@ -1,4 +1,4 @@
-// `normalMatrix3` (`mathMatrix3.ts`) replaces `Matrix3.getNormalMatrix`: `coneContextFor`
+// `normalMatrix3` (`packages/sdk-core/src/math/matrix/matrix3.ts`) replaces `Matrix3.getNormalMatrix`: `coneContextFor`
 // (`cone.ts`) used to hold the matrix twice, once by Three, now once by the base. Two
 // levels: the function alone, on hostile 3×3s (shear, non-conformal, NaN, ±0) where Three stays
 // the reference even if `coneContextFor` rejects them; then the real site, under a negative
@@ -33,8 +33,8 @@ for (const [i, m] of CAS_HOSTILES.entries()) {
 
 test("normalMatrix3: on a non-finite 3×3, the engine convention replaces Three's", () => {
   // Parity with Three holds on REGULAR matrices, and it stops there: the engine has its own
-  // convention for singular matrices (the adjugate, `mathMatrix3.ts`) and for non-finite scales
-  // (nine zeros, the rule of `mathSingular.ts`, that of the WGSL kernel). Three, on this NaN
+  // convention for singular matrices (the adjugate, `packages/sdk-core/src/math/matrix/matrix3.ts`) and for non-finite scales
+  // (nine zeros, the rule of `packages/sdk-core/src/math/matrix/singular.ts`, that of the WGSL kernel). Three, on this NaN
   // mixed with ±0, used to propagate NaNs into the nine terms — therefore into the cone axis,
   // then into lighting. This test holds the gap, rather than let parity one day take it back.
   const m = new THREE.Matrix4().set(NaN, 0, 0, 0, 0, -0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);

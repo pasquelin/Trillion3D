@@ -7,7 +7,7 @@ import {
   preuveDansLaPage,
   preuveSaine,
   type ResultatPagePreuve,
-} from '../support/preuvePageMoteur.ts';
+} from '../support/enginePageProof.ts';
 
 interface Resultat extends ResultatPagePreuve {
   before: number[];

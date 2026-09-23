@@ -21,7 +21,7 @@ export interface LightParameters {
   /** Radius of the emitting sphere of a point or spot light: its soft shadow's size. */
   radius?: number;
   /** A probe's irradiance: 27 numbers, nine RGB spherical-harmonic coefficients in the band
-   *  order of `sceneEnvironment.ts`, scaled by `intensity`. Absent, the probe is uniform. */
+   *  order of `scene/core/environment.ts`, scaled by `intensity`. Absent, the probe is uniform. */
   sh?: ArrayLike<number>;
 }
 

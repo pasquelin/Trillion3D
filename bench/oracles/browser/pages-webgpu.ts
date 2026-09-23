@@ -2,7 +2,7 @@
 // reference.
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
-/** `webgpuPagesPipelineFor.ts:22-30` before batch A: one 3×3 determinant per call. */
+/** `packages/sdk-browser/src/webgpu/pages/prepare/pipelineFor.ts:22-30` before batch A: one 3×3 determinant per call. */
 export function referenceWindingCw(rec: PageRec) {
   const e = rec.matrix.elements;
   return (

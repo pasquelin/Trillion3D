@@ -9,7 +9,7 @@ import {
   referenceExactPagesBounds,
   referenceIndexManifestPages,
   referenceIndexManifestBundles,
-} from '../../../../../bench/oracles/browser/bornes-et-index.ts';
+} from '../../../../../bench/oracles/browser/bounds-and-index.ts';
 import type { ClusterManifest, Page, Primitive } from '../../../../sdk-core/src/index.ts';
 
 // Batch F, F17: three manifest reads go from a `find` or `flatMap` per mesh/page to a single indexed

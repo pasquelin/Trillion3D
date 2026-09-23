@@ -10,7 +10,7 @@
  * for the raster ones); downstream no file of the engine path names a host material again.
  *
  * Its shaded fields are exactly the ones the cache's material table declares (#287,
- * `sceneTableContracts.ts`), and `checkPreparedScene` already proves the two equal field by field
+ * `packages/sdk-core/src/scene/core/tableContracts.ts`), and `checkPreparedScene` already proves the two equal field by field
  * at load. Filling the record FROM that table instead of from the host declaration is what
  * removing the loader asks for (#78, part 4c), and it waits on the texture images the loader
  * alone decodes today: a table slot names a glTF rank, and the loader folds several ranks into
@@ -20,7 +20,7 @@
  * one surface shares a single record and comparing two surfaces is comparing two references. The
  * host declaration itself stays reachable where a host boundary needs to hand it back to the
  * library that owns it — `PageRec.declaration` — and the closed list of
- * `tests/integration/moteur-sans-three.test.ts` says who may read that field.
+ * `tests/integration/engine-without-three.test.ts` says who may read that field.
  */
 import type { Side } from '../../../sdk-core/src/index.ts';
 import type { HostMaterials } from '../host/resources.ts';

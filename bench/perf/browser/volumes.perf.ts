@@ -1,7 +1,7 @@
 // Volume bench: sdk-core against Three.js.
 import { stress, rapport } from '../../core/index.ts';
-import { casBoites } from './support/volumesCasBoites.ts';
-import { casTronc } from './support/volumesCasTronc.ts';
+import { casBoites } from './support/volumeBoxCases.ts';
+import { casTronc } from './support/volumeFrustumCases.ts';
 import { boxEmpty } from '../../../packages/sdk-core/src/index.ts';
 
 const options = { chauffe: 1, tours: 10, budgetMs: 500 };

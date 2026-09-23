@@ -1,7 +1,7 @@
 // Lot 4c: at threshold zero, a node's decision is taken on the bounds alone, without projecting.
 // It matches the general path only under the invariant `cullingBounds` maintains — a finite
 // strictly positive bound always comes from a cluster that had its sphere — and the second
-// test proves that. Oracle: `nodeDecision` from before the lot, in `../../../../../bench/oracles/browser/coupe-budget.ts`.
+// test proves that. Oracle: `nodeDecision` from before the lot, in `../../../../../bench/oracles/browser/cut-budget.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -16,7 +16,7 @@ import {
   cullingBounds,
 } from './bounds.ts';
 import type { PageRecord, SelectionState } from './state.ts';
-import { referenceNodeDecision } from '../../../../../bench/oracles/browser/coupe-budget.ts';
+import { referenceNodeDecision } from '../../../../../bench/oracles/browser/cut-budget.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 
 const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.25, 500);

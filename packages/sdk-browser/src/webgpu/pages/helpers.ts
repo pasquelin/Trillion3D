@@ -33,7 +33,7 @@ export function outputColorDiagnostic(
 }
 
 /** Base colour of a declaration through the transfer curve, for the fallback draw's uniform.
- *  The curve is the repository's (`mathColor.ts`), whose gap to the host library's rounded
+ *  The curve is the repository's (`packages/sdk-core/src/math/primitives/color.ts`), whose gap to the host library's rounded
  *  constants is measured and declared (#72); no beauty pass reads this path. */
 export function linearColor(surface: VisMaterial): [number, number, number] {
   const base = surface.baseColor;

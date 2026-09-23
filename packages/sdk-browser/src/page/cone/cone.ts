@@ -22,8 +22,8 @@ const loneContext = createConeContext();
  * length and be orthogonal to 1e-4 in relative terms. Zero absolute tolerance: tiny scale
  * accepts no more deformation than unit scale. Zero, infinite, NaN 3×3 matrix, or zero column,
  * is non-conformal: cluster is retained.
- *  CPU mirror of `isConformal` (../../gpu/dag/shader/shader.ts): same normalization, same tolerances (`mathCone.ts`).
- *  Scale comes from `linearPartScale` (`mathSingular.ts`), same sum singularity rule uses:
+ *  CPU mirror of `isConformal` (../../gpu/dag/shader/shader.ts): same normalization, same tolerances (`packages/sdk-core/src/math/primitives/cone.ts`).
+ *  Scale comes from `linearPartScale` (`packages/sdk-core/src/math/matrix/singular.ts`), same sum singularity rule uses:
  *  same 9 terms, same order, so exact same bits as before.
  */
 function isConformal(e: ArrayLike<number>) {
@@ -105,7 +105,7 @@ export function coneContextFor(into: ConeContext, world: MatrixElements, eye: Ar
 }
 
 /** Cluster cone culling, root context already initialized.
- *  CPU mirror of `coneRejectsBox` (../../gpu/dag/shader/shader.ts): same tolerances (`mathCone.ts`), same
+ *  CPU mirror of `coneRejectsBox` (../../gpu/dag/shader/shader.ts): same tolerances (`packages/sdk-core/src/math/primitives/cone.ts`), same
  *  operands, two languages — text is unshared, rule is shared. */
 export function coneCullsPageWith(
   ctx: ConeContext,

@@ -5,7 +5,7 @@ import { createWebgpuRunState } from '../state/run.ts';
 import { createWebgpuVisState } from '../state/vis.ts';
 import { createWebgpuBlendState } from '../../blend/state.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
-import { referenceVertexBytes } from '../../../../../../bench/oracles/browser/metriques-octets.ts';
+import { referenceVertexBytes } from '../../../../../../bench/oracles/browser/byte-metrics.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuGpuState } from '../state/gpu.ts';
 
@@ -58,7 +58,7 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
 // G4: `vertexBytesOf` reads a total held at allocation (`gpu.vertexBytes`, incremented by
 // `ensureWebgpuPositionBuffer` and `prepareWebgpuBlend`) instead of resuming, every sample, every
 // resident position buffer and every transparent mesh. Oracle: the full resummation from before lot
-// G, copied as-is into `../../../../../../bench/oracles/browser/metriques-octets.ts`.
+// G, copied as-is into `../../../../../../bench/oracles/browser/byte-metrics.ts`.
 {
   function buffer(size: number) {
     return { size } as unknown as GPUBuffer;

@@ -29,7 +29,7 @@ const load = (into: Float64Array, v: XYZ) => {
 
 /**
  * A point or a direction in three dimensions, chainable. The numbers live in `elements`, which
- * the core functions of `mathVector.ts` read and write; every write tells the owner.
+ * the core functions of `math/primitives/vector.ts` read and write; every write tells the owner.
  */
 export class Vector3 extends ObservedComponents {
   readonly isVector3 = true as const;

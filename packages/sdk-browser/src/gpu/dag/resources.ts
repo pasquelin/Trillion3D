@@ -22,7 +22,7 @@ export async function createDagResources(
   // The compacted drawable-page list extends the snapshot: a header, then the ranks. One
   // contiguous copy reports both. Each is bounded by the CEILING and not by the catalogue: that
   // is what the frame copies and maps, and the worst case never happens (`layout.ts`,
-  // measured by `tests/browser/probes/releve-coupe-gpu.ts`).
+  // measured by `tests/browser/probes/cut-snapshot-gpu.ts`).
   const listCap = selectionListCap(pageCount),
     headBytes = SELECTION_HEADER_WORDS * 4,
     outputBytes = headBytes + listCap * 4,

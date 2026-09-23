@@ -6,7 +6,7 @@
 // This module is SERVED to the harness page and imported by its URL: the materials are built
 // in the page, with the `three` of its import map, the one the SDK under `dist/` also loads.
 import * as THREE from 'three';
-import { VIEWPORT } from './preuveSceneCommune.ts';
+import { VIEWPORT } from './sharedSceneProof.ts';
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
 
 /** Side of the square viewport every fixture is rendered in, in pixels: `rgbAt` reads both

@@ -153,10 +153,10 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 Nothing is optimised before it is measured, and no claim outlives its measurement.
 
 ```sh
-node bench/runner/banc.ts --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
+node bench/runner/bench.ts --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
      --vues generale,sol,rue --images 60 --pixelError 0,1
-node bench/runner/campagne.ts        # the whole campaign
-node bench/runner/rapportGlobal.ts   # one HTML report
+node bench/runner/campaign.ts        # the whole campaign
+node bench/runner/summaryGlobal.ts   # one HTML report
 ```
 
 - One harness for every lot: Playwright drives the machine's Chrome, nothing else is needed on

@@ -13,7 +13,7 @@ export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>, he
 /**
  * In both directions: HOST matrix copied into owned buffer, or core result set
  * into HOST matrix. Core only computes in `Float64Array` — single buffer type for
- * product and inverse (`mathMatrix4.ts`) — and host library matrices are plain arrays:
+ * product and inverse (`packages/sdk-core/src/math/matrix/matrix4.ts`) — and host library matrices are plain arrays:
  * result destined for host is composed separately then copied here.
  */
 export function copyElements(into: { [index: number]: number }, from: ArrayLike<number>) {

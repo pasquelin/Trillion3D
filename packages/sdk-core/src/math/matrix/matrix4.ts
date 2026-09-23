@@ -2,7 +2,7 @@
  * 4×4 matrices of the math kernel: free functions on column-major arrays (`m[column ·
  * 4 + row]`), output passed in, no allocation. Product and inverse follow term
  * by term the formulas of the reference 3D library, in the same floating-point
- * operation order: a replaced call yields the same bits. `bench/perf/browser/socle-math.perf.ts`
+ * operation order: a replaced call yields the same bits. `bench/perf/browser/core-math.perf.ts`
  * proves it, and quantifies the gap where a formula in this repo differs from the reference.
  */
 

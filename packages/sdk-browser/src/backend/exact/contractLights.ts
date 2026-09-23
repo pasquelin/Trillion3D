@@ -36,7 +36,7 @@ function createContractLights(display: HostDrawScene, store: SceneLightStore | u
   group.visible = false;
   scene.add(group);
   const ambient = new THREE.AmbientLight(0xffffff, UNLIT_IRRADIANCE);
-  // The environment's irradiance (`sceneEnvironment.ts`): the host's probe reads the same nine
+  // The environment's irradiance (`packages/sdk-core/src/scene/core/environment.ts`): the host's probe reads the same nine
   // coefficients, in the same band order, with the same cosine-lobe factors.
   const probe = new THREE.LightProbe();
   ambient.visible = probe.visible = false;

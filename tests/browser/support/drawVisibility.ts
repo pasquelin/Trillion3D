@@ -1,7 +1,7 @@
 import type { ComputeSetup } from './drawCompute.ts';
 import type { AtlasBindings } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
 
-/** Binding numbers the WGSL interpolates from `VIS_BINDINGS` (`webgpuBindLayout.ts`). */
+/** Binding numbers the WGSL interpolates from `VIS_BINDINGS` (`packages/sdk-browser/src/webgpu/core/bindLayout.ts`). */
 export interface VisBindings {
   cache: number;
   position: number;
@@ -85,7 +85,7 @@ export function setupVisibility(
   });
   const mapsView = maps.createView({ dimension: '2d-array' }),
     sampler = device.createSampler();
-  // The numbers are not copied: they come from `VIS_BINDINGS` (`webgpuBindLayout.ts`), the source
+  // The numbers are not copied: they come from `VIS_BINDINGS` (`packages/sdk-browser/src/webgpu/core/bindLayout.ts`), the source
   // the WGSL already interpolates. One more atlas binding shifts all three sides together —
   // that shift, missed here alone, is what made this proof fail on the page table. The shape is
   // read the same way: `AtlasBindings` carries one pool per lane, so a lane added to the atlas

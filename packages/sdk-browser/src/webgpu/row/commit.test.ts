@@ -15,7 +15,7 @@ import { createWebgpuRowCommit } from './commit.ts';
 import {
   referenceRowCommit,
   referenceRowState,
-} from '../../../../../bench/oracles/browser/lignes-dessinables.ts';
+} from '../../../../../bench/oracles/browser/drawable-rows.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import {
   catalogue,

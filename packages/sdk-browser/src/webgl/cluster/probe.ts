@@ -5,7 +5,7 @@ import {
 
 /**
  * THE ENVIRONMENT IRRADIANCE ON THE WEBGL2 PATH: a host light probe's nine coefficients, read as
- * the WebGPU resolve reads the scene environment (`sceneEnvironment.ts`, `environmentLighting`)
+ * the WebGPU resolve reads the scene environment (`packages/sdk-core/src/scene/core/environment.ts`, `environmentLighting`)
  * — same band order, same cosine-lobe factors, a world-space normal, a clamp at zero. A probe
  * takes no light slot: every visible one adds into the same nine coefficients, scaled by its
  * intensity, and the program evaluates them once per pixel.

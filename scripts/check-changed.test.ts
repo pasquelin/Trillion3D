@@ -18,12 +18,12 @@ test('selects tests through transitive imports and does not select unrelated sui
 test('includes a changed test even when it has no source imports', () => {
   const files = new Map([
     [
-      'tests/integration/contrat-public.test.ts',
+      'tests/integration/public-contract.test.ts',
       "import test from 'node:test'; test('ok',()=>{});",
     ],
   ]);
-  assert.deepEqual(relatedTests(files, new Set(['tests/integration/contrat-public.test.ts'])), [
-    'tests/integration/contrat-public.test.ts',
+  assert.deepEqual(relatedTests(files, new Set(['tests/integration/public-contract.test.ts'])), [
+    'tests/integration/public-contract.test.ts',
   ]);
 });
 

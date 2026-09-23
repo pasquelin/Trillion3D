@@ -16,7 +16,7 @@ export interface SceneLink {
   content(node: Object3D): void;
 }
 
-/** The one transform hierarchy every scene object is a node of (`sceneNode.ts`): a node made
+/** The one transform hierarchy every scene object is a node of (`scene/core/node.ts`): a node made
  *  on its own is a detached root of it, and `add` reparents it there. */
 const space = createSceneRoot({ id: 'world-objects' });
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */

@@ -8,7 +8,7 @@
 // as it stands": it keeps describing the other cluster while the table gives it as P.
 //
 // No differential comparison can say it: the oracle from before lot F carries the same function
-// word for word (`../../../../../bench/oracles/browser/lignes-dessinables.ts`), so both sides would be wrong together.
+// word for word (`../../../../../bench/oracles/browser/drawable-rows.ts`), so both sides would be wrong together.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_INFO_STRIDE } from '../../visibility/types.ts';

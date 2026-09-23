@@ -1,7 +1,7 @@
 // G8: `sunCascadeOf` only remakes cascade bounds (`sunCascadeSplits`, four `Math.pow`)
 // if the view or the split have changed since the last call, instead of remaking them on every face.
 // Oracle: the version from before batch G, which always remade them, copied as-is into
-// `../../../../../bench/oracles/core/soleil-cascades.ts`.
+// `../../../../../bench/oracles/core/sun-cascades.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sunCascadeOf } from './sunCascades.ts';
@@ -9,7 +9,7 @@ import { faceFrame } from './math.ts';
 import { pageRowsOf } from './pages.ts';
 import { SHADOW_FACE_SIDES } from './atlas.ts';
 import { dotVector3 } from '../../math/primitives/vector.ts';
-import { referenceSunCascadeOf } from '../../../../../bench/oracles/core/soleil-cascades.ts';
+import { referenceSunCascadeOf } from '../../../../../bench/oracles/core/sun-cascades.ts';
 import type { ShadowViewpoint } from '../light/contracts.ts';
 
 function view(overrides: Partial<ShadowViewpoint> = {}): ShadowViewpoint {

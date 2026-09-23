@@ -18,9 +18,9 @@ export {
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;
- * `tests/integration/structure-moteur.test.ts` forbids any other module from resolving it or
+ * `tests/integration/engine-structure.test.ts` forbids any other module from resolving it or
  * reading a camera's local pose, and names the consumers allowed to read the resolved pose.
- * It is also where the host camera is named BY SHAPE, once: `tests/integration/moteur-sans-three.test.ts`
+ * It is also where the host camera is named BY SHAPE, once: `tests/integration/engine-without-three.test.ts`
  * holds that nobody else turns one into an engine camera.
  *
  * THE FACT. The engine does not own the camera: the host hands it over every frame, and it
