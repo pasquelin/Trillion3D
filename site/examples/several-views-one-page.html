@@ -57,10 +57,10 @@
     </style>
   </head>
   <body>
-    <div class="pane main"><canvas id="view"></canvas><p class="label">Perspective</p></div>
-    <div class="pane"><canvas id="top"></canvas><p class="label">Top</p></div>
-    <div class="pane"><canvas id="front"></canvas><p class="label">Front</p></div>
-    <div class="pane"><canvas id="side"></canvas><p class="label">Side, from the east</p></div>
+    <div class="pane main"><canvas id="view"></canvas><p class="label" data-words="perspective"></p></div>
+    <div class="pane"><canvas id="top"></canvas><p class="label" data-words="top"></p></div>
+    <div class="pane"><canvas id="front"></canvas><p class="label" data-words="front"></p></div>
+    <div class="pane"><canvas id="side"></canvas><p class="label" data-words="side"></p></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, camera } from '../runtime/engine.js';
       import { controls, readout } from '../runtime/kit.js';
@@ -229,7 +229,7 @@
         rpm?.(turnsAMinute());
         for (const world of worlds) world.invalidate();
       }, worlds[0]);
-      rpm = readout('Sail turns a minute');
+      rpm = readout('sailTurnsMinute');
       rpm(turnsAMinute());
     </script>
   </body>

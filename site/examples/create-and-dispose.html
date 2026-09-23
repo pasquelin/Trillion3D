@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, readout, seeded, words, language } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#26324a');
@@ -193,9 +194,9 @@
       const ui = controls({
         mouse: 'Drag to walk around the fountain · scroll to come closer',
         perSecond: [0, 60, 30, 1],
-        copies: ['share the shapes', 'new shape each time'],
+        copies: ['share', 'fresh'],
         burst: () => {
-          for (let k = 0; k < 60; k++) launch(ui.copies !== 'share the shapes');
+          for (let k = 0; k < 60; k++) launch(ui.copies === 'fresh');
           world.invalidate();
         },
         clearAll: () => {
@@ -203,8 +204,8 @@
           world.invalidate();
         },
       }, world);
-      const alive = readout('Pieces alive'), made = readout('Created'), gone = readout('Disposed');
-      const memory = readout('GPU memory');
+      const alive = readout('piecesAlive'), made = readout('created'), gone = readout('disposed');
+      const memory = readout('gpuMemory');
 
       // The camera circles slowly until the first press or wheel on the canvas.
       let circling = true;
@@ -215,7 +216,7 @@
       let owed = 0, clock = 0, shown = 0;
       world.onFrame(({ delta, metrics }) => {
         const step = Math.min(delta, 0.05);
-        const fresh = ui.copies !== 'share the shapes';
+        const fresh = ui.copies === 'fresh';
         owed += step * ui.perSecond;
         for (; owed >= 1; owed--) launch(fresh);
         for (let i = live.length - 1; i >= 0; i--) {
@@ -233,9 +234,9 @@
         if (clock - shown > 0.25) {
           shown = clock;
           alive(String(live.length));
-          made(created.toLocaleString('en'));
-          gone(disposed.toLocaleString('en'));
-          memory(metrics.vramBytes == null ? 'not measured' : `${(metrics.vramBytes / 2 ** 20).toFixed(1)} MiB`);
+          made(created.toLocaleString(language()));
+          gone(disposed.toLocaleString(language()));
+          memory(metrics.vramBytes == null ? say('notMeasured') : `${(metrics.vramBytes / 2 ** 20).toFixed(1)} MiB`);
         }
         world.invalidate();
       });

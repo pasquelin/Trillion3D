@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, readout, seeded, language } from '../runtime/kit.js';
 
       // One small crystal shape and twelve colours, from the core's to the rim's. Twelve
       // thousand placements of that one shape share its geometry: the engine draws every
@@ -82,12 +82,12 @@
             star.mesh.position.set(Math.cos(angle) * r, star.height * (1.2 - star.reach), Math.sin(angle) * r);
           }
         if (key === undefined || key === 'count') stars.forEach((star, index) => (star.mesh.visible = index < values.count));
-        shown?.(values.count.toLocaleString('en'));
+        shown?.(values.count.toLocaleString(language()));
         world.invalidate();
       }, world);
-      shown = readout('Placements drawn');
-      shown(ui.count.toLocaleString('en'));
-      readout('Materials')(String(BANDS));
+      shown = readout('placementsDrawn');
+      shown(ui.count.toLocaleString(language()));
+      readout('materials')(String(BANDS));
 
       let time = 0;
       world.onFrame(({ delta }) => {

@@ -40,10 +40,11 @@
   <body>
     <canvas id="view"></canvas>
     <canvas id="graph" width="600" height="220"></canvas>
-    <p>Fourteen surfaces, each a different material or setting, all shown on the same frame. The graph plots the time between frames; the gold line is the moment they appear.</p>
+    <p data-words="note"></p>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#1d2230');
@@ -121,7 +122,7 @@
           world.invalidate();
         },
       });
-      const before = readout('Worst frame before'), after = readout('Worst frame after');
+      const before = readout('worstFrameBefore'), after = readout('worstFrameAfter');
 
       // The time between frames, a bar per frame, the last few seconds; the world is asked for
       // a frame every frame, so a hitch is a tall bar and never a pause of the loop.
@@ -175,8 +176,8 @@
           world.controls.update();
         }
         if (frameIndex % 15 === 0) {
-          before(worstBefore ? `${worstBefore.toFixed(1)} ms` : 'measuring');
-          after(revealedAt < 0 ? 'hidden' : worstAfter ? `${worstAfter.toFixed(1)} ms` : 'measuring');
+          before(worstBefore ? `${worstBefore.toFixed(1)} ms` : say('measuring'));
+          after(revealedAt < 0 ? say('hidden') : worstAfter ? `${worstAfter.toFixed(1)} ms` : say('measuring'));
           plot();
         }
         world.invalidate();

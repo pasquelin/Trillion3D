@@ -1,0 +1,1829 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "सेटिंग्स"
+    },
+    "menu": {
+      "play": "खेलो",
+      "resume": "जारी रखो",
+      "restart": "फिर से शुरू करो",
+      "controls": "सेटिंग्स",
+      "back": "वापस",
+      "paused": "रुका हुआ",
+      "again": "जारी रखने के लिए फिर से क्लिक करो"
+    },
+    "keys": {
+      "Mouse": "माउस",
+      "Right button": "दायाँ बटन",
+      "Wheel": "व्हील",
+      "Shift": "Shift",
+      "Space": "स्पेस",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "fps": "फ़्रेम/से",
+      "fpsHeld": "फ़्रेम/से (रुका)",
+      "triangles": "त्रिभुज",
+      "sceneTriangles": "त्रिभुज (दृश्य)",
+      "drawCalls": "ड्रॉ कॉल",
+      "pages": "पेज",
+      "geometryPool": "ज्यामिति भंडार",
+      "lights": "रोशनियाँ",
+      "gpuFrame": "GPU फ़्रेम",
+      "cpuFrame": "CPU फ़्रेम",
+      "pageHooks": "पेज का कोड",
+      "engineCpu": "इंजन CPU"
+    }
+  },
+  "a-city-from-rules": {
+    "controls": {
+      "mouse": "चारों ओर उड़ने के लिए खींचो; हर सेटिंग शहर को उसके नियमों से फिर से बनाती है",
+      "blocks": "ब्लॉक",
+      "maxHeight": "अधिकतम ऊँचाई",
+      "density": "घनत्व",
+      "parks": "पार्क",
+      "seed": "बीज",
+      "hour": "समय",
+      "traffic": "ट्रैफ़िक"
+    },
+    "readouts": {
+      "buildings": "इमारतें",
+      "parks": "पार्क"
+    }
+  },
+  "a-cloud-of-points": {
+    "controls": {
+      "mouse": "बादल के चारों ओर घूमने के लिए खींचो; दूसरा आकार चुनो, पुराना लिपटकर चला जाता है और नया खुल जाता है",
+      "shape": "आकार",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "सर्पिल आकाशगंगा",
+        "globular cluster": "गोलाकार तारागुच्छ",
+        "ring nebula": "वलय नीहारिका",
+        "Lorenz attractor": "लॉरेंज़ आकर्षक"
+      }
+    },
+    "readouts": {
+      "points": "बिंदु",
+      "colourGroups": "रंग समूह"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "controls": {
+      "colour": "रंग",
+      "glow": "चमक",
+      "exposure": "एक्सपोज़र"
+    }
+  },
+  "a-field-of-pebbles": {
+    "controls": {
+      "sunTurn": "सूरज की दिशा",
+      "sunHeight": "सूरज की ऊँचाई",
+      "first": "पहला",
+      "last": "आख़िरी"
+    }
+  },
+  "a-first-world": {
+    "controls": {
+      "colour": "रंग"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "controls": {
+      "mouse": "बोर्ड खिसकाने के लिए खींचो · ज़ूम के लिए व्हील या चुटकी · हिलने के लिए तीर कुंजियाँ",
+      "play": "खेलो",
+      "speed": "गति",
+      "follow": "पीछा करो",
+      "replay": "फिर चलाओ"
+    },
+    "readouts": {
+      "move": "चाल"
+    },
+    "words": {
+      "takes": "मारता है"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "controls": {
+      "swing": "झूलना",
+      "lamp": "लैंप",
+      "power": "शक्ति",
+      "glass": "काँच"
+    }
+  },
+  "a-lighthouse-beam": {
+    "controls": {
+      "turnsPerMinute": "प्रति मिनट चक्कर",
+      "beamWidth": "किरण की चौड़ाई",
+      "colour": "रंग"
+    }
+  },
+  "a-long-shadowed-street": {
+    "controls": {
+      "mouse": "सड़क देखने के लिए खींचो, आगे बढ़ने के लिए व्हील; समय बदलो और परछाइयाँ सड़क पर फैलकर दीवारों पर चढ़ जाती हैं",
+      "hour": "समय",
+      "traffic": "ट्रैफ़िक",
+      "flyAgain": "फिर उड़ो"
+    },
+    "readouts": {
+      "sunHeight": "सूरज की ऊँचाई",
+      "shadow30MHouse": "30 मी ऊँचे घर की परछाई"
+    }
+  },
+  "a-matcap-sculpture": {
+    "controls": {
+      "mouse": "मूर्ति के चारों ओर चलने के लिए खींचो: उसकी रोशनी तुम्हारे साथ घूमती है, क्योंकि वह तस्वीर में रहती है",
+      "matcap": "Matcap",
+      "sculpture": "मूर्ति",
+      "gallery": "गैलरी",
+      "turn": "घुमाओ"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "लाल मिट्टी",
+        "chrome": "क्रोम",
+        "gold": "सोना",
+        "jade": "जेड",
+        "pearl": "मोती",
+        "obsidian": "ओब्सीडियन"
+      },
+      "sculpture": {
+        "knot": "गाँठ",
+        "rings": "छल्ले",
+        "vase": "फूलदान"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "controls": {
+      "mouse": "रत्नों के चारों ओर घूमने के लिए खींचो; कोने बाँटने के लिए तीखे पहलू बंद करो",
+      "points": "बिंदु",
+      "waist": "कमर",
+      "height": "ऊँचाई",
+      "sharpFacets": "तीखे पहलू",
+      "colour": "रंग",
+      "spin": "घुमाव"
+    },
+    "readouts": {
+      "verticesWritten": "लिखे गए शीर्ष",
+      "triangles": "त्रिभुज"
+    }
+  },
+  "a-model-from-obj": {
+    "controls": {
+      "mouse": "बोर्ड के चारों ओर घूमने के लिए खींचो, पास जाने के लिए व्हील: देखो OBJ क्या बन गया",
+      "view": "दृश्य",
+      "sunAngle": "सूरज का कोण",
+      "sunHeight": "सूरज की ऊँचाई",
+      "turn": "घुमाओ"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "triangles": "त्रिभुज",
+        "clusters": "क्लस्टर",
+        "lod": "विवरण स्तर"
+      }
+    },
+    "words": {
+      "credit": "इन उदाहरणों के लिए बनाया गया शतरंज सेट, CC0 — देखो assets/examples/CREDITS.md"
+    }
+  },
+  "a-model-from-usdz": {
+    "controls": {
+      "mouse": "बोर्ड के चारों ओर चलने के लिए खींचो; व्हील से मोहरों तक नीचे जाओ",
+      "view": "दृश्य",
+      "turn": "घुमाओ"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "materials": "सामग्रियाँ",
+        "clusters": "क्लस्टर",
+        "triangles": "त्रिभुज"
+      }
+    },
+    "readouts": {
+      "source": "स्रोत",
+      "boardWidth": "बोर्ड की चौड़ाई",
+      "partsPlaced": "रखे गए हिस्से",
+      "triangles": "त्रिभुज"
+    },
+    "words": {
+      "credit": "इस उदाहरण के लिए कोड में बनाया गया शतरंज सेट, CC0; फ़ाइल है assets/examples/a-model-from-usdz/source/chess-set.usdz — देखो assets/examples/CREDITS.md"
+    }
+  },
+  "a-molecule": {
+    "controls": {
+      "mouse": "अणु के चारों ओर घूमने के लिए खींचो; दूसरा चुनो और उसके परमाणु नई जगहों पर उड़ जाते हैं",
+      "molecule": "अणु",
+      "style": "शैली",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "C60 बकीबॉल",
+        "carbon nanotube": "कार्बन नैनोट्यूब",
+        "diamond crystal": "हीरे का क्रिस्टल",
+        "DNA double helix": "DNA दोहरी कुंडली"
+      },
+      "style": {
+        "ball and stick": "गेंद और छड़ी",
+        "space filling": "भरी हुई गेंदें",
+        "sticks": "छड़ियाँ"
+      }
+    },
+    "readouts": {
+      "atoms": "परमाणु",
+      "bonds": "बंधन"
+    }
+  },
+  "a-neon-sign": {
+    "controls": {
+      "star": "तारा",
+      "wave": "लहर",
+      "glow": "चमक",
+      "pulse": "धड़कन",
+      "exposure": "एक्सपोज़र",
+      "toneMapping": "टोन मैपिंग"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "तटस्थ",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "रेखीय"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "controls": {
+      "lamps": "लैंप",
+      "speed": "गति",
+      "power": "शक्ति",
+      "shadows": "परछाइयाँ"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "controls": {
+      "walk": "चलना",
+      "wave": "लहर",
+      "dance": "नाचना",
+      "speed": "गति",
+      "colour": "रंग"
+    }
+  },
+  "a-scene-of-your-own": {
+    "controls": {
+      "hour": "समय",
+      "wind": "हवा",
+      "roof": "छत"
+    }
+  },
+  "a-softbox-panel": {
+    "controls": {
+      "mouse": "सेट के चारों ओर चलने के लिए खींचो; पैनल बड़ा करो और चमक को नरम होते देखो",
+      "panelWidth": "पैनल की चौड़ाई",
+      "power": "शक्ति",
+      "colour": "रंग",
+      "swing": "झूलना"
+    },
+    "readouts": {
+      "panel": "पैनल",
+      "radiance": "रेडियंस"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "controls": {
+      "climb": "चढ़ाई",
+      "turnPerStep": "हर सीढ़ी पर घुमाव",
+      "lantern": "लालटेन"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "controls": {
+      "hour": "समय",
+      "sunColour": "सूरज का रंग",
+      "exposure": "एक्सपोज़र"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "controls": {
+      "mouse": "चारों ओर देखने के लिए खींचो; पीछे का पैनल वही टाइल है जैसी रंगी गई थी",
+      "tile": "टाइल",
+      "wrap": "किनारा",
+      "tilesAcross": "चौड़ाई में टाइलें",
+      "turn": "घुमाओ",
+      "slideAcross": "बगल में खिसकाओ",
+      "slideUp": "ऊपर खिसकाओ",
+      "flow": "बहाव"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "दोहराओ",
+        "mirror": "दर्पण",
+        "clamp": "रोक दो"
+      },
+      "tile": {
+        "terracotta": "टेराकोटा",
+        "azulejo": "अज़ुलेजो",
+        "jade": "जेड"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "टाइलें, घुमाव"
+    },
+    "words": {
+      "up": "ऊपर"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "controls": {
+      "mouse": "चारों ओर देखने के लिए खींचो; मोती उस वक्र पर चलते हैं जिस पर नली जाती है",
+      "path": "रास्ता",
+      "radius": "त्रिज्या",
+      "sides": "किनारे",
+      "slices": "टुकड़े",
+      "speed": "गति",
+      "beads": "मोती",
+      "paint": "रंग"
+    },
+    "choices": {
+      "path": {
+        "knot": "गाँठ",
+        "coaster": "रोलर कोस्टर",
+        "spiral": "सर्पिल"
+      }
+    },
+    "readouts": {
+      "triangles": "त्रिभुज"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "controls": {
+      "width": "चौड़ाई",
+      "height": "ऊँचाई",
+      "gloss": "चमकीलापन",
+      "spin": "घुमाव"
+    }
+  },
+  "a-video-on-a-screen": {
+    "controls": {
+      "mouse": "कमरे में देखने के लिए खींचो; स्क्रीन पर असली वीडियो चलता है",
+      "playing": "चल रहा है",
+      "openVideo": "वीडियो खोलो"
+    },
+    "readouts": {
+      "playing": "चल रहा है",
+      "videoTime": "वीडियो का समय"
+    },
+    "words": {
+      "yourFile": "तुम्हारी फ़ाइल",
+      "testCard": "टेस्ट कार्ड"
+    }
+  },
+  "a-video-panorama": {
+    "controls": {
+      "mouse": "चारों ओर देखने के लिए खींचो; जब तक तुम न दबाओ, दृश्य अपने आप घूमता है",
+      "playing": "चल रहा है",
+      "fieldOfView": "दृष्टि क्षेत्र",
+      "openVideo": "वीडियो खोलो"
+    },
+    "readouts": {
+      "playing": "चल रहा है"
+    },
+    "words": {
+      "yourFile": "तुम्हारी फ़ाइल",
+      "duskOverSea": "समुद्र पर साँझ"
+    }
+  },
+  "a-wall-of-cameras": {
+    "controls": {
+      "mouse": "किसी कैमरे पर क्लिक करके उसे बड़ी स्क्रीन पर लाओ; कैमरों को बताओ कि क्या देखना है",
+      "watch": "निगरानी"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "गश्त",
+        "car": "कार",
+        "balloon": "गुब्बारा"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "कार देखने वाले कैमरे"
+    },
+    "words": {
+      "cam": "कैम",
+      "northGate": "उत्तरी द्वार",
+      "fountain": "फव्वारा",
+      "eastRoad": "पूर्वी सड़क",
+      "clockTower": "घंटाघर",
+      "cafe": "कैफ़े",
+      "southCorner": "दक्षिणी कोना",
+      "noSignal": "कोई सिग्नल नहीं",
+      "patrol": "गश्त",
+      "car": "कार का पीछा",
+      "balloon": "गुब्बारे का पीछा"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "controls": {
+      "height": "ऊँचाई",
+      "speed": "गति",
+      "ripples": "लहरें",
+      "inner": "अंदर",
+      "outer": "बाहर"
+    }
+  },
+  "a-world-of-blocks": {
+    "controls": {
+      "mouse": "द्वीप के चारों ओर उड़ने के लिए खींचो; समुद्र ऊँचा करो और घाटियों को भरते देखो",
+      "seed": "बीज",
+      "seaLevel": "समुद्र तल",
+      "hour": "समय",
+      "clouds": "बादल"
+    },
+    "readouts": {
+      "facesDrawn": "बनाए गए फलक"
+    }
+  },
+  "before-and-after-slider": {
+    "controls": {
+      "mouse": "बँटवारा खिसकाने के लिए गोल घुंडी खींचो; चौक के चारों ओर घूमने के लिए तस्वीर खींचो",
+      "before": "पहले"
+    },
+    "choices": {
+      "before": {
+        "clay": "मिट्टी",
+        "no shadows": "बिना परछाई",
+        "no sun": "बिना सूरज",
+        "noon sun": "दोपहर का सूरज"
+      }
+    },
+    "words": {
+      "clay": "मिट्टी",
+      "no shadows": "बिना परछाई",
+      "no sun": "बिना सूरज",
+      "noon sun": "दोपहर का सूरज",
+      "finished": "तैयार"
+    }
+  },
+  "blobs-that-merge": {
+    "controls": {
+      "mouse": "लैंप के चारों ओर चलने के लिए खींचो; चिपचिपापन बढ़ाओ और बूँदें आपस में पिघल जाती हैं",
+      "stickiness": "चिपचिपापन",
+      "heat": "गर्मी",
+      "wax": "मोम"
+    },
+    "readouts": {
+      "piecesWax": "मोम के टुकड़े"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "controls": {
+      "sweep": "झाड़ू",
+      "lamp": "लैंप",
+      "colour": "रंग",
+      "bricks": "ईंटें"
+    }
+  },
+  "click-to-pick": {
+    "controls": {
+      "help": "किसी आकार पर क्लिक करो: वह जल उठता है, और पैनल बताता है कि किरण उसे कहाँ छुई।"
+    },
+    "readouts": {
+      "picked": "चुना गया",
+      "point": "बिंदु",
+      "distance": "दूरी"
+    },
+    "words": {
+      "nothing": "कुछ नहीं",
+      "box": "डिब्बा",
+      "sphere": "गोला",
+      "cone": "शंकु",
+      "torus": "टोरस",
+      "cylinder": "बेलन",
+      "knot": "गाँठ"
+    }
+  },
+  "colours-on-the-vertices": {
+    "controls": {
+      "mouse": "ग्रह घुमाने के लिए खींचो; हर शीर्ष का अपना रंग है",
+      "palette": "रंग पट्टी",
+      "seaLevel": "समुद्र तल",
+      "relief": "उभार",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "palette": {
+        "earth": "पृथ्वी",
+        "lava": "लावा",
+        "ice": "बर्फ़",
+        "candy": "टॉफ़ी"
+      }
+    }
+  },
+  "compressed-textures": {
+    "controls": {
+      "mouse": "फव्वारे के चारों ओर चलने के लिए खींचो; एक टाइल तक नीचे जाओ और उसका विवरण आते देखो",
+      "sunTurn": "सूरज की दिशा",
+      "sunHeight": "सूरज की ऊँचाई"
+    },
+    "readouts": {
+      "texturesBlocks": "ब्लॉक में टेक्सचर",
+      "allFullDetail": "सब पूरे विवरण में",
+      "poolFormat": "भंडार का प्रारूप",
+      "tilesHeld": "रखी गई टाइलें",
+      "heldGpu": "GPU पर रखा"
+    },
+    "words": {
+      "credit": "इस उदाहरण के लिए कोड में बनाया गया आँगन और उसके टेक्सचर, CC0 — देखो assets/examples/CREDITS.md",
+      "someOf": "{all} में से {some}",
+      "notPlain": "{held} MiB, {plain} नहीं",
+      "notMeasured": "यहाँ मापा नहीं गया"
+    }
+  },
+  "copies-along-a-path": {
+    "controls": {
+      "mouse": "पार्क देखने के लिए खींचो; प्रतियाँ बढ़ाओ जब तक मेहराबें सुरंग न बन जाएँ",
+      "copies": "प्रतियाँ",
+      "twist": "मरोड़",
+      "speed": "गति",
+      "ride": "सवारी"
+    },
+    "readouts": {
+      "archesPlaced": "रखी गई मेहराबें"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "controls": {
+      "angle": "कोण",
+      "softness": "कोमलता",
+      "colour": "रंग",
+      "power": "शक्ति"
+    },
+    "words": {
+      "credit": "W. Sitters का बक्सा मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"
+    }
+  },
+  "create-and-dispose": {
+    "controls": {
+      "mouse": "फव्वारे के चारों ओर चलने के लिए खींचो · पास आने के लिए व्हील",
+      "perSecond": "प्रति सेकंड",
+      "copies": "प्रतियाँ",
+      "burst": "बौछार",
+      "clearAll": "सब मिटाओ"
+    },
+    "choices": {
+      "copies": {
+        "share": "आकार बाँटो",
+        "fresh": "हर बार नया आकार"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "ज़िंदा टुकड़े",
+      "created": "बनाए गए",
+      "disposed": "हटाए गए",
+      "gpuMemory": "GPU मेमोरी"
+    },
+    "words": {
+      "notMeasured": "मापा नहीं गया"
+    }
+  },
+  "curved-surfaces": {
+    "controls": {
+      "mouse": "गैलरी में चलने के लिए खींचो; जाली छोटी करो और हर वक्र बनाने वाले त्रिभुज देखो",
+      "grid": "जाली",
+      "facets": "पहलू",
+      "turntable": "घूमती मेज़"
+    },
+    "readouts": {
+      "triangles": "त्रिभुज",
+      "facingYou": "तुम्हारी ओर"
+    },
+    "words": {
+      "Klein bottle": "क्लाइन बोतल",
+      "Möbius strip": "मोबियस पट्टी",
+      "Seashell": "सीप",
+      "Dini's twist": "डिनी मरोड़",
+      "Enneper saddle": "एनेपर काठी"
+    }
+  },
+  "dashed-lines": {
+    "controls": {
+      "mouse": "सूरज के चारों ओर घूमने के लिए खींचो; रेखा और खाली जगह बदलो, हर कक्षा बदल जाती है",
+      "lines": "रेखाएँ",
+      "dash": "रेखा",
+      "gap": "खाली जगह",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "टूटी",
+        "solid": "ठोस"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "नीले ग्रह की कक्षा पर रेखाएँ"
+    }
+  },
+  "detail-by-pixel-error": {
+    "controls": {
+      "mouse": "सड़क पर चलने के लिए खींचो; किसी कलश के पास जाओ, फिर बहुत दूर",
+      "pixelError": "पिक्सल त्रुटि",
+      "view": "दृश्य"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "lod": "विवरण स्तर",
+        "screen-error": "स्क्रीन त्रुटि",
+        "triangles": "त्रिभुज"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "बनाए गए त्रिभुज",
+      "shareAvenue": "सड़क का हिस्सा",
+      "trianglesAvenue": "सड़क के त्रिभुज"
+    },
+    "words": {
+      "credit": "इस उदाहरण के लिए कोड में बनाई गई कलशों की सड़क, CC0 — देखो assets/examples/CREDITS.md",
+      "notCounted": "यहाँ गिना नहीं गया"
+    }
+  },
+  "edges-and-wireframe": {
+    "controls": {
+      "mouse": "चारों ओर देखने के लिए खींचो; सिर्फ़ तीखी सिलवटें रखने के लिए सीमा बढ़ाओ",
+      "view": "दृश्य",
+      "threshold": "सीमा",
+      "lines": "रेखाएँ",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "सतह और किनारे",
+        "edges": "किनारे",
+        "wireframe": "तार ढाँचा",
+        "surface and wireframe": "सतह और तार ढाँचा",
+        "surface": "सतह"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "किनारों के खंड",
+      "wireframeSegments": "तार ढाँचे के खंड"
+    }
+  },
+  "every-image-format": {
+    "controls": {
+      "mouse": "चित्रफलकों के साथ चलने के लिए खींचो; गुणवत्ता घटाओ और JPEG और WebP को पास से देखो",
+      "quality": "गुणवत्ता",
+      "lookAt": "देखो"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "आठों",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "कच्चे पिक्सल"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "कच्चे पिक्सल"
+    },
+    "words": {
+      "samePicture": "512 × 512 · वही तस्वीर",
+      "lossless": "बिना नुकसान",
+      "lossy": "नुकसान वाला",
+      "colours256": "256 रंग",
+      "uncompressed": "बिना संपीड़न",
+      "shapes": "आकार, लोड होते समय बने",
+      "painted": "पेज में रंगा गया",
+      "bytes": "मेमोरी में बाइट",
+      "inMemory": "मेमोरी में {size} · {note}",
+      "sentAs": "{type} के रूप में भेजा गया"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "controls": {
+      "mouse": "धूपघड़ी के चारों ओर चलने के लिए खींचो; समय बदलो और हर परछाई सूरज के साथ घूमती है",
+      "hour": "समय",
+      "darkness": "अँधेरा",
+      "timeLapse": "तेज़ समय",
+      "motion": "हलचल"
+    },
+    "readouts": {
+      "shadowLength": "परछाई की लंबाई"
+    },
+    "words": {
+      "timesHeight": "{times} × ऊँचाई"
+    }
+  },
+  "fly-over-a-model-town": {
+    "choices": {
+      "view": {
+        "cockpit": "कॉकपिट",
+        "exterior": "बाहर से"
+      },
+      "mode": {
+        "arcade": "आर्केड — जेट तुम्हारे निशाने की ओर उड़ता है; कोई स्टॉल नहीं, खुद सीधा हो जाता है",
+        "expert": "विशेषज्ञ — माउस ही स्टिक है; यह स्टॉल होता है और घूमकर गिरता है"
+      },
+      "sensitivity": {
+        "Low": "कम",
+        "Medium": "मध्यम",
+        "High": "ज़्यादा"
+      },
+      "invert": {
+        "off": "बंद",
+        "on": "चालू"
+      },
+      "sound": {
+        "on": "चालू",
+        "off": "बंद"
+      }
+    },
+    "game": {
+      "title": "लड़ाकू विमान",
+      "goal": "उड़ान भरो, फिर घाटी में दस सुनहरे छल्लों से जितनी तेज़ हो सके गुज़रो। माउस से निशाना लगाओ: जेट पीछे आता है।",
+      "keys": {
+        "aim": "निशाना (आर्केड) या स्टिक (विशेषज्ञ)",
+        "fineAim": "बारीक निशाना (दबाए रखो)",
+        "throttle": "थ्रॉटल ऊपर, नीचे",
+        "afterburner": "आफ़्टरबर्नर (दबाए रखो)",
+        "roll": "रोल (आर्केड में निशाने से ऊपर)",
+        "rudder": "रडर",
+        "airBrake": "एयर ब्रेक (दबाए रखो)",
+        "lookAround": "चारों ओर देखो (दबाए रखो)",
+        "view": "कॉकपिट या बाहरी दृश्य",
+        "zoom": "बाहरी दृश्य ज़ूम करो",
+        "startOver": "शुरू से",
+        "pause": "रोको"
+      },
+      "options": {
+        "view": "दृश्य",
+        "mode": "मोड",
+        "sensitivity": "माउस संवेदनशीलता",
+        "invert": "Y उलटो",
+        "sound": "आवाज़"
+      }
+    },
+    "words": {
+      "testMode": "टेस्ट मोड — माउस लॉक नहीं है",
+      "rings": "छल्ले {passed}/{all}",
+      "complete": "कोर्स पूरा",
+      "flyAgain": "{time} — फिर उड़ने के लिए R",
+      "stall": "स्टॉल",
+      "pullUp": "ऊपर उठो",
+      "turnBack": "वापस मुड़ो",
+      "crashed": "दुर्घटना",
+      "backToRunway": "रनवे पर वापस…",
+      "backToRing": "आख़िरी छल्ले पर वापस…",
+      "throttleUp": "W — थ्रॉटल बढ़ाओ (AZERTY पर Z)",
+      "rolling": "दौड़ रहा है — {knots} नॉट",
+      "liftOff": "माउस ऊपर — उड़ान भरो"
+    }
+  },
+  "four-ways-to-blend": {
+    "controls": {
+      "mouse": "बाएँ से दाएँ: सामान्य, जोड़, घटाव, गुणा; बगल से देखने के लिए खींचो",
+      "inks": "स्याही",
+      "opacity": "अपारदर्शिता",
+      "circle": "चक्कर"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "लाल, हरा, नीला",
+        "cyan, magenta, yellow": "सियान, मैजेंटा, पीला",
+        "warm and cool": "गर्म और ठंडा"
+      }
+    }
+  },
+  "frame-the-model": {
+    "controls": {
+      "mouse": "किसी चीज़ को फ़्रेम में लाने के लिए उस पर डबल-क्लिक करो; घुमाने के लिए खींचो, ज़ूम के लिए व्हील",
+      "model": "चीज़",
+      "margin": "हाशिया",
+      "drift": "बहना"
+    },
+    "choices": {
+      "model": {
+        "everything": "सब कुछ",
+        "the gold ring": "सोने की अँगूठी",
+        "the vase": "फूलदान",
+        "the king": "राजा",
+        "the arch": "मेहराब",
+        "the obelisk": "स्तंभ"
+      }
+    },
+    "readouts": {
+      "framing": "फ़्रेम में",
+      "radius": "त्रिज्या",
+      "distance": "दूरी"
+    },
+    "words": {
+      "the gold ring": "सोने की अँगूठी",
+      "the vase": "फूलदान",
+      "the king": "राजा",
+      "the arch": "मेहराब",
+      "the obelisk": "स्तंभ"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "controls": {
+      "mouse": "रेत के एक कण से पूरे ग्रह तक ज़ूम करने के लिए व्हील चलाओ; घुमाने के लिए खींचो",
+      "toTheGrain": "कण तक",
+      "toTheBeach": "समुद्र तट तक",
+      "toTheIsland": "द्वीप तक",
+      "toThePlanet": "ग्रह तक"
+    },
+    "readouts": {
+      "viewWidth": "दृश्य की चौड़ाई",
+      "youSee": "तुम देख रहे हो"
+    },
+    "words": {
+      "grains of sand": "रेत के कण",
+      "sand and shells": "रेत और सीपियाँ",
+      "pebbles": "कंकड़",
+      "the beach": "समुद्र तट",
+      "the coast": "तट",
+      "the island": "द्वीप",
+      "the planet": "ग्रह"
+    }
+  },
+  "from-clay-to-chrome": {
+    "controls": {
+      "colour": "रंग",
+      "lamps": "लैंप",
+      "swing": "झूलना"
+    }
+  },
+  "from-noon-to-dusk": {
+    "controls": {
+      "speed": "गति",
+      "hour": "समय",
+      "adaptEyes": "आँखों को ढालो"
+    }
+  },
+  "glass-on-the-table": {
+    "controls": {
+      "refraction": "अपवर्तन",
+      "thickness": "मोटाई",
+      "tint": "रंगत",
+      "spin": "घुमाव"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "controls": {
+      "mouse": "सेट के चारों ओर चलने के लिए खींचो; शॉट को जैसा है वैसा देखने के लिए सहायक बंद करो",
+      "helpers": "सहायक",
+      "dolly": "डॉली",
+      "bulb": "बल्ब"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "सब कुछ",
+        "lights and camera": "रोशनियाँ और कैमरा",
+        "shapes and bounds": "आकार और सीमाएँ",
+        "nothing": "कुछ नहीं"
+      }
+    },
+    "readouts": {
+      "helpersShown": "दिखाए गए सहायक"
+    }
+  },
+  "inside-a-panorama": {
+    "controls": {
+      "mouse": "घूमने के लिए खींचो · पास आने के लिए व्हील",
+      "sky": "आसमान",
+      "fieldOfView": "दृष्टि क्षेत्र"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "भोर",
+        "noon": "दोपहर",
+        "dusk": "साँझ"
+      }
+    },
+    "words": {
+      "credit": "यह पेज खुलते ही पैनोरमा कोड में रंगता है: कुछ भी डाउनलोड नहीं होता।"
+    }
+  },
+  "inside-the-g-buffer": {
+    "controls": {
+      "mouse": "मैदान के चारों ओर चलने के लिए खींचो · फ़्रेम के अंदर देखने के लिए एक बफ़र चुनो",
+      "buffer": "बफ़र",
+      "turning": "घूमना"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "तैयार चित्र",
+        "albedo": "मूल रंग",
+        "normals": "नॉर्मल",
+        "depth": "गहराई",
+        "triangle ids": "त्रिभुज संख्याएँ",
+        "material ids": "सामग्री संख्याएँ"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "हर पिक्सल में है"
+    },
+    "words": {
+      "beauty": "रोशनी वाली तस्वीर",
+      "albedo": "मूल रंग, किसी भी रोशनी से पहले",
+      "normals": "कैमरे से देखने पर सतह किस ओर है",
+      "depth": "दूरी: पास उजला, दूर गहरा",
+      "triangle ids": "कौन सा त्रिभुज पिक्सल को ढकता है",
+      "material ids": "कौन सी सामग्री पिक्सल को रंगती है",
+      "notOffered": "यह रेंडरर यह नहीं देता"
+    }
+  },
+  "instances-in-colour": {
+    "controls": {
+      "mouse": "आकाशगंगा झुकाने के लिए खींचो; अंदर गोता लगाने के लिए व्हील",
+      "count": "संख्या",
+      "arms": "भुजाएँ",
+      "twist": "मरोड़",
+      "core": "केंद्र",
+      "rim": "किनारा",
+      "spin": "घुमाव"
+    },
+    "readouts": {
+      "placementsDrawn": "बनाई गई प्रतियाँ",
+      "materials": "सामग्रियाँ"
+    }
+  },
+  "keyframes-by-hand": {
+    "controls": {
+      "mouse": "मेज़ के चारों ओर घूमने के लिए खींचो; एक छलाँग की कुंजियाँ लैंप की हल्की प्रतियों के रूप में दिखाओ",
+      "timing": "समय",
+      "onionSkin": "प्याज़ की परत",
+      "speed": "गति"
+    },
+    "choices": {
+      "timing": {
+        "eased": "धीरे-धीरे",
+        "linear": "रेखीय"
+      }
+    },
+    "readouts": {
+      "lastKey": "आख़िरी कुंजी"
+    },
+    "words": {
+      "rest": "आराम",
+      "crouch": "झुकना",
+      "launch": "उछाल",
+      "apex": "चोटी",
+      "land": "उतरना",
+      "absorb": "झटका सहना",
+      "look up": "ऊपर देखो",
+      "turn": "मुड़ो",
+      "waking up": "जाग रहा है"
+    }
+  },
+  "labels-that-follow": {
+    "controls": {
+      "mouse": "सूरज के चारों ओर घूमने के लिए खींचो, पास आने के लिए व्हील; नाम ग्रहों के साथ चलते हैं",
+      "show": "दिखाओ",
+      "speed": "गति",
+      "lineThemUp": "एक कतार में लाओ"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "सूरज से दूरी",
+        "year": "साल",
+        "moons": "चंद्रमा",
+        "names only": "सिर्फ़ नाम"
+      }
+    },
+    "words": {
+      "Sun": "सूरज",
+      "Mercury": "बुध",
+      "Venus": "शुक्र",
+      "Earth": "पृथ्वी",
+      "Moon": "चाँद",
+      "Mars": "मंगल",
+      "Jupiter": "बृहस्पति",
+      "Saturn": "शनि",
+      "Uranus": "अरुण",
+      "Neptune": "वरुण",
+      "fromEarth": "पृथ्वी से 384 400 किमी",
+      "ourStar": "हमारा तारा",
+      "au": "{au} AU",
+      "month": "27 दिनों का एक महीना",
+      "year": "{days} दिनों का एक साल",
+      "planets": "8 ग्रह",
+      "earthsMoon": "पृथ्वी का चाँद",
+      "oneMoon": "1 चंद्रमा",
+      "moons": "{moons} चंद्रमा"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "controls": {
+      "branches": "शाखाएँ",
+      "leaves": "पत्तियाँ",
+      "cutoff": "कटाई की सीमा",
+      "sun": "सूरज"
+    }
+  },
+  "letters-carved-in-relief": {
+    "controls": {
+      "rake": "झुकाव",
+      "warm": "गर्म",
+      "cool": "ठंडा",
+      "letters": "अक्षर"
+    }
+  },
+  "light-from-a-probe": {
+    "controls": {
+      "mouse": "बगीचे में चलने के लिए खींचो; कोई जगह चुनो और मूर्तियाँ उसकी रोशनी ले लेती हैं",
+      "place": "जगह",
+      "turn": "घुमाओ",
+      "strength": "ताक़त",
+      "keyLight": "मुख्य रोशनी",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "सूर्यास्त में रेगिस्तान",
+        "forest clearing": "जंगल में खुली जगह",
+        "neon alley": "नियॉन गली",
+        "snowfield": "बर्फ़ का मैदान"
+      }
+    },
+    "readouts": {
+      "meanLight": "औसत रोशनी"
+    }
+  },
+  "light-in-real-units": {
+    "controls": {
+      "mouse": "चौक में चलने के लिए खींचो; कोई पल चुनो और देखो कैमरा कैसे ढलता है, 1,00,000 लक्स से चाँदनी रात तक",
+      "moment": "पल",
+      "lampLumens": "लैंप के ल्यूमेन",
+      "autoExposure": "अपने आप एक्सपोज़र",
+      "exposureValue": "एक्सपोज़र मान",
+      "turning": "घूमना"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "साफ़ दोपहर",
+        "overcast": "बादल छाए",
+        "golden hour": "सुनहरा घंटा",
+        "sunset": "सूर्यास्त",
+        "blue hour": "नीला घंटा",
+        "moonlit night": "चाँदनी रात"
+      }
+    },
+    "readouts": {
+      "sun": "सूरज",
+      "sky": "आसमान",
+      "eachLamp": "हर लैंप",
+      "exposureValue": "एक्सपोज़र मान"
+    },
+    "words": {
+      "off": "बंद"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "controls": {
+      "lamp": "लैंप",
+      "power": "शक्ति",
+      "colour": "रंग"
+    }
+  },
+  "lines-in-colour": {
+    "controls": {
+      "mouse": "आकृति के चारों ओर घूमने के लिए खींचो; दूसरा नियम चुनो और कलम उसे शुरू से बनाती है",
+      "figure": "आकृति",
+      "palette": "रंग पट्टी",
+      "pace": "रफ़्तार",
+      "redraw": "फिर से बनाओ",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "लॉरेंज़ तितली",
+        "Aizawa shell": "आइज़ावा सीप",
+        "Thomas knot": "थॉमस गाँठ",
+        "Halvorsen propeller": "हाल्वोर्सन पंखा"
+      },
+      "palette": {
+        "aurora": "ध्रुवीय ज्योति",
+        "sunset": "सूर्यास्त",
+        "embers": "अंगारे",
+        "ice": "बर्फ़"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "रंगे हुए टुकड़े"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "controls": {
+      "lampTurn": "लैंप की दिशा",
+      "lampHeight": "लैंप की ऊँचाई",
+      "colour": "रंग",
+      "exposure": "एक्सपोज़र",
+      "circle": "चक्कर"
+    },
+    "words": {
+      "credit": "Marble Bust 01, Rico Cilliers द्वारा, Poly Haven, CC0 — देखो assets/examples/CREDITS.md"
+    }
+  },
+  "memory-on-a-budget": {
+    "controls": {
+      "memory": "मेमोरी",
+      "view": "दृश्य"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "lod": "विवरण स्तर",
+        "clusters": "क्लस्टर"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01, Rico Cilliers द्वारा, Poly Haven, CC0; बक्सा W. Sitters द्वारा, CC BY 3.0 — देखो assets/examples/CREDITS.md"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "controls": {
+      "help": "कोई हैंडल खींचो। कैमरा घुमाने के लिए उसके बगल में खींचो।",
+      "mode": "मोड",
+      "axes": "अक्ष",
+      "snap": "चिपकाना"
+    },
+    "choices": {
+      "mode": {
+        "translate": "खिसकाओ",
+        "rotate": "घुमाओ",
+        "scale": "आकार बदलो"
+      },
+      "axes": {
+        "world": "दुनिया",
+        "local": "स्थानीय"
+      }
+    },
+    "readouts": {
+      "position": "स्थिति",
+      "drags": "खिंचाव"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "controls": {
+      "mouse": "गैलरी देखने के लिए खींचो · ग्राफ़ फ़्रेमों के बीच का समय है",
+      "turning": "घूमना",
+      "revealAgain": "फिर दिखाओ"
+    },
+    "readouts": {
+      "worstFrameBefore": "पहले का सबसे बुरा फ़्रेम",
+      "worstFrameAfter": "बाद का सबसे बुरा फ़्रेम"
+    },
+    "words": {
+      "note": "चौदह सतहें, हर एक अलग सामग्री या सेटिंग के साथ, सब एक ही फ़्रेम में। ग्राफ़ फ़्रेमों के बीच का समय दिखाता है; सुनहरी रेखा वह पल है जब वे दिखती हैं।",
+      "measuring": "माप रहा है",
+      "hidden": "छिपी हुई"
+    }
+  },
+  "normals-and-depth-seen": {
+    "controls": {
+      "mouse": "मैदान के चारों ओर चलने के लिए खींचो; रेंडरर सतहों को कैसे रखता है यह देखने के लिए दृश्य बदलो",
+      "see": "देखो",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "see": {
+        "lit": "रोशनी वाला",
+        "normals": "नॉर्मल",
+        "depth": "गहराई"
+      }
+    },
+    "readouts": {
+      "colourMeans": "रंग का मतलब"
+    },
+    "words": {
+      "lit": "रोशनी और सामग्री",
+      "normals": "दिशा: दाएँ लाल, ऊपर हरा, तुम्हारी ओर नीला",
+      "depth": "दूरी: पास सफ़ेद, दूर गहरा"
+    }
+  },
+  "observatory-streamed": {
+    "controls": {
+      "view": "दृश्य",
+      "pixelError": "पिक्सल त्रुटि"
+    },
+    "choices": {
+      "view": {
+        "clusters": "क्लस्टर",
+        "beauty": "तैयार चित्र",
+        "pages": "पेज",
+        "lod": "विवरण स्तर",
+        "triangles": "त्रिभुज"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "controls": {
+      "mouse": "अखाड़े के चारों ओर घूमने के लिए खींचो; चुनो कि एक क्लिप दर्शकों में कैसे बँटे",
+      "pattern": "पैटर्न",
+      "speed": "गति"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "स्टेडियम लहर",
+        "ripple outwards": "बाहर की ओर लहर",
+        "all at once": "सब एक साथ"
+      }
+    },
+    "readouts": {
+      "clips": "क्लिप",
+      "fansPlayingIt": "उसे चलाने वाले दर्शक"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "controls": {
+      "mouse": "एक उत्पाद दर्शक: घुमाने के लिए खींचो · खिसकाने के लिए दाएँ बटन से खींचो · दाँतों पर ज़ूम के लिए व्हील",
+      "view": "दृश्य",
+      "speed": "गति",
+      "brass": "पीतल"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "तीन-चौथाई",
+        "front": "सामने",
+        "side": "बगल",
+        "top": "ऊपर"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "controls": {
+      "checks": "चौखाने",
+      "paint": "रंग",
+      "second": "दूसरा",
+      "spin": "घुमाव"
+    }
+  },
+  "reading-pixels-back": {
+    "controls": {
+      "mouse": "चारों ओर देखने के लिए खींचो · नीचे दाएँ की तस्वीर दृश्य को संख्याओं के रूप में वापस पढ़ती है",
+      "sunHeight": "सूरज की ऊँचाई",
+      "live": "लाइव",
+      "turning": "घूमना",
+      "savePng": "PNG सहेजो"
+    },
+    "readouts": {
+      "meanColour": "औसत रंग",
+      "brightest": "सबसे उजला",
+      "readBack": "वापस पढ़ने में"
+    },
+    "words": {
+      "hover": "एक पिक्सल पढ़ने के लिए तस्वीर पर माउस ले जाओ",
+      "pixel": "पिक्सल {x}, {y}: {colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "controls": {
+      "mouse": "झूले पर, सिर घुमाने के लिए खींचो। पार्क के चारों ओर घूमने के लिए झूला बंद करो",
+      "ride": "सवारी",
+      "loops": "लूप"
+    },
+    "readouts": {
+      "speed": "गति",
+      "gForce": "G बल"
+    }
+  },
+  "save-the-scene": {
+    "controls": {
+      "help": "मीनार गिराओ, फिर सहेजा हुआ दृश्य दोबारा खोलो।",
+      "knockDown": "गिराओ",
+      "save": "सहेजो",
+      "open": "खोलो"
+    },
+    "readouts": {
+      "saved": "सहेजा गया"
+    },
+    "words": {
+      "bytes": "{bytes} बाइट"
+    }
+  },
+  "scattered-on-a-surface": {
+    "controls": {
+      "mouse": "ग्रह के चारों ओर घूमने के लिए खींचो; सबसे खड़ी ढलान बढ़ाओ और जंगल पहाड़ों पर चढ़ जाता है",
+      "trees": "पेड़",
+      "rocks": "चट्टानें",
+      "steepest": "सबसे खड़ी",
+      "seaLevel": "समुद्र तल",
+      "spin": "घुमाव"
+    },
+    "readouts": {
+      "treesPlanted": "लगाए गए पेड़",
+      "spotsRefused": "मना की गई जगहें"
+    }
+  },
+  "see-the-triangles": {
+    "controls": {
+      "mouse": "व्हील से दूर और पास जाओ: दूर से मूर्ति को कम और बड़े त्रिभुज चाहिए",
+      "view": "दृश्य",
+      "pixelError": "पिक्सल त्रुटि",
+      "sideBySide": "साथ-साथ"
+    },
+    "choices": {
+      "view": {
+        "triangles": "त्रिभुज",
+        "clusters": "क्लस्टर",
+        "lod": "विवरण स्तर",
+        "pages": "पेज",
+        "beauty": "तैयार चित्र"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "बनाए गए त्रिभुज",
+      "pagesMemory": "मेमोरी में पेज"
+    },
+    "words": {
+      "credit": "Marble Bust 01, Rico Cilliers द्वारा, Poly Haven, CC0 — देखो assets/examples/CREDITS.md"
+    }
+  },
+  "select-with-a-box": {
+    "controls": {
+      "help": "चुनो: एक डिब्बा खींचो; Shift जोड़ता है, Alt हटाता है। घूमो: बगीचे पर उड़ने के लिए खींचो",
+      "mouse": "माउस",
+      "selectAll": "सब चुनो",
+      "clear": "साफ़ करो"
+    },
+    "choices": {
+      "mouse": {
+        "select": "चुनो",
+        "turn": "मुड़ो"
+      }
+    },
+    "readouts": {
+      "selected": "चुने गए"
+    }
+  },
+  "several-views-one-page": {
+    "controls": {
+      "mouse": "बड़े दृश्य को घुमाने के लिए खींचो; छोटों में ज़ूम और खिसकाने के लिए व्हील और खींचो, वापस लाने के लिए डबल-क्लिक",
+      "explode": "अलग करो",
+      "windFrom": "हवा की दिशा",
+      "windSpeed": "हवा की गति"
+    },
+    "readouts": {
+      "sailTurnsMinute": "प्रति मिनट पंखों के चक्कर"
+    },
+    "words": {
+      "perspective": "परिप्रेक्ष्य",
+      "top": "ऊपर",
+      "front": "सामने",
+      "side": "बगल, पूरब से"
+    }
+  },
+  "shadows-from-the-sun": {
+    "controls": {
+      "mouse": "बगीचे में चलने के लिए खींचो; समय बदलो और हर परछाई घूमती है, स्तंभ की नोक घंटों के पत्थरों पर चलती है",
+      "hour": "समय",
+      "day": "दिन",
+      "latitude": "अक्षांश",
+      "sails": "पाल"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "ग्रीष्म संक्रांति",
+        "spring equinox": "वसंत विषुव",
+        "winter solstice": "शीत संक्रांति"
+      }
+    },
+    "readouts": {
+      "sunHeight": "सूरज की ऊँचाई",
+      "sunBearing": "सूरज की दिशा",
+      "obeliskShadow": "स्तंभ की परछाई"
+    },
+    "words": {
+      "S": "द",
+      "SW": "दप",
+      "W": "प",
+      "NW": "उप",
+      "N": "उ",
+      "NE": "उपू",
+      "E": "पू",
+      "SE": "दपू",
+      "belowHorizon": "क्षितिज के नीचे",
+      "bearing": "{point} (उत्तर से {degrees}°)"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "controls": {
+      "mouse": "चारों ओर देखने के लिए खींचो; शून्य गहराई से सपाट कटा हुआ आकार बचता है",
+      "depth": "गहराई",
+      "bevel": "बेवल",
+      "bevelSize": "बेवल का आकार",
+      "bevelSegments": "बेवल के खंड",
+      "curveSegments": "वक्र के खंड",
+      "spin": "घुमाव"
+    },
+    "readouts": {
+      "triangles": "त्रिभुज"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "controls": {
+      "colour": "रंग",
+      "speed": "गति",
+      "spin": "घुमाव"
+    }
+  },
+  "side-by-side-stereo": {
+    "controls": {
+      "mouse": "घुमाने के लिए बाईं तस्वीर पर खींचो; आँखें मिलाओ जब तक दोनों बिंदु एक न हो जाएँ",
+      "viewing": "देखने का तरीका",
+      "separation": "दूरी",
+      "speed": "गति"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "आँखें मिलाकर",
+        "parallel": "समानांतर"
+      }
+    },
+    "words": {
+      "leftEye": "बाईं आँख",
+      "rightEye": "दाईं आँख"
+    }
+  },
+  "sky-and-ground-light": {
+    "controls": {
+      "mouse": "नीचे और ऊपर से देखने के लिए खींचो; हर जगह ऊपरी हिस्सों को अपने आसमान से और निचले हिस्सों को अपनी ज़मीन से रंगती है",
+      "place": "जगह",
+      "skyStrength": "आसमान की ताक़त",
+      "sun": "सूरज",
+      "float": "तैरना"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "दोपहर में घास का मैदान",
+        "snowfield": "बर्फ़ का मैदान",
+        "red desert": "लाल रेगिस्तान",
+        "sunset beach": "सूर्यास्त में समुद्र तट",
+        "tropical lagoon": "उष्णकटिबंधीय लैगून",
+        "overcast city": "बादलों वाला शहर"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "ऊपर से आसमान",
+      "groundFromBelow": "नीचे से ज़मीन"
+    }
+  },
+  "smooth-edges-over-time": {
+    "controls": {
+      "mouse": "तारों को देखने के लिए खींचो; चिकनाई बंद करो और उन्हें सीढ़ियों में टूटते देखो",
+      "smoothing": "चिकनाई",
+      "circle": "चक्कर"
+    },
+    "readouts": {
+      "temporalAntialiasing": "टेम्पोरल एंटीएलियासिंग"
+    },
+    "words": {
+      "on": "चालू",
+      "off": "बंद"
+    }
+  },
+  "snow-of-sprites": {
+    "controls": {
+      "mouse": "झोपड़ी के चारों ओर चलने के लिए खींचो; इसे बर्फ़ीले तूफ़ान में बदलो और फाहे घने होकर तिरछे उड़ते हैं",
+      "weather": "मौसम",
+      "wind": "हवा"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "लगातार बर्फ़",
+        "light flurry": "हल्की बर्फ़",
+        "blizzard": "बर्फ़ीला तूफ़ान"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "गिरते फाहे"
+    }
+  },
+  "sound-made-visible": {
+    "controls": {
+      "mouse": "मंच के चारों ओर चलने के लिए खींचो; पट्टियाँ सुर हैं, मोती ख़ुद लहर",
+      "layout": "बनावट",
+      "height": "ऊँचाई",
+      "playMelody": "धुन बजाओ",
+      "useMicrophone": "माइक्रोफ़ोन चलाओ",
+      "silence": "शांति"
+    },
+    "choices": {
+      "layout": {
+        "ring": "छल्ला",
+        "wall": "दीवार",
+        "spiral": "सर्पिल"
+      }
+    },
+    "words": {
+      "hint": "धुन सुनने के लिए मंच पर क्लिक करो",
+      "listening": "माइक्रोफ़ोन सुन रहा है: गाओ, सीटी बजाओ, ताली बजाओ",
+      "refused": "माइक्रोफ़ोन मना हो गया: उसकी जगह धुन बजती है",
+      "silence": "शांति। धुन फिर सुनने के लिए मंच पर क्लिक करो"
+    }
+  },
+  "spin-an-astrolabe": {
+    "controls": {
+      "mouse": "इसे किसी भी ओर, उल्टा भी, घुमाने के लिए खींचो · ज़ूम के लिए व्हील",
+      "turning": "घूमना",
+      "sun": "सूरज"
+    }
+  },
+  "street-lamp-at-night": {
+    "controls": {
+      "night": "रात",
+      "bounce": "उछाल",
+      "sun": "सूरज",
+      "lamp": "लैंप"
+    },
+    "words": {
+      "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"
+    }
+  },
+  "ten-thousand-objects": {
+    "controls": {
+      "mouse": "ग्रह के चारों ओर घूमने के लिए खींचो; व्हील से छल्ले में जाओ जब तक एक चट्टान दृश्य न भर दे",
+      "view": "दृश्य",
+      "pixelError": "पिक्सल त्रुटि",
+      "drift": "बहना"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "clusters": "क्लस्टर",
+        "lod": "विवरण स्तर"
+      }
+    },
+    "readouts": {
+      "objectsScene": "दृश्य में चीज़ें",
+      "trianglesFile": "फ़ाइल में त्रिभुज",
+      "trianglesDrawn": "बनाए गए त्रिभुज"
+    },
+    "words": {
+      "credit": "इस उदाहरण के लिए कोड में बने ग्रह और छोटे चाँद, CC0 — देखो assets/examples/CREDITS.md",
+      "million": "{count} मिलियन",
+      "notCounted": "यहाँ गिना नहीं गया"
+    }
+  },
+  "texture-filters-compared": {
+    "controls": {
+      "mouse": "लेनों के साथ देखने के लिए खींचो; बाएँ से दाएँ: निकटतम, रेखीय, त्रिरेखीय, असमदैशिक",
+      "picture": "तस्वीर",
+      "anisotropy": "असमदैशिकता"
+    },
+    "choices": {
+      "picture": {
+        "checker": "शतरंज पट",
+        "lettering": "लिखावट"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "चौथी लेन की असमदैशिकता"
+    }
+  },
+  "the-material-family": {
+    "controls": {
+      "mouse": "परिवार के चारों ओर चलने के लिए खींचो; रोशनी को रात पर करो और देखो कौन से प्रकार अब भी चमकते हैं",
+      "light": "रोशनी",
+      "shape": "आकार",
+      "lookAt": "देखो",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "पूरा परिवार",
+        "all": "पूरा परिवार",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "सुनहरा घंटा",
+        "midday": "दोपहर",
+        "night": "रात"
+      },
+      "shape": {
+        "knot": "गाँठ",
+        "sphere": "गोला",
+        "vase": "फूलदान",
+        "ring": "छल्ला"
+      }
+    },
+    "readouts": {
+      "looking": "देख रहे हो",
+      "litByLamps": "लैंपों से रोशन"
+    },
+    "words": {
+      "meshBasic": "एक सपाट रंग, हर लैंप से अनजान",
+      "meshLambert": "चॉक जैसा मैट: फैली रोशनी, कोई चमक नहीं",
+      "meshPhong": "प्लास्टिक: जहाँ सूरज टकराता है वहाँ एक चमकीला धब्बा",
+      "meshStandard": "धात्विकता और खुरदरापन, आम पसंद",
+      "meshPhysical": "स्टैंडर्ड और काँच: रोशनी आर-पार जाती है",
+      "meshToon": "कार्टून: रोशनी दो सपाट पट्टियों में",
+      "meshNormal": "हर बिंदु किस ओर है, रंग के रूप में",
+      "meshMatcap": "लैंपों से नहीं, एक चमकती गेंद की तस्वीर से रोशन",
+      "allKinds": "आठों प्रकार",
+      "yes": "हाँ",
+      "no": "नहीं",
+      "fiveOfEight": "आठ में से पाँच"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "controls": {
+      "mouse": "दीवार के साथ देखने के लिए खींचो; तुम्हारा कैमरा सिर्फ़ बटन दबाने पर माँगा जाता है",
+      "useMyCamera": "मेरा कैमरा चलाओ",
+      "layout": "बनावट",
+      "mirror": "दर्पण"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "वीडियो दीवार",
+        "one per screen": "हर स्क्रीन पर एक"
+      }
+    },
+    "readouts": {
+      "source": "स्रोत"
+    },
+    "words": {
+      "noCamera": "कोई कैमरा नहीं",
+      "yourCamera": "तुम्हारा कैमरा",
+      "refused": "कैमरा मना हुआ ({error})",
+      "paintedSignal": "रंगा हुआ सिग्नल"
+    }
+  },
+  "toon-shading": {
+    "controls": {
+      "mouse": "द्वीप के चारों ओर घूमने के लिए खींचो; छायांकन बदलो और रोशनी को पट्टियों में गिरते देखो",
+      "shading": "छायांकन",
+      "outlines": "रूपरेखा",
+      "sun": "सूरज",
+      "wind": "हवा"
+    },
+    "choices": {
+      "shading": {
+        "toon": "कार्टून",
+        "matte": "मैट",
+        "physical": "भौतिक"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "controls": {
+      "mouse": "चारों ओर देखने के लिए खींचो; पॉइंटर चालू करो और ड्रोन चलाओ, हर डिश पीछा करती है",
+      "turn": "घुमाओ",
+      "turnSpeed": "घूमने की गति",
+      "followPointer": "पॉइंटर का पीछा"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "स्थिर गति से",
+        "at once": "एकदम",
+        "on a spring": "स्प्रिंग पर"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "निशाने पर डिशें"
+    }
+  },
+  "two-lenses-one-scene": {
+    "controls": {
+      "mouse": "शहर के चारों ओर घूमने के लिए खींचो; लेंस बदलो और सड़कों को सीधा होते देखो",
+      "lens": "लेंस",
+      "fieldOfView": "दृष्टि क्षेत्र",
+      "isometric": "समदूरीय",
+      "drift": "बहना"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "परिप्रेक्ष्य",
+        "orthographic": "लंबकोणीय"
+      }
+    },
+    "readouts": {
+      "lens": "लेंस"
+    },
+    "words": {
+      "orthographic": "लंबकोणीय, {height} मी ऊँचा",
+      "perspective": "{degrees}° परिप्रेक्ष्य"
+    }
+  },
+  "uvs-of-every-shape": {
+    "controls": {
+      "mouse": "चारों ओर देखने के लिए खींचो; एक अक्षर और एक अंक तस्वीर के हर खाने का नाम बताते हैं",
+      "pattern": "पैटर्न",
+      "repeat": "दोहराव",
+      "slide": "खिसकाओ",
+      "spin": "घुमाव"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "टेस्ट कार्ड",
+        "checks": "चौखाने",
+        "arrows": "तीर"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "controls": {
+      "keys": "इंजन का किरदार नियंत्रण: मेन्यू का खेलो देखने के लिए माउस लॉक करता है, दौड़ने के लिए W A S D (AZERTY पर Z Q S D), तेज़ दौड़ने के लिए Shift, कूदने के लिए स्पेस, Esc माउस छोड़ता है। पेज फिर दौड़ने के लिए R और आवाज़ बंद करने के लिए M जोड़ता है।",
+      "look": "नज़र",
+      "runAgain": "फिर दौड़ो"
+    },
+    "game": {
+      "title": "मंदिर पार्कौर",
+      "goal": "रास्ते में पाँच गोले उठाते हुए सुनहरी मूर्ति तक पहुँचो। लावा तुम्हें आख़िरी जलती चौकी पर वापस भेज देता है।",
+      "keys": {
+        "run": "दौड़ो",
+        "look": "नज़र",
+        "sprint": "तेज़ दौड़ो",
+        "jump": "कूदो",
+        "runAgain": "फिर दौड़ो",
+        "sound": "आवाज़ चालू या बंद",
+        "pause": "रोको"
+      }
+    },
+    "words": {
+      "checkpoint": "चौकी",
+      "finished": "{taken} / {orbs} गोले · फिर दौड़ने के लिए R",
+      "muted": "M आवाज़ बंद",
+      "sound": "M आवाज़"
+    }
+  },
+  "waves-of-points": {
+    "controls": {
+      "mouse": "मैदान के चारों ओर घूमने के लिए खींचो; कोई पैटर्न चुनो और तैरती बोयों के नीचे लहरें आकार बदलती हैं",
+      "pattern": "पैटर्न",
+      "height": "ऊँचाई",
+      "speed": "गति"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "समुद्री लहरें",
+        "rain of stones": "पत्थरों की बारिश",
+        "interference": "व्यतिकरण",
+        "standing wave": "स्थिर तरंग",
+        "whirlpool": "भँवर"
+      }
+    },
+    "readouts": {
+      "points": "बिंदु"
+    }
+  },
+  "what-hides-what": {
+    "controls": {
+      "mouse": "चारों ओर देखने के लिए खींचो; झाड़ियाँ बंद गलियों के सिरे पर सुनहरी गाँठें छिपाती हैं",
+      "hedgeHeight": "झाड़ियों की ऊँचाई",
+      "view": "दृश्य",
+      "aboveOrInside": "ऊपर या अंदर"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "visibility": "दिखना"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "सुनहरी गाँठें",
+      "clustersTested": "जाँचे गए क्लस्टर",
+      "clustersHidden": "छिपे क्लस्टर",
+      "trianglesHidden": "छिपे त्रिभुज"
+    },
+    "words": {
+      "notCounted": "यहाँ गिना नहीं गया"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "controls": {
+      "fieldOfView": "दृष्टि क्षेत्र",
+      "dollyZoom": "डॉली ज़ूम"
+    }
+  }
+}

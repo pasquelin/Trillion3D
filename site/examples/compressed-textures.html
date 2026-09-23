@@ -27,10 +27,11 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p>Courtyard and its textures drawn in code for this example, CC0 — see assets/examples/CREDITS.md</p>
+    <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words, language } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#b9d2ec');
@@ -67,13 +68,13 @@
       const chain = (entry) => (entry.width * entry.height * 4) / 3;
       const held = textures.reduce((sum, entry) => sum + chain(entry) * (inBlocks(entry) ? 1 : 4), 0);
       const plain = textures.reduce((sum, entry) => sum + chain(entry) * 4, 0);
-      readout('Textures in blocks')(`${textures.filter(inBlocks).length} of ${textures.length}`);
-      readout('All at full detail')(`${(held / MiB).toFixed(1)} MiB, not ${(plain / MiB).toFixed(1)}`);
+      readout('texturesBlocks')(say('someOf', { some: textures.filter(inBlocks).length, all: textures.length }));
+      readout('allFullDetail')(say('notPlain', { held: (held / MiB).toFixed(1), plain: (plain / MiB).toFixed(1) }));
       // What the GPU holds now: the family the device samples, the tiles streamed in for this view.
-      const format = readout('Pool format'), tiles = readout('Tiles held'), bytes = readout('Held on the GPU');
+      const format = readout('poolFormat'), tiles = readout('tilesHeld'), bytes = readout('heldGpu');
       world.onFrame(({ metrics }) => {
-        format(metrics.texturePoolFormat ?? 'not measured here');
-        tiles(metrics.textureTilesResident == null ? '—' : metrics.textureTilesResident.toLocaleString('en'));
+        format(metrics.texturePoolFormat ?? say('notMeasured'));
+        tiles(metrics.textureTilesResident == null ? '—' : metrics.textureTilesResident.toLocaleString(language()));
         bytes(metrics.textureResidentBytes == null ? '—' : `${(metrics.textureResidentBytes / 2 ** 20).toFixed(1)} MiB`);
       });
 
