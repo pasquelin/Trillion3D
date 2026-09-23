@@ -9,6 +9,7 @@ import { light } from '../../../../sdk-core/src/world/light/index.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { helper } from '../helper/index.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/index.ts';
 
 /** A scene whose `load` stands a plain node in for the compiled model at `url`. */
 function sceneWithLoads(loaded: string[]) {
@@ -64,4 +65,30 @@ test('another format version is refused, and the scene is left as it was', async
   const saved = { ...scene.toJSON(), formatVersion: 2 };
   await assert.rejects(scene.fromJSON(saved), { code: 'UNSUPPORTED_SCENE_FORMAT' });
   assert.equal(scene.children.length, 1);
+});
+
+test('a model that cannot be loaded leaves the scene as it was', async () => {
+  const scene = new Scene(async () => {
+    throw new Error('unreachable');
+  });
+  const kept = object.group();
+  scene.add(kept);
+  const saved = scene.toJSON();
+  saved.children.push({ ...saved.children[0], kind: 'model', model: { url: 'x' } });
+  await assert.rejects(scene.fromJSON(saved), /unreachable/);
+  assert.deepEqual(scene.children, [kept]);
+});
+
+test('a shape written by hand comes back in its array type, normalized or not', async () => {
+  const scene = sceneWithLoads([]);
+  const colours = new BufferAttribute(new Uint8Array([255, 0, 0, 0, 255, 0, 0, 0, 255]), 3);
+  colours.normalized = true;
+  const shape = geometry.createBuffer({
+    position: new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3),
+    color: colours,
+  });
+  scene.add(object.mesh(shape));
+  await scene.fromJSON(JSON.parse(JSON.stringify(scene.toJSON())));
+  const back = (scene.children[0] as ReturnType<typeof object.mesh>).geometry.attributes.color;
+  assert.ok(back.array instanceof Uint8Array && back.normalized);
 });
