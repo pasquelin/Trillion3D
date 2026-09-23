@@ -164,3 +164,21 @@ test('the header marks the current area, and a long sidebar label ends on an ell
   assert.ok(cut.every(({ overflow, whole }) => overflow === 'ellipsis' && whole));
   await page.context().close();
 });
+
+test('the editor is current in the header, and its menus close outside them and on Escape', async () => {
+  const { page, errors } = await open('#/en/editor');
+  const current = page.locator('header nav a[aria-current="page"]');
+  assert.equal(await current.getAttribute('data-nav'), 'editor');
+  const file = page.locator('details.dropdown', { hasText: 'File' });
+  const isOpen = () => file.evaluate((menu) => (menu as HTMLDetailsElement).open);
+  await file.locator('summary').click();
+  assert.equal(await isOpen(), true);
+  await page.locator('canvas').click();
+  assert.equal(await isOpen(), false, 'a click on the view closes the menu');
+  await file.locator('summary').click();
+  await page.keyboard.press('Escape');
+  assert.equal(await isOpen(), false);
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'SUMMARY');
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});

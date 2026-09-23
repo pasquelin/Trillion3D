@@ -54,19 +54,20 @@ test('the removed legacy routes no longer lead anywhere', () => {
   assert.ok(!english.some(({ section }) => section === 'demo'));
 });
 
-test('the header marks the area of the route', () => {
+test('the header marks the area of the route, the editor an area of its own', () => {
   const current = (hash: string) =>
     navLinks(parseRoute(hash))
       .filter((link) => link.current)
       .map(({ area, href }) => `${area} ${href}`);
   assert.deepEqual(current('#/fr/learn/create-a-world'), ['learn #/fr/learn/home']);
   assert.deepEqual(current('#/en/examples/cube'), ['examples #/en/examples']);
+  assert.deepEqual(current('#/fr/editor'), ['editor #/fr/editor']);
   assert.deepEqual(current('#/en/api/createWorld'), ['api #/en/api']);
   assert.deepEqual(current('#/fr/reports/september-18/compare'), ['reports #/fr/reports']);
   assert.deepEqual(current('#/fr/sandbox/a-neon-sign'), ['sandbox #/fr/sandbox']);
   assert.deepEqual(
     navLinks(parseRoute('#/en/api')).map(({ area }) => area),
-    ['learn', 'sandbox', 'examples', 'api', 'reports'],
+    ['learn', 'sandbox', 'examples', 'editor', 'api', 'reports'],
   );
 });
 
@@ -126,9 +127,10 @@ test('page resolution distinguishes entries, examples, and unknown addresses', (
     '#/en/learn/architecture',
   );
   assert.equal(resolvePage({ locale, area: 'examples', id: '' }, entries).kind, 'examples');
+  assert.equal(resolvePage({ locale, area: 'editor', id: '' }, entries).kind, 'editor');
   assert.equal(
     resolvePage({ locale, area: 'examples', id: 'scene-editor' }, entries).kind,
-    'editor',
+    'not-found',
   );
   assert.equal(
     resolvePage({ locale, area: 'examples', id: 'cube' }, entries, ['cube']).kind,

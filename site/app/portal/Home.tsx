@@ -4,11 +4,10 @@ import { exampleTitle, mosaicEntries, thumbnailOf } from '../examples/list.ts';
 import { DocPage, SITE_NAME } from '../layout/DocPage.tsx';
 import { LinkButton } from '../ui/Button.tsx';
 import { Mosaic } from '../ui/Mosaic.tsx';
-import { EDITOR_ID, routeHref } from './routes.ts';
+import { routeHref } from './routes.ts';
 
-/** The home is the gallery: one line on what the engine does, where to start (the course, the
- * reference, the scene editor running live), then every ready example as a picture that opens
- * it — the flagships large. */
+/** The home is the gallery: one line on what the engine does, where to start (the course and the
+ * reference), then every ready example as a picture that opens it — the flagships large. */
 export function Home({ locale }: { locale: Locale }) {
   const t = useWords(locale);
   return (
@@ -25,12 +24,6 @@ export function Home({ locale }: { locale: Locale }) {
           </LinkButton>
           <LinkButton variant="outline" href={routeHref({ locale, area: 'api', id: '' })}>
             {t('nav.api')}
-          </LinkButton>
-          <LinkButton
-            variant="secondary"
-            href={routeHref({ locale, area: 'examples', id: EDITOR_ID })}
-          >
-            {t('editor.showcase')}
           </LinkButton>
         </>
       }

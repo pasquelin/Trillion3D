@@ -5,7 +5,7 @@ import { REPORT_SECTIONS } from '../../reports/presentation.ts';
 import type { PortalEntry } from '../../content/model.ts';
 import { exampleTitle, readyThemes, themeTitle, thumbnailOf } from '../examples/list.ts';
 import { expandEntryLinks } from '../portal/entryLinks.ts';
-import { EDITOR_ID, entryRoute, LEARN_SECTIONS, routeHref } from '../portal/routes.ts';
+import { entryRoute, LEARN_SECTIONS, routeHref } from '../portal/routes.ts';
 import type { PortalRoute } from '../portal/routes.ts';
 import { search } from '../portal/search.ts';
 import type { ExampleGroup } from './ExampleList.tsx';
@@ -95,19 +95,6 @@ export function examplesMenu(route: PortalRoute, query = ''): ExampleGroup[] {
       })),
     }))
     .filter(({ items }) => items.length > 0);
-}
-
-/** Examples, first: the scene editor, a group of its own, when `query` finds it. */
-export function editorMenu(route: PortalRoute, query = ''): SidebarMenuGroup[] {
-  const t = wordsOf(route.locale);
-  const label = t('editor.title');
-  const items = search([{ title: label, text: EDITOR_ID }], query).map(() => ({
-    key: EDITOR_ID,
-    label,
-    href: routeHref({ locale: route.locale, area: 'examples', id: EDITOR_ID }),
-    active: route.area === 'examples' && route.id === EDITOR_ID,
-  }));
-  return items.length > 0 ? [{ id: 'editor', title: t('editor.group'), items }] : [];
 }
 
 /** Measurements: the parts of the current campaign's report. */
