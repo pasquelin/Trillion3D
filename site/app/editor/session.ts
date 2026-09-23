@@ -2,7 +2,7 @@ import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
 import type { Engine } from '../../lessons/lessonWorld.ts';
 import { SCENE_BACKGROUND } from '../../lessons/scenePalette.ts';
 import { createHistory, type Command } from './history.ts';
-import { poseCommand, poseOf, type Pose } from './commands.ts';
+import { isWithin, poseCommand, poseOf, type Pose } from './commands.ts';
 import { isMesh } from './objects.ts';
 import { writeAutosave } from './storage.ts';
 
@@ -58,10 +58,7 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
     }
     follow();
   };
-  const inScene = (node: Object3D | null) => {
-    for (let at = node; at; at = at.parent) if (at === scene) return true;
-    return false;
-  };
+  const inScene = (node: Object3D | null) => isWithin(node, scene);
   const select = (node: Object3D | null) => {
     selected = node && inScene(node) ? node : null;
     if (selected) gizmo.attach(selected);
