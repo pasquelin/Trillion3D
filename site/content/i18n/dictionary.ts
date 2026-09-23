@@ -5,11 +5,12 @@ import type { Locale, Localized } from '../locale.ts';
 /** The language every other one is checked against, and the one a missing language falls to. */
 export const DEFAULT_LANGUAGE = 'en';
 
-/** What the selector lists: each language as it names itself, English first. */
+/** What the selector lists: each language's code (its file name) and how it names itself,
+ *  English first. */
 export const LANGUAGES = [
   DEFAULT_LANGUAGE,
   ...Object.keys(DICTIONARIES).filter((code) => code !== DEFAULT_LANGUAGE),
-].map((code) => DICTIONARIES[code].meta);
+].map((code) => ({ code, ...DICTIONARIES[code].meta }));
 
 export const isLanguage = (code: string | undefined) =>
   code !== undefined && Object.hasOwn(DICTIONARIES, code);
