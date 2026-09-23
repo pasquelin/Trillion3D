@@ -75,7 +75,7 @@ export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
         <span className="hidden sm:inline">Web Geometry</span>
       </a>
       <PrimaryNavigation />
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ms-auto flex items-center gap-2">
         <Button
           className="flex-nowrap whitespace-nowrap border-neutral-content/20 text-neutral-content md:w-44 md:justify-start"
           variant="outline"
@@ -83,7 +83,7 @@ export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
           onClick={onSearch}
         >
           <Icon name="search" />
-          <span className="hidden min-w-0 flex-1 truncate text-left font-normal opacity-75 md:inline">
+          <span className="hidden min-w-0 flex-1 truncate text-start font-normal opacity-75 md:inline">
             {t('search.short')}
           </span>
           <kbd className="kbd kbd-sm text-base-content">/</kbd>

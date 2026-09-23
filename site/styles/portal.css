@@ -91,7 +91,7 @@ body {
   font-size: 1.125rem;
 }
 .wg-prose :is(ul, ol) {
-  padding-left: 1.5em;
+  padding-inline-start: 1.5em;
   list-style: revert;
 }
 .wg-prose li + li {
