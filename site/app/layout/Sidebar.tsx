@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 import { t } from '../../content/i18n/index.ts';
 import { SearchInput } from '../ui/Input.tsx';
+import { Note } from '../ui/Text.tsx';
 import { PrimaryNavigation } from './Header.tsx';
 import { apiMenu, examplesMenu, learnMenu, reportMenu } from './menus.ts';
 import { usePortal } from './PortalContext.ts';
@@ -26,9 +27,7 @@ function ExamplesMenu() {
       {groups.length > 0 ? (
         <ExampleList groups={groups} />
       ) : (
-        <p className="p-2 text-sm opacity-70" role="status">
-          {t(route.locale, 'sidebar.noResults')}
-        </p>
+        <Note role="status">{t(route.locale, 'sidebar.noResults')}</Note>
       )}
     </>
   );
