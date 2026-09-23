@@ -42,7 +42,7 @@ export function Home({ locale }: { locale: Locale }) {
         <>
           <LinkButton
             variant="primary"
-            href={routeHref({ locale, area: 'learn', id: 'quick-start' })}
+            href={routeHref({ locale, area: 'learn', id: 'create-a-world' })}
           >
             {t(locale, 'home.start')}
           </LinkButton>
