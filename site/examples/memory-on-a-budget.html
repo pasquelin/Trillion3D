@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>An observatory streamed in clusters</title>
+    <title>Memory on a budget</title>
     <meta name="thumbnail" content="5" />
     <style>
       html,
@@ -24,24 +24,25 @@
       import { createWorld, pose } from '../runtime/engine.js';
       import { controls, banner } from '../runtime/kit.js';
 
-      const info = banner('An observatory streamed in clusters', 'Look inside the engine: colour the clusters, the pages or the level of detail. Raise the pixel error to draw coarser pieces.');
+      const info = banner('Memory on a budget', 'Each colour is a level of detail, blue the exact one. Give the geometry more memory and the coarse colours go; zoom in and the budget follows your eye.');
       const world = createWorld('view', { controls: 'orbit' });
-      // The compiler cut the model into clusters of triangles, and each cluster into coarser
-      // versions of itself. Every frame the engine picks, for each part of the view, the
-      // coarsest version whose error stays under `pixelError` pixels on screen.
       const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
       const framing = pose.fromBounds(model.bounds);
       world.camera.set(framing);
       world.controls.target.set(...framing.target);
       world.camera.position.lerp(world.controls.target, 0.3);
 
-      // `world.diagnostic.mode` swaps the image for a view of the engine's own work.
-      controls({ view: ['clusters', 'beauty', 'pages', 'lod', 'triangles'], pixelError: [0, 16, 0, 0.5] }, (values) => {
+      // `world.budget.geometryPool` is a fixed size in bytes, never read from the machine; the
+      // slider counts it in KiB. The engine keeps what fits and draws the rest coarser, raising
+      // the screen error until the view fits.
+      const KiB = 1024;
+      controls({ memory: [64, 2560, 768, 64], view: ['lod', 'beauty', 'clusters'] }, (values) => {
+        world.budget.geometryPool = values.memory * KiB;
         world.diagnostic.mode = values.view;
-        world.pixelError = values.pixelError;
+        world.invalidate();
       });
       world.onFrame(({ metrics }) => {
-        info.status(`${metrics.selectedTriangles?.toLocaleString('en') ?? '?'} triangles drawn of ${model.metadata.sourceTriangles?.toLocaleString('en') ?? '?'} — ${metrics.residentPages ?? '?'} pages in memory`);
+                info.status(`${Math.round(world.budget.geometryPool / KiB)} KiB held — drawn at ${metrics.budgetPixelError ?? 0} px of error — ${metrics.residentPages ?? '?'} pages`);
       });
       world.invalidate();
     </script>

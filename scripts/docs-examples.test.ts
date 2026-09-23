@@ -5,6 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
+import { thumbnailDelay } from './docs/examples/capture.ts';
 import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
 import type { SidebarMenu as SidebarMenuComponent } from '../site/app/portal/SidebarMenu.tsx';
 import type { examplesMenu as examplesMenuFunction } from '../site/app/examples/examplesMenu.ts';
@@ -31,6 +32,10 @@ test('every example is one standalone HTML file that imports the built engine', 
     assert.match(html, /<canvas id="view"><\/canvas>/);
     assert.match(html, /import \{ createWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
+    // The kit, when used, is the one served beside the engine, and the thumbnail moment is valid.
+    if (/runtime\/kit\.js/.test(html))
+      assert.match(html, /import \{[^}]*\} from '\.\.\/runtime\/kit\.js'/, entry.id);
+    thumbnailDelay(html);
     // #276: an example lets the engine read the machine and choose its path, so it renders
     // wherever it is opened; one that pins a backend to show the setting says so on the page.
     if (/backends:/.test(html)) assert.match(html, /<p>[^<]*\bbackend\b[^<]*<\/p>/i, entry.id);
@@ -43,6 +48,13 @@ test('every example is one standalone HTML file that imports the built engine', 
     if (Object.keys(modelScenes).some((scene) => manifest.startsWith(`assets/examples/${scene}/`)))
       assert.match(html, /<p>[^<]*\b(CC0|CC BY 3\.0)\b[^<]*CREDITS\.md<\/p>/, entry.id);
   }
+});
+
+test('an example declares the moment its thumbnail is taken, or gets the settled default', () => {
+  assert.equal(thumbnailDelay('<title>x</title>'), 1.5);
+  assert.equal(thumbnailDelay('<meta name="thumbnail" content="4.5" />'), 4.5);
+  assert.throws(() => thumbnailDelay('<meta name="thumbnail" content="soon" />'), /0 to 20 s/);
+  assert.throws(() => thumbnailDelay('<meta name="thumbnail" content="60" />'), /0 to 20 s/);
 });
 
 test('the example page shows the file as source on the left and runs it on the right', async () => {

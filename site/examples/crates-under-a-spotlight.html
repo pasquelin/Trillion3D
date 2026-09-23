@@ -3,29 +3,64 @@
   <head>
     <meta charset="utf-8" />
     <title>Crates under one spotlight</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e1621;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        bottom: 0;
+        margin: 0.5rem;
+        color: #cbd5e1;
+        font: 12px system-ui;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <p>Crate model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md</p>
     <script type="module">
-      import { createWorld, light } from '../runtime/engine.js';
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls, banner } from '../runtime/kit.js';
 
+      banner('Crates under one spotlight', 'Move the pointer: the spotlight follows it. Widen the cone, soften its edge.');
       const world = createWorld('view', { controls: 'orbit' });
       await world.scene.load('../assets/examples/crates/cache/native/full/manifest.json');
-      // One spot light above the crates: the cone half-angle is in radians, the distance in metres.
-      world.scene.add(light.spot({
-        position: [1.5, 5, 2.5], target: [-1.5, -3.15, -1.75],
-        color: [1, 0.92, 0.8], intensity: 300, distance: 14, angle: 0.45, castShadow: true,
-        radius: 0.1,
-      }));
-      world.camera.position.set(4.5, 2.8, 5.5);
-      world.camera.lookAt(0, 0.7, 0);
-      world.controls.target.set(0, 0.7, 0);
+      // One spot light, high above: `angle` is the cone's half-angle in radians, `penumbra` the
+      // share of it that fades out, `radius` the lamp's size, which softens the shadows.
+      const spot = light.spot({ position: [0, 6, 2], intensity: 400, distance: 16, castShadow: true, radius: 0.1 });
+      world.scene.add(spot, light.ambient({ intensity: 0.12, color: '#8fb4ff' }));
+      world.camera.position.set(4.5, 3.4, 6.5);
+      world.camera.lookAt(0, 0.6, 0);
+      world.controls.target.set(0, 0.6, 0);
+
+      controls({ angle: [0.1, 0.8, 0.4], softness: [0, 1, 0.4], colour: '#ffe2b8', power: [50, 1200, 400, 10] }, (values) => {
+        spot.angle = values.angle;
+        spot.penumbra = values.softness;
+        spot.color.set(values.colour);
+        spot.intensity = values.power;
+      });
+
+      // The pointer casts a ray from the camera; where it meets the floor (y = 0), the spot aims.
+      world.canvas.addEventListener('pointermove', (event) => {
+        const box = world.canvas.getBoundingClientRect(), camera = world.camera;
+        const slope = Math.tan((camera.fov * Math.PI) / 360);
+        const x = ((event.clientX - box.left) / box.width) * 2 - 1, y = 1 - ((event.clientY - box.top) / box.height) * 2;
+        const ray = math.vector3(x * slope * (box.width / box.height), y * slope, -1).applyQuaternion(camera.quaternion);
+        if (ray.y >= 0) return;
+        const reach = -camera.position.y / ray.y;
+        spot.target.position.set(camera.position.x + ray.x * reach, 0, camera.position.z + ray.z * reach);
+        world.invalidate();
+      });
       world.invalidate();
     </script>
   </body>

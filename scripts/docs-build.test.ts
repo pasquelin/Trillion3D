@@ -15,6 +15,7 @@ test('the site build writes every bundle of the published tree', async () => {
       'js/engine.js',
       'runtime/portal.js',
       'runtime/engine.js',
+      'runtime/kit.js',
       'runtime/pageDecodeWorker.js',
       'runtime/pageIntegrationWorker.js',
       'runtime/pageCodec.wasm',

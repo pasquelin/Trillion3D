@@ -29,6 +29,7 @@ async function collectCandidates(root: string): Promise<string[]> {
     ...(await sourceFiles(resolve(root, 'site/content'))),
     ...(await sourceFiles(resolve(root, 'site/lessons'))),
     ...(await sourceFiles(resolve(root, 'site/demos'))),
+    ...(await sourceFiles(resolve(root, 'site/examples/kit'))),
     ...(await sourceFiles(resolve(root, 'site/reports'))),
   ];
   const candidates = new Set<string>();

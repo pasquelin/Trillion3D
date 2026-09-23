@@ -2,31 +2,60 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A street lamp at night</title>
+    <title>A street lamp, day and night</title>
+    <meta name="thumbnail" content="4" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e1621;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        bottom: 0;
+        margin: 0.5rem;
+        color: #cbd5e1;
+        font: 12px system-ui;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <p>Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md</p>
     <script type="module">
-      import { createWorld, light } from '../runtime/engine.js';
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls, banner } from '../runtime/kit.js';
 
+      banner('A street lamp, day and night', 'Switch night off: the sun takes over from the lamp. Turn the bounce off to see how much light the walls send back.');
       const world = createWorld('view', { controls: 'orbit' });
       await world.scene.load('../assets/examples/street-corner/cache/native/full/manifest.json');
-      // One point light at the end of the lamp's arm: the glass fixture casts no shadow on
-      // itself, and the pavement and the wall show the light falling off with distance.
-      world.scene.add(light.point({
-        position: [-0.55, 3.95, 0.4], color: [1, 0.72, 0.4], intensity: 24, distance: 12, castShadow: true,
-        radius: 0.25,
-      }));
+
+      // By day a sun; by night one point light at the end of the lamp's arm. `radius` is the
+      // glass globe's: the lamp casts no shadow on itself.
+      const sun = light.directional({ intensity: 3.5, color: '#fff3e2', castShadow: true });
+      const lamp = light.point({ position: [-0.55, 3.95, 0.4], intensity: 24, distance: 12, castShadow: true, radius: 0.25 });
+      world.scene.add(sun, lamp);
       world.camera.position.set(5.5, 2.4, 7);
       world.camera.lookAt(-0.5, 1.5, -0.5);
       world.controls.target.set(-0.5, 1.5, -0.5);
-      world.invalidate();
+
+      // `world.bounce` adds the light the surfaces send back, traced against the compiled model.
+      controls({ night: true, bounce: true, sun: [-80, 80, 30, 1], lamp: '#ffb866' }, (values) => {
+        sun.visible = !values.night;
+        lamp.visible = values.night;
+        lamp.color.set(values.lamp);
+        const turn = math.degToRad(values.sun);
+        sun.position.set(Math.sin(turn) * 15, 11, Math.cos(turn) * 15);
+        world.bounce = values.bounce;
+        world.exposure = values.night ? 1.6 : 1;
+        world.invalidate();
+      });
     </script>
   </body>
 </html>
