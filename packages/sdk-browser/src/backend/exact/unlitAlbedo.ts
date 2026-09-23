@@ -12,7 +12,7 @@ import * as THREE from 'three';
  * - `transmission`: what is seen through replaces the base colour, lighting or not.
  *
  * What remains: base colour, base map, vertex colours — albedo — and the material's
- * emission, a named gap of this view against the WebGPU path (`docs/SDK.md`).
+ * emission, a named gap of this view against the WebGPU path (`bench/runner/README.md`, "The witnesses").
  */
 const NEUTRAL = ['metalness', 'aoMapIntensity', 'lightMapIntensity', 'transmission'] as const;
 type Factors = Partial<Record<(typeof NEUTRAL)[number], number>>;

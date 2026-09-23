@@ -14,6 +14,6 @@ Regenerate from the repository root with `pnpm build:native`, then `pnpm docs:sc
 `WG_COMPILER` optionally selects a compatible compiler executable. Source generation is
 deterministic; compiler timings and source provenance reflect the actual compilation run.
 
-The live example uses the public browser SDK and its WebGPU page backend. It loads the current
-Three.js peer dependency from a pinned CDN URL; no third-party engine code is copied into the
-repository. The rest of the learning portal and its geometric illustrations use local files.
+The live example uses the public browser SDK and its WebGPU page backend, from the portal's own
+runtime bundle, built from the installed dependencies; no third-party engine code is copied into the
+repository.
