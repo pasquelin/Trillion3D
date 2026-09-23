@@ -79,7 +79,7 @@ export function ExampleCard({ example, locale = 'en', href, badge }: ExampleCard
       href={href ?? routeHref({ locale, area: 'lessons', id: example.id })}
     >
       <Card className="h-full overflow-hidden shadow-sm">
-        <div className="aspect-video overflow-hidden rounded-box bg-base-300">
+        <div className="aspect-[16/10] overflow-hidden rounded-box bg-base-300">
           <Preview example={example} locale={locale} title={title} />
         </div>
         <Badge tone="primary" soft>
@@ -108,9 +108,15 @@ interface PendingProps {
  * feature it waits for. It opens nothing. */
 export function PendingExampleCard({ title, locale, missing }: PendingProps) {
   return (
-    <div aria-disabled="true">
-      <Card className="h-full border-dashed opacity-80">
-        <Badge tone="neutral" soft size="sm">
+    <div aria-disabled="true" className="h-full opacity-75">
+      <Card className="h-full overflow-hidden shadow-sm">
+        <img
+          className="aspect-[16/10] w-full rounded-box object-cover"
+          src="./assets/example-in-progress.svg"
+          alt=""
+          loading="lazy"
+        />
+        <Badge tone="info" soft>
           {t(locale, 'examples.inProgress')}
         </Badge>
         <h2 className="card-title text-lg">{title}</h2>
