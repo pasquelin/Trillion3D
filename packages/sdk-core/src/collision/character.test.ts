@@ -134,3 +134,39 @@ test('the motion is the same at 30 Hz and at 144 Hz', () => {
   const gap = Math.hypot(slow[0] - fast[0], slow[1] - fast[1], slow[2] - fast[2]);
   assert.ok(gap / travel <= 0.02, `gap ${gap} over ${travel}: ${slow} vs ${fast}`);
 });
+
+/** A slab `angle` radians steep whose top face passes through the origin, rising towards +X. */
+function ramp(angle: number) {
+  const mesh = new Mesh(box(40, 1, 40));
+  mesh.rotation.z = angle;
+  mesh.position.set(0.5 * Math.sin(angle), -0.5 * Math.cos(angle), 0);
+  return mesh;
+}
+
+test('a slope under maxSlope holds a standing body; a steeper one slides it down', () => {
+  const gentle = body([ramp(Math.PI / 6)], 0, 0, 0);
+  live(gentle, 1, STILL);
+  assert.equal(gentle.onGround, true);
+  assert.ok(Math.abs(gentle.feet[0]) < 1e-6, `slid to ${gentle.feet[0]}`);
+  const steep = body([ramp(Math.PI / 3)], 0, 0.5, 0);
+  live(steep, 1, STILL);
+  assert.equal(steep.onGround, false);
+  assert.ok(steep.feet[0] < -1, `held at ${steep.feet[0]}`);
+});
+
+test('a jump is granted coyoteTime after an edge, and kept jumpBuffer before a landing', () => {
+  // Off the edge of a block, then a press within the coyote time: the body still jumps.
+  const late = body([block(-20, -1, -5, 0, 0, 5)], -1);
+  let jumps = 0;
+  const count = { onJump: () => jumps++ };
+  for (let i = 0; i < 600 && late.onGround; i++) late.advance(1 / 240, EAST, count);
+  late.advance(HUMAN_BODY.coyoteTime / 2, STILL, count);
+  late.pressJump();
+  late.advance(1 / 240, STILL, count);
+  assert.equal(jumps, 1);
+  // A press made in the air, just before the landing, jumps as the feet touch.
+  const early = body([FLOOR()], 0, 0.05, 0);
+  early.pressJump();
+  live(early, 0.3, STILL);
+  assert.ok(early.feet[1] > 0.2, `no buffered jump: ${early.feet[1]}`);
+});
