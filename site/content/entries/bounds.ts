@@ -73,7 +73,7 @@ export const BOUNDS: PortalEntry[] = [
     id: 'frustumExcludesBox',
     exports: ['frustumExcludesBox', 'frustumClipBox'],
     title: 'frustumExcludesBox() · frustumClipBox()',
-    module: 'packages/sdk-core/src/math/frustum/frustumBox.ts',
+    module: 'packages/sdk-core/src/math/frustum/box.ts',
     signature:
       'frustumExcludesBox(planes, minX, minY, minZ, maxX, maxY, maxZ): boolean\nfrustumClipBox(planes, minX, minY, minZ, maxX, maxY, maxZ): 0 | 1 | 2',
     description:

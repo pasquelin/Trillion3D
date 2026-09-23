@@ -1,8 +1,8 @@
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts';
 import type { WebglFrameGate } from '../webgl/core/frameGate.ts';
-import { followPlacementRows } from './placementUpdate.ts';
-import type { PlacementRows } from './placementRows.ts';
-import { growRowRoots } from './placementGrowth.ts';
+import { followPlacementRows } from './update.ts';
+import type { PlacementRows } from './rows.ts';
+import { growRowRoots } from './growth.ts';
 import type { BlendCopy } from '../cluster/blendCopyContract.ts';
 import { followBlendCopies, growBlendCopies } from '../cluster/blendCopyMesh.ts';
 import { autonomousBootstrap } from '../backend/autonomous/manifest.ts';
@@ -60,7 +60,7 @@ export function autonomousPlacements(env: Placements) {
       const moved = followPlacementRows(roots, rows, from, to);
       if (followBlendCopies(blendCopies, rows, from, to) || moved) gate.sceneMoved();
     },
-    /** The growth contract (`placementGrowth.ts`): every table of this path is a list, so the
+    /** The growth contract (`growth.ts`): every table of this path is a list, so the
      *  new rows' roots and pages are appended to them, indexed like the ones collected. */
     growPlacements(from: PlacementRows, to: PlacementRows) {
       for (const { item: root, template } of growRowRoots(roots, from, to)) {

@@ -1,6 +1,6 @@
 import { type CameraPose, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import { emitExplorerFrameDiagnostic } from '../diagnostic/frameDiagnostic.ts';
-import { handleExplorerRenderError } from './renderFallback.ts';
+import { handleExplorerRenderError } from './fallback.ts';
 import { createHostFrameCostAudit } from '../../frame/costAudit.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';

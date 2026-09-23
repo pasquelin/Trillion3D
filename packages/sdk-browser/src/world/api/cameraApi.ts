@@ -3,7 +3,7 @@ import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts';
 import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts';
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts';
-import type { PivotCameraControls } from '../../camera/controls/controlTypes.ts';
+import type { PivotCameraControls } from '../../camera/controls/types.ts';
 import { copyElements } from '../../math/matrixElements.ts';
 import type { CameraPose } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, PointOfInterest, RenderBackend } from '../../backend/types.ts';

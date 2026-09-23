@@ -1,5 +1,5 @@
 // Batch F oracles, WebGPU engine-prepare side: `packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts:23-44`,
-// `packages/sdk-browser/src/webgpu/pages/prepare/setup.ts:94-105` and `packages/sdk-browser/src/webgpu/pages/prepare/prepareTextures.ts:37-42` from before batch F.
+// `packages/sdk-browser/src/webgpu/pages/prepare/setup.ts:94-105` and `packages/sdk-browser/src/webgpu/pages/prepare/textures.ts:37-42` from before batch F.
 import type { HostAttributes } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { OPEN_CONE, triangleCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';

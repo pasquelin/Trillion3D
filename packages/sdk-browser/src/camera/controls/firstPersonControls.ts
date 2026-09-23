@@ -1,10 +1,10 @@
-import { createChangeGate, createControlBase } from './controlBase.ts';
-import { axisOf, trackKeys, trackPointers, type KeyAxis } from './controlInput.ts';
-import { controlPose } from './controlPose.ts';
-import { moveLocal, orbitOrientation } from './controlMath.ts';
+import { createChangeGate, createControlBase } from './base.ts';
+import { axisOf, trackKeys, trackPointers, type KeyAxis } from './input.ts';
+import { controlPose } from './pose.ts';
+import { moveLocal, orbitOrientation } from './math.ts';
 import { clampNumber, POLAR_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import type { ControlCamera, SteeredCameraControls } from './controlTypes.ts';
+import type { ControlCamera, SteeredCameraControls } from './types.ts';
 
 /**
  * FIRST PERSON, pointer locked: the pointer turns the head, the keys walk. The horizon stays

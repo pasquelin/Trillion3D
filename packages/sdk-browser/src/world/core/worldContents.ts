@@ -5,7 +5,7 @@ import { createWorldMaterials, type MaterialEntry } from './worldMaterials.ts';
 import { createWorldBatches } from './worldBatches.ts';
 import { createWorldPoses, shownUnder } from './worldPoses.ts';
 import type { LoadedModel } from './loadedModel.ts';
-import type { PlacementRows } from '../../placement/placementRows.ts';
+import type { PlacementRows } from '../../placement/rows.ts';
 import { createWorldMembers } from './worldMembers.ts';
 import { noticeFolds, type WorldNotices } from '../diagnostic/worldNotices.ts';
 

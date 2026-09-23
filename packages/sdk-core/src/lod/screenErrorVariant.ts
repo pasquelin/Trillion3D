@@ -54,7 +54,7 @@ export function screenErrorVariant(): ScreenErrorVariant {
  * Screen error of the external reference: `(error × stretch) × focal / w`, infinity when the
  * centre does not reach the near plane; `w` is the clip weight of the centre's depth, the depth
  * itself under a perspective projection (`perspective` = 1) and 1 under an orthographic one (0,
- * `screenErrorBound.ts`). WGSL mirror in `packages/sdk-browser/src/gpu/dag/shader/shaderError.ts`, same operands and same order,
+ * `screenErrorBound.ts`). WGSL mirror in `packages/sdk-browser/src/gpu/dag/shader/error.ts`, same operands and same order,
  * to f32. The caller has already handled a zero or infinite error.
  */
 export function referenceScreenError(

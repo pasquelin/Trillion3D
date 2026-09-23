@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { asHostLibrary, type HostBox } from '../resources.ts';
 import type { HostCamera } from '../../camera/world.ts';
-import type { ControlVector } from '../../camera/controls/controlTypes.ts';
+import type { ControlVector } from '../../camera/controls/types.ts';
 import type { HostGraphGroup, HostGraphMesh } from './graphNodes.ts';
 
 /** The camera the explorer frames its scene with, at the optics the framing computed. */

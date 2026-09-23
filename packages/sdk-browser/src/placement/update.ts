@@ -1,7 +1,7 @@
 import { BOX_VALUES, boxEmpty, boxIsEmpty, boxTransform } from '../../../sdk-core/src/index.ts';
 import { unionBoxInto } from '../math/boxUnionInto.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
-import type { PlacementRows } from './placementRows.ts';
+import type { PlacementRows } from './rows.ts';
 
 /** A root that reads a row, and its rank among the roots the cut walks. */
 type RowRoot<T> = { root: ClusterRoot<T>; rank: number };
@@ -27,7 +27,7 @@ function rowRoots<T>(roots: readonly ClusterRoot<T>[], rows: PlacementRows) {
   return (index.get(rows) ?? NO_ROOTS) as RowRoot<T>[];
 }
 
-/** A root list's rows were rebound or extended (`placementGrowth.ts`): its index is built again
+/** A root list's rows were rebound or extended (`growth.ts`): its index is built again
  *  at the next follow. */
 export const forgetRowRoots = (roots: readonly object[]) => {
   indexes.delete(roots);

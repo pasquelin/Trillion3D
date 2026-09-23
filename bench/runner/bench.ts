@@ -24,8 +24,7 @@ import { dirname, join, resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
-import { startServer } from '../../tests/kit/server/staticServer.ts';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import { serverPort, startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { readBounds } from './page.ts';
 import { imageDiff, resume } from './summary.ts';
 import { benchLights } from './lamps.ts';
@@ -95,9 +94,7 @@ async function main() {
     captures,
     isolation: settings.isolation,
   });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('server did not bind a TCP port');
-  const port = address.port;
+  const port = serverPort(server);
   report.settings = { ...settings, port };
   // Fresh browser per series, closed immediately after. A large scene leaves several hundred MB
   // in Chromium GPU process; closing page does not release them, causing 3rd series to fail

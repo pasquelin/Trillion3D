@@ -1,4 +1,4 @@
-// Synchronous-triangles lot, CPU path (`renderCpuCut`, `renderCpu.ts`): the CPU cut draws
+// Synchronous-triangles lot, CPU path (`renderCpuCut`, `cpu.ts`): the CPU cut draws
 // everything it selected — no resident cluster can be missing, residency checks make it fail before
 // the draw. `uncoveredTriangles` is therefore always zero on this path, and `drawnTriangles` takes
 // `selectedTriangles` as-is.

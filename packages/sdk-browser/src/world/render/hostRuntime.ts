@@ -1,6 +1,6 @@
 import type { RenderBackend } from '../../backend/types.ts';
 import { createExplorerCapture } from '../capture/capture.ts';
-import { createExplorerCaptureView } from '../capture/captureView.ts';
+import { createExplorerCaptureView } from '../capture/view.ts';
 import { createExplorerHostState } from './hostState.ts';
 import { createExplorerHostFrame } from './hostFrame.ts';
 import { createExplorerLifecycle } from '../session/lifecycle.ts';

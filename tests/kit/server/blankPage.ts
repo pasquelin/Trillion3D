@@ -1,4 +1,5 @@
 import { createServer, type Server } from 'node:http';
+import { serverPort } from './staticServer.ts';
 
 /**
  * A server that answers every request with an empty HTML page titled `title`: the origin a GPU
@@ -13,7 +14,5 @@ export async function blankPageServer(title: string): Promise<{ server: Server; 
     server.once('error', reject);
     server.listen(0, '127.0.0.1', ready);
   });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
-  return { server, port: address.port };
+  return { server, port: serverPort(server) };
 }

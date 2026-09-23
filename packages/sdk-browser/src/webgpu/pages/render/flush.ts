@@ -5,7 +5,7 @@ import { outputColorDiagnostic } from '../helpers.ts';
 import { fallbackToCpuCut } from '../io/drops.ts';
 import { bounceState, directLightingState } from './encodeLights.ts';
 import { wantsContractLighting } from '../prepare/lightResources.ts';
-import { sunFarState } from '../prepare/prepareSunFar.ts';
+import { sunFarState } from '../prepare/sunFar.ts';
 import { renderWebgpuPages } from './render.ts';
 import { settlePose } from '../../tile/converge.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';

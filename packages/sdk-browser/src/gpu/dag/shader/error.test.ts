@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { referenceScreenError } from '../../../../../sdk-core/src/index.ts';
 import { DAG_SELECTION_SHADER } from './shader.ts';
-import { REFERENCE_ERROR_DECL, withScreenErrorVariant } from './shaderError.ts';
+import { REFERENCE_ERROR_DECL, withScreenErrorVariant } from './error.ts';
 
 test('the default text is returned character for character, the constant being false', () => {
   assert.ok(DAG_SELECTION_SHADER.includes(REFERENCE_ERROR_DECL));

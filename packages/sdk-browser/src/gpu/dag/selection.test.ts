@@ -45,7 +45,7 @@ test('the kernel projects a cluster error exactly like clusterErrorPixels', () =
       vy = e[1] * cx + e[5] * cy + e[9] * cz + e[13],
       vz = e[2] * cx + e[6] * cy + e[10] * cz + e[14];
     const expected = clusterErrorPixels(error, stretch, vx, vy, vz, radius, focal, cam.near);
-    // `projected` from `shader/shaderError.ts`, copied: same operands, same order.
+    // `projected` from `shader/error.ts`, copied: same operands, same order.
     const reach = radius * stretch,
       shift = error * stretch;
     const nearest = -vz - reach,

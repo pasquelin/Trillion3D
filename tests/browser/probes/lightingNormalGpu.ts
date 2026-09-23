@@ -1,5 +1,5 @@
 // Lighting normals actually computed by the GPU: `NORMAL_TRANSFORM_WGSL` and
-// `STANDARD_LIGHTING_WGSL` — the texts the engine assembles in `packages/sdk-browser/src/visibility/shader/shaderShade.ts` and
+// `STANDARD_LIGHTING_WGSL` — the texts the engine assembles in `packages/sdk-browser/src/visibility/shader/shadeWgsl.ts` and
 // `packages/sdk-browser/src/webgpu/pages/prepare/shaders.ts` — run as-is in Chromium WebGPU. Each case also gives the
 // true world normal, computed in f64 on the CPU: the same lighting formula is evaluated twice
 // on the GPU, with the rendered normal then with the true one, so the luminance gap

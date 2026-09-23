@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { fillAffine, fillReference } from './support/rasterBuffer.ts';
-import { rasterAvec } from './support/rasterFrameLoop.ts';
+import { rasterWith } from './support/rasterFrameLoop.ts';
 import { quadrillage } from './support/scenesCut.ts';
 import { compteur, ecart, mesure, note, rapport, stress } from '../../core/index.ts';
 import { camera, coupe } from './support/scenes.ts';
@@ -88,8 +88,8 @@ const resC1 = await mesure({
       mesure: false,
     })),
   ],
-  calcul: tour(rasterAvec(fillAffine)),
-  attendu: tour(rasterAvec(fillReference)),
+  calcul: tour(rasterWith(fillAffine)),
+  attendu: tour(rasterWith(fillReference)),
   // The candidate was rejected: giving a delta comparator tells the foundation to quantify what
   // it moves instead of demanding an equality that does not hold.
   differences: differencesImage,
@@ -99,7 +99,7 @@ const resC1 = await mesure({
 // `ecart` compares the two buffers value by value and names the first faulty pixel; it is
 // `deepEqual`, on a million pixels, that cost too much.
 test('the copied reference is what the package rasterizes today', () => {
-  const copie = tour(rasterAvec(fillReference));
+  const copie = tour(rasterWith(fillReference));
   const inputs = [grande, rase, diagonale, damier, ...autresGraines];
   for (let i = 0; i < inputs.length; i++)
     assert.equal(ecart(tour(rasterVisibility)(inputs[i]), copie(inputs[i]), `frame ${i}`), null);
