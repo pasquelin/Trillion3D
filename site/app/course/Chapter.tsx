@@ -41,8 +41,13 @@ export function Chapter({ entry, locale }: { entry: PortalEntry; locale: Locale 
       </Section>
       <Section title={words.tryIt}>
         <Prose html={chapter.tryIt} />
-        <RenderFrame>
-          <iframe src={`examples/${chapter.example}.html`} title={title} loading="lazy" />
+        <RenderFrame keyboard={{ mode: 'press', hint: t('demo.keyboardHint') }}>
+          <iframe
+            src={`examples/${chapter.example}.html`}
+            title={title}
+            loading="lazy"
+            allow="fullscreen"
+          />
         </RenderFrame>
         <p>
           <TextLink href={example}>{words.open}</TextLink>
