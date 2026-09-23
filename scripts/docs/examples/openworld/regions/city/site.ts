@@ -166,27 +166,34 @@ export function groundUnder(site: Site, box: Obb, step = Infinity): number[] {
 /** How far apart the coast's slope is sampled, metres: the scale of a harbour, not of a ripple. */
 const SHORE_SCALE = 250;
 
+const HEADINGS = 16;
 /**
- * The coast at the port: the sea lies down the ground's slope there, so the harbour looks along
- * that slope and meets the sea at the first point below 0 m. Undefined when the water there is
- * a river, or no open sea lies 600 m further out.
+ * The coasts at the port, best first, along HEADINGS even headings: the sea lies down the ground's
+ * slope there, so the first looks along that slope and the others fan out from it, nearest first
+ * (a packed coast need not face the slope). Along each, every point where dry ground drops below 0 m is a coast,
+ * nearest first, unless its water is a river or no open sea lies 600 m further out.
  */
-export function findCoast(site: Site): { point: Xz; out: Xz } | undefined {
+export function findCoasts(site: Site): { point: Xz; out: Xz }[] {
   const [x0, z0] = site.port,
     h = site.plan.height,
     e = SHORE_SCALE,
-    slope: Xz = [h(x0 - e, z0) - h(x0 + e, z0), h(x0, z0 - e) - h(x0, z0 + e)],
-    length = Math.hypot(...slope);
-  if (!length) return undefined;
-  const out: Xz = [slope[0] / length, slope[1] / length];
-  for (let d = -2 * e; d < site.city.radius; d += 10) {
-    const point: Xz = [x0 + out[0] * d, z0 + out[1] * d];
-    if (!inBounds(site, point, 400) || h(...point) > 0) continue;
-    const far: Xz = [point[0] + out[0] * 600, point[1] + out[1] * 600],
-      river = site.plan.rivers.some(
-        (r) => polylineDistance(point, r.points) < Math.max(...r.widths) * 2,
-      );
-    return h(...far) < 0 && !river ? { point, out } : undefined;
-  }
-  return undefined;
+    slope = Math.atan2(h(x0, z0 - e) - h(x0, z0 + e), h(x0 - e, z0) - h(x0 + e, z0));
+  return Array.from({ length: HEADINGS }, (_, k) => {
+    const turn = slope + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * ((2 * Math.PI) / HEADINGS),
+      out: Xz = [Math.cos(turn), Math.sin(turn)],
+      coasts: { point: Xz; out: Xz }[] = [];
+    for (let d = -2 * e, land = false; d < site.city.radius; d += 10) {
+      const point: Xz = [x0 + out[0] * d, z0 + out[1] * d],
+        sea = h(...point) <= 0,
+        shore = land && sea && inBounds(site, point, 400);
+      land = !sea;
+      if (!shore) continue;
+      const far: Xz = [point[0] + out[0] * 600, point[1] + out[1] * 600],
+        river = site.plan.rivers.some(
+          (r) => polylineDistance(point, r.points) < Math.max(...r.widths) * 2,
+        );
+      if (h(...far) < 0 && !river) coasts.push({ point, out });
+    }
+    return coasts;
+  }).flat();
 }
