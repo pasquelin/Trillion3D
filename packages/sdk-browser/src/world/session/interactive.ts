@@ -120,7 +120,9 @@ export function startInteractiveExplorer(
   options.signal?.throwIfAborted();
   resize();
   original.beforeFrame?.();
-  original.onFrame?.(explorer.render());
+  // Drawn whether or not the host listens: `onFrame?.(render())` would skip the render itself.
+  const first = explorer.render();
+  original.onFrame?.(first);
   invalidate();
   return invalidate;
 }
