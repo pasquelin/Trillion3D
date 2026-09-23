@@ -1,9 +1,10 @@
 import { boundsFr } from './bounds.fr.ts';
 import { cameraFr } from './camera.fr.ts';
+import { courseFr } from './course.fr.ts';
 import { enumsFr } from './enums.fr.ts';
 import { guidesFr } from './guides.fr.ts';
 import { lifecycleFr } from './lifecycle.fr.ts';
-import { lightingFr } from './lighting.fr.ts';
+import { internalsFr } from './internals.fr.ts';
 import { matrixFr } from './matrix.fr.ts';
 import { treeFr } from './tree.fr.ts';
 import { vectorFr } from './vector.fr.ts';
@@ -16,10 +17,11 @@ export const FRENCH: LocaleOverlay = Object.assign(
   {},
   boundsFr,
   cameraFr,
+  courseFr,
   enumsFr,
   guidesFr,
   lifecycleFr,
-  lightingFr,
+  internalsFr,
   matrixFr,
   treeFr,
   vectorFr,

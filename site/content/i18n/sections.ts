@@ -2,8 +2,9 @@ import type { Locale } from '../locale.ts';
 
 export const sectionStrings: Record<Locale, Record<string, string>> = {
   en: {
+    'section.course': 'Course',
     'section.guides': 'Guides',
-    'section.examples': 'SDK examples',
+    'section.internals': 'How it works',
     'section.world': 'The world',
     'section.families': 'Families',
     'section.measurement': 'Measurement entry',
@@ -19,8 +20,9 @@ export const sectionStrings: Record<Locale, Record<string, string>> = {
     'section.batches': 'Batch math',
   },
   fr: {
+    'section.course': 'Cours',
     'section.guides': 'Guides',
-    'section.examples': 'Exemples SDK',
+    'section.internals': 'Comment ça marche',
     'section.world': 'Le monde',
     'section.families': 'Familles',
     'section.measurement': 'Point d’entrée de mesure',

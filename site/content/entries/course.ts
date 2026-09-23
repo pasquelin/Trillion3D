@@ -45,13 +45,14 @@ export const COURSE_TEXT: Record<string, ChapterText> = {
     description:
       'A material says what a surface is made of: its colour, whether it is metal, how rough it is. `material.meshStandard` covers almost everything.',
     steps: [
-      '<code>color</code> is the paint, written like a web colour: <code>\'#e8a25a\'</code>.',
+      "<code>color</code> is the paint, written like a web colour: <code>'#e8a25a'</code>.",
       '<code>metalness</code> goes from 0 (plastic, clay, wood) to 1 (metal). A metal shows the colours of what it reflects.',
       '<code>roughness</code> goes from 0 (smooth like a mirror, with small sharp highlights) to 1 (rough like chalk, with soft light everywhere).',
       'Change a material whenever you like: <code>chrome.roughness = 0.3</code>. Every mesh that uses it changes at once.',
       'Glass is <code>material.meshPhysical</code> with <code>transmission: 1</code>: light goes through it. <code>ior</code>, the index of refraction, says how much it bends light: 1.5 for window glass. See it in <a href="#/en/examples/glass-on-the-table">Glass on the table</a>.',
     ],
-    tryIt: 'Each column is more metal than the one before, and each row is rougher. Pick one colour for all of them, and make the lamps brighter.',
+    tryIt:
+      'Each column is more metal than the one before, and each row is rougher. Pick one colour for all of them, and make the lamps brighter.',
   },
   'light-it': {
     title: 'Light it',
@@ -64,7 +65,8 @@ export const COURSE_TEXT: Record<string, ChapterText> = {
       'Add <code>castShadow: true</code> and what the light hits throws a shadow.',
       '<code>intensity</code> is how strong a light is, <code>color</code> its colour. Change them any time: <code>sun.intensity = 1</code>.',
     ],
-    tryIt: 'Move the hour: the sun crosses the sky, turns red at dusk, and every shadow turns with it.',
+    tryIt:
+      'Move the hour: the sun crosses the sky, turns red at dusk, and every shadow turns with it.',
   },
   'move-the-camera': {
     title: 'Move the camera',
@@ -72,10 +74,10 @@ export const COURSE_TEXT: Record<string, ChapterText> = {
       'The camera is your eye in the world. Place it in code, then let the reader move it with `world.controls`.',
     steps: [
       '<code>world.camera.position.set(x, y, z)</code> puts the eye somewhere; <code>world.camera.lookAt(x, y, z)</code> turns it towards a point.',
-      'A <em>controller</em> turns the mouse, fingers and keyboard into camera moves. Choose it when you create the world: <code>createWorld(\'view\', { controls: \'orbit\' })</code>.',
-      '<code>\'orbit\'</code> circles a point: drag to turn, right-drag to slide, scroll to zoom. <code>world.controls.target</code> is the point it circles.',
-      'There are others: <code>\'fly\'</code> (keys W A S D, see <a href="#/en/examples/fly-over-a-model-town">Fly over a model town</a>), <code>\'firstPerson\'</code> (walk, see <a href="#/en/examples/walk-through-a-temple">Walk through a temple</a>), <code>\'trackball\'</code>, <code>\'panZoom\'</code> for a flat map, and <code>\'none\'</code> when your code moves the camera itself.',
-      'Switch at any time: <code>world.controls.kind = \'fly\'</code>.',
+      "A <em>controller</em> turns the mouse, fingers and keyboard into camera moves. Choose it when you create the world: <code>createWorld('view', { controls: 'orbit' })</code>.",
+      "<code>'orbit'</code> circles a point: drag to turn, right-drag to slide, scroll to zoom. <code>world.controls.target</code> is the point it circles.",
+      "There are others: <code>'fly'</code> (keys W A S D, see <a href=\"#/en/examples/fly-over-a-model-town\">Fly over a model town</a>), <code>'firstPerson'</code> (walk, see <a href=\"#/en/examples/walk-through-a-temple\">Walk through a temple</a>), <code>'trackball'</code>, <code>'panZoom'</code> for a flat map, and <code>'none'</code> when your code moves the camera itself.",
+      "Switch at any time: <code>world.controls.kind = 'fly'</code>.",
     ],
     tryIt: 'Drag to turn around the clock, scroll to look closely at the teeth of the gears.',
   },
@@ -89,7 +91,8 @@ export const COURSE_TEXT: Record<string, ChapterText> = {
       'Call <code>world.invalidate()</code> to say “draw again”. When nothing asks for a new frame, the world rests: a scene that does not move costs nothing.',
       'For a motion made of poses, like a walk, use the animation mixer. <code>animation.clip</code> lists the poses and when they happen; <code>animation.createMixer(robot).play(clip)</code> plays them and fills in the moments between. See <a href="#/en/examples/a-robot-that-walks-and-waves">Blending robot motions</a>.',
     ],
-    tryIt: 'Change the height and the speed of the wave. Double-click the floor to drop a new stone.',
+    tryIt:
+      'Change the height and the speed of the wave. Double-click the floor to drop a new stone.',
   },
   'load-a-compiled-model': {
     title: 'Load a compiled model',
@@ -113,9 +116,10 @@ export const COURSE_TEXT: Record<string, ChapterText> = {
       '<code>world.budget.geometryPool</code> is the memory for shapes; <code>world.budget.texturePool</code> is the memory for the images painted on surfaces, called <em>textures</em>. Both are counted in bytes.',
       'When the view needs more than the budget, nothing breaks: far and small parts are drawn with fewer triangles until everything fits. The picture stays whole, only less detailed.',
       'Read the value back to see what the engine really holds.',
-      'See the pieces with <code>world.diagnostic.mode = \'clusters\'</code>: each cluster gets its own colour.',
+      "See the pieces with <code>world.diagnostic.mode = 'clusters'</code>: each cluster gets its own colour.",
     ],
-    tryIt: 'Slide the memory down: the pieces grow bigger, the building stays whole. Switch the view to <code>clusters</code> to see them.',
+    tryIt:
+      'Slide the memory down: the pieces grow bigger, the building stays whole. Switch the view to <code>clusters</code> to see them.',
   },
   'your-own-scene': {
     title: 'Your own scene',
