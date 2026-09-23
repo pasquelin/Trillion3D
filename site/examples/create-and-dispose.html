@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Create and dispose</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #26324a;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#26324a');
+
+      // A stone fountain in a round court: a basin, a pillar in its middle, a nozzle on top.
+      const stone = material.meshStandard({ color: '#c9bfae', roughness: 0.85 });
+      const dark = material.meshStandard({ color: '#5d6675', roughness: 0.7 });
+      const basinFloor = material.meshStandard({ color: '#3f7d93', roughness: 0.4 });
+      const BASIN = 8.5, FLOOR = 0.3, PILLAR = 1.2, NOZZLE = 3.4;
+      const parts = [
+        [geometry.cylinder(16, 16.4, 0.4, 96), dark, [0, -0.2, 0]],
+        [geometry.cylinder(BASIN, BASIN, 0.2, 96), basinFloor, [0, FLOOR - 0.1, 0]],
+        [geometry.torus(BASIN + 0.35, 0.4, 24, 128), stone, [0, 0.45, 0], [Math.PI / 2, 0, 0]],
+        [geometry.cylinder(PILLAR * 0.8, PILLAR, NOZZLE - 0.6, 48), stone, [0, (NOZZLE - 0.6) / 2, 0]],
+        [geometry.cylinder(PILLAR * 1.3, PILLAR * 0.9, 0.35, 48), stone, [0, NOZZLE - 0.45, 0]],
+        [geometry.sphere(0.35, 32, 16), dark, [0, NOZZLE, 0]],
+      ];
+      for (const [shape, matter, [x, y, z], [rx, ry, rz] = [0, 0, 0]] of parts) {
+        const part = object.mesh(shape, matter);
+        part.position.set(x, y, z);
+        part.rotation.set(rx, ry, rz);
+        part.castShadow = part.receiveShadow = true;
+        world.scene.add(part);
+      }
+
+      // What the fountain throws: five shapes, six paints, shared by every copy it makes.
+      const SHAPES = [
+        geometry.sphere(0.34, 32, 16),
+        geometry.box(0.55, 0.55, 0.55),
+        geometry.torus(0.28, 0.12, 16, 48),
+        geometry.cone(0.34, 0.7, 32),
+        geometry.torusKnot(0.24, 0.08, 96, 12),
+      ];
+      const PAINTS = ['#e8553d', '#f2b134', '#5cb85c', '#3a8fd8', '#9b59d0', '#f06292'].map((color) =>
+        material.meshStandard({ color, roughness: 0.35, metalness: 0.1 }),
+      );
+      // Every shape in every paint stands on the rim from the start: the world builds what it
+      // draws them with before its first frame, and a copy made later takes a row beside them.
+      const combos = SHAPES.flatMap((shape) => PAINTS.map((paint) => [shape, paint]));
+      combos.forEach(([shape, paint], index) => {
+        const angle = (index / combos.length) * Math.PI * 2, piece = object.mesh(shape, paint);
+        piece.position.set(Math.cos(angle) * (BASIN + 0.35), 1.2, Math.sin(angle) * (BASIN + 0.35));
+        piece.rotation.set(0.3, -angle, 0);
+        piece.castShadow = true;
+        world.scene.add(piece);
+      });
+
+      world.scene.add(
+        light.directional({ color: '#ffe2bc', intensity: 3, position: [10, 16, 7], castShadow: true }),
+        light.directional({ color: '#9db8ff', intensity: 0.7, position: [-12, 6, -9] }),
+        light.hemisphere({ color: '#c4d8ff', groundColor: '#6b5a48', intensity: 0.8 }),
+      );
+      world.camera.far = 200;
+      world.camera.position.set(15, 10, 15);
+      world.controls.target.set(0, 2, 0);
+      world.controls.minDistance = 8;
+      world.controls.maxDistance = 45;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.camera.lookAt(0, 2, 0);
+
+      // A thrown piece lives a few seconds, shrinks away, and leaves the scene. In the mode 'new
+      // shape each time' it wears a geometry of its own, which is disposed when it leaves.
+      const MAX = 400, live = [];
+      let created = 0, disposed = 0, next = 1;
+      const random = () => (next = (Math.imul(next, 1664525) + 1013904223) >>> 0) / 4294967296;
+      function launch(own) {
+        if (live.length >= MAX) return;
+        const [shape, paint] = combos[Math.floor(random() * combos.length)];
+        const piece = object.mesh(own ? shape.clone() : shape, paint);
+        const heading = random() * Math.PI * 2, out = 2.4 + random() * 2.2;
+        piece.position.set(0, NOZZLE + 0.3, 0);
+        piece.castShadow = true;
+        world.scene.add(piece);
+        live.push({ piece, own, age: 0, life: 3.5 + random() * 2, velocity: [Math.cos(heading) * out, 7 + random() * 2.5, Math.sin(heading) * out], spin: [random() * 4 - 2, random() * 4 - 2, random() * 4 - 2] });
+        created++;
+      }
+      function retire(index) {
+        const [{ piece, own }] = live.splice(index, 1);
+        world.scene.remove(piece);
+        if (own) piece.geometry.dispose();
+        disposed++;
+      }
+
+      const ui = controls({
+        mouse: 'Drag to walk around the fountain · scroll to come closer',
+        perSecond: [0, 40, 12, 1],
+        copies: ['share the shapes', 'new shape each time'],
+        burst: () => {
+          for (let k = 0; k < 60; k++) launch(ui.copies !== 'share the shapes');
+          world.invalidate();
+        },
+        clearAll: () => {
+          while (live.length) retire(live.length - 1);
+          world.invalidate();
+        },
+      });
+      const alive = readout('Pieces alive'), made = readout('Created'), gone = readout('Removed');
+      const frame = readout('Frame interval'), memory = readout('GPU memory');
+
+      // The camera circles slowly until the first press or wheel on the canvas.
+      let circling = true;
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
+
+      // The opening: a burst of forty, then a steady stream at the chosen rate.
+      let owed = 0, opened = false, clock = 0, shown = 0;
+      const GRAVITY = 9.8;
+      world.onFrame(({ delta, time, metrics }) => {
+        const step = Math.min(delta, 0.05);
+        const own = ui.copies !== 'share the shapes';
+        if (!opened && time > 0.6) {
+          opened = true;
+          for (let k = 0; k < 40; k++) launch(own);
+        }
+        owed += step * ui.perSecond;
+        for (; owed >= 1; owed--) launch(own);
+        for (let i = live.length - 1; i >= 0; i--) {
+          const item = live[i], { piece, velocity, spin } = item;
+          item.age += step;
+          if (item.age > item.life + 0.6) {
+            retire(i);
+            continue;
+          }
+          velocity[1] -= GRAVITY * step;
+          piece.position.set(piece.position.x + velocity[0] * step, piece.position.y + velocity[1] * step, piece.position.z + velocity[2] * step);
+          // A bounce on the basin floor, and off its rim, each time a little softer.
+          if (piece.position.y < FLOOR + 0.35 && velocity[1] < 0) {
+            piece.position.y = FLOOR + 0.35;
+            velocity[1] *= -0.45;
+            velocity[0] *= 0.8;
+            velocity[2] *= 0.8;
+          }
+          const reach = Math.hypot(piece.position.x, piece.position.z);
+          if (reach > BASIN - 0.4) {
+            const nx = piece.position.x / reach, nz = piece.position.z / reach, along = velocity[0] * nx + velocity[2] * nz;
+            if (along > 0) (velocity[0] -= 1.6 * along * nx), (velocity[2] -= 1.6 * along * nz);
+          }
+          piece.rotation.set(piece.rotation.x + spin[0] * step, piece.rotation.y + spin[1] * step, piece.rotation.z + spin[2] * step);
+          const fade = Math.min(1, Math.max(0, (item.life + 0.6 - item.age) / 0.6), item.age / 0.15);
+          piece.scale.setScalar(Math.max(0.001, fade));
+        }
+        if (circling) {
+          const { position } = world.camera, { target } = world.controls, turn = step * 0.12;
+          const x = position.x - target.x, z = position.z - target.z;
+          position.set(target.x + x * Math.cos(turn) + z * Math.sin(turn), position.y, target.z + z * Math.cos(turn) - x * Math.sin(turn));
+          world.controls.update();
+        }
+        // The counters, four times a second; a value the engine did not measure says so.
+        clock += delta;
+        if (clock - shown > 0.25) {
+          shown = clock;
+          alive(String(live.length));
+          made(created.toLocaleString('en'));
+          gone(disposed.toLocaleString('en'));
+          frame(metrics.rafIntervalMs == null ? 'not measured' : `${metrics.rafIntervalMs.toFixed(1)} ms`);
+          memory(metrics.vramBytes == null ? 'not measured' : `${(metrics.vramBytes / 2 ** 20).toFixed(1)} MiB`);
+        }
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>
