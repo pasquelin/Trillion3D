@@ -7,7 +7,9 @@ import { box } from './solids.ts';
  */
 export const SQUARE = 5;
 
-/** Light and dark squares, the frame around them and the plinth under the whole board. */
+/** Light and dark squares, the frame around them and the plinth under the whole board. The square
+ * `(i, j)` stands at `((i - 3.5) * SQUARE, (j - 3.5) * SQUARE)`, so a1 is `(0, 7)`: an odd sum is
+ * a dark square, and h1, at white's right hand, a light one. */
 export function boardMeshes() {
   const squares: [Mesh[], Mesh[]] = [[], []];
   for (let i = 0; i < 8; i++)
@@ -21,8 +23,8 @@ export function boardMeshes() {
       moved(box(3, 1.6, 8 * SQUARE), [s * edge, -0.81, 0]),
     ]);
   return {
-    light: merge(squares[1]),
-    dark: merge(squares[0]),
+    light: merge(squares[0]),
+    dark: merge(squares[1]),
     frame: merge([...frame, moved(box(8 * SQUARE + 6, 1.2, 8 * SQUARE + 6), [0, -1, 0])]),
   };
 }

@@ -67,7 +67,18 @@
       world.controls.target.set(0, 1.5, 0);
 
       // A change of path, thickness or slicing builds a new tube; the paint alone is recoloured.
-      let curve = paths.knot(), triangles = null;
+      let curve = paths.knot(), triangles = null, travel = 0;
+      const at = math.vector3();
+      // The beads where the travel has taken them on the curve.
+      const placeBeads = (path) => {
+        for (const { lamp, bead, offset } of beads) {
+          // An open path is ridden to its end and back; a closed one goes round.
+          const t = (travel + offset) % 1, along = path === 'spiral' ? 1 - Math.abs(1 - 2 * t) : t;
+          curve.getPoint(along, at);
+          bead.position.copy(at);
+          lamp.position.copy(at);
+        }
+      };
       const ui = controls({
         mouse: 'Drag to look around; the beads ride the spline the tube follows',
         path: Object.keys(paths),
@@ -84,23 +95,18 @@
         for (const { bead } of beads) bead.scale.setScalar(values.radius * 1.5 + 0.05);
         curve = paths[values.path]();
         tube.geometry = geometry.tube(curve, values.slices, values.radius, values.sides, values.path !== 'spiral');
+        placeBeads(values.path);
         triangles?.((values.slices * values.sides * 2).toLocaleString('en'));
         world.invalidate();
       }, world);
       triangles = readout('Triangles');
       triangles((ui.slices * ui.sides * 2).toLocaleString('en'));
 
-      let travel = 0;
-      const at = math.vector3();
+      // Still beads, or hidden ones, ask for no new frame.
       world.onFrame(({ delta }) => {
+        if (!ui.speed || !ui.beads) return;
         travel += delta * ui.speed;
-        for (const { lamp, bead, offset } of beads) {
-          // An open path is ridden to its end and back; a closed one goes round.
-          const t = (travel + offset) % 1, along = ui.path === 'spiral' ? 1 - Math.abs(1 - 2 * t) : t;
-          curve.getPoint(along, at);
-          bead.position.copy(at);
-          lamp.position.copy(at);
-        }
+        placeBeads(ui.path);
         world.invalidate();
       });
     </script>

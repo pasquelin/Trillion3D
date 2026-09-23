@@ -1,4 +1,5 @@
 import { hideable, overlay } from './overlay.ts';
+import { perFrame } from './perFrame.ts';
 import { stats, type StatsWorld } from './stats.ts';
 
 /**
@@ -81,16 +82,20 @@ export function describe(specs: Record<string, ControlSpec>) {
   return { controls, values };
 }
 
-/** A slider's value as printed beside it: as many decimals as its step carries. */
+/** A slider's value as printed beside it: as many decimals as its step carries, three at most. */
 export function printed(value: number, step: number): string {
-  const decimals = Math.max(0, Math.min(3, -Math.floor(Math.log10(step))));
+  let decimals = 0;
+  while (decimals < 3 && Math.abs(step * 10 ** decimals - Math.round(step * 10 ** decimals)) > 1e-9)
+    decimals++;
   return value.toFixed(decimals);
 }
 
 function field(control: Control, values: Record<string, unknown>, changed: () => void) {
-  const set = (value: unknown) => {
+  const run = perFrame(changed, requestAnimationFrame);
+  // A drag's `input` runs once a frame; the `change` that ends it, or a click, at once.
+  const set = (value: unknown, now = true) => {
     values[control.key] = value;
-    changed();
+    run(now);
   };
   if (control.kind === 'note') {
     const line = document.createElement('p');
@@ -130,7 +135,8 @@ function field(control: Control, values: Record<string, unknown>, changed: () =>
     input.type = 'color';
     input.className = 'h-6 w-10 cursor-pointer rounded border-0 bg-transparent p-0';
     input.value = String(values[control.key]);
-    input.oninput = () => set(input.value);
+    input.oninput = () => set(input.value, false);
+    input.onchange = () => set(input.value);
   } else {
     const { min, max, step } = control;
     Object.assign(input, { type: 'range', min, max, step, value: values[control.key] });
@@ -138,7 +144,8 @@ function field(control: Control, values: Record<string, unknown>, changed: () =>
     const shown = document.createElement('output');
     shown.className = 'w-10 text-right text-xs tabular-nums';
     const show = () => (shown.textContent = printed(input.valueAsNumber, step));
-    input.oninput = () => (show(), set(input.valueAsNumber));
+    input.oninput = () => (show(), set(input.valueAsNumber, false));
+    input.onchange = () => set(input.valueAsNumber);
     show();
     row.append(shown);
   }

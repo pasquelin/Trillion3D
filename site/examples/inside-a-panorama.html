@@ -31,7 +31,7 @@
     <p>Panoramas painted by this page, in code, when it opens: nothing is downloaded.</p>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture, side } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, seeded } from '../runtime/kit.js';
 
       // Three skies, one light each. A panorama is a picture of every direction at once: across,
       // the turn around the viewer; down, from straight up to straight down, the horizon halfway.
@@ -46,8 +46,7 @@
         canvas.width = W;
         canvas.height = H;
         const brush = canvas.getContext('2d');
-        let seed = 7;
-        const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
+        const random = seeded(7);
         const air = brush.createLinearGradient(0, 0, 0, H / 2);
         air.addColorStop(0, sky.zenith);
         air.addColorStop(0.6, sky.middle);

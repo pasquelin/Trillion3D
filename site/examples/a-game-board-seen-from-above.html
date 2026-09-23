@@ -42,9 +42,10 @@
       frame.position.y = -0.2;
       world.scene.add(felt, frame);
       const squares = [material.meshStandard({ color: '#6b4630', roughness: 0.6 }), material.meshStandard({ color: '#e9dcc0', roughness: 0.6 })];
+      // a1, at white's left hand, is a dark square.
       for (let rank = 1; rank <= 8; rank++)
         for (let file = 0; file < 8; file++) {
-          const tile = object.mesh(geometry.box(1, 0.1, 1), squares[(rank + file) % 2]);
+          const tile = object.mesh(geometry.box(1, 0.1, 1), squares[(rank + file + 1) % 2]);
           tile.position.set(file - 3.5, -0.05, 4.5 - rank);
           world.scene.add(tile);
         }

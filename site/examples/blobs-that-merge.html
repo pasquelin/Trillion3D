@@ -262,7 +262,8 @@
           shown = frame;
           pieces(String(cooked[frame].pieces));
         }
-        world.invalidate();
+        // With no heat, once warm and in place, the lamp asks for no new frame.
+        if (ui.heat || warm < 1 || intro < 1) world.invalidate();
       });
     </script>
   </body>

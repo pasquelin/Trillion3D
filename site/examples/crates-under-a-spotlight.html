@@ -29,8 +29,8 @@
     <canvas id="view"></canvas>
     <p>Crate model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md</p>
     <script type="module">
-      import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { createWorld, light } from '../runtime/engine.js';
+      import { controls, pointerOnPlane } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       await world.scene.load('../assets/examples/crates/cache/native/full/manifest.json');
@@ -52,13 +52,9 @@
 
       // The pointer casts a ray from the camera; where it meets the floor (y = 0), the spot aims.
       world.canvas.addEventListener('pointermove', (event) => {
-        const box = world.canvas.getBoundingClientRect(), camera = world.camera;
-        const slope = Math.tan((camera.fov * Math.PI) / 360);
-        const x = ((event.clientX - box.left) / box.width) * 2 - 1, y = 1 - ((event.clientY - box.top) / box.height) * 2;
-        const ray = math.vector3(x * slope * (box.width / box.height), y * slope, -1).applyQuaternion(camera.quaternion);
-        if (ray.y >= 0) return;
-        const reach = -camera.position.y / ray.y;
-        spot.target.position.set(camera.position.x + ray.x * reach, 0, camera.position.z + ray.z * reach);
+        const floor = pointerOnPlane(world, event);
+        if (!floor) return;
+        spot.target.position.set(floor[0], 0, floor[1]);
         world.invalidate();
       });
       world.invalidate();

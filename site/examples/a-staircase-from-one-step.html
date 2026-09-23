@@ -65,13 +65,17 @@
       world.controls.target.set(0, 3.6, 0);
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
+      // Stopped, the lantern is placed once more after a change, then asks for no new frame.
+      let at = 0, resting = false;
       const ui = controls({ climb: [0, 6, 2], turnPerStep: [5, 30, 16, 1], lantern: '#ffb45e' }, (values) => {
+        resting = false;
         flights.forEach((flight, index) => (flight.rotation.y = (index * values.turnPerStep * Math.PI) / 180));
         lantern.color.set(values.lantern);
         world.invalidate();
       }, world);
-      let at = 0;
       world.onFrame(({ delta }) => {
+        if (resting) return;
+        resting = !ui.climb;
         at = (at + delta * ui.climb) % 34;
         const turn = (at * ui.turnPerStep * Math.PI) / 180;
         const position = [Math.cos(turn) * 1.1, 0.75 + at * 0.18, -Math.sin(turn) * 1.1];

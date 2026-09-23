@@ -87,6 +87,7 @@
       set(object.mesh(geometry.capsule(0.35, 1.2, 12, 32), jade), -2.6, 0.95, -1.9);
       set(object.mesh(geometry.torus(0.8, 0.2, 32, 96), clay), 0.2, 0.2, 2.6).rotation.set(Math.PI / 2, 0, 0);
       const ball = object.mesh(geometry.sphere(0.6, 64, 32), material.meshStandard({ color: '#ffffff', roughness: 1 }));
+      ball.position.set(0, 4.2, 0);
       world.scene.add(ball);
 
       // A key light gives the shapes their shadows; switch it off to see the probe alone.
@@ -122,9 +123,11 @@
       let time = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
-        if (ui.spin) time += step;
-        garden.rotation.set(0, time * 0.15, 0);
-        ball.position.set(0, 4.2 + Math.sin(time * 1.3) * 0.25, 0);
+        if (ui.spin) {
+          time += step;
+          garden.rotation.set(0, time * 0.15, 0);
+          ball.position.set(0, 4.2 + Math.sin(time * 1.3) * 0.25, 0);
+        }
         let moved = 0;
         shown = shown.map((value, k) => {
           const next = value + (aim[k] - value) * Math.min(1, step * 3.5);

@@ -185,15 +185,19 @@
           world.controls.update();
           if (t >= 1) gliding = false;
         }
-        if (ui.turning) turn += step * 0.6;
-        carousel.rotation.set(0, turn, 0);
+        if (ui.turning) {
+          turn += step * 0.6;
+          carousel.rotation.set(0, turn, 0);
+        }
         // The eye adapts: more than half the way to the reading every half second.
-        if (Math.abs(target - ev) > 0.005) {
+        const adapting = Math.abs(target - ev) > 0.005;
+        if (adapting) {
           ev += (target - ev) * (1 - Math.exp(-step * 1.6));
           world.exposure = 1 / (1.2 * 2 ** ev);
           shown.ev(`EV ${ev.toFixed(1)}`);
         }
-        world.invalidate();
+        // A still square with a settled eye asks for no new frame.
+        if (gliding || ui.turning || adapting) world.invalidate();
       });
     </script>
   </body>
