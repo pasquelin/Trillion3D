@@ -15,15 +15,20 @@ const hsl = new Float64Array(3);
  * linear as they stand.
  */
 export class Color extends Observed {
+  /** Always `true`: tells a colour apart from anything else. */
   readonly isColor = true as const;
+  /** Red, from 0 to 1. */
   r = 1;
+  /** Green, from 0 to 1. */
   g = 1;
+  /** Blue, from 0 to 1. */
   b = 1;
 
   constructor(value?: ColorInput) {
     super();
     if (value !== undefined) this.set(value);
   }
+  /** Sets the colour from a number like `0xff8800`, a CSS name or another colour. */
   set(value: ColorInput): this {
     if (typeof value === 'number') return this.setHex(value);
     if (typeof value === 'string') return this.setStyle(value);
@@ -31,12 +36,14 @@ export class Color extends Observed {
     const c = value as { r: number; g: number; b: number };
     return this.setRGB(c.r, c.g, c.b);
   }
+  /** Sets red, green and blue, each from 0 to 1. */
   setRGB(r: number, g: number, b: number) {
     this.r = r;
     this.g = g;
     this.b = b;
     return this._changed();
   }
+  /** Sets red, green and blue to the same value: a grey. */
   setScalar(v: number) {
     return this.setRGB(v, v, v);
   }
@@ -75,9 +82,11 @@ export class Color extends Observed {
     if (named === undefined) throw new Error(`Unknown colour: ${style}`);
     return this.setHex(named);
   }
+  /** Takes the channels of another colour. */
   copy(c: { r: number; g: number; b: number }) {
     return this.setRGB(c.r, c.g, c.b);
   }
+  /** A new colour with the same channels. */
   clone() {
     return new Color().copy(this);
   }
@@ -85,13 +94,16 @@ export class Color extends Observed {
   getHex() {
     return (linearToSrgb8(this.r) << 16) | (linearToSrgb8(this.g) << 8) | linearToSrgb8(this.b);
   }
+  /** The colour as six hex digits, like `'ff8800'`. */
   getHexString() {
     return this.getStyle().slice(1);
   }
+  /** The colour as a CSS string, like `'rgb(255,136,0)'`. */
   getStyle() {
     const hex = this.getHex();
     return rgbHex((hex >> 16) & 255, (hex >> 8) & 255, hex & 255);
   }
+  /** Moves the colour toward another by `t`, from 0 to 1. */
   lerp(c: { r: number; g: number; b: number }, t: number) {
     return this.setRGB(
       this.r + (c.r - this.r) * t,
@@ -99,15 +111,19 @@ export class Color extends Observed {
       this.b + (c.b - this.b) * t,
     );
   }
+  /** Makes every channel `s` times brighter. */
   multiplyScalar(s: number) {
     return this.setRGB(this.r * s, this.g * s, this.b * s);
   }
+  /** Whether two colours have the same channels. */
   equals(c: { r: number; g: number; b: number }) {
     return this.r === c.r && this.g === c.g && this.b === c.b;
   }
+  /** Reads red, green and blue from a list. */
   fromArray(array: ArrayLike<number>, offset = 0) {
     return this.setRGB(array[offset], array[offset + 1], array[offset + 2]);
   }
+  /** Red, green and blue as a list. */
   toArray(): [number, number, number] {
     return [this.r, this.g, this.b];
   }

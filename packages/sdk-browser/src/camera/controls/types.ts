@@ -17,17 +17,29 @@ import type { HostRotation } from '../../host/scene/graphNodes.ts';
 
 /** The vector operations a controller and its host perform on a position or a target. */
 export interface ControlVector {
+  /** Left to right. */
   x: number;
+  /** Bottom to top. */
   y: number;
+  /** Back to front. */
   z: number;
+  /** Sets the three numbers. */
   set(x: number, y: number, z: number): this;
+  /** Takes another point's numbers. */
   copy(v: { x: number; y: number; z: number }): this;
+  /** A copy. */
   clone(): ControlVector;
+  /** Adds another vector. */
   add(v: { x: number; y: number; z: number }): this;
+  /** Takes another vector away. */
   sub(v: { x: number; y: number; z: number }): this;
+  /** Its length. */
   length(): number;
+  /** Keeps the direction, sets the length. */
   setLength(length: number): this;
+  /** Distance to a point. */
   distanceTo(v: { x: number; y: number; z: number }): number;
+  /** Reads three numbers from a list. */
   fromArray(array: ArrayLike<number>, offset?: number): this;
 }
 
@@ -45,6 +57,7 @@ export interface ControlCamera {
   updateMatrixWorld(force?: boolean): void;
 }
 
+/** A function called when a controller moves the camera. */
 export type ChangeListener = () => void;
 
 /** What every controller publishes, whatever it does with the pointer. */
@@ -62,11 +75,17 @@ export interface CameraControlBase {
 export interface PivotCameraControls extends CameraControlBase {
   /** The point the camera turns around and the pivot a zoom moves towards. */
   target: ControlVector;
+  /** Closest the camera may come. */
   minDistance: number;
+  /** Farthest the camera may go. */
   maxDistance: number;
+  /** Whether the wheel zooms. */
   enableZoom: boolean;
+  /** Whether dragging slides the view. */
   enablePan: boolean;
+  /** How fast dragging turns. */
   rotateSpeed: number;
+  /** How fast the wheel zooms. */
   zoomSpeed: number;
   /**
    * Rewrites the camera from the pose the host may have edited — `object.position` and

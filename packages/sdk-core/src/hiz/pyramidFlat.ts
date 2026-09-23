@@ -11,10 +11,15 @@ import { HIZ_NOTHING } from './oracles.ts';
  * deliberate implementations of the same reduction, pitted against each other in equivalence test.
  */
 export type HizFlat = {
+  /** Every level's depths. */
   data: Float32Array;
+  /** Where each level starts. */
   offsets: Int32Array;
+  /** Each level's width. */
   widths: Int32Array;
+  /** Each level's height. */
   heights: Int32Array;
+  /** How many levels. */
   count: number;
 };
 

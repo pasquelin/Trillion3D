@@ -1,4 +1,5 @@
 import type { CameraPose } from '../contracts/index.ts';
+/** The camera paths a benchmark can replay, each with what it measures. */
 export const CAMERA_SCENARIOS = [
   {
     id: 'initial-load',
@@ -23,6 +24,7 @@ export const CAMERA_SCENARIOS = [
       'Requires a calibrated path or an unimplemented backend capability; user-recorded paths can already be replayed',
   })),
 ];
+/** A list of camera poses along a named path, from a home pose. */
 export function makeCameraPath(
   kind: 'stationary' | 'slow-orbit' | 'fast-orbit' | 'near-far' | 'round-trip',
   home: CameraPose,

@@ -27,10 +27,13 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
   /** Eye position in the world: the translation of `world`. It is not named `position`,
    *  which everywhere else means the LOCAL pose the contract forbids reading. */
   eye: Float64Array;
+  /** Nearest distance drawn. */
   near: number;
+  /** Farthest distance drawn. */
   far: number;
   /** Vertical field in degrees and aspect ratio, as the host declares them. */
   fov: number;
+  /** Width over height. */
   aspect: number;
   /** The projection's clip-w weight: a point at view depth d has w = perspective·d +
    *  (1 − perspective) — 1 under a perspective projection, 0 under an orthographic one. What
@@ -44,7 +47,12 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
 }
 
 /** The box an orthographic camera sees, in its own frame, before its zoom. */
-export type OrthographicBox = { left: number; right: number; top: number; bottom: number };
+export type OrthographicBox = {
+  /** Left edge. */ left: number;
+  /** Right edge. */ right: number;
+  /** Top edge. */ top: number;
+  /** Bottom edge. */ bottom: number;
+};
 /** The box `box` scaled by `zoom` about its centre, written in `into`: what the camera sees. */
 function zoomedBox(box: OrthographicBox, zoom: number, into: OrthographicBox) {
   const x = (box.right + box.left) / 2,
@@ -61,17 +69,24 @@ const seen: OrthographicBox = { left: 0, right: 0, top: 0, bottom: 0 };
 /** The optics a camera declares: what the projection is composed from. An `orthographic` box
  *  makes the projection orthographic; `fov` then still sizes what reads a field of view. */
 export type CameraOptics = {
+  /** Field of view, in degrees. */
   fov: number;
+  /** Width over height. */
   aspect: number;
+  /** Nearest distance drawn. */
   near: number;
+  /** Farthest distance drawn. */
   far: number;
+  /** Magnification. */
   zoom: number;
+  /** The view box of an orthographic camera. */
   orthographic?: OrthographicBox | null;
 };
 
 /** Optics of a camera nobody has set: the fallback of oracles called before the first frame. */
 const DEFAULT_OPTICS: CameraOptics = { fov: 50, aspect: 1, near: 0.1, far: 2000, zoom: 1 };
 
+/** A new engine camera at its default pose and optics. */
 export function createEngineCamera(): EngineCamera {
   return {
     ...createCameraFrame(),

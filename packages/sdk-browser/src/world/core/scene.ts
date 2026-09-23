@@ -3,7 +3,9 @@ import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import type { LoadedModel } from './loadedModel.ts';
 
+/** What `scene.load` may be told about the model it loads; every field is optional. */
 export interface LoadOptions {
+  /** Stops the load when the signal is aborted. */
   signal?: AbortSignal;
   /** `'full'` requires the whole cache, `'progressive'` its streamed slice; a model of another
    *  scope is refused by name. Unset, the model is read at the scope its pointer declares. */
@@ -19,9 +21,12 @@ export interface LoadOptions {
  * what fills the image behind them is `background`.
  */
 export class Scene extends Object3D {
+  /** Always `true`: tells the scene root apart from any other object. */
   readonly isScene = true as const;
   private _background: Color | Texture | null = null;
+  /** A picture of the surroundings that shiny surfaces reflect; `null` for none. */
   environment: Texture | null = null;
+  /** Fog that fades objects into `color` between `near` and `far`; `null` for none. */
   fog: { color: Color; near: number; far: number } | null = null;
 
   private readonly loader: (url: string, options: LoadOptions) => Promise<LoadedModel>;
@@ -30,6 +35,7 @@ export class Scene extends Object3D {
     this.loader = loader;
     this.type = 'Scene';
   }
+  /** What fills the image behind every object: a colour, a picture, or `null` for the default. */
   get background() {
     return this._background;
   }

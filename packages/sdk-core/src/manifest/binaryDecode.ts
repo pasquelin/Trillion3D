@@ -9,6 +9,7 @@ import { decodeTexturePreviews } from './binaryPreview.ts';
 import * as format from './binaryFormat.ts';
 import { readManifestColumns } from './binaryRead.ts';
 import type { SlimClusterManifest } from './binaryTypes.ts';
+/** Turns a binary manifest back into the full manifest a runtime reads. */
 export function decodeManifestBinary(
   slim: SlimClusterManifest,
   buffer: ArrayBuffer,

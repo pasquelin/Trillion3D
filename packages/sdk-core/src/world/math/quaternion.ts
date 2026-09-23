@@ -22,11 +22,13 @@ const load = (into: Float64Array, q: Q) => {
 
 /** A rotation as a unit quaternion over `math/matrix/quaternion.ts`. Written components notify the owner. */
 export class Quaternion extends ObservedComponents {
+  /** Always `true`: tells a quaternion apart from anything else. */
   readonly isQuaternion = true as const;
 
   constructor(x = 0, y = 0, z = 0, w = 1) {
     super(new Float64Array([x, y, z, w]));
   }
+  /** The fourth number: how little the rotation turns. */
   get w() {
     return this.elements[3];
   }
@@ -48,15 +50,19 @@ export class Quaternion extends ObservedComponents {
   private written(from: ArrayLike<number>, quiet = false) {
     return this.set(from[0], from[1], from[2], from[3], quiet);
   }
+  /** Takes the numbers of another quaternion. */
   copy(q: Q) {
     return this.set(q.x, q.y, q.z, q.w);
   }
+  /** A new quaternion with the same numbers. */
   clone() {
     return new Quaternion(this.x, this.y, this.z, this.w);
   }
+  /** Resets to no rotation at all. */
   identity() {
     return this.set(0, 0, 0, 1);
   }
+  /** Becomes a turn of `angle` radians around the axis `v`. */
   setFromAxisAngle(v: V, angle: number) {
     const n = Math.hypot(v.x, v.y, v.z) || 1;
     axis[0] = v.x / n;
@@ -89,31 +95,40 @@ export class Quaternion extends ObservedComponents {
       r,
     ).normalize();
   }
+  /** Adds the turn `q` after this one. */
   multiply(q: Q) {
     return this.written(multiplyQuaternion(other, this.elements, load(turn, q)));
   }
+  /** Adds the turn `q` before this one. */
   premultiply(q: Q) {
     return this.written(multiplyQuaternion(other, load(turn, q), this.elements));
   }
+  /** Becomes `a` followed by `b`. */
   multiplyQuaternions(a: Q, b: Q) {
     return this.written(multiplyQuaternion(other, load(other, a), load(turn, b)));
   }
+  /** Becomes the turn that undoes this one. */
   invert() {
     return this.set(-this.x, -this.y, -this.z, this.w);
   }
+  /** Flips the axis part: the opposite turn for a unit quaternion. */
   conjugate() {
     return this.invert();
   }
+  /** How much two rotations agree, from −1 to 1. */
   dot(q: Q) {
     return this.x * q.x + this.y * q.y + this.z * q.z + this.w * q.w;
   }
+  /** The size of the four numbers together. */
   length() {
     return Math.hypot(this.x, this.y, this.z, this.w);
   }
+  /** Scales the numbers to size 1, a pure rotation. */
   normalize() {
     other.set(this.elements);
     return this.written(normalizeQuaternion(other));
   }
+  /** The angle between two rotations, in radians. */
   angleTo(q: Q) {
     return 2 * Math.acos(Math.min(1, Math.abs(this.dot(q))));
   }
@@ -137,12 +152,15 @@ export class Quaternion extends ObservedComponents {
     );
     return sin < 1e-6 ? this.normalize() : this;
   }
+  /** Whether two quaternions hold the same numbers. */
   equals(q: Q) {
     return this.x === q.x && this.y === q.y && this.z === q.z && this.w === q.w;
   }
+  /** Reads four numbers from a list. */
   fromArray(array: ArrayLike<number>, offset = 0) {
     return this.set(array[offset], array[offset + 1], array[offset + 2], array[offset + 3]);
   }
+  /** The four numbers as a list. */
   toArray(): [number, number, number, number] {
     return [this.x, this.y, this.z, this.w];
   }

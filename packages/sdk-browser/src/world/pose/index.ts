@@ -8,12 +8,17 @@ import { sessionOf } from '../core/worldSession.ts';
 
 /** What a path is replayed through: a world and its camera. */
 export type PosedWorld = {
+  /** The camera's field of view and near and far distances. */
   camera: { fov: number; near: number; far: number };
 };
 
 /** The `pose` family: framing a box, naming a view, replaying a path. */
 export const pose = {
-  /** The view that frames `box` (`framingFromBounds`), from `direction` (the default diagonal). */
+  /**
+   * The view that frames `box` (`framingFromBounds`), from `direction` (the default diagonal).
+   * @param box - The box to frame.
+   * @param p - The field of view, the direction to look from, and the picture's shape.
+   */
   fromBounds(
     box: Box3,
     p: { fov?: number; direction?: Vec3Input; aspect?: number } = {},
@@ -33,10 +38,18 @@ export const pose = {
       fov: p.fov,
     };
   },
+  /**
+   * A view with a name, so a page can come back to it.
+   * @param name - The view's name.
+   * @param p - The view.
+   */
   pointOfInterest: (name: string, p: CameraPose) => ({ ...p, name }),
   /**
    * Replays the views `poses` through the world (`runCameraPath`), `images` frames spread evenly
    * over them, eye and target moving in straight lines between two views.
+   * @param world - The world to move.
+   * @param poses - The views to pass through.
+   * @param p - How many frames the whole path takes.
    */
   async runPath(world: PosedWorld, poses: CameraPose[], p: { images?: number } = {}) {
     const images = Math.max(poses.length, p.images ?? poses.length);

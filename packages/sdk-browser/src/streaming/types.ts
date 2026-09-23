@@ -10,17 +10,27 @@ import type { BackendDiagnostic } from '../backend/types.ts';
 export interface HostRetentionDelta {
   /** Request rank → address. The same table for the life of the scene: its identity names the emitter. */
   readonly urls: readonly string[];
+  /** Pages that entered. */
   readonly entered: Int32Array;
+  /** How many entered. */
   readonly enteredCount: number;
+  /** Pages that left. */
   readonly exited: Int32Array;
+  /** How many left. */
   readonly exitedCount: number;
+  /** Pages held. */
   readonly held: Int32Array;
+  /** How many held. */
   readonly heldCount: number;
 }
 
+/** One page a streamer fetches: where, how big, and its fingerprint. */
 export interface StreamPage {
+  /** Where it is read. */
   url: string;
+  /** Its size. */
   bytes: number;
+  /** Fingerprint of its bytes. */
   sha256: string;
 }
 export type Job = {

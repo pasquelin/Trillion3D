@@ -8,10 +8,15 @@ import { coneRejects } from '../projectionOracles.ts';
  * `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`).
  */
 export const CONE_LENGTH_RATIO = 1.0001;
+/** How far from square two columns may be and still count as square. */
 export const CONE_ORTHO_EPS = 1e-4;
+/** A quarter turn, in radians. */
 export const HALF_PI = Math.PI / 2;
+/** `CONE_LENGTH_RATIO` as shader text. */
 export const CONE_LENGTH_RATIO_WGSL = CONE_LENGTH_RATIO.toString();
+/** `CONE_ORTHO_EPS` as shader text. */
 export const CONE_ORTHO_EPS_WGSL = CONE_ORTHO_EPS.toExponential();
+/** `HALF_PI` as shader text. */
 export const HALF_PI_WGSL = HALF_PI.toString();
 
 /**

@@ -1,16 +1,10 @@
-import type { PortalEntry } from '../model.ts';
+import type { EntryNote } from '../model.ts';
 
 /** Constants and enums of the image and its quality, each read from the file named in `module`. */
-const ENUM = { section: 'enums', kind: 'Type' };
-const CONST = { section: 'enums', kind: 'Constant' };
 
-export const ENUMS_IMAGE: PortalEntry[] = [
+export const ENUMS_IMAGE: EntryNote[] = [
   {
-    ...CONST,
     id: 'IDENTITY_MATRIX4',
-    exports: ['IDENTITY_MATRIX4'],
-    module: 'packages/sdk-core/src/math/matrix/matrix4.ts',
-    signature: 'const IDENTITY_MATRIX4: Float64Array',
     description:
       'Column-major identity, read and never written: the pose of a node or of a root with no pose.',
     values: [
@@ -22,12 +16,7 @@ export const ENUMS_IMAGE: PortalEntry[] = [
 copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
   },
   {
-    ...ENUM,
     id: 'DiagnosticMode',
-    exports: ['DiagnosticMode', 'DIAGNOSTICS'],
-    module: 'packages/sdk-core/src/runtime/diagnostics.ts',
-    signature:
-      "type DiagnosticMode = 'beauty' | 'wireframe' | 'clusters' | 'lod' | 'screen-error' | 'materials' | 'visibility' | 'pages' | 'texture-mip' | 'overdraw'",
     description:
       'What a frame draws. Availability describes real pipeline outputs, never synthetic overlays: `DIAGNOSTICS` gives, per mode, whether the active renderer can produce it and why not.',
     values: [
@@ -69,12 +58,7 @@ world.diagnostic.mode = 'clusters';
 console.log(DIAGNOSTICS['overdraw']); // { available: false, reason: 'No fragment counter' }`,
   },
   {
-    ...ENUM,
     id: 'LodQualityId',
-    exports: ['LodQualityId', 'LOD_QUALITY', 'lodQuality', 'adaptivePixelError'],
-    module: 'packages/sdk-core/src/lod/policy.ts',
-    signature:
-      "type LodQualityId = 'source' | 'high' | 'balanced' | 'adaptive'\nconst LOD_QUALITY: Record<LodQualityId, { id, label, pixelError, anisotropy, adaptive }>",
     description:
       'Runtime LOD presets. `pixelError` is the screen-space threshold the exact-cluster selection consumes; `0` keeps the exact leaves.',
     values: [
@@ -93,11 +77,7 @@ world.pixelError = pixelError; // the world's own property reads the same thresh
 console.log(world.pixelError);`,
   },
   {
-    ...ENUM,
     id: 'ScreenErrorVariant',
-    exports: ['ScreenErrorVariant', 'setScreenErrorVariant', 'screenErrorVariant'],
-    module: 'packages/sdk-core/src/lod/screenErrorVariant.ts',
-    signature: "type ScreenErrorVariant = 'certifiee' | 'reference'",
     description:
       'Which projection of the cluster error the cut compares to the threshold. Module state for the whole page, read by the CPU metric and inlined into the selection shader when it is compiled; each side of a bench runs in its own page. Public source of the formula: Karis, Stubbe and Wihlidal, SIGGRAPH 2021, "Advances in Real-Time Rendering in Games".',
     values: [

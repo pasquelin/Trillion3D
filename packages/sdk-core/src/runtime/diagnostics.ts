@@ -10,11 +10,33 @@ export type DiagnosticMode =
   | 'pages'
   | 'texture-mip'
   | 'overdraw';
+/** Whether a view mode is available here, and why not. */
 export interface DiagnosticCapability {
+  /** Whether it can be shown. */
   available: boolean;
+  /** Why not. */
   reason: string;
 }
+/** Every view mode, each with whether it is available.
+ *  @property beauty - The normal image. @property wireframe - One colour per triangle.
+ *  @property clusters - One colour per cluster. @property lod - The detail level drawn.
+ *  @property screen-error - The error on screen. @property materials - One colour per material.
+ *  @property visibility - The pages seen. @property pages - The pages held.
+ *  @property texture-mip - The texture size read. @property overdraw - Pixels drawn again. */
 export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>;
+/**
+ * The view modes a world can show instead of the normal image, each with whether it is available.
+ * @property beauty - The normal image.
+ * @property wireframe - One colour per triangle.
+ * @property clusters - One colour per cluster.
+ * @property lod - Which detail level each cluster was drawn at.
+ * @property screen-error - How far each cluster is from the full detail, on screen.
+ * @property materials - One colour per kind of material.
+ * @property visibility - The pages seen this frame.
+ * @property pages - The pages held in memory.
+ * @property texture-mip - Which texture size each pixel read.
+ * @property overdraw - How many times each pixel was drawn.
+ */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
   beauty: { available: true, reason: 'glTF materials' },
   wireframe: {

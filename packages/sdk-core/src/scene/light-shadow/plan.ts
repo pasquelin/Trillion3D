@@ -19,6 +19,7 @@ import { createShadowAdmission } from './admit.ts';
 import { createShadowRelease } from './release.ts';
 import { castsShadow, countShadowCasters } from './casters.ts';
 
+/** Which shadow regions are drawn this frame, and which wait. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
@@ -43,10 +44,15 @@ export function createShadowPlan(capacity: number) {
   const queue = createShadowAdmission(regions, budget, counts);
   const release = createShadowRelease();
   return {
+    /** Shadow slices. */
     slices,
+    /** Shadow regions. */
     regions,
+    /** Time budget. */
     budget,
+    /** What each light covers. */
     coverage,
+    /** Counts for the diagnostic. */
     counts,
     /** A node has moved: its box enters the list the scheduler will consume next frame. */
     worldChanged: changes.worldChanged,
@@ -68,6 +74,7 @@ export function createShadowPlan(capacity: number) {
     setPageInvalidation(on: boolean) {
       byPage = on;
     },
+    /** Pages to draw again. */
     get pageInvalidation() {
       return byPage;
     },
@@ -176,6 +183,7 @@ export function createShadowPlan(capacity: number) {
         );
       regions.reset();
     },
+    /** Starts over. */
     reset() {
       slices.reset();
       changes.reset();

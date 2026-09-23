@@ -40,13 +40,13 @@ export const textureUploadMsFor = (declared: number | undefined) =>
 export type PoolClamp =
   'root-cover' | 'scene' | 'page-cap' | 'device-limit' | 'minimum' | 'ceiling' | null;
 
-export type GeometryPool = {
+/** The geometry pool as it stands: slots, page size and bytes held. */ export type GeometryPool = {
   /** Bytes requested by the host, and the page slots the pool draws from them. */
   budgetBytes: number;
-  slots: number;
-  pageBytes: number;
-  allocatedBytes: number;
-  clamp: PoolClamp;
+  /** Page slots. */ slots: number;
+  /** Bytes per page. */ pageBytes: number;
+  /** Bytes held. */ allocatedBytes: number;
+  /** Why the size was limited. */ clamp: PoolClamp;
 };
 
 const checkBudget = (bytes: number, name: string) => {
@@ -108,12 +108,12 @@ export function geometryPoolFor(options: {
   return { budgetBytes, slots, pageBytes, allocatedBytes: slots * pageBytes, clamp };
 }
 
-export type TexturePool = {
-  budgetBytes: number;
+/** The texture pool as it stands: budget and bytes held. */ export type TexturePool = {
+  /** Bytes allowed. */ budgetBytes: number;
   /** Layers of each lane pool, per atlas, and the bytes of every pool added up. */
   layers: AtlasLanes;
-  allocatedBytes: number;
-  clamp: PoolClamp;
+  /** Bytes held. */ allocatedBytes: number;
+  /** Why the size was limited. */ clamp: PoolClamp;
 };
 
 /**

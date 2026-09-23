@@ -49,14 +49,23 @@ export function expectTemplate(template: string, url: string, sha: string) {
     );
 }
 
+/** How many rows each part of a binary manifest holds. */
 export interface Counts {
+  /** Pages. */
   pages: number;
+  /** Culling nodes. */
   cullingNodes: number;
+  /** Groups. */
   groups: number;
+  /** Group children. */
   children: number;
+  /** Group outputs. */
   outputs: number;
+  /** Roots. */
   roots: number;
+  /** Bundles. */
   bundles: number;
+  /** Texture previews. */
   previews: number;
   /** Bytes of the pixel column, every level of every entry concatenated. */
   previewBytes: number;

@@ -1,5 +1,6 @@
 /** Runtime LOD presets. pixelError is the screen-space threshold consumed by exact-cluster selection; 0 keeps exact leaves. */
 export const LOD_QUALITY = {
+  /** Every triangle of the source. */
   source: {
     id: 'source',
     label: 'Maximum source detail',
@@ -7,6 +8,7 @@ export const LOD_QUALITY = {
     anisotropy: 'source',
     adaptive: false,
   },
+  /** Detail no one can tell from the source. */
   high: {
     id: 'high',
     label: 'High quality',
@@ -14,6 +16,7 @@ export const LOD_QUALITY = {
     anisotropy: 'maximum',
     adaptive: false,
   },
+  /** A little less detail, for speed. */
   balanced: {
     id: 'balanced',
     label: 'Balanced quality',
@@ -21,6 +24,7 @@ export const LOD_QUALITY = {
     anisotropy: 'source',
     adaptive: false,
   },
+  /** Detail that follows the frame budget. */
   adaptive: {
     id: 'adaptive',
     label: 'Adaptive mode',
@@ -29,7 +33,9 @@ export const LOD_QUALITY = {
     adaptive: true,
   },
 } as const;
+/** The name of a detail preset. */
 export type LodQualityId = keyof typeof LOD_QUALITY;
+/** The detail preset named `id`, or the balanced one. */
 export function lodQuality(id: string) {
   const value = LOD_QUALITY[id as LodQualityId];
   if (!value) throw new Error(`Unknown LOD quality: ${id}`);

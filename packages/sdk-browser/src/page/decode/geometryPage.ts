@@ -19,10 +19,15 @@ import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
 /** A decoded page: `indices` and every attribute are views on one buffer of `decodedBytes`
  *  (`geometryPageBlock.ts`). */
 export type DecodedGeometryPage = {
+  /** The triangle indices. */
   indices: Uint32Array<ArrayBuffer>;
+  /** The vertex lists by name. */
   attributes: Record<string, Float32Array<ArrayBuffer>>;
+  /** Vertices. */
   vertexCount: number;
+  /** Which attributes it carries. */
   flags: number;
+  /** Its size once unpacked. */
   decodedBytes: number;
   /** The header's largest position displacement, in object units: a decoded position may lie
    *  that far from its source, and so from the page's declared box. */

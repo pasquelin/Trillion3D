@@ -3,16 +3,22 @@ import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 /** A frame's metrics, with the names a page reads them by; `null` where the path does not count. */
 export type WorldFrameMetrics = FrameMetrics & {
   gpuFrameMs: number | null;
+  /** Clusters the occlusion test found hidden this frame; `null` where the path does not count them. */
   hizCulled: number | null;
+  /** Shadow pages held in memory this frame; `null` where the path has none. */
   shadowPagesResident: number | null;
 };
 
 /** What a frame hook receives: seconds since the last frame and since the world began. The
  *  world's one object, rewritten each frame: a hook that keeps a value copies it. */
 export interface FrameInfo {
+  /** Seconds since the previous frame. */
   delta: number;
+  /** Seconds since the world began. */
   time: number;
+  /** How many frames the world has drawn. */
   frame: number;
+  /** What the last frame cost: triangles, pages, timings. */
   metrics: WorldFrameMetrics;
 }
 
@@ -66,6 +72,11 @@ export function createWorldFrames() {
     },
     /** Seconds since the last drawn frame: what a steered controller integrates. */
     delta: () => (performance.now() - previous) / 1000,
+    /**
+     * Adds a function to run before every frame; returns the function that removes it.
+     * @param hook - The function to run; it gets the frame's time and metrics.
+     * @returns A function that stops the hook.
+     */
     add(hook: (frame: FrameInfo) => void) {
       hooks.add(hook);
       return () => {
