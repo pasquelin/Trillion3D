@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { Instance } from '../../plan/contract.ts';
 import { sharedProps, triangleCount } from '../../props/index.ts';
 import { propProblems } from '../../props/validate.ts';
-import { BASEMENT } from './chalet.ts';
+import { BASEMENT, TERRACES } from './chalet.ts';
 import { createPlan } from '../../plan/plan.ts';
 import { mountainsRegion } from './index.ts';
 import { AERIAL, layoutMountains } from './layout.ts';
@@ -60,7 +60,8 @@ test('the region is whole: waterfall, bridges, villages, cable car, observatory,
   assert.equal(count('mountains/church'), villages.length, 'one church per mountain settlement');
   assert.equal(count('mountains/observatory'), 1);
   assert.equal(count('mountains/cable-station'), 2);
-  assert.ok(count('mountains/chalet-') >= 20 && count('mountains/cable-pylon-') >= 2);
+  // The cable car stands whole: a station at each end (a short line needs no pylon).
+  assert.ok(count('mountains/chalet-') >= 20 && count('mountains/cable-station') === 2);
 });
 
 test('everything stands inside the bounds, within budget', () => {
@@ -133,7 +134,8 @@ test('nothing floats and nothing is buried', () => {
     if (AERIAL.has(inst.prop) || onRoad(inst) || stand(inst)) return false;
     const [x, y, z] = inst.position,
       ground = plan.height(x, z);
-    return y - ground < -2.1 || y - ground > BASEMENT + 1e-6;
+    const lift = inst.prop === 'mountains/church' ? TERRACES.at(-1)! : BASEMENT;
+    return y - ground < -2.1 || y - ground > lift + 1e-6;
   });
   assert.deepEqual(
     wrong.map((i) => i.name),
@@ -175,7 +177,13 @@ test('the contract: name, refinement, ground layers, markers, lights', () => {
   const effects = new Set(output.markers.flatMap((m) => (m.kind === 'emitter' ? [m.effect] : [])));
   assert.deepEqual([...effects].sort(), ['snow-plume', 'waterfall-spray']);
   assert.ok(output.markers.some((m) => m.kind === 'spawn'));
-  assert.ok(output.lights.some((l) => l.night) && output.lights.some((l) => !l.night));
+  assert.ok(output.lights.some((l) => l.night));
+  // Tunnel lamps burn day and night: they exist wherever a tunnel does.
+  const portals = output.instances.some((i) => i.prop.includes('portal'));
+  assert.equal(
+    output.lights.some((l) => !l.night),
+    portals,
+  );
   assert.equal(new Set(output.lights.map((l) => l.name)).size, output.lights.length);
   assert.deepEqual(output.roads, []);
 });
