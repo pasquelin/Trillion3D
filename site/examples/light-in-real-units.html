@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, language, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#1c2433');
@@ -128,7 +129,7 @@
       // An exposure value of 0 is one second at f/1 on ISO 100 film; each step up halves the
       // light let in. A meter reading E lux asks for EV = log2(E × 100 / 250), and the image is
       // then scaled by 1 / (1.2 × 2^EV): the calibration of a camera's own meter.
-      const lux = (value) => (value >= 100 ? Math.round(value).toLocaleString('en') : value.toPrecision(2)) + ' lx';
+      const lux = (value) => (value >= 100 ? Math.round(value).toLocaleString(language()) : value.toPrecision(2)) + ' lx';
       let target = 15, ev = 10, shown = { sun: null, sky: null, lamp: null, ev: null };
       const ui = controls({
         mouse: 'Drag to walk round the square; pick a moment and watch the camera adapt, from 100,000 lux down to a moonlit night',
@@ -158,13 +159,13 @@
         target = values.autoExposure ? Math.log2((meter * 100) / 250) : values.exposureValue;
         shown.sun?.(lux(moment.sun));
         shown.sky?.(lux(moment.sky));
-        shown.lamp?.(`${lumens.toLocaleString('en')} lm · ${Math.round(lumens / (4 * Math.PI)).toLocaleString('en')} cd`);
+        shown.lamp?.(`${lumens.toLocaleString(language())} lm · ${Math.round(lumens / (4 * Math.PI)).toLocaleString(language())} cd`);
         world.invalidate();
       }, world);
-      shown = { sun: readout('Sun'), sky: readout('Sky'), lamp: readout('Each lamp'), ev: readout('Exposure value') };
+      shown = { sun: readout('sun'), sky: readout('sky'), lamp: readout('eachLamp'), ev: readout('exposureValue') };
       shown.sun(lux(MOMENTS[ui.moment].sun));
       shown.sky(lux(MOMENTS[ui.moment].sky));
-      shown.lamp('off');
+      shown.lamp(say('off'));
 
       // The opening: the camera starts wide open, the square a white glare, and the exposure
       // closes down to the noon sun like an eye stepping out of a dark room. The camera glides in

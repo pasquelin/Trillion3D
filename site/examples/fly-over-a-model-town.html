@@ -119,11 +119,12 @@
     <canvas id="view"></canvas>
     <div id="redout" data-hud data-example-overlay></div>
     <svg id="hud" data-hud data-example-overlay></svg>
-    <div id="testmode" data-example-overlay hidden>TEST MODE — mouse not locked</div>
+    <div id="testmode" data-example-overlay hidden data-words="testMode"></div>
     <div id="banner" data-hud data-example-overlay><h1></h1><p></p></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { isCapture, play, seeded, stats } from '../runtime/kit.js';
+      import { isCapture, play, seeded, stats, words } from '../runtime/kit.js';
+      const say = words();
 
       // MOUSE AIM, as PC flight games fly: the mouse moves an aim circle through the sky, not the
       // jet; an instructor turns the jet onto it — bank towards it, pull, level the wings — by
@@ -1215,7 +1216,7 @@
         put(hudRoot, 'viewBox', `0 0 ${W} ${H}`);
         put(centre, 'transform', `translate(${W / 2} ${H / 2})`);
         corner.forEach((line, k) => (put(line, 'x', W - 16), put(line, 'y', 28 + k * 20)));
-        put(corner[0], 'text', `RINGS ${passedCount}/${rings.length}`);
+        put(corner[0], 'text', say('rings', { passed: passedCount, all: rings.length }));
         put(corner[1], 'text', clockOf(finished ?? elapsed));
         const { forward } = attitude(S.q), far = (direction) => S.pos.map((p, i) => p + direction[i] * 2000);
         const aimAt = project(far(rotate(S.aim, [0, 0, -1])), eye, turn, f), noseAt = project(far(forward), eye, turn, f);
@@ -1369,7 +1370,6 @@
       const S = createFlight();
       const pilot = { keys: new Set(), sensitivity: 1, invert: false, mode: 'arcade', freeLook: false, precision: false, perPx: 0 };
       const SENSITIVITY = { Low: 0.6, Medium: 1, High: 1.6 };
-      const MODES = { 'Arcade — the jet flies onto your aim; no stall, it pulls up by itself': 'arcade', 'Expert — the mouse is the stick; it stalls and spins': 'expert' };
       let view = 'cockpit', chosenView = 'cockpit', phase = 'flying', crashTime = 0, passedCount = 0, lastRing = null, fuel = FUEL;
       let airborne = false, elapsed = 0, finished = null, time = 0, zoom = 22, prevMach = 0, coneAge = Infinity, lastTrail = 0, headYaw = 0;
       let chaseTurn = [0, 0, 0, 1];
@@ -1397,7 +1397,7 @@
           chime();
           if (passedCount === rings.length) {
             finished = elapsed;
-            banner('COURSE COMPLETE', `${clockOf(finished)} — R to fly again`);
+            banner(say('complete'), say('flyAgain', { time: clockOf(finished) }));
           }
         });
       }
@@ -1480,28 +1480,26 @@
       const game = play(
         { canvas: free ? freeCanvas : canvas, controls: world.controls, invalidate: () => world.invalidate() },
         {
-          title: 'Fighter jet',
-          goal: 'Take off, then fly the canyon through the ten gold rings as fast as you can. Point with the mouse: the jet follows.',
           keys: [
-            { action: 'Aim (Arcade) or stick (Expert)', keys: ['Mouse'] },
-            { action: 'Fine aim (hold)', keys: ['Right button'] },
-            { action: 'Throttle up, down', keys: ['W', 'S'], azerty: ['Z', 'S'] },
-            { action: 'Afterburner (hold)', keys: ['Shift'] },
-            { action: 'Roll (overrides the aim in Arcade)', keys: ['A', 'D'], azerty: ['Q', 'D'] },
-            { action: 'Rudder', keys: ['Q', 'E'], azerty: ['A', 'E'] },
-            { action: 'Air brake (hold)', keys: ['Space'] },
-            { action: 'Look around (hold)', keys: ['V'] },
-            { action: 'Cockpit or exterior view', keys: ['C'] },
-            { action: 'Zoom the exterior view', keys: ['Wheel'] },
-            { action: 'Start over', keys: ['R'] },
-            { action: 'Pause', keys: ['Esc'] },
+            { action: 'aim', keys: ['Mouse'] },
+            { action: 'fineAim', keys: ['Right button'] },
+            { action: 'throttle', keys: ['W', 'S'], azerty: ['Z', 'S'] },
+            { action: 'afterburner', keys: ['Shift'] },
+            { action: 'roll', keys: ['A', 'D'], azerty: ['Q', 'D'] },
+            { action: 'rudder', keys: ['Q', 'E'], azerty: ['A', 'E'] },
+            { action: 'airBrake', keys: ['Space'] },
+            { action: 'lookAround', keys: ['V'] },
+            { action: 'view', keys: ['C'] },
+            { action: 'zoom', keys: ['Wheel'] },
+            { action: 'startOver', keys: ['R'] },
+            { action: 'pause', keys: ['Esc'] },
           ],
           options: [
-            { id: 'view', label: 'View', choices: ['Cockpit', 'Exterior'] },
-            { id: 'mode', label: 'Mode', choices: Object.keys(MODES) },
-            { id: 'sensitivity', label: 'Mouse sensitivity', choices: Object.keys(SENSITIVITY), value: 'Medium' },
-            { id: 'invert', label: 'Invert Y', choices: ['Off', 'On'] },
-            { id: 'sound', label: 'Sound', choices: ['On', 'Off'] },
+            { id: 'view', choices: ['cockpit', 'exterior'] },
+            { id: 'mode', choices: ['arcade', 'expert'] },
+            { id: 'sensitivity', choices: Object.keys(SENSITIVITY), value: 'Medium' },
+            { id: 'invert', choices: ['off', 'on'] },
+            { id: 'sound', choices: ['on', 'off'] },
           ],
           onStart: () => setView(chosenView),
           onPause() {
@@ -1514,11 +1512,11 @@
           },
           onRestart: restart,
           onOption(id, value) {
-            if (id === 'view') setView((chosenView = value === 'Cockpit' ? 'cockpit' : 'exterior'));
-            if (id === 'mode') pilot.mode = MODES[value];
+            if (id === 'view') setView((chosenView = value));
+            if (id === 'mode') pilot.mode = value;
             if (id === 'sensitivity') pilot.sensitivity = SENSITIVITY[value];
-            if (id === 'invert') pilot.invert = value === 'On';
-            if (id === 'sound') muted = value === 'Off';
+            if (id === 'invert') pilot.invert = value === 'on';
+            if (id === 'sound') muted = value === 'off';
             if (audio) audio.out.gain.value = muted ? 0 : 0.8;
           },
         },
@@ -1636,9 +1634,9 @@
         // Warnings, the take-off hint, the display.
         const [floor] = ground(S.pos[0], S.pos[2]), radar = S.pos[1] - GEAR - floor, sinking = -S.vel[1];
         const pullUp = S.pullUp || (!S.onGround && sinking > 5 && radar / sinking < 5), overTheEdge = Math.max(Math.abs(S.pos[0]), Math.abs(S.pos[2])) > 2450;
-        const alert = phase === 'crashed' ? '' : S.stalling ? 'STALL' : pullUp ? 'PULL UP' : overTheEdge ? 'TURN BACK' : '';
-        if (phase === 'crashed') banner('CRASHED', lastRing === null ? 'Back to the runway…' : 'Back to the last ring…');
-        else if (!airborne) banner('', S.throttle < 0.5 ? 'W — throttle up (Z on AZERTY)' : S.v < ROTATE ? `Rolling — ${Math.round(S.v * KT)} kt` : 'Mouse up — lift off');
+        const alert = phase === 'crashed' ? '' : S.stalling ? say('stall') : pullUp ? say('pullUp') : overTheEdge ? say('turnBack') : '';
+        if (phase === 'crashed') banner(say('crashed'), say(lastRing === null ? 'backToRunway' : 'backToRing'));
+        else if (!airborne) banner('', S.throttle < 0.5 ? say('throttleUp') : S.v < ROTATE ? say('rolling', { knots: Math.round(S.v * KT) }) : say('liftOff'));
         else if (finished === null) banner('');
         drawHud(f, eyeAt, turn, W, H, alert);
         drawScreens(f, eye, eyeAt, turn, W, H, cockpit.visible);

@@ -1,4 +1,4 @@
-import { useWords } from '../i18n.ts';
+import { exampleAddress, useWords } from '../i18n.ts';
 import { entrySummary } from '../../content/model.ts';
 import type { CourseChapter, PortalEntry } from '../../content/model.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -43,7 +43,7 @@ export function Chapter({ entry, locale }: { entry: PortalEntry; locale: Locale 
         <Prose html={chapter.tryIt} />
         <RenderFrame keyboard={{ mode: 'press', hint: t('demo.keyboardHint') }}>
           <iframe
-            src={`examples/${chapter.example}.html`}
+            src={exampleAddress(`examples/${chapter.example}.html`, locale)}
             title={title}
             loading="lazy"
             allow="fullscreen"
