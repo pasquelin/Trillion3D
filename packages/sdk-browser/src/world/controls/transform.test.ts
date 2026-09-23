@@ -31,6 +31,7 @@ test('dragging an arrow moves the object and keeps the orbit still; beside it, t
   for (const type of ['dragStart', 'change', 'dragEnd'] as const)
     gizmo.addEventListener(type, () => events.push(type));
   gizmo.attach(box);
+  assert.equal(gizmo.handles.parent, scene, 'the handles are in the scene while attached');
   // The x arrow's shaft crosses the canvas at 243 px: one world unit right of the centre.
   fixtureDrag(surface, 40, 0, { clientX: 243, clientY: 200 });
   assert.ok(Math.abs(box.position.x - 40 * unit) < 1e-9, 'the box followed the pointer');
