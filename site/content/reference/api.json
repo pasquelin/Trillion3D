@@ -12057,6 +12057,11 @@
         "desc": "Shadow draw calls."
       },
       {
+        "name": "shadowLightCuts?",
+        "type": "number | null | undefined",
+        "desc": "Cluster cuts run from the lights: one per redrawn face, zero on a still frame."
+      },
+      {
         "name": "shadowPagesDrawn?",
         "type": "number | null | undefined",
         "desc": "What page invalidation produced: pages redrawn by the frame, pages left in the queue for lack of budget, and the lag in milliseconds of the oldest of them. Zero everywhere is the normal value of a still scene; `null` on an engine without a shadow atlas."
@@ -16040,6 +16045,11 @@
         "name": "shadowDrawCalls?",
         "type": "number | null | undefined",
         "desc": "Shadow draw calls."
+      },
+      {
+        "name": "shadowLightCuts?",
+        "type": "number | null | undefined",
+        "desc": "Cluster cuts run from the lights: one per redrawn face, zero on a still frame."
       },
       {
         "name": "shadowPagesDrawn?",
