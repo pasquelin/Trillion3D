@@ -45,8 +45,8 @@ test('a body falls, lands on the floor and reports the impact once', () => {
   assert.ok(Math.abs(made.feet[1]) < 1e-6, `feet at ${made.feet[1]}`);
   assert.equal(made.onGround, true);
   assert.equal(impacts.length, 1);
-  // Free fall from 2 m: sqrt(2 g h), read within one tick of gravity.
-  assert.ok(Math.abs(impacts[0] - Math.sqrt(2 * HUMAN_BODY.gravity * 2)) < 0.1);
+  // Free fall from 2 m under the falling gravity: sqrt(2 g h), within one tick of gravity.
+  assert.ok(Math.abs(impacts[0] - Math.sqrt(2 * HUMAN_BODY.fallGravity * 2)) < 0.15);
 });
 
 test('a wall stops the body, which slides along it', () => {
@@ -64,15 +64,38 @@ test('a walker climbs a 0.3 m ledge but not a 0.6 m one', () => {
   assert.ok(Math.abs(high[1]) < 1e-6 && high[0] < 1, `high ledge: ${high}`);
 });
 
-test('a jump reaches v² / 2g', () => {
+test('a jump reaches v² / 2g and lands after the rise and the heavier fall', () => {
   const made = body([FLOOR()]);
   live(made, 0.5, STILL);
   made.pressJump();
-  let apex = 0;
-  for (let i = 0; i < 1200; i++) apex = Math.max(apex, made.advance(1 / 1200, STILL)[1]);
-  const expected = HUMAN_BODY.jumpSpeed ** 2 / (2 * HUMAN_BODY.gravity);
+  let apex = 0,
+    air = 0;
+  for (let i = 0; i < 1200; i++, air += made.onGround ? 0 : 1 / 1200)
+    apex = Math.max(apex, made.advance(1 / 1200, STILL)[1]);
+  const { jumpSpeed, gravity, fallGravity } = HUMAN_BODY;
+  const expected = jumpSpeed ** 2 / (2 * gravity);
+  assert.ok(Math.abs(expected - 0.5) < 1e-9, `standing jump of ${expected} m`);
   assert.ok(Math.abs(apex - expected) / expected < 0.01, `apex ${apex}, expected ${expected}`);
-  assert.equal(made.onGround, true);
+  const flight = jumpSpeed / gravity + Math.sqrt((2 * expected) / fallGravity);
+  // Landing is read at the end of a tick: the air time is known within one tick.
+  assert.ok(Math.abs(air - flight) <= 1 / 120 + 1e-6, `air ${air}, expected ${flight}`);
+  assert.ok(air > 0.55 && air < 0.65 && made.onGround, `air ${air}`);
+});
+
+test('a key starts the jog within the response, and is seen in the first frame', () => {
+  const made = body([FLOOR()]);
+  live(made, 0.5, STILL);
+  const frame = 1 / 60,
+    k = -Math.log(0.05) / HUMAN_BODY.responseTime,
+    v = HUMAN_BODY.walkSpeed;
+  // The analytic run from rest: v (t - (1 - exp(-k t)) / k).
+  const ran = (t: number) => v * (t - (1 - Math.exp(-k * t)) / k);
+  const first = made.advance(frame, EAST)[0];
+  // Drawn at the present: at most one tick of the fixed step late, under one frame.
+  assert.ok(first >= ran(frame - 1 / 120) - 1e-9 && first <= ran(frame) + 1e-9, `first ${first}`);
+  let t = frame;
+  for (; made.velocity[0] < 0.95 * v; t += frame) made.advance(frame, EAST);
+  assert.ok(Math.abs(t - HUMAN_BODY.responseTime) <= frame, `jog reached after ${t} s`);
 });
 
 test('20 m/s never tunnels through a 0.1 m wall, even at 30 Hz', () => {
@@ -81,14 +104,18 @@ test('20 m/s never tunnels through a 0.1 m wall, even at 30 Hz', () => {
   assert.ok(feet[0] < 2, `tunnelled to ${feet[0]}`);
 });
 
-test('released keys stop the body within its response, then it stays still', () => {
+test('released keys stop the body within stopTime, then it stays still', () => {
   const made = body([FLOOR()]);
-  live(made, 2, EAST);
-  const moving = [...made.feet];
+  const moving = live(made, 2, EAST);
+  let t = 0;
+  for (; made.velocity[0] >= 0.05 * HUMAN_BODY.walkSpeed; t += 1 / 240)
+    made.advance(1 / 240, STILL);
+  // The velocity read is the tick's, up to one tick past the present.
+  assert.ok(Math.abs(t - HUMAN_BODY.stopTime) <= 1 / 120 + 1 / 240, `stopped after ${t} s`);
   const stopped = live(made, 2, STILL);
   const glide = stopped[0] - moving[0];
-  // An exponential brake glides v / k, k = -ln(0.05) / responseTime: 0.83 m from 4.5 m/s.
-  const bound = (HUMAN_BODY.walkSpeed * HUMAN_BODY.responseTime) / -Math.log(0.05);
+  // An exponential brake glides v / k, k = -ln(0.05) / stopTime: 9 cm from a jog.
+  const bound = (HUMAN_BODY.walkSpeed * HUMAN_BODY.stopTime) / -Math.log(0.05);
   assert.ok(glide > 0 && glide <= bound + 1e-3, `glide ${glide}, bound ${bound}`);
   assert.deepEqual([...made.velocity], [0, 0, 0]);
   assert.deepEqual(live(made, 1, STILL), stopped);

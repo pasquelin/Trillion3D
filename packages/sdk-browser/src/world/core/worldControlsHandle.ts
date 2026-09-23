@@ -120,6 +120,10 @@ export function worldControlsHandle(
     get onGround(): boolean {
       return (current as { onGround?: boolean } | null)?.onGround === true;
     },
+    /** Character only: the stride's phase in radians, a foot striking at 0 and π; 0 otherwise. */
+    get stride(): number {
+      return (current as { stride?: number } | null)?.stride ?? 0;
+    },
     /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose. */
     update(delta = 0) {
       current?.update?.(delta);
