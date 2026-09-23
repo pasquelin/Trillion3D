@@ -65,8 +65,23 @@ const PHYSICAL = [
  *  a texture worn by several surfaces is uploaded once. */
 export type HostTextures = Map<string, THREE.Texture>;
 
-/** The host texture of an engine texture, read as colour or as data, its sampler words
- *  translated; built once per `built` table. */
+/** Writes how a host texture samples — addressing, placement of the picture, filters — unless it
+ *  already holds this version of the world texture: a repaint of a colour uploads nothing. */
+function writeHostSampling(host: THREE.Texture, texture: Texture) {
+  if (host.userData.sampledVersion === texture.version) return;
+  host.userData.sampledVersion = texture.version;
+  host.wrapS = WRAP[texture.wrapS];
+  host.wrapT = WRAP[texture.wrapT];
+  host.repeat.set(texture.repeat.x, texture.repeat.y);
+  host.offset.set(texture.offset.x, texture.offset.y);
+  host.rotation = texture.rotation;
+  host.minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter;
+  host.magFilter = FILTER[texture.magFilter] as THREE.MagnificationTextureFilter;
+  host.anisotropy = texture.anisotropy;
+  host.needsUpdate = true;
+}
+
+/** The host texture of an engine texture, read as colour or as data; built once per table. */
 function hostTexture(texture: Texture, colour: boolean, built: HostTextures) {
   const key = `${texture.id}@${texture.version}:${colour}`;
   const held = built.get(key);
@@ -77,19 +92,11 @@ function hostTexture(texture: Texture, colour: boolean, built: HostTextures) {
     texture.layout === 'data'
       ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, format)
       : new THREE.Texture(texture.image as THREE.Texture['image']);
-  host.wrapS = WRAP[texture.wrapS];
-  host.wrapT = WRAP[texture.wrapT];
-  host.repeat.set(texture.repeat.x, texture.repeat.y);
-  host.offset.set(texture.offset.x, texture.offset.y);
-  host.rotation = texture.rotation;
-  host.minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter;
-  host.magFilter = FILTER[texture.magFilter] as THREE.MagnificationTextureFilter;
+  writeHostSampling(host, texture);
   host.colorSpace =
     texture.colorSpace === 'srgb' && colour ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
   host.flipY = texture.flipY;
-  host.anisotropy = texture.anisotropy;
   host.name = texture.name;
-  host.needsUpdate = true;
   built.set(key, host);
   return host;
 }
@@ -171,12 +178,17 @@ export function hostSurface(material: Material, vertexColors: boolean, textures:
 }
 
 /**
- * Writes a material's value fields — colour, glow, metalness, roughness — into the host surface
- * built for it, as `hostSurface` wrote them, and bumps the surface's version: every reader of
- * the surface (`page/surface.ts`) takes them at its next read, no surface built again (#335).
+ * Writes a material's value fields — colour, glow, metalness, roughness — and its maps' sampling
+ * into the host surface built for it, as `hostSurface` wrote them, and bumps the versions: every
+ * reader of the surface (`page/surface.ts`) takes them at its next read, nothing built again (#335).
  */
 export function repaintHostSurface(surface: THREE.Material, material: Material) {
   const into = surface as THREE.Material & Record<string, unknown>;
+  for (const field of HOST_MAPS) {
+    const texture = material[field] as Texture | undefined,
+      host = into[field] as THREE.Texture | null | undefined;
+    if (texture?.isTexture && host?.isTexture) writeHostSampling(host, texture);
+  }
   const { color, emissive } = material;
   (into.color as THREE.Color | undefined)?.setRGB(color.r, color.g, color.b);
   (into.emissive as THREE.Color | undefined)

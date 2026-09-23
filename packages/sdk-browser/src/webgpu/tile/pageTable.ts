@@ -6,6 +6,8 @@ import {
   type TileLayout,
   type TilePlace,
 } from '../../texture/tiles.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts';
+import { SAMPLING_WORDS, samplingWords } from './sampling.ts';
 
 /**
  * Page table of an atlas: for each tile of each streamed level of each texture, the pool place
@@ -17,13 +19,17 @@ import {
  * searches: one read, one tile, always showable.
  *
  * One buffer per atlas, in words: `[feedback offset, textures, start of entries, start of
- * levels]`, then four words per texture (`width | height << 16`, first tail level, last level,
- * tail place with the texture's pool tap in its top byte), then sixteen words per texture (the
+ * levels]`, then eleven words per texture (`width | height << 16`, first tail level, last level,
+ * tail place with the texture's pool tap in its top byte, then its sampling — filter word and
+ * UV transform, `sampling.ts`), then sixteen words per texture (the
  * first word of each streamed level, absolute), then the entries. Writes go out per texture, over
  * the span it has touched since the last flush.
  */
 export const PAGE_HEADER_WORDS = 4;
-export const PAGE_SLOT_WORDS = 4;
+/** Header words of a texture: its geometry (four), then its sampling. */
+export const PAGE_SLOT_WORDS = 4 + SAMPLING_WORDS;
+/** Where a texture's sampling starts in its header. */
+export const PAGE_SAMPLING_WORD = 4;
 
 export type TileKey = { slot: number; level: number; tx: number; ty: number };
 
@@ -39,6 +45,8 @@ export type WebgpuTilePageTable = {
   /** The tail's place, and the tap every tile of the texture — this one included — is read by. */
   setTail(slot: number, place: TilePlace, tap: number): void;
   setTile(key: TileKey, place: TilePlace): void;
+  /** Filter and UV transform of a texture, as its record declares them now. */
+  setSampling(slot: number, texture: Texture): void;
   clearTile(key: TileKey): void;
   /** Sends the GPU what has changed; nothing when nothing moved. */
   flush(device: Pick<GPUDevice, 'queue'>): void;
@@ -142,6 +150,11 @@ export function createWebgpuTilePageTable(
     setTail(slot, place, tap) {
       const header = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS;
       write(slot, header + 3, place.x | (place.y << 8) | (place.layer << 16) | (tap << 24));
+    },
+    setSampling(slot, texture) {
+      const at = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS + PAGE_SAMPLING_WORD,
+        sampling = samplingWords(texture);
+      for (let i = 0; i < SAMPLING_WORDS; i++) write(slot, at + i, sampling[i]);
     },
     setTile(key, place) {
       const word = packEntry(place, key.level);
