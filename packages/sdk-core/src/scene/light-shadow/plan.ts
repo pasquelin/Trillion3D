@@ -120,8 +120,9 @@ export function createShadowPlan(capacity: number) {
             whole = true;
           for (let page = 0; page < POOL_PAGES; page++)
             if (pool.owner[page] >= 0 && pool.slice[page] === slice)
-              if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))
-                pool.release(table, page);
+              if (sun.movedLevel(slice, pool.view[page]))
+                if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))
+                  pool.release(table, page);
         }
         counts.invalidatedPages += invalidateLightPages(
           pool,

@@ -18,7 +18,7 @@ import { LAMP_MIPS, POOL_PAGES, SUN_LEVELS } from './virtual.ts';
  * budget, the wait would otherwise never end. All arrays are allocated once.
  */
 export function createShadowAdmission(capacity: number) {
-  const candidates = new Int32Array(POOL_PAGES),
+  const candidates = new Int32Array(capacity),
     score = new Float64Array(POOL_PAGES),
     list = new Int32Array(capacity);
   let count = 0;
@@ -44,18 +44,28 @@ export function createShadowAdmission(capacity: number) {
     ) {
       count = 0;
       if (latest < 0) return 0;
-      let found = 0;
+      let found = 0,
+        kept = 0;
       for (let page = 0; page < POOL_PAGES; page++) {
         if (pool.owner[page] < 0 || !pool.dirty[page] || pool.requested[page] < latest) continue;
-        score[page] =
+        const value =
           (pool.valid[page] ? 0 : 1) +
           coarseness(records, sun, page, pool) +
           (frame - pool.sinceFrame[page]) * LIGHT_SETTINGS.shadowAgingPerFrame;
-        candidates[found++] = page;
+        score[page] = value;
+        found++;
+        // Only the best `capacity` can be drawn: kept in order, a tie behind the earlier page.
+        let at = kept;
+        if (kept === capacity) {
+          if (!(value > score[candidates[kept - 1]])) continue;
+          at--;
+        } else kept++;
+        for (; at > 0 && score[candidates[at - 1]] < value; at--)
+          candidates[at] = candidates[at - 1];
+        candidates[at] = page;
       }
-      candidates.subarray(0, found).sort((a, b) => score[b] - score[a]);
       let spent = 0;
-      for (let k = 0; k < found && count < capacity; k++) {
+      for (let k = 0; k < kept; k++) {
         const cost = budget.estimate(1);
         if (cost !== null && count > 0 && spent + cost > budget.budgetMs) break;
         spent += cost ?? 0;

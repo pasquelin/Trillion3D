@@ -1,5 +1,5 @@
 import { LIGHT_KIND, LIGHT_SETTINGS } from '../light/contracts.ts';
-import type { ShadowPool } from './pool.ts';
+import { RANKS, type ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -43,7 +43,8 @@ export function createShadowRequests(
     needX = new Int32Array(CAP),
     needY = new Int32Array(CAP),
     needRank = new Float64Array(CAP),
-    order = new Int32Array(CAP),
+    /** Allocation keys: the coarsest first, then in report order, packed into one number. */
+    order = new Float64Array(CAP),
     scratch = new Int32Array(4);
   const counts = { requested: 0, allocated: 0, refused: 0, latest: -1 };
   return {
@@ -86,14 +87,14 @@ export function createShadowRequests(
         }
         needEntry[needs] = entry;
         needSlice[needs] = slice;
-        order[needs] = needs;
+        order[needs] = (RANKS / 2 - needRank[needs]) * CAP + needs;
         needs++;
       }
       if (!needs) return;
-      order.subarray(0, needs).sort((a, b) => needRank[b] - needRank[a]);
+      order.subarray(0, needs).sort();
       pool.beginAllocation(report.frame);
       for (let k = 0; k < needs; k++) {
-        const n = order[k];
+        const n = order[k] % CAP;
         const page = pool.take(table, needEntry[n], report.frame, nowMs, frame);
         if (page < 0) {
           counts.refused += needs - k;

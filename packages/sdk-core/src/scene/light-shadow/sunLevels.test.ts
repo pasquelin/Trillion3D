@@ -45,3 +45,18 @@ test('the depth range spans the scene box along the axis, and a small growth kee
   assert.equal(sun.update(0, AXIS, at(0), [-10, 0, -10], [10, 5.1, 10], 2), false);
   assert.deepEqual([...sun.depth.subarray(0, 2)], range);
 });
+
+test('a step smaller than a page moves no window; a step of one finest page moves that level', () => {
+  const sun = createSunLevels();
+  sun.update(0, AXIS, at(0), [-10, 0, -10], [10, 5, 10], 1);
+  const finest = sun.finest[0],
+    page = 128 * 2 ** finest;
+  // Away from any page edge of any level, then a quarter of a finest page further.
+  sun.update(0, AXIS, at(page / 2), [-10, 0, -10], [10, 5, 10], 2);
+  sun.update(0, AXIS, at((3 * page) / 4), [-10, 0, -10], [10, 5, 10], 3);
+  const movedNow = () => Array.from({ length: 16 }, (_, k) => sun.movedLevel(0, finest + k));
+  assert.equal(movedNow().some(Boolean), false);
+  sun.update(0, AXIS, at((3 * page) / 4 + page), [-10, 0, -10], [10, 5, 10], 4);
+  assert.equal(movedNow()[0], true);
+  assert.equal(movedNow()[15], false, 'the coarsest window holds');
+});

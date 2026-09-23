@@ -1,6 +1,9 @@
 import { PAGE_MAPPED, PAGE_VALID, POOL_PAGES } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
+/** Ranks an ordering key spans, centred on zero: a sun level or a lamp mip lies far inside it. */
+export const RANKS = 1024;
+
 /** How stale a page is: only its moving casters changed, or its static ones too. */
 export const STALE_DYNAMIC = 1,
   STALE_FULL = 2;
@@ -39,10 +42,23 @@ export function createShadowPool() {
     since = new Float64Array(POOL_PAGES),
     sinceFrame = new Int32Array(POOL_PAGES);
   const free = new Int32Array(POOL_PAGES),
-    order = new Int32Array(POOL_PAGES);
+    /** Eviction keys: last request, then rank, then page, packed into one exact number. */
+    order = new Float64Array(POOL_PAGES);
   let freeCount = 0,
-    orderCount = 0,
+    orderCount = -1,
+    orderAt = 0,
+    orderFrame = -1;
+  /** The evictable pages of the report of `orderFrame`, in eviction order: built by the first
+   *  `take` the free list cannot serve, with one native numeric sort. */
+  const buildOrder = () => {
+    orderCount = 0;
     orderAt = 0;
+    for (let page = 0; page < POOL_PAGES; page++)
+      if (owner[page] >= 0 && requested[page] < orderFrame)
+        order[orderCount++] =
+          ((requested[page] + 1) * RANKS + rank[page] + RANKS / 2) * POOL_PAGES + page;
+    order.subarray(0, orderCount).sort();
+  };
   const init = () => {
     owner.fill(-1);
     requested.fill(-1);
@@ -107,30 +123,28 @@ export function createShadowPool() {
     /**
      * Pages that may be taken for a report of frame `reportFrame`: every mapped page no later
      * report named, least recently requested first and, among those, the finest first — a coarse
-     * page is what the finer ones fall back to. Built once per report, consumed by `take`.
+     * page is what the finer ones fall back to. Built once per report, by the first `take` the
+     * free list cannot serve.
      */
     beginAllocation(reportFrame: number) {
-      orderCount = 0;
-      orderAt = 0;
-      for (let page = 0; page < POOL_PAGES; page++)
-        if (owner[page] >= 0 && requested[page] < reportFrame) order[orderCount++] = page;
-      order
-        .subarray(0, orderCount)
-        .sort((a, b) => requested[a] - requested[b] || rank[a] - rank[b]);
+      orderCount = -1;
+      orderFrame = reportFrame;
     },
     /** A page for `entry`, asked by the report of `reportFrame`: a free one, else the oldest
      *  evictable one, else −1. It waits for its first draw from `frame`. */
     take(table: ShadowTable, entry: number, reportFrame: number, nowMs: number, frame: number) {
       let page = -1;
       if (freeCount) page = free[--freeCount];
-      else
+      else {
+        if (orderCount < 0) buildOrder();
         while (orderAt < orderCount && page < 0) {
-          const candidate = order[orderAt++];
+          const candidate = order[orderAt++] % POOL_PAGES;
           if (owner[candidate] >= 0 && requested[candidate] < reportFrame) {
             pool.release(table, candidate);
             page = free[--freeCount];
           }
         }
+      }
       if (page < 0) return -1;
       owner[page] = entry;
       valid[page] = 0;

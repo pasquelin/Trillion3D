@@ -25,7 +25,9 @@ export function createSunLevels() {
   const frame = new Float64Array(MAX_SHADOW_SLICES * 9),
     depth = new Float64Array(MAX_SHADOW_SLICES * 2),
     finest = new Int32Array(MAX_SHADOW_SLICES),
-    origins = new Int32Array(MAX_SHADOW_SLICES * LEVEL_WORDS);
+    origins = new Int32Array(MAX_SHADOW_SLICES * LEVEL_WORDS),
+    /** Clipmap slots whose extent moved at the last update, one bit per slot. */
+    moved = new Int32Array(MAX_SHADOW_SLICES);
   const pastFrame = new Int32Array(MAX_SHADOW_SLICES * HISTORY).fill(-1),
     pastFinest = new Int32Array(MAX_SHADOW_SLICES * HISTORY),
     pastOrigins = new Int32Array(MAX_SHADOW_SLICES * HISTORY * LEVEL_WORDS);
@@ -39,6 +41,9 @@ export function createSunLevels() {
     finest,
     origins,
     levelIn,
+    /** Whether the extent of `level` moved at the last update: only its pages may have left. */
+    movedLevel: (slice: number, level: number) =>
+      ((moved[slice] >> ringOf(level, SUN_LEVELS)) & 1) !== 0,
     /**
      * This frame's clipmap of the sun in `slice`. Returns true when its frame or depth range
      * changed — every map it drew describes another projection.
@@ -80,15 +85,20 @@ export function createSunLevels() {
         depth[slice * 2 + 1] = zFar;
       }
       const lowest = finestSunLevel(view.pixelNear);
+      let slots = changed || lowest !== finest[slice] ? (1 << SUN_LEVELS) - 1 : 0;
       finest[slice] = lowest;
       const u = dotVector3(view.position, right),
         v = dotVector3(view.position, up);
       for (let level = lowest; level < lowest + SUN_LEVELS; level++) {
         const page = sunPageMetres(level),
           at = slice * LEVEL_WORDS + ringOf(level, SUN_LEVELS) * 2;
-        origins[at] = Math.floor(u / page) - SUN_WINDOW / 2;
-        origins[at + 1] = Math.floor(-v / page) - SUN_WINDOW / 2;
+        const ox = Math.floor(u / page) - SUN_WINDOW / 2,
+          oy = Math.floor(-v / page) - SUN_WINDOW / 2;
+        if (origins[at] !== ox || origins[at + 1] !== oy) slots |= 1 << ringOf(level, SUN_LEVELS);
+        origins[at] = ox;
+        origins[at + 1] = oy;
       }
+      moved[slice] = slots;
       const past = slice * HISTORY + (frameIndex % HISTORY);
       pastFrame[past] = frameIndex;
       pastFinest[past] = lowest;
