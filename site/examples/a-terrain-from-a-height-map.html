@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Mountain terrain</title>
-    <meta name="thumbnail" content="4" />
+    <meta name="thumbnail" content="2" />
     <style>
       html,
       body {
@@ -21,35 +21,77 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, buffer } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      // The relief is 97 by 97 height samples turned into one surface when the file was compiled; its
-      // sun came with the scene file, on `lights`.
-      const terrain = await world.scene.load('../assets/gallery/offline/terrain/cache/native/full/manifest.json');
-      const [sun] = terrain.lights, noon = sun?.intensity ?? 1;
+
+      // The height map: a height for every point of the ground, here written as a formula — three
+      // ridges, a shoulder, a winding valley cut between them and a little erosion.
+      const hill = (x, z, cx, cz, sx, sz, top) => top * Math.exp(-((x - cx) ** 2) / sx - (z - cz) ** 2 / sz);
+      const valley = (z) => 0.35 + 0.48 * Math.sin(z * 0.48) - 0.08 * z;
+      function height(x, z) {
+        const ridges = hill(x, z, -2.5, 0.3, 1.9, 11, 4.4) + hill(x, z, 0.1, -2.5, 1.05, 2.2, 4.8)
+          + hill(x, z, 2.55, 0.1, 1.1, 13, 4.1) + hill(x, z, -0.4, 2.9, 3.2, 1.25, 2.7);
+        const cut = Math.exp(-((x - valley(z)) ** 2) / 0.5) * (1.15 + ridges * 0.28);
+        const wear = (0.13 * Math.sin(x * 2.8 + z * 0.7) + 0.1 * Math.sin(z * 3.4 - x)) * Math.min(1, ridges / 1.5);
+        return ridges - cut + wear;
+      }
+
+      // Sampled on a 12 m square, 192 cells a side: one vertex per sample, two triangles per cell.
+      // The normals are averaged over the triangles around each vertex, so the slopes shade
+      // smoothly and the edge of the sun's light follows the relief, not the triangles.
+      const SIZE = 12, CELLS = 192, row = CELLS + 1;
+      const positions = new Float32Array(row * row * 3);
+      for (let i = 0; i < row; i++)
+        for (let j = 0; j < row; j++) {
+          const x = (i / CELLS - 0.5) * SIZE, z = (j / CELLS - 0.5) * SIZE;
+          positions.set([x, height(x, z), z], (i * row + j) * 3);
+        }
+      // Each triangle goes to a band by its mean height: soil, grass, rock, then stone at the top.
+      const bands = [[], [], [], []], all = [];
+      const band = (y) => (y < 0.45 ? 0 : y < 1.45 ? 1 : y < 2.7 ? 2 : 3);
+      for (let i = 0; i < CELLS; i++)
+        for (let j = 0; j < CELLS; j++) {
+          const a = i * row + j, b = a + row, c = b + 1, d = a + 1;
+          for (const triangle of [[a, d, c], [a, c, b]]) {
+            const mean = triangle.reduce((sum, v) => sum + positions[v * 3 + 1], 0) / 3;
+            bands[band(mean)].push(...triangle);
+            all.push(...triangle);
+          }
+        }
+      const position = buffer.float32(positions, 3);
+      const whole = geometry.createBuffer({ position, index: buffer.uint32(all) });
+      whole.computeVertexNormals();
+      const normal = whole.getAttribute('normal');
+      const colours = ['#2e4029', '#4a6133', '#614a33', '#b8b3a6'];
+      bands.forEach((indices, index) => {
+        const ground = geometry.createBuffer({ position, normal, index: buffer.uint32(indices) });
+        world.scene.add(object.mesh(ground, material.meshStandard({ color: colours[index], roughness: 0.9 })));
+      });
+
+      // The water lies flat at one level: wherever the valley floor dips below it, a river shows.
+      const water = object.mesh(geometry.plane(SIZE, SIZE), material.meshStandard({ color: '#0b5a80', metalness: 0.1, roughness: 0.2 }));
+      water.rotation.set(-Math.PI / 2, 0, 0);
+      water.position.y = -0.55;
+      world.scene.add(water);
+
+      // A sun that casts the peaks' shadows, and the sky's light on the slopes it misses.
+      const sun = light.directional({ intensity: 3, color: '#ffe2b8', castShadow: true });
+      world.scene.add(sun, light.hemisphere({ intensity: 1.1, color: '#bcd4ff', groundColor: '#5a4a3c' }));
       world.camera.position.set(6.5, 5, 8);
       world.camera.lookAt(0, 0.9, 0);
       world.controls.target.set(0, 0.9, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
-      // The day runs: the sun rises on one side of the range, crosses it, sets on the other, and the
-      // peaks' shadows swing across the valley.
-      const ui = controls({ daySpeed: [0, 1, 0.25], sun: '#ffe2b8', exposure: [0.4, 2.5, 1.2] }, (values) => {
-        sun?.color.set(values.sun);
+      // The hour moves the sun across the range, and the peaks' shadows swing across the valley.
+      controls({ hour: [6, 18, 9, 0.25], sunColour: '#ffe2b8', exposure: [0.4, 2.5, 1.1] }, (values) => {
+        const arc = ((values.hour - 6) / 12) * Math.PI;
+        sun.position.set(Math.cos(arc) * 10, Math.sin(arc) * 8 + 0.5, 4);
+        sun.color.set(values.sunColour);
         world.exposure = values.exposure;
         world.invalidate();
       }, world);
-      let hour = 0.35;
-      world.onFrame(({ delta }) => {
-        hour = (hour + delta * ui.daySpeed * 0.1) % 1;
-        const arc = hour * Math.PI;
-        if (sun) {
-          sun.position.set(Math.cos(arc) * 10, Math.sin(arc) * 8 + 0.5, 4);
-          sun.intensity = noon * (0.3 + Math.sin(arc));
-        }
-        world.invalidate();
-      });
     </script>
   </body>
 </html>
