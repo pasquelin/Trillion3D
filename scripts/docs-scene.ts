@@ -10,17 +10,9 @@ const executable =
   resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
 const result = spawnSync(
   executable,
-  [
-    resolve(scene, 'source/garden.gltf'),
-    resolve(scene, 'cache'),
-    'full',
-    '150000',
-    '2',
-    '256',
-    '../../../../source/',
-    'none',
-  ],
-  { stdio: 'inherit' },
+  ['source/garden.gltf', 'cache', 'full', '150000', '2', '256', '../../../../source/', 'none'],
+  // Relative paths from the scene folder: the compiler records the paths it is given.
+  { cwd: scene, stdio: 'inherit' },
 );
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;

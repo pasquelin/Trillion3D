@@ -17,7 +17,7 @@ function recordingDevice(writes: Array<[number, number]> = []) {
   const device = {
     createBuffer: ({ size, label }: { size: number; label?: string }) => {
       const bytes = new ArrayBuffer(size);
-      if (label?.startsWith('WG resident proxy')) mapped = bytes;
+      if (label?.startsWith('Trillion3D resident proxy')) mapped = bytes;
       return { size, label, getMappedRange: () => bytes, unmap() {}, destroy() {} };
     },
     queue: {

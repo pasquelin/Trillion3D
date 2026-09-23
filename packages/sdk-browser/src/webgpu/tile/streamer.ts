@@ -105,7 +105,8 @@ export function createWebgpuTileStreamer(options: {
         stop = false,
         encoder: GPUCommandEncoder | undefined;
       colorChanged.clear();
-      const open = () => (encoder ??= device.createCommandEncoder({ label: 'WG texture tiles' }));
+      const open = () =>
+        (encoder ??= device.createCommandEncoder({ label: 'Trillion3D texture tiles' }));
       const wanted = requests.take(frame),
         at = requests.frame;
       counters.worked = wanted.length > 0;

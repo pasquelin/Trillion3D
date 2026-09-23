@@ -1,4 +1,4 @@
-# trillion3D SDK
+# Trillion3D SDK
 
 The public guide: what a page and a Node host write against. How the engine draws underneath —
 the internal session, the passes, the budgets' mechanics and the diagnostics — is
@@ -28,11 +28,11 @@ The rules the architecture and the product are held to. They are targets to vali
 
 1. **Portable Core.** Engine algorithms, formats, oracles, and contracts remain independent of React and Electron. The interface controls and observes campaigns; it contains no core engine logic.
 2. **Compiled and Versioned Preparation.** Expensive assets are built outside the interactive loop, versioned alongside their schemas, and loaded following manifest validation. No hidden preparation overhead is charged to current frame rendering.
-3. **Standalone Generators.** Any Rust asset preparation or compilation core resides in a standalone package in the trillion3D repository under `packages/`. A benchmark contains only its manifests, contracts, scenarios, adapters, and tests, consuming the public package API. Engine and generator packages import neither React, Vite, Electron, nor benchmark internals.
+3. **Standalone Generators.** Any Rust asset preparation or compilation core resides in a standalone package in the Trillion3D repository under `packages/`. A benchmark contains only its manifests, contracts, scenarios, adapters, and tests, consuming the public package API. Engine and generator packages import neither React, Vite, Electron, nor benchmark internals.
 4. **Never Degrade the Host Application.** The SDK negotiates capabilities and maintains a standard baseline. It disables an optimization when measured overhead exceeds benefit and recovers from error, device loss, memory exhaustion, or thrashing on the renderer already in use. A world's `renderer` option (absent = best path the machine grants) is chosen once, from what the machine offers; forced and missing, it is refused by name, never silently swapped for the other. The UI exposes the active renderer, active level, fallback, and reason without inventing metrics.
 5. **Seamless Fallback.** For the end user, fallback is automatic and silent: no technical warning appears during normal startup. Full diagnostic telemetry remains reserved for developer mode. A concise notification appears only when no compatible renderer is available. Recovering on the chosen renderer preserves scene state without flashing, blank screens, or visible restarts; it never switches to the other renderer under a host that did not ask for one.
 
-trillion3D owns every package it builds under `packages/` ([package architecture](../packages/README.md)). The SDK exposes public entry points producing JavaScript and type declarations. React and Electron adapters remain optional and are not shipped as dedicated packages. Hosts consume public exports only.
+Trillion3D owns every package it builds under `packages/` ([package architecture](../packages/README.md)). The SDK exposes public entry points producing JavaScript and type declarations. React and Electron adapters remain optional and are not shipped as dedicated packages. Hosts consume public exports only.
 
 ## Entry points
 
@@ -460,11 +460,11 @@ to npm. Browser bundlers must honour the standard `browser` export condition. No
 select the Node branch. A resolver with no platform condition receives the safe common branch, which
 contains no DOM, WebGPU, filesystem or process API.
 
-| Task               | Examples                                                                                                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Common API         | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy   |
+| Task               | Examples                                                                                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Common API         | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy |
 | Native preparation | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `reviewCutouts`, `getSdkProvenance`, the `trillion3d-compile` CLI |
-| Browser rendering  | `createWorld` and the families it hands a page, plus `detectCapabilities`                                                                                              |
+| Browser rendering  | `createWorld` and the families it hands a page, plus `detectCapabilities`                                                                                            |
 
 For a strict browser TypeScript project, enable the `browser` condition explicitly; without it,
 Bundler resolution selects the platform-neutral common declarations, which do not contain
@@ -862,7 +862,7 @@ reopened.
 
 No Three.js adapter ships or is planned: a host that already writes Three.js code writes the same
 shapes with this engine's [families](#families) instead. The portal's
-[migration page](https://pasquelin.github.io/trillion3D/#/en/learn/three-migration) sets one
+[migration page](https://pasquelin.github.io/Trillion3D/#/en/learn/three-migration) sets one
 complete Three.js program beside the engine program that draws the same scene
 ([`site/examples/migrating-from-three.html`](../site/examples/migrating-from-three.html)); the
 maths map through the "Witness call" column of the [maths reference](#measured-against-the-witness-library).

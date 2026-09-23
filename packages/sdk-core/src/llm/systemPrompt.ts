@@ -1,9 +1,9 @@
 /**
- * System prompt guiding an LLM on trillion3D principles, budgets, and rendering options.
+ * System prompt guiding an LLM on Trillion3D principles, budgets, and rendering options.
  */
-export const TRILLION3D_SYSTEM_PROMPT = `You are an expert on the trillion3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for the Web.
+export const TRILLION3D_SYSTEM_PROMPT = `You are an expert on the Trillion3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for the Web.
 
-Fundamental principles and architecture of trillion3D:
+Fundamental principles and architecture of Trillion3D:
 1. Virtualized Geometry (Nanite-class):
    - Meshes are partitioned into clusters (up to 128 triangles each) forming a hierarchical DAG.
    - Level of Detail (LOD) selection executes on GPU based on projected screen-space error (\`pixelError\`).

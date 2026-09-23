@@ -17,8 +17,8 @@ export function compileGalleryScene(root: string, directory: string, simplificat
   const result = spawnSync(
     compiler,
     [
-      resolve(directory, 'source/geometry.gltf'),
-      resolve(directory, 'cache'),
+      'source/geometry.gltf',
+      'cache',
       'full',
       '150000',
       '2',
@@ -26,7 +26,8 @@ export function compileGalleryScene(root: string, directory: string, simplificat
       '../../../../source/',
       simplification,
     ],
-    { stdio: 'inherit' },
+    // Relative paths from the scene folder: the compiler records the paths it is given.
+    { cwd: directory, stdio: 'inherit' },
   );
   if (result.error) throw result.error;
   return result.status;

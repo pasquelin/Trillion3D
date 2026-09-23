@@ -128,7 +128,7 @@ export function drawBlendPass(
     ? (blendState.overdraw ??= createBlendOverdraw(device))
     : undefined;
   const pass = encoder.beginRenderPass({
-    label: transmissive ? 'WG transmission' : 'WG transparents',
+    label: transmissive ? 'Trillion3D transmission' : 'Trillion3D transparents',
     occlusionQuerySet: overdraw?.set,
     colorAttachments: [
       {

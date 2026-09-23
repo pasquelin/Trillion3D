@@ -32,12 +32,12 @@ export async function readShadowAtlasDigest(
   const { size } = atlas;
   const bytesPerRow = size * 4;
   const buffer = device.createBuffer({
-    label: 'WG shadow atlas digest',
+    label: 'Trillion3D shadow atlas digest',
     size: bytesPerRow * size,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
   try {
-    const encoder = device.createCommandEncoder({ label: 'WG shadow atlas digest' });
+    const encoder = device.createCommandEncoder({ label: 'Trillion3D shadow atlas digest' });
     encoder.copyTextureToBuffer(
       { texture: atlas.texture, aspect: 'depth-only' },
       { buffer, bytesPerRow, rowsPerImage: size },

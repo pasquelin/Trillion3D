@@ -108,7 +108,7 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
       look(round % 2 ? 100 : 0);
     }
     assert.ok(backend.metrics().cacheEvictions! > 0, 'the run has to recycle rows');
-    const table = buffers.find((buffer) => buffer.label === 'WG page table');
+    const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table');
     assert.ok(table, 'the page table is allocated once');
     const rows = new Uint32Array(
       table.data.buffer,
@@ -145,7 +145,7 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
       seen.size <= 4 && seen.size >= backend.metrics().residentPages!,
       `live rows ${seen.size}`,
     );
-    const lastRowWrite = writes.filter((write) => write.label === 'WG page table').at(-1);
+    const lastRowWrite = writes.filter((write) => write.label === 'Trillion3D page table').at(-1);
     assert.ok(lastRowWrite, 'rows are uploaded');
     assert.ok(
       lastRowWrite.seq < submits.at(-1)!,

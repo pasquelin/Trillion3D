@@ -75,7 +75,7 @@ test('the demo page runs the example; its actions show its code, share it and dr
   await action('Controls');
   await inside!.waitForFunction(() => (window as { got?: unknown }).got);
   assert.deepEqual(await inside!.evaluate(() => (window as { got?: unknown }).got), {
-    type: 'wg:controls',
+    type: 'trillion3d:controls',
     visible: false,
   });
   await action('Share');

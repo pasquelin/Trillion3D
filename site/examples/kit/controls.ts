@@ -166,7 +166,7 @@ type OnChange<Specs> = (values: ControlValues<Specs>, key?: keyof ControlValues<
  * returned object holds the live values; `onChange(values, key)` runs once at start, with no
  * key, then after every change. Given the example's world (after `onChange`, or in its place),
  * it also starts the stats corner (`stats.ts`). The page hosting the example shows or hides both
- * by posting `{ type: 'wg:controls', visible }`; standalone, they are shown.
+ * by posting `{ type: 'trillion3d:controls', visible }`; standalone, they are shown.
  */
 export function controls<const Specs extends Record<string, ControlSpec>>(
   specs: Specs,

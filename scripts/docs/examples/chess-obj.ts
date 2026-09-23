@@ -88,7 +88,7 @@ function parts(): Part[] {
 /** Writes `chess.obj` and `chess.mtl` into `directory`. */
 export async function writeChessObj(directory: string) {
   const lines = [
-    "# A chess set on a table, modelled for trillion3D's examples. CC0 1.0.",
+    "# A chess set on a table, modelled for Trillion3D's examples. CC0 1.0.",
     'mtllib chess.mtl',
   ];
   let base = 1;

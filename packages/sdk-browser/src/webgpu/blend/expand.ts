@@ -119,14 +119,18 @@ export async function createBlendExpand(
   };
   try {
     const uniforms = make(
-      'WG blend expand uniforms',
+      'Trillion3D blend expand uniforms',
       UNI_STRIDE * EXPAND_PASSES,
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     );
-    const plan = make('WG blend sorted plan', sizes.planWords * 4, storage);
-    const keep = make('WG blend frustum verdicts', ((sizes.items + 31) >> 5) * 4, storage);
-    const draws = make('WG blend draw descriptions', sizes.items * 16, storage);
-    const scratch = make('WG blend expand scratch', sizes.scratchWords * 4, GPUBufferUsage.STORAGE);
+    const plan = make('Trillion3D blend sorted plan', sizes.planWords * 4, storage);
+    const keep = make('Trillion3D blend frustum verdicts', ((sizes.items + 31) >> 5) * 4, storage);
+    const draws = make('Trillion3D blend draw descriptions', sizes.items * 16, storage);
+    const scratch = make(
+      'Trillion3D blend expand scratch',
+      sizes.scratchWords * 4,
+      GPUBufferUsage.STORAGE,
+    );
     openValidation(device);
     const module = device.createShaderModule({ code: BLEND_EXPAND_SHADER });
     if (await shaderFailed(device, module)) return bail();

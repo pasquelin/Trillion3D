@@ -49,12 +49,12 @@ export async function createDagResources(
   const buffers: GPUBuffer[] = [];
   try {
     const clusters = device.createBuffer({
-      label: 'WG DAG clusters',
+      label: 'Trillion3D DAG clusters',
       size: Math.max(64, packed.clusters.byteLength),
       usage: STORAGE,
     });
     const nodes = device.createBuffer({
-      label: 'WG DAG nodes',
+      label: 'Trillion3D DAG nodes',
       size: Math.max(64, packed.nodes.byteLength),
       usage: STORAGE,
     });
@@ -67,7 +67,7 @@ export async function createDagResources(
     // serves as the previous frame's drawn journal —, then the remaining queues: never read by
     // the CPU, which still only copies draw flags.
     const flags = device.createBuffer({
-      label: 'WG DAG flags',
+      label: 'Trillion3D DAG flags',
       size: Math.max(16, (nodeCount * LEVEL_QUEUES + pageCount * 4) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
@@ -79,19 +79,19 @@ export async function createDagResources(
     });
     device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
     const output = device.createBuffer({
-      label: 'WG DAG readback',
+      label: 'Trillion3D DAG readback',
       size: readbackBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
     // dispatch argument, hence the copy source.
     const work = device.createBuffer({
-      label: 'WG DAG work',
+      label: 'Trillion3D DAG work',
       size: Math.max(8, travail.words * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const worlds = device.createBuffer({
-      label: 'WG DAG worlds',
+      label: 'Trillion3D DAG worlds',
       size: Math.max(64, packed.worlds.byteLength),
       usage: STORAGE,
     });
@@ -100,7 +100,7 @@ export async function createDagResources(
       usage: STORAGE,
     });
     const pageCones = device.createBuffer({
-      label: 'WG DAG page cones',
+      label: 'Trillion3D DAG page cones',
       size: Math.max(48, packed.pageCones.byteLength),
       usage: STORAGE,
     });

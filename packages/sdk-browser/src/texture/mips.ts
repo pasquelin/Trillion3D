@@ -86,7 +86,7 @@ function mipUniforms(device: GPUDevice, size: number) {
   const held = uniformBuffers.get(device);
   if (held && held.size >= size) return held.buffer;
   const buffer = device.createBuffer({
-    label: 'WG texture mips uniforms',
+    label: 'Trillion3D texture mips uniforms',
     size,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });

@@ -848,7 +848,7 @@
     "summary": "دالة تسمع كل شيء تبلّغه قناة تشخيصية."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "مخطط JSON شامل يوثّق كل خيارات التهيئة لمستكشف trillion3D (MeasuredWorldOptions).",
+    "summary": "مخطط JSON شامل يوثّق كل خيارات التهيئة لمستكشف Trillion3D (MeasuredWorldOptions).",
     "description": "يمكِّن نماذج اللغة الكبيرة من فهم إعدادات محرك ثلاثي الأبعاد والتحقّق منها وضبطها."
   },
   "EngineCamera": {
@@ -3963,13 +3963,13 @@
     }
   },
   "TRILLION3D_RUNTIME_TOOLS": {
-    "summary": "كتالوج كامل للأدوات ودوال وقت التشغيل المتاحة للتحكّم في trillion3D من نموذج لغة كبير."
+    "summary": "كتالوج كامل للأدوات ودوال وقت التشغيل المتاحة للتحكّم في Trillion3D من نموذج لغة كبير."
   },
   "TRILLION3D_SYSTEM_PROMPT": {
-    "summary": "موجّه نظام يرشد نموذج لغة كبيرًا بشأن مبادئ trillion3D وميزانياته وخيارات التصيير فيه."
+    "summary": "موجّه نظام يرشد نموذج لغة كبيرًا بشأن مبادئ Trillion3D وميزانياته وخيارات التصيير فيه."
   },
   "Trillion3dTool": {
-    "summary": "تعريف أداة trillion3D عام لنماذج اللغة الكبيرة.",
+    "summary": "تعريف أداة Trillion3D عام لنماذج اللغة الكبيرة.",
     "members": {
       "name": "اسم الأداة.",
       "description": "ما تفعله.",
@@ -5084,7 +5084,7 @@
     "summary": "يولّد موجّه نظام خبير جاهزًا للاستخدام لتهيئة نموذج لغوي كبير (LLM)."
   },
   "getTrillion3dTools": {
-    "summary": "يعيد المصفوفة الكاملة لتعريفات أدوات trillion3D المنسّقة لمزوّد LLM المستهدف.",
+    "summary": "يعيد المصفوفة الكاملة لتعريفات أدوات Trillion3D المنسّقة لمزوّد LLM المستهدف.",
     "parameters": {
       "format": "الصيغة المستهدفة ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). الافتراضي: 'openai'."
     }
@@ -6551,16 +6551,16 @@
     "description": "يأتي القالب من المُصرِّف ولا يعرف المحرك تخطيط ذاكرة التخزين المؤقت؛ حقيقة واحدة، كما هو الحال للصفحات. يُرفض قالب بلا حقوله الأربعة: عنوان لا يتغيّر معها سيقدّم نفس الصورة لكل نسيج."
   },
   "toAnthropicTool": {
-    "summary": "يحوّل أداة trillion3D عامة إلى صيغة Anthropic Tool Use."
+    "summary": "يحوّل أداة Trillion3D عامة إلى صيغة Anthropic Tool Use."
   },
   "toGeminiTool": {
-    "summary": "يحوّل أداة trillion3D عامة إلى صيغة Google Gemini Function Declaration."
+    "summary": "يحوّل أداة Trillion3D عامة إلى صيغة Google Gemini Function Declaration."
   },
   "toMcpTool": {
-    "summary": "يحوّل أداة trillion3D عامة إلى صيغة Model Context Protocol (MCP)."
+    "summary": "يحوّل أداة Trillion3D عامة إلى صيغة Model Context Protocol (MCP)."
   },
   "toOpenAiTool": {
-    "summary": "يحوّل أداة trillion3D عامة إلى صيغة OpenAI Function Calling."
+    "summary": "يحوّل أداة Trillion3D عامة إلى صيغة OpenAI Function Calling."
   },
   "toneMapping": {
     "summary": "المنحنى الذي يجلب إشعاع المشهد إلى نطاق العرض: كل منحنى يصنّفه المحرك."

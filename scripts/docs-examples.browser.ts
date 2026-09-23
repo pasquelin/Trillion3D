@@ -26,9 +26,9 @@ async function controlsDriveTheRender(browser: Browser, port: number) {
   await panel.locator('input[type=color]').fill('#2fd4ff');
   await page.waitForTimeout(1000);
   assert.notDeepEqual(await centre(page), before, 'the picked colour reaches the render');
-  await page.evaluate(() => postMessage({ type: 'wg:controls', visible: false }, '*'));
+  await page.evaluate(() => postMessage({ type: 'trillion3d:controls', visible: false }, '*'));
   await panel.waitFor({ state: 'hidden' });
-  await page.evaluate(() => postMessage({ type: 'wg:controls', visible: true }, '*'));
+  await page.evaluate(() => postMessage({ type: 'trillion3d:controls', visible: true }, '*'));
   await panel.waitFor({ state: 'visible' });
   assert.deepEqual(errors, []);
   await page.close();

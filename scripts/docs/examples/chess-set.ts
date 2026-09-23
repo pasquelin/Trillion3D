@@ -73,7 +73,7 @@ export async function writeChessSet(directory: string) {
     defaultPrim = "ChessSet"
     metersPerUnit = 0.01
     upAxis = "Y"
-    doc = "A chess set turned in code for the trillion3D examples. Self-made, CC0."
+    doc = "A chess set turned in code for the Trillion3D examples. Self-made, CC0."
 )
 
 def Xform "ChessSet"

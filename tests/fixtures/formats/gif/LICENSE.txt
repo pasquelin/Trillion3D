@@ -1,5 +1,5 @@
 SPDX-License-Identifier: CC0-1.0
-Auteur : Corpus trillion3D, 2026-09-15
+Auteur : Corpus Trillion3D, 2026-09-15
 Origine : fichiers ecrits octet par octet depuis la specification publique « Graphics
 Interchange Format, Version 89a » (CompuServe, 1990) ; tronque.gif repris de
 test/assets/limites/truncated-gif/, lui aussi CC0-1.0.

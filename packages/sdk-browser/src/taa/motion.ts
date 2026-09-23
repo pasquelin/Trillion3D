@@ -29,7 +29,7 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
   const mirror = new Float32Array(count * 16);
   for (let w = 0; w < count; w++) mirror.set(IDENTITY_MATRIX4, w * 16);
   const buffer = device.createBuffer({
-    label: 'WG TAA placement motion v1',
+    label: 'Trillion3D TAA placement motion v1',
     size: mirror.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

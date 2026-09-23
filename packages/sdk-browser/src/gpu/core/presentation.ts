@@ -46,7 +46,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
           });
         }
         const pass = encoder.beginRenderPass({
-          label: 'WG direct present',
+          label: 'Trillion3D direct present',
           colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }],
         });
         pass.setPipeline(pipeline);
@@ -88,7 +88,7 @@ export async function readGpuImage(
   signal?.throwIfAborted();
   const bytesPerRow = readbackBytesPerRow(width);
   const buffer = device.createBuffer({
-    label: 'WG explicit capture',
+    label: 'Trillion3D explicit capture',
     size: bytesPerRow * height,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
