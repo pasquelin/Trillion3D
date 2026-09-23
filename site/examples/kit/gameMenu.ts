@@ -1,5 +1,6 @@
 import { foldPanels, overlay } from './overlay.ts';
 import { HUD_RULE, MENU_STYLE } from './gameMenuStyle.ts';
+import { exampleWord, kitWord, labelOf, lookup } from './words.ts';
 
 /**
  * A game's menu, drawn over its paused frame: the start screen before the first play, the pause
@@ -8,41 +9,26 @@ import { HUD_RULE, MENU_STYLE } from './gameMenuStyle.ts';
  * so the frame carries one message at a time.
  */
 
-/** One line of the key sheet: what it does, its keys, and theirs on an AZERTY keyboard. */
+/** One line of the key sheet: what it does (the key of its words, `<id>.game.keys.<action>`), its
+ * keys, and theirs on an AZERTY keyboard. A named key (`Space`, `Mouse`) reads `kit.keys.<name>`. */
 export interface GameKey {
   action: string;
   keys: string[];
   azerty?: string[];
 }
 
-/** A choice the page offers before playing, `value` being the one it starts on. */
+/** A choice the page offers before playing, `value` being the one it starts on. Its label reads
+ * `<id>.game.options.<option id>`, each choice `<id>.choices.<option id>.<choice>`. */
 export interface GameOption {
   id: string;
-  label: string;
   choices: string[];
   value?: string;
 }
 
-/** The menu's words, in the page's language. */
-export interface MenuLabels {
-  play: string;
-  resume: string;
-  restart: string;
-  controls: string;
-  back: string;
-  paused: string;
-  again: string;
-}
-
-export const MENU_LABELS: MenuLabels = {
-  play: 'Play',
-  resume: 'Resume',
-  restart: 'Restart',
-  controls: 'Controls',
-  back: 'Back',
-  paused: 'Paused',
-  again: 'Click again to continue',
-};
+/** The menu's words, in the page's language: `kit.menu.<key>`. */
+export const menuWord = (
+  key: 'play' | 'resume' | 'restart' | 'controls' | 'back' | 'paused' | 'again',
+) => kitWord('menu', key);
 
 /** What the menu shows and says. */
 export interface MenuSpec {
@@ -50,7 +36,6 @@ export interface MenuSpec {
   goal: string;
   keys: GameKey[];
   options: GameOption[];
-  labels: MenuLabels;
   /** A screenshot is wanted: the menu never draws, though it still hides `data-hud`. */
   capture: boolean;
 }
@@ -87,15 +72,19 @@ const button = (text: string, press: () => void, primary = false) => {
 /** One keycap per key; the AZERTY keys, when they differ, on a line of their own. */
 function keycaps({ keys, azerty }: GameKey) {
   const caps = make('div', 'wg-caps');
-  caps.append(...keys.map((key) => make('kbd', 'wg-cap', key)));
-  if (azerty)
-    caps.append(make('small', '', 'AZERTY'), ...azerty.map((key) => make('kbd', 'wg-cap', key)));
+  const cap = (key: string) => make('kbd', 'wg-cap', lookup(['kit', 'keys', key]) ?? key);
+  caps.append(...keys.map(cap));
+  if (azerty) caps.append(make('small', '', 'AZERTY'), ...azerty.map(cap));
   return caps;
 }
 
 /** One option: its label, then its choices side by side, the current one marked. */
 function choice(option: GameOption, chosen: (value: string) => void) {
-  const row = make('div', 'wg-option', option.label),
+  const row = make(
+      'div',
+      'wg-option',
+      exampleWord(labelOf(option.id), 'game', 'options', option.id),
+    ),
     choices = make('div', 'wg-choices');
   let value = option.value ?? option.choices[0];
   const mark = () => {
@@ -103,7 +92,13 @@ function choice(option: GameOption, chosen: (value: string) => void) {
       element.classList.toggle('wg-on', option.choices[index] === value);
   };
   choices.append(
-    ...option.choices.map((next) => button(next, () => ((value = next), mark(), chosen(next)))),
+    ...option.choices.map((next) =>
+      button(exampleWord(next, 'choices', option.id, next), () => {
+        value = next;
+        mark();
+        chosen(next);
+      }),
+    ),
   );
   mark();
   row.append(choices);
@@ -120,7 +115,7 @@ export function createMenu(spec: MenuSpec, actions: MenuActions): MenuView {
   const hud = document.createElement('style');
   hud.textContent = HUD_RULE;
   document.head.append(hud);
-  const { labels, capture } = spec;
+  const { capture } = spec;
   const menu = make('div', 'wg-menu'),
     card = make('div', 'wg-card');
   const heading = make('h1'),
@@ -129,8 +124,8 @@ export function createMenu(spec: MenuSpec, actions: MenuActions): MenuView {
   const main = make('div', 'wg-stack'),
     sheet = make('div', 'wg-sheet'),
     back = make('div', 'wg-stack');
-  const primary = button(labels.play, () => actions.play(), true);
-  const restart = button(labels.restart, () => actions.restart());
+  const primary = button(menuWord('play'), () => actions.play(), true);
+  const restart = button(menuWord('restart'), () => actions.restart());
   const flip = (keys: boolean) => {
     [main.hidden, sheet.hidden, back.hidden] = [keys, !keys, !keys];
     // The first button takes the focus: Enter or Space presses it, as in a game's menu.
@@ -141,11 +136,15 @@ export function createMenu(spec: MenuSpec, actions: MenuActions): MenuView {
   main.append(
     primary,
     restart,
-    button(labels.controls, () => flip(true)),
+    button(menuWord('controls'), () => flip(true)),
     ...spec.options.map((option) => choice(option, (value) => actions.option(option.id, value))),
   );
-  for (const key of spec.keys) sheet.append(make('span', '', key.action), keycaps(key));
-  back.append(button(labels.back, () => flip(false)));
+  for (const key of spec.keys)
+    sheet.append(
+      make('span', '', exampleWord(labelOf(key.action), 'game', 'keys', key.action)),
+      keycaps(key),
+    );
+  back.append(button(menuWord('back'), () => flip(false)));
   card.append(heading, goal, note, main, sheet, back);
   menu.append(card);
   // First in the layer: the settings panel and the counters are drawn over the menu's veil.
@@ -160,10 +159,10 @@ export function createMenu(spec: MenuSpec, actions: MenuActions): MenuView {
       menu.hidden = !shown;
       if (!shown) return foldPanels();
       const paused = screen === 'pause';
-      heading.textContent = paused ? labels.paused : spec.title;
+      heading.textContent = paused ? menuWord('paused') : spec.title;
       goal.hidden = paused;
       note.textContent = words;
-      primary.textContent = paused ? labels.resume : labels.play;
+      primary.textContent = menuWord(paused ? 'resume' : 'play');
       restart.hidden = !paused;
       flip(false);
     },

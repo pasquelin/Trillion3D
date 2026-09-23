@@ -34,10 +34,11 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <div id="hint">Click the stage to hear a melody</div>
+    <div id="hint" data-words="hint"></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#0d0b16');
@@ -186,17 +187,17 @@
           microphone = audio.createMediaStreamSource(stream);
           route(false);
           microphone.connect(analyser);
-          hint.textContent = 'Listening to the microphone: sing, whistle, clap';
+          hint.textContent = say('listening');
         } catch {
           if (asked !== request) return;
-          hint.textContent = 'The microphone was refused: the melody plays instead';
+          hint.textContent = say('refused');
           playMelody();
         }
         hint.style.opacity = '1';
       }
       function silence() {
         stopAll();
-        hint.textContent = 'Silence. Click the stage to hear the melody again';
+        hint.textContent = say('silence');
         hint.style.opacity = '1';
       }
 

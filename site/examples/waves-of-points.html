@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, language } from '../runtime/kit.js';
 
       function random(seed) {
         let state = seed >>> 0;
@@ -132,7 +132,7 @@
         }
         world.invalidate();
       }, world);
-      readout('Points')((SIDE * SIDE).toLocaleString('en'));
+      readout('points')((SIDE * SIDE).toLocaleString(language()));
 
       // The opening: the field lies flat under a camera high above, and rises as it comes down.
       const from = [0, 24, 1], to = [9, 6.5, 12];

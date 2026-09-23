@@ -44,11 +44,12 @@
     <div id="readback">
       <canvas id="thumb" width="192" height="108"></canvas>
       <canvas id="histogram" width="576" height="120"></canvas>
-      <span id="picked">Hover the picture to read one pixel</span>
+      <span id="picked" data-words="hover"></span>
     </div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, capture } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#20283a');
@@ -135,7 +136,7 @@
         const box = thumb.getBoundingClientRect();
         const x = Math.min(W - 1, Math.floor(((event.clientX - box.left) / box.width) * W)), y = Math.min(H - 1, Math.floor(((event.clientY - box.top) / box.height) * H));
         const i = (y * W + x) * 4, { data } = last;
-        picked.textContent = `pixel ${x}, ${y}: ${hex(data[i], data[i + 1], data[i + 2])}`;
+        picked.textContent = say('pixel', { x, y, colour: hex(data[i], data[i + 1], data[i + 2]) });
         picked.style.color = hex(data[i], data[i + 1], data[i + 2]);
       });
 
@@ -170,7 +171,7 @@
         }
         world.invalidate();
       });
-      const mean = readout('Mean colour'), peak = readout('Brightest'), took = readout('Read back in');
+      const mean = readout('meanColour'), peak = readout('brightest'), took = readout('readBack');
 
       let circling = true, since = 0;
       for (const type of ['pointerdown', 'wheel'])

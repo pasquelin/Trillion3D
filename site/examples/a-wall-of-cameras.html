@@ -94,17 +94,18 @@
     <div class="feed"><canvas id="view"></canvas></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, readout, seeded, words } from '../runtime/kit.js';
+      const say = words();
 
       // Six security cameras round a town square, each one a world of its own drawing the same
       // square from its own lens. The first feed is the page's canvas; the others are added here.
       const FEEDS = [
-        { name: 'North gate', at: [-10, 6.5, -24], pole: true },
-        { name: 'Fountain', at: [9, 5, 10], pole: true },
-        { name: 'East road', at: [36.6, 8, 5], pole: false },
-        { name: 'Clock tower', at: [-31.4, 19, -31.4], pole: false },
-        { name: 'Cafe', at: [-36.6, 5.5, 14], pole: false },
-        { name: 'South corner', at: [25, 7, 29], pole: true },
+        { name: 'northGate', at: [-10, 6.5, -24], pole: true },
+        { name: 'fountain', at: [9, 5, 10], pole: true },
+        { name: 'eastRoad', at: [36.6, 8, 5], pole: false },
+        { name: 'clockTower', at: [-31.4, 19, -31.4], pole: false },
+        { name: 'cafe', at: [-36.6, 5.5, 14], pole: false },
+        { name: 'southCorner', at: [25, 7, 29], pole: true },
       ];
       const first = document.querySelector('.feed');
       const cells = FEEDS.map((_, k) => {
@@ -113,10 +114,10 @@
         const tag = document.createElement('div'), signal = document.createElement('div'), name = document.createElement('span'), status = document.createElement('span');
         tag.className = 'tag';
         name.className = 'rec';
-        name.textContent = `CAM ${String(k + 1).padStart(2, '0')} · ${FEEDS[k].name.toUpperCase()}`;
+        name.textContent = `${say('cam')} ${String(k + 1).padStart(2, '0')} · ${say(FEEDS[k].name)}`;
         tag.append(name, status);
         signal.className = 'nosignal';
-        signal.textContent = 'NO SIGNAL';
+        signal.textContent = say('noSignal');
         cell.append(tag, signal);
         return { cell, status };
       });
@@ -245,7 +246,7 @@
         state.car = lap(t * 9);
         state.balloon = [4 + Math.cos(t * 0.06) * 17, 24 + Math.sin(t * 0.4) * 1.2, -4 + Math.sin(t * 0.06) * 17];
         state.units.forEach((unit, k) => {
-          const at = FEEDS[k].at, subject = state.watch === 'the car' ? [state.car.x, 1, state.car.z] : state.watch === 'the balloon' ? [state.balloon[0], state.balloon[1] + 5, state.balloon[2]] : null;
+          const at = FEEDS[k].at, subject = state.watch === 'car' ? [state.car.x, 1, state.car.z] : state.watch === 'balloon' ? [state.balloon[0], state.balloon[1] + 5, state.balloon[2]] : null;
           let yaw = unit.rest[0] + 0.55 * Math.sin(t * 0.22 + k * 1.3), pitch = unit.rest[1], fov = 58;
           if (subject) {
             const dx = subject[0] - at[0], dy = subject[1] - at[1], dz = subject[2] - at[2], far = Math.hypot(dx, dy, dz);
@@ -299,12 +300,12 @@
 
       controls({
         mouse: 'Click a feed to put it on the big screen; tell the cameras what to watch',
-        watch: ['patrol', 'the car', 'the balloon'],
+        watch: ['patrol', 'car', 'balloon'],
       }, (values) => (state.watch = values.watch), worlds[0]);
-      const seen = readout('Cameras seeing the car');
+      const seen = readout('camerasSeeingCar');
       const clock = (seconds) => new Date(Date.UTC(2026, 8, 23, 18, 42) + seconds * 1000).toISOString().slice(11, 19);
       setInterval(() => {
-        const mode = state.watch === 'patrol' ? 'PATROL' : `TRACKING ${state.watch.slice(4).toUpperCase()}`;
+        const mode = say(state.watch);
         for (const { status } of cells) status.textContent = `${mode} ${clock(state.time)}`;
         seen(`${state.units.filter((unit) => unit.seesCar).length} / ${FEEDS.length}`);
       }, 250);

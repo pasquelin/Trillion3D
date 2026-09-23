@@ -1,5 +1,6 @@
 import { hideable, overlay } from './overlay.ts';
 import { profileLines, profiling, startProfile, type ProfiledWorld } from './profile.ts';
+import { language, lookup } from './words.ts';
 
 /** What the stats corner reads of a frame: the engine's own counters, `null` when not measured. */
 interface FrameCounters {
@@ -32,26 +33,26 @@ export interface StatsSample extends FrameCounters {
   sceneTriangles: number | null;
 }
 
-const count = (value: number) => Math.round(value).toLocaleString('en');
+const count = (value: number) => Math.round(value).toLocaleString(language());
 
 /**
- * The lines the corner shows, label then value. A counter the engine did not measure has no
+ * The lines the corner shows, key then value; the corner writes each key as `kit.stats.<key>`. A counter the engine did not measure has no
  * line at all, never a dash or a zero; the triangles fall back to the scene's own count, named
  * so, when the frame does not measure them; a still image keeps its last rate, marked held.
  */
 export function statLines(sample: StatsSample): [string, string][] {
   const lines: [string, string][] = [];
   if (sample.fps !== null)
-    lines.push(['FPS', `${Math.round(sample.fps)}${sample.held ? ' held' : ''}`]);
+    lines.push([sample.held ? 'fpsHeld' : 'fps', String(Math.round(sample.fps))]);
   if (sample.selectedTriangles) lines.push(['triangles', count(sample.selectedTriangles)]);
   else if (sample.selectedTriangles == null && sample.sceneTriangles)
-    lines.push(['triangles (scene)', count(sample.sceneTriangles)]);
-  if (sample.drawCalls) lines.push(['draw calls', count(sample.drawCalls)]);
+    lines.push(['sceneTriangles', count(sample.sceneTriangles)]);
+  if (sample.drawCalls) lines.push(['drawCalls', count(sample.drawCalls)]);
   if (sample.residentPages) lines.push(['pages', count(sample.residentPages)]);
   if (sample.geometryPoolBytes)
-    lines.push(['geometry pool', `${(sample.geometryPoolBytes / 2 ** 20).toFixed(1)} MiB`]);
+    lines.push(['geometryPool', `${(sample.geometryPoolBytes / 2 ** 20).toFixed(1)} MiB`]);
   if (sample.lightsActive) lines.push(['lights', count(sample.lightsActive)]);
-  if (sample.gpuFrameMs) lines.push(['GPU frame', `${sample.gpuFrameMs.toFixed(2)} ms`]);
+  if (sample.gpuFrameMs) lines.push(['gpuFrame', `${sample.gpuFrameMs.toFixed(2)} ms`]);
   return lines;
 }
 
@@ -69,7 +70,7 @@ export function sceneTriangles(scene: SceneNode): number {
 
 /** Where the corner may sit: the bottom left by default, the top left for an example whose own
  *  display takes the bottom of the frame. */
-export const statsCorners = { 'bottom-left': 'bottom-3 left-3', 'top-left': 'top-3 left-3' };
+export const statsCorners = { 'bottom-left': 'bottom-3 start-3', 'top-left': 'top-3 start-3' };
 
 /**
  * A small corner of the example, at the bottom left unless `corner` says otherwise: the frames
@@ -114,8 +115,9 @@ export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bo
         const term = document.createElement('dt'),
           text = document.createElement('dd');
         term.className = 'opacity-70';
-        term.textContent = label;
-        text.className = 'text-right tabular-nums';
+        // A profiled engine step has no word: its identifier is its name.
+        term.textContent = lookup(['kit', 'stats', label]) ?? label;
+        text.className = 'text-end tabular-nums';
         text.textContent = value;
         return [term, text];
       }),

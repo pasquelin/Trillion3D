@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#a9c4e4');
@@ -80,21 +81,21 @@
       // which triangle covers the pixel, and the material pass which material shades it.
       const normals = material.meshNormal(), depth = material.meshDepth();
       const VIEWS = {
-        beauty: ['the lit image', (m) => m.lit, 'beauty'],
-        albedo: ['base colour, before any light', (m) => m.albedo, 'beauty'],
-        normals: ['which way the surface faces, from the camera', () => normals, 'beauty'],
-        depth: ['distance: bright near, dark far', () => depth, 'beauty'],
-        'triangle ids': ['which triangle covers the pixel', (m) => m.lit, 'triangles'],
-        'material ids': ['which material shades the pixel', (m) => m.lit, 'materials'],
+        beauty: [(m) => m.lit, 'beauty'],
+        albedo: [(m) => m.albedo, 'beauty'],
+        normals: [() => normals, 'beauty'],
+        depth: [() => depth, 'beauty'],
+        'triangle ids': [(m) => m.lit, 'triangles'],
+        'material ids': [(m) => m.lit, 'materials'],
       };
-      const holds = readout('Each pixel holds');
+      const holds = readout('eachPixelHolds');
       const ui = controls({ mouse: 'Drag to walk around the court · pick a buffer to look inside the frame', buffer: Object.keys(VIEWS), turning: true }, (values, key) => {
         if (key === 'turning') return world.invalidate();
-        const [meaning, wear, mode] = VIEWS[values.buffer];
+        const [wear, mode] = VIEWS[values.buffer];
         for (const entry of meshes) entry.piece.material = wear(entry);
         const offered = mode === 'beauty' || world.diagnostic.modes.includes(mode);
         world.diagnostic.mode = offered ? mode : 'beauty';
-        holds(offered ? meaning : 'not offered by this renderer');
+        holds(say(offered ? values.buffer : 'notOffered'));
         world.invalidate();
       });
 
