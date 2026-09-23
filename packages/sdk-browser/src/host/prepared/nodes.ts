@@ -63,6 +63,15 @@ export function camera(declared: TableCamera) {
   return new THREE.OrthographicCamera(-x, x, y, -y, declared.znear ?? 0, declared.zfar ?? 0);
 }
 
+/** Morph weights set on a mesh, the first of them to the first targets; a mesh that morphs
+ *  nothing is left alone, as the loader leaves it. */
+export function weigh(mesh: THREE.Mesh, weights: readonly number[] | null) {
+  if (!mesh.isMesh) return;
+  if (!mesh.morphTargetInfluences) mesh.updateMorphTargets();
+  if (!weights || !mesh.morphTargetInfluences) return;
+  for (let i = 0; i < weights.length; i++) mesh.morphTargetInfluences[i] = weights[i];
+}
+
 export function pose(node: THREE.Object3D, declared: TableNode) {
   if (declared.matrix) node.applyMatrix4(new THREE.Matrix4().fromArray(declared.matrix));
   else {
