@@ -63,6 +63,7 @@
       world.camera.position.set(8.5, 6, 10.5);
       world.camera.lookAt(0, 3.6, 0);
       world.controls.target.set(0, 3.6, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       const ui = controls({ climb: [0, 6, 2], turnPerStep: [5, 30, 16, 1], lantern: '#ffb45e' }, (values) => {
         flights.forEach((flight, index) => (flight.rotation.y = (index * values.turnPerStep * Math.PI) / 180));

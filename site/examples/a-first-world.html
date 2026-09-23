@@ -44,6 +44,7 @@
       world.camera.position.set(2.2, 1.8, 3.2);
       world.camera.lookAt(0, 0.4, 0);
       world.controls.target.set(0, 0.4, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       controls({ colour: '#3c8ce0' }, ({ colour }) => {
         paint.color.set(colour);

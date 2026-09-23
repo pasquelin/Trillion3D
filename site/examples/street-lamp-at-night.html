@@ -78,15 +78,16 @@
       const sky = light.hemisphere({ color: '#bcd4ff', groundColor: '#6b5a48' });
       world.scene.add(sun, lamp, bulb, shopLight, sky);
 
-      // The camera turns around the middle of the square, never farther than the nearest wall or
-      // the road, and below the roofs: no drag shows the back of a wall. Panning, which would
-      // carry the middle along, is off.
-      world.controls.target.set(0.75, 2, 1.1);
-      world.controls.maxDistance = 1.9;
+      // The camera turns around the middle of the square, never farther than the nearest wall,
+      // never below its eye level nor above the roofs: no drag shows the back of a wall. Panning,
+      // which would carry the middle along, is off.
+      world.controls.target.set(0.75, 1.6, 1);
+      world.controls.maxDistance = 3.6;
+      world.controls.minPolarAngle = 0.5;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
       world.controls.enablePan = false;
-      world.camera.fov = 70;
-      world.camera.position.set(1.65, 2.2, 2.75);
-      world.camera.lookAt(0.75, 2, 1.1);
+      world.camera.position.set(2.15, 2.5, 4.1);
+      world.camera.lookAt(0.75, 1.6, 1);
 
       // `world.bounce` adds the light the surfaces send back, traced against the compiled model.
       controls({ night: true, bounce: true, sun: [-80, 80, 30, 1], lamp: '#ffb866' }, (values) => {

@@ -59,13 +59,18 @@
       const wave = Array.from({ length: 24 }, (_, index) => [0.2 + index * 0.15, 2.6 + Math.sin(index * 0.8) * 0.35, 0]);
       const signs = [neon(star, true, '#ff3d9a', [-1.6, 3, 0.35]), neon(wave, false, '#2de2ff', [1.9, 2.6, 0.35])];
 
-      // The camera turns around the room's middle, never farther than the nearest wall: no drag
-      // takes it outside, and panning, which would carry the middle along, is off.
-      world.controls.target.set(0, 2.3, 3.6);
-      world.controls.maxDistance = 2;
+      // The camera turns on an arc in front of the sign, never above the ceiling, below its own
+      // eye level or farther than the front wall: no drag takes it outside the room, so none shows
+      // the back of a wall. Panning, which would carry the arc along, is off.
+      world.controls.target.set(0, 2, 3.2);
+      world.controls.maxDistance = 3.6;
+      world.controls.minAzimuthAngle = -0.9;
+      world.controls.maxAzimuthAngle = 0.9;
+      world.controls.minPolarAngle = 1;
+      world.controls.maxPolarAngle = Math.PI / 2;
       world.controls.enablePan = false;
-      world.camera.position.set(0.5, 2.4, 5.5);
-      world.camera.lookAt(0, 2.3, 3.6);
+      world.camera.position.set(0.5, 2.4, 6.4);
+      world.camera.lookAt(0, 2, 3.2);
 
       const ui = controls({
         star: '#ff3d9a', wave: '#2de2ff', glow: [0, 20, 8], pulse: true,

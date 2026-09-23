@@ -57,6 +57,7 @@
       world.camera.position.set(0, 7, 9.5);
       world.camera.lookAt(0, 0, 0);
       world.controls.target.set(0, 0, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       const ui = controls({ lamps: [1, 64, 32, 1], speed: [0, 2, 0.6], power: [1, 40, 14], shadows: false }, (values) => {
         lamps.forEach(({ glow, bulb }, index) => {
