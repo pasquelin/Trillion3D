@@ -52,8 +52,8 @@ jobs:
       - run: node scripts/docs-build.ts --published
       # Whether this run publishes, decided once: only main is ever published.
       # The file-count floor of a sound output: the build copies every tracked served static of
-      # site/ (sources .ts/.tsx excluded) and writes index.html and robots.txt beside them, so a
-      # tree holding fewer files than that lost part of the copy on the way.
+      # site/ (sources .ts/.tsx excluded) and writes index.html, robots.txt and the report.html
+      # redirect beside them, so a tree holding fewer files than that lost part of the copy.
       - id: plan
         env:
           DEPLOY: >-
@@ -62,7 +62,7 @@ jobs:
         run: |
           statics=$(git ls-files -- site/examples site/assets site/data site/reports | grep -cEv '\.tsx?$')
           echo "deploy=$DEPLOY" >> "$GITHUB_OUTPUT"
-          echo "floor=$((statics + 2))" >> "$GITHUB_OUTPUT"
+          echo "floor=$((statics + 3))" >> "$GITHUB_OUTPUT"
       - if: steps.plan.outputs.deploy == 'true'
         uses: actions/upload-artifact@v7
         with:

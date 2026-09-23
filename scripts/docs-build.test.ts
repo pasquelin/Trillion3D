@@ -52,10 +52,12 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     // What an earlier build copied and the sources no longer have: a removed example, a page.
     await mkdir(join(out, 'examples'), { recursive: true });
     await writeFile(join(out, 'examples/removed.html'), '');
-    await writeFile(join(out, 'report.html'), '');
+    await writeFile(join(out, 'old.html'), '');
     await copyStatics(source, out);
     await assert.rejects(stat(join(out, 'examples/removed.html')));
-    await assert.rejects(stat(join(out, 'report.html')));
+    await assert.rejects(stat(join(out, 'old.html')));
+    // The report page the portal replaced sends an old link to its route.
+    assert.match(await readFile(join(out, 'report.html'), 'utf8'), /url=\.\/#\/en\/reports"/);
     const root = `<!doctype html>\n<head>\n    <link rel="canonical" href="${SITE_URL}" />\n`;
     // A local or proof build calls no audience host.
     assert.equal(await readFile(join(out, 'index.html'), 'utf8'), `${root}  </head>\n`);
