@@ -7,6 +7,10 @@ type V3 = [number, number, number];
  * A solid of the given faces, each split into `(detail + 1)²` triangles whose corners are pushed
  * onto the sphere of `radius`. At detail 0 the faces stay flat; above it, the surface is the
  * sphere's and shades smooth. Texture coordinates wrap the sphere by longitude and latitude.
+ * @param vertices - The corner positions, three numbers each.
+ * @param indices - Which corners make each face, three per face.
+ * @param radius - Distance of every corner from the centre.
+ * @param detail - How many times each face is split to round it.
  */
 export function polyhedron(vertices: number[], indices: number[], radius = 1, detail = 0) {
   const b = new GeometryBuilder();

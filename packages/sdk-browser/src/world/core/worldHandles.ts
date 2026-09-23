@@ -41,9 +41,11 @@ export function worldBudget(
     get geometryPoolCeiling() {
       return DEFAULT_GEOMETRY_POOL_BUDGET;
     },
+    /** The largest texture pool a world may ask for, in bytes. */
     get texturePoolCeiling() {
       return DEFAULT_TEXTURE_POOL_BUDGET;
     },
+    /** Bytes of GPU memory kept for geometry pages; set it to change the envelope. */
     get geometryPool() {
       return held('geometryPoolBytes') ?? pools.geometryPool ?? DEFAULT_GEOMETRY_POOL_BUDGET;
     },
@@ -51,6 +53,7 @@ export function worldBudget(
       pools.geometryPool = Math.min(bytes, DEFAULT_GEOMETRY_POOL_BUDGET);
       rebalance();
     },
+    /** Bytes of GPU memory kept for texture pages; set it to change the envelope. */
     get texturePool() {
       return held('texturePoolBytes') ?? pools.texturePool ?? DEFAULT_TEXTURE_POOL_BUDGET;
     },
@@ -69,6 +72,7 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
   // (one colour per submitted triangle, `triangleDiagnostic.ts`).
   const engineMode = (name: string) => (name === 'triangles' ? 'wireframe' : name) as never;
   const handle = {
+    /** The view mode: `'beauty'` for the normal image, or a mode that shows how the engine works. */
     get mode() {
       return mode;
     },
@@ -76,6 +80,7 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
       explorer()?.setDiagnostic(engineMode(next));
       mode = next;
     },
+    /** Every view mode the current renderer offers. */
     get modes() {
       const current = explorer();
       const modes = current ? Object.keys(current.diagnostics) : ['beauty'];
@@ -126,6 +131,7 @@ export function worldControlsHandle(
   };
   rebuild();
   return {
+    /** Which controller steers the camera; set another name to switch. */
     get kind() {
       return kind;
     },
@@ -133,6 +139,7 @@ export function worldControlsHandle(
       kind = next;
       rebuild();
     },
+    /** Whether the controller listens to the mouse and keyboard. */
     get enabled() {
       return enabled;
     },
@@ -150,6 +157,7 @@ export function worldControlsHandle(
     },
     /** The world's camera changed: the controller follows it. */
     follow: rebuild,
+    /** Stops the controller and removes its listeners from the canvas. */
     dispose() {
       current?.dispose();
       current = null;

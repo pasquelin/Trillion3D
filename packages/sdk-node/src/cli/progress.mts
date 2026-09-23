@@ -57,6 +57,7 @@ function summaryOf(pointer?: ProgressPointer) {
   if (pointer.metrics?.wallMs) parts.push(`${Math.round(pointer.metrics.wallMs)} ms`);
   return parts.join(', ') || 'ready';
 }
+/** A progress bar in the terminal that follows the compiler's events. */
 export function createTerminalProgress({
   label = 'job',
   index = 0,

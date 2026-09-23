@@ -41,9 +41,13 @@ export function sortPages(pages: Int32Array, count: number) {
 
 /** Plan of an arrival: one slice per record, and the page ranks it moves. */
 export type PageIntegrationPlan = {
+  /** Where each cluster goes in the pack. */
   slices: Int32Array;
+  /** How many clusters. */
   count: number;
+  /** The page ranks it moves. */
   pages: Int32Array;
+  /** How many pages. */
   pageCount: number;
 };
 

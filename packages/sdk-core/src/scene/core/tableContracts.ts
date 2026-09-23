@@ -9,10 +9,13 @@
 import { EngineError } from '../../contracts/cache.ts';
 import type { TextureFilter, WrapMode } from '../../texture/contract.ts';
 
+/** The name of the file that holds the node and material tables. */
 export const SCENE_TABLES_FILE = 'scene-tables.json';
 /** Version of the product as a whole; each table it carries is versioned in turn. */
 export const SCENE_TABLES_VERSION = 1;
+/** The version of the node table this runtime reads. */
 export const NODE_TABLE_VERSION = 1;
+/** The version of the material table this runtime reads. */
 export const MATERIAL_TABLE_VERSION = 1;
 
 /** The six map slots the engine reads of a surface, in the engine's own field names. */
@@ -24,6 +27,7 @@ export const TABLE_SLOTS = [
   'aoMap',
   'emissiveMap',
 ] as const;
+/** The number fields of a material in the tables. */
 export const TABLE_NUMBERS = [
   'metalness',
   'roughness',
@@ -36,22 +40,32 @@ export const TABLE_NUMBERS = [
   'thickness',
   'attenuationDistance',
 ] as const;
+/** The colour fields of a material in the tables, three numbers each. */
 export const TABLE_TRIPLETS = ['baseColor', 'emissive', 'attenuationColor'] as const;
+/** The yes-or-no fields of a material in the tables. */
 export const TABLE_FLAGS = ['lit', 'doubleSided', 'backSide'] as const;
 type TableSlotName = (typeof TABLE_SLOTS)[number];
 
 /** One filled map slot: which texture, which coordinate set, and the 3×3 composed for it. */
 export interface TableTextureSlot {
+  /** Which texture. */
   texture: number;
+  /** Which UV set. */
   texCoord: number;
+  /** The UV transform, 3×3. */
   transform: readonly number[];
 }
 /** Sampler state of one glTF texture, in the engine's words. */
 export interface TableTexture {
+  /** Which image. */
   image: number | null;
+  /** Repeat across. */
   wrapS: WrapMode;
+  /** Repeat up. */
   wrapT: WrapMode;
+  /** Filter when bigger. */
   magFilter: TextureFilter;
+  /** Filter when smaller. */
   minFilter: TextureFilter;
 }
 /**
@@ -60,11 +74,35 @@ export interface TableTexture {
  * table names a rank a node points at rather than the glTF material rank. `derivativeTangents`
  * says which variant the entry was written for — the autonomous scene publishes its primitives
  * without tangents, so a reader flips the sign back when the geometry it holds disagrees.
+ * @property lit - Whether lights shade it.
+ * @property doubleSided - Whether both faces are drawn.
+ * @property backSide - Whether only the back face is drawn.
+ * @property metalness - How metallic, 0 to 1.
+ * @property roughness - How rough, 0 to 1.
+ * @property alphaTest - Alpha below which pixels drop.
+ * @property normalScale - Strength of the normal map.
+ * @property normalScaleY - Strength of the normal map's second axis.
+ * @property aoIntensity - Strength of the ambient-occlusion map.
+ * @property transmission - How much light passes through.
+ * @property ior - How much light bends going in.
+ * @property thickness - How thick a see-through surface is.
+ * @property attenuationDistance - How far light goes inside before it tints.
+ * @property baseColor - The base colour, linear RGB.
+ * @property emissive - The colour it gives off.
+ * @property attenuationColor - The tint light takes inside.
+ * @property map - The colour picture.
+ * @property metalnessMap - The metalness picture.
+ * @property roughnessMap - The roughness picture.
+ * @property normalMap - The normal picture.
+ * @property aoMap - The ambient-occlusion picture.
+ * @property emissiveMap - The glow picture.
  */
-export type TableMaterial = { name: string; derivativeTangents: boolean } & Record<
-  (typeof TABLE_FLAGS)[number],
-  boolean
-> &
+export type TableMaterial = {
+  /** The material's name. */
+  name: string;
+  /** Whether it was written for tangents rebuilt on screen. */
+  derivativeTangents: boolean;
+} & Record<(typeof TABLE_FLAGS)[number], boolean> &
   Record<(typeof TABLE_NUMBERS)[number], number> &
   Record<(typeof TABLE_TRIPLETS)[number], readonly [number, number, number]> &
   Record<TableSlotName, TableTextureSlot | null>;
@@ -75,22 +113,38 @@ export type TableMaterial = { name: string; derivativeTangents: boolean } & Reco
  * publishes degenerate triangles in its place, so it is the cache's answer, not the loader's.
  */
 export interface TableNode {
+  /** The node's name. */
   name: string;
+  /** The node's number. */
   node: number;
+  /** Its parent's number. */
   parent: number | null;
+  /** Its mesh's number. */
   mesh: number;
+  /** Its primitive's number. */
   primitive: number;
+  /** Its material's rank. */
   material: number;
+  /** Which copy it is. */
   instance: number;
+  /** Its world matrix. */
   matrix: readonly number[];
+  /** Its world box. */
   bounds: { min: readonly [number, number, number]; max: readonly [number, number, number] } | null;
 }
+/** The node and material tables a compiled model carries. */
 export interface PreparedSceneTables {
+  /** Product version. */
   version: number;
+  /** Node table version. */
   nodeTableVersion: number;
+  /** Material table version. */
   materialTableVersion: number;
+  /** The nodes. */
   nodes: TableNode[];
+  /** The materials. */
   materials: TableMaterial[];
+  /** The textures. */
   textures: TableTexture[];
 }
 

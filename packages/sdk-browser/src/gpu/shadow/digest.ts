@@ -2,7 +2,9 @@ import type { GpuShadowAtlas } from './atlas.ts';
 
 /** What a shadow-atlas read publishes: its size, what is written there, its fingerprint. */
 export interface ShadowAtlasDigest {
+  /** Side of the atlas, in texels. */
   size: number;
+  /** Texels in use. */
   texels: number;
   /** Texels whose depth is not the origin zero: what the maps actually occupy. */
   written: number;

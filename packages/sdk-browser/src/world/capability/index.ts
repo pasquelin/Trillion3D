@@ -18,7 +18,10 @@ export const capability = {
       reasons: { webgpu: webgpu.reason, webgl2: webgl.reason },
     };
   },
-  /** What the path drawing `world` does with lights (`lightingCapabilities`). */
+  /**
+   * What the path drawing `world` does with lights (`lightingCapabilities`).
+   * @param world - The world to ask.
+   */
   lighting: (world: object) => sessionOf(world).lightingCapabilities(),
 };
 

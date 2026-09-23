@@ -33,6 +33,7 @@ export const MANIFEST_BINARY_VERSION = 7;
 /** The geometry-page format a version-7 sidecar names, as the manifest's `geometryPages` declares
  *  it once and every page header opens with. */
 export const GEOMETRY_PAGE_FORMAT_VERSION = 3;
+/** The codec geometry pages are written with. */
 export const GEOMETRY_PAGE_CODEC = 'quantized';
 /** 'W','G','M','B' read as a little-endian u32. */
 export const MANIFEST_BINARY_MAGIC = 0x424d4757;
@@ -70,7 +71,37 @@ export const COLUMN_NAMES = [
   'texturePreviewAstc',
 ] as const;
 export type ColumnName = (typeof COLUMN_NAMES)[number];
+/** How one column of the binary manifest is stored. */
 export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8';
+/**
+ * How each column of the binary manifest is stored: decimals, whole numbers or bytes.
+ * @property pageBounds - Each page's box.
+ * @property pageSphere - Each page's ball.
+ * @property pageParentSphere - The ball of what replaces each page.
+ * @property pageError - Each page's error and its replacement's.
+ * @property pageInt - Each page's signed numbers.
+ * @property pageU32 - Each page's counts.
+ * @property pageSha - Each page's fingerprint.
+ * @property geometrySha - Each geometry block's fingerprint.
+ * @property geometryU32 - Each geometry block's counts.
+ * @property cullingNodes - The culling trees' nodes.
+ * @property groupLevel - Each group's level.
+ * @property groupError - Each group's error.
+ * @property groupSphere - Each group's ball.
+ * @property groupChildCount - How many clusters each group replaces.
+ * @property groupChild - The clusters each group replaces.
+ * @property groupOutputCount - How many clusters each group makes.
+ * @property groupOutput - The clusters each group makes.
+ * @property structureRoot - The clusters nothing replaces.
+ * @property bundleU32 - Each bundle's counts.
+ * @property bundleSha - Each bundle's fingerprint.
+ * @property pageDepthLayer - Each page's coplanar depth layer.
+ * @property texturePreviewU32 - Each texture preview's numbers.
+ * @property texturePreviewSha - Each texture preview's fingerprint.
+ * @property texturePreviewPixels - The previews' pixels.
+ * @property texturePreviewBc7 - The previews' BC7 blocks.
+ * @property texturePreviewAstc - The previews' ASTC blocks.
+ */
 export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   pageBounds: 'f64',
   pageSphere: 'f64',

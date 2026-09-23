@@ -5,6 +5,7 @@ function quantile(sorted: readonly number[], p: number) {
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(p * sorted.length) - 1))];
 }
 
+/** The mean, median, 95th, 99th and worst of a list of times. */
 export function summarize(values: readonly number[]) {
   if (!values.length || values.some((v) => !Number.isFinite(v) || v < 0)) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -17,6 +18,7 @@ export function summarize(values: readonly number[]) {
   };
 }
 
+/** Frame rate and smoothness from the times between frames. */
 export function frameStatistics(intervals: readonly number[]) {
   const finite = intervals
     .filter((v) => Number.isFinite(v) && v > 0)

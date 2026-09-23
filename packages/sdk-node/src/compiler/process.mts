@@ -6,6 +6,7 @@ import type { CompilerEvent } from './contracts.ts';
 export const COMPILER_LINE_LIMIT = 4 * 1024 * 1024;
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
 export const CANCEL_GRACE_MS = 5000;
+/** Finds the native compiler program: the one asked for, else the one built in this checkout. */
 export function resolveCompilerExecutable(
   explicit?: string,
   environment: NodeJS.ProcessEnv = process.env,
