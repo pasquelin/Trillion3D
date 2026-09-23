@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A world of blocks</title>
+    <meta name="thumbnail" content="5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #9cc8f0;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#9cc8f0');
+
+      // Smooth noise on a grid of random values, summed over four octaves: the lie of the land.
+      const lattice = (i, j, seed) => {
+        let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(seed, 2147483647);
+        h = Math.imul(h ^ (h >>> 13), 1274126177);
+        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+      };
+      const smooth = (t) => t * t * (3 - 2 * t);
+      function noise(x, y, seed) {
+        const i = Math.floor(x), j = Math.floor(y), u = smooth(x - i), v = smooth(y - j);
+        const a = lattice(i, j, seed), b = lattice(i + 1, j, seed), c = lattice(i, j + 1, seed), d = lattice(i + 1, j + 1, seed);
+        return (a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v) * 2 - 1;
+      }
+      const fbm = (x, y, seed) => {
+        let sum = 0, amplitude = 0.55, frequency = 1;
+        for (let octave = 0; octave < 4; octave++, amplitude *= 0.5, frequency *= 2.03) sum += amplitude * noise(x * frequency, y * frequency, seed + octave);
+        return sum;
+      };
+
+      // The world is a box of cells, one number each: air or a kind of block. Rolling hills from
+      // one noise, mountains from a second one squared, so they rise sharply out of the plains.
+      const W = 56, H = 44, CHUNK = 14;
+      const AIR = 0, GRASS = 1, DIRT = 2, STONE = 3, SAND = 4, SNOW = 5, WOOD = 6, LEAVES = 7;
+      const cells = new Uint8Array(W * H * W), heights = new Uint8Array(W * W);
+      const cell = (x, y, z) => x + W * (z + W * y);
+      function carve(seed, sea) {
+        cells.fill(AIR);
+        for (let x = 0; x < W; x++)
+          for (let z = 0; z < W; z++) {
+            const hills = fbm(x / 20, z / 20, seed), peaks = Math.max(0, fbm(x / 26 + 9, z / 26, seed + 17) + 0.12);
+            const h = Math.min(H - 8, Math.max(1, Math.round(8 + 7 * hills + 42 * peaks * peaks)));
+            heights[x + W * z] = h;
+            const top = h - 1;
+            for (let y = 0; y < h; y++) {
+              let kind = STONE;
+              if (top <= sea + 1) kind = y > top - 3 ? SAND : STONE;
+              else if (top >= 26) kind = y === top ? SNOW : STONE;
+              else if (top < 19) kind = y === top ? GRASS : y > top - 4 ? DIRT : STONE;
+              cells[cell(x, y, z)] = kind;
+            }
+          }
+        // Trees on the grass: a trunk, and a crown of leaves wider at its foot than at its top.
+        const next = ((state) => () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296)(seed * 977);
+        for (let x = 3; x < W - 3; x++)
+          for (let z = 3; z < W - 3; z++) {
+            const h = heights[x + W * z];
+            if (cells[cell(x, h - 1, z)] !== GRASS || next() > 0.035) continue;
+            const trunk = 4 + Math.floor(next() * 2);
+            for (let y = h; y < h + trunk; y++) cells[cell(x, y, z)] = WOOD;
+            for (let dy = -1; dy <= 2; dy++) {
+              const reach = dy < 2 ? 2 : 1, y = h + trunk + dy - 1;
+              for (let dx = -reach; dx <= reach; dx++)
+                for (let dz = -reach; dz <= reach; dz++) {
+                  if (Math.abs(dx) === reach && Math.abs(dz) === reach && next() < 0.7) continue;
+                  if (cells[cell(x + dx, y, z + dz)] === AIR) cells[cell(x + dx, y, z + dz)] = LEAVES;
+                }
+            }
+          }
+      }
+
+      // Only the faces that touch air are drawn: a block buried among others shows nothing. Each
+      // face goes into the mesh of its colour, in the chunk of the world it stands in. A grass
+      // block shows grass on top and earth on its sides.
+      const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map((n) => {
+        const axis = n.findIndex((value) => value !== 0), u = (axis + 1) % 3, v = (axis + 2) % 3;
+        const corner = (a, b) => {
+          const p = [0, 0, 0];
+          p[axis] = n[axis] > 0 ? 1 : 0;
+          p[u] = a;
+          p[v] = b;
+          return p;
+        };
+        // Turned so the face looks out along its normal.
+        const quad = [corner(0, 0), corner(1, 0), corner(1, 1), corner(0, 1)];
+        return { n, quad: n[axis] > 0 ? quad : quad.reverse() };
+      });
+      const COLOURS = ['#5fa04a', '#8a5a3a', '#8b8d92', '#e0cf96', '#f4f6fa', '#6b4a2e', '#3f8a3a'];
+      const kinds = COLOURS.map((color, k) => material.meshStandard({ color, roughness: k === 4 ? 0.6 : 0.9 }));
+      const CHUNKS = W / CHUNK, chunks = [];
+      for (let cx = 0; cx < CHUNKS; cx++)
+        for (let cz = 0; cz < CHUNKS; cz++) {
+          const holder = object.group();
+          const meshes = kinds.map((kind) => object.mesh(geometry.box(0.01, 0.01, 0.01), kind));
+          holder.add(...meshes);
+          world.scene.add(holder);
+          chunks.push({ cx, cz, holder, meshes, delay: Math.hypot(cx - (CHUNKS - 1) / 2, cz - (CHUNKS - 1) / 2) });
+        }
+      let faceCount = 0;
+      function mesh() {
+        faceCount = 0;
+        for (const chunk of chunks) {
+          const lists = kinds.map(() => ({ position: [], normal: [], index: [] }));
+          for (let y = 0; y < H; y++)
+            for (let x = chunk.cx * CHUNK; x < (chunk.cx + 1) * CHUNK; x++)
+              for (let z = chunk.cz * CHUNK; z < (chunk.cz + 1) * CHUNK; z++) {
+                const kind = cells[cell(x, y, z)];
+                if (kind === AIR) continue;
+                for (const { n, quad } of FACES) {
+                  const [nx, ny, nz] = [x + n[0], y + n[1], z + n[2]];
+                  const outside = nx < 0 || nz < 0 || ny < 0 || nx >= W || nz >= W || ny >= H;
+                  if (!outside && cells[cell(nx, ny, nz)] !== AIR) continue;
+                  const list = lists[(kind === GRASS && n[1] !== 1 ? DIRT : kind) - 1], first = list.position.length / 3;
+                  for (const p of quad) list.position.push(x + p[0] - W / 2, y + p[1], z + p[2] - W / 2), list.normal.push(...n);
+                  list.index.push(first, first + 1, first + 2, first, first + 2, first + 3);
+                  faceCount++;
+                }
+              }
+          lists.forEach(({ position, normal, index }, k) => {
+            chunk.meshes[k].visible = position.length > 0;
+            if (!position.length) return;
+            chunk.meshes[k].geometry = geometry.createBuffer({
+              position: buffer.float32(new Float32Array(position), 3),
+              normal: buffer.float32(new Float32Array(normal), 3),
+              index: buffer.uint32(index),
+            });
+          });
+        }
+      }
+
+      // The sea: a sheet at its level over every column lower than it, and its cut sides at the
+      // world's edge, see-through so the sand below shows.
+      const sea = object.mesh(geometry.box(0.01, 0.01, 0.01), material.meshStandard({ color: '#2f86c8', roughness: 0.1, transparent: true, opacity: 0.72, depthWrite: false }));
+      world.scene.add(sea);
+      function flood(level) {
+        const position = [], normal = [], index = [];
+        const quad = (corners, n) => {
+          const first = position.length / 3;
+          for (const p of corners) position.push(...p), normal.push(...n);
+          index.push(first, first + 1, first + 2, first, first + 2, first + 3);
+        };
+        const top = level + 0.8, x0 = -W / 2, edge = W / 2;
+        for (let x = 0; x < W; x++)
+          for (let z = 0; z < W; z++) {
+            const h = heights[x + W * z];
+            if (h >= top) continue;
+            const [a, b] = [x - W / 2, z - W / 2];
+            quad([[a, top, b], [a, top, b + 1], [a + 1, top, b + 1], [a + 1, top, b]], [0, 1, 0]);
+            if (x === 0) quad([[x0, h, b], [x0, h, b + 1], [x0, top, b + 1], [x0, top, b]], [-1, 0, 0]);
+            if (x === W - 1) quad([[edge, h, b], [edge, top, b], [edge, top, b + 1], [edge, h, b + 1]], [1, 0, 0]);
+            if (z === 0) quad([[a, h, x0], [a, top, x0], [a + 1, top, x0], [a + 1, h, x0]], [0, 0, -1]);
+            if (z === W - 1) quad([[a, h, edge], [a + 1, h, edge], [a + 1, top, edge], [a, top, edge]], [0, 0, 1]);
+          }
+        sea.visible = position.length > 0;
+        if (position.length)
+          sea.geometry = geometry.createBuffer({ position: buffer.float32(new Float32Array(position), 3), normal: buffer.float32(new Float32Array(normal), 3), index: buffer.uint32(index) });
+      }
+
+      // Clouds: flat slabs of blocks drifting across the sky, back on the far side once past.
+      const clouds = Array.from({ length: 10 }, (_, k) => {
+        const slab = object.mesh(geometry.box(4 + (k % 3) * 3, 1, 3 + (k % 2) * 3), material.meshStandard({ color: '#ffffff', roughness: 1 }));
+        slab.position.set(((k * 37) % W) - W / 2, 31 + (k % 3) * 1.5, ((k * 23) % W) - W / 2);
+        world.scene.add(slab);
+        return slab;
+      });
+
+      const sun = light.directional({ color: '#ffd29a', intensity: 3.2, castShadow: true });
+      world.scene.add(sun, light.hemisphere({ color: '#bcd8ff', groundColor: '#5a4a38', intensity: 0.75 }));
+      world.camera.position.set(38, 36, 46);
+      world.camera.lookAt(0, 8, 0);
+      world.controls.target.set(0, 8, 0);
+      world.controls.minDistance = 12;
+      world.controls.maxDistance = 110;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // Seed and sea level remake the world, the hour moves the sun: each only when it changes.
+      let faces = null, waiting = 0;
+      const ui = controls({
+        mouse: 'Drag to fly around the island; raise the sea and watch the valleys flood',
+        seed: [1, 64, 11, 1],
+        seaLevel: [2, 30, 8, 1],
+        hour: [6, 19, 16.5, 0.25],
+        clouds: true,
+      }, (values, key) => {
+        if (key === undefined || key === 'seed' || key === 'seaLevel') {
+          clearTimeout(waiting);
+          const remake = () => {
+            if (key === 'seaLevel') flood(values.seaLevel);
+            else {
+              carve(values.seed, values.seaLevel);
+              mesh();
+              flood(values.seaLevel);
+            }
+            faces?.(faceCount.toLocaleString('en'));
+            world.invalidate();
+          };
+          if (key === undefined) remake();
+          else waiting = setTimeout(remake, 150);
+        }
+        if (key === undefined || key === 'hour') {
+          const arc = ((values.hour - 6) / 13) * Math.PI;
+          sun.position.set(Math.cos(arc) * 60, 12 + Math.sin(arc) * 50, 30);
+          sun.color.set('#ff9e5a').lerp(math.color('#fff4e2'), Math.sin(arc));
+        }
+        world.invalidate();
+      }, world);
+      faces = readout('Faces drawn');
+      faces(faceCount.toLocaleString('en'));
+
+      // The opening: the chunks rise into place from the centre outwards, then the sea fills in.
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        for (const chunk of chunks) {
+          const rise = Math.min(1, Math.max(0, (time - 0.4 - chunk.delay * 0.35) / 1.2));
+          chunk.holder.position.y = -60 * (1 - rise) ** 3;
+        }
+        sea.position.y = -30 * (1 - Math.min(1, Math.max(0, (time - 2.4) / 1.5))) ** 2;
+        if (ui.clouds)
+          for (const [k, slab] of clouds.entries()) {
+            slab.position.x += step * (1.2 + (k % 3) * 0.4);
+            if (slab.position.x > W / 2 + 12) slab.position.x = -W / 2 - 12;
+          }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
