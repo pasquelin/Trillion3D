@@ -665,7 +665,9 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Ma trận đơn vị dạng column-major, chỉ đọc và không bao giờ ghi: tư thế của một node hoặc của một gốc không có tư thế.",
-      "values": ["Mười sáu con số, dạng column-major."]
+      "values": [
+        "Mười sáu con số, dạng column-major."
+      ]
     },
     "DiagnosticMode": {
       "description": "Những gì một khung hình vẽ ra. Tính khả dụng mô tả kết quả thật của đường ống xử lý, không bao giờ là lớp phủ giả lập: `DIAGNOSTICS` cho biết, với mỗi chế độ, liệu bộ kết xuất đang hoạt động có tạo ra được nó không và vì sao không.",
@@ -726,7 +728,10 @@
     },
     "GpuTimingMethod": {
       "description": "Cách các khoảng thời gian GPU của một hồ sơ theo chặng được lấy. Thời lượng theo từng chặng cho biết ở đâu, không bao giờ là bao nhiêu: trên một GPU dựa trên ô, các chặng chồng lấn nhau và một chặng hấp thụ luôn chặng bên cạnh nó. Tổng khung hình là `gpuImageMs`, tức khoảng thời gian bao trùm — thời lượng từng chặng không cộng dồn vào đó.",
-      "values": ["Truy vấn dấu thời gian WebGPU gốc.", "Phần mở rộng WebGL2, cho đường xử lý đó."]
+      "values": [
+        "Truy vấn dấu thời gian WebGPU gốc.",
+        "Phần mở rộng WebGL2, cho đường xử lý đó."
+      ]
     },
     "ColumnKind": {
       "description": "Cách lưu trữ một cột trong tệp kê khai nhị phân. `COLUMN_KIND` ánh xạ mỗi tên cột tới loại của nó, để một trình đọc biết cách nhìn nhận các byte đi kèm.",
@@ -1486,8 +1491,8 @@
       "a-section-cut": "mặt phẳng cắt",
       "cut-by-several-planes": "mặt phẳng cắt",
       "a-capped-section": "mặt phẳng cắt: nắp stencil",
-      "decals-on-a-surface": "picking (raycast)",
-      "sculpt-a-sphere": "picking (raycast)",
+      "decals-on-a-surface": "chọn bằng tia (raycast)",
+      "sculpt-a-sphere": "chọn bằng tia (raycast)",
       "a-texture-turned-and-tiled": "lặp lại, dịch chuyển và xoay kết cấu trên WebGPU",
       "texture-filters-compared": "bộ lọc kết cấu và anisotropy trên WebGPU",
       "a-video-on-a-screen": "kết cấu video trực tiếp",
@@ -1590,13 +1595,13 @@
       "flames-and-a-tornado": "vật liệu shader tùy chỉnh",
       "point-clouds-from-a-scan": "nhập đám mây điểm",
       "gaussian-splats": "dựng hình gaussian splat",
-      "hover-over-triangles": "picking (raycast)",
-      "pick-lines-and-points": "picking (raycast)",
-      "pick-an-instance": "picking (raycast)",
-      "paint-where-you-click": "picking (raycast)",
-      "a-voxel-painter": "picking (raycast)",
-      "drag-objects": "picking (raycast)",
-      "edit-a-spline": "picking (raycast)",
+      "hover-over-triangles": "chọn bằng tia (raycast)",
+      "pick-lines-and-points": "chọn bằng tia (raycast)",
+      "pick-an-instance": "chọn bằng tia (raycast)",
+      "paint-where-you-click": "chọn bằng tia (raycast)",
+      "a-voxel-painter": "chọn bằng tia (raycast)",
+      "drag-objects": "chọn bằng tia (raycast)",
+      "edit-a-spline": "chọn bằng tia (raycast)",
       "sound-in-space": "âm thanh định vị",
       "smooth-edges-over-time": "cài đặt khử răng cưa theo thời gian",
       "tone-mapping-compared": "lựa chọn toán tử tone-mapping",
