@@ -86,7 +86,8 @@
     "restart": "Relancer",
     "linkCopied": "Lien copié",
     "copyFailed": "Le lien n’a pas pu être copié",
-    "demoControls": "Commandes de la démonstration"
+    "demoControls": "Commandes de la démonstration",
+    "keyboardHint": "Cliquez sur la démo pour utiliser le clavier"
   },
   "sandbox": {
     "title": "Tester en direct",
