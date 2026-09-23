@@ -23,12 +23,12 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#f3c28c');
       world.camera.far = 1500;
-      const random = ((state) => () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296)(23);
+      const random = seeded(23);
 
       // Vectors as three numbers, and the turn of a vector about a unit axis (Rodrigues).
       const plus = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];

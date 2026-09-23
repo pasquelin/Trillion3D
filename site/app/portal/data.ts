@@ -18,8 +18,13 @@ export const entriesIn = (locale: Locale): PortalEntry[] => [
   ...localizeEntries(REFERENCE, locale, referenceTranslationOf(locale)),
 ];
 
-/** Every entry in `locale`, once its words and its translation of the reference are read. */
+const loaded = new Map<Locale, PortalEntry[]>();
+
+/** Every entry in `locale`, once its words and its translation of the reference are read; built
+ *  once a language, so that switching back to a language seen costs nothing. */
 export async function loadEntries(locale: Locale): Promise<PortalEntry[]> {
   await Promise.all([loadLanguage(locale), loadReferenceTranslation(locale)]);
-  return entriesIn(locale);
+  const entries = loaded.get(locale) ?? entriesIn(locale);
+  loaded.set(locale, entries);
+  return entries;
 }

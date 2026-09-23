@@ -71,6 +71,19 @@ const PITCH: KeyAxis = [['ArrowUp'], ['ArrowDown']],
   RISE: KeyAxis = [['KeyR'], ['KeyF']],
   ADVANCE: KeyAxis = [['KeyW'], ['KeyS']];
 
+/** A flight's default speeds, stick and look, which `world.controls` keeps as its own. */
+export const FLY_DEFAULTS = {
+  rollSpeed: 0.4,
+  pitchSpeed: null as number | null,
+  yawSpeed: null as number | null,
+  inputResponse: 0,
+  pitchInput: 0,
+  yawInput: 0,
+  rollInput: 0,
+  pointerLook: true,
+  autoForward: false,
+};
+
 export function createFlyCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
@@ -95,16 +108,8 @@ export function createFlyCameraControls(
     ...base.api,
     object: pose.object,
     movementSpeed: 1,
-    rollSpeed: 0.4,
-    pitchSpeed: null,
-    yawSpeed: null,
-    inputResponse: 0,
-    pitchInput: 0,
-    yawInput: 0,
-    rollInput: 0,
+    ...FLY_DEFAULTS,
     dragToLook: true,
-    pointerLook: true,
-    autoForward: false,
     update(delta = 0) {
       const dt = delta > 0 ? delta : 0;
       pose.readPosition(position);
