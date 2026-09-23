@@ -24,7 +24,8 @@
       // Waits for #362: a texture made from a video shows each new frame of the stream by itself,
       // without a change to its material; until then the wall keeps its first frame.
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       // The stream starts as a signal this page paints — sweeping colour and the words "no camera"
       // — until "Use my camera" asks the browser for the webcam. Nothing leaves the page.
@@ -42,7 +43,7 @@
         pen.fillStyle = '#ffffff';
         pen.font = 'bold 56px system-ui';
         pen.textAlign = 'center';
-        pen.fillText('no camera', W / 2, H / 2 + 20);
+        pen.fillText(say('noCamera'), W / 2, H / 2 + 20);
       }
       paintSignal(0);
       const video = document.createElement('video');
@@ -104,9 +105,9 @@
           video.srcObject = stream;
           painted = false;
           await video.play();
-          source('your camera');
+          source(say('yourCamera'));
         } catch (error) {
-          source(`camera refused (${error.name})`);
+          source(say('refused', { error: error.name }));
         }
       }
       // The layout and the mirror rebuild the screens' UVs, and only when they change.
@@ -120,8 +121,8 @@
           for (const entry of screens) entry.screen.geometry = face(entry.column, entry.row, values.layout === 'video wall', values.mirror);
         world.invalidate();
       }, world);
-      source = readout('Source');
-      source('painted signal');
+      source = readout('source');
+      source(say('paintedSignal'));
 
       // While the painted signal is the source the page repaints it; the texture follows the
       // stream by itself, whichever it is.

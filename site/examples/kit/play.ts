@@ -1,12 +1,12 @@
 import {
   createMenu,
-  MENU_LABELS,
+  menuWord,
   type GameKey,
   type GameOption,
   type MenuActions,
-  type MenuLabels,
   type MenuView,
 } from './gameMenu.ts';
+import { exampleWord } from './words.ts';
 
 /**
  * A game's menu and pause, as every web game has them: the game runs only while the mouse is
@@ -34,18 +34,14 @@ export interface PlayWorld {
   invalidate(): void;
 }
 
-/** The game's menu, in the page's language, and what the page does on each change. */
+/** The game's menu, and what the page does on each change. Its name, big on the start screen,
+ * and the line under it, what the player is to do, are the example's words `<id>.game.title` and
+ * `<id>.game.goal`. */
 export interface PlayOptions {
-  /** The game's name, big on the start screen. Default `Play`. */
-  title?: string;
-  /** One line under it: what the player is to do. */
-  goal?: string;
   /** The key sheet the Controls button opens. */
   keys?: GameKey[];
   /** Choices offered on the menu, reported through `onOption`. */
   options?: GameOption[];
-  /** The menu's own words; English by default. */
-  labels?: Partial<MenuLabels>;
   /** Called once, the first time the game runs, before `onResume`. */
   onStart?: () => void;
   /** Called when the game pauses: mute the sound, drop held keys. */
@@ -92,11 +88,10 @@ export function isCapture(doc: Pick<PlayDocument, 'location'>): boolean {
 const drawnMenu = (options: PlayOptions, doc: PlayDocument) => (actions: MenuActions) =>
   createMenu(
     {
-      title: options.title ?? MENU_LABELS.play,
-      goal: options.goal ?? '',
+      title: exampleWord(menuWord('play'), 'game', 'title'),
+      goal: exampleWord('', 'game', 'goal'),
       keys: options.keys ?? [],
       options: options.options ?? [],
-      labels: { ...MENU_LABELS, ...options.labels },
       capture: isCapture(doc),
     },
     actions,
@@ -115,7 +110,6 @@ export function play(
   doc: PlayDocument = document,
   menu: (actions: MenuActions) => MenuView = drawnMenu(options, doc),
 ): Game {
-  const again = options.labels?.again ?? MENU_LABELS.again;
   const { canvas } = world;
   let running = false,
     started = false,
@@ -140,7 +134,7 @@ export function play(
   const settle = () => apply(doc.pointerLockElement === canvas && !doc.hidden);
   const refused = (retryable: boolean) => {
     if (running) return;
-    view.show(screen(), again);
+    view.show(screen(), menuWord('again'));
     if (!retryable || retried || !inside) return;
     retried = true;
     retry = setTimeout(() => inside && lock(), COOLDOWN_MS);

@@ -1,0 +1,1829 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "Pengaturan"
+    },
+    "menu": {
+      "play": "Main",
+      "resume": "Lanjutkan",
+      "restart": "Mulai ulang",
+      "controls": "Pengaturan",
+      "back": "Kembali",
+      "paused": "Dijeda",
+      "again": "Klik lagi untuk melanjutkan"
+    },
+    "keys": {
+      "Mouse": "Mouse",
+      "Right button": "Tombol kanan",
+      "Wheel": "Roda",
+      "Shift": "Shift",
+      "Space": "Spasi",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "fps": "Bingkai/dtk",
+      "fpsHeld": "Bingkai/dtk (diam)",
+      "triangles": "segitiga",
+      "sceneTriangles": "segitiga (adegan)",
+      "drawCalls": "panggilan gambar",
+      "pages": "halaman",
+      "geometryPool": "gudang geometri",
+      "lights": "lampu",
+      "gpuFrame": "bingkai GPU",
+      "cpuFrame": "bingkai CPU",
+      "pageHooks": "kode halaman",
+      "engineCpu": "CPU mesin"
+    }
+  },
+  "a-city-from-rules": {
+    "controls": {
+      "mouse": "Seret untuk terbang berkeliling; setiap pengaturan membangun ulang kota dengan aturannya",
+      "blocks": "Blok",
+      "maxHeight": "Tinggi maks.",
+      "density": "Kepadatan",
+      "parks": "Taman",
+      "seed": "Benih",
+      "hour": "Jam",
+      "traffic": "Lalu lintas"
+    },
+    "readouts": {
+      "buildings": "Gedung",
+      "parks": "Taman"
+    }
+  },
+  "a-cloud-of-points": {
+    "controls": {
+      "mouse": "Seret untuk mengitari awan; pilih bentuk lain, yang lama menggulung pergi sementara yang baru terbuka",
+      "shape": "Bentuk",
+      "spin": "Putar"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "galaksi spiral",
+        "globular cluster": "gugus bola",
+        "ring nebula": "nebula cincin",
+        "Lorenz attractor": "penarik Lorenz"
+      }
+    },
+    "readouts": {
+      "points": "Titik",
+      "colourGroups": "Kelompok warna"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "controls": {
+      "colour": "Warna",
+      "glow": "Pendar",
+      "exposure": "Eksposur"
+    }
+  },
+  "a-field-of-pebbles": {
+    "controls": {
+      "sunTurn": "Arah matahari",
+      "sunHeight": "Tinggi matahari",
+      "first": "Pertama",
+      "last": "Terakhir"
+    }
+  },
+  "a-first-world": {
+    "controls": {
+      "colour": "Warna"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "controls": {
+      "mouse": "Seret untuk menggeser papan · roda atau cubit untuk zoom · tombol panah untuk bergeser",
+      "play": "Main",
+      "speed": "Kecepatan",
+      "follow": "Ikuti",
+      "replay": "Putar ulang"
+    },
+    "readouts": {
+      "move": "Langkah"
+    },
+    "words": {
+      "takes": "memakan"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "controls": {
+      "swing": "Ayunan",
+      "lamp": "Lampu",
+      "power": "Daya",
+      "glass": "Kaca"
+    }
+  },
+  "a-lighthouse-beam": {
+    "controls": {
+      "turnsPerMinute": "Putaran per menit",
+      "beamWidth": "Lebar sorot",
+      "colour": "Warna"
+    }
+  },
+  "a-long-shadowed-street": {
+    "controls": {
+      "mouse": "Seret untuk melihat jalan raya, roda untuk maju; geser jam dan bayangan memanjang di jalan dan memanjat dinding",
+      "hour": "Jam",
+      "traffic": "Lalu lintas",
+      "flyAgain": "Terbang lagi"
+    },
+    "readouts": {
+      "sunHeight": "Tinggi matahari",
+      "shadow30MHouse": "Bayangan rumah setinggi 30 m"
+    }
+  },
+  "a-matcap-sculpture": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari patung: cahayanya ikut berputar denganmu, karena hidup di dalam gambar",
+      "matcap": "Matcap",
+      "sculpture": "Patung",
+      "gallery": "Galeri",
+      "turn": "Putar"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "tanah liat merah",
+        "chrome": "krom",
+        "gold": "emas",
+        "jade": "giok",
+        "pearl": "mutiara",
+        "obsidian": "obsidian"
+      },
+      "sculpture": {
+        "knot": "simpul",
+        "rings": "cincin",
+        "vase": "vas"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "controls": {
+      "mouse": "Seret untuk mengitari permata; matikan sisi tajam agar sudutnya dipakai bersama",
+      "points": "Titik",
+      "waist": "Pinggang",
+      "height": "Tinggi",
+      "sharpFacets": "Sisi tajam",
+      "colour": "Warna",
+      "spin": "Putar"
+    },
+    "readouts": {
+      "verticesWritten": "Titik sudut ditulis",
+      "triangles": "Segitiga"
+    }
+  },
+  "a-model-from-obj": {
+    "controls": {
+      "mouse": "Seret untuk mengitari papan, roda untuk mendekat: lihat jadi apa OBJ itu",
+      "view": "Tampilan",
+      "sunAngle": "Sudut matahari",
+      "sunHeight": "Tinggi matahari",
+      "turn": "Putar"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "triangles": "segitiga",
+        "clusters": "klaster",
+        "lod": "tingkat detail"
+      }
+    },
+    "words": {
+      "credit": "Set catur dibuat untuk contoh-contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "a-model-from-usdz": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari papan; turun dengan roda ke bidak",
+      "view": "Tampilan",
+      "turn": "Putar"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "materials": "material",
+        "clusters": "klaster",
+        "triangles": "segitiga"
+      }
+    },
+    "readouts": {
+      "source": "Sumber",
+      "boardWidth": "Lebar papan",
+      "partsPlaced": "Bagian ditempatkan",
+      "triangles": "Segitiga"
+    },
+    "words": {
+      "credit": "Set catur dibuat dengan kode untuk contoh ini, CC0; berkasnya assets/examples/a-model-from-usdz/source/chess-set.usdz — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "a-molecule": {
+    "controls": {
+      "mouse": "Seret untuk mengitari molekul; pilih yang lain dan atom-atomnya terbang ke tempat baru",
+      "molecule": "Molekul",
+      "style": "Gaya",
+      "spin": "Putar"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "buckyball C60",
+        "carbon nanotube": "nanotabung karbon",
+        "diamond crystal": "kristal intan",
+        "DNA double helix": "heliks ganda DNA"
+      },
+      "style": {
+        "ball and stick": "bola dan batang",
+        "space filling": "bola penuh",
+        "sticks": "batang"
+      }
+    },
+    "readouts": {
+      "atoms": "Atom",
+      "bonds": "Ikatan"
+    }
+  },
+  "a-neon-sign": {
+    "controls": {
+      "star": "Bintang",
+      "wave": "Gelombang",
+      "glow": "Pendar",
+      "pulse": "Denyut",
+      "exposure": "Eksposur",
+      "toneMapping": "Pemetaan nada"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "netral",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "linear"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "controls": {
+      "lamps": "Lampu",
+      "speed": "Kecepatan",
+      "power": "Daya",
+      "shadows": "Bayangan"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "controls": {
+      "walk": "Jalan",
+      "wave": "Gelombang",
+      "dance": "Menari",
+      "speed": "Kecepatan",
+      "colour": "Warna"
+    }
+  },
+  "a-scene-of-your-own": {
+    "controls": {
+      "hour": "Jam",
+      "wind": "Angin",
+      "roof": "Atap"
+    }
+  },
+  "a-softbox-panel": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari set; perbesar panel dan lihat kilaunya melembut",
+      "panelWidth": "Lebar panel",
+      "power": "Daya",
+      "colour": "Warna",
+      "swing": "Ayunan"
+    },
+    "readouts": {
+      "panel": "Panel",
+      "radiance": "Radiansi"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "controls": {
+      "climb": "Naik",
+      "turnPerStep": "Putaran per anak tangga",
+      "lantern": "Lentera"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "controls": {
+      "hour": "Jam",
+      "sunColour": "Warna matahari",
+      "exposure": "Eksposur"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "controls": {
+      "mouse": "Seret untuk melihat sekeliling; panel di belakang adalah ubin seperti saat dilukis",
+      "tile": "Ubin",
+      "wrap": "Tepi",
+      "tilesAcross": "Ubin ke samping",
+      "turn": "Putar",
+      "slideAcross": "Geser ke samping",
+      "slideUp": "Geser ke atas",
+      "flow": "Mengalir"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "ulang",
+        "mirror": "cermin",
+        "clamp": "tahan"
+      },
+      "tile": {
+        "terracotta": "terakota",
+        "azulejo": "azulejo",
+        "jade": "giok"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "Ubin, putaran"
+    },
+    "words": {
+      "up": "ATAS"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "controls": {
+      "mouse": "Seret untuk melihat sekeliling; manik-manik meluncur di kurva yang diikuti tabung",
+      "path": "Jalur",
+      "radius": "Jari-jari",
+      "sides": "Sisi",
+      "slices": "Irisan",
+      "speed": "Kecepatan",
+      "beads": "Manik",
+      "paint": "Cat"
+    },
+    "choices": {
+      "path": {
+        "knot": "simpul",
+        "coaster": "roller coaster",
+        "spiral": "spiral"
+      }
+    },
+    "readouts": {
+      "triangles": "Segitiga"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "controls": {
+      "width": "Lebar",
+      "height": "Tinggi",
+      "gloss": "Kilap",
+      "spin": "Putar"
+    }
+  },
+  "a-video-on-a-screen": {
+    "controls": {
+      "mouse": "Seret untuk melihat ruangan; layar memutar elemen video sungguhan",
+      "playing": "Sedang diputar",
+      "openVideo": "Buka video"
+    },
+    "readouts": {
+      "playing": "Sedang diputar",
+      "videoTime": "Waktu video"
+    },
+    "words": {
+      "yourFile": "berkasmu",
+      "testCard": "gambar uji"
+    }
+  },
+  "a-video-panorama": {
+    "controls": {
+      "mouse": "Seret untuk melihat sekeliling; pemandangan berputar sendiri sampai kamu menekan",
+      "playing": "Sedang diputar",
+      "fieldOfView": "Bidang pandang",
+      "openVideo": "Buka video"
+    },
+    "readouts": {
+      "playing": "Sedang diputar"
+    },
+    "words": {
+      "yourFile": "berkasmu",
+      "duskOverSea": "senja di atas laut"
+    }
+  },
+  "a-wall-of-cameras": {
+    "controls": {
+      "mouse": "Klik satu kamera untuk menaruhnya di layar besar; beri tahu kamera apa yang diawasi",
+      "watch": "Awasi"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "patroli",
+        "car": "mobil",
+        "balloon": "balon"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "Kamera yang melihat mobil"
+    },
+    "words": {
+      "cam": "KAM",
+      "northGate": "GERBANG UTARA",
+      "fountain": "AIR MANCUR",
+      "eastRoad": "JALAN TIMUR",
+      "clockTower": "MENARA JAM",
+      "cafe": "KAFE",
+      "southCorner": "SUDUT SELATAN",
+      "noSignal": "TANPA SINYAL",
+      "patrol": "PATROLI",
+      "car": "MELACAK MOBIL",
+      "balloon": "MELACAK BALON"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "controls": {
+      "height": "Tinggi",
+      "speed": "Kecepatan",
+      "ripples": "Riak",
+      "inner": "Dalam",
+      "outer": "Luar"
+    }
+  },
+  "a-world-of-blocks": {
+    "controls": {
+      "mouse": "Seret untuk terbang mengitari pulau; naikkan laut dan lihat lembah-lembah terendam",
+      "seed": "Benih",
+      "seaLevel": "Permukaan laut",
+      "hour": "Jam",
+      "clouds": "Awan"
+    },
+    "readouts": {
+      "facesDrawn": "Sisi digambar"
+    }
+  },
+  "before-and-after-slider": {
+    "controls": {
+      "mouse": "Seret kenop bulat untuk memindahkan pembatas; seret gambar untuk mengitari alun-alun",
+      "before": "Sebelum"
+    },
+    "choices": {
+      "before": {
+        "clay": "tanah liat",
+        "no shadows": "tanpa bayangan",
+        "no sun": "tanpa matahari",
+        "noon sun": "matahari siang"
+      }
+    },
+    "words": {
+      "clay": "tanah liat",
+      "no shadows": "tanpa bayangan",
+      "no sun": "tanpa matahari",
+      "noon sun": "matahari siang",
+      "finished": "selesai"
+    }
+  },
+  "blobs-that-merge": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari lampu; naikkan kelengketan dan tetesan saling melebur",
+      "stickiness": "Kelengketan",
+      "heat": "Panas",
+      "wax": "Lilin"
+    },
+    "readouts": {
+      "piecesWax": "Potongan lilin"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "controls": {
+      "sweep": "Sapuan",
+      "lamp": "Lampu",
+      "colour": "Warna",
+      "bricks": "Bata"
+    }
+  },
+  "click-to-pick": {
+    "controls": {
+      "help": "Klik sebuah bentuk: ia menyala, dan panel memberi tahu di mana sinar mengenainya."
+    },
+    "readouts": {
+      "picked": "Dipilih",
+      "point": "Titik",
+      "distance": "Jarak"
+    },
+    "words": {
+      "nothing": "tidak ada",
+      "box": "kotak",
+      "sphere": "bola",
+      "cone": "kerucut",
+      "torus": "torus",
+      "cylinder": "silinder",
+      "knot": "simpul"
+    }
+  },
+  "colours-on-the-vertices": {
+    "controls": {
+      "mouse": "Seret untuk memutar planet; setiap titik sudut punya warnanya sendiri",
+      "palette": "Palet",
+      "seaLevel": "Permukaan laut",
+      "relief": "Relief",
+      "spin": "Putar"
+    },
+    "choices": {
+      "palette": {
+        "earth": "bumi",
+        "lava": "lava",
+        "ice": "es",
+        "candy": "permen"
+      }
+    }
+  },
+  "compressed-textures": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari air mancur; turun ke satu ubin dan lihat detailnya tiba",
+      "sunTurn": "Arah matahari",
+      "sunHeight": "Tinggi matahari"
+    },
+    "readouts": {
+      "texturesBlocks": "Tekstur dalam blok",
+      "allFullDetail": "Semua detail penuh",
+      "poolFormat": "Format gudang",
+      "tilesHeld": "Ubin disimpan",
+      "heldGpu": "Disimpan di GPU"
+    },
+    "words": {
+      "credit": "Halaman dan teksturnya digambar dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md",
+      "someOf": "{some} dari {all}",
+      "notPlain": "{held} MiB, bukan {plain}",
+      "notMeasured": "tidak diukur di sini"
+    }
+  },
+  "copies-along-a-path": {
+    "controls": {
+      "mouse": "Seret untuk melihat taman; tambah salinan sampai lengkungan menutup jadi terowongan",
+      "copies": "Salinan",
+      "twist": "Pilin",
+      "speed": "Kecepatan",
+      "ride": "Naik"
+    },
+    "readouts": {
+      "archesPlaced": "Lengkungan ditempatkan"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "controls": {
+      "angle": "Sudut",
+      "softness": "Kelembutan",
+      "colour": "Warna",
+      "power": "Daya"
+    },
+    "words": {
+      "credit": "Model peti oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "create-and-dispose": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari air mancur · roda untuk mendekat",
+      "perSecond": "Per detik",
+      "copies": "Salinan",
+      "burst": "Semburan",
+      "clearAll": "Hapus semua"
+    },
+    "choices": {
+      "copies": {
+        "share": "pakai bentuk bersama",
+        "fresh": "bentuk baru setiap kali"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "Potongan hidup",
+      "created": "Dibuat",
+      "disposed": "Dilepas",
+      "gpuMemory": "Memori GPU"
+    },
+    "words": {
+      "notMeasured": "tidak diukur"
+    }
+  },
+  "curved-surfaces": {
+    "controls": {
+      "mouse": "Seret untuk berjalan di galeri; kecilkan kisi untuk melihat segitiga pembentuk setiap lengkung",
+      "grid": "Kisi",
+      "facets": "Sisi-sisi",
+      "turntable": "Meja putar"
+    },
+    "readouts": {
+      "triangles": "Segitiga",
+      "facingYou": "Menghadapmu"
+    },
+    "words": {
+      "Klein bottle": "botol Klein",
+      "Möbius strip": "pita Möbius",
+      "Seashell": "kerang",
+      "Dini's twist": "pilinan Dini",
+      "Enneper saddle": "pelana Enneper"
+    }
+  },
+  "dashed-lines": {
+    "controls": {
+      "mouse": "Seret untuk mengitari matahari; ubah garis dan celah, setiap orbit ikut berubah",
+      "lines": "Garis",
+      "dash": "Garis putus",
+      "gap": "Celah",
+      "spin": "Putar"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "putus-putus",
+        "solid": "utuh"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "Garis pada orbit planet biru"
+    }
+  },
+  "detail-by-pixel-error": {
+    "controls": {
+      "mouse": "Seret untuk berjalan di jalan raya; dekati satu guci, lalu menjauh jauh sekali",
+      "pixelError": "Galat piksel",
+      "view": "Tampilan"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "lod": "tingkat detail",
+        "screen-error": "galat layar",
+        "triangles": "segitiga"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Segitiga digambar",
+      "shareAvenue": "Bagian jalan raya",
+      "trianglesAvenue": "Segitiga di jalan raya"
+    },
+    "words": {
+      "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md",
+      "notCounted": "tidak dihitung di sini"
+    }
+  },
+  "edges-and-wireframe": {
+    "controls": {
+      "mouse": "Seret untuk melihat sekeliling; naikkan ambang untuk menyisakan lipatan tajam saja",
+      "view": "Tampilan",
+      "threshold": "Ambang",
+      "lines": "Garis",
+      "spin": "Putar"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "permukaan dan tepi",
+        "edges": "tepi",
+        "wireframe": "rangka kawat",
+        "surface and wireframe": "permukaan dan rangka kawat",
+        "surface": "permukaan"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "Ruas tepi",
+      "wireframeSegments": "Ruas rangka kawat"
+    }
+  },
+  "every-image-format": {
+    "controls": {
+      "mouse": "Seret untuk berjalan di sepanjang kuda-kuda; turunkan kualitas dan lihat JPEG dan WebP dari dekat",
+      "quality": "Kualitas",
+      "lookAt": "Lihat"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "kedelapannya",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "Piksel mentah"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "Piksel mentah"
+    },
+    "words": {
+      "samePicture": "512 × 512 · gambar yang sama",
+      "lossless": "tanpa kehilangan",
+      "lossy": "dengan kehilangan",
+      "colours256": "256 warna",
+      "uncompressed": "tak dikompresi",
+      "shapes": "bentuk, digambar saat dimuat",
+      "painted": "dilukis di halaman",
+      "bytes": "byte di memori",
+      "inMemory": "{size} di memori · {note}",
+      "sentAs": "dikirim sebagai {type}"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari jam matahari; geser jam dan setiap bayangan berputar bersama matahari",
+      "hour": "Jam",
+      "darkness": "Kegelapan",
+      "timeLapse": "Selang waktu",
+      "motion": "Gerakan"
+    },
+    "readouts": {
+      "shadowLength": "Panjang bayangan"
+    },
+    "words": {
+      "timesHeight": "{times} × tinggi"
+    }
+  },
+  "fly-over-a-model-town": {
+    "choices": {
+      "view": {
+        "cockpit": "Kokpit",
+        "exterior": "Luar"
+      },
+      "mode": {
+        "arcade": "Arkade — jet terbang ke arah bidikanmu; tidak ada stall, ia menegakkan diri sendiri",
+        "expert": "Ahli — mouse adalah tongkat kemudi; bisa stall dan berputar jatuh"
+      },
+      "sensitivity": {
+        "Low": "Rendah",
+        "Medium": "Sedang",
+        "High": "Tinggi"
+      },
+      "invert": {
+        "off": "Mati",
+        "on": "Nyala"
+      },
+      "sound": {
+        "on": "Nyala",
+        "off": "Mati"
+      }
+    },
+    "game": {
+      "title": "Jet tempur",
+      "goal": "Lepas landas, lalu terbang menembus ngarai melewati sepuluh cincin emas secepat mungkin. Bidik dengan mouse: jet mengikuti.",
+      "keys": {
+        "aim": "Bidik (Arkade) atau tongkat (Ahli)",
+        "fineAim": "Bidik halus (tahan)",
+        "throttle": "Gas naik, turun",
+        "afterburner": "Afterburner (tahan)",
+        "roll": "Guling (mengalahkan bidikan di Arkade)",
+        "rudder": "Kemudi arah",
+        "airBrake": "Rem udara (tahan)",
+        "lookAround": "Lihat sekeliling (tahan)",
+        "view": "Tampilan kokpit atau luar",
+        "zoom": "Zoom tampilan luar",
+        "startOver": "Mulai dari awal",
+        "pause": "Jeda"
+      },
+      "options": {
+        "view": "Tampilan",
+        "mode": "Mode",
+        "sensitivity": "Kepekaan mouse",
+        "invert": "Balik Y",
+        "sound": "Suara"
+      }
+    },
+    "words": {
+      "testMode": "MODE UJI — mouse tidak terkunci",
+      "rings": "CINCIN {passed}/{all}",
+      "complete": "RUTE SELESAI",
+      "flyAgain": "{time} — R untuk terbang lagi",
+      "stall": "STALL",
+      "pullUp": "NAIK",
+      "turnBack": "BALIK ARAH",
+      "crashed": "JATUH",
+      "backToRunway": "Kembali ke landasan…",
+      "backToRing": "Kembali ke cincin terakhir…",
+      "throttleUp": "W — naikkan gas (Z di AZERTY)",
+      "rolling": "Meluncur — {knots} knot",
+      "liftOff": "Mouse ke atas — lepas landas"
+    }
+  },
+  "four-ways-to-blend": {
+    "controls": {
+      "mouse": "Dari kiri ke kanan: normal, tambah, kurang, kali; seret untuk melihatnya dari samping",
+      "inks": "Tinta",
+      "opacity": "Opasitas",
+      "circle": "Mengitari"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "merah, hijau, biru",
+        "cyan, magenta, yellow": "sian, magenta, kuning",
+        "warm and cool": "hangat dan dingin"
+      }
+    }
+  },
+  "frame-the-model": {
+    "controls": {
+      "mouse": "Klik dua kali sebuah benda untuk membingkainya; seret untuk memutar, roda untuk zoom",
+      "model": "Benda",
+      "margin": "Margin",
+      "drift": "Hanyut"
+    },
+    "choices": {
+      "model": {
+        "everything": "semuanya",
+        "the gold ring": "cincin emas",
+        "the vase": "vas",
+        "the king": "raja",
+        "the arch": "lengkungan",
+        "the obelisk": "obelisk"
+      }
+    },
+    "readouts": {
+      "framing": "Dibingkai",
+      "radius": "Jari-jari",
+      "distance": "Jarak"
+    },
+    "words": {
+      "the gold ring": "cincin emas",
+      "the vase": "vas",
+      "the king": "raja",
+      "the arch": "lengkungan",
+      "the obelisk": "obelisk"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "controls": {
+      "mouse": "Gulir untuk zoom dari sebutir pasir sampai seluruh planet; seret untuk memutar",
+      "toTheGrain": "Ke butir pasir",
+      "toTheBeach": "Ke pantai",
+      "toTheIsland": "Ke pulau",
+      "toThePlanet": "Ke planet"
+    },
+    "readouts": {
+      "viewWidth": "Lebar pandangan",
+      "youSee": "Kamu melihat"
+    },
+    "words": {
+      "grains of sand": "butiran pasir",
+      "sand and shells": "pasir dan kerang",
+      "pebbles": "kerikil",
+      "the beach": "pantai",
+      "the coast": "pesisir",
+      "the island": "pulau",
+      "the planet": "planet"
+    }
+  },
+  "from-clay-to-chrome": {
+    "controls": {
+      "colour": "Warna",
+      "lamps": "Lampu",
+      "swing": "Ayunan"
+    }
+  },
+  "from-noon-to-dusk": {
+    "controls": {
+      "speed": "Kecepatan",
+      "hour": "Jam",
+      "adaptEyes": "Mata menyesuaikan"
+    }
+  },
+  "glass-on-the-table": {
+    "controls": {
+      "refraction": "Pembiasan",
+      "thickness": "Ketebalan",
+      "tint": "Rona",
+      "spin": "Putar"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari set; matikan pembantu untuk melihat bidikan apa adanya",
+      "helpers": "Pembantu",
+      "dolly": "Dolly",
+      "bulb": "Bohlam"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "semuanya",
+        "lights and camera": "lampu dan kamera",
+        "shapes and bounds": "bentuk dan batas",
+        "nothing": "tidak ada"
+      }
+    },
+    "readouts": {
+      "helpersShown": "Pembantu ditampilkan"
+    }
+  },
+  "inside-a-panorama": {
+    "controls": {
+      "mouse": "Seret untuk memutar · roda untuk mendekat",
+      "sky": "Langit",
+      "fieldOfView": "Bidang pandang"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "fajar",
+        "noon": "siang",
+        "dusk": "senja"
+      }
+    },
+    "words": {
+      "credit": "Panorama dilukis oleh halaman ini, dengan kode, saat dibuka: tidak ada yang diunduh."
+    }
+  },
+  "inside-the-g-buffer": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari lapangan · pilih buffer untuk melihat ke dalam bingkai",
+      "buffer": "Buffer",
+      "turning": "Berputar"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "hasil akhir",
+        "albedo": "warna dasar",
+        "normals": "normal",
+        "depth": "kedalaman",
+        "triangle ids": "nomor segitiga",
+        "material ids": "nomor material"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "Setiap piksel menyimpan"
+    },
+    "words": {
+      "beauty": "gambar yang diterangi",
+      "albedo": "warna dasar, sebelum ada cahaya",
+      "normals": "arah hadap permukaan, dilihat dari kamera",
+      "depth": "jarak: terang dekat, gelap jauh",
+      "triangle ids": "segitiga mana yang menutupi piksel",
+      "material ids": "material mana yang mewarnai piksel",
+      "notOffered": "tidak disediakan perender ini"
+    }
+  },
+  "instances-in-colour": {
+    "controls": {
+      "mouse": "Seret untuk memiringkan galaksi; gulir untuk menyelam ke dalamnya",
+      "count": "Jumlah",
+      "arms": "Lengan",
+      "twist": "Pilin",
+      "core": "Inti",
+      "rim": "Tepi",
+      "spin": "Putar"
+    },
+    "readouts": {
+      "placementsDrawn": "Salinan digambar",
+      "materials": "Material"
+    }
+  },
+  "keyframes-by-hand": {
+    "controls": {
+      "mouse": "Seret untuk mengitari meja; tampilkan kunci satu lompatan sebagai salinan pucat lampu",
+      "timing": "Waktu",
+      "onionSkin": "Kulit bawang",
+      "speed": "Kecepatan"
+    },
+    "choices": {
+      "timing": {
+        "eased": "halus",
+        "linear": "linear"
+      }
+    },
+    "readouts": {
+      "lastKey": "Kunci terakhir"
+    },
+    "words": {
+      "rest": "istirahat",
+      "crouch": "jongkok",
+      "launch": "tolakan",
+      "apex": "puncak",
+      "land": "mendarat",
+      "absorb": "meredam",
+      "look up": "lihat ke atas",
+      "turn": "berbalik",
+      "waking up": "bangun"
+    }
+  },
+  "labels-that-follow": {
+    "controls": {
+      "mouse": "Seret untuk mengitari Matahari, roda untuk mendekat; label ikut menumpang di planet",
+      "show": "Tampilkan",
+      "speed": "Kecepatan",
+      "lineThemUp": "Jajarkan"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "jarak ke Matahari",
+        "year": "tahun",
+        "moons": "bulan",
+        "names only": "nama saja"
+      }
+    },
+    "words": {
+      "Sun": "Matahari",
+      "Mercury": "Merkurius",
+      "Venus": "Venus",
+      "Earth": "Bumi",
+      "Moon": "Bulan",
+      "Mars": "Mars",
+      "Jupiter": "Jupiter",
+      "Saturn": "Saturnus",
+      "Uranus": "Uranus",
+      "Neptune": "Neptunus",
+      "fromEarth": "384 400 km dari Bumi",
+      "ourStar": "bintang kita",
+      "au": "{au} SA",
+      "month": "sebulan 27 hari",
+      "year": "setahun {days} hari",
+      "planets": "8 planet",
+      "earthsMoon": "bulannya Bumi",
+      "oneMoon": "1 bulan",
+      "moons": "{moons} bulan"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "controls": {
+      "branches": "Cabang",
+      "leaves": "Daun",
+      "cutoff": "Ambang potong",
+      "sun": "Matahari"
+    }
+  },
+  "letters-carved-in-relief": {
+    "controls": {
+      "rake": "Kemiringan",
+      "warm": "Hangat",
+      "cool": "Dingin",
+      "letters": "Huruf"
+    }
+  },
+  "light-from-a-probe": {
+    "controls": {
+      "mouse": "Seret untuk berjalan di taman; pilih tempat dan patung-patung memakai cahayanya",
+      "place": "Tempat",
+      "turn": "Putar",
+      "strength": "Kekuatan",
+      "keyLight": "Lampu utama",
+      "spin": "Putar"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "gurun saat senja",
+        "forest clearing": "lahan terbuka di hutan",
+        "neon alley": "gang neon",
+        "snowfield": "padang salju"
+      }
+    },
+    "readouts": {
+      "meanLight": "Cahaya rata-rata"
+    }
+  },
+  "light-in-real-units": {
+    "controls": {
+      "mouse": "Seret untuk berjalan di alun-alun; pilih momen dan lihat kamera menyesuaikan, dari 100.000 lux sampai malam bulan purnama",
+      "moment": "Momen",
+      "lampLumens": "Lumen lampu",
+      "autoExposure": "Eksposur otomatis",
+      "exposureValue": "Nilai eksposur",
+      "turning": "Berputar"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "siang cerah",
+        "overcast": "mendung",
+        "golden hour": "jam emas",
+        "sunset": "matahari terbenam",
+        "blue hour": "jam biru",
+        "moonlit night": "malam berbulan"
+      }
+    },
+    "readouts": {
+      "sun": "Matahari",
+      "sky": "Langit",
+      "eachLamp": "Tiap lampu",
+      "exposureValue": "Nilai eksposur"
+    },
+    "words": {
+      "off": "mati"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "controls": {
+      "lamp": "Lampu",
+      "power": "Daya",
+      "colour": "Warna"
+    }
+  },
+  "lines-in-colour": {
+    "controls": {
+      "mouse": "Seret untuk mengitari gambar; pilih aturan lain dan pena menggambarnya dari awal",
+      "figure": "Gambar",
+      "palette": "Palet",
+      "pace": "Laju",
+      "redraw": "Gambar ulang",
+      "spin": "Putar"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "kupu-kupu Lorenz",
+        "Aizawa shell": "cangkang Aizawa",
+        "Thomas knot": "simpul Thomas",
+        "Halvorsen propeller": "baling-baling Halvorsen"
+      },
+      "palette": {
+        "aurora": "aurora",
+        "sunset": "matahari terbenam",
+        "embers": "bara",
+        "ice": "es"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "Potongan berwarna"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "controls": {
+      "lampTurn": "Arah lampu",
+      "lampHeight": "Tinggi lampu",
+      "colour": "Warna",
+      "exposure": "Eksposur",
+      "circle": "Mengitari"
+    },
+    "words": {
+      "credit": "Marble Bust 01 oleh Rico Cilliers, Poly Haven, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "memory-on-a-budget": {
+    "controls": {
+      "memory": "Memori",
+      "view": "Tampilan"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "lod": "tingkat detail",
+        "clusters": "klaster"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01 oleh Rico Cilliers, Poly Haven, CC0; peti oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "controls": {
+      "help": "Seret sebuah pegangan. Seret di sampingnya untuk memutar kamera.",
+      "mode": "Mode",
+      "axes": "Sumbu",
+      "snap": "Tempel"
+    },
+    "choices": {
+      "mode": {
+        "translate": "geser",
+        "rotate": "putar",
+        "scale": "skala"
+      },
+      "axes": {
+        "world": "dunia",
+        "local": "lokal"
+      }
+    },
+    "readouts": {
+      "position": "Posisi",
+      "drags": "Seretan"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "controls": {
+      "mouse": "Seret untuk melihat galeri · grafiknya adalah waktu antar bingkai",
+      "turning": "Berputar",
+      "revealAgain": "Tampilkan lagi"
+    },
+    "readouts": {
+      "worstFrameBefore": "Bingkai terburuk sebelum",
+      "worstFrameAfter": "Bingkai terburuk sesudah"
+    },
+    "words": {
+      "note": "Empat belas permukaan, masing-masing dengan material atau pengaturan berbeda, semua tampil di bingkai yang sama. Grafik menggambar waktu antar bingkai; garis emas adalah saat mereka muncul.",
+      "measuring": "mengukur",
+      "hidden": "tersembunyi"
+    }
+  },
+  "normals-and-depth-seen": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari lapangan; ganti tampilan untuk melihat permukaan seperti disimpan perender",
+      "see": "Lihat",
+      "spin": "Putar"
+    },
+    "choices": {
+      "see": {
+        "lit": "diterangi",
+        "normals": "normal",
+        "depth": "kedalaman"
+      }
+    },
+    "readouts": {
+      "colourMeans": "Arti warna"
+    },
+    "words": {
+      "lit": "cahaya dan material",
+      "normals": "arah: kanan merah, atas hijau, ke arahmu biru",
+      "depth": "jarak: dekat putih, jauh gelap"
+    }
+  },
+  "observatory-streamed": {
+    "controls": {
+      "view": "Tampilan",
+      "pixelError": "Galat piksel"
+    },
+    "choices": {
+      "view": {
+        "clusters": "klaster",
+        "beauty": "hasil akhir",
+        "pages": "halaman",
+        "lod": "tingkat detail",
+        "triangles": "segitiga"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "controls": {
+      "mouse": "Seret untuk mengitari arena; pilih bagaimana satu klip dibagi ke para penonton",
+      "pattern": "Pola",
+      "speed": "Kecepatan"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "gelombang stadion",
+        "ripple outwards": "riak keluar",
+        "all at once": "semua sekaligus"
+      }
+    },
+    "readouts": {
+      "clips": "Klip",
+      "fansPlayingIt": "Penonton yang memainkannya"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "controls": {
+      "mouse": "Penampil produk: seret untuk memutar · seret dengan tombol kanan untuk menggeser · gulir untuk zoom ke gigi roda",
+      "view": "Tampilan",
+      "speed": "Kecepatan",
+      "brass": "Kuningan"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "tiga perempat",
+        "front": "depan",
+        "side": "samping",
+        "top": "atas"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "controls": {
+      "checks": "Kotak-kotak",
+      "paint": "Cat",
+      "second": "Kedua",
+      "spin": "Putar"
+    }
+  },
+  "reading-pixels-back": {
+    "controls": {
+      "mouse": "Seret untuk melihat sekeliling · gambar kanan bawah adalah pemandangan yang dibaca ulang sebagai angka",
+      "sunHeight": "Tinggi matahari",
+      "live": "Langsung",
+      "turning": "Berputar",
+      "savePng": "Simpan PNG"
+    },
+    "readouts": {
+      "meanColour": "Warna rata-rata",
+      "brightest": "Paling terang",
+      "readBack": "Dibaca ulang dalam"
+    },
+    "words": {
+      "hover": "Arahkan mouse ke gambar untuk membaca satu piksel",
+      "pixel": "piksel {x}, {y}: {colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "controls": {
+      "mouse": "Saat naik wahana, seret untuk menoleh. Matikan wahana untuk mengitari taman",
+      "ride": "Naik",
+      "loops": "Putaran"
+    },
+    "readouts": {
+      "speed": "Kecepatan",
+      "gForce": "Gaya G"
+    }
+  },
+  "save-the-scene": {
+    "controls": {
+      "help": "Robohkan menara, lalu buka lagi adegan yang tersimpan.",
+      "knockDown": "Robohkan",
+      "save": "Simpan",
+      "open": "Buka"
+    },
+    "readouts": {
+      "saved": "Tersimpan"
+    },
+    "words": {
+      "bytes": "{bytes} byte"
+    }
+  },
+  "scattered-on-a-surface": {
+    "controls": {
+      "mouse": "Seret untuk mengitari planet; naikkan lereng tercuram dan hutan memanjat gunung",
+      "trees": "Pohon",
+      "rocks": "Batu",
+      "steepest": "Tercuram",
+      "seaLevel": "Permukaan laut",
+      "spin": "Putar"
+    },
+    "readouts": {
+      "treesPlanted": "Pohon ditanam",
+      "spotsRefused": "Tempat ditolak"
+    }
+  },
+  "see-the-triangles": {
+    "controls": {
+      "mouse": "Gulir menjauh dan mendekat: dari jauh patung dada butuh lebih sedikit segitiga yang lebih besar",
+      "view": "Tampilan",
+      "pixelError": "Galat piksel",
+      "sideBySide": "Berdampingan"
+    },
+    "choices": {
+      "view": {
+        "triangles": "segitiga",
+        "clusters": "klaster",
+        "lod": "tingkat detail",
+        "pages": "halaman",
+        "beauty": "hasil akhir"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Segitiga digambar",
+      "pagesMemory": "Halaman di memori"
+    },
+    "words": {
+      "credit": "Marble Bust 01 oleh Rico Cilliers, Poly Haven, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "select-with-a-box": {
+    "controls": {
+      "help": "Pilih: seret sebuah kotak; Shift menambah, Alt membuang. Putar: seret untuk terbang di atas taman",
+      "mouse": "Mouse",
+      "selectAll": "Pilih semua",
+      "clear": "Kosongkan"
+    },
+    "choices": {
+      "mouse": {
+        "select": "pilih",
+        "turn": "berbalik"
+      }
+    },
+    "readouts": {
+      "selected": "Terpilih"
+    }
+  },
+  "several-views-one-page": {
+    "controls": {
+      "mouse": "Seret tampilan besar untuk memutarnya; roda dan seret di yang kecil untuk zoom dan geser, klik dua kali untuk mengatur ulang",
+      "explode": "Urai",
+      "windFrom": "Angin dari",
+      "windSpeed": "Kecepatan angin"
+    },
+    "readouts": {
+      "sailTurnsMinute": "Putaran baling-baling per menit"
+    },
+    "words": {
+      "perspective": "Perspektif",
+      "top": "Atas",
+      "front": "Depan",
+      "side": "Samping, dari timur"
+    }
+  },
+  "shadows-from-the-sun": {
+    "controls": {
+      "mouse": "Seret untuk berjalan di taman; geser jam dan setiap bayangan berputar, ujung obelisk berjalan di atas batu-batu jamnya",
+      "hour": "Jam",
+      "day": "Hari",
+      "latitude": "Lintang",
+      "sails": "Layar"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "titik balik musim panas",
+        "spring equinox": "ekuinoks musim semi",
+        "winter solstice": "titik balik musim dingin"
+      }
+    },
+    "readouts": {
+      "sunHeight": "Tinggi matahari",
+      "sunBearing": "Arah matahari",
+      "obeliskShadow": "Bayangan obelisk"
+    },
+    "words": {
+      "S": "S",
+      "SW": "BD",
+      "W": "B",
+      "NW": "BL",
+      "N": "U",
+      "NE": "TL",
+      "E": "T",
+      "SE": "TG",
+      "belowHorizon": "di bawah cakrawala",
+      "bearing": "{point} ({degrees}° dari utara)"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "controls": {
+      "mouse": "Seret untuk melihat sekeliling; kedalaman nol menyisakan bentuk potongan yang datar",
+      "depth": "Kedalaman",
+      "bevel": "Bevel",
+      "bevelSize": "Ukuran bevel",
+      "bevelSegments": "Ruas bevel",
+      "curveSegments": "Ruas lengkung",
+      "spin": "Putar"
+    },
+    "readouts": {
+      "triangles": "Segitiga"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "controls": {
+      "colour": "Warna",
+      "speed": "Kecepatan",
+      "spin": "Putar"
+    }
+  },
+  "side-by-side-stereo": {
+    "controls": {
+      "mouse": "Seret di gambar kiri untuk memutar; juling-kan matamu sampai dua titik jadi satu",
+      "viewing": "Cara melihat",
+      "separation": "Jarak pisah",
+      "speed": "Kecepatan"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "juling",
+        "parallel": "sejajar"
+      }
+    },
+    "words": {
+      "leftEye": "mata kiri",
+      "rightEye": "mata kanan"
+    }
+  },
+  "sky-and-ground-light": {
+    "controls": {
+      "mouse": "Seret untuk melihat dari bawah dan atas; tiap tempat mewarnai bagian atas dengan langitnya dan bagian bawah dengan tanahnya",
+      "place": "Tempat",
+      "skyStrength": "Kekuatan langit",
+      "sun": "Matahari",
+      "float": "Melayang"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "padang rumput siang hari",
+        "snowfield": "padang salju",
+        "red desert": "gurun merah",
+        "sunset beach": "pantai saat senja",
+        "tropical lagoon": "laguna tropis",
+        "overcast city": "kota mendung"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "Langit dari atas",
+      "groundFromBelow": "Tanah dari bawah"
+    }
+  },
+  "smooth-edges-over-time": {
+    "controls": {
+      "mouse": "Seret untuk melihat kabel; matikan penghalusan dan lihat kabel pecah jadi tangga",
+      "smoothing": "Penghalusan",
+      "circle": "Mengitari"
+    },
+    "readouts": {
+      "temporalAntialiasing": "Antialiasing temporal"
+    },
+    "words": {
+      "on": "nyala",
+      "off": "mati"
+    }
+  },
+  "snow-of-sprites": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari pondok; ubah jadi badai salju dan kepingnya menebal serta terbang menyamping",
+      "weather": "Cuaca",
+      "wind": "Angin"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "salju tetap",
+        "light flurry": "salju ringan",
+        "blizzard": "badai salju"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "Keping salju turun"
+    }
+  },
+  "sound-made-visible": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari panggung; batang adalah nada, mutiara adalah gelombangnya sendiri",
+      "layout": "Susunan",
+      "height": "Tinggi",
+      "playMelody": "Mainkan melodi",
+      "useMicrophone": "Pakai mikrofon",
+      "silence": "Hening"
+    },
+    "choices": {
+      "layout": {
+        "ring": "cincin",
+        "wall": "dinding",
+        "spiral": "spiral"
+      }
+    },
+    "words": {
+      "hint": "Klik panggung untuk mendengar melodi",
+      "listening": "Mendengarkan mikrofon: bernyanyilah, bersiul, bertepuk tangan",
+      "refused": "Mikrofon ditolak: melodi diputar sebagai gantinya",
+      "silence": "Hening. Klik panggung untuk mendengar melodi lagi"
+    }
+  },
+  "spin-an-astrolabe": {
+    "controls": {
+      "mouse": "Seret untuk memutarnya ke mana saja, bahkan terbalik · roda untuk zoom",
+      "turning": "Berputar",
+      "sun": "Matahari"
+    }
+  },
+  "street-lamp-at-night": {
+    "controls": {
+      "night": "Malam",
+      "bounce": "Pantulan",
+      "sun": "Matahari",
+      "lamp": "Lampu"
+    },
+    "words": {
+      "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "ten-thousand-objects": {
+    "controls": {
+      "mouse": "Seret untuk mengitari planet; gulir masuk ke cincin sampai satu batu memenuhi pandangan",
+      "view": "Tampilan",
+      "pixelError": "Galat piksel",
+      "drift": "Hanyut"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "clusters": "klaster",
+        "lod": "tingkat detail"
+      }
+    },
+    "readouts": {
+      "objectsScene": "Benda di adegan",
+      "trianglesFile": "Segitiga di berkas",
+      "trianglesDrawn": "Segitiga digambar"
+    },
+    "words": {
+      "credit": "Planet dan bulan-bulan kecil dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md",
+      "million": "{count} juta",
+      "notCounted": "tidak dihitung di sini"
+    }
+  },
+  "texture-filters-compared": {
+    "controls": {
+      "mouse": "Seret untuk melihat sepanjang lajur; dari kiri ke kanan: terdekat, linear, trilinear, anisotropik",
+      "picture": "Gambar",
+      "anisotropy": "Anisotropi"
+    },
+    "choices": {
+      "picture": {
+        "checker": "papan catur",
+        "lettering": "tulisan"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "Anisotropi lajur keempat"
+    }
+  },
+  "the-material-family": {
+    "controls": {
+      "mouse": "Seret untuk berjalan mengitari keluarga; ubah cahaya jadi malam dan lihat jenis mana yang masih bersinar",
+      "light": "Cahaya",
+      "shape": "Bentuk",
+      "lookAt": "Lihat",
+      "spin": "Putar"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "seluruh keluarga",
+        "all": "seluruh keluarga",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "jam emas",
+        "midday": "siang",
+        "night": "malam"
+      },
+      "shape": {
+        "knot": "simpul",
+        "sphere": "bola",
+        "vase": "vas",
+        "ring": "cincin"
+      }
+    },
+    "readouts": {
+      "looking": "Melihat",
+      "litByLamps": "Diterangi lampu"
+    },
+    "words": {
+      "meshBasic": "satu warna datar, buta terhadap semua lampu",
+      "meshLambert": "doff seperti kapur: cahaya menyebar, tanpa kilap",
+      "meshPhong": "plastik: titik terang di tempat matahari memantul",
+      "meshStandard": "kelogaman dan kekasaran, pilihan yang biasa",
+      "meshPhysical": "standar plus kaca: cahaya menembus",
+      "meshToon": "kartun: cahaya dalam dua pita datar",
+      "meshNormal": "arah hadap setiap titik, sebagai warna",
+      "meshMatcap": "diterangi gambar bola yang diterangi, bukan lampu",
+      "allKinds": "kedelapan jenis",
+      "yes": "ya",
+      "no": "tidak",
+      "fiveOfEight": "lima dari delapan"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "controls": {
+      "mouse": "Seret untuk melihat sepanjang dinding; kameramu hanya diminta saat kamu menekan tombol",
+      "useMyCamera": "Pakai kameraku",
+      "layout": "Susunan",
+      "mirror": "Cermin"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "dinding video",
+        "one per screen": "satu per layar"
+      }
+    },
+    "readouts": {
+      "source": "Sumber"
+    },
+    "words": {
+      "noCamera": "tidak ada kamera",
+      "yourCamera": "kameramu",
+      "refused": "kamera ditolak ({error})",
+      "paintedSignal": "sinyal lukisan"
+    }
+  },
+  "toon-shading": {
+    "controls": {
+      "mouse": "Seret untuk mengitari pulau; ganti pewarnaan dan lihat cahaya jatuh berupa pita",
+      "shading": "Pewarnaan",
+      "outlines": "Garis tepi",
+      "sun": "Matahari",
+      "wind": "Angin"
+    },
+    "choices": {
+      "shading": {
+        "toon": "kartun",
+        "matte": "doff",
+        "physical": "fisik"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "controls": {
+      "mouse": "Seret untuk melihat sekeliling; nyalakan penunjuk dan kemudikan drone, setiap antena parabola mengikuti",
+      "turn": "Putar",
+      "turnSpeed": "Kecepatan putar",
+      "followPointer": "Ikuti penunjuk"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "perlahan",
+        "at once": "seketika",
+        "on a spring": "dengan pegas"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "Antena terkunci"
+    }
+  },
+  "two-lenses-one-scene": {
+    "controls": {
+      "mouse": "Seret untuk mengitari kota; ganti lensa dan lihat jalanan menjadi lurus",
+      "lens": "Lensa",
+      "fieldOfView": "Bidang pandang",
+      "isometric": "Isometrik",
+      "drift": "Hanyut"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "perspektif",
+        "orthographic": "ortografis"
+      }
+    },
+    "readouts": {
+      "lens": "Lensa"
+    },
+    "words": {
+      "orthographic": "ortografis, tinggi {height} m",
+      "perspective": "perspektif {degrees}°"
+    }
+  },
+  "uvs-of-every-shape": {
+    "controls": {
+      "mouse": "Seret untuk melihat sekeliling; satu huruf dan satu angka menamai setiap kotak gambar",
+      "pattern": "Pola",
+      "repeat": "Ulang",
+      "slide": "Geser",
+      "spin": "Putar"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "gambar uji",
+        "checks": "kotak-kotak",
+        "arrows": "panah"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "controls": {
+      "keys": "Kendali karakter mesin: Main di menu mengunci mouse untuk melihat, W A S D untuk berlari (Z Q S D di AZERTY), Shift untuk berlari kencang, Spasi untuk melompat, Esc melepas mouse. Halaman menambahkan R untuk berlari lagi, M untuk membisukan.",
+      "look": "Pandang",
+      "runAgain": "Lari lagi"
+    },
+    "game": {
+      "title": "Parkour kuil",
+      "goal": "Capai berhala emas sambil mengambil lima bola di jalan. Lava mengirimmu kembali ke pos pemeriksaan terakhir yang menyala.",
+      "keys": {
+        "run": "Lari",
+        "look": "Pandang",
+        "sprint": "Lari kencang",
+        "jump": "Lompat",
+        "runAgain": "Lari lagi",
+        "sound": "Suara nyala atau mati",
+        "pause": "Jeda"
+      }
+    },
+    "words": {
+      "checkpoint": "Pos pemeriksaan",
+      "finished": "{taken} / {orbs} bola · R untuk lari lagi",
+      "muted": "M bisu",
+      "sound": "M suara"
+    }
+  },
+  "waves-of-points": {
+    "controls": {
+      "mouse": "Seret untuk mengitari lapangan; pilih pola dan ombak berubah bentuk di bawah pelampung",
+      "pattern": "Pola",
+      "height": "Tinggi",
+      "speed": "Kecepatan"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "alun samudra",
+        "rain of stones": "hujan batu",
+        "interference": "interferensi",
+        "standing wave": "gelombang berdiri",
+        "whirlpool": "pusaran air"
+      }
+    },
+    "readouts": {
+      "points": "Titik"
+    }
+  },
+  "what-hides-what": {
+    "controls": {
+      "mouse": "Seret untuk melihat sekeliling; pagar tanaman menyembunyikan simpul emas di ujung jalan buntu",
+      "hedgeHeight": "Tinggi pagar",
+      "view": "Tampilan",
+      "aboveOrInside": "Di atas atau di dalam"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "visibility": "visibilitas"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "Simpul emas",
+      "clustersTested": "Klaster diuji",
+      "clustersHidden": "Klaster tersembunyi",
+      "trianglesHidden": "Segitiga tersembunyi"
+    },
+    "words": {
+      "notCounted": "tidak dihitung di sini"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "controls": {
+      "fieldOfView": "Bidang pandang",
+      "dollyZoom": "Zoom dolly"
+    }
+  }
+}

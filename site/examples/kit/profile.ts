@@ -64,12 +64,12 @@ export function profileWindow(
 
 const ms = ({ p50, p95 }: Spread) => `${p50.toFixed(2)} / ${p95.toFixed(2)} ms`;
 
-/** The corner's lines for a window, p50 / p95 each: nothing for what was not measured. */
+/** The corner's lines for a window, key then p50 / p95: nothing for what was not measured. */
 export function profileLines(latest: ProfileWindow): [string, string][] {
   const lines: [string, string][] = [];
-  if (latest.frameMs) lines.push(['CPU frame', ms(latest.frameMs)]);
-  if (latest.hooksMs) lines.push(['page hooks', ms(latest.hooksMs)]);
-  if (latest.engineMs) lines.push(['engine CPU', ms(latest.engineMs)]);
+  if (latest.frameMs) lines.push(['cpuFrame', ms(latest.frameMs)]);
+  if (latest.hooksMs) lines.push(['pageHooks', ms(latest.hooksMs)]);
+  if (latest.engineMs) lines.push(['engineCpu', ms(latest.engineMs)]);
   for (const step of latest.steps) lines.push([step.name.replace(/Ms$/, ''), ms(step)]);
   return lines;
 }

@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       // A short opening (the Scotch game), move by move, squares written from and to. Castling moves
       // the king, then the rook: `+` joins the two.
@@ -141,7 +142,7 @@
       let following = false;
       world.canvas.addEventListener('pointerdown', () => (following = false));
       addEventListener('keydown', (event) => event.key.startsWith('Arrow') && (following = false));
-      const moveShown = readout('Move');
+      const moveShown = readout('move');
       const aim = math.vector3();
       world.onFrame(({ delta }) => {
         if (!ui.play) return;
@@ -160,7 +161,7 @@
           else {
             const move = steps[step++];
             hop = { t: 0, from: move.slice(0, 2), to: move.slice(2, 4), item: board.get(move.slice(0, 2)) };
-            moveShown(`${Math.ceil(step / 2)}. ${hop.from} → ${hop.to}${board.has(hop.to) ? ' takes' : ''}`);
+            moveShown(`${Math.ceil(step / 2)}. ${hop.from} → ${hop.to}${board.has(hop.to) ? ' ' + say('takes') : ''}`);
           }
         }
         if (hop.item) {
