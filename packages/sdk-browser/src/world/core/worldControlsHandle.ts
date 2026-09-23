@@ -1,29 +1,7 @@
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { worldControls, type WorldControls } from './worldCamera.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-
-/** A controller as the world drives it: a pivot one carries a `target`, a steered one integrates
- *  over a delta in `update`. */
-type Controller = NonNullable<ReturnType<typeof worldControls>> & {
-  target?: Vector3;
-  update?: (delta?: number) => boolean;
-};
-
-/** The limits and speeds the handle keeps for its controller, at the controllers' own defaults. */
-const DEFAULTS = {
-  minDistance: 0,
-  maxDistance: Infinity,
-  minPolarAngle: 0,
-  maxPolarAngle: Math.PI,
-  minAzimuthAngle: -Infinity,
-  maxAzimuthAngle: Infinity,
-  movementSpeed: 1,
-  lookSpeed: 0.002,
-  rollSpeed: 0.4,
-  rotateSpeed: 1,
-  zoomSpeed: 1,
-};
-type Setting = keyof typeof DEFAULTS;
+import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts';
 
 /**
  * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
@@ -33,9 +11,11 @@ type Setting = keyof typeof DEFAULTS;
  * handed to the live controller when it has that setting, and handed again to every controller
  * `kind` makes later. A controller without that setting ignores it — the distances bound the
  * pivot controllers (orbit, trackball, pan-zoom), the angles the orbit alone; `movementSpeed`
- * drives flight and first person, `lookSpeed` first person, `rollSpeed` flight, `rotateSpeed`
- * and `zoomSpeed` the pivot controllers — so a page may set them before or after it picks its
- * controller.
+ * drives flight and first person, `lookSpeed`, `minPitch` and `maxPitch` first person,
+ * `rollSpeed`, `autoForward` and `pointerLook` flight, `rotateSpeed` and `zoomSpeed` the pivot
+ * controllers — so a page may set them before or after it picks its controller. A cruising
+ * flight moves on every frame, so the handle asks for the first one; a disabled controller, or
+ * any other kind, leaves the scene still.
  */
 export function worldControlsHandle(
   initial: WorldControls,
@@ -47,15 +27,17 @@ export function worldControlsHandle(
     enabled = true,
     current: Controller | null = null;
   const standingTarget = new Vector3(),
-    settings = { ...DEFAULTS };
-  /** Hands the kept settings to the controller in place, where it has them. */
+    settings = { ...CONTROL_SETTINGS };
+  /** Hands the kept settings to the controller in place, where it has them; a controller that
+   *  now cruises is sent its first frame, the ones after follow from its own `change`. */
   const bound = () => {
     const live = current as Record<string, unknown> | null;
     if (!live) return;
-    for (const name of Object.keys(settings) as Setting[])
+    for (const name of Object.keys(settings) as ControlSetting[])
       if (name in live) live[name] = settings[name];
+    if (live.autoForward === true) invalidate();
   };
-  const setting = (name: Setting, value: number) => {
+  const setting = <K extends ControlSetting>(name: K, value: (typeof CONTROL_SETTINGS)[K]) => {
     settings[name] = value;
     bound();
     // A pivot controller re-reads its pose under the new setting, and redraws if it moved.
@@ -150,6 +132,27 @@ export function worldControlsHandle(
     set lookSpeed(value: number) {
       setting('lookSpeed', value);
     },
+    /** First person only: lowest the head looks, in radians (0 is the horizon, negative down). */
+    get minPitch() {
+      return settings.minPitch;
+    },
+    set minPitch(value: number) {
+      setting('minPitch', value);
+    },
+    /** First person only: highest the head looks, in radians above the horizon. */
+    get maxPitch() {
+      return settings.maxPitch;
+    },
+    set maxPitch(value: number) {
+      setting('maxPitch', value);
+    },
+    /** Flight only: whether the pointer turns the view; false and the keys alone steer. */
+    get pointerLook() {
+      return settings.pointerLook;
+    },
+    set pointerLook(on: boolean) {
+      setting('pointerLook', on);
+    },
     /** Flight only: radians per second the keys pitch, yaw and roll. */
     get rollSpeed() {
       return settings.rollSpeed;
@@ -170,6 +173,13 @@ export function worldControlsHandle(
     },
     set zoomSpeed(value: number) {
       setting('zoomSpeed', value);
+    },
+    /** Flight only: flies forward at `movementSpeed` with no key, W faster, S to a halt. */
+    get autoForward() {
+      return settings.autoForward;
+    },
+    set autoForward(on: boolean) {
+      setting('autoForward', on);
     },
     /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose. */
     update(delta = 0) {

@@ -1674,9 +1674,11 @@
   },
   "FirstPersonCameraControls": {
     "summary": "PREMIÈRE PERSONNE, pointeur bloqué : le pointeur tourne la tête, les touches font marcher.",
-    "description": "L’horizon reste droit — lacet autour du haut du monde, tangage bloqué juste avant les pôles, jamais de roulis — et la marche suit le lacet seul, donc lever les yeux ne soulève pas le marcheur du sol. C’EST À L’HÔTE DE DEMANDER LE BLOCAGE. Un navigateur n’accorde le blocage du pointeur que pendant un geste, donc le contrôleur le demande sur `pointerdown` et publie `lock()`, `unlock()` et `locked()` pour un hôte qui préfère choisir son moment ; un blocage dont l’utilisateur s’échappe arrête simplement le regard. Touches, par `KeyboardEvent.code` : W/S avant et arrière, A/D de côté, Espace et Maj gauche pour monter et descendre.",
+    "description": "L’horizon reste droit — lacet autour du haut du monde, tangage borné à `[minPitch, maxPitch]`, jamais de roulis — et la marche suit le lacet seul, donc lever les yeux ne soulève pas le marcheur du sol. C’EST À L’HÔTE DE DEMANDER LE BLOCAGE. Un navigateur n’accorde le blocage du pointeur que pendant un geste, donc le contrôleur le demande sur `pointerdown` et publie `lock()`, `unlock()` et `locked()` pour un hôte qui préfère choisir son moment ; un blocage dont l’utilisateur s’échappe arrête simplement le regard. Touches, par `KeyboardEvent.code` : W/S avant et arrière, A/D de côté, Espace et Maj gauche pour monter et descendre.",
     "members": {
       "lookSpeed": "Radians tournés par pixel de mouvement du pointeur.",
+      "minPitch": "Le plus bas que regarde la tête, en radians sous l’horizon comptés négatifs (0 est l’horizon) ; par défaut juste avant la verticale vers le bas. Remonte-le pour qu’un marcheur ne regarde jamais dans son propre corps.",
+      "maxPitch": "Le plus haut que regarde la tête, en radians au-dessus de l’horizon ; par défaut juste avant le zénith.",
       "locked": "Si le pointeur est bloqué dans la vue.",
       "lock": "Bloque le pointeur dans la vue.",
       "unlock": "Libère le pointeur."
@@ -1687,10 +1689,12 @@
   },
   "FlyCameraControls": {
     "summary": "VOL, six degrés de liberté : la caméra ne garde ni axe vertical ni pivot.",
-    "description": "Les touches la déplacent le long de ses propres axes et la tournent autour d’eux, roulis compris ; un glissé regarde autour. Rien n’est intégré tant que l’hôte n’appelle pas `update(delta)` avec les secondes écoulées, et `update` ne renvoie — et n’émet — que lorsqu’une touche est tenue ou qu’un glissé est en attente, donc un manche relâché laisse la scène immobile. TOUCHES, par `KeyboardEvent.code` : W/S avant et arrière, A/D gauche et droite, R/F haut et bas, flèches pour le tangage et le lacet, Q/E pour le roulis. `dragToLook` (par défaut) regarde pendant qu’un pointeur est tenu ; mis à false, le pointeur regarde dès qu’il bouge sur la surface.",
+    "description": "Les touches la déplacent le long de ses propres axes et la tournent autour d’eux, roulis compris ; un glissé regarde autour. Rien n’est intégré tant que l’hôte n’appelle pas `update(delta)` avec les secondes écoulées, et `update` ne renvoie — et n’émet — que lorsqu’une touche est tenue ou qu’un glissé est en attente, donc un manche relâché laisse la scène immobile. `autoForward` est la seule exception : une caméra en croisière bouge à chaque `update` et demande l’image suivante en émettant `change` à chaque fois. TOUCHES, par `KeyboardEvent.code` : W/S avant et arrière, A/D gauche et droite, R/F haut et bas, flèches pour le tangage et le lacet, Q/E pour le roulis. `dragToLook` (par défaut) regarde pendant qu’un pointeur est tenu ; mis à false, le pointeur regarde dès qu’il bouge sur la surface ; avec `pointerLook` mis à false, il ne tourne jamais la vue, les touches seules pilotent. Une touche pressée pendant que Ctrl ou Meta est enfoncé est ignorée, donc un raccourci du navigateur (Ctrl+W, Cmd+S) ne pilote jamais ; il faut relâcher le modificateur pour que la touche suivante compte.",
     "members": {
       "rollSpeed": "Radians par seconde à pleine déviation, pour le tangage, le lacet et le roulis.",
-      "dragToLook": "Si glisser tourne la vue."
+      "dragToLook": "Si glisser tourne la vue.",
+      "pointerLook": "Si le pointeur tourne la vue, par glissé ou survol ; true par défaut.",
+      "autoForward": "CROISIÈRE, désactivée par défaut : la caméra vole vers l’avant à `movementSpeed` sans aucune touche, comme un avion. W ajoute alors `movementSpeed` (deux fois plus vite) et S le retire (la caméra reste sur place) ; elle ne recule jamais. Rien ne bouge avant le prochain `update`, donc un hôte qui redessine sur `change` demande une image quand il active la croisière."
     }
   },
   "forEachShadowFace": {
@@ -6307,9 +6311,13 @@
       "maxAzimuthAngle": "Orbite seulement : fin de cet arc ; elle peut être plus petite que `minAzimuthAngle`.",
       "movementSpeed": "Vol et première personne : unités du monde par seconde à pleine touche ; 1 par défaut.",
       "lookSpeed": "Première personne seulement : radians dont la vue tourne par pixel de mouvement du pointeur.",
+      "minPitch": "Première personne seulement : le plus bas que regarde la tête, en radians (0 est l’horizon, négatif vers le bas).",
+      "maxPitch": "Première personne seulement : le plus haut que regarde la tête, en radians au-dessus de l’horizon.",
+      "pointerLook": "Vol seulement : si le pointeur tourne la vue ; à false, les touches seules pilotent.",
       "rollSpeed": "Vol seulement : radians par seconde dont les touches font tanguer, lacer et rouler.",
       "rotateSpeed": "Orbite et trackball : vitesse à laquelle le glissé tourne ; 1 par défaut.",
       "zoomSpeed": "Contrôleurs à pivot : vitesse à laquelle la molette et le pincement zooment ; 1 par défaut.",
+      "autoForward": "Vol seulement : avance à `movementSpeed` sans touche, W plus vite, S jusqu’à l’arrêt.",
       "update": "Fait avancer un contrôleur piloté sur `delta` secondes ; un contrôleur à pivot relit sa pose.",
       "follow": "La caméra du monde a changé : le contrôleur la suit.",
       "dispose": "Arrête le contrôleur et retire ses écouteurs du canevas."
