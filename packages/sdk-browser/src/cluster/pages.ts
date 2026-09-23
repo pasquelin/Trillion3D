@@ -27,7 +27,7 @@ export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
   if (!response)
     throw new EngineError(
       'RESOURCE_HTTP_ERROR',
-      `${url}: ${String(cause)} (${attempts} attempts)`,
+      `${url}: ${String(cause)} (${attempts === 1 ? 'one request' : `${attempts} requests`})`,
       {
         url,
         status: null,

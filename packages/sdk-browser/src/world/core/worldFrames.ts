@@ -120,7 +120,14 @@ export function createWorldFrames() {
   const pace = boundedDelta();
   const info: FrameInfo = { delta: 0, time: 0, frame: 0, metrics: NOT_DRAWN };
   const ahead: BeforeFrameInfo = { delta: 0, time: 0 };
-  const delta = () => pace.read(performance.now(), previous, frame === 0);
+  // The controllers integrate from one step to the next, so each frame's render time is lived.
+  let stepped: number | null = null;
+  const advance = () => {
+    const now = performance.now(),
+      seconds = pace.read(now, stepped ?? now, stepped === null);
+    stepped = now;
+    return seconds;
+  };
   /** A frame is about to be drawn, `seconds` after the last: the early hooks run. */
   const prepare = (seconds: number) => {
     ahead.delta = seconds;
@@ -131,8 +138,9 @@ export function createWorldFrames() {
     get last() {
       return last;
     },
-    /** Seconds since the last drawn frame, bounded after a pause: what a controller integrates. */
-    delta,
+    /** Seconds since the last step ahead of a frame, bounded after a pause: what a controller
+     *  integrates; the step is taken now. */
+    advance,
     /**
      * Adds a function to run after every drawn frame.
      * @param hook - The function to run; it gets the frame's time and metrics.
@@ -153,7 +161,7 @@ export function createWorldFrames() {
      * @returns Whether a clip still plays, and asks for the next frame.
      */
     step(controls: Stepped, scene: Object3D) {
-      const seconds = delta();
+      const seconds = advance();
       if (controls.autoUpdate) controls.update(seconds);
       const playing = advanceMixers(scene, seconds);
       prepare(seconds);

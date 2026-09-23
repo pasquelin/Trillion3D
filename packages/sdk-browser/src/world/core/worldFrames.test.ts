@@ -16,9 +16,25 @@ test('the first frame after a pause spans at most two of the intervals the loop 
   // The first frame spans nothing; the running loop's own interval is kept as measured.
   assert.deepEqual(deltas, [0, 0.016, 0.016]);
   now = 6532; // Five seconds of a still scene, or of a hidden tab.
-  assert.equal(frames.delta(), 0.032);
+  frames.advance();
+  now = 11532;
+  assert.equal(frames.advance(), 0.032);
   frames.dispatch({ ...NOT_DRAWN });
   assert.equal(deltas.at(-1), 0.032);
+});
+
+test('the controllers integrate from step to step, the render time included', (t) => {
+  let now = 1000;
+  t.mock.method(performance, 'now', () => now);
+  const frames = createWorldFrames();
+  const stepped: number[] = [];
+  for (const at of [1000, 1016, 1032]) {
+    now = at;
+    stepped.push(frames.advance());
+    now = at + 5; // The frame renders for 5 ms before it is dispatched.
+    frames.dispatch({ ...NOT_DRAWN });
+  }
+  assert.deepEqual(stepped, [0, 0.016, 0.016]);
 });
 
 test('a frame steps the controls, then the before hooks, then draws, then the after hooks', (t) => {
