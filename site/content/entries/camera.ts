@@ -1,11 +1,15 @@
 import type { PortalEntry } from '../model.ts';
 
 /** Camera and projection (`sdk-core`), then the host-camera bridge and sides (`sdk-browser`). */
-const CAM = { section: 'camera', kind: 'Function', module: 'packages/sdk-core/mathCamera.ts' };
+const CAM = {
+  section: 'camera',
+  kind: 'Function',
+  module: 'packages/sdk-core/src/math/primitives/camera.ts',
+};
 const ORIGIN = {
   section: 'camera',
   kind: 'Function',
-  module: 'packages/sdk-core/mathRenderOrigin.ts',
+  module: 'packages/sdk-core/src/math/primitives/renderOrigin.ts',
 };
 const HOST = {
   section: 'host',

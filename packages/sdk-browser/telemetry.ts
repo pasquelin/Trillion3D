@@ -1,7 +1,7 @@
 import type { TelemetryReport } from './telemetryTypes.ts';
 export type { TelemetryReport } from './telemetryTypes.ts';
-import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
-import { frameStatistics } from '../sdk-core/index.ts';
+import type { FrameMetrics, ClusterManifest } from '../sdk-core/src/index.ts';
+import { frameStatistics } from '../sdk-core/src/index.ts';
 
 export class EngineProfiler {
   /** Circular interval buffer: one write per frame, never a shift of the whole

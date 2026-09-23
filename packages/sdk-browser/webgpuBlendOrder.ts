@@ -1,4 +1,4 @@
-import { frustumExcludesBox } from '../sdk-core/index.ts';
+import { frustumExcludesBox } from '../sdk-core/src/index.ts';
 import { planItem } from './webgpuBlendPlan.ts';
 import { buildBlendRuns } from './webgpuBlendRuns.ts';
 import { rowParked } from './placement/placementRows.ts';

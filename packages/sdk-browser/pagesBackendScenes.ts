@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import assert from 'node:assert/strict';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/src/index.ts';
 import { DAG, dagRoots, dagLevel, MANIFEST_IDENTITY, type Cluster } from './pagesBackendFixture.ts';
 
 /** The quad's manifest without its primitives: a ready slice of two triangles over the DAG model. */

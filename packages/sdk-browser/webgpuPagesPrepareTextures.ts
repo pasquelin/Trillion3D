@@ -13,7 +13,7 @@ import {
   PREVIEW_BASE,
   TEXTURE_PREVIEW_VERSION,
   type TexturePreview,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { TileTexture } from './webgpuTileAtlas.ts';
 

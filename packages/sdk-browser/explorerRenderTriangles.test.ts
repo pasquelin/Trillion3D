@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createExplorerRender } from './explorerRender.ts';
 import { createDiagnosticChannel } from './diagnosticChannel.ts';
 import type { RenderBackend } from './backendTypes.ts';
-import type { FrameMetrics } from '../sdk-core/index.ts';
+import type { FrameMetrics } from '../sdk-core/src/index.ts';
 
 /** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit
  *  off (no `wgFrameAudit` in the test URL). Only `directGpu` and the engine count vary. */

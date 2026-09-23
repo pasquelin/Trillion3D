@@ -2,7 +2,7 @@
 // `autonomousScene`: what each opens and what each lights it with, copied from the page itself
 // (`site/examples/<page>.html`). Neither cache declares a light table, so a capture taken without
 // these lights would be a black canvas on any backend and would prove nothing.
-import type { SceneLight } from '../../../packages/sdk-core/index.ts';
+import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
 
 type BlendCacheScene = { page: string; asset: string; lights: SceneLight[] };
 

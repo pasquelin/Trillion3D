@@ -26,7 +26,7 @@ import {
   HOST_WRAP_CLAMP_TO_EDGE,
   HOST_WRAP_MIRRORED_REPEAT,
 } from './hostSurfaceConstants.ts';
-import type { Texture, TextureFilter, WrapMode } from '../sdk-core/index.ts';
+import type { Texture, TextureFilter, WrapMode } from '../sdk-core/src/index.ts';
 import { sideOf } from './materialSide.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 import { SURFACE_MODEL, hostSurfaceModel, litModel, shininessRoughness } from './surfaceModel.ts';

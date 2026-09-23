@@ -6,9 +6,9 @@ import type {
   FrameMetrics,
   GpuPassTimings,
   StageProfile,
-} from '../../packages/sdk-core/index.ts';
-import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
-import type { ScreenErrorVariant } from '../../packages/sdk-core/index.ts';
+} from '../../packages/sdk-core/src/index.ts';
+import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
+import type { ScreenErrorVariant } from '../../packages/sdk-core/src/index.ts';
 import type { TextureCompression } from '../../packages/sdk-browser/textureBlockFormats.ts';
 import type { MovingLightPlan } from './lampes.ts';
 import type { Coupe, MovingNode, ReglageVivant, Reseau } from './report/types.ts';

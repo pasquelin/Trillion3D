@@ -1,4 +1,4 @@
-import { disabledStageProfile, type StageProfile } from '../sdk-core/index.ts';
+import { disabledStageProfile, type StageProfile } from '../sdk-core/src/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { EngineProfiler, TelemetryReport } from './telemetry.ts';
 

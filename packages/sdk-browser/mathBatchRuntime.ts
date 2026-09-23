@@ -3,7 +3,7 @@ import {
   MATRIX_VALUES,
   boxTransformBatch,
   multiplyMatrix4Batch,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { f64, joue, taille, tampon, vuesF64, type MathLot } from './mathBatchLot.ts';
 
 /**

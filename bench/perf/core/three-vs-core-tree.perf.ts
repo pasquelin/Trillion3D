@@ -3,17 +3,17 @@
 // written before each update on both sides, in the timed closure, so both compose and multiply
 // the same nodes; the still line is the "no work in a still scene" proof. The engine's world
 // matrices are its own buffer, returned as is; Three's are read flat untimed.
-import { setNodePosition } from '../../../packages/sdk-core/mathTransformTree.ts';
+import { setNodePosition } from '../../../packages/sdk-core/src/math/transform-tree/transformTree.ts';
 import {
   updateNodeMatrixWorld,
   updateNodeWorldMatrix,
-} from '../../../packages/sdk-core/mathTransformTreeUpdate.ts';
-import { visitSubtree } from '../../../packages/sdk-core/mathTransformTreeStructure.ts';
+} from '../../../packages/sdk-core/src/math/transform-tree/update.ts';
+import { visitSubtree } from '../../../packages/sdk-core/src/math/transform-tree/structure.ts';
 import { rapport } from '../../core/index.ts';
 import { N, duel } from '../../oracles/core/three-duel.ts';
 import { buildTrees } from '../../oracles/core/three-tree.ts';
 
-const TREE = 'packages/sdk-core/mathTransformTreeUpdate.ts';
+const TREE = 'packages/sdk-core/src/math/transform-tree/update.ts';
 const { root, objects, tree, rootNode, worlds, oracle } = buildTrees();
 const p = tree.position;
 
@@ -129,7 +129,7 @@ const count = new Float64Array(1),
 lines.push(
   await duel({
     name: 'Object3D.traverse',
-    fichier: 'packages/sdk-core/mathTransformTreeStructure.ts',
+    fichier: 'packages/sdk-core/src/math/transform-tree/structure.ts',
     three: () => {
       countThree[0] = 0;
       root.traverse(() => {

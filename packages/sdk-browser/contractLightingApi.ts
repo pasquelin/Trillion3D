@@ -1,5 +1,5 @@
-import type { SceneLightStore } from '../sdk-core/index.ts';
-import { DEFAULT_TONE_MAPPING } from '../sdk-core/sceneEnvironment.ts';
+import type { SceneLightStore } from '../sdk-core/src/index.ts';
+import { DEFAULT_TONE_MAPPING } from '../sdk-core/src/scene/core/environment.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { lighting as installLighting } from './hostSceneObjects.ts';
 import type { BackendContext } from './backendTypes.ts';

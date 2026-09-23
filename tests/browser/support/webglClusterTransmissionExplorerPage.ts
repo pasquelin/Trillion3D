@@ -3,7 +3,7 @@
 // draw owner, and no mesh ever enters the host scene. A scene the owner cannot draw in full is
 // refused by name.
 import * as THREE from 'three';
-import { EngineError } from '../../../packages/sdk-core/index.ts';
+import { EngineError } from '../../../packages/sdk-core/src/index.ts';
 import { pixel } from './webglClusterPixels.ts';
 import { mountExplorerProof } from './webglClusterExplorerMount.ts';
 import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.ts';

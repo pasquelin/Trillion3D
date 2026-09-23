@@ -6,7 +6,7 @@
 //     the sum is 3 in the reference order, 4 if an add reassociates;
 //   — a pose whose normal matrix is exactly [[1, 1, 1], [0, 1, 0], [0, 0, 1]],
 //     combined with vertex normals (1e16, 1, 1).
-import type { Texture } from '../sdk-core/index.ts';
+import type { Texture } from '../sdk-core/src/index.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';

@@ -10,8 +10,8 @@
  * (`hostSceneObjects.ts`).
  */
 
-import { srgbToLinear } from '../sdk-core/index.ts';
-import { clearValueOf } from '../sdk-core/world/math/packedColour.ts';
+import { srgbToLinear } from '../sdk-core/src/index.ts';
+import { clearValueOf } from '../sdk-core/src/world/math/packedColour.ts';
 import type { HostNode, HostScene } from './hostResources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 

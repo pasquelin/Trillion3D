@@ -1,4 +1,4 @@
-import { frustumExcludesBox, type FrameMetrics } from '../sdk-core/index.ts';
+import { frustumExcludesBox, type FrameMetrics } from '../sdk-core/src/index.ts';
 import { enginePose, type EngineCamera } from './cameraWorld.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';

@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS, bounceBatchOf } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS, bounceBatchOf } from '../sdk-core/src/index.ts';
 import { bounceGroup, bounceLayout } from './bounceBindings.ts';
 import {
   BOUNCE_SURFACE_PASS,

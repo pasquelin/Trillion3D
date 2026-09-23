@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS } from '../sdk-core/src/index.ts';
 import { createGpuLightTiles } from './gpuLightTiles.ts';
 import { createGpuShadowAtlas, shadowAtlasBytes } from './gpuShadowAtlas.ts';
 import { createGpuShadowCull } from './gpuShadowCull.ts';

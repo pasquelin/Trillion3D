@@ -1,7 +1,7 @@
-import type { FrameMetrics, SceneToneMapping } from '../../../sdk-core/index.ts';
-import type { Camera } from '../../../sdk-core/world/camera/camera.ts';
-import type { Object3D, SceneLink } from '../../../sdk-core/world/object/object3d.ts';
-import type { Mesh } from '../../../sdk-core/world/object/mesh.ts';
+import type { FrameMetrics, SceneToneMapping } from '../../../sdk-core/src/index.ts';
+import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
+import type { Object3D, SceneLink } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { openMeasuredWorld, type MeasuredWorld } from '../../explorer.ts';
 import type { MeasuredWorldOptions } from '../../explorerOptions.ts';
 import { buildWorldSource } from './worldSource.ts';

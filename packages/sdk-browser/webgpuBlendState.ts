@@ -2,7 +2,7 @@ import type { HostGeometry, HostMesh } from './hostResources.ts';
 import type { PageSurface } from './pageSurface.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import type { PlacementOf } from './placement/placementRows.ts';
-import { FRUSTUM_PLANE_VALUES, type DiagnosticMode, type Texture } from '../sdk-core/index.ts';
+import { FRUSTUM_PLANE_VALUES, type DiagnosticMode, type Texture } from '../sdk-core/src/index.ts';
 import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
 import type { BlendLighting } from './webgpuBindEntries.ts';
 import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';

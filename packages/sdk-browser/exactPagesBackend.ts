@@ -12,7 +12,7 @@ import { CONTRACT_LIGHTS_UNSUPPORTED } from './exactPagesContractLights.ts';
 import { contractLightingApi } from './contractLightingApi.ts';
 import { collectClusterPages, type PageRec } from './pageSelection.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import * as THREE from 'three';

@@ -2,7 +2,7 @@
 // rounded, never zero; the fraction follows the target via exponential smoothing, bounded between its
 // floor and one, and does not move on a missing, zero, or non-finite sample. Constants come
 // from the contract so that the oracle does not silently drift.
-import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/bounceContracts.ts';
+import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/bounce/contracts.ts';
 
 export function referenceBounceBatch(ceiling: number, load: number) {
   return Math.max(1, Math.round(ceiling * load));

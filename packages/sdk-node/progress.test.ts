@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTerminalProgress, createBatchProgress } from './progress.mts';
-import type { DagWarning } from '../sdk-core/index.ts';
+import type { DagWarning } from '../sdk-core/src/index.ts';
 import type { ProgressStream } from './contracts.ts';
 
 function capture(): { stream: ProgressStream; text: () => string } {

@@ -1,7 +1,7 @@
 import { hashId } from './diagnosticColors.ts';
 import { materialSide } from './materialSide.ts';
 import { triangleGeometry } from './triangleDiagnostic.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import type {
   HostDiagnosticFactory,
   HostDiagnosticGeometry,

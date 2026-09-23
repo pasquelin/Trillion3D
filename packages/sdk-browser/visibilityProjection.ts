@@ -1,4 +1,4 @@
-import { transformAffinePoint, transformHomogeneousPoint } from '../sdk-core/index.ts';
+import { transformAffinePoint, transformHomogeneousPoint } from '../sdk-core/src/index.ts';
 import type { DepthCamera } from './depthConvention.ts';
 import type { MatrixElements } from './matrixElements.ts';
 

@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS } from '../sdk-core/src/index.ts';
 import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
 import { residentProxyWgsl } from './bounceNodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';

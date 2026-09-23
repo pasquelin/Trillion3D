@@ -14,7 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { assertBits } from '../../tests/kit/assert/bits.ts';
-import { decomposeMatrix4, transformAffinePoint } from '../sdk-core/index.ts';
+import { decomposeMatrix4, transformAffinePoint } from '../sdk-core/src/index.ts';
 
 const CAS_HOSTILES: Array<
   [

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFlyCameraControls } from './cameraFlyControls.ts';
 import { createFirstPersonCameraControls } from './cameraFirstPersonControls.ts';
-import { rotateByQuaternion } from '../sdk-core/mathQuaternion.ts';
+import { rotateByQuaternion } from '../sdk-core/src/math/matrix/quaternion.ts';
 import {
   fixtureCamera,
   fixtureDrag,

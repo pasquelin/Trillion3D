@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { maxStretch } from '../sdk-core/index.ts';
+import { maxStretch } from '../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { cutSelects, projectedClusterError } from './pageSelectionMath.ts';
 import { cameraMoteur } from './cameraFixture.ts';

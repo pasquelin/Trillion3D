@@ -1,7 +1,7 @@
 // Bench trajectory, views and poses. The trajectory is defined here: the repo is its source, and
 // any host that wants to replay the same bench copies it from here. `PATH_VERSION` rises at every
 // change of the points, so two readings only compare at equal trajectory.
-import type { CameraPose } from '../../packages/sdk-core/contractsBase.ts';
+import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
 
 const PATH_VERSION = 5;
 const POINTS = [

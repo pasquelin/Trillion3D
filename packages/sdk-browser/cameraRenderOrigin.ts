@@ -4,7 +4,7 @@ import {
   frustumPlanesFromMatrix,
   multiplyMatrix4,
   viewToRenderOrigin,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 
 /**
  * THE CAMERA HALF OF THE RENDER FRAME (`sdk-core/mathRenderOrigin.ts` carries the rule and

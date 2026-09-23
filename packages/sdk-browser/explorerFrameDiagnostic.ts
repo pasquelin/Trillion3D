@@ -1,5 +1,5 @@
 import { createEngineCamera, readCameraWorld, type HostCamera } from './cameraWorld.ts';
-import type { AssetScope, FrameMetrics } from '../sdk-core/index.ts';
+import type { AssetScope, FrameMetrics } from '../sdk-core/src/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createDiagnosticChannel } from './diagnosticChannel.ts';

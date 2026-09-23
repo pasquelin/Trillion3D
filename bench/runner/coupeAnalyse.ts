@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCacheManifest } from './cacheManifest.ts';
-import type { ClusterManifest } from '../../packages/sdk-core/index.ts';
+import type { ClusterManifest } from '../../packages/sdk-core/src/index.ts';
 
 const shaOf = (id: string) =>
   String(id)

@@ -4,7 +4,7 @@
 // from before lot A, in `../../bench/oracles/browser/residence.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { maxStretch } from '../sdk-core/index.ts';
+import { maxStretch } from '../sdk-core/src/index.ts';
 import { updateResidencyBits } from './gpuDagRuntime.ts';
 import { residentWords } from './gpuDagLayout.ts';
 import {

@@ -1,5 +1,5 @@
-import type { Texture } from '../sdk-core/index.ts';
-import { previewIsWhole, type TexturePreview } from '../sdk-core/index.ts';
+import type { Texture } from '../sdk-core/src/index.ts';
+import { previewIsWhole, type TexturePreview } from '../sdk-core/src/index.ts';
 import { WHITE_TAIL, type PoolEncoding } from './textureBlockFormats.ts';
 import { textureRgba } from './visibilityBuffer.ts';
 import type { TextureLevelReader } from './textureLevelReader.ts';

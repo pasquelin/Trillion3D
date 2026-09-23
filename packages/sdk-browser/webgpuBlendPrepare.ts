@@ -1,4 +1,4 @@
-import { BOX_VALUES } from '../sdk-core/index.ts';
+import { BOX_VALUES } from '../sdk-core/src/index.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import type { BlendHostScene } from './blendSceneRecord.ts';
 import { refreshBlendBounds } from './webgpuBlendWorlds.ts';

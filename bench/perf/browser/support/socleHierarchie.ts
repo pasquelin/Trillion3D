@@ -9,7 +9,7 @@ import {
   invertMatrix4,
   multiplyMatrix4,
   normalMatrix3,
-} from '../../../../packages/sdk-core/index.ts';
+} from '../../../../packages/sdk-core/src/index.ts';
 import { graine } from '../../../core/index.ts';
 import { f64, normaleReference, trs } from './socleLigne.ts';
 

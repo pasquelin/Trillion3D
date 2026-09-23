@@ -1,4 +1,4 @@
-import { maxStretch, worldToRenderOrigin } from '../sdk-core/index.ts';
+import { maxStretch, worldToRenderOrigin } from '../sdk-core/src/index.ts';
 import { REQUEST_PAGE_MAX } from './gpuDagRequest.ts';
 import { leafCone, PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from './gpuSelection.ts';
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './gpuDagTypes.ts';

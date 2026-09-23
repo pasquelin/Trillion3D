@@ -5,7 +5,7 @@
  * screen-error band. This module holds what is common to a kernel and its callers — the uniform
  * block, the readback shape and the page-cone convention — so neither side owns the other.
  */
-import { FRUSTUM_PLANE_VALUES, maxStretch } from '../sdk-core/index.ts';
+import { FRUSTUM_PLANE_VALUES, maxStretch } from '../sdk-core/src/index.ts';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
 import { surfaceFrontOnly, type PageSurface } from './pageSurface.ts';
 import { sameElements } from './matrixElements.ts';

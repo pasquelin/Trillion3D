@@ -2,7 +2,7 @@ import test from 'node:test';
 import { MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { compareImages, type ClusterManifest } from '../sdk-core/index.ts';
+import { compareImages, type ClusterManifest } from '../sdk-core/src/index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';

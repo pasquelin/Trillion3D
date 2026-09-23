@@ -8,7 +8,7 @@ import { sceneLightingApi } from './sceneLighting.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './threeSceneAdapter.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { DiagnosticMode } from '../sdk-core/src/index.ts';
 import * as THREE from 'three';
 
 export const referenceBackend: BackendFactory = ({

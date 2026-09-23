@@ -1,4 +1,4 @@
-import type { Texture, TextureFilter, WrapMode } from '../sdk-core/index.ts';
+import type { Texture, TextureFilter, WrapMode } from '../sdk-core/src/index.ts';
 import { textureRgba } from './visibilityTypes.ts';
 
 type TextureRecord = { texture: WebGLTexture; version: number };

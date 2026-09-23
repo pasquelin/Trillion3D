@@ -1,4 +1,4 @@
-import { invertMatrix4 } from '../sdk-core/index.ts';
+import { invertMatrix4 } from '../sdk-core/src/index.ts';
 import { checkSurfaceSize, createSurfaceBuffer, type SurfaceCapture } from './surfaceBuffer.ts';
 import { collectPendingUrls } from './pageSelection.ts';
 import { awaitedPages } from './webgpuPageSlots.ts';

@@ -1,5 +1,5 @@
-import { rgbHex } from '../sdk-core/world/math/packedColour.ts';
-import { hslToLinearRgb, srgbToLinear } from '../sdk-core/index.ts';
+import { rgbHex } from '../sdk-core/src/world/math/packedColour.ts';
+import { hslToLinearRgb, srgbToLinear } from '../sdk-core/src/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import { clusterHue } from './diagnosticColors.ts';
 import { pageAddress } from './webgpuPageSlots.ts';

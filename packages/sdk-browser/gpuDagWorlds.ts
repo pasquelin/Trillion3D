@@ -1,4 +1,4 @@
-import { maxStretch } from '../sdk-core/index.ts';
+import { maxStretch } from '../sdk-core/src/index.ts';
 import { FRAME_VEC4, type PackedDag } from './gpuDagTypes.ts';
 
 /**

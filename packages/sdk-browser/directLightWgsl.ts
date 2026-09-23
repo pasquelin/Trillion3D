@@ -1,7 +1,7 @@
-import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/index.ts';
-import { ENVIRONMENT_COEFFICIENTS } from '../sdk-core/sceneEnvironment.ts';
+import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/src/index.ts';
+import { ENVIRONMENT_COEFFICIENTS } from '../sdk-core/src/scene/core/environment.ts';
 import { RECT_LIGHT_WGSL } from './directRectLightWgsl.ts';
-import { LTC_SIZE } from '../sdk-core/ltcTable.ts';
+import { LTC_SIZE } from '../sdk-core/src/lighting/ltcTable.ts';
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side

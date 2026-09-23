@@ -7,7 +7,7 @@
  * Kept beside the checks rather than in one of the test files: both tests read them, and a field
  * added to the contract is then added once.
  */
-import type { TableMaterial, TableTexture, Texture } from '../sdk-core/index.ts';
+import type { TableMaterial, TableTexture, Texture } from '../sdk-core/src/index.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /** What both sides of a default glTF material say alike: the flags, the factors and the colours

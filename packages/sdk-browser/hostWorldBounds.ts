@@ -1,5 +1,5 @@
 import type { HostBoundedNode, HostGraphNode } from './hostGraphNodes.ts';
-import { BOX_VALUES, boxEmpty } from '../sdk-core/index.ts';
+import { BOX_VALUES, boxEmpty } from '../sdk-core/src/index.ts';
 import { boxUnionCollector } from './mathBatchBoxes.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
 import { hostWorldTree } from './hostWorldTree.ts';

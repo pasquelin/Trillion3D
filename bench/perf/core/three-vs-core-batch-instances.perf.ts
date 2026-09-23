@@ -5,7 +5,7 @@ import {
   boxTransformUnionBatch,
   decomposeMatrix4Batch,
   transformPointsByMatricesBatch,
-} from '../../../packages/sdk-core/mathIndex.ts';
+} from '../../../packages/sdk-core/src/math/index.ts';
 import { rapport } from '../../core/index.ts';
 import type { Mesure } from '../../core/index.ts';
 import { duel } from '../../oracles/core/three-duel.ts';
@@ -16,7 +16,7 @@ const lines: Mesure[] = [];
 lines.push(
   await duel({
     name: 'Vector3.applyMatrix4 per-instance batch',
-    fichier: 'packages/sdk-core/mathBatchPoints.ts',
+    fichier: 'packages/sdk-core/src/math/batch/points.ts',
     three: () => {
       for (let i = 0; i < N; i++) outThreePts[i].copy(pts.three[i]).applyMatrix4(mats.three[i]);
     },
@@ -40,7 +40,7 @@ const threeScales = Array.from({ length: N }, () => new THREE.Vector3());
 lines.push(
   await duel({
     name: 'Matrix4.decompose batch',
-    fichier: 'packages/sdk-core/mathBatchTransforms.ts',
+    fichier: 'packages/sdk-core/src/math/batch/transforms.ts',
     three: () => {
       for (let i = 0; i < N; i++)
         mats.three[i].decompose(threePositions[i], threeRotations[i], threeScales[i]);
@@ -67,7 +67,7 @@ const oracleUnion = new Float64Array(6),
 lines.push(
   await duel({
     name: 'Box3 transform and union batch',
-    fichier: 'packages/sdk-core/mathBatch.ts',
+    fichier: 'packages/sdk-core/src/math/batch/batch.ts',
     three: () => {
       threeUnion.makeEmpty();
       for (let i = 0; i < N; i++)

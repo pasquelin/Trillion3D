@@ -2,7 +2,7 @@
 // 256-entry table (visibilityMath.ts). An 8-bit sRGB component has only 256 possible antecedents,
 // so the table carries exactly the same floats as the pre-lot-C formula, reproduced here as-is as
 // an explicit oracle. The expected equality is bit-exact (`Object.is`), with no tolerance.
-import type { Texture } from '../sdk-core/index.ts';
+import type { Texture } from '../sdk-core/src/index.ts';
 import { importHostTexture } from './hostSurfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';

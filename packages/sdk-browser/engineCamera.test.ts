@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
+import { IDENTITY_MATRIX4 } from '../sdk-core/src/index.ts';
 import { assertBits } from '../../tests/kit/assert/bits.ts';
 import {
   createEngineCamera,

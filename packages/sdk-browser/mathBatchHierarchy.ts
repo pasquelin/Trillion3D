@@ -3,7 +3,7 @@ import {
   POSITION_VALUES,
   QUATERNION_VALUES,
   hierarchyUpdateBatch,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { f64, joue, taille, tampon, u32, vuesF64, type MathLot } from './mathBatchLot.ts';
 
 /**

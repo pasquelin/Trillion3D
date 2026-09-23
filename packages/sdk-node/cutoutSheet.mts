@@ -1,6 +1,6 @@
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../sdk-core/index.ts';
+import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../sdk-core/src/index.ts';
 
 /**
  * The cutout answer sheet a compile leaves beside every model, read and written.

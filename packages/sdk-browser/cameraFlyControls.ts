@@ -6,7 +6,7 @@ import {
   multiplyQuaternion,
   normalizeQuaternion,
   localTurnQuaternion,
-} from '../sdk-core/mathQuaternion.ts';
+} from '../sdk-core/src/math/matrix/quaternion.ts';
 import type { ControlCamera, SteeredCameraControls } from './cameraControlTypes.ts';
 
 /**

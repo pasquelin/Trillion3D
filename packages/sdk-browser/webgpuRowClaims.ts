@@ -1,4 +1,4 @@
-import { sortPages } from '../sdk-core/index.ts';
+import { sortPages } from '../sdk-core/src/index.ts';
 
 /**
  * Pages that claim the write of a row record and have not yet received it.

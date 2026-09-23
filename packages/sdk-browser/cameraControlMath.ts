@@ -1,5 +1,5 @@
-import { rotateByQuaternion } from '../sdk-core/mathQuaternion.ts';
-import { DEG2RAD } from '../sdk-core/world/math/spherical.ts';
+import { rotateByQuaternion } from '../sdk-core/src/math/matrix/quaternion.ts';
+import { DEG2RAD } from '../sdk-core/src/world/math/spherical.ts';
 /**
  * The arithmetic every camera controller shares, on flat numbers alone: no DOM, no host
  * vector, no allocation beyond the buffers the caller owns. `cameraControlMath.test.ts`

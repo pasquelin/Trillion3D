@@ -4,7 +4,7 @@
 // `webgpuTransformFiniteTransform.test.ts` reuses them without copying.
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { BOX_VALUES, boxTransform } from '../sdk-core/index.ts';
+import { BOX_VALUES, boxTransform } from '../sdk-core/src/index.ts';
 import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
 import { hostWorldPlacements, type HostWorldPlacements } from './hostWorldPlacements.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';

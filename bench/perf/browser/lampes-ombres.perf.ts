@@ -2,9 +2,9 @@
 // pass, the screen coverage that ranks lamps, and the plan of faces to redraw when the
 // scene moves.
 import * as THREE from 'three';
-import { screenCoverage } from '../../../packages/sdk-core/sceneLightShadowCounts.ts';
-import { createSceneLightStore } from '../../../packages/sdk-core/sceneLightStore.ts';
-import { createShadowPlan } from '../../../packages/sdk-core/sceneLightShadowPlan.ts';
+import { screenCoverage } from '../../../packages/sdk-core/src/scene/light-shadow/counts.ts';
+import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts';
+import { createShadowPlan } from '../../../packages/sdk-core/src/scene/light-shadow/plan.ts';
 import { packClusterSpheres } from '../../../packages/sdk-browser/webgpuShadowBounds.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
@@ -13,7 +13,7 @@ import {
 } from '../../oracles/browser/lampes-ombres.ts';
 import { pageRecFixture } from './support/pageRecFixture.ts';
 import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
-import type { ShadowViewpoint } from '../../../packages/sdk-core/index.ts';
+import type { ShadowViewpoint } from '../../../packages/sdk-core/src/index.ts';
 
 const alea = graine(83);
 
@@ -89,7 +89,7 @@ const couverture =
 
 const mesCouverture = await mesure({
   name: 'lamp screen coverage',
-  fichier: 'packages/sdk-core/sceneLightShadowCounts.ts',
+  fichier: 'packages/sdk-core/src/scene/light-shadow/counts.ts',
   cas: [
     { name: '10 000 lamps', input: lampes(10000), size: 10000 },
     { name: '1 lamp', input: lampes(1), size: 1 },
@@ -117,7 +117,7 @@ function scene(nombre: number) {
 // scene would cost nothing, and that would be the published figure.
 const mesOrdonnancement = await mesure({
   name: 'shadow-face plan',
-  fichier: 'packages/sdk-core/sceneLightShadowPlan.ts',
+  fichier: 'packages/sdk-core/src/scene/light-shadow/plan.ts',
   cas: [{ name: '32 lamps, moving scene', input: scene(32), size: 32 }],
   calcul: (s) => {
     s.frame++;

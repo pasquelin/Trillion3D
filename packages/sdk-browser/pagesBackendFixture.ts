@@ -1,7 +1,7 @@
 import type { RenderBackend } from './backendTypes.ts';
 import type { ClusterDraw } from './clusterBatches.ts';
 import { drawnRanges, submittedDraws } from './clusterBatchMesh.ts';
-import { CLUSTERED_BLEND_FORMAT_VERSION } from '../sdk-core/index.ts';
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../sdk-core/src/index.ts';
 
 /** Indices one submission draws, in submission order: the ranges of a batch record, the whole
  *  index of a page mesh. */

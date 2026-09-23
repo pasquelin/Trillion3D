@@ -1,4 +1,4 @@
-import { maxStretch, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { maxStretch, multiplyMatrix4 } from '../sdk-core/src/index.ts';
 import { projectedClusterError } from './pageSelectionMath.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 import { copyElements } from './matrixElements.ts';

@@ -1,4 +1,4 @@
-import { depthLayerUnits } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/src/index.ts';
 import type { BatchPage } from './clusterBatchRange.ts';
 import { BatchGroup } from './clusterBatchPrimitive.ts';
 

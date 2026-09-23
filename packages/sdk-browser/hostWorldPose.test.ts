@@ -11,7 +11,7 @@ import {
   addTransformNode,
   createTransformTree,
   updateNodeMatrixWorld,
-} from '../sdk-core/index.ts';
+} from '../sdk-core/src/index.ts';
 import { pushHostPose } from './hostWorldPose.ts';
 
 /** A two-node tree, root then child, and the host nodes they mirror. */

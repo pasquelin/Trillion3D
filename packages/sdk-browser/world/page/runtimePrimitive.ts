@@ -1,5 +1,5 @@
-import type { Page, Primitive } from '../../../sdk-core/index.ts';
-import type { PageCutPayload } from '../../../sdk-core/pageDecodeContracts.ts';
+import type { Page, Primitive } from '../../../sdk-core/src/index.ts';
+import type { PageCutPayload } from '../../../sdk-core/src/page/decodeContracts.ts';
 import { cutPagesOffThread } from '../../pageDecodeHost.ts';
 
 /** Texture coordinates sit on the format's fixed grid of 2^-14. */

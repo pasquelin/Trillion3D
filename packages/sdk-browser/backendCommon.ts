@@ -3,7 +3,7 @@
  * ceilings. Nothing here builds or reads a host object, so this module names no rendering
  * library — the host-library objects a witness publishes live in `hostSceneObjects.ts`.
  */
-import type { BackendCapabilities } from '../sdk-core/index.ts';
+import type { BackendCapabilities } from '../sdk-core/src/index.ts';
 
 export const DEFAULT_FOV = 55,
   DEFAULT_PIXEL_RATIO = 1,

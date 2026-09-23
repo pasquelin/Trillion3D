@@ -1,4 +1,4 @@
-import type { SceneToneMapping } from '../sdk-core/sceneEnvironment.ts';
+import type { SceneToneMapping } from '../sdk-core/src/scene/core/environment.ts';
 /**
  * An engine-owned render target: one colour texture and, unless declined, one 24-bit depth
  * renderbuffer on a framebuffer of the host context, sized in drawing-buffer pixels. It holds a

@@ -1,4 +1,4 @@
-import { EngineError } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/src/index.ts';
 import type { HostNode } from './hostResources.ts';
 import type { HostGraphNode } from './hostGraphNodes.ts';
 import { hostWorldTree, type HostWorldTree } from './hostWorldTree.ts';

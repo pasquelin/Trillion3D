@@ -1,20 +1,20 @@
 // First part of the foundation bench, `sdk-core` consumers: each computation attached to
 // the foundation, opposed to the code it was before, copied in `oracles/socle-math*.ts`.
 // A single different value and the line fails: the attachment changes no bit.
-import { cross } from '../../../../packages/sdk-core/lightingSceneMath.ts';
-import { packSurface } from '../../../../packages/sdk-core/lightingTransportIntersections.ts';
-import { fillPatchRays } from '../../../../packages/sdk-core/lightingTransportRays.ts';
+import { cross } from '../../../../packages/sdk-core/src/lighting/scene/math.ts';
+import { packSurface } from '../../../../packages/sdk-core/src/lighting/transport/intersections.ts';
+import { fillPatchRays } from '../../../../packages/sdk-core/src/lighting/transport/rays.ts';
 import {
   composeFace,
   shadowOrthographic,
   shadowProjection,
-} from '../../../../packages/sdk-core/sceneLightShadowMath.ts';
-import { writeConeVolume } from '../../../../packages/sdk-core/sceneLightShadowVolume.ts';
+} from '../../../../packages/sdk-core/src/scene/light-shadow/math.ts';
+import { writeConeVolume } from '../../../../packages/sdk-core/src/scene/light-shadow/volume.ts';
 import type {
   Scene,
   Surface,
   Vec3,
-} from '../../../../packages/sdk-core/lightingExperimentScene.ts';
+} from '../../../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
 import type { Mesure } from '../../../core/index.ts';
 import * as ancien from '../../../oracles/browser/socle-math.ts';
 import * as ombres from '../../../oracles/browser/socle-math-ombres.ts';
@@ -65,7 +65,7 @@ export async function lignesConsommateursCore(): Promise<Mesure[]> {
   return [
     await ligne(
       'shadow faces: view, product and cone',
-      'packages/sdk-core/sceneLightShadowMath.ts',
+      'packages/sdk-core/src/scene/light-shadow/math.ts',
       'hostile eyes, directions and regions',
       directions as DirectionCase[],
       (l) => l.map(faceAncienne),
@@ -73,7 +73,7 @@ export async function lignesConsommateursCore(): Promise<Mesure[]> {
     ),
     await ligne(
       'cross product of the lighting scene',
-      'packages/sdk-core/lightingSceneMath.ts',
+      'packages/sdk-core/src/lighting/scene/math.ts',
       'hostile vectors',
       points as Vec3[],
       (l) => l.map((p, i) => ancien.referenceCross(p, l[(i * 7 + 1) % l.length])),
@@ -81,7 +81,7 @@ export async function lignesConsommateursCore(): Promise<Mesure[]> {
     ),
     await ligne(
       'packed transport surface',
-      'packages/sdk-core/lightingTransportIntersections.ts',
+      'packages/sdk-core/src/lighting/transport/intersections.ts',
       'hostile rectangles',
       // Each fixture only carries the geometry `packSurface` reads (origin, u, v): the rest of
       // `Surface` is irrelevant to this measurement.
@@ -98,7 +98,7 @@ export async function lignesConsommateursCore(): Promise<Mesure[]> {
     ),
     await ligne(
       'rays of one transport facet',
-      'packages/sdk-core/lightingTransportRays.ts',
+      'packages/sdk-core/src/lighting/transport/rays.ts',
       'hostile facets',
       // Same reduced fixture: only `patches[0]` (id, normal, u) is read.
       facettes as Scene[],

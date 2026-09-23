@@ -9,7 +9,7 @@
  * being eliminated at compile time. `withScreenErrorVariant` sets it true for the campaign that
  * measures the external-reference metric, exact mirror of `referenceScreenError`.
  */
-import type { ScreenErrorVariant } from '../sdk-core/index.ts';
+import type { ScreenErrorVariant } from '../sdk-core/src/index.ts';
 
 /** Declaration `withScreenErrorVariant` returns, written once for both. */
 export const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
