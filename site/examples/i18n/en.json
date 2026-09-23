@@ -628,7 +628,7 @@
       }
     },
     "readouts": {
-      "dashesBluePlanetOrbit": "Dashes on the blue planet’s orbit"
+      "dashesBluePlanetOrbit": "Dashes on the blue planet's orbit"
     }
   },
   "detail-by-pixel-error": {
@@ -741,7 +741,7 @@
         "exterior": "Exterior"
       },
       "mode": {
-        "arcade": "Arcade — the jet flies onto your aim; no stall, it pulls up by itself",
+        "arcade": "Arcade — the jet flies toward your aim; no stall, it pulls up by itself",
         "expert": "Expert — the mouse is the stick; it stalls and spins"
       },
       "sensitivity": {

@@ -693,7 +693,7 @@
     },
     "comparisonType": "Visual comparison type",
     "experiment": "Experiment",
-    "engineColors": "Each engine keeps its color across all charts. For durations, a shorter bar means less time.",
+    "engineColors": "Each engine keeps its colour across all charts. For durations, a shorter bar means less time.",
     "green": "Green: ≤ 13.33 ms",
     "yellow": "Yellow: ≤ 16.67 ms",
     "red": "Red: > 16.67 ms",
@@ -1363,7 +1363,7 @@
       "description": "`n` inverses, `n` normal matrices of `NORMAL_MATRIX_VALUES` numbers, `n` compositions `T · R · S`, `n` decompositions. A matrix with a zero determinant is inverted to the identity and flagged in `singular[i]` — never a throw in the middle of a batch. `composeMatrix4Batch` takes everything flat or everything as sub-views, and settles the form before the loop. The four loops live in `packages/sdk-core/src/math/batch/transforms.ts`."
     },
     "transformPointsBatch": {
-      "description": "`n` points of three numbers by one affine matrix, or one matrix per point; `n` directions by the upper 3×3 then normalized, translation ignored. They repeat `transformAffinePoint` and `transformDirectionVector3`."
+      "description": "`n` points of three numbers by one affine matrix, or one matrix per point; `n` directions by the upper 3×3 then normalised, translation ignored. They repeat `transformAffinePoint` and `transformDirectionVector3`."
     },
     "srgbToLinearBatch": {
       "description": "One channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts`: the reference multiplies by rounded constants, and the gap — invisible at 8 bits — is bounded once, in the bench that duels it."
@@ -1521,7 +1521,7 @@
       "the union of the eight transformed corners, never the eight of the result": "the union of the eight transformed corners, never the eight of the result",
       "one buffer holds many matrices; no view is sliced per frame": "one buffer holds many matrices; no view is sliced per frame",
       "one chain of nodes, parents before children, in one call": "one chain of nodes, parents before children, in one call",
-      "none: the buffers are the caller’s": "none: the buffers are the caller’s",
+      "none: the buffers are the caller’s": "none: the buffers are the caller's",
       "the unit function stays the oracle; the WebAssembly kernel repeats it term by term": "the unit function stays the oracle; the WebAssembly kernel repeats it term by term",
       "the governor, after those executions": "the governor, after those executions",
       "the kernel leads by enough, for long enough, to be worth the switch": "the kernel leads by enough, for long enough, to be worth the switch",
@@ -1587,7 +1587,7 @@
       "an angle at or above π/2 never rejects": "an angle at or above π/2 never rejects",
       "after updateNodeMatrixWorld(tree, root)": "after updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "available — Attached index pages; missing pages are not drawn; not physical VRAM",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "available — Filled unique color per submitted triangle, not GL_LINES wireframe",
+      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "available — Filled unique colour per submitted triangle, not GL_LINES wireframe",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "available — Level-0 clusters vs coarser DAG reductions actually selected this frame",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn",
