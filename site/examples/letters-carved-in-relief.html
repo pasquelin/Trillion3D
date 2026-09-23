@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Carved letters</title>
-    <meta name="thumbnail" content="1.5" />
+    <meta name="thumbnail" content="2" />
     <style>
       html,
       body {
@@ -34,7 +34,7 @@
       const cell = 0.22, word = 'WEB';
       const world = createWorld('view', { controls: 'orbit' });
       const stone = material.meshStandard({ color: '#d8cfbf', roughness: 0.85 });
-      const letters = material.meshStandard({ roughness: 0.6 });
+      const letters = material.meshStandard({ roughness: 0.4, metalness: 0.1 });
       const plaque = object.mesh(geometry.box(word.length * 6 * cell + 0.6, 7 * cell + 0.8, 0.2), stone);
       plaque.position.set(0, 1.1, -0.1);
       world.scene.add(plaque);
@@ -46,24 +46,27 @@
           world.scene.add(stroke);
         }),
       );
-      const sun = light.directional({ intensity: 3.2, color: '#ffe9cc', castShadow: true });
-      world.scene.add(sun, light.ambient({ intensity: 0.15, color: '#8fb4ff' }));
+      // Two lamps rake across the plaque from opposite sides, one warm, one cool: each letter
+      // throws two coloured shadows that cross as the lamps swing.
+      const warm = light.point({ intensity: 16, distance: 10, radius: 0.05, castShadow: true });
+      const cool = light.point({ intensity: 16, distance: 10, radius: 0.05, castShadow: true });
+      world.scene.add(warm, cool, light.ambient({ intensity: 0.15 }));
       world.camera.position.set(0.5, 1.3, 3.6);
       world.camera.lookAt(0, 1.1, 0);
       world.controls.target.set(0, 1.1, 0);
 
-      // The light swings on its own, or stays where the slider puts it.
-      const aim = (degrees) => {
-        const turn = (degrees * Math.PI) / 180;
-        sun.position.set(Math.sin(turn) * 10, 4, Math.cos(turn) * 6);
-        world.invalidate();
-      };
-      const ui = controls({ sweep: true, light: [-80, 80, -60, 1], letters: '#c9a36a' }, (values) => {
+      const ui = controls({ swing: [0, 2, 0.6], warm: '#ff8a3c', cool: '#3ca8ff', letters: '#d8b070' }, (values) => {
+        warm.color.set(values.warm);
+        cool.color.set(values.cool);
         letters.color.set(values.letters);
-        aim(values.light);
+        world.invalidate();
       });
-      world.onFrame(({ time }) => {
-        if (ui.sweep) aim(Math.sin(time * 0.6) * 75);
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        time += delta * ui.swing;
+        warm.position.set(-2.4, 1.1 + Math.sin(time) * 1.2, 1.2);
+        cool.position.set(2.4, 1.1 - Math.sin(time) * 1.2, 1.2);
+        world.invalidate();
       });
     </script>
   </body>
