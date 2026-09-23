@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { buildBundles, copyStatics, SITE_URL } from './docs/site.ts';
+import { MEASUREMENT_TAG } from './docs/measurement.ts';
 import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
 const root = resolve(import.meta.dirname, '..');
 
@@ -54,9 +55,12 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await copyStatics(source, out);
     await assert.rejects(stat(join(out, 'examples/removed.html')));
     await assert.rejects(stat(join(out, 'report.html')));
+    /* The root page is written from its source after the copy, so it is the one page that could
+       lose the measurement without any other test noticing. */
     assert.equal(
       await readFile(join(out, 'index.html'), 'utf8'),
-      `<!doctype html>\n<head>\n    <link rel="canonical" href="${SITE_URL}" />\n  </head>\n`,
+      `<!doctype html>\n<head>\n    <link rel="canonical" href="${SITE_URL}" />\n` +
+        `    ${MEASUREMENT_TAG}\n  </head>\n`,
     );
     assert.equal(await readFile(join(out, 'robots.txt'), 'utf8'), 'User-agent: *\nAllow: /\n');
     assert.equal(await readFile(join(out, 'reports/campaign/report.json'), 'utf8'), '{}');
