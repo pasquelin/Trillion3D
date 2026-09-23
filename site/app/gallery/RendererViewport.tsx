@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useWords, wordsOf } from '../i18n.ts';
+import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
 import type { RendererLessonItem } from '../../lessons/rendererLessonTypes.ts';
@@ -26,14 +28,9 @@ const poolSize = (bytes: number | null | undefined): string =>
       : value(bytes / 1048576, ' MiB', 1);
 
 const errorMessage = (error: unknown, locale: Locale, action: 'update' | 'rendering'): string => {
-  const fallback =
-    action === 'update'
-      ? locale === 'fr'
-        ? 'Mise à jour WebGPU refusée.'
-        : 'WebGPU update rejected.'
-      : locale === 'fr'
-        ? 'Rendu WebGPU indisponible.'
-        : 'WebGPU rendering unavailable.';
+  const fallback = wordsOf(locale)(
+    action === 'update' ? 'playground.updateRejected' : 'playground.webgpuUnavailable',
+  );
   return error instanceof Error && error.message ? `${fallback} ${error.message}` : fallback;
 };
 
@@ -96,8 +93,8 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
       ?.update(state)
       .catch((err: unknown) => setError(errorMessage(err, locale, 'update')));
   }, [state, locale]);
-  const french = locale === 'fr';
-  const copy = sceneCopy[locale] ?? sceneCopy.en;
+  const t = useWords(locale);
+  const copy = local(sceneCopy, locale);
   // `RendererMetrics.diagnostic` is the engine's full mode union; the select only offers this
   // viewport's narrower `DIAGNOSTIC_MODES`, so a mode outside it (never emitted by these
   // lessons in practice) falls back to Image, the select's default.
@@ -124,7 +121,7 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
         className="geometry-3d-canvas"
         label={label}
         pending={pending}
-        loadingLabel={locale === 'fr' ? 'Préparation de la scène…' : 'Preparing the scene…'}
+        loadingLabel={t('demo.loading')}
         overlay={
           <Select
             size="sm"
@@ -144,42 +141,34 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
         }
         actions={[
           {
-            label: french ? 'Zoom arrière' : 'Zoom out',
+            label: t('playground.zoomOut'),
             symbol: '−',
             onClick: () => runtime.current?.camera.zoomOut(),
           },
           {
-            label: french ? 'Zoom avant' : 'Zoom in',
+            label: t('playground.zoomIn'),
             symbol: '+',
             onClick: () => runtime.current?.camera.zoomIn(),
           },
           {
-            label: french ? 'Réinitialiser la caméra' : 'Reset camera',
+            label: t('playground.resetCamera'),
             symbol: '↺',
             onClick: () => runtime.current?.camera.reset(),
           },
         ]}
       />
       <StatGroup>
-        <Stat title="FPS">
-          {metrics.idle ? (french ? 'Pause' : 'Paused') : value(metrics.fps, '')}
-        </Stat>
-        <Stat title={french ? 'Image CPU' : 'CPU frame'}>{value(metrics.cpu, ' ms', 2)}</Stat>
-        <Stat title={french ? 'Pool alloué' : 'Allocated pool'}>{poolSize(metrics.memory)}</Stat>
-        <Stat title={french ? 'Triangles dessinés' : 'Drawn triangles'}>
-          {value(metrics.triangles, '')}
-        </Stat>
+        <Stat title="FPS">{metrics.idle ? t('playground.paused') : value(metrics.fps, '')}</Stat>
+        <Stat title={t('playground.cpuFrame')}>{value(metrics.cpu, ' ms', 2)}</Stat>
+        <Stat title={t('playground.allocatedPool')}>{poolSize(metrics.memory)}</Stat>
+        <Stat title={t('playground.drawnTriangles')}>{value(metrics.triangles, '')}</Stat>
         {lesson.shadowStats && (
-          <Stat title={french ? 'Pages d’ombre redessinées' : 'Shadow pages redrawn'}>
-            {value(metrics.shadowPages, '')}
-          </Stat>
+          <Stat title={t('playground.shadowRedrawn')}>{value(metrics.shadowPages, '')}</Stat>
         )}
         {lesson.shadowStats && (
-          <Stat title={french ? 'Pages d’ombre en attente' : 'Shadow pages pending'}>
-            {value(metrics.shadowPending, '')}
-          </Stat>
+          <Stat title={t('playground.shadowPending')}>{value(metrics.shadowPending, '')}</Stat>
         )}
-        <Stat title={french ? 'Grappes occultées' : 'Occluded clusters'}>
+        <Stat title={t('playground.occludedClusters')}>
           {typeof metrics.occluded === 'number' && Number.isFinite(metrics.occluded)
             ? `${metrics.occluded} / ${value(metrics.tested, '')}`
             : '—'}
