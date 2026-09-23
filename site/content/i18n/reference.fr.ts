@@ -36,8 +36,14 @@ export const referenceFr: LocaleOverlay = Object.fromEntries(
         ...row,
         desc: text.members?.[rowKey(row.name)] ?? row.desc,
       }));
-    if (entry.values && text.values)
-      overlay.values = entry.values.map(({ name }) => ({ desc: text.values?.[name] }));
+    // The only generated table of values is `EngineError`'s: its error codes.
+    if (entry.values && text.values) {
+      overlay.valuesTitle = 'Codes d’erreur';
+      overlay.values = entry.values.map(({ name }) => {
+        const desc = text.values?.[name];
+        return desc === undefined ? {} : { desc };
+      });
+    }
     return [entry.id, overlay];
   }),
 );
