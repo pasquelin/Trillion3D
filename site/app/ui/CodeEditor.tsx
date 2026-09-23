@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useWords } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
 import { runModule } from '../code/execute.ts';
 import type { ModuleExecutionResult, ModuleExecutionTask } from '../code/execute.ts';
@@ -19,7 +20,7 @@ export function CodeEditor({ initialCode, resetCode, locale = 'en' }: CodeEditor
     [running, setRunning] = useState(false),
     [result, setResult] = useState<ModuleExecutionResult | null>(null),
     task = useRef<ModuleExecutionTask | null>(null);
-  const french = locale === 'fr';
+  const t = useWords(locale);
   useEffect(() => {
     return () => {
       const previous = task.current;
@@ -48,54 +49,38 @@ export function CodeEditor({ initialCode, resetCode, locale = 'en' }: CodeEditor
   }
   const message =
     result?.kind === 'timeout'
-      ? french
-        ? 'Exécution interrompue après 3 secondes.'
-        : 'Execution stopped after 3 seconds.'
+      ? t('code.timeout')
       : result?.kind === 'cancelled'
-        ? french
-          ? 'Exécution annulée.'
-          : 'Execution cancelled.'
+        ? t('code.cancelled')
         : result?.text;
   return (
     <div className="grid min-w-0 grid-cols-1 gap-3" data-code-editor>
       <CodeSurface
         code={code}
         locale={locale}
-        title={french ? 'Code modifiable' : 'Editable code'}
+        title={t('code.editable')}
         actions={
           <>
             <Button size="sm" variant="primary" onClick={run} disabled={running}>
-              {french ? 'Exécuter' : 'Run'}
+              {t('code.run')}
             </Button>
             {running && (
               <Button size="sm" onClick={() => task.current?.cancel()}>
-                {french ? 'Annuler' : 'Cancel'}
+                {t('code.cancel')}
               </Button>
             )}
             <Button size="sm" onClick={reset}>
-              {french ? 'Reprendre les paramètres' : 'Reset from controls'}
+              {t('code.reset')}
             </Button>
           </>
         }
       >
-        <CodeInput
-          value={code}
-          onChange={setCode}
-          label={french ? 'Éditeur JavaScript' : 'JavaScript editor'}
-        />
+        <CodeInput value={code} onChange={setCode} label={t('code.editor')} />
       </CodeSurface>
       {result && (
         <Alert tone={result.ok ? 'success' : 'error'} role="status">
           <div className="min-w-0 w-full">
-            <strong>
-              {result.ok
-                ? french
-                  ? 'Résultat du code'
-                  : 'Code result'
-                : french
-                  ? 'Exécution arrêtée'
-                  : 'Execution stopped'}
-            </strong>
+            <strong>{t(result.ok ? 'code.result' : 'code.stopped')}</strong>
             <pre className="code-result">{message}</pre>
           </div>
         </Alert>
