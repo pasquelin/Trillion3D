@@ -4192,7 +4192,9 @@
       "minPolarAngle": "Angolo polare più piccolo, in radianti dalla verticale: `0` lascia che la camera guardi dritto verso il basso. Il polo stesso resta fuori portata, dove l'azimut smetterebbe di essere definito.",
       "maxPolarAngle": "Angolo polare più grande, in radianti dalla verticale: `Math.PI / 2` la mantiene sopra il terreno.",
       "minAzimuthAngle": "Inizio dell'arco di azimut consentito, in radianti da +Z verso +X; senza limite a `-Infinity`. Solo una coppia di limiti finiti più stretta di un giro completo trattiene la camera.",
-      "maxAzimuthAngle": "Fine di questo arco; senza limite a `Infinity`. Può essere più piccolo di `minAzimuthAngle`."
+      "maxAzimuthAngle": "Fine di questo arco; senza limite a `Infinity`. Può essere più piccolo di `minAzimuthAngle`.",
+      "autoRotate": "Radianti al secondo di cui la camera ruota da sola attorno a `target`, azimut da +Z verso +X; 0, il valore predefinito, la tiene ferma. La rotazione è integrata da `update(delta)` e si ferma per sempre alla prima pressione o scatto di rotellina sulla superficie: lo spettatore ha preso la camera.",
+      "update": "Come l’`update()` del pivot, con i secondi su cui ruota `autoRotate`; 0 di default."
     }
   },
   "OrthographicBox": {
@@ -6299,14 +6301,14 @@
     "summary": "Il controller a mouse e tastiera che sposta la camera.",
     "members": {
       "kind": "Quale controller dirige la camera; fornisci un altro nome per cambiare.",
-      "enabled": "Se il controller ascolta il mouse e la tastiera.",
+      "enabled": "Se il controller ascolta mouse e tastiera e muove la camera. `false` lo mette in pausa — nessun input, nessun `update` — senza ricrearlo: velocità, appoggio, passo, orientamento e rotazione restano, e `true` riprende esattamente da dove si era fermato.",
       "target": "Il punto attorno a cui ruota un controller a perno.",
       "autoUpdate": "Se il ciclo del mondo chiama `update` prima di ogni fotogramma, prima degli hook di `world.beforeFrame`. `false` affida il passo alla pagina, che chiama `update` da un tale hook, tanto spesso e con i sotto-passi che integra; il mondo allora non lo fa più mai.",
       "colliders": "Solo personaggio: le mesh con cui collide il corpo — un oggetto o un elenco, discendenti inclusi — o `null`. Impostarle costruisce un albero di triangoli statico dai loro triangoli in spazio mondo così come stanno ora: un passaggio sui triangoli e una costruzione `O(T log T)`, circa 52 byte per triangolo. I modelli compilati non vengono ancora letti: dai loro una mesh semplice come sostituto. Un `CharacterCollision` — il mondo di un motore fisico, qualsiasi cosa risponda a `resolveCapsule` e `groundBelow` — viene usato così com’è.",
       "rebuildColliders": "Solo personaggio: ricostruisce l'albero di collisione, dopo che i collisori si sono spostati o sono cambiati. Un `CharacterCollision` è il proprio mondo e viene passato invariato.",
       "velocity": "Solo personaggio: la velocità del corpo in metri al secondo, una copia; altrimenti zero.",
       "onGround": "Solo personaggio: se i piedi sono su un pavimento; `false` per ogni altro controller.",
-      "update": "Fa avanzare un controller pilotato di `delta` secondi; un controller a perno rilegge la sua posa.",
+      "update": "Integra un controller guidato su `delta` secondi; uno a pivot rilegge la propria posa, e un’orbita ruota di `autoRotate`. Un controller in pausa non fa nulla.",
       "follow": "La camera del mondo è cambiata: il controller la segue.",
       "dispose": "Ferma il controller e rimuove i suoi listener dal canvas.",
       "minDistance": "Distanza minima a cui un controller a perno avvicina la camera a `target`.",
@@ -6315,6 +6317,7 @@
       "maxPolarAngle": "Solo orbita: angolo polare più grande; `Math.PI / 2` mantiene la camera sopra il terreno.",
       "minAzimuthAngle": "Solo orbita: inizio dell'arco di azimut consentito, in radianti da +Z verso +X.",
       "maxAzimuthAngle": "Solo orbita: fine di questo arco; può essere più piccolo di `minAzimuthAngle`.",
+      "autoRotate": "Solo orbita: radianti al secondo di cui ruota da sola attorno a `target`, fino alla prima pressione o scatto di rotellina; 0 di default.",
       "movementSpeed": "Volo e prima persona: unità del mondo al secondo a tasto pieno; 1 per impostazione predefinita.",
       "lookSpeed": "Prima persona e personaggio: radianti di cui ruota la vista per pixel di movimento del puntatore.",
       "minPitch": "Prima persona e personaggio: il punto più basso in cui guarda la testa, in radianti (0 è l'orizzonte, negativo verso il basso).",

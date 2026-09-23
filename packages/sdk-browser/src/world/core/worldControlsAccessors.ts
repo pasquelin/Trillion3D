@@ -53,6 +53,14 @@ export function controlSettingAccessors(
     set maxAzimuthAngle(value: number) {
       setting('maxAzimuthAngle', value);
     },
+    /** Orbit only: radians per second it turns around `target` on its own, until the first
+     *  press or wheel notch; 0 by default. */
+    get autoRotate() {
+      return settings.autoRotate;
+    },
+    set autoRotate(value: number) {
+      setting('autoRotate', value);
+    },
     /** Flight and first person: world units per second at full stick; 1 by default. */
     get movementSpeed() {
       return settings.movementSpeed;

@@ -15,6 +15,7 @@ export const CONTROL_SETTINGS = {
   maxPolarAngle: Math.PI,
   minAzimuthAngle: -Infinity,
   maxAzimuthAngle: Infinity,
+  autoRotate: 0,
   movementSpeed: 1,
   lookSpeed: 0.002,
   minPitch: FIRST_PERSON_PITCH[0],

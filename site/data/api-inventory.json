@@ -920,6 +920,7 @@
         "packages/sdk-browser/src/world/core/worldCamera.ts",
         "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
         "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
+        "packages/sdk-browser/src/world/core/worldControlsPause.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/helper/index.ts"
@@ -4582,6 +4583,7 @@
         "packages/sdk-browser/src/world/core/worldBatches.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
         "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
+        "packages/sdk-browser/src/world/core/worldControlsPause.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
         "packages/sdk-browser/src/world/core/worldLink.ts",
         "packages/sdk-browser/src/world/core/worldMembers.ts",

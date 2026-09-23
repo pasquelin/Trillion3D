@@ -48,6 +48,14 @@ export interface OrbitCameraControls extends PivotCameraControls {
   minAzimuthAngle: number;
   /** End of that arc; unlimited at `Infinity`. It may be smaller than `minAzimuthAngle`. */
   maxAzimuthAngle: number;
+  /**
+   * Radians per second the camera turns around `target` on its own, azimuth from +Z towards +X;
+   * 0, the default, holds it still. The turn is integrated by `update(delta)`, and it stops for
+   * good at the first press or wheel notch on the surface: the viewer has taken the camera.
+   */
+  autoRotate: number;
+  /** As the pivot's `update()`, with the seconds `autoRotate` turns over; 0 by default. */
+  update(delta?: number): boolean;
 }
 
 export function createOrbitCameraControls(
@@ -137,19 +145,26 @@ export function createOrbitCameraControls(
     spherical[0] = dollyDistance(spherical[0], steps, api.zoomSpeed);
     apply();
   };
+  let spinning = true;
+  const update = (delta = 0) => {
+    sample();
+    const turn = spinning ? api.autoRotate * Math.max(0, delta) : 0;
+    if (turn) spherical[1] += turn;
+    else if (still()) return false;
+    return apply();
+  };
   // Unbounded angles by default: only the poles are out of reach.
-  const api: OrbitCameraControls = Object.assign(
-    pivotControlsApi(base, pose, () => {
-      sample();
-      return !still() && apply();
-    }),
-    {
-      minPolarAngle: 0,
-      maxPolarAngle: Math.PI,
-      minAzimuthAngle: -Infinity,
-      maxAzimuthAngle: Infinity,
-    },
-  );
+  const api: OrbitCameraControls = Object.assign(pivotControlsApi(base, pose, update), {
+    minPolarAngle: 0,
+    maxPolarAngle: Math.PI,
+    minAzimuthAngle: -Infinity,
+    maxAzimuthAngle: Infinity,
+    autoRotate: 0,
+    update,
+  });
+  const interrupt = () => void (spinning = false);
+  base.listen(surface, 'pointerdown', interrupt);
+  base.listen(surface, 'wheel', interrupt);
   // A wheel notch is 5 % of the distance.
   trackPivotGestures(
     surface,
