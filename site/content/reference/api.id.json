@@ -369,6 +369,7 @@
       "bottom": "Tepi bawah kotak orthographic.",
       "projection": "`'perspective'` membuat benda jauh kecil; `'orthographic'` menjaga setiap ukuran.",
       "updateProjectionMatrix": "Disimpan untuk halaman yang ditulis terhadap sebuah perender yang membutuhkannya: setiap penulisan optik sudah menggambar ulang.",
+      "rayThrough": "Sinar dunia yang melewati sebuah titik gambar, menurut proyeksi mesin itu sendiri (`engineCamera.ts`): dari mata sepanjang arah pandang untuk kamera perspektif, lurus searah pandang dari kotak untuk kamera ortografis. Arahnya adalah vektor satuan.",
       "set": "Menaruh mata di `pose.position`, melihat ke `pose.target`, pada bidang yang disebutkannya."
     }
   },
@@ -376,7 +377,7 @@
     "summary": "Matriks sebuah frame kamera, dialokasikan sekali dan ditulis ulang tiap bingkai.",
     "members": {
       "view": "View: kebalikan matriks dunia kamera (`matrixWorldInverse`).",
-      "viewProjection": "Projection × view.",
+      "viewProjection": "Proyeksi × view.",
       "planes": "Enam bidang ternormalisasi frustum `viewProjection`, diurutkan seperti `frustumPlanesFromMatrix`."
     }
   },
@@ -412,6 +413,13 @@
       "position": "Di mana mata itu berdiri.",
       "target": "Titik yang dilihat mata itu.",
       "fov": "Seberapa lebar mata itu melihat, dari atas ke bawah, dalam derajat."
+    }
+  },
+  "CanvasPoint": {
+    "summary": "Sebuah titik canvas, dalam piksel CSS dari pojok kiri atasnya: `event.offsetX`, `offsetY`.",
+    "members": {
+      "x": "Piksel CSS dari tepi kiri canvas.",
+      "y": "Piksel CSS dari tepi atas canvas."
     }
   },
   "CameraPose-common": {
@@ -916,7 +924,10 @@
       "SCENE_ROOT_MISMATCH": "Sesuatu yang dilarang root scene: sebuah induk untuknya, menghancurkannya, mencampur dua root, menyalin sebuah node ke dalam dirinya sendiri.",
       "SCENE_COPY_OVERLAP": "Sesuatu yang dilarang root scene: sebuah induk untuknya, menghancurkannya, mencampur dua root, menyalin sebuah node ke dalam dirinya sendiri.",
       "UNSUPPORTED_SCENE_UPDATE": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
-      "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya."
+      "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
+      "RAYCAST_NO_VIEW": "Titik gambar diminta dari canvas yang tidak punya ukuran: tidak ada gambar untuk dibidik.",
+      "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
+      "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan."
     }
   },
   "EngineProfiler": {
@@ -1102,6 +1113,7 @@
       "groups": "Rentang indeks yang digambar dengan `material[materialIndex]` saat sebuah mesh membawa beberapa.",
       "boundingBox": "Kotak di sekitar setiap vertex, setelah dihitung; `null` sampai saat itu.",
       "boundingSphere": "Bola di sekitar setiap vertex, setelah dihitung; `null` sampai saat itu.",
+      "recipe": "Anggota keluarga dan argumen yang membangun bentuk ini, selama bentuk itu masih seperti yang mereka bangun: itulah yang disimpan scene tersimpan, bukan verteksnya. Perubahan apa pun sesudahnya melupakannya.",
       "version": "Dinaikkan setiap perubahan bentuk: yang dibandingkan dunia untuk memotong halaman lagi.",
       "setAttribute": "Menyimpan sebuah daftar per-vertex di bawah `name`.",
       "getAttribute": "Daftar per-vertex yang disimpan di bawah `name`, kalau ada.",
@@ -1529,6 +1541,16 @@
       "stride": "Berapa banyak angka yang diambil tiap vertex.",
       "count": "Berapa banyak vertex yang dikemasnya.",
       "attribute": "Satu atribut dibaca keluar dari kemasan itu, sebagai atribut float miliknya sendiri."
+    }
+  },
+  "Intersection": {
+    "summary": "Tempat sinar bertemu objek: objek itu sendiri, titik dunia dan normal permukaan di sana, seberapa jauh di sepanjang sinar, dan segitiga yang mana (`-1` jika yang terkena adalah kotak objek).",
+    "members": {
+      "object": "Objek yang terkena: node yang sama persis dengan yang ditambahkan halaman.",
+      "point": "Titik dunia yang terkena.",
+      "normal": "Normal dunia dari sisi yang terkena, diarahkan menurut urutan verteksnya.",
+      "distance": "Jarak dari asal sinar ke `point`, dalam satuan dunia.",
+      "face": "Urutan segitiga yang terkena, atau `-1` untuk kotak."
     }
   },
   "JobProgress": {
@@ -2714,6 +2736,12 @@
       "clone": "Ray baru dengan mulai dan arah yang sama."
     }
   },
+  "RaycastOptions": {
+    "summary": "Apa yang bisa diberitahukan ke `world.raycast`; setiap kolom opsional.",
+    "members": {
+      "objects": "Objek yang diuji, beserta subtree-nya; jika tidak diisi, seluruh scene."
+    }
+  },
   "ResidentPage": {
     "summary": "Satu halaman tersimpan dalam kolam halaman GPU.",
     "members": {
@@ -2848,6 +2876,63 @@
       "revision": "Berapa kali berubah."
     }
   },
+  "SavedCamera": {
+    "summary": "Kamera yang dipakai saat scene disimpan: pose, proyeksi, dan optiknya.",
+    "members": {
+      "projection": "Perspektif atau ortografis.",
+      "position": "Di mana mata berada.",
+      "quaternion": "Bagaimana mata diputar.",
+      "optics": "Bidang pandang, near, far, zoom, dan kotak, menurut nama."
+    }
+  },
+  "SavedGeometry": {
+    "summary": "Sebuah geometri: panggilan keluarga yang membangunnya, atau verteksnya jika tidak ada panggilan yang bisa membangunnya lagi.",
+    "members": {
+      "recipe": "Anggota keluarga dan setiap argumen yang dipakai untuk membangunnya.",
+      "attributes": "Setiap daftar per verteks, jika tidak ada panggilan yang membangun bentuk itu lagi.",
+      "index": "Verteks mana yang membentuk setiap segitiga.",
+      "groups": "Rentang indeks yang masing-masing digambar dengan satu material."
+    }
+  },
+  "SavedMaterial": {
+    "summary": "Sebuah material: jenisnya dan setiap parameternya, warna sebagai `[r, g, b]` linear.",
+    "members": {
+      "kind": "Jenis yang dipakai saat material dibuat: `'meshStandard'`, `'meshBasic'`…",
+      "parameters": "Setiap parameter menurut nama."
+    }
+  },
+  "SavedNode": {
+    "summary": "Sebuah node: posenya dan apa dirinya — grup, mesh, cahaya, atau model yang dimuat — serta apa yang ada di bawahnya.",
+    "members": {
+      "kind": "Apa node itu.",
+      "name": "Namanya.",
+      "position": "Di mana ia berada, dihitung dari induknya.",
+      "quaternion": "Bagaimana ia diputar, sebagai quaternion.",
+      "scale": "Seberapa ia diregangkan di setiap sumbu.",
+      "visible": "Apakah ia digambar.",
+      "castShadow": "Apakah ia menghasilkan bayangan.",
+      "receiveShadow": "Apakah bayangan jatuh di atasnya.",
+      "renderOrder": "Urutan gambarnya di antara benda-benda tembus pandang.",
+      "userData": "Data milik halaman sendiri, sebagai JSON.",
+      "children": "Node di bawahnya, secara berurutan.",
+      "mesh": "Urutan di `geometries` dan `materials`, serta cara segitiga dibaca.",
+      "light": "Jenis cahaya, warna, angka, arah bidikan, dan koefisien probe-nya.",
+      "model": "Model terkompilasi, lewat alamat manifest tempat ia dimuat: tidak pernah disalin ke dalam."
+    }
+  },
+  "SavedScene": {
+    "summary": "Scene seperti yang ditulis `scene.toJSON` dan dibaca `scene.fromJSON`: JSON sederhana.",
+    "members": {
+      "format": "Selalu `'web-geometry-scene'`.",
+      "formatVersion": "Versi tata letak ini; versi lain ditolak.",
+      "background": "Warna latar belakang, atau `null`.",
+      "fog": "Kabut, atau `null`.",
+      "camera": "Kamera yang disimpan bersama scene, atau `null`.",
+      "geometries": "Setiap bentuk, sekali saja, berapa pun mesh yang memakainya.",
+      "materials": "Setiap material, sekali saja, berapa pun mesh yang memakainya.",
+      "children": "Node teratas scene, secara berurutan."
+    }
+  },
   "Scene": {
     "summary": "Root scene sebuah dunia: objek ditambahkan ke sana, sebuah model terkompilasi dimuat ke sana, dan yang mengisi gambar di belakangnya adalah `background`.",
     "members": {
@@ -2855,7 +2940,9 @@
       "environment": "Sebuah gambar lingkungan yang dipantulkan permukaan mengkilap; `null` untuk tidak ada.",
       "fog": "Kabut yang memudarkan objek ke `color` antara `near` dan `far`; `null` untuk tidak ada.",
       "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, sebuah gambar, atau `null` untuk bawaan.",
-      "load": "Memuat sebuah model terkompilasi — URL manifestnya — dan menambahkannya ke scene ini."
+      "load": "Memuat sebuah model terkompilasi — URL manifestnya — dan menambahkannya ke scene ini.",
+      "toJSON": "Scene sebagai JSON sederhana berversi: objeknya, bentuk lewat panggilan yang membangunnya, material, cahaya, dan model yang dimuat lewat alamatnya; pose `camera` juga jika diberikan.",
+      "fromJSON": "Mengganti isi scene dengan scene yang disimpan `toJSON`, penanda `helper`-nya tetap dipertahankan; selesai setelah model-modelnya dimuat. Format atau versi lain ditolak (`UNSUPPORTED_SCENE_FORMAT`). Panggilan yang dilakukan selama pembacaan berjalan satu per satu, berurutan, masing-masing pada hasil yang ditinggalkan panggilan sebelumnya: dua scene tersimpan tidak pernah bercampur."
     }
   },
   "Scene-common": {
@@ -3609,6 +3696,62 @@
     "members": {
       "turntable": "Apakah atas tetap atas, seperti sebuah turntable."
     }
+  },
+  "TransformControls": {
+    "summary": "Apa yang dikembalikan `controls.transform`.",
+    "members": {
+      "snap": "Langkah pembulatan seretan: `{ translate, rotate, scale }`, masing-masing opsional.",
+      "handles": "Grup pegangan — sebuah penanda `helper` — di dalam scene selama terpasang.",
+      "object": "Objek tempat pegangan berada, atau `null`.",
+      "dragging": "Bernilai true selama sebuah pegangan sedang diseret.",
+      "mode": "Apa yang dilakukan seretan: `'translate'`, `'rotate'`, atau `'scale'`.",
+      "space": "Sumbu `'world'` atau `'local'`.",
+      "attach": "Memasang pegangan pada `target`, dan di dalam scene; seretan yang sedang berjalan diakhiri dulu (`dragEnd`).",
+      "detach": "Melepas pegangan dari objeknya, dan dari scene; seretan yang sedang berjalan diakhiri dulu.",
+      "setMode": "Memindah, memutar, atau mengubah ukuran mulai sekarang.",
+      "setSpace": "Pegangan mengikuti sumbu dunia atau sumbu objek itu sendiri.",
+      "addEventListener": "Memanggil `listener` pada setiap event bertipe `type`.",
+      "removeEventListener": "Berhenti memanggil `listener` untuk event bertipe `type`.",
+      "dispose": "Mengeluarkan pegangan dari scene dan melepas semua listener dari canvas."
+    }
+  },
+  "TransformControlsOptions": {
+    "summary": "Apa yang bisa diberitahukan ke `controls.transform`; setiap kolom opsional.",
+    "members": {
+      "mode": "Memindah, memutar, atau mengubah ukuran; `'translate'` secara bawaan.",
+      "space": "Pegangan mengikuti sumbu dunia atau sumbu objek itu sendiri; `'world'` secara bawaan.",
+      "snap": "Langkah pembulatan setiap seretan; tidak ada secara bawaan.",
+      "size": "Panjang pegangan sebagai bagian dari tinggi canvas, sama di mana pun objek berada; seperempat secara bawaan."
+    }
+  },
+  "TransformEvent": {
+    "summary": "Event yang dipancarkan kontrol transformasi: setiap pose yang ditulisnya, serta awal dan akhir seretan."
+  },
+  "TransformHandle": {
+    "summary": "Sebuah pegangan: satu sumbu, bidang dua sumbu, atau `'xyz'` — bagian tengah: pindah bebas, skala seragam."
+  },
+  "TransformHost": {
+    "summary": "Apa yang dibutuhkan kontrol transformasi dari sebuah dunia: `createWorld` mengembalikannya.",
+    "members": {
+      "canvas": "Canvas tempat penunjuk menekan.",
+      "scene": "Scene tempat pegangan ditambahkan.",
+      "camera": "Kamera yang dipakai untuk melihat canvas.",
+      "onFrame": "Menjalankan `hook` setelah setiap bingkai digambar; mengembalikan fungsi yang menghentikannya."
+    }
+  },
+  "TransformMode": {
+    "summary": "Apa yang dilakukan kontrol transformasi pada objeknya."
+  },
+  "TransformSnap": {
+    "summary": "Langkah pembulatan sebuah seretan, masing-masing opsional: satuan dunia, radian, faktor skala.",
+    "members": {
+      "translate": "Satuan dunia pembulatan sebuah perpindahan, di sepanjang setiap sumbu.",
+      "rotate": "Radian pembulatan sebuah putaran.",
+      "scale": "Langkah pembulatan faktor skala."
+    }
+  },
+  "TransformSpace": {
+    "summary": "Kerangka acuan tempat pegangan diluruskan; skala selalu mengikuti sumbu objek itu sendiri."
   },
   "TransformTree": {
     "summary": "Hierarki transform mesin, berbasis data: sebuah node adalah indeks ke dalam larik datar — parent, flags, position, quaternion `(x, y, z, w)`, scale, matriks lokal dan matriks dunia column-major.",
@@ -4451,6 +4594,20 @@
   "coneRejects": {
     "summary": "Penolakan kerucut normal untuk back-face culling."
   },
+  "controls": {
+    "summary": "Keluarga `controls`: pengontrol yang dipasang halaman pada sebuah dunia, di samping pengontrol kamera yang sudah dijalankan `world.controls`."
+  },
+  "controls.transform": {
+    "summary": "Pegangan yang memindah, memutar, dan mengubah ukuran satu objek dengan mouse (`transform.ts`).",
+    "parameters": {
+      "host": "Dunia yang scene dan kameranya menjadi tempat pegangan berada.",
+      "options": "Mode, sumbu, pembulatan, dan ukuran di layar; biasanya tidak perlu diisi apa pun.",
+      "options.mode": "Memindah, memutar, atau mengubah ukuran; `'translate'` secara bawaan.",
+      "options.space": "Pegangan mengikuti sumbu dunia atau sumbu objek itu sendiri; `'world'` secara bawaan.",
+      "options.snap": "Langkah pembulatan setiap seretan; tidak ada secara bawaan.",
+      "options.size": "Panjang pegangan sebagai bagian dari tinggi canvas, sama di mana pun objek berada; seperempat secara bawaan."
+    }
+  },
   "copyMatrix4": {
     "summary": "Menyalin enam belas float dari `m` ke `out`, masing-masing pada offset-nya."
   },
@@ -4945,7 +5102,8 @@
     "description": "Tidak diketahui adalah `geometry`."
   },
   "helper": {
-    "summary": "Keluarga `helper`: tanda-tanda yang dipakai untuk mengerjakan sebuah scene, dibangun dari garis dan mesh."
+    "summary": "Keluarga `helper`: tanda-tanda yang dipakai untuk mengerjakan sebuah scene, dibangun dari garis dan mesh.",
+    "description": "Dunia menggambarnya seperti objek lain; pemilihan (`world.raycast`) dan scene tersimpan melewatinya."
   },
   "helper.arrow": {
     "summary": "Sebuah panah dari `origin` menunjuk sepanjang `dir`.",
@@ -6211,6 +6369,10 @@
     "summary": "Apa yang diizinkan mesin sebelum scene apa pun dimuat: jalur yang akan dipakai sebuah dunia untuk menggambar.",
     "description": "Sebuah jalur paksa yang tidak dimiliki mesin ditolak menurut namanya; diserahkan ke mesin, WebGPU saat sebuah adapter diizinkan — dan perangkatnya, diminta sekali —, WebGL2 sebaliknya, dan sebuah mesin tanpa keduanya ditolak. `chooseBackends` mengulang keputusan yang sama pada perangkat itu saat sebuah sesi dibuka."
   },
+  "raycast": {
+    "summary": "Setiap objek di bawah `roots` yang ditemui `ray`, yang terdekat lebih dulu, satu tabrakan per objek: yang terdekat dari miliknya.",
+    "description": "Arah diubah menjadi vektor satuan di pintu masuk, sehingga setiap `distance` dalam satuan dunia berapa pun panjang yang diberikan halaman. Subtree tersembunyi dilewati — termasuk akar yang berada di bawah leluhur tersembunyi — begitu pula node yang disebut `skip` beserta subtree-nya: penanda yang dipakai halaman, bukan isinya."
+  },
   "readCameraWorld": {
     "summary": "Menyalin kamera host ke kamera mesin, leluhur terselesaikan."
   },
@@ -6554,7 +6716,15 @@
     "summary": "Apa yang dipegang halaman: mode, dibaca dan ditulis.",
     "members": {
       "mode": "Mode tampilan: `'beauty'` untuk gambar normal, atau sebuah mode yang menunjukkan cara kerja mesin.",
+      "sessions": "Sesi yang sudah dibuka dunia sejauh ini: perubahan yang membuka ulang sebuah sesi terlihat di sini.",
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
+    }
+  },
+  "world.raycast": {
+    "summary": "Objek terdekat di bawah sebuah titik canvas (piksel CSS) atau di sepanjang sinar dunia, atau `null`: node yang ditambahkan halaman, titik dunia dan normal yang terkena, serta jaraknya (`worldRaycast`).",
+    "parameters": {
+      "options": "Apa yang bisa diberitahukan ke `world.raycast`; setiap kolom opsional.",
+      "options.objects": "Objek yang diuji, beserta subtree-nya; jika tidak diisi, seluruh scene."
     }
   },
   "world.dispose": {
