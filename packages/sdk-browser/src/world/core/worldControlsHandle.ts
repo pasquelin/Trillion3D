@@ -16,14 +16,14 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
  * handed to the live controller when it has that setting, and handed again to every controller
  * `kind` makes later. A controller without that setting ignores it — the distances bound the
  * pivot controllers (orbit, trackball, pan-zoom), the angles the orbit alone; `movementSpeed`
- * drives flight and first person, `lookSpeed`, `minPitch` and `maxPitch` first person, the
- * turn speeds, the stick inputs, `inputResponse`, `autoForward` and `pointerLook` flight,
- * `rotateSpeed` and `zoomSpeed` the pivot controllers, the body, speeds, jump and hooks the
- * character — so a page may set them before or after it picks its controller. The character's
- * `colliders` are kept the same way: the triangle tree is built once when they are set, handed
- * to every character `kind` makes, and rebuilt only on `rebuildColliders()`. A cruising flight
- * moves on every frame, so the handle asks for the first one; a
- * disabled controller, or any other kind, leaves the scene still.
+ * drives flight and first person, `lookSpeed`, `minPitch` and `maxPitch` first person and the
+ * character, the turn speeds, the stick inputs, `inputResponse`, `autoForward` and
+ * `pointerLook` flight, `rotateSpeed` and `zoomSpeed` the pivot controllers, the body, speeds,
+ * jump and hooks the character — so a page may set them before or after it picks its
+ * controller. The character's `colliders` are kept the same way: the triangle tree is built
+ * once when they are set, handed to every character `kind` makes, and rebuilt only on
+ * `rebuildColliders()`. A cruising flight moves on every frame, so the handle asks for the
+ * first one; a disabled controller, or any other kind, leaves the scene still.
  */
 export function worldControlsHandle(
   initial: WorldControls,
