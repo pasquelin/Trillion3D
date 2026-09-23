@@ -35,7 +35,7 @@ export function requestedLanguage(url: URL, preferred: readonly string[]): strin
 }
 
 /** The word at `path`, or `undefined` when the dictionary has none there. */
-export function lookup(path: readonly string[]): string | undefined {
+function lookup(path: readonly string[]): string | undefined {
   let node: string | WordTree | undefined = tree;
   for (const part of path) node = typeof node === 'object' ? node[part] : undefined;
   return typeof node === 'string' ? node : undefined;
