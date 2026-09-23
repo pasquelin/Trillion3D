@@ -11,6 +11,7 @@
     "learn": "सीखें",
     "sandbox": "अभी आज़माएँ",
     "examples": "उदाहरण",
+    "editor": "संपादक",
     "api": "API संदर्भ",
     "reports": "मापन"
   },
@@ -97,6 +98,103 @@
     "title": "अभी आज़माएँ",
     "start": "किसी उदाहरण से शुरू करें",
     "open": "सैंडबॉक्स में खोलें"
+  },
+  "editor": {
+    "title": "scene एडिटर",
+    "group": "टूल",
+    "showcase": "scene एडिटर खोलें",
+    "loading": "एडिटर तैयार हो रहा है…",
+    "canvas": "scene व्यू: किसी ऑब्जेक्ट को चुनने के लिए उस पर क्लिक करें, कैमरा घुमाने के लिए खींचें",
+    "menu": {
+      "file": "फ़ाइल",
+      "add": "जोड़ें",
+      "edit": "संपादन",
+      "models": "मॉडल"
+    },
+    "new": "नया",
+    "openFile": "खोलें…",
+    "save": "सहेजें",
+    "undo": "पूर्ववत करें",
+    "redo": "फिर से करें",
+    "duplicate": "डुप्लिकेट बनाएँ",
+    "delete": "हटाएँ",
+    "add": {
+      "box": "बॉक्स",
+      "sphere": "गोला",
+      "cylinder": "सिलिंडर",
+      "cone": "शंकु",
+      "torus": "टोरस",
+      "plane": "समतल",
+      "group": "समूह",
+      "point": "बिंदु लाइट",
+      "spot": "स्पॉट लाइट",
+      "directional": "दिशात्मक लाइट",
+      "ambient": "परिवेश लाइट"
+    },
+    "model": {
+      "bust": "संगमरमर की अर्धप्रतिमा",
+      "crates": "लकड़ी के बक्से",
+      "hall": "हॉल",
+      "street-corner": "गली का कोना"
+    },
+    "tools": "ट्रांसफ़ॉर्म टूल",
+    "translate": "हिलाएँ (W)",
+    "rotate": "घुमाएँ (E)",
+    "scale": "आकार बदलें (R)",
+    "space": {
+      "world": "दुनिया की धुरियाँ",
+      "local": "ऑब्जेक्ट की धुरियाँ"
+    },
+    "snap": "स्नैप",
+    "outliner": "scene",
+    "empty": "scene खाली है: जोड़ें मेन्यू से कोई ऑब्जेक्ट जोड़ें।",
+    "show": "दिखाएँ",
+    "hide": "छिपाएँ",
+    "rename": "नाम बदलें",
+    "dropRoot": "किसी पंक्ति को दूसरी पंक्ति पर खींचें ताकि वह उसके अंदर चली जाए; उसे सबसे ऊपरी स्तर पर वापस लाने के लिए यहाँ छोड़ें।",
+    "inspector": "गुण",
+    "nothing": "बदलने के लिए कोई ऑब्जेक्ट चुनें।",
+    "name": "नाम",
+    "position": "स्थिति",
+    "rotation": "घुमाव (°)",
+    "scaleField": "स्केल",
+    "geometry": "आकृति",
+    "material": "material",
+    "color": "रंग",
+    "metalness": "धात्विकता",
+    "roughness": "खुरदरापन",
+    "emissive": "चमक",
+    "opacity": "अपारदर्शिता",
+    "light": "लाइट",
+    "intensity": "तीव्रता",
+    "range": "पहुँच (0: कोई सीमा नहीं)",
+    "shadow": "छाया डालता है",
+    "param": {
+      "width": "चौड़ाई",
+      "height": "ऊँचाई",
+      "depth": "गहराई",
+      "radius": "त्रिज्या",
+      "radiusTop": "ऊपर की त्रिज्या",
+      "radiusBottom": "नीचे की त्रिज्या",
+      "tube": "नली की त्रिज्या",
+      "arc": "चाप (रेडियन)",
+      "widthSegments": "चौड़ाई के खंड",
+      "heightSegments": "ऊँचाई के खंड",
+      "depthSegments": "गहराई के खंड",
+      "radialSegments": "चारों ओर के खंड",
+      "tubularSegments": "नली के खंड"
+    },
+    "stats": "इंजन के आँकड़े",
+    "cpu": "CPU फ़्रेम (ms)",
+    "gpu": "GPU फ़्रेम (ms)",
+    "triangles": "त्रिभुज",
+    "pages": "लोड किए गए पेज",
+    "sessions": "खोले गए सेशन",
+    "statsHint": "पिछले बनाए गए फ़्रेम से पढ़ा गया; स्थिर scene कोई फ़्रेम नहीं बनाता।",
+    "error": {
+      "format": "इस फ़ाइल में ऐसा scene फ़ॉर्मैट है जिसे यह एडिटर नहीं पढ़ता।",
+      "read": "scene पढ़ा नहीं जा सका:"
+    }
   },
   "section": {
     "course": "कोर्स",
@@ -817,6 +915,26 @@
     },
     "srgbToLinearBatch": {
       "description": "हर एलिमेंट के लिए एक चैनल, `packages/sdk-core/src/math/primitives/color.ts` के सटीक वक्र: मानक गोल किए स्थिरांकों से गुणा करता है, और वह अंतर — 8 बिट पर अदृश्य — उस बेंच में एक बार बाँधा जाता है जो उन्हें आमने-सामने लाती है।"
+    },
+    "scene-editor": {
+      "title": "एडिटर से scene बनाना",
+      "description": "आकृतियाँ और लाइटें जोड़ें, उन्हें माउस से चुनें, हैंडल से हिलाएँ, उनका रंग बदलें, scene सहेजें और फिर से खोलें — पोर्टल में ही, सिर्फ़ सार्वजनिक API से।",
+      "html": "<p><a href=\"#/en/examples/scene-editor\">scene एडिटर</a> इस पोर्टल का एक पेज है, जो इंजन के तीन दरवाज़ों पर बना है और किसी और चीज़ पर नहीं। एक खाली scene से शुरू करें: <b>जोड़ें → बॉक्स</b>, फिर <b>जोड़ें → दिशात्मक लाइट</b>। बॉक्स पर क्लिक करें: <code>world.raycast</code> उसे पॉइंटर के नीचे ढूँढ़ता है, और उस पर <code>controls.transform</code> के हैंडल दिखाई देते हैं। उसे हिलाने के लिए कोई तीर खींचें — जब तक हैंडल पकड़ा हुआ है, कैमरा रुका रहता है — उसे घुमाने के लिए <kbd>E</kbd> दबाएँ, आकार बदलने के लिए <kbd>R</kbd>। गुण पैनल में उसका रंग बदलें: इंजन material को उसी जगह फिर से रंगता है, और फ़्रेम की लागत आँकड़ों वाले कोने में दिखती रहती है। <b>सहेजें</b> <code>scene.toJSON</code> डाउनलोड करता है; <b>नया</b>, फिर <b>खोलें</b>, <code>scene.fromJSON</code> से वही scene फिर से बनाता है।</p>\n<p>हर कदम <kbd>Ctrl</kbd>+<kbd>Z</kbd> से पूर्ववत होता है, और scene दो विज़िट के बीच ब्राउज़र में रखा रहता है। पेज खुद कुछ नहीं बनाता और कुछ नहीं हिलाता: आप जो देखते हैं, वह इंजन है।</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "पॉइंटर से ऑब्जेक्ट चुनना",
+      "description": "`world.raycast` canvas के किसी बिंदु के नीचे सबसे नज़दीकी ऑब्जेक्ट लौटाता है: पेज का जोड़ा हुआ नोड, टकराने वाला बिंदु और नॉर्मल, और दूरी।",
+      "html": "<p>यह जाँच CPU पर, scene की अपनी ज्यामिति पर चलती है: त्रिभुज मेश एक-एक त्रिभुज करके, लोड किया गया मॉडल उसके बॉक्स पर, और रेखाएँ व बिंदु कभी नहीं। छिपे हुए सबट्री और <code>helper</code> निशान छोड़ दिए जाते हैं। इसे <a href=\"#/en/examples/click-to-pick\">चुनने के लिए क्लिक करें</a> में देखें।</p>"
+    },
+    "move-with-handles": {
+      "title": "हैंडल से हिलाना, घुमाना और आकार बदलना",
+      "description": "`controls.transform(world)` एक ऑब्जेक्ट पर हैंडल लगाता है; खींचने से उसकी मुद्रा उसके पेरेंट्स से होकर लिखी जाती है, और इस बीच कैमरा रुका रहता है।",
+      "html": "<p>मोड <code>translate</code>, <code>rotate</code> और <code>scale</code>, दुनिया की या लोकल धुरियाँ, और वैकल्पिक कदम। इवेंट <code>dragStart</code> और <code>dragEnd</code> एक खिंचाव को घेरते हैं — यानी पूर्ववत का एक कदम। इसे <a href=\"#/en/examples/move-rotate-scale-gizmo\">हिलाना, घुमाना, स्केल gizmo</a> में देखें।</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "scene सहेजना और खोलना",
+      "description": "`scene.toJSON(camera)` scene को सादे, वर्ज़न वाले JSON में लिखता है; `scene.fromJSON(json, camera)` उसे फिर से बनाता है।",
+      "html": "<p>आकृतियाँ उस कॉल से सहेजी जाती हैं जिसने उन्हें बनाया, material अपने मानों से, लोड किए गए मॉडल अपने पते से — कभी अंदर कॉपी नहीं होते — और <code>helper</code> निशान बिल्कुल नहीं। फ़ॉर्मैट का कोई दूसरा वर्ज़न नाम लेकर मना कर दिया जाता है। इसे <a href=\"#/en/examples/save-the-scene\">scene सहेजना</a> में देखें।</p>"
     }
   },
   "canvas": {
@@ -1443,7 +1561,6 @@
       "gltf-material-variants": "अन्य glTF एक्सटेंशन: material वेरिएंट",
       "compressed-mesh-input": "अन्य glTF एक्सटेंशन: Draco, meshopt, क्वांटाइज़ेशन",
       "a-medical-scan": "वॉल्यूम रेंडरिंग",
-      "save-the-scene": "scene एक्सपोर्ट",
       "a-city-from-3d-tiles": "3D Tiles इनपुट",
       "rendering-in-a-worker": "OffscreenCanvas worker रेंडरिंग",
       "a-video-panorama": "लाइव वीडियो textures",
@@ -1473,14 +1590,12 @@
       "flames-and-a-tornado": "कस्टम शेडर material",
       "point-clouds-from-a-scan": "पॉइंट-क्लाउड इंपोर्ट",
       "gaussian-splats": "गॉसियन स्प्लैट रेंडरिंग",
-      "click-to-pick": "picking (raycast)",
       "hover-over-triangles": "picking (raycast)",
       "pick-lines-and-points": "picking (raycast)",
       "pick-an-instance": "picking (raycast)",
       "paint-where-you-click": "picking (raycast)",
       "a-voxel-painter": "picking (raycast)",
       "drag-objects": "picking (raycast)",
-      "move-rotate-scale-gizmo": "picking (raycast) और ट्रांसफ़ॉर्म gizmo",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "पोज़िशनल ऑडियो",
       "smooth-edges-over-time": "टेम्पोरल एंटी-अलायज़िंग सेटिंग",

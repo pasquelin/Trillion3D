@@ -369,6 +369,7 @@
       "bottom": "Cạnh dưới của hộp trực giao.",
       "projection": "`'perspective'` làm vật ở xa nhỏ lại; `'orthographic'` giữ nguyên mọi kích thước.",
       "updateProjectionMatrix": "Được giữ lại cho các trang được viết dựa trên một bộ kết xuất cần đến nó: mọi lần ghi quang học đã tự vẽ lại rồi.",
+      "rayThrough": "Tia trong thế giới đi qua một điểm của hình ảnh, theo đúng phép chiếu của bộ máy (`engineCamera.ts`): từ mắt dọc theo hướng nhìn với camera phối cảnh, thẳng theo hướng nhìn từ hộp với camera trực giao. Hướng của nó là một vectơ đơn vị.",
       "set": "Đặt con mắt tại `pose.position`, nhìn về `pose.target`, ở trường nhìn mà nó nêu tên."
     }
   },
@@ -376,7 +377,7 @@
     "summary": "Các ma trận của một khung camera, được cấp phát một lần và ghi lại ở mỗi khung hình.",
     "members": {
       "view": "View: nghịch đảo của ma trận thế giới của camera (`matrixWorldInverse`).",
-      "viewProjection": "Projection × view.",
+      "viewProjection": "Phép chiếu × view.",
       "planes": "Sáu mặt phẳng đã chuẩn hóa của khối nhìn `viewProjection`, sắp theo thứ tự như `frustumPlanesFromMatrix`."
     }
   },
@@ -412,6 +413,13 @@
       "position": "Con mắt đứng ở đâu.",
       "target": "Điểm mà con mắt nhìn vào.",
       "fov": "Con mắt nhìn rộng bao nhiêu, từ trên xuống dưới, tính bằng độ."
+    }
+  },
+  "CanvasPoint": {
+    "summary": "Một điểm của canvas, tính bằng pixel CSS từ góc trên bên trái của nó: `event.offsetX`, `offsetY`.",
+    "members": {
+      "x": "Số pixel CSS tính từ cạnh trái của canvas.",
+      "y": "Số pixel CSS tính từ cạnh trên của canvas."
     }
   },
   "CameraPose-common": {
@@ -916,7 +924,10 @@
       "SCENE_ROOT_MISMATCH": "Một điều gì đó mà gốc của cảnh cấm: một cha cho nó, phá hủy nó, trộn lẫn hai gốc, sao chép một node vào chính nó.",
       "SCENE_COPY_OVERLAP": "Một điều gì đó mà gốc của cảnh cấm: một cha cho nó, phá hủy nó, trộn lẫn hai gốc, sao chép một node vào chính nó.",
       "UNSUPPORTED_SCENE_UPDATE": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
-      "BATCHED_WORLD_VIEW": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh."
+      "BATCHED_WORLD_VIEW": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
+      "RAYCAST_NO_VIEW": "Một điểm ảnh được yêu cầu từ một canvas không có kích thước: không có hình ảnh nào để ngắm qua.",
+      "UNSUPPORTED_SCENE_FORMAT": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
+      "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ."
     }
   },
   "EngineProfiler": {
@@ -1102,6 +1113,7 @@
       "groups": "Các khoảng chỉ số được vẽ bằng `material[materialIndex]` khi một mesh mang nhiều vật liệu.",
       "boundingBox": "Hộp bao quanh mọi đỉnh, một khi đã được tính; `null` cho tới lúc đó.",
       "boundingSphere": "Hình cầu bao quanh mọi đỉnh, một khi đã được tính; `null` cho tới lúc đó.",
+      "recipe": "Thành viên của họ và các đối số đã tạo ra hình khối này, chừng nào nó vẫn đúng như chúng đã tạo: đó là thứ mà một cảnh đã lưu giữ lại thay cho các đỉnh. Mọi thay đổi sau đó đều làm nó bị quên.",
       "version": "Tăng lên ở mỗi thay đổi về hình dạng: đó là điều mà thế giới so sánh để cắt lại các trang.",
       "setAttribute": "Lưu trữ một danh sách theo từng đỉnh dưới tên `name`.",
       "getAttribute": "Danh sách theo từng đỉnh được lưu dưới tên `name`, nếu có.",
@@ -1529,6 +1541,16 @@
       "stride": "Mỗi đỉnh chiếm bao nhiêu con số.",
       "count": "Nó đóng gói bao nhiêu đỉnh.",
       "attribute": "Một thuộc tính được đọc ra khỏi gói đó, như thuộc tính số thực của riêng nó."
+    }
+  },
+  "Intersection": {
+    "summary": "Nơi một tia gặp một vật thể: chính vật thể đó, điểm trong thế giới và pháp tuyến của bề mặt tại đó, khoảng cách dọc theo tia, và tam giác nào (`-1` khi hộp bao của vật thể bị chạm).",
+    "members": {
+      "object": "Vật thể bị chạm: chính node mà trang đã thêm.",
+      "point": "Điểm trong thế giới bị chạm.",
+      "normal": "Pháp tuyến trong thế giới của mặt bị chạm, hướng theo thứ tự các đỉnh của nó.",
+      "distance": "Khoảng cách từ gốc của tia đến `point`, tính bằng đơn vị thế giới.",
+      "face": "Thứ hạng của tam giác bị chạm, hoặc `-1` cho một hộp."
     }
   },
   "JobProgress": {
@@ -2714,6 +2736,12 @@
       "clone": "Một tia mới với cùng điểm bắt đầu và hướng."
     }
   },
+  "RaycastOptions": {
+    "summary": "Những gì có thể báo cho `world.raycast`; mọi trường đều tùy chọn.",
+    "members": {
+      "objects": "Các vật thể được thử, cùng các cây con của chúng; nếu bỏ trống, là toàn bộ cảnh."
+    }
+  },
   "ResidentPage": {
     "summary": "Một trang được giữ trong bể trang GPU.",
     "members": {
@@ -2848,6 +2876,63 @@
       "revision": "Số lần nó đã thay đổi."
     }
   },
+  "SavedCamera": {
+    "summary": "Camera dùng khi lưu cảnh: tư thế, phép chiếu và quang học của nó.",
+    "members": {
+      "projection": "Phối cảnh hoặc trực giao.",
+      "position": "Mắt đứng ở đâu.",
+      "quaternion": "Mắt được xoay thế nào.",
+      "optics": "Góc nhìn, near, far, zoom và hộp, theo tên."
+    }
+  },
+  "SavedGeometry": {
+    "summary": "Một hình học: lệnh gọi của họ đã tạo ra nó, hoặc các đỉnh của nó khi không lệnh gọi nào có thể tạo lại nó.",
+    "members": {
+      "recipe": "Thành viên của họ và mọi đối số đã dùng để tạo ra nó.",
+      "attributes": "Mỗi danh sách theo đỉnh, khi không lệnh gọi nào tạo lại được hình khối.",
+      "index": "Những đỉnh nào tạo nên mỗi tam giác.",
+      "groups": "Các khoảng chỉ mục, mỗi khoảng được vẽ bằng một vật liệu."
+    }
+  },
+  "SavedMaterial": {
+    "summary": "Một vật liệu: loại của nó và mọi tham số, màu dưới dạng `[r, g, b]` tuyến tính.",
+    "members": {
+      "kind": "Loại mà vật liệu đã được tạo ra: `'meshStandard'`, `'meshBasic'`…",
+      "parameters": "Mọi tham số theo tên."
+    }
+  },
+  "SavedNode": {
+    "summary": "Một node: tư thế của nó và nó là gì — một nhóm, một mesh, một ánh sáng hay một mô hình đã nạp — và những gì bên dưới nó.",
+    "members": {
+      "kind": "Node đó là gì.",
+      "name": "Tên của nó.",
+      "position": "Nó đứng ở đâu, tính từ cha của nó.",
+      "quaternion": "Nó được xoay thế nào, dưới dạng quaternion.",
+      "scale": "Nó bị kéo giãn thế nào trên mỗi trục.",
+      "visible": "Nó có được vẽ hay không.",
+      "castShadow": "Nó có đổ bóng hay không.",
+      "receiveShadow": "Bóng có rơi lên nó hay không.",
+      "renderOrder": "Thứ tự vẽ của nó giữa các vật trong suốt.",
+      "userData": "Dữ liệu riêng của trang, dưới dạng JSON.",
+      "children": "Các node bên dưới nó, theo thứ tự.",
+      "mesh": "Thứ hạng trong `geometries` và `materials`, và cách đọc các tam giác.",
+      "light": "Loại, màu, các con số, hướng chiếu và hệ số probe của một ánh sáng.",
+      "model": "Một mô hình đã biên dịch, theo địa chỉ manifest mà nó được nạp từ đó: không bao giờ chép vào trong."
+    }
+  },
+  "SavedScene": {
+    "summary": "Một cảnh như `scene.toJSON` ghi ra và `scene.fromJSON` đọc vào: JSON đơn giản.",
+    "members": {
+      "format": "Luôn là `'web-geometry-scene'`.",
+      "formatVersion": "Phiên bản của cách bố trí này; phiên bản khác bị từ chối.",
+      "background": "Màu nền, hoặc `null`.",
+      "fog": "Sương mù, hoặc `null`.",
+      "camera": "Camera được lưu cùng cảnh, hoặc `null`.",
+      "geometries": "Mỗi hình khối, một lần, dù có bao nhiêu mesh dùng nó.",
+      "materials": "Mỗi vật liệu, một lần, dù có bao nhiêu mesh dùng nó.",
+      "children": "Các node trên cùng của cảnh, theo thứ tự."
+    }
+  },
   "Scene": {
     "summary": "Gốc của một cảnh trong thế giới: các đối tượng được thêm vào đó, một mô hình đã biên dịch được tải vào đó, và những gì lấp đầy hình ảnh phía sau chúng là `background`.",
     "members": {
@@ -2855,7 +2940,9 @@
       "environment": "Một hình ảnh môi trường xung quanh mà các bề mặt bóng bẩy phản chiếu; `null` cho không có.",
       "fog": "Sương mù làm mờ dần các vật thể thành `color` giữa `near` và `far`; `null` cho không có.",
       "background": "Những gì lấp đầy hình ảnh phía sau mỗi vật thể: một màu, một hình ảnh, hoặc `null` cho mặc định.",
-      "load": "Tải một mô hình đã biên dịch — URL tệp kê khai của nó — và thêm nó vào cảnh này."
+      "load": "Tải một mô hình đã biên dịch — URL tệp kê khai của nó — và thêm nó vào cảnh này.",
+      "toJSON": "Cảnh dưới dạng JSON đơn giản có phiên bản: các vật thể, hình khối theo lệnh gọi đã tạo ra chúng, vật liệu, ánh sáng, và mô hình đã nạp theo địa chỉ; cả tư thế của `camera` khi có truyền vào.",
+      "fromJSON": "Thay thế nội dung của cảnh bằng một cảnh do `toJSON` lưu, vẫn giữ các dấu `helper` của nó; hoàn tất khi các mô hình của nó đã nạp xong. Định dạng hoặc phiên bản khác bị từ chối (`UNSUPPORTED_SCENE_FORMAT`). Các lệnh gọi được thực hiện trong lúc đang đọc sẽ chạy lần lượt, theo thứ tự, mỗi lệnh trên kết quả mà lệnh trước để lại: hai cảnh đã lưu không bao giờ bị trộn vào nhau."
     }
   },
   "Scene-common": {
@@ -3609,6 +3696,62 @@
     "members": {
       "turntable": "Hướng lên có luôn là hướng lên hay không, như một bàn xoay."
     }
+  },
+  "TransformControls": {
+    "summary": "Những gì `controls.transform` trả về.",
+    "members": {
+      "snap": "Các bước mà lần kéo được làm tròn theo: `{ translate, rotate, scale }`, mỗi cái đều tùy chọn.",
+      "handles": "Nhóm các tay cầm — một dấu `helper` — nằm trong cảnh khi đang được gắn.",
+      "object": "Vật thể đang có tay cầm, hoặc `null`.",
+      "dragging": "True khi một tay cầm đang được kéo.",
+      "mode": "Việc mà một lần kéo làm: `'translate'`, `'rotate'` hoặc `'scale'`.",
+      "space": "Trục `'world'` hoặc `'local'`.",
+      "attach": "Đặt tay cầm lên `target`, và vào cảnh; lần kéo đang diễn ra sẽ kết thúc trước (`dragEnd`).",
+      "detach": "Gỡ tay cầm khỏi vật thể của chúng, và khỏi cảnh; lần kéo đang diễn ra sẽ kết thúc trước.",
+      "setMode": "Di chuyển, xoay hoặc co giãn kể từ bây giờ.",
+      "setSpace": "Tay cầm theo trục thế giới hoặc theo trục riêng của vật thể.",
+      "addEventListener": "Gọi `listener` với mỗi sự kiện thuộc loại `type`.",
+      "removeEventListener": "Ngừng gọi `listener` với các sự kiện thuộc loại `type`.",
+      "dispose": "Đưa tay cầm ra khỏi cảnh và gỡ mọi listener khỏi canvas."
+    }
+  },
+  "TransformControlsOptions": {
+    "summary": "Những gì có thể báo cho `controls.transform`; mọi trường đều tùy chọn.",
+    "members": {
+      "mode": "Di chuyển, xoay hoặc co giãn; mặc định là `'translate'`.",
+      "space": "Tay cầm theo trục thế giới hoặc theo trục riêng của vật thể; mặc định là `'world'`.",
+      "snap": "Các bước mà mỗi lần kéo được làm tròn theo; mặc định là không có.",
+      "size": "Chiều dài tay cầm tính theo phần chiều cao của canvas, như nhau dù vật thể ở đâu; mặc định là một phần tư."
+    }
+  },
+  "TransformEvent": {
+    "summary": "Các sự kiện mà một bộ điều khiển biến đổi phát ra: mọi tư thế nó ghi, cùng lúc bắt đầu và kết thúc một lần kéo."
+  },
+  "TransformHandle": {
+    "summary": "Một tay cầm: một trục, mặt phẳng của hai trục, hoặc `'xyz'` — tâm: di chuyển tự do, co giãn đều."
+  },
+  "TransformHost": {
+    "summary": "Những gì một bộ điều khiển biến đổi cần từ một thế giới: `createWorld` trả về một cái như vậy.",
+    "members": {
+      "canvas": "Canvas mà con trỏ nhấn lên.",
+      "scene": "Cảnh mà các tay cầm được thêm vào.",
+      "camera": "Camera dùng để nhìn canvas.",
+      "onFrame": "Chạy `hook` sau mỗi khung hình được vẽ; trả về thứ để dừng nó."
+    }
+  },
+  "TransformMode": {
+    "summary": "Việc mà một bộ điều khiển biến đổi làm với vật thể của nó."
+  },
+  "TransformSnap": {
+    "summary": "Các bước mà một lần kéo được làm tròn theo, mỗi cái đều tùy chọn: đơn vị thế giới, radian, hệ số tỉ lệ.",
+    "members": {
+      "translate": "Đơn vị thế giới mà một lần di chuyển được làm tròn theo, dọc mỗi trục.",
+      "rotate": "Số radian mà một lần xoay được làm tròn theo.",
+      "scale": "Bước mà hệ số tỉ lệ được làm tròn theo."
+    }
+  },
+  "TransformSpace": {
+    "summary": "Hệ quy chiếu mà các tay cầm được căn theo; co giãn luôn theo trục riêng của vật thể."
   },
   "TransformTree": {
     "summary": "Phân cấp biến đổi của bộ máy, theo hướng dữ liệu: một node là một chỉ số vào các mảng phẳng — cha, cờ, vị trí, quaternion `(x, y, z, w)`, tỉ lệ, ma trận cục bộ và ma trận thế giới dạng column-major.",
@@ -4451,6 +4594,20 @@
   "coneRejects": {
     "summary": "Loại bỏ bằng hình nón pháp tuyến cho việc cắt bỏ mặt sau (back-face culling)."
   },
+  "controls": {
+    "summary": "Họ `controls`: các bộ điều khiển mà một trang gắn vào một thế giới, bên cạnh bộ điều khiển camera mà `world.controls` đã điều khiển sẵn."
+  },
+  "controls.transform": {
+    "summary": "Tay cầm để di chuyển, xoay và co giãn một vật thể bằng chuột (`transform.ts`).",
+    "parameters": {
+      "host": "Thế giới mà tay cầm sống trong cảnh và camera của nó.",
+      "options": "Chế độ, trục, làm tròn và kích thước trên màn hình; thường thì không cần nói gì.",
+      "options.mode": "Di chuyển, xoay hoặc co giãn; mặc định là `'translate'`.",
+      "options.space": "Tay cầm theo trục thế giới hoặc theo trục riêng của vật thể; mặc định là `'world'`.",
+      "options.snap": "Các bước mà mỗi lần kéo được làm tròn theo; mặc định là không có.",
+      "options.size": "Chiều dài tay cầm tính theo phần chiều cao của canvas, như nhau dù vật thể ở đâu; mặc định là một phần tư."
+    }
+  },
   "copyMatrix4": {
     "summary": "Sao chép mười sáu số thực của `m` vào `out`, mỗi số tại độ lệch của nó."
   },
@@ -4945,7 +5102,8 @@
     "description": "Không xác định là `geometry`."
   },
   "helper": {
-    "summary": "Họ `helper`: các dấu hiệu dùng để làm việc trên một cảnh, được xây dựng từ các đường thẳng và mesh."
+    "summary": "Họ `helper`: các dấu hiệu dùng để làm việc trên một cảnh, được xây dựng từ các đường thẳng và mesh.",
+    "description": "Một thế giới vẽ chúng như mọi vật thể khác; việc chọn (`world.raycast`) và cảnh đã lưu thì bỏ qua chúng."
   },
   "helper.arrow": {
     "summary": "Một mũi tên từ `origin` chỉ dọc theo `dir`.",
@@ -6211,6 +6369,10 @@
     "summary": "Những gì máy cho phép trước khi bất kỳ cảnh nào được tải: đường xử lý mà một thế giới sẽ dùng để vẽ.",
     "description": "Một đường xử lý bị ép buộc mà máy không có bị từ chối theo tên của nó; để mặc cho bộ máy, WebGPU khi một adapter được cấp — và thiết bị của nó, được yêu cầu một lần —, WebGL2 nếu không, và một máy không có cả hai bị từ chối. `chooseBackends` lặp lại cùng quyết định đó trên thiết bị đó khi một phiên mở ra."
   },
+  "raycast": {
+    "summary": "Mọi vật thể dưới `roots` mà `ray` gặp, gần nhất trước, một điểm chạm cho mỗi vật thể: điểm gần nhất của riêng nó.",
+    "description": "Hướng được chuẩn hóa thành vectơ đơn vị ngay ở cửa vào, nên mọi `distance` đều tính bằng đơn vị thế giới dù trang đưa độ dài nào. Các cây con bị ẩn được bỏ qua — cả một gốc nằm dưới một tổ tiên bị ẩn — và cả các node mà `skip` chỉ ra cùng cây con của chúng: những dấu mà trang làm việc cùng, không bao giờ là nội dung của nó."
+  },
   "readCameraWorld": {
     "summary": "Sao chép camera của ứng dụng chủ vào camera của bộ máy, các tổ tiên đã được giải quyết."
   },
@@ -6554,7 +6716,15 @@
     "summary": "Những gì trang giữ: chế độ, được đọc và ghi.",
     "members": {
       "mode": "Chế độ khung nhìn: `'beauty'` cho hình ảnh bình thường, hoặc một chế độ cho thấy bộ máy hoạt động như thế nào.",
+      "sessions": "Các phiên mà thế giới đã mở cho đến giờ: một thay đổi làm mở lại một phiên sẽ hiện ở đây.",
       "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp."
+    }
+  },
+  "world.raycast": {
+    "summary": "Vật thể gần nhất dưới một điểm của canvas (pixel CSS) hoặc dọc theo một tia trong thế giới, hoặc `null`: node mà trang đã thêm, điểm trong thế giới và pháp tuyến bị chạm, khoảng cách (`worldRaycast`).",
+    "parameters": {
+      "options": "Những gì có thể báo cho `world.raycast`; mọi trường đều tùy chọn.",
+      "options.objects": "Các vật thể được thử, cùng các cây con của chúng; nếu bỏ trống, là toàn bộ cảnh."
     }
   },
   "world.dispose": {

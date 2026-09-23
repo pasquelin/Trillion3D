@@ -11,6 +11,7 @@
     "learn": "Belajar",
     "sandbox": "Coba langsung",
     "examples": "Contoh",
+    "editor": "Editor",
     "api": "Referensi API",
     "reports": "Pengukuran"
   },
@@ -97,6 +98,103 @@
     "title": "Coba langsung",
     "start": "Mulai dari sebuah contoh",
     "open": "Buka di sandbox"
+  },
+  "editor": {
+    "title": "Editor scene",
+    "group": "Alat",
+    "showcase": "Buka editor scene",
+    "loading": "Menyiapkan editor…",
+    "canvas": "Tampilan scene: klik sebuah objek untuk memilihnya, seret untuk memutar kamera",
+    "menu": {
+      "file": "File",
+      "add": "Tambah",
+      "edit": "Edit",
+      "models": "Model"
+    },
+    "new": "Baru",
+    "openFile": "Buka…",
+    "save": "Simpan",
+    "undo": "Urungkan",
+    "redo": "Ulangi",
+    "duplicate": "Gandakan",
+    "delete": "Hapus",
+    "add": {
+      "box": "Kotak",
+      "sphere": "Bola",
+      "cylinder": "Silinder",
+      "cone": "Kerucut",
+      "torus": "Torus",
+      "plane": "Bidang",
+      "group": "Grup",
+      "point": "Lampu titik",
+      "spot": "Lampu sorot",
+      "directional": "Cahaya terarah",
+      "ambient": "Cahaya sekitar"
+    },
+    "model": {
+      "bust": "Patung dada marmer",
+      "crates": "Peti kayu",
+      "hall": "Aula",
+      "street-corner": "Sudut jalan"
+    },
+    "tools": "Alat transformasi",
+    "translate": "Pindah (W)",
+    "rotate": "Putar (E)",
+    "scale": "Ubah ukuran (R)",
+    "space": {
+      "world": "Sumbu dunia",
+      "local": "Sumbu objek"
+    },
+    "snap": "Magnet",
+    "outliner": "Scene",
+    "empty": "Scene masih kosong: tambahkan objek dari menu Tambah.",
+    "show": "Tampilkan",
+    "hide": "Sembunyikan",
+    "rename": "Ganti nama",
+    "dropRoot": "Seret sebuah baris ke baris lain untuk memasukkannya ke dalamnya; lepaskan di sini untuk mengembalikannya ke tingkat teratas.",
+    "inspector": "Properti",
+    "nothing": "Pilih sebuah objek untuk mengubahnya.",
+    "name": "Nama",
+    "position": "Posisi",
+    "rotation": "Rotasi (°)",
+    "scaleField": "Skala",
+    "geometry": "Bentuk",
+    "material": "Material",
+    "color": "Warna",
+    "metalness": "Kelogaman",
+    "roughness": "Kekasaran",
+    "emissive": "Pancaran",
+    "opacity": "Opasitas",
+    "light": "Cahaya",
+    "intensity": "Intensitas",
+    "range": "Jangkauan (0: tanpa batas)",
+    "shadow": "Menghasilkan bayangan",
+    "param": {
+      "width": "Lebar",
+      "height": "Tinggi",
+      "depth": "Kedalaman",
+      "radius": "Jari-jari",
+      "radiusTop": "Jari-jari atas",
+      "radiusBottom": "Jari-jari bawah",
+      "tube": "Jari-jari tabung",
+      "arc": "Busur (radian)",
+      "widthSegments": "Segmen lebar",
+      "heightSegments": "Segmen tinggi",
+      "depthSegments": "Segmen kedalaman",
+      "radialSegments": "Segmen melingkar",
+      "tubularSegments": "Segmen tabung"
+    },
+    "stats": "Statistik mesin",
+    "cpu": "Bingkai CPU (ms)",
+    "gpu": "Bingkai GPU (ms)",
+    "triangles": "Segitiga",
+    "pages": "Halaman dimuat",
+    "sessions": "Sesi dibuka",
+    "statsHint": "Dibaca dari bingkai terakhir yang digambar; scene yang diam tidak menggambar apa pun.",
+    "error": {
+      "format": "File ini berisi format scene yang tidak bisa dibaca editor ini.",
+      "read": "Scene tidak bisa dibaca:"
+    }
   },
   "section": {
     "course": "Kursus",
@@ -817,6 +915,26 @@
     },
     "srgbToLinearBatch": {
       "description": "Satu kanal per elemen, kurva pasti dari `packages/sdk-core/src/math/primitives/color.ts`: acuannya mengalikan dengan konstanta yang dibulatkan, dan celahnya — tak terlihat pada 8 bit — dibatasi sekali, dalam bench yang mengadunya."
+    },
+    "scene-editor": {
+      "title": "Membangun scene dengan editor",
+      "description": "Tambahkan bentuk dan cahaya, pilih dengan mouse, pindahkan dengan pegangan, ganti warnanya, simpan scene lalu buka lagi — di dalam portal, hanya dengan API publik.",
+      "html": "<p><a href=\"#/en/examples/scene-editor\">Editor scene</a> adalah halaman portal ini yang dibangun di atas tiga pintu mesin dan tidak ada yang lain. Mulailah dari scene kosong: <b>Tambah → Kotak</b>, lalu <b>Tambah → Cahaya terarah</b>. Klik kotaknya: <code>world.raycast</code> menemukannya di bawah penunjuk, dan pegangan <code>controls.transform</code> muncul di atasnya. Seret sebuah panah untuk memindahkannya — kamera diam selama pegangan ditahan — tekan <kbd>E</kbd> untuk memutarnya, <kbd>R</kbd> untuk mengubah ukurannya. Ganti warnanya di panel properti: mesin mewarnai ulang material di tempat, dan biaya bingkai tetap tampil di pojok statistik. <b>Simpan</b> mengunduh <code>scene.toJSON</code>; <b>Baru</b>, lalu <b>Buka</b>, membangun scene yang sama lagi dengan <code>scene.fromJSON</code>.</p>\n<p>Setiap langkah bisa diurungkan dengan <kbd>Ctrl</kbd>+<kbd>Z</kbd>, dan scene disimpan di browser dari satu kunjungan ke kunjungan berikutnya. Halaman itu sendiri tidak menggambar atau memindahkan apa pun: yang kamu lihat adalah mesinnya.</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "Memilih objek dengan penunjuk",
+      "description": "`world.raycast` mengembalikan objek terdekat di bawah sebuah titik canvas: node yang ditambahkan halaman, titik dan normal yang terkena, serta jaraknya.",
+      "html": "<p>Uji ini berjalan di CPU, pada geometri scene itu sendiri: mesh segitiga diuji segitiga demi segitiga, model yang dimuat pada kotaknya, sedangkan garis dan titik tidak pernah diuji. Subtree yang tersembunyi dan penanda <code>helper</code> dilewati. Lihat di <a href=\"#/en/examples/click-to-pick\">Klik untuk memilih</a>.</p>"
+    },
+    "move-with-handles": {
+      "title": "Memindah, memutar, dan mengubah ukuran dengan pegangan",
+      "description": "`controls.transform(world)` memasang pegangan pada satu objek; sebuah seretan menulis posenya melalui induk-induknya, dan kamera diam selama itu.",
+      "html": "<p>Mode <code>translate</code>, <code>rotate</code>, dan <code>scale</code>, sumbu dunia atau lokal, dengan langkah opsional. Event <code>dragStart</code> dan <code>dragEnd</code> membingkai satu seretan — satu langkah urungkan. Lihat di <a href=\"#/en/examples/move-rotate-scale-gizmo\">Gizmo pindah, putar, skala</a>.</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "Menyimpan dan membuka scene",
+      "description": "`scene.toJSON(camera)` menulis scene sebagai JSON sederhana berversi; `scene.fromJSON(json, camera)` membangunnya kembali.",
+      "html": "<p>Bentuk disimpan lewat panggilan yang membangunnya, material lewat nilainya, model yang dimuat lewat alamatnya — tidak pernah disalin ke dalam — dan penanda <code>helper</code> tidak disimpan sama sekali. Versi format lain ditolak dengan menyebut namanya. Lihat di <a href=\"#/en/examples/save-the-scene\">Menyimpan scene</a>.</p>"
     }
   },
   "canvas": {
@@ -1443,7 +1561,6 @@
       "gltf-material-variants": "ekstensi glTF lain: varian material",
       "compressed-mesh-input": "ekstensi glTF lain: Draco, meshopt, kuantisasi",
       "a-medical-scan": "rendering volume",
-      "save-the-scene": "ekspor scene",
       "a-city-from-3d-tiles": "input 3D Tiles",
       "rendering-in-a-worker": "rendering worker OffscreenCanvas",
       "a-video-panorama": "tekstur video langsung",
@@ -1473,14 +1590,12 @@
       "flames-and-a-tornado": "material shader kustom",
       "point-clouds-from-a-scan": "impor awan titik",
       "gaussian-splats": "rendering gaussian splat",
-      "click-to-pick": "picking (raycast)",
       "hover-over-triangles": "picking (raycast)",
       "pick-lines-and-points": "picking (raycast)",
       "pick-an-instance": "picking (raycast)",
       "paint-where-you-click": "picking (raycast)",
       "a-voxel-painter": "picking (raycast)",
       "drag-objects": "picking (raycast)",
-      "move-rotate-scale-gizmo": "picking (raycast) dan gizmo transformasi",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "audio posisional",
       "smooth-edges-over-time": "pengaturan antialiasing temporal",
