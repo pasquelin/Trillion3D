@@ -7,7 +7,6 @@ use super::Plugin;
 use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
 use std::{
-    collections::BTreeMap,
     path::{Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
@@ -23,6 +22,7 @@ mod ma;
 mod ngon;
 mod normals;
 mod obj;
+mod output;
 mod route;
 mod ufbx_driver;
 mod unity;
@@ -31,6 +31,7 @@ mod usd;
 mod usdz;
 mod zip;
 
+pub(crate) use output::{scene_output_fields, SceneOutput};
 pub use route::{prepare_source, route, Routed, RoutedSource};
 
 /// Version of the scene driver contract. Changing it requires rereading every driver.
@@ -81,23 +82,6 @@ pub fn image_root(source: &Path) -> PathBuf {
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
-}
-
-/// glTF tables under construction, as `finish` writes them: their nodes, what the report
-/// publishes in the clear, the conversion's cache key, and the write itself.
-pub(crate) trait SceneOutput {
-    fn nodes(&self) -> &[Value];
-    fn counts(&self) -> &BTreeMap<&'static str, usize>;
-    /// Cache key: fingerprint of the driver, of its version and of everything it has read.
-    fn key(&self) -> String;
-    /// Writes the scene into `directory` and returns that folder.
-    fn write(
-        self,
-        plugin: &dyn ScenePlugin,
-        directory: &Path,
-        source: &Path,
-        started: Instant,
-    ) -> Result<PathBuf>;
 }
 
 /// Common end of the drivers that fill their tables themselves: a cancelled conversion or one

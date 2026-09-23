@@ -51,11 +51,13 @@ impl DagShape {
     }
 }
 
-/// Warnings for a primitive, if any. `tallies` counts groups by outcome.
+/// Warnings for a primitive, if any. `tallies` counts groups by outcome; `stalls` names the
+/// dominant cause and the level-0 triangles left as roots.
 pub(super) fn dag_warnings(
     strategy: crate::dag::DagStrategy,
     shape: &DagShape,
     tallies: &[crate::dag::GroupTally],
+    stalls: &super::compiler_primitive_stalls::StallSummary,
 ) -> Vec<Value> {
     let DagShape {
         level0,
@@ -73,23 +75,29 @@ pub(super) fn dag_warnings(
     } else {
         return Vec::new();
     };
-    vec![json!({
+    let mut warning = json!({
         "code": code,
         "roots": roots,
         "pages": pages,
         "groups": crate::dag::GroupTally::total(tallies).json(),
-    })]
+    });
+    super::compiler_primitive_stalls::merge(&mut warning, stalls.json());
+    vec![warning]
 }
 
-/// Progress event of a compiled primitive. A DAG that did not rise is told in the
-/// log, not only in `clusters.json`: its warnings travel with the event.
+/// Progress event of a compiled primitive: a DAG that did not rise is told in the log, not only
+/// in `clusters.json`, and its stage timings (null without a DAG) are told there alone.
 pub(super) fn primitive_event(
     mesh: usize,
     primitive: usize,
     pages: usize,
-    warnings: &[Value],
+    timings: Value,
+    warnings: Vec<Value>,
 ) -> Value {
     let mut event = json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages});
+    if !timings.is_null() {
+        event["timings"] = timings;
+    }
     if !warnings.is_empty() {
         event["warnings"] = json!(warnings);
     }
@@ -98,15 +106,23 @@ pub(super) fn primitive_event(
 
 #[cfg(test)]
 mod tests {
+    use super::super::compiler_primitive_stalls::StallSummary;
     use super::*;
-    use crate::dag::{DagStrategy, GroupTally};
+    use crate::dag::{DagStrategy, GroupTally, StallCause};
 
-    fn stalled(no_collapse: usize) -> GroupTally {
+    fn stalled(seam_locked: usize) -> GroupTally {
         GroupTally {
-            no_collapse,
+            seam_locked,
             ..GroupTally::default()
         }
     }
+    const SEAMS: StallSummary = StallSummary {
+        root_triangles: 12_544,
+        cause: Some(StallCause::SeamLocked),
+        seam: 300,
+        locked: 40,
+        islands: 98,
+    };
     fn warn(
         level0: usize,
         depth: usize,
@@ -120,36 +136,50 @@ mod tests {
             pages,
             roots,
         };
-        dag_warnings(DagStrategy::QemEndpoints, &shape, t)
+        dag_warnings(DagStrategy::QemEndpoints, &shape, t, &SEAMS)
     }
 
     // Behaviour: a primitive of several clusters left at depth 0 is named, with
-    // the group count per outcome; requested exact clusters (`none`) are not one.
+    // the group count per outcome and the cause of its stalls; requested exact
+    // clusters (`none`) are not one.
     #[test]
-    fn une_primitive_sans_niveau_grossier_est_un_avertissement_nomme() {
+    fn a_primitive_without_a_coarse_level_is_a_named_warning() {
         let warnings = warn(98, 0, 98, 98, &[stalled(4)]);
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0]["code"], "DAG_FLAT");
-        assert_eq!(warnings[0]["groups"]["noCollapse"], 4);
+        assert_eq!(warnings[0]["groups"]["seamLocked"], 4);
         assert_eq!(warnings[0]["roots"], 98);
+        assert_eq!(warnings[0]["cause"], "seam-locked");
+        assert_eq!(warnings[0]["rootTriangles"], 12_544);
         let exact = DagShape {
             level0: 98,
             depth: 0,
             pages: 98,
             roots: 98,
         };
-        assert!(dag_warnings(DagStrategy::ExactClusters, &exact, &[]).is_empty());
+        assert!(dag_warnings(DagStrategy::ExactClusters, &exact, &[], &SEAMS).is_empty());
         assert!(warn(1, 0, 1, 1, &[]).is_empty());
     }
 
     // Behaviour: too many roots on a primitive of at least eight clusters is a
     // warning, a single root on fifteen pages is not one, and a small primitive is not judged.
     #[test]
-    fn trop_de_racines_est_un_avertissement_au_dela_du_huitieme_des_pages() {
+    fn too_many_roots_is_a_warning_beyond_an_eighth_of_the_pages() {
         let ok = warn(8, 3, 15, 1, &[]);
         assert!(ok.is_empty(), "{ok:?}");
         let stopped = warn(8, 1, 12, 4, &[stalled(1)]);
         assert_eq!(stopped[0]["code"], "DAG_ROOTS");
         assert!(warn(4, 1, 6, 2, &[]).is_empty());
+    }
+
+    // Behaviour: the progress event carries what the DAG tells — timings, warnings — and a
+    // primitive without a DAG tells nothing more than its identity.
+    #[test]
+    fn the_primitive_event_carries_what_the_dag_tells() {
+        let event = primitive_event(2, 1, 9, json!({"dagMs": 4.0}), Vec::new());
+        assert_eq!(event["timings"]["dagMs"], 4.0);
+        assert_eq!(event["pages"], 9);
+        let bare = primitive_event(2, 1, 9, Value::Null, Vec::new());
+        assert_eq!(bare.as_object().map(|o| o.len()), Some(4));
     }
 }

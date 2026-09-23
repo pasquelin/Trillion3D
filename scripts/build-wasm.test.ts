@@ -42,7 +42,7 @@ function fichierFactice(dir: string, texteCapacites: string): string {
 }
 
 test('a module with simd128 and without relaxed feature is accepted', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wg-build-wasm-'));
+  const dir = mkdtempSync(join(tmpdir(), 'trillion3d-build-wasm-'));
   try {
     assert.doesNotThrow(() => verifieJeuInstructions(fichierFactice(dir, '+simd128')));
   } finally {
@@ -51,7 +51,7 @@ test('a module with simd128 and without relaxed feature is accepted', () => {
 });
 
 test('a module without simd128 is rejected', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wg-build-wasm-'));
+  const dir = mkdtempSync(join(tmpdir(), 'trillion3d-build-wasm-'));
   try {
     assert.throws(
       () => verifieJeuInstructions(fichierFactice(dir, '+multivalue')),
@@ -63,7 +63,7 @@ test('a module without simd128 is rejected', () => {
 });
 
 test('a module carrying relaxed-simd is rejected even with simd128', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wg-build-wasm-'));
+  const dir = mkdtempSync(join(tmpdir(), 'trillion3d-build-wasm-'));
   try {
     assert.throws(
       () => verifieJeuInstructions(fichierFactice(dir, '+simd128+relaxed-simd')),

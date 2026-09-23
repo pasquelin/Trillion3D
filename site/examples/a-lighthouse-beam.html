@@ -2,68 +2,121 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A lighthouse beam sweeping the shore</title>
+    <title>Lighthouse beam</title>
+    <meta name="thumbnail" content="3" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, seeded } from '../runtime/kit.js';
 
-      // Manual rendering: the loop below draws every frame itself, so the canvas size is given.
-      // No backend is named: the engine takes its own page raster where WebGPU was granted and
-      // its own WebGL2 page path where it was not, which draws this scene without cast shadows.
-      const canvas = document.getElementById('view');
-      const explorer = await createExplorer(canvas, {
-        manifestUrl: '../assets/examples/lighthouse/cache/native/full/manifest.json',
-        scope: 'full',
-        width: canvas.clientWidth,
-        height: canvas.clientHeight,
-        pixelRatio: devicePixelRatio,
-      });
-      // Night: a faint moon, and the beam — one spotlight in the lantern room, its emitter
-      // radius enclosing the room and the tower top so that neither puts it out.
-      explorer.addLight({
-        id: 'moon',
-        kind: 'directional',
-        direction: [0.4, -0.6, 0.7],
-        color: [0.5, 0.6, 0.85],
-        intensity: 0.5,
-        castsShadow: true,
-      });
-      explorer.addLight({
-        id: 'beam',
-        kind: 'spot',
-        position: [0, 7.2, 0],
-        direction: [1, -0.9, 0],
-        coneAngle: 0.26,
-        color: [1, 0.95, 0.8],
-        intensity: 4000,
-        range: 40,
-        emitterRadius: 1.6,
-        castsShadow: true,
-      });
-      explorer.setPose({ ...explorer.homePose(), position: [13, 8, 15], target: [0, 3, 0], far: 200 });
-
-      // One turn every eight seconds: the beam's direction is set every frame and the shore
-      // shows it where it lands — no fog is drawn, the beam itself is invisible in clear air.
-      async function frame(time) {
-        const angle = time / 8000 * Math.PI * 2;
-        explorer.setLight('beam', { direction: [Math.cos(angle), -0.9, Math.sin(angle)] });
-        await explorer.awaitPages();
-        explorer.render();
-        await explorer.flush();
-        requestAnimationFrame(frame);
+      const world = createWorld('view', { controls: 'orbit' });
+      // The sea runs past the far plane, so its edge is never seen: it meets the night sky at the
+      // horizon.
+      world.camera.far = 1500;
+      world.scene.background = math.color('#0c1424');
+      const sea = object.mesh(geometry.box(4000, 0.2, 4000), material.meshStandard({ color: '#1f4a6b', roughness: 0.35 }));
+      sea.position.y = -0.5;
+      const island = object.mesh(geometry.cylinder(6, 7.5, 0.8, 64), material.meshStandard({ color: '#9c8b6c', roughness: 0.8 }));
+      island.position.y = -0.2;
+      const rock = material.meshStandard({ color: '#857d72', roughness: 0.85 });
+      const whitewash = material.meshStandard({ color: '#e8e4d8', roughness: 0.7 });
+      const red = material.meshStandard({ color: '#b0302a', roughness: 0.6 });
+      const skirt = object.mesh(geometry.lathe([[0, 0], [2.6, 0], [2.2, 1], [1.6, 1.3], [0, 1.3]], 48), rock);
+      skirt.position.y = 0.2;
+      world.scene.add(sea, island, skirt);
+      // The tower in red and white bands, a glowing lantern room and a roof.
+      for (let band = 0; band < 5; band++) {
+        const ring = object.mesh(geometry.cylinder(1.25 - (band + 1) * 0.07, 1.25 - band * 0.07, 1, 48), band % 2 ? red : whitewash);
+        ring.position.y = 2 + band;
+        world.scene.add(ring);
       }
-      requestAnimationFrame(frame);
+      const room = object.mesh(geometry.cylinder(0.8, 0.8, 1.2, 32), material.meshStandard({ color: '#000000', emissive: '#ffe2a0', emissiveIntensity: 3 }));
+      room.position.y = 7.1;
+      const roof = object.mesh(geometry.cone(1, 0.8, 32), red);
+      roof.position.y = 8.1;
+      world.scene.add(room, roof);
+      // Boulders and boats, where the beam lands, placed by a seeded sequence: the same on every run.
+      const next = seeded(11);
+      for (let index = 0; index < 30; index++) {
+        const distance = 3 + next() * 3.5, angle = next() * Math.PI * 2;
+        const boulder = object.mesh(geometry.sphere(0.3 + next() * 0.6, 16, 12), rock);
+        boulder.position.set(Math.cos(angle) * distance, 0.1, Math.sin(angle) * distance);
+        // Flattened and turned, so each reads as a worn stone rather than a ball.
+        boulder.scale.set(1, 0.6, 0.8);
+        boulder.rotation.y = angle;
+        world.scene.add(boulder);
+      }
+      for (let index = 0; index < 6; index++) {
+        const angle = (index / 6) * Math.PI * 2 + 0.4, hull = object.mesh(geometry.box(1.6, 0.4, 0.6), whitewash);
+        hull.position.set(Math.cos(angle) * 12, -0.25, Math.sin(angle) * 12);
+        hull.rotation.y = -angle;
+        world.scene.add(hull);
+      }
+      // Night: a faint moon that casts the shadows, and the sky's dim light on what it misses.
+      world.scene.add(
+        light.directional({ intensity: 2, color: '#8099d9', position: [-8, 12, 10], castShadow: true }),
+        light.hemisphere({ intensity: 0.6, color: '#8099d9', groundColor: '#2a3440' }),
+      );
+      // The beam: a spot light in the lantern room, lighting the sea where it lands, 30 m out.
+      // It turns every frame, so it casts no shadow — a moving shadow would be redrawn each frame.
+      const REACH = 30, TILT = Math.atan2(7.5, REACH), LENGTH = Math.hypot(7.5, REACH);
+      const beam = light.spot({ position: [0, 7.1, 0], intensity: 6000, distance: 60, penumbra: 0.3 });
+      world.scene.add(beam);
+      // What makes a beam visible at night is the air it lights. Two see-through cones stand for
+      // that air, apex in the lamp: a brighter narrow core and a fainter halo.
+      // Each is built as wide at its far end as it is long, then narrowed to the beam's width.
+      const shaft = geometry.cone(LENGTH, LENGTH, 48, 1, true);
+      shaft.translate(0, -LENGTH / 2, 0);
+      shaft.rotateZ(Math.PI / 2);
+      const sweep = object.group();
+      sweep.position.set(0, 7.1, 0);
+      const cones = [[0.5, 0.22], [1, 0.08]].map(([share, opacity]) => {
+        const air = material.meshBasic({ color: '#fff2cc', transparent: true, opacity, depthWrite: false, side: 'double' });
+        const cone = object.mesh(shaft, air);
+        cone.rotation.z = -TILT;
+        sweep.add(cone);
+        return { cone, air, share };
+      });
+      world.scene.add(sweep);
+      world.camera.position.set(13, 7, 15);
+      world.camera.lookAt(0, 3, 0);
+      world.controls.target.set(0, 3, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      const ui = controls({ turnsPerMinute: [0, 30, 10, 1], beamWidth: [0.05, 0.4, 0.12], colour: '#fff2cc' }, (values) => {
+        beam.angle = values.beamWidth;
+        beam.color.set(values.colour);
+        for (const { cone, air, share } of cones) {
+          const radius = Math.tan(values.beamWidth * share);
+          cone.scale.set(1, radius, radius);
+          air.color.set(values.colour);
+        }
+        world.invalidate();
+      }, world);
+      let angle = -1.3;
+      // A beam at rest asks for no new frame.
+      world.onFrame(({ delta }) => {
+        if (!ui.turnsPerMinute) return;
+        angle += (delta * ui.turnsPerMinute * Math.PI * 2) / 60;
+        beam.target.position.set(Math.cos(angle) * REACH, -0.4, Math.sin(angle) * REACH);
+        sweep.rotation.y = -angle;
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

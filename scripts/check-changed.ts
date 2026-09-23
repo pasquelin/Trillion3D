@@ -5,13 +5,13 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { gitPaths } from './git-paths.ts';
 import { repositoryFiles } from './repository-files.ts';
+import { INVENTORY_TEST, isUnitTest, movesInventory } from './unit-tests.ts';
 
 const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
-const testPattern = /\.test\.(?:ts|mts)$/;
 const formatPattern = /\.(?:[cm]?ts|tsx|json)$/;
 
 function candidates(importer: string, specifier: string): string[] {
-  if (specifier === 'web-geometry')
+  if (specifier === 'trillion3d')
     return ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'];
   if (!specifier.startsWith('.')) return [];
   const target = posix.normalize(posix.join(posix.dirname(importer), specifier));
@@ -38,16 +38,12 @@ export function relatedTests(files: Map<string, string>, changed: Set<string>): 
     visited.add(file);
     return (edges.get(file) ?? []).some((dependency) => reachesChanged(dependency, visited));
   };
+  const inventory = files.has(INVENTORY_TEST) && [...changed].some(movesInventory);
   return [...files.keys()]
     .filter(
       (file) =>
-        testPattern.test(file) &&
-        (file.startsWith('packages/') ||
-          file.startsWith('scripts/mesure/') ||
-          file.startsWith('test/') ||
-          changed.has(file)),
+        isUnitTest(file) && (reachesChanged(file) || (inventory && file === INVENTORY_TEST)),
     )
-    .filter((file) => reachesChanged(file))
     .sort();
 }
 
@@ -63,7 +59,7 @@ export function existingChangedFiles(changed: Iterable<string>, root = process.c
 }
 
 async function main(): Promise<void> {
-  const base = process.env.WEB_GEOMETRY_BASE_REF ?? 'develop';
+  const base = process.env.TRILLION3D_BASE_REF ?? 'develop';
   const changed = new Set([
     ...(await gitPaths(['diff', '--name-only', '-z', base, '--'])),
     ...(await gitPaths(['ls-files', '--others', '--exclude-standard', '-z'])),
@@ -75,8 +71,7 @@ async function main(): Promise<void> {
       .filter((file) => sourcePattern.test(file) && existsSync(file))
       .map((file): [string, string] => [file, readFileSync(file, 'utf8')]),
   );
-  const tests = relatedTests(files, changed);
-  const testFiles = tests;
+  const testFiles = relatedTests(files, changed);
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`);
   if (!process.argv.includes('--tests-only')) {
     run('node', ['scripts/check-file-lines.ts', '--changed']);
@@ -94,14 +89,6 @@ async function main(): Promise<void> {
         'typescript,javascript,rust',
         '--cross-formats',
         'js-ts',
-        '--min-lines',
-        '12',
-        '--min-tokens',
-        '100',
-        '--reporters',
-        'console',
-        '--exit-code',
-        '1',
         '--no-tips',
       ]);
     if (existing.some((file) => file.endsWith('.rs'))) {
@@ -120,6 +107,7 @@ async function main(): Promise<void> {
         '--manifest-path',
         'packages/asset-compiler-rust/Cargo.toml',
         '--all-targets',
+        '--all-features',
         '--',
         '-D',
         'warnings',

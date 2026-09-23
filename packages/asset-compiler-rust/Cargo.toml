@@ -1,23 +1,29 @@
 [package]
-name = "web-geometry-compiler"
+name = "trillion3d-compiler"
 version = "0.8.0"
 edition = "2021"
 license = "PolyForm-Noncommercial-1.0.0"
 [lib]
-name = "web_geometry_compiler"
+name = "trillion3d_compiler"
 path = "src/lib.rs"
 [[bin]]
-name = "web-geometry-compiler"
+name = "trillion3d-compiler"
 path = "src/main.rs"
 [[bin]]
-name = "web-geometry-oracle"
+name = "trillion3d-oracle"
 path = "src/oracle_main.rs"
+required-features = ["oracle"]
+
+# The indirect-lighting reference path tracer is a measurement tool, never part of the compiler:
+# `pnpm run build:native` and `pnpm run test:native` enable it (`--all-features`) for the bench runner.
+[features]
+oracle = []
 [dependencies]
 serde_json = "1"
 sha2 = "0.10"
 rayon = "1.10"
 memmap2 = "0.9"
-meshopt = "0.4"
+meshopt = "0.6"
 ufbx = "0.11.3"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tga", "tiff", "webp", "bmp", "gif"] }
 # ZIP archive reading (MIT, zip-rs/zip2), for the `zip` container driver. Stripped of default
@@ -54,7 +60,7 @@ openusd = "0.7.0"
 # The page format, shared with the WebAssembly module: its header, its bit fields and its
 # dequantization are written there once; the compiler encodes with them, measures its error with
 # them, and proves that what it encodes decodes identically.
-web-geometry-page-codec = { path = "../page-codec-wasm" }
+trillion3d-page-codec = { path = "../page-codec-wasm" }
 
 [build-dependencies]
 sha2 = "0.10"

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Webcam as a texture</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #101218;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #362: a texture made from a video shows each new frame of the stream by itself,
+      // without a change to its material; until then the wall keeps its first frame.
+      import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
+
+      // The stream starts as a signal this page paints — sweeping colour and the words "no camera"
+      // — until "Use my camera" asks the browser for the webcam. Nothing leaves the page.
+      const W = 640, H = 480;
+      const signal = document.createElement('canvas');
+      signal.width = W;
+      signal.height = H;
+      const pen = signal.getContext('2d');
+      function paintSignal(seconds) {
+        const sweep = pen.createLinearGradient(0, 0, W, H);
+        sweep.addColorStop(0, `hsl(${(seconds * 40) % 360} 70% 45%)`);
+        sweep.addColorStop(1, `hsl(${(seconds * 40 + 140) % 360} 70% 30%)`);
+        pen.fillStyle = sweep;
+        pen.fillRect(0, 0, W, H);
+        pen.fillStyle = '#ffffff';
+        pen.font = 'bold 56px system-ui';
+        pen.textAlign = 'center';
+        pen.fillText(say('noCamera'), W / 2, H / 2 + 20);
+      }
+      paintSignal(0);
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = signal.captureStream(30);
+      video.play();
+      const feed = texture.video(video);
+
+      // A curved wall of nine screens. As a video wall each screen shows its ninth of the picture,
+      // through its own UVs; "one per screen" gives each the whole picture. "Mirror" flips the UVs
+      // across, the way a camera pointed at you is usually shown; the wall starts unmirrored.
+      const COLUMNS = 3, ROWS = 3, SCREEN = [1.6, 1.2], GAP = 0.08, RADIUS = 6;
+      function face(column, row, wall, mirror) {
+        const plane = geometry.plane(...SCREEN);
+        const uv = plane.attributes.uv;
+        for (let v = 0; v < uv.count; v++) {
+          let u = uv.getX(v), t = uv.getY(v);
+          if (wall) [u, t] = [(column + u) / COLUMNS, (row + t) / ROWS];
+          uv.setXY(v, mirror ? 1 - u : u, t);
+        }
+        return plane;
+      }
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#101218');
+      const bezel = material.meshStandard({ color: '#15161b', roughness: 0.35, metalness: 0.5 });
+      const picture = material.meshBasic({ map: feed });
+      const screens = [];
+      for (let row = 0; row < ROWS; row++)
+        for (let column = 0; column < COLUMNS; column++) {
+          const turn = ((column - (COLUMNS - 1) / 2) * (SCREEN[0] + GAP)) / RADIUS;
+          const holder = object.group();
+          holder.position.set(Math.sin(turn) * RADIUS, 0.9 + row * (SCREEN[1] + GAP) + SCREEN[1] / 2, -Math.cos(turn) * RADIUS + RADIUS - 2);
+          holder.rotation.y = -turn;
+          const frame = object.mesh(geometry.box(SCREEN[0] + GAP, SCREEN[1] + GAP, 0.1), bezel);
+          const screen = object.mesh(face(column, row, true, false), picture);
+          screen.position.z = 0.051;
+          holder.add(frame, screen);
+          world.scene.add(holder);
+          screens.push({ screen, column, row });
+        }
+      const floor = object.mesh(geometry.cylinder(9, 9, 0.1, 96), material.meshStandard({ color: '#23252d', roughness: 0.25, metalness: 0.2 }));
+      floor.position.y = -0.05;
+      world.scene.add(floor, light.hemisphere({ color: '#8fa0c8', groundColor: '#1c1a20', intensity: 0.6 }));
+      world.scene.add(light.directional({ color: '#fff0e0', intensity: 1.6, position: [3, 8, 6] }));
+
+      world.camera.position.set(0, 2.6, 6.5);
+      world.camera.lookAt(0, 2.5, -2);
+      world.controls.target.set(0, 2.5, -2);
+      world.controls.minDistance = 3;
+      world.controls.maxDistance = 14;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      let source = null, painted = true;
+      async function useCamera() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+          for (const track of video.srcObject.getTracks()) track.stop();
+          video.srcObject = stream;
+          painted = false;
+          await video.play();
+          source(say('yourCamera'));
+        } catch (error) {
+          source(say('refused', { error: error.name }));
+        }
+      }
+      // The layout and the mirror rebuild the screens' UVs, and only when they change.
+      controls({
+        mouse: 'Drag to look along the wall; your camera is only asked for when you press the button',
+        useMyCamera: useCamera,
+        layout: ['video wall', 'one per screen'],
+        mirror: false,
+      }, (values, key) => {
+        if (key === 'layout' || key === 'mirror')
+          for (const entry of screens) entry.screen.geometry = face(entry.column, entry.row, values.layout === 'video wall', values.mirror);
+        world.invalidate();
+      }, world);
+      source = readout('source');
+      source(say('paintedSignal'));
+
+      // While the painted signal is the source the page repaints it; the texture follows the
+      // stream by itself, whichever it is.
+      let seconds = 0;
+      world.onFrame(({ delta }) => {
+        seconds += Math.min(delta, 0.1);
+        if (painted) paintSignal(seconds);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

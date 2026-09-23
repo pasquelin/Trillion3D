@@ -1,35 +1,35 @@
-import type { PortalEntry } from '../../content/model.ts';
+import type { BadgeTone } from '../ui/Badge.tsx';
 
-function normalized(value: string | undefined) {
-  return String(value ?? '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
+/** One thing the site search can find: what it is called, the text it is found by, where it is. */
+export interface SearchItem {
+  key: string;
+  title: string;
+  text: string;
+  /** What the item is, as its badge says it, and the badge's colour. */
+  kind: string;
+  tone: BadgeTone;
+  href: string;
 }
 
-function searchDocument(entry: PortalEntry) {
-  return normalized(
-    [entry.title, entry.id, entry.signature, entry.description, entry.module, entry.kind]
-      .filter(Boolean)
-      .join(' '),
-  );
-}
+const normalized = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-export function searchEntries(entries: PortalEntry[], query: string) {
+/** The items that contain every word of `query`, accents and case ignored, titles that start
+ * with a word first, then titles that contain one, then the rest in their own order. */
+export function search<T extends Pick<SearchItem, 'title' | 'text'>>(items: T[], query: string) {
   const words = normalized(query).trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return entries;
-  return entries
-    .map((entry, order) => {
-      const title = normalized(entry.title || entry.id);
-      const document = searchDocument(entry);
+  if (words.length === 0) return items;
+  return items
+    .map((item, order) => {
+      const title = normalized(item.title);
+      const document = `${title} ${normalized(item.text)}`;
       if (!words.every((word) => document.includes(word))) return null;
       const score = words.reduce(
         (total, word) => total + (title.startsWith(word) ? 3 : title.includes(word) ? 2 : 1),
         0,
       );
-      return { entry, order, score };
+      return { item, order, score };
     })
     .filter((match) => match !== null)
     .sort((a, b) => b.score - a.score || a.order - b.order)
-    .map(({ entry }) => entry);
+    .map(({ item }) => item);
 }

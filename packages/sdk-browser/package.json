@@ -1,13 +1,15 @@
 {
-  "name": "@web-geometry/sdk-browser",
+  "name": "@trillion3d/sdk-browser",
   "version": "0.1.0",
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./index.ts"
+    ".": "./src/index.ts"
   },
   "files": [
-    "*.ts"
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "!src/**/*.fixture.ts"
   ],
   "engines": {
     "node": ">=22.18"
