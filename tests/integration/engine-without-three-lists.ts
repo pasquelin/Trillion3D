@@ -12,7 +12,7 @@
  * source: the two files there that build host objects are declared in `AUTORISES`.
  */
 export const PUBLIC_FAMILIES =
-  /^(?:placement\/|world\/(?:core|batch|budget|capability|helper|loader|metric|page|pose|texture)\/|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/;
+  /^(?:placement\/|world\/(?:core|batch|budget|capability|controls|helper|loader|metric|page|pose|saved|texture)\/|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/;
 
 // CLOSED LIST OF `sdk-browser` FILES ALLOWED TO IMPORT THE HOST LIBRARY.
 //
