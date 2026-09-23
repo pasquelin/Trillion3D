@@ -1,7 +1,7 @@
 import { t } from '../../content/i18n/index.ts';
 import { examples as lessons } from '../../content/catalog.ts';
 import { local } from '../../content/locale.ts';
-import { SECTIONS } from '../../content/model.ts';
+import { entrySummary, SECTIONS } from '../../content/model.ts';
 import { REPORT_SECTIONS } from '../../reports/presentation.ts';
 import type { PortalEntry } from '../../content/model.ts';
 import { readyThemes, thumbnailOf } from '../examples/list.ts';
@@ -11,9 +11,6 @@ import type { PortalRoute } from '../portal/routes.ts';
 import { search } from '../portal/search.ts';
 import type { ExampleGroup } from './ExampleList.tsx';
 import type { SidebarMenuGroup } from './SidebarMenu.tsx';
-
-/** An entry's first sentence: what it is, in one line. */
-export const summaryOf = (description: string) => description.split(/(?<=[.!?])\s/)[0];
 
 /** One group per entry section: Learn's guides, or the API reference's families. */
 function entryGroups(entries: PortalEntry[], route: PortalRoute, learn: boolean) {
@@ -75,7 +72,7 @@ export function apiIndex(entries: PortalEntry[], route: PortalRoute) {
           id: entry.id,
           href: entryRoute(entry, route.locale),
           label: entry.title || entry.id,
-          summary: summaryOf(entry.description),
+          summary: entrySummary(entry),
         })),
     }))
     .filter(({ items }) => items.length > 0);
