@@ -3993,7 +3993,22 @@
       {
         "name": "rollSpeed",
         "type": "number",
-        "desc": "Radians per second at full deflection, for pitch, yaw and roll alike."
+        "desc": "Radians per second the roll turns at full deflection; pitch and yaw follow it by default."
+      },
+      {
+        "name": "pitchSpeed",
+        "type": "number | null",
+        "desc": "Radians per second the pitch turns at full deflection; `null` (the default) is `rollSpeed`."
+      },
+      {
+        "name": "yawSpeed",
+        "type": "number | null",
+        "desc": "Radians per second the yaw turns at full deflection; `null` (the default) is `rollSpeed`."
+      },
+      {
+        "name": "inputResponse",
+        "type": "number",
+        "desc": "Seconds a turn key takes to reach full deflection, and a released one to come back to none: the turn rate ramps like a stick moved by hand. 0, the default, is on or off at once. A stick still travelling moves the camera, so the frames go on until it is centred."
       },
       {
         "name": "dragToLook",
@@ -4011,7 +4026,7 @@
         "desc": "CRUISE, off by default: the camera flies forward at `movementSpeed` with no key held, as a plane does. W then adds `movementSpeed` (twice as fast) and S takes it away (the camera hangs in place); it never flies backwards. Nothing moves until the next `update`, so a host that redraws on `change` asks for one frame when it turns cruise on."
       }
     ],
-    "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held or a drag is pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
+    "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held or a drag is pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
   },
   {
     "id": "FrameInfo",
@@ -4026,7 +4041,7 @@
       {
         "name": "delta",
         "type": "number",
-        "desc": "Seconds since the previous frame."
+        "desc": "Seconds since the previous frame, at most two frame intervals after a pause; 0 on the first."
       },
       {
         "name": "time",
@@ -15509,7 +15524,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.controls",
-    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; minDistance: number; maxDistance: number; minPolarAngle: number; maxPolarAngle: number; mi...",
+    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; update(delta?: number): void; follow: () => void; dispose(): void; } & { minDistance: numb...",
     "summary": "The mouse and keyboard controller that moves the camera.",
     "members": [
       {
@@ -15526,6 +15541,21 @@
         "name": "target",
         "type": "Vector3",
         "desc": "The point a pivot controller turns around."
+      },
+      {
+        "name": "update(delta?: number)",
+        "type": "void",
+        "desc": "Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose."
+      },
+      {
+        "name": "follow",
+        "type": "() => void",
+        "desc": "The world's camera changed: the controller follows it."
+      },
+      {
+        "name": "dispose()",
+        "type": "void",
+        "desc": "Stops the controller and removes its listeners from the canvas."
       },
       {
         "name": "minDistance",
@@ -15585,7 +15615,22 @@
       {
         "name": "rollSpeed",
         "type": "number",
-        "desc": "Flight only: radians per second the keys pitch, yaw and roll."
+        "desc": "Flight only: radians per second the keys roll, and pitch and yaw unless set apart."
+      },
+      {
+        "name": "pitchSpeed",
+        "type": "number | null",
+        "desc": "Flight only: radians per second the keys pitch; `null` (the default) is `rollSpeed`."
+      },
+      {
+        "name": "yawSpeed",
+        "type": "number | null",
+        "desc": "Flight only: radians per second the keys yaw; `null` (the default) is `rollSpeed`."
+      },
+      {
+        "name": "inputResponse",
+        "type": "number",
+        "desc": "Flight only: seconds a turn key takes to full deflection and back; 0 is instant."
       },
       {
         "name": "rotateSpeed",
@@ -15601,21 +15646,6 @@
         "name": "autoForward",
         "type": "boolean",
         "desc": "Flight only: flies forward at `movementSpeed` with no key, W faster, S to a halt."
-      },
-      {
-        "name": "update(delta?: number)",
-        "type": "void",
-        "desc": "Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose."
-      },
-      {
-        "name": "follow",
-        "type": "() => void",
-        "desc": "The world's camera changed: the controller follows it."
-      },
-      {
-        "name": "dispose()",
-        "type": "void",
-        "desc": "Stops the controller and removes its listeners from the canvas."
       }
     ],
     "description": ""
