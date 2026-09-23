@@ -1,7 +1,9 @@
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../../../gpu/draw/draw.ts';
 import { SHADOW_PASS } from '../../../gpu/shadow/atlas.ts';
+import { SHADOW_LAYER_PASS } from '../../../gpu/shadow/staticLayer.ts';
 import { visBindEntries } from '../../core/bindEntries.ts';
-import { regionViewport } from '../../shadow/pages.ts';
+import { REGION_RESTORE, REGION_STATIC } from '../../shadow/regions.ts';
+import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { encodeShadowCasters } from '../../shadow/casters.ts';
 
@@ -73,8 +75,9 @@ function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: nu
 
 /**
  * Shadow depth pass: first the casters of each light view drawn, selected from the light and
- * culled per page (`encodeShadowCasters`); then one render pass for every page, and two draws per
- * page — a clear to far, then the page's casters.
+ * culled per region (`encodeShadowCasters`); then the static layer's pages drawn in full, if any;
+ * then one render pass over the pool, where each region starts from its page cleared to far or
+ * restored from the static layer, and draws its casters.
  *
  * **The viewport is the physical page, the matrix the virtual page's own projection.** The page
  * fills the clip square, so the rasterizer clips every caster at its edge and no other page of the
@@ -84,43 +87,50 @@ export function encodeShadowAtlas(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  regions: number,
+  count: number,
 ) {
   const { lights, vis, run } = rt,
-    { shadows, cull } = lights;
+    { shadows, cull, regions, staticLayer } = lights;
   lights.shadowDraws = 0;
-  if (!regions || !shadows || !cull || !vis.visBindGroupLayout) return false;
-  const first = shadowRegionGroup(rt, device, 0);
-  if (!first) return false;
-  if (!encodeShadowCasters(rt, encoder, regions)) return false;
-  cull.counts.sample(encoder, cull.indirect, regions, run.frame);
-  lights.shadowDraws = regions;
+  if (!count || !shadows || !cull || !vis.visBindGroupLayout) return false;
+  if (regions.layered && !staticLayer) return false;
+  if (!shadowRegionGroup(rt, device, 0)) return false;
+  if (!encodeShadowCasters(rt, encoder, count)) return false;
+  cull.counts.sample(encoder, cull.indirect, count, run.frame);
+  lights.shadowDraws = count;
   const drawsBefore = run.gpuDrawCalls;
-  const pass = encoder.beginRenderPass({
-    label: SHADOW_PASS,
-    colorAttachments: [],
-    depthStencilAttachment: { view: shadows.view, depthLoadOp: 'load', depthStoreOp: 'store' },
-  });
-  for (let region = 0; region < regions; region++) {
-    const at = region * 3,
-      x = regionViewport[at],
-      y = regionViewport[at + 1],
-      side = regionViewport[at + 2];
-    if (side <= 0) continue;
-    const group = shadowRegionGroup(rt, device, region);
-    if (!group) continue;
-    pass.setViewport(x, y, side, side, 0, 1);
-    pass.setScissorRect(x, y, side, side);
-    pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
-    pass.setBindGroup(0, group);
-    pass.setPipeline(shadows.clear);
-    pass.draw(3);
-    run.gpuDrawCalls++;
-    pass.setPipeline(shadows.depth);
-    pass.drawIndirect(cull.indirect, region * DRAW_INDIRECT_STRIDE);
-    run.gpuDrawCalls++;
-  }
-  pass.end();
+  const draw = (target: GPUTextureView, label: string, layer: boolean) => {
+    const pass = encoder.beginRenderPass({
+      label,
+      colorAttachments: [],
+      depthStencilAttachment: { view: target, depthLoadOp: 'load', depthStoreOp: 'store' },
+    });
+    for (let region = 0; region < count; region++) {
+      const start = regions.startOf(region);
+      if (layer !== (start === REGION_STATIC)) continue;
+      const group = shadowRegionGroup(rt, device, region);
+      if (!group) continue;
+      const x = regions.x(region),
+        y = regions.y(region);
+      pass.setViewport(x, y, SHADOW_PAGE, SHADOW_PAGE, 0, 1);
+      pass.setScissorRect(x, y, SHADOW_PAGE, SHADOW_PAGE);
+      if (start === REGION_RESTORE) {
+        pass.setPipeline(staticLayer!.restore);
+        pass.setBindGroup(0, staticLayer!.group);
+      } else pass.setPipeline(shadows.clear);
+      pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
+      if (start !== REGION_RESTORE) pass.setBindGroup(0, group);
+      pass.draw(3);
+      pass.setPipeline(shadows.depth);
+      pass.setBindGroup(0, group);
+      pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
+      pass.drawIndirect(cull.indirect, region * DRAW_INDIRECT_STRIDE);
+      run.gpuDrawCalls += 2;
+    }
+    pass.end();
+  };
+  if (regions.layered) draw(staticLayer!.view, SHADOW_LAYER_PASS, true);
+  draw(shadows.view, SHADOW_PASS, false);
   lights.shadowDrawCalls = run.gpuDrawCalls - drawsBefore;
   return true;
 }

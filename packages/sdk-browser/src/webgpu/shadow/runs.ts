@@ -18,8 +18,8 @@ const CELLS = 8;
 
 /**
  * The pages of one light view a frame draws — a sun level, or a lamp face at one mip —, as a light
- * cut sees them: the regions `[first, first + count)`, the bounding square of their pages, and the
- * selection view that square bounds.
+ * cut sees them: the regions `[first, first + count)` its pages draw, the bounding square of those
+ * pages, and the selection view that square bounds.
  *
  * The window is cut into at most eight cells per side, each `2^shift` pages wide, and a cell is
  * marked when a drawn page lies in it: the cut keeps a caster only if it covers a marked cell.
@@ -87,10 +87,10 @@ export function createShadowRuns() {
       run.x1 = run.y1 = -Infinity;
       return run;
     },
-    /** Adds page `(x, y)` of the view to the open run. */
-    add(x: number, y: number) {
+    /** Adds page `(x, y)` of the view to the open run, drawn in `regions` regions. */
+    add(x: number, y: number, regions = 1) {
       const run = list[count - 1];
-      run.count++;
+      run.count += regions;
       run.x0 = Math.min(run.x0, x);
       run.y0 = Math.min(run.y0, y);
       run.x1 = Math.max(run.x1, x);
@@ -108,9 +108,9 @@ export function createShadowRuns() {
     },
     /**
      * Closes the open run while its window is the last face composed: its view, in the render
-     * frame at `origin`, `rows` cells of `side / rows` texels, and the pages `(x, y)` its regions
-     * draw, relative to the window's first page. The error threshold is the camera's: a texel
-     * of the level a pixel reads is at most that pixel.
+     * frame at `origin`, `rows` cells of `side / rows` texels, and the `drawn` pages `(x, y)` its
+     * regions draw, relative to the window's first page. The error threshold is the camera's: a
+     * texel of the level a pixel reads is at most that pixel.
      */
     close(
       origin: ArrayLike<number>,
@@ -119,12 +119,13 @@ export function createShadowRuns() {
       rows: number,
       pageXs: ArrayLike<number>,
       pageYs: ArrayLike<number>,
+      drawn: number = pageXs.length,
     ) {
       const run = list[count - 1],
         { face, uniforms, pages } = run;
       pages.rows = rows;
       pages.mask.fill(0);
-      for (let i = 0; i < run.count; i++) {
+      for (let i = 0; i < drawn; i++) {
         const cx = pageXs[i] >> run.shift,
           cy = pageYs[i] >> run.shift;
         markLightPages(pages, cx, cx, cy, cy);

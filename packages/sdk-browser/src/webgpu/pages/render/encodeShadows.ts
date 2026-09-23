@@ -4,6 +4,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import { pixelNearOf } from '../../../camera/pixelFootprint.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
+import { createShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
+import { noteResidenceChange } from '../../shadow/bounds.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -58,8 +60,13 @@ export function planShadowRegions(
   nowMs: number,
 ) {
   const { lights } = rt,
-    { shadows, plan, store, runs } = lights;
+    { shadows, plan, store, runs } = lights,
+    { rows, packedPages } = rt.layout;
   runs.reset();
+  // Residency the light cuts see changed since the last plan: those pages alone restale.
+  lights.residence.flush(rows.residentFlags, (page) =>
+    noteResidenceChange(lights, packedPages[page]),
+  );
   lights.shadowPages = 0;
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
@@ -71,10 +78,11 @@ export function planShadowRegions(
   const pixelError = followLightThreshold(lights, rt.run.gate.pixelError, rt.run.budgetPixelError);
   const view = shadowViewpointOf(cam, rt.gpu.targetSize[1]);
   const box = lights.sceneBox(rt.layout);
+  ensureStaticLayer(rt);
   plan.plan(store, view, box.min, box.max, frame, nowMs);
   const slots = writeShadowRecords(lights);
   const count = writeShadowPages(lights, slots, cam.eye, pixelError);
-  lights.shadowPages = count;
+  lights.shadowPages = plan.admission.count;
   return count;
 }
 
@@ -112,4 +120,21 @@ export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommand
     plan.receive,
   );
   if (settle) timing.shadowPageRequests = settle;
+}
+
+/**
+ * The static layer is built the first time an object moves; until its pipeline is ready, pages
+ * are drawn whole, every caster at once. A device that refuses it keeps drawing them so.
+ */
+function ensureStaticLayer(rt: WebgpuPagesRuntime) {
+  const { lights } = rt,
+    device = rt.setup.gpuDevice;
+  if (!lights.mobility.layered || lights.staticLayer || lights.staticLayerPending || !device)
+    return;
+  lights.staticLayerPending = true;
+  createShadowStaticLayer(device)
+    .then((layer) => {
+      lights.staticLayer = layer;
+    })
+    .catch((error) => rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error));
 }

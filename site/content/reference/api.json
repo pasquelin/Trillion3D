@@ -10972,8 +10972,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "SHADOW_CULL_FLOATS",
-    "signature": "const SHADOW_CULL_FLOATS: 16",
-    "summary": "Floats of a cull volume: centre and far plane, face axis and half-angle, then — for a box, flagged by a negative half-angle — the two other axes with their half-extents.",
+    "signature": "const SHADOW_CULL_FLOATS: 20",
+    "summary": "Floats of a cull volume: centre and far plane, face axis and half-angle, then — for a box, flagged by a negative half-angle — the two other axes with their half-extents, then the word that says which casters the region draws and three of padding.",
     "description": ""
   },
   {
@@ -12117,7 +12117,7 @@
       },
       {
         "name": "worldChanged",
-        "type": "(lo: ArrayLike<number>, hi: ArrayLike<number>) => void",
+        "type": "(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly?: boolean) => void",
         "desc": "A node has moved: its box stales the pages it covers at the next plan."
       },
       {
@@ -12176,9 +12176,9 @@
         "desc": "Plans a frame: stales what moved, reads the last report, admits the pages to draw."
       },
       {
-        "name": "commit()",
+        "name": "commit(modes?: ArrayLike<number>)",
         "type": "void",
-        "desc": "The frame's pages were encoded: their draws land before anything reads them."
+        "desc": "The frame's pages were encoded, each in its `modes` entry: their draws land before anything reads them."
       },
       {
         "name": "reissue()",

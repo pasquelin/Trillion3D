@@ -10,7 +10,7 @@ import { visLayerTop } from '../../visibility/uniforms.ts';
 import { createRenderEncoder, submitColorCopy } from './encoder.ts';
 import { encodeSurfaceLighting } from './encodeBlend.ts';
 import { uploadDirtyRows } from './encodeDraws.ts';
-import { uploadClusterSpheres } from '../../shadow/bounds.ts';
+import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts';
 import {
   encodeEmptySurfaces,
   computeRasterStages,
@@ -59,7 +59,10 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   timing.encodeCounts.fichesTeleversees = Math.max(0, words.to - words.from + 1);
   // World spheres of the rows the table just changed, on the same dirty interval as the table
   // itself: that is what shadow culling reads, and nothing else writes them.
-  if (rt.lights.cull) uploadClusterSpheres(rt, device, rows.dirtyFrom, rows.dirtyTo);
+  if (rt.lights.cull) {
+    uploadClusterSpheres(rt, device, rows.dirtyFrom, rows.dirtyTo);
+    uploadRowMobility(rt, device, rows.dirtyFrom, rows.dirtyTo);
+  }
   // World corners of the same rows, on the same interval: what GPU projection reads. Like the two
   // above, it is taken BEFORE `uploadDirtyRows`, which closes that range.
   if (vis.gpuPartition) uploadRowCorners(rt, vis.gpuPartition);

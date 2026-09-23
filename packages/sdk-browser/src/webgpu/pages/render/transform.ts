@@ -97,9 +97,11 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // same requested world pose, and the request is therefore not judged as no-effect.
   if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
   boxEmpty(moved, 0);
-  for (const root of layout.selectionRoots)
-    if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node))
-      boxUnionBatch(moved, root.worldBox, 1);
+  layout.selectionRoots.forEach((root, rank) => {
+    if (!root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) return;
+    boxUnionBatch(moved, root.worldBox, 1);
+    lights.mobility.move(rank);
+  });
   // The local matrix is authoritative, not the three fields: not every matrix is a
   // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
   // scale under a rotation produces — does not decompose into it, and `updateMatrixWorld` would
@@ -145,7 +147,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     movedMin[axis] = moved[axis];
     movedMax[axis] = moved[axis + 3];
   }
-  lights.plan.worldChanged(movedMin, movedMax);
+  lights.plan.worldChanged(movedMin, movedMax, !lights.mobility.takePromoted());
 }
 
 /** True when `mesh` is the moved node or one of its descendants. */

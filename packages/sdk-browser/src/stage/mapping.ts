@@ -6,6 +6,7 @@ import { TAA_PASS } from '../taa/shaderWgsl.ts';
 import { LIGHT_TILES_PASS } from '../lighting/tiles/tiles.ts';
 import { REST_COMPACT_PASS } from '../gpu/raster/restCompact.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
+import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
 import type { StageAdd } from './profiler.ts';
 
@@ -58,6 +59,7 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     'WG water composite': ['transparents', 'other'],
     'WG transparent compaction': ['transparents', 'other'],
     [SHADOW_PASS]: ['shadows', 'other'],
+    [SHADOW_LAYER_PASS]: ['shadows', 'other'],
     'WG shadow cull': ['shadows', 'other'],
     [LIGHT_TILES_PASS]: ['lightLists', 'other'],
     [BOUNCE_SURFACE_PASS]: ['bounce', 'other'],

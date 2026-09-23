@@ -11,9 +11,16 @@
  * `indirectBase` how long it is — the light compaction's slots, or the one command a list the
  * CPU cut wrote carries. The kept counts start at zero: the host writes the frame's commands
  * before the command buffer runs.
+ *
+ * A region also says which casters it draws (`CASTERS_*`): all of them, the static ones — into the
+ * static layer —, or the moving ones, over a page restored from that layer. A row's mobility word
+ * says which it is (`../../webgpu/shadow/mobility.ts`).
  */
+export const CASTERS_ALL = 0,
+  CASTERS_STATIC = 1,
+  CASTERS_MOVING = 2;
 export const SHADOW_CULL_SHADER = `struct Sphere{center:vec3f,radius:f32,}
-struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,}
+struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,casters:u32,pad0:u32,pad1:u32,pad2:u32,}
 struct Uni{firstFace:u32,faces:u32,sourceBase:u32,indirectBase:u32,commands:u32,capacity:u32,pad0:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> spheres:array<Sphere>;
 @group(0) @binding(1) var<storage, read> source:array<u32>;
@@ -22,6 +29,7 @@ struct Uni{firstFace:u32,faces:u32,sourceBase:u32,indirectBase:u32,commands:u32,
 @group(0) @binding(4) var<storage, read_write> indirect:array<atomic<u32>>;
 @group(0) @binding(5) var<uniform> uni:Uni;
 @group(0) @binding(6) var<storage, read> faces:array<Face>;
+@group(0) @binding(7) var<storage, read> mobility:array<u32>;
 
 /** Instances of the face's list: the sum of its commands, contiguous from \`sourceBase\`. */
 fn listed()->u32{
@@ -38,8 +46,10 @@ fn shadowCullScatter(@builtin(global_invocation_id) id:vec3u){
  if(id.y>=uni.faces||index>=listed()){return;}
  let face=uni.firstFace+id.y;
  let row=source[uni.sourceBase+index];
- let sphere=spheres[row];
  let volume=faces[face];
+ // Which casters the region draws: every one, the static ones, or the moving ones.
+ if(volume.casters!=${CASTERS_ALL}u&&(mobility[row]!=0u)!=(volume.casters==${CASTERS_MOVING}u)){return;}
+ let sphere=spheres[row];
  let delta=sphere.center-volume.center;
  if(volume.halfAngle<0.0){
   let local=abs(vec3f(dot(delta,volume.right),dot(delta,volume.up),dot(delta,volume.axis)));

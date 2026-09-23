@@ -4,6 +4,7 @@ import { writeFace } from './faces.ts';
 import type { ShadowPool } from './pool.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { POOL_PAGES, lampPagesAt, sunPageMetres } from './virtual.ts';
+import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 
 type Changes = ReturnType<typeof createShadowChanges>;
 
@@ -89,8 +90,9 @@ function sunPageMeets(level: number, ax: number, ay: number) {
  *
  * - **The light moved, changed, or its clipmap changed projection** (`whole`): every page.
  * - **An object moved within its reach**: only the pages its projected box covers — the rest
- *   still describes the scene, since nothing else changed. With per-page invalidation off, every
- *   page of each light the box touches, the rule from before per-page maps.
+ *   still describes the scene, since nothing else changed. An object already moving stales only
+ *   their moving casters: the static layer under them holds. With per-page invalidation off,
+ *   every page of each light the box touches, the rule from before per-page maps.
  *
  * Returns the pages staled.
  */
@@ -126,7 +128,8 @@ export function invalidateLightPages(
         (isSun
           ? sunPageMeets(key, pool.x[page], pool.y[page])
           : lampPageMeets(key >> 4, key & 15, pool.x[page], pool.y[page]));
-      if (meets && pool.stale(page, nowMs, frame)) staled++;
+      const level = moved?.moving ? STALE_DYNAMIC : STALE_FULL;
+      if (meets && pool.stale(page, nowMs, frame, level)) staled++;
     }
   }
   return staled;

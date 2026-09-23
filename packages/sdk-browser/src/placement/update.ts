@@ -47,8 +47,9 @@ const moved = new Float64Array(BOX_VALUES),
  * Brings the roots of rows `from` to `to` level with what the owner wrote in them: each root's
  * world is already the row (a view), so only what the engine DERIVES from it follows — its world
  * box, reprojected from its local box, and its parked flag, which `park` hands to a GPU cut when
- * the engine has one. Returns the box the change touched, where it was and where it now is, or
- * `null` when no drawn root moved: a still scene pays nothing downstream.
+ * the engine has one; `posed` hears the rank of every root the rows pose. Returns the box the
+ * change touched, where it was and where it now is, or `null` when no drawn root moved: a still
+ * scene pays nothing downstream.
  */
 export function followPlacementRows<T>(
   roots: readonly ClusterRoot<T>[],
@@ -56,6 +57,7 @@ export function followPlacementRows<T>(
   from: number,
   to: number,
   park?: (rank: number, parked: boolean) => void,
+  posed?: (rank: number) => void,
 ) {
   const list = rowRoots(roots, rows);
   boxEmpty(moved, 0);
@@ -64,6 +66,7 @@ export function followPlacementRows<T>(
     const entry = list[index];
     if (!entry) continue;
     const { root, rank } = entry;
+    posed?.(rank);
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
     const parked = rows.live[index] === 0;
     if (parked !== !!root.parked) {

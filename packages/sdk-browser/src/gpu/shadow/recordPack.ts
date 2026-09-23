@@ -15,7 +15,9 @@ import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunL
  * Pages drawn at most in a frame: the buffer cap, not a quality setting. The millisecond budget
  * almost always stops first.
  */
-export const MAX_SHADOW_REGIONS: number = LIGHT_SETTINGS.shadowPagesPerFrame;
+export const MAX_SHADOW_PAGES: number = LIGHT_SETTINGS.shadowPagesPerFrame;
+/** Regions at most in a frame: a page draws its static layer and its moving casters, two at most. */
+export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
 
 /**
  * Host mirrors of the two shadow buffers the frame writes — the drawn pages' matrices, read by
@@ -44,7 +46,7 @@ export function createShadowRecordPack(faceStride: number) {
     records,
     facePacked,
     /**
-     * The drawn page `index`: its matrix — the page's own projection, which the viewport lands on
+     * Region `index`: its page's matrix — the page's own projection, which the viewport lands on
      * physical page `phys` —, that page's atlas rectangle, and the light envelope the depth pass
      * strips (a zero radius strips nothing).
      */

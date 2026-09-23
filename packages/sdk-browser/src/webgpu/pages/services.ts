@@ -3,7 +3,6 @@ import { updateTransparentSpan } from '../transparent/spans.ts';
 import { createWebgpuResidencyMirror } from '../residency/mirror.ts';
 import { createPageRowWriter } from '../row/pageRow.ts';
 import { createWebgpuRowCommit } from '../row/commit.ts';
-import { noteResidenceChange } from '../shadow/bounds.ts';
 import { createWebgpuRowSync } from '../row/sync.ts';
 import { createWebgpuResidencySets } from '../residency/sets.ts';
 import { createWebgpuPinUpdater } from '../residency/pinUpdater.ts';
@@ -58,8 +57,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     drawSlots,
     () => !!gpu.cache,
     commit,
-    // Origin of the resource change: the page enters residency or leaves it.
-    (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
+    // Origin of the resource change: the page enters residency or leaves it. The shadows compare
+    // the flag at their next plan (`../shadow/residence.ts`).
+    (rec) => (
+      run.gate.resourcesChanged(),
+      rt.lights.residence.note(rows.pageIndexOf(rec) ?? -1, packedPages.length)
+    ),
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the

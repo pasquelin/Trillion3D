@@ -161,6 +161,10 @@ export function disposeWebgpuPages(
   rt.lights.shadows?.dispose();
   rt.lights.pageRequests?.dispose();
   rt.lights.pageRequests = undefined;
+  rt.lights.staticLayer?.dispose();
+  rt.lights.staticLayer = undefined;
+  rt.lights.mobilityRows?.destroy();
+  rt.lights.mobilityRows = undefined;
   rt.bounce.probes?.dispose();
   rt.bounce.probes = undefined;
   rt.sunFar.gpu?.dispose();

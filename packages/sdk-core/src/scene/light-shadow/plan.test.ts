@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
 import { PAGE_MAPPED, PAGE_VALID, POOL_PAGES } from './virtual.ts';
+import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 import { SUN, VIEW, cycle, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
 
 /** A sun, planned once so its slice and clipmap exist; returns what the tests read it by. */
@@ -119,4 +120,17 @@ test('a camera that moves by whole pages unmaps the sun pages that leave the cli
   };
   planFrame(plan, store, 2, far);
   assert.equal(plan.pool.used, 0, `level ${level} of slice ${slice} no longer holds them`);
+});
+
+test('an object already moving stales only the moving casters of the pages it crosses', () => {
+  const { store, plan, pages } = sunScene();
+  cycle(plan, store, 1, () => pages);
+  cycle(plan, store, 2, () => pages);
+  const page = plan.table.words[pages[0]] & 0xffff;
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6], true);
+  planFrame(plan, store, 3);
+  assert.equal(plan.pool.dirty[page], STALE_DYNAMIC);
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
+  planFrame(plan, store, 4);
+  assert.equal(plan.pool.dirty[page], STALE_FULL, 'a static change raises it to full');
 });

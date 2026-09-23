@@ -6,6 +6,7 @@ import {
 import { PAGES_RING, noteShadowFrame, uploadSceneLights } from '../state/lights.ts';
 import { planImageShadows } from './encodeShadows.ts';
 import { encodeShadowAtlas } from './encodeShadowPass.ts';
+import { pageModes } from '../../shadow/pages.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -66,7 +67,7 @@ export function encodeDirectLights(
   // The pass may refuse to encode (reject or missing selection): its pages then stay stale, and
   // their table words say what they said — a page is readable only once its draw has landed.
   const encoded = !regions || encodeShadowAtlas(rt, device, encoder, regions);
-  if (encoded) lights.plan.commit();
+  if (encoded) lights.plan.commit(pageModes);
   else lights.plan.reissue();
   if (lights.shadows) {
     // Records and table words go out after the draws are encoded, before the resolve reads them;

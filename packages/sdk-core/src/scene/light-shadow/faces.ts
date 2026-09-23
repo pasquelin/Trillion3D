@@ -33,9 +33,12 @@ const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 
 
 /**
  * Floats of a cull volume: centre and far plane, face axis and half-angle, then — for a
- * box, flagged by a negative half-angle — the two other axes with their half-extents.
+ * box, flagged by a negative half-angle — the two other axes with their half-extents, then the
+ * word that says which casters the region draws and three of padding.
  */
-export const SHADOW_CULL_FLOATS = 16;
+export const SHADOW_CULL_FLOATS = 20;
+/** Float of a cull volume that carries which casters its region draws. */
+export const SHADOW_CULL_CASTERS = 16;
 
 /**
  * Writes the view-projection matrix of a lamp face at its slot in `matrices`, and, if the cull

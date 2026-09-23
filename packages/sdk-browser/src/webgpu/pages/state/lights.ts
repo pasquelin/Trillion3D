@@ -6,15 +6,23 @@ import {
   type SceneLightStore,
   type ShadowPlan,
 } from '../../../../../sdk-core/src/index.ts';
-import { MAX_SHADOW_REGIONS, type GpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
+import {
+  MAX_SHADOW_PAGES,
+  MAX_SHADOW_REGIONS,
+  type GpuShadowAtlas,
+} from '../../../gpu/shadow/atlas.ts';
 import { ltcTable } from '../../../../../sdk-core/src/lighting/ltcTable.ts';
 import type { GpuShadowCull } from '../../../gpu/shadow/cull.ts';
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts';
 import { createShadowRuns, type ShadowRuns } from '../../shadow/runs.ts';
+import { createShadowRegionList, type ShadowRegionList } from '../../shadow/regions.ts';
 import type { CpuCasterLists } from '../../shadow/cpuCasters.ts';
 import type { DagLightCut } from '../../../gpu/dag/lightCut.ts';
 import type { ShadowPageRequests } from '../../shadow/pageRequests.ts';
 import { createShadowSceneBox } from '../../shadow/sceneBox.ts';
+import { createShadowResidence } from '../../shadow/residence.ts';
+import { createShadowMobility, type ShadowMobility } from '../../shadow/mobility.ts';
+import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
@@ -29,6 +37,15 @@ export interface WebgpuLightState {
   shadows: GpuShadowAtlas | undefined;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
+  /** Residency flips, compared plan to plan (`../../shadow/residence.ts`). */
+  residence: ReturnType<typeof createShadowResidence>;
+  /** Which placements move, and the static layer their first move opens. */
+  mobility: ShadowMobility;
+  /** One word per row, 1 for a moving placement's: what the page cull splits its lists by. */
+  mobilityRows: GPUBuffer | undefined;
+  /** The static layer of the pool, once an object has moved and its pipeline is built. */
+  staticLayer: ShadowStaticLayer | undefined;
+  staticLayerPending: boolean;
   /** The scene's world box, what a sun's depth range spans (`../../shadow/sceneBox.ts`). */
   sceneBox: ReturnType<typeof createShadowSceneBox>;
   /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
@@ -43,6 +60,8 @@ export interface WebgpuLightState {
   faceMatrices: Float32Array;
   /** The image's drawn light views, one light cut each (`../../shadow/runs.ts`). */
   runs: ShadowRuns;
+  /** The image's regions, one or two per drawn page (`../../shadow/regions.ts`). */
+  regions: ShadowRegionList;
   /** Threshold the last light cuts selected at, −1 before the first (`followLightThreshold`). */
   lightThreshold: number;
   /** Image whose shadow pages are planned: a plan is made once per image (`planImageShadows`). */
@@ -81,12 +100,17 @@ export const PAGES_RING = 64;
 export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightState {
   return {
     store: store ?? createSceneLightStore(),
-    plan: createShadowPlan(MAX_SHADOW_REGIONS),
+    plan: createShadowPlan(MAX_SHADOW_PAGES),
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,
     pageRequests: undefined,
     sceneBox: createShadowSceneBox(),
+    residence: createShadowResidence(),
+    mobility: createShadowMobility(),
+    mobilityRows: undefined,
+    staticLayer: undefined,
+    staticLayerPending: false,
     cull: undefined,
     spheres: undefined,
     shadowGroups: new Array(MAX_SHADOW_REGIONS).fill(undefined),
@@ -94,6 +118,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     uploadedEpoch: 0,
     faceMatrices: new Float32Array(MAX_SHADOW_REGIONS * 16),
     runs: createShadowRuns(),
+    regions: createShadowRegionList(),
     lightThreshold: -1,
     plannedFrame: -1,
     lightRuns: 0,

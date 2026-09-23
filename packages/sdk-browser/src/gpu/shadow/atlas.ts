@@ -10,7 +10,7 @@ import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { SHADOW_REQUEST_WORDS } from '../../lighting/direct/shadowWgsl.ts';
 
-export { MAX_SHADOW_REGIONS } from './recordPack.ts';
+export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'WG shadow atlas v1';

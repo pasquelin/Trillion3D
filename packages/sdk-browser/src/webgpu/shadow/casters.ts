@@ -27,9 +27,10 @@ export function encodeShadowCasters(
   regions: number,
 ) {
   const { lights, vis, run, layout, setup, timing } = rt,
-    { cull, spheres, runs } = lights,
+    { cull, spheres, runs, mobilityRows } = lights,
     { gpuDraw } = vis;
-  if (!cull || !spheres || !gpuDraw) return false;
+  if (!cull || !spheres || !gpuDraw || !mobilityRows) return false;
+  source.mobility = mobilityRows;
   const rows = layout.rows.packedCount;
   cull.begin(regions, setup.maxCorners);
   const selection = run.gpuFrameActive ? run.gpuSelection : undefined;

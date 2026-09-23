@@ -211,6 +211,21 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
 
+**Moving objects redraw their own casters, never the static set under them.** A placement turns
+moving the first time it moves (`webgpu/shadow/mobility.ts`) and stays so; from then on the pool
+keeps a static layer, a second 4096² depth texture allocated at that first move — a scene where
+nothing moves pays neither its 64 MiB nor its pass. A page drawn in full writes its static casters
+into the layer, then restores itself from it and draws its moving casters over; a page that only
+a moving object crossed is restored and gets its moving casters alone, split by one word per row
+in the page cull. A still moving object stales nothing; it is never demoted, since a rule that
+did would redraw the layer each time a pausing object moved again. A residency flag that drops
+and rises within a frame — every row follows the table epoch when a pose moves — is no change
+for the shadows: only a flag that differs from the last plan's restales its cluster's pages
+(`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over a static ground,
+1280×720, the virtual pages redraw 4.4 pages a frame (6 at most) with one light cut, against 224
+pages a frame on `develop`, and the frame after the motion is 0 px from a fresh render of the
+same pose.
+
 **Shadow casters are selected from the light.** The pages of one light view a frame draws — a sun
 level, a lamp face at one mip — form a run, and each run runs the cluster cut on its own view: the
 camera's kernels, pipelines, clusters and residency bits, with flags, counters and output of its own

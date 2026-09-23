@@ -15,7 +15,7 @@ const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4,
 
 /**
  * The cull's single bind table: its order names both the layout and the group — spheres, source
- * list, source indirect, kept, produced indirect, per-face uniform, volumes.
+ * list, source indirect, kept, produced indirect, per-face uniform, volumes, row mobility.
  */
 const BINDING_TYPES: readonly GPUBufferBindingType[] = [
   'read-only-storage',
@@ -25,11 +25,14 @@ const BINDING_TYPES: readonly GPUBufferBindingType[] = [
   'storage',
   'uniform',
   'read-only-storage',
+  'read-only-storage',
 ];
 
-/** Where one redrawn face's light cut left its casters, and which regions read them. */
+/** Where one run's light cut left its casters, and which regions read them. */
 export interface ShadowCullSource {
   spheres: GPUBuffer;
+  /** One word per row: 1 for a moving placement's. */
+  mobility: GPUBuffer;
   /** Instance list, page-table rows, from word `base`. */
   source: GPUBuffer;
   base: number;
@@ -105,7 +108,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       layout: pipelineLayout,
       compute: { module, entryPoint: 'shadowCullScatter' },
     });
-    const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS);
+    const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS),
+      volumeWords = new Uint32Array(volumes.buffer);
     const commands = new Uint32Array(MAX_SHADOW_REGIONS * COMMAND_WORDS);
     const uniData = new Uint32Array(CULL_UNIFORM_WORDS);
     let bound: GPUBuffer[] = [],
@@ -117,6 +121,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       offsets,
       drawUniform,
       volumes,
+      /** The same volumes as words: which casters each region keeps (`CASTERS_*`). */
+      volumeWords,
       /** Periodic sample of what the region culls kept, read after submission. */
       counts,
       /**
@@ -151,10 +157,11 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
           !group ||
           bound[0] !== from.spheres ||
           bound[1] !== from.source ||
-          bound[2] !== from.indirect
+          bound[2] !== from.indirect ||
+          bound[7] !== from.mobility
         ) {
           const buffers = [from.spheres, from.source, from.indirect];
-          buffers.push(kept, indirect, uniforms, faceVolumes);
+          buffers.push(kept, indirect, uniforms, faceVolumes, from.mobility);
           bound = buffers;
           group = device.createBindGroup({
             layout,

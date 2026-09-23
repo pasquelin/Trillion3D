@@ -7,7 +7,7 @@ import { createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
 import { baseOf, castsShadow } from './casters.ts';
 import { createShadowTable } from './table.ts';
-import { createShadowPool } from './pool.ts';
+import { DRAW_ALL, createShadowPool } from './pool.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
@@ -159,9 +159,11 @@ export function createShadowPlan(capacity: number) {
       );
       return admission.count;
     },
-    /** The frame's pages were encoded: their draws land before anything reads them. */
-    commit() {
-      for (let i = 0; i < admission.count; i++) pool.drew(table, admission.list[i]);
+    /** The frame's pages were encoded, each in its `modes` entry: their draws land before
+     *  anything reads them. */
+    commit(modes?: ArrayLike<number>) {
+      for (let i = 0; i < admission.count; i++)
+        pool.drew(table, admission.list[i], modes ? modes[i] : DRAW_ALL);
       admission.reset();
     },
     /** The frame's pages could not be encoded: they stay stale, and wait for the next frame. */

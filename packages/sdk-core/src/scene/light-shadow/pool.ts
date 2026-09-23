@@ -1,6 +1,18 @@
 import { PAGE_MAPPED, PAGE_VALID, POOL_PAGES } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
+/** How stale a page is: only its moving casters changed, or its static ones too. */
+export const STALE_DYNAMIC = 1,
+  STALE_FULL = 2;
+/**
+ * How a page is drawn. Without a static layer — no object has moved yet — every caster at once.
+ * With one: the static casters into the static layer, then the page restored from it and the
+ * moving casters drawn over (`full`); or the restore and the moving casters alone (`dynamic`).
+ */
+export const DRAW_ALL = 0,
+  DRAW_FULL = 1,
+  DRAW_DYNAMIC = 2;
+
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
  * the light and the virtual page it draws — a sun level and its absolute page, or a lamp face,
@@ -22,6 +34,8 @@ export function createShadowPool() {
     requested = new Int32Array(POOL_PAGES).fill(-1),
     dirty = new Uint8Array(POOL_PAGES),
     valid = new Uint8Array(POOL_PAGES),
+    /** The static layer holds this page's static casters, current. */
+    layered = new Uint8Array(POOL_PAGES),
     since = new Float64Array(POOL_PAGES),
     sinceFrame = new Int32Array(POOL_PAGES);
   const free = new Int32Array(POOL_PAGES),
@@ -34,6 +48,7 @@ export function createShadowPool() {
     requested.fill(-1);
     dirty.fill(0);
     valid.fill(0);
+    layered.fill(0);
     for (let page = 0; page < POOL_PAGES; page++) free[page] = POOL_PAGES - 1 - page;
     freeCount = POOL_PAGES;
   };
@@ -48,23 +63,34 @@ export function createShadowPool() {
     requested,
     dirty,
     valid,
+    layered,
     since,
     sinceFrame,
     get used() {
       return POOL_PAGES - freeCount;
     },
-    /** The page is stale from now on, unless it already was: its wait never restarts. */
-    stale(page: number, nowMs: number, frame: number) {
-      if (dirty[page]) return false;
-      dirty[page] = 1;
+    /**
+     * The page is stale from now on — its moving casters only, or its static ones too —, at the
+     * most of what it already was; its wait never restarts. True when it was current.
+     */
+    stale(page: number, nowMs: number, frame: number, level = STALE_FULL) {
+      const was = dirty[page];
+      if (was < level) dirty[page] = level;
+      if (was) return false;
       since[page] = nowMs;
       sinceFrame[page] = frame;
       return true;
     },
-    /** The page's draw has landed: current, and readable. */
-    drew(table: ShadowTable, page: number) {
+    /** How the page is to be drawn, a static layer existing or not (`DRAW_*`). */
+    drawMode(page: number, staticLayer: boolean) {
+      if (!staticLayer) return DRAW_ALL;
+      return dirty[page] === STALE_FULL || !layered[page] ? DRAW_FULL : DRAW_DYNAMIC;
+    },
+    /** The page's draw in `mode` has landed: current, and readable. */
+    drew(table: ShadowTable, page: number, mode: number) {
       dirty[page] = 0;
       valid[page] = 1;
+      layered[page] = mode === DRAW_FULL || (mode === DRAW_DYNAMIC && layered[page]) ? 1 : 0;
       table.write(owner[page], page | PAGE_MAPPED | PAGE_VALID);
     },
     /** Unmaps the page: its entry reads nothing, and the page returns to the free list. */
@@ -74,6 +100,7 @@ export function createShadowPool() {
       owner[page] = -1;
       dirty[page] = 0;
       valid[page] = 0;
+      layered[page] = 0;
       requested[page] = -1;
       free[freeCount++] = page;
     },
@@ -107,6 +134,7 @@ export function createShadowPool() {
       if (page < 0) return -1;
       owner[page] = entry;
       valid[page] = 0;
+      layered[page] = 0;
       dirty[page] = 0;
       pool.stale(page, nowMs, frame);
       requested[page] = reportFrame;

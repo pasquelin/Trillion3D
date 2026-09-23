@@ -8,8 +8,9 @@ import { placedBy, type PlacementRows } from './rows.ts';
  * their worlds from the rows, so nothing is copied: their boxes are reprojected, a parked row
  * leaves the GPU cut's first queue and a taken one enters it (`parkWorld`), and the frame learns
  * that poses moved — the worlds go up in one write at the next image, the rows are rewritten
- * under a new table epoch, the occluder history no longer holds, and the shadow slices the
- * change touched are drawn again. No table is resized and nothing is prepared again.
+ * under a new table epoch, the occluder history no longer holds, and the shadow pages the
+ * change touched are drawn again: their moving casters only, once the placements are known to
+ * move (`../webgpu/shadow/mobility.ts`). No table is resized and nothing is prepared again.
  */
 export function updateWebgpuPlacements(
   rt: WebgpuPagesRuntime,
@@ -18,8 +19,13 @@ export function updateWebgpuPlacements(
   to: number,
 ) {
   const { run, layout, lights } = rt;
-  const touched = followPlacementRows(layout.selectionRoots, rows, from, to, (rank, parked) =>
-    run.gpuSelection?.parkWorld(rank, parked),
+  const touched = followPlacementRows(
+    layout.selectionRoots,
+    rows,
+    from,
+    to,
+    (rank, parked) => run.gpuSelection?.parkWorld(rank, parked),
+    lights.mobility.move,
   );
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
   // and their boxes follow at its world refresh (`refreshBlendWorlds`).
@@ -31,5 +37,6 @@ export function updateWebgpuPlacements(
   if (!touched) return;
   layout.rows.tableEpoch++;
   invalidateOccluderHistory(run);
-  lights.plan.worldChanged(touched.min, touched.max);
+  // Placements already moving leave the static casters under them unchanged.
+  lights.plan.worldChanged(touched.min, touched.max, !lights.mobility.takePromoted());
 }
