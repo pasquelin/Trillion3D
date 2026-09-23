@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 /**
  * The measurement resolution, declared once and recorded in the provenance.
  *
- * 2496 × 1404, the internal resolution of the published profile that `docs/REFERENCE_UE5.md`
+ * 2496 × 1404, the internal resolution of the published profile that `docs/REFERENCE.md`
  * compares the pass shapes against — comparing milliseconds taken at two different resolutions
  * means nothing. What we do NOT match, and must not let anyone believe: they upsample that image
  * to 4K by their temporal super-sampling; ours accumulates at native resolution and upsamples

@@ -14,7 +14,7 @@ rerun benchmarks.
 
 - `--moteur`: `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster), or `webgl2`
   (autonomous-pages-webgl, the autonomous engine decoding geometry pages itself, hence the only one incrementing `pagesDecodedWasm`); it also sets Chromium flags (`sideOptions.ts`). `webgl2` requires a cache where all primitives are exact clusters: otherwise the compiler leaves `autonomousScene` null and the explorer rejects the run with `AUTONOMOUS_SCENE_UNAVAILABLE`.
-  Witnesses to pit on one side via `--moteur-avant`: `three-nu` (Three.js alone, everything drawn every frame) and `three-lod` (Three.js with a three-level `THREE.LOD` per mesh, simplified by meshoptimizer at load: the classic method).
+  Witnesses to pit on one side via `--moteur-avant`: `three-nu` and `three-lod`, see [The witnesses](#the-witnesses).
 - `--avant` / `--apres`: a built `dist/` directory, or a git ref. Without `--avant`, a single side is measured; `--apres` defaults to `dist/`.
 - `--moteur-avant` / `--moteur-apres`: per-side engine overrides. This is how the engine is pitted against the Three witness in a single execution — same poses, same lights, same caches, same server —, making `ecartAvantApres` a fidelity metric rather than a cross-campaign comparison. Chromium flags are the union of both sides' requirements.
 - `--scene <name>`: asset scene, any folder of `.mesure/assets/` that `assets.ts` compiled (`sponza`, `normal-tangent-mirror-test`, `facade-7`, …). Sets the `derived` cache for each side without `--cache-<side>`. Omission infers cache name or defaults to `sponza`.
@@ -32,14 +32,6 @@ rerun benchmarks.
 - `--camera-mobile`: the pose advances by one step along the benchmark trajectory at each measured frame, instead of replaying the same one. This is what distinguishes a still scene from a moving camera — and thus, for the sun, a cached cascade from a re-rendered cascade at each frame. It is also the only way to observe selection cost: with a fixed pose, everything retained frame-to-frame is free and appears nowhere. On a ten-million-triangle interior, general view, GPU transparent selection drops `cpuFrameMs` p50 from 17.6 to 12.1 ms at threshold 0 and from 7.2 to 4.5 ms at threshold 1 — an invisible difference with a static camera. The recorded cut hash may differ between sides under this option without the image moving: it comes from asynchronous readback, one frame behind the cut it describes.
 - Without `--lampes` or `--soleil`, no lights are declared: the engine renders unlit material albedo. This is its default behavior, not a harness option.
 
-## The Three Witness and Contract Lights
-
-Three adapters do not read `SceneLight` store: they copy lights from the source scene graph and nothing else. The harness is an ordinary host — it creates in Three the lights declared in the store via the `sceneLighting` option of `openMeasuredWorld`, the SDK's measurement entry (`witnessPage.ts`, served to page under `/runner/` and imported by URL). Nothing is hardcoded: everything comes from the measured world's `lights()`, thus from compiled cache and contract — imported scene lights as well as benchmark lights —, and no scene is named.
-
-The mapping is exact in Three units: linear color, unscaled radiometric intensity, `distance` = range, `decay` = 2, yielding windowed inverse square of `directIncidence`; spotlight cone edge is matched by penumbra. Each side publishes in its `lampesTemoin` record what it received, or `null` if not rendered with Three.
-
-What the witness does not render, named rather than guessed: **no shadow casting** — the SDK's Three renderer does not enable shadow maps. A fidelity campaign is run `--ombres off` on both sides, otherwise measured delta reflects shadows rendered solely by our engine.
-
 - `--budget-ombres <ms>`: Shadow stage budget in GPU milliseconds per frame. Without the option, engine keeps its default (1.0 ms). Invalidated pages beyond the budget wait their turn; profile reports `pagesEnAttente` and `retardMaxMs`, and `occludeursGardes`, the clusters the region culls kept on the sampled frame `imageRelevee` (one frame in fifteen, read back after submission). Under `--camera-mobile`, sun cascades slide by whole pages and only the entering strips are redrawn; changes of representation (level of detail, residency, colour tiles) stale pages only once the camera rests, so the moving loop's `pagesInvalidees` counts strips and moving objects alone.
 - `--ombres-pages off`: invalidates entire shadow face as soon as an object moves within light range, rather than only pages covered by its projected bounding box. This is the shadow map identity check: two runs differing only by this option must render the **same atlas footprint** and the same image.
 - `--empreinte-ombres`: flushes shadow page queue, re-reads depth atlas, and publishes footprint in `series[].sides[].atlasOmbres` (`hash`, `written`, `pagesEnAttente`, `images`). Disabled by default: this is a 64 MB read, not an image timing. Use only with deterministic poses and lights.
@@ -47,6 +39,53 @@ What the witness does not render, named rather than guessed: **no shadow casting
 - `--chemin-math auto|js|wasm` (default `auto`): execution path for core batch computations. `auto` lets governor decide by measurement — no hardcoded threshold in code —, `js` and `wasm` force it for the entire run, comparing paths on identical scene, poses and cache. The "Batch Math Path" table in `resume.md` publishes, per side and per operation, the path taken, medians in nanoseconds per item, transitions, and item count; full report in `series[].sides[].cheminCalcul`. Unexecuted operation median is "unmeasured", never zero.
 - `--visible`: opens a real window. Without a window, display caps at 60 Hz on macOS.
 - `--images-profil` (default 120): number of trailing measured frames included in the per-stage profile. The profile is reset before that moving-window suffix; it does not substitute a still-pose loop for the measured path.
+
+## The witnesses
+
+A witness is a comparison backend the harness pits against the engine on one side
+(`--moteur-avant three-nu|three-lod|webgl`). The SDK never mounts one on its own: they are reached
+through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) as
+`referenceBackend`, `threeLodBackend` and `exactPagesBackend`, opt-in through the session's
+`backends` option.
+
+- `three-nu` (`reference`): Three.js alone, every mesh drawn every frame.
+- `three-lod` (`three-lod`): Three.js with a three-level `THREE.LOD` per mesh, simplified by
+  meshoptimizer at load — the classic method.
+- `webgl` (`exact-cluster-pages`): the cache's clusters drawn over Three.js scene data through an
+  engine-owned WebGL2 program — glTF 2.0 metallic-roughness maps, Lambert diffuse with a
+  Cook-Torrance GGX specular, correlated Smith visibility and Schlick Fresnel (Karis, SIGGRAPH 2013
+  Physically Based Shading course notes), with the geometric specular antialiasing of
+  Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing* (2019). Transmissive meshes are
+  composed after the clusters over a frozen backdrop of the frame. A material the program cannot
+  preserve fails preparation with `CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the
+  input; `autonomousClusterDrawsTotal` counts the program's draws.
+
+### Contract lights on the witnesses
+
+`three-nu` and `three-lod` do not read the `SceneLight` store: they copy lights from the source
+scene graph. The harness is an ordinary host — it creates in Three the lights declared in the store
+via the `sceneLighting` option of `openMeasuredWorld` (`witnessPage.ts`, served under `/runner/` and
+imported by URL). Nothing is hardcoded: everything comes from the measured world's `lights()`, thus
+from the compiled cache and the contract, and no scene is named. `exact-cluster-pages` translates
+the store itself on every store revision (`packages/sdk-browser/src/backend/exact/contractLights.ts`).
+
+The mapping is exact in Three units: linear colour, unscaled radiometric intensity (W/sr for a point
+or a spot, irradiance for a directional), `distance` = range and `decay` = 2 — term for term the
+windowed inverse square of the engine's own shader — and the spot edge matched by penumbra. What is
+not equal is the surface model: same incident irradiance, different BRDF. Each side publishes in its
+`lampesTemoin` record what it received, or `null` if not rendered with Three. The contract takes over
+only once the host used it (one light declared, one view requested); from then on the source graph's
+lights are switched off.
+
+What the witnesses do not render, named rather than guessed: **no shadow casting** — one shadow map
+per light, six faces for a point light, is outside any frame budget — and `'bounce'` renders the lit
+view. A fidelity campaign is run `--ombres off` on both sides, otherwise the measured delta reflects
+shadows rendered by the engine alone. `'unlit'` on `exact-cluster-pages` is obtained by lighting, not
+by substituting materials: one white ambient light of irradiance π returns the albedo once
+`metalness`, `aoMapIntensity`, `lightMapIntensity` and `transmission` are zeroed for the length of
+each frame; a material's own emission is still added. The WebGL witnesses read back their rendered
+default framebuffer so captures match the displayed image.
+
 
 The measured camera path also advances once per `requestAnimationFrame` on both sides. Its
 `rafIntervalMs` distribution is the real moving-frame envelope, including browser backpressure and
