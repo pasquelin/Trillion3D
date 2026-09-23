@@ -40,18 +40,18 @@ export function Pager({ label, previous, next, compact = false }: PagerProps) {
           href={previous.href}
           rel="prev"
         >
-          ← {text(previous)}
+          <span className="inline-block rtl:-scale-x-100">←</span> {text(previous)}
         </LinkButton>
       )}
       {next && (
         <LinkButton
           variant={compact ? 'ghost' : 'primary'}
           size={size}
-          className={`${shape} ${compact ? 'ml-auto' : 'sm:ml-auto'}`}
+          className={`${shape} ${compact ? 'ms-auto' : 'sm:ms-auto'}`}
           href={next.href}
           rel="next"
         >
-          {text(next)} →
+          {text(next)} <span className="inline-block rtl:-scale-x-100">→</span>
         </LinkButton>
       )}
     </nav>
