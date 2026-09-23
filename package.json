@@ -74,6 +74,7 @@
     "perf:baseline": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/runner/perf/baseline-save.ts",
     "build:docs": "node scripts/docs-build.ts",
     "docs:scene": "node scripts/docs-scene.ts",
+    "docs:gallery": "node scripts/docs-gallery.ts",
     "docs:serve": "node scripts/docs-serve.ts",
     "check:local": "node scripts/check-local-files.ts"
   },
