@@ -70,10 +70,8 @@ fn requestShadowPage(e:u32){
  * clamped at its edge, and its pages per side. Texel coordinates are relative to the map's first
  * page, texel centres at `+0.5`.
  *
- * A tap whose bilinear footprint lies in one page — every tap but those within a texel of a seam
- * — is one hardware comparison in that page. One that straddles a seam is four comparisons, each
- * texel in its own page, weighted by hand: no seam, no guard band. A texel whose page is not
- * readable is read at the nearest texel of the page that holds the point, which is.
+ * A tap whose bilinear footprint lies in one page is one hardware comparison in that page; one
+ * that straddles a seam is split along it (\`shadowPcf\`): no seam, no guard band.
  */
 export const directShadowWgsl = (dataBinding: number, requestBinding: number | null) => `
 ${SHADOW_DATA_WGSL}
@@ -116,75 +114,65 @@ fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
  let word=shadows.table[u32(e)];
  return select(0u,word,(word&PAGE_VALID)!=0u);
 }
-/** Atlas coordinate of texel coordinate \`t\` of page \`p\`, held by physical page \`word\`. */
-fn shadowAtlasUv(word:u32,t:vec2f,p:vec2i)->vec2f{
+/** Atlas texel offset of page \`p\`, held by physical page \`word\`: added to a texel coordinate
+ *  of the map, it gives that texel's place in the atlas. */
+fn shadowOffset(word:u32,p:vec2i)->vec2f{
  let phys=word&PAGE_INDEX_MASK;
- let origin=vec2f(f32(phys%SHADOW_POOL_SIDE),f32(phys/SHADOW_POOL_SIDE))*SHADOW_PAGE;
- return (origin+t-vec2f(p)*SHADOW_PAGE)/SHADOW_ATLAS;
+ return (vec2f(f32(phys%SHADOW_POOL_SIDE),f32(phys/SHADOW_POOL_SIDE))-vec2f(p))*SHADOW_PAGE;
 }
-/** Texel coordinate \`t\` moved into page \`p\`, its first and last texel centres included. */
-fn shadowInPage(t:vec2f,p:vec2i)->vec2f{return clamp(t,vec2f(p)*SHADOW_PAGE+0.5,vec2f(p+1)*SHADOW_PAGE-0.5);}
-fn shadowCompare(word:u32,t:vec2f,p:vec2i,reference:f32)->f32{
- return textureSampleCompareLevel(shadowAtlas,shadowSampler,shadowAtlasUv(word,t,p),reference);
+fn shadowCompare(offset:vec2f,t:vec2f,reference:f32)->f32{
+ return textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/SHADOW_ATLAS,reference);
 }
-/** Word of page \`p\`, one of the home page and its neighbours across the edges the filter
- *  reaches: \`words\` holds the home page's, the one beside it in x, in y, and the diagonal one. */
-fn shadowWordAt(p:vec2i,home:vec2i,words:vec4u)->u32{
- let d=vec2u(p!=home);
- return words[d.x+2u*d.y];
-}
-/** One bilinear comparison at \`t\`, among the pages of \`words\`; a page not readable is read at
- *  the nearest texel of the home page. */
-fn shadowTap(t:vec2f,reference:f32,home:vec2i,words:vec4u)->f32{
- let lo=floor(t-0.5);
- let p0=vec2i(floor(lo/SHADOW_PAGE));let p1=vec2i(floor((lo+1.0)/SHADOW_PAGE));
- if(all(p0==p1)){
-  let word=shadowWordAt(p0,home,words);
-  if(word==0u){return shadowCompare(words.x,shadowInPage(t,home),home,reference);}
-  return shadowCompare(word,t,p0,reference);
- }
- let f=t-0.5-lo;
- var sum=0.0;
- for(var k=0u;k<4u;k++){
-  let corner=vec2f(f32(k&1u),f32(k>>1u));
-  let centre=lo+corner+0.5;
-  let p=vec2i(floor((lo+corner)/SHADOW_PAGE));
-  let word=shadowWordAt(p,home,words);
-  let weight=mix(1.0-f.x,f.x,corner.x)*mix(1.0-f.y,f.y,corner.y);
-  if(word==0u){sum+=weight*shadowCompare(words.x,shadowInPage(centre,home),home,reference);}
-  else{sum+=weight*shadowCompare(word,centre,p,reference);}
- }
- return sum;
+/** Offset of the neighbour page \`p\` if it is readable, with \`true\`; else the home page's. */
+fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec2f)->vec3f{
+ let word=shadowPageWord(m,p);
+ if(word==0u){return vec3f(home,0.0);}
+ return vec3f(shadowOffset(word,p),1.0);
 }
 /**
  * Sixteen taps a texel apart around \`t\`; a lamp face clamps them at its edge (\`side\` > 0).
  * Every tap's bilinear footprint lies within 1.5 texels of \`t\`, so the filter reaches at most
  * the home page's neighbours across the one or two edges that close: their words are read, and
  * asked for, once per pixel, before the taps. Away from any edge — all but the pixels within two
- * texels of one — each tap is one hardware comparison in the home page. Reading the words inside
- * the taps made the lighting pass's shader heavy enough to cost 0.45 ms of a 1280×720 frame, the
- * edge pixels aside (measured).
+ * texels of one — each tap is one hardware comparison in the home page.
+ *
+ * Near an edge a tap is split along the seam, never texel by texel: each page's share of the
+ * bilinear weight across the seam, \`saturate(0.5 + distance to the seam)\`, multiplies one
+ * hardware comparison in that page, clamped to its last texel centre on that axis, the other axis
+ * still filtered by the sampler. A tap is thus two comparisons beside one edge, four at a corner,
+ * with no branch per tap. A neighbour not readable is read at the home page's nearest texel.
  */
 fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)->f32{
  let first=vec2f(home)*SHADOW_PAGE;
  let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);
+ let offset=shadowOffset(homeWord,home);
  var lit=0.0;
  if(!any(edge)){
-  let uv=shadowAtlasUv(homeWord,t,home);
+  let uv=(offset+t)/SHADOW_ATLAS;
   for(var tap=0u;tap<PCF_TAPS;tap++){
    lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/SHADOW_ATLAS,reference);
   }
   return lit/f32(PCF_TAPS);
  }
- let step=vec2i(select(vec2f(1.0),vec2f(-1.0),t-first<vec2f(0.5*SHADOW_PAGE)));
- var words=vec4u(homeWord,0u,0u,0u);
- if(edge.x){words.y=shadowPageWord(m,home+vec2i(step.x,0));}
- if(edge.y){words.z=shadowPageWord(m,home+vec2i(0,step.y));}
- if(all(edge)){words.w=shadowPageWord(m,home+step);}
+ let up=t-first>=vec2f(0.5*SHADOW_PAGE);
+ let step=select(vec2i(-1),vec2i(1),up);
+ let toward=select(vec2f(-1.0),vec2f(1.0),up);
+ let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
+ var nx=vec3f(offset,0.0);var ny=nx;var nd=nx;
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset);}
  for(var tap=0u;tap<PCF_TAPS;tap++){
   var at=t+POISSON[tap];
   if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}
-  lit+=shadowTap(at,reference,home,words);
+  let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);
+  let n=select(min(at,seam-0.5),max(at,seam+0.5),up);
+  let w=saturate(0.5+(seam-at)*toward);
+  var sum=w.x*w.y*shadowCompare(offset,h,reference);
+  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xy,vec2f(select(h.x,n.x,nx.z>0.0),h.y),reference);}
+  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xy,vec2f(h.x,select(h.y,n.y,ny.z>0.0)),reference);}
+  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xy,select(h,n,nd.z>0.0),reference);}
+  lit+=sum;
  }
  return lit/f32(PCF_TAPS);
 }
