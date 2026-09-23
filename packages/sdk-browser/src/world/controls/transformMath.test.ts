@@ -20,6 +20,8 @@ const start = (mode: DragStart['mode'], handle: TransformHandle, space: DragStar
   scale: new Vector3(1, 1, 1),
   view: new Vector3(-1, 0, 0),
   from: along(0, -1),
+  up: new Vector3(0, 1, 0),
+  reach: 1,
 });
 
 test('a translation follows the handle axis: the object own in local space, the world in world', () => {
@@ -47,6 +49,12 @@ test('a scale acts along the object own axis, factor from the drag, rounded to i
   assert.ok(close(axis.scale, [3, 1, 1]), 'scale is always local: x is the world -z here');
   const snapped = dragTransform(start('scale', 'x', 'world'), along(0, -2.2), { scale: 0.5 })!;
   assert.equal(snapped.scale.x, 2);
-  const uniform = dragTransform(start('scale', 'xyz', 'world'), along(0, -2))!;
-  assert.ok(close(uniform.scale, [2, 2, 2]));
+});
+
+test('a uniform scale reads the drag up the screen, wherever the centre was pressed', () => {
+  const from = (y: number, z: number) => ({ ...start('scale', 'xyz', 'world'), from: along(y, z) });
+  const centre = dragTransform(from(0, 0), along(1, 0))!,
+    corner = dragTransform(from(0.2, 0.3), along(1.2, 0.3))!;
+  assert.ok(close(centre.scale, [Math.E, Math.E, Math.E]), 'up by the handle length: × e');
+  assert.ok(close(corner.scale, centre.scale.toArray()), 'the press point does not matter');
 });

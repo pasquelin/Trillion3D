@@ -397,7 +397,11 @@ corner, `event.offsetX`/`offsetY` — or along a world `Ray`, or `null`: the ver
 the world `point` and `normal` hit, the `distance` and the triangle rank `face`. It runs on the CPU
 over the scene's own geometry: triangle meshes are tested triangle by triangle, lines, points and
 sprites have no area and are never hit, a loaded model — its triangles live in GPU pages — is hit on
-its box, hidden subtrees and `helper` marks are skipped. `{ objects }` limits the test to some
+its box where the ray enters it, or at the ray's origin (`distance` 0, `normal` facing back along
+the ray) when the ray starts inside it; hidden subtrees and `helper` marks are skipped, a root under
+a hidden ancestor too. A ray's direction is made a unit vector at the door, so `distance` is in
+world units whatever its length. A canvas point is read on the CSS box and aimed at the shape the
+frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
 subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
 the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
 ray through a point of the picture. Live example: [click to pick](../site/examples/click-to-pick.html).
@@ -417,7 +421,9 @@ materials, depth-tested like any object, kept at one share of the canvas height 
 default) and marked as `helper`s. A press is picked on them before the camera controller hears it,
 so an orbit rests while a handle is dragged and resumes after, with no page code. A drag writes the
 object's local pose from the world pose it asks for, through its parents; a scale always follows the
-object's own axes. The handles follow the view after each frame the world draws; a still scene
+object's own axes. The centre cube scales uniformly by the drag up the screen, wherever it was
+pressed, in the handles' own length: up by that length multiplies the size by e, down divides it by
+e. `attach` or `detach` during a drag ends it first, with its `dragEnd`. The handles follow the view after each frame the world draws; a still scene
 draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-scale-gizmo.html).
 
 `scene.toJSON(camera)` writes the scene as plain, versioned JSON (`format: 'web-geometry-scene'`,
@@ -429,7 +435,10 @@ stored by its manifest address, never inlined; `helper` marks are left out. A te
 background or a shader material cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
 `await scene.fromJSON(json, camera)` replaces the content — the `helper` marks stay — loads the
 models again, and refuses another format or version (`UNSUPPORTED_SCENE_FORMAT`) before removing
-anything. Live example: [save the scene](../site/examples/save-the-scene.html).
+anything. Calls made while one is reading wait for it and run in order, each replacing what the one
+before left: two saved scenes never merge. A shape family builds at least the pieces it closes with
+(a box one slice per side, a sphere three around and two down) and its stored call says the count
+it built. Live example: [save the scene](../site/examples/save-the-scene.html).
 
 The portal's scene editor (`site/app/editor/`) is these three doors and nothing else: pick,
 move, recolour, save and open a scene, the frame's cost read live.

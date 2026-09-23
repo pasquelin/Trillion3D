@@ -4,6 +4,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { raycast, type Intersection } from '../../../../sdk-core/src/world/object/raycast.ts';
 import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { isHelper } from '../helper/mark.ts';
+import { drawnAspect } from './worldCamera.ts';
 
 /** A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`. */
 export type CanvasPoint = {
@@ -19,8 +20,9 @@ export interface RaycastOptions {
   objects?: readonly Object3D[];
 }
 
-/** The world ray through a canvas point, as the world's camera draws it. */
-export function canvasRay(camera: Camera, canvas: HTMLElement, at: CanvasPoint, out?: Ray) {
+/** The world ray through a canvas point, as the world's camera draws it: the point is read on
+ *  the canvas's CSS box, the picture's shape is the drawing buffer's the frame is drawn at. */
+export function canvasRay(camera: Camera, canvas: HTMLCanvasElement, at: CanvasPoint, out?: Ray) {
   const width = canvas.clientWidth,
     height = canvas.clientHeight;
   if (!(width > 0 && height > 0))
@@ -28,7 +30,8 @@ export function canvasRay(camera: Camera, canvas: HTMLElement, at: CanvasPoint, 
       width,
       height,
     });
-  return camera.rayThrough((at.x / width) * 2 - 1, 1 - (at.y / height) * 2, width / height, out);
+  const [x, y] = [(at.x / width) * 2 - 1, 1 - (at.y / height) * 2];
+  return camera.rayThrough(x, y, drawnAspect(canvas), out);
 }
 
 /**
@@ -39,7 +42,7 @@ export function canvasRay(camera: Camera, canvas: HTMLElement, at: CanvasPoint, 
 export function worldRaycast(
   scene: Object3D,
   camera: Camera,
-  canvas: HTMLElement,
+  canvas: HTMLCanvasElement,
   at: CanvasPoint | Ray,
   options: RaycastOptions = {},
 ): Intersection | null {
