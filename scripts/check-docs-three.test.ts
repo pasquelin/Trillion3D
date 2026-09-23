@@ -18,13 +18,14 @@ test('every spelling of the library is caught', () => {
     'the same as Three does',
     "the witness is Three's renderer",
     'see https://threejs.org/docs',
-    'Three would need one shadow map per light',
+    'the witness needs Three for its shadow maps',
   ])
     assert.equal(libraryMentions(`# Guide\n\n${line}\n`).length, 1, line);
 });
 
 test('the number three and a capitalised sentence start pass', () => {
-  const doc = '# Guide\n\nThree streams, nothing else: the three passes.\n| Three kinds |\n';
+  const doc =
+    '# Guide\n\nThree streams, nothing else: the three passes. Three-level cascades.\n| Three kinds |\n';
   assert.deepEqual(libraryMentions(doc), []);
 });
 
