@@ -41,7 +41,7 @@ export function CodeBlock({
         role="region"
         aria-label={title}
       >
-        <div className="code-lines">
+        <div className="code-lines" dir="ltr">
           {lines.map((line: string, index: number) => (
             <Fragment key={index}>
               <pre data-prefix={index + 1}>
