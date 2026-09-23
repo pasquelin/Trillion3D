@@ -27,7 +27,7 @@ export interface TransformControlsOptions {
   space?: TransformSpace;
   /** Steps each drag is rounded to; none by default. */
   snap?: TransformSnap;
-  /** The handles' length as a share of the canvas height, the same wherever the object stands. */
+  /** The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default. */
   size?: number;
 }
 
@@ -58,7 +58,7 @@ export function createTransformControls(
   let object: Object3D | null = null,
     mode = options.mode ?? 'translate',
     space = options.space ?? 'world';
-  const size = options.size ?? 1 / 6;
+  const size = options.size ?? 1 / 4;
   const at = new Vector3(),
     turn = new Quaternion(),
     stretch = new Vector3(),

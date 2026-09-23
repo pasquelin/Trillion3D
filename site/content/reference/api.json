@@ -14831,7 +14831,7 @@
       {
         "name": "size?",
         "type": "number | undefined",
-        "desc": "The handles' length as a share of the canvas height, the same wherever the object stands."
+        "desc": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
       }
     ],
     "description": ""
@@ -19677,7 +19677,7 @@
       {
         "name": "options.size?",
         "type": "number",
-        "desc": "The handles' length as a share of the canvas height, the same wherever the object stands."
+        "desc": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
       }
     ],
     "returns": {
