@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Labels that follow</title>
+    <meta name="thumbnail" content="4.5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #070a14;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #labels {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        font: 600 13px/1.2 system-ui, sans-serif;
+      }
+      .label {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        white-space: nowrap;
+        color: #f4f1ea;
+        will-change: transform;
+      }
+      .label b {
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: rgba(12, 16, 30, 0.72);
+        border: 1px solid var(--tint);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      }
+      .label small {
+        margin-top: 2px;
+        font-weight: 400;
+        font-size: 11px;
+        color: #c9d2e8;
+        text-shadow: 0 1px 4px #000;
+      }
+      .label i {
+        width: 1px;
+        height: 12px;
+        background: var(--tint);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="labels"></div>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#070a14');
+
+      // The planets, their orbits squeezed to fit one view; the facts under each name are the
+      // real ones: the mean distance to the Sun in astronomical units, the year in Earth days.
+      const PLANETS = [
+        { name: 'Mercury', colour: '#b5a89a', radius: 0.35, orbit: 5, au: 0.39, days: 88, moons: 0 },
+        { name: 'Venus', colour: '#e8c98a', radius: 0.6, orbit: 7, au: 0.72, days: 225, moons: 0 },
+        { name: 'Earth', colour: '#3f7fe0', radius: 0.64, orbit: 9.4, au: 1, days: 365, moons: 1 },
+        { name: 'Mars', colour: '#d0643a', radius: 0.45, orbit: 11.8, au: 1.52, days: 687, moons: 2 },
+        { name: 'Jupiter', colour: '#d9b08c', radius: 1.6, orbit: 16, au: 5.2, days: 4333, moons: 95 },
+        { name: 'Saturn', colour: '#e6d29a', radius: 1.35, orbit: 21, au: 9.54, days: 10759, moons: 146 },
+        { name: 'Uranus', colour: '#8fd6e0', radius: 0.95, orbit: 25.5, au: 19.2, days: 30687, moons: 28 },
+        { name: 'Neptune', colour: '#4a6fe8', radius: 0.92, orbit: 29.5, au: 30.1, days: 60190, moons: 16 },
+      ];
+
+      // The Sun glows on its own; its light falls off with the square of the distance, so a sky
+      // fill keeps the far planets' night sides from going black.
+      const sunRadius = 2.6;
+      const sun = object.mesh(geometry.sphere(sunRadius, 64, 32), material.meshBasic({ color: '#ffc45a' }));
+      const corona = object.mesh(geometry.sphere(sunRadius * 1.12, 48, 24), material.meshBasic({ color: '#ff8a2a', side: 'back' }));
+      world.scene.add(
+        sun,
+        corona,
+        light.point({ color: '#fff0d6', intensity: 260, position: [0, 0, 0] }),
+        light.hemisphere({ color: '#6f86c8', groundColor: '#2a2030', intensity: 0.9 }),
+      );
+
+      // Every planet a sphere and a faint ring for its path; Saturn wears its rings, Earth its Moon.
+      const orbitPaint = material.meshBasic({ color: '#28324e' });
+      const bodies = PLANETS.map((planet, index) => {
+        const mesh = object.mesh(geometry.sphere(planet.radius, 48, 24), material.meshStandard({ color: planet.colour, roughness: 0.75 }));
+        const path = object.mesh(geometry.torus(planet.orbit, 0.025, 6, 256), orbitPaint);
+        path.rotation.x = Math.PI / 2;
+        world.scene.add(mesh, path);
+        return { ...planet, mesh, angle: index * 2.1, height: planet.radius };
+      });
+      const saturn = bodies.find(({ name }) => name === 'Saturn');
+      const rings = object.mesh(geometry.ring(saturn.radius * 1.35, saturn.radius * 2.3, 128, 3), material.meshStandard({ color: '#cbb78a', roughness: 0.9, side: 'double' }));
+      rings.rotation.set(-Math.PI / 2 + 0.45, 0, 0.2);
+      const earth = bodies.find(({ name }) => name === 'Earth');
+      const moon = { name: 'Moon', colour: '#c9c9c9', radius: 0.18, orbit: 1.25, au: null, days: 27, moons: 0, angle: 0, height: 0.18 };
+      moon.mesh = object.mesh(geometry.sphere(moon.radius, 24, 12), material.meshStandard({ color: moon.colour, roughness: 0.9 }));
+      world.scene.add(rings, moon.mesh);
+
+      // One HTML label per body, made once; each frame moves it only when its place has changed.
+      const layer = document.getElementById('labels');
+      const tagged = [{ name: 'Sun', colour: '#ffc45a', mesh: sun, height: sunRadius, au: 0, days: null, moons: 0 }, ...bodies, moon];
+      for (const body of tagged) {
+        const tag = document.createElement('div'), name = document.createElement('b'), fact = document.createElement('small');
+        tag.className = 'label';
+        tag.style.setProperty('--tint', body.colour);
+        name.textContent = body.name;
+        tag.append(name, fact, document.createElement('i'));
+        layer.append(tag);
+        body.tag = { element: tag, fact, shown: null, place: '', depth: '', text: null };
+      }
+      const FACTS = {
+        'distance to the Sun': (body) => (body.au === null ? '384 400 km from Earth' : body.au === 0 ? 'our star' : `${body.au} AU`),
+        year: (body) => (body.days === null ? '' : body.name === 'Moon' ? 'a month of 27 days' : `a year of ${body.days.toLocaleString('en')} days`),
+        moons: (body) => (body.name === 'Sun' ? '8 planets' : body.name === 'Moon' ? "Earth's moon" : `${body.moons} moon${body.moons === 1 ? '' : 's'}`),
+        'names only': () => '',
+      };
+
+      // Where a world point lands on the page: the camera's own frame, then its field of view.
+      const eye = math.vector3(), turn = math.quaternion();
+      let width = innerWidth, height = innerHeight;
+      addEventListener('resize', () => ((width = innerWidth), (height = innerHeight)));
+      function onScreen(point, radius) {
+        eye.copy(point).sub(world.camera.position).applyQuaternion(turn.copy(world.camera.quaternion).invert());
+        const depth = -eye.z, slope = Math.tan((world.camera.fov * Math.PI) / 360) * depth;
+        if (depth <= world.camera.near) return null;
+        return { x: (0.5 + eye.x / (2 * slope * (width / height))) * width, y: (0.5 - eye.y / (2 * slope)) * height, size: (radius / slope) * (height / 2), depth };
+      }
+      // A label is hidden while its body is behind the Sun: the sight line from the eye to the
+      // body passes through the Sun's ball before it reaches it.
+      function behindSun(point) {
+        const to = eye.copy(point).sub(world.camera.position), reach = to.length();
+        to.multiplyScalar(1 / reach);
+        const along = -world.camera.position.dot(to), closest = world.camera.position.lengthSq() - along * along;
+        return along > 0 && along < reach - sunRadius && closest < sunRadius * sunRadius;
+      }
+      function placeLabels(fact) {
+        for (const body of tagged) {
+          const at = body.mesh.position, seen = body === tagged[0] || !behindSun(at) ? onScreen(at, body.height) : null;
+          const tag = body.tag, show = seen !== null && seen.x > -80 && seen.x < width + 80 && seen.y > -40 && seen.y < height + 80;
+          if (tag.shown !== show) tag.element.style.display = (tag.shown = show) ? '' : 'none';
+          if (!show) continue;
+          // The foot of the label stands on the top of the body's disc, the nearest labels on top.
+          const place = `translate(${seen.x.toFixed(1)}px, ${(seen.y - seen.size - 4).toFixed(1)}px) translate(-50%, -100%)`;
+          if (tag.place !== place) tag.element.style.transform = tag.place = place;
+          const depth = String(1000 - Math.round(seen.depth * 10));
+          if (tag.depth !== depth) tag.element.style.zIndex = tag.depth = depth;
+          const text = FACTS[fact](body);
+          if (tag.text !== text) {
+            tag.fact.textContent = tag.text = text;
+            tag.fact.style.display = text ? '' : 'none';
+          }
+        }
+      }
+
+      // The opening: the view falls from high above the plane of the orbits to a low three-quarter
+      // view; a press or a wheel on the canvas hands the camera to the viewer at once.
+      world.controls.minDistance = 6;
+      world.controls.maxDistance = 90;
+      world.controls.target.set(0, 0, 0);
+      world.camera.position.set(0, 70, 8);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.update();
+      let opening = 0, aligning = -1;
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (opening = -1), { passive: true });
+
+      const ui = controls({
+        mouse: 'Drag to turn around the Sun, wheel to come closer; the labels ride on the planets',
+        show: Object.keys(FACTS),
+        speed: [0, 4, 1],
+        lineThemUp: () => (aligning = 0),
+      }, world);
+
+      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+      let starts = [];
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        if (opening >= 0 && opening < 1) {
+          opening = Math.min(1, opening + step / 4.5);
+          const t = ease(opening), around = 0.9 * t, reach = math.lerp(71, 40, t), up = math.lerp(1.45, 0.42, t);
+          world.camera.position.set(reach * Math.cos(up) * Math.sin(around), reach * Math.sin(up), reach * Math.cos(up) * Math.cos(around));
+          world.controls.update();
+        }
+        // An inner planet goes round faster (Kepler: the year grows as the orbit's power 1.5);
+        // the button eases every planet onto one line from the Sun, then lets them go again.
+        if (aligning === 0) starts = bodies.map(({ angle }) => angle);
+        if (aligning >= 0) {
+          aligning = Math.min(1, aligning + step / 2.5);
+          bodies.forEach((body, k) => {
+            const goal = Math.ceil(starts[k] / (Math.PI * 2)) * Math.PI * 2 + 0.6;
+            body.angle = math.lerp(starts[k], goal, ease(aligning));
+          });
+          if (aligning === 1) aligning = -1;
+        } else for (const body of bodies) body.angle += step * ui.speed * 0.9 * (5 / body.orbit) ** 1.5;
+        for (const body of bodies) body.mesh.position.set(body.orbit * Math.cos(body.angle), 0, -body.orbit * Math.sin(body.angle));
+        rings.position.copy(saturn.mesh.position);
+        moon.angle += step * ui.speed * 3.2;
+        moon.mesh.position.set(earth.mesh.position.x + moon.orbit * Math.cos(moon.angle), 0.25 * Math.sin(moon.angle), earth.mesh.position.z - moon.orbit * Math.sin(moon.angle));
+        placeLabels(ui.show);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

@@ -565,8 +565,7 @@
         "fr": "La famille des matériaux"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/the-material-family.html"
     },
     {
       "id": "a-texture-turned-and-tiled",
@@ -595,8 +594,7 @@
         "fr": "Tous les formats d’image"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/every-image-format.html"
     },
     {
       "id": "a-video-on-a-screen",
@@ -635,8 +633,7 @@
         "fr": "Rendu cartoon"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/toon-shading.html"
     },
     {
       "id": "a-matcap-sculpture",
@@ -645,8 +642,7 @@
         "fr": "Une sculpture matcap"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-matcap-sculpture.html"
     },
     {
       "id": "normals-and-depth-seen",
@@ -655,8 +651,7 @@
         "fr": "Normales et profondeur"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/normals-and-depth-seen.html"
     },
     {
       "id": "avif-textures",
@@ -1148,8 +1143,7 @@
         "fr": "Lumière ciel et sol"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/sky-and-ground-light.html"
     },
     {
       "id": "light-in-real-units",
@@ -1158,8 +1152,7 @@
         "fr": "Lumière en unités réelles"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/light-in-real-units.html"
     },
     {
       "id": "shadows-from-the-sun",
@@ -1168,8 +1161,7 @@
         "fr": "Ombres du soleil"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/shadows-from-the-sun.html"
     },
     {
       "id": "a-long-shadowed-street",
@@ -1178,8 +1170,7 @@
         "fr": "Une longue rue ombrée"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-long-shadowed-street.html"
     },
     {
       "id": "flat-shadows-on-the-floor",
@@ -1188,8 +1179,7 @@
         "fr": "Ombres projetées au sol"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/flat-shadows-on-the-floor.html"
     },
     {
       "id": "a-softbox-panel",
@@ -1198,8 +1188,7 @@
         "fr": "Un panneau lumineux"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-softbox-panel.html"
     },
     {
       "id": "light-from-a-probe",
@@ -1208,8 +1197,7 @@
         "fr": "Lumière d’une sonde"
       },
       "theme": "lights",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/light-from-a-probe.html"
     },
     {
       "id": "soft-shadow-edges",
@@ -1468,8 +1456,7 @@
         "fr": "Perspective et ortho"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/two-lenses-one-scene.html"
     },
     {
       "id": "frame-the-model",
@@ -1478,8 +1465,7 @@
         "fr": "Cadrer le modèle"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/frame-the-model.html"
     },
     {
       "id": "turn-toward-a-target",
@@ -1538,8 +1524,7 @@
         "fr": "Curseur avant/après"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/before-and-after-slider.html"
     },
     {
       "id": "side-by-side-stereo",
@@ -1548,8 +1533,7 @@
         "fr": "Stéréo côte à côte"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/side-by-side-stereo.html"
     },
     {
       "id": "red-cyan-anaglyph",
@@ -1604,8 +1588,7 @@
         "fr": "Images clés à la main"
       },
       "theme": "animation",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/keyframes-by-hand.html"
     },
     {
       "id": "one-clip-many-objects",
@@ -1614,8 +1597,7 @@
         "fr": "Un clip, plusieurs objets"
       },
       "theme": "animation",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/one-clip-many-objects.html"
     },
     {
       "id": "animation-from-the-file",
@@ -1801,8 +1783,7 @@
         "fr": "Un modèle OBJ"
       },
       "theme": "loaders",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-model-from-obj.html"
     },
     {
       "id": "a-model-from-usdz",
@@ -2042,8 +2023,7 @@
         "fr": "Créer et libérer"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/create-and-dispose.html"
     },
     {
       "id": "no-hitch-on-first-draw",
@@ -2052,8 +2032,7 @@
         "fr": "Pas d’à-coup au 1er rendu"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/no-hitch-on-first-draw.html"
     },
     {
       "id": "inside-the-g-buffer",
@@ -2062,8 +2041,7 @@
         "fr": "Dans le G-buffer"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/inside-the-g-buffer.html"
     },
     {
       "id": "reading-pixels-back",
@@ -2072,8 +2050,7 @@
         "fr": "Relire les pixels"
       },
       "theme": "streaming",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/reading-pixels-back.html"
     },
     {
       "id": "a-city-from-3d-tiles",
@@ -2110,8 +2087,7 @@
         "fr": "Dans un panorama"
       },
       "theme": "environment",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/inside-a-panorama.html"
     },
     {
       "id": "a-video-panorama",
@@ -2410,8 +2386,7 @@
         "fr": "Un nuage de points"
       },
       "theme": "particles",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-cloud-of-points.html"
     },
     {
       "id": "waves-of-points",
@@ -2420,8 +2395,7 @@
         "fr": "Vagues de points"
       },
       "theme": "particles",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/waves-of-points.html"
     },
     {
       "id": "snow-of-sprites",
@@ -2430,8 +2404,7 @@
         "fr": "Neige de sprites"
       },
       "theme": "particles",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/snow-of-sprites.html"
     },
     {
       "id": "a-depth-camera-in-points",
@@ -2524,8 +2497,7 @@
         "fr": "Étiquettes qui suivent"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/labels-that-follow.html"
     },
     {
       "id": "select-with-a-box",
@@ -2534,8 +2506,7 @@
         "fr": "Sélection au cadre"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/select-with-a-box.html"
     },
     {
       "id": "sound-made-visible",
@@ -2544,8 +2515,7 @@
         "fr": "Le son rendu visible"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/sound-made-visible.html"
     },
     {
       "id": "click-to-pick",
