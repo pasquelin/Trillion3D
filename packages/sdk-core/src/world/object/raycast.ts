@@ -30,7 +30,7 @@ const inverse = new Matrix4(),
   local = new Ray(),
   far = new Vector3(),
   entry = new Vector3(),
-  corners = new Float64Array(3);
+  faceNormal = new Float64Array(3);
 
 /** The triangle tree of each shape a ray was cast at, in the shape's own frame, with each tree
  *  triangle's rank; built again once the shape changed (`Geometry.version`). */
@@ -54,8 +54,8 @@ function nearestTriangle(mesh: Mesh) {
   if (!shape) return null;
   const hit = nearestTriangleOnRay(shape.tree, local.origin.toArray(), local.direction.toArray());
   if (!hit) return null;
-  triangleNormal(corners, shape.tree.triangles, hit.at);
-  const normal = new Vector3(corners[0], corners[1], corners[2]);
+  triangleNormal(faceNormal, shape.tree.triangles, hit.at);
+  const normal = new Vector3(faceNormal[0], faceNormal[1], faceNormal[2]);
   return { t: hit.t, face: shape.ranks[hit.at / 9], normal };
 }
 
