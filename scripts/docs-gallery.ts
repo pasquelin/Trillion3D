@@ -13,7 +13,7 @@ import { mountainTerrain } from './docs/mountain-terrain/model.ts';
 import { writeMountainTerrain } from './docs/mountain-terrain/write.ts';
 
 const gallery = resolve(import.meta.dirname, '../site/assets/gallery');
-const scenes: Record<string, { directory: string; write: (source: string) => Promise<void> }> = {
+const scenes: Record<string, { directory: string; write: (source: string) => Promise<unknown> }> = {
   observatory: {
     directory: resolve(gallery, 'signature-architecture'),
     write: (source) => writeObservatory(source),
