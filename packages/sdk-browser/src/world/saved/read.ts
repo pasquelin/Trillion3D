@@ -39,7 +39,7 @@ function readGeometry(saved: SavedGeometry): Geometry {
 }
 
 /** Puts a camera back where it was saved; a camera of another projection keeps its own. */
-export function readCamera(saved: SavedCamera, camera: Camera) {
+function readCamera(saved: SavedCamera, camera: Camera) {
   camera.position.fromArray(saved.position);
   camera.quaternion.fromArray(saved.quaternion);
   if (saved.projection === camera.projection) Object.assign(camera, saved.optics);

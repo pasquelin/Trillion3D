@@ -47,5 +47,3 @@ export function createHistory(capacity: number) {
     },
   };
 }
-
-export type History = ReturnType<typeof createHistory>;

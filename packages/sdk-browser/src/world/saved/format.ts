@@ -4,11 +4,6 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 export const SCENE_FORMAT = 'web-geometry-scene';
 export const SCENE_FORMAT_VERSION = 1;
 
-/** Three or four numbers: a position, a scale, a quaternion. */
-type Numbers = number[];
-/** A linear colour, or a point a light aims at. */
-export type Triple = [number, number, number];
-
 /** A geometry: the family call that built it, or its vertices when no call can build it again. */
 export interface SavedGeometry {
   /** The family member and every argument it was built with. */
@@ -36,11 +31,11 @@ export interface SavedNode {
   /** Its name. */
   name: string;
   /** Where it stands, from its parent. */
-  position: Numbers;
+  position: number[];
   /** How it is turned, as a quaternion. */
-  quaternion: Numbers;
+  quaternion: number[];
   /** How it is stretched on each axis. */
-  scale: Numbers;
+  scale: number[];
   /** Whether it is drawn. */
   visible: boolean;
   /** Whether it casts shadows. */
@@ -58,10 +53,10 @@ export interface SavedNode {
   /** A light's kind, colours, numbers, aim and probe coefficients. */
   light?: {
     kind: string;
-    color: Triple;
-    groundColor: Triple;
+    color: [number, number, number];
+    groundColor: [number, number, number];
     values: Record<string, number>;
-    target: Triple;
+    target: [number, number, number];
     sh: number[] | null;
   };
   /** A compiled model, by the manifest address it was loaded from: never inlined. */
@@ -73,9 +68,9 @@ export interface SavedCamera {
   /** Perspective or orthographic. */
   projection: 'perspective' | 'orthographic';
   /** Where the eye stands. */
-  position: Numbers;
+  position: number[];
   /** How the eye is turned. */
-  quaternion: Numbers;
+  quaternion: number[];
   /** Field, near, far, zoom and box, by name. */
   optics: Record<string, number>;
 }
@@ -87,9 +82,9 @@ export interface SavedScene {
   /** The version of this layout; another one is refused. */
   formatVersion: number;
   /** The background colour, or `null`. */
-  background: Triple | null;
+  background: [number, number, number] | null;
   /** The fog, or `null`. */
-  fog: { color: Triple; near: number; far: number } | null;
+  fog: { color: [number, number, number]; near: number; far: number } | null;
   /** The camera saved with the scene, or `null`. */
   camera: SavedCamera | null;
   /** Every shape, once, however many meshes wear it. */

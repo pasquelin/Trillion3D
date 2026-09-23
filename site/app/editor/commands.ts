@@ -14,7 +14,7 @@ export const poseOf = (object: Object3D): Pose => ({
   scale: object.scale.clone(),
 });
 
-export function applyPose(object: Object3D, pose: Pose) {
+function applyPose(object: Object3D, pose: Pose) {
   object.position.copy(pose.position);
   object.quaternion.copy(pose.quaternion);
   object.scale.copy(pose.scale);

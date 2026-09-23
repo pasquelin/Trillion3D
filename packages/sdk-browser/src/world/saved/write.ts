@@ -17,7 +17,6 @@ import {
   type SavedMaterial,
   type SavedNode,
   type SavedScene,
-  type Triple,
 } from './format.ts';
 
 type SceneLike = Object3D & {
@@ -26,6 +25,8 @@ type SceneLike = Object3D & {
   fog: { color: Color; near: number; far: number } | null;
 };
 
+/** A linear colour, or a point a light aims at. */
+type Triple = [number, number, number];
 const rgb = (c: Color): Triple => [c.r, c.g, c.b];
 /** A plain copy of JSON-shaped data: what the page stored in `userData` or a parameter. */
 const plain = (value: unknown) => JSON.parse(JSON.stringify(value ?? {}));
@@ -54,7 +55,7 @@ function saveMaterial(m: Material): SavedMaterial {
 }
 
 /** The camera's pose and optics. */
-export function saveCamera(camera: Camera): SavedCamera {
+function saveCamera(camera: Camera): SavedCamera {
   return {
     projection: camera.projection,
     position: camera.position.toArray(),

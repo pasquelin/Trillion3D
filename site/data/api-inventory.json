@@ -1325,7 +1325,8 @@
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
-        "packages/sdk-browser/src/world/saved/write.ts"
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/SurfaceFields.tsx"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/color\".Color"
@@ -2974,7 +2975,9 @@
         "packages/sdk-browser/src/world/core/worldCuts.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
-        "packages/sdk-browser/src/world/saved/write.ts"
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/GeometryFields.tsx",
+        "site/app/editor/objects.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/geometry/geometry\".Geometry"
@@ -3920,6 +3923,8 @@
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "scripts/docs-renderer-lessons.test.ts",
+        "site/app/editor/SurfaceFields.tsx",
+        "site/app/editor/objects.ts",
         "site/lessons/engine-scene/lightingControls.ts",
         "site/lessons/lightingLessonRuntime.ts",
         "site/lessons/rendererLessonApply.ts",
@@ -4274,7 +4279,9 @@
         "packages/sdk-browser/src/world/core/worldSurface.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
-        "packages/sdk-browser/src/world/saved/write.ts"
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/SurfaceFields.tsx",
+        "site/app/editor/objects.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/material\".Material"
@@ -4301,7 +4308,9 @@
         "packages/sdk-browser/src/world/core/worldSurface.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
-        "packages/sdk-browser/src/world/saved/write.ts"
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/SurfaceFields.tsx",
+        "site/app/editor/objects.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/material/material\".Material"
@@ -4603,7 +4612,8 @@
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
-        "packages/sdk-browser/src/world/saved/write.ts"
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/objects.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/object/mesh\".Mesh"
@@ -4915,7 +4925,15 @@
         "packages/sdk-browser/src/world/helper/mark.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
-        "packages/sdk-browser/src/world/saved/write.ts"
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "site/app/editor/GeometryFields.tsx",
+        "site/app/editor/Inspector.tsx",
+        "site/app/editor/Outliner.tsx",
+        "site/app/editor/SurfaceFields.tsx",
+        "site/app/editor/actions.ts",
+        "site/app/editor/commands.ts",
+        "site/app/editor/objects.ts",
+        "site/app/editor/session.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/object/object3d\".Object3D"
@@ -6109,7 +6127,8 @@
         "packages/sdk-browser/src/world/controls/transformMath.test.ts",
         "packages/sdk-browser/src/world/controls/transformMath.ts",
         "packages/sdk-browser/src/world/core/worldCamera.ts",
-        "packages/sdk-browser/src/world/helper/index.ts"
+        "packages/sdk-browser/src/world/helper/index.ts",
+        "site/app/editor/commands.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/quaternion\".Quaternion"
@@ -8467,7 +8486,8 @@
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/pose/index.ts",
-        "scripts/docs-canvas.test.ts"
+        "scripts/docs-canvas.test.ts",
+        "site/app/editor/commands.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/vector3\".Vector3"

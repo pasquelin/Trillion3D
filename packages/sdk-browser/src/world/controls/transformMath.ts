@@ -39,7 +39,7 @@ const round = (value: number, step?: number) => (step ? Math.round(value / step)
 
 /** A handle's axis as a world direction: turned with the object in local space, and always for
  *  a scale, which acts along the object's own axes. */
-export function handleAxis(start: DragStart, name: 'x' | 'y' | 'z') {
+function handleAxis(start: DragStart, name: 'x' | 'y' | 'z') {
   const axis = UNIT[name].clone();
   return start.space === 'local' || start.mode === 'scale'
     ? axis.applyQuaternion(start.quaternion)
