@@ -146,7 +146,7 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 | [`packages/sdk-node`](packages/sdk-node)                       | Native process and filesystem integration                        |
 | [`packages/sdk-browser`](packages/sdk-browser)                 | Browser rendering and GPU resource adapters                      |
 | [`bench/runner`](bench/runner)                             | The bench: one harness, campaigns and the HTML report            |
-| [`test`](test)                                                 | Public package integration tests and GPU proofs                  |
+| [`tests`](tests)                                               | Public package integration tests and GPU proofs                  |
 
 ## Measuring
 

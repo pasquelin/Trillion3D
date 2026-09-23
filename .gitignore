@@ -25,8 +25,6 @@ RTK.md
 .graphifyignore
 graphify-out
 /scripts/graphify-communautes.json
-/scripts/graphify-libelles.mjs
-/scripts/graphify-libelles.test.mjs
 /docs/roles/coder.md
 /docs/roles/reviewer.md
 # Local files end

@@ -53,14 +53,15 @@ interface NamingContext {
 /** Fallback name: the dominant folder of the group, then its most connected node. */
 function derivedName(ids: string[], context: NamingContext): string {
   const { degree, labelMap, sources, root } = context;
-  const head = ids.reduce((a, b) => ((degree.get(b) ?? 0) >= (degree.get(a) ?? 0) ? a : b));
+  const head = ids.reduce((a, b) => ((degree.get(b) ?? 0) > (degree.get(a) ?? 0) ? b : a));
   const name = (labelMap.get(head) ?? head).replace(EXTENSIONS, '').replace(/\(\)$/, '').trim();
   const folders = new Map<string, number>();
   for (const id of ids) {
     const filePath = sources.get(id);
     if (!filePath) continue;
     const relativePath = isAbsolute(filePath) ? relative(root, filePath) : filePath;
-    const folder = basename(dirname(relativePath)) || 'root';
+    const directory = dirname(relativePath);
+    const folder = directory === '.' ? 'root' : basename(directory);
     folders.set(folder, (folders.get(folder) ?? 0) + 1);
   }
   const dominant = [...folders].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';

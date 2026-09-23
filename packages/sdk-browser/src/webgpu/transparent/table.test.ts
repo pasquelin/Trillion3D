@@ -5,7 +5,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
 import type { BlendGpuItem } from '../blend/state.ts';
 import { createTransparentTable, TRANSPARENT_GROUP } from './table.ts';
-import { evaluateTransparentCompaction } from './compactCpu.ts';
+import { evaluateTransparentCompaction } from './compactCpu.fixture.ts';
 import { CULL_STRIDE } from '../../gpu/dag/types.ts';
 
 const mesh = (name: string) => ({ name }) as unknown as THREE.Mesh;

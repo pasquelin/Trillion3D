@@ -9,7 +9,7 @@
 //!
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
-//!   -- --ignored regenere_la_fixture_blend --nocapture
+//!   -- --ignored regenerate_the_blend_fixture --nocapture
 //! npx prettier --write tests/fixtures/formats/blend/procedural-materials/expected.json
 //! ```
 //!
@@ -114,7 +114,7 @@ pub(in crate::tests) fn blend_digest(run: &GoldenRun) -> Value {
 
 #[test]
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
-fn regenere_la_fixture_blend() {
+fn regenerate_the_blend_fixture() {
     let run = compile_golden_source(&fixture().join("scene.blend"), "blend");
     write_expected(&fixture(), blend_digest(&run), CASE, RULE);
 }

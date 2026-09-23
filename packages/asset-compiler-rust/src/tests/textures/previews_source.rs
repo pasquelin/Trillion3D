@@ -6,7 +6,7 @@
 //!
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
-//!   -- --ignored regenere_la_fixture_des_apercus --nocapture
+//!   -- --ignored regenerate_the_previews_fixture --nocapture
 //! npx prettier --write tests/fixtures/formats/previews/atlas-couleur/expected.json
 //! ```
 //!
@@ -24,7 +24,7 @@ const RULE: &str = "Each colour texture carries the lossless tail of its mip cha
 
 #[test]
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
-fn regenere_la_fixture_des_apercus() {
+fn regenerate_the_previews_fixture() {
     let dir = golden_dir("previews/atlas-couleur");
     fs::create_dir_all(&dir).expect("fixture dir");
     let mask = encode_mask();

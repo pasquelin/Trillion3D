@@ -40,7 +40,7 @@ export async function campaignIdentity(
       scene,
       args,
       head: git(['rev-parse', 'HEAD']).trim(),
-      dirty: digest(git(['diff', 'HEAD', '--', 'packages', 'scripts'])),
+      dirty: digest(git(['diff', 'HEAD', '--', 'packages', 'scripts', 'bench', 'tests'])),
       build: (await fingerprintBuild(join(root, 'dist'))).hash,
       asset: assetIdentity(sceneDerived(scene)),
       machine: measurementProvenance().machine,
