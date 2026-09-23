@@ -60,6 +60,7 @@
         world.invalidate();
       }
       world.controls.target.set(0, 1.3, -23);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
       world.onFrame(({ time }) => {
         if (ui.dollyZoom) place(51 - Math.cos(time / 2) * 39);
       });
