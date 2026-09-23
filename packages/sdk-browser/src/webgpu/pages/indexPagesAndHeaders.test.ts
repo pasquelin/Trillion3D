@@ -100,7 +100,7 @@ test('a paged cluster is admitted and drawn without its index page', async () =>
     await backend.flush?.();
     assert.equal(geometryPages(events).context.fromGeometryPage, 2);
     assert.deepEqual(backend.pendingUrls?.(), [], 'nothing is awaited any more');
-    const pool = gpu.buffers.find((buffer) => buffer.label === 'WG geometry page cache')!;
+    const pool = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D geometry page cache')!;
     const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
     const slot = Number(geometryPages(events).context.slotBytes);
     const held = fixture.encoded.map((page, at) =>
@@ -134,7 +134,7 @@ test('two clusters sharing an index page each keep their own page and draw', asy
     await backend.flush?.();
     assert.equal(geometryPages(events).context.fromGeometryPage, 2, 'both draw from their page');
     assert.equal(backend.metrics().submittedTriangles, 2, 'both clusters are drawn');
-    const pool = gpu.buffers.find((buffer) => buffer.label === 'WG geometry page cache')!;
+    const pool = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D geometry page cache')!;
     const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
     const width = Number(geometryPages(events).context.slotBytes);
     const held = Array.from({ length: pool.data.byteLength / width }, (_, at) =>

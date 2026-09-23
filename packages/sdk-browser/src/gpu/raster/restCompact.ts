@@ -6,7 +6,7 @@ import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 
 /** Pass label, the one the per-step profile files under "Geometry". */
-export const REST_COMPACT_PASS = 'WG rest truncation';
+export const REST_COMPACT_PASS = 'Trillion3D rest truncation';
 const REST_PASS = { label: REST_COMPACT_PASS } as const;
 
 export type GpuRestCompact = {
@@ -48,7 +48,7 @@ export async function createGpuRestCompact(
     });
     // Indexed by the tested slot's rank: half of the draw slots.
     const last = device.createBuffer({
-      label: 'WG rest last survivor',
+      label: 'Trillion3D rest last survivor',
       size: (MAX_DRAW_SLOTS / 2) * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });

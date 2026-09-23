@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { prepare } from '../index.mts';
 
 test('an existing compiler without execute permission is reported distinctly', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-permission-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-permission-'));
   try {
     const executable = join(root, 'compiler');
     await writeFile(executable, '#!/bin/sh\nexit 0\n');

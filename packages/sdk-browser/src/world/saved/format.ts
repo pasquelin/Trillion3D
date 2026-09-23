@@ -1,7 +1,7 @@
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 
 /** The name a saved scene carries, and the one version of its layout this runtime reads. */
-export const SCENE_FORMAT = 'web-geometry-scene';
+export const SCENE_FORMAT = 'trillion3d-scene';
 export const SCENE_FORMAT_VERSION = 1;
 
 /** A geometry: the family call that built it, or its vertices when no call can build it again. */
@@ -80,7 +80,7 @@ export interface SavedCamera {
 
 /** A scene as `scene.toJSON` writes it and `scene.fromJSON` reads it: plain JSON. */
 export interface SavedScene {
-  /** Always `'web-geometry-scene'`. */
+  /** Always `'trillion3d-scene'`. */
   format: typeof SCENE_FORMAT;
   /** The version of this layout; another one is refused. */
   formatVersion: number;

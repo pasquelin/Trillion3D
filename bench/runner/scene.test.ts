@@ -24,7 +24,7 @@ test('the reference scenes are the public ones, the cut first and the mirror nex
 });
 
 test('gltfUrlIn takes the glTF from the sources when it is there', () => {
-  const root = join(tmpdir(), `wg-scene-gltf-${Date.now()}`);
+  const root = join(tmpdir(), `trillion3d-scene-gltf-${Date.now()}`);
   mkdirSync(join(root, 'ville'), { recursive: true });
   writeFileSync(join(root, 'ville', 'ville.gltf'), '{}');
   try {
@@ -35,7 +35,7 @@ test('gltfUrlIn takes the glTF from the sources when it is there', () => {
 });
 
 test('gltfUrlIn falls back to source.gltf of the compiled cache', () => {
-  const root = join(tmpdir(), `wg-scene-src-${Date.now()}`);
+  const root = join(tmpdir(), `trillion3d-scene-src-${Date.now()}`);
   const dir = join(root, 'village-derived', 'native', 'full', 'abc');
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'source.gltf'), '{}');

@@ -11,7 +11,7 @@ import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 export { MAX_SHADOW_REGIONS } from './slicePack.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
-export const SHADOW_PASS = 'WG shadow atlas v1';
+export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 /** Alignment of a dynamic uniform offset: one region per 256-byte entry. */
 const FACE_STRIDE = 256;
 /** Bytes actually read of an entry: the matrix, the atlas rectangle, the light envelope. */
@@ -28,7 +28,7 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
   const size = LIGHT_SETTINGS.shadowAtlasSize;
   const texture = device.createTexture({
-    label: 'WG shadow depth atlas v1',
+    label: 'Trillion3D shadow depth atlas v1',
     size: [size, size, 1],
     format: 'depth32float',
     // `COPY_SRC` is there only for the proof: the host can reread the atlas and compare its
@@ -39,12 +39,12 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       GPUTextureUsage.COPY_SRC,
   });
   const faceUniform = device.createBuffer({
-    label: 'WG shadow faces v1',
+    label: 'Trillion3D shadow faces v1',
     size: MAX_SHADOW_REGIONS * FACE_STRIDE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const sliceBuffer = device.createBuffer({
-    label: 'WG shadow slices v1',
+    label: 'Trillion3D shadow slices v1',
     size: MAX_SHADOW_SLICES * SHADOW_SLICE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
@@ -74,7 +74,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       depthCompare: compare,
     });
     const depth = device.createRenderPipeline({
-      label: 'WG shadow depth v1',
+      label: 'Trillion3D shadow depth v1',
       layout,
       vertex: { module, entryPoint: 'shadow_vs' },
       // No colour target: the fragment stage exists only to discard an opacity-mask cutout, and
@@ -84,7 +84,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       depthStencil: depthState(DEPTH_COMPARE),
     });
     const clear = device.createRenderPipeline({
-      label: 'WG shadow slice clear v1',
+      label: 'Trillion3D shadow slice clear v1',
       layout,
       vertex: { module, entryPoint: 'shadow_clear_vs' },
       primitive: { topology: 'triangle-list', cullMode: 'none' },

@@ -37,13 +37,13 @@ type Device = Pick<GPUDevice, 'createBuffer'>;
 export function createWebgpuTileFeedback(device: Device, entries: number): WebgpuTileFeedback {
   const bytes = Math.max(16, entries * 4);
   const buffer = device.createBuffer({
-    label: 'WG texture feedback',
+    label: 'Trillion3D texture feedback',
     size: bytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
   const staging = [0, 1].map((rank) =>
     device.createBuffer({
-      label: `WG texture feedback readback ${rank}`,
+      label: `Trillion3D texture feedback readback ${rank}`,
       size: bytes,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     }),

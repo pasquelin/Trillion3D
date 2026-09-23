@@ -53,7 +53,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     );
   const encoder = createRenderEncoder(rt, device);
   const pass = encoder.beginRenderPass({
-    label: 'WG opaque fallback',
+    label: 'Trillion3D opaque fallback',
     colorAttachments: [
       {
         view: gpu.colorView!,

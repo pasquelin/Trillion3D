@@ -7,12 +7,12 @@ export function createTimingResources(device: GPUDevice, queryCount: number) {
     const bytes = queryCount * 8;
     query = device.createQuerySet({ type: 'timestamp', count: queryCount });
     resolve = device.createBuffer({
-      label: 'WG timestamp resolve',
+      label: 'Trillion3D timestamp resolve',
       size: bytes,
       usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
     });
     read = device.createBuffer({
-      label: 'WG timestamp readback',
+      label: 'Trillion3D timestamp readback',
       size: bytes,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });

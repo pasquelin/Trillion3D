@@ -10,7 +10,7 @@ use std::{
 };
 
 fn run_batch(spec_path: &Path) -> (Option<i32>, Value) {
-    let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
+    let output = Command::new(env!("CARGO_BIN_EXE_trillion3d-compiler"))
         .args(["--jobs", spec_path.to_str().expect("path")])
         .stdin(Stdio::null())
         .output()

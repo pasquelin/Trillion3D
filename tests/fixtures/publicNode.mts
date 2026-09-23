@@ -5,7 +5,7 @@ import {
   type CompilationJob,
   type CompilationResult,
   type PrepareOptions,
-} from 'web-geometry';
+} from 'trillion3d';
 
 const options: PrepareOptions = { resourceBaseUrl: 'file:///tmp/resources/' };
 export const readCompilation = async (job: CompilationJob): Promise<number> => {

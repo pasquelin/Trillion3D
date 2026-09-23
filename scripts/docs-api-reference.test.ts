@@ -1,4 +1,4 @@
-// The API reference covers the whole published interface of `web-geometry`: every export of its
+// The API reference covers the whole published interface of `trillion3d`: every export of its
 // three conditions (common, browser, Node), every member of every family and of the world, each
 // with a summary of its own and every row explained; its translations are `scripts/i18n-keys.ts`'s.
 import assert from 'node:assert/strict';

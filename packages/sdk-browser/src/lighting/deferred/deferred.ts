@@ -16,7 +16,7 @@ import { ZERO_DIRECT, createDeferredView } from './view.ts';
 export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './shaders.ts';
 
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
-export const DEFERRED_LIGHTING_PASS = 'WG deferred lighting';
+export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
 
 /**
  * Deferred resolve. Two programs live here: the unlit view — raw material albedo, composed
@@ -174,7 +174,9 @@ export async function createDeferredLighting(
             clearValue: clear,
           });
         const pass = encoder.beginRenderPass({
-          label: presentation ? 'WG HDR composition + present' : 'WG HDR composition',
+          label: presentation
+            ? 'Trillion3D HDR composition + present'
+            : 'Trillion3D HDR composition',
           colorAttachments,
         });
         pass.setPipeline(presentation ? active.composePresent : active.compose);

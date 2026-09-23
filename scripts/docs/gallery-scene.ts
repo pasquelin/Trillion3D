@@ -9,16 +9,17 @@ import { join, resolve } from 'node:path';
 
 /** Compiles `<directory>/source/geometry.gltf` into `<directory>/cache` with the full pass at the
  *  budgets every gallery scene uses, and returns the compiler's exit status. The compiler is
- *  `WG_COMPILER`, or the release build; one that cannot start throws. */
+ *  `TRILLION3D_COMPILER`, or the release build; one that cannot start throws. */
 export function compileGalleryScene(root: string, directory: string, simplification: string) {
-  const compiler =
-    process.env.WG_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
+  const compiler = resolve(
+    process.env.TRILLION3D_COMPILER ??
+      resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler'),
+  );
   const result = spawnSync(
     compiler,
     [
-      resolve(directory, 'source/geometry.gltf'),
-      resolve(directory, 'cache'),
+      'source/geometry.gltf',
+      'cache',
       'full',
       '150000',
       '2',
@@ -26,7 +27,8 @@ export function compileGalleryScene(root: string, directory: string, simplificat
       '../../../../source/',
       simplification,
     ],
-    { stdio: 'inherit' },
+    // Relative paths from the scene folder: the compiler records the paths it is given.
+    { cwd: directory, stdio: 'inherit' },
   );
   if (result.error) throw result.error;
   return result.status;

@@ -1,6 +1,6 @@
 SPDX-License-Identifier: CC0-1.0
-Author: fixture written for this repository, 2026-09-15 (minuscule/scene.ma) ; Corpus WebGeometry, procedural generation, 2026-09-15 (minuscule/textures/checker.png)
-Origin: minuscule/scene.ma écrit à la main depuis la documentation publique des commandes MEL d'Autodesk ; checker.png recopié de ../../tests/fixtures/formats/usd/minuscule/textures/checker.png (corpus WebGeometry, test/assets/tools/model_formats_text.py)
+Author: fixture written for this repository, 2026-09-15 (minuscule/scene.ma) ; Corpus Trillion3D, procedural generation, 2026-09-15 (minuscule/textures/checker.png)
+Origin: minuscule/scene.ma écrit à la main depuis la documentation publique des commandes MEL d'Autodesk ; checker.png recopié de ../../tests/fixtures/formats/usd/minuscule/textures/checker.png (corpus Trillion3D, test/assets/tools/model_formats_text.py)
 License URL: https://creativecommons.org/publicdomain/zero/1.0/
 Original synthetic fixture; dedicated to the public domain under CC0. No Autodesk content, code or SDK is included.
 
