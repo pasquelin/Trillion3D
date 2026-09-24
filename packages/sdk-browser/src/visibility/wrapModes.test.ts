@@ -61,11 +61,11 @@ for (const [nom, texte] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
   test(`${nom} reads each map with no addressing argument`, () => {
     assert.match(
       texte,
-      /colorSample\(page\.mapIndex,uv,ddx,ddy\)|colorSample\(in\.ids\.x,in\.uv,gradX,gradY\)/,
+      /colorSample\(page\.mapIndex,uv,ddx,ddy,HAS_SAMPLING\)|colorSample\(in\.ids\.x,in\.uv,gradX,gradY,sampled\)/,
     );
     assert.doesNotMatch(texte, /wrapOf|wrapModes/, 'no per-material addressing word');
   });
 
 test('alpha cut-out addresses the base map by its header, never by the flags', () => {
-  assert.ok(MASK_KEEP_WGSL.includes('maskAlpha(page.mapIndex,uv,ddx,ddy)'));
+  assert.ok(MASK_KEEP_WGSL.includes('maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&64u)!=0u)'));
 });
