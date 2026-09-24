@@ -7,7 +7,7 @@
  */
 import { resolve } from 'node:path';
 import { rm } from 'node:fs/promises';
-import { compileFullCache } from './native-compiler.ts';
+import { compileFullCache, nativeCompiler } from './native-compiler.ts';
 import { writeObservatory } from './docs/observatory/write.ts';
 import { mountainTerrain } from './docs/mountain-terrain/model.ts';
 import { writeMountainTerrain } from './docs/mountain-terrain/write.ts';
@@ -27,12 +27,14 @@ const scenes: Record<string, { directory: string; write: (source: string) => Pro
 const only = process.argv.slice(2).find((argument) => !argument.startsWith('-'));
 const names = Object.keys(scenes).filter((name) => !only || name === only);
 if (!names.length) throw new Error(`Unknown gallery scene: ${only}`);
+const sourceOnly = process.argv.includes('--source-only');
+if (!sourceOnly) nativeCompiler();
 
 for (const name of names) {
   const { directory, write } = scenes[name];
   await rm(resolve(directory, 'source'), { recursive: true, force: true });
   await write(resolve(directory, 'source'));
-  if (process.argv.includes('--source-only')) continue;
+  if (sourceOnly) continue;
   await rm(resolve(directory, 'cache'), { recursive: true, force: true });
   compileFullCache({
     cwd: directory,
