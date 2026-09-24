@@ -2908,7 +2908,8 @@
       "signal": "Arrête le chargement quand le signal est annulé.",
       "scope": "`'full'` demande tout le cache, `'progressive'` sa tranche en flux ; un modèle d’une autre portée est refusé par son nom. Sans valeur, le modèle est lu à la portée que déclare son pointeur.",
       "stream": "Un flux que la page a réglé ; la session du monde fait arriver les pages avec le sien.",
-      "position": "Où va l’origine du modèle dans la scène."
+      "position": "Où va l’origine du modèle dans la scène.",
+      "onProgress": "Entend où en est le chargement : `manifest` une fois le manifeste lu, puis `resources` à l’arrivée de chaque fichier que lit la scène (`completed` sur le `total` connu jusque-là). L’événement est un `JobProgress` : un `createJob` qui enveloppe le chargement passe ici son `progress`."
     }
   },
   "LOD_QUALITY": {
