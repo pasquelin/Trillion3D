@@ -18,6 +18,8 @@ mod cut_tests;
 mod declared;
 mod hausdorff;
 mod height;
+#[cfg(test)]
+mod small_tests;
 mod stage;
 #[cfg(test)]
 mod tests;

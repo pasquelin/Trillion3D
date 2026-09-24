@@ -14,7 +14,7 @@ mod levels;
 mod median_alpha;
 
 /// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
-pub(crate) fn temp_dir(tag: &str) -> PathBuf {
+pub(super) fn temp_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "trillion3d-texture-preview-{tag}-{}-{}",
         std::process::id(),

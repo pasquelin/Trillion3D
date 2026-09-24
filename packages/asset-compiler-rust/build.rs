@@ -24,7 +24,13 @@ fn physics_cook(output: &Path) -> String {
         jolt.join("Jolt/Jolt.h").exists(),
         "Jolt submodule missing.\nRun: git submodule update --init"
     );
-    for watched in ["cook", "src/blob.h", "CMakeLists.txt", "JoltPhysics/Jolt"] {
+    for watched in [
+        "cook",
+        "src/blob.h",
+        "src/mesh.h",
+        "CMakeLists.txt",
+        "JoltPhysics/Jolt",
+    ] {
         println!("cargo:rerun-if-changed={PHYSICS}/{watched}");
     }
     let commit = Command::new("git")
@@ -106,7 +112,9 @@ fn main() -> std::io::Result<()> {
     let jolt = physics_cook(&output);
     println!("cargo:rustc-env=JOLT_COMMIT={jolt}");
     digest.update(jolt.as_bytes());
-    digest.update(fs::read(Path::new(PHYSICS).join("cook/cook.cpp"))?);
+    for source in ["cook/cook.cpp", "src/mesh.h"] {
+        digest.update(fs::read(Path::new(PHYSICS).join(source))?);
+    }
     fs::write(
         output.join("implementation_hash.txt"),
         format!("{:x}", digest.finalize()),
