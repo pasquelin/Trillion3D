@@ -1,30 +1,30 @@
-import * as THREE from 'three';
+import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
-const DUMMY_MATRIX = new THREE.Matrix4();
-const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
+const IDENTITY = { elements: IDENTITY_MATRIX4 };
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
-export const pageOf = (url: string): PageRec => ({
-  id: 0,
-  url,
-  clusterId: url,
-  array: new Uint32Array(1),
-  triangles: 0,
-  indexBytes: 0,
-  min: DUMMY_BOUNDS,
-  max: DUMMY_BOUNDS,
-  depthLayer: 0,
-  attributes: DUMMY_ATTRIBUTES,
-  material: surfaceOf([]),
-  declaration: [],
-  matrix: DUMMY_MATRIX,
-  renderOrder: 0,
-  attached: true,
-});
+/** An engine page record keyed by `url`. The host-side fields stay absent: the ensurer reads
+ *  the engine record alone, and a fixture of the engine path carries no host library. */
+export const pageOf = (url: string) =>
+  ({
+    id: 0,
+    url,
+    clusterId: url,
+    array: new Uint32Array(1),
+    triangles: 0,
+    indexBytes: 0,
+    min: DUMMY_BOUNDS,
+    max: DUMMY_BOUNDS,
+    depthLayer: 0,
+    material: surfaceOf([]),
+    matrix: IDENTITY,
+    renderOrder: 0,
+    attached: true,
+  }) as unknown as PageRec;
 
 /** A pool of `slots` pages evicting its oldest unpinned page, as the GPU page cache does. */
 export function lruCache(slots: number) {

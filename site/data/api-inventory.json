@@ -3865,6 +3865,7 @@
         "packages/sdk-browser/src/taa/motion.test.ts",
         "packages/sdk-browser/src/taa/motion.ts",
         "packages/sdk-browser/src/webgpu/cut/resume.fixture.ts",
+        "packages/sdk-browser/src/webgpu/residency/residentEnsurer.fixture.ts",
         "tests/browser/support/webglClusterBlendPerfPage.ts",
         "tests/browser/support/webglClusterPixels.ts",
         "tests/browser/support/webglClusterRestorePage.ts"
