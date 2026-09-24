@@ -20,7 +20,6 @@ return max(E,vec3(0.0));}`;
 
 /** A host light probe read by shape: its intensity and its nine RGB coefficients. */
 export type ProbeLight = {
-  isLightProbe?: boolean;
   intensity: number;
   sh: { coefficients: ArrayLike<{ x: number; y: number; z: number }> };
 };

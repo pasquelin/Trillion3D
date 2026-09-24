@@ -4,7 +4,7 @@
 // and for that map alone — since the binder no longer recomposes a host matrix per bind.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { bindClusterMaterial } from './materialBinding.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 
@@ -34,14 +34,14 @@ function recorder() {
 }
 
 const texture = () => {
-  const map = new THREE.DataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
+  const map = G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA);
   map.needsUpdate = true;
   return map;
 };
 
 test('A bound map uploads the imported record transform, under its own uniform', () => {
   const map = texture();
-  const material = new THREE.MeshStandardMaterial({ map });
+  const material = G.standardSurface({ map });
   const { binding, uploaded } = recorder();
   bindClusterMaterial(binding, material, true);
   assert.equal(uploaded.length, 1, 'the five maps the material does not declare upload nothing');
@@ -52,7 +52,7 @@ test('A bound map uploads the imported record transform, under its own uniform',
 
 test('A host recomposition of the UV transform reaches the next bind', () => {
   const map = texture();
-  const material = new THREE.MeshStandardMaterial({ normalMap: map });
+  const material = G.standardSurface({ normalMap: map });
   map.offset.set(0.25, 0.5);
   map.updateMatrix();
   const { binding, uploaded } = recorder();

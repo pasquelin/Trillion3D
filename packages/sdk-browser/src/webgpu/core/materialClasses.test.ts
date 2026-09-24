@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { createPageRowWriter } from '../row/pageRow.ts';
@@ -31,26 +31,23 @@ const page = (id: number, url: string, start: number) => ({
 
 /** Three primitives, one per material class, the way the compiler classifies them. */
 function scene() {
-  const source = new THREE.Group(),
-    meshes: THREE.Mesh[] = [],
-    associations = new Map<THREE.Object3D, { meshes: number; primitives: number }>();
+  const source = new G.GraphGroup(),
+    meshes: G.GraphMesh[] = [],
+    associations = new Map<G.GraphNode, { meshes: number; primitives: number }>();
   const materials = [
     // A cut-out: alphaMode MASK carries an alpha test and is not blended.
-    new THREE.MeshStandardMaterial({ alphaTest: 0.5, side: THREE.DoubleSide }),
+    G.standardSurface({ alphaTest: 0.5, side: G.DOUBLE_SIDE }),
     // A blend: alphaMode BLEND.
-    new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.4 }),
+    G.standardSurface({ transparent: true, opacity: 0.4 }),
     // Transmission: thick glass or water, which reads what is already drawn behind it.
-    Object.assign(new THREE.MeshPhysicalMaterial({ transparent: true }), { transmission: 1 }),
+    Object.assign(G.physicalSurface({ transparent: true }), { transmission: 1 }),
   ];
   const passes = ['exact-clusters', 'clustered-blend', 'shared-blend'];
   const primitives = materials.map((material, index) => {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3),
-    );
-    geometry.setIndex([0, 1, 2]);
-    const mesh = new THREE.Mesh(geometry, material);
+    const geometry = new G.GraphGeometry();
+    geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3));
+    geometry.setIndex(G.indices([0, 1, 2]));
+    const mesh = G.mesh(geometry, material);
     mesh.updateMatrixWorld(true);
     source.add(mesh);
     meshes.push(mesh);

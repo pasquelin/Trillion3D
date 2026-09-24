@@ -2,7 +2,7 @@
 // world transform, a local normal, a light, and the true world normal computed in f64 by Three
 // (`Matrix3.getNormalMatrix`, inverse-transpose with no threshold). Split from the orchestration
 // to hold `check:lines`.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { Vec3 } from './vecTypes.ts';
 
 /** Parameters of the `scale ∘ rotation` family `poseMonde` and `construireCas` both take. */
@@ -52,17 +52,13 @@ const unitaire = (v: number[]): number[] => {
  * second checks that a non-trivial inverse-transpose stays correct. Translation is left null: it
  * changes neither a normal nor a recentre.
  */
-export function poseMonde({ s, kind, axis, angleDeg }: PoseParams): THREE.Matrix4 {
+export function poseMonde({ s, kind, axis, angleDeg }: PoseParams): G.Matrix4 {
   const echelle = kind === 'uniforme' ? [s, s, s] : [s, s * 1.7, s * 0.6];
-  const quaternion = new THREE.Quaternion().setFromAxisAngle(
-    new THREE.Vector3(...axis).normalize(),
+  const quaternion = new G.Quaternion().setFromAxisAngle(
+    new G.Vector3(...axis).normalize(),
     (angleDeg * Math.PI) / 180,
   );
-  return new THREE.Matrix4().compose(
-    new THREE.Vector3(),
-    quaternion,
-    new THREE.Vector3(...echelle),
-  );
+  return new G.Matrix4().compose(new G.Vector3(), quaternion, new G.Vector3(...echelle));
 }
 
 /** Input of `construireCas`: a pose plus the local normal, light and material it is lit with. */
@@ -85,8 +81,8 @@ export function construireCas({
   rugosite,
 }: CasEntree): CasNormale {
   const world = poseMonde({ s, kind, axis, angleDeg });
-  const normalMatrix = new THREE.Matrix3().getNormalMatrix(world);
-  const vraie = new THREE.Vector3(...normale).applyMatrix3(normalMatrix).normalize();
+  const normalMatrix = new G.Matrix3().getNormalMatrix(world);
+  const vraie = new G.Vector3(...normale).applyMatrix3(normalMatrix).normalize();
   return {
     nom: `s=${s} ${kind} axe=${axis.join(',')} angle=${angleDeg}° n=${normale.join(',')}`,
     s,

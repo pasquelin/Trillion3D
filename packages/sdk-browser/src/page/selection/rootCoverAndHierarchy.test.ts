@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, rootCoverage, selectVisiblePages } from './selection.ts';
 import { dagFixture, wideCamera, urls } from './dag.fixture.ts';
 import { dagCulling } from './helpers.fixture.ts';
@@ -93,7 +93,7 @@ test('a culling hierarchy that does not match its pages is rejected', () => {
 
 test('transparent flat pages keep a draw order taken from their source rank', () => {
   const fixture = dagFixture();
-  fixture.mesh.material = new THREE.MeshBasicMaterial({ transparent: true });
+  fixture.mesh.material = G.basicSurface({ transparent: true });
   for (const page of fixture.metadata.primitives[0].pages) page.start = (6 - page.id) * 3;
   const { allPages } = collectClusterPages(
     fixture.source,

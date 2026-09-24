@@ -1,9 +1,9 @@
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import type { VisPage } from './buffer.ts';
 
 export function camera() {
-  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const cam = G.perspectiveCamera(55, 1, 0.1, 100);
   cam.position.z = 5;
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
@@ -11,28 +11,25 @@ export function camera() {
 }
 
 export function quadPages(
-  material: THREE.Material,
+  material: G.GraphSurface,
   uv?: number[],
-): { pages: VisPage[]; geometry: THREE.BufferGeometry } {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  if (uv) geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+): { pages: VisPage[]; geometry: G.GraphGeometry } {
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+  if (uv) geometry.setAttribute('uv', G.floatAttribute(uv, 2));
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   const pages: VisPage[] = [
     {
       array: new Uint32Array([0, 1, 2]),
       attributes: geometry.attributes,
-      matrix: new THREE.Matrix4(),
+      matrix: new G.Matrix4(),
       material: surfaceOf(material),
       clusterId: '0/0/0',
     },
     {
       array: new Uint32Array([0, 2, 3]),
       attributes: geometry.attributes,
-      matrix: new THREE.Matrix4(),
+      matrix: new G.Matrix4(),
       material: surfaceOf(material),
       clusterId: '0/0/1',
     },
@@ -46,14 +43,14 @@ export function centerId(ids: Uint32Array, width: number, height: number) {
 
 /** A 2×2 RGBA map sampled nearest — red, green, blue, white — its rows as stored. */
 export function nearestQuadTexture() {
-  const map = new THREE.DataTexture(
+  const map = G.dataTexture(
     new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]),
     2,
     2,
-    THREE.RGBAFormat,
+    G.HOST_FORMAT_RGBA,
   );
-  map.magFilter = THREE.NearestFilter;
-  map.minFilter = THREE.NearestFilter;
+  map.magFilter = G.HOST_FILTER_NEAREST;
+  map.minFilter = G.HOST_FILTER_NEAREST;
   map.flipY = false;
   map.needsUpdate = true;
   return map;

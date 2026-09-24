@@ -27,7 +27,7 @@ export function createExplorerCapture(inputs: Inputs) {
   const presentationDiagnostics = new Set<string>(),
     visiblePresentationDiagnostics = new Set<string>();
   // A background set after the session opened is written in place on the active engine's own
-  // scene (`hostBackground`, `worldBackground.write`); `options.clearColor` is only what the
+  // scene (`graphBackground`, `worldBackground.write`); `options.clearColor` is only what the
   // session opened on, so a diagnostic reads the colour of now: the world's own
   // (`currentClearColor`), whatever record the engine keeps — the WebGPU one has no `getHex` —,
   // the default when it has none, as the engine clears; else the host scene's, never that stale

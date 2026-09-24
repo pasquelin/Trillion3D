@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { HIZ_BOUNDS_VALUES } from './hiz.ts';
 import { projectCornersInto } from './corners.ts';
 
 const camera = () => {
-  const cam = new THREE.PerspectiveCamera(50, 1280 / 720, 0.1, 5000);
+  const cam = G.perspectiveCamera(50, 1280 / 720, 0.1, 5000);
   cam.position.set(3, 2, 12);
   cam.rotation.set(-0.2, 0.4, 0);
   cam.updateMatrixWorld(true);
@@ -23,12 +23,7 @@ function coins(center: readonly [number, number, number], half: number) {
   return out;
 }
 
-function rectangle(
-  corners: Float64Array,
-  view: THREE.Matrix4,
-  viewProj: THREE.Matrix4,
-  near: number,
-) {
+function rectangle(corners: Float64Array, view: G.Matrix4, viewProj: G.Matrix4, near: number) {
   const into = new Float64Array(HIZ_BOUNDS_VALUES);
   projectCornersInto(corners, 0, view.elements, viewProj.elements, near, 1280, 720, into, 0);
   return [...into];
@@ -36,10 +31,7 @@ function rectangle(
 
 test('an affine view yields a denominator of exactly 1, and the division stays live without it', () => {
   const cam = camera();
-  const viewProj = new THREE.Matrix4().multiplyMatrices(
-    cam.projectionMatrix,
-    cam.matrixWorldInverse,
-  );
+  const viewProj = new G.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
   const v = cam.matrixWorldInverse.elements;
   assert.deepEqual([v[3], v[7], v[11], v[15]], [0, 0, 0, 1], "a camera's view is affine");
   // That is all the shortcut rests on: for a finite corner, the view-space passage denominator
@@ -63,10 +55,7 @@ test('an affine view yields a denominator of exactly 1, and the division stays l
 
 test('a box that clips the near plane returns the clipped record, without reading its other corners', () => {
   const cam = camera();
-  const viewProj = new THREE.Matrix4().multiplyMatrices(
-    cam.projectionMatrix,
-    cam.matrixWorldInverse,
-  );
+  const viewProj = new G.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
   // A box around the eye: its first corner is already behind the near plane.
   const around = coins([cam.position.x, cam.position.y, cam.position.z], 5);
   const coupe = rectangle(around, cam.matrixWorldInverse, viewProj, cam.near);

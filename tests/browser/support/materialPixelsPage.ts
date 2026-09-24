@@ -6,9 +6,9 @@
 // This module is SERVED to the harness page (mount `/tests/`) and imported by its URL, since the
 // evaluated function is serialised and cannot reach a module of its own.
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { cameraFace } from './sharedSceneProof.ts';
 import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
-import { creer, appliquer } from '/runner/witnessPage.ts';
 import { SUN, fixtures, type Fixture } from './materialFixtures.ts';
 import {
   witnessRenderer,
@@ -22,7 +22,7 @@ import type {
   BackendFactory,
   BackendDiagnostic,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
-import type * as SdkBrowser from '../../../packages/sdk-browser/src/measurement/measurement.ts';
+import type * as SdkBrowser from '../../../bench/witnesses/measurement.ts';
 import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 interface Sides {
@@ -31,8 +31,8 @@ interface Sides {
   device: GPUDevice;
   renderer: THREE.WebGLRenderer;
   canvas: HTMLCanvasElement;
-  camera: THREE.PerspectiveCamera;
-  sun: THREE.Object3D;
+  camera: G.GraphCamera;
+  sun: G.GraphNode;
   stores: { none: SdkCore.SceneLightStore; sun: SdkCore.SceneLightStore };
 }
 
@@ -126,8 +126,10 @@ export async function run({
   const { renderer, canvas } = witnessRenderer();
   // The sun of the witness and the stores of the engine, built once: a light added to another
   // scene moves there, and an unlit fixture reads the empty store.
-  const sun = creer(SUN);
-  appliquer(sun, SUN, 0);
+  const sun = G.directionalLight(new G.Color(SUN.color), SUN.intensity);
+  const [dx, dy, dz] = SUN.direction ?? [0, -1, 0];
+  sun.position.set(-dx, -dy, -dz);
+  sun.target!.position.set(0, 0, 0);
   const stores = { none: createSceneLightStore(), sun: createSceneLightStore() };
   stores.sun.add(SUN);
   const camera = cameraFace();

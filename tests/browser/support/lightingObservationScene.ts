@@ -1,7 +1,7 @@
 // The scene of the observation proof: three rectangles facing the camera — a diffuse receiver,
 // a small emitter, a mirror — and the glossy sphere, as the transport experiment declares them
 // and as a host loads them: one named mesh per surface.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { sceneFromSurfaces } from '../../fixtures/lightingTransportScene.ts';
 
 /** Three rectangles facing the camera and the glossy sphere, in front of the origin. */
@@ -53,15 +53,15 @@ export type ExperimentScene = ReturnType<typeof experimentScene>;
 
 /** The host source graph: one quad per rectangle, named after it, and the sphere. */
 export function hostSource(scene: ExperimentScene) {
-  const source = new THREE.Group();
+  const source = new G.GraphGroup();
   for (const surface of scene.surfaces) {
     const [ox, oy, oz] = surface.origin,
       [ux, uy, uz] = surface.u,
       [vx, vy, vz] = surface.v;
-    const geometry = new THREE.BufferGeometry();
+    const geometry = new G.GraphGeometry();
     geometry.setAttribute(
       'position',
-      new THREE.Float32BufferAttribute(
+      G.floatAttribute(
         [
           ox,
           oy,
@@ -79,15 +79,15 @@ export function hostSource(scene: ExperimentScene) {
         3,
       ),
     );
-    geometry.setIndex([0, 1, 2, 0, 2, 3]);
-    const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+    geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
+    const mesh = G.mesh(geometry, G.basicSurface());
     mesh.name = surface.id;
     source.add(mesh);
   }
-  const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial());
+  const sphere = G.mesh(G.sphereGeometry(1, 24, 16), G.basicSurface());
   sphere.name = 'glossy_sphere';
   sphere.position.fromArray(scene.sphere.center);
-  sphere.scale.setScalar(scene.sphere.radius);
+  sphere.scale.set(scene.sphere.radius, scene.sphere.radius, scene.sphere.radius);
   source.add(sphere);
   source.updateMatrixWorld(true);
   return source;

@@ -3,15 +3,15 @@
 // once, the same value read again is nothing, and the reference's own walk writes nothing new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../graph/graph.fixture.ts';
 import { scan, snapshot, type WatchVerdict } from './scan.ts';
 
 function scene() {
-  const parent = new THREE.Group();
-  const mesh = new THREE.Mesh();
+  const parent = new G.GraphGroup();
+  const mesh = G.mesh();
   parent.add(mesh);
-  const light = new THREE.SpotLight(0xffffff, 1, 10, 0.5, 0.2, 2);
-  const sky = new THREE.HemisphereLight(0xffffff, 0x404040, 1);
+  const light = G.spotLight(0xffffff, 1, 10, 0.5, 0.2, 2);
+  const sky = G.lightProbe();
   return { parent, mesh, light, sky };
 }
 
@@ -32,7 +32,7 @@ const WRITES: Array<{
   {
     name: 'reparenting',
     node: 'mesh',
-    write: ({ mesh }) => void new THREE.Group().add(mesh),
+    write: ({ mesh }) => void new G.GraphGroup().add(mesh),
     verdict: 'reshaped',
   },
   { name: 'light intensity', node: 'light', write: ({ light }) => void (light.intensity = 7) },
@@ -49,17 +49,17 @@ const WRITES: Array<{
   {
     name: 'a light colour replaced',
     node: 'light',
-    write: ({ light }) => void (light.color = new THREE.Color(0xff0000)),
+    write: ({ light }) => void Object.assign(light, { color: new G.Color(0xff0000) }),
   },
   {
-    name: 'a ground colour component',
+    name: 'a probe colour component',
     node: 'sky',
-    write: ({ sky }) => void (sky.groundColor.g = 0.9),
+    write: ({ sky }) => void (sky.color.g = 0.9),
   },
   {
     name: 'a light target replaced',
     node: 'light',
-    write: ({ light }) => void (light.target = new THREE.Object3D()),
+    write: ({ light }) => void (light.target = new G.GraphNode()),
     verdict: 'reshaped',
   },
 ];

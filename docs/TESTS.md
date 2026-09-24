@@ -8,8 +8,8 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 <!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/src/       77 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    378 *.test.ts
+  sdk-core/src/       78 *.test.ts — unit tests, next to their source
+  sdk-browser/src/    376 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        20 *.test.ts — architecture, boundaries, public contracts
@@ -24,6 +24,7 @@ bench/
   perf/browser/       38 *.perf.ts + 33 support modules
   oracles/            46 reference implementations, copied verbatim
   runner/             83 modules: the measurement harness (README)
+  witnesses/          33 modules: the host-library witnesses, never published
 ```
 <!-- tests-inventory:end -->
 

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
 import { dagRoots } from './testDag.fixture.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
@@ -20,9 +20,7 @@ export type ClusterSpec = { corners: Uint32Array; attributes?: Attributes; paged
 /** The quad clustered as `specs` says, each cluster carrying the quantized page the compiler would
  *  have written for it. */
 export function pagedQuad(specs: readonly ClusterSpec[]) {
-  const { geometry, material, mesh, source } = quadScene(
-    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-  );
+  const { geometry, material, mesh, source } = quadScene(G.basicSurface({ color: 0xff0000 }));
   const bytes = new Map<string, Uint8Array>(),
     encoded: ReturnType<typeof encodeGeometryPage>[] = [];
   const pages = dagRoots(

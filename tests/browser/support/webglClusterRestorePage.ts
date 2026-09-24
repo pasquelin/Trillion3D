@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
 import { prepareExplorerWebglSurface } from '../../../packages/sdk-browser/src/world/render/webglHost.ts';
@@ -32,19 +32,19 @@ const paint = (image: HTMLCanvasElement, color: string) => {
 };
 
 const texturedTriangle = () => {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.BufferAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
+    new G.GraphAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
   );
-  geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(6), 2));
-  geometry.setIndex(new THREE.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
+  geometry.setAttribute('uv', new G.GraphAttribute(new Float32Array(6), 2));
+  geometry.setIndex(new G.GraphAttribute(new Uint32Array([0, 1, 2]), 1));
   const index = geometry.index;
   if (!index) throw new Error('texturedTriangle requires an indexed geometry');
   const image = document.createElement('canvas');
   image.width = image.height = 1;
-  const texture = new THREE.CanvasTexture(image);
-  const material = new THREE.MeshBasicMaterial({ map: texture });
+  const texture = G.canvasTexture(image);
+  const material = G.basicSurface({ map: texture });
   return {
     image,
     texture,
@@ -52,7 +52,7 @@ const texturedTriangle = () => {
     material,
     mesh: {
       geometry: { index, attributes: geometry.attributes },
-      material: material as THREE.Material | THREE.Material[],
+      material: material as G.GraphSurface | G.GraphSurface[],
       renderOrder: 0,
       polygonOffsetUnits: undefined,
       matrix: { elements: new Float64Array(IDENTITY_MATRIX4) },
@@ -74,8 +74,8 @@ export async function heldRestore() {
       onLifecycle: (state) => events.push(state),
     }),
     gl = surface.context,
-    camera = new THREE.PerspectiveCamera(),
-    scene = new THREE.Scene(),
+    camera = G.perspectiveCamera(),
+    scene = new G.GraphScene(),
     fixture = texturedTriangle(),
     owner = new WebglClusterOwner(gl);
   let draws = 0;

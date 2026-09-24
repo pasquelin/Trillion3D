@@ -1,4 +1,5 @@
 import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
+import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { attachedPages, autonomousPlacements } from '../../placement/autonomousPlacements.ts';
 import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -12,9 +13,8 @@ import { prepareAutonomousManifest, autonomousBootstrap } from './manifest.ts';
 import { createAutonomousResidency } from './residency.ts';
 import { createAutonomousPool } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
-import { createContractLighting } from '../../lighting/contractLightingApi.ts';
-import { createThreeSceneDraw, hostDiagnostics } from '../../host/three/sceneAdapter.ts';
-import { hostBackground } from '../../host/scene/objects.ts';
+import { createContractLighting, graphBackground } from '../../lighting/contractLightingApi.ts';
+import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
 import type { BackendFactory } from '../types.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
@@ -46,10 +46,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
-    hostDraw = createThreeSceneDraw(context.webglContext, scene);
+    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies);
   // The engine's own lighting: the cache's radiometric light table where it declares one, the
-  // source graph's lights otherwise (`../../lighting/contractLightingApi.ts`). A transmissive surface is not
-  // paged: it is a host copy the host renderer draws whole (`hostPageScene`).
+  // source graph's lights otherwise (`../../lighting/contractLightingApi.ts`). A transmissive
+  // surface is not paged: it is a copy the program draws whole (`hostPageScene`).
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
@@ -117,7 +117,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   return {
     id: 'autonomous-pages-webgl',
     scene,
-    hostDiagnostics,
+    hostDiagnostics: pageDiagnostics,
     capabilities: autonomousCapabilities(!!context.metadata.simplification),
     get overBudget() {
       return state.overBudget;
@@ -157,7 +157,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       coverChanged: heldFloor.changed,
     }),
     ...lightingApi,
-    setClearColor: hostBackground(scene, gate.resourcesChanged),
+    setClearColor: graphBackground(scene, gate.resourcesChanged),
     pendingUrls: residency.pendingUrls,
     pageUrls: residency.pageUrls,
     ...pool.api,
