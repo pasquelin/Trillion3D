@@ -658,6 +658,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -2839,6 +2840,7 @@
         "packages/sdk-browser/src/frame/costAudit.test.ts",
         "packages/sdk-browser/src/frame/costAudit.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.test.ts",
         "packages/sdk-browser/src/world/core/worldFrames.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
@@ -2875,7 +2877,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/perf/browser/support/publicScene.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/camera/framing\".framingFromBounds"
     },
@@ -3090,6 +3092,10 @@
         "bench/oracles/browser/bounds-and-index.ts",
         "packages/sdk-browser/src/backend/autonomous/geometry.ts",
         "packages/sdk-browser/src/backend/autonomous/manifest.ts",
+        "packages/sdk-browser/src/backend/autonomous/pool.fixture.ts",
+        "packages/sdk-browser/src/backend/autonomous/pool.ts",
+        "packages/sdk-browser/src/backend/autonomous/poolApi.ts",
+        "packages/sdk-browser/src/backend/autonomous/poolCut.fixture.ts",
         "packages/sdk-browser/src/page/selection/types.ts",
         "packages/sdk-browser/src/scene/manifestPageIndex.ts"
       ],
@@ -3110,13 +3116,13 @@
     {
       "name": "GeometryPool",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/webgpu/residency/memoryBudgets.ts",
+      "definingModule": "packages/sdk-browser/src/residency/pools.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/webgpu/residency/memoryBudgets\".GeometryPool"
+      "bindingIdentity": "\"packages/sdk-browser/src/residency/pools\".GeometryPool"
     },
     {
       "name": "getSdkProvenance",
@@ -4603,6 +4609,7 @@
       "affectedConsumers": [
         "bench/oracles/browser/core-math-priority.ts",
         "bench/perf/browser/residency.perf.ts",
+        "packages/sdk-browser/src/backend/autonomous/poolSearch.ts",
         "packages/sdk-browser/src/gpu/core/selection.ts",
         "packages/sdk-browser/src/gpu/dag/pack.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
@@ -4646,24 +4653,24 @@
     {
       "name": "MemoryBudgets",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/webgpu/pages/io/memory.ts",
+      "definingModule": "packages/sdk-browser/src/residency/pools.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": ["bench/runner/measurePage.ts", "tests/fixtures/publicBrowser.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/webgpu/pages/io/memory\".MemoryBudgets"
+      "bindingIdentity": "\"packages/sdk-browser/src/residency/pools\".MemoryBudgets"
     },
     {
       "name": "MemoryBudgetsReport",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/webgpu/pages/io/memory.ts",
+      "definingModule": "packages/sdk-browser/src/residency/pools.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": ["bench/runner/report/types.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/webgpu/pages/io/memory\".MemoryBudgetsReport"
+      "bindingIdentity": "\"packages/sdk-browser/src/residency/pools\".MemoryBudgetsReport"
     },
     {
       "name": "Mesh",
@@ -4745,7 +4752,7 @@
         "bench/perf/browser/support/coreEquivalence.ts",
         "bench/perf/browser/support/coreHierarchy.ts",
         "bench/perf/core/three-vs-core-matrices.perf.ts",
-        "packages/sdk-browser/src/backend/autonomous/instances.ts",
+        "packages/sdk-browser/src/backend/autonomous/instancePose.ts",
         "packages/sdk-browser/src/camera/renderOrigin.test.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
         "packages/sdk-browser/src/gpu/dag/oracle/math.ts",
@@ -5674,13 +5681,13 @@
     {
       "name": "PoolClamp",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/webgpu/residency/memoryBudgets.ts",
+      "definingModule": "packages/sdk-browser/src/residency/pools.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": ["tests/fixtures/publicBrowser.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/webgpu/residency/memoryBudgets\".PoolClamp"
+      "bindingIdentity": "\"packages/sdk-browser/src/residency/pools\".PoolClamp"
     },
     {
       "name": "pose",
@@ -5689,7 +5696,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/perf/browser/support/publicScene.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/world/pose/index\".pose"
     },
@@ -8647,6 +8654,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
         "packages/sdk-browser/src/world/controls/transformMath.test.ts",

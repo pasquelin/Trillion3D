@@ -9,6 +9,7 @@ import { sunFarState } from '../prepare/sunFar.ts';
 import { renderWebgpuPages } from './render.ts';
 import { settlePose } from '../../tile/converge.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { sendCoverageBudget } from '../../../diagnostic/engineDiagnostic.ts';
 
 function reportProgress(rt: WebgpuPagesRuntime) {
   const { run, gpu, blendState, diag, services, context } = rt;
@@ -128,11 +129,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   await services.bootstrapState.ensure();
   await services.residency.pending;
   if (run.coverageBudgetEvent) {
-    diag.engineDiagnostic(
-      'coverage-budget',
-      'Admission of the requested cut',
-      run.coverageBudgetEvent,
-    );
+    sendCoverageBudget(rt.context.onDiagnostic, run.coverageBudgetEvent);
     run.coverageBudgetEvent = undefined;
   }
   await timing.gpuTiming?.flush();
