@@ -9,20 +9,26 @@ import { resolveCameraWorld } from '../camera/world.ts';
  * contract (`camera/world.ts`), and written only when it changed.
  */
 export function createPhysicsView() {
-  const last = new Float64Array(8).fill(NaN);
+  /** Eye (3), facing (3), half cone, range: as last sent. */
+  const last = new Float64Array(8).fill(NaN),
+    now = new Float64Array(8);
   return (camera: Camera, writer: CommandWriter) => {
     const w = resolveCameraWorld(camera).matrixWorld.elements;
     // The eye is the world matrix's translation; the camera looks down its own −z.
-    const eye = [w[12], w[13], w[14]];
     const length = Math.hypot(w[8], w[9], w[10]) || 1;
-    const facing = [-w[8] / length, -w[9] / length, -w[10] / length];
-    const halfCone =
+    now[0] = w[12];
+    now[1] = w[13];
+    now[2] = w[14];
+    for (let k = 0; k < 3; k++) now[3 + k] = -w[8 + k] / length;
+    now[6] =
       camera.projection === 'perspective'
         ? Math.atan(Math.tan((camera.fov * Math.PI) / 360) * Math.hypot(1, camera.aspect))
         : 0;
-    const now = [...eye, ...facing, halfCone, camera.far];
-    if (now.every((value, i) => value === last[i])) return;
+    now[7] = camera.far;
+    let same = true;
+    for (let k = 0; k < 8; k++) same &&= now[k] === last[k];
+    if (same) return;
     last.set(now);
-    writer.view(eye, facing, halfCone, camera.far);
+    writer.view(now.subarray(0, 3), now.subarray(3, 6), now[6], now[7]);
   };
 }

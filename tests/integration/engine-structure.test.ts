@@ -37,7 +37,7 @@ const RESOLVENT: Record<string, string> = {
   'camera/world.ts': 'the contract itself: the package’s only camera-pose resolution',
   'lighting/sceneLighting.ts': 'light target, not a camera',
   'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
-  'physics/session.ts': 'a body the page moved, not a camera',
+  'physics/bodies.ts': 'a body the page moved, not a camera',
 };
 
 /** Who is allowed to touch a LOCAL camera pose, or resolve it via a Three accessor. */

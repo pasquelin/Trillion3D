@@ -11,7 +11,7 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D, SceneLink } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { HostCpuProfile } from '../host/cpuProfile.ts';
 import { createPhysicsSession, type PhysicsSession } from './session.ts';
-import type { PhysicsStats } from './protocol.ts';
+import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts';
 
 /** A gravity: a preset's name, or a vector in m/s². */
 export type GravityInput = GravityPreset | { x: number; y: number; z: number };
@@ -42,7 +42,7 @@ export function createWorldPhysics(
     paused = false,
     timeScale = 1,
     error: EngineError | null = null;
-  const stopped: PhysicsStats = { bodies: 0, active: 0, stepMs: 0, mainMs: 0, poses: 0, events: 0 };
+  const stopped = emptyPhysicsStats();
   const clock = () => {
     session?.setClock(paused, timeScale);
     invalidate();
@@ -91,16 +91,17 @@ export function createWorldPhysics(
       paused = on;
       clock();
     },
-    /** Simulated seconds per real second: 0.25 is slow motion. @defaultValue 1 */
+    /** Simulated seconds per real second: 0.25 is slow motion, 0 stands still like `paused`.
+     *  @defaultValue 1 */
     get timeScale() {
       return timeScale;
     },
     set timeScale(scale: number) {
-      timeScale = Math.max(0, scale);
+      if (!(scale >= 0 && scale < Infinity))
+        throw new RangeError(`physics.timeScale must be a finite number ≥ 0, not ${scale}.`);
+      timeScale = scale;
       clock();
     },
-    /** The fixed envelopes (`budget.physics`), read once when the physics starts. */
-    budget,
     /** Counts and both clocks: worker milliseconds per step, page milliseconds per frame. */
     get stats(): Readonly<PhysicsStats> {
       return session?.stats ?? stopped;
@@ -120,6 +121,8 @@ export function createWorldPhysics(
   });
   return {
     handle,
+    /** The fixed envelopes, `world.budget.physics`: read once when the physics starts. */
+    budget,
     /** Runs the frame's physics, timed into the `physics` CPU stage; returns whether a body is
      *  still on its way. */
     frame() {

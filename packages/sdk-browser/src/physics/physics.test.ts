@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { Worker as NodeWorker } from 'node:worker_threads';
 import {
   ASLEEP_BIT,
   CommandWriter,
+  DEFAULT_PHYSICS_BUDGET,
   POSE_WORDS,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -14,29 +14,12 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies } from './bodies.ts';
-import { instantiateJolt } from './joltModule.ts';
+import { createPhysicsPoses } from './poses.ts';
 import type { JoltThreadStart } from './joltThreads.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
-
-const wasm = () => readFile(new URL('./joltPhysics.wasm', import.meta.url));
-const body = (index: number, motion: number, y: number, half: number) => ({
-  index,
-  motion,
-  layer: motion === 0 ? 0 : 1,
-  shape: 0 as const,
-  flags: 0,
-  position: [0, y, 0],
-  quaternion: [0, 0, 0, 1],
-  size: [half, half, half] as const,
-  mass: 0,
-  density: 600,
-  friction: 0.5,
-  restitution: 0,
-  gravityScale: 1,
-});
-
+import { body, startModule, type Module } from './module.fixture.ts';
 /** Drops a box on a floor, `seen` or behind the view; returns the step at which it sleeps. */
-async function dropBox(jolt: Awaited<ReturnType<typeof instantiateJolt>>, seen: boolean) {
+async function dropBox(jolt: Module, seen: boolean) {
   const writer = new CommandWriter();
   writer.gravity([0, -9.81, 0]);
   if (!seen) writer.view([0, 3, 10], [0, 0, 1], 0.5, 100);
@@ -59,12 +42,11 @@ async function dropBox(jolt: Awaited<ReturnType<typeof instantiateJolt>>, seen: 
 }
 
 test('the committed module drops a box on a floor, then sends no pose once it sleeps', async () => {
-  const jolt = await instantiateJolt(await wasm(), 64, 64 * 1024 * 1024, null);
+  const jolt = await startModule();
   assert.ok((await dropBox(jolt, true)) > 0, 'the box falls asleep');
 });
 
 test('the threaded module steps on its pool, and a body asleep out of view says so', async () => {
-  const bytes = await readFile(new URL('./joltPhysicsThreads.wasm', import.meta.url));
   const threads: NodeWorker[] = [];
   const loader = new URL('./joltThreads.ts', import.meta.url).href;
   const spawn = (start: JoltThreadStart) =>
@@ -74,7 +56,7 @@ test('the threaded module steps on its pool, and a body asleep out of view says 
         { eval: true, workerData: start },
       ),
     );
-  const jolt = await instantiateJolt(bytes, 64, 64 * 1024 * 1024, { count: 3, spawn });
+  const jolt = await startModule({}, { count: 3, spawn });
   try {
     assert.equal(threads.length, 2, 'two pool threads beside the stepping one');
     assert.ok((await dropBox(jolt, false)) > 0, 'the asleep record comes, out of view');
@@ -84,18 +66,15 @@ test('the threaded module steps on its pool, and a body asleep out of view says 
 });
 
 test('a memory budget below the module’s own memory is refused', async () => {
-  await assert.rejects(instantiateJolt(await wasm(), 64, 1024 * 1024, null), /PHYSICS_BUDGET/);
+  await assert.rejects(startModule({ memoryBytes: 1024 * 1024 }), { code: 'PHYSICS_BUDGET' });
 });
 
 test('a body past the bodies budget is refused with PHYSICS_BUDGET', () => {
   const scene = new Group();
   const host = {} as PhysicsHost;
-  const bodies = createPhysicsBodies(
-    new CommandWriter(),
-    { bodies: 1, triangles: 0, decorative: 0, memoryBytes: 0, threads: 1 },
-    host,
-    scene,
-  );
+  const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 1 };
+  const state = createPhysicsPoses(1, scene).state;
+  const bodies = createPhysicsBodies(new CommandWriter(), budget, host, scene, state);
   const crates = [0, 1].map(() => {
     const crate = new Mesh(box(), new Material('meshStandard'));
     crate.physics = 'dynamic';
@@ -116,9 +95,12 @@ test('a world without physics starts no worker; enabling it starts one', () => {
     constructor(url: URL) {
       started.push(url);
     }
-    postMessage() {}
+    postMessage(message: { type: string }) {
+      if (message.type === 'clock') clocks.push(message);
+    }
     terminate() {}
   } as unknown as typeof Worker;
+  const clocks: unknown[] = [];
   try {
     const runtime = { invalidate() {}, explorer: null };
     const physics = createWorldPhysics(runtime, new Group(), () => new Camera('perspective'));
@@ -126,6 +108,10 @@ test('a world without physics starts no worker; enabling it starts one', () => {
     assert.equal(started.length, 0);
     physics.handle.enabled = true;
     assert.equal(started.length, 1);
+    // A time scale of 0 stands still: the worker is paused, never scheduled infinitely far.
+    physics.handle.timeScale = 0;
+    assert.deepEqual(clocks.at(-1), { type: 'clock', paused: true, timeScale: 0 });
+    assert.throws(() => (physics.handle.timeScale = -1), RangeError);
     physics.dispose();
   } finally {
     globalThis.Worker = saved;

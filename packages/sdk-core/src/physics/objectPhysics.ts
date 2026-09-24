@@ -32,6 +32,13 @@ export interface PhysicsHost {
   listened(body: ObjectPhysics): void;
 }
 
+/** Where the world keeps its bodies' last step, by slot: flat arrays written by the thousand. */
+export interface PhysicsState {
+  /** 1 where the body sleeps. */ asleep: Uint8Array;
+  /** Six numbers per slot: the linear velocity, then the angular one. */ velocity: Float32Array;
+  /** The tick that last wrote each slot, from 1. */ stamp: Uint32Array;
+}
+
 /**
  * The physics of one object, as `obj.physics` holds it once set: a live record of what the body is
  * and does. Writes reach the simulation at the next step; `velocity` reads what the last step left.
@@ -42,10 +49,10 @@ export class ObjectPhysics {
   /** Whether the body only reports contacts. */ readonly sensor: boolean;
   /** Whether continuous collision is on. */ readonly ccd: boolean;
   /** Whether the body is decorative debris. */ readonly decorative: boolean;
-  /** Linear velocity, m/s, as the last step left it; write it to launch the body. */
-  readonly velocity = new Vector3();
-  /** Whether the body sleeps: at rest, and simulated no more until something wakes it. */
-  asleep = false;
+  private readonly _velocity = new Vector3();
+  private _asleep = false;
+  /** The tick the velocity was last read from. */
+  private _seen = 0;
   private _mass: number | undefined;
   private _gravityScale: number;
   private _friction: number | undefined;
@@ -53,7 +60,7 @@ export class ObjectPhysics {
   private readonly handlers = new Map<ContactEventName, Set<(event: ContactEvent) => void>>();
   /** The world simulating this body, set while it does. */ _host: PhysicsHost | null = null;
   /** The body's slot in the simulation, -1 outside one. */ _index = -1;
-  /** True while the engine itself writes the velocity. */ _quiet = false;
+  /** Where its world keeps its last step, while simulated. */ _state: PhysicsState | null = null;
 
   constructor(option: PhysicsOption) {
     const o: PhysicsBodyOptions = typeof option === 'string' ? { type: option } : option;
@@ -66,9 +73,39 @@ export class ObjectPhysics {
     this._gravityScale = o.gravityScale ?? 1;
     this._friction = o.friction;
     this._restitution = o.restitution;
-    listen(this.velocity, () => {
-      if (!this._quiet) this._host?.velocity(this);
-    });
+    listen(this._velocity, () => this._host?.velocity(this));
+  }
+  /** Linear velocity, m/s, as the last step left it; write it to launch the body. */
+  get velocity(): Vector3 {
+    this.read();
+    return this._velocity;
+  }
+  /** Reads the velocity from the world's arrays when a step wrote them since it was last read. */
+  private read() {
+    const state = this._state,
+      i = this._index;
+    if (!state || state.stamp[i] === this._seen) return;
+    this._seen = state.stamp[i];
+    const e = this._velocity.elements;
+    for (let k = 0; k < 3; k++) e[k] = state.velocity[i * 6 + k];
+  }
+  /** Whether the body sleeps: at rest, and simulated no more until something wakes it. */
+  get asleep() {
+    return this._state ? this._state.asleep[this._index] === 1 : this._asleep;
+  }
+  /** Simulated by `host` in slot `index`, its last step kept in `state`. */
+  _attach(host: PhysicsHost, index: number, state: PhysicsState) {
+    this._host = host;
+    this._index = index;
+    this._state = state;
+    this._seen = state.stamp[index];
+  }
+  /** Out of the simulation: the last step read is kept. */
+  _detach() {
+    this._asleep = this.asleep;
+    this.read();
+    this._host = this._state = null;
+    this._index = -1;
   }
   /** Mass in kilograms; `undefined` takes the material's density times the volume. */
   get mass() {

@@ -22,6 +22,15 @@ export class ObservedComponents extends Observed {
     super();
     this.elements = elements;
   }
+  /**
+   * The numbers live in `store` from now on, the current ones copied in: an owner writing values
+   * by the thousand (the physics' drawn poses) keeps them in one flat array, with no object on
+   * the way. `store` is as long as `elements`; sharing a fresh copy gives the numbers back.
+   */
+  _share(store: Float64Array) {
+    store.set(this.elements);
+    (this as { elements: Float64Array }).elements = store;
+  }
   get x() {
     return this.elements[0];
   }

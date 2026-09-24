@@ -13,7 +13,7 @@ const one = { x: 1, y: 1, z: 1 };
 test('ADD carries its fixed words at their layout offsets, then the mesh', () => {
   const writer = new CommandWriter();
   writer.add({
-    index: 7,
+    id: 7,
     motion: 2,
     layer: 1,
     shape: SHAPE.triangles,
@@ -74,4 +74,10 @@ test('a material preset gives the matter, and the material’s own fields win ov
   });
   const rubber = new Material('meshStandard', { physics: 'rubber', friction: 0.2 });
   assert.deepEqual(physicsMatterOf(rubber), { density: 1100, friction: 0.2, restitution: 0.8 });
+});
+
+test('a dynamic body declared as triangles is refused: triangles hold no mass', () => {
+  assert.throws(() => resolveShape(box(), { x: 1, y: 1, z: 1 }, 'dynamic', { type: 'triangles' }), {
+    code: 'PHYSICS_FAILED',
+  });
 });

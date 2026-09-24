@@ -2,7 +2,8 @@ import { ADD_WORDS, OP, VIEW_WORDS, type SHAPE } from './layout.ts';
 
 /** One body as the ADD command carries it (`layout.ts`). */
 export interface BodyRecord {
-  index: number;
+  /** The body's engine id: its slot and the slot's generation (`BODY_INDEX`). */
+  id: number;
   motion: number;
   layer: number;
   shape: (typeof SHAPE)[keyof typeof SHAPE];
@@ -55,7 +56,7 @@ export class CommandWriter {
     const w = this.words,
       f = this.floats,
       at = this.length;
-    w.set([OP.add, body.index, body.motion, body.layer, body.shape, body.flags], at);
+    w.set([OP.add, body.id, body.motion, body.layer, body.shape, body.flags], at);
     f.set(body.position, at + 6);
     f.set(body.quaternion, at + 9);
     f.set(body.size, at + 13);
@@ -72,11 +73,19 @@ export class CommandWriter {
   }
   /** Moves a body at once, velocity kept (`position.set` on a dynamic body). */
   teleport(index: number, position: ArrayLike<number>, quaternion: ArrayLike<number>) {
-    this.op(OP.teleport, index, [...Array.from(position), ...Array.from(quaternion)]);
+    this.pose(OP.teleport, index, position, quaternion);
   }
   /** Drives a kinematic body to a pose over the next step, pushing what it meets. */
   moveKinematic(index: number, position: ArrayLike<number>, quaternion: ArrayLike<number>) {
-    this.op(OP.moveKinematic, index, [...Array.from(position), ...Array.from(quaternion)]);
+    this.pose(OP.moveKinematic, index, position, quaternion);
+  }
+  /** A command whose arguments are a position (3 numbers) and a quaternion (4). */
+  private pose(op: number, index: number, position: ArrayLike<number>, turn: ArrayLike<number>) {
+    this.op(op, index, []);
+    this.reserve(7);
+    this.floats.set(position, this.length);
+    this.floats.set(turn, this.length + 3);
+    this.length += 7;
   }
   /** Sets the linear velocity, m/s (waking the body). */
   velocity(index: number, linear: ArrayLike<number>) {

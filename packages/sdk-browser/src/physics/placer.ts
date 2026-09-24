@@ -29,21 +29,23 @@ const atRest = (node: Object3D) => {
 };
 
 /**
- * Writes the physics' drawn poses where they are read, with no per-body object on the way. Each
- * body's position and quaternion land in its node and its transform tree, so a page reading them
- * sees the drawn pose; its world matrix is composed straight into the row the renderer draws it
- * from (`SceneLink.seat`), and the world hears the written span of each instance buffer once per
- * batch of writes. A body the world holds no row for, one with children, or any body while the
- * scene itself is moved, is handed to `SceneLink.posed`, which recomposes it like any moved node.
+ * Writes the physics' drawn poses where they are read, in flat arrays only. A bound mesh keeps its
+ * position, quaternion and scale in this placer's arrays (`ObservedComponents._share`), so a write
+ * here is the node's own and a page reading it sees the drawn pose; the pose also lands in the
+ * transform tree every node shares, and its world matrix is composed straight into the row the
+ * renderer draws it from (`SceneLink.seat`). The world hears the written span of each instance
+ * buffer once per batch of writes. A body the world holds no row for, one with children, or any
+ * body while the scene itself is moved, is handed to `SceneLink.posed`, which recomposes it.
  */
 export function createPosePlacer(maxBodies: number, root: Object3D) {
-  /** Where each slot's mesh keeps its pose, bound when a record first names it. */
-  const owner: (Bodied | null)[] = [];
-  const position: Float64Array[] = [],
-    quaternion: Float64Array[] = [],
-    scale: Float64Array[] = [],
-    trees: ReturnType<typeof Object3D._treeOf>[] = [],
+  const position = new Float64Array(maxBodies * 3),
+    quaternion = new Float64Array(maxBodies * 4),
+    scale = new Float64Array(maxBodies * 3);
+  /** Each slot's mesh, the generation it was bound at (-1: none) and its node in the tree. */
+  const owner: (Bodied | null)[] = [],
+    bound = new Int16Array(maxBodies).fill(-1),
     node = new Int32Array(maxBodies);
+  const slotOf = new Map<Bodied, number>();
   /** Each slot's row (`UNASKED` until asked, `NO_ROW` when it has none or must not use it) and
    *  batch, as a rank in `batches`, whose written span is `from`..`to`. */
   const rowOf = new Int32Array(maxBodies).fill(UNASKED),
@@ -52,6 +54,8 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     matrices: Float64Array[] = [],
     from: number[] = [],
     to: number[] = [];
+  /** The one transform tree every node lives in. */
+  const tree = Object3D._treeOf(root);
   let epoch = NaN,
     direct = false,
     placed: Bodied[] = [];
@@ -69,18 +73,37 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     batchOf[index] = rank;
     rowOf[index] = seat.row;
   };
+  /** The mesh keeps its own numbers again, as they stand. */
+  const release = (mesh: Bodied) => {
+    slotOf.delete(mesh);
+    mesh.position._share(new Float64Array(3));
+    mesh.quaternion._share(new Float64Array(4));
+    mesh.scale._share(new Float64Array(3));
+  };
   return {
-    owner,
     position,
     quaternion,
-    bind(index: number, mesh: Bodied) {
+    bound,
+    /** Slot `index` holds `mesh` at `generation`: the mesh's pose numbers move here. */
+    bind(index: number, generation: number, mesh: Bodied) {
+      const before = owner[index];
+      if (before && before !== mesh && slotOf.get(before) === index) release(before);
+      const was = slotOf.get(mesh);
+      if (was !== undefined && was !== index) owner[was] = null;
+      slotOf.set(mesh, index);
       owner[index] = mesh;
-      position[index] = mesh.position.elements;
-      quaternion[index] = mesh.quaternion.elements;
-      scale[index] = mesh.scale.elements;
+      mesh.position._share(position.subarray(index * 3, index * 3 + 3));
+      mesh.quaternion._share(quaternion.subarray(index * 4, index * 4 + 4));
+      mesh.scale._share(scale.subarray(index * 3, index * 3 + 3));
+      bound[index] = generation;
       node[index] = mesh.index;
-      trees[index] = Object3D._treeOf(mesh);
       rowOf[index] = UNASKED;
+    },
+    /** Every mesh keeps its own numbers again (the physics stops). */
+    clear() {
+      for (const mesh of [...slotOf.keys()]) release(mesh);
+      owner.length = 0;
+      bound.fill(-1);
     },
     /** Opens a batch of writes: the rows asked before are dropped when the world moved them. */
     begin() {
@@ -98,27 +121,24 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     },
     /** Writes slot `index` at `pose` (7 numbers from `at`): node, tree, and row. */
     place(index: number, pose: ArrayLike<number>, at: number) {
-      const mesh = owner[index]!;
-      const tree = trees[index];
-      const p = position[index],
-        q = quaternion[index],
+      const p = index * 3,
+        q = index * 4,
         n = node[index];
       const tp = tree.position,
         tq = tree.quaternion;
-      tp[n * 3] = p[0] = pose[at];
-      tp[n * 3 + 1] = p[1] = pose[at + 1];
-      tp[n * 3 + 2] = p[2] = pose[at + 2];
-      tq[n * 4] = q[0] = pose[at + 3];
-      tq[n * 4 + 1] = q[1] = pose[at + 4];
-      tq[n * 4 + 2] = q[2] = pose[at + 5];
-      tq[n * 4 + 3] = q[3] = pose[at + 6];
+      tp[n * 3] = position[p] = pose[at];
+      tp[n * 3 + 1] = position[p + 1] = pose[at + 1];
+      tp[n * 3 + 2] = position[p + 2] = pose[at + 2];
+      tq[n * 4] = quaternion[q] = pose[at + 3];
+      tq[n * 4 + 1] = quaternion[q + 1] = pose[at + 4];
+      tq[n * 4 + 2] = quaternion[q + 2] = pose[at + 5];
+      tq[n * 4 + 3] = quaternion[q + 3] = pose[at + 6];
       tree.flags[n] |= NODE_TRS_DIRTY;
-      if (!mesh._link) return;
-      if (rowOf[index] === UNASKED) seatOf(index, mesh);
+      if (rowOf[index] === UNASKED) seatOf(index, owner[index]!);
       const b = batchOf[index],
         row = rowOf[index];
-      if (row === NO_ROW) return void placed.push(mesh);
-      composeMatrix4At(matrices[b], row * 16, p, 0, q, 0, scale[index], 0);
+      if (row === NO_ROW) return void placed.push(owner[index]!);
+      composeMatrix4At(matrices[b], row * 16, position, p, quaternion, q, scale, p);
       if (row < from[b]) from[b] = row;
       if (row > to[b]) to[b] = row;
     },

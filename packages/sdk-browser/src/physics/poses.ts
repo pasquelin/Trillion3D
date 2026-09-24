@@ -1,5 +1,8 @@
 import {
   ASLEEP_BIT,
+  BODY_INDEX,
+  GENERATION_SHIFT,
+  GENERATIONS,
   MAX_CATCH_UP_STEPS,
   PHYSICS_STEP,
   POSE_WORDS,
@@ -7,6 +10,13 @@ import {
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
 import { createPosePlacer } from './placer.ts';
+
+/** The bodies a tick's records name: meshes and generations by slot, and the way out of one. */
+export interface PosedBodies {
+  readonly meshes: readonly (Bodied | null)[];
+  readonly generation: Uint8Array;
+  retire(index: number): void;
+}
 
 /** Longest a tick may be drawn over, and longest a late one is extrapolated: the catch-up ceiling. */
 const LONGEST_MS = MAX_CATCH_UP_STEPS * PHYSICS_STEP * 1000;
@@ -24,39 +34,41 @@ const LONGEST_MS = MAX_CATCH_UP_STEPS * PHYSICS_STEP * 1000;
  */
 export function createPhysicsPoses(maxBodies: number, root: Object3D) {
   const from = new Float32Array(maxBodies * 7),
-    to = new Float32Array(maxBodies * 7),
-    velocity = new Float32Array(maxBodies * 6);
+    to = new Float32Array(maxBodies * 7);
+  /** The bodies' last step (`PhysicsState`): what `physics.velocity` and `asleep` read. */
+  const state = {
+    asleep: new Uint8Array(maxBodies),
+    velocity: new Float32Array(maxBodies * 6),
+    stamp: new Uint32Array(maxBodies),
+  };
+  const { velocity, asleep: sleeping, stamp } = state;
   const moving = new Int32Array(maxBodies);
-  const listed = new Uint8Array(maxBodies);
-  let count = 0;
+  const listed = new Uint8Array(maxBodies),
+    decorative = new Uint8Array(maxBodies);
+  let count = 0,
+    tick = 0;
   const placer = createPosePlacer(maxBodies, root);
-  const { owner, place, position, quaternion } = placer;
-  const linear: Float64Array[] = [];
+  const { bound, place, position, quaternion } = placer;
   let start = 0,
     span = 0,
     arrived = -1,
     /** Simulated seconds per page millisecond, for the extrapolation. */
     rate = 0,
     awake = false;
-  const bind = (index: number, mesh: Bodied) => {
-    placer.bind(index, mesh);
-    linear[index] = mesh.physics.velocity.elements;
-  };
   const pose = new Float32Array(7);
   return {
+    state,
+    /** Every mesh keeps its own pose numbers again (the physics stops). */
+    clear: placer.clear,
     /**
      * A tick's pose records arrived, simulating `ms` of the page's time; returns how many moved a
-     * body from where it is drawn (a pose sent again unchanged asks for no frame). A decorative
-     * body that fell asleep is placed at its last pose at once and handed to `rest`, which takes
-     * it out of the simulation.
+     * body from where it is drawn (a pose sent again unchanged asks for no frame). A record of a
+     * body that left its slot is skipped. A decorative body that fell asleep is placed at its
+     * last pose at once and retired, out of the simulation. Typed arrays only, but for a mesh
+     * met for the first time in its slot.
      */
-    receive(
-      words: Uint32Array,
-      records: number,
-      meshes: (Bodied | null)[],
-      ms: number,
-      rest: (index: number) => void,
-    ) {
+    receive(words: Uint32Array, records: number, bodies: PosedBodies, ms: number) {
+      const { generation } = bodies;
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
       const now = performance.now();
       const interval = arrived < 0 ? ms : now - arrived;
@@ -66,45 +78,51 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
       rate = span > 0 ? ms / span / 1000 : 0;
       let moved = 0;
       awake = false;
+      tick++;
       placer.begin();
       for (let r = 0; r < records; r++) {
         const at = r * POSE_WORDS,
-          index = (words[at] & ~ASLEEP_BIT) >>> 0,
-          mesh = meshes[index];
-        if (!mesh) continue;
-        if (owner[index] !== mesh) bind(index, mesh);
+          index = words[at] & BODY_INDEX,
+          g = generation[index];
+        if (g !== (words[at] >>> GENERATION_SHIFT) % GENERATIONS) continue;
+        if (bound[index] !== g) {
+          const mesh = bodies.meshes[index]!;
+          placer.bind(index, g, mesh);
+          decorative[index] = mesh.physics.decorative ? 1 : 0;
+        }
         const asleep = (words[at] & ASLEEP_BIT) !== 0,
-          v = linear[index];
-        mesh.physics.asleep = asleep;
-        v[0] = floats[at + 8];
-        v[1] = floats[at + 9];
-        v[2] = floats[at + 10];
-        if (asleep && mesh.physics.decorative) {
+          v = index * 6;
+        sleeping[index] = asleep ? 1 : 0;
+        stamp[index] = tick;
+        // An asleep body is not extrapolated.
+        for (let k = 0; k < 6; k++) velocity[v + k] = asleep ? 0 : floats[at + 8 + k];
+        if (asleep && decorative[index]) {
           place(index, floats, at + 1);
           // Off the moving list: the slot may hold another body before the list is drawn.
           listed[index] = 0;
-          rest(index);
+          bodies.retire(index);
           moved++;
           continue;
         }
-        const p = position[index],
-          q = quaternion[index],
+        const p = index * 3,
+          q = index * 4,
           o = index * 7;
         const dot =
-          q[0] * floats[at + 4] +
-          q[1] * floats[at + 5] +
-          q[2] * floats[at + 6] +
-          q[3] * floats[at + 7];
-        const same = p[0] === floats[at + 1] && p[1] === floats[at + 2] && p[2] === floats[at + 3];
+          quaternion[q] * floats[at + 4] +
+          quaternion[q + 1] * floats[at + 5] +
+          quaternion[q + 2] * floats[at + 6] +
+          quaternion[q + 3] * floats[at + 7];
+        const same =
+          position[p] === floats[at + 1] &&
+          position[p + 1] === floats[at + 2] &&
+          position[p + 2] === floats[at + 3];
         if (same && Math.abs(dot) >= 1 - 1e-6 && !listed[index]) continue;
         moved++;
-        for (let k = 0; k < 3; k++) from[o + k] = p[k];
-        for (let k = 0; k < 4; k++) from[o + 3 + k] = q[k];
+        for (let k = 0; k < 3; k++) from[o + k] = position[p + k];
+        for (let k = 0; k < 4; k++) from[o + 3 + k] = quaternion[q + k];
         for (let k = 0; k < 7; k++) to[o + k] = floats[at + 1 + k];
         // The shorter way round: a quaternion and its opposite are one rotation.
         if (dot < 0) for (let k = 3; k < 7; k++) to[o + k] = -to[o + k];
-        // An asleep body is not extrapolated.
-        for (let k = 0; k < 6; k++) velocity[index * 6 + k] = asleep ? 0 : floats[at + 8 + k];
         awake ||= !asleep;
         if (!listed[index]) moving[count++] = index;
         listed[index] = 1;
@@ -115,7 +133,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
     },
     /** Draws every moving body at this frame's point; whether any is still on its way (and asks
      *  for the next frame). */
-    apply(meshes: readonly (Bodied | null)[]) {
+    apply({ generation }: PosedBodies) {
       if (!count) return false;
       const elapsed = performance.now() - start;
       const alpha = span > 0 ? Math.min(1, elapsed / span) : 1;
@@ -125,7 +143,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
       for (let i = 0; i < count; i++) {
         const index = moving[i];
         // A slot whose body left, or went to another mesh, waits for that mesh's own record.
-        if (!listed[index] || meshes[index] !== owner[index]) continue;
+        if (!listed[index] || bound[index] !== generation[index]) continue;
         const o = index * 7,
           v = index * 6;
         // The frame at the target lands on the record exactly: sent again, it is seen unchanged.

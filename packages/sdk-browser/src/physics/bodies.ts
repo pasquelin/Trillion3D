@@ -1,6 +1,9 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
+  BODY_INDEX,
   FLAG,
+  GENERATION_SHIFT,
+  GENERATIONS,
   LAYER,
   MOTION,
   physicsBudgetError,
@@ -9,6 +12,7 @@ import {
   type CommandWriter,
   type PhysicsBudget,
   type PhysicsHost,
+  type PhysicsState,
 } from '../../../sdk-core/src/physics/index.ts';
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
@@ -17,6 +21,14 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 const position = new Vector3(),
   turn = new Quaternion();
+
+/** A node's world position and quaternion, in scratch every caller shares: read them at once. */
+export function worldPoseOf(node: Object3D) {
+  node.updateWorldMatrix(true, false);
+  node.getWorldPosition(position);
+  node.getWorldQuaternion(turn);
+  return { position: position.elements, quaternion: turn.elements };
+}
 
 /** A mesh the simulation holds a body for. */
 export type Bodied = Mesh & { physics: NonNullable<Mesh['physics']> };
@@ -45,9 +57,13 @@ export function createPhysicsBodies(
   budget: PhysicsBudget,
   host: PhysicsHost,
   root: Object3D,
+  state: PhysicsState,
 ) {
   const meshes: (Bodied | null)[] = [];
   const held: (Bodied['physics'] | null)[] = [];
+  /** Each slot's generation, the high bits of its body's engine id (`BODY_INDEX`): moved on at
+   *  every add and removal, so no record names a slot's next body or an empty slot. */
+  const generation = new Uint8Array(budget.bodies);
   const free: number[] = [];
   const triangles = new Map<number, number>();
   const count = { bodies: 0, decorative: 0, triangles: 0 };
@@ -69,8 +85,7 @@ export function createPhysicsBodies(
     check('bodies', 1);
     if (p.decorative) check('decorative', 1);
     // The world pose as the transform tree composes it; the scale, axis by axis up the chain.
-    mesh.getWorldPosition(position);
-    mesh.getWorldQuaternion(turn);
+    const pose = worldPoseOf(mesh);
     const size = { x: 1, y: 1, z: 1 };
     for (let node: Object3D | null = mesh; node; node = node.parent) {
       size.x *= node.scale.x;
@@ -81,14 +96,15 @@ export function createPhysicsBodies(
     check('triangles', shape.triangles);
     const matter = physicsMatterOf(mesh.material);
     const index = free.pop() ?? meshes.length;
+    const next = (generation[index] = (generation[index] + 1) % GENERATIONS);
     writer.add({
-      index,
+      id: index | (next << GENERATION_SHIFT),
       motion: MOTION[p.type],
       layer: p.type === 'static' ? LAYER.static : p.decorative ? LAYER.decorative : LAYER.moving,
       shape: shape.shape,
       flags: flagsOf(mesh),
-      position: position.elements,
-      quaternion: [turn.x, turn.y, turn.z, turn.w],
+      position: pose.position,
+      quaternion: pose.quaternion,
       size: shape.size,
       mass: p.mass ?? 0,
       density: matter.density,
@@ -104,8 +120,7 @@ export function createPhysicsBodies(
     if (p.decorative) count.decorative++;
     if (shape.triangles) triangles.set(index, shape.triangles);
     count.triangles += shape.triangles;
-    p._host = host;
-    p._index = index;
+    p._attach(host, index, state);
   };
   const removeAt = (index: number) => {
     const mesh = meshes[index],
@@ -113,20 +128,28 @@ export function createPhysicsBodies(
     if (!mesh || !p) return;
     writer.remove(index);
     meshes[index] = held[index] = null;
+    generation[index] = (generation[index] + 1) % GENERATIONS;
     free.push(index);
     count.bodies--;
     if (p.decorative) count.decorative--;
     count.triangles -= triangles.get(index) ?? 0;
     triangles.delete(index);
-    p._host = null;
-    p._index = -1;
+    p._detach();
+  };
+  /** The mesh an engine id names, or `null` once that body left its slot. */
+  const meshOf = (id: number) => {
+    const index = id & BODY_INDEX;
+    return generation[index] === id >>> GENERATION_SHIFT ? (meshes[index] ?? null) : null;
   };
   return {
     meshes,
+    generation,
     count,
     add,
     removeAt,
-    /** A decorative body fell asleep: out of the simulation and of the budget, for good. */
+    meshOf,
+    /** A decorative body fell asleep, or the module refused its shape: out of the simulation and
+     *  of the budget, until its `physics` is set again. */
     retire(index: number) {
       const p = held[index];
       removeAt(index);
