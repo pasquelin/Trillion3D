@@ -80,6 +80,9 @@ export function recordTriangles(record: ClusterDrawMesh) {
 export const wholeMeshTriangles = (mesh: WholeMesh) =>
   ((mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3) *
   (mesh.kind === 'instancedMesh' ? mesh.count! : 1);
+/** Triangles one pass of a submission draws, a batch record or a whole mesh. */
+export const drawTriangles = (draw: ClusterDraw) =>
+  isClusterDrawMesh(draw) ? recordTriangles(draw) : wholeMeshTriangles(draw);
 
 const BACK_THEN_FRONT: readonly Side[] = ['back', 'front'];
 const DECLARED_SIDE: readonly undefined[] = [undefined];

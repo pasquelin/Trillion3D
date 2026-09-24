@@ -1,8 +1,7 @@
 import {
   drawPasses,
   isClusterDrawMesh,
-  recordTriangles,
-  wholeMeshTriangles,
+  drawTriangles,
   drawWorld,
   type ClusterDrawMesh,
   type HostAttributes,
@@ -108,8 +107,7 @@ export class WebglClusterRenderer {
     normalMatrix3(this.normal, this.modelView);
     setMatrix3(gl, this.at('normalMatrix'), this.normal);
     const passes = drawPasses(material);
-    this.triangles +=
-      (record ? recordTriangles(record) : wholeMeshTriangles(mesh as WholeMesh)) * passes.length;
+    this.triangles += drawTriangles(mesh) * passes.length;
     for (const side of passes) {
       this.pass.bind(material, toneMapped, side, record?.polygonOffsetUnits);
       if (record) submitClusterMesh(gl, this.multiDraw, record);
