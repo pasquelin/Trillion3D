@@ -11,6 +11,7 @@
 // holds when everything is refused to the GPU: its error margin, its enlarged rectangle and its
 // coarser mip. Zero violations is the only acceptable value.
 import {
+  BOX_CORNER_VALUES,
   HIZ_BOUNDS_VALUES,
   projectCornersInto,
 } from '../../../packages/sdk-browser/src/hiz/corners.ts';
@@ -20,8 +21,6 @@ import { hizRejectsFlat } from '../../../packages/sdk-browser/src/hiz/occlusion.
 import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
-/** Doubles of a world box in the `pageCornersInto` layout. */
-const BOX_CORNER_VALUES = 24;
 
 export function emptyOcclusionTotals() {
   return { rejetees: 0, examinees: 0, violations: 0, coupesReference: 0, horsEcran: 0, poses: 0 };
