@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { batisseur, engine, libere, type ScenePreparee } from './sharedSceneProof.ts';
-import { jusquaTenue } from './sceneImageProof.ts';
+import { jusquaTenue, PLAFOND } from './sceneImageProof.ts';
 import { SIZE, type Fixture } from './materialFixtureShape.ts';
 import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
@@ -131,8 +131,9 @@ export async function engineImage(
 }
 
 /** The WebGL2 engine image of a prepared scene: the shipping autonomous backend reading each page
- *  encoded from the scene's geometry, composed on its own canvas the way a world composes it. Held
- *  when a second frame repeats the first; releases the scene. */
+ *  encoded from the scene's geometry, composed on its own canvas the way a world composes it.
+ *  Rendered until the engine holds its frame, as `jusquaTenue` waits on WebGPU; releases the
+ *  scene. */
 export async function webgl2Image(
   autonomousPagesBackend: BackendFactory,
   scene: ScenePreparee,
@@ -166,13 +167,14 @@ export async function webgl2Image(
   };
   try {
     await backend.prepare();
-    const first = frame(),
+    let pixels = frame(),
+      held = backend.frameHeld === true;
+    for (let i = 1; i < PLAFOND && !held; i++) {
+      await backend.flush?.();
       pixels = frame();
-    return {
-      pixels,
-      held: pixels.every((value, i) => value === first[i]),
-      dataUrl: canvas.toDataURL(),
-    };
+      held = backend.frameHeld === true;
+    }
+    return { pixels, held, dataUrl: canvas.toDataURL() };
   } finally {
     draw.dispose();
     libere(backend, canvas, scene);
