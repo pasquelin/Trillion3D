@@ -341,7 +341,6 @@
       "sculpt-a-sphere": "picking (raycast)",
       "a-video-on-a-screen": "live video textures",
       "the-webcam-as-a-texture": "live video textures",
-      "four-ways-to-blend": "every blending mode",
       "avif-textures": "more source importers: AVIF images",
       "object-space-normals": "object-space normal maps",
       "a-bumpy-surface": "bump, displacement and parallax maps",

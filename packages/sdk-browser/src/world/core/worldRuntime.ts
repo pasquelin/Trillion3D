@@ -176,8 +176,6 @@ export function createWorldRuntime(inputs: Inputs) {
     get explorer() {
       return explorer;
     },
-    /** Settles once the scene changes made so far are resolved, drawn or not. */
-    resolved: () => resolving ?? Promise.resolve(),
     /** Settles once the session reflects every change made so far. */
     async settled() {
       while (resolving || reopens.running) await (resolving ?? reopens.running);

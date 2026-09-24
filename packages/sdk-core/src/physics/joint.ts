@@ -39,12 +39,6 @@ export interface JointOptions {
   breakForce?: number;
 }
 
-/** The world's side of a joint: what a write on it asks of the simulation. */
-export interface JointHost {
-  /** The motor changed. */
-  motor(joint: Joint): void;
-}
-
 /** The tunings each kind has. */
 const ALL = ['limits', 'spring', 'motor'] as const;
 type Tuning = (typeof ALL)[number];
@@ -69,7 +63,9 @@ export class Joint {
   private _motor: JointMotor | null;
   private _broken = false;
   private readonly handlers = new Set<() => void>();
-  /** The world simulating this joint, set while it does. */ _host: JointHost | null = null;
+  /** The world simulating this joint, set while it does: what a write on it asks of the
+   *  simulation — the motor changed. */
+  _host: { motor(joint: Joint): void } | null = null;
   /** The joint's id in the simulation (slot and generation), -1 outside one. */ _id = -1;
   /** Each end's `point, axis, normal` in its body's frame, fixed when first made. */
   _frames: { a: number[]; b: number[]; length: number } | null = null;

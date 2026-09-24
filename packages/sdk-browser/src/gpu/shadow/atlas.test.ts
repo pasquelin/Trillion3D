@@ -1,48 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createGpuShadowAtlas } from './atlas.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-
-installGpuGlobals();
-
-/**
- * A `GPUDevice` reduced to what `createGpuShadowAtlas` asks of it: enough to build its resources
- * without a real GPU, and a `queue.writeBuffer` that captures what it receives. None of these
- * calls needs a device: only `flushPages` actually writes, and that is what we observe.
- */
-function fakeDevice() {
-  const writes: Float32Array[] = [];
-  const bindGroupLayouts: unknown[] = [];
-  const bindGroups: unknown[] = [];
-  const device = {
-    createTexture: () => ({ destroy() {}, createView: () => ({}) }),
-    createBuffer: () => ({ destroy() {} }),
-    createBindGroupLayout: (descriptor: unknown) => {
-      bindGroupLayouts.push(descriptor);
-      return {};
-    },
-    createPipelineLayout: () => ({}),
-    createRenderPipeline: () => ({}),
-    createBindGroup: (descriptor: unknown) => {
-      bindGroups.push(descriptor);
-      return {};
-    },
-    createShaderModule: () => ({}),
-    queue: {
-      writeBuffer(
-        _buffer: unknown,
-        _bufferOffset: number,
-        data: Float32Array,
-        dataOffset = 0,
-        size?: number,
-      ) {
-        const end = size === undefined ? data.length : dataOffset + size;
-        writes.push(data.slice(dataOffset, end));
-      },
-    },
-  } as unknown as GPUDevice;
-  return { device, writes, bindGroupLayouts, bindGroups };
-}
+import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 test('the face bind group declares 96 bytes, read at the fragment as at the vertex', async () => {
   const { device, bindGroupLayouts, bindGroups } = fakeDevice();
@@ -50,8 +9,8 @@ test('the face bind group declares 96 bytes, read at the fragment as at the vert
   const entry = (bindGroupLayouts[0] as { entries: Array<Record<string, unknown>> }).entries[0];
   assert.deepEqual(entry.visibility, GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT);
   assert.equal((entry.buffer as { minBindingSize: number }).minBindingSize, 96);
-  const resource = (bindGroups[0] as { entries: Array<{ resource: { size: number } }> }).entries[0]
-    .resource;
+  const resource = (bindGroups[0] as unknown as { entries: Array<{ resource: { size: number } }> })
+    .entries[0].resource;
   assert.equal(resource.size, 96);
 });
 
@@ -65,7 +24,7 @@ test("a page's uniform carries its matrix, its physical page, then the emitter's
   atlas.writePage(0, matrices, 0, 33, [1, 2, 3], 0.5);
   atlas.flushPages(1);
   assert.equal(writes.length, 1);
-  const entry = writes[0];
+  const entry = written(writes[0]);
   // The first sixteen floats are the matrix as-is, never recomposed.
   assert.deepEqual(Array.from(entry.slice(0, 16)), Array.from(matrices));
   // The page's atlas rectangle: normalised x, y then span, and its side in texels.
@@ -80,5 +39,5 @@ test('a light without an envelope — directional, or zero radius — carries a 
   atlas.sizePool(32);
   atlas.writePage(0, new Float32Array(16), 0, 0, undefined, 0);
   atlas.flushPages(1);
-  assert.deepEqual(Array.from(writes[0].slice(20, 24)), [0, 0, 0, 0]);
+  assert.deepEqual(Array.from(written(writes[0]).slice(20, 24)), [0, 0, 0, 0]);
 });
