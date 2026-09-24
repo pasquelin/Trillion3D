@@ -1,33 +1,35 @@
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts';
-import { refreshSurface, surfaceSide } from '../../page/surface.ts';
+import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts';
+import { BLEND_MODES } from '../../scene/materialBlending.ts';
 import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './runs.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
-/** The pass's three pipelines, named by a rank: a plan entry picks them without a test, and the
- *  rank indexes the pipeline tuple of the pass (`BlendPipelines`, `draw.ts`). */
+/** The three cull ranks of a pass's pipelines: a plan entry picks them without a test, and the
+ *  rank, plus three per blend mode (`BLEND_MODES`), indexes the pipelines of the pass
+ *  (`BlendModePipelines`, `draw.ts`). The water surfaces have only the three normal ones. */
 const PIPELINE_NONE = 0,
   PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
 /**
  * A plan entry: the item rank in the high bits, then the bit that says whether the item can
- * SHARE its neighbours' draw, and the pipeline in the low two.
+ * SHARE its neighbours' draw, and the pipeline in the low four — five modes of three culls.
  *
  * The share bit is in the entry, not read on the item, because run slicing walks the SORTED plan:
  * following an item rank to its object is a random memory access per entry, when the only plan
  * read is a sequential walk.
  */
-/** Low three bits of an entry: two of pipeline, then the share bit. The item rank occupies the
- *  rest. `runs.ts` and `expandWgsl.ts` read those three from here: shifting
+/** Low five bits of an entry: four of pipeline, then the share bit. The item rank occupies the
+ *  rest. `runs.ts` and `expandWgsl.ts` read those five from here: shifting
  *  the rank without following them would let the other three sites compile and decode wrong. */
-export const PLAN_SHIFT = 3;
-export const PLAN_SHARED_BIT = 4;
-/** Mask of the low three bits: two entries share it when they fit in one run. */
+export const PLAN_SHIFT = 5;
+export const PLAN_SHARED_BIT = 16;
+/** Mask of the low five bits: two entries share it when they fit in one run. */
 export const PLAN_LOW_MASK = (1 << PLAN_SHIFT) - 1;
 export const planEntry = (item: number, pipeline: number, shared: boolean) =>
   (item << PLAN_SHIFT) | (shared ? PLAN_SHARED_BIT : 0) | pipeline;
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT;
-export const planPipeline = (entry: number) => entry & 3;
+export const planPipeline = (entry: number) => entry & (PLAN_SHARED_BIT - 1);
 export const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0;
 /** No paged primitive behind this item: it draws its own indices, in chunks. */
 export const DRAW_UNPAGED = 0xffffffff;
@@ -119,6 +121,17 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.runs = [new Uint32Array(entries * RUN_WORDS), new Uint32Array(entries * RUN_WORDS)];
 }
 
+/** First pipeline rank of an item's blend mode. A transmissive item composes by the backdrop it
+ *  reads, and a mode the engine has no name for is no mode at all: both are refused by name,
+ *  never drawn as normal. */
+export function modeBase(surface: PageSurface, transmissive: boolean) {
+  const { blending } = surface;
+  if (!blending) throw new Error('a transparent surface declares a blending no path draws');
+  if (transmissive && blending !== 'normal')
+    throw new Error(`a transmissive material cannot use ${blending} blending`);
+  return BLEND_MODES.indexOf(blending) * 3;
+}
+
 /** Two plan entries of a double-sided item, in the order the pass encoded: back, face. */
 function sidesOf(item: BlendGpuItem) {
   // One determinant: the call used to yield the same value twice to pick the two faces.
@@ -128,11 +141,12 @@ function sidesOf(item: BlendGpuItem) {
   // The record is reread here: the host writes `side` on the declaration it shares with its
   // mesh, and the plan is what must see it (see the room reserved above).
   const surface = refreshSurface(item.surface);
-  const side = surfaceSide(surface);
-  if (side === 'double' && !surface.forceSinglePass) return [back, front];
-  if (side === 'front') return [front];
-  if (side === 'back') return [back];
-  return [PIPELINE_NONE];
+  const side = surfaceSide(surface),
+    base = modeBase(surface, !!item.transmissive);
+  if (side === 'double' && !surface.forceSinglePass) return [base + back, base + front];
+  if (side === 'front') return [base + front];
+  if (side === 'back') return [base + back];
+  return [base + PIPELINE_NONE];
 }
 
 /**
