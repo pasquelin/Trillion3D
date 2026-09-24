@@ -117,7 +117,9 @@ export function redrawShortPages(
   if (plan.resting) redraws.rest();
   const { pool } = plan;
   const pages = redraws.takeRedraw((page, hide) => {
-    if (pool.owner[page] >= 0) pool.stale(page, nowMs, frame, STALE_FULL, hide);
+    if (pool.owner[page] < 0) return;
+    pool.stale(page, nowMs, frame, STALE_FULL);
+    if (hide) pool.withdraw(plan.table, page);
   });
   plan.admission.setViewLimit(redraws.viewLimit);
   if (pages)

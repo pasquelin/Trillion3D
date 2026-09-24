@@ -172,12 +172,10 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         pool.drew(table, admission.list[i], modes ? modes[i] : DRAW_ALL);
         thresholds.drew(admission.list[i]);
       }
-      pool.hideStale(table);
       admission.reset();
     },
     /** The frame's pages could not be encoded: they stay stale, and wait for the next frame. */
     reissue() {
-      pool.hideStale(table);
       admission.reset();
     },
     /** Starts over. */
