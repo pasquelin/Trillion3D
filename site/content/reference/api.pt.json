@@ -3844,10 +3844,13 @@
     "members": {
       "geometryPoolCeiling": "Os maiores pools que um mundo pode pedir: os orçamentos iniciais do motor.",
       "texturePoolCeiling": "O maior pool de textura que um mundo pode pedir, em bytes.",
-      "geometryPool": "Bytes de memória de GPU mantidos para páginas de geometria; defina para mudar o envelope.",
-      "texturePool": "Bytes de memória de GPU mantidos para páginas de textura; defina para mudar o envelope.",
+      "geometryPool": "Bytes de memória GPU reservados para páginas de geometria; defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras e do reservatório de texturas.",
+      "texturePool": "Bytes de memória GPU reservados para páginas de textura, `null` num motor sem reservatório de texturas (WebGL2); defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras e do reservatório de geometria.",
       "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
-      "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope."
+      "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
+      "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Nunca lido da máquina.",
+      "cpu": "Bytes de memória CPU que as páginas decodificadas do mundo podem ocupar; aplicado no próximo carregamento de cena.",
+      "split": "Como os dois totais são divididos: o reservatório de sombras no máximo, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o cache de páginas decodificadas fica com o total de CPU. O que a regra dá, antes de um reservatório definido sozinho."
     }
   },
   "world.diagnostic": {
@@ -4301,7 +4304,7 @@
     "description": "`memory(world)` é o que o mundo guarda agora (`world.budget`); os dois pools constroem a configuração que um mundo recebe."
   },
   "budget.memory": {
-    "summary": "Os orçamentos de memória que um mundo guarda agora: ambos os pools e o maior a que cada um pode crescer."
+    "summary": "Os orçamentos de memória que um mundo tem agora: os totais de GPU e CPU, a sua divisão pela regra, os dois reservatórios e o máximo de cada um."
   },
   "budget.geometryPool": {
     "summary": "Uma configuração de pool de geometria de `bytes`, pronta para entregar a um mundo.",
@@ -6868,6 +6871,7 @@
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
+      "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
       "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
       "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",
@@ -7018,6 +7022,19 @@
       "current": "Velocidade da água (a corrente de um rio), em m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "A superfície da água tal como a página a lê para a desenhar (`world.physics.waterSurface`): o modelo de ondas que a flutuação lê no worker de física, os mesmos números, à hora da simulação.",
+    "members": {
+      "level": "Altura da superfície em repouso, em metros.",
+      "crest": "Ponto mais alto que uma crista atinge acima de `level`, em metros.",
+      "time": "Segundos simulados desde que a água foi definida: o relógio das ondas.",
+      "setTime": "Acerta as ondas em `t` segundos simulados.",
+      "height": "Altura da superfície acima do ponto do mundo `(x, z)`, em metros.",
+      "point": "O ponto do mundo `[x, y, z]` para onde o ponto em repouso `(x, level, z)` é levado, em `out`: uma grelha movida ponto a ponto é a superfície, com cristas tão vivas como as ondas.",
+      "wavesNow": "As ondas declaradas, cada fase levada a este instante: definidas de novo em `world.physics.water` (cujas ondas recomeçam em 0 s), a superfície continua de onde está em vez de saltar.",
+      "normal": "Normal unitária `[x, y, z]` da superfície no ponto em repouso `(x, z)`, em `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Uma onda tal como uma cena a declara.",
     "members": {
@@ -7051,6 +7068,7 @@
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
+      "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
       "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
       "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",

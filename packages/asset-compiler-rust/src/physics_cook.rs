@@ -11,6 +11,8 @@
 use crate::{CompilerError, Result};
 
 mod cut;
+#[cfg(test)]
+mod cut_tests;
 mod declared;
 mod hausdorff;
 mod height;
@@ -23,7 +25,7 @@ pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 2;
+pub const PHYSICS_COOK_VERSION: u32 = 3;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 1;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.

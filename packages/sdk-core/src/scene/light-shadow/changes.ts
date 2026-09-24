@@ -97,7 +97,7 @@ export function createShadowChanges() {
     { min, max, moving, detail } = boxes,
     /** The representation changes held until the camera rests. */
     held = createBoxList();
-  /** The view of the last frame, and this frame's the time to compare them. */
+  /** The view of the last frame and this frame's, to compare them. */
   const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
     viewNow = new Float64Array(VIEW_NUMBERS);
   const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) =>
