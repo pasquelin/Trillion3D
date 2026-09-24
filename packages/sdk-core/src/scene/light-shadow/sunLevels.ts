@@ -7,6 +7,7 @@ import {
   SUN_WINDOW,
   finestSunLevel,
   ringOf,
+  sunFloorLevel,
   sunPageMetres,
 } from './virtual.ts';
 
@@ -125,6 +126,22 @@ export function createSunLevels() {
         ay - origins[at + 1] >= 0 &&
         ay - origins[at + 1] < SUN_WINDOW
       );
+    },
+    /** The floor pages the view can read, whatever it looks at — every page of the last level
+     *  within its far distance of the camera, in this frame's clipmap —: `x0, y0, x1, y1` into
+     *  `out`, inclusive. */
+    floorReach(slice: number, view: ShadowViewpoint, out: Int32Array) {
+      const level = sunFloorLevel(finest[slice]),
+        page = sunPageMetres(level),
+        f = slice * 9,
+        at = slice * LEVEL_WORDS + ringOf(level, SUN_LEVELS) * 2;
+      const u = dotVector3(view.position, frame, 0, f),
+        v = -dotVector3(view.position, frame, 0, f + 3);
+      out[0] = Math.max(origins[at], Math.floor((u - view.far) / page));
+      out[1] = Math.max(origins[at + 1], Math.floor((v - view.far) / page));
+      out[2] = Math.min(origins[at] + SUN_WINDOW - 1, Math.floor((u + view.far) / page));
+      out[3] = Math.min(origins[at + 1] + SUN_WINDOW - 1, Math.floor((v + view.far) / page));
+      return out;
     },
     /**
      * Level and absolute page of a sun entry, relative to the light's base, as the frame
