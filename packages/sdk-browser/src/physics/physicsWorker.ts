@@ -128,6 +128,17 @@ scope.onmessage = ({ data: message }) => {
     post();
     // A tick held back for room in its results resumes.
     if (jolt && (owed >= PHYSICS_STEP || queued.length)) schedule(0);
+  } else if (message.type === 'cast') {
+    // Between two ticks, against the last step's bodies; the commands still queued are applied
+    // first, so a query sees the tiles restored with it.
+    if (!jolt) return;
+    try {
+      if (queued.length && results!.room()) run(0);
+      const hits = jolt.cast(message.queries);
+      scope.postMessage({ type: 'cast', id: message.id, hits }, [hits.buffer]);
+    } catch (error) {
+      fail(error);
+    }
   } else if (message.type === 'commands') {
     // Only a running simulation queues them: the page sends none before `ready`.
     if (!jolt) return;

@@ -137,6 +137,8 @@ export function createWorldPhysics(
       return moving;
     },
     dispose: () => (handle.enabled = false),
+    /** The running session, for the queries asked of it (`physicsRaycast`). */
+    session: () => session,
   };
 }
 
