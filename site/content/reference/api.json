@@ -12836,6 +12836,21 @@
         "name": "content(node: Object3D)",
         "type": "void",
         "desc": "A node's shape or material changed."
+      },
+      {
+        "name": "seat?",
+        "type": "((node: Object3D) => { readonly batch: { readonly rows: { readonly matrices: Float64Array; } | null; }; readonly row: number; } | null) | undefined",
+        "desc": "The row `node` is drawn from, or `null` when it holds none: sixteen column-major floats at `row * 16` of `batch.rows.matrices`, read in place by the renderer. An owner placing nodes by the thousand (the physics) writes their world matrices there itself, valid while `seatEpoch` stands, and names the rows it wrote through `placed`."
+      },
+      {
+        "name": "seatEpoch?",
+        "type": "(() => number) | undefined",
+        "desc": "Moves whenever a row is taken, freed or reallocated: every `seat` answer before it is stale."
+      },
+      {
+        "name": "placed?",
+        "type": "((batch: object, from: number, to: number) => void) | undefined",
+        "desc": "Rows `from` to `to` of `batch` were written through `seat`: drawn at the next frame."
       }
     ],
     "description": ""
