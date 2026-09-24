@@ -1,10 +1,8 @@
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
 import { DIAGNOSTICS, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
-import {
-  DEFAULT_GEOMETRY_POOL_BUDGET,
-  DEFAULT_TEXTURE_POOL_BUDGET,
-} from '../../webgpu/residency/memoryBudgets.ts';
+import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
+import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
 
 export { worldControlsHandle } from './worldControlsHandle.ts';
 

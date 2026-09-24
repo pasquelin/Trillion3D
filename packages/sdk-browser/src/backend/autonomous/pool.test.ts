@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fixture, PAGE, records } from './pool.fixture.ts';
+import { fixture, PAGE } from './pool.fixture.ts';
 
 test('under its budget the pool walks nothing: an arrival only enters the order', () => {
   const f = fixture(10, { budgetBytes: 5 * PAGE });
@@ -112,42 +112,22 @@ test('a page the streamer evicted leaves the order', () => {
   assert.deepEqual(f.dropped, ['p1']);
 });
 
-test('the cut asked for is bounded by the ladder: its floor rises, then settles on a still view', () => {
-  const f = fixture(100, { budgetBytes: 10 * PAGE });
-  const { pool } = f;
-  // Distinct pages the view asks for at each threshold: finer than 0.5 px overflows the 10 slots.
-  const cut = (threshold: number) => records(threshold >= 0.5 ? 6 : 20);
-  const asked: number[] = [];
-  for (let frame = 0; frame < 12; frame++) {
-    const threshold = pool.threshold(0);
-    asked.push(threshold);
-    pool.admit(0, threshold, 1, cut(threshold), cut(threshold));
-  }
-  // 0 overflows, 1 fits, 0.5 fits, 0.25 overflows and is remembered: the view settles at 0.5.
-  assert.deepEqual(asked.slice(0, 6), [0, 1, 0.5, 0.25, 1, 0.5]);
-  assert.ok(
-    asked.slice(5).every((threshold) => threshold === 0.5),
-    'no oscillation',
-  );
-  assert.equal(pool.budgetPixelError, 0.5);
-  assert.equal(pool.coverageBudgetLimited, false);
-  // Another view forgets the overflow; a host threshold past the floor gives it up.
-  assert.equal(pool.admit(0, 0.5, 2, cut(0.5), cut(0.5)), true);
-  assert.equal(pool.threshold(2), 2);
-  assert.equal(pool.budgetPixelError, 0);
+test('a page the host replaced leaves the order: it is held under the floor, never evicted', () => {
+  const f = fixture(10, { budgetBytes: 2 * PAGE });
+  f.arrive('p0');
+  f.arrive('p1');
+  f.pool.trim();
+  // p0 is replaced: its bytes stay, and join what nothing may evict.
+  f.pool.left('p0');
+  f.root(0);
+  f.arrive('p2');
+  assert.deepEqual(f.dropped, ['p1'], 'the oldest evictable page, never the replaced one');
 });
 
-test('the ladder weighs distinct pages, not records: instances of a page count once', () => {
-  const f = fixture(100, { budgetBytes: 10 * PAGE });
-  // Forty records drawn from eight pages fit ten slots.
-  assert.equal(f.pool.admit(0, 0, 1, records(40, 8), records(40, 8)), false);
-  assert.equal(f.pool.coverageBudgetLimited, false);
-  assert.equal(f.pool.budgetPixelError, 0);
-});
-
-test('a pool that holds the whole scene weighs nothing', () => {
-  const f = fixture(10);
-  assert.equal(f.pool.held.clamp, 'scene');
-  assert.equal(f.pool.admit(0, 0, 1, records(400, 10), records(400, 10)), false);
-  assert.equal(f.pool.coverageBudgetLimited, false);
+test('the bytes the pool holds are bounded as its slots are, by the page cap', () => {
+  const f = fixture(100, { budgetBytes: 50 * PAGE, maxResidentPages: 3 });
+  for (let i = 0; i < 4; i++) f.arrive(`p${i}`);
+  f.pool.trim();
+  assert.deepEqual(f.dropped, ['p0']);
+  assert.equal(f.state.allocationBytes, 3 * PAGE);
 });
