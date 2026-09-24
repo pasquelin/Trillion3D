@@ -6,7 +6,7 @@
  * here and only here. The rest of the scene — surfaces, samplers, lights — is proven on every
  * other cache by `build.test.ts`, from the same builders.
  */
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,8 @@ import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableCont
 import { createPartitionCells } from '../../scene/partition/cells.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { hostWorldChainInto } from '../world/chain.ts';
+import { hostWorldBounds } from '../world/bounds.ts';
+import { pagesBounds } from '../../world/scene/pagesBounds.ts';
 import { buildPreparedScene } from './build.ts';
 import { caches, serveFiles } from './scenes.fixture.ts';
 
@@ -24,7 +26,8 @@ import { caches, serveFiles } from './scenes.fixture.ts';
 const line = (mesh: number, primitive: number, world: ArrayLike<number>) =>
   `${mesh}/${primitive} ${Array.from(world).join(',')}`;
 
-test('a partitioned cache places every mesh the loader placed, at its world matrix', async (t) => {
+/** The published partitioned cache, built from its tables. */
+async function partitioned(t: TestContext) {
   serveFiles(t);
   const folder = (await caches()).find((one) => one.pathname.includes('/ten-thousand-objects/'))!;
   const tables = assertSceneTables(
@@ -40,8 +43,13 @@ test('a partitioned cache places every mesh the loader placed, at its world matr
     signal: undefined,
     track: (_resource, read) => read,
   });
+  return { folder, partition: tables.partition, built };
+}
+
+test('a partitioned cache places every mesh the loader placed, at its world matrix', async (t) => {
+  const { folder, partition, built } = await partitioned(t);
   const cells = createPartitionCells({
-    partition: tables.partition,
+    partition,
     base: folder.href,
     root: built.source,
     parents: built.nodes,
@@ -79,4 +87,22 @@ test('a partitioned cache places every mesh the loader placed, at its world matr
   });
   assert.equal(prepared.length, witness.length, 'as many placements');
   assert.deepEqual(prepared.sort(), witness.sort());
+});
+
+// Framing and a loaded model's bounds take the whole world, whichever cells are read: each mesh
+// placed by rows bounds itself by the box around every cell, host bounds and page bounds alike.
+test('a mesh placed by rows bounds the whole partition, never its own pose', async (t) => {
+  const { partition, built } = await partitioned(t);
+  const expected = [...partition.bounds];
+  assert.deepEqual([...hostWorldBounds(built.source)], expected);
+  const primitives = [...built.placed.keys()].map((mesh) => ({
+    mesh,
+    primitive: 0,
+    pages: [{ role: 'exact', min: [0, 0, 0], max: [1e9, 1e9, 1e9] }],
+  }));
+  const metadata = { primitives } as unknown as ClusterManifest;
+  assert.deepEqual(
+    [...pagesBounds(built.source, built.associations, metadata, () => {})],
+    expected,
+  );
 });

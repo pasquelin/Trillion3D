@@ -15,37 +15,21 @@
 import { MATRIX_VALUES, multiplyMatrix4, EngineError } from '../../../../sdk-core/src/index.ts';
 import {
   assertCellNodes,
-  type CellNode,
   type TablePartition,
 } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import { GraphNode } from '../../host/graph/node.ts';
-import { pose } from '../../host/prepared/nodes.ts';
+import type { GraphNode } from '../../host/graph/node.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
-import { hostLocalInto } from '../../host/world/matrices.ts';
 import { planCells } from './plan.ts';
 import {
   releaseRow,
+  rowLocal,
   reserveRows,
   takeRow,
   type GrowRows,
   type PlacedMesh,
   type RowLink,
 } from './rows.ts';
-
-/** What a frame reads and writes through the session. */
-export type PartitionIo = {
-  /** The verified bytes the streamer holds for `url`, if any. */
-  bytes(url: string): Uint8Array | undefined;
-  /** Whether `url` is being read. */
-  loading(url: string): boolean;
-  /** Asks the streamer for `urls`, in that order; `ahead` for cells read before they are needed. */
-  request(urls: readonly string[], ahead: boolean): void;
-  /** Rows `from`..`to` of a buffer the session holds were written. */
-  update(rows: PlacementRows, from: number, to: number): void;
-  /** A buffer was replaced by a larger one; absent, a mesh short of rows makes its cell wait. */
-  grow?: GrowRows;
-};
 
 type Placement = { mesh: PlacedMesh; row: number; parent: GraphNode; local: Float64Array };
 type Inputs = {
@@ -60,17 +44,7 @@ type Inputs = {
   meshes: ReadonlyMap<number, PlacedMesh>;
 };
 
-const scratch = new GraphNode(),
-  product = new Float64Array(MATRIX_VALUES);
-
-/** The local matrix the engine composes for a node declaring `node`'s pose. */
-function localOf(node: CellNode) {
-  scratch.position.set(0, 0, 0);
-  scratch.quaternion.set(0, 0, 0, 1);
-  scratch.scale.set(1, 1, 1);
-  pose(scratch, node);
-  return hostLocalInto(new Float64Array(MATRIX_VALUES), scratch);
-}
+const product = new Float64Array(MATRIX_VALUES);
 
 export function createPartitionCells(inputs: Inputs) {
   const { partition, base, root, parents, meshes } = inputs;
@@ -119,7 +93,7 @@ export function createPartitionCells(inputs: Inputs) {
     const placements = nodes.map((node) => {
       const parent = node.parent === null ? root : parents[node.parent];
       const mesh = meshes.get(node.mesh)!;
-      const placement = { mesh, row: takeRow(mesh), parent, local: localOf(node) };
+      const placement = { mesh, row: takeRow(mesh), parent, local: rowLocal(node) };
       write(placement);
       return placement;
     });
@@ -143,8 +117,8 @@ export function createPartitionCells(inputs: Inputs) {
         for (const placement of placements) if (placement.parent === node) write(placement);
     }
   };
-  const flush = (io: PartitionIo) => {
-    for (const [link, { from, to }] of touched) io.update(link.placements!, from, to);
+  const flush = (update: (rows: PlacementRows, from: number, to: number) => void) => {
+    for (const [link, { from, to }] of touched) update(link.placements!, from, to);
     touched.clear();
   };
   return {
@@ -157,7 +131,17 @@ export function createPartitionCells(inputs: Inputs) {
     frame(
       eye: ArrayLike<number>,
       reach: (size: number) => number,
-      io: PartitionIo,
+      /** What a frame reads and writes through the session: the verified bytes the streamer
+       *  holds, whether it is reading an address, a request — `ahead` for cells read before they
+       *  are needed —, rows written, and a buffer grown; without `grow`, a mesh short of rows
+       *  keeps its cell waiting. */
+      io: {
+        bytes(url: string): Uint8Array | undefined;
+        loading(url: string): boolean;
+        request(urls: readonly string[], ahead: boolean): void;
+        update(rows: PlacementRows, from: number, to: number): void;
+        grow?: (from: PlacementRows, to: PlacementRows) => void;
+      },
       budgetMs: number,
     ) {
       followParents();
@@ -184,7 +168,7 @@ export function createPartitionCells(inputs: Inputs) {
         }
         if (ask.length) io.request(ask, ahead);
       }
-      flush(io);
+      flush(io.update);
     },
     /** Reads and places every cell a camera at `eye` needs — within its reach, none ahead —,
      *  before the session reads the rows; resolves with the bytes read. */
