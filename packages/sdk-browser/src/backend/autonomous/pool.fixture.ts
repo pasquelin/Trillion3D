@@ -45,6 +45,7 @@ export function fixture(
     maxResidentPages: options.maxResidentPages,
     descriptors,
     rootUrls,
+    rootError: 0,
     copies,
     shares: new Map(),
     state,

@@ -75,10 +75,16 @@ export function createAutonomousPool(env: {
     { state } = geometryStore;
   // Records added later — instances, rows — are copies of these and carry their page's share.
   const shares = new Map<string, BudgetShare>();
+  // The largest error a refinement reads, the one the DAG roots carry as parents: read once.
+  let rootError = 0;
   for (const [url, recs] of byUrl) {
     const share = { pass: 0, slots: 0 };
     shares.set(url, share);
-    for (const rec of recs) rec.budgetShare = share;
+    for (const rec of recs) {
+      rec.budgetShare = share;
+      const parent = rec.parentError;
+      if (parent != null && parent < Infinity && parent > rootError) rootError = parent;
+    }
   }
   const budget = createGeometryBudget({
     budgetBytes: context.geometryPoolBytes,
@@ -86,6 +92,7 @@ export function createAutonomousPool(env: {
     maxResidentPages: env.cap,
     descriptors: env.descriptors,
     rootUrls: env.bootstrapUrls,
+    rootError,
     copies: pageCopies(byUrl, env.bootstrapUrls, env.instanceCount),
     shares,
     state,
@@ -115,7 +122,7 @@ export function createAutonomousPool(env: {
         return budget.held.slots;
       },
       get geometryPoolClamp() {
-        return budget.held.clamp;
+        return budget.clamp;
       },
       get budgetPixelError() {
         return budget.budgetPixelError;

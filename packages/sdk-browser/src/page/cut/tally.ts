@@ -1,4 +1,5 @@
 import type { PageRecord, SelectionState } from './state.ts';
+import { frameClusterError } from '../selection/frame.ts';
 
 /**
  * The slots a page takes in a page budget, named by every record that draws it: the cut charges
@@ -26,7 +27,8 @@ export interface BudgetTally {
   /** A fallback that goes past the budget fails the pass too (`pageBudgetFrom`'s search); without
    *  it only a page kept by the descent does. */
   budgetStrict: boolean;
-  /** This pass asked for a page finer than a root: a coarser threshold may still cut it down. */
+  /** This pass asked for a page finer than a root whose parent's screen error is finite: a
+   *  coarser threshold may still cut it down. */
   budgetFiner: boolean;
   /** This pass overflowed the budget: its result is discarded, the descent stops there. */
   over: boolean;
@@ -58,6 +60,18 @@ export function startBudgetPass<T extends PageRecord>(s: SelectionState<T>) {
   s.budgetUsed = s.budgetHeld;
   s.budgetDrawn = 0;
   s.budgetFiner = false;
+}
+
+/** Marks a pass that asked for a page a coarser threshold may still cut down: finer than a root,
+ *  with a parent whose screen error is finite. A parent that reaches the near plane is refined at
+ *  every threshold. */
+export function markFiner<T extends PageRecord>(s: SelectionState<T>, rec: T) {
+  if (
+    !s.budgetFiner &&
+    rec.parentError != null &&
+    frameClusterError(s, rec.parentError, rec.parentSphere ?? rec.sphere, 0) < Infinity
+  )
+    s.budgetFiner = true;
 }
 
 /** Charges a page's share, once per pass; true when the pass has gone past the budget. */

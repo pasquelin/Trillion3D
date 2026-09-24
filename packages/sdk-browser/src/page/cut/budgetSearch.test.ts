@@ -85,3 +85,29 @@ test('the search goes on from the previous threshold, one step of √2 an image,
   assert.equal(again.budgetSettled, true);
   assert.ok(image(small.pixelError / Math.SQRT2 + 1e-9, 0).shown.length > 100);
 });
+
+test('the search never climbs past the root error seen at the near plane, from one image to the next', () => {
+  // No root: every page has a parent a coarser threshold would draw, and a budget below what the
+  // cut holds beforehand overflows at every threshold.
+  const roots = [
+    racine(dag({ feuilles: 64, seed: 3 }).filter((page) => page.parentError !== null)),
+  ];
+  const cam = camera();
+  const rootError = 0.02;
+  const image = (from: number) =>
+    selectVisiblePages(
+      roots,
+      cameraMoteur(cam),
+      { ...ask(1, 1), pageBudgetHeld: 2, pageBudgetFrom: from, pageBudgetRootError: rootError },
+      [],
+    );
+  const focal = 360 / Math.tan(Math.PI / 6),
+    ceiling = (rootError * focal) / cam.near;
+  let cut = image(0);
+  for (let frame = 0; frame < 4; frame++) {
+    assert.ok(Math.abs(cut.pixelError / ceiling - 1) < 1e-9, `${cut.pixelError} for ${ceiling}`);
+    assert.equal(cut.budgetExceeded, true, 'drawn at the ceiling, without the budget');
+    assert.equal(cut.budgetSettled, true);
+    cut = image(cut.pixelError);
+  }
+});

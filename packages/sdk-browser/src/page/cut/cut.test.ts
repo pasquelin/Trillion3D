@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { collectClusterPages, selectVisiblePages, type PageRec } from '../selection/selection.ts';
+import {
+  collectClusterPages,
+  createSelectionResult,
+  selectVisiblePages,
+  type PageRec,
+} from '../selection/selection.ts';
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts';
 import { dagCulling } from '../selection/helpers.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
@@ -100,21 +105,7 @@ test('the hierarchical cut reuses its result and arrays from one frame to the ne
   const cam = wideCamera();
   const shown: PageRec[] = [];
   const wanted: PageRec[] = [];
-  const result = {
-    shown,
-    wanted,
-    visible: 0,
-    selectedTriangles: 0,
-    displayedTriangles: 0,
-    frustumRejected: 0,
-    nodesTested: 0,
-    lodLevel: 0,
-    complete: true,
-    pixelError: 0,
-    requiredSlots: null,
-    budgetSettled: true,
-    hostCutFits: null,
-  };
+  const result = { ...createSelectionResult<PageRec>(), shown, wanted };
   const ask = { ...ASK, result, wanted };
   const first = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
   const second = selectVisiblePages(roots, cameraMoteur(cam), { ...ask }, shown);
