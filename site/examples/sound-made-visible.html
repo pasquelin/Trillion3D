@@ -17,32 +17,17 @@
         width: 100%;
         height: 100%;
       }
-      #hint {
-        position: fixed;
-        top: 14px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 6px 14px;
-        border-radius: 999px;
-        pointer-events: none;
-        color: #fff4dc;
-        background: rgba(20, 14, 34, 0.7);
-        font: 600 14px/1.3 system-ui, sans-serif;
-        transition: opacity 0.6s;
-      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <div id="hint" data-words="hint"></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, words } from '../runtime/kit.js';
+      import { announce, controls, whiteNoise, words, opening, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#0d0b16');
-      const hint = document.getElementById('hint');
 
       // Sixty-four bars, one per band of pitch from the lowest bass (warm) to the highest treble
       // (cool). Sixteen glazes, made once; the sound only ever changes a bar's height.
@@ -112,9 +97,7 @@
         music = audio.createGain();
         music.connect(analyser);
         // A twentieth of a second of white noise fading out, the hat's one sample.
-        noise = audio.createBuffer(1, audio.sampleRate * 0.05, audio.sampleRate);
-        const data = noise.getChannelData(0);
-        for (let k = 0; k < data.length; k++) data[k] = (Math.random() * 2 - 1) * (1 - k / data.length);
+        noise = whiteNoise(audio, 0.05, (at) => 1 - at);
       }
       // The analyser feeds the speakers for the melody; for the microphone it only listens, or
       // the room would ring.
@@ -175,7 +158,7 @@
         next = audio.currentTime + 0.05;
         timer = setInterval(schedule, 25);
         schedule();
-        hint.style.opacity = '0';
+        announce('');
       }
       async function useMicrophone() {
         stopAll();
@@ -187,41 +170,34 @@
           microphone = audio.createMediaStreamSource(stream);
           route(false);
           microphone.connect(analyser);
-          hint.textContent = say('listening');
+          announce('', say('listening'));
         } catch {
           if (asked !== request) return;
-          hint.textContent = say('refused');
           playMelody();
+          announce('', say('refused'));
         }
-        hint.style.opacity = '1';
       }
       function silence() {
         stopAll();
-        hint.textContent = say('silence');
-        hint.style.opacity = '1';
+        announce('', say('silence'));
       }
 
       // The camera: the view settles from above onto the stage while turning slowly; a press or a
       // wheel gives it to the viewer. The first press on the stage also starts the melody.
-      const opened = (t) => {
-        const reach = math.lerp(24, 19, t), up = math.lerp(1.35, 0.42, t), around = 2.2 * t;
-        world.camera.position.set(reach * Math.cos(up) * Math.sin(around), 1.5 + reach * Math.sin(up), reach * Math.cos(up) * Math.cos(around));
-      };
-      opened(0);
       world.controls.target.set(0, 1.5, 0);
-      world.controls.update();
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
       world.controls.minDistance = 6;
       world.controls.maxDistance = 50;
-      let opening = 0;
+      opening(world, (time) => {
+        const t = ease.inOut(time / 5), reach = math.lerp(24, 19, t), up = math.lerp(1.35, 0.42, t), around = 2.2 * t;
+        world.camera.position.set(reach * Math.cos(up) * Math.sin(around), 1.5 + reach * Math.sin(up), reach * Math.cos(up) * Math.cos(around));
+        return time < 5;
+      });
       world.canvas.addEventListener('pointerdown', () => {
-        opening = -1;
         if (!timer && !microphone) playMelody();
       });
-      world.canvas.addEventListener('wheel', () => (opening = -1), { passive: true });
 
       const ui = controls({
-        mouse: 'Drag to walk round the stage; the bars are the pitches, the pearls the wave itself',
         layout: Object.keys(LAYOUTS),
         height: [0.3, 3, 1.2],
         playMelody,
@@ -235,7 +211,6 @@
       // bar the loudest bin of its band. Before any sound, a slow swell stands in.
       const spectrum = new Uint8Array(1024), wave = new Uint8Array(2048), sampleRate = () => audio?.sampleRate ?? 48000;
       const band = (k) => Math.floor((40 * 300 ** (k / BARS) * 2048) / sampleRate());
-      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
       let time = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05), live = analyser && (timer || microphone);
@@ -252,18 +227,13 @@
           const level = live ? (peak / 255) ** 1.6 : 0.12 + 0.1 * Math.sin(time * 1.4 - k * 0.25);
           bar.level += (level - bar.level) * Math.min(1, step * 18);
           loud += bar.level;
-          const t = ease(morph), x = math.lerp(bar.from[0], bar.to[0], t), z = math.lerp(bar.from[1], bar.to[1], t);
+          const t = ease.inOut(morph), x = math.lerp(bar.from[0], bar.to[0], t), z = math.lerp(bar.from[1], bar.to[1], t);
           bar.mesh.position.set(x, 0, z);
           bar.mesh.rotation.y = -Math.atan2(z, x);
           bar.mesh.scale.y = 0.08 + bar.level * 7 * ui.height * Math.min(1, time / 2);
         }
         pearls.forEach((mesh, k) => (mesh.position.y = Math.max(0.15, 1.3 + (live ? (wave[k * 21] - 128) / 128 : 0.1 * Math.sin(time * 2 + k * 0.4)) * 1.6 * ui.height)));
         heart.scale.setScalar(0.8 + (loud / BARS) * 1.6);
-        if (opening >= 0 && opening < 1) {
-          opening = Math.min(1, opening + step / 5);
-          opened(ease(opening));
-          world.controls.update();
-        }
         world.invalidate();
       });
     </script>

@@ -919,6 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "BATCHED_WORLD_VIEW": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "RAYCAST_NO_VIEW": "Um ponto de imagem foi pedido a um canvas sem tamanho: não há imagem através da qual mirar.",
+      "SESSION_OPEN_FAILED": "A sessão do mundo não pôde abrir, por um motivo sem código próprio (`world.diagnostic.error`): o erro lançado está em `details.cause`.",
+      "WEBGPU_LOST": "O WebGPU perdeu o seu dispositivo, ou um erro nele deixou um estado a partir do qual nada pode desenhar: lançado por `render`, `flush` e pelas leituras que precisam do dispositivo, nomeado pelo diagnóstico `gpu-device-lost`, e em `world.diagnostic.error` quando uma sessão não pôde abrir por isso.",
       "UNSUPPORTED_SCENE_FORMAT": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar.",
       "SCENE_NOT_SAVABLE": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar."
     }
@@ -1502,7 +1504,12 @@
       "colorSpace": "Como seus números são lidos.",
       "matrix": "Transformação UV do amostrador, `KHR_texture_transform` composta em três linhas; o host a recalcula a partir de offset, repeat e rotation quando possui a atualização.",
       "matrixAutoUpdate": "Se o host reconstrói `matrix`.",
-      "updateMatrix": "Reconstrói `matrix` a partir de offset, repeat e rotation."
+      "updateMatrix": "Reconstrói `matrix` a partir de offset, repeat e rotation.",
+      "offset": "Aquilo de que `matrix` é composta.",
+      "repeat": "Quantas vezes ela cabe.",
+      "center": "O pivô da rotação.",
+      "rotation": "A rotação, em radianos.",
+      "addEventListener": "Avisa o importador quando o anfitrião solta a textura."
     }
   },
   "HostTraversable": {
@@ -3454,6 +3461,8 @@
       "id": "Identidade da textura na cena importada: o que uma chave de cache e uma mensagem usam para nomeá-la.",
       "name": "Nome que o arquivo de origem lhe deu, vazio quando não deu nenhum; lido só por mensagens.",
       "version": "Incrementado sempre que os texels mudam: o que um envio compara para pular uma recópia.",
+      "sampling": "Aumentado quando o endereçamento, os filtros ou a anisotropia mudam: o amostrador é ajustado de novo.",
+      "placement": "Aumentado quando `transform` muda: o posicionamento é reescrito, nada é enviado.",
       "image": "A imagem decodificada. Seu contêiner permanece `unknown`: só a fronteira que a envia sabe.",
       "channel": "Conjunto de UV que o amostrador lê, o `texCoord` de `KHR_texture_transform`; o motor amostra 0 e 1.",
       "wrapS": "Repetição horizontal.",
@@ -3486,7 +3495,9 @@
       "flipY": "Se a imagem é virada de cabeça para baixo ao ser lida.",
       "anisotropy": "Quão nítida a imagem permanece quando vista em ângulo.",
       "channel": "Qual conjunto de UVs da geometria a textura segue.",
-      "version": "Incrementado a cada escrita: o que um material compara para reamostrar.",
+      "version": "Aumentado por uma escrita da imagem ou de como ela é lida: o que um material compara para enviar a imagem de novo.",
+      "sampling": "Aumentado por uma escrita do endereçamento, dos filtros ou da anisotropia: ajustado de novo, nada é enviado.",
+      "placement": "Aumentado por uma escrita de `repeat`, `offset` ou `rotation`: reposicionado, nada é enviado.",
       "image": "A própria imagem: uma imagem, um canvas, um vídeo ou pixels brutos.",
       "layout": "O que a imagem contém além de seus pixels: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Como cada pixel é armazenado: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -3938,10 +3949,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "O que a página contém: o modo, lido e escrito.",
+    "summary": "O que a página contém: o modo de visualização, lido e escrito; as sessões abertas e por que a última falhou, somente leitura.",
     "members": {
       "mode": "O modo de visão: `'beauty'` para a imagem normal, ou um modo que mostra como o motor funciona.",
       "sessions": "As sessões que o mundo abriu até agora: uma mudança que reabre uma aparece aqui.",
+      "error": "Porque a última sessão não pôde abrir, como erro nomeado do motor: o seu `code` é um dos documentados em `EngineError` (`WEBGPU_LOST` quando o WebGPU perdeu o dispositivo), ou `SESSION_OPEN_FAILED` para um motivo sem código próprio. Um `EngineError` de código documentado é o que foi lançado; qualquer outro erro é convertido, e o erro lançado fica então em `details.cause`. `null` desde o início de cada abertura, e quando nada é tentado.",
       "modes": "Cada modo de visão que o renderizador atual oferece."
     }
   },

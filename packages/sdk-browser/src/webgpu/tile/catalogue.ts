@@ -39,6 +39,7 @@ export function tileCatalogue(
         throw new Error('TEXTURE_PREVIEW_GEOMETRY');
       return {
         layout,
+        texture: map,
         lane: encoding.laneOf(chain),
         source:
           layout.tail === 0
@@ -51,6 +52,7 @@ export function tileCatalogue(
       height = rgba?.height ?? Math.max(1, image?.height ?? 1);
     return {
       layout: tileLayout(width, height),
+      texture: map,
       lane: 'lossless',
       source: { kind: 'host', map, rgba },
     };

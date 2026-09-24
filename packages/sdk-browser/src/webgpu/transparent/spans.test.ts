@@ -60,7 +60,7 @@ test('transparent spans follow only changed resident pages through arrival, evic
     assert.equal(table.spans[1], 3);
     assert.equal(flush().length, 0);
   } finally {
-    await disposeWebgpuPages(rt, () => {});
+    await disposeWebgpuPages(rt);
     scene.geoA.dispose();
     scene.geoB.dispose();
     scene.front.dispose();

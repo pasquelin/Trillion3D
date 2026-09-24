@@ -1,16 +1,12 @@
 import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts';
-import type { VisMaterial } from './types.ts';
 
 /**
- * Addressing mode of a map, a nibble of bits per map, six maps in a single word, and the rule that
- * brings a coordinate back into the texture. The word and the rule it commands live together:
- * nobody has to open two files to read an addressing.
- *
- * A material does not set its maps together: colour may repeat where normals clamp, and the
- * mirror may only apply to occlusion. A per-material mode therefore addressed five maps out of
- * six in another map's mode — that is what this word corrects. Bits of a nibble: 1 = S repeats,
- * 2 = S repeats mirrored, 4 and 8 the same on T. The two bits of an axis exclude each other, so
- * `wrapAxis` never has to arbitrate between them, and no bit says "clamp": that is the zero nibble.
+ * Addressing mode of a texture, a nibble of bits carried in its header of the page table
+ * (`../webgpu/tile/sampling.ts`), and the rule that brings a coordinate back into the texture. The
+ * nibble and the rule it commands live together: nobody has to open two files to read an
+ * addressing. Bits of a nibble: 1 = S repeats, 2 = S repeats mirrored, 4 and 8 the same on T. The
+ * two bits of an axis exclude each other, so `wrapAxis` never has to arbitrate between them, and
+ * no bit says "clamp": that is the zero nibble.
  */
 export const WRAP_S_REPEAT = 1,
   WRAP_S_MIRROR = 2,
@@ -20,7 +16,7 @@ export const WRAP_S_REPEAT = 1,
 /** The two repeat bits: without them, no period wraps, so no seam. */
 const WRAP_REPEATS = WRAP_S_REPEAT | WRAP_T_REPEAT;
 
-/** Rank of each map in the word: four bits each, twenty-four bits used out of thirty-two. */
+/** Rank of each map a pixel can name in its tile request (`../webgpu/tile/requestWgsl.ts`). */
 export const WRAP_MAP = {
   base: 0,
   rough: 1,
@@ -29,19 +25,6 @@ export const WRAP_MAP = {
   ao: 4,
   emissive: 5,
 } as const;
-
-/**
- * The `VisMaterial` map each rank of the word describes. A rank added to `WRAP_MAP` without its
- * source does not compile: otherwise the new map would address in clamp without anything saying so.
- */
-const WRAP_SOURCE = {
-  base: 'map',
-  rough: 'roughnessMap',
-  metal: 'metalnessMap',
-  normal: 'normalMap',
-  ao: 'aoMap',
-  emissive: 'emissiveMap',
-} as const satisfies Record<keyof typeof WRAP_MAP, keyof VisMaterial>;
 
 /** Nibble of a map: no bit when clamping, one bit per axis otherwise, never both of the same axis. */
 export function wrapNibble(map: Texture | undefined) {
@@ -53,36 +36,13 @@ export function wrapNibble(map: Texture | undefined) {
   );
 }
 
-/** Name/rank pairs of `WRAP_MAP`, read once: a material's word is written per page row, and
- *  `Object.entries` used to yield a fresh array at each. */
-const WRAP_ENTRIES = Object.entries(WRAP_MAP) as [keyof typeof WRAP_MAP, number][];
-
-/**
- * Addressing word of a material: the nibble of each of its maps at its rank. Written by
- * `../webgpu/row/pageRow.ts` into the page record and by `../webgpu/blend/prepare.ts` into a transparent batch
- * uniform — a page and a transparent batch carrying different words would address the same
- * textures two ways. Ranks come from `WRAP_MAP` itself, never from a second list written by hand,
- * which would let an extra map through in silence.
- */
-export function wrapModes(mat: VisMaterial) {
-  let mot = 0;
-  for (const [nom, rang] of WRAP_ENTRIES) mot |= wrapNibble(mat[WRAP_SOURCE[nom]]) << (4 * rang);
-  return mot;
-}
-
-/** CPU mirror of `wrapOf` (WGSL): the nibble of map `map` in the word. */
-export const wrapOf = (modes: number, map: number) => (modes >>> (4 * map)) & 15;
-
-/** `wrapOf` as the shader reads it, declared once with the addressing rule that uses it. */
-const WRAP_OF_WGSL = `fn wrapOf(modes:u32,map:u32)->u32{return (modes>>(map*4u))&15u;}`;
-
 /**
  * Texture coordinate brought back into [0, 1] according to each axis's mode, for a clamp sampler.
  * Mirror reads odd periods backwards: `p` walks [0, 2) and `2 - p` is exact, so linear filtering
  * yields the colour of the hardware `mirror-repeat` sampler.
  *
- * `wrapUv` receives the nibble of the map being read, not the material flags: a page's colour may
- * repeat where its normals clamp.
+ * `wrapUv` receives the nibble of the texture being read, not the material flags: a page's colour
+ * may repeat where its normals clamp.
  *
  * Folding the coordinate is enough for nearest and mirror, never for repeat under linear
  * filtering: in the half-texel of both edges of a period, the sampler's rule mixes the last texel
@@ -95,8 +55,7 @@ const WRAP_OF_WGSL = `fn wrapOf(modes:u32,map:u32)->u32{return (modes>>(map*4u))
  * With no repeat bit, no period wraps and the seam cannot be true: `wrapReplie` then yields the
  * coordinate alone, and the caller is spared counting texels.
  */
-export const WRAP_COORD_WGSL = `${WRAP_OF_WGSL}
-fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
+export const WRAP_COORD_WGSL = `fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
  let p=t-2.0*floor(t*0.5);
  return select(select(clamp(t,0.0,1.0),fract(t),repeat),select(p,2.0-p,p>1.0),mirror);
 }

@@ -20,8 +20,13 @@ type TileSource =
   | { kind: 'baked'; sha256: string; atlas: number; tail: TailBytes }
   | { kind: 'host'; map: Texture; rgba: TextureRgba | null };
 
-/** A texture of the atlas: its tile geometry, the lane whose pool holds it, its texels. */
-export type TileTexture = { layout: TileLayout; lane: PoolLane; source: TileSource };
+/** A texture of the atlas: tile geometry, pool lane, texels, and its record — none for the fill. */
+export type TileTexture = {
+  layout: TileLayout;
+  lane: PoolLane;
+  source: TileSource;
+  texture?: Texture;
+};
 
 /**
  * A virtual-texture atlas: one pool per lane, its page table and its catalogue. It knows which

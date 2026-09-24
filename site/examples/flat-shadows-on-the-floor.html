@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -149,7 +149,6 @@
         length?.(say('timesHeight', { times: (1 / Math.tan(rise)).toFixed(1) }));
       };
       const ui = controls({
-        mouse: 'Drag to walk around the sundial; slide the hour and every shadow swings with the sun',
         hour: [6.6, 17.4, 16.2, 0.05],
         darkness: [0.2, 0.9, 0.55, 0.05],
         timeLapse: false,
@@ -164,13 +163,12 @@
       setHour(hour);
 
       // The opening: dawn to the chosen hour in a few seconds, the shadows sweeping round the dial.
-      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
       let time = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         if (opening < 1) {
           opening = Math.min(1, opening + step / 3.5);
-          setHour(6.6 + (ui.hour - 6.6) * ease(opening));
+          setHour(6.6 + (ui.hour - 6.6) * ease.inOut(opening));
         } else if (ui.timeLapse) setHour(hour + step * 1.2 > 17.4 ? 6.6 : hour + step * 1.2);
         if (ui.motion) {
           time += step;
