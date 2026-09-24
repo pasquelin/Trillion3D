@@ -16,12 +16,22 @@ rule 2).
    - no image loss (AGENTS.md rule 1), no tuning on a scene, numbers measured and never
      estimated;
    - reuse: nothing that duplicates an existing mechanism, even under another name;
+   - examples: an example added or taken out of parking has its thumbnail
+     (`site/assets/examples/thumbnails/<id>.png`), or its issue carries `to measure` for the
+     measurer's capture; an example whose issue is closed is out of parking;
+   - CONTRIBUTING.md §Streaming, memory and shadows (the rules of #483): no hole, one mechanism
+     per concern, nothing rebuilt every frame, bounded by the view, WebGL2 degraded but never
+     broken;
+   - examples use the engine: a per-frame page loop over vertices, tracks or controls standing in
+     for a missing engine feature is a finding;
    - CONTRIBUTING.md §Quality and evidence and §Engine and package boundaries;
    - the path: issue, reviewer's passes filled in, `validate` green, the right lifecycle label.
 4. **Verdict.**
    - Clean: `gh pr edit <pr> --add-label audited`.
-   - A defect: **a new issue** written as `docs/roles/writer.md` shows — title `Audit of #<pr>:
-<what>`, one line per finding (file:line, what is wrong, which rule), `Links: #<n>, #<pr>` —
-     labelled `audit ko` plus the domain label of #<n>; one line on #<n> pointing to it; then
-     `gh pr edit <pr> --add-label audited`. The domain's lead takes it; #<n> stays closed.
+   - A defect: **reopen the audited issue**, never open a new one. `gh issue reopen <n>`, a
+     comment `Audit of #<pr>:` with one line per finding (file:line, what is wrong, which rule),
+     and `gh issue edit <n> --add-label "audit ko"`; it keeps its other labels. When the pull
+     request closed several issues, reopen the one each finding concerns. Then
+     `gh pr edit <pr> --add-label audited`. The domain's lead takes #<n> again, removes
+     `audit ko` and closes it once the findings are fixed.
 5. Back to step 1. Report to the maintainer only the `audit ko` verdicts, one line each.

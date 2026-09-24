@@ -618,6 +618,18 @@
         ],
         "tryIt": "Nhấp vào hình, đi bằng W A S D, nhảy bằng phím cách. Leo cầu thang, đứng trên bệ, đẩy chồng thùng."
       },
+      "connect-drive-and-break": {
+        "title": "Nối, điều khiển và làm gãy",
+        "description": "Khớp nối giữ hai vật với nhau, hoặc một vật với thế giới: cánh cửa xoay trên bản lề, ngăn kéo trượt trên ray, sợi xích treo bằng các mắt xích, và cây cầu gãy khi bị kéo quá mạnh.",
+        "steps": [
+          "Tạo khớp bằng <code>joint.hinge(a, b, options)</code> hoặc các họ hàng của nó — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — rồi đưa cho <code>world.physics.add</code>. Đặt <code>null</code> cho <code>b</code> để giữ một vật với thế giới.",
+          "<code>anchor</code> là nơi các vật nối với nhau và <code>axis</code> là hướng của chốt hay ray; cả hai ở trong thế giới, được đọc khi khớp được tạo.",
+          "<code>limits</code> chặn khớp lại: radian cho bản lề, mét cho ray trượt. Một <code>spring</code> làm điểm chặn mềm đi.",
+          "Một <code>motor</code> đưa bản lề hoặc ray trượt tới một vận tốc hay một vị trí. Đổi <code>joint.motor</code> bất cứ lúc nào.",
+          "<code>breakForce</code> là lực kéo, tính bằng newton, mà vượt quá thì khớp đứt: <code>joint.broken</code> thành true và <code>joint.on('break', …)</code> được gọi."
+        ],
+        "tryIt": "Mở cửa và ngăn kéo, rồi thả hòn đá lên cầu. Giảm độ bền của cầu và dựng lại: nó gãy dưới chính sức nặng của mình."
+      },
       "your-own-scene": {
         "title": "Cảnh của riêng bạn",
         "description": "Giờ bạn đã biết từng mảnh ghép. Chương này gộp chúng lại thành một cảnh nhỏ mà bạn có thể sao chép và biến thành của riêng mình.",
@@ -1476,6 +1488,7 @@
       "a-software-rasteriser": "Bộ raster hóa phần mềm",
       "sound-from-the-gpu": "Âm thanh từ GPU",
       "falling-boxes": "Các hộp rơi",
+      "floating-crates": "Thùng gỗ nổi",
       "ten-thousand-bodies": "Mười nghìn vật thể",
       "breaking-things": "Phá vỡ đồ vật",
       "cloth-and-rope": "Vải và dây thừng",
@@ -1509,9 +1522,6 @@
       "a-capped-section": "mặt phẳng cắt: nắp stencil",
       "decals-on-a-surface": "chọn bằng tia (raycast)",
       "sculpt-a-sphere": "chọn bằng tia (raycast)",
-      "a-video-on-a-screen": "kết cấu video trực tiếp",
-      "the-webcam-as-a-texture": "kết cấu video trực tiếp",
-      "four-ways-to-blend": "mọi chế độ pha trộn",
       "avif-textures": "trình nhập nguồn khác: ảnh AVIF",
       "object-space-normals": "normal map không gian đối tượng",
       "a-bumpy-surface": "bản đồ bump, displacement và parallax",
@@ -1582,7 +1592,6 @@
       "a-medical-scan": "dựng hình thể tích",
       "a-city-from-3d-tiles": "đầu vào 3D Tiles",
       "rendering-in-a-worker": "dựng hình worker OffscreenCanvas",
-      "a-video-panorama": "kết cấu video trực tiếp",
       "an-atmospheric-sky": "mô hình bầu trời",
       "chrome-in-a-room": "chiếu sáng môi trường (IBL)",
       "lit-by-an-hdr-image": "chiếu sáng môi trường (IBL)",
@@ -1652,7 +1661,6 @@
       "breaking-things": "tích hợp vật lý",
       "cloth-and-rope": "tích hợp vật lý",
       "soft-bodies": "tích hợp vật lý",
-      "hinges-and-joints": "tích hợp vật lý",
       "drive-a-car": "tích hợp vật lý",
       "a-room-in-vr": "phiên WebXR",
       "a-360-photo-in-vr": "phiên WebXR",

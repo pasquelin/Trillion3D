@@ -10,7 +10,8 @@ run by the measurer after the merge.
    `git worktree add .worktrees/<n>-<short-name> -b <n>-<short-name> origin/develop`, then
    `pnpm install` there — it links AGENTS.md and `docs/roles/` into the tree. Work only there.
 3. Code and test as CONTRIBUTING.md requires: one test per changed behaviour, no dead code, 200
-   lines per file, English everywhere.
+   lines per file, English everywhere. Then review your diff twice: first `/simplify` (what is
+   duplicated, needless or at the wrong depth), then correctness against the issue.
 4. Gates: `pnpm run check:changed`, `pnpm run test:changed`, then the group your diff touches —
    `pnpm run validate --group quick` (sources), `--group typescript` (build and products),
    `--group native` (Rust and the unit suite).

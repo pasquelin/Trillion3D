@@ -8,28 +8,50 @@
 //! `MeshShape` stored as a SHA-addressed object like the pages; a regular grid becomes a height
 //! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), each placement carrying the matter its
 //! source declares through `KHR_physics_rigid_bodies` (`declared.rs`).
-use crate::{CompilerError, Result};
+use crate::dag::{CullingNode, DagCluster};
+use crate::{CompilerError, Options, Result};
+use serde_json::{json, Value};
 
 mod cut;
+#[cfg(test)]
+mod cut_tests;
 mod declared;
-mod hausdorff;
+pub(crate) mod hausdorff;
 mod height;
+#[cfg(test)]
+mod small_tests;
 mod stage;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use cut::cook_primitive;
 pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 2;
+pub const PHYSICS_COOK_VERSION: u32 = 4;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 1;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
 pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
 /// Name of the product beside the manifest.
 pub const PHYSICS_FILE: &str = "physics.json";
+
+/// The collision of one primitive (`cut::cook_primitive`), or `{"refused": reason}` when Jolt
+/// refuses one of its shapes: that primitive collides with nothing, and `physics.json`'s report
+/// names it; the compile goes on, its render untouched.
+pub(crate) fn cook_primitive(
+    o: &Options,
+    dag: &[DagCluster],
+    order: &[usize],
+    culling: &[CullingNode],
+    pos: &[f32],
+    source: &[u32],
+) -> Result<Value> {
+    match cut::cook_primitive(o, dag, order, culling, pos, source) {
+        Err(e) if e.code == PHYSICS_COOK_FAILED => Ok(json!({"refused":e.message})),
+        cooked => cooked,
+    }
+}
 
 extern "C" {
     fn cook_mesh(
@@ -50,17 +72,23 @@ extern "C" {
     ) -> u32;
 }
 
-fn refused(what: &str) -> CompilerError {
-    CompilerError::new("PHYSICS_COOK_FAILED", format!("Jolt refused the {what}"))
-}
+/// The code of a shape Jolt refuses: the primitive gets no collider, named in the report.
+pub(crate) const PHYSICS_COOK_FAILED: &str = "PHYSICS_COOK_FAILED";
 
-/// Copies the bytes the cook left for this thread, or names what it refused.
+/// Copies the bytes the cook left for this thread, or names what it refused and Jolt's reason.
 fn taken(status: u32, out: *const u8, bytes: u32, what: &str) -> Result<Vec<u8>> {
-    if status != 0 || out.is_null() {
-        return Err(refused(what));
+    // SAFETY: the cook left `bytes` bytes at `out`, valid until this thread's next call.
+    let left = (!out.is_null()).then(|| unsafe { std::slice::from_raw_parts(out, bytes as usize) });
+    match (status, left) {
+        (0, Some(left)) => Ok(left.to_vec()),
+        (_, left) => Err(CompilerError::new(
+            PHYSICS_COOK_FAILED,
+            format!(
+                "Jolt refused the {what}: {}",
+                String::from_utf8_lossy(left.unwrap_or_default())
+            ),
+        )),
     }
-    // SAFETY: the cook returned `bytes` bytes at `out`, valid until this thread's next call.
-    Ok(unsafe { std::slice::from_raw_parts(out, bytes as usize) }.to_vec())
 }
 
 /// A static `MeshShape` of `triangles` (indices into `vertices`), without material: a tile is of

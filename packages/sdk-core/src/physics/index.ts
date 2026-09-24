@@ -10,3 +10,11 @@ export {
   type ContactEventName,
   type PhysicsHost,
 } from './objectPhysics.ts';
+export {
+  Joint,
+  joint,
+  type JointKind,
+  type JointLimits,
+  type JointMotor,
+  type JointOptions,
+} from './joint.ts';

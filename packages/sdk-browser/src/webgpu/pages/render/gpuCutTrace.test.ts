@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTimingState } from '../state/timing.ts';
-import { CPU_STEP, CPU_STEP_STAGES } from './cpuSteps.ts';
+import { CPU_STEP, CPU_STEP_STAGES } from './cpuStepTable.ts';
 import { recordGpuCutTiming } from './gpuCutTrace.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 

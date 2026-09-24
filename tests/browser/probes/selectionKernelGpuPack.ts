@@ -5,7 +5,7 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import { FRAME_VEC4 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
 
@@ -17,13 +17,7 @@ export function versPage(name: string, packed: PackedDag, uniforms: SelectionUni
   // The whole uniform array the kernel binds; the case fills its first view.
   const uni = new Float32Array(DAG_UNIFORM_BYTES / 4);
   writeDagUniforms(uni, packed, uniforms, false);
-  const frames = new Float32Array(Math.max(1, packed.worldCount) * FRAME_VEC4 * 4);
-  const frameInts = new Uint32Array(frames.buffer);
-  for (let w = 0; w < packed.worldCount; w++) {
-    frames[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
-    // The primitive's root travels with its stretch: level descent starts from it.
-    frameInts[(w * FRAME_VEC4 + 6) * 4 + 1] = packed.rootNodes[w];
-  }
+  const frames = primitiveFrameWords(packed);
   const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP);
   return {
     name,
@@ -49,6 +43,8 @@ export interface ExecuterEntree {
   entete: number;
   totaux: { selected: number; transparent: number; drawn: number; uncovered: number };
   bitsPage: number;
+  /** Group-0 layout, read from `dagBindEntries`: the page has no module to import it from. */
+  layoutEntries: GPUBindGroupLayoutEntry[];
 }
 export interface Resultat {
   name: string;

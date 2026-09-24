@@ -5,8 +5,12 @@ import type { World } from '../core/world.ts';
  * world holds now (`world.budget`); the two pools build the setting a world takes.
  */
 export const budget = {
-  /** The memory budgets a world holds right now: both pools and the largest each may grow to. */
+  /** The memory budgets a world holds right now: the GPU and CPU totals, how the rule splits them,
+   *  both pools and the largest each may grow to. */
   memory: ({ budget: b }: World) => ({
+    gpu: b.gpu,
+    cpu: b.cpu,
+    split: b.split,
     geometryPool: b.geometryPool,
     texturePool: b.texturePool,
     geometryPoolCeiling: b.geometryPoolCeiling,

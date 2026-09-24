@@ -22,7 +22,8 @@
  * WHAT DOES NOT CHANGE. Normalized x and y are `[−1, 1]` and their passage to the screen
  * depends on nothing here. The host WebGL2 path, for its part, draws with the host-library
  * projection, in FORWARD depth: it signs the coplanar-layer offset itself
- * (`bench/witnesses/exact/batches/batchLayers.ts`) and reads nothing from this file.
+ * (`bench/witnesses/exact/batches/batchLayers.ts`); it reads from this file only the depth
+ * material's ramp (`writeDepthRamp`), which is the same on both paths.
  */
 
 /** Depth comparison of every pipeline: in reversed depth, the greater wins. */
@@ -61,3 +62,26 @@ export function depthDistance(depth: number, near: number) {
  * buffer, as everywhere the core multiplies matrices (`packages/sdk-core/src/math/matrix/matrix4.ts`).
  */
 export type DepthCamera = { viewProjection: Float64Array };
+
+/**
+ * The grey ramp a depth material shows, in one convention whatever the depth buffer holds:
+ * white at `near`, black at `far`, linear in view distance `d` — `(far − d) / (far − near)`.
+ * Written as three weights `(a, b, c)` a shader applies to a pixel's clip coordinates,
+ * `ramp = a·w + b + c·z/w`: under a perspective projection `w` is `d` (`c = 0`); under the
+ * orthographic one, whose reversed depth is already affine from 1 at `near` to 0 at `far`,
+ * `z/w` is the ramp itself (`a = b = 0`, `c = 1`). A renderer that holds the view distance
+ * itself applies `a·d + b` alone, the perspective weights.
+ */
+export function writeDepthRamp(
+  out: Float32Array,
+  offset: number,
+  near: number,
+  far: number,
+  perspective: number,
+) {
+  const span = far - near;
+  out[offset] = -perspective / span;
+  out[offset + 1] = (perspective * far) / span;
+  out[offset + 2] = 1 - perspective;
+  return out;
+}

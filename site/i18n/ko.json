@@ -305,6 +305,7 @@
       "a-software-rasteriser": "소프트웨어 래스터라이저",
       "sound-from-the-gpu": "GPU에서 나오는 소리",
       "falling-boxes": "떨어지는 상자",
+      "floating-crates": "떠다니는 상자",
       "ten-thousand-bodies": "만 개의 물체",
       "breaking-things": "물체 부수기",
       "cloth-and-rope": "천과 밧줄",
@@ -338,9 +339,6 @@
       "a-capped-section": "클리핑 평면: 스텐실 마개",
       "decals-on-a-surface": "선택(레이캐스트)",
       "sculpt-a-sphere": "선택(레이캐스트)",
-      "a-video-on-a-screen": "실시간 영상 텍스처",
-      "the-webcam-as-a-texture": "실시간 영상 텍스처",
-      "four-ways-to-blend": "모든 혼합 모드",
       "avif-textures": "추가 원본 불러오기: AVIF 이미지",
       "object-space-normals": "오브젝트 공간 노멀맵",
       "a-bumpy-surface": "범프, 변위, 패럴랙스 맵",
@@ -411,7 +409,6 @@
       "a-medical-scan": "볼륨 렌더링",
       "a-city-from-3d-tiles": "3D Tiles 불러오기",
       "rendering-in-a-worker": "워커에서의 렌더링(OffscreenCanvas)",
-      "a-video-panorama": "실시간 영상 텍스처",
       "an-atmospheric-sky": "하늘 모델",
       "chrome-in-a-room": "환경 조명(IBL)",
       "lit-by-an-hdr-image": "환경 조명(IBL)",
@@ -481,7 +478,6 @@
       "breaking-things": "물리 엔진 연동",
       "cloth-and-rope": "물리 엔진 연동",
       "soft-bodies": "물리 엔진 연동",
-      "hinges-and-joints": "물리 엔진 연동",
       "drive-a-car": "물리 엔진 연동",
       "a-room-in-vr": "WebXR 세션",
       "a-360-photo-in-vr": "WebXR 세션",
@@ -1072,6 +1068,18 @@
           "가벼운 상자를 <code>'dynamic'</code>으로 만드세요: 캐릭터가 <code>pushStrength</code> 뉴턴으로 밀면 상자는 넘어지고 구르며 되밀어냅니다."
         ],
         "tryIt": "그림을 클릭하고 W A S D로 걷고 스페이스로 점프하세요. 계단을 오르고, 발판에 타고, 쌓인 상자를 밀어 보세요."
+      },
+      "connect-drive-and-break": {
+        "title": "잇고, 움직이고, 부수기",
+        "description": "관절은 두 물체를 서로, 또는 물체를 세계에 붙잡아 둡니다. 문은 경첩에서 돌고, 서랍은 레일 위를 미끄러지고, 사슬은 고리로 매달리며, 다리는 너무 세게 당기면 부서집니다.",
+        "steps": [
+          "<code>joint.hinge(a, b, options)</code> 또는 그 친척들 — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — 로 관절을 만들고 <code>world.physics.add</code>에 넘기세요. 물체를 세계에 붙잡으려면 <code>b</code>에 <code>null</code>을 넣으세요.",
+          "<code>anchor</code>는 물체들이 이어지는 지점이고 <code>axis</code>는 핀이나 레일의 방향입니다. 둘 다 세계 좌표이며 관절을 만들 때 읽힙니다.",
+          "<code>limits</code>가 관절을 멈춥니다. 경첩은 라디안, 슬라이더는 미터. <code>spring</code>은 멈춤을 부드럽게 합니다.",
+          "<code>motor</code>는 경첩이나 슬라이더를 속도나 위치로 움직입니다. <code>joint.motor</code>는 언제든 바꿀 수 있습니다.",
+          "<code>breakForce</code>는 관절이 끊어지는 당김의 크기(뉴턴)입니다. 끊어지면 <code>joint.broken</code>이 true가 되고 <code>joint.on('break', …)</code>가 호출됩니다."
+        ],
+        "tryIt": "문과 서랍을 열고, 다리 위에 돌을 떨어뜨려 보세요. 다리 강도를 낮추고 다시 지으면 자기 무게로 부서집니다."
       },
       "your-own-scene": {
         "title": "나만의 장면",

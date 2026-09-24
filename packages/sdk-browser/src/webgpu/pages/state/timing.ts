@@ -2,7 +2,7 @@ import type { GpuPassTimings } from '../../../../../sdk-core/src/index.ts';
 import type { createGpuTiming } from '../../../gpu/timing/timing.ts';
 import type { SelectionSubmission } from '../../../gpu/core/selection.ts';
 import { createCpuStepProfile } from '../../../stage/cpuProfile.ts';
-import { CPU_STEP_NAMES } from '../render/cpuSteps.ts';
+import { CPU_STEP_NAMES } from '../render/cpuStepTable.ts';
 import { createStageProfiler, type StageProfiler } from '../../../stage/profiler.ts';
 import { WEBGPU_STAGES } from '../../../stage/mapping.ts';
 

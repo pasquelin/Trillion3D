@@ -1,3 +1,4 @@
+import { DAG_BINDINGS_WGSL } from './bindings.ts';
 import { DAG_ERROR_WGSL } from './error.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts';
@@ -18,7 +19,7 @@ import {
   HALF_PI_WGSL,
 } from '../../../../../sdk-core/src/index.ts';
 
-export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,flags:u32,}
+export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,nodeFlags:u32,pad0:u32,pad1:u32,}
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
@@ -28,15 +29,7 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue.
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,stateRow:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
-@group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
-@group(0) @binding(1) var<storage, read> nodes:array<CullNode>;
-@group(0) @binding(2) var<uniform> views:array<Uniforms,MAX_VIEWS>;
-@group(0) @binding(3) var<storage, read_write> flags:array<u32>;
-@group(0) @binding(4) var<storage, read_write> out:Output;
-@group(0) @binding(5) var<storage, read_write> work:array<atomic<u32>>;
-@group(0) @binding(6) var<storage, read> worlds:array<mat4x4f>;
-@group(0) @binding(7) var<storage, read_write> frames:array<vec4f>;
-@group(0) @binding(8) var<storage, read> cold:array<u32>;
+${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
 const INF:f32=3.4e38;
@@ -95,9 +88,9 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  let d=dot(axisWorld,view);
  return d<-sin(cone.w+spread)&&(cone.w+spread)<${HALF_PI_WGSL};
 }
-fn coneRejects(index:u32,cluster:Cluster)->bool{
- if(hasBox(index)==0.0){return false;}
- return coneRejectsBox(coneOf(index),boxMin(index),boxMax(index),worlds[cluster.worldIndex]);
+fn coneRejects(r:u32,w:u32)->bool{
+ if(hasBox(r)==0.0){return false;}
+ return coneRejectsBox(coneOf(r),boxMin(r),boxMax(r),worlds[w]);
 }
 /** Cone reject depends only on the page, its world and the camera: it is therefore the same for
  *  the five passes of one frame. \`dagWanted\` computes it once per visible page and stores it
@@ -105,9 +98,9 @@ fn coneRejects(index:u32,cluster:Cluster)->bool{
  *  \`length\`s. They only read it for a visible page, the only one it was written for. */
 fn coneCache(index:u32)->u32{return views[0u].queueCap+views[0u].clusterCount+index;}
 fn coneRejected(index:u32)->bool{return flags[coneCache(index)]!=0u;}
-fn visible(index:u32,cluster:Cluster)->bool{
+fn visible(r:u32,w:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
- return !outsideFrustum(slotOf(cluster.worldIndex)*FRAME,boxMin(index),boxMax(index))&&!pageMissed(cluster.worldIndex,boxMin(index),boxMax(index));
+ return !outsideFrustum(slotOf(w)*FRAME,boxMin(r),boxMax(r))&&!pageMissed(w,boxMin(r),boxMax(r));
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStretch;}
 /** Raise the primitive's threshold to the replacement band, or demand the pinned cover.
@@ -151,11 +144,12 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
  let s=id.x;
  if(s<liveCount()){
   let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
-  let cluster=clusters[i];
+  let w=pageWorld(i);let r=recordOf(i,w);
+  let cluster=clusters[r];
   var draw=false;
   var trou=false;
   if(!coneRejected(i)){
-   let w=cluster.worldIndex;let slot=slotOf(w);
+   let slot=slotOf(w);
    if(views[0u].residentCut!=0u&&(atomicLoad(&work[slots()+slot])!=0u||pruneCrossed(slot))){
     // No resident ancestor replaces the missing cluster: this primitive falls back to its pinned roots.
     draw=(cluster.flags&1u)!=0u;
@@ -167,7 +161,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
     if(draw&&views[0u].residentCut!=0u&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
    }
   }
-  noteImage(i,cluster.flags,draw||trou,draw,trou);
+  noteImage(r,cluster.flags,draw||trou,draw,trou);
   // A light cut keeps no draw flag — two views may draw the same cluster —, only its view's log.
   if(isLightCut()){if(draw){viewDrawnAppend(i);}}
   else{

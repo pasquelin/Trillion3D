@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Aperte Jogar, depois corra com W A S D e pule com Espaço.",
+    "banner": "Aperte Jogar, depois corra com W A S D e pule com Espaço. Solte cedo: na pedra você desliza um pouco antes de parar.",
     "controls": {
       "keys": "O controle de personagem do motor: Jogar no menu captura o mouse para olhar, W A S D para correr (Z Q S D no AZERTY), Shift para disparar, Espaço para pular, Esc solta o mouse. A página adiciona R para correr de novo, M para tirar o som.",
       "look": "Olhar",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Muda o nível, as ondas, a densidade e a corrente da água: as caixas flutuam, derivam, afundam e assentam.",
+    "controls": {
+      "level": "Nível",
+      "waves": "Ondas",
+      "density": "Densidade da água",
+      "current": "Corrente",
+      "drop": "Largar",
+      "again": "De novo",
+      "slowMotion": "Câmara lenta"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Dez mil caixas caem de uma vez. O painel mostra em direto quanto custa a física.",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Clique para olhar em volta, depois ande com W A S D e salte com Espaço: suba a escada e a rampa, ande na plataforma, empurre as caixas.",
+    "banner": "Clique para olhar em volta, depois ande com W A S D e salte com Espaço: suba a escada e a rampa, ande na plataforma, empurre as caixas e solte as teclas no gelo para deslizar.",
     "controls": {
       "pushStrength": "Força de empurrão (N)",
       "platformSpeed": "Velocidade da plataforma",
@@ -1962,6 +1979,21 @@
       "bodies": "Corpos",
       "awake": "Acordados",
       "step": "Passo"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Abra a porta e a gaveta, balance a corrente e depois solte a pedra sobre a ponte e veja-a quebrar.",
+    "controls": {
+      "openDoor": "Abrir a porta",
+      "openDrawer": "Abrir a gaveta",
+      "strength": "Resistência da ponte (N)",
+      "swingChain": "Balançar a corrente",
+      "dropStone": "Soltar a pedra",
+      "rebuild": "Reconstruir a ponte"
+    },
+    "readouts": {
+      "joints": "Juntas",
+      "broken": "Quebradas"
     }
   }
 }
