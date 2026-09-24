@@ -1,33 +1,37 @@
-// Page side of the material proof: each fixture rendered by the Three witness and by the WebGPU
-// engine, both from `dist/`, then read at the same points. The witness is drawn the way the
-// explorer draws a Three-rendered engine — sRGB output, ACES once a light exists, identity
-// without one — and the engine presents into its own canvas and answers `capture()`.
+// Page side of the material proof: each fixture rendered by its pair of renderers — the Three
+// witness and the WebGPU engine unless it names WebGL2 —, all from `dist/`, then read at the same
+// points. The witness is drawn the way the explorer draws a Three-rendered engine — sRGB output,
+// ACES once a light exists, identity without one — and each engine presents into its own canvas.
 //
 // This module is SERVED to the harness page (mount `/tests/`) and imported by its URL, since the
 // evaluated function is serialised and cannot reach a module of its own.
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { cameraFace } from './sharedSceneProof.ts';
+import { cameraFace, releaseScene } from './sharedSceneProof.ts';
 import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
-import { SUN, fixtures, type Fixture } from './materialFixtures.ts';
+import { fixtures } from './materialFixtures.ts';
+import { SUN, WITNESS_PAIR, type Fixture, type Renderer } from './materialFixtureShape.ts';
 import {
   witnessRenderer,
   sceneOf,
   rgbAt,
   witnessImage,
   engineImage,
+  webgl2Image,
   CLEAR_COLOR,
 } from './materialPixelsRender.ts';
 import type {
   BackendFactory,
   BackendDiagnostic,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
-import type * as SdkBrowser from '../../../bench/witnesses/measurement.ts';
+import type * as Witnesses from '../../../bench/witnesses/measurement.ts';
+import type * as Engine from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 interface Sides {
   referenceBackend: BackendFactory;
   webgpuPagesBackend: BackendFactory;
+  autonomousPagesBackend: BackendFactory;
   device: GPUDevice;
   renderer: THREE.WebGLRenderer;
   canvas: HTMLCanvasElement;
@@ -38,21 +42,24 @@ interface Sides {
 
 interface Reading {
   point: number[];
-  witness: number[];
+  reference: number[];
   engine: number[];
   gap: number;
 }
 
 interface Comparison {
   name: string;
+  /** The reference, then the renderer read against it. */
+  pair: readonly [Renderer, Renderer];
   difference: number[];
   reason: string;
   held: boolean;
   events: BackendDiagnostic[];
   samples: Reading[];
-  /** Pixels where the engine shows the background and the witness a surface (`behind`). */
+  /** Pixels where the engine shows the background and the reference a surface (`behind`). */
   holes?: number;
-  images: { witness: string; engine: string };
+  /** Each renderer's image, by its name. */
+  images: Record<string, string>;
 }
 
 /** The display background, one 8-bit step either way per channel. */
@@ -60,42 +67,69 @@ const CLEAR_RGB = [16, 8, 0].map((shift) => (CLEAR_COLOR >> shift) & 255);
 const isClear = (pixels: ArrayLike<number>, i: number) =>
   CLEAR_RGB.every((c, k) => Math.abs(pixels[i + k] - c) <= 1);
 
-/** Pixels where `engine` shows the background and `witness` does not. */
-function holesOf(witness: ArrayLike<number>, engine: ArrayLike<number>) {
+/** Pixels where `engine` shows the background and `reference` does not. */
+function holesOf(reference: ArrayLike<number>, engine: ArrayLike<number>) {
   let holes = 0;
-  for (let i = 0; i < witness.length; i += 4)
-    if (isClear(engine, i) && !isClear(witness, i)) holes++;
+  for (let i = 0; i < reference.length; i += 4)
+    if (isClear(engine, i) && !isClear(reference, i)) holes++;
   return holes;
 }
 
-/** One fixture on both engines: the readings at its points, the engine's diagnostics, both images. */
-async function compare(fixture: Fixture, sides: Sides): Promise<Comparison> {
-  const { referenceBackend, webgpuPagesBackend, device, renderer, canvas, camera, stores } = sides;
-  const events: BackendDiagnostic[] = [];
+/** One fixture drawn by one renderer, on a scene of its own the renderer releases. */
+async function drawn(
+  renderer: Renderer,
+  fixture: Fixture,
+  sides: Sides,
+  events: BackendDiagnostic[],
+): Promise<{ pixels: ArrayLike<number>; held: boolean; dataUrl: string }> {
   const scene = sceneOf(fixture, sides.sun);
-  const witness = witnessImage(referenceBackend, scene, renderer, camera);
-  const witnessUrl = canvas.toDataURL();
-  const lights = fixture.lit ? stores.sun : stores.none;
-  const engineSide = await engineImage(webgpuPagesBackend, scene, device, lights, camera, events);
+  const { camera } = sides;
+  const lights = fixture.lit ? sides.stores.sun : sides.stores.none;
+  if (renderer === 'webgl2')
+    return webgl2Image(sides.autonomousPagesBackend, scene, lights, camera);
+  if (renderer === 'webgpu') {
+    const { pixels, held, dataUrl } = await engineImage(
+      sides.webgpuPagesBackend,
+      scene,
+      sides.device,
+      lights,
+      camera,
+      events,
+    );
+    return { pixels: pixels ?? [], held, dataUrl };
+  }
+  const pixels = witnessImage(sides.referenceBackend, scene, sides.renderer, camera);
+  releaseScene(scene);
+  return { pixels, held: true, dataUrl: sides.canvas.toDataURL() };
+}
+
+/** One fixture on its pair of renderers: the readings at its points, the engine's diagnostics,
+ *  both images. */
+async function compare(fixture: Fixture, sides: Sides): Promise<Comparison> {
+  const events: BackendDiagnostic[] = [];
+  const pair = fixture.pair ?? WITNESS_PAIR;
+  const reference = await drawn(pair[0], fixture, sides, events);
+  const engine = await drawn(pair[1], fixture, sides, events);
   const { name, difference, reason } = fixture;
   return {
     name,
+    pair,
     difference,
     reason,
-    held: engineSide.held,
+    held: reference.held && engine.held,
     events,
     samples: fixture.points.map((point) => {
-      const a = rgbAt(witness, point),
-        b = rgbAt(engineSide.pixels ?? [], point);
+      const a = rgbAt(reference.pixels, point),
+        b = rgbAt(engine.pixels, point);
       return {
         point,
-        witness: a,
+        reference: a,
         engine: b,
         gap: Math.max(...a.map((c, i) => Math.abs(c - b[i]))),
       };
     }),
-    holes: fixture.behind !== undefined ? holesOf(witness, engineSide.pixels ?? []) : undefined,
-    images: { witness: witnessUrl, engine: engineSide.dataUrl },
+    holes: fixture.behind !== undefined ? holesOf(reference.pixels, engine.pixels) : undefined,
+    images: { [pair[0]]: reference.dataUrl, [pair[1]]: engine.dataUrl },
   };
 }
 
@@ -111,12 +145,15 @@ interface RunResult {
 /** Runs every fixture on both engines and returns their readings, or what stopped the run. */
 export async function run({
   sdkUrl,
+  engineUrl,
   coreUrl,
 }: {
   sdkUrl: string;
+  engineUrl: string;
   coreUrl: string;
 }): Promise<RunResult> {
-  const { referenceBackend, webgpuPagesBackend } = (await import(sdkUrl)) as typeof SdkBrowser;
+  const { referenceBackend } = (await import(sdkUrl)) as typeof Witnesses;
+  const { webgpuPagesBackend, autonomousPagesBackend } = (await import(engineUrl)) as typeof Engine;
   const { createSceneLightStore } = (await import(coreUrl)) as typeof SdkCore;
   const gpu = await ouvrirAppareil();
   if (!gpu) return { unavailable: 'no WebGPU adapter' };
@@ -134,6 +171,7 @@ export async function run({
   const sides: Sides = {
     referenceBackend,
     webgpuPagesBackend,
+    autonomousPagesBackend,
     device,
     renderer,
     canvas,

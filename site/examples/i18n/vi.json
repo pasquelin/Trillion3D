@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Đổi mực nước, sóng, khối lượng riêng và dòng chảy: các thùng nổi, trôi, chìm rồi lắng lại.",
+    "controls": {
+      "level": "Mực nước",
+      "waves": "Sóng",
+      "density": "Khối lượng riêng của nước",
+      "current": "Dòng chảy",
+      "drop": "Thả",
+      "again": "Lại",
+      "slowMotion": "Chậm"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Mười nghìn hộp rơi cùng lúc. Bảng hiển thị chi phí vật lý theo thời gian thực.",
     "controls": {
