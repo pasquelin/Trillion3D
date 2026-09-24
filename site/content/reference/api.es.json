@@ -1677,6 +1677,7 @@
     "description": "Las teclas la desplazan a lo largo de sus propios ejes y la giran alrededor de ellos, alabeo incluido; un arrastre mira alrededor. Nada se integra hasta que el host llama a `update(delta)` con los segundos transcurridos, y `update` solo devuelve —y emite— cuando se mantiene una tecla, se fija una entrada de palanca o hay un arrastre pendiente, así que una palanca soltada deja la escena inmóvil. `autoForward` es la única excepción: una cámara en crucero se mueve en cada `update` y pide el siguiente fotograma emitiendo `change` cada vez. TECLAS, por `KeyboardEvent.code`: W/S adelante y atrás, A/D izquierda y derecha, R/F arriba y abajo, flechas para cabeceo y guiñada, Q/E para alabeo. Nada limita un giro: mantener una tecla hace que la cámara siga dando vueltas o rodando sin parar, así que un rizo, un tonel, un Immelmann o un split-S se pilotan como con una palanca. `inputResponse` da a las teclas el recorrido de esa palanca. `dragToLook` (por defecto) mira mientras se mantiene un puntero; puesto en false, el puntero mira en cuanto se mueve sobre la superficie; con `pointerLook` en false, nunca gira la vista, solo las teclas pilotan. Una tecla pulsada mientras Ctrl o Meta está presionada se ignora, así que un atajo del navegador (Ctrl+W, Cmd+S) nunca pilota; hay que soltar el modificador para que la siguiente tecla cuente.",
     "members": {
       "rollSpeed": "Radianes por segundo que gira el alabeo a máxima desviación; el cabeceo y la guiñada lo siguen por defecto.",
+      "lookSpeed": "Radianes que gira la vista por píxel de movimiento del puntero; `null` (por defecto) es media vuelta por altura de la superficie, sea cual sea su tamaño.",
       "dragToLook": "Si arrastrar gira la vista.",
       "pitchSpeed": "Radianes por segundo que gira el cabeceo a máxima desviación; `null` (por defecto) equivale a `rollSpeed`.",
       "yawSpeed": "Radianes por segundo que gira la guiñada a máxima desviación; `null` (por defecto) equivale a `rollSpeed`.",
@@ -6260,7 +6261,7 @@
       "maxAzimuthAngle": "Solo órbita: fin de ese arco; puede ser más pequeño que `minAzimuthAngle`.",
       "autoRotate": "Solo órbita: radianes por segundo que gira sola alrededor de `target`, hasta la primera pulsación o paso de rueda; 0 por defecto.",
       "movementSpeed": "Vuelo y primera persona: unidades del mundo por segundo a tecla completa; 1 por defecto.",
-      "lookSpeed": "Primera persona y personaje: radianes que gira la vista por píxel de movimiento del puntero.",
+      "lookSpeed": "Vuelo, primera persona y personaje: radianes que gira la vista por píxel de movimiento del puntero; `null` (por defecto) conserva el valor propio de cada uno — 0.002 para una cabeza, media vuelta por altura del canvas para el vuelo.",
       "minPitch": "Primera persona y personaje: lo más bajo que mira la cabeza, en radianes (0 es el horizonte, negativo hacia abajo).",
       "maxPitch": "Primera persona y personaje: lo más alto que mira la cabeza, en radianes por encima del horizonte.",
       "pointerLook": "Solo vuelo: si el puntero gira la vista; en false, solo las teclas pilotan.",
@@ -6390,7 +6391,7 @@
   },
   "WorldControls": {
     "summary": "Las formas en que una página puede dirigir la cámara con el ratón y el teclado, o `'none'`.",
-    "description": "`'firstPerson'` mueve una cámara; `'character'` mueve un cuerpo — masa, gravedad, saltos, colisiones con `world.controls.colliders` — y mira a través de sus ojos."
+    "description": "`'firstPerson'` mueve una cámara; `'character'` mueve un cuerpo — masa, gravedad, saltos, colisiones con `world.controls.colliders` — y mira a través de sus ojos. `'fly'` y `'firstPerson'` se mueven a `world.controls.movementSpeed` y giran a `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "Las métricas de un fotograma tal como el host las copió del motor, y dos que una página lee compuestas a partir de ellas; `null` donde la ruta no cuenta.",
@@ -6652,7 +6653,7 @@
     "summary": "LA CABEZA DE UN CAMINANTE, puntero bloqueado: el puntero la gira, el horizonte permanece nivelado — guiñada alrededor del cenit del mundo, cabeceo limitado a `[minPitch, maxPitch]`, nunca alabeo.",
     "description": "Compartido por todo controlador que mira a través de los ojos de una persona. EL BLOQUEO ES COSA DEL ANFITRIÓN PEDIRLO. Un navegador solo concede un bloqueo de puntero dentro de un gesto, así que la cabeza lo pide en `pointerdown` y publica `lock()`, `unlock()` y `locked()` para un anfitrión que prefiera elegir su propio momento; un bloqueo del que el usuario escapa simplemente detiene la mirada, y un arrastre sin bloqueo sigue girando la cabeza.",
     "members": {
-      "lookSpeed": "Radianes girados por píxel de movimiento del puntero.",
+      "lookSpeed": "Radianes girados por píxel de movimiento del puntero; `null` (por defecto) es 0.002.",
       "minPitch": "Lo más bajo que mira la cabeza, en radianes bajo el horizonte contados negativos (0 es el horizonte); por defecto justo antes de mirar recto hacia abajo. Súbelo para que un caminante nunca mire dentro de su propio cuerpo.",
       "maxPitch": "Lo más alto que mira la cabeza, en radianes sobre el horizonte; por defecto justo antes del cenit."
     }

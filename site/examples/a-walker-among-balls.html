@@ -25,8 +25,10 @@
       import { controls, readout, seeded } from '../runtime/kit.js';
 
       // A compiled hall collides with its own triangles, cooked by the compiler: the balls roll on
-      // its floor and stop at its walls, and the walker's feet find the floor through the physics.
-      const world = createWorld('view', { controls: 'orbit', physics: true });
+      // its floor and stop at its walls. You are the walker: the engine's character, whose body is
+      // the physics' own, stands on the cooked floor and pushes the balls it meets. A click locks
+      // the mouse to look; W A S D walk (Z Q S D on AZERTY), Shift sprints, Space jumps.
+      const world = createWorld('view', { controls: 'character', physics: true });
       world.scene.background = math.color('#20252e');
       await world.scene.load('../assets/examples/hall/cache/native/full/manifest.json');
       const sun = light.directional({ intensity: 2.5, castShadow: true });
@@ -35,8 +37,8 @@
         sun,
         light.hemisphere({ intensity: 1, color: '#ffffff', groundColor: '#555a66' }),
       );
-      world.camera.position.set(7, 6, 8);
-      world.controls.target.set(0, 1, 0);
+      world.camera.position.set(2.5, world.controls.eyeHeight, 0);
+      world.camera.lookAt(0, 1, 0);
 
       const matter = material.meshStandard({ color: '#e0a33b', roughness: 0.4, physics: 'rubber' });
       const ball = geometry.sphere(0.25, 20, 12),
@@ -52,30 +54,7 @@
       };
       drop(40);
 
-      // The walker: a kinematic capsule the page moves; it pushes the balls it meets. Each step,
-      // an exact ray down finds the cooked floor under it, and its feet are put there.
-      const walker = object.mesh(
-        geometry.capsule(0.3, 1.1),
-        material.meshStandard({ color: '#4f8fd6', roughness: 0.5, physics: 'wood' }),
-      );
-      walker.physics = 'kinematic';
-      walker.castShadow = true;
-      walker.position.set(2.5, 2, 0);
-      world.scene.add(walker);
-      const down = math.ray(math.vector3(), math.vector3(0, -1, 0));
-      const settings = controls({ walking: true, balls: () => drop(20) }, () => {}, world);
-      let angle = 0;
-      world.beforeFrame(async ({ delta }) => {
-        if (!settings.walking) return;
-        angle += delta * 0.5;
-        const x = 2.5 * Math.cos(angle),
-          z = 1.6 * Math.sin(angle);
-        down.origin.set(x, 3.5, z);
-        const floor = await world.raycast(down, { exact: true, maxDistance: 6 });
-        walker.position.set(x, (floor ? floor.point.y : 0) + 0.85, z);
-        walker.rotation.y = -angle;
-        world.invalidate();
-      });
+      controls({ balls: () => drop(20) }, () => {}, world);
 
       const bodies = readout('bodies'),
         awake = readout('awake'),
