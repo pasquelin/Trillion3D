@@ -328,6 +328,7 @@
     "missing": {
       "colours-on-the-vertices": "WebGPU'da köşe başına renkler",
       "dashed-lines": "kesikli çizgiler",
+      "floating-crates": "GPU’da çizilen su dalgaları",
       "thick-lines": "geniş çizgiler",
       "a-line-that-draws-itself": "bir geometrinin çizim aralığı",
       "shapes-from-an-svg": "SVG yolu içe aktarma",
