@@ -27,10 +27,10 @@ export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) 
   });
   const uniform = device.createBuffer({
     label: 'Trillion3D light tile view v1',
-    size: 112,
+    size: 80,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const packed = new Float32Array(24);
+  const packed = new Float32Array(20);
   let pipeline: GPUComputePipeline | undefined;
   try {
     pipeline = device.createComputePipeline({
@@ -86,14 +86,12 @@ export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) 
       }
       return !!group;
     },
-    update(inverseViewProjection: ArrayLike<number>, width: number, height: number, count: number) {
+    update(inverseViewProjection: ArrayLike<number>, width: number, height: number) {
       packed.set(inverseViewProjection as number[], 0);
       packed[16] = width;
       packed[17] = height;
       packed[18] = tilesX;
       packed[19] = tilesY;
-      packed[20] = count;
-      packed[21] = LIGHT_SETTINGS.maxLights;
       device.queue.writeBuffer(uniform, 0, packed);
     },
     encode(encoder: GPUCommandEncoder) {
