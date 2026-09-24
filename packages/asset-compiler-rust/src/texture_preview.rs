@@ -36,7 +36,7 @@ mod reduce;
 mod report;
 pub(crate) mod source;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 mod verdict;
 pub use entry::{PreviewSource, TexturePreview};
 pub use levels::*;
