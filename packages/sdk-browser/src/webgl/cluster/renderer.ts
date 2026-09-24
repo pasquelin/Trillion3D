@@ -160,7 +160,7 @@ export class WebglClusterRenderer {
     // each record is brought up to its host texture at its first binding of the image.
     this.textures.invalidateBindings();
     this.instanced = undefined;
-    this.pass.forget();
+    this.pass.beginFrame(camera);
     this.geometry.beginFrame();
     this.triangles = 0;
     let backdropSubmissions = 0,
