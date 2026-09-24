@@ -51,7 +51,6 @@ test('a tile cooked by native Jolt is restored in the module, collides, and answ
   assert.equal(hit[0], 0, 'the ramp is hit');
   // The ramp's height at x = 1 is 0.5: the exact triangle, not a box around it.
   assert.ok(Math.abs(f[3] - 0.5) < 1e-4, `hit at y = ${f[3]}`);
-  assert.equal(hit[8], 0, 'its cooked material');
   assert.ok(f[5] < 0 && f[6] > 0.8, 'the normal leans back along the slope');
   for (let s = 0; s < 30; s++) jolt.step(null, 1 / 60);
   assert.equal(castDown(jolt, 3)[0], 0xffffffff, 'past the ramp, nothing');

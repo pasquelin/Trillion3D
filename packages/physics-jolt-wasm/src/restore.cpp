@@ -7,15 +7,12 @@
 
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
-#include <Jolt/Physics/Collision/PhysicsMaterialSimple.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/ShapeCast.h>
-
-#include <cstdlib>
 
 using namespace JPH;
 
@@ -27,24 +24,16 @@ std::unordered_map<uint32_t, RefConst<Shape>> restored;
 std::vector<uint32_t> queries, hits;
 
 /// Words of one query (`kind, origin x, y, z, travel x, y, z, a, b, c`) and one hit (`engine id,
-/// fraction, point x, y, z, normal x, y, z, material`); layout.ts CAST_WORDS / HIT_WORDS.
-constexpr uint32_t CAST_WORDS = 10, HIT_WORDS = 9, MISS = 0xFFFFFFFFu;
+/// fraction, point x, y, z, normal x, y, z`); layout.ts CAST_WORDS / HIT_WORDS.
+constexpr uint32_t CAST_WORDS = 10, HIT_WORDS = 8, MISS = 0xFFFFFFFFu;
 
-/// The material index a cooked shape carries on the hit sub-shape (its name), or `MISS`.
-uint32_t materialOf(const Body &body, const SubShapeID &part) {
-  const PhysicsMaterial *material = body.GetShape()->GetMaterial(part);
-  if (!material || material == PhysicsMaterial::sDefault) return MISS;
-  return uint32_t(std::strtoul(static_cast<const PhysicsMaterialSimple *>(material)->GetDebugName(), nullptr, 10));
-}
-
-void writeHit(uint32_t *out, const BodyID &id, float fraction, RVec3 point, Vec3 normal, const SubShapeID &part) {
+void writeHit(uint32_t *out, const BodyID &id, float fraction, RVec3 point, Vec3 normal) {
   BodyLockRead lock(world().system->GetBodyLockInterfaceNoLock(), id);
   if (!lock.Succeeded()) return;
   const Body &body = lock.GetBody();
   out[0] = uint32_t(body.GetUserData());
   float values[7] = {fraction, float(point.GetX()), float(point.GetY()), float(point.GetZ()), normal.GetX(), normal.GetY(), normal.GetZ()};
   std::memcpy(out + 1, values, sizeof values);
-  out[8] = materialOf(body, part);
 }
 
 void cast(const uint32_t *q, uint32_t *out) {
@@ -60,7 +49,7 @@ void cast(const uint32_t *q, uint32_t *out) {
     RVec3 point = ray.GetPointOnRay(hit.mFraction);
     Vec3 normal = lock.GetBody().GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, point);
     lock.ReleaseLock();
-    return writeHit(out, hit.mBodyID, hit.mFraction, point, normal, hit.mSubShapeID2);
+    return writeHit(out, hit.mBodyID, hit.mFraction, point, normal);
   }
   RefConst<Shape> shape = q[0] == 1 ? RefConst<Shape>(new SphereShape(f32(q + 7)))
                          : q[0] == 2 ? RefConst<Shape>(new BoxShape(vec3(q + 7)))
@@ -71,7 +60,7 @@ void cast(const uint32_t *q, uint32_t *out) {
   query.CastShape(sweep, settings, origin, closest);
   if (!closest.HadHit()) return;
   const ShapeCastResult &hit = closest.mHit;
-  writeHit(out, hit.mBodyID2, hit.mFraction, origin + hit.mContactPointOn2, -hit.mPenetrationAxis.NormalizedOr(Vec3::sZero()), hit.mSubShapeID2);
+  writeHit(out, hit.mBodyID2, hit.mFraction, origin + hit.mContactPointOn2, -hit.mPenetrationAxis.NormalizedOr(Vec3::sZero()));
 }
 
 }  // namespace

@@ -570,9 +570,10 @@ with no envelope, and a `directional` lamp — which has no centre — receive n
 
 ### `physics.json` — the cooked colliders (stage `physics-cook`)
 
-At runtime, loading a collider is a decode and a copy: no tree is computed in the browser. Native Jolt is linked into the compiler from the same pinned submodule as the web module
-(`build.rs` builds `packages/physics-jolt-wasm` with `-DCOOK=ON`, which needs CMake and a C++17
-compiler, and the submodule checked out: `git submodule update --init`). The stage contract is
+At runtime, loading a collider is a decode and a copy: no tree is computed in the browser. Native
+Jolt is linked into the compiler from the same pinned submodule as the web module (`build.rs`
+builds `packages/physics-jolt-wasm` with `-DCOOK=ON`, which needs CMake and a C++17 compiler, and
+the submodule checked out: `git submodule update --init`). The stage contract is
 `PHYSICS_COOK_STAGE` / `PHYSICS_COOK_VERSION`; the Jolt commit and the stage version enter the cache
 key, so a cache cooked by another Jolt is another key, never reused. The algorithms live in
 `src/physics_cook/`:
