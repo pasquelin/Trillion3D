@@ -5057,6 +5057,1124 @@
     "description": ""
   },
   {
+    "id": "GraphAngles",
+    "module": "packages/sdk-browser/src/host/graph/rotation.ts",
+    "exports": ["GraphAngles"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphAngles",
+    "signature": "class GraphAngles\nnew GraphAngles(): GraphAngles",
+    "summary": "The same orientation as three angles and their order, announcing its writes the same way.",
+    "members": [
+      {
+        "name": "x",
+        "type": "number",
+        "desc": "The three angles and their order, each write announced."
+      },
+      {
+        "name": "y",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "z",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "order",
+        "type": "string",
+        "desc": ""
+      },
+      {
+        "name": "set(x: number, y: number, z: number, order?: string)",
+        "type": "GraphAngles",
+        "desc": "Writes the three angles, and the order when given; announced once."
+      },
+      {
+        "name": "setFromRotation(q: GraphRotation, quiet?: boolean)",
+        "type": "GraphAngles",
+        "desc": "The angles of `q` in this order (the core `Euler`); announced unless `quiet`."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GraphArray",
+    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
+    "exports": ["GraphArray"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphArray",
+    "signature": "type GraphArray = Float32Array | Uint32Array | Uint16Array | Uint8Array | Int32Array | Int16Array | Int8Array",
+    "summary": "The typed arrays an attribute holds.",
+    "description": ""
+  },
+  {
+    "id": "GraphAttribute",
+    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
+    "exports": ["GraphAttribute"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphAttribute",
+    "signature": "class GraphAttribute extends Elements implements Versioned\nnew GraphAttribute(array: GraphArray, itemSize: number, normalized?: boolean): GraphAttribute",
+    "summary": "An attribute owning its storage: `itemSize` numbers per vertex, one after the other.",
+    "parameters": [
+      {
+        "name": "array",
+        "type": "GraphArray",
+        "desc": ""
+      },
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "default": "false",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "'attribute'",
+        "desc": "The attribute owns its buffer."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "How many vertices; fixed at construction, as the storage is."
+      },
+      {
+        "name": "version",
+        "type": "number",
+        "desc": "Bumped by `needsUpdate`."
+      },
+      {
+        "name": "array",
+        "type": "GraphArray",
+        "desc": "The storage."
+      },
+      {
+        "name": "updateRanges",
+        "type": "{ start: number; count: number; }[]",
+        "desc": "Ranges of `array` written since the last upload, sent alone."
+      },
+      {
+        "name": "addUpdateRange(start: number, count: number)",
+        "type": "void",
+        "desc": "Marks `count` numbers from `start` written."
+      },
+      {
+        "name": "clearUpdateRanges()",
+        "type": "void",
+        "desc": "Forgets the written ranges, once uploaded."
+      },
+      {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GraphElements",
+    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
+    "exports": ["GraphElements"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphElements",
+    "signature": "type GraphElements = GraphAttribute | GraphInterleavedAttribute",
+    "summary": "Either kind of attribute.",
+    "description": ""
+  },
+  {
+    "id": "GraphGeometry",
+    "module": "packages/sdk-browser/src/host/graph/geometry.ts",
+    "exports": ["GraphGeometry"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphGeometry",
+    "signature": "class GraphGeometry extends Releasable\nnew GraphGeometry(): HostGeometry",
+    "summary": "The attributes a mesh draws, the triangle list they are indexed through, the morph targets that move them, and the local box and sphere computed over them.",
+    "members": [
+      {
+        "name": "kind",
+        "type": "'geometry'",
+        "desc": "What the resource is."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "Its name."
+      },
+      {
+        "name": "index",
+        "type": "GraphAttribute | null",
+        "desc": "The triangle list, or `null` to draw the vertices in order."
+      },
+      {
+        "name": "attributes",
+        "type": "Record<string, GraphElements>",
+        "desc": "Its vertex attributes, by name."
+      },
+      {
+        "name": "morphAttributes",
+        "type": "Record<string, GraphElements[]>",
+        "desc": "Per morphed attribute, one attribute per morph target."
+      },
+      {
+        "name": "morphTargetsRelative",
+        "type": "boolean",
+        "desc": "True when a morph target holds displacements, not positions."
+      },
+      {
+        "name": "groups",
+        "type": "{ start: number; count: number; materialIndex?: number; }[]",
+        "desc": "Ranges of the index drawn with one surface each."
+      },
+      {
+        "name": "drawRange",
+        "type": "{ start: number; count: number; }",
+        "desc": "The range of the index drawn."
+      },
+      {
+        "name": "boundingBox",
+        "type": "Box3 | null",
+        "desc": "The local box, once computed or declared."
+      },
+      {
+        "name": "boundingSphere",
+        "type": "Sphere | null",
+        "desc": "The local sphere, once computed or declared."
+      },
+      {
+        "name": "userData",
+        "type": "Record<string, unknown>",
+        "desc": "Free room for the data of whoever built the geometry."
+      },
+      {
+        "name": "getIndex()",
+        "type": "GraphAttribute | null",
+        "desc": "The triangle list."
+      },
+      {
+        "name": "setIndex(index: GraphAttribute | null)",
+        "type": "HostGeometry",
+        "desc": "Sets the triangle list."
+      },
+      {
+        "name": "getAttribute(name: string)",
+        "type": "GraphElements",
+        "desc": "The attribute of that name."
+      },
+      {
+        "name": "setAttribute(name: string, attribute: GraphElements)",
+        "type": "HostGeometry",
+        "desc": "Names an attribute."
+      },
+      {
+        "name": "deleteAttribute(name: string)",
+        "type": "HostGeometry",
+        "desc": "Forgets an attribute."
+      },
+      {
+        "name": "hasAttribute(name: string)",
+        "type": "boolean",
+        "desc": "Whether it has an attribute of that name."
+      },
+      {
+        "name": "clone()",
+        "type": "HostGeometry",
+        "desc": "A geometry holding copies of every buffer, its groups, range and bounds."
+      },
+      {
+        "name": "toNonIndexed()",
+        "type": "HostGeometry",
+        "desc": "A geometry drawing the same triangles with no index: every corner a vertex of its own."
+      },
+      {
+        "name": "computeBoundingBox()",
+        "type": "void",
+        "desc": "Computes the local box over every vertex."
+      },
+      {
+        "name": "computeBoundingSphere()",
+        "type": "void",
+        "desc": "Computes the local sphere: centred on the box, reaching the farthest vertex."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GraphInterleavedAttribute",
+    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
+    "exports": ["GraphInterleavedAttribute"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphInterleavedAttribute",
+    "signature": "class GraphInterleavedAttribute extends Elements\nnew GraphInterleavedAttribute(data: GraphInterleavedBuffer, itemSize: number, offset: number, normalized?: boolean): GraphInterleavedAttribute",
+    "summary": "An attribute viewing `itemSize` numbers at `offset` of each vertex of an interleaved buffer.",
+    "parameters": [
+      {
+        "name": "data",
+        "type": "GraphInterleavedBuffer",
+        "desc": ""
+      },
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "default": "false",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "'interleavedAttribute'",
+        "desc": "The attribute views a shared buffer."
+      },
+      {
+        "name": "data",
+        "type": "GraphInterleavedBuffer",
+        "desc": "The buffer it views."
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "desc": "Where its numbers start in each vertex."
+      },
+      {
+        "name": "array",
+        "type": "GraphArray",
+        "desc": "The storage the elements live in."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "How many vertices."
+      },
+      {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": ""
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GraphInterleavedBuffer",
+    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
+    "exports": ["GraphInterleavedBuffer"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphInterleavedBuffer",
+    "signature": "class GraphInterleavedBuffer implements Versioned\nnew GraphInterleavedBuffer(array: GraphArray, stride: number): GraphInterleavedBuffer",
+    "summary": "One storage several attributes view, a vertex every `stride` numbers.",
+    "parameters": [
+      {
+        "name": "array",
+        "type": "GraphArray",
+        "desc": ""
+      },
+      {
+        "name": "stride",
+        "type": "number",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "'interleavedBuffer'",
+        "desc": "One storage several attributes view."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "How many vertices."
+      },
+      {
+        "name": "version",
+        "type": "number",
+        "desc": "Bumped by `needsUpdate`."
+      },
+      {
+        "name": "array",
+        "type": "GraphArray",
+        "desc": "The storage."
+      },
+      {
+        "name": "stride",
+        "type": "number",
+        "desc": "Numbers per vertex."
+      },
+      {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": ""
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GraphMesh",
+    "module": "packages/sdk-browser/src/host/graph/mesh.ts",
+    "exports": ["GraphMesh"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphMesh",
+    "signature": "class GraphMesh extends GraphNode\nnew GraphMesh(geometry: HostGeometry, material: GraphSurface | GraphSurface[]): HostMesh",
+    "summary": "A drawn node: a geometry and its surface, or one surface per geometry group.",
+    "parameters": [
+      {
+        "name": "geometry",
+        "type": "HostGeometry",
+        "desc": ""
+      },
+      {
+        "name": "material",
+        "type": "GraphSurface | GraphSurface[]",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "'mesh' | 'instancedMesh'",
+        "desc": "Drawn at one placement, or at several (`GraphInstancedMesh`)."
+      },
+      {
+        "name": "morphTargetInfluences?",
+        "type": "number[] | undefined",
+        "desc": "The weight of each morph target, when the geometry declares any."
+      },
+      {
+        "name": "morphTargetDictionary?",
+        "type": "Record<string, number> | undefined",
+        "desc": "The rank of each morph target by its name."
+      },
+      {
+        "name": "geometry",
+        "type": "HostGeometry",
+        "desc": "Its shape."
+      },
+      {
+        "name": "material",
+        "type": "GraphSurface | GraphSurface[]",
+        "desc": "Its surface, or one per geometry group."
+      },
+      {
+        "name": "updateMorphTargets()",
+        "type": "void",
+        "desc": "One zero weight per morph target of the first morphed attribute, named by rank."
+      },
+      {
+        "name": "copy(source: HostGraphNode, recursive?: boolean)",
+        "type": "HostMesh",
+        "desc": "Takes `source`'s values, and copies of its children unless told not to."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GraphNode",
+    "module": "packages/sdk-browser/src/host/graph/node.ts",
+    "exports": ["GraphNode"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphNode",
+    "signature": "class GraphNode\nnew GraphNode(): HostGraphNode",
+    "summary": "A node of the graph: its name, its pose, its world matrix, its parent and its children.",
+    "members": [
+      {
+        "name": "id",
+        "type": "number",
+        "desc": "The node's number, unique in the session."
+      },
+      {
+        "name": "kind",
+        "type": "GraphNodeKind",
+        "desc": "What the node is: what every reader of the graph narrows on."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "A name to find the node by."
+      },
+      {
+        "name": "parent",
+        "type": "GraphNode | null",
+        "desc": "The node holding this one."
+      },
+      {
+        "name": "children",
+        "type": "GraphNode[]",
+        "desc": "The nodes this one holds, in order."
+      },
+      {
+        "name": "up",
+        "type": "GraphVector",
+        "desc": "Which way is up for `lookAt`."
+      },
+      {
+        "name": "position",
+        "type": "GraphVector",
+        "desc": "Where the node stands, from its parent."
+      },
+      {
+        "name": "rotation",
+        "type": "GraphAngles",
+        "desc": "How the node is turned, as three angles."
+      },
+      {
+        "name": "quaternion",
+        "type": "GraphRotation",
+        "desc": "How the node is turned, as a quaternion."
+      },
+      {
+        "name": "scale",
+        "type": "GraphVector",
+        "desc": "How the node is stretched on each axis."
+      },
+      {
+        "name": "matrix",
+        "type": "Matrix4",
+        "desc": "The local matrix: composed from the pose while `matrixAutoUpdate` holds."
+      },
+      {
+        "name": "matrixWorld",
+        "type": "Matrix4",
+        "desc": "The world matrix, as last resolved."
+      },
+      {
+        "name": "matrixAutoUpdate",
+        "type": "boolean",
+        "desc": "False when `matrix` IS the pose and nothing recomposes it."
+      },
+      {
+        "name": "matrixWorldAutoUpdate",
+        "type": "boolean",
+        "desc": "False when nothing writes `matrixWorld`."
+      },
+      {
+        "name": "matrixWorldNeedsUpdate",
+        "type": "boolean",
+        "desc": "Set when the local matrix changed and the world matrix has not followed."
+      },
+      {
+        "name": "visible",
+        "type": "boolean",
+        "desc": "Whether the node and its children are drawn."
+      },
+      {
+        "name": "castShadow",
+        "type": "boolean",
+        "desc": "Whether it casts shadows."
+      },
+      {
+        "name": "receiveShadow",
+        "type": "boolean",
+        "desc": "Whether shadows fall on it."
+      },
+      {
+        "name": "frustumCulled",
+        "type": "boolean",
+        "desc": "Whether a renderer may skip it outside the view."
+      },
+      {
+        "name": "renderOrder",
+        "type": "number",
+        "desc": "Drawing order among see-through things."
+      },
+      {
+        "name": "userData",
+        "type": "Record<string, unknown>",
+        "desc": "Free room for the data of whoever built the node."
+      },
+      {
+        "name": "add(...nodes: GraphNode[])",
+        "type": "HostGraphNode",
+        "desc": "Makes `nodes` children of this one, each taken off its previous parent first."
+      },
+      {
+        "name": "remove(...nodes: GraphNode[])",
+        "type": "HostGraphNode",
+        "desc": "Takes `nodes` off this one."
+      },
+      {
+        "name": "removeFromParent()",
+        "type": "HostGraphNode",
+        "desc": "Takes this node off its parent."
+      },
+      {
+        "name": "clear()",
+        "type": "HostGraphNode",
+        "desc": "Takes every child off this node."
+      },
+      {
+        "name": "traverse(visit: (node: GraphNode) => void)",
+        "type": "void",
+        "desc": "Calls `visit` on this node, then on every node below it, in order."
+      },
+      {
+        "name": "updateMatrix()",
+        "type": "void",
+        "desc": "Composes the local matrix from the pose."
+      },
+      {
+        "name": "updateMatrixWorld(force?: boolean)",
+        "type": "void",
+        "desc": "Resolves the world matrices of the subtree, this node's parent taken as it stands."
+      },
+      {
+        "name": "updateWorldMatrix(ancestors: boolean, descendants: boolean)",
+        "type": "void",
+        "desc": "Resolves this node's world matrix, its ancestors' first when asked, its subtree after."
+      },
+      {
+        "name": "applyMatrix4(m: { elements: ArrayLike<number>; })",
+        "type": "void",
+        "desc": "Applies `m` on top of the node's pose, then reads the pose back out of the product."
+      },
+      {
+        "name": "lookAt(x: number | { x: number; y: number; z: number; }, y?: number, z?: number)",
+        "type": "void",
+        "desc": "Turns the node toward a world point, given as a point or as its three numbers."
+      },
+      {
+        "name": "clone(recursive?: boolean)",
+        "type": "HostGraphNode",
+        "desc": "A node of the same kind with the same values; its children copied too unless told not."
+      },
+      {
+        "name": "copy(source: HostGraphNode, recursive?: boolean)",
+        "type": "HostGraphNode",
+        "desc": "Takes `source`'s values, and copies of its children unless told not to."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GraphNodeKind",
+    "module": "packages/sdk-browser/src/host/graph/nodeKind.ts",
+    "exports": ["GraphNodeKind"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphNodeKind",
+    "signature": "type GraphNodeKind = | 'node'\n  | 'scene'\n  | 'group'\n  | 'mesh'\n  | 'instancedMesh'\n  | 'camera'\n  | GraphLightKind\n  | 'ambient'\n  | 'rect'\n  | 'probe'",
+    "summary": "What a node of the graph is: a bare node, the root, a group, a drawn mesh (at one placement or several), an eye, or one of the lights a scene declares.",
+    "description": ""
+  },
+  {
+    "id": "GraphRotation",
+    "module": "packages/sdk-browser/src/host/graph/rotation.ts",
+    "exports": ["GraphRotation"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphRotation",
+    "signature": "class GraphRotation\nnew GraphRotation(x?: number, y?: number, z?: number, w?: number): GraphRotation",
+    "summary": "An orientation `(x, y, z, w)` whose writes call `_onChangeCallback`.",
+    "parameters": [
+      {
+        "name": "x",
+        "type": "number",
+        "default": "0",
+        "desc": ""
+      },
+      {
+        "name": "y",
+        "type": "number",
+        "default": "0",
+        "desc": ""
+      },
+      {
+        "name": "z",
+        "type": "number",
+        "default": "0",
+        "desc": ""
+      },
+      {
+        "name": "w",
+        "type": "number",
+        "default": "1",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "x",
+        "type": "number",
+        "desc": "The four numbers, each write announced."
+      },
+      {
+        "name": "y",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "z",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "w",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "set(x: number, y: number, z: number, w: number)",
+        "type": "GraphRotation",
+        "desc": "Writes the four numbers, announced once."
+      },
+      {
+        "name": "copy(q: { readonly x: number; readonly y: number; readonly z: number; readonly w: number; })",
+        "type": "GraphRotation",
+        "desc": "Takes another rotation's numbers."
+      },
+      {
+        "name": "fromArray(array: ArrayLike<number>, offset?: number)",
+        "type": "GraphRotation",
+        "desc": "Reads four numbers from a list."
+      },
+      {
+        "name": "setFromAngles(angles: GraphAngles, quiet?: boolean)",
+        "type": "GraphRotation",
+        "desc": "The rotation of `angles`, in their order (`localTurnQuaternion`); announced unless `quiet`."
+      },
+      {
+        "name": "setFromRotationMatrix(m: ArrayLike<number>)",
+        "type": "GraphRotation",
+        "desc": "The rotation of the upper 3×3 of a column-major matrix whose columns are unit length."
+      },
+      {
+        "name": "premultiply(q: GraphRotation)",
+        "type": "GraphRotation",
+        "desc": "Becomes `q` followed by this rotation, `q · this`."
+      },
+      {
+        "name": "invert()",
+        "type": "GraphRotation",
+        "desc": "Becomes the opposite turn."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GraphSurface",
+    "module": "packages/sdk-browser/src/host/graph/surface.ts",
+    "exports": ["GraphSurface"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphSurface",
+    "signature": "class GraphSurface extends Releasable\nnew GraphSurface(family: 'normal' | 'basic' | 'standard' | 'physical' | 'lambert' | 'phong' | 'toon' | 'matcap' | 'depth', parameters?: Record<string, unknown>): HostMaterial",
+    "summary": "A surface: the parameters of one family, at the reference's values unless the scene said otherwise.",
+    "parameters": [
+      {
+        "name": "family",
+        "type": "'normal' | 'basic' | 'standard' | 'physical' | 'lambert' | 'phong' | 'toon' | 'matcap' | 'depth'",
+        "desc": ""
+      },
+      {
+        "name": "parameters",
+        "type": "Record<string, unknown>",
+        "default": "{}",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "uuid",
+        "type": "string",
+        "desc": "A name unique to the surface."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "Its name."
+      },
+      {
+        "name": "version",
+        "type": "number",
+        "desc": "Bumped by every declared change."
+      },
+      {
+        "name": "userData",
+        "type": "Record<string, unknown>",
+        "desc": "Free room for the data of whoever built the surface."
+      },
+      {
+        "name": "kind",
+        "type": "'surface'",
+        "desc": "What the resource is; `family` says which surface."
+      },
+      {
+        "name": "visible",
+        "type": "boolean",
+        "desc": ""
+      },
+      {
+        "name": "side",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "forceSinglePass",
+        "type": "boolean",
+        "desc": ""
+      },
+      {
+        "name": "vertexColors",
+        "type": "boolean",
+        "desc": ""
+      },
+      {
+        "name": "toneMapped",
+        "type": "boolean",
+        "desc": ""
+      },
+      {
+        "name": "depthTest",
+        "type": "boolean",
+        "desc": ""
+      },
+      {
+        "name": "depthWrite",
+        "type": "boolean",
+        "desc": ""
+      },
+      {
+        "name": "depthFunc",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "colorWrite",
+        "type": "boolean",
+        "desc": ""
+      },
+      {
+        "name": "polygonOffset",
+        "type": "boolean",
+        "desc": ""
+      },
+      {
+        "name": "polygonOffsetFactor",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "polygonOffsetUnits",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "transparent",
+        "type": "boolean",
+        "desc": ""
+      },
+      {
+        "name": "opacity",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "alphaTest",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "family",
+        "type": "'normal' | 'basic' | 'standard' | 'physical' | 'lambert' | 'phong' | 'toon' | 'matcap' | 'depth'",
+        "desc": "The family it belongs to."
+      },
+      {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": "`needsUpdate = true` after a change: every reader takes the fields again."
+      },
+      {
+        "name": "copy(source: HostMaterial)",
+        "type": "HostMaterial",
+        "desc": "Takes every parameter of `source`, colours and vectors copied, textures shared."
+      },
+      {
+        "name": "clone()",
+        "type": "HostMaterial",
+        "desc": "A surface of the same family with the same parameters."
+      }
+    ],
+    "description": "Its version is bumped by `needsUpdate`, which every reader compares."
+  },
+  {
+    "id": "GraphTexture",
+    "module": "packages/sdk-browser/src/host/graph/texture.ts",
+    "exports": ["GraphTexture"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphTexture",
+    "signature": "class GraphTexture extends Releasable\nnew GraphTexture(image?: {}): HostTexture",
+    "summary": "An image and the sampler state it is read with, and the transform of its coordinates.",
+    "parameters": [
+      {
+        "name": "image",
+        "type": "unknown",
+        "default": "null",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "'texture' | 'texels'",
+        "desc": "Tells a texture from any other field of a surface: a decoded picture, or raw texels (`image` holding `{ data, width, height }`)."
+      },
+      {
+        "name": "uuid",
+        "type": "string",
+        "desc": "A name unique to the texture."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "Its name."
+      },
+      {
+        "name": "mapping",
+        "type": "number",
+        "desc": "How it is addressed: by a UV set."
+      },
+      {
+        "name": "channel",
+        "type": "number",
+        "desc": "The UV set it reads."
+      },
+      {
+        "name": "wrapS",
+        "type": "number",
+        "desc": "How it repeats across."
+      },
+      {
+        "name": "wrapT",
+        "type": "number",
+        "desc": "How it repeats up."
+      },
+      {
+        "name": "magFilter",
+        "type": "number",
+        "desc": "Filter when shown bigger."
+      },
+      {
+        "name": "minFilter",
+        "type": "number",
+        "desc": "Filter when shown smaller."
+      },
+      {
+        "name": "anisotropy",
+        "type": "number",
+        "desc": "Sharpness at a slant."
+      },
+      {
+        "name": "colorSpace",
+        "type": "string",
+        "desc": "How its numbers are read: `'srgb'`, `'srgb-linear'`, or `''` when it declares none."
+      },
+      {
+        "name": "offset",
+        "type": "Vector2",
+        "desc": "The coordinate transform: moved, stretched, turned about `center`."
+      },
+      {
+        "name": "repeat",
+        "type": "Vector2",
+        "desc": ""
+      },
+      {
+        "name": "center",
+        "type": "Vector2",
+        "desc": ""
+      },
+      {
+        "name": "rotation",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "matrixAutoUpdate",
+        "type": "boolean",
+        "desc": "Whether `matrix` is rebuilt from the four above."
+      },
+      {
+        "name": "matrix",
+        "type": "Matrix3",
+        "desc": "The coordinate transform as three rows."
+      },
+      {
+        "name": "generateMipmaps",
+        "type": "boolean",
+        "desc": "Whether smaller copies are made."
+      },
+      {
+        "name": "premultiplyAlpha",
+        "type": "boolean",
+        "desc": "Whether colour is pre-multiplied by alpha."
+      },
+      {
+        "name": "flipY",
+        "type": "boolean",
+        "desc": "Whether rows are flipped on upload."
+      },
+      {
+        "name": "version",
+        "type": "number",
+        "desc": "Bumped by every declared change: what an upload compares to skip a re-copy."
+      },
+      {
+        "name": "userData",
+        "type": "Record<string, unknown>",
+        "desc": "Free room for the data of whoever built the texture."
+      },
+      {
+        "name": "format?",
+        "type": "number | undefined",
+        "desc": "The channels of a raw texture's texels (`HOST_FORMAT_*`)."
+      },
+      {
+        "name": "image",
+        "type": "unknown",
+        "desc": "The decoded picture, in the container its decoder gave."
+      },
+      {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": "`needsUpdate = true` after a change: a reader uploads it again."
+      },
+      {
+        "name": "updateMatrix()",
+        "type": "void",
+        "desc": "Rebuilds `matrix` from offset, repeat, rotation and centre."
+      },
+      {
+        "name": "clone()",
+        "type": "HostTexture",
+        "desc": "A texture of the same image and state, announced as changed."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GraphVector",
+    "module": "packages/sdk-browser/src/host/graph/vector.ts",
+    "exports": ["GraphVector"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GraphVector",
+    "signature": "class GraphVector\nnew GraphVector(x?: number, y?: number, z?: number): GraphVector",
+    "summary": "Three numbers of a pose or a point: plain data fields, and the operations a controller uses.",
+    "parameters": [
+      {
+        "name": "x",
+        "type": "number",
+        "default": "0",
+        "desc": ""
+      },
+      {
+        "name": "y",
+        "type": "number",
+        "default": "0",
+        "desc": ""
+      },
+      {
+        "name": "z",
+        "type": "number",
+        "default": "0",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "x",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "y",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "z",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "set(x: number, y: number, z: number)",
+        "type": "GraphVector",
+        "desc": "Writes the three numbers."
+      },
+      {
+        "name": "copy(v: HostPoint)",
+        "type": "GraphVector",
+        "desc": "Takes another point's numbers."
+      },
+      {
+        "name": "clone()",
+        "type": "GraphVector",
+        "desc": "A copy."
+      },
+      {
+        "name": "add(v: HostPoint)",
+        "type": "GraphVector",
+        "desc": "Adds another vector."
+      },
+      {
+        "name": "sub(v: HostPoint)",
+        "type": "GraphVector",
+        "desc": "Takes another vector away."
+      },
+      {
+        "name": "multiplyScalar(s: number)",
+        "type": "GraphVector",
+        "desc": "Scales the three numbers."
+      },
+      {
+        "name": "length()",
+        "type": "number",
+        "desc": "Its length."
+      },
+      {
+        "name": "setLength(length: number)",
+        "type": "GraphVector",
+        "desc": "Keeps the direction, sets the length."
+      },
+      {
+        "name": "distanceTo(v: HostPoint)",
+        "type": "number",
+        "desc": "Distance to a point."
+      },
+      {
+        "name": "fromArray(array: ArrayLike<number>, offset?: number)",
+        "type": "GraphVector",
+        "desc": "Reads three numbers from a list."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "Group",
     "module": "packages/sdk-core/src/world/object/object3d.ts",
     "exports": ["Group"],
@@ -5196,55 +6314,8 @@
     "section": "types",
     "kind": "Type",
     "title": "HostAttribute",
-    "signature": "type HostAttribute",
-    "summary": "One vertex attribute of a host geometry, interleaved or not: its layout and its storage.",
-    "members": [
-      {
-        "name": "isBufferAttribute?",
-        "type": "boolean | undefined",
-        "desc": "Raised by the host when the attribute owns its buffer instead of viewing into a shared, interleaved one. Only the admission gate reads it: the engine's own decode is the same either way, the autonomous WebGL2 program's binding is not."
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": "Numbers per vertex."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices."
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "desc": "Whether integers read as 0 to 1."
-      },
-      {
-        "name": "array",
-        "type": "ArrayLike<number> & ArrayBufferView<ArrayBufferLike>",
-        "desc": "The storage."
-      },
-      {
-        "name": "getX(index: number)",
-        "type": "number",
-        "desc": "Component of one element, de-interleaved and de-normalised by the host."
-      },
-      {
-        "name": "getY(index: number)",
-        "type": "number",
-        "desc": "Second component of one element."
-      },
-      {
-        "name": "getZ(index: number)",
-        "type": "number",
-        "desc": "Third component of one element."
-      },
-      {
-        "name": "getW(index: number)",
-        "type": "number",
-        "desc": "Fourth component of one element."
-      }
-    ],
+    "signature": "type HostAttribute = GraphElements",
+    "summary": "One vertex attribute of a geometry, owning its storage or viewing an interleaved one.",
     "description": ""
   },
   {
@@ -5254,8 +6325,8 @@
     "section": "types",
     "kind": "Type",
     "title": "HostAttributes",
-    "signature": "type HostAttributes = { [name: string]: HostAttribute }",
-    "summary": "The named attributes of one host geometry.",
+    "signature": "type HostAttributes = { [name: string]: GraphElements }",
+    "summary": "The named attributes of one geometry.",
     "description": "Also an identity: the engine keys its GPU buffers, geometry blocks and position caches on the attribute set a page draws from."
   },
   {
@@ -5452,23 +6523,18 @@
     "section": "types",
     "kind": "Type",
     "title": "HostDiagnosticGeometry",
-    "signature": "type HostDiagnosticGeometry = HostGeometry & HostDisposable",
-    "summary": "A host geometry a diagnostic view may free.",
+    "signature": "type HostDiagnosticGeometry = HostDisposable & {\n  /** Its vertex attributes, of which a view reads the count. */\n  readonly attributes: { readonly [name: string]: { readonly count: number } };\n}",
+    "summary": "A geometry a diagnostic view reads the vertex count of, and may free.",
     "members": [
-      {
-        "name": "attributes",
-        "type": "HostAttributes",
-        "desc": "Its vertex attributes."
-      },
-      {
-        "name": "boundingBox?",
-        "type": "HostBox | null | undefined",
-        "desc": "The local box the host computed."
-      },
       {
         "name": "dispose()",
         "type": "void",
         "desc": "Frees it."
+      },
+      {
+        "name": "attributes",
+        "type": "{ readonly [name: string]: { readonly count: number; }; }",
+        "desc": "Its vertex attributes, of which a view reads the count."
       }
     ],
     "description": ""
@@ -5480,93 +6546,18 @@
     "section": "types",
     "kind": "Type",
     "title": "HostDiagnosticMaterial",
-    "signature": "type HostDiagnosticMaterial = HostMaterial &\n  HostDisposable & {\n    /** A copy of the surface. */ clone(): HostDiagnosticMaterial;\n  }",
-    "summary": "A host surface a diagnostic view swaps onto a mesh, then frees: what it hangs arrives through `HostDiagnosticFactory`, never through an import, so no view names a rendering library.",
+    "signature": "type HostDiagnosticMaterial = HostDisposable & {\n  /** Which faces, as the engine's constant (`../scene/materialSide.ts`). */ readonly side: number;\n  /** A copy of the surface. */ clone(): HostDiagnosticMaterial;\n}",
+    "summary": "A surface a diagnostic view swaps onto a mesh, then frees.",
     "members": [
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Bumped by the host on every change: what a cached row compares to rebuild its fields."
-      },
-      {
-        "name": "visible",
-        "type": "boolean",
-        "desc": "Whether it is drawn."
-      },
-      {
-        "name": "side",
-        "type": "number",
-        "desc": "Which faces, as the host's constant."
-      },
-      {
-        "name": "forceSinglePass",
-        "type": "boolean",
-        "desc": "The host draws a double-sided transparent surface in one pass instead of back then front."
-      },
-      {
-        "name": "vertexColors",
-        "type": "boolean",
-        "desc": "Whether vertex colours tint it."
-      },
-      {
-        "name": "toneMapped",
-        "type": "boolean",
-        "desc": "Whether the display curve applies."
-      },
-      {
-        "name": "depthTest",
-        "type": "boolean",
-        "desc": "Raster state the host declares with the surface, and the engine's pipelines honour."
-      },
-      {
-        "name": "depthWrite",
-        "type": "boolean",
-        "desc": "Whether it writes depth."
-      },
-      {
-        "name": "depthFunc",
-        "type": "number",
-        "desc": "The depth test's comparison."
-      },
-      {
-        "name": "colorWrite",
-        "type": "boolean",
-        "desc": "Whether it writes colour."
-      },
-      {
-        "name": "polygonOffset",
-        "type": "boolean",
-        "desc": "Whether depth is offset."
-      },
-      {
-        "name": "polygonOffsetFactor",
-        "type": "number",
-        "desc": "Slope part of the offset."
-      },
-      {
-        "name": "polygonOffsetUnits",
-        "type": "number",
-        "desc": "Constant part of the offset."
-      },
-      {
-        "name": "transparent",
-        "type": "boolean",
-        "desc": "Whether it blends."
-      },
-      {
-        "name": "opacity",
-        "type": "number",
-        "desc": "How opaque it is."
-      },
-      {
-        "name": "alphaTest",
-        "type": "number",
-        "desc": "Alpha below which pixels drop."
-      },
       {
         "name": "dispose()",
         "type": "void",
         "desc": "Frees it."
+      },
+      {
+        "name": "side",
+        "type": "number",
+        "desc": "Which faces, as the engine's constant (`../scene/materialSide.ts`)."
       },
       {
         "name": "clone()",
@@ -5574,7 +6565,7 @@
         "desc": "A copy of the surface."
       }
     ],
-    "description": ""
+    "description": "The diagnostic views also serve the witnesses, whose meshes are their library's: what they hang arrives through `HostDiagnosticFactory`, and they are read by this shape alone."
   },
   {
     "id": "HostDisposable",
@@ -5672,20 +6663,8 @@
     "section": "types",
     "kind": "Type",
     "title": "HostGeometry",
-    "signature": "type HostGeometry = {\n  /** Its vertex attributes. */ readonly attributes: HostAttributes;\n  /** The local box the host computed. */ boundingBox?: HostBox | null;\n}",
-    "summary": "A host geometry: its attributes, and the local box the host computed over them.",
-    "members": [
-      {
-        "name": "attributes",
-        "type": "HostAttributes",
-        "desc": "Its vertex attributes."
-      },
-      {
-        "name": "boundingBox?",
-        "type": "HostBox | null | undefined",
-        "desc": "The local box the host computed."
-      }
-    ],
+    "signature": "type HostGeometry = GraphGeometry",
+    "summary": "A geometry of the graph: its attributes, its triangle list and the local box over them.",
     "description": ""
   },
   {
@@ -5695,66 +6674,9 @@
     "section": "types",
     "kind": "Type",
     "title": "HostGraphNode",
-    "signature": "interface HostGraphNode extends HostNode",
-    "summary": "A node of the host graph as a walk sees it: its identity, its local pose, the world matrix the host resolved for it, and its chain.",
-    "members": [
-      {
-        "name": "parent",
-        "type": "HostGraphNode | null",
-        "desc": "Its parent."
-      },
-      {
-        "name": "position",
-        "type": "HostVector",
-        "desc": "Where it stands."
-      },
-      {
-        "name": "quaternion",
-        "type": "HostRotation & { _onChangeCallback: () => void; _onChange(callback: () => void): unknown; }",
-        "desc": "The two faces of a node's rotation — the quaternion the engine compares, and the Euler angles that copy into it — each ANNOUNCING its own writes: a callback the host already chains, which a hook extends instead of replacing (`hooks.ts`). The two underscored members are a private of the host's library, so they are written here, where the hook needs them, and are given no name of their own. That keeps the private out of the SDK's list of published contracts; it does NOT keep it out of the published surface, since `HostGraphNode` carries it. Comparing the pose per frame, as the scan already does, is what would remove the coupling — it is not this lot's."
-      },
-      {
-        "name": "rotation",
-        "type": "{ _onChangeCallback: () => void; _onChange(callback: () => void): unknown; }",
-        "desc": "How it is turned, as angles."
-      },
-      {
-        "name": "scale",
-        "type": "HostVector",
-        "desc": "How it is stretched."
-      },
-      {
-        "name": "matrixAutoUpdate",
-        "type": "boolean",
-        "desc": "False when the host set `matrix` itself: the matrix IS the pose and nothing recomposes it."
-      },
-      {
-        "name": "matrix",
-        "type": "HostNodeMatrix",
-        "desc": "Its local matrix."
-      },
-      {
-        "name": "matrixWorld",
-        "type": "HostNodeMatrix",
-        "desc": "Its world matrix."
-      },
-      {
-        "name": "userData",
-        "type": "Record<string, unknown>",
-        "desc": "Where the engine marks a copy of its own, which the host has never seen and cannot write."
-      },
-      {
-        "name": "traverse(visit: (node: HostGraphNode) => void)",
-        "type": "void",
-        "desc": "The subtree under the node, itself first, in the host's own order."
-      },
-      {
-        "name": "updateMatrixWorld(force?: boolean)",
-        "type": "void",
-        "desc": "Resolves the world matrices of the subtree IN THE HOST GRAPH, for the host's own readers."
-      }
-    ],
-    "description": "The engine computes its OWN world matrices from the local poses (`../world/tree.ts`); `matrixWorld` is read where the HOST's own resolution is what a boundary hands back to it. WHY `HostPlaced` (`../resources.ts`) ALSO DESCRIBES A POSED NODE. The two are not a copy: they are keyed on the two different resolutions a host offers. `HostPlaced` asks for `updateWorldMatrix(ancestors, descendants)` — the chain of ONE node, what a placement and a visibility walk climb; this one asks for `updateMatrixWorld(force)` — the SUBTREE under a node, what a scan, a bounds union and a replication resolve in one call. A host offering only one of the two satisfies only the contract it answers, so neither may stand for the other."
+    "signature": "type HostGraphNode = GraphNode",
+    "summary": "A node of the graph as a walk sees it: its identity, its local pose, its world matrix and its chain.",
+    "description": "The engine computes its OWN world matrices from the local poses (`../world/tree.ts`)."
   },
   {
     "id": "HostMaterial",
@@ -5763,90 +6685,8 @@
     "section": "types",
     "kind": "Type",
     "title": "HostMaterial",
-    "signature": "type HostMaterial",
-    "summary": "A host material as the engine reads it: the surface parameters every host material shares, read once at the boundary into the engine's `VisMaterial`; `sideOf` alone reads `side`.",
-    "members": [
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Bumped by the host on every change: what a cached row compares to rebuild its fields."
-      },
-      {
-        "name": "visible",
-        "type": "boolean",
-        "desc": "Whether it is drawn."
-      },
-      {
-        "name": "side",
-        "type": "number",
-        "desc": "Which faces, as the host's constant."
-      },
-      {
-        "name": "forceSinglePass",
-        "type": "boolean",
-        "desc": "The host draws a double-sided transparent surface in one pass instead of back then front."
-      },
-      {
-        "name": "vertexColors",
-        "type": "boolean",
-        "desc": "Whether vertex colours tint it."
-      },
-      {
-        "name": "toneMapped",
-        "type": "boolean",
-        "desc": "Whether the display curve applies."
-      },
-      {
-        "name": "depthTest",
-        "type": "boolean",
-        "desc": "Raster state the host declares with the surface, and the engine's pipelines honour."
-      },
-      {
-        "name": "depthWrite",
-        "type": "boolean",
-        "desc": "Whether it writes depth."
-      },
-      {
-        "name": "depthFunc",
-        "type": "number",
-        "desc": "The depth test's comparison."
-      },
-      {
-        "name": "colorWrite",
-        "type": "boolean",
-        "desc": "Whether it writes colour."
-      },
-      {
-        "name": "polygonOffset",
-        "type": "boolean",
-        "desc": "Whether depth is offset."
-      },
-      {
-        "name": "polygonOffsetFactor",
-        "type": "number",
-        "desc": "Slope part of the offset."
-      },
-      {
-        "name": "polygonOffsetUnits",
-        "type": "number",
-        "desc": "Constant part of the offset."
-      },
-      {
-        "name": "transparent",
-        "type": "boolean",
-        "desc": "Whether it blends."
-      },
-      {
-        "name": "opacity",
-        "type": "number",
-        "desc": "How opaque it is."
-      },
-      {
-        "name": "alphaTest",
-        "type": "number",
-        "desc": "Alpha below which pixels drop."
-      }
-    ],
+    "signature": "type HostMaterial = GraphSurface",
+    "summary": "A surface of the graph, of the family it declares.",
     "description": ""
   },
   {
@@ -5856,8 +6696,8 @@
     "section": "types",
     "kind": "Type",
     "title": "HostMaterials",
-    "signature": "type HostMaterials = HostMaterial | HostMaterial[]",
-    "summary": "What a surface declares: one material, or one per geometry group.",
+    "signature": "type HostMaterials = GraphSurface | GraphSurface[]",
+    "summary": "What a mesh wears: one surface, or one per geometry group.",
     "description": ""
   },
   {
@@ -5867,21 +6707,9 @@
     "section": "types",
     "kind": "Type",
     "title": "HostMesh",
-    "signature": "type HostMesh = {\n  /** The host's name for it. */ readonly name: string;\n  /** Its parent, when a walk climbs. */ readonly parent?: HostMesh | null;\n}",
-    "summary": "A host mesh, held by identity: the draw record, the transparent table and the selection sets name the surface the host placed.",
-    "members": [
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "The host's name for it."
-      },
-      {
-        "name": "parent?",
-        "type": "HostMesh | null | undefined",
-        "desc": "Its parent, when a walk climbs."
-      }
-    ],
-    "description": "Its name is read, and its chain of ancestors when a moved subtree has to be told from the rest (`../webgpu/pages/render/transform.ts`); nothing else."
+    "signature": "type HostMesh = GraphMesh",
+    "summary": "A drawn node of the graph, held by identity: the draw record, the transparent table and the selection sets name the mesh the engine placed.",
+    "description": ""
   },
   {
     "id": "HostNode",
@@ -5890,20 +6718,8 @@
     "section": "types",
     "kind": "Type",
     "title": "HostNode",
-    "signature": "type HostNode = {\n  /** The host's name for it. */ readonly name: string;\n  /** Whether it is drawn. */ readonly visible: boolean;\n}",
-    "summary": "A node of the host scene graph, held by identity and by the two fields a walk needs.",
-    "members": [
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "The host's name for it."
-      },
-      {
-        "name": "visible",
-        "type": "boolean",
-        "desc": "Whether it is drawn."
-      }
-    ],
+    "signature": "type HostNode = GraphNode",
+    "summary": "A node of the graph, held by identity: walked, placed and posed through its own fields.",
     "description": ""
   },
   {
@@ -6045,24 +6861,9 @@
     "section": "types",
     "kind": "Type",
     "title": "HostScene",
-    "signature": "type HostScene = HostTraversable & {\n  /** What fills the image behind. */ readonly background: unknown;\n  /** The nodes at its top. */ readonly children: readonly HostNode[];\n}",
-    "summary": "The host display graph an engine draws into: what it holds, how it is walked, and the clear colour the composition reads.",
+    "signature": "type HostScene = {\n  /** What fills the image behind. */ readonly background: unknown;\n  /** The nodes at its top. */ readonly children: readonly object[];\n  /** Visits itself, then the subtree. */ traverse(visit: (node: object) => void): void;\n}",
+    "summary": "The display graph an engine publishes, as a composition reads it: the clear colour, the children and the walk.",
     "members": [
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "The host's name for it."
-      },
-      {
-        "name": "visible",
-        "type": "boolean",
-        "desc": "Whether it is drawn."
-      },
-      {
-        "name": "traverse(visit: (node: HostNode) => void)",
-        "type": "void",
-        "desc": "Visits itself, then the subtree."
-      },
       {
         "name": "background",
         "type": "unknown",
@@ -6070,11 +6871,16 @@
       },
       {
         "name": "children",
-        "type": "readonly HostNode[]",
+        "type": "readonly object[]",
         "desc": "The nodes at its top."
+      },
+      {
+        "name": "traverse(visit: (node: object) => void)",
+        "type": "void",
+        "desc": "Visits itself, then the subtree."
       }
     ],
-    "description": "The engine writes its own as a `GraphScene` (`graph/scene.ts`)."
+    "description": "It is the engine's own (`graph/scene.ts`) or the record of the transparent copies (`../cluster/blendSceneRecord.ts`), whose nodes carry no `kind` and are skipped by every guard of `graph/kinds.ts`."
   },
   {
     "id": "HostTexture",
@@ -6083,126 +6889,9 @@
     "section": "types",
     "kind": "Type",
     "title": "HostTexture",
-    "signature": "type HostTexture",
-    "summary": "A host texture: the image the host decoded and the sampler state it declared, held by identity too.",
-    "members": [
-      {
-        "name": "isTexture?",
-        "type": "boolean | undefined",
-        "desc": "Raised by the host on the objects its sampler reads: what tells a texture from any other field of a material, whose slots the engine does not enumerate."
-      },
-      {
-        "name": "uuid",
-        "type": "string",
-        "desc": "A name unique to the texture."
-      },
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "The host's name for it."
-      },
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Bumped by the host on every content change: what an upload compares to skip a re-copy."
-      },
-      {
-        "name": "image",
-        "type": "unknown",
-        "desc": "The decoded picture, in the host's own container."
-      },
-      {
-        "name": "channel",
-        "type": "number",
-        "desc": "UV set the sampler reads, `KHR_texture_transform`'s `texCoord`."
-      },
-      {
-        "name": "wrapS",
-        "type": "number",
-        "desc": "How it repeats across, as the host's constant."
-      },
-      {
-        "name": "wrapT",
-        "type": "number",
-        "desc": "How it repeats up, as the host's constant."
-      },
-      {
-        "name": "magFilter",
-        "type": "number",
-        "desc": "Filter when shown bigger."
-      },
-      {
-        "name": "minFilter",
-        "type": "number",
-        "desc": "Filter when shown smaller."
-      },
-      {
-        "name": "anisotropy",
-        "type": "number",
-        "desc": "Sharpness at a slant."
-      },
-      {
-        "name": "flipY",
-        "type": "boolean",
-        "desc": "Whether rows are flipped on upload."
-      },
-      {
-        "name": "premultiplyAlpha",
-        "type": "boolean",
-        "desc": "Whether colour is pre-multiplied by alpha."
-      },
-      {
-        "name": "generateMipmaps",
-        "type": "boolean",
-        "desc": "Whether smaller copies are made."
-      },
-      {
-        "name": "colorSpace",
-        "type": "string",
-        "desc": "How its numbers are read."
-      },
-      {
-        "name": "matrix",
-        "type": "{ readonly elements: ArrayLike<number>; }",
-        "desc": "UV transform of the sampler, `KHR_texture_transform` composed into three rows; the host recomputes it from offset, repeat and rotation when it owns the update."
-      },
-      {
-        "name": "matrixAutoUpdate",
-        "type": "boolean",
-        "desc": "Whether the host rebuilds `matrix`."
-      },
-      {
-        "name": "updateMatrix()",
-        "type": "void",
-        "desc": "Rebuilds `matrix` from offset, repeat and rotation."
-      },
-      {
-        "name": "offset",
-        "type": "Readonly<{ x: number; y: number; }>",
-        "desc": "What `matrix` is composed from."
-      },
-      {
-        "name": "repeat",
-        "type": "Readonly<{ x: number; y: number; }>",
-        "desc": "How many times it fits."
-      },
-      {
-        "name": "center",
-        "type": "Readonly<{ x: number; y: number; }>",
-        "desc": "The pivot of the rotation."
-      },
-      {
-        "name": "rotation",
-        "type": "number",
-        "desc": "The rotation, in radians."
-      },
-      {
-        "name": "addEventListener?",
-        "type": "((type: 'dispose', listener: () => void) => void) | undefined",
-        "desc": "Tells the importer when the host lets go of the texture."
-      }
-    ],
-    "description": "Its pixels stay `unknown`: only the boundary that uploads them knows their container."
+    "signature": "type HostTexture = GraphTexture",
+    "summary": "A texture of the graph: a decoded picture or raw texels, and the sampler state it declares.",
+    "description": ""
   },
   {
     "id": "HostTraversable",
@@ -6211,25 +6900,8 @@
     "section": "types",
     "kind": "Type",
     "title": "HostTraversable",
-    "signature": "type HostTraversable = HostNode & {\n  /** Visits itself, then the subtree. */ traverse(visit: (node: HostNode) => void): void;\n}",
-    "summary": "A host node the engine walks: the subtree under it, itself first, in the host's own order.",
-    "members": [
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "The host's name for it."
-      },
-      {
-        "name": "visible",
-        "type": "boolean",
-        "desc": "Whether it is drawn."
-      },
-      {
-        "name": "traverse(visit: (node: HostNode) => void)",
-        "type": "void",
-        "desc": "Visits itself, then the subtree."
-      }
-    ],
+    "signature": "type HostTraversable = GraphNode",
+    "summary": "A node the engine walks: the subtree under it, itself first.",
     "description": ""
   },
   {
@@ -8539,7 +9211,7 @@
       },
       {
         "name": "scene",
-        "type": "{ source: HostGraphNode; sceneLightingSource: HostTraversable; associations: Map<HostNode, { meshes?: number; primitives?: number; placements?: PlacementRows...",
+        "type": "{ source: GraphNode; sceneLightingSource: GraphNode; associations: Map<GraphNode, { meshes?: number; primitives?: number; placements?: PlacementRows; }>; tex...",
         "desc": "The scene graph built from the cache's scene tables."
       },
       {
@@ -11936,7 +12608,7 @@
       },
       {
         "name": "kind",
-        "type": "'point' | 'spot' | 'directional' | 'rect'",
+        "type": "'directional' | 'point' | 'spot' | 'rect'",
         "desc": "Point, spot, sun or rectangle."
       },
       {
@@ -27327,12 +27999,12 @@
     "section": "types",
     "kind": "Function",
     "title": "materialSide()",
-    "signature": "materialSide(material: HostMaterials): number",
+    "signature": "materialSide(material: { readonly side: number; } | readonly { readonly side: number; }[]): number",
     "summary": "The host side constant a material declares, the first of an array deciding; an empty array declares nothing and gets the host default, front, instead of a crash.",
     "parameters": [
       {
         "name": "material",
-        "type": "HostMaterials",
+        "type": "{ readonly side: number; } | readonly { readonly side: number; }[]",
         "desc": ""
       }
     ],

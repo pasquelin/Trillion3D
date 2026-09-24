@@ -7,7 +7,7 @@
  * number for number.
  */
 
-type XYZ = { readonly x: number; readonly y: number; readonly z: number };
+import type { HostPoint } from '../resources.ts';
 
 /** Three numbers of a pose or a point: plain data fields, and the operations a controller uses. */
 export class GraphVector {
@@ -27,7 +27,7 @@ export class GraphVector {
     return this;
   }
   /** Takes another point's numbers. */
-  copy(v: XYZ) {
+  copy(v: HostPoint) {
     return this.set(v.x, v.y, v.z);
   }
   /** A copy. */
@@ -35,11 +35,11 @@ export class GraphVector {
     return new GraphVector(this.x, this.y, this.z);
   }
   /** Adds another vector. */
-  add(v: XYZ) {
+  add(v: HostPoint) {
     return this.set(this.x + v.x, this.y + v.y, this.z + v.z);
   }
   /** Takes another vector away. */
-  sub(v: XYZ) {
+  sub(v: HostPoint) {
     return this.set(this.x - v.x, this.y - v.y, this.z - v.z);
   }
   /** Scales the three numbers. */
@@ -55,7 +55,7 @@ export class GraphVector {
     return this.multiplyScalar(1 / (this.length() || 1)).multiplyScalar(length);
   }
   /** Distance to a point. */
-  distanceTo(v: XYZ) {
+  distanceTo(v: HostPoint) {
     const dx = this.x - v.x,
       dy = this.y - v.y,
       dz = this.z - v.z;

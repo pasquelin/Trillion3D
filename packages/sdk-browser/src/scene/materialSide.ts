@@ -15,11 +15,9 @@ export const firstMaterial = (material: HostMaterials): HostMaterial | undefined
 
 /** The host side constant a material declares, the first of an array deciding; an empty
  *  array declares nothing and gets the host default, front, instead of a crash. */
-/** A surface as far as its faces go: what a diagnostic copy, of the engine or of a witness,
- *  shares with the engine's own. */
-type Sided = { readonly side: number };
-
-export function materialSide(material: Sided | readonly Sided[]): number {
+export function materialSide(
+  material: { readonly side: number } | readonly { readonly side: number }[],
+): number {
   const first = 'length' in material ? material[0] : material;
   return first?.side ?? HOST_SIDE_FRONT;
 }
