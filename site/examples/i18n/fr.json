@@ -1187,7 +1187,6 @@
     }
   },
   "migrating-from-three": {
-    "banner": "Glisse pour tourner autour du buste, de la caisse et de la boule de verre.",
     "words": {
       "credit": "Marble Bust 01 par Rico Cilliers, Poly Haven, CC0 ; caisse par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
     }
