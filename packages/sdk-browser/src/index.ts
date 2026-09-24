@@ -33,6 +33,13 @@ export {
   type ContactEvent,
   type ContactEventName,
   type PhysicsHost,
+  Joint,
+  joint,
+  type JointHost,
+  type JointKind,
+  type JointLimits,
+  type JointMotor,
+  type JointOptions,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
 export type { WaterSpec, WaveSpec } from '../../sdk-core/src/fluids/index.ts';
