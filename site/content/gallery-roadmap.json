@@ -275,16 +275,12 @@
     {
       "id": "a-video-on-a-screen",
       "theme": "materials",
-      "file": "examples/a-video-on-a-screen.html",
-      "status": "waiting-engine",
-      "issue": 362
+      "file": "examples/a-video-on-a-screen.html"
     },
     {
       "id": "the-webcam-as-a-texture",
       "theme": "materials",
-      "file": "examples/the-webcam-as-a-texture.html",
-      "status": "waiting-engine",
-      "issue": 362
+      "file": "examples/the-webcam-as-a-texture.html"
     },
     {
       "id": "four-ways-to-blend",
@@ -984,9 +980,7 @@
     {
       "id": "a-video-panorama",
       "theme": "environment",
-      "file": "examples/a-video-panorama.html",
-      "status": "waiting-engine",
-      "issue": 362
+      "file": "examples/a-video-panorama.html"
     },
     {
       "id": "an-atmospheric-sky",
