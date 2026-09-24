@@ -922,7 +922,10 @@
       "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
       "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
       "UNSUPPORTED_SCENE_FORMAT": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
-      "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor."
+      "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1859,7 +1862,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     },
     "members": {
       "isMaterial": "Her zaman `true`: bir malzemeyi başka her şeyden ayırır.",
@@ -1881,7 +1888,11 @@
       "needsUpdate": "`material.needsUpdate = true`: onu giyen meshler yeniden boyanır.",
       "surface": "Bu malzemenin motordaki kendi fiziksel yüzey kaydı (`contracts/material.ts`). Fiziksel aile dışındaki bir tür, motorun tek aydınlatma modeline (`surfaceModel.ts`) eşlediği, adının host ailesi üzerinden çizilir.",
       "clone": "Aynı değerlere sahip, aynı türde yeni bir malzeme.",
-      "dispose": "Giyenleri unutur: silinen bir malzeme kimseyi yeniden boyamaz."
+      "dispose": "Giyenleri unutur: silinen bir malzeme kimseyi yeniden boyamaz.",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "MaterialParameters": {
@@ -1914,7 +1925,11 @@
       "gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "MathPath": {
@@ -2048,7 +2063,8 @@
       "primitive": "Geometrinin köşelerinin nasıl okunduğu: üçgenler, noktalar ya da çizgiler.",
       "geometry": "Mesh'in şekli; değiştirmek için başka bir geometri ayarlayın.",
       "material": "Mesh'in malzemesi, ya da grup başına bir tane; değiştirmek için başka bir tane ayarlayın.",
-      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
+      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz.",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "Mixer": {
@@ -3945,7 +3961,8 @@
       "geometryPoolCeiling": "Bir dünyanın isteyebileceği en büyük havuzlar: motorun başlangıç bütçeleri.",
       "texturePoolCeiling": "Bir dünyanın isteyebileceği en büyük doku havuzu, bayt cinsinden.",
       "geometryPool": "Geometri sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
-      "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın."
+      "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.diagnostic": {
@@ -4109,7 +4126,8 @@
       "interactive": "Dünyanın kendi döngüsünü çalıştırıp çalıştırmadığı: bir şey değiştiğinde çizer ve yeni bir şey olmadan 120 kareden sonra dinlenir. `false`, sayfanın `world.render()`'ı kendisinin çağırmasına izin verir.",
       "pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
-      "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur."
+      "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -4741,7 +4759,8 @@
       "options.interactive": "Dünyanın kendi döngüsünü çalıştırıp çalıştırmadığı: bir şey değiştiğinde çizer ve yeni bir şey olmadan 120 kareden sonra dinlenir. `false`, sayfanın `world.render()`'ı kendisinin çağırmasına izin verir.",
       "options.pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "options.controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
-      "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur."
+      "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -5485,7 +5504,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshPhysical": {
@@ -5519,7 +5542,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshBasic": {
@@ -5553,7 +5580,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshPhong": {
@@ -5587,7 +5618,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshLambert": {
@@ -5621,7 +5656,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshToon": {
@@ -5655,7 +5694,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshNormal": {
@@ -5689,7 +5732,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshMatcap": {
@@ -5723,7 +5770,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshDepth": {
@@ -5757,7 +5808,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.points": {
@@ -5791,7 +5846,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.line": {
@@ -5825,7 +5884,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.lineDashed": {
@@ -5859,7 +5922,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.sprite": {
@@ -5893,7 +5960,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.shadow": {
@@ -5927,7 +5998,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.createShader": {
@@ -6910,5 +6985,17 @@
   "raycast": {
     "summary": "`roots` altında `ray`'in karşılaştığı her nesne, en yakını önce, nesne başına bir isabet: kendisinin en yakını.",
     "description": "Yön girişte birim vektöre çevrilir, bu yüzden sayfa hangi uzunluğu vermiş olursa olsun her `distance` dünya birimindedir. Gizli alt ağaçlar atlanır — gizli bir atanın altındaki kök de — ve `skip`'in adlandırdığı düğümler de alt ağaçlarıyla birlikte: bir sayfanın çalıştığı işaretler, asla içeriği."
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+    }
   }
 }

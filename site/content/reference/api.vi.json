@@ -929,7 +929,10 @@
       "SESSION_OPEN_FAILED": "Phiên của thế giới không thể mở, vì một lý do không có mã riêng (`world.diagnostic.error`): lỗi được ném nằm trong `details.cause`.",
       "WEBGPU_LOST": "WebGPU đã mất thiết bị của nó, hoặc một lỗi trên thiết bị để lại trạng thái mà không gì có thể vẽ từ đó: được ném bởi `render`, `flush` và các lượt đọc cần thiết bị, được đặt tên bởi chẩn đoán `gpu-device-lost`, và xuất hiện trên `world.diagnostic.error` khi một phiên không thể mở vì lý do đó.",
       "UNSUPPORTED_SCENE_FORMAT": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
-      "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ."
+      "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1864,7 +1867,11 @@
       "parameters.gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     },
     "members": {
       "isMaterial": "Luôn là `true`: phân biệt một vật liệu với bất cứ thứ gì khác.",
@@ -1886,7 +1893,11 @@
       "needsUpdate": "`material.needsUpdate = true`: các mesh mang nó được tô lại.",
       "surface": "Bản ghi bề mặt vật lý của bộ máy cho vật liệu này (`contracts/material.ts`). Một loại nằm ngoài họ vật lý được vẽ qua họ chủ có cùng tên, mà bộ máy ánh xạ vào mô hình chiếu sáng duy nhất của nó (`surfaceModel.ts`).",
       "clone": "Một vật liệu mới cùng loại, với các giá trị giống nhau.",
-      "dispose": "Quên những người mang nó: một vật liệu đã bị hủy thì không tô lại cho ai cả."
+      "dispose": "Quên những người mang nó: một vật liệu đã bị hủy thì không tô lại cho ai cả.",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "Material-common": {
@@ -1932,7 +1943,11 @@
       "gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
       "vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "depthWrite": "Bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không."
+      "depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không.",
+      "physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "friction": "Mức bám của vật, từ 0 trở lên.",
+      "restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "MathPath": {
@@ -2066,7 +2081,8 @@
       "primitive": "Cách các đỉnh của hình học được đọc: tam giác, điểm hoặc đường thẳng.",
       "geometry": "Hình dạng của mesh; đặt một hình học khác để thay đổi nó.",
       "material": "Vật liệu của mesh, hoặc một cho mỗi nhóm; đặt một cái khác để thay đổi nó.",
-      "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
+      "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả.",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "Mixer": {
@@ -4106,7 +4122,8 @@
       "interactive": "Thế giới có chạy vòng lặp riêng của nó hay không: nó vẽ khi có gì đó thay đổi và nghỉ sau 120 khung hình không có gì mới. `false` để trang tự gọi `world.render()`.",
       "pixelRatio": "Bao nhiêu điểm ảnh hình ảnh cho mỗi điểm ảnh màn hình.",
       "controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
-      "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy."
+      "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -4752,7 +4769,8 @@
       "options.interactive": "Liệu thế giới có chạy vòng lặp riêng của nó hay không: nó vẽ khi có gì đó thay đổi và nghỉ sau 120 khung hình không có gì mới. `false` để trang tự gọi `world.render()`.",
       "options.pixelRatio": "Có bao nhiêu pixel hình ảnh cho mỗi pixel màn hình.",
       "options.controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
-      "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy."
+      "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -5502,7 +5520,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.lineDashed": {
@@ -5536,7 +5558,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshBasic": {
@@ -5570,7 +5596,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshDepth": {
@@ -5604,7 +5634,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshLambert": {
@@ -5638,7 +5672,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshMatcap": {
@@ -5672,7 +5710,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshNormal": {
@@ -5706,7 +5748,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshPhong": {
@@ -5740,7 +5786,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshPhysical": {
@@ -5774,7 +5824,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshStandard": {
@@ -5808,7 +5862,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshToon": {
@@ -5842,7 +5900,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.points": {
@@ -5876,7 +5938,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.shadow": {
@@ -5910,7 +5976,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.sprite": {
@@ -5944,7 +6014,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "materialSide": {
@@ -6656,7 +6730,8 @@
       "geometryPoolCeiling": "Các bể lớn nhất mà một thế giới có thể yêu cầu: các ngân sách khởi đầu của bộ máy.",
       "texturePoolCeiling": "Bể kết cấu lớn nhất mà một thế giới có thể yêu cầu, tính bằng byte.",
       "geometryPool": "Số byte bộ nhớ GPU giữ cho các trang hình học; đặt nó để thay đổi phong bì.",
-      "texturePool": "Số byte bộ nhớ GPU giữ cho các trang kết cấu; đặt nó để thay đổi phong bì."
+      "texturePool": "Số byte bộ nhớ GPU giữ cho các trang kết cấu; đặt nó để thay đổi phong bì.",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.camera": {
@@ -6910,6 +6985,18 @@
       "counts": "Theo mỗi nút: số tam giác của một lá, 0 cho nút trong.",
       "bytes": "Số byte mà cây giữ.",
       "triangleCount": "Số tam giác mà cây giữ."
+    }
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
     }
   }
 }

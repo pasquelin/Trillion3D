@@ -1880,5 +1880,33 @@
       "fieldOfView": "Field of view",
       "dollyZoom": "Dolly zoom"
     }
+  },
+  "falling-boxes": {
+    "banner": "Press Drop for fifty more boxes. Change the gravity and watch them fall.",
+    "controls": {
+      "matter": "Matter",
+      "gravity": "Gravity",
+      "drop": "Drop",
+      "jump": "Jump",
+      "slowMotion": "Slow motion"
+    },
+    "readouts": {
+      "bodies": "Bodies",
+      "awake": "Awake",
+      "step": "Step"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Ten thousand boxes fall at once. The panel shows what the physics costs, live.",
+    "controls": {
+      "count": "Count",
+      "again": "Again"
+    },
+    "readouts": {
+      "bodies": "Bodies",
+      "awake": "Awake",
+      "step": "Step",
+      "page": "Page"
+    }
   }
 }

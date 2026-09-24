@@ -1880,5 +1880,33 @@
     "readouts": {
       "streaming": "Streaming"
     }
+  },
+  "falling-boxes": {
+    "banner": "Carregue em Largar para mais cinquenta caixas. Muda a gravidade e vê-as cair.",
+    "controls": {
+      "matter": "Matéria",
+      "gravity": "Gravidade",
+      "drop": "Largar",
+      "jump": "Saltar",
+      "slowMotion": "Câmara lenta"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Dez mil caixas caem de uma vez. O painel mostra em direto quanto custa a física.",
+    "controls": {
+      "count": "Quantidade",
+      "again": "De novo"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo",
+      "page": "Página"
+    }
   }
 }

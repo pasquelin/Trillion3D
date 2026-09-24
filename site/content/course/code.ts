@@ -117,6 +117,26 @@ world.diagnostic.mode = 'clusters'; // paint each piece in its own colour`,
     ],
   },
   {
+    id: 'make-things-fall',
+    example: 'falling-boxes',
+    code: [
+      `const world = createWorld('view', { controls: 'orbit', physics: true });
+
+const floor = object.mesh(geometry.box(40, 1, 40), material.meshStandard({ physics: 'stone' }));
+floor.physics = 'static'; // holds the others, never moves
+world.scene.add(floor);
+
+const wood = material.meshStandard({ color: '#c08a4d', physics: 'wood' });
+const box = object.mesh(geometry.box(1, 1, 1), wood);
+box.position.y = 6;
+box.physics = 'dynamic'; // gravity pulls it; its shape is the box, its mass the wood's
+world.scene.add(box);
+
+box.physics.on('contact', ({ impulse }) => console.log('bump', impulse));
+world.physics.gravity = 'moon'; // or 'earth', 'mars', 'none'`,
+    ],
+  },
+  {
     id: 'your-own-scene',
     example: 'a-scene-of-your-own',
     code: [
