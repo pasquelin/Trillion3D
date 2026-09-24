@@ -1,6 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createCutDelta } from './delta.ts';
-import { createCutCounts, type CutCounts } from './counts.ts';
 import { createCutPending, type CutPending } from './pending.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
 import { markDrawnMirrored } from '../pages/helpers.ts';
@@ -9,13 +8,10 @@ import type { WebgpuPagesCore } from '../pages/runtime.ts';
 
 /**
  * What the rank journal notifies when a page changes coverage. Set outside publication so that
- * nothing else is captured besides the two counters it touches: the journal keeps it as long as
- * the engine, and a closure taken inside publication would hold its whole context there.
+ * nothing else is captured besides the set it touches: the journal keeps it as long as the
+ * engine, and a closure taken inside publication would hold its whole context there.
  */
-const coverageWatcher = (counts: CutCounts, pending: CutPending) => (page: number) => {
-  counts.touch(page);
-  pending.touch(page);
-};
+const coverageWatcher = (pending: CutPending) => (page: number) => pending.touch(page);
 
 /**
  * Publication of a cut, whoever decides it.
@@ -37,19 +33,15 @@ export function createWebgpuCutPublication(
   // only a copy of it, and only when the image adopts the readback that produced it.
   const drawnPages: PageRec[] = [];
   const drawnDelta = createCutDelta(packedPages, drawnPages);
-  const cutCounts = createCutCounts(packedPages, rows.residentOffsetWords, drawnDelta);
   const cutPending = createCutPending(packedPages, cutDelta);
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
-  rows.watchTouched(coverageWatcher(cutCounts, cutPending));
+  rows.watchTouched(coverageWatcher(cutPending));
   const publishCut = () => {
     residencySets.applyCut(cutDelta);
     cutPending.apply();
   };
-  const publishDrawn = () => {
-    residencySets.applyDrawn(drawnDelta);
-    cutCounts.apply();
-  };
+  const publishDrawn = () => residencySets.applyDrawn(drawnDelta);
   // Readback describes submitted work and future streaming requests. It never
   // decides the cut drawn for a moving camera; the current GPU mask does that.
   const cutAdopter = createWebgpuCutAdopter({
@@ -58,7 +50,6 @@ export function createWebgpuCutPublication(
     shown: run.shown,
     drawn: run.drawn,
     uniforms: run.selectionUniforms,
-    counts: cutCounts,
     delta: cutDelta,
     drawnDelta,
     drawnPages,
