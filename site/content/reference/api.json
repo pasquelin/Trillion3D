@@ -14250,6 +14250,16 @@
         "desc": "GPU time of shadows."
       },
       {
+        "name": "gpuShadowCullMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the per-page cull, and the occlusion test of moving casters with the pyramids it reads."
+      },
+      {
+        "name": "gpuShadowRasterMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of drawing those casters into the pages: the static layer, then the pool."
+      },
+      {
         "name": "gpuLightingMs?",
         "type": "number | null | undefined",
         "desc": "GPU time of lighting."
@@ -14335,7 +14345,7 @@
       {
         "name": "releaseDeferred",
         "type": "() => void",
-        "desc": "The frame plans no shadow: the held union enters the list at once."
+        "desc": "The frame plans no shadow: the held boxes enter the list at once."
       },
       {
         "name": "observeCost",
@@ -19180,6 +19190,16 @@
         "name": "gpuShadowsMs?",
         "type": "number | null | undefined",
         "desc": "GPU time of shadows."
+      },
+      {
+        "name": "gpuShadowCullMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the per-page cull, and the occlusion test of moving casters with the pyramids it reads."
+      },
+      {
+        "name": "gpuShadowRasterMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of drawing those casters into the pages: the static layer, then the pool."
       },
       {
         "name": "gpuLightingMs?",
