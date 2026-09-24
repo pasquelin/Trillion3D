@@ -3,7 +3,7 @@
 // one before, every pyramid `PAGE_HIZ_WORDS` apart.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import {
   PAGE_HIZ_LEVELS,
   PAGE_HIZ_OFFSETS,
@@ -11,43 +11,27 @@ import {
   createShadowPageHiz,
 } from './pageHiz.ts';
 
-installGpuGlobals();
-
-function fakeDevice() {
-  const writes: Uint32Array[] = [],
-    dispatches: number[][] = [];
+/** A compute encoder that records the size of each dispatch. */
+function recordingEncoder() {
+  const dispatches: number[][] = [];
   const pass = {
     setBindGroup() {},
     setPipeline() {},
     dispatchWorkgroups: (...size: number[]) => dispatches.push(size),
     end() {},
   };
-  const device = {
-    createBuffer: () => ({ destroy() {} }),
-    createBindGroupLayout: () => ({}),
-    createPipelineLayout: () => ({}),
-    createComputePipeline: () => ({}),
-    createBindGroup: () => ({}),
-    createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
-    pushErrorScope() {},
-    popErrorScope: async () => null,
-    queue: {
-      writeBuffer(_buffer: unknown, _offset: number, data: ArrayBufferView) {
-        writes.push(new Uint32Array(data.buffer.slice(0)));
-      },
-    },
-  } as unknown as GPUDevice;
   const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder;
-  return { device, encoder, writes, dispatches };
+  return { encoder, dispatches };
 }
 
 test('a page pyramid is 128² then every half down to one texel, one per page', async () => {
   assert.equal(PAGE_HIZ_LEVELS, 8);
   assert.deepEqual(PAGE_HIZ_OFFSETS.slice(0, 3), [0, 16384, 20480]);
   assert.equal(PAGE_HIZ_WORDS, 21845);
-  const { device, encoder, writes, dispatches } = fakeDevice();
+  const { device, writes } = fakeDevice();
+  const { encoder, dispatches } = recordingEncoder();
   const hiz = await createShadowPageHiz(device, {} as GPUTextureView);
-  const slots = writes[0],
+  const slots = new Uint32Array(writes[0].data.buffer),
     slot = (l: number) => Array.from(slots.subarray(l * 64, l * 64 + 7));
   assert.deepEqual(slot(0), [128, 128, 0, 0, 0, 0, PAGE_HIZ_WORDS], 'copy: 128², stride');
   assert.deepEqual(slot(1), [0, 128, 128, 16384, 64, 64, PAGE_HIZ_WORDS]);
@@ -59,6 +43,6 @@ test('a page pyramid is 128² then every half down to one texel, one per page', 
   assert.deepEqual(dispatches[0], [16, 16, 3], 'level 0 of three pages at once');
   assert.deepEqual(dispatches.at(-1), [1, 1, 3]);
   assert.equal(dispatches.length, PAGE_HIZ_LEVELS);
-  const origins = new Int32Array(writes[1].buffer);
+  const origins = new Int32Array(writes[1].data.buffer);
   assert.deepEqual([origins[12], origins[13]], [128, 256], "the second page's first texel");
 });
