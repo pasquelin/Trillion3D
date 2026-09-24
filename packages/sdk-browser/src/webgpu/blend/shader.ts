@@ -15,6 +15,7 @@ import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
 import { FLAG_PAGED, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
+import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 
 /**
  * Shader of transparent surfaces.
@@ -72,10 +73,27 @@ ${TRIANGLE_PALETTE_WGSL}
 // base << vertexShift. That is what lets a whole slice fit in ONE call, with nothing to bind
 // between two plan entries — firstInstance would say the same, but WebGPU only opens it to an
 // indirect call under an extension.
+// The cull an entry's pipeline no longer does (plan.ts, VERTEX CULL): 1 drops the front faces,
+// 2 the back ones, as the pipelines' cullMode would with frontFace ccw. The facing is the sign of
+// the clip-space determinant of the triangle's three corners (x, y, w): the sign of its projected
+// area, still right for the visible part of a triangle crossing w = 0. The three vertices of a
+// triangle read the same corners in the same order, so they agree, and a dropped triangle leaves
+// the clip volume whole: it sets no fragment, as the hardware cull did.
+fn vertexCulled(cull:u32,world:mat4x4f,vertexBase:u32,triangle:u32)->bool{
+ var corner:array<vec3f,3>;
+ for(var k=0u;k<3u;k++){
+  let id=vertexBase+indices[triangle+k];
+  corner[k]=(uni.viewProj*(world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0))).xyw;
+ }
+ let area=determinant(mat3x3f(corner[0],corner[1],corner[2]));
+ if(cull==1u){return area>0.0;}
+ return area<0.0;
+}
 @vertex fn vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->VSOut{
  var out:VSOut;
  let slot=planInstances[(vertexIndex>>uni.vertexShift)+instance];
- let it=items[slot.x];
+ let it=items[slot.x&${INSTANCE_ITEM_MASK}u];
+ let cull=slot.x>>${INSTANCE_CULL_SHIFT}u;
  out.water=it.flags>>${WATER_RANK_SHIFT}u;
  let local=vertexIndex&((1u<<uni.vertexShift)-1u);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
@@ -94,7 +112,7 @@ ${TRIANGLE_PALETTE_WGSL}
   count=span.y;
   clusterId=clusterDiagnostic[slot.y];
  }
- if(local>=count){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
+ if(local>=count||(cull!=0u&&vertexCulled(cull,it.world,it.vertexBase,base+(local/3u)*3u))){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let id=it.vertexBase+indices[base+local];
  let world=it.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;
