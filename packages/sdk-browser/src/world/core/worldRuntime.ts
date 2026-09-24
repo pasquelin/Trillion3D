@@ -153,7 +153,7 @@ export function createWorldRuntime(inputs: Inputs) {
       session.setEnvironment({ ...inputs.display(), irradiance });
       lightsChanged = false;
     }
-    if (!background.write(session)) queueMicrotask(requestReopen); // after the frame it draws
+    background.write(session, reopens.request);
   };
   const fit = createCanvasFit(canvas, inputs.options().interactive === false);
   const beforeFrame = () => {
