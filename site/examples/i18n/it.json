@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "Il camminatore gira per la sala e spinge le palline. Palline ne aggiunge venti.",
+    "banner": "Clicca per guardarti intorno, poi cammina tra le palline con W A S D e spingile. Palline ne aggiunge venti.",
     "controls": {
-      "walking": "Cammina",
       "balls": "Palline"
     },
     "readouts": {
