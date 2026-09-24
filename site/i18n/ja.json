@@ -338,8 +338,6 @@
       "a-capped-section": "クリッピング平面:ステンシルによるふた",
       "decals-on-a-surface": "レイキャストによる選択",
       "sculpt-a-sphere": "レイキャストによる選択",
-      "a-texture-turned-and-tiled": "WebGPUでのテクスチャの繰り返し・オフセット・回転",
-      "texture-filters-compared": "WebGPUでのテクスチャフィルターと異方性フィルタリング",
       "a-video-on-a-screen": "ライブ動画テクスチャ",
       "the-webcam-as-a-texture": "ライブ動画テクスチャ",
       "four-ways-to-blend": "すべてのブレンドモード",

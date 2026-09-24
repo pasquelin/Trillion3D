@@ -338,8 +338,6 @@
       "a-capped-section": "plans de coupe : bouchons au stencil",
       "decals-on-a-surface": "sélection au pointeur (lancer de rayon)",
       "sculpt-a-sphere": "sélection au pointeur (lancer de rayon)",
-      "a-texture-turned-and-tiled": "répétition, décalage et rotation de texture sous WebGPU",
-      "texture-filters-compared": "filtres de texture et anisotropie sous WebGPU",
       "a-video-on-a-screen": "textures vidéo en direct",
       "the-webcam-as-a-texture": "textures vidéo en direct",
       "four-ways-to-blend": "tous les modes de mélange",

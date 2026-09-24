@@ -38,3 +38,11 @@ test('texturePool on WebGPU reads what the last frame held', () => {
     2048,
   );
 });
+
+test('raycastTrees reads and sets the raycast tree cache budget', () => {
+  const handle = budget(null, null);
+  const before = handle.raycastTrees;
+  handle.raycastTrees = 1024;
+  assert.equal(handle.raycastTrees, 1024);
+  handle.raycastTrees = before;
+});
