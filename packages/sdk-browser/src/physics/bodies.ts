@@ -1,6 +1,7 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
+  type ObjectPhysics,
   FLAG,
   GENERATION_SHIFT,
   GENERATIONS,
@@ -12,7 +13,6 @@ import {
   type CommandWriter,
   type PhysicsBudget,
   type PhysicsHost,
-  type PhysicsState,
 } from '../../../sdk-core/src/physics/index.ts';
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
@@ -57,7 +57,7 @@ export function createPhysicsBodies(
   budget: PhysicsBudget,
   host: PhysicsHost,
   root: Object3D,
-  state: PhysicsState,
+  state: NonNullable<ObjectPhysics['_state']>,
 ) {
   const meshes: (Bodied | null)[] = [];
   const held: (Bodied['physics'] | null)[] = [];

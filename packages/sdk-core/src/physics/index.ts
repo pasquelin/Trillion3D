@@ -8,5 +8,4 @@ export {
   type ContactEvent,
   type ContactEventName,
   type PhysicsHost,
-  type PhysicsState,
 } from './objectPhysics.ts';
