@@ -1658,7 +1658,8 @@
       "signal": "当该信号被中止时停止加载。",
       "scope": "`'full'` 要求整个缓存,`'progressive'` 要求它的流式加载分片;范围不同的模型会按名称被拒绝。未设置时,模型会按其指针所声明的范围读取。",
       "stream": "页面配置的一个流式加载器;世界的会话会用自己的流式加载器进行加载。",
-      "position": "模型的原点放在场景中的哪个位置。"
+      "position": "模型的原点放在场景中的哪个位置。",
+      "onProgress": "接收加载进行到哪一步:读完清单时为 `manifest`,之后场景读取的每个文件到达时为 `resources`(在当时已知的 `total` 中已完成 `completed`)。事件是一个 `JobProgress`:包裹加载的 `createJob` 在此传入它的 `progress`。"
     }
   },
   "LoadedModel": {
@@ -2957,6 +2958,7 @@
       "counts": "上一个计划做了什么，以页计。",
       "worldChanged": "某个节点移动了：其包围盒在下一个计划中使其覆盖的页失效。",
       "representationChanged": "同一世界的另一精度：其包围盒等待相机停下。",
+      "resting": "上一次规划时相机静止：其视图与再前一次规划相同。",
       "deferredChanges": "当表示变化在等待相机停下时为真。",
       "releaseDeferred": "本帧不规划任何阴影：保留的并集立即进入列表。",
       "observeCost": "一帧阴影通道的计时器，分摊到它绘制的页上。",

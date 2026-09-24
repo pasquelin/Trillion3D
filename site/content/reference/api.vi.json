@@ -1676,7 +1676,8 @@
       "signal": "Dừng việc tải khi tín hiệu bị hủy.",
       "scope": "`'full'` yêu cầu toàn bộ bộ nhớ đệm, `'progressive'` yêu cầu lát truyền tải của nó; một mô hình thuộc phạm vi khác bị từ chối theo đúng tên. Nếu không đặt, mô hình được đọc ở phạm vi mà con trỏ của nó khai báo.",
       "stream": "Một bộ truyền tải mà trang đã cấu hình; phiên của thế giới truyền tải bằng bộ riêng của nó.",
-      "position": "Nơi gốc của mô hình đi vào trong cảnh."
+      "position": "Nơi gốc của mô hình đi vào trong cảnh.",
+      "onProgress": "Nghe quá trình tải đã đến đâu: `manifest` khi manifest đã được đọc, rồi `resources` khi từng tệp mà cảnh đọc về tới (`completed` trên `total` đã biết đến lúc đó). Sự kiện là một `JobProgress`: một `createJob` bao quanh việc tải sẽ truyền `progress` của nó vào đây."
     }
   },
   "LoadedModel": {
@@ -3038,6 +3039,7 @@
       "counts": "Những gì kế hoạch trước đã làm, tính theo trang.",
       "worldChanged": "Một nút đã di chuyển: hộp của nó làm cũ các trang nó phủ ở kế hoạch tiếp theo.",
       "representationChanged": "Cùng thế giới ở độ chính xác khác: hộp của nó chờ camera dừng.",
+      "resting": "Camera đứng yên ở lần lập kế hoạch cuối: góc nhìn của nó giống lần trước đó.",
       "deferredChanges": "Đúng khi một thay đổi biểu diễn đang chờ camera dừng.",
       "releaseDeferred": "Khung không lập kế hoạch bóng nào: phần hợp đang giữ vào danh sách ngay.",
       "observeCost": "Bộ đếm thời gian của lượt Bóng trong một khung, chia cho các trang nó đã vẽ.",
