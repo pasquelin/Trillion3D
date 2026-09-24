@@ -5,6 +5,7 @@ import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
+import { resolveCameraWorld } from '../camera/world.ts';
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are. */
 export type Model = Object3D & { isLoadedModel: true; record: { base: string } };
@@ -39,8 +40,9 @@ export function tilePose(p: Placed) {
   const { position: t, rotation: r, scale: s } = p.instance;
   position.set(t[0], t[1], t[2]);
   local.compose(position, turn.set(r[0], r[1], r[2], r[3]), size.set(s[0], s[1], s[2]));
-  p.model.updateWorldMatrix(true, false);
-  place.multiplyMatrices(p.model.matrixWorld, local).decompose(position, turn, size);
+  place
+    .multiplyMatrices(resolveCameraWorld(p.model).matrixWorld, local)
+    .decompose(position, turn, size);
   return { place, position: position.elements, quaternion: turn.elements, scale: size };
 }
 

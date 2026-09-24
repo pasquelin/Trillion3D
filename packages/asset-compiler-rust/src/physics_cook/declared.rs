@@ -74,7 +74,9 @@ fn cooked(o: &Options, g: &Value, bin: &[u8], mesh: usize, one_hull: bool) -> Re
     let (pos, triangles) = mesh_triangles(g, bin, mesh)?;
     // The concavity allowed is the mesh's own grain: its mean edge length.
     let edges = triangles
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .flat_map(|t| [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])]);
     let (sum, count) = edges.fold((0.0f64, 0usize), |(sum, count), (a, b)| {
         let d = (0..3).map(|k| (pos[a as usize * 3 + k] - pos[b as usize * 3 + k]) as f64);
