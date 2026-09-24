@@ -3,6 +3,7 @@
 // this fixture: one material exercised, hence one thing to reread when the modes change.
 import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { octetsTexture } from './addressingCases.ts';
 import {
   SAMPLE_WRAP_SHIFT,
@@ -55,9 +56,9 @@ export const UV = AXE.flatMap((t) => [
 
 /** The six-map material, each in its mode, with no image: only the modes are read here. */
 export function materielMelange() {
-  const mat = new THREE.MeshStandardMaterial({ alphaTest: 0.5 });
+  const mat = G.standardSurface({ alphaTest: 0.5 });
   for (const { champ, wrapS, wrapT } of CARTES)
-    mat[champ] = Object.assign(new THREE.Texture(), { wrapS, wrapT });
+    mat[champ] = Object.assign(new G.GraphTexture(), { wrapS, wrapT });
   return mat;
 }
 
@@ -67,6 +68,8 @@ export function nibblesDuMelange() {
   const mat = materielMelange();
   return CARTES.map(
     ({ champ }) =>
-      (samplingWords(importHostTexture(mat[champ]!), false)[0] >>> SAMPLE_WRAP_SHIFT) & 15,
+      (samplingWords(importHostTexture(mat[champ] as G.GraphTexture), false)[0] >>>
+        SAMPLE_WRAP_SHIFT) &
+      15,
   );
 }

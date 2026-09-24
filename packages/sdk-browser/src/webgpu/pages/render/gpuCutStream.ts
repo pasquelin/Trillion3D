@@ -27,7 +27,7 @@ export function streamCutResidency(
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
   marks.queueEnd = performance.now();
   ensurePageTable(rt, gpuDevice);
-  services.syncRows();
+  services.syncRows(!run.textureConverging);
   run.rowsSyncedFrame = run.frame;
   marks.rowsEnd = performance.now();
   if (rows.candidateOverflow) return false;

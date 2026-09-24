@@ -5,11 +5,11 @@
 // by `clusterErrorAtDepth`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterErrorPixels } from '../../../../sdk-core/src/index.ts';
 import { cutSelects, projectedClusterError } from '../selection/math.ts';
 
-const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 cam.position.set(0.4, 1.1, 7);
 cam.lookAt(0.2, 0, 0);
 cam.updateMatrixWorld();

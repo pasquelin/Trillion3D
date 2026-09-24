@@ -80,6 +80,6 @@ export async function openGalleryScene(page: Page, scene: GalleryScene): Promise
       await world.awaitPages();
       world.setPose({ ...world.homePose(), position: scene.position, target: scene.target });
     },
-    { sdkUrl: '/sdk/sdk-browser/src/measurement/measurement.js', scene },
+    { sdkUrl: '/sdk/witnesses/measurement.js', scene },
   );
 }

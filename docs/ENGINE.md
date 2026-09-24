@@ -6,7 +6,7 @@ functions below are public, for a standalone host that drives pages or diagnosti
 `createGpuPageCache` and `createDiagnosticChannel`, exported by `trillion3d`. Every other internal
 name — `openMeasuredWorld`, backend ids, session options — is reachable only through the measurement
 entry point (`packages/sdk-browser/src/measurement/measurement.ts`), for the bench, the proofs and the
-comparison views ([SDK.md, "Entry points"](SDK.md#entry-points)).
+comparison views, which reach the witnesses through `bench/witnesses/measurement.ts` ([SDK.md, "Entry points"](SDK.md#entry-points)).
 
 ## The internal session
 
@@ -447,7 +447,7 @@ diagnostic).
 **The engine reads the levels the compiler baked.** As soon as the cache declares texture chains,
 each baked level is read on demand (decoded by the browser, held in a 192 MiB host cache) and tiles
 are cut from it. A chain is generated at run time only for a texture the cache carries none for.
-`textureSource` (`'cache'` by default) says whether the loader opens the source images: under
+`textureSource` (`'cache'` by default) says whether the prepared scene reads the source images: under
 `'cache'` an image whose chain the cache carries is never fetched; `'cache'` is honoured only where
 every mounted backend reads the baked levels, and `backend-choice` publishes what was settled.
 

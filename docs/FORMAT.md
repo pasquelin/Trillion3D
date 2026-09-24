@@ -25,7 +25,7 @@ Every served object carries the `.bin` extension and every object name is the SH
 }
 ```
 
-`status` must be `ready`. `url` is resolved relative to the pointer. A cache containing `clustered-blend` uses `formatVersion: 6` in both this pointer and its metadata. Other caches are format 5. Formats below these are refused whole, by their number: format 5 is the one that carries the [prepared-scene tables](#prepared-scene-tables), which a reader checks the scene it builds against, and an earlier folder has no answer to give it.
+`status` must be `ready`. `url` is resolved relative to the pointer. A cache containing `clustered-blend` uses `formatVersion: 6` in both this pointer and its metadata. Other caches are format 5. Formats below these are refused whole, by their number: format 5 is the one that carries the [prepared-scene tables](#prepared-scene-tables), which a reader builds its scene from, and an earlier folder has no answer to give it; the tables carry a version of their own, refused by name when it is not the one the reader builds from.
 
 ## `clusters.json`
 
@@ -112,7 +112,7 @@ The compiler chooses the position grid per primitive, the finer of two rules: `e
 
 Two source vertices that land on the same cells decode alike, so the page keeps one and remaps its corners: a source that repeats a vertex per corner — Whisperwind's FBX import carries 2.6 vertices per triangle — comes down to its distinct vertices without changing a triangle. Tangents are never written: every lighting pass rebuilds one cotangent frame from a triangle's normal, two edges and the texture deltas along them (`cotangentFrame`, in WGSL beside the decode routines and in GLSL for the WebGL2 renderer; a raster passes the triangle's edges, a fragment stage its screen derivatives), as the reference does. A texture coordinate set that no texture of the primitive's material names in `texCoord` is not written either — residency follows what the frame reads —, while the DAG still welds along it, so clusters do not depend on what a material samples.
 
-When every selected primitive has autonomous pages, the compiler also publishes `scene.gltf` and `scene.bin`. This light glTF retains node transforms, material declarations and images but replaces geometry accessors with a dummy triangle; the browser's `autonomousGeometry: true` backend builds real meshes only from verified geometry pages. It does not request the complete `source.bin` geometry. glTFLoader loads its embedded images and external textures as before: this backend samples `texture.image` and reads no baked level. Skipping an image — replacing it by a one-pixel placeholder at preparation time and reading its levels from the cache on demand — belongs to a session whose every mounted backend reads those levels, the WebGPU page raster, and the engine resolves `textureSource` against what it chose to draw with (`resolveTextureSource`), so no machine loses its textures. Transparent autonomous pages are not implemented. The initial complete root cover is loaded before the explorer becomes ready. `maxResidentPages` counts displayed page instances, while the streamer deduplicates URL transfers; neither limit measures physical VRAM or total application memory.
+When every selected primitive has autonomous pages, the compiler also publishes `scene.gltf` and `scene.bin`. This light glTF retains node transforms, material declarations and images but replaces geometry accessors with a dummy triangle; the browser's `autonomousGeometry: true` backend builds real meshes only from verified geometry pages. It does not request the complete `source.bin` geometry. The runtime reads its images from where the [prepared-scene tables](#prepared-scene-tables) locate them, as for `source.gltf`: this backend samples `texture.image` and reads no baked level. Skipping an image — replacing it by a one-pixel placeholder at preparation time and reading its levels from the cache on demand — belongs to a session whose every mounted backend reads those levels, the WebGPU page raster, and the engine resolves `textureSource` against what it chose to draw with (`resolveTextureSource`), so no machine loses its textures. Transparent autonomous pages are not implemented. The initial complete root cover is loaded before the explorer becomes ready. `maxResidentPages` counts displayed page instances, while the streamer deduplicates URL transfers; neither limit measures physical VRAM or total application memory.
 
 ## Textures
 
@@ -129,39 +129,65 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 ## Prepared scene tables
 
-`scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, so a reader
-does not have to read it back out of the source file. Its own version governs it —
-`version`, `nodeTableVersion`, `materialTableVersion`, all `1` — and an unknown one is refused
-rather than half-read (`assertSceneTables`). Every value is read from the `source.gltf` the same
-compilation publishes, which is the document the runtime loads: the slice's nodes, the cutout
-answers already applied, the mesh ranks already remapped.
+`scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
+only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
+governs it — `version` 2, `nodeTableVersion` 2, `materialTableVersion` 4, `geometryTableVersion` 1 —
+and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
+Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
+`scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
+ranks already remapped.
 
-- `nodes[]` — one entry per drawn primitive: `{ name, node, parent, mesh, primitive, material,
-instance, matrix, bounds }`. `matrix` is the world pose, sixteen numbers column-major; `parent`
-  is a glTF node index or `null`; `instance` is the rank among the copies of that same primitive,
-  which is what instancing is here — one geometry named by several nodes. `bounds` is the world
-  box of the position accessor's declared corners, `null` when it declares none; the autonomous
-  scene publishes degenerate triangles, so the box is the cache's answer, not the loader's.
+- `scene` — `{ name, nodes }`: the scene the document opens (`scene`, else the first) and its roots.
+- `nodes[]` — every node at its glTF rank: `{ name, children, mesh, light, camera, weights,
+  matrix, translation, rotation, scale }` (`weights` overrides its mesh's morph weights). The pose is the LOCAL one exactly as declared, each part `null` when silent:
+  the runtime composes world matrices from it the way it always has, so they are the same bits.
+  Several nodes naming one mesh is what instancing is here.
+- `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
+  range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
+  applies). `lights.json` stays the radiometric product the engine lights with.
+- `cameras[]` — the cameras the nodes carry: `{ name, type, yfov, aspectRatio, xmag, ymag, znear,
+  zfar }`, each silent field `null`.
 - `materials[]` — the surface fields the engine reads: `lit`, `baseColor`, `metalness`,
   `roughness`, `doubleSided`, `backSide`, `alphaTest`, the six map slots (`map`, `metalnessMap`,
   `roughnessMap`, `normalMap`, `aoMap`, `emissiveMap`), `normalScale`, `normalScaleY`,
-  `aoIntensity`, `emissive`, `transmission`, `ior`, `thickness`, `attenuationDistance`,
-  `attenuationColor`. One glTF material is one entry **per tangent variant**: a host that rebuilds
-  the tangent frame from screen derivatives flips `normalScaleY`, so a node names a rank in this
-  table, not the glTF material rank, and `derivativeTangents` says which variant the entry was
-  written for — the autonomous scene carries the same materials over primitives stripped of their
-  tangents, and a reader flips the sign back when the geometry it holds disagrees. A primitive that declares no material wears an entry holding
-  the glTF default one.
-- `textures[]` — sampler state at the glTF texture rank: `{ image, wrapS, wrapT, magFilter,
-minFilter }`, in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
-  specification's defaults where the sampler is silent. A map slot is
-  `{ texture, texCoord, transform }`, the transform being the 3×3 `KHR_texture_transform` composes,
-  column-major.
+  `aoIntensity`, `emissive` (the factor times `KHR_materials_emissive_strength`), `transmission`,
+  `ior`, `thickness`, `attenuationDistance`, `attenuationColor`; and what the host surface is built
+  as: `kind` (`unlit`, `standard`, or `physical` when a physical extension is declared),
+  `alphaMode` (`OPAQUE`, `MASK`, `BLEND`), `opacity` (the fourth number of the colour factor), and
+  `extensions` — what clear coat, sheen, iridescence, anisotropy, dispersion, specular, bump and
+  the transmission and thickness maps add, under the host's parameter names with its defaults.
+  One glTF material is one entry **per tangent variant**: a host that rebuilds the tangent frame
+  from screen derivatives flips `normalScaleY`, so a primitive names a rank in this table, not the
+  glTF material rank, and `derivativeTangents` says which variant the entry was written for. A
+  primitive that declares no material wears an entry holding the glTF default one.
+- `textures[]` — at the glTF texture rank: `{ name, sampler, image, wrapS, wrapT, magFilter,
+  minFilter }`, `image` the source an `EXT_texture_webp` then `EXT_texture_avif` names before the
+  core `source`, as the loader reads it; in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
+  specification's defaults where the sampler is silent; `sampler` is the glTF sampler rank, which
+  together with the image's source decides which textures are one. A map slot is
+  `{ texture, texCoord, slotTexCoord, transform }`: `texCoord` the set sampled — the
+  `KHR_texture_transform`'s when it names one —, `slotTexCoord` the set the slot names itself,
+  which decides whether the host reads the glTF texture or a copy of it and so which rank the slot
+  keeps, and the transform the `KHR_texture_transform` it declares — `{ offset, rotation, scale }`,
+  each `null` when silent — or `null`; the host composes the matrix.
+- `documents` — the geometry layout of each published document, keyed by its file name
+  (`source.gltf`, and `scene.gltf` when written): `{ buffer, views, accessors, meshes, images }`.
+  `buffer` names the one binary the document is published with; a view is `{ offset, length,
+  stride }` into it; an accessor `{ view, offset, componentType, normalized, count, type, min, max,
+  sparse }`, `sparse` being `{ count, indices: { view, offset, componentType }, values: { view,
+  offset } }` or `null`; a mesh `{ name, weights, primitives }`, each primitive `{ attributes,
+  targets, indices, material }` — accessor ranks by glTF semantic, its morph targets (each a set of
+  accessor ranks, `null` for none), and the rank of the surface it wears in `materials[]`, for that
+  document's own tangent variant; an image
+  `{ name, uri, view, mimeType }`, an address relative to the document or a view of its binary.
 
-The runtime reads the tables at load and checks them against the scene the loader built — which
-primitive each mesh draws, at what pose, with which surface and which sampler. A divergence is
-`PREPARED_SCENE_MISMATCH`, naming the field: a cache that describes another scene is refused, not
-opened half way.
+The runtime builds its host scene from these alone (`packages/sdk-browser/src/host/prepared/`):
+attributes viewed on the binary, the local box the positions declare, textures folded on image
+source and sampler, surfaces and their vertex-colour and flat-shading variants, nodes, meshes and
+cameras and lights assembled and named as the host loader assembled and named them — proven equal to the
+loader's graph, field by field and byte by byte, on every cache `site/assets` publishes
+(`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout that names a document the tables
+do not carry, or a view outside its binary, is `PREPARED_SCENE_MISMATCH`.
 
 ## `physics.json` — cooked colliders
 

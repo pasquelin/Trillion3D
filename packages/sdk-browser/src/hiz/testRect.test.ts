@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { rasterVisibilityIds } from '../visibility/buffer.ts';
 import { buildHizPyramid, countUnoccluded, visibilityDepth } from './hiz.ts';
 import { HIZ_TEST_VALUES, hizTestRect } from './occlusion.ts';
@@ -96,8 +96,8 @@ test('hizTestRect chooses finest mip whose footprint fits kernel', () => {
 });
 
 test('counters: tested and kept account for all pages', () => {
-  const frontMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const backMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const frontMat = G.basicSurface({ color: 0xff0000 });
+  const backMat = G.basicSurface({ color: 0x00ff00 });
   const front = quad(frontMat, [-1, -1, 0], [1, 1, 0], 'front');
   const back = quad(backMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'back');
   const cam = cameraAt(),
@@ -116,8 +116,8 @@ test('counters: tested and kept account for all pages', () => {
 });
 
 test('counters: triangle counts reflect cluster rejection', () => {
-  const frontMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const backMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const frontMat = G.basicSurface({ color: 0xff0000 });
+  const backMat = G.basicSurface({ color: 0x00ff00 });
   const front = quad(frontMat, [-1, -1, 0], [1, 1, 0], 'front');
   const back = quad(backMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'back');
   front.page.array = new Uint32Array(18);
@@ -141,7 +141,7 @@ test('counters: triangle counts reflect cluster rejection', () => {
 });
 
 test('counters: oversized pages are counted separately', () => {
-  const hugeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const hugeMat = G.basicSurface({ color: 0xff0000 });
   const huge = quad(hugeMat, [-10, -10, -0.5], [10, 10, 0.5], 'huge');
   huge.page.array = new Uint32Array(24);
   const cam = cameraAt(),

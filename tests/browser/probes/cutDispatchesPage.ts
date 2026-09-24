@@ -15,7 +15,7 @@
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts';
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts';
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import {
   cameraSelectionUniforms,
   SELECTION_UNIFORM_BYTES,
@@ -54,7 +54,7 @@ export async function executer({
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { packed, roots } = scene(feuilles, niveaux);
-  const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+  const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
   camera.position.set(0, 0, 16);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld();

@@ -58,7 +58,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting.
   const commit = createWebgpuRowCommit(rows, writePageRow);
-  const { syncRows, syncRowsFromCut } = createWebgpuRowSync(
+  const { syncRows, syncRowsFromCut, rowsOwed } = createWebgpuRowSync(
     rows,
     mirror,
     packedPages,
@@ -162,6 +162,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   return {
     syncRows,
     syncRowsFromCut,
+    rowsOwed,
     pageSource,
     hasBytes,
     poolHolds,

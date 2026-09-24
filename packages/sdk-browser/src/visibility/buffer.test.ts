@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { opaqueBackgroundRgba } from '../page/raster.ts';
 import {
   packVisibilityId,
@@ -39,7 +39,7 @@ test('SHADE_SHADER early returns on an invalid triangle before texture sampling'
 });
 
 test('CPU visibility shading uses the host background when no triangle is visible', () => {
-  const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const material = G.basicSurface({ color: 0xffffff });
   const { pages, geometry } = quadPages(material);
   const cam = camera(),
     size: [number, number] = [4, 4],
@@ -86,7 +86,7 @@ test('a visibility id addresses 16.7 M pages and refuses a page of more than 256
 });
 
 test('visibility ids are stable for the same pose and differ per triangle', () => {
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const material = G.basicSurface({ color: 0xff0000 });
   const { pages, geometry } = quadPages(material);
   const cam = camera(),
     size: [number, number] = [32, 32];

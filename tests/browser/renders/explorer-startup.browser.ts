@@ -9,13 +9,13 @@ import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { sdkMounts, threeStackMounts } from '../support/renderHarness.ts';
 import { buildSite, SITE_OUTPUT } from '../../../scripts/docs/site.ts';
-import type { MeasuredWorld } from '../../../packages/sdk-browser/src/measurement/measurement.ts';
+import type { MeasuredWorld } from '../../../bench/witnesses/measurement.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
 
 declare global {
   var framesRequested: number;
-  var sdk: typeof import('../../../packages/sdk-browser/src/measurement/measurement.ts');
+  var sdk: typeof import('../../../bench/witnesses/measurement.ts');
   var diagnostics: BackendDiagnostic[];
   var explorer: MeasuredWorld;
 }
@@ -81,7 +81,7 @@ try {
       controlsReused: e.controls() === e.controls(),
       coverageReady: e.backends[0].metrics().coverageReady,
     };
-  }, '/sdk/sdk-browser/src/measurement/measurement.js');
+  }, '/sdk/witnesses/measurement.js');
   assert.deepEqual([opened.width, opened.height], [960, 448]);
   assert.equal(opened.backend, 'webgpu-page-raster');
   assert.equal(opened.controlsReused, true);

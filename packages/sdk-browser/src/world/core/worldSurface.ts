@@ -1,18 +1,18 @@
 /**
- * THE HOST SURFACE OF A WORLD'S MATERIAL: the family its kind names, built with the host library.
+ * THE SURFACE OF A WORLD'S MATERIAL: the family its kind names, as the engine's own surface.
  *
- * A physical kind is the engine's own record (`Material.surface`, `hostPageSurface`), on a
- * physical surface when it declares a physical field. Every other kind is the host family of the
- * same name — basic, Lambert, Phong, toon, normal, matcap, depth —, which the host renderer
- * draws as it is on the WebGL2 path and which the engine maps onto its one lighting model on the
- * WebGPU one (`surfaceModel.ts`). Lines, points and sprites are unlit: they wear a basic surface.
+ * A physical kind is the engine's own record (`Material.surface`), on a physical surface when it
+ * declares a physical field. Every other kind is the family of the same name — basic, Lambert,
+ * Phong, toon, normal, matcap, depth —, which the engine maps onto its one lighting model on the
+ * WebGPU path (`surfaceModel.ts`) and a renderer of the reference library draws as it is
+ * (`bench/witnesses/three/fromGraph.ts`). Lines, points and sprites are unlit: they wear a basic surface.
  */
-import * as THREE from 'three';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
-import { hostPageSurface } from '../../host/pageObjects.ts';
-import { asHostLibrary } from '../../host/resources.ts';
+import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { hostSide } from '../../scene/materialSide.ts';
+import { hostPageSurface } from '../../host/pageObjects.ts';
+import { GraphSurface, type GraphSurfaceFamily } from '../../host/graph/surface.ts';
 import {
   COLOUR_MAPS,
   HOST_MAPS,
@@ -21,7 +21,7 @@ import {
   type HostTextures,
 } from './worldTextures.ts';
 
-/** Physically based fields beyond the engine record, carried on a physical host surface. */
+/** Physically based fields beyond the engine record, carried on a physical surface. */
 const PHYSICAL = [
   'transmission',
   'ior',
@@ -32,71 +32,64 @@ const PHYSICAL = [
   'iridescence',
 ];
 
-/** The host family of each kind that is not physical. */
-const FAMILY: Record<string, new () => THREE.Material> = {
-  meshBasic: THREE.MeshBasicMaterial,
-  line: THREE.MeshBasicMaterial,
-  lineDashed: THREE.MeshBasicMaterial,
-  points: THREE.MeshBasicMaterial,
-  sprite: THREE.MeshBasicMaterial,
-  shadow: THREE.MeshBasicMaterial,
-  meshLambert: THREE.MeshLambertMaterial,
-  meshPhong: THREE.MeshPhongMaterial,
-  meshToon: THREE.MeshToonMaterial,
-  meshNormal: THREE.MeshNormalMaterial,
-  meshMatcap: THREE.MeshMatcapMaterial,
-  meshDepth: THREE.MeshDepthMaterial,
+/** The family of each kind that is not physical. */
+const FAMILY: Record<string, GraphSurfaceFamily> = {
+  meshBasic: 'basic',
+  line: 'basic',
+  lineDashed: 'basic',
+  points: 'basic',
+  sprite: 'basic',
+  shadow: 'basic',
+  meshLambert: 'lambert',
+  meshPhong: 'phong',
+  meshToon: 'toon',
+  meshNormal: 'normal',
+  meshMatcap: 'matcap',
+  meshDepth: 'depth',
 };
 /** Colours a family may carry, written in the linear working space both sides share. */
 const COLOURS = ['color', 'emissive', 'specular'];
 
-/** The physical surface: the engine's record, plus the physical fields it does not carry. */
+/** The physical surface: the engine's record, on a physical surface when it declares a physical
+ *  field, which it then carries. */
 function physicalSurface(material: Material, vertexColors: boolean) {
-  let surface = asHostLibrary<THREE.MeshStandardMaterial>(
-    hostPageSurface(material.surface(), vertexColors),
+  const record = material.surface();
+  const upgrade = PHYSICAL.some(
+    (field) => typeof material[field] === 'number' && material[field] !== 0,
   );
-  if (PHYSICAL.some((field) => typeof material[field] === 'number' && material[field] !== 0)) {
-    const physical = new THREE.MeshPhysicalMaterial();
-    THREE.MeshStandardMaterial.prototype.copy.call(physical, surface);
+  const surface = hostPageSurface(record, vertexColors, upgrade ? 'physical' : 'standard');
+  if (upgrade)
     for (const field of PHYSICAL)
-      if (typeof material[field] === 'number')
-        Object.assign(physical, { [field]: material[field] });
-    surface.dispose();
-    surface = physical;
-  }
+      if (typeof material[field] === 'number') surface[field] = material[field];
   return surface;
 }
 
 /** A non-physical family, its fields written from the material's where the family has them. */
-function familySurface(
-  Family: new () => THREE.Material,
-  material: Material,
-  vertexColors: boolean,
-) {
-  const surface = new Family() as THREE.Material & Record<string, unknown>;
+function familySurface(family: GraphSurfaceFamily, material: Material, vertexColors: boolean) {
+  const surface = new GraphSurface(family);
   for (const field of COLOURS) {
     const colour = material[field] as { r: number; g: number; b: number } | undefined;
-    const into = surface[field] as THREE.Color | undefined;
+    const into = surface[field] as Color | undefined;
     if (colour && into?.isColor) into.setRGB(colour.r, colour.g, colour.b);
   }
-  if ((surface.emissive as THREE.Color | undefined)?.isColor)
-    (surface.emissive as THREE.Color).multiplyScalar(material.emissiveIntensity);
+  const emissive = surface.emissive as Color | undefined;
+  if (emissive?.isColor) emissive.multiplyScalar(material.emissiveIntensity);
   if (typeof material.shininess === 'number' && 'shininess' in surface)
     surface.shininess = material.shininess;
   surface.opacity = material.opacity;
   surface.transparent = material.transparent;
   surface.alphaTest = material.alphaTest;
-  surface.side = asHostLibrary<THREE.Side>(hostSide(material.side));
+  surface.side = hostSide(material.side);
   surface.vertexColors = vertexColors;
   return surface;
 }
 
-/** The host surface of a world material, with its maps and raster state. */
+/** The surface of a world material, with its maps and raster state. */
 export function hostSurface(material: Material, vertexColors: boolean, textures: HostTextures) {
-  const Family = FAMILY[material.kind];
-  const surface = (
-    Family ? familySurface(Family, material, vertexColors) : physicalSurface(material, vertexColors)
-  ) as THREE.Material & Record<string, unknown>;
+  const family = FAMILY[material.kind];
+  const surface = family
+    ? familySurface(family, material, vertexColors)
+    : physicalSurface(material, vertexColors);
   for (const field of HOST_MAPS) {
     const texture = material[field] as Texture | undefined;
     if (texture?.isTexture && field in surface)
@@ -110,20 +103,19 @@ export function hostSurface(material: Material, vertexColors: boolean, textures:
 
 /**
  * Writes a material's value fields — colour, glow, metalness, roughness — and its maps' sampling
- * into the host surface built for it, as `hostSurface` wrote them, and bumps the surface's
- * version: every reader of the surface (`page/surface.ts`) takes them at its next read, nothing
- * built again (#335). A map whose version moved sends its picture again; one whose placement
- * alone moved is placed again, nothing sent (`repaintHostMaps`).
+ * into the surface built for it, as `hostSurface` wrote them, and bumps the surface's version:
+ * every reader of the surface (`page/surface.ts`) takes them at its next read, nothing built again
+ * (#335). A map whose version moved sends its picture again; one whose placement alone moved is
+ * placed again, nothing sent (`repaintHostMaps`).
  */
-export function repaintHostSurface(surface: THREE.Material, material: Material) {
-  const into = surface as THREE.Material & Record<string, unknown>;
-  repaintHostMaps(into, material);
+export function repaintHostSurface(surface: GraphSurface, material: Material) {
+  repaintHostMaps(surface as unknown as Record<string, unknown>, material);
   const { color, emissive } = material;
-  (into.color as THREE.Color | undefined)?.setRGB(color.r, color.g, color.b);
-  (into.emissive as THREE.Color | undefined)
+  (surface.color as Color | undefined)?.setRGB(color.r, color.g, color.b);
+  (surface.emissive as Color | undefined)
     ?.setRGB(emissive.r, emissive.g, emissive.b)
     .multiplyScalar(material.emissiveIntensity);
-  if (typeof into.metalness === 'number') into.metalness = material.metalness;
-  if (typeof into.roughness === 'number') into.roughness = material.roughness;
+  if (typeof surface.metalness === 'number') surface.metalness = material.metalness;
+  if (typeof surface.roughness === 'number') surface.roughness = material.roughness;
   surface.needsUpdate = true;
 }

@@ -1,26 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
-import { exactPagesBackend } from '../measurement/measurement.ts';
+import * as G from '../host/graph/graph.fixture.ts';
+import { exactPagesBackend } from '../../../../bench/witnesses/measurement.ts';
 import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackend.fixture.ts';
 import { submittedDraws } from '../cluster/batchMesh.ts';
 
 test('exact pages batch clusters of the same primitive in beauty mode and unbatch in diagnostic mode', () => {
-  const g1 = new THREE.BufferGeometry();
-  g1.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  g1.setIndex([0, 1, 2, 0, 2, 3]);
-  const g2 = new THREE.BufferGeometry();
-  g2.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([2, -1, 0, 4, -1, 0, 4, 1, 0, 2, 1, 0], 3),
-  );
-  g2.setIndex([0, 1, 2, 0, 2, 3]);
-  const m1 = new THREE.Mesh(g1, new THREE.MeshBasicMaterial()),
-    m2 = new THREE.Mesh(g2, new THREE.MeshBasicMaterial());
-  const source = new THREE.Group();
+  const g1 = new G.GraphGeometry();
+  g1.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+  g1.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
+  const g2 = new G.GraphGeometry();
+  g2.setAttribute('position', G.floatAttribute([2, -1, 0, 4, -1, 0, 4, 1, 0, 2, 1, 0], 3));
+  g2.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
+  const m1 = G.mesh(g1, G.basicSurface()),
+    m2 = G.mesh(g2, G.basicSurface());
+  const source = new G.GraphGroup();
   source.add(m1);
   source.add(m2);
   const p1 = [0, 1].map((id) => ({
@@ -67,7 +61,7 @@ test('exact pages batch clusters of the same primitive in beauty mode and unbatc
     maxResidentPages: 10,
   });
   const countMeshes = () => submittedDraws(backend).length;
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 8;
   camera.lookAt(1, 0, 0);
   backend.render(camera);

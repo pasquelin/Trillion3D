@@ -1,6 +1,6 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from './pages.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { packDagSelection } from '../../gpu/dag/selection.ts';
@@ -15,10 +15,10 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   mock.method(performance, 'now', () => 0);
   const fixture = quadScene(),
     blend = quadScene();
-  const mesh = blend.source.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
+  const mesh = blend.source.children[0] as G.GraphMesh;
   fixture.source.add(mesh);
   blend.material.transparent = true;
-  blend.material.side = THREE.DoubleSide;
+  blend.material.side = G.DOUBLE_SIDE;
   const primitive = blend.metadata.primitives[0];
   primitive.mesh = 1;
   primitive.pass = 'clustered-blend';
@@ -82,20 +82,20 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     legacy = quadScene(),
     { device, writes, draws } = mockGpu();
   fixture.material.transparent = true;
-  fixture.material.side = THREE.DoubleSide;
+  fixture.material.side = G.DOUBLE_SIDE;
   fixture.metadata.primitives[0].pass = 'clustered-blend';
-  const mesh = fixture.source.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>,
-    legacyMesh = legacy.source.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
+  const mesh = fixture.source.children[0] as G.GraphMesh,
+    legacyMesh = legacy.source.children[0] as G.GraphMesh;
   legacy.material.transparent = true;
-  legacy.material.side = THREE.DoubleSide;
+  legacy.material.side = G.DOUBLE_SIDE;
   legacy.metadata.primitives[0].mesh = 1;
   legacy.metadata.primitives[0].pass = 'shared-blend';
   fixture.source.add(legacyMesh);
   fixture.metadata.primitives.push(legacy.metadata.primitives[0]);
   fixture.associations.set(legacyMesh, { meshes: 1, primitives: 0 });
-  const otherMesh = other.source.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
+  const otherMesh = other.source.children[0] as G.GraphMesh;
   other.material.transparent = true;
-  other.material.side = THREE.DoubleSide;
+  other.material.side = G.DOUBLE_SIDE;
   const otherPrimitive = other.metadata.primitives[0];
   otherPrimitive.mesh = 2;
   otherPrimitive.pass = 'clustered-blend';

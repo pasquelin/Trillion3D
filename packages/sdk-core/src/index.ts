@@ -98,22 +98,7 @@ export type { SceneState } from './scene/core/nodeContracts.ts';
 export { SceneRoot, createSceneRoot } from './scene/core/root.ts';
 export type { AlphaMode, LinearRgb, Material, Side } from './contracts/material.ts';
 export type { Texture, TextureColorSpace, TextureFilter, WrapMode } from './texture/contract.ts';
-export {
-  MATERIAL_TABLE_VERSION,
-  NODE_TABLE_VERSION,
-  SCENE_TABLES_FILE,
-  SCENE_TABLES_VERSION,
-  TABLE_FLAGS,
-  TABLE_NUMBERS,
-  TABLE_SLOTS,
-  TABLE_TRIPLETS,
-  assertSceneTables,
-  type PreparedSceneTables,
-  type TableMaterial,
-  type TableNode,
-  type TableTexture,
-  type TableTextureSlot,
-} from './scene/core/tableContracts.ts';
+export * from './scene/core/tableSurfaces.ts';
 export { compareImages } from './runtime/compareImages.ts';
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */

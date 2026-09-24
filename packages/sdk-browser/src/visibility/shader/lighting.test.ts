@@ -5,7 +5,7 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { shadeLit } from './lighting.ts';
 import { referenceShadeLit } from '../../../../../bench/oracles/browser/pixel-lighting.ts';
 import type { VisPage, VisMaterial } from '../types.ts';
@@ -13,6 +13,7 @@ import type { Projected } from '../projection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { litMaterial } from './material.fixture.ts';
+import { asHostLibrary } from '../../host/resources.ts';
 
 function vertex(worldX: number, worldY: number, worldZ: number, invW = 1): Projected {
   return { x: 0, y: 0, z: 0, invW, worldX, worldY, worldZ };
@@ -31,8 +32,8 @@ function pageOf(overrides: Partial<VisPage> = {}): VisPage {
   return {
     array: new Uint32Array([0, 1, 2]),
     attributes: {},
-    matrix: new THREE.Matrix4(),
-    material: surfaceOf(new THREE.MeshBasicMaterial()),
+    matrix: new G.Matrix4(),
+    material: surfaceOf(G.basicSurface()),
     ...overrides,
   };
 }
@@ -47,7 +48,7 @@ const TRI_BASE = {
   i1: 1,
   i2: 2,
 };
-const CAMERA = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+const CAMERA = G.perspectiveCamera(55, 1, 0.1, 100);
 CAMERA.position.set(2, 3, 5);
 CAMERA.updateMatrixWorld();
 
@@ -80,7 +81,10 @@ function assertSameShading(cas: Cas, label: string) {
   // The optimised one reads the engine camera; the oracle keeps the host-library camera, which
   // is what it proves equivalence of. Same eye, same bits.
   const optimisee = shadeLit(...a, cameraMoteur(CAMERA));
-  const reference = referenceShadeLit(...a, CAMERA);
+  const reference = referenceShadeLit(
+    ...a,
+    asHostLibrary<Parameters<typeof referenceShadeLit>[9]>(CAMERA),
+  );
   for (let c = 0; c < 3; c++)
     assert.ok(
       Object.is(optimisee[c], reference[c]),
@@ -95,7 +99,7 @@ test('without a normal or a map: face path only, several roughnesses and metalne
 });
 
 test('negative determinant (mirrored page) and doubleSided/backSide combined', () => {
-  const page = pageOf({ matrix: new THREE.Matrix4().makeScale(-1, 1, 1) });
+  const page = pageOf({ matrix: new G.Matrix4().makeScale(-1, 1, 1) });
   for (const doubleSided of [false, true])
     for (const backSide of [false, true])
       assertSameShading(
@@ -118,7 +122,7 @@ test('camera exactly on the fragment point (vLen folded to 1)', () => {
 });
 
 test('vertex normals carried by the page, with and without doubleSided', () => {
-  const normal = new THREE.BufferAttribute(
+  const normal = new G.GraphAttribute(
     new Float32Array([0, 0, 1, 0.2, 0.8, 0.1, -0.3, 0.4, 0.9]),
     3,
   );
@@ -131,17 +135,14 @@ test('visibilityLighting reads Nx/Ny/Nz from normal[0]/[1]/[2], not permuted', (
   // Vertex normal with three distinct, non-symmetric components: any permutation of Nx/Ny/Nz in
   // `shadeLit` would drift from the oracle, which reads n.x/n.y/n.z in that order.
   const valeurs = [0.15, 0.55, 0.82];
-  const normal = new THREE.BufferAttribute(
-    Float32Array.from([...valeurs, ...valeurs, ...valeurs]),
-    3,
-  );
+  const normal = new G.GraphAttribute(Float32Array.from([...valeurs, ...valeurs, ...valeurs]), 3);
   const page = pageOf({ attributes: { normal } });
   assertSameShading({ page }, 'Nx/Ny/Nz not permuted');
 });
 
 test('normal map with a tangent carried by the page', () => {
-  const normal = new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3);
-  const tangent = new THREE.BufferAttribute(
+  const normal = new G.GraphAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3);
+  const tangent = new G.GraphAttribute(
     new Float32Array([1, 0, 0, 1, 0.1, 0, 0, 1, 1, 0, -0.1, -1]),
     4,
   );
@@ -155,7 +156,7 @@ test('normal map with a tangent carried by the page', () => {
 });
 
 test('normal map without a tangent: derived from the UVs carried by the page', () => {
-  const uv = new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2);
+  const uv = new G.GraphAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2);
   const page = pageOf({ attributes: { uv } });
   const mat = litMaterial({ normalMap: fakeTexture([10, 250, 5, 255]) });
   assertSameShading({ page, mat }, 'normalMap without tangent');

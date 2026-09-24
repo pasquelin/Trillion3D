@@ -22,7 +22,7 @@
  * WHAT DOES NOT CHANGE. Normalized x and y are `[−1, 1]` and their passage to the screen
  * depends on nothing here. The host WebGL2 path, for its part, draws with the host-library
  * projection, in FORWARD depth: it signs the coplanar-layer offset itself
- * (`../cluster/batchLayers.ts`) and reads nothing from this file.
+ * (`bench/witnesses/exact/batches/batchLayers.ts`) and reads nothing from this file.
  */
 
 /** Depth comparison of every pipeline: in reversed depth, the greater wins. */

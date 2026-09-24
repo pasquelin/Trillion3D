@@ -19,7 +19,7 @@ export type ModelRecord = {
   base: string;
   /** The compiled manifest itself: primitives, pages and their sizes. */
   metadata: ClusterManifest;
-  /** The scene graph the loader built from the manifest. */
+  /** The scene graph built from the cache's scene tables. */
   scene: ExplorerScene;
   /** Where its images were read: `cache` left the baked ones to the levels the session reads. */
   textureSource: 'host' | 'cache';

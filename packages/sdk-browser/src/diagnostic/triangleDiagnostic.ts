@@ -3,8 +3,8 @@ import { materialSide } from '../scene/materialSide.ts';
 import type {
   HostDiagnosticFactory,
   HostDiagnosticGeometry,
-  HostDiagnosticMaterial,
   HostDiagnosticMesh,
+  HostDisposable,
 } from '../host/resources.ts';
 import type { DiagnosticMode } from '../../../sdk-core/src/index.ts';
 
@@ -51,29 +51,36 @@ function triangleColors(count: number, salt: number) {
   return colors;
 }
 
+/**
+ * The per-triangle copy of `geometry`, made once and shared by every mesh wearing it. A copy made
+ * here hands `overlays` its release, so that it is freed with the view — and made afresh by the
+ * next one — rather than held for the page's lifetime.
+ */
 export function triangleGeometry(
   geometry: HostDiagnosticGeometry,
   host: HostDiagnosticFactory,
   salt = 0,
+  overlays?: HostDisposable[],
 ) {
   let copy = cache.get(geometry);
   if (!copy) {
     copy = host.triangleGeometry(geometry);
     host.vertexColors(copy, triangleColors(copy.attributes.position.count, salt));
     cache.set(geometry, copy);
+    overlays?.push({ dispose: () => disposeTriangleGeometry(geometry) });
   }
   return copy;
 }
 
 /**
  * Give a copy back its original geometry and material, kept in `userData`, then, in wireframe
- * mode, set its per-triangle colouring. The created material goes into `overlays`, to discard
+ * mode, set its per-triangle colouring. The created material and copy go into `overlays`, to discard
  * with the mode.
  */
 export function applyMeshDiagnostic(
   mesh: HostDiagnosticMesh,
   mode: DiagnosticMode,
-  overlays: HostDiagnosticMaterial[],
+  overlays: HostDisposable[],
   host: HostDiagnosticFactory,
 ) {
   const sourceGeometry = mesh.userData.sourceGeometry as HostDiagnosticGeometry;
@@ -81,7 +88,7 @@ export function applyMeshDiagnostic(
   mesh.geometry = sourceGeometry;
   mesh.material = sourceMaterial;
   if (mode !== 'wireframe') return;
-  mesh.geometry = triangleGeometry(sourceGeometry, host, hashId(String(mesh.id)));
+  mesh.geometry = triangleGeometry(sourceGeometry, host, hashId(String(mesh.id)), overlays);
   const material = host.triangleMaterial(materialSide(sourceMaterial));
   overlays.push(material);
   mesh.material = material;

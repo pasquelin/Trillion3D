@@ -53,10 +53,13 @@ worker, DOM object, GPU object or compiler process.
 A fourth branch exists beside these three, and it is not a `trillion3d` resolver condition: the
 measurement entry point, `packages/sdk-browser/src/measurement/measurement.ts`. It re-exports everything the
 browser branch does, plus `openMeasuredWorld`/`createMeasuredWorldJob` (the internal session a
-world opens on itself), the witness backend factories, `chooseBackends`/`autonomousCacheReady` and
-`replicateInstances`. `package.json`'s `exports` map has no subpath for it — the bench, the proofs
-and the comparison views import it by its source path inside this repository, never through the
-published `trillion3d` specifier, so none of it reaches a consumer of the package.
+world opens on itself), the engine's own backend factories, `chooseBackends`/`autonomousCacheReady`
+and `replicateInstances`. `package.json`'s `exports` map has no subpath for it — the bench, the
+proofs and the comparison views import it by its source path inside this repository, never through
+the published `trillion3d` specifier, so none of it reaches a consumer of the package. The witness
+backend factories are not in it: they live beside the bench, and `bench/witnesses/measurement.ts`
+re-exports the measurement entry point with them added (built into `dist/witnesses/`, which the
+package leaves out).
 
 The package maps these built files with conditional JavaScript and matching conditional
 declarations. The `browser` condition precedes the Node and generic import/default paths; the Node
@@ -528,11 +531,15 @@ beside every emitted chunk that keeps its relative URL, and serve that output di
 with the compiled scene cache. `pnpm run proof:package -- --browser` is the repository's executable
 esbuild configuration and verifies both worker tasks and WASM selection.
 
-### Install requirement during the migration: the `three` peer dependency
+### Install requirements: the package alone, the witnesses beside the bench
 
-Until the witnesses leave the published package (#275), `sdk-browser` still declares `three` as a
-peer dependency, so a browser host installs `three` and `@types/three` beside `@webgpu/types`. No
-public API takes or returns a Three.js object, and none of the batch maths needs it.
+A browser host installs `trillion3d` and, for its types, `@webgpu/types`; nothing else. The package
+declares no rendering library, ships none and pulls none: a clean install of the packed archive has
+no `three` in its tree (`tests/integration/installed-package.test.ts`), and the runtime build refuses
+an `engine.js` that folds one in (`scripts/docs/build-runtime.ts`). No public API takes or returns a
+Three.js object. The witnesses the bench compares the engine against live beside the bench
+(`bench/witnesses/`) and plug into the measurement seam through its backend list; `three` is a
+development dependency of this repository alone (#275).
 
 ## Compiling from Node
 

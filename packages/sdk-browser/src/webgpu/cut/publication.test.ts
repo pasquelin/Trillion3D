@@ -3,7 +3,7 @@
 // same cut stirs nothing, since what is published is a difference.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Matrix4 } from 'three';
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
 import { createWebgpuCutPublication } from './publication.ts';
 import { fixturePages, fixtureUniforms } from './adopter.fixture.ts';
 import type { CutDelta } from './delta.ts';

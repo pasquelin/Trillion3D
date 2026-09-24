@@ -60,7 +60,7 @@ export function proveInstalledTypes({
         moduleResolution: 'Bundler',
         customConditions: ['browser'],
         lib: ['ES2023', 'DOM', 'DOM.Iterable'],
-        types: ['three', '@webgpu/types'],
+        types: ['@webgpu/types'],
       },
     ],
   ];

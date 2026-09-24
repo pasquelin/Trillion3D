@@ -1,5 +1,5 @@
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { collectClusterPages, selectVisiblePages } from './selection.ts';
 
@@ -9,11 +9,11 @@ export function dagFixture() {
     const x = -2 + t;
     positions.push(x, -0.5, 0, x + 1, -0.5, 0, x + 0.5, 0.5, 0);
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setIndex([...Array(12).keys()]);
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
-  const source = new THREE.Group();
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', G.floatAttribute(positions, 3));
+  geometry.setIndex(G.indices([...Array(12).keys()]));
+  const mesh = G.mesh(geometry, G.basicSurface({ side: G.DOUBLE_SIDE }));
+  const source = new G.GraphGroup();
   source.add(mesh);
   const leftSphere = [-1, 0, 0, 1.2],
     rightSphere = [1, 0, 0, 1.2],
@@ -132,7 +132,7 @@ export function dagFixture() {
 }
 
 export function wideCamera() {
-  const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
+  const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 1000);
   cam.position.set(0, 0, 5);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
@@ -141,7 +141,7 @@ export function wideCamera() {
 
 /** An oblique view of the origin from (3, 2, 9), as the zero-threshold cut tests decide under. */
 export function obliqueCamera() {
-  const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.25, 500);
+  const cam = G.perspectiveCamera(55, 16 / 9, 0.25, 500);
   cam.position.set(3, 2, 9);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();

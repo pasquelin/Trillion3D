@@ -3,7 +3,7 @@
 // see, counts their error in the face's texels, and keeps only what covers a redrawn page.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { evaluateDagSelectionKernel, packedWorldsToRenderOrigin } from './selection.ts';
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { kernelUniforms, packed } from './selectionHelpers.fixture.ts';
@@ -11,7 +11,7 @@ import { sunRun } from '../../webgpu/shadow/runs.fixture.ts';
 
 /** A camera five metres in front of the fixture, looking away from it. */
 function cameraFacingAway() {
-  const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
+  const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 1000);
   cam.position.set(0, 0, -5);
   cam.lookAt(0, 0, -10);
   cam.updateMatrixWorld();

@@ -1,4 +1,4 @@
-import type * as SdkBrowser from '../../packages/sdk-browser/src/measurement/measurement.ts';
+import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { MeasureViewOptions, MeasureViewResult } from './measureOptions.ts';
 import type * as PageCoupe from './cutPage.ts';
 import type * as PageTemoin from './witnessPage.ts';
@@ -18,11 +18,13 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const coupe = (await import(`${options.modulesUrl}cutPage.ts`)) as typeof PageCoupe;
   // The Three witness does not read the contract's light store: the harness, a host like any
   // other, itself places in Three the lights that store declares (`witnessPage.ts`).
-  const lighting = options.witness
-    ? (
-        (await import(`${options.modulesUrl}witnessPage.ts`)) as typeof PageTemoin
-      ).creerEclairageTemoin()
-    : null;
+  // A dist older than the graph light group exports no `GraphGroup`: its witness gets none.
+  const lighting =
+    options.witness && sdk.GraphGroup
+      ? (
+          (await import(`${options.modulesUrl}witnessPage.ts`)) as typeof PageTemoin
+        ).creerEclairageTemoin(sdk)
+      : null;
   const factory = options.backend ? sdk[options.backend] : undefined;
   if (!factory) return { erreur: `engine missing from dist: ${options.backend}` };
   const canvas = document.createElement('canvas');

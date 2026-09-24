@@ -12,7 +12,7 @@
 // rounding of u·size.
 import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import { writeFileSync } from 'node:fs';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { wrapNibble } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 import {
   ADRESSE,
@@ -32,7 +32,7 @@ import { executerDansChromium, MELANGE, NUANCEUR_PRISES } from './addressingGpuP
  *  host texture carries only the two wrap modes this bench addresses. */
 const drapeaux = (c: AdressageCas) =>
   wrapNibble(
-    importHostTexture(Object.assign(new THREE.Texture(), { wrapS: c.wrapS, wrapT: c.wrapT })),
+    importHostTexture(Object.assign(new G.GraphTexture(), { wrapS: c.wrapS, wrapT: c.wrapT })),
   );
 
 interface Lot {

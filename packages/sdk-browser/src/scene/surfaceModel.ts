@@ -29,23 +29,26 @@ export const MODEL_SHIFT = 17;
 /** Surface-buffer flags of the lit models the resolve shades apart: 2 stays the physical one. */
 export const MODEL_FLAG = { diffuse: 4, toon: 5 } as const;
 
-/** The model a host material declares by its family flag; the physical model otherwise. */
-export function hostSurfaceModel(host: HostShadedMaterial): number {
-  const is = host as Record<string, unknown>;
-  if (is.isMeshLambertMaterial) return SURFACE_MODEL.diffuse;
-  if (is.isMeshToonMaterial) return SURFACE_MODEL.toon;
-  if (is.isMeshNormalMaterial) return SURFACE_MODEL.normal;
-  if (is.isMeshMatcapMaterial) return SURFACE_MODEL.matcap;
-  if (is.isMeshDepthMaterial) return SURFACE_MODEL.depth;
+/** The model a surface declares by its family; the physical model otherwise. */
+export function hostSurfaceModel({ family }: HostShadedMaterial): number {
+  if (family === 'lambert') return SURFACE_MODEL.diffuse;
+  if (family === 'toon') return SURFACE_MODEL.toon;
+  if (family === 'normal') return SURFACE_MODEL.normal;
+  if (family === 'matcap') return SURFACE_MODEL.matcap;
+  if (family === 'depth') return SURFACE_MODEL.depth;
   return SURFACE_MODEL.standard;
 }
+
+/** Whether a surface carries the metal-rough parameters: a standard or a physical one. */
+export const metalRough = ({ family }: HostShadedMaterial) =>
+  family === 'standard' || family === 'physical';
 
 /** True when the model is lit by the scene's lights: a Phong material is the standard model. */
 export const litModel = (host: HostShadedMaterial, model: number) =>
   model === SURFACE_MODEL.diffuse ||
   model === SURFACE_MODEL.toon ||
-  !!host.isMeshStandardMaterial ||
-  !!(host as { isMeshPhongMaterial?: boolean }).isMeshPhongMaterial;
+  metalRough(host) ||
+  host.family === 'phong';
 
 /** The roughness a Blinn–Phong exponent reads as, `√(2 / (n + 2))`: its lobe's width. */
 export const shininessRoughness = (shininess: number) =>

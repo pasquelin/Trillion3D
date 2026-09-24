@@ -147,10 +147,6 @@
     "summary": "Verweigert einen Proxy-Deskriptor, den diese Engine nicht lesen könnte, bevor auch nur ein Byte angefordert wird.",
     "description": "Ein Manifest ohne Deskriptor ist kein Fehler: es ist ein Cache von vor der indirekten Beleuchtung, und die Engine sagt das, statt eine Geometrie zu erraten, die sie nicht hat."
   },
-  "assertSceneTables": {
-    "summary": "Die Tabellen, oder eine benannte Ablehnung.",
-    "description": "Eine unbekannte Version wird nie erraten: ein von einem anderen Compiler geschriebenes Produkt, oder eines von vor einer Formänderung einer Tabelle, sagt nichts, wogegen dieser Leser eine Szene prüfen könnte, und es halb zu lesen würde eine Formatänderung in einen falschen Vergleich verwandeln."
-  },
   "AssetScope": {
     "summary": "Wie ein Modell kompiliert wird: `'slice'` lässt es seitenweise ankommen, `'full'` behält es ganz."
   },
@@ -2289,18 +2285,7 @@
     "summary": "Kopiert eine Engine-Kamera in eine andere, die dann die Sicht bitgenau behält."
   },
   "HostAttribute": {
-    "summary": "Ein Scheitelpunktattribut einer Host-Geometrie, verschachtelt oder nicht: seine Anordnung und seine Speicherung.",
-    "members": {
-      "isBufferAttribute": "Vom Host gesetzt, wenn das Attribut seinen eigenen Puffer besitzt, statt in einen gemeinsamen, verschachtelten Puffer zu blicken. Nur die Zulassungsprüfung liest es: die engine-eigene Dekodierung ist in beiden Fällen dieselbe, nicht die Bindung des autonomen WebGL2-Programms.",
-      "itemSize": "Zahlen pro Scheitelpunkt.",
-      "count": "Wie viele Scheitelpunkte.",
-      "normalized": "Ob sich die Ganzzahlen von 0 bis 1 lesen.",
-      "array": "Die Speicherung.",
-      "getX": "Komponente eines Elements, vom Host entflochten und denormalisiert.",
-      "getY": "Zweite Komponente eines Elements.",
-      "getZ": "Dritte Komponente eines Elements.",
-      "getW": "Vierte Komponente eines Elements."
-    }
+    "summary": "Ein Scheitelpunktattribut einer Host-Geometrie, verschachtelt oder nicht: seine Anordnung und seine Speicherung."
   },
   "HostAttributes": {
     "summary": "Die benannten Attribute einer Host-Geometrie.",
@@ -2359,32 +2344,17 @@
     "summary": "Eine Host-Geometrie, die eine Diagnoseansicht freigeben kann.",
     "members": {
       "attributes": "Ihre Scheitelpunktattribute.",
-      "boundingBox": "Die vom Host berechnete lokale Box.",
       "dispose": "Gibt sie frei."
     }
   },
   "HostDiagnosticMaterial": {
     "summary": "Eine Host-Oberfläche, die eine Diagnoseansicht auf einem Mesh austauscht und dann freigibt: was sie anhängt, kommt über `HostDiagnosticFactory`, nie über einen Import, sodass keine Ansicht eine Rendering-Bibliothek benennt.",
     "members": {
-      "version": "Vom Host bei jeder Änderung erhöht: das, was eine zwischengespeicherte Zeile vergleicht, um ihre Felder neu zu erstellen.",
-      "visible": "Ob sie gezeichnet wird.",
       "side": "Welche Flächen, nach der Konstante des Hosts.",
-      "forceSinglePass": "Der Host zeichnet eine durchsichtige zweiseitige Oberfläche in einem Durchgang statt erst hinten dann vorne.",
-      "vertexColors": "Ob die Scheitelpunktfarben sie färben.",
-      "toneMapped": "Ob die Anzeigekurve angewendet wird.",
-      "depthTest": "Der Rasterisierungszustand, den der Host mit der Oberfläche deklariert, und dem die Pipelines der Engine folgen.",
-      "depthWrite": "Ob sie die Tiefe schreibt.",
-      "depthFunc": "Der Vergleich des Tiefentests.",
-      "colorWrite": "Ob sie die Farbe schreibt.",
-      "polygonOffset": "Ob die Tiefe versetzt wird.",
-      "polygonOffsetFactor": "Steigungsanteil des Versatzes.",
-      "polygonOffsetUnits": "Konstanter Anteil des Versatzes.",
-      "transparent": "Ob sie sich mischt.",
-      "opacity": "Wie undurchsichtig sie ist.",
-      "alphaTest": "Alpha, unter dem Pixel verschwinden.",
       "dispose": "Gibt sie frei.",
       "clone": "Eine Kopie der Oberfläche."
-    }
+    },
+    "description": "Die Diagnoseansichten dienen auch den Zeugen, deren Meshes die ihrer Bibliothek sind: was sie anhängen, kommt über `HostDiagnosticFactory`, und sie werden nur über diese Form gelesen."
   },
   "HostDisposable": {
     "summary": "Eine Host-Ressource, die die Engine freigibt, wenn der Graph, aus dem sie stammt, freigegeben wird: eine Geometrie, eine Oberfläche, eine Textur.",
@@ -2413,67 +2383,23 @@
     }
   },
   "HostGeometry": {
-    "summary": "Eine Host-Geometrie: ihre Attribute, und die lokale Box, die der Host darüber berechnet hat.",
-    "members": {
-      "attributes": "Ihre Scheitelpunktattribute.",
-      "boundingBox": "Die vom Host berechnete lokale Box."
-    }
+    "summary": "Eine Host-Geometrie: ihre Attribute, und die lokale Box, die der Host darüber berechnet hat."
   },
   "HostGraphNode": {
     "summary": "Ein Knoten des Host-Graphen, so wie ihn ein Durchlauf sieht: seine Identität, seine lokale Pose, die Weltmatrix, die der Host für ihn aufgelöst hat, und seine Kette.",
-    "description": "Die Engine berechnet ihre EIGENEN Weltmatrizen aus den lokalen Posen (`../world/tree.ts`); `matrixWorld` wird dort gelesen, wo es die eigene Auflösung des HOSTS ist, die eine Grenze ihr zurückgibt. WARUM `HostPlaced` (`../resources.ts`) AUCH EINEN PLATZIERTEN KNOTEN BESCHREIBT. Die beiden sind keine Kopie: sie stützen sich auf die beiden unterschiedlichen Auflösungen, die ein Host bietet. `HostPlaced` verlangt `updateWorldMatrix(ancestors, descendants)` — die Kette EINES Knotens, das, was eine Platzierung und ein Sichtbarkeitsdurchlauf zurückgeben; dieses hier verlangt `updateMatrixWorld(force)` — den TEILBAUM unter einem Knoten, das, was ein Durchlauf, eine Grenzenvereinigung und eine Replikation in einem Aufruf auflösen. Ein Host, der nur eines der beiden bietet, erfüllt nur den Vertrag, dem er entspricht, also kann keines das andere ersetzen.",
-    "members": {
-      "parent": "Sein Elternteil.",
-      "position": "Wo er steht.",
-      "quaternion": "Die beiden Seiten der Rotation eines Knotens — das Quaternion, das die Engine vergleicht, und die Euler-Winkel, die sich dorthin zurückkopieren — jede KÜNDIGT ihre eigenen Schreibvorgänge AN: ein Rückruf, den der Host bereits verkettet, den ein Hook verlängert, statt ihn zu ersetzen (`hooks.ts`). Die beiden unterstrichenen Mitglieder sind ein Privates der Host-Bibliothek, also werden sie hier geschrieben, wo der Hook sie braucht, ohne einen eigenen Namen zu erhalten. Das hält das Private aus der Liste der veröffentlichten Verträge des SDK heraus; es hält es NICHT aus der veröffentlichten Oberfläche heraus, da `HostGraphNode` es trägt. Die Pose bei jedem Bild zu vergleichen, wie es der Durchlauf bereits tut, ist das, was diese Kopplung aufheben würde — das ist nicht die Arbeit dieses Lots.",
-      "rotation": "Wie er gedreht ist, in Winkeln.",
-      "scale": "Wie er gestreckt ist.",
-      "matrixAutoUpdate": "Falsch, wenn der Host `matrix` selbst gesetzt hat: die Matrix IST die Pose, und nichts setzt sie neu zusammen.",
-      "matrix": "Seine lokale Matrix.",
-      "matrixWorld": "Seine Matrix in der Welt.",
-      "userData": "Wo die Engine eine eigene Kopie markiert, die der Host nie gesehen hat und nicht schreiben kann.",
-      "traverse": "Der Teilbaum unter dem Knoten, er zuerst, in der eigenen Reihenfolge des Hosts.",
-      "updateMatrixWorld": "Löst die Weltmatrizen des Teilbaums IM GRAPHEN DES HOSTS auf, für die eigenen Leser des Hosts."
-    }
+    "description": "Die Engine berechnet ihre EIGENEN Weltmatrizen aus den lokalen Posen (`../world/tree.ts`); `matrixWorld` wird dort gelesen, wo es die eigene Auflösung des HOSTS ist, die eine Grenze ihr zurückgibt. WARUM `HostPlaced` (`../resources.ts`) AUCH EINEN PLATZIERTEN KNOTEN BESCHREIBT. Die beiden sind keine Kopie: sie stützen sich auf die beiden unterschiedlichen Auflösungen, die ein Host bietet. `HostPlaced` verlangt `updateWorldMatrix(ancestors, descendants)` — die Kette EINES Knotens, das, was eine Platzierung und ein Sichtbarkeitsdurchlauf zurückgeben; dieses hier verlangt `updateMatrixWorld(force)` — den TEILBAUM unter einem Knoten, das, was ein Durchlauf, eine Grenzenvereinigung und eine Replikation in einem Aufruf auflösen. Ein Host, der nur eines der beiden bietet, erfüllt nur den Vertrag, dem er entspricht, also kann keines das andere ersetzen."
   },
   "HostMaterial": {
-    "summary": "Ein Host-Material, so wie die Engine es liest: die Oberflächenparameter, die jedes Host-Material teilt, einmal an der Grenze in das `VisMaterial` der Engine gelesen; nur `sideOf` liest `side`.",
-    "members": {
-      "version": "Vom Host bei jeder Änderung erhöht: das, was eine zwischengespeicherte Zeile vergleicht, um ihre Felder neu zu erstellen.",
-      "visible": "Ob sie gezeichnet wird.",
-      "side": "Welche Flächen, nach der Konstante des Hosts.",
-      "forceSinglePass": "Der Host zeichnet eine durchsichtige zweiseitige Oberfläche in einem Durchgang statt erst hinten dann vorne.",
-      "vertexColors": "Ob die Scheitelpunktfarben sie färben.",
-      "toneMapped": "Ob die Anzeigekurve angewendet wird.",
-      "depthTest": "Der Rasterisierungszustand, den der Host mit der Oberfläche deklariert, und dem die Pipelines der Engine folgen.",
-      "depthWrite": "Ob sie die Tiefe schreibt.",
-      "depthFunc": "Der Vergleich des Tiefentests.",
-      "colorWrite": "Ob sie die Farbe schreibt.",
-      "polygonOffset": "Ob die Tiefe versetzt wird.",
-      "polygonOffsetFactor": "Steigungsanteil des Versatzes.",
-      "polygonOffsetUnits": "Konstanter Anteil des Versatzes.",
-      "transparent": "Ob sie sich mischt.",
-      "opacity": "Wie undurchsichtig sie ist.",
-      "alphaTest": "Alpha, unter dem Pixel verschwinden."
-    }
+    "summary": "Ein Host-Material, so wie die Engine es liest: die Oberflächenparameter, die jedes Host-Material teilt, einmal an der Grenze in das `VisMaterial` der Engine gelesen; nur `sideOf` liest `side`."
   },
   "HostMaterials": {
     "summary": "Was eine Oberfläche deklariert: ein Material, oder eines pro Gruppe der Geometrie."
   },
   "HostMesh": {
-    "summary": "Ein Host-Mesh, gehalten durch seine Identität: der Zeicheneintrag, die durchsichtige Tabelle und die Auswahlmengen benennen die Oberfläche, die der Host platziert hat.",
-    "description": "Sein Name wird gelesen, und seine Vorfahrenkette, wenn ein verschobener Teilbaum vom Rest unterschieden werden muss (`../webgpu/pages/render/transform.ts`); sonst nichts.",
-    "members": {
-      "name": "Der Name, den der Host ihm gibt.",
-      "parent": "Sein Elternteil, wenn man den Baum hinaufgeht."
-    }
+    "summary": "Ein Host-Mesh, gehalten durch seine Identität: der Zeicheneintrag, die durchsichtige Tabelle und die Auswahlmengen benennen die Oberfläche, die der Host platziert hat."
   },
   "HostNode": {
-    "summary": "Ein Knoten des Host-Szenengraphen, gehalten durch seine Identität und die beiden Felder, die ein Durchlauf braucht.",
-    "members": {
-      "name": "Der Name, den der Host ihm gibt.",
-      "visible": "Ob er gezeichnet wird."
-    }
+    "summary": "Ein Knoten des Host-Szenengraphen, gehalten durch seine Identität und die beiden Felder, die ein Durchlauf braucht."
   },
   "HostNodeMatrix": {
     "summary": "Dieselben sechzehn Fließkommazahlen, term-für-term VERÄNDERBAR: die Pose, die eine Grenze auf einen Host-Knoten oder eine Host-Kamera zurücksetzt, die sie wiederherstellt.",
@@ -2518,49 +2444,16 @@
     "summary": "Der Anzeigegraph des Hosts, in dem eine Engine zeichnet: was er enthält, wie man ihn durchläuft, und die Hintergrundfarbe, die die Komposition liest.",
     "description": "Ihn zu bauen ist Sache einer Grenze des Hosts; einen zu schreiben ist Sache von `HostDrawScene`.",
     "members": {
-      "name": "Der Name, den der Host ihm gibt.",
-      "visible": "Ob er gezeichnet wird.",
       "traverse": "Besucht sich, dann den Teilbaum.",
       "background": "Was das Bild dahinter füllt.",
       "children": "Die Knoten an seiner Spitze."
     }
   },
   "HostTexture": {
-    "summary": "Eine Host-Textur: das vom Host dekodierte Bild und der von ihm deklarierte Abtastzustand, ebenfalls durch ihre Identität gehalten.",
-    "description": "Ihre Pixel bleiben `unknown`: nur die Grenze, die sie sendet, kennt ihren Container.",
-    "members": {
-      "isTexture": "Vom Host auf Objekten gesetzt, die sein Sampler liest: das, was eine Textur von jedem anderen Feld eines Materials unterscheidet, dessen Plätze die Engine nicht aufzählt.",
-      "uuid": "Ein der Textur eigener Name.",
-      "name": "Der Name, den der Host ihr gibt.",
-      "version": "Vom Host bei jeder Inhaltsänderung erhöht: das, was eine Sendung vergleicht, um eine erneute Kopie zu vermeiden.",
-      "image": "Das dekodierte Bild, im hosteigenen Container.",
-      "channel": "UV-Satz, den der Sampler liest, das `texCoord` von `KHR_texture_transform`.",
-      "wrapS": "Wie sie sich in der Breite wiederholt, nach der Konstante des Hosts.",
-      "wrapT": "Wie sie sich nach oben wiederholt, nach der Konstante des Hosts.",
-      "magFilter": "Filter, wenn sie größer gezeigt wird.",
-      "minFilter": "Filter, wenn sie kleiner gezeigt wird.",
-      "anisotropy": "Schärfe schräg gesehen.",
-      "flipY": "Ob die Zeilen beim Senden umgedreht werden.",
-      "premultiplyAlpha": "Ob die Farbe mit Alpha vormultipliziert ist.",
-      "generateMipmaps": "Ob kleinere Kopien erstellt werden.",
-      "colorSpace": "Wie ihre Zahlen gelesen werden.",
-      "matrix": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Zeilen zusammengesetzt; der Host berechnet sie aus Versatz, Wiederholung und Rotation neu, wenn er die Aktualisierung macht.",
-      "matrixAutoUpdate": "Ob der Host `matrix` neu aufbaut.",
-      "updateMatrix": "Baut `matrix` aus Versatz, Wiederholung und Rotation neu auf.",
-      "offset": "Woraus `matrix` zusammengesetzt wird.",
-      "repeat": "Wie oft sie hineinpasst.",
-      "center": "Der Drehpunkt der Rotation.",
-      "rotation": "Die Rotation, in Radiant.",
-      "addEventListener": "Sagt dem Importer, wann der Host die Textur loslässt."
-    }
+    "summary": "Eine Host-Textur: das vom Host dekodierte Bild und der von ihm deklarierte Abtastzustand, ebenfalls durch ihre Identität gehalten."
   },
   "HostTraversable": {
-    "summary": "Ein Host-Knoten, den die Engine durchläuft: der Teilbaum darunter, er zuerst, in der eigenen Reihenfolge des Hosts.",
-    "members": {
-      "name": "Der Name, den der Host ihm gibt.",
-      "visible": "Ob er gezeichnet wird.",
-      "traverse": "Besucht sich, dann den Teilbaum."
-    }
+    "summary": "Ein Host-Knoten, den die Engine durchläuft: der Teilbaum darunter, er zuerst, in der eigenen Reihenfolge des Hosts."
   },
   "HostVector": {
     "summary": "Drei Zahlen einer Pose, so wie der Host sie hält und eine Grenze sie zurücksetzt.",
@@ -3686,9 +3579,6 @@
       "restitution": "Physikalischer Rückprall."
     }
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Die Version der Materialtabelle, die diese Engine liest."
-  },
   "MaterialParameters": {
     "summary": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
     "members": {
@@ -4107,9 +3997,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: die lokale Matrix wird aus Position, Rotation und Größe neu zusammengesetzt."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Die Version der Knotentabelle, die diese Engine liest."
   },
   "nodeWorldDirection": {
     "summary": "Richtung in der Welt: die dritte normalisierte Spalte (eine Nullspalte bleibt null).",
@@ -4742,17 +4629,6 @@
     },
     "returns": "Das vom Compiler geschriebene Manifest, mit dem, was die Kompilierung gemessen hat."
   },
-  "PreparedSceneTables": {
-    "summary": "Die Knoten- und Materialtabellen, die ein kompiliertes Modell trägt.",
-    "members": {
-      "version": "Version des Produkts.",
-      "nodeTableVersion": "Version der Knotentabelle.",
-      "materialTableVersion": "Version der Materialtabelle.",
-      "nodes": "Die Knoten.",
-      "materials": "Die Materialien.",
-      "textures": "Die Texturen."
-    }
-  },
   "prepareMany": {
     "summary": "Kompiliert mehrere Modelle in einem einzigen Compiler-Prozess.",
     "parameters": {
@@ -5112,12 +4988,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "Version des „Proxy“-Cache-Produkts.",
     "description": "Ein Proxy anderer Version wird abgelehnt, nie erraten."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "Der Name der Datei, die die Knoten- und Materialtabellen enthält."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Version des gesamten Produkts; jede von ihm getragene Tabelle hat ihre eigene Version."
   },
   "SceneEnvironment": {
     "summary": "Das Licht um eine Szene: Belichtung, Anzeigekurve und Licht aus allen Richtungen.",
@@ -5738,22 +5608,11 @@
       "roughnessMap": "Das Rauheitsbild.",
       "normalMap": "Das Normalenbild.",
       "aoMap": "Das Umgebungsverdeckungsbild.",
-      "emissiveMap": "Das Leuchtbild."
-    }
-  },
-  "TableNode": {
-    "summary": "Eine gezeichnete Primitive: der Knoten, der sie trägt, ihre Pose in der Welt, die Oberfläche, die sie trägt, und ihr Rang unter den Kopien derselben Primitive — das ist hier Instanzierung, eine von mehreren Knoten benannte Geometrie.",
-    "description": "`bounds` ist die Weltbox der Quellgeometrie; die autonome Szene veröffentlicht stattdessen entartete Dreiecke, also ist das die Antwort des Caches, nicht die des Loaders.",
-    "members": {
-      "name": "Der Name des Knotens.",
-      "node": "Die Nummer des Knotens.",
-      "parent": "Die Nummer seines Elternteils.",
-      "mesh": "Die Nummer seines Meshes.",
-      "primitive": "Die Nummer seiner Primitive.",
-      "material": "Der Rang seines Materials.",
-      "instance": "Welche Kopie es ist.",
-      "matrix": "Seine Matrix in der Welt.",
-      "bounds": "Seine Box in der Welt."
+      "emissiveMap": "Das Leuchtbild.",
+      "kind": "Welche Oberfläche der Host baut: unbeleuchtet, Standard oder physikalisch, wenn eine physikalische Erweiterung deklariert ist.",
+      "alphaMode": "Wie Alpha gelesen wird: ignoriert, bei `alphaTest` abgeschnitten oder gemischt.",
+      "opacity": "Das Alpha des Grundfarbfaktors.",
+      "extensions": "Was die physikalischen Erweiterungen hinzufügen, unter den Parameternamen des Hosts: ein Faktor, eine Farbe oder ein Bereich als Zahlen, eine Map als Platz."
     }
   },
   "TableTexture": {
@@ -5763,7 +5622,9 @@
       "wrapS": "Wiederholung in der Breite.",
       "wrapT": "Wiederholung nach oben.",
       "magFilter": "Filter, wenn es größer ist.",
-      "minFilter": "Filter, wenn es kleiner ist."
+      "minFilter": "Filter, wenn es kleiner ist.",
+      "name": "Ihr Name.",
+      "sampler": "Der Rang des glTF-Samplers, den sie deklariert, `null` wenn keiner."
     }
   },
   "TableTextureSlot": {
@@ -5771,7 +5632,8 @@
     "members": {
       "texture": "Welche Textur.",
       "texCoord": "Welcher UV-Satz.",
-      "transform": "Die Transformation der UV, 3×3."
+      "transform": "Die Transformation der UV, 3×3.",
+      "slotTexCoord": "Der UV-Satz, den der Slot selbst nennt, vor jeder Transformation: Ein Slot, der einen anderen als den ersten nennt, wird aus einer Kopie seiner Textur gezeichnet, die auf keinen Rang antwortet."
     }
   },
   "TelemetryReport": {
@@ -7189,6 +7051,233 @@
       "brake": "Bremspedal, 0 bis 1.",
       "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
       "handbrake": "Ob die Handbremse gezogen ist."
+    }
+  },
+  "GraphAttribute": {
+    "members": {
+      "count": "Wie viele Scheitelpunkte.",
+      "array": "Die Speicherung.",
+      "kind": "Das Attribut besitzt seinen Puffer.",
+      "version": "Von `needsUpdate` erhöht.",
+      "updateRanges": "Seit dem letzten Hochladen geschriebene Bereiche von `array`, allein gesendet.",
+      "addUpdateRange": "Markiert `count` Zahlen ab `start` als geschrieben.",
+      "clearUpdateRanges": "Vergisst die geschriebenen Bereiche, sobald hochgeladen.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
+    },
+    "summary": "Ein Attribut mit eigenem Speicher: `itemSize` Zahlen pro Vertex, hintereinander."
+  },
+  "GraphGeometry": {
+    "members": {
+      "attributes": "Ihre Scheitelpunktattribute.",
+      "boundingBox": "Die vom Host berechnete lokale Box.",
+      "kind": "Was die Ressource ist.",
+      "name": "Ihr Name.",
+      "index": "Die Dreiecksliste, oder `null`, um die Vertices der Reihe nach zu zeichnen.",
+      "morphAttributes": "Pro verformtem Attribut ein Attribut pro Morph-Ziel.",
+      "morphTargetsRelative": "Wahr, wenn ein Morph-Ziel Verschiebungen statt Positionen hält.",
+      "groups": "Bereiche des Index, jeweils mit einer Oberfläche gezeichnet.",
+      "drawRange": "Der gezeichnete Bereich des Index.",
+      "boundingSphere": "Die lokale Kugel, sobald berechnet oder deklariert.",
+      "userData": "Freier Platz für die Daten dessen, der die Geometrie gebaut hat.",
+      "getIndex": "Die Dreiecksliste.",
+      "setIndex": "Setzt die Dreiecksliste.",
+      "getAttribute": "Das Attribut dieses Namens.",
+      "setAttribute": "Benennt ein Attribut.",
+      "deleteAttribute": "Vergisst ein Attribut.",
+      "hasAttribute": "Ob sie ein Attribut dieses Namens hat.",
+      "clone": "Eine Geometrie mit Kopien jedes Puffers, ihrer Gruppen, ihres Bereichs und ihrer Grenzen.",
+      "toNonIndexed": "Eine Geometrie, die dieselben Dreiecke ohne Index zeichnet: jede Ecke ein eigener Vertex.",
+      "computeBoundingBox": "Berechnet die lokale Box über alle Vertices.",
+      "computeBoundingSphere": "Berechnet die lokale Kugel: auf der Box zentriert, bis zum entferntesten Vertex."
+    },
+    "summary": "Die Attribute, die ein Mesh zeichnet, die Dreiecksliste, über die sie indiziert werden, die Morph-Ziele, die sie bewegen, sowie die darüber berechnete lokale Box und Kugel."
+  },
+  "GraphNode": {
+    "members": {
+      "name": "Der Name, den der Host ihm gibt.",
+      "parent": "Sein Elternteil.",
+      "position": "Wo er steht.",
+      "rotation": "Wie er gedreht ist, in Winkeln.",
+      "quaternion": "Die beiden Seiten der Rotation eines Knotens — das Quaternion, das die Engine vergleicht, und die Euler-Winkel, die sich dorthin zurückkopieren — jede KÜNDIGT ihre eigenen Schreibvorgänge AN: ein Rückruf, den der Host bereits verkettet, den ein Hook verlängert, statt ihn zu ersetzen (`hooks.ts`). Die beiden unterstrichenen Mitglieder sind ein Privates der Host-Bibliothek, also werden sie hier geschrieben, wo der Hook sie braucht, ohne einen eigenen Namen zu erhalten. Das hält das Private aus der Liste der veröffentlichten Verträge des SDK heraus; es hält es NICHT aus der veröffentlichten Oberfläche heraus, da `HostGraphNode` es trägt. Die Pose bei jedem Bild zu vergleichen, wie es der Durchlauf bereits tut, ist das, was diese Kopplung aufheben würde — das ist nicht die Arbeit dieses Lots.",
+      "scale": "Wie er gestreckt ist.",
+      "matrix": "Seine lokale Matrix.",
+      "matrixWorld": "Seine Matrix in der Welt.",
+      "matrixAutoUpdate": "Falsch, wenn der Host `matrix` selbst gesetzt hat: die Matrix IST die Pose, und nichts setzt sie neu zusammen.",
+      "visible": "Ob er gezeichnet wird.",
+      "userData": "Wo die Engine eine eigene Kopie markiert, die der Host nie gesehen hat und nicht schreiben kann.",
+      "traverse": "Der Teilbaum unter dem Knoten, er zuerst, in der eigenen Reihenfolge des Hosts.",
+      "updateMatrixWorld": "Löst die Weltmatrizen des Teilbaums IM GRAPHEN DES HOSTS auf, für die eigenen Leser des Hosts.",
+      "id": "Die Nummer des Knotens, eindeutig in der Sitzung.",
+      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt.",
+      "children": "Die Knoten, die dieser hält, der Reihe nach.",
+      "up": "Welche Richtung für `lookAt` oben ist.",
+      "matrixWorldAutoUpdate": "Falsch, wenn nichts `matrixWorld` schreibt.",
+      "matrixWorldNeedsUpdate": "Gesetzt, wenn sich die lokale Matrix geändert hat und die Weltmatrix nicht gefolgt ist.",
+      "castShadow": "Ob er Schatten wirft.",
+      "receiveShadow": "Ob Schatten auf ihn fallen.",
+      "frustumCulled": "Ob ein Renderer ihn außerhalb der Sicht auslassen darf.",
+      "renderOrder": "Zeichenreihenfolge unter durchsichtigen Dingen.",
+      "add": "Macht `nodes` zu Kindern dieses Knotens, jeden zuerst von seinem bisherigen Elternteil gelöst.",
+      "remove": "Löst `nodes` von diesem Knoten.",
+      "removeFromParent": "Löst diesen Knoten von seinem Elternteil.",
+      "clear": "Löst alle Kinder von diesem Knoten.",
+      "updateMatrix": "Setzt die lokale Matrix aus der Pose zusammen.",
+      "updateWorldMatrix": "Löst die Weltmatrix dieses Knotens auf, auf Wunsch zuerst die seiner Vorfahren, danach seinen Teilbaum.",
+      "applyMatrix4": "Wendet `m` auf die Pose des Knotens an und liest die Pose dann aus dem Produkt zurück.",
+      "lookAt": "Dreht den Knoten zu einem Weltpunkt, gegeben als Punkt oder als seine drei Zahlen.",
+      "clone": "Ein Knoten derselben Art mit denselben Werten; seine Kinder werden mitkopiert, sofern nicht anders gesagt.",
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
+    },
+    "summary": "Ein Knoten des Graphen: sein Name, seine Pose, seine Weltmatrix, sein Elternteil und seine Kinder."
+  },
+  "GraphSurface": {
+    "members": {
+      "version": "Vom Host bei jeder Änderung erhöht: das, was eine zwischengespeicherte Zeile vergleicht, um ihre Felder neu zu erstellen.",
+      "uuid": "Ein für die Oberfläche eindeutiger Name.",
+      "name": "Ihr Name.",
+      "userData": "Freier Platz für die Daten dessen, der die Oberfläche gebaut hat.",
+      "kind": "Was die Ressource ist; `family` sagt, welche Oberfläche.",
+      "family": "Die Familie, zu der sie gehört.",
+      "needsUpdate": "`needsUpdate = true` nach einer Änderung: jeder Leser liest die Felder erneut.",
+      "copy": "Übernimmt jeden Parameter von `source`, Farben und Vektoren kopiert, Texturen geteilt.",
+      "clone": "Eine Oberfläche derselben Familie mit denselben Parametern.",
+      "visible": "Ob sie gezeichnet wird.",
+      "side": "Welche Flächen, nach der Konstante des Hosts.",
+      "forceSinglePass": "Der Host zeichnet eine durchsichtige zweiseitige Oberfläche in einem Durchgang statt erst hinten dann vorne.",
+      "vertexColors": "Ob die Scheitelpunktfarben sie färben.",
+      "toneMapped": "Ob die Anzeigekurve angewendet wird.",
+      "depthWrite": "Ob sie die Tiefe schreibt.",
+      "depthFunc": "Der Vergleich des Tiefentests.",
+      "colorWrite": "Ob sie die Farbe schreibt.",
+      "polygonOffset": "Ob die Tiefe versetzt wird.",
+      "polygonOffsetFactor": "Steigungsanteil des Versatzes.",
+      "polygonOffsetUnits": "Konstanter Anteil des Versatzes.",
+      "transparent": "Ob sie sich mischt.",
+      "opacity": "Wie undurchsichtig sie ist.",
+      "alphaTest": "Alpha, unter dem Pixel verschwinden.",
+      "depthTest": "Ob sie die Tiefe prüft."
+    },
+    "summary": "Eine Oberfläche: die Parameter einer Familie, mit den Werten der Referenz, sofern die Szene nichts anderes sagt.",
+    "description": "Ihre Version wird von `needsUpdate` erhöht, die jeder Leser vergleicht."
+  },
+  "GraphTexture": {
+    "members": {
+      "uuid": "Ein der Textur eigener Name.",
+      "name": "Der Name, den der Host ihr gibt.",
+      "channel": "UV-Satz, den der Sampler liest, das `texCoord` von `KHR_texture_transform`.",
+      "wrapS": "Wie sie sich in der Breite wiederholt, nach der Konstante des Hosts.",
+      "wrapT": "Wie sie sich nach oben wiederholt, nach der Konstante des Hosts.",
+      "magFilter": "Filter, wenn sie größer gezeigt wird.",
+      "minFilter": "Filter, wenn sie kleiner gezeigt wird.",
+      "anisotropy": "Schärfe schräg gesehen.",
+      "colorSpace": "Wie ihre Zahlen gelesen werden.",
+      "offset": "Woraus `matrix` zusammengesetzt wird.",
+      "matrixAutoUpdate": "Ob der Host `matrix` neu aufbaut.",
+      "matrix": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Zeilen zusammengesetzt; der Host berechnet sie aus Versatz, Wiederholung und Rotation neu, wenn er die Aktualisierung macht.",
+      "generateMipmaps": "Ob kleinere Kopien erstellt werden.",
+      "premultiplyAlpha": "Ob die Farbe mit Alpha vormultipliziert ist.",
+      "flipY": "Ob die Zeilen beim Senden umgedreht werden.",
+      "version": "Vom Host bei jeder Inhaltsänderung erhöht: das, was eine Sendung vergleicht, um eine erneute Kopie zu vermeiden.",
+      "image": "Das dekodierte Bild, im hosteigenen Container.",
+      "updateMatrix": "Baut `matrix` aus Versatz, Wiederholung und Rotation neu auf.",
+      "kind": "Unterscheidet eine Textur von jedem anderen Feld einer Oberfläche: ein dekodiertes Bild oder rohe Texel (`image` hält `{ data, width, height }`).",
+      "mapping": "Wie sie adressiert wird: über einen UV-Satz.",
+      "userData": "Freier Platz für die Daten dessen, der die Textur gebaut hat.",
+      "format": "Die Kanäle der Texel einer Rohtextur (`HOST_FORMAT_*`).",
+      "needsUpdate": "`needsUpdate = true` nach einer Änderung: ein Leser lädt sie erneut hoch.",
+      "clone": "Eine Textur mit demselben Bild und Zustand, als geändert gemeldet.",
+      "repeat": "Wie oft sie hineinpasst.",
+      "center": "Der Drehpunkt der Rotation.",
+      "rotation": "Die Rotation, in Radiant."
+    },
+    "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
+  },
+  "GraphAngles": {
+    "summary": "Dieselbe Ausrichtung als drei Winkel und ihre Reihenfolge, die ihre Schreibungen ebenso meldet.",
+    "members": {
+      "x": "Der erste Winkel, im Bogenmaß.",
+      "set": "Schreibt die drei Winkel und, falls angegeben, die Reihenfolge; einmal gemeldet.",
+      "setFromRotation": "Die Winkel von `q` in dieser Reihenfolge (das `Euler` des Kerns); gemeldet, außer bei `quiet`.",
+      "y": "Der zweite Winkel, im Bogenmaß.",
+      "z": "Der dritte Winkel, im Bogenmaß.",
+      "order": "Die Reihenfolge, in der die drei Winkel drehen, `'XYZ'`, sofern nicht gesetzt."
+    }
+  },
+  "GraphArray": {
+    "summary": "Die typisierten Arrays, die ein Attribut hält."
+  },
+  "GraphElements": {
+    "summary": "Eine der beiden Attributarten."
+  },
+  "GraphInterleavedAttribute": {
+    "summary": "Ein Attribut, das `itemSize` Zahlen bei `offset` jedes Vertex eines verschachtelten Puffers betrachtet.",
+    "members": {
+      "kind": "Das Attribut betrachtet einen geteilten Puffer.",
+      "data": "Der Puffer, den es betrachtet.",
+      "offset": "Wo seine Zahlen in jedem Vertex beginnen.",
+      "array": "Der Speicher, in dem die Elemente liegen.",
+      "count": "Wie viele Vertices.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
+    }
+  },
+  "GraphInterleavedBuffer": {
+    "summary": "Ein Speicher, den mehrere Attribute betrachten, ein Vertex alle `stride` Zahlen.",
+    "members": {
+      "kind": "Ein Speicher, den mehrere Attribute betrachten.",
+      "count": "Wie viele Vertices.",
+      "version": "Von `needsUpdate` erhöht.",
+      "array": "Der Speicher.",
+      "stride": "Zahlen pro Vertex.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
+    }
+  },
+  "GraphMesh": {
+    "summary": "Ein gezeichneter Knoten: eine Geometrie und ihre Oberfläche, oder eine Oberfläche pro Geometriegruppe.",
+    "members": {
+      "kind": "An einer Platzierung gezeichnet oder an mehreren (`GraphInstancedMesh`).",
+      "morphTargetInfluences": "Das Gewicht jedes Morph-Ziels, wenn die Geometrie welche deklariert.",
+      "morphTargetDictionary": "Der Rang jedes Morph-Ziels nach seinem Namen.",
+      "geometry": "Seine Form.",
+      "material": "Seine Oberfläche, oder eine pro Geometriegruppe.",
+      "updateMorphTargets": "Ein Nullgewicht pro Morph-Ziel des ersten verformten Attributs, nach Rang benannt.",
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
+    }
+  },
+  "GraphNodeKind": {
+    "summary": "Was ein Knoten des Graphen ist: ein bloßer Knoten, die Wurzel, eine Gruppe, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
+  },
+  "GraphRotation": {
+    "summary": "Eine Ausrichtung `(x, y, z, w)`, deren Schreibungen `_onChangeCallback` aufrufen.",
+    "members": {
+      "x": "Die erste Zahl.",
+      "set": "Schreibt die vier Zahlen, einmal gemeldet.",
+      "copy": "Übernimmt die Zahlen einer anderen Rotation.",
+      "fromArray": "Liest vier Zahlen aus einer Liste.",
+      "setFromAngles": "Die Rotation von `angles` in ihrer Reihenfolge (`localTurnQuaternion`); gemeldet, außer bei `quiet`.",
+      "setFromRotationMatrix": "Die Rotation der oberen 3×3 einer spaltenweise gespeicherten Matrix mit Spalten der Länge eins.",
+      "premultiply": "Wird zu `q` gefolgt von dieser Rotation, `q · this`.",
+      "invert": "Wird zur entgegengesetzten Drehung.",
+      "y": "Die zweite Zahl.",
+      "z": "Die dritte Zahl.",
+      "w": "Die vierte Zahl."
+    }
+  },
+  "GraphVector": {
+    "summary": "Drei Zahlen einer Pose oder eines Punkts: einfache Datenfelder und die Operationen, die ein Controller nutzt.",
+    "members": {
+      "set": "Schreibt die drei Zahlen.",
+      "copy": "Übernimmt die Zahlen eines anderen Punkts.",
+      "clone": "Eine Kopie.",
+      "add": "Addiert einen anderen Vektor.",
+      "sub": "Zieht einen anderen Vektor ab.",
+      "multiplyScalar": "Skaliert die drei Zahlen.",
+      "length": "Seine Länge.",
+      "setLength": "Behält die Richtung, setzt die Länge.",
+      "distanceTo": "Abstand zu einem Punkt.",
+      "fromArray": "Liest drei Zahlen aus einer Liste.",
+      "x": "Von links nach rechts.",
+      "y": "Von unten nach oben.",
+      "z": "Von hinten nach vorn."
     }
   }
 }

@@ -30,7 +30,7 @@ export function referenceShadeLit(
   rgb: [number, number, number],
   metalness: number,
   roughness: number,
-  camera: THREE.Camera,
+  camera: { readonly position: { readonly x: number; readonly y: number; readonly z: number } },
 ) {
   const world = [
     tri.a.worldX * bary.w0 + tri.b.worldX * bary.w1 + tri.c.worldX * bary.w2,

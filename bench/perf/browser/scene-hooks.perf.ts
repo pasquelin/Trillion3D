@@ -4,7 +4,7 @@
 // hooked graph is walked against a plain twin; a refused candidate — accessors redefined on
 // the instance, which V8 answers with dictionary mode — is measured for the record. The read
 // the watch does per frame over the same nodes is measured on its own.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { mesure, rapport } from '../../core/index.ts';
 import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts';
 
@@ -13,17 +13,18 @@ const GROUPS = 200;
 
 /** `NODES` meshes under `GROUPS` groups, every pose distinct, matrices left to recompose. */
 function graph() {
-  const root = new THREE.Group();
+  const root = new G.GraphGroup();
   const meshes = [];
   for (let g = 0; g < GROUPS; g++) {
-    const group = new THREE.Group();
+    const group = new G.GraphGroup();
     group.position.set(g, 0, -g);
     root.add(group);
     for (let i = 0; i < NODES / GROUPS; i++) {
-      const mesh = new THREE.Mesh();
+      const mesh = G.mesh();
       mesh.position.set(i, g, i + g);
       mesh.rotation.y = (i + g) * 1e-3;
-      mesh.scale.setScalar(1 + (i % 7) * 0.1);
+      const stretch = 1 + (i % 7) * 0.1;
+      mesh.scale.set(stretch, stretch, stretch);
       group.add(mesh);
       meshes.push(mesh);
     }
@@ -73,7 +74,7 @@ function instanceAccessors() {
 }
 
 /** The world matrices of one mesh in two hundred, after a forced walk of the whole graph. */
-function walk({ root, meshes }: { root: THREE.Group; meshes: THREE.Mesh[] }) {
+function walk({ root, meshes }: { root: G.GraphGroup; meshes: G.GraphMesh[] }) {
   root.updateMatrixWorld(true);
   const sample = new Float64Array((meshes.length / 200) * 16);
   for (let i = 0; i < meshes.length; i += 200)

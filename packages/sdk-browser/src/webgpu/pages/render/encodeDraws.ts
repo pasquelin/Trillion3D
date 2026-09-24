@@ -89,7 +89,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     run.cameraRows = rt.services.syncRowsFromCut(shadows);
     if (shadows) writeCpuCasters(rt, device);
   } else if (run.rowsSyncedFrame !== run.frame) {
-    rt.services.syncRows();
+    rt.services.syncRows(!run.textureConverging);
     run.rowsSyncedFrame = run.frame;
   }
   if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {

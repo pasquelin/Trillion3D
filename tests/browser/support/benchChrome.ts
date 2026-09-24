@@ -30,7 +30,7 @@ export async function openBenchPage(width: number, height: number) {
     errors,
     /** URLs the page imports: the engine, the bench trajectory and the helpers. */
     urls: {
-      sdkUrl: '/sdk/sdk-browser/src/measurement/measurement.js',
+      sdkUrl: '/sdk/witnesses/measurement.js',
       posesUrl: '/runner/poses.ts',
       worldUrl: '/support/benchScenePage.ts',
     },

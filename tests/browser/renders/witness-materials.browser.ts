@@ -25,7 +25,7 @@ const ROOT = resolve(import.meta.dirname, '../../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
 const out = measureOutput('material-pixels', run);
 assert.ok(
-  existsSync(resolve(ROOT, 'dist/sdk-browser/src/measurement/measurement.js')),
+  existsSync(resolve(ROOT, 'dist/witnesses/measurement.js')),
   'dist missing: run `pnpm run build` before this proof',
 );
 const result: RunResult = await withRepoPage(ROOT, true, (page) =>
@@ -35,7 +35,7 @@ const result: RunResult = await withRepoPage(ROOT, true, (page) =>
     // rather than a "cannot find module" error.
     (urls) => import(`${urls.pageUrl}`).then((m) => m.run(urls)),
     {
-      sdkUrl: '/dist/sdk-browser/src/measurement/measurement.js',
+      sdkUrl: '/dist/witnesses/measurement.js',
       coreUrl: '/dist/sdk-core/src/index.js',
       pageUrl: '/tests/browser/support/materialPixelsPage.ts',
     },

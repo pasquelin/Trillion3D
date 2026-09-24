@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { compareImages } from '../../../sdk-core/src/index.ts';
 import { DIRECT_LIGHTING_SHADER } from '../lighting/deferred/deferred.ts';
 import {
@@ -16,10 +16,10 @@ import { surfaceOf } from '../page/surface.ts';
 
 test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {
   const map = nearestQuadTexture();
-  map.wrapS = THREE.RepeatWrapping;
-  map.wrapT = THREE.RepeatWrapping;
-  const a = new THREE.MeshBasicMaterial({ color: 0xffffff, map });
-  const b = new THREE.MeshBasicMaterial({ color: 0xffffff, map });
+  map.wrapS = G.HOST_WRAP_REPEAT;
+  map.wrapT = G.HOST_WRAP_REPEAT;
+  const a = G.basicSurface({ color: 0xffffff, map });
+  const b = G.basicSurface({ color: 0xffffff, map });
   const left = quadPages(a, [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]);
   const right = quadPages(b, [1.25, 0.25, 1.25, 0.25, 1.25, 0.25, 1.25, 0.25]);
   const cam = camera(),
@@ -43,9 +43,9 @@ test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {
 });
 
 test('FrontSide visbuffer culls a back-facing triangle', () => {
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.FrontSide });
+  const material = G.basicSurface({ color: 0xff0000, side: G.FRONT_SIDE });
   const { pages, geometry } = quadPages(material);
-  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const cam = G.perspectiveCamera(55, 1, 0.1, 100);
   cam.position.z = -5;
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
@@ -56,20 +56,15 @@ test('FrontSide visbuffer culls a back-facing triangle', () => {
 });
 
 test('a metalness map B=0 keeps a dielectric; B=1 is a metal', () => {
-  const dielectric = new THREE.DataTexture(
-    new Uint8Array([0, 255, 0, 255]),
-    1,
-    1,
-    THREE.RGBAFormat,
-  );
-  const metal = new THREE.DataTexture(new Uint8Array([0, 255, 255, 255]), 1, 1, THREE.RGBAFormat);
-  const a = new THREE.MeshStandardMaterial({
+  const dielectric = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA);
+  const metal = G.dataTexture(new Uint8Array([0, 255, 255, 255]), 1, 1, G.HOST_FORMAT_RGBA);
+  const a = G.standardSurface({
     color: 0xffffff,
     metalness: 1,
     roughness: 1,
     metalnessMap: dielectric,
   });
-  const b = new THREE.MeshStandardMaterial({
+  const b = G.standardSurface({
     color: 0xffffff,
     metalness: 1,
     roughness: 1,
@@ -93,15 +88,15 @@ test('a metalness map B=0 keeps a dielectric; B=1 is a metal', () => {
 });
 
 test('a roughness map G channel changes the GGX highlight', () => {
-  const smooth = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
-  const rough = new THREE.DataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, THREE.RGBAFormat);
-  const a = new THREE.MeshStandardMaterial({
+  const smooth = G.dataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA);
+  const rough = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA);
+  const a = G.standardSurface({
     color: 0xffffff,
     metalness: 1,
     roughness: 1,
     roughnessMap: smooth,
   });
-  const b = new THREE.MeshStandardMaterial({
+  const b = G.standardSurface({
     color: 0xffffff,
     metalness: 1,
     roughness: 1,
@@ -126,7 +121,7 @@ test('a roughness map G channel changes the GGX highlight', () => {
 });
 
 test('transmissive MeshPhysicalMaterial is not packed for the visbuffer', () => {
-  const material = new THREE.MeshPhysicalMaterial({
+  const material = G.physicalSurface({
     color: 0x228866,
     transmission: 1,
     thickness: 0.02,
@@ -135,13 +130,13 @@ test('transmissive MeshPhysicalMaterial is not packed for the visbuffer', () => 
   });
   assert.equal(visMaterial(material).transmission, 1);
   assert.equal(isTransmissive(material), true);
-  assert.equal(isTransmissive(new THREE.MeshStandardMaterial()), false);
+  assert.equal(isTransmissive(G.standardSurface()), false);
   material.dispose();
 });
 
 test('MeshStandardMaterial visbuffer lighting implements Cook-Torrance GGX microfacet BRDF', () => {
-  const basic = new THREE.MeshBasicMaterial({ color: 0x331111 });
-  const standard = new THREE.MeshStandardMaterial({ color: 0x331111, metalness: 0, roughness: 1 });
+  const basic = G.basicSurface({ color: 0x331111 });
+  const standard = G.standardSurface({ color: 0x331111, metalness: 0, roughness: 1 });
   const { pages, geometry } = quadPages(basic);
   const litPages = pages.map((page) => ({ ...page, material: surfaceOf(standard) }));
   const cam = camera(),

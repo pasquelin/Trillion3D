@@ -114,6 +114,12 @@ export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | 
     drains = 0;
   run.textureConverging = true;
   try {
+    // Rows the per-image time budget left owed are part of the pose: a barrier image, with the
+    // budget lifted, writes them all, and the GPU cut the barrier then adopts sees every page.
+    if (rt.services.rowsOwed()) {
+      renderWebgpuPages(rt, run.lastCamera);
+      await gpuDevice.queue.onSubmittedWorkDone();
+    }
     for (; rounds < POSE_ROUNDS; rounds++) {
       if (vis.textures) served += await convergeTextures(rt, gpuDevice);
       const drained = await drainShadows(rt, gpuDevice);

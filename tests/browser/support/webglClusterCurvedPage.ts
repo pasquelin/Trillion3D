@@ -1,4 +1,10 @@
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import {
+  threeCamera,
+  threeGraph,
+  threeMeshCopy,
+} from '../../../bench/witnesses/three/fromGraphNodes.ts';
 import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
 import {
   createHostDrawCamera,
@@ -47,16 +53,16 @@ export function planarWitness() {
 }
 
 const sceneInputs = () => {
-  const geometry = new THREE.SphereGeometry(1, 32, 16);
+  const geometry = G.sphereGeometry(1, 32, 16);
   if (!geometry.index) throw new Error('sphere geometry missing index');
-  geometry.setIndex(new THREE.BufferAttribute(Uint32Array.from(geometry.index.array), 1));
-  const material = new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.8 });
-  material.color.setRGB(0.18, 0.18, 0.18, THREE.LinearSRGBColorSpace);
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
-    light = new THREE.DirectionalLight(0xffffff, 1);
+  geometry.setIndex(new G.GraphAttribute(Uint32Array.from(geometry.index.array), 1));
+  const material = G.standardSurface({ roughness: 0.35, metalness: 0.8 });
+  (material.color as G.Color).setRGB(0.18, 0.18, 0.18);
+  const camera = G.perspectiveCamera(60, 1, 0.1, 10),
+    light = G.directionalLight(0xffffff, 1);
   light.position.set(1, 1, 2);
-  const scene = new THREE.Scene();
-  scene.add(light, light.target);
+  const scene = new G.GraphScene();
+  scene.add(light, light.target!);
   scene.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
   return { geometry, material, camera, scene };
@@ -80,7 +86,7 @@ export function curvedComparison(size = 64, offset = 0, details = false) {
     [
       {
         geometry: { index: input.geometry.index, attributes: input.geometry.attributes },
-        material: input.material as THREE.Material | THREE.Material[],
+        material: input.material,
         renderOrder: 0,
         polygonOffsetUnits: undefined,
         matrix,
@@ -103,11 +109,12 @@ export function curvedComparison(size = 64, offset = 0, details = false) {
   witness.toneMapping = THREE.NoToneMapping;
   witness.setClearColor(0, 1);
   const witnessInput = sceneInputs(),
-    mesh = new THREE.Mesh(witnessInput.geometry, witnessInput.material);
+    witnessScene = threeGraph(witnessInput.scene),
+    mesh = threeMeshCopy(witnessInput);
   mesh.matrix.fromArray(matrix.elements);
   mesh.matrixAutoUpdate = false;
-  witnessInput.scene.add(mesh);
-  witness.render(witnessInput.scene, witnessInput.camera);
+  witnessScene.add(mesh);
+  witness.render(witnessScene, threeCamera(witnessInput.camera));
   const reference = curvedPixels(witness.getContext(), size);
 
   let changed = 0,

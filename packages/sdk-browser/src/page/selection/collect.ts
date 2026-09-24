@@ -28,8 +28,9 @@ export function collectClusterPages(
     blendCopies: BlendCopy[] = [],
     bootstrap: PageRec[] = [];
   const primitiveOf = primitiveFinder(metadata.primitives);
-  // A transparent surface leaves the collection as the engine's own record. A witness that draws
-  // it with a host renderer hands in a builder of host meshes instead (`../../cluster/blendCopyMesh.ts`).
+  // A transparent surface leaves the collection as the engine's own record. A WebGL2 engine that
+  // draws its display graph whole hands in a builder of graph meshes instead
+  // (`../../cluster/blendCopyMesh.ts`).
   const blendCopy = options.blendCopy ?? createBlendCopyRecord;
   // One template per source object, shared by all its placements: the DAG shape, its error
   // bands and cluster identities depend on no world matrix.

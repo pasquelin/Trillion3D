@@ -1260,18 +1260,7 @@
     }
   },
   "HostAttribute": {
-    "summary": "Một thuộc tính đỉnh của hình học chủ, xen kẽ hoặc không: cách bố trí và nơi lưu trữ của nó.",
-    "members": {
-      "isBufferAttribute": "Được ứng dụng chủ đặt khi thuộc tính sở hữu bộ đệm riêng của nó thay vì nhìn vào một bộ đệm chung, xen kẽ. Chỉ cổng chấp thuận đọc nó: việc giải mã riêng của bộ máy giống nhau trong cả hai trường hợp, còn việc gắn kết của chương trình WebGL2 tự trị thì không.",
-      "itemSize": "Số lượng con số mỗi đỉnh.",
-      "count": "Có bao nhiêu đỉnh.",
-      "normalized": "Các số nguyên có được đọc thành 0 đến 1 hay không.",
-      "array": "Nơi lưu trữ.",
-      "getX": "Thành phần của một phần tử, đã được ứng dụng chủ tách xen kẽ và bỏ chuẩn hóa.",
-      "getY": "Thành phần thứ hai của một phần tử.",
-      "getZ": "Thành phần thứ ba của một phần tử.",
-      "getW": "Thành phần thứ tư của một phần tử."
-    }
+    "summary": "Một thuộc tính đỉnh của hình học chủ, xen kẽ hoặc không: cách bố trí và nơi lưu trữ của nó."
   },
   "HostAttributes": {
     "summary": "Các thuộc tính có tên của một hình học chủ.",
@@ -1330,32 +1319,17 @@
     "summary": "Một hình học chủ mà một góc nhìn chẩn đoán có thể giải phóng.",
     "members": {
       "attributes": "Các thuộc tính đỉnh của nó.",
-      "boundingBox": "Hộp cục bộ mà ứng dụng chủ đã tính.",
       "dispose": "Giải phóng nó."
     }
   },
   "HostDiagnosticMaterial": {
     "summary": "Một bề mặt chủ mà một góc nhìn chẩn đoán hoán đổi lên một mesh, rồi giải phóng: những gì nó treo lên đến qua `HostDiagnosticFactory`, không bao giờ qua một import, nên không góc nhìn nào nêu tên một thư viện kết xuất.",
     "members": {
-      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi: điều mà một hàng được lưu đệm so sánh để dựng lại các trường của nó.",
-      "visible": "Nó có được vẽ hay không.",
       "side": "Mặt nào, dưới dạng hằng số của ứng dụng chủ.",
-      "forceSinglePass": "Ứng dụng chủ vẽ một bề mặt trong suốt hai mặt trong một chặng thay vì sau rồi trước.",
-      "vertexColors": "Các màu đỉnh có tô màu nó hay không.",
-      "toneMapped": "Đường cong hiển thị có được áp dụng hay không.",
-      "depthTest": "Trạng thái raster mà ứng dụng chủ khai báo cùng bề mặt, và các đường ống xử lý của bộ máy tôn trọng.",
-      "depthWrite": "Nó có ghi độ sâu hay không.",
-      "depthFunc": "Phép so sánh của việc kiểm tra độ sâu.",
-      "colorWrite": "Nó có ghi màu hay không.",
-      "polygonOffset": "Độ sâu có bị dịch chuyển hay không.",
-      "polygonOffsetFactor": "Phần độ dốc của độ dịch chuyển.",
-      "polygonOffsetUnits": "Phần hằng số của độ dịch chuyển.",
-      "transparent": "Nó có pha trộn hay không.",
-      "opacity": "Nó mờ đục đến mức nào.",
-      "alphaTest": "Ngưỡng alpha mà dưới đó các điểm ảnh bị loại bỏ.",
       "dispose": "Giải phóng nó.",
       "clone": "Một bản sao của bề mặt đó."
-    }
+    },
+    "description": "Các khung chẩn đoán cũng phục vụ các nhân chứng, có lưới thuộc thư viện của chúng: thứ chúng treo lên đến qua `HostDiagnosticFactory`, và chúng chỉ được đọc qua hình dạng này."
   },
   "HostDisposable": {
     "summary": "Một tài nguyên chủ mà bộ máy giải phóng khi đồ thị nó xuất phát từ đó được giải phóng: một hình học, một bề mặt, một kết cấu.",
@@ -1384,67 +1358,23 @@
     }
   },
   "HostGeometry": {
-    "summary": "Một hình học chủ: các thuộc tính của nó, và hộp cục bộ mà ứng dụng chủ đã tính trên chúng.",
-    "members": {
-      "attributes": "Các thuộc tính đỉnh của nó.",
-      "boundingBox": "Hộp cục bộ mà ứng dụng chủ đã tính."
-    }
+    "summary": "Một hình học chủ: các thuộc tính của nó, và hộp cục bộ mà ứng dụng chủ đã tính trên chúng."
   },
   "HostGraphNode": {
     "summary": "Một node của đồ thị chủ như một lượt duyệt nhìn thấy: định danh của nó, tư thế cục bộ của nó, ma trận thế giới mà ứng dụng chủ đã giải quyết cho nó, và chuỗi tổ tiên của nó.",
-    "description": "Bộ máy tự tính các ma trận thế giới CỦA RIÊNG NÓ từ các tư thế cục bộ (`../world/tree.ts`); `matrixWorld` được đọc ở nơi mà chính lời giải của ỨNG DỤNG CHỦ là thứ mà một ranh giới trao trả lại cho nó. VÌ SAO `HostPlaced` (`../resources.ts`) CŨNG MÔ TẢ MỘT NODE CÓ TƯ THẾ. Hai thứ này không phải bản sao của nhau: chúng được gắn khóa theo hai lời giải khác nhau mà một ứng dụng chủ cung cấp. `HostPlaced` yêu cầu `updateWorldMatrix(ancestors, descendants)` — chuỗi của MỘT node duy nhất, thứ mà một phép đặt vị trí và một lượt duyệt khả kiến leo lên; cái này yêu cầu `updateMatrixWorld(force)` — CÂY CON dưới một node, thứ mà một lượt quét, một phép hợp giới hạn và một phép nhân bản giải quyết trong một lệnh gọi duy nhất. Một ứng dụng chủ chỉ cung cấp một trong hai chỉ thỏa mãn hợp đồng mà nó đáp ứng, nên không cái nào có thể thay thế cái kia.",
-    "members": {
-      "parent": "Cha của nó.",
-      "position": "Nơi nó đứng.",
-      "quaternion": "Hai mặt của phép xoay một node — quaternion mà bộ máy so sánh, và các góc Euler được sao chép vào đó — mỗi bên TỰ THÔNG BÁO các lần ghi của chính nó: một callback mà ứng dụng chủ đã xâu chuỗi sẵn, mà một hook mở rộng thêm thay vì thay thế (`hooks.ts`). Hai thành viên có gạch dưới đó là riêng tư của thư viện chủ, nên chúng được ghi ở đây, nơi hook cần đến chúng, và không được đặt tên riêng. Điều đó giữ cái riêng tư đó ngoài danh sách các hợp đồng công bố của SDK; nhưng nó KHÔNG giữ nó ngoài bề mặt công bố, vì `HostGraphNode` mang theo nó. Việc so sánh tư thế theo từng khung hình, như lượt quét đã làm, mới là thứ sẽ gỡ bỏ sự ràng buộc đó — điều đó không thuộc về lô này.",
-      "rotation": "Nó được xoay như thế nào, dưới dạng góc.",
-      "scale": "Nó được kéo giãn như thế nào.",
-      "matrixAutoUpdate": "Sai khi chính ứng dụng chủ đặt `matrix`: ma trận đó CHÍNH LÀ tư thế và không có gì dựng lại nó.",
-      "matrix": "Ma trận cục bộ của nó.",
-      "matrixWorld": "Ma trận thế giới của nó.",
-      "userData": "Nơi bộ máy đánh dấu một bản sao của riêng nó, thứ mà ứng dụng chủ chưa bao giờ thấy và không thể ghi vào.",
-      "traverse": "Cây con dưới node đó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ.",
-      "updateMatrixWorld": "Giải quyết các ma trận thế giới của cây con NGAY TRONG ĐỒ THỊ CHỦ, cho các trình đọc riêng của ứng dụng chủ."
-    }
+    "description": "Bộ máy tự tính các ma trận thế giới CỦA RIÊNG NÓ từ các tư thế cục bộ (`../world/tree.ts`); `matrixWorld` được đọc ở nơi mà chính lời giải của ỨNG DỤNG CHỦ là thứ mà một ranh giới trao trả lại cho nó. VÌ SAO `HostPlaced` (`../resources.ts`) CŨNG MÔ TẢ MỘT NODE CÓ TƯ THẾ. Hai thứ này không phải bản sao của nhau: chúng được gắn khóa theo hai lời giải khác nhau mà một ứng dụng chủ cung cấp. `HostPlaced` yêu cầu `updateWorldMatrix(ancestors, descendants)` — chuỗi của MỘT node duy nhất, thứ mà một phép đặt vị trí và một lượt duyệt khả kiến leo lên; cái này yêu cầu `updateMatrixWorld(force)` — CÂY CON dưới một node, thứ mà một lượt quét, một phép hợp giới hạn và một phép nhân bản giải quyết trong một lệnh gọi duy nhất. Một ứng dụng chủ chỉ cung cấp một trong hai chỉ thỏa mãn hợp đồng mà nó đáp ứng, nên không cái nào có thể thay thế cái kia."
   },
   "HostMaterial": {
-    "summary": "Một vật liệu chủ đúng như bộ máy đọc nó: các tham số bề mặt mà mọi vật liệu chủ chia sẻ, được đọc một lần tại ranh giới vào `VisMaterial` của bộ máy; chỉ riêng `sideOf` đọc `side`.",
-    "members": {
-      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi: điều mà một hàng được lưu đệm so sánh để dựng lại các trường của nó.",
-      "visible": "Nó có được vẽ hay không.",
-      "side": "Mặt nào, dưới dạng hằng số của ứng dụng chủ.",
-      "forceSinglePass": "Ứng dụng chủ vẽ một bề mặt trong suốt hai mặt trong một chặng thay vì sau rồi trước.",
-      "vertexColors": "Các màu đỉnh có tô màu nó hay không.",
-      "toneMapped": "Đường cong hiển thị có được áp dụng hay không.",
-      "depthTest": "Trạng thái raster mà ứng dụng chủ khai báo cùng bề mặt, và các đường ống xử lý của bộ máy tôn trọng.",
-      "depthWrite": "Nó có ghi độ sâu hay không.",
-      "depthFunc": "Phép so sánh của việc kiểm tra độ sâu.",
-      "colorWrite": "Nó có ghi màu hay không.",
-      "polygonOffset": "Độ sâu có bị dịch chuyển hay không.",
-      "polygonOffsetFactor": "Phần độ dốc của độ dịch chuyển.",
-      "polygonOffsetUnits": "Phần hằng số của độ dịch chuyển.",
-      "transparent": "Nó có pha trộn hay không.",
-      "opacity": "Nó mờ đục đến mức nào.",
-      "alphaTest": "Ngưỡng alpha mà dưới đó các điểm ảnh bị loại bỏ."
-    }
+    "summary": "Một vật liệu chủ đúng như bộ máy đọc nó: các tham số bề mặt mà mọi vật liệu chủ chia sẻ, được đọc một lần tại ranh giới vào `VisMaterial` của bộ máy; chỉ riêng `sideOf` đọc `side`."
   },
   "HostMaterials": {
     "summary": "Những gì một bề mặt khai báo: một vật liệu, hoặc một cho mỗi nhóm hình học."
   },
   "HostMesh": {
-    "summary": "Một mesh chủ, được giữ theo định danh: bản ghi vẽ, bảng trong suốt và các tập lựa chọn nêu tên bề mặt mà ứng dụng chủ đã đặt.",
-    "description": "Tên của nó được đọc, và chuỗi tổ tiên của nó khi một cây con di chuyển cần được phân biệt với phần còn lại (`../webgpu/pages/render/transform.ts`); không gì khác.",
-    "members": {
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "parent": "Cha của nó, khi một lượt duyệt leo lên."
-    }
+    "summary": "Một mesh chủ, được giữ theo định danh: bản ghi vẽ, bảng trong suốt và các tập lựa chọn nêu tên bề mặt mà ứng dụng chủ đã đặt."
   },
   "HostNode": {
-    "summary": "Một node của đồ thị cảnh chủ, được giữ theo định danh và hai trường mà một lượt duyệt cần.",
-    "members": {
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "visible": "Nó có được vẽ hay không."
-    }
+    "summary": "Một node của đồ thị cảnh chủ, được giữ theo định danh và hai trường mà một lượt duyệt cần."
   },
   "HostNodeMatrix": {
     "summary": "Chính mười sáu số thực đó, CÓ THỂ GHI từng số hạng một: tư thế mà một ranh giới đặt trở lại một node chủ hoặc một camera chủ mà nó khôi phục.",
@@ -1489,49 +1419,16 @@
     "summary": "Đồ thị hiển thị chủ mà một bộ máy vẽ vào: những gì nó chứa, cách nó được duyệt qua, và màu nền mà việc tổng hợp đọc.",
     "description": "Việc xây dựng nó là của một ranh giới chủ; việc ghi vào một cái, là `HostDrawScene`.",
     "members": {
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "visible": "Nó có được vẽ hay không.",
       "traverse": "Ghé thăm chính nó, rồi cây con.",
       "background": "Những gì lấp đầy hình ảnh phía sau.",
       "children": "Các node ở trên cùng của nó."
     }
   },
   "HostTexture": {
-    "summary": "Một kết cấu chủ: hình ảnh mà ứng dụng chủ đã giải mã và trạng thái bộ lấy mẫu mà nó khai báo, cũng được giữ theo định danh.",
-    "description": "Các điểm ảnh của nó vẫn là `unknown`: chỉ ranh giới tải chúng lên mới biết vật chứa của chúng.",
-    "members": {
-      "isTexture": "Được ứng dụng chủ đặt trên các đối tượng mà bộ lấy mẫu của nó đọc: điều phân biệt một kết cấu với bất kỳ trường nào khác của một vật liệu, mà các khe của nó bộ máy không liệt kê.",
-      "uuid": "Một tên duy nhất cho kết cấu đó.",
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi nội dung: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",
-      "image": "Hình ảnh đã giải mã, trong vật chứa riêng của ứng dụng chủ.",
-      "channel": "Tập UV mà bộ lấy mẫu đọc, `texCoord` của `KHR_texture_transform`.",
-      "wrapS": "Cách nó lặp lại theo chiều ngang, dưới dạng hằng số của ứng dụng chủ.",
-      "wrapT": "Cách nó lặp lại theo chiều dọc, dưới dạng hằng số của ứng dụng chủ.",
-      "magFilter": "Bộ lọc khi hiển thị to hơn.",
-      "minFilter": "Bộ lọc khi hiển thị nhỏ hơn.",
-      "anisotropy": "Độ sắc nét khi nhìn xiên.",
-      "flipY": "Các hàng có bị lật khi tải lên hay không.",
-      "premultiplyAlpha": "Màu có được nhân trước với alpha hay không.",
-      "generateMipmaps": "Các bản sao nhỏ hơn có được tạo ra hay không.",
-      "colorSpace": "Cách các con số của nó được đọc.",
-      "matrix": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng; ứng dụng chủ tính lại nó từ độ lệch, độ lặp lại và góc xoay khi nó sở hữu việc cập nhật.",
-      "matrixAutoUpdate": "Ứng dụng chủ có tự dựng lại `matrix` hay không.",
-      "updateMatrix": "Dựng lại `matrix` từ độ lệch, độ lặp lại và góc xoay.",
-      "offset": "Những gì `matrix` được ghép từ đó.",
-      "repeat": "Số lần nó vừa khít.",
-      "center": "Tâm xoay.",
-      "rotation": "Góc xoay, tính bằng radian.",
-      "addEventListener": "Báo cho bộ nhập khi máy chủ buông texture."
-    }
+    "summary": "Một kết cấu chủ: hình ảnh mà ứng dụng chủ đã giải mã và trạng thái bộ lấy mẫu mà nó khai báo, cũng được giữ theo định danh."
   },
   "HostTraversable": {
-    "summary": "Một node chủ mà bộ máy duyệt qua: cây con bên dưới nó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ.",
-    "members": {
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "visible": "Nó có được vẽ hay không.",
-      "traverse": "Ghé thăm chính nó, rồi cây con."
-    }
+    "summary": "Một node chủ mà bộ máy duyệt qua: cây con bên dưới nó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ."
   },
   "HostVector": {
     "summary": "Ba con số của một tư thế, đúng như ứng dụng chủ lưu trữ chúng và một ranh giới đặt chúng trở lại.",
@@ -1801,9 +1698,6 @@
   "MANIFEST_BINARY_VERSION": {
     "summary": "Phiên bản 4 biến các mục xem trước 16×16 cố định thành các mức lũy tiến có kích thước biến đổi: cột điểm ảnh không còn bước nhảy cố định nữa, mỗi mục tự nêu tên phạm vi byte của riêng nó.",
     "description": "Một tệp thuộc phiên bản khác bị từ chối toàn bộ: một trình đọc cắt sai phạm vi sẽ hiển thị các mức của một kết cấu này trên một kết cấu khác. Phiên bản 5 mở rộng một mục xem trước từ mười lên mười hai từ (word) — atlas mà nó phục vụ và có bao nhiêu mức được nướng sẵn dưới dạng tệp trong `textures/` — và các điểm ảnh của nó theo đúng quy tắc mip của card đồ họa; một trình đọc phiên bản 4 sẽ bước qua các mục sai cách, nên nó từ chối tệp này. Phiên bản 6 giữ nguyên mọi cột và nêu tên một trang hình học khác trong bộ mô tả hình học: trang `WGP3` đã lượng tử hóa (`geometryPage.ts`) thay cho trang `WGP2` số thực, mà một trình đọc phiên bản 6 sẽ phải từ chối từng byte một khi giải mã; từ chối cả tệp nói lên điều đó một lần cho xong. Phiên bản 7 mở rộng một mục xem trước lên mười bốn từ — cách bố trí mà mỗi họ khối giữ chuỗi, hoặc không có — và thêm hai cột: các đuôi được nén khối, họ BC rồi đến ASTC, phạm vi của mỗi mục được giữ lại theo sau các kích thước của nó; một trình đọc phiên bản 6 sẽ không biết chúng, nên nó từ chối."
-  },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Phiên bản của bảng vật liệu mà thời gian chạy này đọc."
   },
   "MATH_PATH_CONTRACT": {
     "summary": "Phiên bản hợp đồng của báo cáo này.",
@@ -2116,9 +2010,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: ma trận cục bộ được dựng lại từ vị trí, góc xoay, tỉ lệ."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Phiên bản của bảng node mà thời gian chạy này đọc."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Một ma trận pháp tuyến 3×3."
@@ -2627,17 +2518,6 @@
       "onProgress": "Được gọi ở mỗi sự kiện."
     }
   },
-  "PreparedSceneTables": {
-    "summary": "Các bảng node và vật liệu mà một mô hình đã biên dịch mang theo.",
-    "members": {
-      "version": "Phiên bản sản phẩm.",
-      "nodeTableVersion": "Phiên bản bảng node.",
-      "materialTableVersion": "Phiên bản bảng vật liệu.",
-      "nodes": "Các node.",
-      "materials": "Các vật liệu.",
-      "textures": "Các kết cấu."
-    }
-  },
   "Primitive": {
     "summary": "Cách các tam giác mà một mesh vẽ được đọc từ hình học của nó."
   },
@@ -2813,12 +2693,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "Phiên bản của sản phẩm bộ nhớ đệm \"proxy\".",
     "description": "Một proxy thuộc phiên bản khác bị từ chối, không bao giờ bị đoán."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "Tên của tệp chứa các bảng node và vật liệu."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Phiên bản của sản phẩm nói chung; mỗi bảng nó mang theo được đánh phiên bản riêng theo lượt."
   },
   "SDK_VERSION": {
     "summary": "Phiên bản của gói bộ máy này."
@@ -3482,22 +3356,11 @@
       "roughnessMap": "Hình ảnh độ nhám.",
       "normalMap": "Hình ảnh pháp tuyến.",
       "aoMap": "Hình ảnh occlusion môi trường.",
-      "emissiveMap": "Hình ảnh phát sáng."
-    }
-  },
-  "TableNode": {
-    "summary": "Một nguyên thủy được vẽ: node mang nó, tư thế thế giới của nó, bề mặt nó mặc và thứ hạng của nó trong số các bản sao của cùng nguyên thủy đó — đây chính là điều mà nhân bản (instancing) nghĩa là ở đây, một hình học được nhiều node đặt tên.",
-    "description": "`bounds` là hộp thế giới của hình học nguồn; cảnh tự trị công bố các tam giác suy biến ở vị trí đó, nên đây là câu trả lời của bộ nhớ đệm, không phải của trình tải.",
-    "members": {
-      "name": "Tên của node.",
-      "node": "Số hiệu của node.",
-      "parent": "Số hiệu của cha nó.",
-      "mesh": "Số hiệu mesh của nó.",
-      "primitive": "Số hiệu nguyên thủy của nó.",
-      "material": "Thứ hạng vật liệu của nó.",
-      "instance": "Đây là bản sao thứ mấy.",
-      "matrix": "Ma trận thế giới của nó.",
-      "bounds": "Hộp thế giới của nó."
+      "emissiveMap": "Hình ảnh phát sáng.",
+      "kind": "Bề mặt mà máy chủ dựng: không chiếu sáng, tiêu chuẩn, hoặc vật lý khi có khai báo một phần mở rộng vật lý.",
+      "alphaMode": "Cách đọc alpha: bỏ qua, cắt tại `alphaTest`, hoặc hòa trộn.",
+      "opacity": "Alpha của hệ số màu cơ bản.",
+      "extensions": "Những gì các phần mở rộng vật lý thêm vào, theo tên tham số của máy chủ: một hệ số, một màu hoặc một khoảng dưới dạng số, một bản đồ dưới dạng khe."
     }
   },
   "TableTexture": {
@@ -3507,7 +3370,9 @@
       "wrapS": "Lặp lại theo chiều ngang.",
       "wrapT": "Lặp lại theo chiều dọc.",
       "magFilter": "Bộ lọc khi to hơn.",
-      "minFilter": "Bộ lọc khi nhỏ hơn."
+      "minFilter": "Bộ lọc khi nhỏ hơn.",
+      "name": "Tên của nó.",
+      "sampler": "Thứ hạng của bộ lấy mẫu glTF mà nó khai báo, `null` nếu không có."
     }
   },
   "TableTextureSlot": {
@@ -3515,7 +3380,8 @@
     "members": {
       "texture": "Kết cấu nào.",
       "texCoord": "Tập UV nào.",
-      "transform": "Phép biến đổi UV, 3×3."
+      "transform": "Phép biến đổi UV, 3×3.",
+      "slotTexCoord": "Bộ UV mà chính ô tự chỉ định, trước mọi phép biến đổi: một ô chỉ định bộ khác bộ đầu tiên được vẽ từ một bản sao của texture, bản sao này không ứng với thứ hạng nào."
     }
   },
   "TelemetryReport": {
@@ -4306,10 +4172,6 @@
   "assertSceneProxy": {
     "summary": "Từ chối một bộ mô tả proxy mà động cơ này không thể đọc, trước khi một byte duy nhất được yêu cầu.",
     "description": "Một tệp kê khai không có bộ mô tả không phải là một lỗi: đó là một bộ nhớ đệm từ trước khi có tính năng dội lại, và bộ máy nói rõ điều đó thay vì đoán mò hình học mà nó không có."
-  },
-  "assertSceneTables": {
-    "summary": "Các bảng, hoặc một sự từ chối có tên.",
-    "description": "Một phiên bản không xác định không bao giờ bị đoán mò: một sản phẩm được viết bởi một trình biên dịch khác, hoặc trước khi một bảng thay đổi hình dạng, không nói lên điều gì mà trình đọc này có thể kiểm tra một cảnh dựa vào, và việc đọc nó nửa chừng sẽ biến một thay đổi định dạng thành một phép so sánh sai."
   },
   "axisAngleQuaternion": {
     "summary": "Quaternion của một phép xoay `angle` radian quanh một trục đơn vị."
@@ -7190,6 +7052,233 @@
       "brake": "Bàn đạp phanh, từ 0 đến 1.",
       "steer": "Vô lăng, từ −1 hết bên trái đến 1 hết bên phải.",
       "handbrake": "Phanh tay có đang kéo không."
+    }
+  },
+  "GraphAngles": {
+    "summary": "Cùng một hướng dưới dạng ba góc và thứ tự của chúng, thông báo các lần ghi theo cùng cách.",
+    "members": {
+      "x": "Góc thứ nhất, tính bằng radian.",
+      "set": "Ghi ba góc, và thứ tự nếu có; thông báo một lần.",
+      "setFromRotation": "Các góc của `q` theo thứ tự này (`Euler` của lõi); thông báo trừ khi `quiet`.",
+      "y": "Góc thứ hai, tính bằng radian.",
+      "z": "Góc thứ ba, tính bằng radian.",
+      "order": "Thứ tự quay của ba góc, `'XYZ'` nếu chưa đặt."
+    }
+  },
+  "GraphArray": {
+    "summary": "Các mảng có kiểu mà một thuộc tính giữ."
+  },
+  "GraphAttribute": {
+    "summary": "Một thuộc tính sở hữu vùng lưu trữ của nó: `itemSize` số mỗi đỉnh, nối tiếp nhau.",
+    "members": {
+      "kind": "Thuộc tính sở hữu bộ đệm của nó.",
+      "count": "Có bao nhiêu đỉnh.",
+      "version": "Tăng bởi `needsUpdate`.",
+      "array": "Nơi lưu trữ.",
+      "updateRanges": "Các khoảng của `array` đã ghi từ lần tải lên cuối, gửi riêng.",
+      "addUpdateRange": "Đánh dấu `count` số đã ghi bắt đầu từ `start`.",
+      "clearUpdateRanges": "Quên các khoảng đã ghi sau khi tải lên.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
+    }
+  },
+  "GraphElements": {
+    "summary": "Một trong hai loại thuộc tính."
+  },
+  "GraphGeometry": {
+    "summary": "Các thuộc tính mà một lưới vẽ, danh sách tam giác đánh chỉ mục chúng, các mục tiêu morph di chuyển chúng, cùng hộp và hình cầu cục bộ tính trên chúng.",
+    "members": {
+      "kind": "Tài nguyên là gì.",
+      "name": "Tên của nó.",
+      "index": "Danh sách tam giác, hoặc `null` để vẽ các đỉnh theo thứ tự.",
+      "attributes": "Các thuộc tính đỉnh của nó.",
+      "morphAttributes": "Với mỗi thuộc tính biến dạng, một thuộc tính cho mỗi mục tiêu morph.",
+      "morphTargetsRelative": "Đúng khi một mục tiêu morph giữ độ dời, không phải vị trí.",
+      "groups": "Các khoảng chỉ mục, mỗi khoảng được vẽ với một bề mặt.",
+      "drawRange": "Khoảng chỉ mục được vẽ.",
+      "boundingBox": "Hộp cục bộ mà ứng dụng chủ đã tính.",
+      "boundingSphere": "Hình cầu cục bộ, sau khi được tính hoặc khai báo.",
+      "userData": "Chỗ trống cho dữ liệu của người đã dựng hình học.",
+      "getIndex": "Danh sách tam giác.",
+      "setIndex": "Đặt danh sách tam giác.",
+      "getAttribute": "Thuộc tính có tên đó.",
+      "setAttribute": "Đặt tên một thuộc tính.",
+      "deleteAttribute": "Quên một thuộc tính.",
+      "hasAttribute": "Có thuộc tính mang tên đó hay không.",
+      "clone": "Một hình học giữ bản sao của mọi bộ đệm, các nhóm, khoảng và giới hạn của nó.",
+      "toNonIndexed": "Một hình học vẽ cùng các tam giác mà không có chỉ mục: mỗi góc là một đỉnh riêng.",
+      "computeBoundingBox": "Tính hộp cục bộ trên mọi đỉnh.",
+      "computeBoundingSphere": "Tính hình cầu cục bộ: tâm ở hộp, chạm tới đỉnh xa nhất."
+    }
+  },
+  "GraphInterleavedAttribute": {
+    "summary": "Một thuộc tính xem `itemSize` số tại `offset` của mỗi đỉnh trong một bộ đệm xen kẽ.",
+    "members": {
+      "kind": "Thuộc tính xem một bộ đệm dùng chung.",
+      "data": "Bộ đệm mà nó xem.",
+      "offset": "Nơi các số của nó bắt đầu trong mỗi đỉnh.",
+      "array": "Vùng lưu trữ chứa các phần tử.",
+      "count": "Bao nhiêu đỉnh.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
+    }
+  },
+  "GraphInterleavedBuffer": {
+    "summary": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem, mỗi `stride` số là một đỉnh.",
+    "members": {
+      "kind": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem.",
+      "count": "Bao nhiêu đỉnh.",
+      "version": "Tăng bởi `needsUpdate`.",
+      "array": "Vùng lưu trữ.",
+      "stride": "Số lượng số mỗi đỉnh.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
+    }
+  },
+  "GraphMesh": {
+    "summary": "Một nút được vẽ: một hình học và bề mặt của nó, hoặc một bề mặt cho mỗi nhóm hình học.",
+    "members": {
+      "kind": "Vẽ tại một vị trí đặt, hoặc tại nhiều vị trí (`GraphInstancedMesh`).",
+      "morphTargetInfluences": "Trọng số của mỗi mục tiêu morph, khi hình học khai báo.",
+      "morphTargetDictionary": "Thứ hạng của mỗi mục tiêu morph theo tên.",
+      "geometry": "Hình dạng của nó.",
+      "material": "Bề mặt của nó, hoặc một bề mặt cho mỗi nhóm hình học.",
+      "updateMorphTargets": "Một trọng số bằng không cho mỗi mục tiêu morph của thuộc tính biến dạng đầu tiên, đặt tên theo thứ hạng.",
+      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
+    }
+  },
+  "GraphNode": {
+    "summary": "Một nút của đồ thị: tên, tư thế, ma trận thế giới, cha và các con của nó.",
+    "members": {
+      "id": "Số của nút, duy nhất trong phiên.",
+      "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu.",
+      "name": "Tên mà ứng dụng chủ đặt cho nó.",
+      "parent": "Cha của nó.",
+      "children": "Các nút mà nút này giữ, theo thứ tự.",
+      "up": "Hướng nào là phía trên cho `lookAt`.",
+      "position": "Nơi nó đứng.",
+      "rotation": "Nó được xoay như thế nào, dưới dạng góc.",
+      "quaternion": "Hai mặt của phép xoay một node — quaternion mà bộ máy so sánh, và các góc Euler được sao chép vào đó — mỗi bên TỰ THÔNG BÁO các lần ghi của chính nó: một callback mà ứng dụng chủ đã xâu chuỗi sẵn, mà một hook mở rộng thêm thay vì thay thế (`hooks.ts`). Hai thành viên có gạch dưới đó là riêng tư của thư viện chủ, nên chúng được ghi ở đây, nơi hook cần đến chúng, và không được đặt tên riêng. Điều đó giữ cái riêng tư đó ngoài danh sách các hợp đồng công bố của SDK; nhưng nó KHÔNG giữ nó ngoài bề mặt công bố, vì `HostGraphNode` mang theo nó. Việc so sánh tư thế theo từng khung hình, như lượt quét đã làm, mới là thứ sẽ gỡ bỏ sự ràng buộc đó — điều đó không thuộc về lô này.",
+      "scale": "Nó được kéo giãn như thế nào.",
+      "matrix": "Ma trận cục bộ của nó.",
+      "matrixWorld": "Ma trận thế giới của nó.",
+      "matrixAutoUpdate": "Sai khi chính ứng dụng chủ đặt `matrix`: ma trận đó CHÍNH LÀ tư thế và không có gì dựng lại nó.",
+      "matrixWorldAutoUpdate": "Sai khi không có gì ghi `matrixWorld`.",
+      "matrixWorldNeedsUpdate": "Được đặt khi ma trận cục bộ đã đổi mà ma trận thế giới chưa theo kịp.",
+      "visible": "Nó có được vẽ hay không.",
+      "castShadow": "Có đổ bóng hay không.",
+      "receiveShadow": "Bóng có đổ lên nó hay không.",
+      "frustumCulled": "Trình kết xuất có được bỏ qua nó khi ngoài tầm nhìn hay không.",
+      "renderOrder": "Thứ tự vẽ giữa các vật trong suốt.",
+      "userData": "Nơi bộ máy đánh dấu một bản sao của riêng nó, thứ mà ứng dụng chủ chưa bao giờ thấy và không thể ghi vào.",
+      "add": "Biến `nodes` thành con của nút này, mỗi nút trước đó được gỡ khỏi cha cũ.",
+      "remove": "Gỡ `nodes` khỏi nút này.",
+      "removeFromParent": "Gỡ nút này khỏi cha của nó.",
+      "clear": "Gỡ mọi con khỏi nút này.",
+      "traverse": "Cây con dưới node đó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ.",
+      "updateMatrix": "Tạo ma trận cục bộ từ tư thế.",
+      "updateMatrixWorld": "Giải quyết các ma trận thế giới của cây con NGAY TRONG ĐỒ THỊ CHỦ, cho các trình đọc riêng của ứng dụng chủ.",
+      "updateWorldMatrix": "Giải ma trận thế giới của nút này, của tổ tiên trước nếu được yêu cầu, rồi đến cây con.",
+      "applyMatrix4": "Áp `m` lên tư thế của nút, rồi đọc lại tư thế từ tích.",
+      "lookAt": "Xoay nút về phía một điểm thế giới, cho dưới dạng điểm hoặc ba số.",
+      "clone": "Một nút cùng loại với cùng giá trị; các con của nó cũng được sao chép trừ khi được bảo không.",
+      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
+    }
+  },
+  "GraphNodeKind": {
+    "summary": "Một nút của đồ thị là gì: một nút trần, gốc, một nhóm, một lưới được vẽ (tại một vị trí hoặc nhiều), một con mắt, hoặc một trong các nguồn sáng mà cảnh khai báo."
+  },
+  "GraphRotation": {
+    "summary": "Một hướng `(x, y, z, w)` mà các lần ghi gọi `_onChangeCallback`.",
+    "members": {
+      "x": "Con số đầu tiên.",
+      "set": "Ghi bốn số, thông báo một lần.",
+      "copy": "Lấy các số của một phép quay khác.",
+      "fromArray": "Đọc bốn số từ một danh sách.",
+      "setFromAngles": "Phép quay của `angles`, theo thứ tự của chúng (`localTurnQuaternion`); thông báo trừ khi `quiet`.",
+      "setFromRotationMatrix": "Phép quay của phần 3×3 phía trên của một ma trận theo cột có các cột độ dài đơn vị.",
+      "premultiply": "Trở thành `q` rồi đến phép quay này, `q · this`.",
+      "invert": "Trở thành phép quay ngược lại.",
+      "y": "Con số thứ hai.",
+      "z": "Con số thứ ba.",
+      "w": "Con số thứ tư."
+    }
+  },
+  "GraphSurface": {
+    "summary": "Một bề mặt: các tham số của một họ, theo giá trị của bản tham chiếu trừ khi cảnh nói khác.",
+    "description": "Phiên bản của nó được tăng bởi `needsUpdate`, mà mọi bên đọc đều so sánh.",
+    "members": {
+      "uuid": "Một tên duy nhất của bề mặt.",
+      "name": "Tên của nó.",
+      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi: điều mà một hàng được lưu đệm so sánh để dựng lại các trường của nó.",
+      "userData": "Chỗ trống cho dữ liệu của người đã dựng bề mặt.",
+      "kind": "Tài nguyên là gì; `family` cho biết bề mặt nào.",
+      "family": "Họ mà nó thuộc về.",
+      "needsUpdate": "`needsUpdate = true` sau một thay đổi: mọi bên đọc lấy lại các trường.",
+      "copy": "Lấy mọi tham số của `source`, màu và vectơ được sao chép, kết cấu dùng chung.",
+      "clone": "Một bề mặt cùng họ với cùng tham số.",
+      "visible": "Nó có được vẽ hay không.",
+      "side": "Mặt nào, dưới dạng hằng số của ứng dụng chủ.",
+      "forceSinglePass": "Ứng dụng chủ vẽ một bề mặt trong suốt hai mặt trong một chặng thay vì sau rồi trước.",
+      "vertexColors": "Các màu đỉnh có tô màu nó hay không.",
+      "toneMapped": "Đường cong hiển thị có được áp dụng hay không.",
+      "depthWrite": "Nó có ghi độ sâu hay không.",
+      "depthFunc": "Phép so sánh của việc kiểm tra độ sâu.",
+      "colorWrite": "Nó có ghi màu hay không.",
+      "polygonOffset": "Độ sâu có bị dịch chuyển hay không.",
+      "polygonOffsetFactor": "Phần độ dốc của độ dịch chuyển.",
+      "polygonOffsetUnits": "Phần hằng số của độ dịch chuyển.",
+      "transparent": "Nó có pha trộn hay không.",
+      "opacity": "Nó mờ đục đến mức nào.",
+      "alphaTest": "Ngưỡng alpha mà dưới đó các điểm ảnh bị loại bỏ.",
+      "depthTest": "Có kiểm tra độ sâu hay không."
+    }
+  },
+  "GraphTexture": {
+    "summary": "Một ảnh và trạng thái bộ lấy mẫu dùng để đọc nó, cùng phép biến đổi tọa độ của nó.",
+    "members": {
+      "kind": "Phân biệt kết cấu với mọi trường khác của bề mặt: một ảnh đã giải mã, hoặc texel thô (`image` giữ `{ data, width, height }`).",
+      "uuid": "Một tên duy nhất cho kết cấu đó.",
+      "name": "Tên mà ứng dụng chủ đặt cho nó.",
+      "mapping": "Cách nó được định địa chỉ: bằng một bộ UV.",
+      "channel": "Tập UV mà bộ lấy mẫu đọc, `texCoord` của `KHR_texture_transform`.",
+      "wrapS": "Cách nó lặp lại theo chiều ngang, dưới dạng hằng số của ứng dụng chủ.",
+      "wrapT": "Cách nó lặp lại theo chiều dọc, dưới dạng hằng số của ứng dụng chủ.",
+      "magFilter": "Bộ lọc khi hiển thị to hơn.",
+      "minFilter": "Bộ lọc khi hiển thị nhỏ hơn.",
+      "anisotropy": "Độ sắc nét khi nhìn xiên.",
+      "colorSpace": "Cách các con số của nó được đọc.",
+      "offset": "Những gì `matrix` được ghép từ đó.",
+      "matrixAutoUpdate": "Ứng dụng chủ có tự dựng lại `matrix` hay không.",
+      "matrix": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng; ứng dụng chủ tính lại nó từ độ lệch, độ lặp lại và góc xoay khi nó sở hữu việc cập nhật.",
+      "generateMipmaps": "Các bản sao nhỏ hơn có được tạo ra hay không.",
+      "premultiplyAlpha": "Màu có được nhân trước với alpha hay không.",
+      "flipY": "Các hàng có bị lật khi tải lên hay không.",
+      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi nội dung: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",
+      "userData": "Chỗ trống cho dữ liệu của người đã dựng kết cấu.",
+      "format": "Các kênh của texel trong một kết cấu thô (`HOST_FORMAT_*`).",
+      "image": "Hình ảnh đã giải mã, trong vật chứa riêng của ứng dụng chủ.",
+      "needsUpdate": "`needsUpdate = true` sau một thay đổi: bên đọc tải nó lên lại.",
+      "updateMatrix": "Dựng lại `matrix` từ độ lệch, độ lặp lại và góc xoay.",
+      "clone": "Một kết cấu cùng ảnh và trạng thái, được thông báo là đã đổi.",
+      "repeat": "Số lần nó vừa khít.",
+      "center": "Tâm xoay.",
+      "rotation": "Góc xoay, tính bằng radian."
+    }
+  },
+  "GraphVector": {
+    "summary": "Ba số của một tư thế hoặc một điểm: các trường dữ liệu đơn giản, và các phép toán mà bộ điều khiển dùng.",
+    "members": {
+      "set": "Ghi ba số.",
+      "copy": "Lấy các số của một điểm khác.",
+      "clone": "Một bản sao.",
+      "add": "Cộng thêm một vectơ khác.",
+      "sub": "Trừ đi một vectơ khác.",
+      "multiplyScalar": "Nhân tỉ lệ ba số.",
+      "length": "Độ dài của nó.",
+      "setLength": "Giữ hướng, đặt độ dài.",
+      "distanceTo": "Khoảng cách tới một điểm.",
+      "fromArray": "Đọc ba số từ một danh sách.",
+      "x": "Trái sang phải.",
+      "y": "Dưới lên trên.",
+      "z": "Sau ra trước."
     }
   }
 }

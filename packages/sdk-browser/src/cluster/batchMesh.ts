@@ -1,7 +1,6 @@
 import { IDENTITY_MATRIX4, type Side } from '../../../sdk-core/src/index.ts';
 import type { HostAttributes, HostMaterials, HostMesh } from '../host/resources.ts';
 import type { DrawRanges } from './batchRange.ts';
-import type { ClusterDraw } from './batches.ts';
 import { firstMaterial, sideOf } from '../scene/materialSide.ts';
 
 export type { HostAttributes, HostMaterials };
@@ -14,21 +13,32 @@ export type GpuBuffer = {
   clearUpdateRanges(): void;
 };
 type IndexBuffer = GpuBuffer & { count: number };
-export type VertexAttribute = GpuBuffer & { itemSize: number; normalized: boolean };
 /** Geometry of a batch record: the engine's resident index over the host's vertex attributes. */
 export type ClusterGeometry = { index: IndexBuffer; attributes: HostAttributes };
 /** A host mesh the owner draws whole — a page of a diagnostic mode, a scene copy — read by
  *  shape: its geometry, its material and the placement the engine wrote for it. */
 export type WholeMesh = {
-  geometry: { index: IndexBuffer | null; attributes: HostAttributes };
+  geometry: { index: IndexBuffer | null; attributes: HostAttributes } & Partial<Released>;
   material: HostMaterials;
-  matrix: { elements: ArrayLike<number> };
-};
+  /** Its world placement, the one the graph resolves through its parents: what it is drawn,
+   *  sorted and culled at. */
+  matrixWorld: { elements: ArrayLike<number> };
+  /** Set on a mesh drawn at `count` placements, one matrix each in `instanceMatrix`. */
+  readonly kind?: string;
+  readonly instanceMatrix?: GpuBuffer;
+  readonly count?: number;
+} & Partial<Released>;
+/** What a resource of the engine's own graph calls when it is given back (`../host/graph/resource.ts`):
+ *  a renderer's copy of it frees itself there. */
+type Released = { readonly released: Set<() => void> };
 
 /** The whole-mesh reading of a host mesh the engine placed itself: the same object, seen through
  *  the fields a diagnostic submission draws. It stays inside the engine's own shapes — the
  *  crossing back to the host library is `asHostLibrary`, and this is not one. */
 export const asWholeMesh = (mesh: HostMesh): WholeMesh => mesh as unknown as WholeMesh;
+
+/** A paged-cluster submission: a batch record, or a whole page mesh of a diagnostic mode. */
+export type ClusterDraw = ClusterDrawMesh | WholeMesh;
 
 /** A backend whose paged clusters the engine's program draws publishes its submissions here.
  *  The raster oracle and the tests read them; a host never does, so the public backend
@@ -43,6 +53,10 @@ export function submittedDraws(backend: object): readonly ClusterDraw[] {
 /** A batch record, as opposed to the whole page mesh of a diagnostic mode. */
 export const isClusterDrawMesh = (draw: ClusterDraw): draw is ClusterDrawMesh =>
   '_multiDrawCount' in draw;
+/** The world placement a submission is drawn at: a batch record carries it, a whole mesh reads
+ *  the world matrix its graph resolved through its parents. */
+export const drawWorld = (draw: ClusterDraw) =>
+  (isClusterDrawMesh(draw) ? draw.matrix : draw.matrixWorld).elements;
 /** Index ranges a submission draws: those of a batch record, the whole index — or the whole
  *  vertex list, a wireframe page being non-indexed — of a page mesh. */
 export function* drawnRanges(draw: ClusterDraw): Generator<[number, number]> {
@@ -56,9 +70,19 @@ export function* drawnRanges(draw: ClusterDraw): Generator<[number, number]> {
       draw._multiDrawCounts[range],
     ];
 }
+/** Triangles one pass of a batch record submits: the sum of its visible ranges. */
+export function recordTriangles(record: ClusterDrawMesh) {
+  let indices = 0;
+  for (let i = 0; i < record._multiDrawCount; i++) indices += record._multiDrawCounts[i];
+  return indices / 3;
+}
 /** Triangles a whole page mesh submits, indexed or not. */
 export const wholeMeshTriangles = (mesh: WholeMesh) =>
-  (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
+  ((mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3) *
+  (mesh.kind === 'instancedMesh' ? mesh.count! : 1);
+/** Triangles one pass of a submission draws, a batch record or a whole mesh. */
+export const drawTriangles = (draw: ClusterDraw) =>
+  isClusterDrawMesh(draw) ? recordTriangles(draw) : wholeMeshTriangles(draw);
 
 const BACK_THEN_FRONT: readonly Side[] = ['back', 'front'];
 const DECLARED_SIDE: readonly undefined[] = [undefined];

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
 import * as host from '../../../packages/sdk-browser/src/camera/world.ts';
 import { curvedComparison, planarWitness } from './webglClusterCurvedPage.ts';
@@ -16,8 +16,8 @@ export async function execute() {
   const gl = canvas.getContext('webgl2');
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
   const renderer = new WebglClusterRenderer(gl),
-    scene = new THREE.Scene(),
-    camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
+    scene = new G.GraphScene(),
+    camera = G.perspectiveCamera(60, 1, 0.1, 10),
     drawCamera = host.readHostDrawCamera(host.createHostDrawCamera(), camera),
     { mesh, material: basic, geometry: triangleGeometry } = triangle();
   gl.viewport(0, 0, 32, 32);
@@ -65,32 +65,32 @@ export async function execute() {
   basic.alphaTest = 0;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.disable(gl.SCISSOR_TEST);
-  const standard = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
-  standard.color.setRGB(0.18, 0, 0, THREE.LinearSRGBColorSpace);
+  const standard = G.standardSurface({ color: 0xffffff, roughness: 1, metalness: 0 });
+  (standard.color as G.Color).setRGB(0.18, 0, 0);
   basic.dispose();
   mesh.material = standard;
-  scene.add(new THREE.AmbientLight(0xffffff, Math.PI));
+  scene.add(G.ambientLight(0xffffff, Math.PI));
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
   const ambient = pixel(gl, 16, 16);
   scene.clear();
-  const sun = new THREE.DirectionalLight(0xffffff, 1);
+  const sun = G.directionalLight(0xffffff, 1);
   sun.position.set(0, 0, 1);
-  scene.add(sun, sun.target);
+  scene.add(sun, sun.target!);
   scene.updateMatrixWorld(true);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
   const direct = pixel(gl, 16, 16);
   scene.clear();
-  const spot = new THREE.SpotLight(0xffffff, 1, 0, 0.5, 0, 2);
+  const spot = G.spotLight(0xffffff, 1, 0, 0.5, 0, 2);
   spot.position.set(0, 0, 1);
-  scene.add(spot, spot.target);
+  scene.add(spot, spot.target!);
   scene.updateMatrixWorld(true);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
   const zeroPenumbraSpot = pixel(gl, 16, 16);
   scene.clear();
-  scene.add(sun, sun.target);
+  scene.add(sun, sun.target!);
   scene.updateMatrixWorld(true);
   placeRig(mesh, camera, sun, drawCamera, 1e8);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -103,8 +103,9 @@ export async function execute() {
   if (!context) throw new Error('2d context unavailable');
   context.fillStyle = 'rgb(128,128,255)';
   context.fillRect(0, 0, 1, 1);
-  standard.normalMap = new THREE.CanvasTexture(neutral);
-  standard.normalMap.colorSpace = THREE.NoColorSpace;
+  const normalMap = G.canvasTexture(neutral);
+  normalMap.colorSpace = G.HOST_COLOUR_SPACE_NONE;
+  standard.normalMap = normalMap;
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
   const neutralNormal = pixel(gl, 16, 16);
@@ -123,8 +124,8 @@ export async function execute() {
   scene.clear();
   const textures = textureFixtures(renderer, gl, mesh, scene, drawCamera, pixel);
   const normalFrames = normalMapFrames(renderer, gl, mesh, drawCamera, pixel);
-  const sourceLights = new THREE.Scene(),
-    nonPhysicalPoint = new THREE.PointLight(0xffffff, 1);
+  const sourceLights = new G.GraphScene(),
+    nonPhysicalPoint = G.pointLight(0xffffff, 1);
   nonPhysicalPoint.decay = 1;
   sourceLights.add(nonPhysicalPoint);
   sourceLights.updateMatrixWorld(true);

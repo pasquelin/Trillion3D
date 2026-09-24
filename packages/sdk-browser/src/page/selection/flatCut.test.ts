@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, rootCoverage, selectVisiblePages } from './selection.ts';
 import { dagFixture, wideCamera, urls } from './dag.fixture.ts';
 import { assertOneRepresentationPerGroup } from './helpers.fixture.ts';
@@ -42,7 +42,7 @@ test('a flat cluster cut keeps the frustum cut and reports the root cover', () =
     rootCoverage(roots).map((page) => page.url),
     ['root'],
   );
-  const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
+  const cam = G.perspectiveCamera(40, 1, 0.1, 1000);
   cam.position.set(-1.5, 0, 2);
   cam.lookAt(-1.5, 0, 0);
   cam.updateMatrixWorld();

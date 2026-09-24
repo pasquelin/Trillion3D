@@ -8,7 +8,7 @@
 // ② the order the cut publishes is that of the WebGL2 formula, on the same scene.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import {
   packRequest,
   quantizeRequestPriority,
@@ -65,10 +65,10 @@ test('quantification is monotone: it never reverses two errors', () => {
  */
 function coupe(seuil: number) {
   const pages = scenePages(4096, 8);
-  const poses = [0, 12, 30, 70].map((z) => new THREE.Matrix4().makeTranslation(0, 0, -z));
+  const poses = [0, 12, 30, 70].map((z) => new G.Matrix4().makeTranslation(0, 0, -z));
   const roots = sceneRoots(pages, poses, true);
   const packed = packDagSelection(roots);
-  const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+  const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
   camera.position.set(0, 0, 16);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld(true);

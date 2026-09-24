@@ -10,7 +10,7 @@
 //
 // node --experimental-strip-types tests/browser/probes/screen-error-cpu-gpu.ts [n]
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
 import {
   cutSelects,
@@ -41,17 +41,17 @@ const SEUIL = 0.75;
 const VIEWPORT: [number, number] = [1600, 900];
 const { hasard, entre, log } = lois(xorshift32(0x2545f491));
 
-const camera = new THREE.PerspectiveCamera(75, VIEWPORT[0] / VIEWPORT[1], 0.05, 2000);
+const camera = G.perspectiveCamera(75, VIEWPORT[0] / VIEWPORT[1], 0.05, 2000);
 camera.position.set(3, -2, 7);
 camera.lookAt(-4, 1, -20);
 camera.updateMatrixWorld(true);
-const world = new THREE.Matrix4().compose(
-  new THREE.Vector3(1, 2, -3),
-  new THREE.Quaternion().setFromEuler(new THREE.Euler(0.4, -0.9, 0.3)),
-  new THREE.Vector3(0.6, 1.7, 1.1),
+const world = new G.Matrix4().compose(
+  new G.Vector3(1, 2, -3),
+  new G.Quaternion().setFromEuler(new G.Euler(0.4, -0.9, 0.3)),
+  new G.Vector3(0.6, 1.7, 1.1),
 );
-const view = new THREE.Matrix4().multiplyMatrices(camera.matrixWorldInverse, world).elements;
-const versObjet = new THREE.Matrix4().multiplyMatrices(camera.matrixWorldInverse, world).invert();
+const view = new G.Matrix4().multiplyMatrices(camera.matrixWorldInverse, world).elements;
+const versObjet = new G.Matrix4().multiplyMatrices(camera.matrixWorldInverse, world).invert();
 const stretch = maxStretch(world.elements) * maxStretch(camera.matrixWorldInverse.elements);
 const uniforms = cameraSelectionUniforms(cameraMoteur(camera), SEUIL, VIEWPORT);
 const focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]);
@@ -65,7 +65,7 @@ for (let i = 0; i < N; i++) {
   const proche = hasard() < 0.25;
   const marge = radius * stretch * 2.2;
   const depth = proche ? camera.near + marge + camera.near * log(1e-4, 1) : marge + log(0.2, 400);
-  const v = new THREE.Vector3(
+  const v = new G.Vector3(
     (entre(-1, 1) * depth) / p00,
     (entre(-1, 1) * depth) / p11,
     -depth,

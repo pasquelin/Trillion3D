@@ -1,5 +1,7 @@
 // what a frame used to rebuild for no reason.
-import * as THREE from 'three';
+import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { surfaceColorAttachments } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/attachments.ts';
@@ -62,9 +64,10 @@ for (let i = 0; i < 2000; i++) imagesSurfaces.push(petite);
 const redimensionnee = [petite, petite, grande, grande, petite, liberee, grande];
 
 /** Fields the instance displacement never reads: shared across every fixture record/root. */
-const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
+const DUMMY_ATTRIBUTES: G.GraphGeometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
-const pageOf = (matrix: THREE.Matrix4, mesh?: THREE.Mesh): PageRec => ({
+const emptyMesh = () => new GraphMesh(new GraphGeometry(), []);
+const pageOf = (matrix: G.Matrix4, mesh?: GraphMesh): PageRec => ({
   id: 0,
   url: '',
   clusterId: '',
@@ -88,20 +91,20 @@ const instanceDe = (pages: number) => {
     clones: PageRec[] = [],
     racines: ClusterRoot<PageRec>[] = [];
   for (let i = 0; i < pages; i++) {
-    basePages.push(pageOf(new THREE.Matrix4().makeTranslation(i, i * 2, i * 3)));
-    clones.push(pageOf(new THREE.Matrix4(), i % 3 ? new THREE.Mesh() : undefined));
+    basePages.push(pageOf(new G.Matrix4().makeTranslation(i, i * 2, i * 3)));
+    clones.push(pageOf(new G.Matrix4(), i % 3 ? emptyMesh() : undefined));
   }
   for (let i = 0; i < 10; i++) {
-    baseRoots.push({ world: new THREE.Matrix4().makeScale(1 + i, 2, 3), pages: [] });
-    racines.push({ world: new THREE.Matrix4(), pages: [] });
+    baseRoots.push({ world: new G.Matrix4().makeScale(1 + i, 2, 3), pages: [] });
+    racines.push({ world: new G.Matrix4(), pages: [] });
   }
   return { basePages, baseRoots, instance: { pages: clones, bases: basePages, roots: racines } };
 };
 const petiteInstance = instanceDe(100),
   grosseInstance = instanceDe(5000);
-const transformation = new THREE.Matrix4()
+const transformation = new G.Matrix4()
   .makeRotationY(0.7)
-  .multiply(new THREE.Matrix4().makeTranslation(3, -1, 2));
+  .multiply(new G.Matrix4().makeTranslation(3, -1, 2));
 
 type Instance = ReturnType<typeof instanceDe>;
 
@@ -116,13 +119,10 @@ const passeInstance =
   ) =>
   (input: Instance) => {
     const { basePages, baseRoots, instance } = input;
-    fn(instance, basePages, baseRoots, transformation.toArray(new Float64Array(16)));
+    fn(instance, basePages, baseRoots, new Float64Array(transformation.elements));
     const output: number[] = [];
     for (const rec of instance.pages)
-      output.push(
-        ...Array.from(rec.matrix.elements),
-        ...Array.from(asHostLibrary<THREE.Mesh | undefined>(rec.mesh)?.matrix.elements ?? []),
-      );
+      output.push(...Array.from(rec.matrix.elements), ...(rec.mesh?.matrix.elements ?? []));
     for (const root of instance.roots) output.push(...Array.from(root.world.elements));
     return Float64Array.from(output);
   };
@@ -161,7 +161,7 @@ const resInstance = await mesure({
       asHostLibrary<Parameters<typeof referenceUpdateInstance>[0]>(inst),
       asHostLibrary<Parameters<typeof referenceUpdateInstance>[1]>(bases),
       asHostLibrary<Parameters<typeof referenceUpdateInstance>[2]>(racines),
-      asHostLibrary<THREE.Matrix4>(t),
+      asHostLibrary<G.Matrix4>(t),
     ),
   ),
   options: { tours: 100, budgetMs: 1500 },

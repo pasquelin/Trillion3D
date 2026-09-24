@@ -3,7 +3,7 @@ import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 // `{ name, cree, mesure }`: `cree()` returns the state of a frame sequence (Hi-Z hold, cut,
 // engine), `mesure(state, camera)` returns as JSON what the site took from the camera for that
 // frame.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
@@ -48,13 +48,13 @@ function pagesDag(): { roots: ReturnType<typeof collectClusterPages>['roots']; v
     fixture.associations,
   );
   // Dark and metallic: the specular, the only term that reads eye position, stays under 255.
-  const material = new THREE.MeshStandardMaterial({
+  const material = G.standardSurface({
     color: 0x303030,
     metalness: 0.9,
     roughness: 0.35,
-    side: THREE.DoubleSide,
+    side: G.DOUBLE_SIDE,
   });
-  const identite = new THREE.Matrix4();
+  const identite = new G.Matrix4();
   const vis: VisHizPage[] = [0, 1, 2, 3].map((t) => ({
     array: new Uint32Array([t * 3, t * 3 + 1, t * 3 + 2]),
     attributes: fixture.geometry.attributes,
@@ -136,7 +136,7 @@ const sitesPurs: Site[] = [
     name: 'projectedPageError (error diagnostic)',
     mesure: (_state, camera: HostCamera) =>
       projectedPageError(
-        { lodError: 0.05, sphere: [0.5, 0, 0, 0.6], matrix: new THREE.Matrix4() },
+        { lodError: 0.05, sphere: [0.5, 0, 0, 0.6], matrix: new G.Matrix4() },
         engine(camera),
         VIEWPORT,
       ),

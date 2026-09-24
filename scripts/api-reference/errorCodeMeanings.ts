@@ -11,7 +11,7 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   INVALID_CACHE:
     'The compiled model is damaged, too old, too new or of a format not read yet: compile it again.',
   INVALID_SCENE_TABLES:
-    "The model's node and material tables are missing, of another version, or disagree with its scene.",
+    "The model's scene tables are missing, of another version, or do not lay out the scene it draws.",
   AUTONOMOUS_SCENE_UNAVAILABLE: "The engine's own WebGL2 path cannot draw this model.",
   PAGE_BUDGET:
     'The pages the view needs do not fit the memory budget, or this path has no budgets.',

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
-import { exactPagesBackend } from '../measurement/measurement.ts';
+import * as G from '../host/graph/graph.fixture.ts';
+import { exactPagesBackend } from '../../../../bench/witnesses/measurement.ts';
 import { drawnTriangles, dagRoots, dagLevel, DAG } from './pagesBackend.fixture.ts';
 import {
   quadScene,
@@ -10,11 +10,11 @@ import {
   quadIndices,
   frontCamera,
 } from './pagesBackendScenes.fixture.ts';
-import { submittedDraws } from '../cluster/batchMesh.ts';
+import { drawWorld, submittedDraws } from '../cluster/batchMesh.ts';
 
 test('exact pages keep replica meshes in separate batches despite shared glTF ids', () => {
   const { geometry, material, mesh: m1, source } = quadScene();
-  const m2 = new THREE.Mesh(geometry, material);
+  const m2 = G.mesh(geometry, material);
   m2.matrixAutoUpdate = false;
   m2.matrix.elements[12] = 2;
   m2.updateMatrixWorld(true);
@@ -42,14 +42,14 @@ test('exact pages keep replica meshes in separate batches despite shared glTF id
     maxResidentPages: 10,
   });
   const meshes = () => submittedDraws(backend);
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 8;
   camera.lookAt(0, 0, 0);
   backend.render(camera);
   assert.equal(backend.metrics().clusters, 4);
   assert.equal(meshes().length, 2);
   const xs = meshes()
-    .map((mesh) => mesh.matrix.elements[12])
+    .map((mesh) => drawWorld(mesh)[12])
     .sort((a, b) => a - b);
   assert.deepEqual(xs, [0, 2]);
   backend.dispose();

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32, MAX_DRAW_SLOTS, slotCount } from '../../gpu/draw/draw.ts';
@@ -21,13 +21,13 @@ import { createWebgpuCoplanarLayerPipelines } from './pipelines.ts';
 
 // itemWords.ts
 test("a row's coplanar layer goes into its record word, capped, and its triangles with it", () => {
-  const material = new THREE.MeshBasicMaterial();
+  const material = G.basicSurface();
   const rec = (depthLayer: number) =>
     ({
       array: Uint32Array.from([0, 1, 2]),
       depthLayer,
       material,
-      matrix: new THREE.Matrix4(),
+      matrix: new G.Matrix4(),
     }) as unknown as PageRec;
   // The two page-table rows carry the three indices each page draws.
   const rowWords = PAGE_INFO_STRIDE / 4;
