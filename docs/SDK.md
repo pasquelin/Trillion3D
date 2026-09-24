@@ -908,9 +908,10 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   by the declared-light rule above.
 - A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
   implemented.
-- Physics, `ten-thousand-bodies` (10,000 boxes landing at once, headless Chrome, cross-origin
-  isolated, eight threads): the worker's step is 15–17 ms p50 (8–10 ms for the same module in
-  Node), so the landing runs in slow motion; the page draws on at its own pace, and its `physics`
-  stage is 0.45–0.50 ms p50, 0.6–0.7 ms p95 a frame. The renderer's own work for 10,000 moved
-  instances is measured apart (#432). Characters, joints, vehicles, soft bodies, cooked colliders and
+- Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
+  cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
+  commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
+  landing, which then runs in slow motion for a short moment; the page's `physics` stage is
+  0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
+  The renderer's own work for 10,000 moved instances is measured apart (#432). Characters, joints, vehicles, soft bodies, cooked colliders and
   loaded models as bodies arrive with the next physics issues (#396–#400).
