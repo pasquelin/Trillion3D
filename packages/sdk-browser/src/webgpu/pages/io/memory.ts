@@ -1,33 +1,9 @@
-import type { TexturePool } from '../../residency/memoryBudgets.ts';
-import { checkTexturePoolBudget, type GeometryPool } from '../../../residency/pools.ts';
+import {
+  checkTexturePoolBudget,
+  type MemoryBudgets,
+  type MemoryBudgetsReport,
+} from '../../../residency/pools.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-
-/** What a host can change mid-session; a missing field keeps its value. */
-export type MemoryBudgets = {
-  /** Bytes for geometry pages. */
-  geometryPoolBytes?: number;
-  /** Bytes for texture tiles. */
-  texturePoolBytes?: number;
-};
-
-/** Pools as the engine holds them after the setting, and what the setting cost. */
-export type MemoryBudgetsReport = {
-  /** The geometry pool after the change. */
-  geometryPool: GeometryPool;
-  /** `null` before prepare has drawn the lane pools: the budget is kept for it. */
-  texturePool: TexturePool | null;
-  /** Pages and tiles the new pool could not keep: they will come back if the image asks again, their
-   *  coarse level holding the place in the meantime. */
-  evictedPages: number;
-  /** Texture tiles removed. */
-  evictedTiles: number;
-  /** What resided just before the setting and just after. */
-  residentPages: { before: number; after: number };
-  /** Texture tiles held, before and after. */
-  residentTiles: { before: number; after: number };
-  /** Time it took. */
-  durationMs: number;
-};
 
 /**
  * Changes memory pools mid-session, like the reference's variables — but without emptying what they
