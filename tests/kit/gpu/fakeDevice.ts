@@ -33,7 +33,7 @@ export type FakeWrite = {
   size?: number;
 };
 /** One `copyBufferToBuffer` an encoder recorded, in the order it was encoded. */
-export type FakeCopy = {
+type FakeCopy = {
   from: GPUBuffer;
   fromOffset: number;
   to: GPUBuffer;
