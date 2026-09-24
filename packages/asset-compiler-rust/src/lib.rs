@@ -107,7 +107,6 @@ pub struct Options {
     pub texture_formats: Vec<texture_preview::BlockFormat>,
     pub cancelled: Arc<AtomicBool>,
 }
-pub const CLUSTER_TRIANGLES: usize = 256;
 fn check(o: &Options) -> Result<()> {
     if o.cancelled.load(Ordering::Relaxed) {
         return Err(CompilerError::new("CANCELLED", "Compilation cancelled"));

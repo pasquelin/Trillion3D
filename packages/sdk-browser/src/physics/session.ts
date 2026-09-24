@@ -1,16 +1,13 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import {
-  CommandWriter,
-  type PhysicsBudget,
-  type PhysicsHost,
-  physicsMatterOf,
-} from '../../../sdk-core/src/physics/index.ts';
+import { CommandWriter, type PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
+import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies, flagsOf, hasBody, worldPoseOf } from './bodies.ts';
 import { emitContacts } from './contacts.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { emptyPhysicsStats, eventsAt, type FromPhysics, type PhysicsResults } from './protocol.ts';
+import { createSessionHost } from './sessionHost.ts';
 import { startPhysicsWorker } from './sessionWorker.ts';
 import { createTileStreamer } from './tiles.ts';
 import { createPhysicsView } from './view.ts';
@@ -31,43 +28,15 @@ export function createPhysicsSession(
   const stale = new Set<Object3D>();
   let dirty = true,
     ready = false;
-  const host: PhysicsHost = {
-    rebuild(body) {
-      const mesh = bodies.meshes[body._index];
+  const host = createSessionHost(
+    writer,
+    () => bodies.meshes,
+    (mesh) => {
       if (mesh) stale.add(mesh);
       dirty = true;
-      invalidate();
     },
-    tune(body) {
-      const mesh = bodies.meshes[body._index];
-      if (!mesh) return;
-      const matter = physicsMatterOf(mesh.material);
-      writer.gravityScale(body._index, body.gravityScale);
-      writer.material(
-        body._index,
-        body.friction ?? matter.friction,
-        body.restitution ?? matter.restitution,
-      );
-      invalidate();
-    },
-    velocity(body) {
-      writer.velocity(body._index, body.velocity.elements);
-      invalidate();
-    },
-    impulse(body, x, y, z) {
-      writer.impulse(body._index, [x, y, z]);
-      invalidate();
-    },
-    wake(body) {
-      writer.wake(body._index);
-      invalidate();
-    },
-    listened(body) {
-      const mesh = bodies.meshes[body._index];
-      if (mesh) writer.flags(body._index, flagsOf(mesh));
-      invalidate();
-    },
-  };
+    invalidate,
+  );
   const poses = createPhysicsPoses(budget.bodies, root);
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const view = createPhysicsView();
@@ -137,10 +106,15 @@ export function createPhysicsSession(
       Object.assign(clock, { paused, timeScale });
       worker.postMessage({ type: 'clock', paused: paused || timeScale === 0, timeScale });
     },
-    /** The scene's tree changed: bodies are reconciled before the next frame. */
-    structure() {
-      dirty = true;
+    /** The water the bodies float in, or none: buoyancy runs in the worker, before each step, on
+     *  the awake bodies; every dynamic body is woken, so one at rest floats or falls. */
+    setWater(water: WaterSpec | null) {
+      worker.postMessage({ type: 'water', water });
+      for (const mesh of bodies.meshes)
+        if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
     },
+    /** The scene's tree changed: bodies are reconciled before the next frame. */
+    structure: () => void (dirty = true),
     /** A mesh's geometry, material or `physics` changed. */
     content(node: Object3D) {
       if (hasBody(node)) stale.add(node);
@@ -186,6 +160,8 @@ export function createPhysicsSession(
     },
     /** The model a tile body's engine id belongs to, or the mesh a body's names, or `null`. */
     objectOf: (id: number) => tiles.modelOf(id) ?? bodies.meshOf(id),
+    /** The glTF material of a tile body's triangles, `-1` for any other body. */
+    materialOf: tiles.materialOf,
     dispose() {
       tiles.clear();
       bodies.clear();

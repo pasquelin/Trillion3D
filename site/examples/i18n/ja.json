@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "歩く人はホールを回り、ボールを押します。「ボール」でさらに20個。",
+    "banner": "クリックで見回し、W A S D でボールの間を歩いて押します。「ボール」でさらに20個。",
     "controls": {
-      "walking": "歩く",
       "balls": "ボール"
     },
     "readouts": {
