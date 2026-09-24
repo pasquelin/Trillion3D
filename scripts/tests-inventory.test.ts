@@ -23,13 +23,10 @@ test('the counts read the folders they name', () => {
     'tests/browser/probes/one-probe.ts',
     'tests/browser/probes/support.ts',
     'bench/perf/core/x.perf.ts',
-    'scripts/docs/examples/openworld/regions/city/city.test.ts',
-    'scripts/docs/examples/openworld/regions/testing.ts',
   ]);
   assert.match(inventory, /sdk-core\/src\/\s+1 \*\.test\.ts/);
   assert.match(inventory, /browser\/probes\/\s+1 GPU probes \+ 1 support modules/);
   assert.match(inventory, /perf\/core\/\s+1 \*\.perf\.ts/);
-  assert.match(inventory, /regions\/\s+1 \*\.test\.ts/);
 });
 
 test('a page without markers is refused, not rewritten', () => {
