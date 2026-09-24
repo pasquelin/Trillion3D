@@ -70,8 +70,13 @@ export type {
 export type { SurfaceBuffer, SurfaceCapture } from './scene/surfaceBuffer.ts';
 export type { HostDrawCamera } from './camera/world.ts';
 export type { HostDrawOutput } from './webgl/core/renderTarget.ts';
-export type { MemoryBudgets, MemoryBudgetsReport } from './webgpu/pages/io/memory.ts';
-export type { GeometryPool, PoolClamp, TexturePool } from './webgpu/residency/memoryBudgets.ts';
+export type {
+  GeometryPool,
+  MemoryBudgets,
+  MemoryBudgetsReport,
+  PoolClamp,
+} from './residency/pools.ts';
+export type { TexturePool } from './webgpu/residency/memoryBudgets.ts';
 export type { ShadowAtlasDigest } from './gpu/shadow/digest.ts';
 export type { PartitionAudit } from './webgpu/core/partitionAudit.ts';
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts';
