@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 6;
+export const PHYSICS_LAYOUT_VERSION = 7;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -25,6 +25,9 @@ export const OP = {
   restore: 15,
   release: 16,
   buoyancy: 17,
+  joint: 18,
+  unjoint: 19,
+  motor: 20,
 } as const;
 
 /** How a body moves: fixed, moved by the page, or moved by the simulation. */
@@ -67,13 +70,28 @@ export const RESTORE_WORDS = 3;
 /**
  * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c` — a ray, or a
  * sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`) swept
- * along `travel`. Its hit: `engine id, fraction, point x, y, z, normal x, y, z, material`; a miss
- * names no body (`0xFFFFFFFF`), a hit on a shape without cooked material has that material.
+ * along `travel`. Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
+ * body (`0xFFFFFFFF`). A tile's glTF material is its collider's, read from `physics.json`.
  */
 export const CAST_WORDS = 10;
-export const HIT_WORDS = 9;
+export const HIT_WORDS = 8;
 export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const;
 export const MISS = 0xffffffff;
+
+/** Joint kinds of the JOINT command, each one of Jolt's two-body constraints. */
+export const JOINT = { fixed: 0, point: 1, hinge: 2, slider: 3, distance: 4, cone: 5 } as const;
+/** What a joint's motor does: nothing, drive to a velocity, or drive to a position. */
+export const MOTOR = { off: 0, velocity: 1, position: 2 } as const;
+/**
+ * Words of JOINT: `op, joint id, kind, engine id a, engine id b`, then for `a` and for `b` its
+ * frame — `point x, y, z, axis x, y, z, normal x, y, z` in that body's own frame, the world's
+ * when the engine id is `MISS` — then `limit min, limit max, spring frequency, spring damping,
+ * motor mode, motor target, motor max force, break force`. The joint id is a slot and its
+ * generation, as a body's engine id (`BODY_INDEX`). A joint whose body is gone is not made.
+ * UNJOINT is `op, joint id`; MOTOR is `op, joint id, mode, target, max force`. After a step, the
+ * module lists the joints pulled past their break force and takes them out (`jolt_broken`).
+ */
+export const JOINT_WORDS = 31;
 
 /** Per-body flag bits: sensor, continuous collision, contact events wanted, hidden (no pose). */
 export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8 } as const;

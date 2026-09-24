@@ -446,7 +446,6 @@
       "drag-objects": "picking (raycast)",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "positional audio",
-      "smooth-edges-over-time": "the temporal antialiasing setting",
       "tone-mapping-compared": "tone-mapping operator choice",
       "a-first-post-effect": "post-processing chain",
       "a-glow-around-lights": "post-processing chain: bloom",
@@ -482,7 +481,6 @@
       "breaking-things": "physics integration",
       "cloth-and-rope": "physics integration",
       "soft-bodies": "physics integration",
-      "hinges-and-joints": "physics integration",
       "drive-a-car": "physics integration",
       "a-room-in-vr": "WebXR session",
       "a-360-photo-in-vr": "WebXR session",
@@ -1073,6 +1071,18 @@
           "Make boxes <code>'dynamic'</code> and light: the character pushes them with <code>pushStrength</code> newtons, and they fall, tumble and push back."
         ],
         "tryIt": "Click the picture, walk with W A S D, jump with Space. Climb the stairs, ride the platform, push the stack of boxes."
+      },
+      "connect-drive-and-break": {
+        "title": "Connect, drive and break",
+        "description": "Joints hold two bodies together, or a body to the world: a door turns on its hinge, a drawer slides on its rail, a chain hangs by its links, and a bridge breaks when pulled too hard.",
+        "steps": [
+          "Make a joint with <code>joint.hinge(a, b, options)</code> or its kin — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — and give it to <code>world.physics.add</code>. Put <code>null</code> for <code>b</code> to hold a body to the world.",
+          "<code>anchor</code> is where the bodies connect and <code>axis</code> the way the pin or the rail points, both in the world, read when the joint is made.",
+          "<code>limits</code> stop the joint: radians for a hinge, metres for a slider. A <code>spring</code> makes the stop soft.",
+          "A <code>motor</code> drives a hinge or a slider to a speed or a position. Change <code>joint.motor</code> at any time.",
+          "<code>breakForce</code> is the pull, in newtons, past which the joint snaps: <code>joint.broken</code> turns true and <code>joint.on('break', …)</code> is called."
+        ],
+        "tryIt": "Open the door and the drawer, then drop the stone on the bridge. Lower the bridge strength and rebuild it: it breaks under its own weight."
       },
       "your-own-scene": {
         "title": "Your own scene",

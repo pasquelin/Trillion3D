@@ -1954,15 +1954,29 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "걷는 사람이 홀을 돌며 공을 밉니다. 공은 스무 개를 더합니다.",
+    "banner": "클릭해 둘러보고, W A S D로 공 사이를 걸으며 공을 밉니다. 공은 스무 개를 더합니다.",
     "controls": {
-      "walking": "걷기",
       "balls": "공"
     },
     "readouts": {
       "bodies": "물체",
       "awake": "활성",
       "step": "스텝"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "문과 서랍을 열고, 사슬을 흔든 다음, 다리 위에 돌을 떨어뜨려 부서지는 모습을 보세요.",
+    "controls": {
+      "openDoor": "문 열기",
+      "openDrawer": "서랍 열기",
+      "strength": "다리 강도 (N)",
+      "swingChain": "사슬 흔들기",
+      "dropStone": "돌 떨어뜨리기",
+      "rebuild": "다리 다시 짓기"
+    },
+    "readouts": {
+      "joints": "관절",
+      "broken": "끊어짐"
     }
   }
 }

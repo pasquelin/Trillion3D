@@ -25,6 +25,16 @@ function isNamedContract(declaration: ts.Declaration): declaration is NamedContr
  *  is likewise only declared on `TypeReference`, though every `Type` may carry it. */
 type TypeWithId = ts.Type & { id: number; typeArguments?: readonly ts.Type[] };
 
+/** A `private` or `#private` member: the emitted declarations drop its type, so it reaches no
+ *  caller. */
+function isPrivate(declaration: ts.Declaration): boolean {
+  const name = ts.getNameOfDeclaration(declaration);
+  return (
+    (name !== undefined && ts.isPrivateIdentifier(name)) ||
+    (ts.getCombinedModifierFlags(declaration) & ts.ModifierFlags.Private) !== 0
+  );
+}
+
 function missingNamedContracts(file: string): string[] {
   const program = ts.createProgram([resolve(ROOT, file)], {
     allowImportingTsExtensions: true,
@@ -77,7 +87,8 @@ function missingNamedContracts(file: string): string[] {
       return;
     for (const property of checker.getPropertiesOfType(type)) {
       const declaration = property.valueDeclaration ?? property.declarations?.[0];
-      if (declaration) visit(checker.getTypeOfSymbolAtLocation(property, declaration));
+      if (declaration && !isPrivate(declaration))
+        visit(checker.getTypeOfSymbolAtLocation(property, declaration));
     }
     for (const signature of [...type.getCallSignatures(), ...type.getConstructSignatures()]) {
       visit(signature.getReturnType());

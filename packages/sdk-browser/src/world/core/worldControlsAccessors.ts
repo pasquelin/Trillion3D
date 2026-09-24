@@ -68,11 +68,13 @@ export function controlSettingAccessors(
     set movementSpeed(value: number) {
       setting('movementSpeed', value);
     },
-    /** First person and character: radians the view turns per pixel the pointer moves. */
+    /** Flight, first person and character: radians the view turns per pixel the pointer moves;
+     *  `null` (the default) keeps each one's own — 0.002 for a head, half a turn per canvas
+     *  height for flight. */
     get lookSpeed() {
       return settings.lookSpeed;
     },
-    set lookSpeed(value: number) {
+    set lookSpeed(value: number | null) {
       setting('lookSpeed', value);
     },
     /** First person and character: lowest the head looks, in radians (0 is the horizon, negative down). */

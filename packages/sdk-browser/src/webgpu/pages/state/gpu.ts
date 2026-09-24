@@ -9,6 +9,7 @@ import type { createDeferredLighting } from '../../../lighting/deferred/deferred
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
+import type { ModePipelines } from '../../blend/stagePipelines.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -20,7 +21,7 @@ export interface WebgpuGpuState {
   pipelineBack: GPURenderPipeline | undefined;
   pipelineBackCw: GPURenderPipeline | undefined;
   pipelineNone: GPURenderPipeline | undefined;
-  pipelineBlend: GPURenderPipeline | undefined;
+  pipelineBlend: ModePipelines<GPURenderPipeline> | undefined;
   colorTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   colorView: GPUTextureView | undefined;
@@ -74,6 +75,8 @@ export interface WebgpuGpuState {
   /** Temporal-antialiasing pass and its two history targets; absent when the host refuses it or the
    *  device does not host it. */
   temporal: TemporalAntialiasing | undefined;
+  /** Whether the host wants the pass: set at preparation, then by `setTemporalAntialiasing`. */
+  temporalWanted: boolean;
 }
 
 /** The frozen colour the water composite rereads, and the depth its surface stage tests and
@@ -129,5 +132,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     presenter: undefined,
     deferred: undefined,
     temporal: undefined,
+    temporalWanted: true,
   };
 }

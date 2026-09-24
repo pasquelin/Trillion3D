@@ -574,10 +574,10 @@ with no envelope, and a `directional` lamp — which has no centre — receive n
 
 ### `physics.json` — the cooked colliders (stage `physics-cook`)
 
-At runtime, loading a collider is a decode and a copy: no tree, hull or mass is computed in the
-browser. Native Jolt is linked into the compiler from the same pinned submodule as the web module
-(`build.rs` builds `packages/physics-jolt-wasm` with `-DCOOK=ON`, which needs CMake and a C++17
-compiler, and the submodule checked out: `git submodule update --init`). The stage contract is
+At runtime, loading a collider is a decode and a copy: no tree is computed in the browser. Native
+Jolt is linked into the compiler from the same pinned submodule as the web module (`build.rs`
+builds `packages/physics-jolt-wasm` with `-DCOOK=ON`, which needs CMake and a C++17 compiler, and
+the submodule checked out: `git submodule update --init`). The stage contract is
 `PHYSICS_COOK_STAGE` / `PHYSICS_COOK_VERSION`; the Jolt commit and the stage version enter the cache
 key, so a cache cooked by another Jolt is another key, never reused. The algorithms live in
 `src/physics_cook/`:
@@ -594,11 +594,10 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
 - **Height fields** (`height.rs`). A primitive whose used vertices sit on an evenly spaced x-z
   lattice, one per point, every triangle within one cell, becomes a `HeightFieldShape`; the largest
   gap between the two diagonals of a cell is published as its `hausdorff`.
-- **Declared bodies** (`declared.rs`). `KHR_physics_rigid_bodies` and `KHR_implicit_shapes` are
-  read; a node that declares nothing is static. A declared dynamic body without a shape gets a
-  convex decomposition (`decompose.rs`, after Mamou & Ghorbel's hierarchical approximate convex
-  decomposition: a part is cut across its longest axis until its concavity is within the mesh's mean
-  edge length, 64 hulls at most), weighed at cook time (mass, centre of mass, inertia).
+- **Declared matter** (`declared.rs`). A node whose `KHR_physics_rigid_bodies` collider names a
+  `physicsMaterial` gives its placements that material's friction and restitution. Every drawn node
+  is static ground, as drawn, a node declaring motion included: no body simulates a node of a
+  compiled model yet.
 
 Primitives without a DAG (skinned, morphed, shared blend) cook no collider.
 
@@ -920,7 +919,7 @@ await prepare(source, cache, 'full', 150000, { resourceBaseUrl, onProgress: prog
 // ✔ 1/8 city 1,132,930 triangles, 412 primitives, 3395 ms 4.1s
 ```
 
-The executable is found at `packages/asset-compiler-rust/target/release/`, or through `options.executable`, or `TRILLION3D_COMPILER_BIN`. Node never buffers a manifest: its memory stays flat (about 90 MB RSS) whatever the model size.
+The executable is found through `options.executable`, else `TRILLION3D_COMPILER_BIN` (trusted, and announced once on stderr), else at `packages/asset-compiler-rust/target/release/` — refused with `COMPILER_STALE` while a crate source is newer than that build, so no cook publishes products under the previous build's key; `pnpm run build:native` rebuilds it. Node never buffers a manifest: its memory stays flat (about 90 MB RSS) whatever the model size.
 
 ## Using it from any other host
 

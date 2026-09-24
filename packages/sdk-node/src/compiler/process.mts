@@ -1,26 +1,51 @@
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { join } from 'node:path';
 import type { CompilerEvent } from './contracts.ts';
+import { sourceNewerThan } from './freshness.mts';
 
 /** Longest accepted single line on either stream; the compiler emits small JSON lines only. */
 export const COMPILER_LINE_LIMIT = 4 * 1024 * 1024;
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
 export const CANCEL_GRACE_MS = 5000;
+/** The crate this checkout builds the compiler from; absent from an installed package. */
+const CRATE = fileURLToPath(new URL('../../../../packages/asset-compiler-rust/', import.meta.url));
+const built = (crate: string, platform: NodeJS.Platform) =>
+  join(crate, `target/release/trillion3d-compiler${platform === 'win32' ? '.exe' : ''}`);
 /** Finds the native compiler program: the one asked for, else the one built in this checkout. */
 export function resolveCompilerExecutable(
   explicit?: string,
   environment: NodeJS.ProcessEnv = process.env,
   platform = process.platform,
 ) {
-  if (explicit) return explicit;
-  if (environment.TRILLION3D_COMPILER_BIN) return environment.TRILLION3D_COMPILER_BIN;
-  const ext = platform === 'win32' ? '.exe' : '';
-  return fileURLToPath(
-    new URL(
-      `../../../../packages/asset-compiler-rust/target/release/trillion3d-compiler${ext}`,
-      import.meta.url,
-    ),
-  );
+  return explicit || environment.TRILLION3D_COMPILER_BIN || built(CRATE, platform);
+}
+const announced = new Set<string>();
+/**
+ * The program a compile launches. A binary named by the caller or by `TRILLION3D_COMPILER_BIN` is
+ * trusted — the variable's one is announced once on stderr; the checkout's own build is refused
+ * while a crate source is newer than it, since its products would carry the previous build's key.
+ */
+export function currentCompilerExecutable(
+  explicit?: string,
+  environment = process.env,
+  crate = CRATE,
+) {
+  const named = resolveCompilerExecutable(explicit, environment);
+  if (explicit) return named;
+  if (environment.TRILLION3D_COMPILER_BIN) {
+    if (!announced.has(named))
+      process.stderr.write(`compiler: ${named} (TRILLION3D_COMPILER_BIN)\n`);
+    announced.add(named);
+    return named;
+  }
+  const executable = built(crate, process.platform);
+  const newer = sourceNewerThan(executable, crate);
+  if (newer)
+    throw new Error(
+      `COMPILER_STALE: ${executable} is older than ${newer} — run \`pnpm run build:native\``,
+    );
+  return executable;
 }
 /** Line-oriented JSON reader shared by both streams; a line that never ends is a protocol violation. */
 function lineReader(onLine: (line: string) => void, onOverflow: () => void) {
@@ -63,7 +88,7 @@ export function runCompiler<T>(
   onEvent?: (event: CompilerEvent) => void,
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const executable = resolveCompilerExecutable(options.executable);
+    const executable = currentCompilerExecutable(options.executable);
     const child = spawn(executable, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
     });

@@ -76,6 +76,8 @@ export type FromPhysics =
   | PhysicsResults
   /** The hits of a `cast` request (`HIT_WORDS` each), in its order. */
   | { type: 'cast'; id: number; hits: Uint32Array }
+  /** The joints a step broke, by id (`JOINT_WORDS`): the module took them out. */
+  | { type: 'broken'; joints: number[] }
   | { type: 'error'; code: string; message: string; fatal: boolean; bodies?: number[] };
 
 /** Word where a result buffer's events start: after one pose per body. */

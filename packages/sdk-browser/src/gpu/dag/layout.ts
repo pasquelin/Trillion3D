@@ -1,27 +1,33 @@
 /**
  * Compact cut layout, written once by packing and reread by two readers: the shader
- * (`shader/shader.ts`, `shader/recordWgsl.ts`) and the oracle (`gpuDagOracle*.ts`). Both
+ * (`shader/shader.ts`, `shader/recordWgsl.ts`) and the oracle (`records.ts`). Both
  * go through this module alone, so no field rank is written twice — that is what
  * guarantees the oracle returns the same verdict as the GPU, to the bit.
  *
- * Two records per cluster, split by what the frame rereads:
+ * Two records per UNIQUE cluster, split by what the frame rereads:
  *
  * - hot (`CLUSTER_WORDS` words, `clusters` buffer) only holds what all five passes of
- *   a frame read: the cluster sphere and its parent's, both errors, the primitive and
- *   the flags — level included, in their high bits;
+ *   a frame read: the cluster sphere and its parent's, both errors and the flags — level
+ *   included, in their high bits;
  * - cold (`COLD_WORDS` words, `pageCones` buffer) holds what the open pass alone reads:
- *   the normal cone, the box, and the address of the cut node that owns the page, which
- *   only the oracle uses to replay descent.
+ *   the normal cone, the box, and the cut node that owns the page, relative to its
+ *   placement's first node, which only the oracle uses to replay descent.
  *
- * Residency extends the cold as bits, one word for thirty-two pages: passes that read
- * it no longer walk a forty-eight-byte record for a single flag, and the host only
- * rewrites the words its changes touch.
+ * A record depends on no placement: the twelve placements of one primitive share one. What
+ * is proper to a placement lives in the WORKING TABLE at the head of `pageCones`, one word
+ * per page — the page's placement —, and the placement's record shift travels in its frame
+ * words (`worlds.ts`): the page's record is its index plus that shift.
+ *
+ * Residency follows the working table as bits, one word for thirty-two pages: passes that
+ * read it no longer walk a forty-eight-byte record for a single flag, and the host only
+ * rewrites the words its changes touch. The cold records come last.
  */
 
-/** Words of the hot record; the shader declares `struct Cluster` with exactly these fields. */
+/** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
+ *  stride to sixteen bytes — the twelfth word is that padding. */
 export const CLUSTER_WORDS = 12;
 /** Words of the cold record; `PAGE_CONE_FLOATS` in `../core/selection.ts` is the public mirror. */
-const COLD_WORDS = 13;
+export const COLD_WORDS = 13;
 export const CLUSTER_ROOT = 1,
   CLUSTER_NEVER = 2,
   /** The cluster is blended: its triangle share is counted apart, as on the CPU. */
@@ -110,10 +116,12 @@ export function writeTriangleTotals(
   ints[OUT_UNCOVERED_TRIANGLES] = totaux.uncoveredTriangles ?? 0;
 }
 
-/** First residency word, behind the cold record of every cluster. */
-export const residentBase = (pageCount: number) => pageCount * COLD_WORDS;
+/** First residency word, behind the working table's word per page. */
+export const residentBase = (pageCount: number) => pageCount;
 /** Residency words: one bit per cluster, thirty-two clusters per word. */
 export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5;
+/** First cold record, behind the residency words. */
+export const coldBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
 export const residentBit = (bits: Uint32Array, base: number, page: number) =>
   (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0;
 
@@ -122,66 +130,16 @@ export const HOT_SPHERE = 0,
   HOT_PARENT_SPHERE = 4,
   HOT_LOD_ERROR = 8,
   HOT_PARENT_ERROR = 9,
-  HOT_WORLD = 10,
-  HOT_FLAGS = 11;
+  HOT_FLAGS = 10;
 /** Cold field ranks, in the order `shader/recordWgsl.ts` reads them by word. */
 export const COLD_CONE = 0,
   COLD_MIN = 4,
   COLD_HAS_BOX = 7,
   COLD_MAX = 8,
+  /** Owner node, relative to the placement's first node: the same for every placement. */
   COLD_OWNER = 11,
   /** Cluster triangles, read as an INTEGER word: those are what the totals accumulate. */
   COLD_TRIANGLES = 12;
-
-/**
- * The four views of a packing: the single decoder the oracle and the buffer double share.
- * No rank is rewritten on their side, so none can diverge from the one the GPU reads.
- */
-export type DagRecords = {
-  hot: Float32Array;
-  hotInts: Uint32Array;
-  cold: Float32Array;
-  coldInts: Uint32Array;
-};
-export function dagRecords(packed: {
-  clusters: Float32Array;
-  pageCones: Float32Array;
-}): DagRecords {
-  const { clusters, pageCones } = packed;
-  return {
-    hot: clusters,
-    hotInts: new Uint32Array(clusters.buffer, clusters.byteOffset, clusters.length),
-    cold: pageCones,
-    coldInts: new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCones.length),
-  };
-}
-
-export const worldOf = (r: DagRecords, i: number) => r.hotInts[i * CLUSTER_WORDS + HOT_WORLD];
-export const flagsOf = (r: DagRecords, i: number) => r.hotInts[i * CLUSTER_WORDS + HOT_FLAGS];
-/** Cut node that owns the page: on the cold, because only the oracle replays descent. */
-export const ownerOf = (r: DagRecords, i: number) => r.coldInts[i * COLD_WORDS + COLD_OWNER];
-export const hasBoxOf = (r: DagRecords, i: number) => r.cold[i * COLD_WORDS + COLD_HAS_BOX];
-/** Cluster triangles, as an integer word: the shader's `trianglesOf` is the mirror. */
-export const trianglesOf = (r: DagRecords, i: number) =>
-  r.coldInts[i * COLD_WORDS + COLD_TRIANGLES];
-/** `at` is 0 for the cluster's band, 1 for its parent's: same pairs as in the shader. */
-export const bandError = (r: DagRecords, i: number, at: number) =>
-  r.hot[i * CLUSTER_WORDS + (at === 0 ? HOT_LOD_ERROR : HOT_PARENT_ERROR)];
-export const bandSphere = (r: DagRecords, i: number, at: number) =>
-  i * CLUSTER_WORDS + (at === 0 ? HOT_SPHERE : HOT_PARENT_SPHERE);
-
-export function boxInto(r: DagRecords, i: number, min: number[], max: number[]) {
-  const base = i * COLD_WORDS;
-  for (let a = 0; a < 3; a++) {
-    min[a] = r.cold[base + COLD_MIN + a];
-    max[a] = r.cold[base + COLD_MAX + a];
-  }
-}
-export function coneInto(r: DagRecords, i: number, cone: { axis: number[]; angle: number }) {
-  const base = i * COLD_WORDS + COLD_CONE;
-  for (let a = 0; a < 3; a++) cone.axis[a] = r.cold[base + a];
-  cone.angle = r.cold[base + 3];
-}
 
 /**
  * Residency column returned to the oracle, one word per cluster: what the buffer

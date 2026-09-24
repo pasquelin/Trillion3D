@@ -1954,15 +1954,29 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "The walker circles the hall and pushes the balls. Press Balls for twenty more.",
+    "banner": "Click to look around, then walk among the balls with W A S D and push them. Press Balls for twenty more.",
     "controls": {
-      "walking": "Walking",
       "balls": "Balls"
     },
     "readouts": {
       "bodies": "Bodies",
       "awake": "Awake",
       "step": "Step"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Open the door and the drawer, swing the chain, then drop the stone on the bridge and watch it break.",
+    "controls": {
+      "openDoor": "Open the door",
+      "openDrawer": "Open the drawer",
+      "strength": "Bridge strength (N)",
+      "swingChain": "Swing the chain",
+      "dropStone": "Drop the stone",
+      "rebuild": "Rebuild the bridge"
+    },
+    "readouts": {
+      "joints": "Joints",
+      "broken": "Broken"
     }
   }
 }

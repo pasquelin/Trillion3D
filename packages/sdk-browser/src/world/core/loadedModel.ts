@@ -3,11 +3,13 @@ import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { lightFromRecord, type Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { loadImportedLights } from '../../lighting/importedLights.ts';
-import type { ClusterManifest, AssetScope } from '../../../../sdk-core/src/index.ts';
+import type { ClusterManifest, AssetScope, JobProgress } from '../../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../../scene/manifestLoad.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
+import { findGraphNode, modelNode } from './modelNodes.ts';
+import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
@@ -27,7 +29,9 @@ export type ModelRecord = {
 
 /**
  * A compiled model added to a scene like any other object: its pages stream by what the frame
- * reads, and its node poses it. `bounds` is the box it spans in its own frame.
+ * reads, and its node poses it. A node of its source file is found by name (`getObjectByName`)
+ * and moved like any node: it joins the model's children, under its ancestors, when first looked
+ * up. `bounds` is the box it spans in its own frame.
  */
 export class LoadedModel extends Object3D {
   /** Always `true`: tells a loaded model apart from any other object. */
@@ -52,6 +56,25 @@ export class LoadedModel extends Object3D {
   _addFromFile(...nodes: Object3D[]) {
     for (const node of nodes) this.carried.add(node);
     return this.add(...nodes);
+  }
+  /** The scene node standing for each graph node a page looked up, and for its ancestors. */
+  private readonly looked = new Map<HostGraphNode, Object3D>();
+  /** The scene node of `graph`, built with its missing ancestors on first ask (`modelNode`). */
+  private nodeOf(graph: HostGraphNode): Object3D {
+    let node = this.looked.get(graph);
+    if (node) return node;
+    node = modelNode(graph);
+    this.looked.set(graph, node);
+    if (graph === this.record.scene.source || !graph.parent) this._addFromFile(node);
+    else this.nodeOf(graph.parent).add(node);
+    return node;
+  }
+  /** The first node below with this name: the model, a node of its source file, then any other
+   *  child — a light the file carried, a node a page placed. */
+  override getObjectByName(name: string): Object3D | undefined {
+    if (this.name === name) return this;
+    const graph = findGraphNode(this.record.scene.source, name);
+    return graph ? this.nodeOf(graph) : super.getObjectByName(name);
   }
   constructor(record: ModelRecord) {
     super();
@@ -81,21 +104,28 @@ export class LoadedModel extends Object3D {
 /**
  * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a
  * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
- * WebGPU world's first model does; any other path samples the images themselves.
+ * WebGPU world's first model does; any other path samples the images themselves. `onProgress`
+ * hears the manifest read, then each resource the scene reads (`loadPreparedScene`).
  */
 export async function loadModel(
   manifestUrl: string,
-  options: { scope?: AssetScope; signal?: AbortSignal; textureSource: 'host' | 'cache' },
+  options: {
+    scope?: AssetScope;
+    signal?: AbortSignal;
+    textureSource: 'host' | 'cache';
+    onProgress?: (event: JobProgress) => void;
+  },
 ): Promise<LoadedModel> {
-  const { signal, textureSource } = options;
+  const { signal, textureSource, onProgress } = options;
   // A scope the page named is enforced; none named, the model is read at the one its pointer
   // declares (`loadClusterManifest`).
   const loaded = await loadClusterManifest(manifestUrl, options.scope, signal);
   const { metadata, metadataUrl, base } = loaded,
     scope = metadata.scope;
+  onProgress?.({ phase: 'manifest', completed: 1, total: 1, message: `Read ${metadataUrl}` });
   const [scene, imported] = await Promise.all([
     loadPreparedScene(
-      { manifestUrl, textureSource },
+      { manifestUrl, textureSource, onPreparation: (event) => onProgress?.({ ...event }) },
       metadata,
       'source.gltf',
       base,

@@ -1954,15 +1954,29 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "O caminhante contorna o salão e empurra as bolas. Bolas adiciona mais vinte.",
+    "banner": "Clique para olhar em volta e ande entre as bolas com W A S D para empurrá-las. Bolas adiciona mais vinte.",
     "controls": {
-      "walking": "Andar",
       "balls": "Bolas"
     },
     "readouts": {
       "bodies": "Corpos",
       "awake": "Acordados",
       "step": "Passo"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Abra a porta e a gaveta, balance a corrente e depois solte a pedra sobre a ponte e veja-a quebrar.",
+    "controls": {
+      "openDoor": "Abrir a porta",
+      "openDrawer": "Abrir a gaveta",
+      "strength": "Resistência da ponte (N)",
+      "swingChain": "Balançar a corrente",
+      "dropStone": "Soltar a pedra",
+      "rebuild": "Reconstruir a ponte"
+    },
+    "readouts": {
+      "joints": "Juntas",
+      "broken": "Quebradas"
     }
   }
 }

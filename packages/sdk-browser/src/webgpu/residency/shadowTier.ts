@@ -34,6 +34,8 @@ export function createShadowTier(options: {
   };
   return {
     pages,
+    /** True when the last light-cut report names this key: a caster a light still wants. */
+    has: (key: number) => stamp !== 0 && stamps[key] === stamp,
     /** The light cuts' GPU requests: page indices of the packed catalogue. */
     offerIds(ids: ArrayLike<number>) {
       begin();

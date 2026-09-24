@@ -1,14 +1,6 @@
 import type { PackedDag } from '../types.ts';
-import {
-  CLUSTER_ROOT,
-  CLUSTER_TRANSPARENT,
-  clusterLevel,
-  dagRecords,
-  flagsOf,
-  trianglesOf,
-  worldOf,
-  bandError,
-} from '../layout.ts';
+import { CLUSTER_ROOT, CLUSTER_TRANSPARENT, clusterLevel } from '../layout.ts';
+import { bandError, dagRecords, flagsOf, trianglesOf, worldOf } from '../records.ts';
 import type { SelectionResult } from '../../core/selection.ts';
 import type { DagViewUniforms } from '../types.ts';
 import { dagViewFrames } from './math.ts';
