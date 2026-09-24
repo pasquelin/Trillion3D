@@ -5,7 +5,7 @@ import type { MatrixElements } from '../math/matrixElements.ts';
 export const HIZ_BOUNDS_VALUES = 6;
 
 /** Doubles one box occupies in the world-corner layout: eight corners of three coordinates. */
-const BOX_CORNER_VALUES = 24;
+export const BOX_CORNER_VALUES = 24;
 /** Screen AABB of eight world-space corners. Term for term the arithmetic of the one-shot path. */
 export function projectCornersInto(
   corners: Float64Array,
@@ -117,37 +117,12 @@ export function projectBoxInto(
   );
 }
 /**
- * World-space corners kept per page from one image to the next. A corner changes only when the page's
- * world matrix does, and `epoch` is what names that: an image then pays the clip transform alone, not
- * the world transform of twenty thousand boxes it has already computed. The cached doubles are exactly
- * those the one-shot path computes, so the rectangles stay bit for bit the same.
+ * World-space corners of `page`'s box, written in `out` from `at`: eight corners of three doubles,
+ * derived from its local bounds and its world matrix on every read, as the GPU partition receives
+ * them per row. Nothing is kept per page — a host table of every packed page cost 24 doubles each
+ * (#18) —, and the arithmetic is `projectBoxInto`'s, so the doubles are the same bit for bit.
  */
-export function createBoxCorners(pageCount: number) {
-  const corners = new Float64Array(Math.max(1, pageCount) * BOX_CORNER_VALUES),
-    epoch = new Int32Array(Math.max(1, pageCount));
-  return {
-    corners,
-    epoch,
-    /** Offset of `pageIndex`'s corners, recomputed when its epoch no longer matches. */
-    at(pageIndex: number, page: HizPage, value: number) {
-      const base = pageIndex * BOX_CORNER_VALUES;
-      if (epoch[pageIndex] !== value) {
-        const { min, max } = page;
-        boxCornersInto(
-          corners,
-          base,
-          min[0],
-          min[1],
-          min[2],
-          max[0],
-          max[1],
-          max[2],
-          page.matrix.elements,
-        );
-        epoch[pageIndex] = value;
-      }
-      return base;
-    },
-  };
+export function pageCornersInto(out: Float64Array, at: number, page: HizPage) {
+  const { min, max } = page;
+  boxCornersInto(out, at, min[0], min[1], min[2], max[0], max[1], max[2], page.matrix.elements);
 }
-export type BoxCorners = ReturnType<typeof createBoxCorners>;

@@ -446,7 +446,6 @@
       "drag-objects": "レイキャストによる選択",
       "edit-a-spline": "レイキャストによる選択",
       "sound-in-space": "位置に応じた音",
-      "smooth-edges-over-time": "時間方向のアンチエイリアシング設定",
       "tone-mapping-compared": "トーンマッピング演算子の選択",
       "a-first-post-effect": "ポストプロセスの流れ",
       "a-glow-around-lights": "ポストプロセス:ブルーム",

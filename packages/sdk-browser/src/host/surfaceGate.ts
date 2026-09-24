@@ -11,11 +11,8 @@
 import type { HostAttribute, HostAttributes, HostMaterials } from './resources.ts';
 import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
 import { metalRough } from '../scene/surfaceModel.ts';
-import {
-  HOST_BLENDING_NORMAL,
-  HOST_MAPPING_UV,
-  HOST_NORMAL_MAP_TANGENT_SPACE,
-} from './surfaceConstants.ts';
+import { blendingOf } from '../scene/materialBlending.ts';
+import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
 import { declaresCompileHook } from './materialHook.ts';
 import { physicalExtensionReason } from '../scene/physicalMaterialGate.ts';
 import { isTransmissive } from '../visibility/shader/material.ts';
@@ -45,10 +42,16 @@ export function clusterMaterialReason(
 ) {
   if (Array.isArray(material)) return 'material arrays are unsupported';
   const host = material as HostShadedMaterial;
-  if (!metalRough(host) && host.family !== 'basic') return `material ${host.family} is unsupported`;
+  if (!metalRough(host) && host.family !== 'basic' && host.family !== 'depth')
+    return `material ${host.family} is unsupported`;
+  const blending = blendingOf(host.blending);
+  if (!blending)
+    return `material ${host.family} uses blending ${host.blending}, which no path draws`;
+  // A transmissive surface composes by the backdrop it reads, never by another mode.
+  if (blending !== 'normal' && isTransmissive(material))
+    return `a transmissive material cannot use ${blending} blending`;
   if (
     host.alphaHash ||
-    host.blending !== HOST_BLENDING_NORMAL ||
     host.premultipliedAlpha ||
     host.alphaToCoverage ||
     host.clippingPlanes?.length

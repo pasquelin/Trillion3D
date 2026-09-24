@@ -14,7 +14,7 @@
  * constant and a filter constant share it. `HOST_MAPPING_UV` is the one mapping a glTF texture
  * can declare: the sampler reads the UV set the material names, and nothing is derived from a
  * reflection vector. `HOST_BLENDING_NORMAL` is source-over, the only blend equation glTF's
- * `BLEND` alpha mode defines. `HOST_NORMAL_MAP_TANGENT_SPACE` is glTF's normal texture, whose
+ * `BLEND` alpha mode defines; the other modes are the world API's. `HOST_NORMAL_MAP_TANGENT_SPACE` is glTF's normal texture, whose
  * vectors are expressed in the surface's tangent frame.
  *
  * `surfaceConstants.test.ts` holds them to the host library's own constants, value by value:
@@ -37,8 +37,13 @@ export const HOST_FILTER_NEAREST = 1003,
 /** The texture is addressed by a UV set the material names, not by a derived vector. */
 export const HOST_MAPPING_UV = 300;
 
-/** Source-over: the blend equation of glTF's `BLEND` alpha mode. */
-export const HOST_BLENDING_NORMAL = 1;
+/** Blend modes, in the host's order: none, source-over — the blend equation of glTF's `BLEND`
+ *  alpha mode —, additive, subtractive, multiply (`../scene/materialBlending.ts`). */
+export const HOST_BLENDING_NONE = 0,
+  HOST_BLENDING_NORMAL = 1,
+  HOST_BLENDING_ADDITIVE = 2,
+  HOST_BLENDING_SUBTRACTIVE = 3,
+  HOST_BLENDING_MULTIPLY = 4;
 
 /** A normal texture whose vectors live in the surface's tangent frame, as glTF defines it. */
 export const HOST_NORMAL_MAP_TANGENT_SPACE = 0;

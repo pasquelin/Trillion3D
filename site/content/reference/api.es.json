@@ -1212,7 +1212,8 @@
       "options.pixelRatio": "Cuántos píxeles de imagen por píxel de pantalla.",
       "options.controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
       "options.signal": "Detiene las cargas del mundo cuando se cancela la señal.",
-      "options.physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt."
+      "options.physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
+      "options.temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -2356,12 +2357,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Las matrices con las que un host dibuja una imagen, tal como las da el motor.",
+    "summary": "Las matrices y el rango de profundidad con los que un host dibuja una imagen, tal como las da el motor.",
     "members": {
       "projection": "La proyección.",
       "world": "La matriz de la cámara en el mundo.",
       "view": "La matriz de vista.",
-      "eye": "Dónde está el ojo."
+      "eye": "Dónde está el ojo.",
+      "near": "Distancia más cercana.",
+      "far": "Distancia más lejana."
     }
   },
   "HostDrawOutput": {
@@ -2758,8 +2761,7 @@
     "summary": "Ajustes publicados de la iluminación directa.",
     "description": "Son decisiones de producto nombradas, no constantes enterradas: cada límite en tiempo de ejecución las vuelve a leer, y el diagnóstico las publica tal cual.",
     "members": {
-      "maxLights": "Luces que el contrato acepta en total; más allá, `addLight` rechaza.",
-      "maxLightsPerTile": "Luces que mantiene una tesela de pantalla; el bucle por píxel está acotado por este número (X2).",
+      "maxLights": "Luces que el contrato acepta en total; más allá, `addLight` rechaza. Una tesela de pantalla conserva cada una que la toca; su lista y el bucle por píxel están acotados por este número (X2).",
       "tileSize": "Lado en píxeles de una tesela de pantalla de la lista de luces.",
       "samplesPerPixel": "Luces iluminadas por completo — lectura de sombra incluida — por píxel de una imagen EN MOVIMIENTO (X2): las demás se ponderan sin su sombra, y las que se iluminan se sortean en proporción, así que la estimación no tiene sesgo y el antialiasing temporal las promedia. Una imagen inmóvil ilumina cada luz de su tesela y converge hacia la suma exacta; ahí, este número no juega ningún papel.",
       "shadowPage": "Lado de una página de sombra, en téxeles: la unidad del pool físico, de los mapas virtuales y de la invalidación. Un objeto en movimiento solo invalida las páginas que cubre su caja proyectada.",
@@ -2852,6 +2854,7 @@
       "bounds": "La caja que llena el modelo, en su propio sistema.",
       "lights": "Las luces bajo el modelo — las que llevaba el archivo fuente, como nodos: una página las modifica, mueve o quita como las suyas, y se mueven con el modelo.",
       "record": "Todo lo que el mundo guarda sobre este modelo: sus direcciones, su manifiesto y su grafo.",
+      "getObjectByName": "El primer nodo debajo con este nombre: el modelo, un nodo de su archivo fuente y luego cualquier otro hijo — una luz que traía el archivo, un nodo que colocó una página.",
       "metadata": "El manifiesto compilado del modelo — sus primitivas, `sourceTriangles` — y `clusters`, los clústeres que contienen sus páginas, cada nivel de sus DAG contado.",
       "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna."
     }
@@ -3260,7 +3263,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Sombrea cada punto según su distancia a la cámara.",
+    "summary": "Sombrea cada punto según su distancia a la cámara: blanco en `camera.near`, negro en `camera.far`, una rampa recta entre ambos, la misma en WebGPU y WebGL2.",
     "parameters": {
       "parameters": "Lo que una página puede dar a un miembro de material; cada campo es opcional.",
       "parameters.color": "El color base.",
@@ -6320,6 +6323,10 @@
     "summary": "La luz que rebota en las superficies, trazada contra el proxy residente; apagada por defecto.",
     "description": "Un cambio se aplica en el sitio en un camino que lo lleva, y se toma en la próxima apertura en un camino que no lo lleva."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Antialiasing temporal: desplazamiento subpíxel acumulado entre imágenes; activado por defecto.",
+    "description": "Al escribirlo, surte efecto en la imagen siguiente, se descarta el historial, sin reabrir la sesión. Al leerlo, es lo que lleva la imagen: false en WebGL2, y mientras el programa se compila tras activarlo."
+  },
   "world.budget": {
     "summary": "Las reservas de memoria del mundo, leídas y ajustadas en bytes.",
     "members": {
@@ -6512,7 +6519,8 @@
       "pixelRatio": "Cuántos píxeles de imagen por píxel de pantalla.",
       "controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
       "signal": "Detiene las cargas del mundo cuando se cancela la señal.",
-      "physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt."
+      "physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
+      "temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {

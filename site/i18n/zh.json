@@ -446,7 +446,6 @@
       "drag-objects": "拾取(射线检测)",
       "edit-a-spline": "拾取(射线检测)",
       "sound-in-space": "位置音频",
-      "smooth-edges-over-time": "时间性抗锯齿设置",
       "tone-mapping-compared": "色调映射算子的选择",
       "a-first-post-effect": "后期处理链",
       "a-glow-around-lights": "后期处理:泛光(bloom)",
