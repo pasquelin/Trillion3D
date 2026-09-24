@@ -60,10 +60,10 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // World spheres of the rows the table just changed, on the same dirty interval as the table
   // itself: that is what shadow culling reads, and nothing else writes them.
   if (rt.lights.cull) uploadClusterSpheres(rt, device, rows.dirtyFrom, rows.dirtyTo);
-  // World corners of the same rows, on the same interval: what GPU projection reads. Like the two
-  // above, it is taken BEFORE `uploadDirtyRows`, which closes that range.
-  if (vis.gpuPartition) uploadRowCorners(rt, vis.gpuPartition);
-  uploadDirtyRows(rt, device);
+  // World corners of the same rows, run by run: what GPU projection reads. Like the two above, it is
+  // taken BEFORE `uploadDirtyRows`, which closes that range.
+  uploadRowCorners(rt);
+  uploadDirtyRows(rt);
   ensureVisBindings(rt, device, tableRows);
   const encoder = createRenderEncoder(rt, device);
   // The image's partition opens the command buffer: it writes the rest bits and the per-slot counts
