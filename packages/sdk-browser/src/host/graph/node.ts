@@ -147,8 +147,9 @@ export class GraphNode {
     this.matrix.premultiply(new Matrix4().fromArray(m.elements));
     this.matrix.decompose(this.position, this.quaternion, this.scale);
   }
-  /** Turns the node toward a world point. */
-  lookAt(target: { x: number; y: number; z: number }) {
+  /** Turns the node toward a world point, given as a point or as its three numbers. */
+  lookAt(x: number | { x: number; y: number; z: number }, y = 0, z = 0) {
+    const target = typeof x === 'number' ? { x, y, z } : x;
     this.updateWorldMatrix(true, false);
     lookAtQuaternion(
       aim,

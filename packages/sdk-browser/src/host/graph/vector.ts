@@ -67,10 +67,6 @@ export class GraphVector {
   fromArray(array: ArrayLike<number>, offset = 0) {
     return this.set(array[offset], array[offset + 1], array[offset + 2]);
   }
-  /** The three numbers as a list. */
-  toArray(): [number, number, number] {
-    return [this.x, this.y, this.z];
-  }
 }
 
 Object.defineProperty(GraphVector.prototype, 'isVector3', { value: true });

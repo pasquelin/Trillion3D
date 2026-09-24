@@ -105,28 +105,32 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     }),
   );
   // Each mesh is named when its surfaces are ready, as the loader named it: meshes whose
-  // surfaces land together keep the order they were first named in.
-  const built = new Map<number, GraphNode>();
-  await Promise.all(
+  // surfaces land together keep the order they were first named in. The ranks are recorded
+  // afterwards in that first order, whatever order the images landed in.
+  const made = await Promise.all(
     order.map((rank, at) =>
-      Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) => {
-        const parts = drawn[at].map(({ geometry }, p) => {
+      Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) =>
+        drawn[at].map(({ geometry }, p) => {
           const mesh = new GraphMesh(geometry, surfaces[p]);
           if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights);
           mesh.name = unique(meshes[rank].name || `mesh_${rank}`);
-          ranks.set(mesh, { meshes: rank, primitives: p });
           return mesh;
-        });
-        if (parts.length === 1) built.set(rank, parts[0]);
-        else {
-          const group = new GraphGroup();
-          ranks.set(group, { meshes: rank });
-          for (const part of parts) group.add(part);
-          built.set(rank, group);
-        }
-      }),
+        }),
+      ),
     ),
   );
+  const built = new Map<number, GraphNode>();
+  for (const [at, rank] of order.entries()) {
+    const parts = made[at];
+    parts.forEach((mesh, p) => ranks.set(mesh, { meshes: rank, primitives: p }));
+    if (parts.length === 1) built.set(rank, parts[0]);
+    else {
+      const group = new GraphGroup();
+      ranks.set(group, { meshes: rank });
+      for (const part of parts) group.add(part);
+      built.set(rank, group);
+    }
+  }
   const assemble = (id: number): GraphNode => {
     const declared = tables.nodes[id];
     const carried: GraphNode[] = [];
