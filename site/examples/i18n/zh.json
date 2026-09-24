@@ -30,6 +30,7 @@
       "geometry pool": "几何体存储",
       "lights": "灯光",
       "GPU frame": "GPU 帧",
+      "GPU frame (last)": "GPU 帧（上次）",
       "CPU frame": "CPU 帧",
       "page hooks": "页面代码",
       "engine CPU": "引擎 CPU"
