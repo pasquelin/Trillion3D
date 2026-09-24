@@ -925,7 +925,10 @@
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
       "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
-      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。"
+      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
+      "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
+      "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。"
     }
   },
   "EngineProfiler": {
@@ -3936,7 +3939,10 @@
       "headBob": "仅角色模式:慢跑时每一步双眼上下摆动的米数;默认值为 0.035,为 0 时保持水平。",
       "landingDip": "仅角色模式:从落地到双眼落地下沉最低点所需的秒数,冲击越快下沉越深;默认值为 0.06,为 0 时关闭该效果。",
       "onLand": "仅角色模式:落地时调用,参数是向下的速度,单位 m/s;默认值为 `null`。",
-      "onJump": "仅角色模式:身体因跳跃离开地面时调用;默认值为 `null`。"
+      "onJump": "仅角色模式:身体因跳跃离开地面时调用;默认值为 `null`。",
+      "mass": "仅角色，需物理：身体压在支撑物上的千克数；默认 80。",
+      "pushStrength": "仅角色，需物理：身体推动其他物体的牛顿数；默认 250，成年人持续的推力。",
+      "vehicle": "仅载具：`'vehicle'` 控制所驾驶的对象——任何带有 `drive(input)` 的对象，按键每次变化时它都会收到油门、刹车、转向和手刹。默认 `null`；为 `null` 时 `kind = 'vehicle'` 会抛出 `NO_VEHICLE`。"
     }
   },
   "world.renderer": {
@@ -7164,6 +7170,22 @@
     "members": {
       "budget": "固定上限，物理启动时读取一次。",
       "gravity": "世界的重力：预设或向量。"
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle` 可以驾驶的任何对象：每当输入变化时它都会收到。",
+    "members": {
+      "drive": "每当按键改变踏板和方向盘时收到它们。"
+    }
+  },
+  "VehicleInput": {
+    "summary": "驾驶者对载具的要求：踏板和方向盘，由 `world.controls` `'vehicle'` 的按键设定。",
+    "description": "载具自身的物理——发动机、车轮、悬挂——对其作出回应；控制只知道这份约定。",
+    "members": {
+      "throttle": "油门，0 到 1。",
+      "brake": "刹车踏板，0 到 1。",
+      "steer": "方向盘，−1 左打到底到 1 右打到底。",
+      "handbrake": "手刹是否拉起。"
     }
   }
 }

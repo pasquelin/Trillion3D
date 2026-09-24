@@ -1,4 +1,4 @@
-import { ADD_WORDS, OP, PART_WORDS, VIEW_WORDS, type SHAPE } from './layout.ts';
+import { ADD_WORDS, OP, PART_WORDS, RESTORE_WORDS, VIEW_WORDS, type SHAPE } from './layout.ts';
 
 /** One primitive part of a compound body, placed in the body's frame (`PART_WORDS`). */
 export interface CompoundPart {
@@ -18,7 +18,7 @@ export interface BodyRecord {
   flags: number;
   position: ArrayLike<number>;
   quaternion: ArrayLike<number>;
-  /** Primitive sizes; unused for triangles and hulls. */
+  /** Primitive sizes, a cooked shape's scale; unused for triangles and hulls. */
   size: readonly [number, number, number];
   /** Kilograms; 0 takes `density × volume`. */
   mass: number;
@@ -121,6 +121,19 @@ export class CommandWriter {
     this.op(op, index, []);
     this.reserve(1);
     this.words[this.length++] = value >>> 0;
+  }
+  /** Restores a cooked shape's Jolt binary state under `handle`, for the ADDs that follow. */
+  restore(handle: number, bytes: Uint8Array) {
+    const words = Math.ceil(bytes.length / 4);
+    this.reserve(RESTORE_WORDS + words);
+    this.words.set([OP.restore, handle, bytes.length], this.length);
+    this.words[this.length + RESTORE_WORDS + words - 1] = 0;
+    new Uint8Array(this.words.buffer).set(bytes, (this.length + RESTORE_WORDS) * 4);
+    this.length += RESTORE_WORDS + words;
+  }
+  /** Drops a restored shape's handle; the bodies built from it keep the shape. */
+  release(handle: number) {
+    this.op(OP.release, handle, []);
   }
   /** Replaces a body's flag bits (`FLAG`). */
   flags(index: number, flags: number) {

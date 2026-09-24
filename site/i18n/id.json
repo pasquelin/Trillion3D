@@ -602,9 +602,21 @@
           "Beri dunia <code>physics: true</code>. Simulasi berjalan terpisah dari gambar, di <em>worker</em>, jadi tak pernah memperlambat gambar.",
           "Tandai lantai <code>'static'</code>: menahan yang lain dan tak pernah bergerak. Tandai kotak <code>'dynamic'</code>: gravitasi menariknya.",
           "Bentuk dari geometri, berat dari material: <code>physics: 'wood'</code> ringan, <code>'metal'</code> berat, <code>'rubber'</code> memantul.",
-          "Dorong benda dengan <code>applyImpulse</code>, atau dengarkan <code>contact</code>-nya. Saat semua benda tidur, tak ada yang dihitung atau digambar."
+          "Dorong benda dengan <code>applyImpulse</code>, atau dengarkan <code>contact</code>-nya. Saat semua benda tidur, tak ada yang dihitung atau digambar.",
+          "Model yang dimuat dengan <code>scene.load</code> bertabrakan dengan segitiganya sendiri, yang disiapkan saat dikompilasi. <code>await world.raycast(point, { exact: true })</code> menemukan segitiga tepat di bawah kursor."
         ],
         "tryIt": "Jatuhkan lebih banyak kotak, ganti gravitasi ke Bulan, dan nyalakan gerak lambat."
+      },
+      "touch-and-react": {
+        "title": "Sentuh dan bereaksi",
+        "description": "Masuki duniamu: dengan fisika, karakter memanjat, menumpang, dan mendorong apa yang ditemuinya, dan yang ditemuinya balas mendorong.",
+        "steps": [
+          "Buat dunia dengan <code>controls: 'character'</code> dan <code>physics: true</code>. Karakter kini sebuah benda fisika, seperti kotak-kotak itu.",
+          "Tandai yang tidak pernah bergerak sebagai <code>'static'</code>: lantai, tangga, dinding. Karakter menaiki anak tangga setinggi lutut dan lereng hingga 45°.",
+          "Tandai sebuah platform sebagai <code>'kinematic'</code> dan gerakkan dari kodemu setiap bingkai: apa pun di atasnya ikut terbawa.",
+          "Jadikan kotak <code>'dynamic'</code> dan ringan: karakter mendorongnya dengan <code>pushStrength</code> newton, lalu kotak jatuh, berguling, dan balas mendorong."
+        ],
+        "tryIt": "Klik gambar, berjalan dengan W A S D, melompat dengan Spasi. Naiki tangga, tumpangi platform, dorong tumpukan kotak."
       },
       "your-own-scene": {
         "title": "Adegan buatanmu sendiri",
@@ -1478,7 +1490,8 @@
       "hands-in-vr": "Tangan dalam VR",
       "teleport-in-vr": "Teleport dalam VR",
       "controllers-in-vr": "Kontroler dalam VR",
-      "ar-on-the-table": "AR di atas meja"
+      "ar-on-the-table": "AR di atas meja",
+      "a-walker-among-balls": "Pejalan di antara bola"
     },
     "missing": {
       "colours-on-the-vertices": "warna per-vertex di WebGPU",
@@ -1641,9 +1654,7 @@
       "breaking-things": "integrasi fisika",
       "cloth-and-rope": "integrasi fisika",
       "soft-bodies": "integrasi fisika",
-      "rolling-on-terrain": "integrasi fisika",
       "hinges-and-joints": "integrasi fisika",
-      "walk-with-collisions": "integrasi fisika",
       "drive-a-car": "integrasi fisika",
       "a-room-in-vr": "sesi WebXR",
       "a-360-photo-in-vr": "sesi WebXR",

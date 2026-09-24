@@ -7,6 +7,7 @@ import {
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { JoltModule } from './joltModule.ts';
+import type { CharacterReport } from './characterDriver.ts';
 import { eventsAt, resultWords, type FromPhysics } from './protocol.ts';
 
 /**
@@ -78,7 +79,7 @@ export function createTickResults(
     /** Whether one more step's events surely fit in the tick's results. */
     room: () => eventCount + budget.contactEvents <= budget.contactEvents * MAX_CATCH_UP_STEPS,
     /** Hands the tick's results to the page; false while it holds both buffers. */
-    post(steps: number, stepMs: number, active: number) {
+    post(steps: number, stepMs: number, active: number, character: () => CharacterReport | null) {
       if (!out || !(poseCount || eventCount || steps)) return false;
       if (!outBuffer) {
         // Staged while the page held both buffers: copied into the first one back.
@@ -89,7 +90,13 @@ export function createTickResults(
         words.set(out.subarray(events, events + eventCount * EVENT_WORDS), events);
       }
       const counts = { poses: poseCount, events: eventCount, dropped, steps };
-      const message = { ...counts, seconds: steps * PHYSICS_STEP, stepMs, active };
+      const message = {
+        ...counts,
+        seconds: steps * PHYSICS_STEP,
+        stepMs,
+        active,
+        character: character(),
+      };
       send({ type: 'results', buffer: outBuffer, ...message }, [outBuffer]);
       out = outBuffer = null;
       tick++;

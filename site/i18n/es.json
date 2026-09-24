@@ -319,7 +319,8 @@
       "hands-in-vr": "Manos en RV",
       "teleport-in-vr": "Teletransportarse en RV",
       "controllers-in-vr": "Mandos en RV",
-      "ar-on-the-table": "RA sobre la mesa"
+      "ar-on-the-table": "RA sobre la mesa",
+      "a-walker-among-balls": "Un caminante entre pelotas"
     },
     "missing": {
       "colours-on-the-vertices": "colores por vértice en WebGPU",
@@ -482,9 +483,7 @@
       "breaking-things": "integración de un motor de física",
       "cloth-and-rope": "integración de un motor de física",
       "soft-bodies": "integración de un motor de física",
-      "rolling-on-terrain": "integración de un motor de física",
       "hinges-and-joints": "integración de un motor de física",
-      "walk-with-collisions": "integración de un motor de física",
       "drive-a-car": "integración de un motor de física",
       "a-room-in-vr": "sesión WebXR",
       "a-360-photo-in-vr": "sesión WebXR",
@@ -1060,9 +1059,21 @@
           "Da al mundo <code>physics: true</code>. La simulación corre aparte del dibujo, en un <em>worker</em>, y nunca frena la imagen.",
           "Marca el suelo <code>'static'</code>: sostiene a los demás y nunca se mueve. Marca una caja <code>'dynamic'</code>: la gravedad la atrae.",
           "La forma sale de la geometría y el peso del material: <code>physics: 'wood'</code> es ligera, <code>'metal'</code> pesada, <code>'rubber'</code> rebota.",
-          "Empuja un cuerpo con <code>applyImpulse</code> o escucha su <code>contact</code>. Cuando todos duermen, no se calcula ni se dibuja nada."
+          "Empuja un cuerpo con <code>applyImpulse</code> o escucha su <code>contact</code>. Cuando todos duermen, no se calcula ni se dibuja nada.",
+          "Un modelo cargado con <code>scene.load</code> choca con sus propios triángulos, preparados al compilarlo. <code>await world.raycast(point, { exact: true })</code> encuentra el triángulo exacto bajo el cursor."
         ],
         "tryIt": "Suelta más cajas, pon la gravedad de la Luna y activa la cámara lenta."
+      },
+      "touch-and-react": {
+        "title": "Tocar y reaccionar",
+        "description": "Entra en tu mundo: con la física, el personaje sube, se deja llevar y empuja lo que encuentra, y lo que encuentra lo empuja a él.",
+        "steps": [
+          "Crea el mundo con <code>controls: 'character'</code> y <code>physics: true</code>. El personaje es ahora un cuerpo de la física, como las cajas.",
+          "Marca como <code>'static'</code> lo que nunca se mueve: el suelo, la escalera, las paredes. El personaje sube escalones hasta la rodilla y pendientes hasta 45°.",
+          "Marca una plataforma como <code>'kinematic'</code> y muévela desde tu código en cada fotograma: lo que esté encima viaja con ella.",
+          "Haz cajas <code>'dynamic'</code> y ligeras: el personaje las empuja con <code>pushStrength</code> newtons, y caen, ruedan y lo empujan."
+        ],
+        "tryIt": "Haz clic en la imagen, camina con W A S D, salta con Espacio. Sube la escalera, viaja en la plataforma, empuja la pila de cajas."
       },
       "your-own-scene": {
         "title": "Tu propia escena",

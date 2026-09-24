@@ -1907,5 +1907,51 @@
         "1000": "1٬000"
       }
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "انقر على الأرض لإسقاط كرة هناك. المطر يسقط عشرين كرة أخرى.",
+    "controls": {
+      "matter": "المادة",
+      "rain": "المطر"
+    },
+    "readouts": {
+      "bodies": "الأجسام",
+      "awake": "المستيقظة",
+      "step": "الخطوة"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "مطاط",
+        "stone": "حجر",
+        "ice": "جليد"
+      }
+    },
+    "words": {
+      "credit": "وادٍ نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "يدور الماشي حول القاعة ويدفع الكرات. زر الكرات يضيف عشرين أخرى.",
+    "controls": {
+      "walking": "المشي",
+      "balls": "الكرات"
+    },
+    "readouts": {
+      "bodies": "الأجسام",
+      "awake": "المستيقظة",
+      "step": "الخطوة"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "انقر للنظر حولك، ثم امشِ بالمفاتيح W A S D واقفز بمفتاح المسافة: اصعد الدرج والمنحدر، اركب المنصة، وادفع الصناديق.",
+    "controls": {
+      "pushStrength": "قوة الدفع (نيوتن)",
+      "platformSpeed": "سرعة المنصة",
+      "stackAgain": "أعد التكديس"
+    },
+    "readouts": {
+      "awake": "نشطة",
+      "speed": "السرعة"
+    }
   }
 }
