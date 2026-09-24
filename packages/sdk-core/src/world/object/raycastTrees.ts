@@ -5,8 +5,9 @@ import type { TriangleTree } from '../../collision/triangleTree.ts';
  * THE RAYCAST TREE CACHE. `raycast` keeps the triangle tree of each shape it was cast at, in the
  * shape's own frame, so a second ray reuses it. The cache holds at most `raycastTreeBudget.bytes`
  * — a fixed, settable envelope, never read from the machine — and drops the tree cast at least
- * recently when a new one would exceed it. `Geometry.dispose()` drops its tree at once; a shape
- * collected without dispose leaves its tree to the collector, its bytes counted until evicted.
+ * recently when a new one would exceed it. `Geometry.dispose()` drops its tree at once. The cache
+ * never keeps a geometry alive (it holds it weakly); the tree of one collected without dispose
+ * stays held and counted until it is the oldest and evicted.
  */
 
 /** A shape's tree, the geometry version it was built from, and each tree triangle's rank. */
