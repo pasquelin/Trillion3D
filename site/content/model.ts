@@ -159,3 +159,8 @@ export const ISSUES: Record<number, string> = {};
 export function issueUrl(issue: number) {
   return `${REPOSITORY}/issues/${issue}`;
 }
+
+/** A file of the repository as published on `main`: the site serves no Markdown of its own. */
+export function repositoryFileUrl(path: string) {
+  return `${REPOSITORY}/blob/main/${path}`;
+}

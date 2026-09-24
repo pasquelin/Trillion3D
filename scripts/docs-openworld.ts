@@ -4,7 +4,6 @@
  * `cache/`, `heights/` and `colliders/` for the physics, `world.json` and `vehicles.json` for
  * the page. `--source-only` skips the compiler. Same seed, same bytes.
  */
-import { spawnSync } from 'node:child_process';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { availableParallelism, totalmem } from 'node:os';
 import { dirname, resolve } from 'node:path';
@@ -17,12 +16,10 @@ import {
 import { writeWorldGltf } from './docs/examples/openworld/gltf/write.ts';
 import { writeHeights } from './docs/examples/openworld/plan/heights.ts';
 import { VEHICLE_SPECS } from './docs/examples/openworld/props/vehicles.ts';
+import { compileFullCache } from './native-compiler.ts';
 
 const root = resolve(import.meta.dirname, '..'),
-  out = resolve(root, 'site/assets/examples/openworld'),
-  compiler =
-    process.env.TRILLION3D_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
+  out = resolve(root, 'site/assets/examples/openworld');
 
 const started = performance.now(),
   lap = (label: string) =>
@@ -78,15 +75,15 @@ console.log(
 );
 
 if (!process.argv.includes('--source-only')) {
-  // Relative paths: a cache that names this machine's folders is refused by the repository.
-  const threads = String(Math.min(64, availableParallelism())),
-    ram = String(Math.floor(totalmem() / 2 ** 21)),
-    result = spawnSync(
-      compiler,
-      ['source', 'cache', 'full', '150000', threads, ram, '../../../../source/', 'qem-endpoints'],
-      { cwd: out, stdio: ['ignore', 'ignore', 'inherit'] },
-    );
-  if (result.status !== 0) throw new Error(`compiler failed with status ${result.status}`);
+  const threads = Math.min(64, availableParallelism());
+  compileFullCache({
+    cwd: out,
+    source: 'source',
+    threads,
+    ramMb: Math.floor(totalmem() / 2 ** 21),
+    simplification: 'qem-endpoints',
+    stdio: ['ignore', 'ignore', 'inherit'],
+  });
   await rm(resolve(out, 'cache/native/.lock'), { recursive: true, force: true });
   lap(`compiled on ${threads} threads`);
 }

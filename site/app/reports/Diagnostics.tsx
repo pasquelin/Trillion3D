@@ -1,4 +1,5 @@
 import { useWords } from '../i18n.ts';
+import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { DIAGNOSTICS, diagnosticValue } from '../../reports/diagnostics.ts';
@@ -17,8 +18,7 @@ export function Diagnostics({ a, b, locale }: DiagnosticsProps) {
   return (
     <>
       {DIAGNOSTICS.map((group) => (
-        <section className="grid min-w-0 grid-cols-1 gap-3" key={group.id}>
-          <h3 className="text-lg font-semibold">{t(`report.diagnostics.${group.id}`)}</h3>
+        <Section level={3} key={group.id} title={t(`report.diagnostics.${group.id}`)}>
           <Table>
             <thead>
               <tr>
@@ -46,7 +46,7 @@ export function Diagnostics({ a, b, locale }: DiagnosticsProps) {
               ))}
             </tbody>
           </Table>
-        </section>
+        </Section>
       ))}
     </>
   );

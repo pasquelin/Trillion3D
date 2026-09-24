@@ -32,5 +32,5 @@ graphify-out
 # Local files end
 
 # Local test assets (see docs/COMPILER.md, "Input formats")
-test/assets/
+tests/assets/
 site/assets/examples/openworld/

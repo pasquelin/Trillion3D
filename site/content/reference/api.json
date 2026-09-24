@@ -19278,7 +19278,7 @@
     "section": "budget",
     "kind": "Function",
     "title": "budget.memory()",
-    "signature": "budget.memory(__0: World): { geometryPool: number; texturePool: number | null; geometryPoolCeiling: number; texturePoolCeiling: number; }",
+    "signature": "budget.memory(world: World): { geometryPool: number; texturePool: number | null; geometryPoolCeiling: number; texturePoolCeiling: number; }",
     "summary": "The memory budgets a world holds right now: both pools and the largest each may grow to.",
     "parameters": [
       {
@@ -20461,7 +20461,7 @@
     "section": "node",
     "kind": "Function",
     "title": "createBatchProgress()",
-    "signature": "createBatchProgress(__0?: { stream?: ProgressStream; }): { event(event: CompilerEvent): void; }",
+    "signature": "createBatchProgress(options?: { stream?: ProgressStream; }): { event(event: CompilerEvent): void; }",
     "summary": "Batch companion for `prepareMany({onEvent})`: one line per job id, in arrival order.",
     "parameters": [
       {
@@ -21037,7 +21037,7 @@
     "section": "node",
     "kind": "Function",
     "title": "createTerminalProgress()",
-    "signature": "createTerminalProgress(__0?: TerminalProgressOptions): TerminalProgress",
+    "signature": "createTerminalProgress(options?: TerminalProgressOptions): TerminalProgress",
     "summary": "A progress bar in the terminal that follows the compiler's events.",
     "parameters": [
       {

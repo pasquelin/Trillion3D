@@ -19,11 +19,14 @@ export function Shell({ children }: { children: ReactNode }) {
   const openSearch = useCallback(() => setSearching(true), []);
   useSearchShortcut(openSearch);
   const main = useRef<HTMLElement | null>(null);
-  // A new page opens at its top: the content area is what scrolls, never the window.
+  // A new page opens at its top: the content area is what scrolls, never the window. The address
+  // decides, not the route object: the portal rebuilds that one when the API reference finishes
+  // loading, a moment after the page opened, and the reader would be sent back to the top.
+  const { locale, area, id } = route;
   useEffect(() => {
     // A block: `scrollTo` returns a promise in current browsers, which an effect must not return.
     main.current?.scrollTo({ top: 0, behavior: 'instant' });
-  }, [route]);
+  }, [locale, area, id]);
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <a
