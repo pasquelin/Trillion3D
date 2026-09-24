@@ -1158,7 +1158,7 @@
   },
   "createSceneLightStore": {
     "summary": "Lichter der Szene, in fester Anzahl.",
-    "description": "Der Puffer wird einmal für `maxLights` Lichter zugewiesen und nie neu zugewiesen; das Hinzufügen, Einstellen oder Entfernen eines Lichts schreibt nur seine sechzehn Fließkommazahlen und erhöht seine Revision. Die `revision` pro Licht ist das, was der Schattenplaner liest, um zu wissen, dass sich ein Licht geändert hat: keine Struktur wird pro Bild neu gebaut."
+    "description": "Der Puffer wird einmal für `maxLights` Lichter zugewiesen und nie neu zugewiesen; das Hinzufügen, Einstellen oder Entfernen eines Lichts schreibt nur seine sechzehn Fließkommazahlen und erhöht seine Revision. Die `revision` pro Licht zeigt einem Leser an, dass sich ein Licht geändert hat: keine Struktur wird pro Bild neu gebaut. Der Schattenplaner liest die Form des Lichts selbst, sodass eine Änderung von Intensität oder Farbe keine Schattenseite veralten lässt."
   },
   "createSceneRoot": {
     "summary": "Erstellt eine leere, versionierte Szenenhierarchie.",
@@ -6351,7 +6351,7 @@
       "texturePool": "Bytes GPU-Speicher für Texturseiten, `null` bei einer Engine ohne Textur-Pool (WebGL2); setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Geometrie-Pool lässt.",
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
       "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
-      "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Nie von der Maschine gelesen.",
+      "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Eine Summe unter dem Schatten-Pool wird abgelehnt (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nie von der Maschine gelesen.",
       "cpu": "Bytes CPU-Speicher, die die dekodierten Seiten der Welt halten dürfen; beim nächsten Laden einer Szene übernommen.",
       "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Cache dekodierter Seiten nimmt die CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
