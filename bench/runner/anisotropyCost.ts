@@ -4,8 +4,8 @@
 // is `tests/browser/support/anisotropyCostPage.ts`; nothing outside this repository is read.
 //
 //   pnpm run build
-//   node bench/runner/anisotropyCost.ts [--anisotropie 1,16] [--images 240]
-//        [--largeur 1920] [--hauteur 1080] [--visible]
+//   node bench/runner/anisotropyCost.ts [--anisotropy 1,16] [--images 240]
+//        [--width 1920] [--height 1080] [--visible]
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -13,45 +13,65 @@ import { parseArgs } from './options.ts';
 import { withRepoPage } from '../../tests/kit/server/repoPage.ts';
 import type { run as runOnPage } from '../../tests/browser/support/anisotropyCostPage.ts';
 
-const ROOT = resolve(import.meta.dirname, '../..');
-const flags = parseArgs(process.argv.slice(2));
-const count = (name: string, fallback: number) => {
-  const value = Number(flags.get(name) ?? fallback);
-  assert.ok(Number.isInteger(value) && value > 0, `--${name} must be a positive integer`);
-  return value;
-};
-const anisotropies = (flags.get('anisotropie') ?? '1,16').split(',').map(Number);
-assert.ok(
-  anisotropies.every((value) => Number.isInteger(value) && value >= 1 && value <= 16),
-  '--anisotropie takes integers from 1 to 16',
-);
-assert.ok(
-  existsSync(resolve(ROOT, 'dist/sdk-browser/src/measurement/measurement.js')),
-  'dist missing: run `pnpm run build` before this fixture',
-);
-const { result } = await withRepoPage(
-  ROOT,
-  flags.get('visible') !== 'true',
-  (page): Promise<Awaited<ReturnType<typeof runOnPage>>> =>
-    page.evaluate(
-      // A template literal: the page module is served at runtime, not resolved by TypeScript.
-      (input) => import(`${input.pageUrl}`).then((m) => m.run(input)),
-      {
-        pageUrl: '/tests/browser/support/anisotropyCostPage.ts',
-        sdkUrl: '/dist/sdk-browser/src/measurement/measurement.js',
-        anisotropies,
-        size: [count('largeur', 1920), count('hauteur', 1080)] as [number, number],
-        frames: count('images', 240),
-      },
+/** The fixture's options, read from the command line and checked. */
+export function anisotropyOptions(argv: string[]) {
+  const flags = parseArgs(argv);
+  const count = (name: string, fallback: number) => {
+    const value = Number(flags.get(name) ?? fallback);
+    assert.ok(Number.isInteger(value) && value > 0, `--${name} must be a positive integer`);
+    return value;
+  };
+  const anisotropies = (flags.get('anisotropy') ?? '1,16').split(',').map(Number);
+  assert.ok(
+    anisotropies.every((value) => Number.isInteger(value) && value >= 1 && value <= 16),
+    '--anisotropy takes integers from 1 to 16',
+  );
+  return {
+    anisotropies,
+    size: [count('width', 1920), count('height', 1080)] as [number, number],
+    frames: count('images', 240),
+    headless: flags.get('visible') !== 'true',
+  };
+}
+
+/** The page's result, or a failure when the page threw: a reading taken past an error is none. */
+export function cleanResult<T>({ result, pageErrors }: { result: T; pageErrors: string[] }) {
+  assert.deepEqual(pageErrors, [], `the page threw:\n${pageErrors.join('\n')}`);
+  return result;
+}
+
+async function main() {
+  const ROOT = resolve(import.meta.dirname, '../..');
+  const { anisotropies, size, frames, headless } = anisotropyOptions(process.argv.slice(2));
+  assert.ok(
+    existsSync(resolve(ROOT, 'dist/sdk-browser/src/measurement/measurement.js')),
+    'dist missing: run `pnpm run build` before this fixture',
+  );
+  const result = cleanResult(
+    await withRepoPage(ROOT, headless, (page): Promise<Awaited<ReturnType<typeof runOnPage>>> =>
+      page.evaluate(
+        // A template literal: the page module is served at runtime, not resolved by TypeScript.
+        (input) => import(`${input.pageUrl}`).then((m) => m.run(input)),
+        {
+          pageUrl: '/tests/browser/support/anisotropyCostPage.ts',
+          sdkUrl: '/dist/sdk-browser/src/measurement/measurement.js',
+          anisotropies,
+          size,
+          frames,
+        },
+      ),
     ),
-);
-assert.ok(!('unavailable' in result), String((result as { unavailable?: string }).unavailable));
-console.log(`GPU: ${result.gpu}; per-pass timestamps: ${result.timed ? 'yes' : 'no'}`);
-console.table(
-  result.readings.map(({ anisotropy, frameMs, passesMs, samples }) => ({
-    anisotropy,
-    'image p50 (ms)': frameMs?.toFixed(3) ?? 'unmeasured',
-    'passes p50 (ms)': passesMs?.toFixed(3) ?? 'unmeasured',
-    samples,
-  })),
-);
+  );
+  assert.ok(!('unavailable' in result), String((result as { unavailable?: string }).unavailable));
+  console.log(`GPU: ${result.gpu}; per-pass timestamps: ${result.timed ? 'yes' : 'no'}`);
+  console.table(
+    result.readings.map(({ anisotropy, frameMs, passesMs, samples }) => ({
+      anisotropy,
+      'image p50 (ms)': frameMs?.toFixed(3) ?? 'unmeasured',
+      'passes p50 (ms)': passesMs?.toFixed(3) ?? 'unmeasured',
+      samples,
+    })),
+  );
+}
+
+if (import.meta.main) await main();
