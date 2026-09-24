@@ -18,7 +18,7 @@ struct WaterOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@loc
 @fragment fn fsWater(in:VSOut,@builtin(front_facing) front:bool)->WaterOut{
  let s=blendSurface(in,front);
  let opacity=u32(round(clamp(s.alpha,0.0,1.0)*65535.0));
- return WaterOut(vec4f(s.rgb,s.metal),vec4f(s.N,s.rough),vec4f(s.emissive,s.ao),in.water|(opacity<<${WATER_RANK_SHIFT}u),s.request);
+ return WaterOut(vec4f(s.rgb,s.metal),vec4f(s.N,s.rough),vec4f(s.emissive,s.ao),(in.water&${WATER_MAX_ITEMS}u)|(opacity<<${WATER_RANK_SHIFT}u),s.request);
 }
 `;
 /** The composite's reading of that fourth word: rank and opacity, as the stage packed them. */

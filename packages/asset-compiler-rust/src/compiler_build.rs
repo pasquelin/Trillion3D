@@ -170,7 +170,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
     let tables = stage_scene_tables(&source, autonomous.as_ref(), &directory, &progress)?;
     let (physics_file, physics) =
-        physics_cook::stage_physics(&scene, &scene_nodes, &primitives, &collisions, &directory)?;
+        physics_cook::stage_physics(&scene, &primitives, &collisions, &directory)?;
     products.extend([source_bin, source_gltf, lights, tables, physics_file]);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);

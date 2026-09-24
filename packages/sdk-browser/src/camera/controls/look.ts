@@ -16,8 +16,8 @@ import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quatern
  * an unlocked drag still turns the head.
  */
 export interface HeadSettings {
-  /** Radians turned per pixel of pointer motion. */
-  lookSpeed: number;
+  /** Radians turned per pixel of pointer motion; `null` (the default) is 0.002. */
+  lookSpeed: number | null;
   /**
    * Lowest the head looks, in radians below the horizon counted negative (0 is the horizon);
    * by default just short of straight down. Raise it so a walker never looks into its own body.
@@ -37,10 +37,13 @@ export interface PersonHead extends HeadSettings {
   unlock(): void;
 }
 
-/** A head's defaults: its look speed, and a pitch range just short of either pole, where the
+/** Radians a head turns per pixel of pointer motion when its `lookSpeed` is `null`. */
+const HEAD_LOOK_SPEED = 0.002;
+
+/** A head's defaults: its own look speed, and a pitch range just short of either pole, where the
  *  yaw would lose its meaning. */
 export const HEAD_DEFAULTS = {
-  lookSpeed: 0.002,
+  lookSpeed: null as number | null,
   minPitch: POLAR_EPSILON - Math.PI / 2,
   maxPitch: Math.PI / 2 - POLAR_EPSILON,
 };
@@ -81,8 +84,9 @@ export function createHead(
      */
     turn(orientation: Float64Array) {
       sample();
-      yaw -= lookX * settings.lookSpeed;
-      pitch = clampNumber(pitch - lookY * settings.lookSpeed, settings.minPitch, settings.maxPitch);
+      const speed = settings.lookSpeed ?? HEAD_LOOK_SPEED;
+      yaw -= lookX * speed;
+      pitch = clampNumber(pitch - lookY * speed, settings.minPitch, settings.maxPitch);
       lookX = lookY = 0;
       angles[1] = yaw;
       angles[2] = Math.PI / 2 + pitch;

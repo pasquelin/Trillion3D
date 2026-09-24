@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "Người đi bộ đi vòng quanh sảnh và đẩy các quả bóng. Bóng thêm hai mươi quả.",
+    "banner": "Nhấp để nhìn quanh, rồi đi giữa các quả bóng bằng W A S D và đẩy chúng. Bóng thêm hai mươi quả.",
     "controls": {
-      "walking": "Đi bộ",
       "balls": "Bóng"
     },
     "readouts": {
