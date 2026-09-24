@@ -1,3 +1,4 @@
+import { sharedGpuDevice } from './sessionHandle.ts';
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts';
 import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
 
@@ -9,7 +10,13 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
   const context = canvas.getContext('webgpu');
   if (!context) throw new Error('WEBGPU_CANVAS_UNAVAILABLE');
   const format: GPUTextureFormat = 'bgra8unorm';
-  context.configure({ device, format, alphaMode: 'opaque', colorSpace: 'srgb' });
+  // The canvas takes the device itself: WebGPU refuses a session's handle, which is no `GPUDevice`.
+  context.configure({
+    device: sharedGpuDevice(device),
+    format,
+    alphaMode: 'opaque',
+    colorSpace: 'srgb',
+  });
   try {
     const layout = device.createBindGroupLayout({
       entries: [

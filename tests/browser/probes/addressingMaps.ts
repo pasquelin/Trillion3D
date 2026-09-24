@@ -1,15 +1,13 @@
-// Defect 8: the material whose six maps do not share the same wrap mode, and the page row the
-// real `createPageRowWriter` writes for it. The GPU bench and the non-regression test both read
+// Defect 8: the material whose six maps do not share the same wrap mode, and the addressing each
+// map's header carries. The GPU bench and the non-regression test both read
 // this fixture: one material exercised, hence one thing to reread when the modes change.
 import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
-import type { Texture } from '../../../packages/sdk-core/src/index.ts';
 import * as THREE from 'three';
-import { createPageRowWriter } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
-import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts';
-import { WRAP_MAP } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 import { octetsTexture } from './addressingCases.ts';
-import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import {
+  SAMPLE_WRAP_SHIFT,
+  samplingWords,
+} from '../../../packages/sdk-browser/src/webgpu/tile/sampling.ts';
 
 const {
   ClampToEdgeWrapping: SERRE,
@@ -17,27 +15,25 @@ const {
   MirroredRepeatWrapping: MIROIR,
 } = THREE;
 
-/** The six texture slots a `MeshStandardMaterial` carries, as the wrap word addresses them. */
+/** The six texture slots a `MeshStandardMaterial` carries. */
 type MapChamp = 'map' | 'roughnessMap' | 'metalnessMap' | 'normalMap' | 'aoMap' | 'emissiveMap';
 
 /**
  * One map per material slot, each on a different pair of modes: no mode is shared by two
- * neighbouring maps, so a wrap word applied to the wrong map is seen at once. `carte` is the map's
- * rank in the word, as production publishes it.
+ * neighbouring maps, so a nibble applied to the wrong map is seen at once.
  */
 export const CARTES: {
   nom: string;
   champ: MapChamp;
-  carte: number;
   wrapS: THREE.Wrapping;
   wrapT: THREE.Wrapping;
 }[] = [
-  { nom: 'base', champ: 'map', carte: WRAP_MAP.base, wrapS: REPETE, wrapT: REPETE },
-  { nom: 'roughness', champ: 'roughnessMap', carte: WRAP_MAP.rough, wrapS: SERRE, wrapT: MIROIR },
-  { nom: 'metal', champ: 'metalnessMap', carte: WRAP_MAP.metal, wrapS: MIROIR, wrapT: SERRE },
-  { nom: 'normales', champ: 'normalMap', carte: WRAP_MAP.normal, wrapS: SERRE, wrapT: SERRE },
-  { nom: 'occlusion', champ: 'aoMap', carte: WRAP_MAP.ao, wrapS: MIROIR, wrapT: MIROIR },
-  { nom: 'emissive', champ: 'emissiveMap', carte: WRAP_MAP.emissive, wrapS: REPETE, wrapT: SERRE },
+  { nom: 'base', champ: 'map', wrapS: REPETE, wrapT: REPETE },
+  { nom: 'roughness', champ: 'roughnessMap', wrapS: SERRE, wrapT: MIROIR },
+  { nom: 'metal', champ: 'metalnessMap', wrapS: MIROIR, wrapT: SERRE },
+  { nom: 'normales', champ: 'normalMap', wrapS: SERRE, wrapT: SERRE },
+  { nom: 'occlusion', champ: 'aoMap', wrapS: MIROIR, wrapT: MIROIR },
+  { nom: 'emissive', champ: 'emissiveMap', wrapS: REPETE, wrapT: SERRE },
 ];
 
 /** The exercised image: 4×5 distinct texels, that of the wrap benches of batches 4 and 7. */
@@ -65,57 +61,12 @@ export function materielMelange() {
   return mat;
 }
 
-/**
- * The page row production writes for this material: each map occupies its own atlas layer, so no
- * null index drops the shader onto a path without a texture.
- */
-export function ligneDePageMelangee() {
+/** The addressing nibble each map's header carries (`samplingWords`), in `CARTES` order: what the
+ *  shader folds that map's coordinate by. */
+export function nibblesDuMelange() {
   const mat = materielMelange();
-  const attributes = new THREE.BufferGeometry().attributes;
-  // Every slot was just assigned a real Texture by `materielMelange`: the class declares them
-  // nullable, this fixture never leaves one unset.
-  const mapLayer = new Map<Texture, number>([
-    [importHostTexture(mat.map!), 1],
-    [importHostTexture(mat.emissiveMap!), 2],
-  ]);
-  const dataLayer = new Map<Texture, number>([
-    [importHostTexture(mat.roughnessMap!), 1],
-    [importHostTexture(mat.metalnessMap!), 2],
-    [importHostTexture(mat.normalMap!), 3],
-    [importHostTexture(mat.aoMap!), 4],
-  ]);
-  const ecrire = createPageRowWriter({
-    geometryBlocks: new Map([
-      [attributes, { vertexBase: 0, count: 3, hasUv: true, hasNormal: true, hasTangent: false }],
-    ]),
-    mapLayer,
-    dataLayer,
-    markRowDirty: () => {},
-  });
-  const buffer = new ArrayBuffer(PAGE_INFO_STRIDE);
-  const floats = new Float32Array(buffer),
-    ints = new Uint32Array(buffer);
-  // Only material, attributes, matrix, url and clusterId reach the writer (`packages/sdk-browser/src/webgpu/row/pageRow.ts`);
-  // the rest of `PageRec` is filled with placeholders the writer never reads.
-  const rec: PageRec = {
-    id: 0,
-    material: surfaceOf(mat),
-    declaration: mat,
-    attributes,
-    matrix: new THREE.Matrix4(),
-    url: 'defect8',
-    clusterId: 'c0',
-    array: new Uint32Array([0, 1, 2]),
-    triangles: 1,
-    indexBytes: 12,
-    min: [0, 0, 0],
-    max: [0, 0, 0],
-    depthLayer: 0,
-    renderOrder: 0,
-    attached: false,
-    // A row-written page belongs to a placement: the WebGPU layout sets it.
-    placementIndex: 0,
-  };
-  ecrire(rec, 0, 0, 0, floats, ints);
-  return { mat, ints, floats };
+  return CARTES.map(
+    ({ champ }) =>
+      (samplingWords(importHostTexture(mat[champ]!), false)[0] >>> SAMPLE_WRAP_SHIFT) & 15,
+  );
 }

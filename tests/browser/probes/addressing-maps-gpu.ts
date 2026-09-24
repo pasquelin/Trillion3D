@@ -1,6 +1,5 @@
 // Defect 8, GPU side: a material whose maps do not share the same wrap mode.
-// The page row is written by the real `createPageRowWriter`, and the wrap word the shader gives
-// each map is reread by `wrapOf`, the CPU mirror of the WGSL `wrapOf`. Each map is then sampled
+// Each map's nibble is the one its header carries (`samplingWords`). Each map is then sampled
 // by the engine's wrap WGSL, in Chromium, and compared to the native sampler set to that map's
 // mode — the reference of batches 4 and 7.
 //   node --experimental-strip-types \
@@ -8,22 +7,20 @@
 // Blocking: any bit-for-bit discrepancy off a period seam, and on the seam any read that
 // departs from the exact rule by more than half a level in 255.
 import type * as THREE from 'three';
-import { wrapOf } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
-import { ROW_WRAP_MODES_WORD } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
 import { ADRESSE, regleNormalisee, surCouture, TOLERANCE } from './addressingCases.ts';
 import { executerDansChromium, MELANGE, NUANCEUR_PRISES } from './addressingGpuPage.ts';
-import { CARTES, ligneDePageMelangee, TEXTURE, UV } from './addressingMaps.ts';
+import { CARTES, nibblesDuMelange, TEXTURE, UV } from './addressingMaps.ts';
 
-const { ints } = ligneDePageMelangee();
+const nibbles = nibblesDuMelange();
 // Every wrapS/wrapT of `CARTES` is one of the three modes `ADRESSE` maps, so the lookup is never
 // absent: only its declared type is loose (`Map.get` always returns `V | undefined`).
-const lots = CARTES.map(({ carte, wrapS, wrapT }) => ({
+const lots = CARTES.map(({ wrapS, wrapT }, rang) => ({
   filtre: 'linear' as const,
   texture: 0,
   adresseS: ADRESSE.get(wrapS)!,
   adresseT: ADRESSE.get(wrapT)!,
   uv: UV.flat(),
-  flags: UV.map(() => wrapOf(ints[ROW_WRAP_MODES_WORD], carte) | MELANGE),
+  flags: UV.map(() => nibbles[rang] | MELANGE),
 }));
 
 const sorties = await executerDansChromium({

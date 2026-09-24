@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { prepareCones } from './prepare.ts';
+import { prepareCones } from './cones.ts';
 import { indexSourceBytes, compteMateriauxEtTangentes } from '../io/catalogue.ts';
 import {
   entreeCones,

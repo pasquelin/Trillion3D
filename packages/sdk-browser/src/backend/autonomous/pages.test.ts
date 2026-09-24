@@ -140,6 +140,11 @@ test('a full instance buffer grows in place: its rows kept, the new ones drawn o
     await backend.prepare();
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1);
+    const held = backend.metrics().geometryAllocationBytes;
+    backend.addInstance!('copy', new THREE.Matrix4().toArray(new Float64Array(16)));
+    assert.equal(backend.metrics().geometryAllocationBytes, held, 'the rows geometry is shared');
+    backend.removeInstance!('copy');
+    assert.equal(backend.metrics().geometryAllocationBytes, held, 'and not freed with it');
     const to = createPlacementRows(2);
     to.matrices.set(from.matrices);
     to.live.set(from.live);
@@ -155,6 +160,38 @@ test('a full instance buffer grows in place: its rows kept, the new ones drawn o
     backend.updatePlacements!(to, 0, 0);
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1, 'the kept row reads the grown buffer');
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
+
+test('the WebGL2 path holds the geometry pool and publishes it in its metrics', async () => {
+  const { backend, camera, encoded, geometry, material } = triangleBackend();
+  try {
+    await backend.prepare();
+    backend.render(camera);
+    const held = backend.metrics();
+    assert.equal(held.geometryPoolBytes, 512 * 1024 * 1024);
+    assert.equal(held.geometryAllocationBytes, encoded.uncompressedBytes);
+    assert.equal(held.geometryPoolAllocatedBytes, null, 'no pool is reserved');
+    assert.equal(held.geometryPoolClamp, 'scene');
+    // Both budgets are checked before either changes, as on WebGPU.
+    const both = { geometryPoolBytes: 1, texturePoolBytes: 0 };
+    await assert.rejects(backend.setMemoryBudgets!(both), /INVALID_TEXTURE_POOL_BUDGET/);
+    assert.equal(backend.metrics().geometryPoolBytes, 512 * 1024 * 1024, 'nothing changed');
+    // A budget under the root cover is raised to it, by name, and evicts nothing drawn.
+    const report = await backend.setMemoryBudgets!({ geometryPoolBytes: 1 });
+    assert.equal(report.geometryPool.clamp, 'root-cover');
+    assert.deepEqual([report.evictedPages, report.texturePool], [0, null]);
+    backend.render(camera);
+    const { geometryPoolBytes, submittedTriangles } = backend.metrics();
+    assert.deepEqual([geometryPoolBytes, submittedTriangles], [1, 1]);
+    assert.deepEqual(report.residentPages, { before: 1, after: backend.metrics().residentPages });
+    // A classic instance holds its own copy of the page, a second slot; rows share theirs.
+    backend.addInstance!('copy', new THREE.Matrix4().toArray(new Float64Array(16)));
+    assert.equal(backend.metrics().geometryPoolSlots, 2);
   } finally {
     backend.dispose();
     geometry.dispose();
