@@ -11,7 +11,6 @@ import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { GraphCamera } from '../graph/camera.ts';
 import { GraphGroup, GraphMesh } from '../graph/mesh.ts';
-import { GraphVector } from '../graph/vector.ts';
 import type { GraphGeometry } from '../graph/geometry.ts';
 import type { GraphSurface } from '../graph/surface.ts';
 import type { HostBox } from '../resources.ts';
@@ -28,8 +27,7 @@ export const hostFramingCamera = (
 ): HostCamera => new GraphCamera({ fov, aspect, near, far });
 
 /** A point the host reads and its controls aim at: the scene centre, the home offset. */
-export const hostPoint = (x: number, y: number, z: number): ControlVector =>
-  new GraphVector(x, y, z);
+export const hostPoint = (x: number, y: number, z: number): ControlVector => new Vector3(x, y, z);
 
 /** The world box the explorer publishes, from the six numbers the core computed. */
 export const hostBox = (flat: ArrayLike<number>): HostBox =>
