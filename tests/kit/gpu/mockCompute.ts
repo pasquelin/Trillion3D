@@ -1,7 +1,7 @@
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
-import { FRAME_VEC4 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
 import {
   DRAW_ITEM_U32,
   evaluateDrawCompact,
@@ -138,7 +138,7 @@ export function simulateComputeDispatch(
   // So is each primitive's root, behind its stretch in the frame buffer: a parked one is NONE
   // (`parkWorld`), and the cut skips it as the shader does.
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data);
-  const rootNodes = packed.rootNodes.map((_, w) => frames[(w * FRAME_VEC4 + 6) * 4 + 1]);
+  const rootNodes = packed.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1]);
   const result = evaluateDagSelectionKernel({ ...packed, worlds, rootNodes }, uniforms, resident);
   if (residentCut) {
     const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);

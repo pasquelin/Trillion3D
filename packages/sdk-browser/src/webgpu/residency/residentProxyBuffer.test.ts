@@ -9,29 +9,15 @@ import {
 } from '../../bounce/nodeWgsl.ts';
 import { createGpuBounceProxy } from '../../bounce/proxy.ts';
 import { createGpuSunFarShadow } from '../../gpu/shadow/sunFarShadow.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
-/** Dummy harness: holds proxy buffer mapping and header writes. */
-function recordingDevice(writes: Array<[number, number]> = []) {
-  let mapped: ArrayBuffer | undefined;
-  const device = {
-    createBuffer: ({ size, label }: { size: number; label?: string }) => {
-      const bytes = new ArrayBuffer(size);
-      if (label?.startsWith('Trillion3D resident proxy')) mapped = bytes;
-      return { size, label, getMappedRange: () => bytes, unmap() {}, destroy() {} };
-    },
-    queue: {
-      writeBuffer: (_buffer: unknown, offset: number, data: { length: number }) =>
-        writes.push([offset, data.length]),
-    },
-  } as unknown as GPUDevice;
-  return { device, proxyBytes: () => mapped! };
-}
+/** The mapped range of the resident proxy's buffer, as its creation filled it. */
+const proxyBytes = (buffers: FakeBuffer[]) =>
+  buffers.find((buffer) => buffer.label?.startsWith('Trillion3D resident proxy'))!.getMappedRange();
 
 test('an adopted proxy carries ray settings and counters itself', () => {
-  installGpuGlobals();
-  const writes: Array<[number, number]> = [];
-  const sunFar = createGpuSunFarShadow(recordingDevice(writes).device);
+  const { device, writes } = fakeDevice();
+  const sunFar = createGpuSunFarShadow(device);
   const resident = {
     buffer: { label: 'proxy' } as unknown as GPUBuffer,
     bounds: [0, 0, 0, 3, 4, 0],
@@ -40,7 +26,11 @@ test('an adopted proxy carries ray settings and counters itself', () => {
   } as unknown as Parameters<typeof sunFar.adopt>[0];
   sunFar.adopt(resident, false);
   assert.equal(sunFar.buffer(), resident.buffer, 'both passes bind proxy itself');
-  assert.deepEqual(writes[0], [0, PROXY_PARAM_FLOATS], 'settings are written at head of proxy');
+  assert.deepEqual(
+    [writes[0].offset, writes[0].data.length],
+    [0, PROXY_PARAM_FLOATS],
+    'settings are written at head of proxy',
+  );
   assert.equal(sunFar.maxDistanceMetres, 5, 'reach is bounding diagonal');
   const cleared: Array<[number, number]> = [];
   sunFar.prepare(
@@ -54,7 +44,6 @@ test('an adopted proxy carries ray settings and counters itself', () => {
 });
 
 test('resident proxy fits in single buffer, at offsets published by its header', () => {
-  installGpuGlobals();
   const triangles = new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   const nodeBounds = new Float32Array([-1, -2, -3, 4, 5, 6]);
   const nodeChildren = new Uint32Array([11, 12, 13, 14]);
@@ -66,9 +55,9 @@ test('resident proxy fits in single buffer, at offsets published by its header',
     errorMetres: 0.5,
     cellMetres: 2,
   } as unknown as SceneProxy;
-  const recorder = recordingDevice();
-  const resident = createGpuBounceProxy(recorder.device, proxy);
-  const words = new Uint32Array(recorder.proxyBytes());
+  const { device, buffers } = fakeDevice();
+  const resident = createGpuBounceProxy(device, proxy);
+  const words = new Uint32Array(proxyBytes(buffers));
   assert.equal(words[PROXY_LAYOUT_WORD], nodeBounds.length / PROXY_NODE_FLOATS, 'tree nodes');
   const starts = [
     words[PROXY_LAYOUT_WORD + 1],
@@ -76,7 +65,7 @@ test('resident proxy fits in single buffer, at offsets published by its header',
     words[PROXY_LAYOUT_WORD + 3],
   ];
   assert.deepEqual(starts, [0, triangles.length, triangles.length + nodeBounds.length]);
-  const floats = new Float32Array(recorder.proxyBytes());
+  const floats = new Float32Array(proxyBytes(buffers));
   assert.deepEqual(
     Array.from(floats.slice(PROXY_HEADER_WORDS, PROXY_HEADER_WORDS + triangles.length)),
     Array.from(triangles),

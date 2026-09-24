@@ -9,6 +9,9 @@ use std::{
 /// `cook/cook.cpp`, built by the same CMake file as the web module (`-DCOOK=ON`).
 const PHYSICS: &str = "../physics-jolt-wasm";
 
+/// The page codec (`packages/page-codec-wasm`), a path dependency built into the compiler.
+const CODEC: &str = "../page-codec-wasm";
+
 fn run(command: &mut Command) {
     let status = command
         .status()
@@ -90,17 +93,21 @@ fn source_files(directory: &Path, into: &mut Vec<PathBuf>) -> std::io::Result<()
 fn main() -> std::io::Result<()> {
     let mut files = Vec::new();
     source_files(Path::new("src"), &mut files)?;
+    // The page codec is linked in: its encoding is the compiler's, so it enters the hash.
+    source_files(&Path::new(CODEC).join("src"), &mut files)?;
     files.extend([
         PathBuf::from("Cargo.toml"),
         PathBuf::from("Cargo.lock"),
         PathBuf::from("build.rs"),
+        Path::new(CODEC).join("Cargo.toml"),
     ]);
     files.sort();
-    // The whole source directory is watched, not each file in turn: a module added after the
+    // The whole source directories are watched, not each file in turn: a module added after the
     // previous build is in no per-file watch list, so the build script would not rerun and the
     // next build would keep the previous implementation hash — a cache key that stays still while
     // the compiler moves.
     println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed={CODEC}/src");
     let mut digest = Sha256::new();
     for path in files {
         println!("cargo:rerun-if-changed={}", path.display());
