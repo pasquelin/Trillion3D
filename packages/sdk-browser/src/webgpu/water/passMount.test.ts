@@ -34,7 +34,7 @@ test('a device that refuses the water pipelines keeps the blends, and the refusa
   const built = await createWebgpuBlendPipelines(mount.device, items(2, true));
   assert.equal(built.water, undefined, 'no water pass');
   assert.match(String(built.waterRefused), /DEVICE_SAYS_NO/, 'the device error is what is named');
-  assert.equal(built.blendPipelines.length, 3, 'the three blends are kept');
+  assert.equal(built.blendPipelines.built.length, 3, 'the three blends are kept');
 });
 
 test('without the pass, the transmission slice draws as one more blend', () => {
@@ -59,6 +59,21 @@ test('the blend pipelines are built for normal and for every mode a blend item d
   const glow = mountDevice();
   const built = await createWebgpuBlendPipelines(glow.device, items(2, false, 'additive'));
   assert.equal(glow.pipelines.length, 6, 'normal and additive, three culls each');
-  assert.equal(built.blendPipelines.length, 6);
-  assert.ok(built.blendPipelines.every(Boolean), 'additive sits right after normal');
+  assert.equal(built.blendPipelines.built.length, 6);
+  assert.ok(built.blendPipelines.built.every(Boolean), 'additive sits right after normal');
+});
+
+// #346: a blending written on a surface after the pass was built is compiled by the first draw
+// that asks for it, once, and never drawn as another mode.
+test('a mode first drawn after the pass was built compiles its three pipelines then', async () => {
+  const plain = mountDevice();
+  const built = await createWebgpuBlendPipelines(plain.device, items(2, false));
+  assert.equal(plain.pipelines.length, 3, 'a plain scene compiles the three normal pipelines');
+  const multiplyBack = 3 * 3 + 2;
+  const pipeline = built.blendPipelines.at(multiplyBack);
+  assert.ok(pipeline, 'the multiply back-face pipeline is drawn');
+  assert.equal(plain.pipelines.length, 6, 'multiply compiled its three culls, nothing else');
+  assert.equal(built.blendPipelines.at(multiplyBack), pipeline, 'compiled once');
+  assert.equal(plain.pipelines.length, 6);
+  assert.throws(() => built.blendPipelines.at(15), /names no blending mode/);
 });
