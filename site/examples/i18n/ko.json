@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "걷는 사람이 홀을 돌며 공을 밉니다. 공은 스무 개를 더합니다.",
+    "banner": "클릭해 둘러보고, W A S D로 공 사이를 걸으며 공을 밉니다. 공은 스무 개를 더합니다.",
     "controls": {
-      "walking": "걷기",
       "balls": "공"
     },
     "readouts": {

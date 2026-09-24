@@ -1004,6 +1004,7 @@
     "description": "Tuşlar kendi eksenleri boyunca öteler ve onların etrafında döndürür, yatma dahil; bir sürükleme etrafa bakar. Host, geçen saniyelerle `update(delta)`'yı çağırana kadar hiçbir şey entegre edilmez, ve `update` yalnızca bir tuş basılı tutulduğunda, bir çubuk girişi ayarlandığında ya da bir sürükleme beklemedeyken döner — ve yayar —, böylece bırakılmış bir çubuk sahneyi hareketsiz bırakır. `autoForward` tek istisnadır: bir seyir kamerası her `update`'te hareket eder, ve her seferinde `change` yayarak bir sonraki kareyi ister. TUŞLAR, `KeyboardEvent.code`'a göre: W/S ileri ve geri, A/D sol ve sağ, R/F yukarı ve aşağı, oklar yunuslama ve sapma, Q/E yatma. Hiçbir şey bir dönüşü sınırlamaz: bir tuşu basılı tutmak kamerayı döngülere sokar ya da defalarca yuvarlar, bu yüzden bir döngü, bir fıçı dönüşü, bir Immelmann ya da bir split-S, bir çubukta olduğu gibi uçurulur. `inputResponse`, tuşlara o çubuk hareketini verir. `dragToLook` (varsayılan), bir işaretçi basılı tutulduğunda etrafa bakar; false olarak ayarlayın ve işaretçi yüzey üzerinde hareket eder etmez etrafa bakar; `pointerLook`'u false olarak ayarlayın ve görünümü hiç çevirmez, yalnızca tuşlar yönetir. Ctrl ya da Meta basılıyken basılan bir tuş yok sayılır, bu yüzden bir tarayıcı kısayolu (Ctrl+W, Cmd+S) asla yönetmez; onu izleyen tuşun sayılması için değiştirici bırakılmalıdır.",
     "members": {
       "rollSpeed": "Tam sapmada yatmanın döndüğü, saniyede radyan; yunuslama ve sapma varsayılan olarak onu takip eder.",
+      "lookSpeed": "İşaretçinin hareket ettiği her piksel için görünümün döndüğü radyan; `null` (varsayılan), boyutu ne olursa olsun yüzey yüksekliği başına yarım turdur.",
       "dragToLook": "Sürüklemenin görünümü çevirip çevirmediği.",
       "pitchSpeed": "Tam sapmada yunuslamanın döndüğü, saniyede radyan; `null` (varsayılan) `rollSpeed`'dir.",
       "yawSpeed": "Tam sapmada sapmanın döndüğü, saniyede radyan; `null` (varsayılan) `rollSpeed`'dir.",
@@ -1522,8 +1523,7 @@
     "summary": "Yayımlanmış doğrudan aydınlatma ayarları.",
     "description": "Bunlar adlandırılmış ürün kararlarıdır, gömülü sabitler değil: her çalışma zamanı sınırı onları yeniden okur, ve tanı onları oldukları gibi yayımlar.",
     "members": {
-      "maxLights": "Sözleşmenin toplamda kabul ettiği ışıklar; bunun ötesinde `addLight` reddeder.",
-      "maxLightsPerTile": "Bir ekran karosunun tuttuğu ışıklar; piksel döngüsü bu sayıyla sınırlıdır (X2).",
+      "maxLights": "Sözleşmenin toplamda kabul ettiği ışıklar; bunun ötesinde `addLight` reddeder. Bir ekran karosu kendisine dokunan her ışığı tutar; listesi ve piksel döngüsü bu sayıyla sınırlıdır (X2).",
       "tileSize": "Işık listesinin bir ekran karosunun piksel cinsinden kenarı.",
       "samplesPerPixel": "HAREKETLİ bir görselin pikseli başına tamamen gölgelendirilen — gölge okuması dahil — ışıklar (X2): diğerleri gölgeleri olmadan tartılır, ve gölgelendirilenler orantılı olarak çizilir, bu yüzden tahmin yansız kalır ve zamansal kenar yumuşatma onu ortalar. Sabit bir görsel, karosunun her ışığını gölgelendirir ve tam toplama yakınsar; orada bu sayının hiçbir rolü yoktur.",
       "shadowPage": "Bir gölge sayfasının kenarı, texel olarak: fiziksel havuzun, sanal haritaların ve geçersiz kılmanın birimi. Hareket eden bir nesne yalnızca izdüşen kutusunun kapladığı sayfaları eskitir.",
@@ -1667,6 +1667,7 @@
       "bounds": "Modelin kendi çerçevesinde doldurduğu kutu.",
       "lights": "Model altındaki ışıklar — kaynak dosyanın düğümler olarak taşıdıkları: bir sayfa onları kendisininmiş gibi düzenler, hareket ettirir ya da kaldırır, ve modelle birlikte hareket ederler.",
       "record": "Dünyanın bu model hakkında tuttuğu her şey: adresleri, manifestosu ve grafiği.",
+      "getObjectByName": "Altta bu adı taşıyan ilk düğüm: model, kaynak dosyasının bir düğümü, sonra başka herhangi bir çocuk — dosyanın taşıdığı ışık, bir sayfanın yerleştirdiği düğüm.",
       "metadata": "Modelin derlenmiş manifestosu — primitifleri, `sourceTriangles` — ve `clusters`, sayfalarının tuttuğu cluster'lar, DAG'larının her seviyesi sayılmış.",
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
     }
@@ -3763,7 +3764,7 @@
       "maxAzimuthAngle": "Yalnızca yörünge: o yayın sonu; `minAzimuthAngle`'dan küçük olabilir.",
       "autoRotate": "Yalnızca yörünge: `target` çevresinde kendiliğinden döndüğü saniye başına radyan, ilk basışa ya da tekerlek adımına kadar; varsayılan 0.",
       "movementSpeed": "Uçuş ve birinci şahıs: tam çubukta saniyede dünya birimi; varsayılan 1.",
-      "lookSpeed": "Birinci şahıs ve karakter: işaretçinin hareket ettiği piksel başına görünümün döndüğü radyan.",
+      "lookSpeed": "Uçuş, birinci şahıs ve karakter: işaretçinin hareket ettiği her piksel için görünümün döndüğü radyan; `null` (varsayılan) her birinin kendi değerini korur — bir kafa için 0.002, uçuş için canvas yüksekliği başına yarım tur.",
       "rollSpeed": "Yalnızca uçuş: tuşların yunuslama, sapma ve yatma yaptığı, saniyede radyan.",
       "rotateSpeed": "Yörünge ve trackball: sürüklemenin ne kadar hızlı döndürdüğü; varsayılan 1.",
       "zoomSpeed": "Pivot kontrolcüleri: tekerleğin ve sıkıştırmanın ne kadar hızlı yakınlaştırdığı; varsayılan 1.",
@@ -3829,6 +3830,10 @@
     "summary": "Yerleşik proxy'ye karşı izlenen, yüzeylerden yansıyan ışık; varsayılan olarak kapalı.",
     "description": "Bir değişiklik, onu taşıyan bir yolda yerinde uygulanır, ve taşımayan bir yolda bir sonraki açılışta alınır."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Zamansal kenar yumuşatma: kareler boyunca biriktirilen piksel altı kaydırma; varsayılan olarak açık.",
+    "description": "Yazıldığında bir sonraki karede etkili olur, geçmiş atılır, oturum yeniden açılmaz. Okunduğunda görüntünün taşıdığıdır: WebGL2'de ve açıldıktan sonra program derlenirken false."
+  },
   "world.budget": {
     "summary": "Dünyanın bellek havuzları, bayt cinsinden okunur ve ayarlanır.",
     "members": {
@@ -3887,7 +3892,7 @@
   },
   "WorldControls": {
     "summary": "Bir sayfanın kamerayı fare ve klavyeyle yönetebileceği yollar, ya da `'none'`.",
-    "description": "`'firstPerson'` bir kamerayı hareket ettirir; `'character'` bir gövdeyi — kütle, yer çekimi, zıplamalar, `world.controls.colliders` ile çarpışmalar — hareket ettirir ve gözlerinden bakar."
+    "description": "`'firstPerson'` bir kamerayı hareket ettirir; `'character'` bir gövdeyi — kütle, yer çekimi, zıplamalar, `world.controls.colliders` ile çarpışmalar — hareket ettirir ve gözlerinden bakar. `'fly'` ve `'firstPerson'`, `world.controls.movementSpeed` hızında hareket eder ve `world.controls.lookSpeed` hızında döner."
   },
   "WorldFrameMetrics": {
     "summary": "Ana makinenin motordan kopyaladığı biçimiyle bir görselin ölçümleri ve bir sayfanın bunlardan birleştirerek okuduğu iki değer; yolun saymadığı yerde `null`.",
@@ -4007,7 +4012,8 @@
       "pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
-      "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir."
+      "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
+      "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
     }
   },
   "WorldPageSource": {
@@ -4627,7 +4633,8 @@
       "options.pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "options.controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
-      "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir."
+      "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
+      "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
     }
   },
   "crossVector3": {
@@ -6640,7 +6647,7 @@
     "summary": "BİR YÜRÜYÜCÜNÜN BAŞI, işaretçi kilitli: işaretçi onu çevirir, ufuk düz kalır — dünya yukarısı etrafında sapma, `[minPitch, maxPitch]`'e sıkıştırılmış yunuslama, asla hiçbir yatma.",
     "description": "Bir kişinin gözlerinden bakan her kontrolcü tarafından paylaşılır. KİLİT, HOST'UN İSTEYECEĞİ ŞEYDİR. Bir tarayıcı, işaretçi kilidini yalnızca bir jest içinde verir, bu yüzden baş `pointerdown`'da ister ve kendi anını seçmeyi tercih eden bir host için `lock()`, `unlock()` ve `locked()`'ı yayımlar; izleyicinin kaçtığı bir kilit sadece bakışı durdurur, ve kilitlenmemiş bir sürükleme yine de başı çevirir.",
     "members": {
-      "lookSpeed": "İşaretçi hareketinin pikseli başına döndürülen radyan.",
+      "lookSpeed": "İşaretçi hareketinin pikseli başına dönülen radyan; `null` (varsayılan) 0.002'dir.",
       "minPitch": "Başın ne kadar aşağı baktığı, negatif sayılan ufkun altındaki radyan cinsinden (0 ufuktur); varsayılan olarak dümdüz aşağıya çok az kala. Bir yürüyücünün asla kendi gövdesine bakmaması için yükseltin.",
       "maxPitch": "Başın ne kadar yukarı baktığı, ufkun üstündeki radyan cinsinden; varsayılan olarak zirveye çok az kala."
     }

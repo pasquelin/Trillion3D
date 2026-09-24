@@ -11,6 +11,7 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { hostSide } from '../../scene/materialSide.ts';
+import { composesWithBackground, hostBlending } from '../../scene/materialBlending.ts';
 import { hostPageSurface } from '../../host/pageObjects.ts';
 import { GraphSurface, type GraphSurfaceFamily } from '../../host/graph/surface.ts';
 import {
@@ -98,6 +99,10 @@ export function hostSurface(material: Material, vertexColors: boolean, textures:
   if ('flatShading' in surface) surface.flatShading = material.flatShading === true;
   surface.depthWrite = material.depthWrite;
   surface.depthTest = material.depthTest;
+  // A mode that composes with the background is drawn in the transparent pass, whatever
+  // `transparent` says: the opaque pass has nothing behind to add to.
+  surface.blending = hostBlending(material.blending);
+  if (composesWithBackground(material.blending)) surface.transparent = true;
   return surface;
 }
 

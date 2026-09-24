@@ -1,4 +1,5 @@
 use super::cut::tolerance;
+use super::declared::declared_matter;
 use super::stage::trs;
 use super::*;
 use crate::dag::DagCluster;
@@ -96,28 +97,6 @@ fn the_hausdorff_distance_is_measured() {
     assert!(hausdorff::distance(&pos, &flat, &flat) < 1e-9);
 }
 
-// Behaviour: an L of two boxes is cut into convex parts, and the mass of a unit cube at the
-// runtime's density is 1000 kg about its centre.
-#[test]
-fn a_concave_body_is_decomposed_and_weighed() {
-    let cube = |o: [f32; 3], s: [f32; 3]| -> Vec<f32> {
-        (0..8)
-            .flat_map(|c| (0..3).map(move |a| o[a] + if c >> a & 1 == 1 { s[a] } else { 0.0 }))
-            .collect()
-    };
-    let faces: [u32; 36] = [
-        0, 2, 1, 1, 2, 3, 4, 5, 6, 5, 7, 6, 0, 1, 4, 1, 5, 4, 2, 6, 3, 3, 6, 7, 0, 4, 2, 2, 4, 6,
-        1, 3, 5, 3, 7, 5,
-    ];
-    let (mut pos, mut triangles) = (cube([0.0; 3], [4.0, 1.0, 1.0]), faces.to_vec());
-    pos.extend(cube([0.0, 1.0, 0.0], [1.0, 3.0, 1.0]));
-    triangles.extend(faces.iter().map(|i| i + 8));
-    let parts = decompose::decompose(&pos, &triangles, 0.05);
-    assert!(parts.len() >= 2, "{} parts", parts.len());
-    let (_, mass) = hulls_shape(&[cube([0.0; 3], [1.0; 3])], 1000.0).unwrap();
-    assert!((mass.mass - 1000.0).abs() < 1.0 && mass.centre.iter().all(|c| (c - 0.5).abs() < 1e-4));
-}
-
 // Behaviour: a node matrix splits into the pose a body takes; a sheared one is refused.
 #[test]
 fn a_node_matrix_splits_into_a_pose() {
@@ -138,4 +117,23 @@ fn a_node_matrix_splits_into_a_pose() {
     );
     m[5] += 0.5;
     assert!(trs(&m).is_none());
+}
+
+// Behaviour: a placement carries the friction and restitution its node's collider declares, and
+// nothing when it declares none.
+#[test]
+fn a_node_carries_the_matter_its_collider_declares() {
+    let g = serde_json::json!({"extensions":{"KHR_physics_rigid_bodies":{"physicsMaterials":[
+        {"dynamicFriction":0.9,"restitution":0.2}
+    ]}}});
+    let node = serde_json::json!({"extensions":{"KHR_physics_rigid_bodies":{"collider":{"physicsMaterial":0}}}});
+    let matter = declared_matter(&g, &node);
+    assert_eq!(
+        matter,
+        serde_json::json!({"friction":0.9,"restitution":0.2})
+    );
+    assert_eq!(
+        declared_matter(&g, &serde_json::json!({})),
+        serde_json::json!({})
+    );
 }

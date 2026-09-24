@@ -1,5 +1,5 @@
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { cameraSceneLink } from './worldLink.ts';
+import { cameraAdopter } from './worldLink.ts';
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
@@ -15,6 +15,7 @@ import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from '.
 import { worldTelemetry } from './worldTelemetry.ts';
 import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
+import { worldSwitches } from './worldSwitches.ts';
 
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
@@ -30,7 +31,6 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     toneMapping: ToneMapping = 'aces',
     exposure = 1,
     pixelError: number | undefined,
-    bounce = false,
     animating = false,
     disposed = false;
   // A lost device is asked for again, and the session reopened on it.
@@ -40,6 +40,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const scene = new Scene(worldModelLoader(ready, options.signal, () => device.renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
+  const switches = worldSwitches(options, () => runtime, device, invalidate);
   const runtime = createWorldRuntime({
     canvas,
     ready: () => device.pending,
@@ -48,7 +49,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     options: () =>
       sessionOptions(options, {
         gpuDevice: device.gpuDevice, // the world's one device: a session never asks another
-        bounce,
+        ...switches.held,
         geometryPoolBytes: pools.geometryPool,
         texturePoolBytes: pools.texturePool,
         pixelError,
@@ -75,11 +76,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   });
   const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
   /** The camera outside the scene still redraws when it moves. */
-  const cameraLink = cameraSceneLink(invalidate);
-  const adopt = (next: Camera) => {
-    if (!next._link) next._link = cameraLink;
-    return next;
-  };
+  const adopt = cameraAdopter(invalidate);
   adopt(camera);
   const controls = worldControlsHandle(
     options.controls ?? 'none',
@@ -137,14 +134,19 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
      *  change is applied in place on a path that carries it, and taken by the next opening on
      *  one that does not. */
     get bounce() {
-      return bounce;
+      return switches.bounce;
     },
     set bounce(on: boolean) {
-      if (on === bounce) return;
-      bounce = on;
-      const session = runtime.explorer;
-      if (session && !session.setBounce(on)) runtime.renew();
-      invalidate();
+      switches.bounce = on;
+    },
+    /** Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default. Written, it
+     *  takes effect at the next frame, history dropped, no session reopened. Read, it is what the
+     *  image carries: false on WebGL2, and while the program compiles after it was turned on. */
+    get temporalAntialiasing() {
+      return switches.temporalAntialiasing;
+    },
+    set temporalAntialiasing(on: boolean) {
+      switches.temporalAntialiasing = on;
     },
     /** Bodies, gravity and time of the physics (Jolt, in a worker). */
     physics: physics.handle,
