@@ -3,7 +3,7 @@ import type { Bundle, Run, Write } from './installed-package-contracts.ts';
 
 const json = (value: string): string => JSON.stringify(value);
 
-export function installedWorkerRuntimeSource(packageName: string): string {
+function installedWorkerRuntimeSource(packageName: string): string {
   return `import {MATRIX_VALUES,multiplyMatrix4Batch} from ${json(packageName)};
 const a=new Float64Array([1,0,0,0,0,1,0,0,0,0,1,0,2,3,4,1]);
 const b=new Float64Array([1,0,0,0,0,1,0,0,0,0,1,0,5,7,11,1]);
@@ -37,10 +37,7 @@ const emittedInputs = (meta: Metafile, output: string) =>
     ([, contribution]) => contribution.bytesInOutput > 0,
   );
 
-export function assertInstalledMathReachability(bundles: {
-  maths: Metafile;
-  hierarchy: Metafile;
-}): void {
+function assertInstalledMathReachability(bundles: { maths: Metafile; hierarchy: Metafile }): void {
   for (const name of ['maths', 'hierarchy'] as const) {
     const forbidden = emittedInputs(bundles[name], name)
       .map(([path]) => path)

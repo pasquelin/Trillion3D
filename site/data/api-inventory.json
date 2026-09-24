@@ -2605,6 +2605,7 @@
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/capability/worldReady.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/worldDevice.ts",
         "packages/sdk-browser/src/world/core/worldDiagnostic.test.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.ts",
@@ -3030,6 +3031,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
       "disposition": "retained",
@@ -3986,6 +3988,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
@@ -4976,6 +4979,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/core/worldLights.test.ts",
+        "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs-scene-editor.test.ts"
       ],
@@ -6375,7 +6380,7 @@
       "currentEntryPoints": ["trillion3d (node condition)"],
       "proposedEnvironments": "node",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/runner/assets.ts", "scripts/native-compiler.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-node/src/compiler/process\".resolveCompilerExecutable"
     },
@@ -7438,7 +7443,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["scripts/docs/examples/solids.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/curves\".SplineCurve"
     },
@@ -8673,6 +8678,7 @@
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/pose/index.ts",
+        "scripts/docs/examples/solids.ts",
         "site/app/editor/commands.ts"
       ],
       "disposition": "retained",
