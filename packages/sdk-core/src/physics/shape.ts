@@ -65,11 +65,15 @@ function primitive(declared: PhysicsShape, s: Scale): ResolvedShape | null {
 
 /**
  * A compound's parts scaled into the body's frame. A scale that differs between axes would shear
- * a turned part, so it is refused rather than approximated.
+ * a turned part, and a negative one would move each part to its mirror image with its turn
+ * unchanged: both are refused rather than approximated.
  */
 function compound(parts: readonly PhysicsPart[], s: Scale): ResolvedShape {
-  if (!same(Math.abs(s.x), Math.abs(s.y)) || !same(Math.abs(s.x), Math.abs(s.z)))
-    throw new EngineError('PHYSICS_FAILED', 'A compound shape needs the same scale on all axes.');
+  if (!(s.x > 0 && s.y > 0 && s.z > 0) || !same(s.x, s.y) || !same(s.x, s.z))
+    throw new EngineError(
+      'PHYSICS_FAILED',
+      'A compound shape needs the same positive scale on all axes: neither stretched nor mirrored.',
+    );
   const resolved = parts.map((part): CompoundPart => {
     const { shape, size } = primitive(part, s)!;
     const [x, y, z] = part.position ?? [0, 0, 0];
