@@ -77,6 +77,15 @@ pub(super) fn cache_key(
         "textureFormats":o.texture_formats.iter().map(|f| f.name()).collect::<Vec<_>>(),
         "errorModel":DAG_ERROR_MODEL,"cutouts":cutouts,
     });
+    keyed(material, crate::physics_cook::JOLT_COMMIT)
+}
+
+/// The key of `material` once the physics cook is named in it: the stage's version and the Jolt
+/// commit it links, whose binary state the cooked shapes are. A cache cooked by another Jolt is
+/// another key, never reused.
+fn keyed(mut material: Value, jolt: &str) -> Result<String> {
+    material["jolt"] = json!(jolt);
+    material["physicsCook"] = json!(crate::physics_cook::PHYSICS_COOK_VERSION);
     Ok(hash(serde_json::to_string(&material)?.as_bytes()))
 }
 
@@ -92,6 +101,14 @@ mod tests {
     #[test]
     fn the_build_script_watches_the_source_folder() {
         assert!(include_str!("../build.rs").contains("cargo:rerun-if-changed=src\""));
+    }
+
+    // Behaviour: shapes cooked by another Jolt are another product: the key moves with the commit.
+    #[test]
+    fn another_jolt_is_another_key() {
+        let material = json!({"source":"abc"});
+        let ours = keyed(material.clone(), crate::physics_cook::JOLT_COMMIT).unwrap();
+        assert_ne!(ours, keyed(material, &"0".repeat(40)).unwrap());
     }
 
     // Behaviour: a measured time or a machine path leaves identity, at every

@@ -388,6 +388,11 @@ flat C API (`packages/physics-jolt-wasm/src/`): one `jolt_step` call reads a com
 writes a pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
 (`physics/joltModule.ts`) gives the module its memory, whose maximum is the memory budget.
 
+- **Cooked shapes.** `RESTORE` carries a shape's Jolt binary state (`src/blob.h`, the stream the
+  compiler's cook writes) under a handle, an `ADD` of kind `cooked` names the handle, and `RELEASE`
+  drops it: the body keeps the shape. `physics/tiles.ts` streams a compiled model's tiles this way,
+  `physics/raycast.ts` asks `jolt_cast` (a batch of rays and shape sweeps, between two ticks) for
+  `world.raycast(at, { exact: true })`.
 - **Worker.** `physics/physicsWorker.ts` steps at a fixed 60 Hz, at most four catch-up steps a
   tick (beyond, time is dropped: slow motion, never a spiral). Two result buffers go back and forth
   as transferables and a tick writes straight into a free one (`tickResults.ts`); when the page

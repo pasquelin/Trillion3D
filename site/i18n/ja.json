@@ -319,7 +319,8 @@
       "hands-in-vr": "VRの中の手",
       "teleport-in-vr": "VRの中でテレポートする",
       "controllers-in-vr": "VRのコントローラー",
-      "ar-on-the-table": "テーブルの上のAR"
+      "ar-on-the-table": "テーブルの上のAR",
+      "a-walker-among-balls": "ボールの中を歩く人"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPUでの頂点カラー",
@@ -482,7 +483,6 @@
       "breaking-things": "物理エンジンとの連携",
       "cloth-and-rope": "物理エンジンとの連携",
       "soft-bodies": "物理エンジンとの連携",
-      "rolling-on-terrain": "物理エンジンとの連携",
       "hinges-and-joints": "物理エンジンとの連携",
       "drive-a-car": "物理エンジンとの連携",
       "a-room-in-vr": "WebXRセッション",
@@ -1059,7 +1059,8 @@
           "ワールドに <code>physics: true</code> を渡す。シミュレーションは描画とは別の <em>worker</em> で動くので、画面を遅くしない。",
           "床を <code>'static'</code> にすると他を支えて動かない。箱を <code>'dynamic'</code> にすると重力で落ちる。",
           "形はジオメトリから、重さはマテリアルから。<code>physics: 'wood'</code> は軽く、<code>'metal'</code> は重く、<code>'rubber'</code> は弾む。",
-          "<code>applyImpulse</code> で押したり、<code>contact</code> を聞いたりできる。すべてが眠ると、計算も描画も止まる。"
+          "<code>applyImpulse</code> で押したり、<code>contact</code> を聞いたりできる。すべてが眠ると、計算も描画も止まる。",
+          "<code>scene.load</code> で読み込んだモデルは、コンパイル時に用意された自分の三角形で衝突します。<code>await world.raycast(point, { exact: true })</code> はカーソルの下のまさにその三角形を見つけます。"
         ],
         "tryIt": "箱をもっと落とし、重力を月にして、スローをオンにしよう。"
       },

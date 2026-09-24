@@ -939,6 +939,18 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   bodies.
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
   `stats.stepMs`, on its own clock: the two are never added.
+- **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
+  physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
+  streams its tiles in, restored from Jolt's binary state, around the eye up to `camera.far` and
+  around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
+  stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
+  another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
+- **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
+  is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
+  any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
+  `capsule` with `halfHeight` and `radius`) sweeps that shape instead; `maxDistance` defaults to
+  `camera.far`. Without these options `world.raycast` answers at once, from the scene's own
+  geometry, a model on its box. With the physics off, an exact raycast throws `PHYSICS_OFF`.
 - **Character.** With physics on, `world.controls` `'character'` is the physics' own character
   (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
 

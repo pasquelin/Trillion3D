@@ -1908,6 +1908,40 @@
       }
     }
   },
+  "rolling-on-terrain": {
+    "banner": "点击地面，在那里放下一个球。“下雨”再放二十个。",
+    "controls": {
+      "matter": "材质",
+      "rain": "下雨"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "活动",
+      "step": "步长"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "橡胶",
+        "stone": "石头",
+        "ice": "冰"
+      }
+    },
+    "words": {
+      "credit": "山谷为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "行走者绕着大厅走，推开球。“球”再加二十个。",
+    "controls": {
+      "walking": "行走",
+      "balls": "球"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "活动",
+      "step": "步长"
+    }
+  },
   "walk-with-collisions": {
     "banner": "点击以环顾四周，然后用 W A S D 行走、空格键跳跃：登上台阶和坡道，乘上平台，推动箱子。",
     "controls": {
