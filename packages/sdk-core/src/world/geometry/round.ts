@@ -171,23 +171,14 @@ function sweep(
     const along = n[0] * t[0] + n[1] * t[1] + n[2] * t[2];
     normals.push(normalize(n[0] - along * t[0], n[1] - along * t[1], n[2] - along * t[2]));
   }
-  // Carried once round a closed curve, the frame comes back turned about the tangent: each frame
-  // takes back its share of that turn, so the last ring lands on the first and the tube closes.
-  if (closed) {
-    const [first, last] = [normals[0], normals[count]];
-    const turn = Math.atan2(dot(t0, cross(first, last)), dot(first, last));
-    for (let i = 1; i <= count; i++) {
-      const [n, a] = [normals[i], (-turn * i) / count];
-      const side = cross(tangents[i], n);
-      normals[i] = normalize(
-        ...([0, 1, 2].map((k) => Math.cos(a) * n[k] + Math.sin(a) * side[k]) as V3),
-      );
-    }
-  }
+  // Carried round a closed curve, the frame comes back turned about the tangent: each ring takes
+  // back its share of that turn, so the last ring lands on the first and the tube closes.
+  const [first, last] = [normals[0], normals[count]];
+  const turn = closed ? Math.atan2(dot(t0, cross(first, last)), dot(first, last)) : 0;
   const b = new GeometryBuilder();
   b.grid(count, pieces(radialSegments, 3), (u, v) => {
     const i = Math.round(u * count),
-      angle = v * TAU,
+      angle = v * TAU - (turn * i) / count,
       r = radiusAt(u);
     const n0 = normals[i],
       n1 = cross(tangents[i], n0);
