@@ -4,7 +4,8 @@ import { installGpuGlobals } from './globals.ts';
  * The recording `GPUDevice` of unit tests that observe what one module asks of a device without a
  * GPU. Every creation succeeds and is recorded in call order; a test reads the list it observes
  * and ignores the others. The usage and stage constants are installed on each call. A test that
- * runs a whole pages backend uses `mockGpu()`, which encodes its passes and draws.
+ * runs a whole pages backend uses `mockGpu()`, which encodes its passes and draws; one that reads
+ * what the GPU draw's compaction computed uses `mockDrawDevice()`.
  */
 
 type Numbers = Float32Array | Float64Array | Int32Array | Uint32Array | Uint16Array | Uint8Array;

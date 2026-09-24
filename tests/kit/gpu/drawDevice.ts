@@ -1,6 +1,9 @@
 import { simulateComputeDispatch } from './mockCompute.ts';
 
-export function mockDrawDevice(options: { failCompile?: boolean } = {}) {
+/** The GPU draw's device in Node, running its compute passes (`simulateComputeDispatch`) into
+ *  each buffer's `data`: for a test that reads what the compaction wrote. A test that only
+ *  records what a module creates or writes uses `fakeDevice()`. */
+export function mockDrawDevice() {
   const buffers: Array<{ size: number; usage: number; data: Uint8Array }> = [],
     writes: Array<{ offset: number; size: number }> = [];
   let bind:
@@ -15,11 +18,7 @@ export function mockDrawDevice(options: { failCompile?: boolean } = {}) {
       buffers.push(buffer);
       return buffer;
     },
-    createShaderModule: () => ({
-      getCompilationInfo: async () => ({
-        messages: options.failCompile ? [{ type: 'error' as const, message: 'fail' }] : [],
-      }),
-    }),
+    createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
     createBindGroupLayout: () => ({}),
     createPipelineLayout: () => ({}),
     createComputePipeline: ({ compute }: { compute: { entryPoint: string } }) => compute,

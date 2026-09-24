@@ -4,8 +4,10 @@ import { bytesOf } from './globals.ts';
 import { asWebgpuDevice, untag } from './webgpuDevice.ts';
 
 /** The device a whole pages backend runs on in Node — draws, passes, textures and writes
- *  recorded —, made a device as WebGPU writes one by `asWebgpuDevice`. A test that only records
- *  what one module creates uses `fakeDevice()` instead. */
+ *  recorded —, made a device as WebGPU writes one by `asWebgpuDevice`. Kept only for what needs
+ *  its command encoder (`mockEncoder.ts`: passes, draws, compute dispatches, submits in order) or
+ *  its texture uploads; a test that only records what one module creates or writes uses
+ *  `fakeDevice()` instead, wrapped by `asWebgpuDevice` when it raises errors or loses the device. */
 export function mockGpu(
   limits: Record<string, number> = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
   packed?: PackedDag,
