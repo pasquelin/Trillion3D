@@ -45,7 +45,8 @@ test('every example file renders an image on its own, fetching Jolt only when it
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await page.goto(`http://127.0.0.1:${port}/#/en/examples/${entry.id}`);
     const frame = page.locator('[data-demo] iframe');
-    assert.equal(await frame.getAttribute('src'), entry.file);
+    // The portal hands the example its language (#327).
+    assert.equal(await frame.getAttribute('src'), `${entry.file}?lang=en`);
     // The live render is the page: the iframe takes most of the height under the header.
     const view = await frame.boundingBox();
     assert.ok(view && view.height > 900 * 0.7, `the demo fills the content area (${view?.height})`);
@@ -77,8 +78,8 @@ test('every example file renders an image on its own, fetching Jolt only when it
           jolt.push(`${example.id} ${fetched ? 'fetched' : 'did not fetch'} the physics`);
         await opened.page.close();
       }
-    assert.deepEqual(blank, []);
     assert.deepEqual(jolt, []);
+    assert.deepEqual(blank, []);
     await controlsDriveTheRender(browser, port);
   } finally {
     await browser.close();
