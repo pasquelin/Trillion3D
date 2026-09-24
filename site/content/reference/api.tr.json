@@ -3847,8 +3847,8 @@
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
       "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
       "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Asla makineden okunmaz.",
-      "cpu": "Dünyanın çözülmüş sayfalarının tutabileceği CPU belleği baytı; bir sonraki sahne yüklemesinde uygulanır.",
-      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; çözülmüş sayfa önbelleği CPU toplamını alır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
+      "cpu": "Dünyanın tutabileceği CPU belleği baytı: çözülmüş sayfaları, manifest tabloları ve aktarım kuyruğu birlikte. Bir değişiklik hemen uygulanır: sayfalar sığana kadar son kullanıma göre çıkar.",
+      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; çözülmüş sayfa önbelleği, geçerli oturumun manifest tabloları ve aktarım kuyruğu düşüldükten sonra CPU toplamını alır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
   },
   "world.diagnostic": {
@@ -4575,7 +4575,7 @@
   },
   "createPageStreamer": {
     "summary": "Sınırlı, önceliklendirilmiş ve tekilleştirilmiş okumalar.",
-    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, hem girdiler hem de baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sabitlenmiş girdiler tahliyeden kurtulur, bu yüzden bir çağıran, onu tutarak görüntülenen kapsamasını korur."
+    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, hem girdiler hem de baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sabitlenmiş girdiler tahliyeden kurtulur, bu yüzden bir çağıran, onu tutarak görüntülenen kapsamasını korur. Önbellek, çağıran bir tane verdiğinde `kept` olur (`pageCache.ts`): akışçı o zaman manifest tablolarını ve aktarım kuyruğunu önbelleğin CPU toplamından ayırır, kataloğun artık o boyutta adlandırmadığını atar ve serbest bırakıldığında sayfaları sonraki oturum için orada bırakır."
   },
   "createPathGovernor": {
     "summary": "Bir regülatör."
