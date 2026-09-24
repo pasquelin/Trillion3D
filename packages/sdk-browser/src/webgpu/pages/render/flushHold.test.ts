@@ -96,3 +96,15 @@ test('three images and three flushes with no write: the third is held', async ()
   assert.equal(tenues, 1, 'the third image must be held');
   assert.equal(gate.held(), true, 'the witness survived the three flushes');
 });
+
+test('a flush under image: false settles the pages and reads no image back (#408)', async () => {
+  const { rt } = vidange(undefined, false);
+  let touched = 0;
+  const device = new Proxy({}, { get: () => (touched++, () => assert.fail('image read back')) });
+  Object.assign(rt.gpu, { device, colorTexture: {} });
+  rt.run.imageRevision = 1;
+  await flushWebgpuPages(rt, { image: false });
+  assert.equal(touched, 0, 'a wait for pages must take no picture');
+  // A plain flush still starts the readback, which this GPU-less runtime cannot finish.
+  await assert.rejects(flushWebgpuPages(rt), /GPUBufferUsage|image read back/);
+});
