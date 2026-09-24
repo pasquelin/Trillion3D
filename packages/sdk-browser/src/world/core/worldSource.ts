@@ -122,7 +122,7 @@ export function buildWorldSource(plan: WorldPlan) {
     geometryPages: { formatVersion: GEOMETRY_PAGE_FORMAT_VERSION, codec: GEOMETRY_PAGE_CODEC },
     sourceTriangles: triangles,
     selectedTriangles: triangles,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     autonomousScene: null,
     primitives,

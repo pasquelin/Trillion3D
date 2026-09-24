@@ -30,7 +30,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
     scope: 'full',
     sourceTriangles: 0,
     selectedTriangles: 0,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }],
   };

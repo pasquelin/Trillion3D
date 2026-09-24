@@ -197,7 +197,7 @@
     "name": "obj",
     "version": "obj-ufbx-0.11.3-gltf-7"
   },
-  "selectedNodes": [0],
+  "selectedNodes": 1,
   "sidecarSha256": "4b0f6ee90dfa02a59894ae487188dfcc908c3219c626f672fccd81235bb0331a",
   "sourceTriangles": 5,
   "textures": [
