@@ -37,3 +37,28 @@ test('an object that is no error says its message, its code or its JSON, never [
   assert.equal(said(cycle), 'Opening failed: Object (cannot be written out)');
   assert.doesNotMatch(said(Object.create(null)), /\[object Object\]/);
 });
+
+test('an object carrying a documented code is under that code first, its message after', () => {
+  const lost = { code: 'WEBGPU_LOST', message: 'device gone' };
+  const converted = engineErrorOf(lost, 'FALLBACK', 'Opening failed');
+  assert.equal(converted.code, 'WEBGPU_LOST');
+  assert.equal(converted.message, 'Opening failed: WEBGPU_LOST');
+  // A code no page tests is not: the message is what it says.
+  assert.equal(engineErrorOf({ code: 'E42', message: 'no' }, 'FALLBACK', 'x').code, 'FALLBACK');
+});
+
+test('an engine error of another copy of the engine is taken for one, by its name and code', () => {
+  const foreign = Object.assign(new Error('the device is gone'), {
+    name: 'EngineError',
+    code: 'WEBGPU_LOST',
+    details: { at: 'render' },
+  });
+  const converted = engineErrorOf(foreign, 'FALLBACK', 'x');
+  assert.ok(converted instanceof EngineError);
+  assert.equal(converted.code, 'WEBGPU_LOST');
+  assert.equal(converted.message, 'the device is gone');
+  assert.deepEqual(converted.details, { at: 'render', cause: foreign });
+  // Of a code no page tests, it is the fallback; its message is prose, never taken for a code.
+  const worded = Object.assign(new Error('WEBGPU_LOST'), { name: 'EngineError', code: 'E42' });
+  assert.equal(engineErrorOf(worded, 'FALLBACK', 'x').code, 'FALLBACK');
+});

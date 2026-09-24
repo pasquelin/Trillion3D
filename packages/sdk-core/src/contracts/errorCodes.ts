@@ -108,11 +108,30 @@ export const ENGINE_ERROR_CODES: readonly CodeFamily[] = [
 
 const documented: ReadonlySet<string> = new Set(ENGINE_ERROR_CODES.flatMap(([codes]) => codes));
 
-/** What `cause` says: an error's message; for another object, its `message` or `code` when it
- *  has one, else its JSON — never `[object Object]`; anything else as text. */
+/** An `EngineError`, of this copy of the engine or of another one bundled beside it: by its
+ *  `name` and its `code`, as `instanceof` sees only its own class. */
+function isEngineError(cause: unknown): cause is Pick<EngineError, 'code' | 'message'> & {
+  details?: Record<string, unknown>;
+} {
+  if (cause instanceof EngineError) return true;
+  const { name, code } = (cause ?? {}) as { name?: unknown; code?: unknown };
+  return name === 'EngineError' && typeof code === 'string';
+}
+
+/** The documented code `cause` carries in `code`, if any. */
+function documentedCode(cause: unknown) {
+  const code = (cause as { code?: unknown } | null | undefined)?.code;
+  return typeof code === 'string' && documented.has(code) ? code : undefined;
+}
+
+/** What `cause` says: an error's message; for another object, its `code` when it is a documented
+ *  one, else its `message`, else its `code`, else its JSON — never `[object Object]`; anything
+ *  else as text. */
 function wordsOf(cause: unknown): string {
   if (cause instanceof Error) return cause.message;
   if (typeof cause !== 'object' || cause === null) return String(cause);
+  const known = documentedCode(cause);
+  if (known) return known;
   const { message, code } = cause as { message?: unknown; code?: unknown };
   if (typeof message === 'string') return message;
   if (typeof code === 'string') return code;
@@ -125,15 +144,20 @@ function wordsOf(cause: unknown): string {
 }
 
 /**
- * `cause` as a named engine error: an `EngineError` of a documented code as it is; an error whose
- * whole message — or an object whose `message` or `code` — is a documented code (the bare
- * `new Error('WEBGPU_LOST')` of the renderers) under that code; anything else, an `EngineError` of
- * a code no page can test included, under `fallback`. A converted error keeps the one thrown in
- * `details.cause`, stack included.
+ * `cause` as a named engine error. An `EngineError` of a documented code as it is — one of
+ * another copy of the engine as this copy's, its message and details kept. Anything else under
+ * the documented code it carries: its `code` first, then its whole message or text (the bare
+ * `new Error('WEBGPU_LOST')` of the renderers) — an engine error's message excepted, which is
+ * prose. Else, an `EngineError` of a code no page can test included, under `fallback`. A
+ * converted error keeps the one thrown in `details.cause`, stack included.
  */
 export function engineErrorOf(cause: unknown, fallback: string, message: string): EngineError {
-  if (cause instanceof EngineError && documented.has(cause.code)) return cause;
+  const engine = isEngineError(cause);
+  if (engine && documented.has(cause.code))
+    return cause instanceof EngineError
+      ? cause
+      : new EngineError(cause.code, cause.message, { ...cause.details, cause });
   const words = wordsOf(cause);
-  const code = !(cause instanceof EngineError) && documented.has(words) ? words : fallback;
+  const code = documentedCode(cause) ?? (!engine && documented.has(words) ? words : fallback);
   return new EngineError(code, `${message}: ${words}`, { cause });
 }
