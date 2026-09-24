@@ -59,7 +59,10 @@ fn the_material_table_carries_every_field_the_engine_reads() {
         json!(0.4),
         "the cutoff of a masked material"
     );
-    assert_eq!(m["map"], json!({"texture":0,"texCoord":1,"transform":null}));
+    assert_eq!(
+        m["map"],
+        json!({"texture":0,"texCoord":1,"slotTexCoord":1,"transform":null})
+    );
     assert_eq!(m["metalnessMap"]["texture"], json!(0));
     assert_eq!(
         m["roughnessMap"]["texture"],
@@ -159,8 +162,34 @@ fn a_texture_transform_is_carried_as_declared() {
     });
     assert_eq!(
         tables["materials"][0]["map"],
-        json!({"texture":0,"texCoord":1,
+        json!({"texture":0,"texCoord":1,"slotTexCoord":0,
             "transform":{"offset":[0.25,0.5],"rotation":0.5,"scale":null}}),
         "the host composes the matrix from what the slot declares; a silent scale stays silent"
     );
+}
+
+#[test]
+fn a_slot_keeps_its_own_coordinate_set_beside_the_one_its_transform_names() {
+    let (_root, tables) = published(|gltf| {
+        gltf["textures"] = json!([{"source":0}]);
+        gltf["images"] = json!([{"uri":"albedo.png"}]);
+        gltf["materials"] = json!([{"pbrMetallicRoughness":{"baseColorTexture":{"index":0,
+            "texCoord":1,"extensions":{"KHR_texture_transform":{"texCoord":0}}}},
+            "emissiveTexture":{"index":0,"texCoord":1,"extensions":{"KHR_texture_transform":{}}}}]);
+        gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
+    });
+    let m = &tables["materials"][0];
+    assert_eq!(
+        m["map"],
+        json!({"texture":0,"texCoord":0,"slotTexCoord":1,
+            "transform":{"offset":null,"rotation":null,"scale":null}}),
+        "the transform's set is sampled; the slot's own is what decides the texture copied"
+    );
+    assert_eq!(
+        m["emissiveMap"]["texCoord"],
+        json!(1),
+        "a silent transform keeps the slot's set"
+    );
+    assert_eq!(m["emissiveMap"]["slotTexCoord"], json!(1));
+    assert_eq!(tables["materialTableVersion"], json!(3));
 }

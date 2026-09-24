@@ -3455,7 +3455,8 @@
     "summary": "Một khe bản đồ đã điền: texture nào, bộ tọa độ nào, và phép biến đổi mà nó khai báo.",
     "members": {
       "texture": "Kết cấu nào.",
-      "texCoord": "Tập UV nào.",
+      "texCoord": "Bộ UV được lấy mẫu: bộ của phép biến đổi khi nó chỉ định một bộ, nếu không thì bộ của chính ô.",
+      "slotTexCoord": "Bộ UV mà chính ô tự chỉ định, trước mọi phép biến đổi: một ô chỉ định bộ khác bộ đầu tiên được vẽ từ một bản sao của texture, bản sao này không ứng với thứ hạng nào.",
       "transform": "`KHR_texture_transform` mà khe khai báo — độ dời, góc xoay tính bằng radian, độ giãn, mỗi cái là `null` khi không nêu — hoặc `null` nếu không có."
     }
   },
