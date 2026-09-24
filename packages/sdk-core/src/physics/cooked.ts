@@ -49,6 +49,26 @@ export interface CookedInstance {
   restitution?: number;
 }
 
+/** A primitive whose collider Jolt refused: it collides with nothing, and is drawn all the same. */
+interface CookRefusal {
+  primitive: number;
+  mesh: number;
+  meshPrimitive: number;
+  /** Jolt's own error. */
+  reason: string;
+}
+
+/** The stage's counts, its largest tolerance and measured distance, and the refused primitives. */
+interface CookReport {
+  colliders: number;
+  instances: number;
+  unplaced: number;
+  triangles: number;
+  hausdorff: number;
+  tolerance: number;
+  refused: CookRefusal[];
+}
+
 /** The whole file. */
 export interface CookedPhysics {
   formatVersion: number;
@@ -56,7 +76,7 @@ export interface CookedPhysics {
   stage: { name: string; version: number };
   colliders: CookedCollider[];
   instances: CookedInstance[];
-  report: Record<string, number>;
+  report: CookReport;
 }
 
 /**

@@ -3798,8 +3798,8 @@
       "gravity": "Apenas personagem: aceleração descendente enquanto sobe, m/s²; 9,80665 por padrão.",
       "fallGravity": "Apenas personagem: aceleração descendente enquanto cai, m/s²; 1,6 g por padrão, para que um pulo não flutue.",
       "airControl": "Apenas personagem: quão rápido as teclas guiam no ar, como fração do início no chão; 0,05 por padrão, 0 é balístico.",
-      "responseTime": "Apenas personagem: segundos para alcançar 95% da velocidade desejada no chão; 0,12 por padrão.",
-      "stopTime": "Apenas personagem: segundos para perder 95% da velocidade quando nenhuma tecla é mantida, no chão; 0,08 por padrão.",
+      "responseTime": "Apenas personagem: segundos que as pernas levam para atingir 95% da velocidade desejada, no chão; 0,12 por padrão. O atrito do piso limita primeiro a partida: uma sola empurra no máximo `μ g`, `μ` a aderência de uma sola de borracha sobre o `material.physics` do piso (pedra sem física), então um trote é atingido em 0,45 s na pedra e 2,2 s no gelo.",
+      "stopTime": "Apenas personagem: segundos que as pernas levam para perder 95% da velocidade quando nenhuma tecla é mantida, no chão; 0,12 por padrão. O atrito do piso limita primeiro a parada: um trote desliza `v² / (2 μ g)`, 0,8 m na pedra e 3,8 m no gelo; um tempo maior freia mais suavemente.",
       "capsuleRadius": "Apenas personagem: raio do corpo, em metros; metade de uma largura de ombro (0,23 m) por padrão.",
       "capsuleHeight": "Apenas personagem: altura do corpo, em metros; 1,75 por padrão.",
       "eyeHeight": "Apenas personagem: altura da câmera acima dos pés, em metros; 1,64 por padrão.",
@@ -6637,7 +6637,7 @@
   },
   "CharacterCameraControls": {
     "summary": "UM PERSONAGEM, visto através de seus olhos: um corpo com massa que anda, corre, pula e cai, e colide com os triângulos do mundo como uma cápsula em pé.",
-    "description": "O ponteiro vira a cabeça como em primeira pessoa (`look.ts`). As teclas, por `KeyboardEvent.code` para que todo layout de teclado use as mesmas teclas: W/S ou as setas para cima e para baixo andam para frente e para trás, A/D ou as setas laterais deslocam de lado, Shift corre, Espaço pula. O corpo não começa nem para de uma vez: ganha velocidade ao longo de `responseTime` e freia ao longo de `stopTime`, mantém seu momento no ar, sobe sob `gravity` e cai sob `fallGravity`, sobe saliências até `stepHeight`, desliza ao longo de paredes e fica de pé em rampas até `maxSlope` (`sdk-core/src/collision/characterBody.ts`). A câmera é o olho, `eyeHeight` acima dos pés, balançando com o passo por `headBob` e mergulhando em um pouso por `landingDip` (`sdk-core/src/collision/characterEye.ts`); ambos são aplicados sobre o olho depois do passo do corpo e nunca movem o corpo. Um host que move a câmera ele mesmo teleporta o corpo até lá, em repouso. Um personagem parado — no chão, sem velocidade, sem tecla, sem mergulho restante — não emite nada, então a cena permanece parada.",
+    "description": "O ponteiro vira a cabeça como em primeira pessoa (`look.ts`). As teclas, por `KeyboardEvent.code` para que todo layout de teclado use as mesmas teclas: W/S ou as setas para cima e para baixo andam para frente e para trás, A/D ou as setas laterais deslocam de lado, Shift corre, Espaço pula. O corpo não começa nem para de uma vez: ganha velocidade ao longo de `responseTime` e freia ao longo de `stopTime`, nunca mais rápido do que o atrito do seu piso deixa uma sola empurrar, de modo que uma parada desliza um pouco na pedra e muito no gelo, mantém seu momento no ar, sobe sob `gravity` e cai sob `fallGravity`, sobe saliências até `stepHeight`, desliza ao longo de paredes e fica de pé em rampas até `maxSlope` (`sdk-core/src/collision/characterBody.ts`). A câmera é o olho, `eyeHeight` acima dos pés, balançando com o passo por `headBob` e mergulhando em um pouso por `landingDip` (`sdk-core/src/collision/characterEye.ts`); ambos são aplicados sobre o olho depois do passo do corpo e nunca movem o corpo. Um host que move a câmera ele mesmo teleporta o corpo até lá, em repouso. Um personagem parado — no chão, sem velocidade, sem tecla, sem mergulho restante — não emite nada, então a cena permanece parada.",
     "members": {
       "velocity": "A velocidade do corpo em metros por segundo, ao vivo: `[x, y, z]`, y para cima.",
       "onGround": "Se os pés estão em um chão.",
@@ -7253,17 +7253,6 @@
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
   },
-  "GraphAngles": {
-    "summary": "A mesma orientação como três ângulos e a sua ordem, anunciando as suas escritas da mesma forma.",
-    "members": {
-      "x": "O primeiro ângulo, em radianos.",
-      "set": "Escreve os três ângulos, e a ordem quando dada; anunciado uma vez.",
-      "setFromRotation": "Os ângulos de `q` nesta ordem (o `Euler` do núcleo); anunciado exceto com `quiet`.",
-      "y": "O segundo ângulo, em radianos.",
-      "z": "O terceiro ângulo, em radianos.",
-      "order": "A ordem em que os três ângulos rodam, `'XYZ'` salvo definição."
-    }
-  },
   "GraphArray": {
     "summary": "Os arrays tipados que um atributo guarda."
   },
@@ -7306,40 +7295,6 @@
   },
   "GraphNodeKind": {
     "summary": "O que um nó do grafo é: um nó simples, a raiz, um grupo, uma malha desenhada (numa colocação ou em várias), um olho, ou uma das luzes que uma cena declara."
-  },
-  "GraphRotation": {
-    "summary": "Uma orientação `(x, y, z, w)` cujas escritas chamam `_onChangeCallback`.",
-    "members": {
-      "x": "O primeiro número.",
-      "set": "Escreve os quatro números, anunciado uma vez.",
-      "copy": "Toma os números de outra rotação.",
-      "fromArray": "Lê quatro números de uma lista.",
-      "setFromAngles": "A rotação de `angles`, na sua ordem (`localTurnQuaternion`); anunciado exceto com `quiet`.",
-      "setFromRotationMatrix": "A rotação do 3×3 superior de uma matriz por colunas cujas colunas têm comprimento unitário.",
-      "premultiply": "Torna-se `q` seguido desta rotação, `q · this`.",
-      "invert": "Torna-se a rotação oposta.",
-      "y": "O segundo número.",
-      "z": "O terceiro número.",
-      "w": "O quarto número."
-    }
-  },
-  "GraphVector": {
-    "summary": "Três números de uma pose ou de um ponto: campos de dados simples, e as operações que um controlador usa.",
-    "members": {
-      "set": "Escreve os três números.",
-      "copy": "Toma os números de outro ponto.",
-      "clone": "Uma cópia.",
-      "add": "Soma outro vetor.",
-      "sub": "Subtrai outro vetor.",
-      "multiplyScalar": "Escala os três números.",
-      "length": "O seu comprimento.",
-      "setLength": "Mantém a direção, define o comprimento.",
-      "distanceTo": "Distância a um ponto.",
-      "fromArray": "Lê três números de uma lista.",
-      "x": "Da esquerda para a direita.",
-      "y": "De baixo para cima.",
-      "z": "De trás para frente."
-    }
   },
   "Joint": {
     "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",

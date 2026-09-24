@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Press Play, then run with W A S D and jump with Space.",
+    "banner": "Press Play, then run with W A S D and jump with Space. Let go early: on stone you glide a little before you stop.",
     "controls": {
       "keys": "The engine's character control: the menu's Play locks the mouse to look, W A S D to run (Z Q S D on AZERTY), Shift to sprint, Space to jump, Escape frees the mouse. The page adds R to run again, M to mute.",
       "look": "Look",
@@ -1957,7 +1957,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Click to look around, then walk with W A S D and jump with Space: climb the stairs and the ramp, ride the platform, push the boxes.",
+    "banner": "Click to look around, then walk with W A S D and jump with Space: climb the stairs and the ramp, ride the platform, push the boxes, and let go of the keys on the ice to slide.",
     "controls": {
       "pushStrength": "Push strength (N)",
       "platformSpeed": "Platform speed",

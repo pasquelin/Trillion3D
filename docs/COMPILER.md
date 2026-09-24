@@ -594,6 +594,13 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
 - **Tiles.** The cut is split along the culling hierarchy: a node whose collision triangles fit
   4096 is one tile, a larger one hands its children down. Each tile is a Jolt `MeshShape` in the
   primitive's frame, with its triangles' material index, stored under its SHA-256.
+  Jolt drops a triangle whose doubled area is under 1e-6, an absolute area: a small object in
+  metres (the chess pieces of `abeautiful-game`) lost most of its surface, and a tile all of it,
+  which Jolt then refused. The cook (`src/mesh.h`, shared with the runtime's triangle meshes)
+  brings such a tile's box to 2^11 by a power of two — past that size Jolt's own 21-bit
+  quantization, relative, is the stricter test — at most 2^19, the largest whose inverse Jolt
+  takes as a scale, and wraps the shape in a `ScaledShape` of the inverse: both scalings are
+  exact, the collider is the drawn cut.
 - **Height fields** (`height.rs`). A primitive whose used vertices sit on an evenly spaced x-z
   lattice, one per point, every triangle within one cell, becomes a `HeightFieldShape`; the largest
   gap between the two diagonals of a cell is published as its `hausdorff`.
@@ -602,7 +609,9 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   is static ground, as drawn, a node declaring motion included: no body simulates a node of a
   compiled model yet.
 
-Primitives without a DAG (skinned, morphed, shared blend) cook no collider.
+Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
+still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s
+`report.refused` names it with Jolt's reason, and the compile goes on, its render cache the same.
 
 ## Cutouts declared as blend
 

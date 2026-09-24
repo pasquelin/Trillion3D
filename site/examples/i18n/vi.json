@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Nhấn Chơi, rồi chạy bằng W A S D và nhảy bằng phím cách.",
+    "banner": "Nhấn Chơi, rồi chạy bằng W A S D và nhảy bằng phím cách. Thả phím sớm: trên đá bạn trượt một chút trước khi dừng.",
     "controls": {
       "keys": "Điều khiển nhân vật của engine: nút Chơi trong menu khóa chuột để nhìn, W A S D để chạy (Z Q S D trên AZERTY), Shift để chạy nhanh, phím cách để nhảy, Esc thả chuột. Trang thêm R để chạy lại, M để tắt tiếng.",
       "look": "Nhìn",
@@ -1957,7 +1957,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng.",
+    "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng, và thả phím trên băng để trượt.",
     "controls": {
       "pushStrength": "Lực đẩy (N)",
       "platformSpeed": "Tốc độ bệ",

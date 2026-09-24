@@ -38,7 +38,6 @@ export { GraphNode } from './node.ts';
 export { GraphScene } from './scene.ts';
 export { GraphSurface } from './surface.ts';
 export { GraphTexture } from './texture.ts';
-export { GraphVector } from './vector.ts';
 export * from './graphLights.fixture.ts';
 
 /** The faces a surface draws, as a surface's `side` holds them (`../../scene/materialSide.ts`). */
