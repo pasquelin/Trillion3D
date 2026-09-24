@@ -79,6 +79,7 @@ export function createAutonomousRender(options: {
     pageBudget: 0,
     pageBudgetHeld: 0,
     pageBudgetFrom: 0,
+    pageBudgetRootError: 0,
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
