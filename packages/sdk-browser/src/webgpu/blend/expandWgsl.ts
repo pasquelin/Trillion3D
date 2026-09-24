@@ -1,5 +1,5 @@
-import { DRAW_UNPAGED, PLAN_SHARED_BIT, PLAN_SHIFT } from './plan.ts';
-import { EXPAND_GROUP, expandUniformWgsl, RUN_WORDS } from './runs.ts';
+import { DRAW_UNPAGED, PLAN_SHARED_BIT, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './plan.ts';
+import { EXPAND_GROUP, expandUniformWgsl, INSTANCE_CULL_SHIFT, RUN_WORDS } from './runs.ts';
 
 /** The kernel's eight storage buffers, in the rank order the shader declares. */
 export const STORAGE_TYPES: GPUBufferBindingType[] = [
@@ -130,13 +130,16 @@ fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u){
  scratch[i]=at;
  let held=instancesOf(i);
  if(held==0u){return;}
- let item=itemOf(i);
+ let entry=plan[uni.orderBase+i];
+ let item=entry>>${PLAN_SHIFT}u;
+ // The cull mode the vertex stage applies, above the item rank, as instanceWord packs it.
+ let word=item|select(0u,(entry&3u)<<${INSTANCE_CULL_SHIFT}u,(entry&${PLAN_VERTEX_CULL_BIT}u)!=0u);
  let d=draws[item];
  if(d.x==${DRAW_UNPAGED}u){
-  for(var j=0u;j<held;j++){expanded[at+j]=vec2u(item,j*d.w);}
+  for(var j=0u;j<held;j++){expanded[at+j]=vec2u(word,j*d.w);}
   return;
  }
- for(var j=0u;j<held;j++){expanded[at+j]=vec2u(item,clusters[d.z+j]);}
+ for(var j=0u;j<held;j++){expanded[at+j]=vec2u(word,clusters[d.z+j]);}
 }
 @compute @workgroup_size(${EXPAND_GROUP})
 fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u){

@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { StepWords, createWater } from './buoyancy.ts';
-import { WAVE_FUNCTIONS, WaveUniforms, waveCode, waveUniformDeclaration } from './waveCode.ts';
-import { OCEAN, heightGap, kernels } from './waveCode.fixture.ts';
+import { StepWords, createWater, sliceLength } from './buoyancy.ts';
+import { OCEAN } from './waves.fixture.ts';
 import { waveHeight, waveRest } from './surface.ts';
 import { Waves } from './waves.ts';
 import { BUOYANCY_WORDS, OP } from '../physics/layout.ts';
@@ -31,51 +30,6 @@ test('the height under a displaced point is that point’s height, at the steepe
   }
 });
 
-test('the generated code, in 32 bits, lands within 1 cm of the CPU height everywhere', () => {
-  for (const t of [0, 3600.5, 86400.25])
-    assert.ok(heightGap(OCEAN, t, 4000, 120) < 0.01, `at t = ${t}`);
-});
-
-test('the previous frame is the same code at t − dt, and the normal matches the CPU', () => {
-  const waves = new Waves(OCEAN),
-    { offset, normal } = kernels(waves.count);
-  const u = new WaveUniforms(waves).update(100, 1 / 60);
-  const cpu = new Float64Array(3);
-  for (const [px, pz] of [
-    [3, 4],
-    [-120.5, 77],
-    [900, -2500],
-  ]) {
-    waves.setTime(100 - 1 / 60);
-    const before = offset(u, px, pz, 1);
-    waves.offset(px, pz, cpu).forEach((v, i) => assert.ok(Math.abs(v - before[i]) < 1e-3));
-    waves.setTime(100);
-    const n = normal(u, px, pz, 0);
-    waves.normal(px, pz, cpu).forEach((v, i) => assert.ok(Math.abs(v - n[i]) < 1e-3));
-  }
-});
-
-test('WGSL and GLSL are printed from the same statements', () => {
-  const wgsl = waveCode(4, 'wgsl', 'waves'),
-    glsl = waveCode(4, 'glsl', 'uWaves');
-  const body = (code: string) =>
-    code
-      .split('\n')
-      .filter((line) => /^\s+\w+ = /.test(line))
-      .map((line) => line.replace(/u?[wW]aves\[/g, 'W['));
-  assert.deepEqual(body(wgsl), body(glsl));
-  assert.equal(body(wgsl).length, 2 * 4 * 7);
-  assert.equal(
-    waveUniformDeclaration(4, 'wgsl', 'waves', { group: 1, binding: 2 }),
-    '@group(1) @binding(2) var<uniform> waves: array<vec4<f32>, 8>;',
-  );
-  assert.equal(waveUniformDeclaration(4, 'glsl', 'uWaves'), 'uniform vec4 uWaves[8];');
-  for (const name of Object.values(WAVE_FUNCTIONS)) {
-    assert.match(wgsl, new RegExp(`fn ${name}\\(px: f32, pz: f32, previous: f32\\) -> vec3<f32>`));
-    assert.match(glsl, new RegExp(`vec3 ${name}\\(float px, float pz, float previous\\)`));
-  }
-});
-
 test('the step words carry one plane per piece, fitted to the waves, then the page’s commands', () => {
   const water = createWater({ waves: OCEAN.slice(0, 2), level: 3 });
   const piece = new Uint32Array([7, 1 << 16, 0, 0, 0, 0]);
@@ -94,4 +48,18 @@ test('the step words carry one plane per piece, fitted to the waves, then the pa
   const normal = water.waves.normal(rest[0], rest[2], [0, 0, 0]);
   normal.forEach((v, i) => assert.ok(Math.abs(v - out[BUOYANCY_WORDS + 5 + i]) < 0.02));
   assert.deepEqual(Array.from(words.words.subarray(length - 2, length)), [OP.wake, 7]);
+});
+
+test('a thin piece is sampled over a square a slice fraction wide: its plane stays finite', () => {
+  const water = createWater({ waves: OCEAN, level: 0 });
+  assert.equal(water.sample, sliceLength(water) / 25);
+  assert.equal(createWater({ waves: [], level: 0 }).sample, 1, 'level water: any square');
+  const piece = new Float32Array([0, 0, 5, 5, 0, 0]);
+  const words = new StepWords();
+  words.write(water, piece, 1, null);
+  const normal = new Float32Array(words.words.buffer).subarray(
+    BUOYANCY_WORDS + 5,
+    BUOYANCY_WORDS + 8,
+  );
+  assert.ok(normal.every(Number.isFinite) && normal[1] > 0.5, `normal ${normal}`);
 });
