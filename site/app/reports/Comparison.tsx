@@ -1,4 +1,5 @@
 import { useWords } from '../i18n.ts';
+import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
 import { METRICS, METRIC_KEYS, metricValue, formatValue } from '../../reports/metrics.ts';
 import { missingMetric } from '../../reports/availability.ts';
@@ -17,10 +18,7 @@ interface ComparisonProps {
 export function Comparison({ a, b, variable, locale }: ComparisonProps) {
   const t = useWords(locale);
   return (
-    <section className="grid min-w-0 grid-cols-1 gap-3">
-      <h4 className="font-semibold">
-        {readingName(a, locale)} / {readingName(b, locale)}
-      </h4>
+    <Section level={4} title={`${readingName(a, locale)} / ${readingName(b, locale)}`}>
       <p className="text-sm leading-relaxed text-base-content/75">{t('report.differenceNote')}</p>
       <Table>
         <thead>
@@ -71,6 +69,6 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
         </tbody>
       </Table>
       <p className="text-sm leading-relaxed text-base-content/75">{t('report.p95')}</p>
-    </section>
+    </Section>
   );
 }

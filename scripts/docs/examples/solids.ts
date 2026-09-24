@@ -1,5 +1,7 @@
 import { facing, gridIndices, solid, type Mesh } from './mesh.ts';
 import type { Vec3 } from './random.ts';
+import { SplineCurve } from '../../../packages/sdk-core/src/world/math/curves.ts';
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts';
 
 /** An axis box centred on the origin, flat-shaded; with `uvScale`, per-face (u, v) in metres. */
 export function box(sx: number, sy: number, sz: number, uvScale?: number): Mesh {
@@ -150,25 +152,11 @@ export function torusKnot(
  * the last point itself: a smooth profile from a few control points.
  */
 export function spline(points: readonly (readonly [number, number])[], count: number) {
-  const padded = [points[0], ...points, points[points.length - 1]],
-    segments = points.length - 1,
-    samples: [number, number][] = [];
-  for (let s = 0; s < count; s++) {
-    const t = (s * segments) / count,
-      i = Math.floor(t),
-      f = t - i,
-      [p0, p1, p2, p3] = padded.slice(i, i + 4);
-    samples.push(
-      [0, 1].map(
-        (k) =>
-          0.5 *
-          (2 * p1[k] +
-            (-p0[k] + p2[k]) * f +
-            (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * f ** 2 +
-            (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * f ** 3),
-      ) as [number, number],
-    );
-  }
+  const curve = new SplineCurve(points.map(([x, y]) => new Vector3(x, y, 0)));
+  const samples = Array.from({ length: count }, (_, s): [number, number] => {
+    const { x, y } = curve.getPoint(s / count);
+    return [x, y];
+  });
   samples.push([...points[points.length - 1]]);
   return samples;
 }
