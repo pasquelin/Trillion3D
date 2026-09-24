@@ -1431,7 +1431,9 @@
     {
       "id": "floating-crates",
       "theme": "physics",
-      "file": "examples/floating-crates.html"
+      "file": "examples/floating-crates.html",
+      "status": "waiting-engine",
+      "issue": 573
     },
     {
       "id": "ten-thousand-bodies",

@@ -18,10 +18,11 @@ export function fixture() {
     version: 1,
     pinned: 1,
     bundleBytes: 65536,
+    maxDependencies: 2,
     pages: [
-      { url: 'bundle-roots', sha256: 'roots', bytes: 12, count: 1 },
-      { url: 'bundle-leaves', sha256: 'leaves', bytes: 48, count: 4 },
-      { url: 'bundle-mid', sha256: 'mid', bytes: 24, count: 2 },
+      { url: 'bundle-roots', sha256: 'roots', bytes: 12, count: 1, dependencies: [] },
+      { url: 'bundle-leaves', sha256: 'leaves', bytes: 48, count: 4, dependencies: [0, 2] },
+      { url: 'bundle-mid', sha256: 'mid', bytes: 24, count: 2, dependencies: [0] },
     ],
   };
   return { ...scene, material: scene.mesh.material as G.GraphSurface };
