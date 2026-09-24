@@ -1,7 +1,7 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import { planItem } from './plan.ts';
 import { buildBlendRuns } from './runs.ts';
-import { rowParked } from '../../placement/rows.ts';
+import { notDrawn } from '../../placement/hidden.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
@@ -77,8 +77,8 @@ function rejectByFrustum(blendState: BlendState) {
   };
   for (let i = 0; i < items.length; i++) {
     const box = items[i].bounds;
-    // A parked row's item is kept out like a rejected one, without counting as rejected.
-    const parked = rowParked(items[i].placement);
+    // A hidden node's or a parked row's item is kept out like a rejected one, without counting as rejected.
+    const parked = notDrawn(items[i]);
     if (
       !parked &&
       box &&

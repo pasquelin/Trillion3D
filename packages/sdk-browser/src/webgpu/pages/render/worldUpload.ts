@@ -17,11 +17,16 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run } = rt,
     { selectionRoots, worldUpdates, rows } = rt.layout;
   const hostWalked = run.gate.updateWorlds(rt.setup.worlds);
-  // A node the host hid or showed parks its roots or takes them back, in every cut.
-  if (hostWalked)
-    followHostVisibility(selectionRoots, (rank, parked) =>
-      run.gpuSelection?.parkWorld(rank, parked),
+  // A node the host hid or showed parks its roots and hides its blend items, or takes them back,
+  // in every cut; the shadow pages its roots covered are drawn again, static casters included.
+  if (hostWalked) {
+    const flipped = followHostVisibility(
+      selectionRoots,
+      { entries: rt.blendState.blendGpu, sourceOf: (item) => item.sourceMesh },
+      (rank, parked) => run.gpuSelection?.parkWorld(rank, parked),
     );
+    if (flipped) rt.lights.plan.worldChanged(flipped.min, flipped.max);
+  }
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
   // What leaves toward the cut kernel is brought back to the eye (`../../../camera/renderOrigin.ts`):
   // a camera that moves therefore changes these sixteen numbers just as much as a moved node. Both
