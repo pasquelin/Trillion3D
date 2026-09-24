@@ -7002,7 +7002,6 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
-      "budget": "Os limites fixos (`budget.physics`), lidos uma vez no arranque da física.",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
       "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`."
     }
@@ -7025,7 +7024,10 @@
       "triangles": "Triângulos de todas as formas estáticas de triângulos ao mesmo tempo.",
       "decorative": "Corpos decorativos ao mesmo tempo.",
       "memoryBytes": "Bytes de memória do módulo de física: um teto rígido, o módulo não pode crescer além dele.",
-      "threads": "Threads que fazem avançar a simulação, incluindo a do worker de física. Acima de 1 precisa de uma página isolada entre origens (memória partilhada); caso contrário a simulação avança numa só. Nunca mais do que os núcleos lógicos da máquina menos o da página."
+      "threads": "Threads que fazem avançar a simulação, incluindo a do worker de física. Acima de 1 precisa de uma página isolada entre origens (memória partilhada); caso contrário a simulação avança numa só. Nunca mais do que os núcleos lógicos da máquina menos o da página.",
+      "bodyPairs": "Pares de corpos cujas caixas se sobrepõem num passo. Uma pilha densa tem cerca de quatro por corpo; um passo que encontre mais perde contactos e lança `PHYSICS_BUDGET`.",
+      "contactConstraints": "Pares em contacto resolvidos num passo. Uma pilha assente tem cerca de dois por corpo; um passo que encontre mais perde contactos e lança `PHYSICS_BUDGET`.",
+      "contactEvents": "Eventos de contacto (`enter`, `leave`) que um passo reporta. Um `enter` além disso é descartado e contado (`world.physics.stats.droppedEvents`) e o seu `leave` nunca é enviado; um `leave` é apenas adiado."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7096,7 +7098,10 @@
       "triangles": "Triângulos de todas as formas estáticas de triângulos ao mesmo tempo.",
       "decorative": "Corpos decorativos ao mesmo tempo.",
       "memoryBytes": "Bytes de memória do módulo de física: um teto rígido, o módulo não pode crescer além dele.",
-      "threads": "Threads que fazem avançar a simulação, incluindo a do worker de física. Acima de 1 precisa de uma página isolada entre origens (memória partilhada); caso contrário a simulação avança numa só. Nunca mais do que os núcleos lógicos da máquina menos o da página."
+      "threads": "Threads que fazem avançar a simulação, incluindo a do worker de física. Acima de 1 precisa de uma página isolada entre origens (memória partilhada); caso contrário a simulação avança numa só. Nunca mais do que os núcleos lógicos da máquina menos o da página.",
+      "bodyPairs": "Pares de corpos cujas caixas se sobrepõem num passo. Uma pilha densa tem cerca de quatro por corpo; um passo que encontre mais perde contactos e lança `PHYSICS_BUDGET`.",
+      "contactConstraints": "Pares em contacto resolvidos num passo. Uma pilha assente tem cerca de dois por corpo; um passo que encontre mais perde contactos e lança `PHYSICS_BUDGET`.",
+      "contactEvents": "Eventos de contacto (`enter`, `leave`) que um passo reporta. Um `enter` além disso é descartado e contado (`world.physics.stats.droppedEvents`) e o seu `leave` nunca é enviado; um `leave` é apenas adiado."
     }
   },
   "PhysicsHost": {
@@ -7136,7 +7141,8 @@
       "stepMs": "Milissegundos do worker por passo fixo, último tick: o relógio do worker, nunca somado ao da página.",
       "mainMs": "Milissegundos de página gastos pela física na última imagem (a etapa de CPU `physics`).",
       "poses": "Poses devolvidas pelo último tick.",
-      "events": "Eventos de contacto devolvidos pelo último tick."
+      "events": "Eventos de contacto devolvidos pelo último tick.",
+      "droppedEvents": "Eventos `enter` descartados desde o arranque da física, além de `budget.physics.contactEvents` num passo (o seu `leave` nunca é enviado)."
     }
   },
   "PhysicsType": {
@@ -7149,7 +7155,6 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
-      "budget": "Os limites fixos (`budget.physics`), lidos uma vez no arranque da física.",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
       "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`."
     }
