@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 4;
+export const PHYSICS_LAYOUT_VERSION = 5;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -20,8 +20,10 @@ export const OP = {
   view: 10,
   flags: 11,
   material: 12,
-  restore: 13,
-  release: 14,
+  character: 13,
+  characterMove: 14,
+  restore: 15,
+  release: 16,
 } as const;
 
 /** How a body moves: fixed, moved by the page, or moved by the simulation. */
@@ -108,3 +110,22 @@ export const EVENT = { begin: 1, end: 2 } as const;
 
 /** What `jolt_error` answers after a failed step. */
 export const MODULE_ERROR = ['NONE', 'BODY_LIMIT', 'UNKNOWN_BODY', 'BAD_SHAPE', 'BAD_COMMAND'];
+
+/**
+ * Words of CHARACTER: `op, radius, height, maxSlope, stepHeight, mass, pushStrength, feet x, y, z`.
+ * It puts the world's one character at rest with its feet there, replacing any before; a radius
+ * of 0 removes it.
+ */
+export const CHARACTER_WORDS = 10;
+/**
+ * Words of CHARACTER_MOVE: `op, vx, vy, vz, grounded` — the velocity the character moves at over
+ * the next step, in m/s, and whether it walks (it then climbs steps and follows the floor down).
+ */
+export const CHARACTER_MOVE_WORDS = 5;
+/**
+ * Words of the character's state after a step: `present, feet x, y, z, ground, ground velocity
+ * x, y, z`; `ground` is `GROUND`, the ground velocity that of the point it stands on.
+ */
+export const CHARACTER_STATE_WORDS = 8;
+/** What the character stands on: a floor, a slope too steep, a touch that holds nothing, air. */
+export const GROUND = { floor: 0, steep: 1, unsupported: 2, air: 3 } as const;

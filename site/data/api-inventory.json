@@ -933,6 +933,7 @@
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/world.ts",
         "packages/sdk-browser/src/world/core/worldCamera.ts",
+        "packages/sdk-browser/src/world/core/worldControlTargets.test.ts",
         "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
         "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
         "packages/sdk-browser/src/world/core/worldControlsPause.test.ts",
@@ -1186,8 +1187,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/camera/controls/characterControls.ts",
-        "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
-        "packages/sdk-browser/src/world/core/worldControlsHandle.ts"
+        "packages/sdk-browser/src/world/core/worldControlTargets.ts",
+        "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/collision/characterCollision\".CharacterCollision"
@@ -2660,6 +2661,7 @@
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/capability/worldReady.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/worldControlTargets.ts",
         "packages/sdk-browser/src/world/core/worldDevice.ts",
         "packages/sdk-browser/src/world/core/worldDiagnostic.test.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts",
@@ -5097,6 +5099,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/contacts.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/placer.ts",
         "packages/sdk-browser/src/physics/poses.ts",
@@ -5112,7 +5115,7 @@
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
-        "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
+        "packages/sdk-browser/src/world/core/worldControlTargets.ts",
         "packages/sdk-browser/src/world/core/worldFrames.test.ts",
         "packages/sdk-browser/src/world/core/worldFrames.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
@@ -8956,6 +8959,34 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/vector2\".Vector4"
+    },
+    {
+      "name": "VehicleDriver",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/vehicle.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/camera/controls/vehicleControls.ts",
+        "packages/sdk-browser/src/world/core/worldControlTargets.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleDriver"
+    },
+    {
+      "name": "VehicleInput",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/vehicle.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/camera/controls/vehicleControls.ts",
+        "packages/sdk-browser/src/world/core/worldControlTargets.test.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleInput"
     },
     {
       "name": "viewToRenderOrigin",
