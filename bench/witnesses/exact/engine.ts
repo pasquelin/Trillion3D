@@ -24,5 +24,4 @@ export {
 export { createBlendCopy } from '../../../packages/sdk-browser/src/cluster/blendCopyMesh.ts';
 export type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
 export type { BackendFactory } from '../../../packages/sdk-browser/src/backend/types.ts';
-export { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 export type { CameraMotion } from '../../../packages/sdk-browser/src/camera/world.ts';
