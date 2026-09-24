@@ -45,7 +45,7 @@ export function repaintHostGraph(
     mesh.geometry = sourceGeometry;
     if (mode === 'beauty') return;
     if (mode === 'wireframe') {
-      const salt = hashId(String(mesh.userData.clusterId ?? mesh.id));
+      const salt = hashId(String(mesh.userData.clusterId ?? mesh.serial ?? mesh.id));
       mesh.geometry = triangleGeometry(sourceGeometry, host, salt, overlays);
       const material = host.triangleMaterial(materialSide(sourceMaterial));
       overlays.push(material);
