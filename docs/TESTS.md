@@ -9,7 +9,7 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 ```
 packages/
   sdk-core/src/       76 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    370 *.test.ts
+  sdk-browser/src/    372 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        20 *.test.ts — architecture, boundaries, public contracts
@@ -32,7 +32,7 @@ scripts/docs/examples/openworld/
   play/               6 *.test.ts — flight, simulation, solids, streaming, view, world
   gltf/               1 *.test.ts — the glTF writer
 site/examples/kit/openworld/
-  sky/                4 *.test.ts — sun, atmosphere, clouds, particles
+  sky/                5 *.test.ts — sun, atmosphere, clouds, particles
 ```
 <!-- tests-inventory:end -->
 

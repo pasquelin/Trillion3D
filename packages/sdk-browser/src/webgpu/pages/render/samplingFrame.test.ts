@@ -8,6 +8,7 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts';
 import { webgpuPagesBackend } from '../pages.ts';
+import { hostTextureWritten } from '../../../host/textureImport.ts';
 
 test('a filter written on a map is in its header before the image that draws it is submitted', async () => {
   installGpuGlobals();
@@ -32,6 +33,7 @@ test('a filter written on a map is in its header before the image that draws it 
     const before = header().length;
     map.magFilter = THREE.LinearFilter;
     map.needsUpdate = true;
+    hostTextureWritten();
     (fixture.material as THREE.MeshBasicMaterial).needsUpdate = true;
     backend.refreshMaterials?.();
     const submitted = gpu.submits.length;
