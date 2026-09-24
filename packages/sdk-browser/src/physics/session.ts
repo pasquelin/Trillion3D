@@ -85,7 +85,7 @@ export function createPhysicsSession(
     },
   };
   const bodies = createPhysicsBodies(writer, budget, host, root);
-  const poses = createPhysicsPoses(budget.bodies);
+  const poses = createPhysicsPoses(budget.bodies, root);
   const view = createPhysicsView();
   const stats: PhysicsStats = { bodies: 0, active: 0, stepMs: 0, mainMs: 0, poses: 0, events: 0 };
   const worker = new Worker(beside('physicsWorker'), { type: 'module' });

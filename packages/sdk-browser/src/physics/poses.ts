@@ -4,9 +4,9 @@ import {
   PHYSICS_STEP,
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts';
-import { NODE_TRS_DIRTY } from '../../../sdk-core/src/math/transform-tree/transformTree.ts';
-import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
+import { createPosePlacer } from './placer.ts';
 
 /** Longest a tick may be drawn over, and longest a late one is extrapolated: the catch-up ceiling. */
 const LONGEST_MS = MAX_CATCH_UP_STEPS * PHYSICS_STEP * 1000;
@@ -19,21 +19,19 @@ const LONGEST_MS = MAX_CATCH_UP_STEPS * PHYSICS_STEP * 1000;
  * late. Past the target, a late tick is extrapolated from the bodies' velocities, for one
  * interval at most. Nothing is drawn once there: a world whose bodies all sleep sends no tick.
  *
- * Every write is a flat one, straight into the node's position, quaternion and transform tree,
- * the world told once for the batch (`_link.posed`): no per-body listener runs.
+ * Every write is a flat one (`placer.ts`): the node's position, quaternion and transform tree,
+ * and the world matrix straight into the row the renderer reads; no per-body listener runs.
  */
-export function createPhysicsPoses(maxBodies: number) {
+export function createPhysicsPoses(maxBodies: number, root: Object3D) {
   const from = new Float32Array(maxBodies * 7),
     to = new Float32Array(maxBodies * 7),
     velocity = new Float32Array(maxBodies * 6);
   const moving = new Int32Array(maxBodies);
   const listed = new Uint8Array(maxBodies);
   let count = 0;
-  /** Where each slot's mesh keeps its pose, bound when a record first names it. */
-  const owner: (Bodied | null)[] = [];
-  const position: Float64Array[] = [],
-    quaternion: Float64Array[] = [];
-  const node = new Int32Array(maxBodies);
+  const placer = createPosePlacer(maxBodies, root);
+  const { owner, place, position, quaternion } = placer;
+  const linear: Float64Array[] = [];
   let start = 0,
     span = 0,
     arrived = -1,
@@ -41,36 +39,8 @@ export function createPhysicsPoses(maxBodies: number) {
     rate = 0,
     awake = false;
   const bind = (index: number, mesh: Bodied) => {
-    owner[index] = mesh;
-    position[index] = mesh.position.elements;
-    quaternion[index] = mesh.quaternion.elements;
-    node[index] = mesh.index;
-  };
-  /** Writes slot `index` at `pose` (7 numbers from `at`), in the mesh and in its tree. */
-  const place = (index: number, pose: ArrayLike<number>, at: number) => {
-    const mesh = owner[index]!;
-    const tree = Object3D._treeOf(mesh);
-    const p = position[index],
-      q = quaternion[index],
-      n = node[index];
-    const tp = tree.position,
-      tq = tree.quaternion;
-    tp[n * 3] = p[0] = pose[at];
-    tp[n * 3 + 1] = p[1] = pose[at + 1];
-    tp[n * 3 + 2] = p[2] = pose[at + 2];
-    tq[n * 4] = q[0] = pose[at + 3];
-    tq[n * 4 + 1] = q[1] = pose[at + 4];
-    tq[n * 4 + 2] = q[2] = pose[at + 5];
-    tq[n * 4 + 3] = q[3] = pose[at + 6];
-    tree.flags[n] |= NODE_TRS_DIRTY;
-    if (mesh._link) placed.push(mesh);
-  };
-  let placed: Bodied[] = [];
-  const tell = () => {
-    // Every body hangs in the one scene: its link hears the whole batch at once, and reads the
-    // list before the next frame, which gets a fresh one.
-    if (placed.length) placed[0]._link!.posed(placed);
-    placed = [];
+    placer.bind(index, mesh);
+    linear[index] = mesh.physics.velocity.elements;
   };
   const pose = new Float32Array(7);
   return {
@@ -96,20 +66,20 @@ export function createPhysicsPoses(maxBodies: number) {
       rate = span > 0 ? ms / span / 1000 : 0;
       let moved = 0;
       awake = false;
+      placer.begin();
       for (let r = 0; r < records; r++) {
         const at = r * POSE_WORDS,
           index = (words[at] & ~ASLEEP_BIT) >>> 0,
           mesh = meshes[index];
         if (!mesh) continue;
         if (owner[index] !== mesh) bind(index, mesh);
-        const physics = mesh.physics,
-          asleep = (words[at] & ASLEEP_BIT) !== 0;
-        physics.asleep = asleep;
-        const linear = physics.velocity.elements;
-        linear[0] = floats[at + 8];
-        linear[1] = floats[at + 9];
-        linear[2] = floats[at + 10];
-        if (asleep && physics.decorative) {
+        const asleep = (words[at] & ASLEEP_BIT) !== 0,
+          v = linear[index];
+        mesh.physics.asleep = asleep;
+        v[0] = floats[at + 8];
+        v[1] = floats[at + 9];
+        v[2] = floats[at + 10];
+        if (asleep && mesh.physics.decorative) {
           place(index, floats, at + 1);
           // Off the moving list: the slot may hold another body before the list is drawn.
           listed[index] = 0;
@@ -128,8 +98,8 @@ export function createPhysicsPoses(maxBodies: number) {
         const same = p[0] === floats[at + 1] && p[1] === floats[at + 2] && p[2] === floats[at + 3];
         if (same && Math.abs(dot) >= 1 - 1e-6 && !listed[index]) continue;
         moved++;
-        from.set(p, o);
-        from.set(q, o + 3);
+        for (let k = 0; k < 3; k++) from[o + k] = p[k];
+        for (let k = 0; k < 4; k++) from[o + 3 + k] = q[k];
         for (let k = 0; k < 7; k++) to[o + k] = floats[at + 1 + k];
         // The shorter way round: a quaternion and its opposite are one rotation.
         if (dot < 0) for (let k = 3; k < 7; k++) to[o + k] = -to[o + k];
@@ -139,7 +109,7 @@ export function createPhysicsPoses(maxBodies: number) {
         if (!listed[index]) moving[count++] = index;
         listed[index] = 1;
       }
-      tell();
+      placer.end();
       start = now;
       return moved;
     },
@@ -151,6 +121,7 @@ export function createPhysicsPoses(maxBodies: number) {
       const alpha = span > 0 ? Math.min(1, elapsed / span) : 1;
       // Past the target, a late tick is extrapolated, for one interval at most.
       const ahead = awake ? Math.min(Math.max(0, elapsed - span), span) * rate : 0;
+      placer.begin();
       for (let i = 0; i < count; i++) {
         const index = moving[i];
         // A slot whose body left, or went to another mesh, waits for that mesh's own record.
@@ -177,11 +148,11 @@ export function createPhysicsPoses(maxBodies: number) {
         pose[4] += h * (wy * w + wz * x - wx * z);
         pose[5] += h * (wz * w + wx * y - wy * x);
         pose[6] -= h * (wx * x + wy * y + wz * z);
-        const n = Math.hypot(pose[3], pose[4], pose[5], pose[6]) || 1;
+        const n = Math.sqrt(pose[3] * pose[3] + pose[4] * pose[4] + pose[5] * pose[5] + pose[6] * pose[6]) || 1;
         for (let k = 3; k < 7; k++) pose[k] /= n;
         place(index, pose, 0);
       }
-      tell();
+      placer.end();
       if (alpha < 1 || (awake && elapsed < 2 * span)) return true;
       for (let i = 0; i < count; i++) listed[moving[i]] = 0;
       count = 0;
