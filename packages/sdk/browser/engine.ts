@@ -50,6 +50,8 @@ export type {
   PhysicsMaterialPreset,
   PhysicsMatter,
   PhysicsOption,
+  PhysicsPart,
+  PhysicsPrimitive,
   PhysicsShape,
   PhysicsType,
 } from '../../sdk-core/src/physics/options.ts';
@@ -137,6 +139,8 @@ export type { TrackballCameraControls } from '../../sdk-browser/src/camera/contr
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
 export type { VehicleDriver, VehicleInput } from '../../sdk-core/src/physics/vehicle.ts';
+export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts';
+export type { WaveSpec } from '../../sdk-core/src/fluids/waves.ts';
 export {
   createEngineCamera,
   defaultEngineCamera,

@@ -9,8 +9,8 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Uniform stride of the fallback path, which keeps one record per primitive. */
 export const UNIFORM_STRIDE = 256;
-/** `viewProj`, the eye, lamp tiles, view flags, the item offset, the texture-feedback phase and
- *  three alignment words: 112 bytes. */
+/** `viewProj`, the eye, lamp tiles, view flags, the item offset, the texture-feedback phase, the
+ *  pixel scale and the target size: 112 bytes. */
 export const BLEND_VIEW_SIZE = 112;
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
@@ -79,6 +79,10 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // A pixel's world size per unit of distance — or its size, under an orthographic camera —:
   // the footprint the transparent surface reads its shadow level at.
   packed[25] = eye ? pixelScaleOf(run.gate.cam.projection, rt.gpu.targetSize[1]) : 0;
+  // The size in pixels of the target both surface passes draw into: the vertex stage's facing test
+  // measures a triangle's area against the rasteriser's snapping there (`facing.ts`).
+  packed[26] = rt.gpu.targetSize[0];
+  packed[27] = rt.gpu.targetSize[1];
   device.queue.writeBuffer(
     buffer,
     0,

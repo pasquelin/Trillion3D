@@ -87,19 +87,27 @@ test('a world without physics starts no worker; enabling it starts one', async (
       started.push(url);
     }
     postMessage(message: { type: string }) {
-      if (message.type === 'clock') clocks.push(message);
+      if (message.type === 'clock' || message.type === 'water') clocks.push(message);
     }
     terminate() {}
   } as unknown as typeof Worker;
   const clocks: unknown[] = [];
+  const lake = { waves: [], level: 2 };
   try {
     const runtime = { invalidate() {}, explorer: null };
     const physics = createWorldPhysics(runtime, new Group(), () => new Camera('perspective'));
     assert.equal(physics.frame(), false);
     assert.equal(started.length, 0);
+    // Water declared before the physics starts reaches the worker with it.
+    physics.handle.water = lake;
     physics.handle.enabled = true;
     await loaded();
     assert.equal(started.length, 1);
+    assert.deepEqual(clocks[0], { type: 'water', water: lake });
+    physics.handle.water = null;
+    assert.deepEqual(clocks.at(-1), { type: 'water', water: null });
+    const steep = { direction: [1, 0], wavelength: 1, amplitude: 1, steepness: 2 } as const;
+    assert.throws(() => (physics.handle.water = { waves: [steep], level: 0 }), RangeError);
     // A time scale of 0 stands still: the worker is paused, never scheduled infinitely far.
     physics.handle.timeScale = 0;
     assert.deepEqual(clocks.at(-1), { type: 'clock', paused: true, timeScale: 0 });
