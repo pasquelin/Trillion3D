@@ -5,7 +5,7 @@
  * declares a physical field. Every other kind is the family of the same name — basic, Lambert,
  * Phong, toon, normal, matcap, depth —, which the engine maps onto its one lighting model on the
  * WebGPU path (`surfaceModel.ts`) and a renderer of the reference library draws as it is
- * (`../../host/three/fromGraph.ts`). Lines, points and sprites are unlit: they wear a basic surface.
+ * (`bench/witnesses/three/fromGraph.ts`). Lines, points and sprites are unlit: they wear a basic surface.
  */
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';

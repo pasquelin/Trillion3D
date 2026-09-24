@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { exactPagesBackend } from '../../measurement/measurement.ts';
+import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts';
 import { webgpuPagesBackend } from './pages.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';

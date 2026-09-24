@@ -1,12 +1,15 @@
-import type { EngineCamera } from '../../camera/world.ts';
-import { asHostLibrary } from '../../host/resources.ts';
-import { clusterColor } from '../../diagnostic/colors.ts';
-import { hashId, screenErrorColor } from '../../diagnostic/colors.ts';
-import { projectedPageError, type PageRec } from '../../page/selection/selection.ts';
-import { triangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
-import { hostDiagnostics } from '../../host/three/sceneAdapter.ts';
-import { materialSide } from '../../scene/materialSide.ts';
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
+import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
+import { clusterColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
+import { hashId, screenErrorColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
+import {
+  projectedPageError,
+  type PageRec,
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
+import { hostDiagnostics } from '../three/sceneAdapter.ts';
+import { materialSide } from '../../../packages/sdk-browser/src/scene/materialSide.ts';
+import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
 import * as THREE from 'three';
 
 type MaterialsOptions = {

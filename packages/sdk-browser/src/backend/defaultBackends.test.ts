@@ -6,8 +6,8 @@ import assert from 'node:assert/strict';
 import { autonomousCacheReady, chooseBackends } from './defaultBackends.ts';
 import { autonomousPagesBackend } from './autonomous/pages.ts';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
-import { exactPagesBackend } from './exact/backend.ts';
-import { referenceBackend } from './referenceBackend.ts';
+import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
+import { referenceBackend } from '../../../../bench/witnesses/referenceBackend.ts';
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
 
 const cache = (autonomousScene: string | null) =>

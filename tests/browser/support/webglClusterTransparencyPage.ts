@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
-import { hostDiagnostics } from '../../../packages/sdk-browser/src/host/three/sceneAdapter.ts';
+import { hostDiagnostics } from '../../../bench/witnesses/three/sceneAdapter.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { drawCoplanarBlend } from './webglClusterCoplanarBlend.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.ts';

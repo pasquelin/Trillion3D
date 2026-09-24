@@ -5,13 +5,13 @@
  * hold cross through `fromGraph.ts`; nothing is computed here.
  */
 import * as THREE from 'three';
-import type { GraphCamera } from '../graph/camera.ts';
-import type { GraphLight } from '../graph/light.ts';
-import type { GraphMesh } from '../graph/mesh.ts';
-import type { GraphNode } from '../graph/node.ts';
-import { resolveCameraWorld } from '../../camera/world.ts';
-import type { HostMaterials } from '../resources.ts';
-import type { GraphGeometry } from '../graph/geometry.ts';
+import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
+import type { GraphLight } from '../../../packages/sdk-browser/src/host/graph/light.ts';
+import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import type { GraphNode } from '../../../packages/sdk-browser/src/host/graph/node.ts';
+import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts';
+import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import { threeGeometry, threeMaterials } from './fromGraph.ts';
 
 const cameras = new WeakMap<GraphCamera, THREE.PerspectiveCamera | THREE.OrthographicCamera>();
