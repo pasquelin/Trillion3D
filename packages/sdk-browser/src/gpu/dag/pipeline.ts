@@ -1,4 +1,6 @@
 import { DAG_SELECTION_SHADER } from './shader/shader.ts';
+import { DAG_BINDING, dagBindEntries } from './shader/bindings.ts';
+import { namedBufferEntries } from '../core/computeBindings.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { withScreenErrorVariant } from './shader/error.ts';
 import { screenErrorVariant } from '../../../../sdk-core/src/index.ts';
@@ -21,21 +23,7 @@ type DagBuffers = {
 export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
   const { clusters, nodes, uniforms, flags, output, work, worlds, frames, pageCones } = buffers;
   return validated(device, async () => {
-    const storage = { type: 'storage' } as const,
-      readOnly = { type: 'read-only-storage' } as const;
-    const layout = device.createBindGroupLayout({
-      entries: [
-        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
-        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
-        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: storage },
-        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: storage },
-        { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: storage },
-        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
-        { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: storage },
-        { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
-      ],
-    });
+    const layout = device.createBindGroupLayout({ entries: dagBindEntries() });
     // The screen-error variant is frozen at shader compile: it no longer changes from
     // session open to session close, and the default text is rendered character for
     // character (`withScreenErrorVariant`).
@@ -58,17 +46,17 @@ export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
       viewOffsetsPipeline = stage('dagViewOffsets');
     const bindGroup = device.createBindGroup({
       layout,
-      entries: [
-        { binding: 0, resource: { buffer: clusters } },
-        { binding: 1, resource: { buffer: nodes } },
-        { binding: 2, resource: { buffer: uniforms } },
-        { binding: 3, resource: { buffer: flags } },
-        { binding: 4, resource: { buffer: output } },
-        { binding: 5, resource: { buffer: work } },
-        { binding: 6, resource: { buffer: worlds } },
-        { binding: 7, resource: { buffer: frames } },
-        { binding: 8, resource: { buffer: pageCones } },
-      ],
+      entries: namedBufferEntries(DAG_BINDING, {
+        clusters: { buffer: clusters },
+        nodes: { buffer: nodes },
+        views: { buffer: uniforms },
+        flags: { buffer: flags },
+        out: { buffer: output },
+        work: { buffer: work },
+        worlds: { buffer: worlds },
+        frames: { buffer: frames },
+        cold: { buffer: pageCones },
+      }),
     });
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous
