@@ -1,11 +1,32 @@
 import type { Texture, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
+import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts';
 
-type TextureRecord = { texture: WebGLTexture; version: number };
+/**
+ * A texture as uploaded: its version, what its pixels were uploaded from, its sampler state —
+ * addressing, filters, anisotropy, UV transform — and the anisotropy set on it.
+ */
+type TextureRecord = {
+  texture: WebGLTexture;
+  version: number;
+  picture: string;
+  image: unknown;
+  sampling: string;
+  anisotropy: number;
+};
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
 
 const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
   value === 'repeat' ? gl.REPEAT : value === 'mirror' ? gl.MIRRORED_REPEAT : gl.CLAMP_TO_EDGE;
+
+/** What a texture's pixels are uploaded from beyond its image. */
+const pictureOf = (texture: Texture) =>
+  `${texture.flipY}:${texture.premultiplyAlpha}:${texture.generateMipmaps}`;
+
+/** A texture's sampler state and placement, the words a version can move without its pixels. */
+const samplingOf = (texture: Texture) =>
+  `${texture.wrapS}:${texture.wrapT}:${texture.magFilter}:${texture.minFilter}:` +
+  `${texture.anisotropy}:${texture.transform.join()}`;
 
 const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
   ({
@@ -59,6 +80,10 @@ export class WebglClusterTextures {
     }
     const key = `${texture.id}:${color ? 'srgb' : 'linear'}`;
     let record = this.records.get(key);
+    if (record && record.version !== texture.version && this.resample(unit, record, texture)) {
+      this.bound[unit] = record.texture;
+      return;
+    }
     if (!record || record.version !== texture.version) {
       if (record) gl.deleteTexture(record.texture);
       const target = gl.createTexture()!;
@@ -85,26 +110,58 @@ export class WebglClusterTextures {
         );
       else if (image) gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image);
       else throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap(gl, texture.wrapS));
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap(gl, texture.wrapT));
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter(gl, texture.magFilter));
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter(gl, texture.minFilter));
       if (texture.generateMipmaps) gl.generateMipmap(gl.TEXTURE_2D);
-      if (this.anisotropy && texture.anisotropy > 1) {
-        const maximum = gl.getParameter(this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT) as number;
-        gl.texParameterf(
-          gl.TEXTURE_2D,
-          this.anisotropy.TEXTURE_MAX_ANISOTROPY_EXT,
-          Math.min(texture.anisotropy, maximum),
-        );
-      }
-      record = { texture: target, version: texture.version };
+      record = {
+        texture: target,
+        version: texture.version,
+        picture: pictureOf(texture),
+        image: texture.image,
+        sampling: samplingOf(texture),
+        anisotropy: 1,
+      };
+      this.setSampler(record, texture);
       this.records.set(key, record);
     } else if (this.bound[unit] !== record.texture) {
       gl.activeTexture(gl.TEXTURE0 + unit);
       gl.bindTexture(gl.TEXTURE_2D, record.texture);
     }
     this.bound[unit] = record.texture;
+  }
+  /**
+   * A version that moved the sampler state or the placement alone — same image, same upload
+   * words — sets the sampler on the texture already held, bound on `unit`: no new upload (#360,
+   * #361). A version that moved neither is pixels written in place: false, uploaded again.
+   */
+  private resample(unit: number, record: TextureRecord, texture: Texture) {
+    const sampling = samplingOf(texture);
+    if (
+      record.image !== texture.image ||
+      record.picture !== pictureOf(texture) ||
+      record.sampling === sampling
+    )
+      return false;
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, record.texture);
+    this.setSampler(record, texture);
+    record.version = texture.version;
+    record.sampling = sampling;
+    return true;
+  }
+  /** Addressing, filters and anisotropy of the texture bound on TEXTURE_2D. Anisotropy follows
+   *  the rule the WebGPU path and the Three witness share (`grantedAnisotropy`). */
+  private setSampler(record: TextureRecord, texture: Texture) {
+    const gl = this.gl;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap(gl, texture.wrapS));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap(gl, texture.wrapT));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter(gl, texture.magFilter));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter(gl, texture.minFilter));
+    if (!this.anisotropy) return;
+    const maximum = gl.getParameter(this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT) as number;
+    const anisotropy = grantedAnisotropy(texture, maximum);
+    if (anisotropy === record.anisotropy) return;
+    gl.texParameterf(gl.TEXTURE_2D, this.anisotropy.TEXTURE_MAX_ANISOTROPY_EXT, anisotropy);
+    record.anisotropy = anisotropy;
   }
   invalidateBindings() {
     this.bound.length = 0;
