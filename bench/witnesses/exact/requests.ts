@@ -1,5 +1,8 @@
-import type { EngineCamera } from '../../camera/world.ts';
-import type { HostAttribute, HostGeometry } from '../../host/resources.ts';
+import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
+import type {
+  HostAttribute,
+  HostGeometry,
+} from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   acceptPageArray,
   collectPendingUrls,
@@ -8,11 +11,17 @@ import {
   selectVisiblePages,
   type PageRec,
   type ClusterRoot,
-} from '../../page/selection/selection.ts';
-import { orderPendingUrls, pixelScaleOf } from '../../streaming/priority.ts';
-import { applyArrivalPlan, createArrivalSpecs } from '../../page/integration/arrivalSpecs.ts';
-import type { ArrivalPlan } from '../../page/integration/host.ts';
-import { ClusterBatches } from '../../cluster/batches.ts';
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import {
+  orderPendingUrls,
+  pixelScaleOf,
+} from '../../../packages/sdk-browser/src/streaming/priority.ts';
+import {
+  applyArrivalPlan,
+  createArrivalSpecs,
+} from '../../../packages/sdk-browser/src/page/integration/arrivalSpecs.ts';
+import type { ArrivalPlan } from '../../../packages/sdk-browser/src/page/integration/host.ts';
+import { ClusterBatches } from '../../../packages/sdk-browser/src/cluster/batches.ts';
 
 export function createExactPagesRequestData(allPages: PageRec[], requestCount: number) {
   const byUrl = indexPagesByUrl(allPages);

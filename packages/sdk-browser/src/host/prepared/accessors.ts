@@ -13,6 +13,7 @@ import {
   GraphAttribute,
   GraphInterleavedAttribute,
   GraphInterleavedBuffer,
+  normalisedUnit,
   type GraphElements,
 } from '../graph/attributes.ts';
 
@@ -27,13 +28,9 @@ const COMPONENTS = {
 } as const;
 /** Components per element of each glTF element type. */
 const WIDTHS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 } as const;
-/** What one unit of a normalised integer is worth: the scale a declared box is read at. */
-export const NORMALISED: Partial<Record<keyof typeof COMPONENTS, number>> = {
-  5120: 1 / 127,
-  5121: 1 / 255,
-  5122: 1 / 32767,
-  5123: 1 / 65535,
-};
+/** What one unit of a normalised element of `componentType` is worth: the scale a declared box is read at. */
+export const normalisedScale = (componentType: number) =>
+  normalisedUnit(COMPONENTS[componentType as keyof typeof COMPONENTS]);
 
 type Attribute = GraphElements;
 

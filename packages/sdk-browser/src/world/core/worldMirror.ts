@@ -42,7 +42,7 @@ function hostGeometry(drawn: DrawnTriangles) {
 
 /** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
  *  mesh rank each geometry resource was given in the session's manifest. */
-export type MirrorInput = {
+type MirrorInput = {
   placed: readonly { cut: Cut; material: Material; rows: PlacementRows; name: string }[];
   models: readonly { node: Object3D; graph: GraphNode }[];
   rankOf: (cut: Cut) => number;

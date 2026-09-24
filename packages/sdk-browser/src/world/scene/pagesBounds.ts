@@ -6,7 +6,7 @@ import { emptyWorldBox } from '../../host/world/bounds.ts';
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from '../../math/batchRuntime.ts';
 import { boxUnionCollector } from '../../math/batchBoxes.ts';
-import type { BackendContext } from '../types.ts';
+import type { BackendContext } from '../../backend/types.ts';
 
 /**
  * World bounds of the exact pages of a prepared scene: what framing and replication read from
@@ -49,7 +49,7 @@ function exactPagesCount(
 }
 
 /** The lot that carries these pages, or `null` when there are none: a reservation, not a frame. */
-export async function exactPagesLot(
+export async function pagesLot(
   source: HostGraphNode,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
@@ -60,7 +60,7 @@ export async function exactPagesLot(
 
 /** World bounds of the exact pages of every mesh of `source`, flat `[minX..maxZ]`; `onMissing`
  *  decides what a mesh without a prepared primitive does, and the mesh is skipped once it returns. */
-export function exactPagesBounds(
+export function pagesBounds(
   source: HostGraphNode,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,

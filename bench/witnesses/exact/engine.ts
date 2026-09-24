@@ -2,22 +2,16 @@
  * The engine modules the exact witness is assembled from, named once: the witness lives beside the
  * bench, and these are the engine's own parts it drives with the host library.
  */
-export {
-  createExactPagesRender,
-  createExactPagesRenderState,
-} from '../../../packages/sdk-browser/src/backend/exact/render.ts';
+export { createExactPagesRender, createExactPagesRenderState } from './render.ts';
 export { createWebglFrameGate } from '../../../packages/sdk-browser/src/webgl/core/frameGate.ts';
-export { createExactPagesCpu } from '../../../packages/sdk-browser/src/backend/exact/cpu.ts';
-export {
-  createExactPagesRequests,
-  createExactPagesRequestData,
-} from '../../../packages/sdk-browser/src/backend/exact/requests.ts';
-export { createExactPagesResidency } from '../../../packages/sdk-browser/src/backend/exact/residency.ts';
+export { createExactPagesCpu } from './cpu.ts';
+export { createExactPagesRequests, createExactPagesRequestData } from './requests.ts';
+export { createExactPagesResidency } from './residency.ts';
 export {
   DEFAULT_CLEAR_COLOR,
   baseCapabilities,
 } from '../../../packages/sdk-browser/src/backend/common.ts';
-export { CONTRACT_LIGHTS_UNSUPPORTED } from '../../../packages/sdk-browser/src/backend/exact/contractLights.ts';
+export { CONTRACT_LIGHTS_UNSUPPORTED } from '../../../packages/sdk-browser/src/lighting/contractLights.ts';
 export {
   contractLightingApi,
   installLighting,

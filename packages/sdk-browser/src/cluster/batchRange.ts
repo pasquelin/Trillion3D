@@ -97,7 +97,7 @@ export class IndexRangeAllocator {
   }
 }
 
-/** Sub-draw list reused from frame to frame. `starts` in bytes (what Three.js expects), `counts` in indices. */
+/** Sub-draw list reused from frame to frame. `starts` in bytes (what `multiDrawElements` expects), `counts` in indices. */
 export class DrawRanges {
   starts = new Int32Array(8);
   counts = new Int32Array(8);
