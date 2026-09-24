@@ -13,7 +13,9 @@ import { quartet } from './maps.ts';
  * To the six maps are therefore added, for a masked-material pixel, as many choices as
  * cascades: the triangle is projected into the cascade, the coordinate derivative per shadow
  * texel comes out — the affine `dpdx` of the shadow pass — and the requested rank is that of
- * this level. Cascades are the sun slice as lighting reads it
+ * this level — the isotropic one, as the shadow pass's cutout reads it (`maskAlpha`); the camera
+ * cutout of a masked material shares the base map's pixels with its shading (`mapRequest`).
+ * Cascades are the sun slice as lighting reads it
  * (`../../lighting/direct/shadowWgsl.ts`), copied into the pass uniform: binding the slice buffer would give
  * it one more lifetime on the bind group — rebuilt when a shadow is born or dies —
  * for five hundred bytes copied per frame. The host shader declares `uni.sun`, `uni.feedback`,
@@ -52,9 +54,9 @@ fn shadeRequest(page:PageInfo,h:ClusterHeader,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:v
  if(p.sel>=MAP_CHOICES&&HAS_MASK){
   let uva=pageUv(page,h,i0);
   let g=cascadeGradient(p.sel-MAP_CHOICES,w0,w1,w2,pageUv(page,h,i1)-uva,pageUv(page,h,i2)-uva,wp);
-  if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,${quartet('base')},g.xy,g.zw,p.next,p.along);}
+  if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,${quartet('base')},g.xy,g.zw,p.next,1u,false);}
  }
- return mapRequest(p.sel,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,page.wrapModes,ddx,ddy,p.next,p.along);
+ return mapRequest(p,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,page.wrapModes,ddx,ddy,HAS_MASK);
 }`;
 
 /**
