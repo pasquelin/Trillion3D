@@ -12,18 +12,34 @@ import { Waves, type WaveSpec } from './waves.ts';
 
 /** Fresh water, kg/m³. */
 const WATER_DENSITY = 1000;
-/** Smallest half side of a piece's sample square, metres: a thin piece still reads a slope. */
-const MIN_HALF = 0.05;
+/**
+ * Declared drags, Jolt's quadratic coefficients (`Body::ApplyBuoyancyImpulse`). The linear one is
+ * a drag coefficient: 0.5 is a sphere's (0.47), between a streamlined body (0.04) and a cube face
+ * on (1.05). The angular one damps a body's turning in the water. Neither changes where a body
+ * floats — the depth at rest follows from the densities alone — only how fast it settles there
+ * and how fast a current carries it: doubling one roughly halves the time a body takes to settle.
+ */
+const LINEAR_DRAG = 0.5,
+  ANGULAR_DRAG = 0.05;
+/**
+ * Slices per smallest sample square. A piece's plane is fitted over a square of its own half
+ * sides, never smaller than the slice length over this: the fitted slope is the tangent's times
+ * `sin(kh) / kh`, so at `kh = π / 25` a thin piece reads the shortest wave's slope within 0.3 %,
+ * the longer waves' closer still. Sensitivity: only pieces thinner than that square see it.
+ */
+const SAMPLES_PER_SLICE = 25;
 
-/** A body of water as the page declares it to the physics worker (structured-clone safe). */
+/** A body of water the bodies float in, as `world.physics.water` takes it. */
 export interface WaterSpec {
+  /** The Gerstner waves of the surface; none for still water. */
   waves: WaveSpec[];
   /** Height of the surface at rest, metres. */
   level: number;
-  /** kg/m³ (`WATER_DENSITY` by default). */
+  /** kg/m³; fresh water's 1000 by default. */
   density?: number;
-  /** Jolt's quadratic drag coefficient and its angular drag. */
+  /** Quadratic drag coefficient: how fast a body settles, never where; 0.5 by default. */
   linearDrag?: number;
+  /** How much the water damps a body's turning; 0.05 by default. */
   angularDrag?: number;
   /** Velocity of the water (a river's current), m/s. */
   current?: readonly [number, number, number];
@@ -37,23 +53,28 @@ export interface Water {
   linearDrag: number;
   angularDrag: number;
   current: readonly [number, number, number];
+  /** Smallest half side of a piece's sample square, metres (`SAMPLES_PER_SLICE`). */
+  sample: number;
 }
 
 /** Resolves a declared water body. */
 export function createWater(spec: WaterSpec): Water {
+  const waves = new Waves(spec.waves);
   return {
-    waves: new Waves(spec.waves),
+    waves,
     level: spec.level,
     density: spec.density ?? WATER_DENSITY,
-    linearDrag: spec.linearDrag ?? 0.5,
-    angularDrag: spec.angularDrag ?? 0.05,
+    linearDrag: spec.linearDrag ?? LINEAR_DRAG,
+    angularDrag: spec.angularDrag ?? ANGULAR_DRAG,
     current: spec.current ?? [0, 0, 0],
+    // Level water has a level plane over any square: its size is then free, 1 m.
+    sample: sliceLength({ waves }) / SAMPLES_PER_SLICE || 1,
   };
 }
 
 /** Length past which a single primitive is cut into slices, each with its own plane: half the
  *  shortest wavelength (0 without waves: no slices). */
-export function sliceLength(water: Water) {
+export function sliceLength(water: Pick<Water, 'waves'>) {
   let shortest = Infinity;
   for (let i = 0; i < water.waves.count; i++)
     if (water.waves.amplitude[i] > 0) shortest = Math.min(shortest, Math.PI / water.waves.k[i]);
@@ -94,8 +115,8 @@ export class StepWords {
         to = BUOYANCY_WORDS + i * PLANE_WORDS;
       const x = read[from + 2],
         z = read[from + 3],
-        hx = Math.max(read[from + 4], MIN_HALF),
-        hz = Math.max(read[from + 5], MIN_HALF);
+        hx = Math.max(read[from + 4], water.sample),
+        hz = Math.max(read[from + 5], water.sample);
       // The exact height at the centre; the slope from the surface points the rest square
       // around the centre's rest point is carried to (their two diagonals' cross product).
       const waves = water.waves,
