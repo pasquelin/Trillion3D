@@ -6,8 +6,6 @@
  * block, the readback shape and the page-cone convention — so neither side owns the other.
  */
 import { FRUSTUM_PLANE_VALUES, maxStretch } from '../../../../sdk-core/src/index.ts';
-import { OPEN_CONE, type NormalCone } from '../../page/cone/cone.ts';
-import { surfaceFrontOnly, type PageSurface } from '../../page/surface.ts';
 import { sameElements } from '../../math/matrixElements.ts';
 import { pixelScaleOf } from '../../streaming/priority.ts';
 import type { EngineCamera } from '../../camera/world.ts';
@@ -62,7 +60,13 @@ export type SelectionResult = {
    *  back through the CPU cut rather than adopt them (`../dag/layout.ts`). */
   truncated?: boolean;
 };
-export type GpuCut = { uniforms: SelectionUniforms; result: SelectionResult };
+/** A readback and its uniforms (`../../webgpu/cut/adoption.ts`). */
+export type GpuCut = {
+  uniforms: SelectionUniforms;
+  result: SelectionResult;
+  /** Pose revision it was cut under: behind the selection's, it streams, counts, holds no image. */
+  worldRevision?: number;
+};
 /**
  * Pages whose residency flag just changed, in increasing order. `sorted` false means the list
  * no longer describes the set: the reader then starts over from every page.
@@ -76,7 +80,9 @@ export type GpuSelection = {
   /** Index in u32 words of the current-frame drawable page mask. */
   readonly maskOffset: number;
   readonly pageCount: number;
-  updateWorlds(worldMatrices: Float32Array): boolean;
+  readonly worldRevision: number;
+  /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved. */
+  updateWorlds(worldMatrices: Float32Array, posesMoved?: boolean): boolean;
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void;
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges): boolean;
@@ -141,11 +147,6 @@ export function copySelectionUniforms(source: SelectionUniforms): SelectionUnifo
     cameraStretch: source.cameraStretch,
     perspective: source.perspective,
   };
-}
-
-export function leafCone(page: { cone?: NormalCone; material?: PageSurface }): NormalCone {
-  if (page.material && !surfaceFrontOnly(page.material)) return OPEN_CONE;
-  return page.cone ?? OPEN_CONE;
 }
 
 export function cameraSelectionUniforms(
