@@ -29,7 +29,8 @@ export interface StatsWorld extends ProfiledWorld<{ metrics: FrameCounters }> {
 export interface StatsSample extends FrameCounters {
   fps: number | null;
   held: boolean;
-  /** The last frame measured no GPU time (a held image): `gpuFrameMs` is the last one measured. */
+  /** True before the first sample, from a held image until the next device sample, without
+   *  `timestamp-query`, or on WebGL2: `gpuFrameMs` is the last one measured. */
   gpuFrameLast?: boolean;
   sceneTriangles: number | null;
 }
