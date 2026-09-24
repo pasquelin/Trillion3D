@@ -18,13 +18,15 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from '../options.ts';
 import { ASSETS } from '../scene.ts';
-import { baySubdivision, facadePlan, facadeWalls, random, type WallMesh } from './facadeModel.ts';
+import { mulberry32 } from '../../../site/examples/kit/random.ts';
+import { baySubdivision, facadePlan, facadeWalls, type WallMesh } from './facadeModel.ts';
 import { facadeTexture } from './facadeTexture.ts';
 
 const TEXTURE_FILE = 'facade-checker.png';
 
 /** Between two and four hundred thousand triangles, the count drawn from the seed like the rest. */
-export const defaultTriangles = (seed: number) => 200_000 + Math.round(random(seed)() * 200_000);
+export const defaultTriangles = (seed: number) =>
+  200_000 + Math.round(mulberry32(seed)() * 200_000);
 
 const aligned = (value: number) => (value + 3) & ~3;
 

@@ -29,8 +29,9 @@ export function createDocsServer(root = SITE_OUTPUT): Server {
       if ((await stat(file)).isDirectory()) file = resolve(file, 'index.html');
       response.setHeader('Content-Type', types[extname(file)] ?? 'application/octet-stream');
       response.setHeader('Cache-Control', 'no-store');
-      // Cross-origin isolation, as the published site should answer: `SharedArrayBuffer` for the
-      // physics. `credentialless` still lets the consent panel and its analytics load (#381).
+      // Cross-origin isolation, as the published site answers (checked by the deploy, pages.yml):
+      // `SharedArrayBuffer` for the physics. `credentialless` still lets the consent panel and its
+      // analytics load (#381).
       response.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
       response.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
       response.end(await readFile(file));

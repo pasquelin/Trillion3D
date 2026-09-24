@@ -4,9 +4,9 @@ import { Matrix3, Matrix4 } from '../math/matrix4.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Ray } from '../math/volumes.ts';
 import type { Box3 } from '../math/box3.ts';
-import type { Geometry } from '../geometry/geometry.ts';
 import { forEachReadNode, meshTriangles } from '../../collision/meshTriangles.ts';
-import { buildTriangleTree, type TriangleTree } from '../../collision/triangleTree.ts';
+import { buildTriangleTree } from '../../collision/triangleTree.ts';
+import { heldTree, holdTree } from './raycastTrees.ts';
 import { nearestTriangleOnRay } from '../../collision/triangleQuery.ts';
 import { triangleNormal } from '../../collision/closest.ts';
 
@@ -32,18 +32,18 @@ const inverse = new Matrix4(),
   entry = new Vector3(),
   faceNormal = new Float64Array(3);
 
-/** The triangle tree of each shape a ray was cast at, in the shape's own frame, with each tree
- *  triangle's rank; built again once the shape changed (`Geometry.version`). */
-const trees = new WeakMap<Geometry, { version: number; tree: TriangleTree; ranks: Uint32Array }>();
+/** The triangle tree of the shape a ray is cast at, in the shape's own frame, with each tree
+ *  triangle's rank: the cached one (`raycastTrees.ts`), or built again once the shape changed
+ *  (`Geometry.version`). */
 function shapeTree(mesh: Mesh) {
   const geometry = mesh.geometry;
-  const held = trees.get(geometry);
-  if (held?.version === geometry.version) return held;
+  const held = heldTree(geometry);
+  if (held) return held;
   const triangles = meshTriangles(mesh, null);
   if (!triangles) return null;
   const ranks = new Uint32Array(triangles.length / 9);
   const built = { version: geometry.version, tree: buildTriangleTree(triangles, ranks), ranks };
-  trees.set(geometry, built);
+  holdTree(geometry, built);
   return built;
 }
 
