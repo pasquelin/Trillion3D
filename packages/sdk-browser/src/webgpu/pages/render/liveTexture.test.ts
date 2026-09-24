@@ -5,10 +5,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts';
-import { webgpuPagesBackend } from '../pages.ts';
+import { disposeQuadRun } from '../testScenes.fixture.ts';
+import { mappedQuadRun } from './mappedQuad.fixture.ts';
 import { hostTextureWritten } from '../../../host/textureImport.ts';
 
 type Labelled = { label?: string; destroyed?: boolean };
@@ -38,25 +36,10 @@ function spy(device: GPUDevice) {
 }
 
 test('a map redrawn for 120 frames is copied in place, one working texture kept', async () => {
-  installGpuGlobals();
-  const gpu = mockGpu();
   const pixels = new Uint8Array([255, 0, 0, 255]);
   const map = G.dataTexture(pixels, 1, 1);
-  map.needsUpdate = true;
-  const fixture = quadScene();
-  const surface = fixture.material as G.GraphSurface;
-  surface.map = map;
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: gpu.device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { gpu, fixture, surface, backend, cam } = await mappedQuadRun(map);
   try {
-    await backend.prepare();
-    const cam = camera();
-    backend.render(cam);
-    await backend.flush?.();
     const scratches = () => gpu.textures.filter((t) => t.label === 'Trillion3D texture scratch');
     const made = scratches().length;
     const { writes, copies } = spy(gpu.device);
