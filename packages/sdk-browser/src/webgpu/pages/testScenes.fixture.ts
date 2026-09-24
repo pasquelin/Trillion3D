@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import assert from 'node:assert/strict';
 import { dagRoots } from './testDag.fixture.ts';
 import { webgpuPagesBackend } from './pages.ts';
@@ -17,9 +17,7 @@ import {
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
 export function quadScene() {
-  const { geometry, material, mesh, source } = quadMesh(
-    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-  );
+  const { geometry, material, mesh, source } = quadMesh(G.basicSurface({ color: 0xff0000 }));
   const pages = dagRoots(
     [0, 1].map((id) => ({
       id,
@@ -132,7 +130,7 @@ export function assertBothQuadPagesDrawn(
 /** Releases a backend and the quad it was mounted on. */
 export function disposeQuadRun(
   backend: { dispose(): void },
-  fixture: { geometry: THREE.BufferGeometry; material: THREE.Material },
+  fixture: { geometry: G.GraphGeometry; material: G.GraphSurface },
 ) {
   backend.dispose();
   fixture.geometry.dispose();
@@ -142,11 +140,11 @@ export function disposeQuadRun(
 export function mixedBinScene() {
   const geoA = triangleGeometry([-1, -1, 0, 1, -1, 0, 1, 1, 0]);
   const geoB = triangleGeometry([-1, -1, 0, 1, 1, 0, -1, 1, 0]);
-  const front = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.FrontSide }),
-    both = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
-  const meshA = new THREE.Mesh(geoA, front),
-    meshB = new THREE.Mesh(geoB, both),
-    source = new THREE.Group();
+  const front = G.basicSurface({ color: 0xff0000, side: G.FRONT_SIDE }),
+    both = G.basicSurface({ color: 0x00ff00, side: G.DOUBLE_SIDE });
+  const meshA = G.mesh(geoA, front),
+    meshB = G.mesh(geoB, both),
+    source = new G.GraphGroup();
   source.add(meshA, meshB);
   const box = rootPage('0', [-1, -1, 0], [1, 1, 0]);
   return {
@@ -166,8 +164,8 @@ export function rootPage(url: string, min: number[], max: number[]) {
 
 /** Two primitives, one per mesh, each carrying its own root cluster over the first triangle. */
 export function twoPrimitives(
-  meshA: THREE.Mesh,
-  meshB: THREE.Mesh,
+  meshA: G.GraphMesh,
+  meshB: G.GraphMesh,
   pageA: ReturnType<typeof rootPage>,
   pageB: ReturnType<typeof rootPage>,
 ) {

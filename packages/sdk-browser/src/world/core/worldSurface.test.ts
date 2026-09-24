@@ -1,5 +1,5 @@
 import test from 'node:test';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
@@ -84,7 +84,7 @@ test('a repaint sends a map’s picture again at every version, with its values'
     assert.ok(host.version > version, `${change}: sent again`);
     assert.equal(host.image, map.image, 'the picture the texture shows');
     assert.ok((surface.version as number) > surfaceVersion, 'the values written');
-    assert.equal((surface.color as THREE.Color).getHex(), 0xff0000);
+    assert.equal((surface.color as G.Color).getHex(), 0xff0000);
   }
 });
 

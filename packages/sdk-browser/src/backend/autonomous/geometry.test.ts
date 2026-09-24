@@ -3,7 +3,7 @@
 // Oracle: the version before batch G, copied as is in `../../../../../bench/oracles/browser/autonomous-backend.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import { referenceAutonomousSync } from '../../../../../bench/oracles/browser/autonomous-backend.ts';
 import type { PageRec } from '../../page/selection/types.ts';
@@ -31,12 +31,12 @@ function makeRec(id: number, triangles: number): Required<Pick<PageRec, 'mesh'>>
     min: [0, 0, 0],
     max: [1, 1, 1],
     depthLayer: 0,
-    attributes: {} as THREE.BufferGeometry['attributes'],
-    material: surfaceOf({} as unknown as THREE.Material),
-    declaration: {} as THREE.Material,
-    matrix: new THREE.Matrix4(),
+    attributes: {} as G.GraphGeometry['attributes'],
+    material: surfaceOf({} as unknown as G.GraphSurface),
+    declaration: {} as G.GraphSurface,
+    matrix: new G.Matrix4(),
     renderOrder: 0,
-    geometry: {} as THREE.BufferGeometry,
+    geometry: {} as G.GraphGeometry,
     // The oracle copies a host matrix; the engine reads the sixteen floats of the contract.
     mesh: { matrix: { fromArray: () => {} } } as unknown as Required<PageRec>['mesh'],
     attached: false,
@@ -153,10 +153,10 @@ test('a large DAG with random churn matches the oracle exactly, cut after cut', 
 // material lacks one: 430 meshes attached, 430 draw calls, zero triangle on screen.
 test('an attached page wears the host declaration, not the engine surface record', () => {
   const { scene, meshes } = fakeScene();
-  const declaration = new THREE.MeshStandardMaterial();
+  const declaration = G.standardSurface();
   const rec: PageRec = {
     ...makeRec(0, 1),
-    geometry: new THREE.BufferGeometry() as PageRec['geometry'],
+    geometry: new G.GraphGeometry() as PageRec['geometry'],
     mesh: undefined,
     declaration,
     material: surfaceOf(declaration),
@@ -165,13 +165,13 @@ test('an attached page wears the host declaration, not the engine surface record
   createAutonomousGeometry(environnement(scene, [rec], shown)).sync();
   const [attached] = [...meshes] as Required<PageRec>['mesh'][];
   assert.equal(attached.material, declaration);
-  assert.equal((attached.material as THREE.Material).visible, true);
+  assert.equal((attached.material as G.GraphSurface).visible, true);
   declaration.dispose();
 });
 
 test('the store keeps a page by page, checked against the catalogue even when nothing draws it', () => {
   const { scene } = fakeScene();
-  const material = new THREE.MeshStandardMaterial();
+  const material = G.standardSurface();
   const empty = { url: 'p.bin', array: undefined, geometry: undefined };
   const recs = [0, 1].map((id) => ({ ...makeRec(id, 1), ...empty }));
   const env = environnement(scene, recs, []);

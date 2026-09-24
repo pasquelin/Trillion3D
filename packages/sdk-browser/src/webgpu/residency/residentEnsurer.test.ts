@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
-const DUMMY_MATRIX = new THREE.Matrix4();
-const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
+const DUMMY_MATRIX = new G.Matrix4();
+const DUMMY_ATTRIBUTES: G.GraphGeometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 const pageOf = (url: string): PageRec => ({
   id: 0,

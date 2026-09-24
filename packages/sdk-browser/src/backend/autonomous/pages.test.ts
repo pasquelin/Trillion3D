@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
 import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
 import { autonomousPagesBackend } from './pages.ts';
@@ -13,12 +13,12 @@ function triangleBackend(link: { placements?: PlacementRows } = {}) {
   const encoded = encodeGeometryPage([0, 1, 2], {
     POSITION: { itemSize: 3, array: position },
   });
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
-  geometry.setIndex([0, 1, 2]);
-  const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', new G.GraphAttribute(position, 3));
+  geometry.setIndex(G.indices([0, 1, 2]));
+  const material = G.basicSurface({ side: G.DOUBLE_SIDE }),
+    mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   const descriptor = {
     url: 'triangle-geometry.bin',
@@ -71,7 +71,7 @@ function triangleBackend(link: { placements?: PlacementRows } = {}) {
     readGeometryPage: async () => encoded.data,
     maxResidentPages: 2,
   });
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 5;
   camera.lookAt(0, 0, 0);
   return { backend, camera, encoded, geometry, material };
@@ -83,18 +83,12 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     await backend.prepare();
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1);
-    backend.addInstance?.(
-      'copy',
-      new THREE.Matrix4().makeTranslation(1, 0, 0).toArray(new Float64Array(16)),
-    );
+    backend.addInstance?.('copy', new G.Matrix4().makeTranslation(1, 0, 0).elements.slice());
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 2);
-    backend.updateInstance?.(
-      'copy',
-      new THREE.Matrix4().makeTranslation(2, 0, 0).toArray(new Float64Array(16)),
-    );
+    backend.updateInstance?.('copy', new G.Matrix4().makeTranslation(2, 0, 0).elements.slice());
     backend.render(camera);
-    const copies = backend.scene.children.filter((o) => (o as THREE.Mesh).isMesh) as THREE.Mesh[];
+    const copies = backend.scene.children.filter((o) => (o as G.GraphMesh).isMesh) as G.GraphMesh[];
     assert.ok(copies.some((copy) => copy.matrix.elements[12] === 2));
     // The contract carries material parameters, not a host material: the engine builds its own.
     const red: Material = {
@@ -108,9 +102,9 @@ test('autonomous pages add, move and remove an instance while keeping page cover
       alphaCutoff: 0.5,
     };
     backend.updateMaterial?.('0/0', red);
-    const painted = copies.map((copy) => copy.material as THREE.MeshStandardMaterial);
-    assert.ok(painted.every((material) => material.side === THREE.DoubleSide));
-    assert.ok(painted.every((material) => material.color.getHex() === 0xff0000));
+    const painted = copies.map((copy) => copy.material as G.GraphSurface);
+    assert.ok(painted.every((material) => material.side === G.DOUBLE_SIDE));
+    assert.ok(painted.every((material) => (material.color as G.Color).getHex() === 0xff0000));
     assert.equal(new Set(painted).size, 1);
     const replacementPage = decodeGeometryPage(encoded.data);
     replacementPage.attributes.position[0] = -0.25;
@@ -118,7 +112,7 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     backend.acceptGeometryPage?.('triangle-geometry.bin', decodeGeometryPage(encoded.data));
     backend.dropPage?.('triangle-geometry.bin');
     backend.render(camera);
-    const updated = backend.scene.children.find((o) => (o as THREE.Mesh).isMesh) as THREE.Mesh;
+    const updated = backend.scene.children.find((o) => (o as G.GraphMesh).isMesh) as G.GraphMesh;
     assert.equal(updated.geometry.getAttribute('position').getX(0), -0.25);
     assert.equal(backend.metrics().submittedTriangles, 2);
     backend.removeInstance?.('copy');
@@ -133,7 +127,7 @@ test('autonomous pages add, move and remove an instance while keeping page cover
 
 test('a full instance buffer grows in place: its rows kept, the new ones drawn once taken', async () => {
   const from = createPlacementRows(1);
-  from.matrices.set(new THREE.Matrix4().toArray());
+  from.matrices.set(new G.Matrix4().toArray());
   from.live[0] = 1;
   const { backend, camera, geometry, material } = triangleBackend({ placements: from });
   try {
@@ -141,7 +135,7 @@ test('a full instance buffer grows in place: its rows kept, the new ones drawn o
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1);
     const held = backend.metrics().geometryAllocationBytes;
-    backend.addInstance!('copy', new THREE.Matrix4().toArray(new Float64Array(16)));
+    backend.addInstance!('copy', new G.Matrix4().elements.slice());
     assert.equal(backend.metrics().geometryAllocationBytes, held, 'the rows geometry is shared');
     backend.removeInstance!('copy');
     assert.equal(backend.metrics().geometryAllocationBytes, held, 'and not freed with it');
@@ -151,7 +145,7 @@ test('a full instance buffer grows in place: its rows kept, the new ones drawn o
     backend.growPlacements!(from, to);
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1, 'the new row is parked');
-    to.matrices.set(new THREE.Matrix4().makeTranslation(1, 0, 0).toArray(), 16);
+    to.matrices.set(new G.Matrix4().makeTranslation(1, 0, 0).toArray(), 16);
     to.live[1] = 1;
     backend.updatePlacements!(to, 1, 1);
     backend.render(camera);
@@ -190,7 +184,7 @@ test('the WebGL2 path holds the geometry pool and publishes it in its metrics', 
     assert.deepEqual([geometryPoolBytes, submittedTriangles], [1, 1]);
     assert.deepEqual(report.residentPages, { before: 1, after: backend.metrics().residentPages });
     // A classic instance holds its own copy of the page, a second slot; rows share theirs.
-    backend.addInstance!('copy', new THREE.Matrix4().toArray(new Float64Array(16)));
+    backend.addInstance!('copy', new G.Matrix4().elements.slice());
     assert.equal(backend.metrics().geometryPoolSlots, 2);
   } finally {
     backend.dispose();

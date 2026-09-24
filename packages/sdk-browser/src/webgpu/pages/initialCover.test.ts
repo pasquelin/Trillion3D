@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts';
 import { webgpuPagesBackend } from './pages.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
@@ -12,18 +12,18 @@ import { coarseQuadScene } from './testOccluder.fixture.ts';
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
+    G.floatAttribute(
       [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, 100, -1, 0, 102, -1, 0, 102, 1, 0],
       3,
     ),
   );
-  geometry.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6]);
-  const material = new THREE.MeshBasicMaterial(),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 4, 5, 6]));
+  const material = G.basicSurface(),
+    mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   const pages = dagRoots([
     {

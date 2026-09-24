@@ -5,7 +5,7 @@
 // what the boundary built on a REAL host scene and reads the graph back.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from './graph/graph.fixture.ts';
 import {
   colouredHostSurface,
   hostPageBytes,
@@ -52,13 +52,13 @@ test('a page mesh built here is a node the host graph accepts, posed and ordered
   const declaration = hostPageSurface(CONTRACT, false);
   const mesh = hostPageMesh(geometry, declaration, 7);
   scene.add(mesh);
-  const [drawn] = scene.children as unknown as THREE.Mesh[];
-  assert.equal(drawn, mesh as unknown as THREE.Mesh, 'the host kept the node it was given');
+  const [drawn] = scene.children as unknown as G.GraphMesh[];
+  assert.equal(drawn, mesh as unknown as G.GraphMesh, 'the host kept the node it was given');
   assert.equal(drawn.material, declaration);
   assert.equal(drawn.renderOrder, 7);
   assert.equal(drawn.matrixAutoUpdate, false, 'the pose is written, never recomposed');
   assert.equal(drawn.frustumCulled, false, 'the cut has already decided what is drawn');
-  const pose = new THREE.Matrix4().makeTranslation(1, 2, 3);
+  const pose = new G.Matrix4().makeTranslation(1, 2, 3);
   setHostPose(mesh, pose);
   assert.deepEqual(drawn.matrix.toArray(), pose.toArray());
   const repaint = hostPageSurface({ ...CONTRACT, alphaMode: 'opaque' }, true);
@@ -71,7 +71,7 @@ test('a page mesh built here is a node the host graph accepts, posed and ordered
 
 test('a page geometry carries the box the page declares, its index and its component counts', () => {
   const geometry = hostPageGeometry(page(), itemSize, [0, 0, -1], [1, 1, 2]);
-  const host = geometry as unknown as THREE.BufferGeometry;
+  const host = geometry as unknown as G.GraphGeometry;
   assert.deepEqual(host.getIndex()!.array, new Uint32Array([0, 1, 2]));
   assert.deepEqual(
     [geometry.attributes.position.itemSize, geometry.attributes.uv.itemSize],
@@ -95,18 +95,18 @@ test('a page geometry carries the box the page declares, its index and its compo
 
 test('a surface built from the contract declares the host side, the cutoff and the twin', () => {
   const surface = hostPageSurface(CONTRACT, false);
-  const host = surface as unknown as THREE.MeshStandardMaterial;
-  assert.equal(host.side, THREE.DoubleSide);
+  const host = surface as unknown as G.GraphSurface;
+  assert.equal(host.side, G.DOUBLE_SIDE);
   assert.equal(host.alphaTest, 0.4, 'a masked surface carries its cutoff');
   assert.equal(host.transparent, false, 'masking is not blending');
-  assert.deepEqual(host.color.toArray(), [0.25, 0.5, 0.75]);
+  assert.deepEqual((host.color as G.Color).toArray(), [0.25, 0.5, 0.75]);
   assert.deepEqual([host.metalness, host.roughness, host.opacity], [0.125, 0.875, 0.5]);
   assert.equal(host.vertexColors, false);
   const blended = hostPageSurface({ ...CONTRACT, alphaMode: 'blend' }, false);
-  assert.equal((blended as unknown as THREE.Material).transparent, true);
-  assert.equal((blended as unknown as THREE.MeshStandardMaterial).alphaTest, 0);
+  assert.equal((blended as unknown as G.GraphSurface).transparent, true);
+  assert.equal((blended as unknown as G.GraphSurface).alphaTest, 0);
   const twin = colouredHostSurface(surface);
   assert.notEqual(twin, surface, 'the twin is a copy: the plain surface keeps its own state');
-  assert.equal((twin as unknown as THREE.MeshStandardMaterial).vertexColors, true);
+  assert.equal((twin as unknown as G.GraphSurface).vertexColors, true);
   assert.equal(host.vertexColors, false);
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from './pages.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
@@ -45,10 +45,10 @@ test('transparent frustum selection preserves intersections, transformed bounds 
   for (const item of cases) {
     const fixture = quadScene(),
       { device, draws } = mockGpu(),
-      mesh = fixture.source.children[0] as THREE.Mesh;
+      mesh = fixture.source.children[0] as G.GraphMesh;
     fixture.metadata.primitives[0].pass = 'shared-blend';
     fixture.material.transparent = true;
-    fixture.material.side = THREE.DoubleSide;
+    fixture.material.side = G.DOUBLE_SIDE;
     mesh.position.fromArray(item.position);
     if (item.scale) mesh.scale.fromArray(item.scale);
     if (item.rotate) mesh.rotation.y = 0.5;
