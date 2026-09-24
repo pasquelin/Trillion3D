@@ -1,4 +1,6 @@
 import { CULL_STRIDE } from './types.ts';
+import type { ClusterCut } from '../../page/selection/math.ts';
+import { BOUND_STRIDE, cullingBounds, HAS_ROOT, PARENT_SPHERE } from '../../page/cut/bounds.ts';
 /**
  * The cut hierarchy as level-by-level descent reads it: its depth, and the one a
  * primitive without a hierarchy receives so descent is the only production path.
@@ -8,10 +10,11 @@ import { CULL_STRIDE } from './types.ts';
  * first page, `[14]` page count. Nodes are numbered by levels, root at rank zero:
  * descent therefore only has to start at that rank.
  *
- * The synthesised hierarchy changes no verdict: its error ceiling is -1, so none of
- * its nodes is ever rejected by error, and its box is the union of its pages' —
- * a page without a box makes the node box infinite, so the trunk rejects a node
- * only when every page carries a box it also rejects, one by one, as before.
+ * The synthesised hierarchy carries what a manifest would: its box is the union of its
+ * pages' — a page without a box makes the node box infinite, so the trunk rejects a node
+ * only when every page carries a box it also rejects, one by one — and its replacement
+ * sphere and error ceiling come from the pages (`fillReplacement`), so descent prunes a
+ * too-fine subtree of a primitive without a manifest as it does one with.
  */
 const LEAF_PAGES = 32,
   BRANCH = 8,
@@ -78,9 +81,42 @@ function emit(root: Built, count: number) {
   return { nodes, stride: STRIDE };
 }
 
+type FlatPage = ClusterCut & { min?: number[]; max?: number[] };
+
+/**
+ * Replacement sphere and error ceiling of each node, read from the pages. The sphere is the
+ * one `cullingBounds` already derives (`PARENT_SPHERE`): it encloses every replacement band
+ * of the subtree, so the ceiling projected through it never falls under the projection of a
+ * band it covers. The ceiling is the largest replacement error of the subtree.
+ *
+ * A subtree the ceiling cannot certify keeps -1, never pruned on it: one holding a cluster
+ * nothing replaces (`HAS_ROOT`), a negative replacement error — the band then projects to
+ * infinity — or a band without a sphere, which `cullingBounds` cannot enclose.
+ */
+function fillReplacement(nodes: Float64Array, pages: readonly FlatPage[], bounds: Float64Array) {
+  for (let n = nodes.length / STRIDE - 1; n >= 0; n--) {
+    const base = n * STRIDE,
+      at = n * BOUND_STRIDE;
+    let ceil = bounds[at + HAS_ROOT] ? -1 : 0;
+    for (let c = 0; c < nodes[base + 12] && ceil >= 0; c++) {
+      const child = nodes[(nodes[base + 11] + c) * STRIDE + 10];
+      ceil = child < 0 ? -1 : Math.max(ceil, child);
+    }
+    for (let p = 0; p < nodes[base + 14] && ceil >= 0; p++) {
+      const rec = pages[nodes[base + 13] + p],
+        band = rec.parentSphere ?? rec.sphere,
+        error = rec.parentError as number;
+      ceil = error >= 0 && band && band.length >= 4 && band[3] >= 0 ? Math.max(ceil, error) : -1;
+    }
+    nodes[base + 10] = ceil;
+    if (ceil >= 0) for (let a = 0; a < 4; a++) nodes[base + 6 + a] = bounds[at + PARENT_SPHERE + a];
+  }
+}
+
 /** Hierarchy a primitive without a hierarchy receives: thirty-two-page leaves, eight-child
- *  nodes, up to a single root. A primitive with no page keeps an empty leaf root. */
-export function flatHierarchy(pages: ReadonlyArray<{ min?: number[]; max?: number[] }>) {
+ *  nodes, up to a single root. A primitive with no page keeps an empty leaf root. `bounds`
+ *  are the ones `cullingBounds` derives, handed to packing so it does not derive them again. */
+export function flatHierarchy(pages: readonly FlatPage[]) {
   let level: Built[] = [];
   for (let first = 0; first < pages.length; first += LEAF_PAGES) {
     const count = Math.min(LEAF_PAGES, pages.length - first);
@@ -96,7 +132,10 @@ export function flatHierarchy(pages: ReadonlyArray<{ min?: number[]; max?: numbe
     total += up.length;
     level = up;
   }
-  return emit(level[0], total);
+  const culling = emit(level[0], total);
+  const bounds = cullingBounds(culling, pages);
+  fillReplacement(culling.nodes, pages, bounds);
+  return { ...culling, bounds };
 }
 
 /**
