@@ -90,7 +90,11 @@ test('copyMatrix4: the sixteen numbers land at their offsets, and the buffer giv
 test('multiplyMatrix4Typed: a Float32Array output holds the double product rounded once per term', () => {
   const a = Float32Array.from([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 0.1]);
   const b = [0.3, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 4, 5, 6, 1];
-  const expected = multiplyMatrix4(new Float64Array(16), Float64Array.from(a), Float64Array.from(b));
+  const expected = multiplyMatrix4(
+    new Float64Array(16),
+    Float64Array.from(a),
+    Float64Array.from(b),
+  );
   const out = multiplyMatrix4Typed(new Float32Array(16), a, b);
   assert.ok(out instanceof Float32Array);
   assert.deepEqual([...out], [...Float32Array.from(expected)]);
