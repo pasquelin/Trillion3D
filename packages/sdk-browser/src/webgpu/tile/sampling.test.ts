@@ -109,7 +109,7 @@ test('anisotropy is clamped to the ceiling, and granted only to a linear read mi
 });
 
 // #360, #361: the shadow cutout reads one tap at the isotropic level; the camera cutout reads the
-// alpha of the colour's own read, the taps its footprint's elongation asks, as the witness does.
+// alpha of the colour's own read, the taps its footprint's elongation asks.
 test('the shadow cutout takes one tap, the camera cutout the colour read and its taps', () => {
   const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true),
     shadow = maskAlphaWgsl(true);
