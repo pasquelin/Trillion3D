@@ -155,13 +155,13 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
      * loop over flat arrays for the whole list: node, tree and row of every slot.
      */
     draw(list: Int32Array, count: number, target: Float32Array, step: number) {
+      if (step === 1) {
+        for (let i = 0; i < count; i++) place(list[i], target, list[i] * 7);
+        return;
+      }
       for (let i = 0; i < count; i++) {
         const index = list[i],
           o = index * 7;
-        if (step === 1) {
-          place(index, target, o);
-          continue;
-        }
         const p = index * 3,
           q = index * 4;
         position[p] += (target[o] - position[p]) * step;
