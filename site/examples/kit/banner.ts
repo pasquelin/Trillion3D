@@ -54,7 +54,7 @@ export function announce(title: string, line = '') {
   if (backToWhatToDo && closed) return;
   const shown = banner();
   const key = `${title}\n${shownLine}`;
-  if (key === said && shown.isConnected) return;
+  if (key === said) return;
   said = key;
   if (!backToWhatToDo) closed = false;
   heading.textContent = title;
