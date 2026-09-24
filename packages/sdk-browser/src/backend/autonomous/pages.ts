@@ -157,7 +157,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       coverChanged: heldFloor.changed,
     }),
     ...lightingApi,
-    setClearColor: hostBackground(scene, gate.sceneMoved),
+    setClearColor: hostBackground(scene, gate.resourcesChanged),
     pendingUrls: residency.pendingUrls,
     pageUrls: residency.pageUrls,
     ...pool.api,
