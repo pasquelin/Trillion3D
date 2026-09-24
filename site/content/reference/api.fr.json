@@ -2767,8 +2767,7 @@
     "summary": "Réglages publiés de l’éclairage direct.",
     "description": "Ce sont des choix produit nommés, pas des constantes enterrées : chaque limite à l’exécution les relit, et le diagnostic les publie tels quels.",
     "members": {
-      "maxLights": "Lumières que le contrat accepte au total ; au-delà, `addLight` refuse.",
-      "maxLightsPerTile": "Lumières que garde une tuile d’écran ; la boucle par pixel est bornée par ce nombre (X2).",
+      "maxLights": "Lumières que le contrat accepte au total ; au-delà, `addLight` refuse. Une tuile d’écran garde chacune de celles qui la touchent ; sa liste et la boucle par pixel sont bornées par ce nombre (X2).",
       "tileSize": "Côté en pixels d’une tuile d’écran de la liste de lumières.",
       "samplesPerPixel": "Lumières éclairées en entier — lecture de l’ombre comprise — par pixel d’une image EN MOUVEMENT (X2) : les autres sont pesées sans leur ombre, et celles qu’on éclaire sont tirées au sort en proportion, donc l’estimation est sans biais et l’anticrénelage temporel en fait la moyenne. Une image immobile éclaire chaque lumière de sa tuile et converge vers la somme exacte ; là, ce nombre ne joue aucun rôle.",
       "shadowPage": "Côté d’une page de l’atlas d’ombres, en texels : la case d’invalidation d’une face. Un objet qui bouge ne rend périmées que les pages que couvre sa boîte projetée, jamais toute la face.",
