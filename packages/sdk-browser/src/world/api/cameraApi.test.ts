@@ -6,15 +6,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createExplorerCameraApi } from './cameraApi.ts';
-import { fixtureSurface } from '../../camera/controls/controls.fixture.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
 
 /** The explorer's camera API on `camera`, one WebGPU backend behind it, nothing else live. */
-function cameraApiOn(
-  camera: G.GraphCamera,
-  center: G.Vector3,
-  canvas = { width: 8, height: 8 } as HTMLCanvasElement,
-) {
+function cameraApiOn(camera: G.GraphCamera, center: G.Vector3) {
   return createExplorerCameraApi({
     check: () => {},
     options: {} as MeasuredWorldOptions,
@@ -23,7 +18,7 @@ function cameraApiOn(
     homeOffset: new G.Vector3(0, 0, 1),
     lookAtTarget: new G.Vector3(),
     radius: 1,
-    canvas,
+    canvas: { width: 8, height: 8 } as HTMLCanvasElement,
     backends: [{ id: 'webgpu-page-raster' } as RenderBackend],
     disposed: () => false,
     setMeasuring: () => {},
@@ -76,24 +71,4 @@ test('restoreAfterCampaign restores a camera the host posed by matrix', () => {
   // so both sides sit at the identity the clone was taken with. The restore has to compose it.
   assert.deepEqual([...camera.matrixWorld.elements], [...camera.matrix.elements]);
   assert.deepEqual([camera.matrixWorld.elements[12], camera.matrixWorld.elements[14]], [3, 7]);
-});
-
-test('flyControls and firstPersonControls start at the speeds they are given', () => {
-  const camera = G.perspectiveCamera(50, 1, 0.1, 100);
-  const surface = fixtureSurface(400);
-  const api = cameraApiOn(camera, new G.Vector3(), surface.element as HTMLCanvasElement);
-  // Unset, the walk is a quarter of the scene's radius per second and the look the controller's.
-  const fly = api.flyControls();
-  assert.deepEqual([fly.movementSpeed, fly.lookSpeed], [0.25, null]);
-  fly.dispose();
-  const walk = api.firstPersonControls({ movementSpeed: 7, lookSpeed: 0.01 });
-  assert.deepEqual([walk.movementSpeed, walk.lookSpeed], [7, 0.01]);
-  walk.update(0);
-  surface.key('keydown', { code: 'KeyW' });
-  walk.update(1);
-  assert.deepEqual(
-    G.xyz(camera.position).map((v) => Number(v.toFixed(6)) + 0),
-    [0, 0, -7],
-  );
-  walk.dispose();
 });

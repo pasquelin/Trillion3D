@@ -12,13 +12,6 @@ import type { CameraPose } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, PointOfInterest, RenderBackend } from '../../backend/types.ts';
 import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
 
-/**
- * The speeds a steered controller starts at: `movementSpeed` in world units per second, a quarter
- * of the scene's radius by default, and `lookSpeed` in radians per pixel of pointer motion, the
- * controller's own by default. Both stay writable on the controller returned.
- */
-export type SteeredSpeeds = { movementSpeed?: number; lookSpeed?: number | null };
-
 type Inputs = {
   check: () => void;
   options: MeasuredWorldOptions;
@@ -117,18 +110,17 @@ export function createExplorerCameraApi(inputs: Inputs) {
       setMeasuring(enabled);
     },
     homePose,
-    /** Six degrees of freedom, keys and drag-to-look, at `speeds`; the host integrates it per
-     *  frame. */
-    flyControls(speeds: SteeredSpeeds = {}) {
+    /** Six degrees of freedom, keys and drag-to-look; the host integrates it per frame. */
+    flyControls() {
       const controls = createFlyCameraControls(camera, canvas);
-      Object.assign(controls, { movementSpeed: radius / 4 }, speeds);
+      controls.movementSpeed = radius / 4;
       hostedControls.push(controls);
       return controls;
     },
-    /** Pointer-locked walk, horizon level, at `speeds`; the host integrates it per frame. */
-    firstPersonControls(speeds: SteeredSpeeds = {}) {
+    /** Pointer-locked walk, horizon level; the host integrates it per frame. */
+    firstPersonControls() {
       const controls = createFirstPersonCameraControls(camera, canvas);
-      Object.assign(controls, { movementSpeed: radius / 4 }, speeds);
+      controls.movementSpeed = radius / 4;
       hostedControls.push(controls);
       return controls;
     },
