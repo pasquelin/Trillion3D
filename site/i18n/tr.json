@@ -318,8 +318,7 @@
       "hands-in-vr": "VR'da eller",
       "teleport-in-vr": "VR'da ışınlanmak",
       "controllers-in-vr": "VR'da kumandalar",
-      "ar-on-the-table": "Masada AR",
-      "openworld": "Açık dünya"
+      "ar-on-the-table": "Masada AR"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU'da köşe başına renkler",
