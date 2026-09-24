@@ -3,7 +3,7 @@ import { frustumClipBox } from '../../../../sdk-core/src/index.ts';
 import { frameClusterError, frameSelects } from '../selection/frame.ts';
 import { cutSelectsAtZero } from '../selection/projection.ts';
 import { drawnUnderForcing } from './logic.ts';
-import { chargeDrawn, chargeShare } from './tally.ts';
+import { chargeDrawn, chargeShare, markFiner } from './tally.ts';
 import {
   RESIDENT_ALL,
   residentUnder,
@@ -41,7 +41,7 @@ function keep<T extends PageRecord>(
     if (s.budget !== 0) {
       const share = rec.budgetShare;
       if (share !== undefined && chargeShare(s, share)) s.over = true;
-      if (rec.parentError != null) s.budgetFiner = true;
+      markFiner(s, rec);
     }
   }
   if (resident !== RESIDENT_ALL && !residentUnder(s, rec, resident)) {

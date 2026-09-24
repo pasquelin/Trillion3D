@@ -284,10 +284,13 @@ next (`pageBudgetFrom`): an image the budget did not limit, or a host threshold 
 again at the host's `pixelError` (one pass); otherwise each image starts from the threshold the last
 one kept, tries one step of √2 finer, never under the host's `pixelError`, keeps the last threshold
 when the finer step does not fit, and climbs by √2 in the same image when that one no longer fits (a
-camera move). The climb stops as soon as the cut fits, or at the root cover: a pass whose overflow
-comes from root pages alone overflows at every coarser threshold too, so the threshold never climbs
-past the first step that reaches the root cover, and a budget not even the root cover fits holds the
-threshold there, drawing the root cover. An image mostly costs one pass, a smaller budget holds in
+camera move). The climb stops as soon as the cut fits, or where no coarser threshold changes the
+cut: a pass whose overflow comes from root pages, and from pages whose parent reaches the near
+plane (an infinite screen error, refined at every threshold), overflows at every coarser threshold
+too. It never climbs past a ceiling either: the largest error the DAG roots carry as parents, seen
+at the near plane on the view axis (`pageBudgetRootError`). A budget not even that coarsest cut fits
+holds the threshold there, fixed from one image to the next, draws that cut, and publishes the
+pool's `geometryPoolClamp` as `root-cover`, as on WebGPU. An image mostly costs one pass, a smaller budget holds in
 the image that follows it, and the detail converges on the finest threshold that fits, to √2, in a
 number of images logarithmic in the ratio of the kept threshold to the host's; only while a finer
 step is left to try does `pendingFrame` ask for another image (`awaitPages` waits for it, and for the
