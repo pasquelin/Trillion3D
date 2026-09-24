@@ -5073,8 +5073,8 @@
       "visible": "Ob er gezeichnet wird.",
       "parent": "Der Elternteil in der Szene, oder null, wenn er abgehängt ist.",
       "children": "Angehängte Kinder in Hinzufügereihenfolge. Die zurückgegebene Liste kann nicht verändert werden.",
-      "localMatrix": "Vertragsgemäß nur lesbar; verwende setLocalMatrix, um die Transformation zur Neuerstellung zu markieren.",
-      "worldMatrix": "Aktuelle Matrix in der Welt; rufe updateWorldMatrix auf, nachdem eine Pose geändert wurde.",
+      "localMatrix": "Vertragsgemäß nur lesbar, gültig solange der Knoten lebt; setLocalMatrix markiert die Transformation zur Neuerstellung.",
+      "worldMatrix": "Aktuelle Matrix in der Welt, gültig solange der Knoten lebt; rufe updateWorldMatrix nach einer Posenänderung auf.",
       "add": "Fügt ein Kind hinzu.",
       "remove": "Entfernt ein Kind.",
       "clear": "Entfernt jedes Kind.",
@@ -5144,7 +5144,6 @@
     "summary": "Was alle Knoten einer Szene teilen: ihr Transformationsbaum und ihre Indizes.",
     "members": {
       "tree": "Der Transformationsbaum.",
-      "nodes": "Knoten nach Platz.",
       "ids": "Knoten nach Name.",
       "nextId": "Die nächste freie Namensnummer.",
       "root": "Die Wurzel der Szene."
