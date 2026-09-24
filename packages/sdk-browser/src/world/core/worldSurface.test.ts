@@ -59,7 +59,7 @@ test('a repaint writes a map’s sampling and placement in place, nothing sent a
     ['repeat', 'nearest', 'nearest-mip-nearest', 8],
   );
   assert.deepEqual([record.sampling, record.placement], [sampling + 1, placement + 1]);
-  const [a, b, , c] = record.transform;
+  const [a, b, , c] = Array.from(record.transform);
   assert.ok(Math.abs(a - 4 * Math.cos(Math.PI / 6)) < 1e-9, 'repeat and rotation composed');
   assert.ok(Math.abs(b + 4 * Math.sin(Math.PI / 6)) < 1e-9);
   assert.ok(Math.abs(c - 4 * Math.sin(Math.PI / 6)) < 1e-9);
