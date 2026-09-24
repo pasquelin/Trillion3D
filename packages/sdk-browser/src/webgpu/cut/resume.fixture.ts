@@ -38,7 +38,6 @@ export function banc(panne?: 'debordement' | 'envoi') {
   let vueResidence = 0;
   let releve: GpuCut = {
     uniforms,
-    stalePose: false,
     result: {
       pageIds: [0],
       drawablePageIds: [0],
@@ -63,7 +62,6 @@ export function banc(panne?: 'debordement' | 'envoi') {
       // Selection computes completeness: a wanted resident page makes a complete shown list.
       releve = {
         uniforms,
-        stalePose: false,
         result: {
           pageIds: [0],
           drawablePageIds: [0],

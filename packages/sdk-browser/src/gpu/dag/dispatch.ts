@@ -21,6 +21,8 @@ export type DagRuntimeState = {
   residencyRevision: number;
   submittedResidencyRevision: number;
   readbackResidencyRevision: number;
+  submittedWorldRevision: number;
+  readbackWorldRevision: number;
   mapped: boolean[];
   slot: number;
 };
@@ -50,11 +52,13 @@ export function createDagDispatch(
     const compute =
       !state.lastSubmitted ||
       !sameSelectionUniforms(state.lastSubmitted, next) ||
-      state.submittedResidencyRevision !== state.residencyRevision;
+      state.submittedResidencyRevision !== state.residencyRevision ||
+      state.submittedWorldRevision !== state.worldRevision;
     const needsReadback =
       !state.lastReadback ||
       !sameSelectionUniforms(state.lastReadback, next) ||
-      state.readbackResidencyRevision !== state.residencyRevision;
+      state.readbackResidencyRevision !== state.residencyRevision ||
+      state.readbackWorldRevision !== state.worldRevision;
     const i = !state.mapped[state.slot]
       ? state.slot
       : !state.mapped[state.slot ^ 1]
@@ -67,9 +71,11 @@ export function createDagDispatch(
     // that never runs would leave its readback slot mapped forever and freeze the cut on its last
     // result, and a compute pass that never runs must not be remembered as submitted.
     const undoSubmitted = state.lastSubmitted,
-      undoSubmittedRevision = state.submittedResidencyRevision;
+      undoSubmittedRevision = state.submittedResidencyRevision,
+      undoSubmittedWorld = state.submittedWorldRevision;
     const undoReadback = state.lastReadback,
       undoReadbackRevision = state.readbackResidencyRevision,
+      undoReadbackWorld = state.readbackWorldRevision,
       undoSlot = state.slot;
     if (compute) {
       writeDagUniforms(uniformData, packed, next, residentCut);
@@ -77,6 +83,7 @@ export function createDagDispatch(
       encodeDagKernels(encoder, resources);
       state.lastSubmitted = copySelectionUniforms(next);
       state.submittedResidencyRevision = state.residencyRevision;
+      state.submittedWorldRevision = state.worldRevision;
     }
     if (copy) {
       // Snapshot and compacted list follow each other in the same buffer: a single copy.
@@ -88,6 +95,7 @@ export function createDagDispatch(
     if (captured) {
       state.lastReadback = captured;
       state.readbackResidencyRevision = state.residencyRevision;
+      state.readbackWorldRevision = capturedWorldRevision;
       state.mapped[i] = true;
       state.slot = i ^ 1;
     }
@@ -114,13 +122,13 @@ export function createDagDispatch(
               fail();
               return;
             }
-            // A residency that moved since makes the drawable mask a lie; a pose that moved only
-            // makes the cut a frame late, and it still says what to stream.
+            // A residency that moved since makes the drawable mask a lie. A pose that moved only
+            // makes the cut a frame late, as a camera's: it keeps the revision it was cut under.
             if (capturedResidencyRevision === state.residencyRevision)
               state.last = {
                 uniforms: captured,
                 result: parsed,
-                stalePose: capturedWorldRevision !== state.worldRevision,
+                worldRevision: capturedWorldRevision,
               };
           } catch {
             // A mapping cut short by `dispose` failed nothing, and its buffer is gone.
@@ -147,8 +155,10 @@ export function createDagDispatch(
         }
         state.lastSubmitted = undoSubmitted;
         state.submittedResidencyRevision = undoSubmittedRevision;
+        state.submittedWorldRevision = undoSubmittedWorld;
         state.lastReadback = undoReadback;
         state.readbackResidencyRevision = undoReadbackRevision;
+        state.readbackWorldRevision = undoReadbackWorld;
         if (captured) {
           state.mapped[i] = false;
           state.slot = undoSlot;

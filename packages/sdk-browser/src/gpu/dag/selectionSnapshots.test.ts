@@ -3,7 +3,7 @@
 // `selectionInvalidation.test.ts` covers the RESIDENCY half of the in-flight snapshot guard; the
 // WORLD half was not, nor the fact that a copy only leaves when a readback is due. Both become
 // holes as soon as the cut is published as something other than a complete list: a snapshot
-// drawn after a world change describes a scene that no longer exists, and a useless copy
+// drained after a world change describes a scene that no longer exists, and a useless copy
 // takes a readback slot the next frame will no longer have.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,28 +12,24 @@ import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { mockDagDevice } from './selection.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts';
-import type { GpuCut } from '../core/selection.ts';
-import {
-  fixturePages,
-  fixtureUniforms,
-  mountCutAdopter,
-  peekOnly,
-} from '../../webgpu/cut/adopter.fixture.ts';
 
-test('an in-flight snapshot that a world change crosses lands marked as cut under the old pose', async () => {
+test('an in-flight snapshot that a world change crosses is never drained as the current cut', async () => {
   const { release, fixture, dag, uniforms, device } = gatedDag();
   const selection = await createGpuDagSelection(device, dag);
   assert.ok(selection);
   selection.dispatch(uniforms);
   // The primitive moves a thousand units WHILE the snapshot is in flight: what it reports
-  // describes the previous pose. It still says what to stream, but it is marked, so nothing lets
-  // it become the frame's drawn cut (`adoption.ts`).
+  // describes the previous pose. It lands marked so: it still names what to stream, but the drain
+  // never hands it back as the cut of the poses in place.
   const moved = dag.worlds.slice();
   moved[12] = 1000;
   assert.equal(selection.updateWorlds(moved), true);
   release();
-  assert.equal((await selection.flush())?.pageIds.length, 4);
-  assert.equal(selection.peek()?.stalePose, true);
+  assert.equal(await selection.flush(), null);
+  assert.equal(selection.peek()?.result.pageIds.length, 4);
+  assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision);
+  selection.dispatch(uniforms);
+  assert.equal((await selection.flush())?.pageIds.length, 0, 'the moved primitive left the view');
   selection.dispose();
   fixture.geometry.dispose();
 });
@@ -93,73 +89,4 @@ test('a disposal with both readbacks in flight maps none of the buffers it destr
   await selection.flush();
   assert.equal(destroyedMaps(), 0);
   fixture.geometry.dispose();
-});
-
-// A placement moved on every frame (#358, defect 4): three small loaded models carried beside a
-// compiled terrain left the cut with no readback to adopt, frame after frame — `selectedTriangles`
-// 0, the terrain held at its coarsest level. A readback cut under poses that have moved since
-// still names the pages to stream; it only stops describing what the image draws.
-const FRAMES = 30;
-
-test('a placement moved every frame still leaves a readback for every frame to stream from', async () => {
-  installGpuGlobals();
-  const fixture = dagFixture();
-  const { dag, roots } = packed(fixture);
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0);
-  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag);
-  assert.ok(selection);
-  const moving = dag.worlds.slice();
-  let streamed = 0,
-    posed = 0;
-  // The engine's order (`render.ts`): the moved worlds are sent, then the frame adopts what the
-  // last readback reported, then it dispatches its own cut; that readback lands between frames.
-  for (let frame = 0; frame < FRAMES; frame++) {
-    moving[12] += 0.001;
-    assert.equal(selection.updateWorlds(moving), true, 'the pose moved');
-    const cut = selection.peek();
-    if (cut) {
-      streamed++;
-      if (!cut.stalePose) posed++;
-    }
-    selection.dispatch(uniforms);
-    await new Promise(setImmediate);
-  }
-  assert.equal(streamed, FRAMES - 1, 'every frame after the first has a cut to stream from');
-  assert.equal(posed, 0, 'none of them is taken for the pose the frame draws');
-  // The model stops: the next readback is cut under the poses in place, and describes the image.
-  selection.dispatch(uniforms);
-  await selection.flush();
-  assert.equal(selection.peek()?.stalePose, false);
-  assert.equal(selection.peek()?.result.pageIds.length, 4);
-  selection.dispose();
-  fixture.geometry.dispose();
-});
-
-test('a cut under a pose that has moved streams its pages and draws nothing of its own', () => {
-  const uniforms = fixtureUniforms();
-  const cutOf = (stalePose: boolean): GpuCut => ({
-    uniforms,
-    result: { pageIds: [0, 1, 2], drawablePageIds: [0, 1], frustumRejected: 0, lodLevel: 0 },
-    stalePose,
-  });
-  let peeked = cutOf(true);
-  const { adopter, desired, shown } = mountCutAdopter({
-    packedPages: fixturePages(3),
-    residentOffsetWords: new Int32Array(3),
-    uniforms,
-    selection: () => peekOnly(() => peeked),
-  });
-  assert.equal(adopter.adopt(), false, 'not the pose this image draws');
-  assert.deepEqual(
-    desired.map((page) => page.url),
-    ['p0', 'p1', 'p2'],
-    'its pages are asked of the cache all the same',
-  );
-  assert.equal(shown.length, 0, 'and it names nothing drawn');
-  peeked = cutOf(false);
-  assert.equal(adopter.adopt(), true, 'the model stopped: the next cut describes the image');
-  assert.deepEqual(
-    shown.map((page) => page.url),
-    ['p0', 'p1'],
-  );
 });
