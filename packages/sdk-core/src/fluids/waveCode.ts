@@ -7,7 +7,7 @@
 import type { Waves } from './waves.ts';
 
 /** vec4 slots per wave: `(dirX, dirZ, k, A)` then `(Q·A, phase now, phase before, 0)`. */
-export const WAVE_VEC4S = 2;
+const WAVE_VEC4S = 2;
 /** The shading languages the code is printed in. */
 export type WaveLanguage = 'wgsl' | 'glsl';
 /** The generated functions, both `(px, pz, previous) -> vec3`: `previous` is 0 for the frame at
@@ -47,7 +47,7 @@ export class WaveUniforms {
 
 /** One statement of the neutral program: `target = expression`. In expressions, `W(j).c` reads
  *  component `c` of uniform vec4 `j`; `px`, `pz`, `previous` are the parameters. */
-export type WaveStatement = readonly [target: string, expression: string];
+type WaveStatement = readonly [target: string, expression: string];
 /** A generated function: its statements, the three locals it returns, and whether it normalises. */
 export interface WaveFunction {
   name: string;
