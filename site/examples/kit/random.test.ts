@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { hash, mulberry32, noise1, seeded, sineHash } from './random.ts';
+import { hash, mulberry32, noise1, seeded, sineHash, valueNoise } from './random.ts';
 
 // The first values each generator gave before it moved into this module, read on the code the
 // scenes were laid out with: a change here moves pebbles, clouds, traffic or the temple's stones.
@@ -51,5 +51,17 @@ test('the temple keeps its scatter', () => {
       0.26943514754384523, 0.4199000090593472, 0.2964715612447435, 0.9032924804014328,
       0.6177574384273612,
     ],
+  );
+});
+
+// #402: the relief of three pages, gathered here: `scattered-on-a-surface` keeps its values.
+test('the relief keeps its noise', () => {
+  assert.deepEqual(
+    [
+      [0.3, 1.7, -2.2],
+      [11.4, -0.6, 3.9],
+      [-5.25, 2.5, 0.75],
+    ].map(([x, y, z]) => valueNoise(x, y, z)),
+    [-0.34218649521303457, 0.12095994121124098, -0.10903564714681124],
   );
 });
