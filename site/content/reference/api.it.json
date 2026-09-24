@@ -2900,7 +2900,8 @@
       "signal": "Ferma il caricamento quando il segnale viene annullato.",
       "scope": "`'full'` richiede l'intera cache, `'progressive'` la sua frazione in streaming; un modello di un altro ambito viene rifiutato per nome. Senza valore, il modello viene letto con l'ambito dichiarato dal suo puntatore.",
       "stream": "Un flusso impostato dalla pagina; la sessione del mondo fa arrivare le pagine con il proprio.",
-      "position": "Dove va l'origine del modello nella scena."
+      "position": "Dove va l'origine del modello nella scena.",
+      "onProgress": "Ascolta a che punto è il caricamento: `manifest` una volta letto il manifesto, poi `resources` man mano che arriva ogni file che la scena legge (`completed` su un `total` noto fino a quel momento). L'evento è un `JobProgress`: un `createJob` che avvolge il caricamento passa qui il suo `progress`."
     }
   },
   "LOD_QUALITY": {
