@@ -1,5 +1,5 @@
 import { sampleWebgpuFrame } from './signature.ts';
-import { CPU_STEP } from '../pages/render/cpuSteps.ts';
+import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
 import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
