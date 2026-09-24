@@ -55,7 +55,7 @@ through the measurement entry point (`packages/sdk-browser/src/measurement/measu
   engine-owned WebGL2 program — glTF 2.0 metallic-roughness maps, Lambert diffuse with a
   Cook-Torrance GGX specular, correlated Smith visibility and Schlick Fresnel (Karis, SIGGRAPH 2013
   Physically Based Shading course notes), with the geometric specular antialiasing of
-  Tokuyoshi and Kaplanyan, _Improved Geometric Specular Antialiasing_ (2019). Transmissive meshes are
+  Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing* (2019). Transmissive meshes are
   composed after the clusters over a frozen backdrop of the frame. A material the program cannot
   preserve fails preparation with `CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the
   input; `autonomousClusterDrawsTotal` counts the program's draws.
@@ -85,6 +85,7 @@ by substituting materials: one white ambient light of irradiance π returns the 
 `metalness`, `aoMapIntensity`, `lightMapIntensity` and `transmission` are zeroed for the length of
 each frame; a material's own emission is still added. The WebGL witnesses read back their rendered
 default framebuffer so captures match the displayed image.
+
 
 The measured camera path also advances once per `requestAnimationFrame` on both sides. Its
 `rafIntervalMs` distribution is the real moving-frame envelope, including browser backpressure and
@@ -214,7 +215,7 @@ separate operations; rebuilding the interface never launches Chrome or benchmark
    manifest, browser version and machine, and a completed measurement without errors. A mismatch refuses to
    overwrite evidence: select another output directory. Browser-version changes invalidate resume and comparisons.
 2. Export with `node bench/runner/summaryGlobal.ts --dossier .mesure/out/<campaign>
---vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
+   --vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
 3. Stage with `node bench/runner/publishReport.ts --dossier .mesure/out/<campaign>-report`.
    Campaign IDs are immutable. The script writes `site/reports/<id>/` and updates the
    catalogue, which the portal's Measurements area reads. It does not deploy or push anything.
