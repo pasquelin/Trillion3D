@@ -43,6 +43,8 @@ export interface ExecuterEntree {
   entete: number;
   totaux: { selected: number; transparent: number; drawn: number; uncovered: number };
   bitsPage: number;
+  /** Group-0 layout, read from `dagBindEntries`: the page has no module to import it from. */
+  layoutEntries: GPUBindGroupLayoutEntry[];
 }
 export interface Resultat {
   name: string;
