@@ -6860,7 +6860,22 @@
       "family": "속한 계열.",
       "needsUpdate": "변경 후 `needsUpdate = true`: 모든 읽는 쪽이 필드를 다시 가져갑니다.",
       "copy": "`source`의 모든 매개변수를 가져옵니다. 색과 벡터는 복사하고, 텍스처는 공유합니다.",
-      "clone": "같은 계열, 같은 매개변수의 표면."
+      "clone": "같은 계열, 같은 매개변수의 표면.",
+      "visible": "그려지는지 여부.",
+      "side": "어느 면인지, 호스트의 상수로.",
+      "forceSinglePass": "호스트가 양면 투명 표면을 뒤·앞 두 패스 대신 한 패스로 그린다.",
+      "vertexColors": "정점 색상이 그것을 물들이는지 여부.",
+      "toneMapped": "디스플레이 커브가 적용되는지 여부.",
+      "depthWrite": "깊이를 쓰는지 여부.",
+      "depthFunc": "깊이 테스트의 비교 방식.",
+      "colorWrite": "색상을 쓰는지 여부.",
+      "polygonOffset": "깊이가 오프셋되는지 여부.",
+      "polygonOffsetFactor": "오프셋의 기울기 부분.",
+      "polygonOffsetUnits": "오프셋의 상수 부분.",
+      "transparent": "블렌드하는지 여부.",
+      "opacity": "얼마나 불투명한가.",
+      "alphaTest": "이 값 아래에서 픽셀이 버려지는 알파 값.",
+      "depthTest": "깊이 테스트를 하는지 여부."
     },
     "summary": "표면: 한 계열의 매개변수. 장면이 달리 말하지 않으면 레퍼런스의 값.",
     "description": "그 버전은 `needsUpdate`로 증가하며, 모든 읽는 쪽이 비교합니다."
@@ -6890,16 +6905,22 @@
       "userData": "텍스처를 만든 쪽의 데이터를 위한 자유 공간.",
       "format": "원시 텍스처 텍셀의 채널(`HOST_FORMAT_*`).",
       "needsUpdate": "변경 후 `needsUpdate = true`: 읽는 쪽이 다시 업로드합니다.",
-      "clone": "같은 이미지와 상태의 텍스처. 변경된 것으로 알립니다."
+      "clone": "같은 이미지와 상태의 텍스처. 변경된 것으로 알립니다.",
+      "repeat": "몇 번 들어가는지.",
+      "center": "회전의 중심.",
+      "rotation": "회전, 라디안 단위."
     },
     "summary": "이미지와, 그것을 읽는 샘플러 상태, 그리고 좌표 변환."
   },
   "GraphAngles": {
     "summary": "같은 방향을 세 각도와 그 순서로 나타낸 것. 쓰기를 같은 방식으로 알립니다.",
     "members": {
-      "x": "세 각도와 그 순서. 쓸 때마다 알립니다.",
+      "x": "첫 번째 각도(라디안).",
       "set": "세 각도와, 주어진 경우 순서를 씁니다. 한 번 알립니다.",
-      "setFromRotation": "이 순서로 된 `q`의 각도(코어의 `Euler`). `quiet`가 아니면 알립니다."
+      "setFromRotation": "이 순서로 된 `q`의 각도(코어의 `Euler`). `quiet`가 아니면 알립니다.",
+      "y": "두 번째 각도(라디안).",
+      "z": "세 번째 각도(라디안).",
+      "order": "세 각도가 회전하는 순서. 설정하지 않으면 `'XYZ'`."
     }
   },
   "GraphArray": {
@@ -6915,7 +6936,8 @@
       "data": "보고 있는 버퍼.",
       "offset": "각 정점에서 숫자가 시작되는 위치.",
       "array": "요소가 있는 저장소.",
-      "count": "정점 수."
+      "count": "정점 수.",
+      "needsUpdate": "`array`를 쓴 뒤 `needsUpdate = true`: 읽는 쪽이 다시 업로드합니다."
     }
   },
   "GraphInterleavedBuffer": {
@@ -6925,7 +6947,8 @@
       "count": "정점 수.",
       "version": "`needsUpdate`로 증가합니다.",
       "array": "저장소.",
-      "stride": "정점당 숫자 수."
+      "stride": "정점당 숫자 수.",
+      "needsUpdate": "`array`를 쓴 뒤 `needsUpdate = true`: 읽는 쪽이 다시 업로드합니다."
     }
   },
   "GraphMesh": {
@@ -6946,14 +6969,17 @@
   "GraphRotation": {
     "summary": "쓰기가 `_onChangeCallback`을 호출하는 방향 `(x, y, z, w)`.",
     "members": {
-      "x": "숫자 네 개. 쓸 때마다 알립니다.",
+      "x": "첫 번째 숫자.",
       "set": "숫자 네 개를 씁니다. 한 번 알립니다.",
       "copy": "다른 회전의 숫자를 가져옵니다.",
       "fromArray": "목록에서 숫자 네 개를 읽습니다.",
       "setFromAngles": "`angles`의 순서에 따른 회전(`localTurnQuaternion`). `quiet`가 아니면 알립니다.",
       "setFromRotationMatrix": "열이 단위 길이인 열 우선 행렬의 왼쪽 위 3×3의 회전.",
       "premultiply": "`q` 다음에 이 회전이 오는 것, `q · this`가 됩니다.",
-      "invert": "반대 방향 회전이 됩니다."
+      "invert": "반대 방향 회전이 됩니다.",
+      "y": "두 번째 숫자.",
+      "z": "세 번째 숫자.",
+      "w": "네 번째 숫자."
     }
   },
   "GraphVector": {
@@ -6968,7 +6994,10 @@
       "length": "그 길이.",
       "setLength": "방향을 유지하고 길이를 설정합니다.",
       "distanceTo": "한 점까지의 거리.",
-      "fromArray": "목록에서 숫자 세 개를 읽습니다."
+      "fromArray": "목록에서 숫자 세 개를 읽습니다.",
+      "x": "왼쪽에서 오른쪽으로.",
+      "y": "아래에서 위로.",
+      "z": "뒤에서 앞으로."
     }
   }
 }

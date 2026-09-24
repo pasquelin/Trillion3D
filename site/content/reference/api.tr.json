@@ -6776,9 +6776,12 @@
   "GraphAngles": {
     "summary": "Aynı yönelim üç açı ve sıraları olarak; yazımlarını aynı şekilde duyurur.",
     "members": {
-      "x": "Üç açı ve sıraları, her yazım duyurulur.",
+      "x": "Birinci açı, radyan cinsinden.",
       "set": "Üç açıyı ve verildiyse sırayı yazar; bir kez duyurulur.",
-      "setFromRotation": "`q`'nun bu sıradaki açıları (çekirdeğin `Euler`'i); `quiet` değilse duyurulur."
+      "setFromRotation": "`q`'nun bu sıradaki açıları (çekirdeğin `Euler`'i); `quiet` değilse duyurulur.",
+      "y": "İkinci açı, radyan cinsinden.",
+      "z": "Üçüncü açı, radyan cinsinden.",
+      "order": "Üç açının döndüğü sıra; ayarlanmadıkça `'XYZ'`."
     }
   },
   "GraphArray": {
@@ -6833,7 +6836,8 @@
       "data": "Baktığı tampon.",
       "offset": "Sayılarının her köşede nerede başladığı.",
       "array": "Öğelerin bulunduğu depo.",
-      "count": "Kaç köşe."
+      "count": "Kaç köşe.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
     }
   },
   "GraphInterleavedBuffer": {
@@ -6843,7 +6847,8 @@
       "count": "Kaç köşe.",
       "version": "`needsUpdate` ile artırılır.",
       "array": "Depo.",
-      "stride": "Köşe başına sayı."
+      "stride": "Köşe başına sayı.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
     }
   },
   "GraphMesh": {
@@ -6902,14 +6907,17 @@
   "GraphRotation": {
     "summary": "Yazımları `_onChangeCallback`'i çağıran bir `(x, y, z, w)` yönelimi.",
     "members": {
-      "x": "Dört sayı, her yazım duyurulur.",
+      "x": "İlk sayı.",
       "set": "Dört sayıyı yazar; bir kez duyurulur.",
       "copy": "Başka bir dönüşün sayılarını alır.",
       "fromArray": "Bir listeden dört sayı okur.",
       "setFromAngles": "`angles`'ın kendi sırasındaki dönüşü (`localTurnQuaternion`); `quiet` değilse duyurulur.",
       "setFromRotationMatrix": "Sütunları birim uzunlukta olan sütun öncelikli bir matrisin üst 3×3'ünün dönüşü.",
       "premultiply": "`q` ardından bu dönüş olur, `q · this`.",
-      "invert": "Ters dönüş olur."
+      "invert": "Ters dönüş olur.",
+      "y": "İkinci sayı.",
+      "z": "Üçüncü sayı.",
+      "w": "Dördüncü sayı."
     }
   },
   "GraphSurface": {
@@ -6924,7 +6932,22 @@
       "family": "Ait olduğu aile.",
       "needsUpdate": "Bir değişiklikten sonra `needsUpdate = true`: her okuyucu alanları yeniden alır.",
       "copy": "`source`'un her parametresini alır; renkler ve vektörler kopyalanır, dokular paylaşılır.",
-      "clone": "Aynı aileden, aynı parametrelere sahip bir yüzey."
+      "clone": "Aynı aileden, aynı parametrelere sahip bir yüzey.",
+      "visible": "Çizilip çizilmediği.",
+      "side": "Host'un sabiti olarak, hangi yüzler.",
+      "forceSinglePass": "Host, çift taraflı şeffaf bir yüzeyi arka sonra ön yerine tek bir geçişte çizer.",
+      "vertexColors": "Köşe renklerinin onu tonlayıp tonlamadığı.",
+      "toneMapped": "Ekran eğrisinin uygulanıp uygulanmadığı.",
+      "depthWrite": "Derinlik yazıp yazmadığı.",
+      "depthFunc": "Derinlik testinin karşılaştırması.",
+      "colorWrite": "Renk yazıp yazmadığı.",
+      "polygonOffset": "Derinliğin ötelenip ötelenmediği.",
+      "polygonOffsetFactor": "Ötelemenin eğim kısmı.",
+      "polygonOffsetUnits": "Ötelemenin sabit kısmı.",
+      "transparent": "Karışıp karışmadığı.",
+      "opacity": "Ne kadar opak olduğu.",
+      "alphaTest": "Piksellerin altında düştüğü alfa.",
+      "depthTest": "Derinlik testi yapıp yapmadığı."
     }
   },
   "GraphTexture": {
@@ -6953,7 +6976,10 @@
       "image": "Çözülmüş resim, host'un kendi kabında.",
       "needsUpdate": "Bir değişiklikten sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler.",
       "updateMatrix": "`matrix`'i offset, repeat ve rotation'dan yeniden inşa eder.",
-      "clone": "Aynı görüntü ve durumda, değişmiş olarak duyurulan bir doku."
+      "clone": "Aynı görüntü ve durumda, değişmiş olarak duyurulan bir doku.",
+      "repeat": "Kaç kez sığdığı.",
+      "center": "Dönmenin ekseni.",
+      "rotation": "Dönme, radyan cinsinden."
     }
   },
   "GraphVector": {
@@ -6968,7 +6994,10 @@
       "length": "Uzunluğu.",
       "setLength": "Yönü korur, uzunluğu ayarlar.",
       "distanceTo": "Bir noktaya uzaklık.",
-      "fromArray": "Bir listeden üç sayı okur."
+      "fromArray": "Bir listeden üç sayı okur.",
+      "x": "Soldan sağa.",
+      "y": "Alttan üste.",
+      "z": "Arkadan öne."
     }
   }
 }
