@@ -9,6 +9,7 @@
 import { resolve } from 'node:path';
 import type { Browser } from 'playwright';
 import { routeThree } from '../tests/kit/server/threeRoute.ts';
+import { median } from '../tests/kit/median.ts';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { createDocsServer, listen } from './docs-serve.ts';
 import { SITE_OUTPUT } from './docs/site.ts';
@@ -22,8 +23,6 @@ interface LoadSample {
   requests: number;
   bytes: number;
 }
-
-const median = (values: number[]) => [...values].sort((a, b) => a - b)[values.length >> 1];
 
 async function loadOnce(browser: Browser, origin: string, route: string): Promise<LoadSample> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
