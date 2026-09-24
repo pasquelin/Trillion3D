@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import { threeCamera, threeMeshCopy } from '../../../bench/witnesses/three/fromGraphNodes.ts';
 import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
 import {
   createHostDrawCamera,
@@ -13,15 +15,15 @@ const center = (gl: WebGLRenderingContext | WebGL2RenderingContext) => {
 };
 
 const inputs = () => {
-  const geometry = new THREE.BufferGeometry(),
-    material = new THREE.MeshBasicMaterial(),
+  const geometry = new G.GraphGeometry(),
+    material = G.basicSurface(),
     matrix = drawMatrix();
   geometry.setAttribute(
     'position',
-    new THREE.BufferAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
+    new G.GraphAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
   );
-  geometry.setIndex(new THREE.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
-  material.color.setRGB(0.18, 0, 0, THREE.LinearSRGBColorSpace);
+  geometry.setIndex(new G.GraphAttribute(new Uint32Array([0, 1, 2]), 1));
+  (material.color as G.Color).setRGB(0.18, 0, 0);
   const index = geometry.index;
   if (!index) throw new Error('winding proof requires an indexed geometry');
   return {
@@ -30,7 +32,7 @@ const inputs = () => {
     matrix,
     mesh: {
       geometry: { index, attributes: geometry.attributes },
-      material: material as THREE.Material | THREE.Material[],
+      material,
       renderOrder: 0,
       polygonOffsetUnits: undefined,
       matrix,
@@ -50,15 +52,16 @@ export function windingComparisons() {
   const raw = new WebglClusterRenderer(gl),
     witness = new THREE.WebGLRenderer({ canvas: witnessCanvas, antialias: false }),
     mesh = inputs(),
-    scene = new THREE.Scene(),
-    witnessMesh = new THREE.Mesh(mesh.geometry, mesh.ownMaterial),
-    camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
-    rig = new THREE.Object3D();
+    scene = new G.GraphScene(),
+    witnessScene = new THREE.Scene(),
+    witnessMesh = threeMeshCopy({ geometry: mesh.geometry, material: mesh.ownMaterial }),
+    camera = G.perspectiveCamera(60, 1, 0.1, 10),
+    rig = new G.GraphNode();
   witness.outputColorSpace = THREE.SRGBColorSpace;
   witness.toneMapping = THREE.NoToneMapping;
   witness.setClearColor(0, 1);
   witnessMesh.matrixAutoUpdate = false;
-  scene.add(witnessMesh);
+  witnessScene.add(witnessMesh);
   rig.add(camera);
   gl.viewport(0, 0, 32, 32);
   gl.clearColor(0, 0, 0, 1);
@@ -70,7 +73,7 @@ export function windingComparisons() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     raw.draw([mesh.mesh], scene, readHostDrawCamera(createHostDrawCamera(), camera), false, true);
     const owned = center(gl);
-    witness.render(scene, camera);
+    witness.render(witnessScene, threeCamera(camera));
     return { owned, witness: center(witness.getContext()) };
   };
   const result = { modelMirror: render(true, false), cameraMirror: render(false, true) };

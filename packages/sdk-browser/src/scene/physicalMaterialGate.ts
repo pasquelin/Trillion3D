@@ -57,7 +57,7 @@ const EXTENSION_MAPS = [
  *  IOR shapes the Fresnel of the transmission pass alone: without transmission, the cluster
  *  BRDF would keep its dielectric F0 and the declared IOR would be lost in silence. */
 export function physicalExtensionReason(material: PhysicalLike) {
-  if (!material.isMeshPhysicalMaterial) return;
+  if (material.family !== 'physical') return;
   if ((material.ior ?? 1.5) !== 1.5 && !((material.transmission ?? 0) > 0))
     return 'physical ior without transmission is unsupported';
   for (const factor of EXTENSION_FACTORS)

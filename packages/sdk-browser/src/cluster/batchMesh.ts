@@ -23,7 +23,7 @@ export type WholeMesh = {
   material: HostMaterials;
   matrix: { elements: ArrayLike<number> };
   /** Set on a mesh drawn at `count` placements, one matrix each in `instanceMatrix`. */
-  readonly isInstancedMesh?: boolean;
+  readonly kind?: string;
   readonly instanceMatrix?: GpuBuffer;
   readonly count?: number;
 } & Partial<Released>;
@@ -74,7 +74,7 @@ export function recordTriangles(record: ClusterDrawMesh) {
 /** Triangles a whole page mesh submits, indexed or not. */
 export const wholeMeshTriangles = (mesh: WholeMesh) =>
   ((mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3) *
-  (mesh.isInstancedMesh ? mesh.count! : 1);
+  (mesh.kind === 'instancedMesh' ? mesh.count! : 1);
 
 const BACK_THEN_FRONT: readonly Side[] = ['back', 'front'];
 const DECLARED_SIDE: readonly undefined[] = [undefined];

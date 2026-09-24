@@ -1,5 +1,6 @@
 import { copyElements, sameElements } from '../../math/matrixElements.ts';
 import type { HostGraphNode, HostLightNode } from './graphNodes.ts';
+import { isLightNode, isPlacedLight } from '../graph/kinds.ts';
 
 /** What a watch reports of a read: nothing, a value moved, or the set of read objects changed. */
 export type WatchVerdict = 0 | 'moved' | 'reshaped';
@@ -29,29 +30,35 @@ interface LightState {
   values: Float64Array;
 }
 
+/** The node a directional or a spot light aims at; the other kinds aim at nothing. */
+const targetOf = (light: HostLightNode) => (isPlacedLight(light) ? light.target : undefined);
+
 function lightValues(light: HostLightNode, into: Float64Array) {
-  const colour = light.color,
-    ground = light.groundColor;
+  const colour = light.color;
   into[0] = colour.r;
   into[1] = colour.g;
   into[2] = colour.b;
   into[3] = light.intensity;
-  into[4] = finite(light.distance);
-  into[5] = finite(light.decay);
-  into[6] = finite(light.angle);
-  into[7] = finite(light.penumbra);
-  into[8] = ground ? ground.r : 0;
-  into[9] = ground ? ground.g : 0;
-  into[10] = ground ? ground.b : 0;
+  into[4] = finite('distance' in light ? light.distance : undefined);
+  into[5] = finite('decay' in light ? light.decay : undefined);
+  into[6] = finite('angle' in light ? light.angle : undefined);
+  into[7] = finite('penumbra' in light ? light.penumbra : undefined);
+  // No light of the engine's graph declares a ground colour: its three slots stay zero.
+  into[8] = 0;
+  into[9] = 0;
+  into[10] = 0;
+}
+
+/** A light as it stands: its target and its numbers. */
+function lightState(light: HostLightNode): LightState {
+  const state = { target: targetOf(light), values: new Float64Array(LIGHT_VALUES) };
+  lightValues(light, state.values);
+  return state;
 }
 
 /** The node as it stands: the first read after it announces nothing. */
 export function snapshot(node: HostGraphNode): NodeState {
-  const light = node as HostLightNode;
-  const lit: LightState | null = light.isLight
-    ? { target: light.target, values: new Float64Array(LIGHT_VALUES) }
-    : null;
-  if (lit) lightValues(light, lit.values);
+  const lit: LightState | null = isLightNode(node) ? lightState(node) : null;
   return {
     node,
     visible: node.visible,
@@ -64,8 +71,8 @@ export function snapshot(node: HostGraphNode): NodeState {
 
 function scanLight(light: HostLightNode, state: LightState): WatchVerdict {
   // A new target is another chain of ancestors to watch: the set is reshaped.
-  const retargeted = light.target !== state.target;
-  state.target = light.target;
+  const retargeted = targetOf(light) !== state.target;
+  state.target = targetOf(light);
   // A colour replaced as a whole is read through the new object: its numbers are what count.
   lightValues(light, scratch);
   const held = state.values;
@@ -96,7 +103,7 @@ export function scan(state: NodeState): WatchVerdict {
     copyElements(state.matrix, node.matrix.elements);
     moved = true;
   }
-  const light = state.light ? scanLight(node as HostLightNode, state.light) : 0;
+  const light = state.light && isLightNode(node) ? scanLight(node, state.light) : 0;
   if (reparented || light === 'reshaped') return 'reshaped';
   return moved || light ? 'moved' : 0;
 }

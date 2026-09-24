@@ -51,7 +51,9 @@ test('source instance transforms update all three WebGL backends without rebuild
     if (backend.id === 'exact-cluster-pages') assert.equal(backend.metrics().selectedTriangles, 0);
     else {
       const object = asHostLibrary<G.GraphNode[]>(backend.scene.children).find(
-        (child) => child.type === 'Mesh' || child.type === 'LOD',
+        // The engine's backends draw graph meshes; the witnesses publish their library's.
+        (child) =>
+          G.isDrawnNode(child) || ['Mesh', 'LOD'].includes((child as { type?: string }).type ?? ''),
       );
       assert.ok(object);
       assert.equal(object.matrix.elements[12], 100);

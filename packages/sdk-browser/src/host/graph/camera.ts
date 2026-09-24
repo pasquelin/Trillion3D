@@ -13,12 +13,8 @@ type Frame = { left: number; right: number; top: number; bottom: number };
  * drawing with them would compose — in the reference's depth convention, finite far plane.
  */
 export class GraphCamera extends GraphNode {
-  /** Always `true`: tells a camera apart. */
-  readonly isCamera = true as const;
-  /** Present on a perspective camera. */
-  declare readonly isPerspectiveCamera?: true;
-  /** Present on an orthographic camera. */
-  declare readonly isOrthographicCamera?: true;
+  /** An eye; orthographic when it declares a `frame`, perspective otherwise. */
+  override readonly kind = 'camera' as const;
   /** The inverse of the world matrix, kept beside it. */
   readonly matrixWorldInverse = new Matrix4();
   /** The projection the optics compose. */
@@ -44,18 +40,14 @@ export class GraphCamera extends GraphNode {
   ) {
     super();
     if (frame) {
-      this.type = 'OrthographicCamera';
       this.frame = { ...frame };
       this.near = optics.near ?? 0.1;
       this.far = optics.far ?? 2000;
-      Object.assign(this, { isOrthographicCamera: true });
     } else {
-      this.type = 'PerspectiveCamera';
       this.fov = optics.fov ?? 50;
       this.aspect = optics.aspect ?? 1;
       this.near = optics.near ?? 0.1;
       this.far = optics.far ?? 2000;
-      Object.assign(this, { isPerspectiveCamera: true });
     }
     this.updateProjectionMatrix();
   }

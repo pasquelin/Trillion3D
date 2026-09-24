@@ -20,8 +20,8 @@ type Releasing = { released?: Set<() => void> };
 const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color'] as const;
 /** An attribute the program can bind: one owning its buffer; an interleaved view reads as absent. */
 const drawnAttribute = (geometry: Geometry, name: string) => {
-  const attribute = geometry.attributes[name] as unknown as VertexAttribute | undefined;
-  return attribute && !('isInterleavedBufferAttribute' in attribute) ? attribute : undefined;
+  const attribute = geometry.attributes[name];
+  return attribute?.kind === 'attribute' ? attribute : undefined;
 };
 
 export class WebglClusterGeometry {
@@ -38,7 +38,7 @@ export class WebglClusterGeometry {
   /** Binds `geometry`, and the placement matrices of an instanced mesh when `mesh` is one. */
   bind(
     geometry: Geometry,
-    mesh?: Pick<WholeMesh, 'isInstancedMesh' | 'instanceMatrix' | 'released'>,
+    mesh?: Pick<WholeMesh, 'kind' | 'instanceMatrix' | 'released'>,
   ) {
     const gl = this.gl;
     let cached = this.cache.get(geometry);
@@ -72,7 +72,7 @@ export class WebglClusterGeometry {
     if (!this.generics) this.setGenerics();
     cached.instances = this.placements.bind(
       cached.instances,
-      mesh?.isInstancedMesh ? mesh : undefined,
+      mesh?.kind === 'instancedMesh' ? mesh : undefined,
     );
   }
   /** Whether the vertex array still describes `geometry`: the same index and attributes, at the

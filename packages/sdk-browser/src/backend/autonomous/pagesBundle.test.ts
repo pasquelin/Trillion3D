@@ -98,7 +98,7 @@ test('two pages packed in one bundle each receive their own decoded geometry', a
     await backend.prepare();
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 2);
-    const drawn = backend.scene.children.filter((child) => (child as G.GraphMesh).isMesh);
+    const drawn = backend.scene.children.filter(G.isDrawnNode);
     assert.equal(drawn.length, 2);
   } finally {
     backend.dispose();

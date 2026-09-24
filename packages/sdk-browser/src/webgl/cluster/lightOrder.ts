@@ -1,16 +1,11 @@
 import { WEBGL_RECT_KIND } from './rectGlsl.ts';
 
 /** A direct light as its order reads it: its kind, and whether it casts a shadow. */
-type OrderedLight = {
-  isDirectionalLight?: boolean;
-  isPointLight?: boolean;
-  isSpotLight?: boolean;
-  castShadow?: boolean;
-};
+type OrderedLight = { readonly kind: string; castShadow?: boolean };
 
 /** A light's rank in the program's `lightData`; an ambient light is summed apart. */
-const kindOf = (light: OrderedLight) =>
-  light.isDirectionalLight ? 0 : light.isPointLight ? 1 : light.isSpotLight ? 2 : WEBGL_RECT_KIND;
+const kindOf = ({ kind }: OrderedLight) =>
+  kind === 'directional' ? 0 : kind === 'point' ? 1 : kind === 'spot' ? 2 : WEBGL_RECT_KIND;
 const KIND_ORDER = [1, 2, 0, WEBGL_RECT_KIND];
 const SHADOW_CASTERS_FIRST = [true, false];
 

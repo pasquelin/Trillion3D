@@ -105,8 +105,8 @@ abstract class Elements {
 
 /** An attribute owning its storage: `itemSize` numbers per vertex, one after the other. */
 export class GraphAttribute extends Elements implements Versioned {
-  /** Always `true`: the attribute owns its buffer. */
-  readonly isBufferAttribute = true as const;
+  /** The attribute owns its buffer. */
+  readonly kind = 'attribute' as const;
   /** How many vertices; fixed at construction, as the storage is. */
   readonly count: number;
   /** Bumped by `needsUpdate`. */
@@ -142,8 +142,8 @@ export class GraphAttribute extends Elements implements Versioned {
 
 /** One storage several attributes view, a vertex every `stride` numbers. */
 export class GraphInterleavedBuffer implements Versioned {
-  /** Always `true`: tells an interleaved buffer apart. */
-  readonly isInterleavedBuffer = true as const;
+  /** One storage several attributes view. */
+  readonly kind = 'interleavedBuffer' as const;
   /** How many vertices. */
   readonly count: number;
   /** Bumped by `needsUpdate`. */
@@ -167,8 +167,8 @@ export class GraphInterleavedBuffer implements Versioned {
 
 /** An attribute viewing `itemSize` numbers at `offset` of each vertex of an interleaved buffer. */
 export class GraphInterleavedAttribute extends Elements {
-  /** Always `true`: the attribute views a shared buffer. */
-  readonly isInterleavedBufferAttribute = true as const;
+  /** The attribute views a shared buffer. */
+  readonly kind = 'interleavedAttribute' as const;
   /** The buffer it views. */
   readonly data: GraphInterleavedBuffer;
   /** Where its numbers start in each vertex. */

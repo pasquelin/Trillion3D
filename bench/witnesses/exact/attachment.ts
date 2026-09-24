@@ -1,26 +1,23 @@
-import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
-import * as THREE from 'three';
-import {
-  asHostLibrary,
-  type HostMaterials,
-} from '../../../packages/sdk-browser/src/host/resources.ts';
+import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
+import { GraphAttribute } from '../../../packages/sdk-browser/src/host/graph/attributes.ts';
+import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { setGeometryBounds } from '../../../packages/sdk-browser/src/host/geometryBounds.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { hashId } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
-import { threeAttributes, threeMaterials } from '../three/fromGraph.ts';
 
 /** One resident index buffer per page source, shared by every page read from it. */
 export function pageIndexBuffers(pages: readonly PageRec[]) {
-  const indexByUrl = new Map<string, THREE.BufferAttribute>();
+  const indexByUrl = new Map<string, GraphAttribute>();
   for (const rec of pages)
     if (rec.array && !indexByUrl.has(rec.url))
-      indexByUrl.set(rec.url, new THREE.BufferAttribute(rec.array, 1));
+      indexByUrl.set(rec.url, new GraphAttribute(rec.array, 1));
   return indexByUrl;
 }
 
 /** Gives a page's geometry back: its diagnostic triangles, its attributes, then itself. */
-export function disposePageGeometry(geometry: THREE.BufferGeometry) {
+export function disposePageGeometry(geometry: GraphGeometry) {
   disposeTriangleGeometry(geometry);
   for (const name of Object.keys(geometry.attributes)) geometry.deleteAttribute(name);
   geometry.dispose();
@@ -29,25 +26,20 @@ export function disposePageGeometry(geometry: THREE.BufferGeometry) {
 /** The whole-page mesh record of a diagnostic mode: built once per resident page, painted on
  *  every sync, handed to the draw owner — never to the host scene. */
 export function createExactPagesAttachment(
-  indexByUrl: Map<string, THREE.BufferAttribute>,
+  indexByUrl: Map<string, GraphAttribute>,
   materialFor: (rec: PageRec) => HostMaterials,
-  paint: (
-    mesh: THREE.Mesh,
-    geometry: THREE.BufferGeometry,
-    material: THREE.Material | THREE.Material[],
-    salt?: number,
-  ) => void,
+  paint: (mesh: GraphMesh, geometry: GraphGeometry, material: HostMaterials, salt?: number) => void,
 ) {
   const attach = (rec: PageRec) => {
     if (!rec.array) return;
-    if (!indexByUrl.has(rec.url)) indexByUrl.set(rec.url, new THREE.BufferAttribute(rec.array, 1));
+    if (!indexByUrl.has(rec.url)) indexByUrl.set(rec.url, new GraphAttribute(rec.array, 1));
     const fresh = !rec.mesh;
     if (fresh) {
-      const geometry = new THREE.BufferGeometry();
-      geometry.attributes = threeAttributes(rec.attributes);
+      const geometry = new GraphGeometry();
+      geometry.attributes = { ...rec.attributes };
       geometry.setIndex(indexByUrl.get(rec.url)!);
       setGeometryBounds(geometry, rec.min, rec.max);
-      const copy = new THREE.Mesh(geometry, threeMaterials(materialFor(rec)));
+      const copy = new GraphMesh(geometry, materialFor(rec));
       copy.matrixAutoUpdate = false;
       copy.matrix.fromArray(rec.matrix.elements);
       copy.frustumCulled = false;
@@ -55,11 +47,10 @@ export function createExactPagesAttachment(
       copy.userData.clusterId = rec.clusterId;
       copy.userData.lodRole = rec.role ?? 'exact';
       rec.geometry = geometry;
-      // The witness keeps its library's mesh in the slot the engine's page path fills with its own.
-      rec.mesh = asHostLibrary<GraphMesh>(copy);
+      rec.mesh = copy;
     }
-    const placed = asHostLibrary<THREE.Mesh>(rec.mesh);
-    if (!fresh) placed.material = threeMaterials(materialFor(rec));
+    const placed = rec.mesh!;
+    if (!fresh) placed.material = materialFor(rec);
     placed.matrix.fromArray(rec.matrix.elements);
     if (rec.geometry) paint(placed, placed.geometry, placed.material, hashId(rec.clusterId));
   };

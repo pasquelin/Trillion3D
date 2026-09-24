@@ -6,7 +6,7 @@ type Bounded = {
   computeBoundingSphere?(): void;
 };
 type Instanced = {
-  readonly isInstancedMesh?: boolean;
+  readonly kind?: string;
   readonly count?: number;
   readonly instanceMatrix?: { readonly array: ArrayLike<number>; readonly version?: number };
 };
@@ -26,7 +26,7 @@ export function depthOf(mesh: DepthNode, screen: ArrayLike<number>) {
     const sphere = geometry?.boundingSphere;
     const instanced = mesh as Instanced;
     centre =
-      instanced.isInstancedMesh && instanced.instanceMatrix && sphere
+      instanced.kind === 'instancedMesh' && instanced.instanceMatrix && sphere
         ? placementsCentre(instanced, sphere)
         : sphere?.center;
   }
