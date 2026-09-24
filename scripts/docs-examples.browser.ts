@@ -6,6 +6,9 @@ import { startDocsServer } from './docs-serve.ts';
 import { openExample, RENDER_ONLY } from './docs/examples/capture.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
 
+/** The examples that turn physics on: the only pages that fetch the worker and Jolt's module. */
+const PHYSICS = new Set(['falling-boxes', 'ten-thousand-bodies']);
+
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
   page.screenshot({ clip: { x: 330, y: 200, width: 300, height: 200 }, style: RENDER_ONLY });
@@ -34,7 +37,7 @@ async function controlsDriveTheRender(browser: Browser, port: number) {
   await page.close();
 }
 
-test('every example file renders an image on its own, and the portal page fills with it', async () => {
+test('every example file renders an image on its own, fetching Jolt only when it has physics, and the portal page fills with it', async () => {
   const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   try {
@@ -50,7 +53,8 @@ test('every example file renders an image on its own, and the portal page fills 
     // #276: with the machine's WebGPU device, then with none — a published example renders on
     // both, since it names no backend and the engine reads the machine it was opened on. Every
     // page is opened before the verdict, so the list names every example that stayed blank.
-    const blank: string[] = [];
+    const blank: string[] = [],
+      jolt: string[] = [];
     for (const gpu of [true, false])
       for (const example of ready) {
         const opened = await openExample(
@@ -65,9 +69,16 @@ test('every example file renders an image on its own, and the portal page fills 
           blank.push(
             `${example.id} ${gpu ? 'with' : 'without'} WebGPU drew ${opened.drawn}${opened.errors[0] ? `: ${opened.errors[0]}` : ''}`,
           );
+        // #395: Jolt is fetched by a page that turns physics on, and by no other.
+        const fetched = opened.requests.some((url) =>
+          /physicsWorker\.js|joltPhysics\w*\.wasm/.test(url),
+        );
+        if (fetched !== PHYSICS.has(example.id))
+          jolt.push(`${example.id} ${fetched ? 'fetched' : 'did not fetch'} the physics`);
         await opened.page.close();
       }
     assert.deepEqual(blank, []);
+    assert.deepEqual(jolt, []);
     await controlsDriveTheRender(browser, port);
   } finally {
     await browser.close();
