@@ -1,13 +1,17 @@
-import type { Mesh } from '../shadow-theatre/geometry.ts';
 import { snap, type Vec3 } from './random.ts';
 import { geometry, type Geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts';
 import { computeNormals } from '../../../packages/sdk-core/src/world/geometry/normals.ts';
 
 /**
  * The mesh toolkit of the scenes modelled in code: flat position, normal, (u, v) and index
- * arrays, the workshop's `Mesh`; an empty `uvs` means the mesh carries no texture coordinates.
+ * arrays; an empty `uvs` means the mesh carries no texture coordinates.
  */
-export type { Mesh };
+export interface Mesh {
+  positions: number[];
+  normals: number[];
+  uvs: number[];
+  indices: number[];
+}
 
 /** The pairs of flat lists joined, `[a, b], [c, d]` to `[[a, b], [c, d]]`: compact profiles. */
 export function pairs(...lists: readonly (readonly number[])[]) {
