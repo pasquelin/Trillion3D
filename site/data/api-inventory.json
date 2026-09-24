@@ -3462,6 +3462,7 @@
       "affectedConsumers": [
         "bench/oracles/browser/bounds-and-index.ts",
         "bench/oracles/browser/page-collection.ts",
+        "bench/witnesses/exact/batches/batchDraw.ts",
         "bench/witnesses/three/fromGraphNodes.ts"
       ],
       "disposition": "retained",
