@@ -5132,7 +5132,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/poses.test.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".ObjectPhysics"
     },
