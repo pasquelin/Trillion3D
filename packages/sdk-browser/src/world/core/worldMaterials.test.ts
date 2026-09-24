@@ -69,3 +69,18 @@ test('a map’s sampling or placement repaints its entry, a new offset vector he
     assert.deepEqual(table.takeRepainted(), [entry], `${write}: repainted`);
   }
 });
+
+// #402: a replaced vector kept its listener, so a write to it still repainted the texture.
+test('a replaced placement vector is let go, and writing the same one back moves nothing', () => {
+  const map = new Texture({ width: 2, height: 2 });
+  const old = map.repeat;
+  const next = new Vector2(2, 2);
+  map.repeat = next;
+  const placement = map.placement;
+  old.set(8, 8);
+  assert.equal(map.placement, placement, 'the old vector is no longer heard');
+  map.repeat = next;
+  assert.equal(map.placement, placement, 'the same vector: no write');
+  map.repeat.set(3, 3);
+  assert.equal(map.placement, placement + 1, 'the new vector is');
+});

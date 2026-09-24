@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Ein Software-Rasterisierer",
       "sound-from-the-gpu": "Klang aus der GPU",
       "falling-boxes": "Fallende Kisten",
+      "ten-thousand-bodies": "Zehntausend Körper",
       "breaking-things": "Dinge zerbrechen",
       "cloth-and-rope": "Stoff und Seil",
       "soft-bodies": "Weiche Körper",
@@ -318,8 +319,7 @@
       "hands-in-vr": "Hände in VR",
       "teleport-in-vr": "Teleportieren in VR",
       "controllers-in-vr": "Controller in VR",
-      "ar-on-the-table": "AR auf dem Tisch",
-      "openworld": "Offene Welt"
+      "ar-on-the-table": "AR auf dem Tisch"
     },
     "missing": {
       "colours-on-the-vertices": "Vertexfarben unter WebGPU",
@@ -479,7 +479,6 @@
       "sort-and-reduce": "GPU-Rechen-API",
       "a-software-rasteriser": "GPU-Rechen-API",
       "sound-from-the-gpu": "GPU-Rechen-API",
-      "falling-boxes": "Anbindung einer Physik-Engine",
       "breaking-things": "Anbindung einer Physik-Engine",
       "cloth-and-rope": "Anbindung einer Physik-Engine",
       "soft-bodies": "Anbindung einer Physik-Engine",
@@ -1053,6 +1052,17 @@
           "Sieh die Teile mit <code>world.diagnostic.mode = 'clusters'</code>: jeder Cluster bekommt seine eigene Farbe."
         ],
         "tryIt": "Schieb den Speicher herunter: die Teile werden größer, das Gebäude bleibt ganz. Schalte die Ansicht auf <code>clusters</code>, um sie zu sehen."
+      },
+      "make-things-fall": {
+        "title": "Dinge fallen lassen",
+        "description": "Schalte die Physik ein, und deine Formen bekommen Gewicht: Sie fallen, stoßen und kommen zur Ruhe.",
+        "steps": [
+          "Gib der Welt <code>physics: true</code>. Die Simulation läuft getrennt vom Zeichnen, in einem <em>Worker</em>, und bremst das Bild nie.",
+          "Markiere den Boden als <code>'static'</code>: Er trägt die anderen und bewegt sich nie. Markiere eine Kiste als <code>'dynamic'</code>: Die Schwerkraft zieht sie.",
+          "Die Form kommt aus der Geometrie, das Gewicht aus dem Material: <code>physics: 'wood'</code> ist leicht, <code>'metal'</code> schwer, <code>'rubber'</code> springt.",
+          "Stoße einen Körper mit <code>applyImpulse</code> an oder höre auf seinen <code>contact</code>. Schlafen alle Körper, wird nichts berechnet und nichts gezeichnet."
+        ],
+        "tryIt": "Lass mehr Kisten fallen, stell die Schwerkraft auf den Mond und schalte die Zeitlupe ein."
       },
       "your-own-scene": {
         "title": "Deine eigene Szene",

@@ -1,4 +1,5 @@
 import { useWords } from '../i18n.ts';
+import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
 import { runName } from '../../reports/names.ts';
 import type { Report } from '../../reports/types.ts';
@@ -12,10 +13,7 @@ interface CampaignRunsProps {
 export function CampaignRuns({ report, locale }: CampaignRunsProps) {
   const t = useWords(locale);
   return (
-    <section className="grid min-w-0 grid-cols-1 gap-3">
-      <h3 className="text-lg font-semibold">
-        {t('report.runs')} · {report.runs.length}
-      </h3>
+    <Section level={3} title={`${t('report.runs')} · ${report.runs.length}`}>
       <Table>
         <thead>
           <tr>
@@ -42,6 +40,6 @@ export function CampaignRuns({ report, locale }: CampaignRunsProps) {
           ))}
         </tbody>
       </Table>
-    </section>
+    </Section>
   );
 }

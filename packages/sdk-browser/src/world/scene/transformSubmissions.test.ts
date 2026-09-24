@@ -110,8 +110,8 @@ test('the same pose set again invalidates nothing: the frame stays held', () => 
   b.frame();
   b.frame();
   assert.equal(b.frame(), true, 'the frame is held');
-  const epoque = b.rows.tableEpoch;
+  const scene = b.rt.run.gate.revisions.scene;
   for (let i = 0; i < 10; i++) setWebgpuTransform(b.rt, 'volet', pose(0, 1));
-  assert.equal(b.rows.tableEpoch, epoque, 'ten identical poses, no table rebuilt');
+  assert.equal(b.rt.run.gate.revisions.scene, scene, 'ten identical poses, no scene moved');
   assert.equal(b.frame(), true, 'and the held frame stays held');
 });

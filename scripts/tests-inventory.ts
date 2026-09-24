@@ -27,8 +27,6 @@ function countDeep(files: string[], dir: string, name: RegExp): number {
 
 const TEST = /\.test\.m?ts$/;
 const TS = /\.m?ts$/;
-/** The open world example's generator: its tests sit next to their source. */
-const WORLD = 'scripts/docs/examples/openworld';
 
 /** The tree, one line per folder, each count read from `files`. */
 export function renderInventory(files: string[]): string {
@@ -53,15 +51,6 @@ export function renderInventory(files: string[]): string {
     `  oracles/            ${countDeep(files, 'bench/oracles', TS)} reference implementations, copied verbatim`,
     `  runner/             ${countDeep(files, 'bench/runner', TS)} modules: the measurement harness (README)`,
     `  witnesses/          ${countDeep(files, 'bench/witnesses', TS)} modules: the host-library witnesses, never published`,
-    `${WORLD}/`,
-    `  plan/               ${count(files, `${WORLD}/plan`, TEST)} *.test.ts — relief, roads, tunnels, tiles, places`,
-    `  build/              ${count(files, `${WORLD}/build`, TEST)} *.test.ts — the placed world: collision meshes, where markers stand, which way props face`,
-    `  props/              ${count(files, `${WORLD}/props`, TEST)} *.test.ts — shared meshes and their soundness`,
-    `  regions/            ${countDeep(files, `${WORLD}/regions`, TEST)} *.test.ts — one per region, its helpers in testing.ts`,
-    `  play/               ${count(files, `${WORLD}/play`, TEST)} *.test.ts — flight, simulation, solids, streaming, view, world`,
-    `  gltf/               ${count(files, `${WORLD}/gltf`, TEST)} *.test.ts — the glTF writer`,
-    'site/examples/kit/openworld/',
-    `  sky/                ${count(files, 'site/examples/kit/openworld/sky', TEST)} *.test.ts — sun, atmosphere, clouds, particles`,
   ];
   return ['```', ...lines, '```'].join('\n');
 }

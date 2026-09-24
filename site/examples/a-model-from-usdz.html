@@ -30,7 +30,7 @@
     <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout, language, opening, ease, circling } from '../runtime/kit.js';
+      import { controls, readout, language, opening, ease, circling, mix } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#2d2824');
@@ -76,9 +76,8 @@
       turn.stop();
       opening(world, (time) => {
         const t = ease.smooth((time - 0.8) / 5);
-        const at = (from, to) => from.map((value, axis) => value + (to[axis] - value) * t);
-        world.camera.position.set(...at(START.eye, OVER.eye));
-        world.controls.target.set(...at(START.look, OVER.look));
+        world.camera.position.set(...mix(START.eye, OVER.eye, t));
+        world.controls.target.set(...mix(START.look, OVER.look, t));
         if (t < 1) return true;
         turn.restart();
         return false;

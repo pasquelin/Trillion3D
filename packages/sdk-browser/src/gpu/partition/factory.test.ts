@@ -2,22 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPartition } from './factory.ts';
 import { PARTITION_SHADER } from './shader.ts';
-import { PARTITION_BINDING, PARTITION_KERNEL_BINDINGS, UNI_SCALARS } from './contract.ts';
+import { PARTITION_BINDING, PARTITION_KERNEL_BINDINGS, ROW_DATA_U32 } from './contract.ts';
 import { hizDevice } from '../../../../../tests/kit/gpu/hizDevice.ts';
 import type { PartitionFrame } from './uniform.ts';
 
 const STORAGE_BUFFERS_PER_STAGE = 8;
 
-/** A device that records the bind groups it makes — which buffers, under which binding — and
- *  the uniform words each image writes. */
+/** A device that records the bind groups it makes — which buffers, under which binding. */
 function recordingDevice() {
-  const groups: Array<Record<number, unknown>> = [],
-    uniforms: Uint32Array[] = [];
+  const groups: Array<Record<number, unknown>> = [];
   const device = hizDevice({
     createBuffer: ({ size }) => ({ size, destroy() {} }),
-    queue: {
-      writeBuffer: (_b: unknown, _o: number, words: Uint32Array) => uniforms.push(words.slice()),
-    },
+    queue: { writeBuffer: () => {} },
   });
   (device as unknown as { createBindGroup: unknown }).createBindGroup = ({
     entries,
@@ -28,7 +24,7 @@ function recordingDevice() {
     groups.push(group);
     return group;
   };
-  return { device, groups, uniforms };
+  return { device, groups };
 }
 
 const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer;
@@ -122,8 +118,8 @@ test('the projection rebinds the pyramid when its identity changes, and only the
   partition.dispose();
 });
 
-test('rows rewritten since the last image are read as never projected, once', async () => {
-  const { device, uniforms } = recordingDevice();
+test('rows rewritten since the last image are cleared run by run, once', async () => {
+  const { device } = recordingDevice();
   const partition = await createGpuPartition(device, 64, {
     items: buffer('items'),
     flags: buffer('flags'),
@@ -132,18 +128,37 @@ test('rows rewritten since the last image are read as never projected, once', as
     pyramid: () => buffer('pyramid'),
   });
   assert.ok(partition);
-  const forgotten = (image: number) => [
-    ...uniforms[image].subarray(UNI_SCALARS + 7, UNI_SCALARS + 9),
-  ];
-  partition.encode(encoder(), frame(64));
-  assert.deepEqual(forgotten(0), [0, 0], 'nothing rewritten: an empty range');
+  const cleared: Array<[unknown, number, number]> = [];
+  const clearing = () =>
+    ({
+      ...encoder(),
+      clearBuffer: (target: unknown, offset: number, size: number) =>
+        cleared.push([target, offset, size]),
+    }) as unknown as GPUCommandEncoder;
+  const rowBytes = ROW_DATA_U32 * 4;
+  const rowRuns = () =>
+    cleared
+      .splice(0)
+      .filter(([target]) => target === partition.rowData)
+      .map(([, offset, size]) => [offset / rowBytes, size / rowBytes]);
+  partition.encode(clearing(), frame(64));
+  assert.deepEqual(rowRuns(), [], 'nothing rewritten: nothing cleared');
   partition.forgetRows(10, 12);
   partition.forgetRows(20, 20);
   partition.forgetRows(5, 3);
-  partition.encode(encoder(), frame(64));
-  assert.deepEqual(forgotten(1), [10, 21], 'the union of the rewritten ranks, end exclusive');
-  partition.encode(encoder(), frame(64));
-  assert.deepEqual(forgotten(2), [0, 0], 'forgotten once, then remembered as projected again');
+  partition.forgetRows(60, 90);
+  partition.encode(clearing(), frame(64));
+  assert.deepEqual(
+    rowRuns(),
+    [
+      [10, 3],
+      [20, 1],
+      [60, 4],
+    ],
+    'each run alone, none of the rows between them, bounded to the buffer',
+  );
+  partition.encode(clearing(), frame(64));
+  assert.deepEqual(rowRuns(), [], 'forgotten once, then remembered as projected again');
   partition.dispose();
 });
 

@@ -30,6 +30,7 @@
       "geometry pool": "지오메트리 저장소",
       "lights": "조명",
       "GPU frame": "GPU 프레임",
+      "GPU frame (last)": "GPU 프레임 (마지막)",
       "CPU frame": "CPU 프레임",
       "page hooks": "페이지 코드",
       "engine CPU": "엔진 CPU"
@@ -1859,26 +1860,52 @@
       "dollyZoom": "돌리 줌"
     }
   },
-  "openworld": {
-    "banner": "W A S D로 걸어. 차나 비행기 옆에서 E를 누르면 탈 수 있어.",
+  "falling-boxes": {
+    "banner": "떨어뜨리기를 누르면 상자 50개가 더 떨어집니다. 중력을 바꿔 보세요.",
     "controls": {
-      "keys": "WASD 걷기 · Shift 달리기 · Space 점프 · C 웅크리기 · E 자동차나 비행기 타고 내리기",
-      "teleport": "순간이동",
-      "timeOfDay": "시각",
-      "daySpeed": "하루 속도",
-      "pause": "일시정지",
-      "rain": "비",
-      "geometryMB": "지오메트리 MB",
-      "textureMB": "텍스처 MB",
-      "view": "보기"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "재질",
+      "gravity": "중력",
+      "drop": "떨어뜨리기",
+      "jump": "점프",
+      "slowMotion": "슬로 모션"
     },
     "readouts": {
-      "streaming": "스트리밍"
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝"
+    },
+    "choices": {
+      "matter": {
+        "wood": "나무",
+        "rubber": "고무",
+        "ice": "얼음"
+      },
+      "gravity": {
+        "earth": "지구",
+        "moon": "달",
+        "mars": "화성",
+        "none": "없음"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "상자 만 개가 한꺼번에 떨어집니다. 패널에 물리 비용이 실시간으로 표시됩니다.",
+    "controls": {
+      "count": "개수",
+      "again": "다시"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝",
+      "page": "페이지"
+    },
+    "choices": {
+      "count": {
+        "10000": "10,000",
+        "5000": "5,000",
+        "1000": "1,000"
+      }
     }
   }
 }
