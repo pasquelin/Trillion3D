@@ -13,7 +13,7 @@ import type {
 import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 /** Background the page and both engines clear to, so an uncovered pixel is one colour. */
-const CLEAR_COLOR = 0x2a303c;
+export const CLEAR_COLOR = 0x2a303c;
 
 /** The witness renderer, configured as the explorer configures its own. */
 export function witnessRenderer(): { renderer: THREE.WebGLRenderer; canvas: HTMLCanvasElement } {
@@ -44,6 +44,7 @@ export function sceneOf(fixture: Fixture, sun: THREE.Object3D): ScenePreparee {
   const material = fixture.material();
   const mesh = new THREE.Mesh(square(fixture), material);
   if (fixture.back) mesh.rotation.y = Math.PI;
+  if (fixture.tilt) mesh.rotation.x = fixture.tilt;
   builder.source.add(mesh);
   builder.ajoute(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
   if (fixture.behind !== undefined) {

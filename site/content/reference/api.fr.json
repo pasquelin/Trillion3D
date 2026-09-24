@@ -2559,7 +2559,12 @@
       "colorSpace": "Comment ses nombres sont lus.",
       "matrix": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées ; l’hôte la recalcule à partir du décalage, de la répétition et de la rotation quand il fait la mise à jour.",
       "matrixAutoUpdate": "Si l’hôte reconstruit `matrix`.",
-      "updateMatrix": "Reconstruit `matrix` à partir du décalage, de la répétition et de la rotation."
+      "updateMatrix": "Reconstruit `matrix` à partir du décalage, de la répétition et de la rotation.",
+      "offset": "Ce dont `matrix` est composée.",
+      "repeat": "Combien de fois elle tient.",
+      "center": "Le pivot de la rotation.",
+      "rotation": "La rotation, en radians.",
+      "addEventListener": "Prévient l’importateur quand l’hôte lâche la texture."
     }
   },
   "HostTraversable": {
@@ -5813,6 +5818,8 @@
       "id": "Identité de la texture dans la scène importée : le nom sous lequel une clé de cache et un message la désignent.",
       "name": "Nom que lui a donné le fichier source, vide s’il n’en a donné aucun ; lu par les messages seulement.",
       "version": "Augmenté dès que les texels changent : ce qu’un envoi compare pour éviter une recopie.",
+      "sampling": "Augmenté quand l’adressage, les filtres ou l’anisotropie changent : l’échantillonneur est réglé à nouveau.",
+      "placement": "Augmenté quand `transform` change : le placement est réécrit, rien n’est envoyé.",
       "image": "L’image décodée. Son contenant reste `unknown` : seule la frontière qui l’envoie le connaît.",
       "channel": "Jeu d’UV que lit l’échantillonneur, le `texCoord` de `KHR_texture_transform` ; le moteur échantillonne 0 et 1.",
       "wrapS": "Répétition en largeur.",
@@ -5845,7 +5852,9 @@
       "flipY": "Si l’image est retournée à la lecture.",
       "anisotropy": "À quel point l’image reste nette vue de biais.",
       "channel": "Quel jeu d’UV de la géométrie la texture suit.",
-      "version": "Augmenté à chaque écriture : ce qu’un matériau compare pour rééchantillonner.",
+      "version": "Augmenté par une écriture de l’image ou de sa lecture : ce qu’un matériau compare pour renvoyer l’image.",
+      "sampling": "Augmenté par une écriture de l’adressage, des filtres ou de l’anisotropie : réglé à nouveau, rien n’est envoyé.",
+      "placement": "Augmenté par une écriture de `repeat`, `offset` ou `rotation` : replacé, rien n’est envoyé.",
       "image": "L’image elle-même : une image, un canevas, une vidéo ou des pixels bruts.",
       "layout": "Ce que contient l’image en plus de ses pixels : `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Comment chaque pixel est rangé : `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",

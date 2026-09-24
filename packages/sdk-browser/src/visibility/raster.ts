@@ -1,8 +1,9 @@
 import { signedArea, type Projected } from './projection.ts';
 import { matrixWindingCw } from '../../../sdk-core/src/index.ts';
+import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
 import { refreshSurface, surfaceSide } from '../page/surface.ts';
 import { DEPTH_CLEAR, depthNearer } from '../camera/depthConvention.ts';
-import { triangleAt, perspectiveBary, wrapTexel } from './math.ts';
+import { triangleAt, perspectiveBary, mapTexel } from './math.ts';
 import {
   assertVisibilityPageTriangles,
   packVisibilityId,
@@ -85,6 +86,7 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
     // flip, this rasterizer drew under reflection exactly the faces that cone rejection
     // drops — and its own shading (`visibilityLighting`) already flipped the sign.
     const positif = (side === 'back') !== matrixWindingCw(page.matrix.elements);
+    const transformed = !!mat.map && uvTransformed(mat.map.transform);
     const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
     for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
       const tri = triangleAt(page, t, cam, width, height);
@@ -112,9 +114,8 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
               : 0;
             const rgba = textureRgba(mat.map!);
             if (!rgba) return true;
-            const tx = wrapTexel(u, rgba.width, mat.map!.wrapS),
-              ty = wrapTexel(v, rgba.height, mat.map!.wrapT);
-            return rgba.data[(ty * rgba.width + tx) * 4 + 3] / 255 >= mat.alphaTest;
+            const texel = mapTexel(rgba, mat.map!, u, v, transformed);
+            return rgba.data[texel + 3] / 255 >= mat.alphaTest;
           },
         );
         continue;
