@@ -1,6 +1,6 @@
 // the bytes of a sampled texture.
 import type { Texture } from '../../../packages/sdk-core/src/index.ts';
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import * as THREE from 'three';
 import { textureRgba } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
