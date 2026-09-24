@@ -2551,7 +2551,12 @@
       "colorSpace": "Cómo se leen sus números.",
       "matrix": "Transformación de las UV del muestreador, `KHR_texture_transform` compuesto en tres filas; el host la recalcula a partir del desplazamiento, la repetición y la rotación cuando hace la actualización.",
       "matrixAutoUpdate": "Si el host reconstruye `matrix`.",
-      "updateMatrix": "Reconstruye `matrix` a partir del desplazamiento, la repetición y la rotación."
+      "updateMatrix": "Reconstruye `matrix` a partir del desplazamiento, la repetición y la rotación.",
+      "offset": "De qué se compone `matrix`.",
+      "repeat": "Cuántas veces cabe.",
+      "center": "El pivote de la rotación.",
+      "rotation": "La rotación, en radianes.",
+      "addEventListener": "Avisa al importador cuando el anfitrión suelta la textura."
     }
   },
   "HostTraversable": {
@@ -5805,6 +5810,8 @@
       "id": "Identidad de la textura en la escena importada: el nombre bajo el cual la designan una clave de caché y un mensaje.",
       "name": "Nombre dado por el archivo fuente, vacío si no dio ninguno; leído solo por los mensajes.",
       "version": "Aumentado en cuanto cambian los texels: lo que un envío compara para evitar una nueva copia.",
+      "sampling": "Aumenta cuando cambian el direccionamiento, los filtros o la anisotropía: el muestreador se ajusta de nuevo.",
+      "placement": "Aumenta cuando cambia `transform`: la colocación se reescribe, no se sube nada.",
       "image": "La imagen decodificada. Su contenedor sigue siendo `unknown`: solo la frontera que la envía lo conoce.",
       "channel": "Conjunto de UV que lee el muestreador, el `texCoord` de `KHR_texture_transform`; el motor muestrea 0 y 1.",
       "wrapS": "Repetición en anchura.",
@@ -5837,7 +5844,9 @@
       "flipY": "Si la imagen se invierte al leer.",
       "anisotropy": "Cuán nítida sigue la imagen vista de lado.",
       "channel": "Qué conjunto de UV de la geometría sigue la textura.",
-      "version": "Aumentada en cada escritura: lo que un material compara para volver a muestrear.",
+      "version": "Aumenta con una escritura de la imagen o de cómo se lee: lo que un material compara para enviar de nuevo la imagen.",
+      "sampling": "Aumenta con una escritura del direccionamiento, los filtros o la anisotropía: se ajusta de nuevo, no se envía nada.",
+      "placement": "Aumenta con una escritura de `repeat`, `offset` o `rotation`: se recoloca, no se envía nada.",
       "image": "La imagen misma: una imagen, un lienzo, un vídeo o píxeles brutos.",
       "layout": "Lo que contiene la imagen además de sus píxeles: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Cómo se dispone cada píxel: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",

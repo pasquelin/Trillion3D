@@ -33,6 +33,10 @@ export interface Texture {
   readonly name: string;
   /** Bumped whenever the texels change: what an upload compares to skip a re-copy. */
   readonly version: number;
+  /** Bumped when the addressing, the filters or the anisotropy move: the sampler set again. */
+  readonly sampling: number;
+  /** Bumped when `transform` moves: the placement written again, nothing uploaded. */
+  readonly placement: number;
   /** The decoded image. Its container stays `unknown`: only the boundary that uploads it knows. */
   readonly image: unknown;
   /** UV set the sampler reads, `KHR_texture_transform`'s `texCoord`; the engine samples 0 and 1. */
@@ -55,6 +59,27 @@ export interface Texture {
   readonly generateMipmaps: boolean;
   /** How its numbers are read. */
   readonly colorSpace: TextureColorSpace;
-  /** UV transform of the sampler, `KHR_texture_transform` composed into three rows of three. */
+  /** UV transform of the sampler, `KHR_texture_transform` composed into a 3 × 3 matrix stored
+   *  column-major: entries 0 to 2 the first column, 6 and 7 the translation. */
   readonly transform: readonly number[];
+}
+
+/** Entries of `Texture.transform` (three columns of three) its affine 2 × 3 part is made of: the
+ *  part every reader of the transform applies. */
+export const AFFINE = [0, 1, 3, 4, 6, 7] as const;
+
+/** True when a UV transform (`Texture.transform`) moves the coordinate: the only case it is
+ *  applied, on the CPU twins and on both GPU paths. */
+export function uvTransformed(m: readonly number[]) {
+  return m[0] !== 1 || m[1] !== 0 || m[3] !== 0 || m[4] !== 1 || m[6] !== 0 || m[7] !== 0;
+}
+
+/**
+ * Anisotropy a texture is sampled with, on both GPU paths, as the Three witness grants it
+ * (`WebGLTextures.setTextureParameters`): only a linear magnification over a chain mixed across
+ * levels (`*-mip-linear`) takes it, clamped to `ceiling`; any other filter reads one tap.
+ */
+export function grantedAnisotropy(texture: Texture, ceiling: number) {
+  if (texture.magFilter === 'nearest' || !texture.minFilter.endsWith('mip-linear')) return 1;
+  return Math.min(ceiling, Math.max(1, texture.anisotropy));
 }
