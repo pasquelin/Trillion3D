@@ -34,7 +34,9 @@ test('a texture pool refused even at its floor at prepare is refused by name, ne
     await backend.prepare();
     const failure = events.find((event) => event.phase === 'material-pipeline-failed');
     assert.match(String(failure?.context.error), /WEBGPU_TEXTURE_POOL_REFUSED/);
-    const pools = textures.filter((texture) => texture.label?.startsWith('Trillion3D texture pool'));
+    const pools = textures.filter((texture) =>
+      texture.label?.startsWith('Trillion3D texture pool'),
+    );
     assert.ok(pools.length > 0);
     assert.ok(
       pools.every((texture) => texture.destroyed),
@@ -72,7 +74,11 @@ test('the texture budget recorded mid-session is the one the device granted, not
   // Room for two layers per atlas, not for what the budget asks.
   const gpu = asWebgpuDevice({
     limits: {},
-    createTexture: ({ size }: { size: { width: number; height: number; depthOrArrayLayers: number } }) => {
+    createTexture: ({
+      size,
+    }: {
+      size: { width: number; height: number; depthOrArrayLayers: number };
+    }) => {
       if (size.width * size.height * size.depthOrArrayLayers * 4 > 2 * layerBytes)
         gpu.raise('Out of memory', { message: 'Out of memory' });
       return { destroy() {}, createView: () => ({}) };

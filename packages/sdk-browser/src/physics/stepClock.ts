@@ -28,8 +28,7 @@ export function createStepClock(water: { rest(seconds: number): void }) {
     },
     /** A tick runs at `now`: the time since the last one is owed. */
     tick(now: number) {
-      if (!clock.paused)
-        owed = Math.min(owed + since(now), MAX_CATCH_UP_STEPS * PHYSICS_STEP);
+      if (!clock.paused) owed = Math.min(owed + since(now), MAX_CATCH_UP_STEPS * PHYSICS_STEP);
       last = now;
     },
     /** Whether one step is owed; if so, it is taken. */
