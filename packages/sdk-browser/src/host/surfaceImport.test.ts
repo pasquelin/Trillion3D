@@ -48,6 +48,23 @@ test('The record aliases the composed UV transform, so a later recomposition is 
   assert.notEqual(record.transform[6], 0, 'the offset reached the transform');
 });
 
+// #360: a host animates a placement the way Three lets it — repeat, offset or rotation written,
+// `needsUpdate` on the material alone, the texture's version untouched —: the matrix is recomposed
+// at the read, as the host's own renderer recomposes it at every draw.
+test('A placement written without a version is recomposed when the surface is read again', () => {
+  const host = texture();
+  const material = new THREE.MeshStandardMaterial({ map: host });
+  const record = importHostSurface(material)!.map!;
+  const version = host.version;
+  host.offset.set(0.25, 0.5);
+  host.rotation = Math.PI / 2;
+  material.needsUpdate = true;
+  assert.equal(importHostSurface(material)!.map, record, 'the same record');
+  assert.equal(host.version, version, 'no texture version moved');
+  assert.deepEqual([record.transform[6], record.transform[7]], [0.25, 0.5]);
+  assert.ok(Math.abs(record.transform[0]) < 1e-9, 'the quarter turn read');
+});
+
 test('A material is read in one place, and never cached: a replaced map is seen as it stands', () => {
   const material = new THREE.MeshStandardMaterial({ map: texture() });
   assert.equal(importHostSurface(material)?.map, importHostTexture(material.map!));
