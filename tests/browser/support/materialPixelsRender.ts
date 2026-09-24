@@ -1,12 +1,14 @@
-// Rendering one material fixture on each engine: the witness renderer, the prepared scene, and
-// the two images compared point by point. Split from `materialPixelsPage.ts` (fixture run and
+// Rendering one material fixture on each renderer: the witness renderer, the prepared scene, and
+// the images compared point by point. Split from `materialPixelsPage.ts` (fixture run and
 // comparison) to keep each file under the line gate.
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { batisseur, engine, libere, type ScenePreparee } from './sharedSceneProof.ts';
-import { jusquaTenue } from './sceneImageProof.ts';
-import { SIZE, type Fixture } from './materialFixtures.ts';
+import { jusquaTenue, PLAFOND } from './sceneImageProof.ts';
+import { SIZE, type Fixture } from './materialFixtureShape.ts';
+import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts';
+import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
 import type {
   BackendFactory,
   BackendDiagnostic,
@@ -71,8 +73,8 @@ export function sceneOf(fixture: Fixture, sun: G.GraphNode): ScenePreparee {
 }
 
 /** RGB at `(x, y)` of a bottom-left RGBA image of `SIZE` columns. */
-export const rgbAt = (pixels: Uint8Array | number[], [x, y]: number[]): number[] =>
-  Array.from(pixels.slice((y * SIZE + x) * 4, (y * SIZE + x) * 4 + 3));
+export const rgbAt = (pixels: ArrayLike<number>, [x, y]: number[]): number[] =>
+  [0, 1, 2].map((k) => pixels[(y * SIZE + x) * 4 + k]);
 
 /** The witness image of a prepared scene, drawn by the display chain of a Three engine; the
  *  witness copies the source's meshes and lights, so the scene is left for the engine. */
@@ -124,6 +126,57 @@ export async function engineImage(
     const { tenue, rendue } = await jusquaTenue(backend, camera);
     return { pixels: tenue ?? rendue, held: tenue !== null, dataUrl: canvas.toDataURL() };
   } finally {
+    libere(backend, canvas, scene);
+  }
+}
+
+/** The WebGL2 engine image of a prepared scene: the shipping autonomous backend reading each page
+ *  encoded from the scene's geometry, composed on its own canvas the way a world composes it.
+ *  Rendered until the engine holds its frame, as `jusquaTenue` waits on WebGPU; releases the
+ *  scene. */
+export async function webgl2Image(
+  autonomousPagesBackend: BackendFactory,
+  scene: ScenePreparee,
+  sceneLights: SdkCore.SceneLightStore,
+  camera: G.GraphCamera,
+): Promise<{ pixels: Uint8Array; held: boolean; dataUrl: string }> {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = SIZE;
+  document.body.append(canvas);
+  const gl = canvas.getContext('webgl2');
+  if (!gl) throw new Error('WebGL2 unavailable');
+  const { metadata, readGeometryPage } = pagedManifest(scene.metadata, scene.geometries);
+  const backend = autonomousPagesBackend({
+    source: scene.source,
+    metadata,
+    indices: new Map(),
+    associations: scene.associations,
+    readGeometryPage,
+    viewport: [SIZE, SIZE],
+    webglContext: gl,
+    clearColor: CLEAR_COLOR,
+    sceneLights,
+  });
+  const draw = createFrameComposer(gl, camera);
+  const frame = () => {
+    backend.render(camera);
+    draw(backend, null);
+    const pixels = new Uint8Array(SIZE * SIZE * 4);
+    gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    return pixels;
+  };
+  try {
+    await backend.prepare();
+    let pixels = frame(),
+      held = backend.frameHeld === true;
+    for (let i = 1; i < PLAFOND && !held; i++) {
+      await backend.flush?.();
+      pixels = frame();
+      held = backend.frameHeld === true;
+    }
+    return { pixels, held, dataUrl: canvas.toDataURL() };
+  } finally {
+    draw.dispose();
     libere(backend, canvas, scene);
   }
 }
