@@ -72,10 +72,10 @@ test('the banner says the latest news over the example, until the reader closes 
       const [words] = card?.children ?? [];
       return words?.children.filter(({ hidden }) => !hidden).map(({ textContent }) => textContent);
     };
-    // Démarrage : la ligne « quoi faire » de l'exemple, sans titre.
+    // Start: the example's line of what to do, without a title.
     announce('');
     assert.deepEqual(shown(), ['What to do']);
-    // Un retour à cette ligne ne change rien tant qu'elle y est déjà.
+    // A return to that line changes nothing while it's already there.
     announce('');
     assert.deepEqual(shown(), ['What to do']);
     announce('Checkpoint', 'Keep going');
@@ -84,10 +84,13 @@ test('the banner says the latest news over the example, until the reader closes 
     assert.deepEqual(shown(), ['Listening']);
     layer.children[0].children[1].click();
     assert.equal(shown(), undefined);
-    // Fermé, un retour à la ligne « quoi faire » ne le rouvre pas.
+    // A repeat of the same announcement does not reopen a closed banner.
+    announce('', 'Listening');
+    assert.equal(shown(), undefined, 'a repeat does not reopen a closed banner');
+    // Closed, a return to the line of what to do leaves it closed.
     announce('');
     assert.equal(shown(), undefined, 'a return to the line of what to do leaves it closed');
-    // Fermé, une vraie annonce (un titre, ici) le rouvre.
+    // Closed, a real announcement (a title, here) reopens it.
     announce('Finished', '12 s');
     assert.deepEqual(shown(), ['Finished', '12 s'], 'a real announcement reopens a closed banner');
     layer.children[0].children[1].click();
