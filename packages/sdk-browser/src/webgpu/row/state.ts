@@ -1,6 +1,7 @@
 import { createWebgpuRowJournal } from './journal.ts';
 import { catalogueIndexOf, type PageRec } from '../../page/selection/selection.ts';
 import { pageAddress } from './pageSlots.ts';
+import { createDirtyRows } from './dirty.ts';
 
 /** Stable row and residency arrays shared by the cut, visibility pass, and cache journal. */
 export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) {
@@ -35,8 +36,7 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
   let rowCount = 0,
     tableEpoch = 1,
     rowsEpoch = 0;
-  let dirtyFrom = drawSlots,
-    dirtyTo = -1;
+  const dirtyRows = createDirtyRows(drawSlots);
   let candidateCount = 0,
     candidateOverflow = 0;
   /**
@@ -48,10 +48,6 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
   let packedCount = 0,
     rowsChanged = true;
   let pageTableFloats: Float32Array | undefined, pageTableInts: Uint32Array | undefined;
-  const markRowDirty = (row: number) => {
-    if (row < dirtyFrom) dirtyFrom = row;
-    if (row > dirtyTo) dirtyTo = row;
-  };
 
   return {
     ...journal,
@@ -70,7 +66,10 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
     packedRecs,
     packedPositions,
     pagePositions,
-    markRowDirty,
+    /** Declares rows `[from, to]` dirty — one row by default —; `clearDirty` once all are sent. */
+    markRowDirty: dirtyRows.mark,
+    clearDirty: dirtyRows.clear,
+    dirtyMarks: dirtyRows.marks,
     get rowCount() {
       return rowCount;
     },
@@ -89,17 +88,12 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
     set rowsEpoch(value: number) {
       rowsEpoch = value;
     },
+    /** First and last dirty rows: the span that bounds every mark. */
     get dirtyFrom() {
-      return dirtyFrom;
-    },
-    set dirtyFrom(value: number) {
-      dirtyFrom = value;
+      return dirtyRows.span.from;
     },
     get dirtyTo() {
-      return dirtyTo;
-    },
-    set dirtyTo(value: number) {
-      dirtyTo = value;
+      return dirtyRows.span.to;
     },
     get candidateCount() {
       return candidateCount;
@@ -144,34 +138,4 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
       pageTableInts = value;
     },
   };
-}
-
-/** What `dirtyRange` just computed, returned as-is: the buffer is reread on the spot by its caller,
- *  before any other call, so no image allocates to carry two integers. */
-const dirty = { from: 0, to: -1 };
-
-/**
- * Row range a witness must rewrite: the one the table declares dirty, bounded to the drawable rank.
- * A stale witness — the table's age has changed, or what it described no longer exists — asks for
- * the whole table again; otherwise a rank that grew widens the range to the rows that just entered.
- * `held` is the number of rows the witness held, never negative.
- */
-export function dirtyRange(
-  rows: { dirtyFrom: number; dirtyTo: number; packedCount: number },
-  stale: boolean,
-  held: number,
-) {
-  const last = rows.packedCount - 1;
-  let from = rows.dirtyFrom,
-    to = Math.min(rows.dirtyTo, last);
-  if (stale) {
-    from = 0;
-    to = last;
-  } else if (rows.packedCount > held) {
-    from = Math.min(from, held);
-    to = last;
-  }
-  dirty.from = from;
-  dirty.to = to;
-  return dirty;
 }

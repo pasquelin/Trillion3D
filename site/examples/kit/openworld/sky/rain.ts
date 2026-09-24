@@ -40,7 +40,8 @@ export function createRain(engine: SkyEngine, seed: number, count: number): Rain
     amount: 0,
     update(seconds, camera, wind) {
       const active = Math.round(Math.max(0, Math.min(1, rain.amount)) * count);
-      node.visible = active > 0;
+      // Shown or hidden only when it changes: every write asks the world for a frame.
+      if (node.visible !== active > 0) node.visible = active > 0;
       if (!active) return;
       const air = wind.at(10);
       const dt = Math.max(seconds, 1 / 60);

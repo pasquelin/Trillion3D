@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { claimGpuDevice } from './deviceOwners.ts';
-import { namesNoSession, sharedGpuDevice, tagsIn, untag } from './sessionHandle.ts';
+import { namesNoSession, sharedGpuDevice, tagsIn } from './sessionHandle.ts';
 import { installGpuDeviceLedger } from './deviceLedger.ts';
 import { validated } from './errorScope.ts';
 import { generateMaterialMips } from '../../texture/mips.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { deviceOwner } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
+import { deviceOwner, untag } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
 
 test('every object a session creates names it; the device names none', () => {
   const gpu = mockGpu();

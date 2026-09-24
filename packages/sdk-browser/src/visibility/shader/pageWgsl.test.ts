@@ -1,7 +1,7 @@
 // Common-formulas lot: each WGSL fragment factored out of `pageWgsl.ts` must stay the
 // unique write of its identifier, and each shader that assembles it must carry it only once —
 // two copies in the same text would be two chances of seeing it drift, as before this lot.
-import { importWrapMode } from '../../host/surfaceImport.ts';
+import { importWrapMode } from '../../host/textureImport.ts';
 import test from 'node:test';
 import { TAA_SHADER } from '../../taa/shaderWgsl.ts';
 import assert from 'node:assert/strict';

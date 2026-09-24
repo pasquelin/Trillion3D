@@ -16,6 +16,8 @@ export type SkyLights = {
   apply(day: Daylight, horizon: Rgb): void;
   /** Keeps the key light's shadow frustum on the camera. */
   follow(camera: { x: number; y: number; z: number }): void;
+  /** Takes the lights, the background, the fog and the environment back out of the scene. */
+  dispose(): void;
 };
 
 const set = (colour: ColorLike, c: Rgb) => colour.setRGB(c[0], c[1], c[2]);
@@ -78,6 +80,10 @@ export function createSkyLights(
         camera.y + direction[1] * distance,
         camera.z + direction[2] * distance,
       );
+    },
+    dispose() {
+      scene.remove(key, fill, key.target);
+      scene.background = scene.fog = scene.environment = null;
     },
   };
 }

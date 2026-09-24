@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './pages.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { untag } from '../../gpu/core/sessionHandle.ts';
+import { untag } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
 import {
   quadScene,
   camera,
