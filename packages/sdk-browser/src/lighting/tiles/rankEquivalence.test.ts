@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { LIGHT_TILES_SHADER } from './shader.ts';
 import {
   compactRank,
   compactSerial,
@@ -12,7 +13,8 @@ import {
 // count, on hostile masks.
 
 const WORDS = Math.ceil(LIGHT_SETTINGS.maxLights / 32);
-const MAX_TILE = LIGHT_SETTINGS.maxLightsPerTile;
+/** A tile list has room for every light the contract accepts (#28): none is ever dropped. */
+const MAX_TILE = LIGHT_SETTINGS.maxLights;
 
 function assertSame(hits: Uint32Array, count: number, maxTileLights: number = MAX_TILE) {
   const serial = compactSerial(hits, count, maxTileLights);
@@ -38,21 +40,18 @@ test('all masks zero, count at the scene lights ceiling', () => {
   assert.equal(result.requested, 0);
 });
 
-test('all scene lights retained (LIGHT_SETTINGS.maxLights ceiling)', () => {
+test('every declared light touching one tile is kept, in order, none dropped', () => {
   const hits = new Uint32Array(WORDS).fill(0xffffffff);
   const result = assertSame(hits, LIGHT_SETTINGS.maxLights);
-  // The per-tile ceiling is lower than the scene lights count: the list stops at the ceiling.
-  assert.equal(result.kept.length, MAX_TILE);
   assert.equal(result.requested, LIGHT_SETTINGS.maxLights);
-  assert.deepEqual(result.kept, [...Array(MAX_TILE).keys()]);
+  assert.deepEqual(result.kept, [...Array(LIGHT_SETTINGS.maxLights).keys()]);
 });
 
-test('strict overflow: one more light than the per-tile ceiling', () => {
+test('more than 32 lights in one tile: all of them contribute', () => {
   const hits = new Uint32Array(WORDS);
-  for (let i = 0; i < MAX_TILE + 1; i++) hits[i >>> 5] |= 1 << (i & 31);
-  const result = assertSame(hits, MAX_TILE + 1);
-  assert.equal(result.kept.length, MAX_TILE);
-  assert.equal(result.requested, MAX_TILE + 1);
+  for (let i = 0; i < 33; i++) hits[i >>> 5] |= 1 << (i & 31);
+  const result = assertSame(hits, 33);
+  assert.deepEqual(result.kept, [...Array(33).keys()]);
 });
 
 test('holey mask: every other light retained, including across the 32-bit word boundary', () => {
@@ -61,7 +60,7 @@ test('holey mask: every other light retained, including across the 32-bit word b
   const result = assertSame(hits, LIGHT_SETTINGS.maxLights);
   assert.deepEqual(
     result.kept,
-    [...Array(LIGHT_SETTINGS.maxLights).keys()].filter((i) => i % 2 === 0).slice(0, MAX_TILE),
+    [...Array(LIGHT_SETTINGS.maxLights).keys()].filter((i) => i % 2 === 0),
   );
 });
 
@@ -94,4 +93,16 @@ test('fuzz: random masks, various counts and per-tile ceilings', () => {
     const cap = 1 + Math.floor(rand() * (MAX_TILE - 1));
     assertSame(hits, count, cap);
   }
+});
+
+test('the tile shader has room for every light and writes each one at its rank', () => {
+  assert.match(
+    LIGHT_TILES_SHADER,
+    new RegExp(`const TILE_STRIDE:u32=${LIGHT_SETTINGS.maxLights * 2 + 2}u;`),
+  );
+  assert.doesNotMatch(LIGHT_TILES_SHADER, /MAX_TILE_LIGHTS/, 'no per-tile ceiling');
+  assert.match(
+    LIGHT_TILES_SHADER,
+    /tiles\[base\+TILE_BLEND_BASE\+rankBefore\(BLEND_MASK,lane\)\]=lane;/,
+  );
 });

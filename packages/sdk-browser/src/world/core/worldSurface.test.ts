@@ -8,6 +8,7 @@ import type { HostAttributes, HostTexture } from '../../host/resources.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { clusterMaterialReason } from '../../host/surfaceGate.ts';
 import { importHostSurface } from '../../host/surfaceImport.ts';
+import { hostBlending } from '../../scene/materialBlending.ts';
 
 // #335: a repainted entry writes its values into the surface the session already holds, and the
 // version bump is what the page rows reread it on (`page/surface.ts`).
@@ -124,4 +125,17 @@ test('a glass wears a physical surface the WebGL2 program draws as a transmissiv
     [record.transmission, record.ior, record.thickness, record.lit],
     [1, 1.4, 1, true],
   );
+});
+
+// #346: the mode reaches the host surface, and one that composes with the background is drawn in
+// the transparent pass even when the material did not say transparent.
+test('hostSurface carries the blending, and a composing mode draws transparent', () => {
+  for (const kind of ['meshBasic', 'meshStandard'] as const) {
+    const glow = hostSurface(material[kind]({ blending: 'additive' }), false, new Map());
+    assert.equal(glow.blending, hostBlending('additive'), kind);
+    assert.equal(glow.transparent, true, `${kind}: additive is drawn transparent`);
+    const plain = hostSurface(material[kind]({}), false, new Map());
+    assert.equal(plain.blending, hostBlending('normal'), kind);
+    assert.equal(plain.transparent, false, `${kind}: normal keeps its own transparency`);
+  }
 });
