@@ -381,7 +381,12 @@ so a still camera settles instead of alternating between two cuts.
 
 A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU into the new pool —
 root cover first, then pinned pages, then the most recent — evicts only what no longer fits, and
-rebuilds every bind group that named the old pool on the next image. The geometry pool can grow up to
+rebuilds every bind group that named the old pool on the next image. At prepare a pool is allocated
+once, under an out-of-memory error scope; at a resize, where the old pool lives until the copy, the
+new one is first probed under that scope (`webgpu/residency/poolGrants.ts`). A refusal halves the
+pool's bytes and draws it again by its own rule, down to its floor, so the pool in place is never
+replaced by an invalid one and the budget ladder draws the rest coarser. The world's GPU and CPU totals reach the pools through one fixed
+split (`residency/memoryBudget.ts`). The geometry pool can grow up to
 `geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
 page, page cap and session ceiling). A slot holds one geometry copy: a classic instance

@@ -3842,10 +3842,13 @@
     "members": {
       "geometryPoolCeiling": "一个世界可以请求的最大池:引擎的初始预算。",
       "texturePoolCeiling": "一个世界可以请求的最大纹理池,单位字节。",
-      "geometryPool": "为几何体页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
-      "texturePool": "为纹理页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
+      "geometryPool": "为几何页面保留的 GPU 内存字节数；设置它以改变范围，限于 `gpu` 在阴影和纹理池之外剩下的部分。",
+      "texturePool": "为纹理页面保留的 GPU 内存字节数，在没有纹理池的引擎（WebGL2）上为 `null`；设置它以改变范围，限于 `gpu` 在阴影和几何池之外剩下的部分。",
       "physics": "物理的上限（物体、三角形、装饰物体、内存），启动时读取一次；超出任一项会抛出 `PHYSICS_BUDGET`。",
-      "raycastTrees": "`raycast` 为三角形树保留的 CPU 内存字节数，由页面上的所有世界共享；超出后，最久未使用的树会被丢弃。设置它即可更改上限。"
+      "raycastTrees": "`raycast` 为三角形树保留的 CPU 内存字节数，由页面上的所有世界共享；超出后，最久未使用的树会被丢弃。设置它即可更改上限。",
+      "gpu": "世界可占用的 GPU 内存字节数（所有池合计）；设置后按分配规则（`split`）重新划分每个池。从不从机器读取。",
+      "cpu": "世界已解码页面可占用的 CPU 内存字节数；在下一次加载场景时生效。",
+      "split": "两个总量的分配方式：阴影池取其最大值，其余一半给几何池、一半给纹理池，各自不超过上限；已解码页面缓存占用 CPU 总量。这是单独设置某个池之前规则给出的值。"
     }
   },
   "world.diagnostic": {
@@ -4297,7 +4300,7 @@
     "description": "`memory(world)` 是某个世界当前所持有的内容(`world.budget`);这两个池共同构成了一个世界所接受的设置。"
   },
   "budget.memory": {
-    "summary": "一个世界当前持有的内存预算:两个池各自的当前值,以及各自能增长到的最大值。"
+    "summary": "世界当前持有的内存预算：GPU 和 CPU 总量、按规则的分配、两个池以及各自的上限。"
   },
   "budget.geometryPool": {
     "summary": "一份以 `bytes` 表示的几何体池设置,可以直接交给一个世界使用。",
@@ -6864,6 +6867,7 @@
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
+      "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
       "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",
@@ -7014,6 +7018,19 @@
       "current": "水的速度（河流的水流），m/s。"
     }
   },
+  "WaterSurface": {
+    "summary": "页面为绘制而读取的水面(`world.physics.waterSurface`):与物理 worker 中浮力读取的波浪模型相同的数值,取模拟时刻。",
+    "members": {
+      "level": "静止时水面的高度,单位米。",
+      "crest": "波峰在 `level` 之上能达到的最高点,单位米。",
+      "time": "设置水以来经过的模拟秒数:波浪的时钟。",
+      "setTime": "把波浪设到 `t` 模拟秒。",
+      "height": "世界点 `(x, z)` 上方水面的高度,单位米。",
+      "point": "静止点 `(x, level, z)` 被带到的世界点 `[x, y, z]`,写入 `out`:逐点移动的网格就是水面,波峰与波浪一样锐利。",
+      "wavesNow": "声明的波浪,每个相位推进到此刻:重新设置到 `world.physics.water`(其波浪从 0 秒重新开始)时,水面从当前位置继续而不会跳变。",
+      "normal": "静止点 `(x, z)` 处水面的单位法线 `[x, y, z]`,写入 `out`。"
+    }
+  },
   "WaveSpec": {
     "summary": "场景声明的一个波。",
     "members": {
@@ -7047,6 +7064,7 @@
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
+      "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
       "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",

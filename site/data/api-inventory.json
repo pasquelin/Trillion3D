@@ -485,7 +485,9 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/scene/materialBlending.ts",
         "packages/sdk-browser/src/scene/materialSide.ts",
-        "packages/sdk-browser/src/webgpu/blend/pipelines.ts"
+        "packages/sdk-browser/src/webgpu/blend/fallback.test.ts",
+        "packages/sdk-browser/src/webgpu/blend/pipelines.ts",
+        "packages/sdk-browser/src/webgpu/blend/stagePipelines.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/constants/index\".Blending"
@@ -1311,6 +1313,7 @@
         "bench/perf/browser/support/scenesLoading.ts",
         "bench/runner/cacheManifest.ts",
         "bench/runner/cutAnalysis.ts",
+        "packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts",
         "packages/sdk-browser/src/backend/autonomous/manifest.test.ts",
         "packages/sdk-browser/src/backend/autonomous/manifest.ts",
         "packages/sdk-browser/src/backend/autonomous/pagesBundle.test.ts",
@@ -2894,8 +2897,8 @@
         "packages/sdk-browser/src/frame/costAudit.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.ts",
         "packages/sdk-browser/src/world/core/worldFrames.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/core/worldSession.ts",
         "packages/sdk-browser/src/world/diagnostic/frameDiagnostic.test.ts",
@@ -4732,7 +4735,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
-        "packages/sdk-browser/src/world/saved/saved.test.ts"
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "tests/browser/support/materialFixtures.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/material/index\".material"
@@ -5415,6 +5419,7 @@
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/modelNodes.test.ts",
         "packages/sdk-browser/src/world/core/modelNodes.ts",
+        "packages/sdk-browser/src/world/core/modelNodesCompiled.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
         "packages/sdk-browser/src/world/core/worldControlTargets.ts",
@@ -6061,7 +6066,7 @@
         "packages/sdk-browser/src/physics/tickResults.ts",
         "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts"
+        "packages/sdk-browser/src/world/core/worldBudget.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsBudget"
@@ -6809,6 +6814,7 @@
         "packages/sdk-browser/src/world/core/worldCamera.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "scripts/bench-physics.ts",
+        "scripts/docs-examples-flight.test.ts",
         "site/app/editor/commands.ts"
       ],
       "disposition": "retained",
@@ -7259,7 +7265,7 @@
         "packages/sdk-browser/src/world/core/worldRuntime.fixture.ts",
         "tests/browser/support/blendCacheScenes.ts",
         "tests/browser/support/defaultBackendCase.ts",
-        "tests/browser/support/materialFixtures.ts"
+        "tests/browser/support/materialFixtureShape.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light/contracts\".SceneLight"
@@ -9269,6 +9275,17 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/fluids/buoyancy\".WaterSpec"
+    },
+    {
+      "name": "WaterSurface",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/fluids/waterSurface.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/worldPhysics.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/fluids/waterSurface\".WaterSurface"
     },
     {
       "name": "WaveSpec",

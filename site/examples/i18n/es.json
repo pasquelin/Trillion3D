@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Cambia el nivel, las olas, la densidad y la corriente del agua: las cajas flotan, derivan, se hunden y se asientan.",
+    "controls": {
+      "level": "Nivel",
+      "waves": "Olas",
+      "density": "Densidad del agua",
+      "current": "Corriente",
+      "drop": "Soltar",
+      "again": "Otra vez",
+      "slowMotion": "Cámara lenta"
+    },
+    "readouts": {
+      "bodies": "Cuerpos",
+      "awake": "Despiertos",
+      "step": "Paso"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Diez mil cajas caen a la vez. El panel muestra en directo lo que cuesta la física.",
     "controls": {
