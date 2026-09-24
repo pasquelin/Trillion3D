@@ -460,7 +460,7 @@
     "description": "`memory(world)` es lo que el mundo mantiene ahora (`world.budget`); las dos reservas construyen el ajuste que toma un mundo."
   },
   "budget.memory": {
-    "summary": "Los presupuestos de memoria que mantiene un mundo en este momento: las dos reservas y el máximo de cada una."
+    "summary": "Los presupuestos de memoria que tiene un mundo ahora: los totales de GPU y CPU, su reparto según la regla, ambos depósitos y el máximo de cada uno."
   },
   "budget.geometryPool": {
     "summary": "Un ajuste de reserva de geometría de `bytes`, listo para dar a un mundo.",
@@ -5206,6 +5206,8 @@
       "shadowWaitMs": "Cuánto tiempo han esperado.",
       "gpuLightListsMs": "Tiempo de GPU de las listas de luces.",
       "gpuShadowsMs": "Tiempo de GPU de las sombras.",
+      "gpuShadowCullMs": "Tiempo de GPU para elegir los proyectores de las páginas de sombra que dibuja una imagen: el corte de luz, el descarte por página y la prueba de oclusión de los proyectores en movimiento con las pirámides que lee.",
+      "gpuShadowRasterMs": "Tiempo de GPU para dibujar esos proyectores en las páginas: la capa estática y luego el pool.",
       "gpuLightingMs": "Tiempo de GPU de la iluminación.",
       "shadowLightCuts": "Cortes de clústeres lanzados desde las luces: uno por vista de luz dibujada, cero en una imagen quieta.",
       "shadowPagesRequested": "Páginas de sombra virtuales que leyó la imagen, tal como las nombró su último informe de peticiones: lo que marcan los receptores de la cámara.",
@@ -5225,7 +5227,7 @@
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
       "resting": "La cámara estaba en reposo en el último plan: su vista era la del plan anterior.",
       "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",
-      "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
+      "releaseDeferred": "La imagen no planifica ninguna sombra: las cajas retenidas entran en la lista de inmediato.",
       "observeCost": "Temporizador del pase Sombras de una imagen, repartido entre las páginas que dibujó.",
       "setBudgetMs": "Presupuesto publicado por el anfitrión, en milisegundos de GPU por imagen.",
       "setPageInvalidation": "Desactiva la invalidación por página: un objeto en movimiento invalida todas las páginas de las luces que toca. Activa por defecto.",
@@ -6286,7 +6288,7 @@
       "jumpSpeed": "Solo personaje: velocidad ascendente con la que empieza un salto, en m/s; `sqrt(2 g h)` alcanza `h`, 1,1 m por defecto.",
       "gravity": "Solo personaje: aceleración hacia abajo, en m/s²; 9,80665 por defecto.",
       "airControl": "Solo personaje: qué tan rápido dirigen las teclas en el aire, como fracción de la respuesta en tierra; 0,3 por defecto, 0 es balístico.",
-      "responseTime": "Solo personaje: segundos para alcanzar el 95 % de la velocidad deseada, o para detenerse, en el suelo; por defecto un paso de zancada (1 / 1,8 s).",
+      "responseTime": "Solo personaje: segundos que tardan las piernas en alcanzar el 95 % de la velocidad deseada, en el suelo; 0,12 por defecto. La fricción del suelo limita primero el arranque: una suela empuja como mucho `μ g`, `μ` el agarre de una suela de goma sobre el `material.physics` del suelo (piedra sin física), así que un trote se alcanza en 0,45 s sobre piedra y 2,2 s sobre hielo.",
       "capsuleRadius": "Solo personaje: radio del cuerpo, en metros; media anchura de hombros (0,23 m) por defecto.",
       "capsuleHeight": "Solo personaje: altura del cuerpo, en metros; 1,75 por defecto.",
       "eyeHeight": "Solo personaje: altura de la cámara sobre los pies, en metros; 1,64 por defecto.",
@@ -6298,7 +6300,7 @@
       "onJump": "Solo personaje: se llama cuando el cuerpo deja el suelo en un salto; `null` por defecto.",
       "stride": "Solo personaje: la fase de la zancada en radianes, un pie golpea en 0 y en π; 0 en otro caso.",
       "fallGravity": "Solo personaje: aceleración hacia abajo mientras cae, en m/s²; 1,6 g por defecto, para que un salto no flote.",
-      "stopTime": "Solo personaje: segundos para perder el 95 % de la velocidad una vez que no se mantiene ninguna tecla, en el suelo; 0,08 por defecto.",
+      "stopTime": "Solo personaje: segundos que tardan las piernas en perder el 95 % de la velocidad una vez que no se mantiene ninguna tecla, en el suelo; 0,12 por defecto. La fricción del suelo limita primero la parada: un trote se desliza `v² / (2 μ g)`, 0,8 m sobre piedra y 3,8 m sobre hielo; un tiempo más largo frena con más suavidad.",
       "headBob": "Solo personaje: metros que sube y baja el ojo en cada paso al trote; 0,035 por defecto, 0 lo mantiene nivelado.",
       "landingDip": "Solo personaje: segundos desde el contacto con el suelo hasta el punto más bajo de la caída de aterrizaje del ojo, tan profunda como rápido sea el impacto; 0,06 por defecto, 0 lo desactiva.",
       "mass": "Solo personaje, con física: kilogramos que el cuerpo apoya sobre lo que pisa; 80 por defecto.",
@@ -6334,10 +6336,13 @@
     "members": {
       "geometryPoolCeiling": "Las reservas más grandes que un mundo puede pedir: los presupuestos de partida del motor.",
       "texturePoolCeiling": "La reserva de texturas más grande que un mundo puede pedir, en bytes.",
-      "geometryPool": "Bytes de memoria de GPU reservados para las páginas de geometría; ajústalo para cambiar el límite.",
-      "texturePool": "Bytes de memoria de GPU reservados para las páginas de textura; ajústalo para cambiar el límite.",
+      "geometryPool": "Bytes de memoria GPU reservados para páginas de geometría; ajústalo para cambiar la envolvente, dentro de lo que `gpu` deja junto a las sombras y el depósito de texturas.",
+      "texturePool": "Bytes de memoria GPU reservados para páginas de textura, `null` en un motor sin depósito de texturas (WebGL2); ajústalo para cambiar la envolvente, dentro de lo que `gpu` deja junto a las sombras y el depósito de geometría.",
       "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
-      "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente."
+      "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente.",
+      "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Nunca se lee de la máquina.",
+      "cpu": "Bytes de memoria CPU que pueden ocupar las páginas decodificadas del mundo; se aplica en la próxima carga de escena.",
+      "split": "Cómo se reparten los dos totales: el depósito de sombras a su máximo, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; la caché de páginas decodificadas toma el total de CPU. Lo que da la regla, antes de ajustar un depósito por separado."
     }
   },
   "world.diagnostic": {
@@ -6465,6 +6470,8 @@
       "shadowWaitMs": "Cuánto tiempo han esperado.",
       "gpuLightListsMs": "Tiempo de GPU de las listas de luces.",
       "gpuShadowsMs": "Tiempo de GPU de las sombras.",
+      "gpuShadowCullMs": "Tiempo de GPU para elegir los proyectores de las páginas de sombra que dibuja una imagen: el corte de luz, el descarte por página y la prueba de oclusión de los proyectores en movimiento con las pirámides que lee.",
+      "gpuShadowRasterMs": "Tiempo de GPU para dibujar esos proyectores en las páginas: la capa estática y luego el pool.",
       "gpuLightingMs": "Tiempo de GPU de la iluminación.",
       "hizTestedClusters": "Lo que hizo la prueba de oclusión en un fotograma: los clústeres que se le dieron, los que eliminó, y aquellos cuya huella en pantalla en el nivel 0 supera el núcleo de dieciséis texels y por tanto responden desde un mip más grueso. `hiz*Triangles` son los triángulos de esos mismos clústeres. En el camino de GPU, describen un fotograma MÁS ANTIGUO que el que los renderiza — `hizCountedFrame` dice cuál —, como `gpuPassMs`, y dos fotogramas vecinos suelen llevar la misma medida. Ninguno se estima: `null` para un motor que no prueba la oclusión, en un dispositivo cuyos veredictos no se pueden releer, y mientras no se haya contado ningún fotograma.",
       "hizRejectedClusters": "Clústeres ocultos.",
@@ -6641,7 +6648,7 @@
   },
   "CharacterCameraControls": {
     "summary": "UN PERSONAJE, visto a través de sus ojos: un cuerpo con masa que camina, corre, salta y cae, y choca con los triángulos del mundo como una cápsula vertical.",
-    "description": "El puntero gira la cabeza como en primera persona (`look.ts`). Las teclas, por `KeyboardEvent.code` para que cada distribución de teclado toque las mismas teclas: W/S o las flechas arriba y abajo caminan adelante y atrás, A/D o las flechas laterales se desplazan de lado, Mayús esprinta, Espacio salta. El cuerpo no arranca ni se detiene de golpe: gana velocidad y frena en `responseTime`, conserva su impulso en el aire, cae bajo `gravity`, sube repisas hasta `stepHeight`, se desliza a lo largo de las paredes y se sostiene en pendientes hasta `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La cámara es el ojo, a `eyeHeight` sobre los pies. Un anfitrión que mueve la cámara él mismo teletransporta el cuerpo allí, en reposo. Un personaje quieto — en el suelo, sin velocidad, sin tecla — no emite nada, así que la escena permanece quieta.",
+    "description": "El puntero gira la cabeza como en primera persona (`look.ts`). Las teclas, por `KeyboardEvent.code` para que cada distribución de teclado toque las mismas teclas: W/S o las flechas arriba y abajo caminan adelante y atrás, A/D o las flechas laterales se desplazan de lado, Mayús esprinta, Espacio salta. El cuerpo no arranca ni se detiene de golpe: gana velocidad y frena en `responseTime`, nunca más rápido de lo que la fricción de su suelo deja empujar a una suela, así que una parada se desliza un poco sobre la piedra y lejos sobre el hielo, conserva su impulso en el aire, cae bajo `gravity`, sube repisas hasta `stepHeight`, se desliza a lo largo de las paredes y se sostiene en pendientes hasta `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La cámara es el ojo, a `eyeHeight` sobre los pies. Un anfitrión que mueve la cámara él mismo teletransporta el cuerpo allí, en reposo. Un personaje quieto — en el suelo, sin velocidad, sin tecla — no emite nada, así que la escena permanece quieta.",
     "members": {
       "velocity": "La velocidad del cuerpo en metros por segundo, en vivo: `[x, y, z]`, y hacia arriba.",
       "onGround": "Si los pies están sobre un suelo.",
@@ -6864,6 +6871,7 @@
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
+      "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
@@ -7014,6 +7022,19 @@
       "current": "Velocidad del agua (la corriente de un río), en m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "La superficie del agua tal como la página la lee para dibujarla (`world.physics.waterSurface`): el modelo de olas que la flotación lee en el worker de física, los mismos números, a la hora de la simulación.",
+    "members": {
+      "level": "Altura de la superficie en reposo, en metros.",
+      "crest": "Punto más alto que alcanza una cresta sobre `level`, en metros.",
+      "time": "Segundos simulados desde que se puso el agua: el reloj de las olas.",
+      "setTime": "Ajusta las olas a `t` segundos simulados.",
+      "height": "Altura de la superficie sobre el punto del mundo `(x, z)`, en metros.",
+      "point": "El punto del mundo `[x, y, z]` al que se lleva el punto en reposo `(x, level, z)`, en `out`: una malla movida punto a punto es la superficie, con crestas tan agudas como las olas.",
+      "wavesNow": "Las olas declaradas, cada fase llevada a este instante: puestas de nuevo en `world.physics.water` (cuyas olas vuelven a empezar en 0 s), la superficie sigue desde donde está en vez de saltar.",
+      "normal": "Normal unitaria `[x, y, z]` de la superficie en el punto en reposo `(x, z)`, en `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Una ola tal como la declara una escena.",
     "members": {
@@ -7047,6 +7068,7 @@
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
+      "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
@@ -7228,17 +7250,6 @@
     },
     "summary": "Una imagen y el estado de muestreo con el que se lee, y la transformación de sus coordenadas."
   },
-  "GraphAngles": {
-    "summary": "La misma orientación como tres ángulos y su orden, que anuncia sus escrituras de la misma forma.",
-    "members": {
-      "x": "El primer ángulo, en radianes.",
-      "set": "Escribe los tres ángulos, y el orden si se da; anunciado una vez.",
-      "setFromRotation": "Los ángulos de `q` en este orden (el `Euler` del núcleo); anunciado salvo con `quiet`.",
-      "y": "El segundo ángulo, en radianes.",
-      "z": "El tercer ángulo, en radianes.",
-      "order": "El orden en que giran los tres ángulos, `'XYZ'` salvo que se fije."
-    }
-  },
   "GraphArray": {
     "summary": "Los arrays tipados que guarda un atributo."
   },
@@ -7281,40 +7292,6 @@
   },
   "GraphNodeKind": {
     "summary": "Qué es un nodo del grafo: un nodo simple, la raíz, un grupo, una malla dibujada (en una colocación o en varias), un ojo, o una de las luces que declara una escena."
-  },
-  "GraphRotation": {
-    "summary": "Una orientación `(x, y, z, w)` cuyas escrituras llaman a `_onChangeCallback`.",
-    "members": {
-      "x": "El primer número.",
-      "set": "Escribe los cuatro números, anunciado una vez.",
-      "copy": "Toma los números de otra rotación.",
-      "fromArray": "Lee cuatro números de una lista.",
-      "setFromAngles": "La rotación de `angles`, en su orden (`localTurnQuaternion`); anunciado salvo con `quiet`.",
-      "setFromRotationMatrix": "La rotación del 3×3 superior de una matriz por columnas cuyas columnas son unitarias.",
-      "premultiply": "Se convierte en `q` seguido de esta rotación, `q · this`.",
-      "invert": "Se convierte en el giro opuesto.",
-      "y": "El segundo número.",
-      "z": "El tercer número.",
-      "w": "El cuarto número."
-    }
-  },
-  "GraphVector": {
-    "summary": "Tres números de una pose o de un punto: campos de datos simples y las operaciones que usa un controlador.",
-    "members": {
-      "set": "Escribe los tres números.",
-      "copy": "Toma los números de otro punto.",
-      "clone": "Una copia.",
-      "add": "Suma otro vector.",
-      "sub": "Resta otro vector.",
-      "multiplyScalar": "Escala los tres números.",
-      "length": "Su longitud.",
-      "setLength": "Mantiene la dirección, fija la longitud.",
-      "distanceTo": "Distancia a un punto.",
-      "fromArray": "Lee tres números de una lista.",
-      "x": "De izquierda a derecha.",
-      "y": "De abajo arriba.",
-      "z": "De atrás hacia adelante."
-    }
   },
   "Joint": {
     "summary": "Una unión entre dos cuerpos, o entre un cuerpo y el mundo (`b` null), creada con `joint.*` y añadida a la simulación con `world.physics.add`.",
@@ -7379,12 +7356,6 @@
       "slider": "Un riel a lo largo de `axis`: un cajón, un pistón. `limits` en metros.",
       "distance": "Mantiene `anchor` en `a` y `anchorB` en `b` a su distancia, o dentro de `limits`.",
       "cone": "Una rótula cuyo `axis` oscila dentro de un cono de semiángulo `limits.max`."
-    }
-  },
-  "JointHost": {
-    "summary": "El lado del mundo de una unión: lo que una escritura en ella pide a la simulación.",
-    "members": {
-      "motor": "El motor cambió."
     }
   }
 }

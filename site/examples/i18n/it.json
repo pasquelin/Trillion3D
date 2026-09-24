@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Premi Gioca, poi corri con W A S D e salta con Spazio.",
+    "banner": "Premi Gioca, poi corri con W A S D e salta con Spazio. Lascia presto: sulla pietra scivoli un poco prima di fermarti.",
     "controls": {
       "keys": "Il controllo del personaggio del motore: Gioca nel menu cattura il mouse per guardare, W A S D per correre (Z Q S D su AZERTY), Maiusc per scattare, Spazio per saltare, Esc libera il mouse. La pagina aggiunge R per ricorrere, M per togliere l'audio.",
       "look": "Sguardo",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Cambia livello, onde, densità e corrente dell’acqua: le casse galleggiano, vanno alla deriva, affondano e si posano.",
+    "controls": {
+      "level": "Livello",
+      "waves": "Onde",
+      "density": "Densità dell’acqua",
+      "current": "Corrente",
+      "drop": "Lascia",
+      "again": "Ancora",
+      "slowMotion": "Rallentatore"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "awake": "Svegli",
+      "step": "Passo"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Diecimila scatole cadono insieme. Il pannello mostra dal vivo quanto costa la fisica.",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Clicca per guardarti intorno, poi cammina con W A S D e salta con Spazio: sali le scale e la rampa, viaggia sulla piattaforma, spingi le casse.",
+    "banner": "Clicca per guardarti intorno, poi cammina con W A S D e salta con Spazio: sali le scale e la rampa, viaggia sulla piattaforma, spingi le casse e lascia i tasti sul ghiaccio per scivolare.",
     "controls": {
       "pushStrength": "Forza di spinta (N)",
       "platformSpeed": "Velocità della piattaforma",

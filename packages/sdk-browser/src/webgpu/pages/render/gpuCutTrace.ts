@@ -1,5 +1,5 @@
 import type { EngineCamera } from '../../../camera/world.ts';
-import { CPU_STEP } from './cpuSteps.ts';
+import { CPU_STEP } from './cpuStepTable.ts';
 import { frameTraceSnapshot } from './trace.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
