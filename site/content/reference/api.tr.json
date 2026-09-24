@@ -1658,7 +1658,8 @@
       "signal": "Sinyal iptal edildiğinde yüklemeyi durdurur.",
       "scope": "`'full'` tüm önbelleği gerektirir, `'progressive'` onun akışlı kesitini; başka bir kapsamdaki bir model isimle reddedilir. Ayarlanmazsa, model göstericisinin bildirdiği kapsamda okunur.",
       "stream": "Sayfanın yapılandırdığı bir akıtıcı; dünyanın oturumu kendi akıtıcısıyla akıtır.",
-      "position": "Modelin başlangıç noktasının sahnede nereye gittiği."
+      "position": "Modelin başlangıç noktasının sahnede nereye gittiği.",
+      "onProgress": "Yüklemenin ne kadar ilerlediğini duyar: manifest okunduğunda `manifest`, ardından sahnenin okuduğu her dosya geldikçe `resources` (o ana kadar bilinen `total` içinden `completed`). Olay bir `JobProgress`'tir: yüklemeyi saran bir `createJob` kendi `progress`'ini buraya verir."
     }
   },
   "LoadedModel": {
