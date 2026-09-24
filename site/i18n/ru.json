@@ -338,8 +338,6 @@
       "a-capped-section": "плоскости отсечения: крышки через трафарет",
       "decals-on-a-surface": "выбор лучом (raycast)",
       "sculpt-a-sphere": "выбор лучом (raycast)",
-      "a-texture-turned-and-tiled": "повтор, смещение и поворот текстуры в WebGPU",
-      "texture-filters-compared": "фильтры текстур и анизотропия в WebGPU",
       "a-video-on-a-screen": "текстуры живого видео",
       "the-webcam-as-a-texture": "текстуры живого видео",
       "four-ways-to-blend": "все режимы смешивания",
