@@ -74,17 +74,22 @@
 
       // One listener for the whole load. The bytes of every file fill the first nine tenths of
       // the bar as they arrive; the pages the first view lacks fill the last tenth as they land.
-      // The other phases — manifest, tables, resources — name the step.
+      // The other phases — manifest, tables, resources — name the step. The bar only ever grows.
+      let filled = 0;
+      const fillTo = (percent) => {
+        filled = Math.max(filled, percent);
+        fill.style.width = `${filled}%`;
+      };
       const progress = ({ phase: step, completed = 0, total = 0 }) => {
         const share = total > 0 ? completed / total : 1;
         phase(say(step));
         if (step === 'bytes') {
           bytes(`${kilobytes(completed)} / ${kilobytes(total)}`);
-          fill.style.width = `${90 * share}%`;
+          fillTo(90 * share);
         }
         if (step === 'pages') {
           pages(`${completed} / ${total}`);
-          fill.style.width = `${90 + 10 * share}%`;
+          fillTo(90 + 10 * share);
         }
       };
 
