@@ -28,6 +28,10 @@ export interface WorldOptions {
   /** Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only
    *  then. @defaultValue false */
   physics?: boolean | WorldPhysicsOptions;
+  /** Temporal antialiasing, WebGPU only: sub-pixel jitter accumulated over frames. `false` draws
+   *  each pixel at its centre, with no history, what a pixel-exact capture asks; switched later
+   *  by `world.temporalAntialiasing`. @defaultValue true */
+  temporalAntialiasing?: boolean;
 }
 
 /**
