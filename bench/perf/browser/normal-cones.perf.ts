@@ -1,6 +1,6 @@
 // preparing normal cones and the page catalogue.
 import * as THREE from 'three';
-import { prepareCones } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts';
+import { prepareCones } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/cones.ts';
 import {
   compteMateriauxEtTangentes,
   indexSourceBytes,
@@ -60,7 +60,7 @@ const casPages = [
 
 const resCones = await mesure({
   name: 'page normal cones',
-  fichier: 'packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/pages/prepare/cones.ts',
   cas: casPages,
   calcul: passeCones(prepareCones),
   attendu: passeCones(referencePrepareCones),

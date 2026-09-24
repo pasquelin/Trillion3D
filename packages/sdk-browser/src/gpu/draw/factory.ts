@@ -1,7 +1,7 @@
 import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './contract.ts';
 import { createGpuDrawBuffers } from './buffers.ts';
 import type { GpuDraw } from './contract.ts';
-import { dropValidation, openValidation, validationError } from '../core/errorScope.ts';
+import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { drawBindEntries, drawShader } from './shader.ts';
 
@@ -24,30 +24,25 @@ export async function createGpuDraw(
     const { itemsBuf, restBuf, uniforms, instanceBuffer, indirectBuffer } = allocated;
     const { groupCounts, groupOffsets, slotUsedBuf } = allocated;
     buffers.push(...allocated.all);
-    openValidation(device);
-    const layout = device.createBindGroupLayout({ entries: drawBindEntries() });
-    const module = device.createShaderModule({ code: drawShader(layerSlots) });
-    if (await shaderFailed(device, module)) {
+    const made = await validated(device, async () => {
+      const layout = device.createBindGroupLayout({ entries: drawBindEntries() });
+      const module = device.createShaderModule({ code: drawShader(layerSlots) });
+      if (await shaderFailed(module)) return undefined;
+      const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+      const stage = (entryPoint: string) =>
+        device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
+      return {
+        layout,
+        countPipeline: stage('countGroups'),
+        prefixPipeline: stage('prefixGroups'),
+        scatterPipeline: stage('scatterGroups'),
+      };
+    });
+    if (!made) {
       for (const buffer of buffers) buffer.destroy();
       return undefined;
     }
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-    const countPipeline = device.createComputePipeline({
-      layout: pipelineLayout,
-      compute: { module, entryPoint: 'countGroups' },
-    });
-    const prefixPipeline = device.createComputePipeline({
-      layout: pipelineLayout,
-      compute: { module, entryPoint: 'prefixGroups' },
-    });
-    const scatterPipeline = device.createComputePipeline({
-      layout: pipelineLayout,
-      compute: { module, entryPoint: 'scatterGroups' },
-    });
-    if (await validationError(device)) {
-      for (const buffer of buffers) buffer.destroy();
-      return undefined;
-    }
+    const { layout, countPipeline, prefixPipeline, scatterPipeline } = made;
     const makeBindGroup = (maskBuffer: GPUBuffer) =>
       device.createBindGroup({
         layout,
@@ -119,7 +114,6 @@ export async function createGpuDraw(
       },
     };
   } catch {
-    await dropValidation(device);
     for (const buffer of buffers)
       try {
         buffer.destroy();
