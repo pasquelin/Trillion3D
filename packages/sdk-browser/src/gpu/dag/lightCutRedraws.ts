@@ -1,11 +1,9 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { MAX_SHADOW_PAGES as PAGES } from '../shadow/recordPack.ts';
 import { ESCALATED_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { OUT_FLAGS } from './layout.ts';
 
 /** Frames whose flag word may be in flight at once: a readback maps a frame or two later. */
 const SLOTS = 8;
-/** Pages a frame draws at most, whatever views they fall in. */
-const PAGES: number = LIGHT_SETTINGS.shadowPagesPerFrame;
 
 /**
  * WHICH PAGES A LIGHT CUT DREW SHORT, TO BE DRAWN AGAIN. Every frame that runs a cut copies its
@@ -43,14 +41,15 @@ export function createLightCutRedraws(
     reading: Promise.resolve(),
   }));
   /** Each page to draw again, and whether its depth is wrong — dropped work, or a flag nobody
-   *  reads — and is hidden meanwhile, or only coarser — an escalation — and stays read. */
+   *  reads — and is withdrawn meanwhile, or only coarser — an escalation — and stays read. */
   const redraw = new Map<number, boolean>(),
     waiting = new Set<number>();
   const limit = createViewLimit(viewCap);
   let epoch = 0,
     /** Residency changed since the waiting pages were last released. */
     moved = false;
-  const again = (page: number, hide: boolean) => redraw.set(page, hide || !!redraw.get(page));
+  const again = (page: number, withdraw: boolean) =>
+    redraw.set(page, withdraw || !!redraw.get(page));
   const add = (pages: ArrayLike<number>, count: number) => {
     for (let i = 0; i < count; i++) again(pages[i], true);
   };
@@ -131,11 +130,11 @@ export function createLightCutRedraws(
     get viewLimit() {
       return limit.value;
     },
-    /** Hands every page to draw again to `visit`, and whether it is hidden until then; forgets
+    /** Hands every page to draw again to `visit`, and whether it is withdrawn until then; forgets
      *  them; returns how many. */
-    takeRedraw(visit: (page: number, hide: boolean) => void) {
+    takeRedraw(visit: (page: number, withdraw: boolean) => void) {
       const count = redraw.size;
-      for (const [page, hide] of redraw) visit(page, hide);
+      for (const [page, withdraw] of redraw) visit(page, withdraw);
       redraw.clear();
       return count;
     },

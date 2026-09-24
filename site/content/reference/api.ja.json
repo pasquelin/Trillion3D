@@ -7398,11 +7398,5 @@
       "distance": "`a` の `anchor` と `b` の `anchorB` をその長さ、または `limits` の範囲に保ちます。",
       "cone": "`axis` が半角 `limits.max` の円錐の中で揺れる球ジョイント。"
     }
-  },
-  "JointHost": {
-    "summary": "ジョイントのワールド側:ジョイントへの書き込みがシミュレーションに求めること。",
-    "members": {
-      "motor": "モーターが変わった。"
-    }
   }
 }
