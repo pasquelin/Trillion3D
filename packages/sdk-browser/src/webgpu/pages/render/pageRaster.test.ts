@@ -3,7 +3,7 @@ import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { compareImages, type ClusterManifest } from '../../../../../sdk-core/src/index.ts';
-import { exactPagesBackend } from '../../../measurement/measurement.ts';
+import { exactPagesBackend } from '../../../../../../bench/witnesses/measurement.ts';
 import { webgpuPagesBackend } from '../pages.ts';
 import { rasterPageRecords } from '../../../page/raster.ts';
 import {

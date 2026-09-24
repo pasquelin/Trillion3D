@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../pages/pages.ts';
-import { exactPagesBackend } from '../../backend/exact/backend.ts';
+import { exactPagesBackend } from '../../../../../bench/witnesses/exact/backend.ts';
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { packDagSelection } from '../../gpu/dag/selection.ts';
