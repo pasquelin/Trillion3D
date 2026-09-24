@@ -14,46 +14,10 @@ import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts';
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
 import type { DirectLightResources } from '../../lighting/deferred/program.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { settledRt } from './hold.fixture.ts';
+import { deferredLightingHarness, settledRt, surface, view } from './hold.fixture.ts';
 
 installGpuGlobals();
 
-/**
- * Fake GPUDevice whose `createRenderPipelineAsync` distinguishes the variant by the module name
- * (set by `createCheckedShaderModule` via `${label}_LIGHTING` / `${label}_COMPOSE`): UNLIT resolves
- * at once, DIRECT and BOUNCE stay pending until `finishCompilation()` has been called, exactly like
- * a real compilation that lasts several frames.
- */
-function deferredLightingHarness() {
-  let resolveGate: () => void;
-  const gate = new Promise<void>((resolve) => {
-    resolveGate = resolve;
-  });
-  const device = {
-    createBuffer: () => ({ destroy() {} }),
-    createShaderModule: (desc: { label?: string }) => ({
-      label: desc.label,
-      getCompilationInfo: async () => ({ messages: [] }),
-    }),
-    createBindGroupLayout: () => ({}),
-    createTexture: () => ({ createView: () => ({}), destroy() {} }),
-    createSampler: () => ({}),
-    createPipelineLayout: () => ({}),
-    async createRenderPipelineAsync(descriptor: { fragment?: { module?: { label?: string } } }) {
-      const label = descriptor.fragment?.module?.label ?? '';
-      if (label.startsWith('DIRECT') || label.startsWith('BOUNCE')) await gate;
-      return {};
-    },
-    createBindGroup: () => ({}),
-    queue: { writeBuffer() {} },
-  } as unknown as GPUDevice;
-  return { device, finishCompilation: () => resolveGate() };
-}
-
-const view = () => ({}) as GPUTextureView;
-const surface = { views: () => [view(), view(), view(), view()] } as unknown as Parameters<
-  Awaited<ReturnType<typeof createDeferredLighting>>['bind']
->[0];
 test('GEO-02: the contract program that finishes compiling breaks the held frame', async () => {
   const h = deferredLightingHarness();
   const rt = settledRt();
