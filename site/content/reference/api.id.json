@@ -6853,6 +6853,7 @@
       "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
       "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
     }
@@ -6984,6 +6985,33 @@
     "summary": "Bentuk tabrakan, bila yang disimpulkan dari geometri tidak cocok.",
     "description": "Ukuran berada dalam kerangka objek sendiri, sebelum skalanya."
   },
+  "PhysicsPart": {
+    "summary": "Satu bagian dari bentuk gabungan: sebuah primitif, diletakkan dan diputar dalam kerangka objek."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Sebuah primitif tepat: ukurannya dalam kerangka objek itu sendiri."
+  },
+  "WaterSpec": {
+    "summary": "Badan air tempat benda-benda mengapung, sebagaimana diterima `world.physics.water`.",
+    "members": {
+      "waves": "Gelombang Gerstner permukaan; tidak ada untuk air tenang.",
+      "level": "Tinggi permukaan saat diam, dalam meter.",
+      "density": "kg/m³; bawaannya 1000, air tawar.",
+      "linearDrag": "Koefisien hambatan kuadratik: seberapa cepat benda tenang, bukan di mana; bawaannya 0.5.",
+      "angularDrag": "Seberapa kuat air meredam putaran benda; bawaannya 0.05.",
+      "current": "Kecepatan air (arus sungai), dalam m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Satu gelombang sebagaimana dideklarasikan sebuah adegan.",
+    "members": {
+      "direction": "Arah gerak horizontal `[x, z]`; dinormalisasi di sini.",
+      "wavelength": "Meter dari puncak ke puncak.",
+      "amplitude": "Meter dari posisi diam ke puncak.",
+      "steepness": "0 (gelombang sinus) hingga 1 (puncak paling tajam yang tidak melipat); dinormalisasi atas jumlahnya.",
+      "phase": "Fase pada `t = 0`, dalam radian."
+    }
+  },
   "PhysicsStats": {
     "summary": "Apa yang dilaporkan fisika dunia: hitungan tick terakhir, dan kedua jam terpisah.",
     "members": {
@@ -7006,6 +7034,7 @@
       "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
       "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
     }

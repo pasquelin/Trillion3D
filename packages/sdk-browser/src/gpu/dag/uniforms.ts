@@ -32,7 +32,15 @@ export type DagOutputScratch = {
   seaux: Uint32Array;
 };
 export const createDagOutputScratch = (): DagOutputScratch => ({
-  result: { pageIds: [], frustumRejected: 0, lodLevel: 0 },
+  result: {
+    pageIds: [],
+    frustumRejected: 0,
+    lodLevel: 0,
+    selectedTriangles: 0,
+    drawnTriangles: 0,
+    uncoveredTriangles: 0,
+    transparentTriangles: 0,
+  },
   drawable: [],
   seaux: new Uint32Array(REQUEST_PRIORITY_MAX + 1),
 });
