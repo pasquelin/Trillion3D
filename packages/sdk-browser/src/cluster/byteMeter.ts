@@ -1,7 +1,8 @@
 /** Counts the bytes a load reads, against the lengths its manifest declares. */
 export interface ByteMeter {
-  /** The files the load may read, address to declared length: their sum is the total at once.
-   *  An empty plan is none: the load is then heard once, whole, when it settles. */
+  /** The files the load reads, address to declared length: their sum joins the total at once,
+   *  but for a file already read, counted as it arrived. An empty plan is none: the load is then
+   *  heard once, whole, when it settles. */
   plan(files: ReadonlyMap<string, number>): void;
   /** Hands back `response` (read from `url`) with its body counted as it arrives. */
   read(response: Response, url: string): Response;
@@ -26,6 +27,7 @@ export function byteMeter(report: (loaded: number, total: number) => void): Byte
   let loaded = 0,
     total = 0,
     planned: Map<string, number> | null = null;
+  const read = new Set<string>();
   const tell = () => {
     if (planned) report(loaded, total);
   };
@@ -33,12 +35,13 @@ export function byteMeter(report: (loaded: number, total: number) => void): Byte
     plan(files) {
       // Nothing declared (an older cache): no share to report until the load settles.
       if (!files.size) return;
-      planned = new Map(files);
+      planned = new Map([...files].filter(([url]) => !read.has(url)));
       for (const bytes of planned.values()) total += bytes;
       tell();
     },
     read(response, url) {
       if (!response.body) return response;
+      read.add(url);
       const expected = planned?.get(url) ?? 0;
       let seen = 0;
       planned?.delete(url);
