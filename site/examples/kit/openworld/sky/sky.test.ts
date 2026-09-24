@@ -9,7 +9,11 @@ type Hook = (frame: { delta: number }) => void;
 function fakeWorld() {
   const engine = fakeEngine();
   const hooks = new Set<Hook>();
-  const scene = { ...engine.object.group(), background: null, fog: null, environment: null };
+  const scene = Object.assign(engine.object.group(), {
+    background: null,
+    fog: null,
+    environment: null,
+  });
   const world = {
     scene,
     camera: { ...engine.object.group(), far: 60_000, fov: 50 },
