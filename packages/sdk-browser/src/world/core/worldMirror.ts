@@ -16,7 +16,8 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import { HOST_MAPS, hostSurface, repaintHostSurface, type HostTextures } from './worldSurface.ts';
+import { hostSurface, repaintHostSurface } from './worldSurface.ts';
+import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
 import { GraphAttribute } from '../../host/graph/attributes.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
 import { GraphGroup, GraphMesh } from '../../host/graph/mesh.ts';

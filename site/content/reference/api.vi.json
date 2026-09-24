@@ -926,6 +926,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "BATCHED_WORLD_VIEW": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "RAYCAST_NO_VIEW": "Một điểm ảnh được yêu cầu từ một canvas không có kích thước: không có hình ảnh nào để ngắm qua.",
+      "SESSION_OPEN_FAILED": "Phiên của thế giới không thể mở, vì một lý do không có mã riêng (`world.diagnostic.error`): lỗi được ném nằm trong `details.cause`.",
+      "WEBGPU_LOST": "WebGPU đã mất thiết bị của nó, hoặc một lỗi trên thiết bị để lại trạng thái mà không gì có thể vẽ từ đó: được ném bởi `render`, `flush` và các lượt đọc cần thiết bị, được đặt tên bởi chẩn đoán `gpu-device-lost`, và xuất hiện trên `world.diagnostic.error` khi một phiên không thể mở vì lý do đó.",
       "UNSUPPORTED_SCENE_FORMAT": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
       "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ."
     }
@@ -1510,7 +1512,12 @@
       "colorSpace": "Cách các con số của nó được đọc.",
       "matrix": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng; ứng dụng chủ tính lại nó từ độ lệch, độ lặp lại và góc xoay khi nó sở hữu việc cập nhật.",
       "matrixAutoUpdate": "Ứng dụng chủ có tự dựng lại `matrix` hay không.",
-      "updateMatrix": "Dựng lại `matrix` từ độ lệch, độ lặp lại và góc xoay."
+      "updateMatrix": "Dựng lại `matrix` từ độ lệch, độ lặp lại và góc xoay.",
+      "offset": "Những gì `matrix` được ghép từ đó.",
+      "repeat": "Số lần nó vừa khít.",
+      "center": "Tâm xoay.",
+      "rotation": "Góc xoay, tính bằng radian.",
+      "addEventListener": "Báo cho bộ nhập khi máy chủ buông texture."
     }
   },
   "HostTraversable": {
@@ -3516,7 +3523,9 @@
       "flipY": "Hình ảnh có bị lật ngược khi đọc hay không.",
       "anisotropy": "Hình ảnh giữ được độ sắc nét đến mức nào khi nhìn xiên.",
       "channel": "Tập UV nào của hình học mà kết cấu tuân theo.",
-      "version": "Tăng lên ở mỗi lần ghi: điều mà một vật liệu so sánh để lấy mẫu lại.",
+      "version": "Tăng khi ghi ảnh hoặc cách đọc ảnh: thứ mà vật liệu so sánh để gửi lại ảnh.",
+      "sampling": "Tăng khi ghi địa chỉ hóa, bộ lọc hoặc bất đẳng hướng: đặt lại, không gửi gì.",
+      "placement": "Tăng khi ghi `repeat`, `offset` hoặc `rotation`: đặt lại vị trí, không gửi gì.",
       "image": "Chính hình ảnh đó: một image, một canvas, một video hoặc các điểm ảnh thô.",
       "layout": "Những gì hình ảnh chứa ngoài các điểm ảnh của nó: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Cách mỗi điểm ảnh được lưu trữ: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -3534,6 +3543,8 @@
       "id": "Định danh của kết cấu trong cảnh đã nhập: điều mà một khóa bộ nhớ đệm và một thông điệp nêu tên nó bằng đó.",
       "name": "Tên mà tệp nguồn đặt cho nó, rỗng khi nó không đặt tên nào; chỉ các thông điệp đọc.",
       "version": "Tăng lên bất cứ khi nào các texel thay đổi: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",
+      "sampling": "Tăng khi địa chỉ hóa, bộ lọc hoặc bất đẳng hướng thay đổi: bộ lấy mẫu được đặt lại.",
+      "placement": "Tăng khi `transform` thay đổi: vị trí được ghi lại, không tải lên gì.",
       "image": "Hình ảnh đã giải mã. Vật chứa của nó vẫn là `unknown`: chỉ ranh giới tải nó lên mới biết.",
       "channel": "Tập UV mà bộ lấy mẫu đọc, `texCoord` của `KHR_texture_transform`; bộ máy lấy mẫu 0 và 1.",
       "wrapS": "Lặp lại theo chiều ngang.",
@@ -6678,10 +6689,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "Những gì trang giữ: chế độ, được đọc và ghi.",
+    "summary": "Những gì trang giữ: chế độ xem, được đọc và ghi; các phiên đã mở và lý do phiên cuối thất bại, chỉ đọc.",
     "members": {
       "mode": "Chế độ khung nhìn: `'beauty'` cho hình ảnh bình thường, hoặc một chế độ cho thấy bộ máy hoạt động như thế nào.",
       "sessions": "Các phiên mà thế giới đã mở cho đến giờ: một thay đổi làm mở lại một phiên sẽ hiện ở đây.",
+      "error": "Vì sao phiên gần nhất không thể mở, dưới dạng một lỗi có tên của engine: `code` của nó là một trong các mã được mô tả trên `EngineError` (`WEBGPU_LOST` khi WebGPU mất thiết bị), hoặc `SESSION_OPEN_FAILED` cho một lý do không có mã riêng. Một `EngineError` có mã được mô tả chính là lỗi đã ném; mọi lỗi khác được chuyển đổi, và khi đó lỗi đã ném nằm trong `details.cause`. `null` từ đầu mỗi lần mở, và khi không thử mở gì.",
       "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp."
     }
   },
