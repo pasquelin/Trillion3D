@@ -1,4 +1,12 @@
-import { ADD_WORDS, OP, VIEW_WORDS, type SHAPE } from './layout.ts';
+import { ADD_WORDS, OP, PART_WORDS, VIEW_WORDS, type SHAPE } from './layout.ts';
+
+/** One primitive part of a compound body, placed in the body's frame (`PART_WORDS`). */
+export interface CompoundPart {
+  shape: (typeof SHAPE)['box' | 'sphere' | 'capsule' | 'cylinder'];
+  size: readonly [number, number, number];
+  position: ArrayLike<number>;
+  quaternion: ArrayLike<number>;
+}
 
 /** One body as the ADD command carries it (`layout.ts`). */
 export interface BodyRecord {
@@ -20,6 +28,8 @@ export interface BodyRecord {
   gravityScale: number;
   vertices?: ArrayLike<number>;
   indices?: ArrayLike<number>;
+  /** A compound's parts (shape `SHAPE.compound`). */
+  parts?: readonly CompoundPart[];
 }
 
 /**
@@ -51,7 +61,7 @@ export class CommandWriter {
   /** Creates a body. */
   add(body: BodyRecord) {
     const vertexCount = body.vertices ? body.vertices.length / 3 : 0;
-    const indexCount = body.indices?.length ?? 0;
+    const indexCount = body.indices?.length ?? (body.parts?.length ?? 0) * PART_WORDS;
     this.reserve(ADD_WORDS + vertexCount * 3 + indexCount);
     const w = this.words,
       f = this.floats,
@@ -65,6 +75,13 @@ export class CommandWriter {
     w[at + 22] = indexCount;
     if (body.vertices) f.set(body.vertices, at + ADD_WORDS);
     if (body.indices) w.set(body.indices, at + ADD_WORDS + vertexCount * 3);
+    body.parts?.forEach((part, i) => {
+      const p = at + ADD_WORDS + i * PART_WORDS;
+      w[p] = part.shape;
+      f.set(part.size, p + 1);
+      f.set(part.position, p + 4);
+      f.set(part.quaternion, p + 7);
+    });
     this.length += ADD_WORDS + vertexCount * 3 + indexCount;
   }
   /** Removes a body. */
