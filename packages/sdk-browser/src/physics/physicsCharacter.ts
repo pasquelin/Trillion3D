@@ -15,6 +15,19 @@ export interface CharacterPort {
   hear: ((report: CharacterReport) => void) | null;
 }
 
+/**
+ * The session's end of the character: what the body sends is held until the frame's commands
+ * have gone (`flush`), so the worker never steps a body before the world it stands in.
+ */
+export function createCharacterPort(post: (message: ToPhysics) => void) {
+  const held: ToPhysics[] = [];
+  return {
+    send: (message: ToPhysics) => void held.push(message),
+    hear: null as CharacterPort['hear'],
+    flush: () => held.splice(0).forEach(post),
+  };
+}
+
 const NAMES = Object.keys(HUMAN_BODY) as (keyof CharacterSettings)[];
 
 /**

@@ -18,11 +18,10 @@ import {
   resultWords,
   type FromPhysics,
   type PhysicsResults,
-  type ToPhysics,
 } from './protocol.ts';
 import { createPhysicsView } from './view.ts';
 import { stepThreads } from './joltThreads.ts';
-import type { CharacterReport } from './characterDriver.ts';
+import { createCharacterPort } from './physicsCharacter.ts';
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -134,11 +133,7 @@ export function createPhysicsSession(
   worker.onerror = (event) =>
     failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`), true);
   const clock = { paused: false, timeScale: 1 };
-  /** The world's character (`physicsCharacter.ts`): what it sends, and who hears its reports. */
-  const character = {
-    send: (message: ToPhysics) => worker.postMessage(message),
-    hear: null as ((report: CharacterReport) => void) | null,
-  };
+  const character = createCharacterPort((message) => worker.postMessage(message));
   return {
     stats,
     writer,
@@ -184,6 +179,7 @@ export function createPhysicsSession(
         const words = writer.take();
         worker.postMessage({ type: 'commands', words }, [words.buffer]);
       }
+      if (ready) character.flush();
       return moving;
     },
     dispose() {

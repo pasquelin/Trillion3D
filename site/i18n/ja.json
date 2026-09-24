@@ -484,7 +484,6 @@
       "soft-bodies": "物理エンジンとの連携",
       "rolling-on-terrain": "物理エンジンとの連携",
       "hinges-and-joints": "物理エンジンとの連携",
-      "walk-with-collisions": "物理エンジンとの連携",
       "drive-a-car": "物理エンジンとの連携",
       "a-room-in-vr": "WebXRセッション",
       "a-360-photo-in-vr": "WebXRセッション",
@@ -1063,6 +1062,17 @@
           "<code>applyImpulse</code> で押したり、<code>contact</code> を聞いたりできる。すべてが眠ると、計算も描画も止まる。"
         ],
         "tryIt": "箱をもっと落とし、重力を月にして、スローをオンにしよう。"
+      },
+      "touch-and-react": {
+        "title": "触れて反応する",
+        "description": "自分の世界に入ろう：物理を有効にすると、キャラクターは登り、乗り、出会ったものを押し、押されたものも押し返す。",
+        "steps": [
+          "<code>controls: 'character'</code> と <code>physics: true</code> でワールドを作る。キャラクターは箱と同じく物理の物体になる。",
+          "動かないもの（床、階段、壁）を <code>'static'</code> にする。キャラクターは膝の高さまでの段と 45° までの坂を登る。",
+          "台を <code>'kinematic'</code> にして毎フレームコードで動かす：上に乗っているものは一緒に運ばれる。",
+          "軽い箱を <code>'dynamic'</code> にする：キャラクターは <code>pushStrength</code> ニュートンで押し、箱は倒れ、転がり、押し返す。"
+        ],
+        "tryIt": "画像をクリックし、W A S D で歩き、スペースでジャンプ。階段を登り、台に乗り、積まれた箱を押そう。"
       },
       "your-own-scene": {
         "title": "自分だけのシーン",

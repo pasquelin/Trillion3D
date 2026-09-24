@@ -8,7 +8,13 @@ import { readyEntries as ready } from '../site/app/examples/list.ts';
 
 /** The examples that turn physics on: the only pages that fetch the physics session's code, the
  *  worker and Jolt's module. */
-const PHYSICS = new Set(['falling-boxes', 'ten-thousand-bodies']);
+const PHYSICS = new Set([
+  'falling-boxes',
+  'ten-thousand-bodies',
+  'walk-with-collisions',
+  'walk-through-a-temple',
+  'create-and-dispose',
+]);
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
