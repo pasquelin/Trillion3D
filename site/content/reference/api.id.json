@@ -1674,7 +1674,8 @@
       "signal": "Menghentikan pemuatan saat sinyal dibatalkan.",
       "scope": "`'full'` membutuhkan seluruh cache, `'progressive'` irisan streaming-nya; sebuah model dari cakupan lain ditolak dengan menyebut namanya. Tidak diatur, model dibaca pada cakupan yang dideklarasikan pointer-nya.",
       "stream": "Sebuah streamer yang dikonfigurasi halaman; sesi dunia melakukan streaming dengan miliknya sendiri.",
-      "position": "Tempat titik asal model itu masuk ke dalam scene."
+      "position": "Tempat titik asal model itu masuk ke dalam scene.",
+      "onProgress": "Mendengar sejauh mana pemuatan berjalan: `manifest` setelah manifest dibaca, lalu `resources` saat setiap berkas yang dibaca adegan tiba (`completed` dari `total` yang diketahui sejauh ini). Peristiwanya adalah `JobProgress`: `createJob` yang membungkus pemuatan meneruskan `progress`-nya ke sini."
     }
   },
   "LoadedModel": {

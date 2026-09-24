@@ -110,6 +110,12 @@ resolves is queued and drawn once it does. The SDK has no asset URL default: a h
 `manifestUrl` to `scene.load`. The default scope is `slice` (`scene.load(url, { scope: 'full' })`
 for a full cache); a pointer or manifest of another scope is rejected with `SCOPE_MISMATCH`.
 
+`scene.load(url, { onProgress })` reports how far a load has got, with the `JobProgress` shape
+`createJob` uses: `{ phase: 'manifest' }` once the manifest is read, then
+`{ phase: 'resources', completed, total, message }` as each file the scene reads lands — `total`
+grows as the scene finds files to read, and the last event has `completed === total`. The first
+pages follow the load: `await world.awaitPages()` settles once they are resident.
+
 A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
 calls `assertCachePointer(pointer, scope)` and `assertCacheReady(metadata, scope)` on the two JSON
 documents it fetched: the first returns the cache URL the pointer names, the second the selected
@@ -365,9 +371,8 @@ on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsu
 Dispose in the actual component or page teardown, **not immediately after startup**:
 `world.dispose()` removes owned controls, observers, queued frames and abort listeners and closes
 the engine, without removing the canvas. A page that wants job semantics around a load —
-cancellation, a status it can observe — wraps `scene.load(url, { signal })` with `createJob`,
-exported by `trillion3d` and by the portal's runtime; the job's progress is what the page reports
-through it.
+cancellation, a status it can observe — wraps `scene.load(url, { signal, onProgress: progress })` with
+`createJob`, exported by `trillion3d` and by the portal's runtime: the job's progress is the load's.
 
 ### Camera controllers
 
