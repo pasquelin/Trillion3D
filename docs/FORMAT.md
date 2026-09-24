@@ -139,14 +139,14 @@ ranks already remapped.
 
 - `scene` — `{ name, nodes }`: the scene the document opens (`scene`, else the first) and its roots.
 - `nodes[]` — every node at its glTF rank: `{ name, children, mesh, light, camera, weights,
-  matrix, translation, rotation, scale }` (`weights` overrides its mesh's morph weights). The pose is the LOCAL one exactly as declared, each part `null` when silent:
+matrix, translation, rotation, scale }` (`weights` overrides its mesh's morph weights). The pose is the LOCAL one exactly as declared, each part `null` when silent:
   the runtime composes world matrices from it the way it always has, so they are the same bits.
   Several nodes naming one mesh is what instancing is here.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
-  range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
+range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
   applies). `lights.json` stays the radiometric product the engine lights with.
 - `cameras[]` — the cameras the nodes carry: `{ name, type, yfov, aspectRatio, xmag, ymag, znear,
-  zfar }`, each silent field `null`.
+zfar }`, each silent field `null`.
 - `materials[]` — the surface fields the engine reads: `lit`, `baseColor`, `metalness`,
   `roughness`, `doubleSided`, `backSide`, `alphaTest`, the six map slots (`map`, `metalnessMap`,
   `roughnessMap`, `normalMap`, `aoMap`, `emissiveMap`), `normalScale`, `normalScaleY`,
@@ -161,7 +161,7 @@ ranks already remapped.
   glTF material rank, and `derivativeTangents` says which variant the entry was written for. A
   primitive that declares no material wears an entry holding the glTF default one.
 - `textures[]` — at the glTF texture rank: `{ name, sampler, image, wrapS, wrapT, magFilter,
-  minFilter }`, `image` the source an `EXT_texture_webp` then `EXT_texture_avif` names before the
+minFilter }`, `image` the source an `EXT_texture_webp` then `EXT_texture_avif` names before the
   core `source`, as the loader reads it; in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
   specification's defaults where the sampler is silent; `sampler` is the glTF sampler rank, which
   together with the image's source decides which textures are one. A map slot is
@@ -173,10 +173,10 @@ ranks already remapped.
 - `documents` — the geometry layout of each published document, keyed by its file name
   (`source.gltf`, and `scene.gltf` when written): `{ buffer, views, accessors, meshes, images }`.
   `buffer` names the one binary the document is published with; a view is `{ offset, length,
-  stride }` into it; an accessor `{ view, offset, componentType, normalized, count, type, min, max,
-  sparse }`, `sparse` being `{ count, indices: { view, offset, componentType }, values: { view,
-  offset } }` or `null`; a mesh `{ name, weights, primitives }`, each primitive `{ attributes,
-  targets, indices, material }` — accessor ranks by glTF semantic, its morph targets (each a set of
+stride }` into it; an accessor `{ view, offset, componentType, normalized, count, type, min, max,
+sparse }`, `sparse` being `{ count, indices: { view, offset, componentType }, values: { view,
+offset } }` or `null`; a mesh `{ name, weights, primitives }`, each primitive `{ attributes,
+targets, indices, material }` — accessor ranks by glTF semantic, its morph targets (each a set of
   accessor ranks, `null` for none), and the rank of the surface it wears in `materials[]`, for that
   document's own tangent variant; an image
   `{ name, uri, view, mimeType }`, an address relative to the document or a view of its binary.
@@ -197,12 +197,12 @@ names are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the 
 the file names that commit in `jolt`, and the engine refuses a file cooked by another. `stage` names
 the stage and its version.
 
-| Field       | Content                                                                                                                                                                                                                                                                                               |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `colliders` | One per compiled primitive with a DAG: `primitive`, `material` (glTF index), `kind` (`mesh` or `heightField`), `tolerance` (the object's DAG error the level holds), `hausdorff` (measured to level 0, at or under `tolerance`), `triangles`, `tiles`                                                 |
-| `tiles`     | One Jolt shape each, a SHA-addressed object like a page: `url`, `sha256`, `bytes`, `triangles`, `bounds` (min and max in the primitive's frame). Every triangle of a tile is of its collider's `material`: an exact hit reports that one                                                              |
-| `instances` | Static placements: `node`, `collider`, `position`, `rotation` (x, y, z, w), `scale`, and the `friction` and `restitution` of the `physicsMaterial` the node's `KHR_physics_rigid_bodies` collider names, if any. A node whose matrix shears cannot be a body pose: it is counted in `report.unplaced` |
-| `report`    | Counts, the largest tolerance and the largest measured distance                                                                                                                                                                                                                                       |
+| Field       | Content                                                                                                                                                                                                                                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `colliders` | One per compiled primitive with a DAG: `primitive`, `material` (glTF index), `kind` (`mesh` or `heightField`), `tolerance` (the object's DAG error the level holds), `hausdorff` (measured to level 0, at or under `tolerance`), `triangles`, `tiles`                                                                                                   |
+| `tiles`     | One Jolt shape each, a SHA-addressed object like a page: `url`, `sha256`, `bytes`, `triangles`, `bounds` (min and max in the primitive's frame). Every triangle of a tile is of its collider's `material`: an exact hit reports that one. A tile of small triangles is a `MeshShape` cooked a power of two larger inside a `ScaledShape` of the inverse |
+| `instances` | Static placements: `node`, `collider`, `position`, `rotation` (x, y, z, w), `scale`, and the `friction` and `restitution` of the `physicsMaterial` the node's `KHR_physics_rigid_bodies` collider names, if any. A node whose matrix shears cannot be a body pose: it is counted in `report.unplaced`                                                   |
+| `report`    | Counts, the largest tolerance and the largest measured distance, and `refused`: each primitive whose collider Jolt refused (`primitive`, `mesh`, `meshPrimitive`, `reason`, Jolt's error). Such a primitive has no collider and is drawn all the same: a refusal never fails the compile                                                                |
 
 The manifest's `physics` field names the file, its format, the Jolt commit, the report and every
 object the file cites (`objects[].sha256`), so a prune keeps them.

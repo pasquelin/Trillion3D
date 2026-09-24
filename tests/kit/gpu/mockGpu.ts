@@ -3,8 +3,9 @@ import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from '.
 import { bytesOf } from './globals.ts';
 import { asWebgpuDevice, untag } from './webgpuDevice.ts';
 
-/** The one WebGPU device stand-in of the tests, made a device as WebGPU writes one by
- *  `asWebgpuDevice`. */
+/** The device a whole pages backend runs on in Node — draws, passes, textures and writes
+ *  recorded —, made a device as WebGPU writes one by `asWebgpuDevice`. A test that only records
+ *  what one module creates uses `fakeDevice()` instead. */
 export function mockGpu(
   limits: Record<string, number> = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
   packed?: PackedDag,

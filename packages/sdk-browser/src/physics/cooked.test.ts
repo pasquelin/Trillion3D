@@ -2,8 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  CAST,
-  CAST_WORDS,
   CommandWriter,
   DEFAULT_MATTER,
   DEFAULT_PHYSICS_BUDGET,
@@ -18,7 +16,7 @@ import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import { createPhysicsBodies } from './bodies.ts';
-import { body, startModule } from './module.fixture.ts';
+import { body, castDown, startModule } from './module.fixture.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { physicsRaycast } from './raycast.ts';
 import type { PhysicsSession } from './session.ts';
@@ -28,14 +26,6 @@ import { createTileStreamer } from './tiles.ts';
  *  from (0, 0) to (2, 1) along x, in native Jolt's binary state. */
 const golden = () =>
   readFile(new URL('../../../../tests/fixtures/physics/ramp-tile.bin', import.meta.url));
-
-/** A ray down at `x` through the module, straight: its hit words. */
-function castDown(jolt: Awaited<ReturnType<typeof startModule>>, x: number) {
-  const query = new Uint32Array(CAST_WORDS);
-  query[0] = CAST.ray;
-  new Float32Array(query.buffer).set([x, 5, 0, 0, -10, 0], 1);
-  return jolt.cast(query);
-}
 
 test('a tile cooked by native Jolt is restored in the module, collides, and answers a ray exactly', async () => {
   const jolt = await startModule();
