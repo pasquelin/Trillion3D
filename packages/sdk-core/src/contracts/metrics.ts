@@ -126,8 +126,8 @@ export type GpuFrameMs = number | null;
   /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
   gpuPassMs?: GpuPassTimings | null;
   /** GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled
-   *  every few images, so a number may be a few images old. Null before the first sample, on a held
-   *  image, without `timestamp-query`, and on WebGL2, which times no frame into the metrics. */
+   *  every few images, so a number may be a few images old. Null before the first sample, from a
+   *  held image until the next device sample, without `timestamp-query`, and on WebGL2. */
   gpuFrameMs?: GpuFrameMs;
   /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
    *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */
