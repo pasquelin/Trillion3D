@@ -10,6 +10,7 @@ import {
   SUN,
   VIEW,
   cycle,
+  lampScene,
   lampFloor,
   lampPages,
   planFrame,
@@ -21,11 +22,7 @@ const valid = (plan: ReturnType<typeof createShadowPlan>, entry: number) =>
   (plan.table.words[entry] & PAGE_VALID) !== 0;
 
 test('a lamp that moves keeps the floor of every face current, not only the faces last read', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
-  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
-  planFrame(plan, store, 0);
-  const slice = store.sliceOf(0);
+  const { store, plan, slice } = lampScene();
   // The receivers the reports saw lie in face 0 only; as the lamp moves, others enter its faces.
   const read = lampPages(plan, slice, 0, 3);
   for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
@@ -96,11 +93,7 @@ test('a light moved every frame draws coarse first: no finer page overtakes by i
 });
 
 test('guard: after a move, every finer page read was drawn in that frame, at the new pose', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
-  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
-  planFrame(plan, store, 0);
-  const slice = store.sliceOf(0);
+  const { store, plan, slice } = lampScene();
   const read = [...lampPages(plan, slice, 0, 4), ...lampPages(plan, slice, 0, 3)];
   for (let frame = 1; frame < 6; frame++) cycle(plan, store, frame, () => read);
   plan.observeCost(plan.budget.budgetMs / 4.5, 1);
@@ -119,11 +112,7 @@ test('guard: after a move, every finer page read was drawn in that frame, at the
 });
 
 test('a light whose intensity or colour changes neither re-poses nor withdraws a page', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
-  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
-  planFrame(plan, store, 0);
-  const slice = store.sliceOf(0);
+  const { store, plan, slice } = lampScene();
   const read = [...lampPages(plan, slice, 0, 4), ...lampPages(plan, slice, 0, 3)];
   for (let frame = 1; frame < 6; frame++) cycle(plan, store, frame, () => read);
   for (let frame = 6; frame < 12; frame++) {
@@ -141,11 +130,7 @@ test('a light whose intensity or colour changes neither re-poses nor withdraws a
 });
 
 test('over budget, the stale floors of a moving lamp are redrawn first, at its new pose', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
-  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
-  planFrame(plan, store, 0);
-  const slice = store.sliceOf(0);
+  const { store, plan, slice } = lampScene();
   const read = lampPages(plan, slice, 0, 3);
   for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
   // One page a frame: the withdrawn finer pages would take it, were the floors not first.
