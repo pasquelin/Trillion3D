@@ -1,11 +1,13 @@
 //! The collision level of one primitive and its tiles.
 //!
-//! The level is a cut through the DAG at one tolerance `t` — the clusters with
-//! `lod_error <= t < parent_error`, the rule the renderer and the proxy cut by, so the surface is
-//! covered once, without a hole: group borders are locked in the DAG. `t` is the object's own:
-//! the median error of its first simplified level, the finest step its DAG certifies. A primitive
-//! with no simplified level collides at level 0. The distance to level 0 is then measured, not
-//! assumed (`hausdorff.rs`), and published.
+//! The level is a cut through the DAG at one threshold — the clusters with
+//! `lod_error <= threshold < parent_error`, the rule the renderer and the proxy cut by, so the
+//! surface is covered once, without a hole: group borders are locked in the DAG. The object's
+//! tolerance `t` is its own: the median error of its first simplified level, the finest step its
+//! DAG certifies. A cluster's error is the simplifier's estimate, not a bound, so the distance of a
+//! cut to level 0 is measured (`hausdorff.rs`): the collider is a cut at or under `t` whose measure
+//! holds `t`, the coarsest a bisection over the cluster errors finds, level 0 holding any. A
+//! primitive with no simplified level collides at level 0.
 //!
 //! Tiles follow the culling hierarchy: a node whose collision triangles fit `TILE_TRIANGLES` is
 //! one tile, a larger one hands its children down. Each tile is a Jolt `MeshShape` in object space,
@@ -98,8 +100,74 @@ fn tile(o: &Options, pos: &[f32], triangles: &[u32]) -> Result<Value> {
     Ok(descriptor)
 }
 
+/// The collision triangles of the cut at `threshold`, one list per tile.
+fn cut_tiles(
+    dag: &[DagCluster],
+    order: &[usize],
+    culling: &[CullingNode],
+    threshold: f64,
+) -> Vec<Vec<u32>> {
+    let cut = |rank: usize| {
+        let cluster = &dag[order[rank]];
+        crate::proxy::cut::selected(cluster, threshold).then_some(&cluster.indices)
+    };
+    let mut prefix = vec![0usize; order.len() + 1];
+    for rank in 0..order.len() {
+        prefix[rank + 1] = prefix[rank] + cut(rank).map_or(0, |i| i.len() / 3);
+    }
+    let mut ranges = Vec::new();
+    if !culling.is_empty() {
+        tile_ranges(culling, &prefix, 0, &mut ranges);
+    }
+    ranges
+        .iter()
+        .map(|&(from, to)| (from..to).filter_map(cut).flatten().copied().collect())
+        .collect()
+}
+
+/// The tiles of a cut whose measured distance to `source` (level 0) holds the tolerance `t`, the
+/// coarsest the search finds, and that distance. The cut changes only at a cluster error, so the thresholds tried are
+/// those errors: `t` first, then a bisection between the finest that failed and level 0.
+pub(crate) fn collision_cut(
+    dag: &[DagCluster],
+    order: &[usize],
+    culling: &[CullingNode],
+    pos: &[f32],
+    source: &[u32],
+    t: f64,
+) -> (Vec<Vec<u32>>, f64) {
+    let mut thresholds: Vec<f64> = dag
+        .iter()
+        .map(|c| c.lod_error)
+        .filter(|&e| e <= t)
+        .chain([0.0])
+        .collect();
+    thresholds.sort_by(f64::total_cmp);
+    thresholds.dedup();
+    let measure = |threshold: f64| {
+        let tiles = cut_tiles(dag, order, culling, threshold);
+        let hausdorff = hausdorff::distance(pos, source, &tiles.concat());
+        (tiles, hausdorff)
+    };
+    let (mut held, mut failed) = (0, thresholds.len() - 1);
+    let mut best = measure(thresholds[failed]);
+    if best.1 > t && failed > held {
+        best = measure(thresholds[held]);
+        while failed - held > 1 {
+            let middle = (held + failed) / 2;
+            let tried = measure(thresholds[middle]);
+            if tried.1 <= t {
+                (held, best) = (middle, tried);
+            } else {
+                failed = middle;
+            }
+        }
+    }
+    best
+}
+
 /// The collision of one primitive: a height field when its triangles are a regular grid, else the
-/// DAG cut at the object's tolerance in tiles. `source` is level 0, the triangles as drawn.
+/// collision cut in tiles. `source` is level 0, the triangles as drawn.
 pub(crate) fn cook_primitive(
     o: &Options,
     dag: &[DagCluster],
@@ -112,27 +180,11 @@ pub(crate) fn cook_primitive(
         return height::cook(o, &grid);
     }
     let t = tolerance(dag);
-    let cut = |rank: usize| {
-        let cluster = &dag[order[rank]];
-        crate::proxy::cut::selected(cluster, t).then_some(&cluster.indices)
-    };
-    let mut prefix = vec![0usize; order.len() + 1];
-    for rank in 0..order.len() {
-        prefix[rank + 1] = prefix[rank] + cut(rank).map_or(0, |i| i.len() / 3);
-    }
-    let mut ranges = Vec::new();
-    if !culling.is_empty() {
-        tile_ranges(culling, &prefix, 0, &mut ranges);
-    }
-    let gathered: Vec<Vec<u32>> = ranges
-        .iter()
-        .map(|&(from, to)| (from..to).filter_map(cut).flatten().copied().collect())
-        .collect();
+    let (gathered, error) = collision_cut(dag, order, culling, pos, source, t);
     let tiles = gathered
         .par_iter()
         .map(|triangles| tile(o, pos, triangles))
         .collect::<Result<Vec<_>>>()?;
-    let all: Vec<u32> = gathered.concat();
-    let error = hausdorff::distance(pos, source, &all);
-    Ok(json!({"kind":"mesh","tolerance":t,"hausdorff":error,"triangles":all.len()/3,"tiles":tiles}))
+    let triangles = gathered.iter().map(Vec::len).sum::<usize>() / 3;
+    Ok(json!({"kind":"mesh","tolerance":t,"hausdorff":error,"triangles":triangles,"tiles":tiles}))
 }
