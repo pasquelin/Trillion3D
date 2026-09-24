@@ -932,7 +932,8 @@
       "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
       "PHYSICS_BUDGET": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
       "PHYSICS_NESTED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
-      "PHYSICS_FAILED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`."
+      "PHYSICS_FAILED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
+      "NO_VEHICLE": "`world.controls.kind` được đặt thành `'vehicle'` trong khi `world.controls.vehicle` là `null`: không có gì để lái."
     }
   },
   "EngineProfiler": {
@@ -6781,7 +6782,7 @@
       "autoUpdate": "Liệu vòng lặp của thế giới có gọi `update` trước mỗi khung hình, trước các hook `world.beforeFrame` hay không. `false` trao bước đó cho trang, trang này gọi `update` từ một hook như vậy, thường xuyên tùy ý và qua bất kỳ bước con nào mà nó tích hợp; khi đó thế giới không bao giờ tự tiến bước nó.",
       "capsuleHeight": "Chỉ character: chiều cao của thân thể, tính bằng mét; mặc định là 1,75.",
       "capsuleRadius": "Chỉ character: bán kính của thân thể, tính bằng mét; nửa chiều rộng vai (0,23 m) theo mặc định.",
-      "colliders": "Chỉ character: những gì thân thể va chạm vào, hoặc `null`. Các mesh — một đối tượng hoặc một danh sách, bao gồm cả hậu duệ của chúng — xây dựng một cây tam giác tĩnh từ các tam giác trong không gian thế giới của chúng như hiện tại: một lượt qua các tam giác và một lần xây dựng `O(T log T)`, khoảng 52 byte giữ lại cho mỗi tam giác. Các mô hình đã biên dịch chưa được đọc: hãy cung cấp một mesh đơn giản thay thế cho chúng. Một `CharacterCollision` — thế giới của một backend vật lý, bất cứ thứ gì trả lời `resolveCapsule` và `groundBelow` — được sử dụng nguyên trạng.",
+      "colliders": "Chỉ character: những gì thân thể va chạm vào, hoặc `null`. Các mesh — một đối tượng hoặc một danh sách, bao gồm cả hậu duệ của chúng — xây dựng một cây tam giác tĩnh từ các tam giác trong không gian thế giới của chúng như hiện tại: một lượt qua các tam giác và một lần xây dựng `O(T log T)`, khoảng 52 byte giữ lại cho mỗi tam giác. Các mô hình đã biên dịch chưa được đọc: hãy cung cấp một mesh đơn giản thay thế cho chúng. Một `CharacterCollision` — thế giới của một backend vật lý, bất cứ thứ gì trả lời `resolveCapsule` và `groundBelow` — được sử dụng nguyên trạng. Không dùng khi `world.physics` đang chạy: thân thể khi đó thuộc vật lý và gặp các vật thể của nó, `mesh.physics`.",
       "coyoteTime": "Chỉ character: số giây sau khi đi khỏi một mép vẫn còn được cấp một lần nhảy; mặc định là 0,1.",
       "eyeHeight": "Chỉ character: chiều cao của camera phía trên chân, tính bằng mét; mặc định là 1,64.",
       "fallGravity": "Chỉ character: gia tốc hướng xuống khi đang rơi, m/s²; mặc định là 1,6 g, để một cú nhảy không bị lơ lửng.",
@@ -6804,7 +6805,10 @@
       "stride": "Chỉ character: pha của bước chân tính bằng radian, một chân chạm đất tại 0 và π; ngược lại là 0.",
       "velocity": "Chỉ character: vận tốc của thân thể tính bằng mét trên giây, một bản sao; ngược lại là không.",
       "walkSpeed": "Chỉ character: mét trên giây khi đi bộ; mặc định là 3,5, một cuộc chạy bộ.",
-      "yawInput": "Chỉ flight: cần điều khiển yaw trong [-1, 1] (trái), được cộng vào các phím mũi tên; mặc định là 0."
+      "yawInput": "Chỉ flight: cần điều khiển yaw trong [-1, 1] (trái), được cộng vào các phím mũi tên; mặc định là 0.",
+      "mass": "Chỉ nhân vật, có vật lý: số kilôgam thân thể đè lên chỗ đứng; mặc định 80.",
+      "pushStrength": "Chỉ nhân vật, có vật lý: số newton thân thể dùng để đẩy vật thể; mặc định 250, lực đẩy liên tục của người lớn.",
+      "vehicle": "Chỉ phương tiện: thứ mà điều khiển `'vehicle'` lái — bất cứ thứ gì có `drive(input)`, nhận ga, phanh, lái và phanh tay mỗi khi phím thay đổi. Mặc định `null`, và khi đó `kind = 'vehicle'` ném `NO_VEHICLE`."
     }
   },
   "world.diagnostic": {
@@ -6950,7 +6954,8 @@
       "onLand": "Được gọi khi đáp đất với tốc độ hướng xuống, tính bằng mét trên giây: một âm thanh, một rung lắc.",
       "onJump": "Được gọi khi thân thể rời khỏi mặt đất trong một cú nhảy.",
       "collision": "Những gì thân thể va chạm vào — các vật cản va chạm của thế giới, hoặc thế giới của một backend vật lý qua cùng một điểm nối (`CharacterCollision`). `null` đi bằng phẳng nơi thân thể đang đứng, không bao giờ rơi.",
-      "update": "Trải qua `delta` giây; trả về liệu camera có di chuyển hay không, và phát ra `change` khi nó có di chuyển."
+      "update": "Trải qua `delta` giây; trả về liệu camera có di chuyển hay không, và phát ra `change` khi nó có di chuyển.",
+      "physics": "Vật lý của thế giới, khi đang chạy: thân thể khi đó là nhân vật ảo của Jolt trong worker vật lý và gặp mọi vật thể của mô phỏng; `null` trở về `collision`. Thân thể giữ nguyên chỗ khi chuyển."
     }
   },
   "CharacterCollision": {

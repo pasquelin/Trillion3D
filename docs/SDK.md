@@ -374,21 +374,52 @@ world.controls.target.set(0, 1, 0); // orbit pivot
 Controls live on the world because they read input on the canvas it owns — a second listener would
 double the gestures — and they follow `world.camera` when it is replaced. Setting `kind` releases the
 previous controller and builds the next; `.enabled` turns the current one off without losing it.
-Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [character](../site/examples/walk-through-a-temple.html); `firstPerson` is the same head without a body.
+Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [character](../site/examples/walk-through-a-temple.html) and [character with physics](../site/examples/walk-with-collisions.html); `firstPerson` is the same head without a body.
 
 | `world.controls.kind` | Motion                                         | Gestures                                                            |
 | --------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
 | `'orbit'`             | orbit around `target`, world up kept           | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
 | `'fly'`               | six degrees of freedom                         | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look       |
 | `'firstPerson'`       | pointer-locked walk, horizon level             | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift`            |
+| `'character'`         | a body that walks, runs, jumps and falls       | pointer turns the head, `W`/`S`/`A`/`D`, `Shift` sprints, `Space`   |
+| `'vehicle'`           | none: drives `world.controls.vehicle`          | `W` throttle, `S` brake, `A`/`D` steer, `Space` handbrake           |
 | `'trackball'`         | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms                        |
 | `'panZoom'`           | planar view, no rotation                       | drag slides, wheel and pinch zoom, arrow keys pan                   |
 | `'none'` (default)    | camera posed by the host                       | none                                                                |
 
-All five publish `object.position`, `addEventListener('change')`, `removeEventListener` and
+All of them publish `object.position`, `addEventListener('change')`, `removeEventListener` and
 `dispose()`; the three that keep a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
 `enablePan` and `update()`, which reads back a pose the host wrote and clamps it. A controller emits
 `change` only when the pose moved, so a still scene schedules nothing.
+
+**The character's body.** `'character'` moves an upright capsule with the values of an adult human
+(`HUMAN_BODY`: 1.75 m, a 3.5 m/s jog, a 0.5 m jump, 45° slopes, 0.5 m steps, 80 kg, a 250 N push),
+each one a setting of `world.controls`. What it collides with depends on the world:
+
+- **Without physics**, the static triangles of `world.controls.colliders` (meshes, built into a
+  triangle tree once), or nothing: the body then walks level where it stands.
+- **With physics on** (`world.physics`), the body is the physics' own character, Jolt's virtual
+  character in the physics worker: it meets every body of the simulation, climbs steps and slopes,
+  rides a moving platform, pushes dynamic bodies with at most `pushStrength` newtons and is pushed
+  back. `colliders` is unused; give the level `mesh.physics = 'static'` instead. The keys reach the
+  worker's next fixed step, and the page draws the feet the worker last reported moved on by their
+  velocity, at most one step ahead.
+
+Both bodies read the same drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
+`stopTime`, jumps with a coyote time and a jump buffer. A stalled page lives at most 8 ticks
+(67 ms) in one call, then resumes where it stopped.
+
+```js
+const world = createWorld('view', { controls: 'character', physics: true });
+floor.physics = 'static';
+crate.physics = { type: 'dynamic', mass: 12 };
+world.controls.pushStrength = 400; // a stronger push
+```
+
+**Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` — `throttle`, `brake`, `steer`,
+`handbrake` — and hands it to `world.controls.vehicle.drive(input)` each time it changes. Any object
+with `drive` can be driven; the physics' own vehicles arrive with #398. Setting `kind = 'vehicle'`
+while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move the camera.
 
 ### Picking, moving and saving
 
@@ -897,6 +928,8 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   bodies.
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
   `stats.stepMs`, on its own clock: the two are never added.
+- **Character.** With physics on, `world.controls` `'character'` is the physics' own character
+  (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
 
 ## Current limits
 
@@ -913,5 +946,5 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
   landing, which then runs in slow motion for a short moment; the page's `physics` stage is
   0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
-  The renderer's own work for 10,000 moved instances is measured apart (#432). Characters, joints, vehicles, soft bodies, cooked colliders and
-  loaded models as bodies arrive with the next physics issues (#396–#400).
+  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints, vehicles, soft bodies, cooked colliders and
+  loaded models as bodies arrive with the next physics issues (#396, #398–#400).
