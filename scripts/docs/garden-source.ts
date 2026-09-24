@@ -1,6 +1,7 @@
 /** Original procedural learning scene. No downloaded geometry, textures or engine assets. */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { geometry, type Geometry } from '../../packages/sdk-core/src/world/geometry/index.ts';
 
 interface GltfBufferView {
   buffer: number;
@@ -95,6 +96,21 @@ export async function writeGarden(directory: string) {
         ])
           vertex(a / nu, b / nv);
       }
+    primitive(name, material, positions, normals);
+  }
+  /** An sdk-core geometry, unwelded to one vertex per triangle corner like the patches. */
+  function shape(name: string, material: number, built: Geometry) {
+    const { position, normal } = built.attributes,
+      positions: number[] = [],
+      normals: number[] = [];
+    for (const i of built.index!.array)
+      for (let k = 0; k < 3; k++) {
+        positions.push(position.array[i * 3 + k]);
+        normals.push(normal.array[i * 3 + k]);
+      }
+    primitive(name, material, positions, normals);
+  }
+  function primitive(name: string, material: number, positions: number[], normals: number[]) {
     const indices = accessor(
       Array.from({ length: positions.length / 3 }, (_, i) => i),
       1,
@@ -117,16 +133,12 @@ export async function writeGarden(directory: string) {
   for (let row = 0; row < 3; row++)
     for (let col = 0; col < 3; col++) {
       const index = row * 3 + col;
-      surface(`Ring-${index + 1}`, index % 3, 64, 24, (u, v) => {
-        const a = u * Math.PI * 2,
-          b = v * Math.PI * 2,
-          r = 0.92 + 0.24 * Math.cos(b);
-        return [
-          (col - 1) * 3.2 + r * Math.cos(a),
-          1.45 + r * Math.sin(a),
-          (row - 1) * 3.2 + 0.24 * Math.sin(b),
-        ];
-      });
+      // A torus about z, its tube 24 slices round and 64 along the ring.
+      shape(
+        `Ring-${index + 1}`,
+        index % 3,
+        geometry.torus(0.92, 0.24, 24, 64).translate((col - 1) * 3.2, 1.45, (row - 1) * 3.2),
+      );
     }
   surface('Wave-plinth', 3, 64, 64, (u, v) => [
     (u - 0.5) * 12,
