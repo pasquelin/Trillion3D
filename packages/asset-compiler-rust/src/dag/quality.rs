@@ -15,18 +15,19 @@ use crate::shared_math::{cross, dot, length, scale, sub};
 use crate::{CompilerError, Result};
 use rayon::prelude::*;
 
-/// Largest angle, in degrees, a coarse level may put between a face and the normal its centre is
-/// shaded with, unless the source itself already goes further. Past 90° the face is lit from
-/// behind: black under a light it faces.
+/// Largest angle, in degrees, a coarse cluster may put between a face and the normal its centre is
+/// shaded with, unless the source triangles it descends from already go further. Past 90° the face
+/// is lit from behind: black under a light it faces.
 pub const NORMAL_DEVIATION_BOUND: f64 = 90.0;
 
-/// The bound of a primitive whose source deviates by `source` degrees.
+/// The bound of a group whose level-0 descendant triangles deviate by `source` degrees at worst:
+/// one inverted source triangle lifts its own group, never the rest of the primitive.
 pub fn deviation_bound(source: f64) -> f64 {
     NORMAL_DEVIATION_BOUND.max(source)
 }
 
 /// One level of a DAG as the compile report publishes it.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct LevelQuality {
     pub level: usize,
     /// Largest face normal deviation of the level, in degrees; zero without normals.
@@ -43,6 +44,21 @@ pub fn normal_deviation(indices: &[u32], positions: &[f32], normals: &[f32], err
         .iter()
         .filter_map(|tri| triangle_deviation(tri, positions, normals, error))
         .fold(0.0, f64::max)
+}
+
+/// Per cluster of `dag`, its largest normal deviation over the triangles wider than its error;
+/// zero without normals. A level-0 cluster's error is zero: every source triangle counts.
+pub(super) fn cluster_deviations(
+    dag: &[DagCluster],
+    positions: &[f32],
+    normals: Option<&[f32]>,
+) -> Vec<f64> {
+    let deviation = |c: &DagCluster| {
+        normals.map_or(0.0, |n| {
+            normal_deviation(&c.indices, positions, n, c.lod_error)
+        })
+    };
+    dag.par_iter().map(deviation).collect()
 }
 
 /// The corners, welded, sorted and once each, of the triangles of `indices` wider than `error`
@@ -122,41 +138,15 @@ fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
     (length > 0.0 && length.is_finite()).then(|| scale(v, 1.0 / length))
 }
 
-/// Per level, in level order, the largest normal deviation and the largest error.
-pub fn level_quality(
+/// Checks a finished DAG and returns, per level in level order, the largest normal deviation and
+/// the largest error. Refuses a DAG whose error drops from a cluster to the group replacing it — a
+/// runtime cut would then draw both or neither — or with a coarse cluster bending a normal past
+/// its group's bound (`deviation_bound` of the level-0 triangles the group descends from).
+pub fn check(
     dag: &[DagCluster],
     positions: &[f32],
     normals: Option<&[f32]>,
-) -> Vec<LevelQuality> {
-    let depth = dag.iter().map(|c| c.level).max().unwrap_or(0);
-    let per_cluster: Vec<(usize, f64, f64)> = dag
-        .par_iter()
-        .map(|c| {
-            let deviation = normals.map_or(0.0, |n| {
-                normal_deviation(&c.indices, positions, n, c.lod_error)
-            });
-            (c.level, deviation, c.lod_error)
-        })
-        .collect();
-    let mut levels: Vec<LevelQuality> = (0..=depth)
-        .map(|level| LevelQuality {
-            level,
-            normal_deviation: 0.0,
-            error_max: 0.0,
-        })
-        .collect();
-    for (level, deviation, error) in per_cluster {
-        let row = &mut levels[level];
-        row.normal_deviation = row.normal_deviation.max(deviation);
-        row.error_max = row.error_max.max(error);
-    }
-    levels
-}
-
-/// Refuses a DAG whose error drops from a cluster to the group replacing it — a runtime cut would
-/// then draw both or neither — or whose coarse level bends a normal past
-/// `NORMAL_DEVIATION_BOUND`, or past the source's own worst when that is larger.
-pub fn check(dag: &[DagCluster], quality: &[LevelQuality]) -> Result<()> {
+) -> Result<Vec<LevelQuality>> {
     if let Some(c) = dag.iter().find(|c| c.parent_error < c.lod_error) {
         return Err(CompilerError::new(
             "DAG_ERROR_NOT_MONOTONE",
@@ -166,15 +156,38 @@ pub fn check(dag: &[DagCluster], quality: &[LevelQuality]) -> Result<()> {
             ),
         ));
     }
-    let bound = deviation_bound(quality.first().map_or(0.0, |q| q.normal_deviation));
-    match quality.iter().skip(1).find(|q| q.normal_deviation > bound) {
-        Some(q) => Err(CompilerError::new(
-            "DAG_NORMAL_DEVIATION",
-            format!(
-                "Level {} bends a normal {:.1}° from its face, past the {:.1}° bound",
-                q.level, q.normal_deviation, bound
-            ),
-        )),
-        None => Ok(()),
+    let deviations = cluster_deviations(dag, positions, normals);
+    // Per group, the worst deviation of the level-0 triangles it descends from. The builder pushes
+    // a group's children before its outputs: one pass in order sees every child first.
+    let groups = dag.iter().filter_map(|c| c.group.max(c.source)).max();
+    let mut per_group = vec![0.0_f64; groups.map_or(0, |g| g + 1)];
+    for (c, &deviation) in dag.iter().zip(&deviations) {
+        let worst = c.source.map_or(deviation, |g| per_group[g]);
+        if let Some(g) = c.group {
+            per_group[g] = per_group[g].max(worst);
+        }
+        let bound = deviation_bound(worst);
+        if c.level > 0 && deviation > bound {
+            return Err(CompilerError::new(
+                "DAG_NORMAL_DEVIATION",
+                format!(
+                    "Level {} bends a normal {deviation:.1}° from its face, past its group's {bound:.1}° bound",
+                    c.level
+                ),
+            ));
+        }
     }
+    let depth = dag.iter().map(|c| c.level).max().unwrap_or(0);
+    let mut levels: Vec<LevelQuality> = (0..=depth)
+        .map(|level| LevelQuality {
+            level,
+            ..LevelQuality::default()
+        })
+        .collect();
+    for (c, deviation) in dag.iter().zip(deviations) {
+        let row = &mut levels[c.level];
+        row.normal_deviation = row.normal_deviation.max(deviation);
+        row.error_max = row.error_max.max(c.lod_error);
+    }
+    Ok(levels)
 }
