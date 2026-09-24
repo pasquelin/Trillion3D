@@ -6852,6 +6852,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
     }
@@ -6983,6 +6984,33 @@
     "summary": "碰撞形状，当由几何体推断的形状不合适时使用。",
     "description": "尺寸位于物体自身坐标系中，缩放之前。"
   },
+  "PhysicsPart": {
+    "summary": "复合形状的一个部件：在对象坐标系中放置并旋转的基本体。"
+  },
+  "PhysicsPrimitive": {
+    "summary": "精确的基本体：它在对象自身坐标系中的尺寸。"
+  },
+  "WaterSpec": {
+    "summary": "物体漂浮其中的水体，按 `world.physics.water` 接收的形式。",
+    "members": {
+      "waves": "水面的 Gerstner 波；静水则没有。",
+      "level": "静止时水面的高度，单位米。",
+      "density": "kg/m³；默认 1000，即淡水。",
+      "linearDrag": "二次阻力系数：物体稳定下来的快慢，而不是位置；默认 0.5。",
+      "angularDrag": "水对物体转动的阻尼程度；默认 0.05。",
+      "current": "水的速度（河流的水流），m/s。"
+    }
+  },
+  "WaveSpec": {
+    "summary": "场景声明的一个波。",
+    "members": {
+      "direction": "水平传播方向 `[x, z]`；在此归一化。",
+      "wavelength": "波峰到波峰的米数。",
+      "amplitude": "静止面到波峰的米数。",
+      "steepness": "从 0（正弦波）到 1（不卷曲的最尖波峰）；按总和归一化。",
+      "phase": "`t = 0` 时的相位，单位弧度。"
+    }
+  },
   "PhysicsStats": {
     "summary": "世界物理报告的内容：最近一次 tick 的计数，以及分开的两个时钟。",
     "members": {
@@ -7005,6 +7033,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
     }
