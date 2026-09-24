@@ -1004,6 +1004,7 @@
     "description": "Tuşlar kendi eksenleri boyunca öteler ve onların etrafında döndürür, yatma dahil; bir sürükleme etrafa bakar. Host, geçen saniyelerle `update(delta)`'yı çağırana kadar hiçbir şey entegre edilmez, ve `update` yalnızca bir tuş basılı tutulduğunda, bir çubuk girişi ayarlandığında ya da bir sürükleme beklemedeyken döner — ve yayar —, böylece bırakılmış bir çubuk sahneyi hareketsiz bırakır. `autoForward` tek istisnadır: bir seyir kamerası her `update`'te hareket eder, ve her seferinde `change` yayarak bir sonraki kareyi ister. TUŞLAR, `KeyboardEvent.code`'a göre: W/S ileri ve geri, A/D sol ve sağ, R/F yukarı ve aşağı, oklar yunuslama ve sapma, Q/E yatma. Hiçbir şey bir dönüşü sınırlamaz: bir tuşu basılı tutmak kamerayı döngülere sokar ya da defalarca yuvarlar, bu yüzden bir döngü, bir fıçı dönüşü, bir Immelmann ya da bir split-S, bir çubukta olduğu gibi uçurulur. `inputResponse`, tuşlara o çubuk hareketini verir. `dragToLook` (varsayılan), bir işaretçi basılı tutulduğunda etrafa bakar; false olarak ayarlayın ve işaretçi yüzey üzerinde hareket eder etmez etrafa bakar; `pointerLook`'u false olarak ayarlayın ve görünümü hiç çevirmez, yalnızca tuşlar yönetir. Ctrl ya da Meta basılıyken basılan bir tuş yok sayılır, bu yüzden bir tarayıcı kısayolu (Ctrl+W, Cmd+S) asla yönetmez; onu izleyen tuşun sayılması için değiştirici bırakılmalıdır.",
     "members": {
       "rollSpeed": "Tam sapmada yatmanın döndüğü, saniyede radyan; yunuslama ve sapma varsayılan olarak onu takip eder.",
+      "lookSpeed": "İşaretçinin hareket ettiği her piksel için görünümün döndüğü radyan; `null` (varsayılan), boyutu ne olursa olsun yüzey yüksekliği başına yarım turdur.",
       "dragToLook": "Sürüklemenin görünümü çevirip çevirmediği.",
       "pitchSpeed": "Tam sapmada yunuslamanın döndüğü, saniyede radyan; `null` (varsayılan) `rollSpeed`'dir.",
       "yawSpeed": "Tam sapmada sapmanın döndüğü, saniyede radyan; `null` (varsayılan) `rollSpeed`'dir.",
@@ -3762,7 +3763,7 @@
       "maxAzimuthAngle": "Yalnızca yörünge: o yayın sonu; `minAzimuthAngle`'dan küçük olabilir.",
       "autoRotate": "Yalnızca yörünge: `target` çevresinde kendiliğinden döndüğü saniye başına radyan, ilk basışa ya da tekerlek adımına kadar; varsayılan 0.",
       "movementSpeed": "Uçuş ve birinci şahıs: tam çubukta saniyede dünya birimi; varsayılan 1.",
-      "lookSpeed": "Birinci şahıs ve karakter: işaretçinin hareket ettiği piksel başına görünümün döndüğü radyan.",
+      "lookSpeed": "Uçuş, birinci şahıs ve karakter: işaretçinin hareket ettiği her piksel için görünümün döndüğü radyan; `null` (varsayılan) her birinin kendi değerini korur — bir kafa için 0.002, uçuş için canvas yüksekliği başına yarım tur.",
       "rollSpeed": "Yalnızca uçuş: tuşların yunuslama, sapma ve yatma yaptığı, saniyede radyan.",
       "rotateSpeed": "Yörünge ve trackball: sürüklemenin ne kadar hızlı döndürdüğü; varsayılan 1.",
       "zoomSpeed": "Pivot kontrolcüleri: tekerleğin ve sıkıştırmanın ne kadar hızlı yakınlaştırdığı; varsayılan 1.",
@@ -3890,7 +3891,7 @@
   },
   "WorldControls": {
     "summary": "Bir sayfanın kamerayı fare ve klavyeyle yönetebileceği yollar, ya da `'none'`.",
-    "description": "`'firstPerson'` bir kamerayı hareket ettirir; `'character'` bir gövdeyi — kütle, yer çekimi, zıplamalar, `world.controls.colliders` ile çarpışmalar — hareket ettirir ve gözlerinden bakar."
+    "description": "`'firstPerson'` bir kamerayı hareket ettirir; `'character'` bir gövdeyi — kütle, yer çekimi, zıplamalar, `world.controls.colliders` ile çarpışmalar — hareket ettirir ve gözlerinden bakar. `'fly'` ve `'firstPerson'`, `world.controls.movementSpeed` hızında hareket eder ve `world.controls.lookSpeed` hızında döner."
   },
   "WorldFrameMetrics": {
     "summary": "Ana makinenin motordan kopyaladığı biçimiyle bir görselin ölçümleri ve bir sayfanın bunlardan birleştirerek okuduğu iki değer; yolun saymadığı yerde `null`.",
@@ -6645,7 +6646,7 @@
     "summary": "BİR YÜRÜYÜCÜNÜN BAŞI, işaretçi kilitli: işaretçi onu çevirir, ufuk düz kalır — dünya yukarısı etrafında sapma, `[minPitch, maxPitch]`'e sıkıştırılmış yunuslama, asla hiçbir yatma.",
     "description": "Bir kişinin gözlerinden bakan her kontrolcü tarafından paylaşılır. KİLİT, HOST'UN İSTEYECEĞİ ŞEYDİR. Bir tarayıcı, işaretçi kilidini yalnızca bir jest içinde verir, bu yüzden baş `pointerdown`'da ister ve kendi anını seçmeyi tercih eden bir host için `lock()`, `unlock()` ve `locked()`'ı yayımlar; izleyicinin kaçtığı bir kilit sadece bakışı durdurur, ve kilitlenmemiş bir sürükleme yine de başı çevirir.",
     "members": {
-      "lookSpeed": "İşaretçi hareketinin pikseli başına döndürülen radyan.",
+      "lookSpeed": "İşaretçi hareketinin pikseli başına dönülen radyan; `null` (varsayılan) 0.002'dir.",
       "minPitch": "Başın ne kadar aşağı baktığı, negatif sayılan ufkun altındaki radyan cinsinden (0 ufuktur); varsayılan olarak dümdüz aşağıya çok az kala. Bir yürüyücünün asla kendi gövdesine bakmaması için yükseltin.",
       "maxPitch": "Başın ne kadar yukarı baktığı, ufkun üstündeki radyan cinsinden; varsayılan olarak zirveye çok az kala."
     }
@@ -6858,6 +6859,7 @@
       "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
     }
@@ -6989,6 +6991,33 @@
     "summary": "Geometriden çıkarılan uygun değilse bir çarpışma şekli.",
     "description": "Boyutlar nesnenin kendi çerçevesindedir, ölçeğinden önce."
   },
+  "PhysicsPart": {
+    "summary": "Bileşik bir şeklin bir parçası: nesnenin çerçevesinde yerleştirilmiş ve döndürülmüş bir ilkel."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Tam bir ilkel: boyutları nesnenin kendi çerçevesinde."
+  },
+  "WaterSpec": {
+    "summary": "Cisimlerin yüzdüğü bir su kütlesi, `world.physics.water` onu nasıl alıyorsa.",
+    "members": {
+      "waves": "Yüzeyin Gerstner dalgaları; durgun su için hiçbiri.",
+      "level": "Yüzeyin durgunken yüksekliği, metre.",
+      "density": "kg/m³; varsayılan olarak 1000, tatlı su.",
+      "linearDrag": "İkinci dereceden sürükleme katsayısı: bir cismin ne kadar hızlı durulduğu, asla nerede değil; varsayılan 0.5.",
+      "angularDrag": "Suyun bir cismin dönüşünü ne kadar sönümlediği; varsayılan 0.05.",
+      "current": "Suyun hızı (bir nehrin akıntısı), m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Bir sahnenin bildirdiği şekliyle bir dalga.",
+    "members": {
+      "direction": "Yatay ilerleme yönü `[x, z]`; burada normalleştirilir.",
+      "wavelength": "Tepeden tepeye metre.",
+      "amplitude": "Durgun seviyeden tepeye metre.",
+      "steepness": "0 (bir sinüs dalgası) ile 1 (kıvrılmayan en keskin tepe) arası; toplam üzerinden normalleştirilir.",
+      "phase": "`t = 0` anındaki faz, radyan."
+    }
+  },
   "PhysicsStats": {
     "summary": "Dünya fiziğinin bildirdiği: son tikin sayımları ve ayrı tutulan iki saat.",
     "members": {
@@ -7011,6 +7040,7 @@
       "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
     }

@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "Le marcheur fait le tour de la salle et pousse les balles. Balles en ajoute vingt.",
+    "banner": "Cliquez pour regarder autour, puis marchez parmi les balles avec Z Q S D et poussez-les. Balles en ajoute vingt.",
     "controls": {
-      "walking": "Marche",
       "balls": "Balles"
     },
     "readouts": {
