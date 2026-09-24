@@ -28,9 +28,10 @@
       world.scene.background = math.color('#9cc8f0');
 
       // Smooth noise on a grid of random values, summed over four octaves: the lie of the land.
+      const noise = valueNoise();
       const fbm = (x, y, seed) => {
         let sum = 0, amplitude = 0.55, frequency = 1;
-        for (let octave = 0; octave < 4; octave++, amplitude *= 0.5, frequency *= 2.03) sum += amplitude * valueNoise(x * frequency, y * frequency, seed + octave);
+        for (let octave = 0; octave < 4; octave++, amplitude *= 0.5, frequency *= 2.03) sum += amplitude * noise(x * frequency, y * frequency, seed + octave);
         return sum;
       };
 

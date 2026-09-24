@@ -32,6 +32,8 @@
       // One small planet, 8 km in radius, and one point on its beach: the focus, at the origin.
       // Everything is placed relative to it, so a grain beside it keeps every digit it needs.
       const R = 8000;
+      // Smooth noise in 3D, from a grid of hashed values.
+      const noise = valueNoise(1274126177);
       // The ground's height above the sea at a direction from the planet's centre. Every scale
       // has its octave — continents, hills, dunes, ripples, down to the roughness of a grain —
       // each as tall as its wavelength allows; the octaves finer than the mesh can hold (`finest`)
@@ -41,10 +43,10 @@
         const [x, y, z] = [d[0] * R, d[1] * R, d[2] * R];
         const off = Math.hypot(d[0] - ISLAND[0], d[1] - ISLAND[1], d[2] - ISLAND[2]) * R, mask = Math.exp(-((off / 3200) ** 2));
         let h = 1000 * mask - 420;
-        h += 1600 * valueNoise(x / 12000, y / 12000, z / 12000, 1) + 700 * valueNoise(x / 5200, y / 5200, z / 5200, 2);
-        const ridge = 1 - Math.abs(valueNoise(x / 1300, y / 1300, z / 1300, 3));
-        h += mask * (700 * ridge ** 3 + 160 * (1 - Math.abs(valueNoise(x / 480, y / 480, z / 480, 4))) ** 2);
-        for (let wave = 1400, octave = 5; wave >= finest; wave /= 2, octave++) h += 0.06 * wave ** 0.9 * valueNoise(x / wave, y / wave, z / wave, octave);
+        h += 1600 * noise(x / 12000, y / 12000, z / 12000, 1) + 700 * noise(x / 5200, y / 5200, z / 5200, 2);
+        const ridge = 1 - Math.abs(noise(x / 1300, y / 1300, z / 1300, 3));
+        h += mask * (700 * ridge ** 3 + 160 * (1 - Math.abs(noise(x / 480, y / 480, z / 480, 4))) ** 2);
+        for (let wave = 1400, octave = 5; wave >= finest; wave /= 2, octave++) h += 0.06 * wave ** 0.9 * noise(x / wave, y / wave, z / wave, octave);
         return h;
       }
       const FOCUS_RAW = rawHeight([0, 1, 0], 0.0002);
