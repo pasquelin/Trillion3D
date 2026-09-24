@@ -30,6 +30,7 @@
       "geometry pool": "Geometriespeicher",
       "lights": "Lichter",
       "GPU frame": "GPU-Bild",
+      "GPU frame (last)": "GPU-Bild (letztes)",
       "CPU frame": "CPU-Bild",
       "page hooks": "Code der Seite",
       "engine CPU": "Engine-CPU"

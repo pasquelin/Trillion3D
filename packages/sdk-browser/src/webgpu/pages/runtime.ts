@@ -74,7 +74,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const setup = createWebgpuPagesSetup(context, diag);
   const layout = createWebgpuPagesLayout(setup);
   const vis = createWebgpuVisState();
-  const run = createWebgpuRunState();
+  const run = createWebgpuRunState(context.clearColor);
   const blendState = createWebgpuBlendState();
   const lights = createWebgpuLightState(context.sceneLights);
   const capabilities: BackendCapabilities = {

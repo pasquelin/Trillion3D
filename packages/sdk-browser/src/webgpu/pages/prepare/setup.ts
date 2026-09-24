@@ -147,7 +147,6 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // Rows, roots and transparent copies carry the matrices.
     worlds,
     viewport,
-    clearColor,
     roots,
     allPages,
     blendCopies,

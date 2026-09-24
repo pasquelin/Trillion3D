@@ -4284,11 +4284,6 @@
         "desc": "CPU time to send the work."
       },
       {
-        "name": "gpuMs",
-        "type": "number | null",
-        "desc": "GPU time of the frame."
-      },
-      {
         "name": "drawCalls",
         "type": "number | null",
         "desc": "Draw calls of this frame, as the engine counted them. `null` when it has not counted them: a zero would read as a frame with no draw."
@@ -4451,7 +4446,7 @@
       {
         "name": "gpuFrameMs?",
         "type": "GpuFrameMs | undefined",
-        "desc": "GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field."
+        "desc": "GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled every few images, so a number may be a few images old. Null before the first sample, from a held image until the next device sample, without `timestamp-query`, and on WebGL2."
       },
       {
         "name": "gpuHostGapMs?",
@@ -4875,7 +4870,7 @@
     "title": "GpuFrameMs",
     "signature": "type GpuFrameMs = number | null",
     "summary": "GPU duration of one image: the sum of its per-submission spans, each span being the earliest pass beginning to the latest pass end of one command buffer, from the device's own timestamps.",
-    "description": "A submission is one contiguous GPU execution, so passes the device runs concurrently are inside its span once — unlike `gpuPassMs.totalMs`, a sum of passes, which counts an overlap twice. The host time between two submissions of the same image is NOT in here; `gpuHostGapMs` carries it alone. Null when a pass of the image went unmeasured, the list was truncated, or the device exposes no timestamp query."
+    "description": "A submission is one contiguous GPU execution, so passes the device runs concurrently are inside its span once — unlike `gpuPassMs.totalMs`, a sum of passes, which counts an overlap twice. The host time between two submissions of the same image is NOT in here; `gpuHostGapMs` carries it alone. Null when a pass of the image went unmeasured, the list was truncated, or no timestamp query exists."
   },
   {
     "id": "GpuMemoryFrameMetrics",
@@ -11957,8 +11952,8 @@
       },
       {
         "name": "background",
-        "type": "Color | Texture | null",
-        "desc": "What fills the image behind every object: a colour, a picture, or `null` for the default."
+        "type": "Color | null",
+        "desc": "What fills the image behind every object: a colour, or `null` for the default. A change shows at the next frame, the session kept: a new colour set here, or the one held written through its methods (`set`, `setRGB`, `setHex`, `setHSL`...). A direct write of `.r`, `.g` or `.b` is not heard: set `background` again after one. A picture, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one."
       },
       {
         "name": "load(manifestUrl: string, options?: LoadOptions)",
@@ -17047,7 +17042,7 @@
     "kind": "Type",
     "title": "WorldFrameMetrics",
     "signature": "type WorldFrameMetrics",
-    "summary": "A frame's metrics, with the names a page reads them by; `null` where the path does not count.",
+    "summary": "A frame's metrics as the host copied them from the engine, and two a page reads composed from them; `null` where the path does not count.",
     "members": [
       {
         "name": "rafIntervalMs",
@@ -17063,11 +17058,6 @@
         "name": "cpuSubmitMs",
         "type": "number | null",
         "desc": "CPU time to send the work."
-      },
-      {
-        "name": "gpuMs",
-        "type": "number | null",
-        "desc": "GPU time of the frame."
       },
       {
         "name": "drawCalls",
@@ -17230,9 +17220,9 @@
         "desc": "Latest GPU pass sample of this backend; null when the device exposes no timestamp queries."
       },
       {
-        "name": "gpuFrameMs",
-        "type": "number | null",
-        "desc": "GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field."
+        "name": "gpuFrameMs?",
+        "type": "GpuFrameMs | undefined",
+        "desc": "GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled every few images, so a number may be a few images old. Null before the first sample, from a held image until the next device sample, without `timestamp-query`, and on WebGL2."
       },
       {
         "name": "gpuHostGapMs?",
