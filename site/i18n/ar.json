@@ -618,6 +618,18 @@
         ],
         "tryIt": "انقر على الصورة، وامشِ بالمفاتيح W A S D، واقفز بالمسافة. اصعد الدرج، واركب المنصة، وادفع كومة الصناديق."
       },
+      "connect-drive-and-break": {
+        "title": "اربط وحرّك واكسر",
+        "description": "تُمسك المفاصل جسمين معًا، أو جسمًا بالعالم: يدور الباب على مفصّلته، وينزلق الدرج على سكّته، وتتدلّى السلسلة من حلقاتها، وينكسر الجسر حين يُشدّ بقوة زائدة.",
+        "steps": [
+          "أنشئ مفصلًا باستخدام <code>joint.hinge(a, b, options)</code> أو أقاربه — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — ثم مرّره إلى <code>world.physics.add</code>. ضع <code>null</code> مكان <code>b</code> لتثبيت جسم بالعالم.",
+          "<code>anchor</code> هو موضع اتصال الجسمين و<code>axis</code> اتجاه المحور أو السكّة، وكلاهما في إحداثيات العالم ويُقرآن عند إنشاء المفصل.",
+          "<code>limits</code> يوقف المفصل: بالراديان للمفصّلة وبالمتر للسكّة. و<code>spring</code> يجعل التوقّف ليّنًا.",
+          "<code>motor</code> يدفع المفصّلة أو السكّة إلى سرعة أو موضع. غيّر <code>joint.motor</code> متى شئت.",
+          "<code>breakForce</code> هو الشدّ بالنيوتن الذي ينقطع المفصل بعده: تصبح <code>joint.broken</code> صحيحة وتُستدعى <code>joint.on('break', …)</code>."
+        ],
+        "tryIt": "افتح الباب والدرج، ثم أسقط الحجر على الجسر. اخفض متانة الجسر وأعد بناءه: سينكسر تحت وزنه."
+      },
       "your-own-scene": {
         "title": "مشهدك الخاص",
         "description": "أصبحت الآن تعرف كل قطعة. يجمع هذا الفصل بينها في مشهد صغير واحد يمكنك نسخه وجعله ملكك.",
@@ -1653,7 +1665,6 @@
       "breaking-things": "تكامل الفيزياء",
       "cloth-and-rope": "تكامل الفيزياء",
       "soft-bodies": "تكامل الفيزياء",
-      "hinges-and-joints": "تكامل الفيزياء",
       "drive-a-car": "تكامل الفيزياء",
       "a-room-in-vr": "جلسة WebXR",
       "a-360-photo-in-vr": "جلسة WebXR",
