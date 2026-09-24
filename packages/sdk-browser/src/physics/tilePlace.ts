@@ -17,6 +17,8 @@ export interface Placed {
   model: Model;
   instance: CookedInstance;
   tile: CookedTile;
+  /** The glTF material of every triangle the tile holds, `-1` for none: its collider's. */
+  material: number;
   box: Box3;
   /** The body's engine id once resident, -1 while out. */
   id: number;

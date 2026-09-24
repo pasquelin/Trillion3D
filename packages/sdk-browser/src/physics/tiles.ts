@@ -5,6 +5,7 @@ import {
   MOTION,
   SHAPE,
   physicsBudgetError,
+  physicsMatterOf,
   readCookedPhysics,
   type CommandWriter,
   type PhysicsBudget,
@@ -49,12 +50,22 @@ export function createTileStreamer(
     if (!response.ok) return;
     const cooked = readCookedPhysics(await response.json());
     const placed: Placed[] = [];
-    for (const instance of cooked.instances)
-      for (const tile of cooked.colliders[instance.collider].tiles) {
-        const p = { model, instance, tile, box: new Box3(), id: -1, loading: false };
+    for (const instance of cooked.instances) {
+      const { tiles, material } = cooked.colliders[instance.collider];
+      for (const tile of tiles) {
+        const p: Placed = {
+          model,
+          instance,
+          tile,
+          material: material ?? -1,
+          box: new Box3(),
+          id: -1,
+          loading: false,
+        };
         locate(p);
         placed.push(p);
       }
+    }
     if (models.has(model)) models.set(model, placed);
     invalidate();
   }
@@ -77,6 +88,8 @@ export function createTileStreamer(
       const handle = p.id & BODY_INDEX;
       byIndex.set(handle, p);
       const { position, quaternion, scale } = tilePose(p);
+      // The matter the node's collider declares, over the engine's default, as for every body.
+      const matter = physicsMatterOf(p.instance);
       // Restored, built into one static body, and its handle dropped: the body keeps the shape.
       writer.restore(handle, bytes);
       writer.add({
@@ -90,8 +103,8 @@ export function createTileStreamer(
         size: [scale.x, scale.y, scale.z],
         mass: 0,
         density: 0,
-        friction: 0.6,
-        restitution: 0,
+        friction: matter.friction,
+        restitution: matter.restitution,
         gravityScale: 1,
         indices: [handle],
       });
@@ -154,6 +167,8 @@ export function createTileStreamer(
     },
     /** The model a tile body's engine id belongs to, or `null`. */
     modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? null,
+    /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
+    materialOf: (id: number) => byIndex.get(id & BODY_INDEX)?.material ?? -1,
     /** A model moved: its resident tiles follow. */
     moved(node: Object3D) {
       node.traverse((child) => {
