@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { LAMP_FLOOR_MIP, PAGE_VALID, SUN_LEVELS, sunEntry } from './virtual.ts';
+import { LAMP_FLOOR_MIP, PAGE_INDEX_MASK, PAGE_VALID, SUN_LEVELS, sunEntry } from './virtual.ts';
 import {
   SUN,
   VIEW,
@@ -133,5 +133,25 @@ test('a light whose intensity or colour changes neither re-poses nor withdraws a
       read.every((entry) => valid(plan, entry)),
       `every page still read at frame ${frame}`,
     );
+  }
+});
+
+test('over budget, the stale floors of a moving lamp are redrawn first, at its new pose', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0);
+  const slice = store.sliceOf(0);
+  const read = lampPages(plan, slice, 0, 3);
+  for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
+  // One page a frame: the withdrawn finer pages would take it, were the floors not first.
+  plan.observeCost(plan.budget.budgetMs, 1);
+  for (let frame = 4; frame < 10; frame++) {
+    store.set('lamp', { position: [frame / 10, 3, 0] });
+    cycle(plan, store, frame, () => read);
+    for (let face = 0; face < 6; face++) {
+      const page = plan.table.words[lampFloor(plan, slice, face)] & PAGE_INDEX_MASK;
+      assert.equal(plan.pool.dirty[page], 0, `face ${face} floor redrawn at frame ${frame}`);
+    }
   }
 });
