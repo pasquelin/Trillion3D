@@ -43,6 +43,21 @@ test('a shared, blended or restructured entry is copied on write, never repainte
   assert.equal(table.takeRepainted().length, 1);
 });
 
+// #346: the blending mode decides the pass and the pipeline, so writing it opens the session again
+// on a new entry; an additive surface is blended even when `transparent` is left false.
+test('a blending written at runtime is a new entry, and an additive one is never repainted', () => {
+  const table = createWorldMaterials();
+  const spark = material.meshBasic({ color: 0xff8800 });
+  const plain = table.entryOf(spark);
+  spark.blending = 'additive';
+  const glow = table.entryOf(spark);
+  assert.notEqual(glow, plain, 'the mode is not a value: copied on write');
+  assert.equal(glow.material.blending, 'additive');
+  spark.color.set(0x00ff00);
+  assert.notEqual(table.entryOf(spark), glow, 'an additive surface is laid out at opening');
+  assert.deepEqual(table.takeRepainted(), []);
+});
+
 // #360, #361: a map's sampling or placement written after the entry was made repaints the entry,
 // whose host texture the repaint then writes in place; a new vector for the offset is heard like
 // the one it replaced. Neither moves the texture's version: nothing is sent again.
