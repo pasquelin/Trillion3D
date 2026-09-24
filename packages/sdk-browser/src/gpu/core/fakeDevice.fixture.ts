@@ -2,23 +2,25 @@
 type Described = { label?: string } | undefined;
 const pass = { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} };
 
+/** A texture as WebGPU writes one: `createView` on its prototype, refusing another `this`. */
+class FakeTexture {
+  readonly label: string | undefined;
+  constructor(label: string | undefined) {
+    this.label = label;
+  }
+  createView(view?: Described) {
+    if (!(this instanceof FakeTexture)) throw new TypeError('Illegal invocation');
+    return { label: view?.label };
+  }
+  destroy() {}
+}
+
 /**
  * A device as WebGPU writes one: its members on the prototype, each refusing a `this` that is not
  * a device ("Illegal invocation"), and its events through `EventTarget`, which checks the same.
  */
 export class FakeDevice extends EventTarget {
-  /** The work submitted so far, done when `settle` is called. */
-  #work = FakeDevice.#pending();
-  static #pending() {
-    let resolve!: () => void;
-    const promise = new Promise<undefined>((done) => (resolve = () => done(undefined)));
-    return { promise, resolve };
-  }
-  readonly #queue = {
-    writeBuffer() {},
-    submit() {},
-    onSubmittedWorkDone: () => this.#work.promise,
-  };
+  readonly #queue = { writeBuffer() {}, submit() {} };
   readonly #lost: Promise<GPUDeviceLostInfo>;
   lose!: (info: GPUDeviceLostInfo) => void;
   constructor() {
@@ -49,8 +51,8 @@ export class FakeDevice extends EventTarget {
     return this.#made(descriptor) as unknown as GPUBuffer;
   }
   createTexture(descriptor: GPUTextureDescriptor) {
-    const createView = (view: Described) => ({ label: view?.label });
-    return { ...this.#made(descriptor), createView } as unknown as GPUTexture;
+    FakeDevice.#check(this);
+    return new FakeTexture(descriptor.label) as unknown as GPUTexture;
   }
   createQuerySet(descriptor: GPUQuerySetDescriptor) {
     return this.#made(descriptor) as unknown as GPUQuerySet;
@@ -73,12 +75,6 @@ export class FakeDevice extends EventTarget {
   createRenderPipeline(descriptor: GPURenderPipelineDescriptor) {
     return this.#made(descriptor);
   }
-  /** The queue has run everything submitted so far. */
-  async settle() {
-    this.#work.resolve();
-    this.#work = FakeDevice.#pending();
-    await Promise.resolve();
-  }
   /** Raises an uncaptured error as WebGPU does; returns whether the listener cancelled it. */
   raise(message: string, error: object = { message }) {
     const event = Object.assign(new Event('uncapturederror', { cancelable: true }), { error });
@@ -92,14 +88,19 @@ export function owner() {
   const errors: string[] = [],
     reasons: string[] = [],
     closed: string[] = [],
+    counts: Array<{ session: string; count: number }> = [],
     losses: string[] = [];
   return {
     errors,
     reasons,
     closed,
+    counts,
     losses,
     error: (message: string, reason: string) => (errors.push(message), reasons.push(reason)),
-    closedError: (message: string) => closed.push(message),
+    closedError: (message: string, count: { session: string; count: number }) => (
+      closed.push(message),
+      counts.push(count)
+    ),
     lost: (info: { reason: string }) => losses.push(info.reason),
   };
 }
