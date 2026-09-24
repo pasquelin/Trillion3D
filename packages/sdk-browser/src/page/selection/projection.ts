@@ -60,6 +60,7 @@ export function projectedErrorAt(
  * `depth` is `−view(C).z`, already computed by the caller: a node's floor and ceiling share it.
  * Under an orthographic projection (`perspective` 0) the clip weight is 1 at every depth, and
  * the floor is ε_min·stretch·f itself — the error every cluster of the subtree announces at least.
+ * Rust mirror (CPU cut walk): `error_floor_at` of `packages/page-codec-wasm/src/cut_error.rs`.
  */
 export function errorFloorAt(
   error: number,
