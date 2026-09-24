@@ -32,6 +32,8 @@ export type BlendCopy = {
   /** The row of an instance buffer the copy is posed by, when its mesh is placed by rows: one
    *  copy per row, `matrix` a view on it, skipped while the row is parked. */
   readonly placement?: PlacementOf;
+  /** True while the host hides the source mesh or one of its ancestors (`placement/hidden.ts`). */
+  hidden?: boolean;
   readonly frustumCulled: boolean;
   renderOrder: number;
   /** Set by the engine itself: the source mesh the copy stands for, and whether it is paged. */

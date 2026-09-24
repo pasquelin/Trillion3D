@@ -31,6 +31,9 @@ export type BlendGpuItem = {
   matrix: MatrixElements;
   /** The row posing the item when its mesh is placed by rows: skipped while it is parked. */
   placement?: PlacementOf;
+  /** True while the host hides the source mesh or one of its ancestors: skipped as a parked
+   *  row's item is (`placement/hidden.ts`). */
+  hidden?: boolean;
   sourceMesh?: HostMesh;
   sourceGeometry: HostGeometry;
   /** World box of the item, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`); absent, the item is not rejected. */

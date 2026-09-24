@@ -1963,5 +1963,20 @@
       "awake": "活动",
       "step": "步长"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "打开门和抽屉，摇动铁链，然后把石头扔到桥上，看它断裂。",
+    "controls": {
+      "openDoor": "打开门",
+      "openDrawer": "打开抽屉",
+      "strength": "桥的强度 (N)",
+      "swingChain": "摇动铁链",
+      "dropStone": "扔下石头",
+      "rebuild": "重建桥"
+    },
+    "readouts": {
+      "joints": "关节",
+      "broken": "已断"
+    }
   }
 }
