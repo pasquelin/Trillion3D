@@ -10,7 +10,7 @@ import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.
 import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
-} from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuSteps.ts';
+} from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
   referenceAddCpuSteps,

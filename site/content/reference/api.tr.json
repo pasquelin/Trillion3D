@@ -7402,11 +7402,5 @@
       "distance": "`a` üzerindeki `anchor` ile `b` üzerindeki `anchorB`'yi aralarındaki mesafede ya da `limits` içinde tutar.",
       "cone": "`axis`'i yarım açısı `limits.max` olan bir koni içinde salınan bilyeli eklem."
     }
-  },
-  "JointHost": {
-    "summary": "Bir eklemin dünya tarafı: ona yapılan bir yazmanın simülasyondan istediği.",
-    "members": {
-      "motor": "Motor değişti."
-    }
   }
 }
