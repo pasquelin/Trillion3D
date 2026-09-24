@@ -70,8 +70,11 @@
       const CASES = {
         near: { sun: [3, 10, 4], look: 'contact shadow, fine texels', pose: [[0.5, 0.7, 3], [0, 0.05, 2]] },
         far: { sun: [10, 3.5, -6], look: 'long shadows hold still', path: (t) => [[0, 1.7, -4 + 6 * Math.cos(t * 0.08)], [0, 1, -70]] },
+        // The sun's sideways lean stays under a column's width over the 4 m spacing
+        // (4 · 2 / |(2, -20)| = 0.4 m < 0.56 m): the colonnade's shadow is one band. At a lean
+        // of 3 it is 0.59 m, and a real 0–3 cm gap between two shafts lets 1-px slivers of sun through.
         walk: {
-          sun: [3, 5, -20],
+          sun: [2, 5, -20],
           look: 'sun ahead, then behind',
           path: (t) => {
             const z = -30 + 25 * Math.sin(t * 0.1), yaw = t * 0.15;
