@@ -358,8 +358,10 @@ path — an exact A/A image gate, then timed blocks, not a general performance v
 
 Dispose in the actual component or page teardown, **not immediately after startup**:
 `world.dispose()` removes owned controls, observers, queued frames and abort listeners and closes
-the engine, without removing the canvas. A page that wants job semantics around a load — progress,
-cancellation — wraps `scene.load(url, { signal })` with `createJob` from `trillion3d`.
+the engine, without removing the canvas. A page that wants job semantics around a load —
+cancellation, a status it can observe — wraps `scene.load(url, { signal })` with `createJob`,
+exported by `trillion3d` and by the portal's runtime; the job's progress is what the page reports
+through it.
 
 ### Camera controllers
 
@@ -859,7 +861,8 @@ plain pixels taken aside from the view. For a deterministic image, a page calls
 `world.camera.set(pose)`, `await world.awaitPages()`, `world.render()`, then
 `await capture.buffer(world, { width, height })`. `awaitPages()` rejects a requested URL that failed
 to load; a failed background load is retried at most three times, then left until the world is
-reopened.
+reopened. It waits for pages, not for an image: it settles on a world whose loop redraws every
+frame, and the capture reads its own image.
 
 ## Integration: web, Electron and Node
 
