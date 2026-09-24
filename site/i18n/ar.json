@@ -1511,6 +1511,7 @@
     "missing": {
       "colours-on-the-vertices": "ألوان لكل رأس على WebGPU",
       "dashed-lines": "خطوط متقطعة",
+      "floating-crates": "هندسة يُعاد كتابتها في كل إطار",
       "thick-lines": "خطوط عريضة",
       "a-line-that-draws-itself": "نطاق رسم الهندسة",
       "shapes-from-an-svg": "استيراد مسار SVG",

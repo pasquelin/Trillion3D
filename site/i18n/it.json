@@ -328,6 +328,7 @@
     "missing": {
       "colours-on-the-vertices": "colori per vertice su WebGPU",
       "dashed-lines": "linee tratteggiate",
+      "floating-crates": "geometria riscritta a ogni fotogramma",
       "thick-lines": "linee larghe",
       "a-line-that-draws-itself": "intervallo di disegno di una geometria",
       "shapes-from-an-svg": "importazione di tracciati SVG",

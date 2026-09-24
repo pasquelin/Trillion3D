@@ -1511,6 +1511,7 @@
     "missing": {
       "colours-on-the-vertices": "warna per-vertex di WebGPU",
       "dashed-lines": "garis putus-putus",
+      "floating-crates": "geometri yang ditulis ulang setiap bingkai",
       "thick-lines": "garis lebar",
       "a-line-that-draws-itself": "rentang gambar geometri",
       "shapes-from-an-svg": "impor jalur SVG",

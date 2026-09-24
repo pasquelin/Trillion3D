@@ -2,7 +2,7 @@
   "case": "Two coplanar opaque surfaces whose outlines share only a corner square.",
   "rule": "Equal areas (16 and 16): source order breaks the tie. Only the shared area is counted.",
   "formatVersion": 5,
-  "manifestBinaryVersion": 7,
+  "manifestBinaryVersion": 8,
   "coplanar": {
     "stage": "coplanar-depth-layers-v1",
     "surfaces": 2,

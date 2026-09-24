@@ -309,7 +309,9 @@
       "texturePreviewSha": "A impressão digital de cada pré-visualização de textura.",
       "texturePreviewPixels": "Os pixels das pré-visualizações.",
       "texturePreviewBc7": "Os blocos BC7 das pré-visualizações.",
-      "texturePreviewAstc": "Os blocos ASTC das pré-visualizações."
+      "texturePreviewAstc": "Os blocos ASTC das pré-visualizações.",
+      "bundleDependencyCount": "Quantos pacotes cada pacote precisa.",
+      "bundleDependency": "Os pacotes de que cada pacote precisa, até as raízes."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -652,7 +654,8 @@
       "bundles": "Pacotes.",
       "previews": "Pré-visualizações de textura.",
       "previewBytes": "Bytes da coluna de pixels, todos os níveis de cada entrada concatenados.",
-      "previewBlockBytes": "Bytes de cada coluna de blocos: as caudas das cadeias mantidas comprimidas, blocos inteiros, entradas contíguas, nada para uma cadeia que a família deixou sem perdas."
+      "previewBlockBytes": "Bytes de cada coluna de blocos: as caudas das cadeias mantidas comprimidas, blocos inteiros, entradas contíguas, nada para uma cadeia que a família deixou sem perdas.",
+      "bundleDependencies": "Dependências dos pacotes, as listas de todos os pacotes uma após a outra."
     }
   },
   "CpuStepSummary": {
@@ -3109,7 +3112,8 @@
       "version": "Versão do formato.",
       "pinned": "Pacotes sempre mantidos.",
       "bundleBytes": "Tamanho alvo do pacote.",
-      "pages": "Quantos pacotes."
+      "pages": "Quantos pacotes.",
+      "maxDependencies": "Maior número de dependências de um pacote: o limite que o compilador publica."
     }
   },
   "SlimStructure": {
@@ -3202,7 +3206,8 @@
       "url": "Onde é lido.",
       "sha256": "Impressão digital de seus bytes.",
       "bytes": "Seu tamanho.",
-      "count": "Clusters que contém."
+      "count": "Clusters que contém.",
+      "dependencies": "Os pacotes que guardam os pais dos seus clusters, até as raízes sempre carregadas, em ordem: ele é instalado depois de cada um deles."
     }
   },
   "StreamCatalogue": {
@@ -3212,7 +3217,8 @@
       "version": "Versão do formato.",
       "pinned": "Pacotes sempre mantidos.",
       "bundleBytes": "Tamanho alvo do pacote.",
-      "pages": "Cada pacote."
+      "pages": "Cada pacote.",
+      "maxDependencies": "Maior número de dependências de um pacote, como o compilador o publicou."
     }
   },
   "StreamPage": {
