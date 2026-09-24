@@ -8,7 +8,10 @@ import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
  * and a live cluster pack it in their top bits (`VIEW_SHIFT`). Each view reads its own block of the
  * uniform array — planes, projection, page mask, texel error — and owns its own per-primitive
  * state: threshold, pinned fallback, pruning words and per-primitive frustum planes are indexed by
- * the SLOT `view * worldCount + world`, not the primitive. What the views share is what one cut
+ * the SLOT `row * worldCount + world`, not the primitive. The row is the view's own from one frame
+ * to the next — a sun level or a lamp face keeps its row while it keeps being drawn
+ * (`../lightCutRows.ts`) —, so the threshold a view carries over is its own, never the one of the
+ * view that had its rank last frame. What the views share is what one cut
  * shares: the clusters, the hierarchy, the residency bits, the queues and lists, and the request
  * readback.
  *
@@ -27,6 +30,12 @@ export const DAG_MAX_VIEWS: number = LIGHT_SETTINGS.shadowPagesPerFrame;
 const VIEW_SHIFT = 27;
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
   throw new Error(`${DAG_MAX_VIEWS} views do not fit the ${32 - VIEW_SHIFT} view bits`);
+
+/** The view's state row, in the view block's last word; `VIEW_STATE_FRESH` when the row served
+ *  another view before, and carries nothing over. A camera's row is zero. */
+export const VIEW_STATE_WORD = 63;
+export const VIEW_STATE_FRESH = 0x80000000;
+const VIEW_STATE_ROW = 0xffff;
 
 /** Words of one view's uniform block: the uniform array's stride (`shader.ts`, `Uniforms`). */
 export const DAG_VIEW_WORDS = 64;
@@ -61,7 +70,9 @@ fn entryIndex(entry:u32)->u32{return entry&ENTRY_INDEX;}
 fn entryView(entry:u32)->u32{return entry>>VIEW_SHIFT;}
 /** Per-primitive state slots: one row of \`worldCount\` per view the buffers were sized for. */
 fn slots()->u32{return views[0u].worldCount*views[0u].viewCapacity;}
-fn slotOf(w:u32)->u32{return vi*views[0u].worldCount+w;}
+fn slotOf(w:u32)->u32{return (views[vi].stateRow&${VIEW_STATE_ROW})*views[0u].worldCount+w;}
+/** The view's row was another view's last frame: nothing it holds carries over. */
+fn stateFresh()->bool{return (views[vi].stateRow&${VIEW_STATE_FRESH}u)!=0u;}
 /** Row \`row\` of the per-view words, for view \`v\` (\`VIEW_WORD_ROWS\`). */
 fn viewWord(row:u32,v:u32)->u32{return extraBase()+slots()*2u+row*views[0u].viewCapacity+v;}
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */

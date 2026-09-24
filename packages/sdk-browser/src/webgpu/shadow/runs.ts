@@ -34,6 +34,9 @@ export interface ShadowRun {
   y1: number;
   shift: number;
   near: number;
+  /** The view it draws, the same from one frame to the next: its light's slice and its level or
+   *  face (`../../gpu/dag/lightCutRows.ts`). */
+  identity: number;
   pages: LightPages;
   face: FaceSelection;
   uniforms: DagViewUniforms;
@@ -63,6 +66,7 @@ export function createShadowRuns() {
       y1: 0,
       shift: 0,
       near: 0,
+      identity: 0,
       pages,
       face,
       uniforms,
@@ -77,10 +81,11 @@ export function createShadowRuns() {
     reset() {
       count = 0;
     },
-    /** Opens the run of a new view at region `first`. */
-    open(first: number, near: number) {
+    /** Opens the run of view `identity` at region `first`. */
+    open(first: number, near: number, identity: number) {
       const run = list[count++];
       run.first = first;
+      run.identity = identity;
       run.count = 0;
       run.near = near;
       run.x0 = run.y0 = Infinity;

@@ -2,10 +2,16 @@ import { FRAME_VEC4, type DagViewUniforms, type DrawnLog } from './types.ts';
 import { writeDagUniforms, type DagCutViews } from './uniforms.ts';
 import { createLightCutReports } from './lightCutReports.ts';
 import { createLightCutRedraws } from './lightCutRedraws.ts';
+import { createLightCutRows } from './lightCutRows.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
-import { DAG_MAX_VIEWS, DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
+import {
+  DAG_MAX_VIEWS,
+  DAG_UNIFORM_BYTES,
+  DAG_VIEW_WORDS,
+  VIEW_STATE_WORD,
+} from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
@@ -106,7 +112,9 @@ export function createDagLightCut(resources: DagResources) {
     countWord: layout.viewWords + 2 * capacity,
     groupsWord: layout.drawnGroupsMax,
   };
-  const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4);
+  const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4),
+    uniformWords = new Uint32Array(uniformData.buffer);
+  const rows = createLightCutRows(capacity);
   const cutViews: DagCutViews = { count: 0, capacity, queueCap };
   const reports = createLightCutReports(own, output, outputBytes);
   const redraws = createLightCutRedraws(own, output, capacity);
@@ -115,17 +123,20 @@ export function createDagLightCut(resources: DagResources) {
     pageCount,
     /** Where the mask kernel logs the pages each view draws: what the shadow cull reads. */
     drawnLog,
-    /** Encodes the frame's cut: the first `count` of `views`, in one traversal. */
+    /** Encodes the frame's cut: the first `count` of `views`, in one traversal. A view's
+     *  `identity` names it from one frame to the next (`lightCutRows.ts`). */
     encode(
       encoder: GPUCommandEncoder,
-      views: ArrayLike<{ uniforms: DagViewUniforms }>,
+      views: ArrayLike<{ uniforms: DagViewUniforms; identity: number }>,
       count: number,
     ) {
       if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
       cutViews.count = light.views = count;
+      rows.assign(count, (v) => views[v].identity);
       for (let v = 0; v < count; v++) {
         const block = uniformData.subarray(v * DAG_VIEW_WORDS, (v + 1) * DAG_VIEW_WORDS);
         writeDagUniforms(block, packed, views[v].uniforms, residentCut, cutViews);
+        uniformWords[v * DAG_VIEW_WORDS + VIEW_STATE_WORD] = rows.words[v];
       }
       device.queue.writeBuffer(uniforms, 0, uniformData, 0, count * DAG_VIEW_WORDS);
       // A placement's stretch or a parked root changed on the camera's side: the first row follows.

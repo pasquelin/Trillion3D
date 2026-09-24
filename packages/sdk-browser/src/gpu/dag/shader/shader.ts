@@ -26,7 +26,7 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`viewFlags\`, \`pageRows\`, \`pageMask\`, \`clipScale\` and \`clipPad\` serve a light cut alone (\`pagesWgsl.ts\`): a camera sends zeros.
 // One block per view (\`viewsWgsl.ts\`): block 0 also carries what the views share — counts, caps, flags — and the
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue.
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,viewPad:u32,}
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,stateRow:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
 @group(0) @binding(1) var<storage, read> nodes:array<CullNode>;
@@ -134,13 +134,13 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);}
  let world=views[0u].worldCount;
  if(t>=world*views[0u].viewCount){return;}
- vi=t/world;let w=t-vi*world;
+ vi=t/world;let w=t-vi*world;let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for.
  let root=rootOf(w);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
- atomicStore(&work[t],bitcast<u32>(resetPrune(t)));
- atomicStore(&work[slots()+t],0u);
- let m=transpose(worlds[w]);let base=t*FRAME;
+ atomicStore(&work[slot],bitcast<u32>(resetPrune(slot)));
+ atomicStore(&work[slots()+slot],0u);
+ let m=transpose(worlds[w]);let base=slot*FRAME;
  for(var i=0u;i<6u;i++){frames[base+i]=m*views[vi].planes[i];}
 }
 @compute @workgroup_size(64)

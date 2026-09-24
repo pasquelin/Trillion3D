@@ -87,10 +87,10 @@ fn errorFloor(error:f32,depth:f32,radius:f32,stretch:f32,focal:f32)->f32{
 /** Pruning's frame open: the previous frame's threshold becomes the one descent prunes at,
  *  never below this frame's, and the dropped floor resets to \`FLOOR_NONE\`.
  *  \`work[slot]\` still holds the previous frame's final threshold: the caller clears it AFTER,
- *  with the frame threshold this returns. */
+ *  with the frame threshold this returns. A row fresh to its view carries nothing. */
 fn resetPrune(slot:u32)->f32{
  let seuil=max(views[vi].pixelError,0.0);
- let carried=bitcast<f32>(atomicLoad(&work[slot]));
+ let carried=select(bitcast<f32>(atomicLoad(&work[slot])),seuil,stateFresh());
  atomicStore(&work[pruneSlot(slot)],bitcast<u32>(select(seuil,carried,carried>seuil&&carried<INF)));
  atomicStore(&work[floorSlot(slot)],FLOOR_NONE);
  return seuil;

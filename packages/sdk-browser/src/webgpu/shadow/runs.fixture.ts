@@ -15,7 +15,7 @@ export function sunRun(
   [x0, x1, y0, y1]: readonly number[] = [0, 7, 0, 7],
 ) {
   const runs = createShadowRuns();
-  runs.open(0, 0);
+  runs.open(0, 0, 0);
   const xs: number[] = [],
     ys: number[] = [];
   for (let y = y0; y <= y1; y++)
