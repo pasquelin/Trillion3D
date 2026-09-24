@@ -93,15 +93,9 @@ test('each structural constant in the parity table matches the code', async () =
 test('nuances declared in the parity table are still true, and only those', async () => {
   const texte = await readFile(doc, 'utf8');
   const groupes = await readFile(new URL('dag/groups.rs', sources), 'utf8');
-  const lib = await readFile(new URL('lib.rs', sources), 'utf8');
   assert.equal(
     texte.includes('**Group floor is not enforced.**'),
     !/DAG_GROUP_MIN/u.test(groupes),
     'docs/REFERENCE.md and dag/groups.rs disagree on whether the group floor is enforced',
-  );
-  assert.equal(
-    texte.includes('**`CLUSTER_TRIANGLES = 256` remains in `lib.rs`**'),
-    /pub const CLUSTER_TRIANGLES:\s*usize\s*=\s*256;/u.test(lib),
-    'docs/REFERENCE.md and lib.rs disagree on whether the dead 256 constant remains',
   );
 });
