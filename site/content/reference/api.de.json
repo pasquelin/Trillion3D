@@ -1212,7 +1212,8 @@
       "options.pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "options.controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
       "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
-      "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
+      "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
+      "options.temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet."
     }
   },
   "crossVector3": {
@@ -6319,6 +6320,10 @@
     "summary": "Das Licht, das auf Oberflächen zurückstrahlt, gegen den residenten Proxy verfolgt; standardmäßig aus.",
     "description": "Eine Änderung wird sofort auf einem Pfad angewendet, der es trägt, und bei der nächsten Öffnung auf einem Pfad übernommen, der es nicht trägt."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Zeitliche Kantenglättung: Subpixel-Versatz, über Bilder hinweg akkumuliert; standardmäßig an.",
+    "description": "Geschrieben, wirkt sie ab dem nächsten Bild, der Verlauf wird verworfen, keine Sitzung neu geöffnet. Gelesen, ist sie das, was das Bild trägt: false unter WebGL2 und solange das Programm nach dem Einschalten kompiliert."
+  },
   "world.budget": {
     "summary": "Die Speicherreservoirs der Welt, in Bytes gelesen und eingestellt.",
     "members": {
@@ -6511,7 +6516,8 @@
       "pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
       "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
-      "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
+      "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
+      "temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet."
     }
   },
   "WorldPageSource": {

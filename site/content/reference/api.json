@@ -18275,6 +18275,17 @@
     "description": "A change is applied in place on a path that carries it, and taken by the next opening on one that does not."
   },
   {
+    "id": "world.temporalAntialiasing",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Constant",
+    "title": "world.temporalAntialiasing",
+    "signature": "world.temporalAntialiasing: boolean",
+    "summary": "Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default.",
+    "description": "Written, it takes effect at the next frame, history dropped, no session reopened. Read, it is what the image carries: false on WebGL2, and while the program compiles after it was turned on."
+  },
+  {
     "id": "world.physics",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["createWorld"],
@@ -19135,6 +19146,11 @@
         "name": "physics?",
         "type": "boolean | WorldPhysicsOptions | undefined",
         "desc": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      },
+      {
+        "name": "temporalAntialiasing?",
+        "type": "boolean | undefined",
+        "desc": "Temporal antialiasing, WebGPU only: sub-pixel jitter accumulated over frames. `false` draws each pixel at its centre, with no history, what a pixel-exact capture asks; switched later by `world.temporalAntialiasing`."
       }
     ],
     "description": ""
@@ -22809,6 +22825,12 @@
         "type": "boolean | WorldPhysicsOptions",
         "default": "false",
         "desc": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      },
+      {
+        "name": "options.temporalAntialiasing?",
+        "type": "boolean",
+        "default": "true",
+        "desc": "Temporal antialiasing, WebGPU only: sub-pixel jitter accumulated over frames. `false` draws each pixel at its centre, with no history, what a pixel-exact capture asks; switched later by `world.temporalAntialiasing`."
       }
     ],
     "returns": {

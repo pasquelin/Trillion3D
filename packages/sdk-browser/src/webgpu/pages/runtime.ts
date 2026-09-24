@@ -1,6 +1,6 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { MOTION_CAPABILITY, TAA_CAPABILITY } from '../../taa/prepare.ts';
+import { MOTION_CAPABILITY, TAA_CAPABILITY } from '../../taa/capability.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
 import { createWebgpuPagesServices, type WebgpuPagesServices } from './services.ts';

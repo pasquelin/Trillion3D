@@ -1,5 +1,7 @@
 import type { Side } from '../../../sdk-core/src/index.ts';
+import type { Blending } from '../../../sdk-core/src/world/constants/index.ts';
 import type { HostMaterial, HostMaterials } from '../host/resources.ts';
+import { blendingOf } from './materialBlending.ts';
 
 /** The host face constants, in the order glTF and every rendering library built on it number
  *  them: front, back, then both. Read here once and nowhere else — the raster, the cones, the
@@ -35,7 +37,8 @@ export const hostSide = (side: Side): number =>
 
 /**
  * The raster facts a host declares beside the shaded ones: which version of the declaration this
- * is, its opacity, its alpha cutoff, whether it is drawn blended, whether the host draws a
+ * is, its opacity, its alpha cutoff, whether it is drawn blended and how (`undefined`: a mode
+ * the engine has no name for, refused by the transparent plan), whether the host draws a
  * double-sided blended surface in one pass, and whether it is declared as one material per
  * geometry group. The host declaration they are read from is built from the cache's material
  * table (`../host/prepared/materials.ts`); they are read here, at the same boundary as the side, and travel on inside the engine's own surface record (`../page/surface.ts`).
@@ -46,6 +49,7 @@ export type MaterialRaster = {
   opacity: number;
   alphaTest: number;
   transparent: boolean;
+  blending: Blending | undefined;
   forceSinglePass: boolean;
   grouped: boolean;
 };
@@ -57,6 +61,7 @@ export function materialRaster<T extends MaterialRaster>(material: HostMaterials
   into.transparent = Array.isArray(material)
     ? material.some((entry) => entry.transparent)
     : !!material?.transparent;
+  into.blending = blendingOf(first?.blending as number | undefined);
   into.forceSinglePass = !!first?.forceSinglePass;
   into.grouped = Array.isArray(material);
   return into;

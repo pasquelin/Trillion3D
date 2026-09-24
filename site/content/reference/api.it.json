@@ -1212,7 +1212,8 @@
       "options.pixelRatio": "Quanti pixel di immagine per pixel di schermo.",
       "options.controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "options.signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
-      "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato."
+      "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
+      "options.temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -6319,6 +6320,10 @@
     "summary": "La luce che rimbalza sulle superfici, tracciata contro il proxy residente; spenta per impostazione predefinita.",
     "description": "Un cambiamento si applica sul posto su un percorso che lo porta, e viene preso alla prossima apertura su un percorso che non lo porta."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Antialiasing temporale: spostamento sub-pixel accumulato tra le immagini; attivo per impostazione predefinita.",
+    "description": "Scritto, ha effetto dall’immagine successiva, cronologia scartata, nessuna sessione riaperta. Letto, è ciò che l’immagine porta: false su WebGL2, e mentre il programma si compila dopo l’attivazione."
+  },
   "world.budget": {
     "summary": "Le riserve di memoria del mondo, lette e impostate in byte.",
     "members": {
@@ -6511,7 +6516,8 @@
       "pixelRatio": "Quanti pixel di immagine per pixel di schermo.",
       "controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
-      "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato."
+      "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
+      "temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {

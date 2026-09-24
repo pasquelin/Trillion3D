@@ -482,7 +482,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/scene/materialBlending.ts",
+        "packages/sdk-browser/src/scene/materialSide.ts",
+        "packages/sdk-browser/src/webgpu/blend/pipelines.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/constants/index\".Blending"
     },
@@ -683,7 +687,8 @@
       "affectedConsumers": [
         "bench/perf/browser/support/volumeBoxCases.ts",
         "packages/sdk-browser/src/camera/depthConventionCamera.test.ts",
-        "packages/sdk-browser/src/hiz/corners.ts"
+        "packages/sdk-browser/src/hiz/corners.ts",
+        "packages/sdk-browser/src/hiz/pageCorners.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/box\".boxCornersInto"
@@ -933,9 +938,10 @@
         "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
         "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
         "packages/sdk-browser/src/world/core/worldControlsPause.test.ts",
+        "packages/sdk-browser/src/world/core/worldLink.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.test.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.ts",
-        "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
+        "packages/sdk-browser/src/world/core/worldRuntime.fixture.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
@@ -4275,6 +4281,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
+        "packages/sdk-browser/src/world/core/worldRuntimeLights.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
       "disposition": "retained",
@@ -7125,6 +7132,7 @@
         "packages/sdk-browser/src/world/api/lightApi.test.ts",
         "packages/sdk-browser/src/world/api/lightApi.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
+        "packages/sdk-browser/src/world/core/worldRuntime.fixture.ts",
         "tests/browser/support/blendCacheScenes.ts",
         "tests/browser/support/defaultBackendCase.ts",
         "tests/browser/support/materialFixtures.ts"

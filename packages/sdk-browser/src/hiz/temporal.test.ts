@@ -6,7 +6,8 @@ import { rasterVisibilityIds, shadeVisibility, type VisPage } from '../visibilit
 import {
   HIZ_BOUNDS_VALUES,
   buildHizPyramid,
-  createBoxCorners,
+  BOX_CORNER_VALUES,
+  pageCornersInto,
   filterUnoccluded,
   projectBoxesFlat,
   visibilityDepth,
@@ -15,6 +16,7 @@ import {
   type TemporalHizState,
 } from './hiz.ts';
 import { splitOccludersFlat, splitOccludersInto } from './split.ts';
+import { projectCornersInto } from './corners.ts';
 import { cameraAt, projectBoxToScreen, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 
@@ -153,20 +155,17 @@ test('flat projection and split reproduce the object forms to the bit, including
       [reference.minX, reference.minY, reference.maxX, reference.maxY, reference.nearestDepth],
     );
   }
-  // The same rectangles when the world corners are kept across images, including a second image that
-  // reads the cache instead of rebuilding it: a hoisted corner is the same double, not a rounded one.
-  const corners = createBoxCorners(pages.length),
-    pageIndex = new Int32Array(pages.length).map((_, index) => index);
-  const cached = new Float64Array(flat.length);
-  for (const pass of [0, 1]) {
-    cached.fill(0);
-    projectBoxesFlat(pages, pages.length, cameraMoteur(camera), viewport, cached, undefined, {
-      corners,
-      pageIndex,
-      epoch: 1,
-    });
-    assert.deepEqual([...cached], [...flat], `frame ${pass} with corners kept`);
+  // The same rectangles from the corners the GPU upload derives (`pageCornersInto`): a derived corner
+  // is the same double as the one-shot path's, not a rounded one.
+  const corners = new Float64Array(BOX_CORNER_VALUES),
+    derived = new Float64Array(flat.length),
+    { view, viewProjection, near } = cameraMoteur(camera);
+  for (let i = 0; i < pages.length; i++) {
+    pageCornersInto(corners, 0, pages[i]);
+    const base = i * HIZ_BOUNDS_VALUES;
+    projectCornersInto(corners, 0, view, viewProjection, near, ...viewport, derived, base);
   }
+  assert.deepEqual([...derived], [...flat], 'rectangles from derived corners');
   const rest = new Uint8Array(pages.length),
     occluders = splitOccludersFlat(pages.length, flat, rest);
   const tagged = pages.map((page, index) => ({ ...page, tag: index }));
