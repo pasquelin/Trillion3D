@@ -7,6 +7,7 @@ import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
   TILE_POOL_WGSL,
+  maskAlphaWgsl,
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts';
@@ -44,6 +45,7 @@ ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}
 ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
+${maskAlphaWgsl(false)}
 ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
 ${SHADE_REQUEST_WGSL}

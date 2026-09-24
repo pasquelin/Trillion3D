@@ -19,7 +19,7 @@ export const HEADERS_WRITTEN = 1,
  * The sampling headers of both atlases' textures (#360, #361), written per texture and not per
  * surface — however many passes wear it, a transparent one included —, only the words that moved
  * (`setSampling`, `pageTable.ts`). Each atlas walks the records it holds, brings each up to its
- * host once per image (`followHostTexture`), and rewrites a header only when the record's
+ * host at this render (`followHostTexture`), and rewrites a header only when the record's
  * counters moved past the ones it was last written at: another engine following the same record
  * first does not hide the change from this one. `force` writes every header, the first time.
  * Colour slots whose header moved are added to `colorMoved`; the result is a mask of

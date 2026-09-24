@@ -97,6 +97,38 @@ export const stripeMap = (anisotropy: number) =>
     },
   );
 
+/** Foliage: green leaves two texels wide, opaque, between gaps two texels wide, transparent,
+ *  running along V, repeated four times each way under the host's chain and trilinear filters —
+ *  the stripes of `stripeMap` as an alpha cutout, seen at a grazing angle with `anisotropy`. */
+export const foliageMap = (anisotropy: number) =>
+  canvasMap(
+    8,
+    (ctx) => {
+      ctx.fillStyle = '#2e8b3a';
+      for (let x = 0; x < 8; x += 4) ctx.fillRect(x, 0, 2, 8);
+    },
+    {
+      colorSpace: THREE.SRGBColorSpace,
+      wrapS: THREE.RepeatWrapping,
+      wrapT: THREE.RepeatWrapping,
+      repeat: 4,
+      anisotropy,
+    },
+  );
+
+/** Red, green, blue and yellow texels, one per quadrant of a map. */
+export const FOUR_COLOURS: [number, number, number, number][] = [
+  [255, 0, 0, 255],
+  [0, 255, 0, 255],
+  [0, 0, 255, 255],
+  [255, 255, 0, 255],
+];
+
+/** A constant tangent-space normal, tilted toward +x, +y: a flat square that shades as a slope. */
+export const TILTED_NORMAL: [number, number, number, number][] = Array.from({ length: 4 }, () => [
+  160, 210, 230, 255,
+]);
+
 /** A base-colour map of four quadrants, in sRGB like every base colour. */
 export const colourMap = (texels: [number, number, number, number][]) =>
   texture(texels, THREE.SRGBColorSpace);

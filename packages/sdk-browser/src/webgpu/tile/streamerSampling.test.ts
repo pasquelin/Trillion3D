@@ -1,5 +1,5 @@
 // #360, #361: a texture's sampling follows its host, not the surfaces that wear it — the records
-// brought up once per image, before the hold verdict, then the headers written where a word
+// brought up at each render, before the hold verdict, then the headers written where a word
 // moved, whichever pass reads the texture —, and a moved colour texture is signalled as a landed
 // tile is, so the cutout shadows that read it follow and a held image is released.
 import test from 'node:test';
@@ -74,14 +74,13 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
   return { textures, writes: () => tableWrites, signalled };
 }
 
-/** One image's follow, as `../pages/render/render.ts` runs it before the hold verdict, in a
- *  task of its own: a record is brought up to its host once per image. */
+/** One image's follow, as `../pages/render/render.ts` runs it before the hold verdict. */
 const follow = async (textures: { followSampling(): boolean }) => {
   await Promise.resolve();
   return textures.followSampling();
 };
 
-test('the headers follow their hosts once per image, only what moved written', async () => {
+test('the headers follow their hosts at each render, only what moved written', async () => {
   const colour = host(),
     data = host();
   const colourRecord = record(colour);
@@ -114,7 +113,7 @@ test('the headers follow their hosts once per image, only what moved written', a
 
 // Review of #389: two engines hold the same record. Each keeps the counters it wrote its header
 // at: the second to follow in the image learns the change the first brought up.
-test('two engines over the same texture both write the change, the record followed once', async () => {
+test('two engines over the same texture both write the change', async () => {
   const colour = host();
   const shared = record(colour);
   const first = streamer([shared], record(host())),
