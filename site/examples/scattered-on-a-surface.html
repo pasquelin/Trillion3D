@@ -22,28 +22,16 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded, opening, ease } from '../runtime/kit.js';
+      import { controls, readout, seeded, opening, ease, valueNoise } from '../runtime/kit.js';
 
       // A sequence in [0, 1) from a seed: the same planet on every run.
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#04060c');
 
       // The relief: smooth noise summed over five octaves, read on the direction from the centre.
-      const lattice = (i, j, k) => {
-        let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(k, 2147483647);
-        h = Math.imul(h ^ (h >>> 13), 1274126177);
-        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-      };
-      function noise(x, y, z) {
-        const i = Math.floor(x), j = Math.floor(y), k = Math.floor(z);
-        const u = ease.smooth(x - i), v = ease.smooth(y - j), w = ease.smooth(z - k);
-        const { lerp } = math;
-        const plane = (dk) => lerp(lerp(lattice(i, j, k + dk), lattice(i + 1, j, k + dk), u), lerp(lattice(i, j + 1, k + dk), lattice(i + 1, j + 1, k + dk), u), v);
-        return lerp(plane(0), plane(1), w) * 2 - 1;
-      }
       const elevation = (x, y, z) => {
         let sum = 0, amplitude = 0.6, scale = 1.4;
-        for (let octave = 0; octave < 5; octave++, amplitude *= 0.5, scale *= 2.1) sum += amplitude * noise(x * scale + 11, y * scale, z * scale - 7);
+        for (let octave = 0; octave < 5; octave++, amplitude *= 0.5, scale *= 2.1) sum += amplitude * valueNoise(x * scale + 11, y * scale, z * scale - 7);
         return sum;
       };
       // Below zero is sea floor, kept shallow; above, the land rises faster the higher it goes, so
