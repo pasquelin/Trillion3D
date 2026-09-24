@@ -135,6 +135,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
     shadowPages: () => shadowTier.pages,
+    settling: () => run.textureConverging,
   });
   const residency = createWebgpuResidencyQueue({
     tracking,

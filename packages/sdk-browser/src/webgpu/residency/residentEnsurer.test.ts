@@ -1,8 +1,9 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
+import { UPLOAD_SLICE_MS } from '../../backend/common.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 
@@ -51,6 +52,7 @@ const ensurer = (tracking: ReturnType<typeof createWebgpuPageTracking>, cache: u
     traceEnabled: false,
     traceDiagnostic: () => {},
     shadowPages: () => [],
+    settling: () => false,
   });
 
 test('a full pool stops the burst without dropping the image; any other error bubbles up', async () => {
@@ -116,6 +118,7 @@ test('shadow casters fill only what the camera leaves: never pinned, never evict
     traceEnabled: false,
     traceDiagnostic: () => {},
     shadowPages: () => lower,
+    settling: () => false,
   });
   await ensure([cam0, cam1], 1, 1);
   // The camera's two pages took the two free slots and are pinned; `old` and `sh0` remain.
@@ -131,4 +134,36 @@ test('shadow casters fill only what the camera leaves: never pinned, never evict
   assert.equal(cache.get('sh0'), undefined, 'by the slot of a caster');
   assert.ok(cache.get('sh1'), 'the caster still wanted stays');
   assert.equal(cache.get('sh2'), undefined, 'and no other caster takes its place');
+});
+
+test('the pose barrier loads the whole caster list; outside it, one upload slice per job', async () => {
+  const pages = ['sh0', 'sh1', 'sh2'].map(pageOf);
+  const tracking = createWebgpuPageTracking(pages);
+  // Every load outlasts the slice: the clock is the only thing that differs between two runs.
+  let clock = 0;
+  mock.method(performance, 'now', () => clock);
+  try {
+    for (const settling of [false, true]) {
+      const cache = lruCache(8),
+        load = cache.load;
+      cache.load = async (url: string) => {
+        clock += UPLOAD_SLICE_MS;
+        await load(url);
+      };
+      await createWebgpuResidentEnsurer({
+        getCache: () => cache as never,
+        tracking,
+        bootstrapKey: new Uint8Array(tracking.keyCount),
+        hasBytes: () => true,
+        isLost: () => false,
+        traceEnabled: false,
+        traceDiagnostic: () => {},
+        shadowPages: () => pages,
+        settling: () => settling,
+      })([], 1, 1);
+      assert.equal(cache.resident.size, settling ? 3 : 1, `settling: ${settling}`);
+    }
+  } finally {
+    mock.restoreAll();
+  }
 });
