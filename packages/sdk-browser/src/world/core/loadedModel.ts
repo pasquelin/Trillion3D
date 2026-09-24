@@ -5,6 +5,7 @@ import { lightFromRecord, type Light } from '../../../../sdk-core/src/world/ligh
 import { loadImportedLights } from '../../lighting/importedLights.ts';
 import type { ClusterManifest, AssetScope, JobProgress } from '../../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../../scene/manifestLoad.ts';
+import { byteMeter, unmetered } from '../../cluster/byteMeter.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
@@ -105,7 +106,8 @@ export class LoadedModel extends Object3D {
  * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a
  * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
  * WebGPU world's first model does; any other path samples the images themselves. `onProgress`
- * hears the manifest read, then each resource the scene reads (`loadPreparedScene`).
+ * hears `bytes` as each chunk of every file lands (`byteMeter`), the manifest read, the scene
+ * tables read, then each resource the scene reads (`loadPreparedScene`).
  */
 export async function loadModel(
   manifestUrl: string,
@@ -117,15 +119,20 @@ export async function loadModel(
   },
 ): Promise<LoadedModel> {
   const { signal, textureSource, onProgress } = options;
+  const meter = onProgress
+    ? byteMeter((completed, total) =>
+        onProgress({ phase: 'bytes', completed, total, message: `${completed} of ${total} bytes` }),
+      )
+    : unmetered;
   // A scope the page named is enforced; none named, the model is read at the one its pointer
   // declares (`loadClusterManifest`).
-  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal);
+  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal, meter);
   const { metadata, metadataUrl, base } = loaded,
     scope = metadata.scope;
   onProgress?.({ phase: 'manifest', completed: 1, total: 1, message: `Read ${metadataUrl}` });
   const [scene, imported] = await Promise.all([
     loadPreparedScene(
-      { manifestUrl, textureSource, onPreparation: (event) => onProgress?.({ ...event }) },
+      { manifestUrl, textureSource, meter, onPreparation: (event) => onProgress?.({ ...event }) },
       metadata,
       'source.gltf',
       base,
@@ -139,7 +146,7 @@ export async function loadModel(
       read.framingLot?.release();
       return read;
     }),
-    loadImportedLights(base, signal),
+    loadImportedLights(base, signal, meter),
   ]);
   const model = new LoadedModel({
     manifestUrl,
