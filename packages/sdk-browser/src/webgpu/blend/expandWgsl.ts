@@ -6,18 +6,7 @@ import {
   PLAN_VERTEX_CULL_BIT,
 } from './plan.ts';
 import { EXPAND_GROUP, expandUniformWgsl, INSTANCE_CULL_SHIFT, RUN_WORDS } from './runs.ts';
-
-/** The kernel's eight storage buffers, in the rank order the shader declares. */
-export const STORAGE_TYPES: GPUBufferBindingType[] = [
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
-  'storage',
-  'storage',
-  'storage',
-];
+import { EXPAND_BINDING as B } from './expandBindings.ts';
 
 /**
  * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
@@ -61,15 +50,15 @@ export function blendExpandDispatch(out: number[], entries: number, runs: number
  * names.
  */
 export const BLEND_EXPAND_SHADER = `${expandUniformWgsl()}
-@group(0) @binding(0) var<uniform> uni:Uni;
-@group(0) @binding(1) var<storage,read> plan:array<u32>;
-@group(0) @binding(2) var<storage,read> keep:array<u32>;
-@group(0) @binding(3) var<storage,read> draws:array<vec4u>;
-@group(0) @binding(4) var<storage,read> counts:array<u32>;
-@group(0) @binding(5) var<storage,read> clusters:array<u32>;
-@group(0) @binding(6) var<storage,read_write> scratch:array<u32>;
-@group(0) @binding(7) var<storage,read_write> expanded:array<vec2u>;
-@group(0) @binding(8) var<storage,read_write> args:array<u32>;
+@group(0) @binding(${B.uni}) var<uniform> uni:Uni;
+@group(0) @binding(${B.plan}) var<storage,read> plan:array<u32>;
+@group(0) @binding(${B.keep}) var<storage,read> keep:array<u32>;
+@group(0) @binding(${B.draws}) var<storage,read> draws:array<vec4u>;
+@group(0) @binding(${B.counts}) var<storage,read> counts:array<u32>;
+@group(0) @binding(${B.clusters}) var<storage,read> clusters:array<u32>;
+@group(0) @binding(${B.scratch}) var<storage,read_write> scratch:array<u32>;
+@group(0) @binding(${B.expanded}) var<storage,read_write> expanded:array<vec2u>;
+@group(0) @binding(${B.args}) var<storage,read_write> args:array<u32>;
 const GROUP=${EXPAND_GROUP}u;
 var<workgroup> tuile:array<u32,${EXPAND_GROUP}>;
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
@@ -157,8 +146,9 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u){
  let entries=plan[at+1u];
  let last=first+entries-1u;
  let base=scratch[first];
- // The merging run draws clusters, at the table stride; the one that kept a single entry draws
- // what ITS item carries. The owner is read on the entry, as on the CPU.
+ // A merging run draws clusters, at the table stride; a run of one unpaged item draws what ITS
+ // item carries. The first entry decides: a double-sided paged item, which runOwner names,
+ // is paged, so the table stride holds for it as on the CPU.
  let entry=plan[uni.orderBase+first];
  let fusionne=entries>1u&&(entry&${PLAN_SHARED_BIT}u)!=0u;
  var vertexCount=uni.maxVertexWords;

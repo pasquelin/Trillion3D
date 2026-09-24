@@ -422,7 +422,13 @@ each one a setting of `world.controls`. What it collides with depends on the wor
   velocity, at most one step ahead.
 
 Both bodies read the same drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
-`stopTime`, jumps with a coyote time and a jump buffer. The triangle body catches up every tick
+`stopTime`, jumps with a coyote time and a jump buffer. No leg changes the ground speed faster than
+the floor's friction lets a sole push, `μ g`, `μ` a rubber sole's grip on the floor's matter (the
+geometric mean of the two frictions, the physics' own rule): with physics on, the matter of the body
+the feet stand on (`material.physics`, a body's `friction`); without, declared stone. A jog then
+gathers its pace in 0.45 s on stone and 2.2 s on ice, and glides `v² / (2 μ g)` to a stop, 0.8 m on
+stone and 3.8 m on ice; the two times only shape the last centimetres, and a longer one brakes more
+gently. The triangle body catches up every tick
 of a frame, however slow the page; only a stall past 0.25 s is dropped (`MAX_CHARACTER_DELTA`), and
 the body resumes where it stopped. Jolt's body steps on the physics worker's own clock, never on the
 page's frames: a slow page draws it late, never slower; a stalled worker drops what its catch-up
@@ -437,7 +443,7 @@ world.controls.pushStrength = 400; // a stronger push
 
 **Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` — `throttle`, `brake`, `steer`,
 `handbrake` — and hands it to `world.controls.vehicle.drive(input)` each time it changes. Any object
-with `drive` can be driven; the physics' own vehicles arrive with #398. Setting `kind = 'vehicle'`
+with `drive` can be driven; the physics' own vehicles arrive with #501. Setting `kind = 'vehicle'`
 while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move the camera.
 
 ### Picking, moving and saving
@@ -546,7 +552,8 @@ The browser runtime is not a zero-configuration single-file bundle. Configure th
 separate module-worker entries, and code splitting enabled. Copy the installed `pageCodec.wasm`
 beside every emitted chunk that keeps its relative URL, and serve that output directory together
 with the compiled scene cache. `pnpm run proof:package -- --browser` is the repository's executable
-esbuild configuration and verifies both worker tasks and WASM selection.
+esbuild configuration and verifies both worker tasks and WASM selection; `-- --bundle` emits and
+checks the same output, each module beside the chunk that fetches it, without a browser.
 
 ### Install requirements: the package alone, the witnesses beside the bench
 
@@ -841,13 +848,26 @@ once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
 `geometryPoolAllocatedBytes` is `null`). It has no texture pool:
 `texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
+**One GPU total, one CPU total.** `world.budget.gpu` is every GPU pool together, and
+`world.budget.cpu` the decoded pages the world keeps in CPU memory. A fixed rule splits them, published
+as `world.budget.split`:
+
+- GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
+  in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
+  each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
+  a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
+- CPU: the decoded-page cache takes the whole total, taken by the next scene load.
+
 ```js
+world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split
+world.budget.cpu = 128 * 1024 * 1024;
 world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes
-world.budget.texturePool = 1024 * 1024 * 1024;
 ```
 
-Reading either property back gives what the engine holds, not what was asked; writes are clamped to
-`world.budget.geometryPoolCeiling` / `texturePoolCeiling`, and two writes before the next frame
+Reading a pool back gives what the engine holds, not what was asked; a pool write is clamped to
+`world.budget.geometryPoolCeiling` / `texturePoolCeiling` and to what `gpu` leaves beside the
+shadows and the other pool, so the pools never sum past the total — save a total too small for
+their floors (the root cover, one texture layer per lane), which they never go below. Two writes before the next frame
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
@@ -859,6 +879,15 @@ is too small for that view). A value that cannot be held as given is brought to 
 `geometryPoolClamp` / `texturePoolClamp` name why: `root-cover`, `scene`, `page-cap`, `minimum`,
 `device-limit`, `ceiling`, or `null`. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the
 device cannot hold even the root cover.
+
+**Out of memory is absorbed.** The browser may refuse an allocation the budget allows. Each pool is
+allocated under an out-of-memory check at prepare, and probed before every rebalance. When the
+device refuses it, the pool
+is drawn again at half its bytes, down to its floor (the root cover, one layer per lane). The pool
+in place is only ever replaced by one the device grants. The frame goes on, coarser where the
+smaller pool no longer holds the view, and no exception reaches the page. The
+`gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
+granted (`grantedBytes`, `null` when even the floor was refused and the pool in place stays).
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
@@ -926,7 +955,10 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   worker fits a plane of the waves to every piece under water and pushes it by the weight of the
   water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
   never where; setting or removing it wakes every dynamic body. A wave out of range throws
-  `RangeError`.
+  `RangeError`. `world.physics.waterSurface` reads those same waves at the simulation's time, to
+  draw them (they run on while every body sleeps, and stand still when paused): `height(x, z)`, `point(x, z, out)` (where a rest point of a grid is carried),
+  `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
+  goes on from where it is. Live: [floating crates](../site/examples/floating-crates.html).
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
@@ -1010,5 +1042,6 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
   landing, which then runs in slow motion for a short moment; the page's `physics` stage is
   0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
-  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints, vehicles, soft bodies, cooked colliders and
-  loaded models as bodies arrive with the next physics issues (#396, #398–#400).
+  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints and cooked
+  colliders are here (above), not measured at this scale; advanced joints arrive with #500, the
+  physics' own vehicles with #501, soft bodies with #399.
