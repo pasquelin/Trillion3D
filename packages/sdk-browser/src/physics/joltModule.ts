@@ -6,6 +6,7 @@ import {
   EVENT_WORDS,
   HIT_WORDS,
   MODULE_ERROR,
+  WATER_PIECE_WORDS,
   POSE_WORDS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -31,6 +32,8 @@ interface JoltExports {
   jolt_error(): number;
   jolt_active_count(): number;
   jolt_owed_leaves(): number;
+  jolt_water_query(top: number, sliceLength: number): number;
+  jolt_water_pieces(): number;
   jolt_cast_buffer(count: number): number;
   jolt_cast(count: number): number;
   jolt_character(): number;
@@ -98,16 +101,15 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
   if (!commands || !poses || !events) throw outOfMemory();
   const maximum = Math.floor(budget.memoryBytes / PAGE) * PAGE;
   return {
-    /** Copies `words` into the command buffer, runs them, steps `dt` seconds; returns the pose
-     *  count. */
-    step(words: Uint32Array | null, dt: number) {
-      const count = words?.length ?? 0;
+    /** Copies `count` of `words` into the command buffer, runs them, steps `dt` seconds; returns
+     *  the pose count. */
+    step(words: Uint32Array | null, dt: number, count = words?.length ?? 0) {
       if (count > commandWords) {
         commands = jolt.jolt_buffer(0, count);
         if (!commands) throw outOfMemory();
         commandWords = count;
       }
-      if (words) new Uint32Array(memory.buffer, commands, count).set(words);
+      if (words) new Uint32Array(memory.buffer, commands, count).set(words.subarray(0, count));
       // The module's `uint32_t` comes back as a signed 32-bit number: -1 is its failure.
       const posed = jolt.jolt_step(count, dt) >>> 0;
       if (posed === 0xffffffff)
@@ -129,6 +131,12 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     refused: () =>
       Array.from({ length: jolt.jolt_refused_count() }, (_, i) => jolt.jolt_refused(i)),
     active: () => jolt.jolt_active_count(),
+    /** The pieces of the awake bodies reaching below `top`, cut past `sliceLength`
+     *  (`WATER_PIECE_WORDS` each), valid until the next step. */
+    water(top: number, sliceLength: number) {
+      const count = jolt.jolt_water_query(top, sliceLength);
+      return new Float32Array(memory.buffer, jolt.jolt_water_pieces(), count * WATER_PIECE_WORDS);
+    },
     /** Answers scene queries (`CAST_WORDS` each) against the last step; a copy of their hits. */
     cast(queries: Uint32Array) {
       const count = queries.length / CAST_WORDS;

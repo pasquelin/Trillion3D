@@ -5,6 +5,7 @@ import {
   POSE_WORDS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
+import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import type { JoltThreadStart } from './joltThreads.ts';
 import type { CharacterReport } from './characterDriver.ts';
 import type {
@@ -32,6 +33,8 @@ export type ToPhysics =
   | { type: 'commands'; words: Uint32Array }
   /** The clock: `timeScale` is above 0 unless `paused` (the page sends a scale of 0 as a pause). */
   | { type: 'clock'; paused: boolean; timeScale: number }
+  /** The body of water the bodies float in (`fluids/buoyancy.ts`), or none. */
+  | { type: 'water'; water: WaterSpec | null }
   /** Scene queries (`CAST_WORDS` each), answered against the last step by a `cast` reply. */
   | { type: 'cast'; id: number; queries: Uint32Array }
   /** The world's character: its settings (`null` removes it), and its feet when it is put there. */

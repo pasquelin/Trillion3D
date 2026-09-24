@@ -1,6 +1,6 @@
 // The shapes an ADD command builds: primitives, shared by their dimensions, the hulls and
-// triangle meshes its data carries, and the cooked shapes it names (`restore.cpp`). Word layouts:
-// `packages/sdk-core/src/physics/layout.ts`.
+// triangle meshes its data carries, the cooked shapes it names (`restore.cpp`) and compounds of
+// primitives (a hull-and-deck boat). Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
 #include "restore.h"
 #include "words.h"
@@ -11,6 +11,7 @@
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 
 using namespace JPH;
 
@@ -18,7 +19,9 @@ namespace trillion {
 
 namespace {
 
-enum ShapeKind : uint32_t { BOX = 0, SPHERE, CAPSULE, CYLINDER, TRIANGLES, HULL, COOKED };
+enum ShapeKind : uint32_t { BOX = 0, SPHERE, CAPSULE, CYLINDER, TRIANGLES, HULL, COOKED, COMPOUND };
+/// Words of one compound part: `kind, a, b, c, px, py, pz, qx, qy, qz, qw` (layout.ts PART_WORDS).
+constexpr uint32_t PART_WORDS = 11;
 
 RefConst<Shape> primitive(uint32_t kind, float a, float b, float c) {
   uint64_t key = 0;
@@ -57,6 +60,17 @@ RefConst<Shape> meshShape(uint32_t kind, const uint32_t *data, uint32_t vertices
   return result.HasError() ? nullptr : result.Get();
 }
 
+/** A compound of primitive parts, `words` words of them; null when a part is not a primitive. */
+RefConst<Shape> compoundShape(const uint32_t *data, uint32_t words) {
+  StaticCompoundShapeSettings settings;
+  for (const uint32_t *part = data; part + PART_WORDS <= data + words; part += PART_WORDS) {
+    if (part[0] > CYLINDER) return nullptr;
+    settings.AddShape(vec3(part + 4), quat(part + 7), primitive(part[0], f32(part + 1), f32(part + 2), f32(part + 3)));
+  }
+  ShapeSettings::ShapeResult result = settings.Create();
+  return result.HasError() ? nullptr : result.Get();
+}
+
 }  // namespace
 
 RefConst<Shape> shapeOf(const uint32_t *w) {
@@ -66,6 +80,8 @@ RefConst<Shape> shapeOf(const uint32_t *w) {
   // A cooked shape: its handle is the one data word, `a, b, c` its scale.
   if (kind == COOKED) return w[22] == 1 ? cookedShape(w[ADD_WORDS], vec3(w + 13)) : nullptr;
   if (kind == TRIANGLES && motion == 2) return nullptr;
+  // A compound's parts are its data words (indexCount counts them, vertexCount is 0).
+  if (kind == COMPOUND) return compoundShape(w + ADD_WORDS, w[22]);
   return meshShape(kind, w + ADD_WORDS, w[21], w[22]);
 }
 
