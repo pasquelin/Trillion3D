@@ -15,7 +15,11 @@ test('the fixtures WebGL2 reads are world-built glass under the sun', () => {
     assert.equal(fixture.lit, true, `${fixture.name}: glass unlit, unlike #337's repro`);
     assert.equal(surface.transmission, 1);
     assert.equal(surface.ior, 1.5);
-    assert.ok(surface.thickness > 0, `${fixture.name}: a glass with no thickness`);
+    const { thickness } = surface;
+    assert.ok(
+      typeof thickness === 'number' && thickness > 0,
+      `${fixture.name}: a glass with no thickness`,
+    );
     assert.notEqual(fixture.behind, undefined, `${fixture.name}: nothing behind to transmit`);
   }
 });
