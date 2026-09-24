@@ -7,6 +7,7 @@ import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
 import type { ShadowViewpoint } from '../light/contracts.ts';
 import { VIEW, SUN, cycle, planFrame, sunPages } from './lightShadow.fixture.ts';
+import { PAGE_INDEX_MASK, sunPageMetres } from './virtual.ts';
 
 const BOX_MIN = [-1e3, 0, -1e3],
   BOX_MAX = [1e3, 2, 1e3];
@@ -39,7 +40,7 @@ test('a representation change under a moving camera stales nothing until the cam
     assert.equal(plan.counts.invalidatedPages, 0, `frame ${i}: the change waits`);
     assert.equal(plan.deferredChanges, true);
   }
-  // The same view twice: the camera rests, and the union of what changed enters the list.
+  // The same view twice: the camera rests, and what changed enters the list.
   planFrame(plan, store, frame + 4, nudged(4));
   assert.ok(plan.counts.invalidatedPages > 0, 'the deferred box stales its pages');
   assert.equal(plan.deferredChanges, false);
@@ -58,4 +59,44 @@ test('a representation change under a still camera stales its pages on the next 
   planFrame(plan, store, frame);
   assert.ok(plan.counts.invalidatedPages > 0);
   assert.equal(plan.deferredChanges, false);
+});
+
+test('two representation changes apart stale their own pages, never the page between them', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add(SUN);
+  planFrame(plan, store, 0);
+  const slice = store.sliceOf(0),
+    level = plan.sun.finest[slice] + 4;
+  const read = () =>
+    sunPages(plan, slice, level, [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+    ]);
+  let frame = 1;
+  for (; frame < 4; frame++) cycle(plan, store, frame, read);
+  assert.equal(plan.counts.pendingPages, 0);
+  // A cluster inside the first page and one inside the third: no caster of the middle one changed.
+  const metres = sunPageMetres(level),
+    f = slice * 9;
+  const right = plan.sun.frame.subarray(f, f + 3),
+    up = plan.sun.frame.subarray(f + 3, f + 6);
+  const at = (u: number, v: number, h: number) =>
+    [0, 1, 2].map((a) => right[a] * u + up[a] * v + h * (a === 1 ? 1 : 0));
+  plan.representationChanged(
+    at(0.25 * metres, -0.75 * metres, 0),
+    at(0.75 * metres, -0.25 * metres, 1),
+  );
+  plan.representationChanged(
+    at(2.25 * metres, -0.75 * metres, 0),
+    at(2.75 * metres, -0.25 * metres, 1),
+  );
+  planFrame(plan, store, frame);
+  const stale = read().map(
+    (entry) => plan.pool.dirty[plan.table.words[entry] & PAGE_INDEX_MASK] > 0,
+  );
+  assert.deepEqual(stale, [true, false, true], 'the page between the two changes stays current');
+  // The two pages and the floor under both, which covers each change.
+  assert.equal(plan.counts.invalidatedPages, 3);
 });

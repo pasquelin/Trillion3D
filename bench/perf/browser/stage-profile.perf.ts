@@ -54,6 +54,10 @@ const ETIQUETTES = [
   'Trillion3D material surfaces v1',
   'Trillion3D shadow atlas v1',
   'Trillion3D shadow cull',
+  'Trillion3D shadow page pyramids',
+  'Trillion3D shadow occlusion',
+  'Trillion3D shadow static layer v1',
+  'Trillion3D light cut',
   'Trillion3D light tiles v1',
   'Trillion3D bounce probes v1',
   'Trillion3D deferred lighting',
@@ -92,7 +96,7 @@ const mesureGpu = await mesure({
 const mesureEclairage = await mesure({
   name: 'direct-lighting durations',
   fichier: 'packages/sdk-browser/src/stage/mapping.ts',
-  cas: [{ name: '1 000 samples', input: releves(1000, 11), size: 1000 }],
+  cas: [{ name: '1 000 samples', input: releves(1000, ETIQUETTES.length), size: 1000 }],
   calcul: (input: GpuPassTimings[]) => input.map(directLightTimings),
   attendu: (input: GpuPassTimings[]) => input.map(referenceDirectLightTimings),
 });

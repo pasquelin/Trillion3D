@@ -14,7 +14,7 @@ mod cut;
 #[cfg(test)]
 mod cut_tests;
 mod declared;
-mod hausdorff;
+pub(crate) mod hausdorff;
 mod height;
 mod stage;
 #[cfg(test)]

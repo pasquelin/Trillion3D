@@ -74,7 +74,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     get deferredChanges() {
       return changes.deferred || thresholds.pending;
     },
-    /** The frame plans no shadow: the held union enters the list at once. */
+    /** The frame plans no shadow: the held boxes enter the list at once. */
     releaseDeferred: changes.releaseDeferred,
     /** Timer of a frame's Shadows pass, reported to the pages it drew. */
     observeCost: budget.observe,

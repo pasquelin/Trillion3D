@@ -10,9 +10,8 @@ import { everyGroup } from './batchLayers.ts';
 import { updateClusterBatches } from './batchUpdate.ts';
 import type { WebglClusterOwner } from '../../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
 import type { HostDrawCamera } from '../../../../packages/sdk-browser/src/camera/world.ts';
-import { drawClusterBatches } from './batchDraw.ts';
+import { drawClusterBatches, type BatchCopy } from './batchDraw.ts';
 import type { ClusterDrawScene } from '../../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
-import type { SceneCopy } from '../../../../packages/sdk-browser/src/webgl/cluster/copyCulling.ts';
 import { EngineError } from '../../../../packages/sdk-core/src/index.ts';
 export {
   IndexRangeAllocator,
@@ -53,7 +52,7 @@ export class ClusterBatches {
   private indexCapacityBytes = 0;
   private owner: ClusterDrawOwner | undefined;
   private diagnosticMeshes: readonly WholeMesh[] = NO_MESHES;
-  private copies: readonly SceneCopy[];
+  private copies: readonly BatchCopy[];
   private stats: ClusterBatchStats = {
     drawCalls: 0,
     subDraws: 0,
@@ -72,7 +71,7 @@ export class ClusterBatches {
     scene: ClusterDrawScene,
     pages: readonly BatchPage[],
     owner?: ClusterDrawOwner,
-    copies: readonly SceneCopy[] = [],
+    copies: readonly BatchCopy[] = [],
   ) {
     this.scene = scene;
     this.owner = owner;
