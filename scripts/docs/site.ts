@@ -57,7 +57,12 @@ async function copyTree(source: string, target: string) {
      and not from the page, so a page whose own source has not moved must still pick up a
      change made there. The freshness check above compares sizes, which the tag shifts. */
   if (extname(source) === '.html') {
-    await writeFile(target, withMeasurement(await readFile(source, 'utf8')));
+    /* An example carries no tag: it is shown in the portal's frame, whose page asks for consent
+       once, or alone as a full-screen canvas, where a panel would cover the scene and every
+       thumbnail captured from it. */
+    const page = await readFile(source, 'utf8');
+    const example = source.split(/[\\/]/).includes('examples');
+    await writeFile(target, example ? page : withMeasurement(page));
     return;
   }
   if (await unchanged(source, target)) return;

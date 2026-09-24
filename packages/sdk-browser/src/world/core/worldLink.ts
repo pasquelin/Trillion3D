@@ -28,6 +28,16 @@ export function createWorldLink(parts: Parts): SceneLink {
       if (lights.held && lightsUnder(node)) parts.relight();
       else parts.invalidate();
     },
+    posed(nodes: readonly Object3D[]) {
+      let relight = false;
+      for (const node of nodes) {
+        contents.poses.moved(node);
+        relight ||= !!lights.held && lightsUnder(node);
+      }
+      lights.boundsMoved();
+      if (relight) parts.relight();
+      else parts.invalidate();
+    },
     structure(parent: Object3D) {
       contents.changed(parent);
       lights.boundsMoved();
@@ -41,3 +51,11 @@ export function createWorldLink(parts: Parts): SceneLink {
     },
   };
 }
+
+/** The link of a camera outside the scene: a move asks for a frame, nothing else. */
+export const cameraSceneLink = (invalidate: () => void): SceneLink => ({
+  pose: invalidate,
+  posed: invalidate,
+  structure: () => {},
+  content: () => {},
+});

@@ -2,6 +2,8 @@
 #include "binding.h"
 
 #include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemSingleThreaded.h>
+#include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/RegisterTypes.h>
 
@@ -21,6 +23,12 @@ public:
   BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer layer) const override {
     return layer == STATIC ? BP_STATIC : BP_MOVING;
   }
+#if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
+  // Named for the profiler of the bench builds (`bench/profile.cpp`).
+  const char *GetBroadPhaseLayerName(BroadPhaseLayer layer) const override {
+    return layer == BP_STATIC ? "static" : "moving";
+  }
+#endif
 };
 
 class ObjectVsBroadPhase final : public ObjectVsBroadPhaseLayerFilter {
@@ -75,6 +83,7 @@ void Listener::OnContactAdded(const Body &a, const Body &b, const ContactManifol
                               ContactSettings &) {
   uint32_t ia = uint32_t(a.GetUserData()), ib = uint32_t(b.GetUserData());
   if (!wantsEvents(ia) && !wantsEvents(ib)) return;
+  std::lock_guard guard(lock);
   if (instance.pairs[pairKey(ia, ib)]++ != 0) return;
   Vec3 point = Vec3(manifold.GetWorldSpaceContactPointOn1(0));
   // Approach speed along the normal times the pair's reduced mass: the impulse needed to stop the
@@ -89,6 +98,7 @@ void Listener::OnContactAdded(const Body &a, const Body &b, const ContactManifol
 void Listener::OnContactRemoved(const SubShapeIDPair &pair) {
   uint32_t ia = instance.engineIndex[pair.GetBody1ID().GetIndex()];
   uint32_t ib = instance.engineIndex[pair.GetBody2ID().GetIndex()];
+  std::lock_guard guard(lock);
   auto found = instance.pairs.find(pairKey(ia, ib));
   if (found == instance.pairs.end() || --found->second != 0) return;
   instance.pairs.erase(found);
@@ -96,6 +106,7 @@ void Listener::OnContactRemoved(const SubShapeIDPair &pair) {
 }
 
 void Listener::OnBodyDeactivated(const BodyID &, uint64 user) {
+  std::lock_guard guard(lock);
   instance.deactivated.push_back(uint32_t(user));
 }
 
@@ -105,15 +116,21 @@ using trillion::world;
 
 extern "C" {
 
-/// Creates the physics system for at most `maxBodies` bodies. Returns 0, or 1 when called twice.
-uint32_t jolt_init(uint32_t maxBodies, uint32_t tempBytes) {
+/// Creates the physics system for at most `maxBodies` bodies, stepped by `threads` threads (the
+/// caller's included; 1 steps on the caller alone). Returns 0, or 1 when called twice.
+uint32_t jolt_init(uint32_t maxBodies, uint32_t tempBytes, uint32_t threads) {
   trillion::World &w = world();
   if (w.system) return 1;
   RegisterDefaultAllocator();
   Factory::sInstance = new Factory();
   RegisterTypes();
   w.temp = new TempAllocatorImplWithMallocFallback(tempBytes);
-  w.jobs = new JobSystemSingleThreaded(cMaxPhysicsJobs);
+  // Jolt's own pool: its threads are started through `pthread_create`, which the loader answers
+  // with one worker per thread on the module's shared memory (`joltModule.ts`).
+  if (threads > 1)
+    w.jobs = new JobSystemThreadPool(cMaxPhysicsJobs, cMaxPhysicsBarriers, int(threads - 1));
+  else
+    w.jobs = new JobSystemSingleThreaded(cMaxPhysicsJobs);
   w.system = new PhysicsSystem();
   // Body pairs and contact constraints in the proportions of Jolt's own samples; a step that needs
   // more scratch than `tempBytes` takes it from the heap, still inside the memory budget.

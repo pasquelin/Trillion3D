@@ -1,17 +1,15 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   CommandWriter,
-  EVENT,
-  EVENT_WORDS,
   POSE_WORDS,
-  type ContactEventName,
   type PhysicsBudget,
   type PhysicsHost,
   physicsMatterOf,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { createPhysicsBodies, flagsOf, hasBody, type Bodied } from './bodies.ts';
+import { createPhysicsBodies, flagsOf, hasBody } from './bodies.ts';
+import { emitContacts } from './contacts.ts';
 import { createPhysicsPoses } from './poses.ts';
 import {
   PHYSICS_PROTOCOL,
@@ -25,6 +23,15 @@ import { createPhysicsView } from './view.ts';
 /** The URL of a resource beside this module: `.ts` in a source tree served as is, `.js` built. */
 const beside = (name: string) =>
   new URL(import.meta.url.endsWith('.ts') ? `./${name}.ts` : `./${name}.js`, import.meta.url);
+
+/**
+ * Threads the step gets: the budget's, capped by the logical cores minus the page's own, and one
+ * where memory cannot be shared (a page that is not cross-origin isolated).
+ */
+const stepThreads = (wanted: number) =>
+  globalThis.crossOriginIsolated
+    ? Math.max(1, Math.min(Math.floor(wanted), (navigator.hardwareConcurrency || 2) - 1))
+    : 1;
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -82,46 +89,42 @@ export function createPhysicsSession(
   const view = createPhysicsView();
   const stats: PhysicsStats = { bodies: 0, active: 0, stepMs: 0, mainMs: 0, poses: 0, events: 0 };
   const worker = new Worker(beside('physicsWorker'), { type: 'module' });
+  const threads = stepThreads(budget.threads);
   const buffers = [new ArrayBuffer(resultBytes(budget)), new ArrayBuffer(resultBytes(budget))];
   worker.postMessage(
     {
       type: 'start',
       protocol: PHYSICS_PROTOCOL,
-      wasm: new URL('./joltPhysics.wasm', import.meta.url).href,
+      wasm: new URL(
+        threads > 1 ? './joltPhysicsThreads.wasm' : './joltPhysics.wasm',
+        import.meta.url,
+      ).href,
       budget,
+      threads,
       buffers,
     },
     buffers,
   );
-  const emit = (self: Bodied | null, other: Bodied | null, name: ContactEventName, e: number[]) =>
-    self?.physics._emit(name, { other, impulse: e[0], point: { x: e[1], y: e[2], z: e[3] } });
+  /** Page milliseconds spent on ticks since the last frame: they count in its `physics` stage. */
+  let received = 0;
   const results = (m: PhysicsResults) => {
+    const began = performance.now();
     const words = new Uint32Array(m.buffer);
     const moved = poses.receive(
       words,
       m.poses,
       bodies.meshes,
       (m.seconds * 1000) / clock.timeScale,
+      bodies.retire,
     );
-    const floats = new Float32Array(m.buffer);
-    for (let r = 0; r < m.events; r++) {
-      const at = (m.poses * POSE_WORDS + r * EVENT_WORDS) >>> 0;
-      const a = bodies.meshes[words[at + 1]] ?? null,
-        b = bodies.meshes[words[at + 2]] ?? null;
-      const e = [floats[at + 3], floats[at + 4], floats[at + 5], floats[at + 6]];
-      const name: ContactEventName = words[at] === EVENT.begin ? 'enter' : 'leave';
-      // `contact` joins `enter` when the two touch for real: a sensor only reports presence.
-      const solid = name === 'enter' && !a?.physics.sensor && !b?.physics.sensor;
-      for (const each of solid ? [name, 'contact' as const] : [name]) {
-        emit(a, b, each, e);
-        emit(b, a, each, e);
-      }
-    }
+    emitContacts(words, m.poses * POSE_WORDS, m.events, bodies.meshes);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
     const changed = moved > 0 || m.active !== stats.active;
     Object.assign(stats, { active: m.active, poses: m.poses, events: m.events });
+    stats.bodies = bodies.count.bodies;
     stats.stepMs = m.steps ? m.stepMs / m.steps : stats.stepMs;
     worker.postMessage({ type: 'buffer', buffer: m.buffer }, [m.buffer]);
+    received += performance.now() - began;
     if (changed) invalidate();
   };
   worker.onmessage = ({ data }: MessageEvent<FromPhysics>) => {
@@ -154,7 +157,6 @@ export function createPhysicsSession(
     /** The page moved or hid a node: a body under it is placed where the page put it, and a
      *  hidden one sends no pose. */
     pose(node: Object3D) {
-      if (poses.writing) return;
       node.traverse((child) => {
         if (!hasBody(child) || child.physics._host !== host) return;
         child.updateWorldMatrix(true, false);
@@ -174,6 +176,8 @@ export function createPhysicsSession(
         stats.bodies = bodies.count.bodies;
       }
       const moving = poses.apply(bodies.meshes);
+      stats.mainMs = received;
+      received = 0;
       view(camera, writer);
       if (ready && writer.length) {
         const words = writer.take();

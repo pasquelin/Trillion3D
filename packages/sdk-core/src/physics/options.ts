@@ -83,6 +83,12 @@ export interface PhysicsBudget {
   decorative: number;
   /** Bytes of the physics module's memory: a hard ceiling, the module cannot grow past it. */
   memoryBytes: number;
+  /**
+   * Threads that step the simulation, the physics worker's included. Above 1 it needs a
+   * cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more
+   * than the machine's logical cores minus the page's own.
+   */
+  threads: number;
 }
 
 /** The engine's default physics budgets. */
@@ -91,6 +97,7 @@ export const DEFAULT_PHYSICS_BUDGET: Readonly<PhysicsBudget> = Object.freeze({
   triangles: 2_000_000,
   decorative: 1024,
   memoryBytes: 128 * 1024 * 1024,
+  threads: 8,
 });
 
 /** A fixed step of 60 Hz: the simulation's clock, whatever the display's rate. */

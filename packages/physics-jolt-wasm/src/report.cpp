@@ -2,7 +2,8 @@
 // Distance decides what is simulated: a dynamic body beyond the view's range is deactivated, its
 // velocities kept, and given them back when it returns. View decides only what is sent: a body out
 // of the view cone, or hidden by the page, sends no pose, and its latest one is sent once it is seen
-// again (it keeps falling meanwhile). A decorative body is simulated only when in range and in view.
+// again (it keeps falling meanwhile), or when it falls asleep. A decorative body is simulated only
+// when in range and in view.
 #include "binding.h"
 
 #include <cmath>
@@ -35,9 +36,11 @@ Placement place(const World &w, const Slot &slot, const Body &body) {
 void put(uint32_t *record, uint32_t index, const Body &body) {
   RVec3 p = body.GetPosition();
   Quat q = body.GetRotation();
-  Vec3 v = body.GetLinearVelocity();
-  float values[10] = {float(p.GetX()), float(p.GetY()), float(p.GetZ()), q.GetX(), q.GetY(),
-                      q.GetZ(),        q.GetW(),        v.GetX(),        v.GetY(), v.GetZ()};
+  Vec3 v = body.GetLinearVelocity(), w = body.GetAngularVelocity();
+  float values[POSE_WORDS - 1] = {float(p.GetX()), float(p.GetY()), float(p.GetZ()), q.GetX(),
+                                  q.GetY(),        q.GetZ(),        q.GetW(),        v.GetX(),
+                                  v.GetY(),        v.GetZ(),        w.GetX(),        w.GetY(),
+                                  w.GetZ()};
   record[0] = index;
   std::memcpy(record + 1, values, sizeof(values));
 }
@@ -60,16 +63,19 @@ uint32_t writePoses() {
     if (!asleep) slot.frozen = false;
     Placement at = place(w, slot, body);
     bool decorative = body.GetObjectLayer() == DECORATIVE;
+    bool frozen = false;
     if (!asleep && (at.far || (decorative && !at.seen))) {
-      slot.frozen = true;
+      slot.frozen = frozen = true;
       slot.linear = body.GetLinearVelocity();
       slot.angular = body.GetAngularVelocity();
       bodies.DeactivateBody(slot.id);
-      asleep = true;
     }
-    if (!at.seen) slot.withheld = true;
-    else send(index, body, asleep);
-    if (asleep && (slot.withheld || slot.frozen)) w.waiting.push_back(index);
+    // A body that fell asleep sends its last pose even out of view, once: the page's `asleep` and
+    // pose are then true, and a decorative body can leave the simulation. A frozen one is not
+    // asleep (it resumes with its velocities), and sends nothing while it is out of view.
+    if (at.seen || asleep) send(index, body, asleep || frozen);
+    else slot.withheld = true;
+    if (frozen || (asleep && slot.withheld)) w.waiting.push_back(index);
   };
   // Waiting bodies first: a thawed one joins the active list below in this same step's order.
   std::vector<uint32_t> waiting;

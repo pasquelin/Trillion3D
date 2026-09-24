@@ -43,6 +43,7 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await mkdir(join(source, 'data'), { recursive: true });
     await mkdir(join(source, 'examples'), { recursive: true });
     await writeFile(join(source, 'examples/cube.html'), '<!doctype html>');
+    await writeFile(join(source, 'examples/scene.html'), '<head>\n</head>\n');
     await writeFile(join(source, 'index.html'), '<!doctype html>\n<head>\n  </head>\n');
     await writeFile(join(source, 'reports/index.json'), '[]');
     await writeFile(join(source, 'reports/contract.ts'), 'export {};');
@@ -66,6 +67,8 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     assert.equal(await readFile(join(out, 'reports/campaign/report.json'), 'utf8'), '{}');
     assert.equal(await readFile(join(out, 'assets/manifest.json'), 'utf8'), '{}');
     assert.equal(await readFile(join(out, 'examples/cube.html'), 'utf8'), '<!doctype html>');
+    // An example, shown in the portal's frame or alone, asks for no consent over its scene.
+    assert.equal(await readFile(join(out, 'examples/scene.html'), 'utf8'), '<head>\n</head>\n');
     await assert.rejects(stat(join(out, 'reports/contract.ts')));
     await assert.rejects(stat(join(out, 'styles')));
     const copied = (await stat(join(out, 'assets/manifest.json'))).mtimeMs;

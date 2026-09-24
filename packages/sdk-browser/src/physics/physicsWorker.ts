@@ -13,9 +13,11 @@ import {
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts';
 import { instantiateJolt, type JoltModule } from './joltModule.ts';
+import { runJoltThread, type JoltThreadStart } from './joltThreads.ts';
 import { MAX_EVENTS, PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts';
 
 const scope = globalThis as unknown as {
+  location: { href: string };
   onmessage: ((event: MessageEvent<ToPhysics>) => void) | null;
   postMessage(message: FromPhysics, transfer?: Transferable[]): void;
 };
@@ -129,7 +131,14 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
   const response = await fetch(message.wasm);
   if (!response.ok) throw new Error(`PHYSICS_FAILED: ${message.wasm} ${response.status}`);
   const { bodies, memoryBytes } = message.budget;
-  jolt = await instantiateJolt(await response.arrayBuffer(), bodies, memoryBytes);
+  // The module's threads run in workers of this same script (`thread` messages below).
+  const spawn = (start: JoltThreadStart) => {
+    const thread = new Worker(scope.location.href, { type: 'module' });
+    thread.onmessage = ({ data }) => scope.postMessage(data);
+    thread.postMessage(start);
+  };
+  const threads = message.threads > 1 ? { count: message.threads, spawn } : null;
+  jolt = await instantiateJolt(await response.arrayBuffer(), bodies, memoryBytes, threads);
   slotOf = new Int32Array(bodies);
   stamp = new Uint32Array(bodies).fill(0xffffffff);
   poses = new Uint32Array(bodies * POSE_WORDS);
@@ -141,6 +150,7 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
 
 scope.onmessage = ({ data: message }) => {
   if (message.type === 'start') start(message).catch(fail);
+  else if (message.type === 'thread') runJoltThread(message).catch(fail);
   else if (message.type === 'buffer') {
     buffers.push(message.buffer);
     if (poseCount || eventCount) post();

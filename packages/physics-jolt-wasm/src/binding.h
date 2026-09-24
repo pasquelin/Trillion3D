@@ -6,7 +6,8 @@
 
 #include <Jolt/Jolt.h>
 
-#include <Jolt/Core/JobSystemSingleThreaded.h>
+#include <Jolt/Core/JobSystem.h>
+#include <Jolt/Core/Mutex.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
@@ -55,11 +56,15 @@ public:
   void OnContactRemoved(const JPH::SubShapeIDPair &pair) override;
   void OnBodyActivated(const JPH::BodyID &, JPH::uint64) override {}
   void OnBodyDeactivated(const JPH::BodyID &id, JPH::uint64 user) override;
+
+private:
+  /// Jolt calls these from its jobs, on every thread of the pool at once.
+  JPH::Mutex lock;
 };
 
 struct World {
   JPH::TempAllocator *temp = nullptr;
-  JPH::JobSystemSingleThreaded *jobs = nullptr;
+  JPH::JobSystem *jobs = nullptr;
   JPH::PhysicsSystem *system = nullptr;
   Listener listener;
   std::vector<Slot> slots;
@@ -81,7 +86,7 @@ struct World {
 World &world();
 
 /// Word counts of one pose and one event record (layout.ts POSE_WORDS / EVENT_WORDS).
-constexpr uint32_t POSE_WORDS = 11;
+constexpr uint32_t POSE_WORDS = 14;
 constexpr uint32_t EVENT_WORDS = 7;
 
 /// Executes `words` command words; returns false (with `world().error` set) on the first failure.
