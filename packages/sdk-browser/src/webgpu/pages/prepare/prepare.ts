@@ -39,18 +39,19 @@ export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDe
 }
 
 /** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. A
- *  backend closed, or a device lost, meanwhile stops it after the next step. */
+ *  backend closed, or a device lost, meanwhile starts no further step: what a step has returned is
+ *  kept on the runtime, and the teardown releases it. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
     { allPages, blendCopies, scene, viewport, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
-  const step = async <T>(name: string, work: Promise<T>) => {
-    rt.context.preparationStep?.(name);
-    const done = await work;
+  const step = <T>(name: string, work: () => Promise<T>) => {
     throwIfStopped(rt);
-    return done;
+    rt.context.preparationStep?.(name);
+    return work();
   };
-  rt.lights.buffer = createSceneLightContractBuffer((gpu.device = gpuDevice));
+  const lightBuffer = createSceneLightContractBuffer((gpu.device = gpuDevice));
+  rt.lights.buffer = lightBuffer;
   // No more light written into the scene, on either side: opaques and transparents read the same
   // declared-light buffer, with the same shadows and the same exposure (P6).
   diag.engineDiagnostic('scene-lighting', 'Scene lights active', {
@@ -63,13 +64,16 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   });
   // The contract program finishes compiling between two images: its arrival is a new resource, or
   // the held image would keep presenting raw albedo. The two programs compile side by side.
-  [gpu.deferred] = await step(
-    'lighting and antialiasing programs',
-    Promise.all([
-      createDeferredLighting(gpuDevice, rt.lights.buffer, () => run.gate.resourcesChanged()),
+  // Both are awaited, and each kept as it is built, before a failure of either goes up.
+  const programs = await step('lighting and antialiasing programs', () =>
+    Promise.allSettled([
+      createDeferredLighting(gpuDevice, lightBuffer, () => run.gate.resourcesChanged()),
       prepareTemporalAntialiasing(rt, gpuDevice),
     ]),
   );
+  const [deferred] = programs;
+  if (deferred.status === 'fulfilled') gpu.deferred = deferred.value;
+  for (const program of programs) if (program.status === 'rejected') throw program.reason;
   gpu.presenter = prepareWebgpuPresentation(gpuDevice, context.gpuCanvas);
   if (gpu.presenter) grantCapability(capabilities, 'direct WebGPU present');
   diag.engineDiagnostic('gpu-presentation', 'GPU presentation initialised', {
@@ -106,12 +110,12 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS);
   gpu.volumeBuffer = createVolumeBuffer(gpuDevice, blendState.transmissive);
   // The transparent draw order is the scene's, settled here once: an image only picks survivors.
-  blendState.table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu);
+  const table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu);
+  blendState.table = table;
   for (let i = 0; i < blendState.table.pagedItems.length; i++)
     blendState.table.pagedItems[i].pagedIndex = i;
-  blendState.compaction = await step(
-    'transparent compaction',
-    createTransparentCompaction(gpuDevice, blendState.table),
+  blendState.compaction = await step('transparent compaction', () =>
+    createTransparentCompaction(gpuDevice, table),
   );
   diag.engineDiagnostic('transparent-clusters', 'Transparent cluster table', {
     version: 1,
@@ -125,10 +129,10 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
   ensureUniform(rt, gpuDevice, cap);
   try {
-    await step('textures', prepareWebgpuTextures(rt, gpuDevice));
+    await step('textures', () => prepareWebgpuTextures(rt, gpuDevice));
     // Item rows cite atlas layers: they are therefore mounted AFTER the textures.
-    await step('blend resources', prepareBlendResources(rt, gpuDevice));
-    await step('visibility programs', prepareWebgpuVisibility(rt, gpuDevice));
+    await step('blend resources', () => prepareBlendResources(rt, gpuDevice));
+    await step('visibility programs', () => prepareWebgpuVisibility(rt, gpuDevice));
   } catch (error) {
     throwIfStopped(rt); // A close or a loss is no material failure.
     diag.diagnosticFailure('material-pipeline-failed', error);
@@ -138,12 +142,11 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
-  await step('direct lights', prepareDirectLights(rt, gpuDevice));
+  await step('direct lights', () => prepareDirectLights(rt, gpuDevice));
   prepareCones(rt);
   // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
   if (vis.gpuDraw && selectionRoots.length) {
-    run.gpuSelection = await step(
-      'GPU cut',
+    run.gpuSelection = await step('GPU cut', () =>
       createGpuDagSelection(gpuDevice, packDagSelection(selectionRoots), {
         residentCut: true,
         diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
@@ -154,7 +157,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     run.worldUploadOrigin.fill(NaN);
   }
   capabilities.gpuDriven = !!run.gpuSelection;
-  await step('coverage bootstrap', services.bootstrapState.ensure());
+  await step('coverage bootstrap', () => services.bootstrapState.ensure());
   diag.engineDiagnostic('render-capabilities', 'Render paths ready', {
     surfaceVersion: gpu.surfaces?.version ?? null,
     deferredLighting: !!gpu.deferred,

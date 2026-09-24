@@ -69,28 +69,15 @@ test('the lost promise unpublishes the composed canvas and names WEBGPU_LOST', a
 test("an error of the session closed on the device is never the next one's loss", async (t) => {
   const warned = t.mock.method(console, 'warn', () => {});
   installGpuGlobals();
-  const { device } = mockGpu();
-  const events = new EventTarget();
-  // The labels as the engine hands them to the device: session tag included.
-  const labels: string[] = [];
-  const createBuffer = device.createBuffer as (d: GPUBufferDescriptor) => GPUBuffer;
-  Object.assign(device, {
-    addEventListener: events.addEventListener.bind(events),
-    createBuffer: (descriptor: GPUBufferDescriptor) => {
-      labels.push(descriptor.label ?? '');
-      return createBuffer(descriptor);
-    },
-  });
-  const uncaptured = (label: string) =>
-    events.dispatchEvent(
-      Object.assign(new Event('uncapturederror'), {
-        error: { message: `[Buffer "${label}"] is destroyed.` },
-      }),
-    );
+  const gpu = mockGpu(),
+    { device } = gpu;
+  // The last label a session handed the device, its tag included.
+  const lastOwn = () => gpu.labels.findLast((label) => label && tagsIn(label).length)!;
+  const uncaptured = (label: string) => gpu.raise(`[Buffer "${label}"] is destroyed.`);
   const first = quadBackend(device);
   await first.backend.prepare();
   first.backend.render(camera());
-  const old = labels.at(-1)!;
+  const old = lastOwn();
   await first.backend.dispose();
   // Its errors, while the next session opens and after it: none is the next session's (#334).
   const said: Array<Record<string, unknown>> = [];
@@ -111,7 +98,7 @@ test("an error of the session closed on the device is never the next one's loss"
     Array(2).fill(['warning', `[Buffer "${old}"] is destroyed.`]),
   );
   // An error naming one of its own objects is its own.
-  uncaptured(labels.at(-1)!);
+  uncaptured(lastOwn());
   assert.throws(() => second.backend.render(camera()), /WEBGPU_LOST/);
   await second.backend.dispose();
   for (const { fixture } of [first, second]) {
@@ -122,25 +109,18 @@ test("an error of the session closed on the device is never the next one's loss"
 
 test('an error of its own objects fails a session while it opens', async () => {
   installGpuGlobals();
-  const { device } = mockGpu();
-  const events = new EventTarget();
+  const gpu = mockGpu(),
+    { device } = gpu;
   let label = '';
-  const createBuffer = device.createBuffer as (d: GPUBufferDescriptor) => GPUBuffer;
-  Object.assign(device, {
-    addEventListener: events.addEventListener.bind(events),
-    createBuffer: (descriptor: GPUBufferDescriptor) => {
-      // The first buffer it creates is found wanting at once, mid-opening.
-      if (!label) {
-        label = descriptor.label ?? '';
-        events.dispatchEvent(
-          Object.assign(new Event('uncapturederror'), {
-            error: { message: `[Buffer "${label}"] is invalid.` },
-          }),
-        );
-      }
-      return createBuffer(descriptor);
-    },
-  });
+  const createBuffer = device.createBuffer;
+  device.createBuffer = function (this: GPUDevice, descriptor: GPUBufferDescriptor) {
+    // The first buffer it creates is found wanting at once, mid-opening.
+    if (!label) {
+      label = descriptor.label ?? '';
+      gpu.raise(`[Buffer "${label}"] is invalid.`);
+    }
+    return createBuffer.call(this, descriptor);
+  };
   const { fixture, backend } = quadBackend(device);
   await assert.rejects(backend.prepare(), /WEBGPU_LOST/);
   assert.equal(tagsIn(label).length, 1);

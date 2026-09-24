@@ -44,3 +44,40 @@ test('a backend closed before it prepares is cancelled, not lost', async () => {
   fixture.geometry.dispose();
   fixture.material.dispose();
 });
+
+test('a backend closed during a step starts no further one', async () => {
+  installGpuGlobals();
+  const { device } = mockGpu();
+  const steps: string[] = [];
+  let closing: ReturnType<RenderBackend['dispose']> | undefined;
+  const { fixture, backend } = quadBackend(device, {
+    preparationStep: (step) => {
+      steps.push(step);
+      if (step === 'transparent compaction') closing = backend.dispose();
+    },
+  });
+  await assert.rejects(backend.prepare(), { name: 'AbortError' });
+  await closing;
+  assert.equal(steps.at(-1), 'transparent compaction');
+  fixture.geometry.dispose();
+  fixture.material.dispose();
+});
+
+test("a closed backend's reads answer nothing once the next session opens, and never throw", async () => {
+  installGpuGlobals();
+  const { device } = mockGpu();
+  const first = quadBackend(device);
+  await first.backend.prepare();
+  const closing = first.backend.dispose();
+  const next = quadBackend(device);
+  await next.backend.prepare();
+  await closing;
+  assert.equal(await first.backend.shadowAtlasDigest?.(), null);
+  assert.equal(await first.backend.partitionAudit?.(), null);
+  assert.equal(await first.backend.transparentOcclusionAudit?.(), null);
+  await next.backend.dispose();
+  for (const { fixture } of [first, next]) {
+    fixture.geometry.dispose();
+    fixture.material.dispose();
+  }
+});

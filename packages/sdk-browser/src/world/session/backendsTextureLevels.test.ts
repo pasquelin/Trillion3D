@@ -85,18 +85,31 @@ test('a cache that bakes no texture chain hands no reader over', async () => {
   assert.equal(context.readTextureLevel, undefined);
 });
 
-test('an abort is a cancellation, whether the session asked it or a closed backend threw it', async () => {
-  const probe = {
-    id: 'webgpu-page-raster',
-    prepare: async () => {
-      throw new DOMException('closed', 'AbortError');
-    },
+test('an abort is a cancellation only when the session or the backend asked it; otherwise the WebGPU path falls back', async () => {
+  const aborted = () => {
+    throw new DOMException('closed', 'AbortError');
   };
+  const probe = { id: 'webgpu-page-raster', prepare: async () => aborted() };
   const phases: string[] = [];
   const diagnose = (phase: string) => phases.push(phase);
-  // Nothing diagnosed, nothing fallen back: the abort goes up as it is.
-  await assert.rejects(run({}, undefined, probe, { diagnose } as never), { name: 'AbortError' });
-  assert.deepEqual(phases, ['backend-preparation-start']);
+  // Asked by neither: diagnosed, and the WebGPU path falls back (here to nothing, so no backend).
+  await assert.rejects(run({}, undefined, probe, { diagnose } as never), /No backend/);
+  assert.deepEqual(phases, ['backend-preparation-start', 'backend-preparation-error', 'fallback']);
+  // Asked by the session, or by the backend's own signal: the abort goes up as it is, nothing
+  // diagnosed, nothing fallen back.
+  const cancel = new AbortController();
+  cancel.abort();
+  for (const [probeSignal, signal] of [
+    [undefined, cancel.signal],
+    [cancel.signal, undefined],
+  ]) {
+    phases.length = 0;
+    await assert.rejects(
+      run({}, undefined, { ...probe, signal: probeSignal }, { diagnose, signal } as never),
+      { name: 'AbortError' },
+    );
+    assert.deepEqual(phases, ['backend-preparation-start']);
+  }
 });
 
 test('a cancelled preparation waits for the release, and diagnoses one that fails', async () => {

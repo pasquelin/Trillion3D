@@ -23,7 +23,6 @@ import type { BackendDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts
 import type { PlacementRows } from '../placement/rows.ts';
 import type { BackendSceneUpdates } from '../placement/backendSceneUpdates.ts';
 export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
-
 type ViewSize = { width: number; height: number };
 export interface RenderBackend extends BackendSceneUpdates {
   id: string;
@@ -49,6 +48,7 @@ export interface RenderBackend extends BackendSceneUpdates {
   setTransform?(nodeName: string, matrix: Float32Array): void;
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
   setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
+  signal?: AbortSignal; // Aborted by its dispose or its session's: `prepare` then fails as cancelled.
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
   /** Draws the engine's whole image — paged clusters, diagnostic pages, scene copies, or the

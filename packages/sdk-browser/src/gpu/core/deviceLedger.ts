@@ -5,7 +5,9 @@
  * here — that is intended, a leak is read here before it is read elsewhere.
  *
  * It is installed once per device, on the instance, before the engine's first allocation; a
- * second call returns the same ledger. A texture of a format unknown to the table counts zero
+ * second call returns the same ledger. A session's ledger sits on its handle; the shared device's
+ * counts only what names no session — the caches every session shares — and the session's
+ * snapshot carries it, so that each allocation is counted once. A texture of a format unknown to the table counts zero
  * bytes and increments `unknownFormats`: a total that carries any is not a proof.
  */
 const LABEL_NONE = 'unlabeled';
@@ -102,15 +104,20 @@ export type LedgerDevice = Pick<GPUDevice, 'createTexture' | 'createBuffer'>;
 const ledgers = new WeakMap<LedgerDevice, GpuDeviceLedger>();
 
 /** Installs the ledger on the device — a session's handle, above its tags: it counts by the labels
- *  the engine wrote — or returns the one already there. */
-export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
+ *  the engine wrote — or returns the one already there. `counts` keeps the allocations it counts
+ *  (all by default); `base`, another ledger, is carried in each snapshot. */
+export function installGpuDeviceLedger(
+  device: LedgerDevice,
+  options: { counts?: (label: string | undefined) => boolean; base?: GpuDeviceLedger } = {},
+): GpuDeviceLedger {
   const existing = ledgers.get(device);
   if (existing) return existing;
+  const { counts, base } = options;
   const live = new Map<object, { label: string; bytes: number }>();
   let unknownFormats = 0;
   // The snapshot is read every host frame, held frame included: it is rebuilt only after an
-  // allocation or a destroy, never in a still scene.
-  let held: GpuDeviceLedgerSnapshot | undefined;
+  // allocation or a destroy, its own or its base's, never in a still scene.
+  let held: GpuDeviceLedgerSnapshot | undefined, heldBase: GpuDeviceLedgerSnapshot | undefined;
   const track = <T extends { destroy(): void }>(resource: T, label: string, bytes: number) => {
     live.set(resource, { label, bytes });
     held = undefined;
@@ -124,23 +131,33 @@ export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
   const createTexture = device.createTexture.bind(device);
   const createBuffer = device.createBuffer.bind(device);
   device.createTexture = (descriptor) => {
+    if (counts && !counts(descriptor.label)) return createTexture(descriptor);
     const bytes = textureBytesOf(descriptor);
     if (bytes === null) unknownFormats++;
     return track(createTexture(descriptor), descriptor.label ?? LABEL_NONE, bytes ?? 0);
   };
   device.createBuffer = (descriptor) =>
-    track(createBuffer(descriptor), descriptor.label ?? LABEL_NONE, descriptor.size);
+    counts && !counts(descriptor.label)
+      ? createBuffer(descriptor)
+      : track(createBuffer(descriptor), descriptor.label ?? LABEL_NONE, descriptor.size);
   const ledger: GpuDeviceLedger = {
     snapshot() {
-      if (held) return held;
-      const sums = new Map<string, number>();
-      let bytes = 0;
+      const under = base?.snapshot();
+      if (held && heldBase === under) return held;
+      heldBase = under;
+      const sums = new Map<string, number>(under ? Object.entries(under.byLabel) : []);
+      let bytes = under?.bytes ?? 0;
       for (const entry of live.values()) {
         bytes += entry.bytes;
         sums.set(entry.label, (sums.get(entry.label) ?? 0) + entry.bytes);
       }
       const byLabel = Object.fromEntries([...sums].sort((a, b) => b[1] - a[1]));
-      return (held = { bytes, byLabel, unknownFormats, live: live.size });
+      return (held = {
+        bytes,
+        byLabel,
+        unknownFormats: unknownFormats + (under?.unknownFormats ?? 0),
+        live: live.size + (under?.live ?? 0),
+      });
     },
   };
   ledgers.set(device, ledger);
