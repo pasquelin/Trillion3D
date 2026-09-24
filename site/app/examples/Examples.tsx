@@ -19,8 +19,8 @@ import {
 const themeAnchor = (theme: string) => `theme-${theme}`;
 
 /** The Examples landing page, theme by theme: one card per ready example, its settled render as
- * thumbnail, opening the example; one per example published apart, opening its address; then one
- * card per example still in progress or waiting for the engine, opening nothing. */
+ * thumbnail, opening the example; then one card per example still in progress or waiting for the
+ * engine, opening nothing. */
 export function Examples({ locale }: { locale: Locale }) {
   const t = useWords(locale);
   return (
@@ -45,11 +45,11 @@ export function Examples({ locale }: { locale: Locale }) {
         <Section key={theme} id={themeAnchor(theme)} title={themeTitle(theme, locale)}>
           <Grid>
             {entries.map((entry) =>
-              isReady(entry) || entry.href ? (
+              isReady(entry) ? (
                 <ExampleCard
                   key={entry.id}
                   title={exampleTitle(entry.id, locale)}
-                  href={entry.href ?? routeHref({ locale, area: 'examples', id: entry.id })}
+                  href={routeHref({ locale, area: 'examples', id: entry.id })}
                   badge={themeTitle(theme, locale)}
                   thumbnail={thumbnailOf(entry.id)}
                 />

@@ -318,8 +318,7 @@
       "hands-in-vr": "VR里的手",
       "teleport-in-vr": "在VR中传送",
       "controllers-in-vr": "VR手柄",
-      "ar-on-the-table": "桌上的AR",
-      "openworld": "开放世界"
+      "ar-on-the-table": "桌上的AR"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU上的逐顶点颜色",
