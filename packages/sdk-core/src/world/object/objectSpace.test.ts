@@ -37,3 +37,20 @@ test('a destroyed object is freed once, never again when it is collected', async
   const free = [...tree.free.subarray(0, tree.freeCount)];
   assert.equal(new Set(free).size, free.length, 'no slot is on the free list twice');
 });
+
+test('a matrix handed out keeps its object: its slot is never given to another', async () => {
+  const tree = Object3D._treeOf(new Object3D());
+  const [world, local] = (() => {
+    const held = new Object3D();
+    held.position.set(7, 8, 9);
+    held.updateMatrixWorld();
+    return [held.matrixWorld, held.matrix];
+  })();
+  const free = tree.freeCount;
+  dropTrees(200);
+  await collect(() => tree.freeCount >= free + 400);
+  const others = Array.from({ length: 400 }, () => new Object3D());
+  assert.deepEqual([...world.elements.slice(12, 15)], [7, 8, 9], 'no other object reads here');
+  local.elements[12] = 100;
+  for (const other of others) assert.equal(other.matrix.elements[12], 0, 'no other object moved');
+});
