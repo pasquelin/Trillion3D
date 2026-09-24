@@ -1980,5 +1980,20 @@
       "awake": "Svegli",
       "step": "Passo"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "Apri la porta e il cassetto, fai oscillare la catena, poi lascia cadere la pietra sul ponte e guardalo spezzarsi.",
+    "controls": {
+      "openDoor": "Apri la porta",
+      "openDrawer": "Apri il cassetto",
+      "strength": "Resistenza del ponte (N)",
+      "swingChain": "Fai oscillare la catena",
+      "dropStone": "Lascia cadere la pietra",
+      "rebuild": "Ricostruisci il ponte"
+    },
+    "readouts": {
+      "joints": "Giunti",
+      "broken": "Rotti"
+    }
   }
 }

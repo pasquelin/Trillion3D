@@ -1980,5 +1980,20 @@
       "awake": "Đang chạy",
       "step": "Bước"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "Mở cửa và ngăn kéo, đung đưa sợi xích, rồi thả hòn đá lên cây cầu và xem nó gãy.",
+    "controls": {
+      "openDoor": "Mở cửa",
+      "openDrawer": "Mở ngăn kéo",
+      "strength": "Độ bền của cầu (N)",
+      "swingChain": "Đung đưa xích",
+      "dropStone": "Thả hòn đá",
+      "rebuild": "Dựng lại cầu"
+    },
+    "readouts": {
+      "joints": "Khớp nối",
+      "broken": "Đã gãy"
+    }
   }
 }
