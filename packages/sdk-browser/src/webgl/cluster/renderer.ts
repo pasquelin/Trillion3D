@@ -31,7 +31,10 @@ export class WebglClusterRenderer {
   private textures: WebglClusterTextures;
   private uniforms = new Map<string, WebGLUniformLocation | null>();
   private normal = new Float32Array(9);
-  private modelView = new Float32Array(16);
+  /** The model-view product in double precision, the normal matrix read from it, as the
+   *  reference derives both; the program receives its single-precision copy. */
+  private modelView = new Float64Array(16);
+  private modelViewUpload = new Float32Array(16);
   private materialMatrices: Matrix3UniformCache;
   private lights: WebglClusterLights;
   private state: WebglClusterState;
@@ -99,7 +102,8 @@ export class WebglClusterRenderer {
     const model = mesh.matrix.elements;
     multiplyMatrix4(this.modelView, camera.view, model);
     this.state.applyWinding(model);
-    gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelView);
+    this.modelViewUpload.set(this.modelView);
+    gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelViewUpload);
     normalMatrix3(this.normal, this.modelView);
     setMatrix3(gl, this.at('normalMatrix'), this.normal);
     const passes = drawPasses(material);

@@ -1,5 +1,4 @@
-import { LTC_SIZE, ltcTable } from '../../../../sdk-core/src/lighting/ltcTable.ts';
-import { LTC_UNIT, WEBGL_RECT_KIND } from './rectGlsl.ts';
+import { LTC_UNIT, WEBGL_RECT_KIND, createLtcTexture } from './rectGlsl.ts';
 import { WebglClusterProbe, type ProbeLight } from './probe.ts';
 
 type MatrixNode = {
@@ -65,31 +64,15 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
   );
 };
 
-/** The fitted lobe of the rectangles (`ltcTable.ts`) as a float texture read by `texelFetch`:
- *  two texels a cell, no filtering asked of the device. */
-function createLtcTexture(gl: WebGL2RenderingContext) {
-  const texture = gl.createTexture()!;
-  gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA32F,
-    LTC_SIZE * 2,
-    LTC_SIZE,
-    0,
-    gl.RGBA,
-    gl.FLOAT,
-    ltcTable(),
-  );
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  return texture;
-}
+/** A light's rank in the program's `lightData`; an ambient light is summed apart. */
+const kindOf = (light: ClusterLight) =>
+  light.isDirectionalLight ? 0 : light.isPointLight ? 1 : light.isSpotLight ? 2 : WEBGL_RECT_KIND;
+const KIND_ORDER = [1, 2, 0, WEBGL_RECT_KIND];
 
 export class WebglClusterLights {
   private data = new Float32Array(4 * 4 * 64);
+  /** The direct lights of the frame, in the graph's order; reused from frame to frame. */
+  private lights: ClusterLight[] = [];
   private buffer: WebGLBuffer;
   private ltc: WebGLTexture;
   private probe: WebglClusterProbe;
@@ -126,12 +109,29 @@ export class WebglClusterLights {
     const axis = (at: number, m: ArrayLike<number>, c: number, s: number, w: number) =>
       toView(at, m[c], m[c + 1], m[c + 2], s / (Math.hypot(m[c], m[c + 1], m[c + 2]) || 1), w);
     this.probe.reset();
+    const lights = this.lights;
+    lights.length = 0;
+    const ambient = [0, 0, 0, 0];
     scene.traverse((entry) => {
       const light = entry as ClusterLight;
       if (!light.isLight || !visibleThroughParents(light)) return;
       if (light.isLightProbe) return this.probe.add(light as ClusterLight & ProbeLight);
-      let kind = 3,
-        range = 0,
+      if (!light.isAmbientLight) return void lights.push(light);
+      ambient[0] += light.color.r * light.intensity;
+      ambient[1] += light.color.g * light.intensity;
+      ambient[2] += light.color.b * light.intensity;
+      ambient[3] = 1;
+    });
+    // The reference's order: the points, the spots, the suns, the rectangles, each in the graph's
+    // order; the ambient lights are one irradiance, summed here.
+    for (const rank of KIND_ORDER)
+      for (const light of lights) if (kindOf(light) === rank) writeLight(light, rank);
+    if (ambient[3]) {
+      write(count * 16 + 4, 0, 0, -1, 3);
+      write(count++ * 16 + 8, ambient[0], ambient[1], ambient[2], 1);
+    }
+    function writeLight(light: ClusterLight, kind: number) {
+      let range = 0,
         inner = 1,
         outer = 1;
       const matrix = light.matrixWorld.elements;
@@ -140,26 +140,23 @@ export class WebglClusterLights {
         pz = matrix[14];
       let dx = 0,
         dy = 0,
-        dz = -1;
-      if (light.isDirectionalLight) kind = 0;
-      else if (light.isPointLight) {
-        kind = 1;
-        range = light.distance ?? 0;
-      } else if (light.isRectAreaLight) {
-        kind = WEBGL_RECT_KIND;
-        range = light.distance ?? 0;
-      } else if (light.isSpotLight) {
-        kind = 2;
-        range = light.distance ?? 0;
+        dz = 0;
+      if (kind !== 0) range = light.distance ?? 0;
+      if (kind === 2) {
         outer = Math.cos(light.angle ?? 0);
         inner = Math.cos((light.angle ?? 0) * (1 - (light.penumbra ?? 0)));
       }
       if (kind === 0 || kind === 2) {
+        // Toward the light, in view space, unit: the reference's direction, normalised once here
+        // and read as is by the program.
         const target = light.target!.matrixWorld.elements;
-        dx = target[12] - px;
-        dy = target[13] - py;
-        dz = target[14] - pz;
-        const length = Math.hypot(dx, dy, dz) || 1;
+        const x = px - target[12],
+          y = py - target[13],
+          z = pz - target[14];
+        dx = view[0] * x + view[4] * y + view[8] * z;
+        dy = view[1] * x + view[5] * y + view[9] * z;
+        dz = view[2] * x + view[6] * y + view[10] * z;
+        const length = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
         dx /= length;
         dy /= length;
         dz /= length;
@@ -172,16 +169,19 @@ export class WebglClusterLights {
         view[2] * px + view[6] * py + view[10] * pz + view[14],
         range,
       );
-      write(base + 8, light.color.r, light.color.g, light.color.b, light.intensity);
       if (kind === WEBGL_RECT_KIND) {
+        write(base + 8, light.color.r, light.color.g, light.color.b, light.intensity);
         // It emits down its local -z; its width runs along its local x.
         axis(base + 4, matrix, 8, -1, kind);
         axis(base + 12, matrix, 0, light.width! / 2, light.height! / 2);
         return;
       }
-      toView(base + 4, dx, dy, dz, 1, kind);
-      write(base + 12, inner, outer, 0, 0);
-    });
+      // The colour scaled by the intensity here, in double precision, as the reference uploads it.
+      const i = light.intensity;
+      write(base + 8, light.color.r * i, light.color.g * i, light.color.b * i, 1);
+      write(base + 4, dx, dy, dz, kind);
+      write(base + 12, inner, outer, light.decay ?? 2, 0);
+    }
     this.probe.upload(view);
     const gl = this.gl;
     // The host's texture units are unknown at frame start: the lobe is bound again every frame.
