@@ -1,4 +1,4 @@
-Closes #
+Closes #  <!-- or "Part of #n" when the pull request leaves part of the issue open (AGENTS.md rule 5) -->
 
 ## What changed
 
