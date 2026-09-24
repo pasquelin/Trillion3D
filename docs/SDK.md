@@ -841,13 +841,25 @@ once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
 `geometryPoolAllocatedBytes` is `null`). It has no texture pool:
 `texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
+**One GPU total, one CPU total.** `world.budget.gpu` is every GPU pool together, and
+`world.budget.cpu` the decoded pages the world keeps in CPU memory. A fixed rule splits them, published
+as `world.budget.split`:
+
+- GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
+  in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
+  each pool its own default, so a page that sets nothing sees no change.
+- CPU: the decoded-page cache takes the whole total, taken by the next scene load.
+
 ```js
+world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split
+world.budget.cpu = 128 * 1024 * 1024;
 world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes
-world.budget.texturePool = 1024 * 1024 * 1024;
 ```
 
-Reading either property back gives what the engine holds, not what was asked; writes are clamped to
-`world.budget.geometryPoolCeiling` / `texturePoolCeiling`, and two writes before the next frame
+Reading a pool back gives what the engine holds, not what was asked; a pool write is clamped to
+`world.budget.geometryPoolCeiling` / `texturePoolCeiling` and to what `gpu` leaves beside the
+shadows and the other pool, so the pools never sum past the total — save a total too small for
+their floors (the root cover, one texture layer per lane), which they never go below. Two writes before the next frame
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
@@ -859,6 +871,15 @@ is too small for that view). A value that cannot be held as given is brought to 
 `geometryPoolClamp` / `texturePoolClamp` name why: `root-cover`, `scene`, `page-cap`, `minimum`,
 `device-limit`, `ceiling`, or `null`. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the
 device cannot hold even the root cover.
+
+**Out of memory is absorbed.** The browser may refuse an allocation the budget allows. Each pool is
+allocated under an out-of-memory check at prepare, and probed before every rebalance. When the
+device refuses it, the pool
+is drawn again at half its bytes, down to its floor (the root cover, one layer per lane). The pool
+in place is only ever replaced by one the device grants. The frame goes on, coarser where the
+smaller pool no longer holds the view, and no exception reaches the page. The
+`gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
+granted (`grantedBytes`, `null` when even the floor was refused and the pool in place stays).
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
