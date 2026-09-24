@@ -162,9 +162,10 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then
    run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
-3. Review the diff twice: first simplify duplicated or unnecessary work, then check correctness
-   against the requirements above. Fix findings and run `pnpm run check:changed`,
-   `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
+3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
+   `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
+   depth —, then check correctness against the requirements above. Fix findings and run
+   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
    measuring queue runs it after the merge.
 4. Commit with a descriptive English message. Open a pull request targeting `develop`, using
    `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`. Describe what both
