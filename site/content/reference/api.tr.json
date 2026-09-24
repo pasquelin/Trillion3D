@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Motorun teslim ettiği şekliyle, host'un bir kareyi çizdiği matrisler.",
+    "summary": "Motorun teslim ettiği şekliyle, host'un bir kareyi çizdiği matrisler ve derinlik aralığı.",
     "members": {
       "projection": "İzdüşüm.",
       "world": "Kameranın dünya matrisi.",
       "view": "View matrisi.",
-      "eye": "Gözün nerede olduğu."
+      "eye": "Gözün nerede olduğu.",
+      "near": "En yakın mesafe.",
+      "far": "En uzak mesafe."
     }
   },
   "HostDrawOutput": {
@@ -1523,8 +1525,7 @@
     "summary": "Yayımlanmış doğrudan aydınlatma ayarları.",
     "description": "Bunlar adlandırılmış ürün kararlarıdır, gömülü sabitler değil: her çalışma zamanı sınırı onları yeniden okur, ve tanı onları oldukları gibi yayımlar.",
     "members": {
-      "maxLights": "Sözleşmenin toplamda kabul ettiği ışıklar; bunun ötesinde `addLight` reddeder.",
-      "maxLightsPerTile": "Bir ekran karosunun tuttuğu ışıklar; piksel döngüsü bu sayıyla sınırlıdır (X2).",
+      "maxLights": "Sözleşmenin toplamda kabul ettiği ışıklar; bunun ötesinde `addLight` reddeder. Bir ekran karosu kendisine dokunan her ışığı tutar; listesi ve piksel döngüsü bu sayıyla sınırlıdır (X2).",
       "tileSize": "Işık listesinin bir ekran karosunun piksel cinsinden kenarı.",
       "samplesPerPixel": "HAREKETLİ bir görselin pikseli başına tamamen gölgelendirilen — gölge okuması dahil — ışıklar (X2): diğerleri gölgeleri olmadan tartılır, ve gölgelendirilenler orantılı olarak çizilir, bu yüzden tahmin yansız kalır ve zamansal kenar yumuşatma onu ortalar. Sabit bir görsel, karosunun her ışığını gölgelendirir ve tam toplama yakınsar; orada bu sayının hiçbir rolü yoktur.",
       "shadowPage": "Bir gölge sayfasının kenarı, texel olarak: fiziksel havuzun, sanal haritaların ve geçersiz kılmanın birimi. Hareket eden bir nesne yalnızca izdüşen kutusunun kapladığı sayfaları eskitir.",
@@ -1657,7 +1658,8 @@
       "signal": "Sinyal iptal edildiğinde yüklemeyi durdurur.",
       "scope": "`'full'` tüm önbelleği gerektirir, `'progressive'` onun akışlı kesitini; başka bir kapsamdaki bir model isimle reddedilir. Ayarlanmazsa, model göstericisinin bildirdiği kapsamda okunur.",
       "stream": "Sayfanın yapılandırdığı bir akıtıcı; dünyanın oturumu kendi akıtıcısıyla akıtır.",
-      "position": "Modelin başlangıç noktasının sahnede nereye gittiği."
+      "position": "Modelin başlangıç noktasının sahnede nereye gittiği.",
+      "onProgress": "Yüklemenin ne kadar ilerlediğini duyar: manifest okunduğunda `manifest`, ardından sahnenin okuduğu her dosya geldikçe `resources` (o ana kadar bilinen `total` içinden `completed`). Olay bir `JobProgress`'tir: yüklemeyi saran bir `createJob` kendi `progress`'ini buraya verir."
     }
   },
   "LoadedModel": {
@@ -1668,6 +1670,7 @@
       "bounds": "Modelin kendi çerçevesinde doldurduğu kutu.",
       "lights": "Model altındaki ışıklar — kaynak dosyanın düğümler olarak taşıdıkları: bir sayfa onları kendisininmiş gibi düzenler, hareket ettirir ya da kaldırır, ve modelle birlikte hareket ederler.",
       "record": "Dünyanın bu model hakkında tuttuğu her şey: adresleri, manifestosu ve grafiği.",
+      "getObjectByName": "Altta bu adı taşıyan ilk düğüm: model, kaynak dosyasının bir düğümü, sonra başka herhangi bir çocuk — dosyanın taşıdığı ışık, bir sayfanın yerleştirdiği düğüm.",
       "metadata": "Modelin derlenmiş manifestosu — primitifleri, `sourceTriangles` — ve `clusters`, sayfalarının tuttuğu cluster'lar, DAG'larının her seviyesi sayılmış.",
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
     }
@@ -2955,6 +2958,7 @@
       "counts": "Son planın yaptığı, sayfa olarak.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
+      "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
       "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan birleşim hemen listeye girer.",
       "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, çizdiği sayfalara bölünmüş.",
@@ -3829,6 +3833,10 @@
     "summary": "Yerleşik proxy'ye karşı izlenen, yüzeylerden yansıyan ışık; varsayılan olarak kapalı.",
     "description": "Bir değişiklik, onu taşıyan bir yolda yerinde uygulanır, ve taşımayan bir yolda bir sonraki açılışta alınır."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Zamansal kenar yumuşatma: kareler boyunca biriktirilen piksel altı kaydırma; varsayılan olarak açık.",
+    "description": "Yazıldığında bir sonraki karede etkili olur, geçmiş atılır, oturum yeniden açılmaz. Okunduğunda görüntünün taşıdığıdır: WebGL2'de ve açıldıktan sonra program derlenirken false."
+  },
   "world.budget": {
     "summary": "Dünyanın bellek havuzları, bayt cinsinden okunur ve ayarlanır.",
     "members": {
@@ -4007,7 +4015,8 @@
       "pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
-      "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir."
+      "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
+      "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
     }
   },
   "WorldPageSource": {
@@ -4627,7 +4636,8 @@
       "options.pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "options.controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
-      "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir."
+      "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
+      "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
     }
   },
   "crossVector3": {
@@ -5634,7 +5644,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Her noktayı kameradan ne kadar uzakta olduğuna göre gölgelendirir.",
+    "summary": "Her noktayı kameradan ne kadar uzakta olduğuna göre gölgelendirir: `camera.near` noktasında beyaz, `camera.far` noktasında siyah, arada düz bir geçiş; WebGPU ve WebGL2 üzerinde aynıdır.",
     "parameters": {
       "parameters": "Bir sayfanın bir malzeme üyesine geçirebileceği şey; her alan isteğe bağlıdır.",
       "parameters.color": "Temel renk.",
@@ -6855,7 +6865,9 @@
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
+      "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }
   },
   "ContactEvent": {
@@ -7036,7 +7048,9 @@
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
+      "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }
   },
   "WorldPhysicsOptions": {
@@ -7300,6 +7314,77 @@
       "x": "Soldan sağa.",
       "y": "Alttan üste.",
       "z": "Arkadan öne."
+    }
+  },
+  "Joint": {
+    "summary": "İki cisim ya da bir cisimle dünya (`b` null) arasında bir eklem; `joint.*` ile oluşturulur ve `world.physics.add` ile simülasyona eklenir.",
+    "description": "İki cisim de simüle edildikçe ve kırılana dek tutar.",
+    "parameters": {
+      "options": "`joint.*`'ın kabul ettikleri. Noktalar ve eksenler dünyadadır, eklem ilk oluşturulduğunda okunur.",
+      "options.anchor": "Cisimlerin birleştiği yer: menteşenin pimi, nokta ekleminin bilyesi, bir mesafenin `a` üzerindeki ucu.",
+      "options.anchorB": "Bir mesafenin `b` üzerindeki ucu.",
+      "options.axis": "Menteşenin pimi, kızağın rayı, koninin ortası.",
+      "options.limits": "Menteşe, kızak, mesafe ve koni: ne kadar hareket ettiği. Bir mesafe varsayılan olarak uzunluğunu korur.",
+      "options.spring": "Menteşe, kızak ve mesafe: sınırların ötesinde bir duvar yerine yay geri çeker; `frequency` Hz cinsinden, `damping` 0 (yok) ile 1 (kritik) arası.",
+      "options.motor": "Menteşe ve kızak: her an `joint.motor` ile değiştirilebilen bir motor.",
+      "options.breakForce": "Eklemin kırıldığı çekiş (newton); verilmezse hiç kırılmaz."
+    },
+    "members": {
+      "kind": "Eklemin ne olduğu.",
+      "a": "Birinci cisim.",
+      "b": "İkinci cisim ya da dünya için `null`.",
+      "options": "Neyle oluşturulduğu.",
+      "motor": "Menteşenin ya da kızağın motoru; `null` serbestçe dönmesine ya da kaymasına izin verir.",
+      "broken": "Kırılıp kırılmadığı: `breakForce` değerinin ötesinde çekildi. Kırık bir eklem artık bir şey tutmaz.",
+      "on": "Eklem kırıldığında `handler`'ı çağırır."
+    }
+  },
+  "JointKind": {
+    "summary": "Cisimler arasındaki eklemler; her biri Jolt'un kendi kısıtlarından biri."
+  },
+  "JointLimits": {
+    "summary": "Bir eklemin ne kadar hareket edebileceği: menteşe için radyan, kızak ya da mesafe için metre, koni için koninin yarım açısı (`max`).",
+    "members": {
+      "min": "Menteşede −π ile 0 arası, kızakta 0 ya da daha az.",
+      "max": "Menteşede 0 ile π arası, kızakta 0 ya da daha fazla."
+    }
+  },
+  "JointMotor": {
+    "summary": "Menteşenin ya da kızağın motoru: eklemi bir hıza ya da konuma sürer.",
+    "members": {
+      "mode": "`'velocity'`: rad/s ya da m/s; `'position'`: eklemin oluşturulduğu yerden radyan ya da metre.",
+      "target": "Ulaşılacak hız ya da konum.",
+      "maxForce": "Menteşe için N·m, kızak için N; verilmezse sınırsız."
+    }
+  },
+  "JointOptions": {
+    "summary": "`joint.*`'ın kabul ettikleri.",
+    "description": "Noktalar ve eksenler dünyadadır, eklem ilk oluşturulduğunda okunur.",
+    "members": {
+      "anchor": "Cisimlerin birleştiği yer: menteşenin pimi, nokta ekleminin bilyesi, bir mesafenin `a` üzerindeki ucu.",
+      "anchorB": "Bir mesafenin `b` üzerindeki ucu.",
+      "axis": "Menteşenin pimi, kızağın rayı, koninin ortası.",
+      "limits": "Menteşe, kızak, mesafe ve koni: ne kadar hareket ettiği. Bir mesafe varsayılan olarak uzunluğunu korur.",
+      "spring": "Menteşe, kızak ve mesafe: sınırların ötesinde bir duvar yerine yay geri çeker; `frequency` Hz cinsinden, `damping` 0 (yok) ile 1 (kritik) arası.",
+      "motor": "Menteşe ve kızak: her an `joint.motor` ile değiştirilebilen bir motor.",
+      "breakForce": "Eklemin kırıldığı çekiş (newton); verilmezse hiç kırılmaz."
+    }
+  },
+  "joint": {
+    "summary": "`joint` ailesi: bağlı iki cisim ya da bir cisim ve dünya (`b` null).",
+    "members": {
+      "fixed": "Onları kaynaklar: tek bir cisim gibi hareket ederler.",
+      "point": "`anchor` noktasında bir bilyeli eklem: çevresinde serbestçe dönerler.",
+      "hinge": "`anchor` noktasında `axis` boyunca bir pim: bir kapı, bir tekerlek. `limits` radyan cinsinden.",
+      "slider": "`axis` boyunca bir ray: bir çekmece, bir piston. `limits` metre cinsinden.",
+      "distance": "`a` üzerindeki `anchor` ile `b` üzerindeki `anchorB`'yi aralarındaki mesafede ya da `limits` içinde tutar.",
+      "cone": "`axis`'i yarım açısı `limits.max` olan bir koni içinde salınan bilyeli eklem."
+    }
+  },
+  "JointHost": {
+    "summary": "Bir eklemin dünya tarafı: ona yapılan bir yazmanın simülasyondan istediği.",
+    "members": {
+      "motor": "Motor değişti."
     }
   }
 }

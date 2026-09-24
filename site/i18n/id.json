@@ -618,6 +618,18 @@
         ],
         "tryIt": "Klik gambar, berjalan dengan W A S D, melompat dengan Spasi. Naiki tangga, tumpangi platform, dorong tumpukan kotak."
       },
+      "connect-drive-and-break": {
+        "title": "Hubungkan, gerakkan, dan patahkan",
+        "description": "Sambungan menahan dua benda bersama, atau satu benda ke dunia: pintu berputar pada engselnya, laci meluncur di relnya, rantai tergantung pada mata rantainya, dan jembatan patah bila ditarik terlalu kuat.",
+        "steps": [
+          "Buat sambungan dengan <code>joint.hinge(a, b, options)</code> atau kerabatnya — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — lalu berikan ke <code>world.physics.add</code>. Isi <code>b</code> dengan <code>null</code> untuk menahan benda ke dunia.",
+          "<code>anchor</code> adalah titik tempat benda-benda terhubung dan <code>axis</code> arah pasak atau rel; keduanya di dunia dan dibaca saat sambungan dibuat.",
+          "<code>limits</code> menghentikan sambungan: radian untuk engsel, meter untuk rel. <code>spring</code> membuat penahannya lunak.",
+          "<code>motor</code> menggerakkan engsel atau rel ke suatu kecepatan atau posisi. Ubah <code>joint.motor</code> kapan saja.",
+          "<code>breakForce</code> adalah tarikan dalam newton yang membuat sambungan putus bila dilewati: <code>joint.broken</code> menjadi true dan <code>joint.on('break', …)</code> dipanggil."
+        ],
+        "tryIt": "Buka pintu dan laci, lalu jatuhkan batu ke jembatan. Turunkan kekuatan jembatan dan bangun ulang: jembatan patah oleh beratnya sendiri."
+      },
       "your-own-scene": {
         "title": "Adegan buatanmu sendiri",
         "description": "Kamu sekarang sudah tahu setiap bagiannya. Bab ini menyatukan semuanya dalam satu adegan kecil yang bisa kamu salin dan jadikan milikmu.",
@@ -1617,7 +1629,6 @@
       "drag-objects": "pemilihan (raycast)",
       "edit-a-spline": "pemilihan (raycast)",
       "sound-in-space": "audio posisional",
-      "smooth-edges-over-time": "pengaturan antialiasing temporal",
       "tone-mapping-compared": "pilihan operator tone-mapping",
       "a-first-post-effect": "rantai pasca-pemrosesan",
       "a-glow-around-lights": "rantai pasca-pemrosesan: bloom",
@@ -1653,7 +1664,6 @@
       "breaking-things": "integrasi fisika",
       "cloth-and-rope": "integrasi fisika",
       "soft-bodies": "integrasi fisika",
-      "hinges-and-joints": "integrasi fisika",
       "drive-a-car": "integrasi fisika",
       "a-room-in-vr": "sesi WebXR",
       "a-360-photo-in-vr": "sesi WebXR",
