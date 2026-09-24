@@ -1,6 +1,6 @@
 import type { HostTexture, HostTraversable } from '../../host/resources.ts';
 import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
-import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts';
+import { DEFAULT_CLEAR_COLOR, isCancelled } from '../../backend/common.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts';
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
 import { createTextureLevelReader } from '../../texture/levelReader.ts';
@@ -155,9 +155,9 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
           });
         }
       };
-      // Cancelled — the session closed, or the backend did (`AbortError`): nothing failed, nothing
-      // falls back, and nothing of it outlives the session.
-      if (signal?.aborted || (error as Error | null)?.name === 'AbortError') {
+      // Cancelled — the session closed, or the backend did: nothing failed, nothing falls back, and
+      // nothing of it outlives the session. An abort neither asked for is a failure like any other.
+      if (isCancelled(backend.signal ?? signal)) {
         await release();
         throw error;
       }

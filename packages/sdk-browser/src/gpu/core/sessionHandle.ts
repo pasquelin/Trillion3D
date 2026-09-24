@@ -6,14 +6,18 @@
  * `[TextureView of Texture "label"]`); `limits`, `features` and `lost` are the device's, and its
  * `queue` forwards to the device's. Once released, the handle is inert: a `create*` throws an
  * `AbortError`, so the work still running stops there, and the queue writes and submits nothing.
- * Nothing is allocated per call but the copy of a descriptor that holds more than a label.
+ * Nothing is allocated per call: each tagged label is made once, and set on the caller's
+ * descriptor for the call only.
  */
 const TAG = /@t3d:(\d+)/g;
+const TAGGED = /@t3d:\d+$/;
 
 /** The tag that names session `id` in its labels. */
 export const sessionTag = (id: number) => `@t3d:${id}`;
 /** The sessions a message names, by id. */
 export const tagsIn = (message: string) => Array.from(message.matchAll(TAG), (m) => Number(m[1]));
+/** True when `label` names no session: what the device keeps for every session. */
+export const namesNoSession = (label: string | undefined) => !label || !TAGGED.test(label);
 /** A label as the engine wrote it, without its session's tag. */
 export const untag = (label: string | undefined) => label?.replace(/ ?@t3d:\d+$/, '') || undefined;
 
@@ -46,22 +50,16 @@ const devices = new WeakMap<object, GPUDevice>();
  *  canvas takes it; `device` itself when it is no handle. */
 export const sharedGpuDevice = (device: GPUDevice) => devices.get(device) ?? device;
 
-function onlyLabel(descriptor: object) {
-  for (const key in descriptor) if (key !== 'label') return false;
-  return true;
-}
-
 /** `device` as the session tagged `tag` sees it, and `release`, which makes it inert. */
 export function sessionHandle(device: GPUDevice, tag: string) {
   let released = false;
   const untitled = { label: tag };
-  /** Each label the engine wrote → a descriptor holding it tagged, read back at every use. */
-  const named = new Map<string, { label: string }>();
-  const labelled = (descriptor: Labelled) => {
-    const label = descriptor?.label;
-    let tagged = label ? named.get(label) : untitled;
-    if (!tagged) named.set(label!, (tagged = { label: `${label} ${tag}` }));
-    return !descriptor || onlyLabel(descriptor) ? tagged : { ...descriptor, label: tagged.label };
+  /** Each label the engine wrote → the same label tagged, made once. */
+  const named = new Map<string, string>();
+  const tagged = (label: string) => {
+    let name = named.get(label);
+    if (name === undefined) named.set(label, (name = `${label} ${tag}`));
+    return name;
   };
   const target = device as unknown as Record<string, (descriptor: Labelled) => unknown>;
   const handle: Record<string, unknown> = {
@@ -73,11 +71,33 @@ export function sessionHandle(device: GPUDevice, tag: string) {
     if (typeof target[name] === 'function')
       handle[name] = (descriptor: Labelled) => {
         if (released) throw new DOMException(`Session ${tag} released the device`, 'AbortError');
-        return target[name](labelled(descriptor));
+        if (!descriptor) return target[name](untitled);
+        // The caller's descriptor carries the tagged label for the call only: the device reads it
+        // there and then, and nothing is copied.
+        const label = descriptor.label;
+        descriptor.label = label ? tagged(label) : tag;
+        try {
+          return target[name](descriptor);
+        } finally {
+          if (label === undefined) delete descriptor.label;
+          else descriptor.label = label;
+        }
       };
+  // The device's error scopes are one stack every session shares: a released handle opens none,
+  // and closes only those it opened, so it can neither leave one open nor close another's.
+  let scopes = 0;
   if (device.pushErrorScope)
-    handle.pushErrorScope = (f: GPUErrorFilter) => device.pushErrorScope(f);
-  if (device.popErrorScope) handle.popErrorScope = () => device.popErrorScope();
+    handle.pushErrorScope = (filter: GPUErrorFilter) => {
+      if (released) return;
+      scopes++;
+      device.pushErrorScope(filter);
+    };
+  if (device.popErrorScope)
+    handle.popErrorScope = () => {
+      if (!scopes) return Promise.resolve(null);
+      scopes--;
+      return device.popErrorScope();
+    };
   const queue: Queue = {
     writeBuffer(buffer, offset, data, from, size) {
       if (!released) device.queue.writeBuffer(buffer, offset, data, from, size);

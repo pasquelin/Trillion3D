@@ -52,3 +52,10 @@ export const baseCapabilities: BackendCapabilities = {
     'physical VRAM instrumentation',
   ],
 };
+
+/**
+ * True when the work under `signal` was cancelled: an error then is its cancellation, whatever its
+ * name — no failure is diagnosed, nothing falls back. An `AbortError` under a live signal is a
+ * failure like any other.
+ */
+export const isCancelled = (signal: AbortSignal | undefined) => signal?.aborted === true;
