@@ -1,38 +1,54 @@
+import type { Texture } from '../../../../sdk-core/src/index.ts';
+import { watchTextureRevisions } from '../../host/textureRevisions.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
-import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS, PAGE_TRANSFORM_WORD } from './pageTable.ts';
-import { transformHeld } from './sampling.ts';
+
+/** Writes the headers of an atlas: all of them, or those of the records named. */
+function atlasSampling({ pages, textures }: WebgpuTileAtlas) {
+  const slots = new Map<Texture, number>();
+  textures.forEach(({ texture }, slot) => texture && slots.set(texture, slot));
+  const write = (slot: number) =>
+    pages.setSampling(slot, textures[slot].texture!, textures[slot].source.kind !== 'host');
+  return {
+    all() {
+      for (const slot of slots.values()) write(slot);
+    },
+    revised(records: ReadonlySet<Texture>, moved?: Set<number>) {
+      let any = false;
+      for (const record of records) {
+        const slot = slots.get(record);
+        if (slot === undefined || !write(slot)) continue;
+        any = true;
+        moved?.add(slot);
+      }
+      return any;
+    },
+  };
+}
 
 /**
- * Follows the sampling of an atlas's textures — filters, anisotropy, UV transform — into their
- * page-table headers (#360, #361), per texture and not per surface: however many surfaces and
- * passes read a texture, its header is written once per record version. A refill recomposes a UV
- * matrix without a texture version (`../../host/surfaceImport.ts`), so the transform is compared
- * as well.
- *
- * Returns the follower: it writes the headers whose record moved, adds each slot whose words moved
- * to `moved`, and says whether one did. Records are refilled only when a surface is
- * (`surfaceFills`, `../../page/surface.ts`): the textures are walked only when `fills` moved since
- * the last walk, never per image; without it, always. Nothing is allocated per call.
+ * Follows the sampling of the textures of a colour and a data atlas — filters, anisotropy, UV
+ * transform — into their page-table headers (#360, #361), per texture and not per surface:
+ * however many surfaces and passes read a texture, its header is written once per revision of its
+ * record. `all` writes every header, at preparation. `revised` writes those of the records the
+ * import named since its last call (`watchTextureRevisions`, `../../host/surfaceImport.ts`) and
+ * only those, puts the colour slots whose words moved in `colourMoved`, and says whether any
+ * header moved. `stop` ends the watch.
  */
-export function followAtlasSampling({ pages, textures }: WebgpuTileAtlas) {
-  const versions = new Float64Array(textures.length).fill(NaN),
-    floats = new Float32Array(pages.words.buffer);
-  let walked = NaN;
-  return (fills = NaN, moved?: Set<number>) => {
-    if (fills === walked) return false;
-    walked = fills;
-    let any = false;
-    for (let slot = 0; slot < textures.length; slot++) {
-      const { texture, source } = textures[slot];
-      if (!texture) continue;
-      const at = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS + PAGE_TRANSFORM_WORD;
-      if (versions[slot] === texture.version && transformHeld(floats, at, texture.transform))
-        continue;
-      versions[slot] = texture.version;
-      if (!pages.setSampling(slot, texture, source.kind !== 'host')) continue;
-      any = true;
-      moved?.add(slot);
-    }
-    return any;
+export function followTextureSampling(colour: WebgpuTileAtlas, data: WebgpuTileAtlas) {
+  const atlases = [atlasSampling(colour), atlasSampling(data)];
+  const revised = new Set<Texture>();
+  return {
+    all() {
+      for (const atlas of atlases) atlas.all();
+    },
+    revised(colourMoved: Set<number>) {
+      if (!revised.size) return false;
+      colourMoved.clear();
+      const moved = atlases[0].revised(revised, colourMoved);
+      const any = atlases[1].revised(revised) || moved;
+      revised.clear();
+      return any;
+    },
+    stop: watchTextureRevisions(revised),
   };
 }
