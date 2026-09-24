@@ -22,7 +22,7 @@ type DisplayNode = Partial<SceneCopy> & {
   readonly matrixWorld: SceneCopy['matrixWorld'];
   readonly kind?: string;
   readonly visible: boolean;
-  readonly id: number;
+  readonly serial: number;
   readonly renderOrder: number;
   readonly children: readonly DisplayNode[];
 };
@@ -92,9 +92,9 @@ export function createSceneDraw(
     a.renderOrder - b.renderOrder ||
     rankOf(a as WholeMesh) - rankOf(b as WholeMesh) ||
     depth(a) - depth(b) ||
-    a.id - b.id;
+    a.serial - b.serial;
   const backToFront = (a: DisplayNode, b: DisplayNode) =>
-    a.renderOrder - b.renderOrder || depth(b) - depth(a) || a.id - b.id;
+    a.renderOrder - b.renderOrder || depth(b) - depth(a) || a.serial - b.serial;
   return {
     render(_camera: HostCamera) {
       counters.triangles = 0;

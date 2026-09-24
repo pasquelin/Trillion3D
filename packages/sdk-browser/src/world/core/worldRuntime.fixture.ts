@@ -11,12 +11,20 @@ import { createWorldRuntime } from './worldRuntime.ts';
 export const HOST = 'http://site.test/';
 const SITE = new URL('../../../../../site/', import.meta.url);
 const saved = { fetch: globalThis.fetch, location: Reflect.get(globalThis, 'location') };
+let reading = 0;
+/** Disk reads still in flight: a drain waiting on one of them waits on the disk, not a stall. */
+export const readsInFlight = () => reading;
 const serve = async (input: string | URL | Request) => {
   const url = String(input instanceof Request ? input.url : input);
   const path = fileURLToPath(new URL(url.slice(HOST.length), SITE));
   const json = /\.(json|gltf)$/.test(path);
   const type = json ? 'application/json' : 'application/octet-stream';
-  return new Response(await readFile(path), { headers: { 'content-type': type } });
+  reading++;
+  try {
+    return new Response(await readFile(path), { headers: { 'content-type': type } });
+  } finally {
+    reading--;
+  }
 };
 globalThis.fetch = serve as typeof fetch;
 Reflect.set(globalThis, 'location', new URL(HOST));

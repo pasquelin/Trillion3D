@@ -7,7 +7,13 @@ import { test } from 'node:test';
 import { worldModelLoader } from './worldLoader.ts';
 import { Scene } from './scene.ts';
 import { findGraphNode } from './modelNodes.ts';
-import { HOST, runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
+import {
+  HOST,
+  readsInFlight,
+  runtimeOf,
+  sessionStandIn,
+  type Open,
+} from './worldRuntime.fixture.ts';
 import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts';
 import { createExplorerPageSources } from '../session/pageSources.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
@@ -22,7 +28,9 @@ import type { ExplorerSource } from '../session/prepare.ts';
 
 const MODEL = `${HOST}assets/examples/a-model-from-obj/cache/native/full/manifest.json`;
 const NODE = 'white-queen-d1';
-/** Event-loop turns a frame's drain is given on the mock device, far above what it takes. */
+/** Event-loop turns a frame's drain is given on the mock device, far above what it takes. Turns
+ *  spent while a page is read from disk do not count: a finer cut streams pages, and the disk is
+ *  not the stall this bound catches. */
 const TURNS = 100;
 const nextTurn = () => new Promise((done) => setImmediate(done));
 
@@ -122,13 +130,16 @@ test('a compiled node hidden 60 frames after load: every frame settles, it leave
   opened.invalidate = scheduler.invalidate;
   /**
    * Draws the frames the loop asks for until it asks none. The mock device answers within a few
-   * turns of the event loop: a drain still open after `TURNS` of them is the stall, and fails
-   * here rather than hanging the test.
+   * turns of the event loop: a drain still open after `TURNS` of them with no disk read in flight
+   * is the stall, and fails here rather than hanging the test.
    */
   const untilIdle = async () => {
     while (requested.length) {
       requested.shift()!(0);
-      for (let turn = 0; turn < TURNS && settled < drawn; turn++) await nextTurn();
+      for (let turn = 0; turn < TURNS && settled < drawn; turn++) {
+        await nextTurn();
+        if (readsInFlight()) turn = 0;
+      }
       assert.equal(settled, drawn, `frame ${drawn} never settled: the loop stalls`);
     }
     assert.deepEqual(failures, []);
