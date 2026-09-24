@@ -10,6 +10,7 @@ import {
   SUN,
   VIEW,
   cycle,
+  lampScene,
   lampFloor,
   lampPages,
   planFrame,
@@ -43,11 +44,7 @@ test('over budget, the floor under the sun pages read is current every frame', (
 });
 
 test('over budget, a lamp that moves every frame keeps the floor of each face read current', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
-  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
-  planFrame(plan, store, 0);
-  const slice = store.sliceOf(0);
+  const { store, plan, slice } = lampScene();
   const read = [...lampPages(plan, slice, 0, 3), ...lampPages(plan, slice, 1, 3)];
   cycle(plan, store, 1, () => read);
   plan.observeCost(plan.budget.budgetMs, 1);
