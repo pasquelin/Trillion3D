@@ -6860,6 +6860,7 @@
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
+      "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
     }
@@ -7008,6 +7009,19 @@
       "current": "水的速度（河流的水流），m/s。"
     }
   },
+  "WaterSurface": {
+    "summary": "页面为绘制而读取的水面(`world.physics.waterSurface`):与物理 worker 中浮力读取的波浪模型相同的数值,取模拟时刻。",
+    "members": {
+      "level": "静止时水面的高度,单位米。",
+      "crest": "波峰在 `level` 之上能达到的最高点,单位米。",
+      "time": "设置水以来经过的模拟秒数:波浪的时钟。",
+      "setTime": "把波浪设到 `t` 模拟秒。",
+      "height": "世界点 `(x, z)` 上方水面的高度,单位米。",
+      "point": "静止点 `(x, level, z)` 被带到的世界点 `[x, y, z]`,写入 `out`:逐点移动的网格就是水面,波峰与波浪一样锐利。",
+      "wavesNow": "声明的波浪,每个相位推进到此刻:重新设置到 `world.physics.water`(其波浪从 0 秒重新开始)时,水面从当前位置继续而不会跳变。",
+      "normal": "静止点 `(x, z)` 处水面的单位法线 `[x, y, z]`,写入 `out`。"
+    }
+  },
   "WaveSpec": {
     "summary": "场景声明的一个波。",
     "members": {
@@ -7041,6 +7055,7 @@
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
+      "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
     }

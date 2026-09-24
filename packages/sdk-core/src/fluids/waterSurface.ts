@@ -1,11 +1,11 @@
-/**
- * The water's surface as the page reads it to draw it (`world.physics.waterSurface`): the wave
- * model buoyancy reads in the physics worker, the same numbers, clocked at the simulation's time.
- */
 import type { WaterSpec } from './buoyancy.ts';
 import { waveHeight } from './surface.ts';
 import { Waves, type WaveSpec } from './waves.ts';
 
+/**
+ * The water's surface as the page reads it to draw it (`world.physics.waterSurface`): the wave
+ * model buoyancy reads in the physics worker, the same numbers, clocked at the simulation's time.
+ */
 export class WaterSurface {
   private readonly waves: Waves;
   private readonly declared: readonly WaveSpec[];
@@ -16,7 +16,8 @@ export class WaterSurface {
   /** Simulated seconds since the water was set: the waves' clock. */
   time = 0;
 
-  /** Throws `RangeError` on a wave out of range, as `world.physics.water` does. */
+  /** @param spec - The water as `world.physics.water` takes it; a wave out of range throws
+   *  `RangeError`, as there. */
   constructor(spec: WaterSpec) {
     this.declared = spec.waves;
     this.waves = new Waves(spec.waves);

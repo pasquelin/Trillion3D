@@ -6861,6 +6861,7 @@
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
+      "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
       "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
     }
@@ -7009,6 +7010,19 @@
       "current": "Kecepatan air (arus sungai), dalam m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "Permukaan air seperti yang dibaca halaman untuk menggambarnya (`world.physics.waterSurface`): model gelombang yang dibaca daya apung di worker fisika, angka yang sama, pada waktu simulasi.",
+    "members": {
+      "level": "Tinggi permukaan saat diam, dalam meter.",
+      "crest": "Titik tertinggi puncak gelombang di atas `level`, dalam meter.",
+      "time": "Detik simulasi sejak air dipasang: jam gelombang.",
+      "setTime": "Menyetel gelombang pada `t` detik simulasi.",
+      "height": "Tinggi permukaan di atas titik dunia `(x, z)`, dalam meter.",
+      "point": "Titik dunia `[x, y, z]` tempat titik diam `(x, level, z)` dibawa, ke `out`: kisi yang digeser titik demi titik adalah permukaannya, puncaknya setajam gelombangnya.",
+      "wavesNow": "Gelombang yang dideklarasikan, tiap fase dibawa ke saat ini: dipasang lagi di `world.physics.water` (yang gelombangnya mulai lagi dari 0 d), permukaan berlanjut dari posisinya alih-alih melompat.",
+      "normal": "Normal satuan `[x, y, z]` permukaan di titik diam `(x, z)`, ke `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Satu gelombang sebagaimana dideklarasikan sebuah adegan.",
     "members": {
@@ -7042,6 +7056,7 @@
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
+      "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
       "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
     }

@@ -17775,7 +17775,7 @@
     "kind": "Type",
     "title": "WaterSurface",
     "signature": "class WaterSurface\nnew WaterSurface(spec: WaterSpec): WaterSurface",
-    "summary": "",
+    "summary": "The water's surface as the page reads it to draw it (`world.physics.waterSurface`): the wave model buoyancy reads in the physics worker, the same numbers, clocked at the simulation's time.",
     "parameters": [
       {
         "name": "spec",

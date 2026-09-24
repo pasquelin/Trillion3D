@@ -6860,6 +6860,7 @@
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
+      "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
     }
@@ -7008,6 +7009,19 @@
       "current": "Suyun hızı (bir nehrin akıntısı), m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "Sayfanın çizmek için okuduğu su yüzeyi (`world.physics.waterSurface`): fizik worker’ında kaldırma kuvvetinin okuduğu dalga modeli, aynı sayılar, simülasyonun zamanında.",
+    "members": {
+      "level": "Yüzeyin durgunken yüksekliği, metre.",
+      "crest": "Bir tepenin `level` üzerinde ulaştığı en yüksek nokta, metre.",
+      "time": "Su ayarlandığından beri geçen simüle saniyeler: dalgaların saati.",
+      "setTime": "Dalgaları `t` simüle saniyeye ayarlar.",
+      "height": "Dünya noktası `(x, z)` üzerindeki yüzeyin yüksekliği, metre.",
+      "point": "Durgun nokta `(x, level, z)`’nin taşındığı dünya noktası `[x, y, z]`, `out` içine: nokta nokta taşınan bir ızgara yüzeyin kendisidir, tepeler dalgalar kadar keskin.",
+      "wavesNow": "Bildirilen dalgalar, her faz bu âna taşınmış: `world.physics.water`’a yeniden verildiğinde (dalgaları 0 sn’den yeniden başlar), yüzey sıçramadan olduğu yerden sürer.",
+      "normal": "Durgun nokta `(x, z)`’de yüzeyin birim normali `[x, y, z]`, `out` içine."
+    }
+  },
   "WaveSpec": {
     "summary": "Bir sahnenin bildirdiği şekliyle bir dalga.",
     "members": {
@@ -7041,6 +7055,7 @@
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
+      "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
     }
