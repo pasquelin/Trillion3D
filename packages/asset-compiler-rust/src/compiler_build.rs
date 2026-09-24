@@ -91,11 +91,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         validated: &accessors,
         progress: &progress,
     };
-    let compiled: Vec<CompiledPrimitive> = pool.install(|| {
+    let mut compiled: Vec<CompiledPrimitive> = pool.install(|| {
         jobs.par_iter()
             .map(|(old, primitive)| compile_primitive(&primitive_inputs, old, primitive))
             .collect::<Result<Vec<_>>>()
     })?;
+    let collisions: Vec<Value> = compiled.iter_mut().map(|c| c.collision.take()).collect();
     let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds) =
         compiler_coplanar::split_compiled(compiled);
     let bootstrap_bundles = {
@@ -158,8 +159,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     progress(
         json!({"phase":"proxy","completed":1,"total":1,"triangles":scene_proxy.triangle_count(),"nodes":scene_proxy.node_count(),"errorMetres":scene_proxy.error_metres}),
     );
-    // The proxy is a cache object under its own name, not a sidecar column: a manifest without it
-    // stays readable word for word, and its tens of megabytes do not delay the first frame.
+    // The proxy is its own cache object: a manifest stays readable without its tens of megabytes.
     let proxy_bytes = scene_proxy.encode();
     let proxy_sha = hash(&proxy_bytes);
     let proxy_descriptor =
@@ -170,10 +170,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let tables = stage_scene_tables(&source, &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
-    products.extend([source_bin, source_gltf, lights, tables]);
+    let (physics_file, physics) =
+        physics_cook::stage_physics(&scene, &scene_nodes, &primitives, &collisions, &directory)?;
+    products.extend([source_bin, source_gltf, lights, tables, physics_file]);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);
-    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     publish(
         &Publication {
             o,
@@ -187,9 +189,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         },
         &result,
     )?;
-    // Prune belongs to the job: its deletions and duration enter what it announces.
-    // The manifest is already written — it therefore carries only `compileMs`, the
-    // duration it could know, and the caller receives `wallMs`, taken once the cache is pruned.
+    // Prune belongs to the job, its time too: the manifest, written already, carries only
+    // `compileMs`; the caller receives `wallMs`, taken once the cache is pruned.
     let prune_start = Instant::now();
     let keep = Keep::of_result(&result, &texture_previews)?;
     let pruned = prune_cache(o, &key, keep, &progress)?;
