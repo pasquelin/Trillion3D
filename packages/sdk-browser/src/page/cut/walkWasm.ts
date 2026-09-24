@@ -15,7 +15,8 @@ import { selectionScratch, type PageRecord, type SelectionState } from './state.
  * scalars — is written per walk.
  */
 
-type Culling = { nodes: Float64Array; stride: number; bounds: Float64Array };
+/** What the walk reads of a root's culling: the primitive's nodes and their bounds. */
+export type WalkCulling = { nodes: Float64Array; stride: number; bounds: Float64Array };
 
 /** Governor name of the walk (`batchLot.ts::joue`). */
 export const CUT_WALK = 'cutWalk';
@@ -41,7 +42,7 @@ export function cutWalkModule(): SdkWasm | null {
 }
 
 /** The hierarchy's copy in module memory — nodes, bounds, leaf list — made at its first walk. */
-function residentOf(wasm: SdkWasm, culling: Culling, count: number) {
+function residentOf(wasm: SdkWasm, culling: WalkCulling, count: number) {
   const known = held.get(culling.nodes);
   if (known?.bounds === culling.bounds) return known.arena;
   if (known) {
@@ -80,7 +81,7 @@ function scratchOf(wasm: SdkWasm) {
 export function walkCut<T extends PageRecord>(
   wasm: SdkWasm,
   s: SelectionState<T>,
-  culling: Culling,
+  culling: WalkCulling,
 ): number {
   const { nodes, stride, bounds } = culling;
   const count = Math.floor(nodes.length / stride);

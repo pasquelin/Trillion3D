@@ -5,9 +5,9 @@ import { selectionScratch, type PageRecord, type SelectionState } from './state.
 import { BOUND_STRIDE } from './bounds.ts';
 import { subtreeDecision } from './node.ts';
 import { take } from './take.ts';
-import { CUT_WALK, cutLeaves, cutWalkModule, walkCut } from './walkWasm.ts';
+import { CUT_WALK, cutLeaves, cutWalkModule, walkCut, type WalkCulling } from './walkWasm.ts';
 
-type Culling = { nodes: Float64Array; stride: number; bounds: Float64Array; marks?: Int32Array };
+type Culling = WalkCulling & { marks?: Int32Array };
 
 /** The JavaScript descent: node tests and pages interleaved, the reference of `walkCut`. */
 function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling?: Culling) {
