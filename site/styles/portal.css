@@ -1,7 +1,6 @@
 /* The design tokens and the rules the primitives own. Layout and pages use DaisyUI and Tailwind
    utilities only; a page never carries a class of its own. */
 :root {
-  --muted: color-mix(in oklch, var(--color-base-content) 68%, var(--color-base-100));
   /* The dark stage every render sits on, lessons and examples alike. */
   --stage: #0e1621;
 }

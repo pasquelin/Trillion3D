@@ -98,7 +98,7 @@ export function rasterRgba(rt: WebgpuPagesRuntime) {
     pages,
     cam,
     size,
-    rt.setup.clearColor,
+    rt.run.clearColor,
   );
 }
 

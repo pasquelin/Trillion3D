@@ -7,6 +7,7 @@ import { characterSettingAccessors } from './worldCharacterAccessors.ts';
 import { meshCollision } from '../../../../sdk-core/src/collision/meshTriangles.ts';
 import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { isHelper } from '../helper/mark.ts';
 
 /** What `world.controls.colliders` takes: meshes to build a triangle tree from, or a world. */
 type Colliders = Object3D | readonly Object3D[] | CharacterCollision | null;
@@ -134,7 +135,11 @@ export function worldControlsHandle(
     /** Character only: builds the collision tree again, after the colliders moved or changed; a
      *  `CharacterCollision` is its own world and is handed on unchanged. */
     rebuildColliders() {
-      collision = isCollision(colliders) ? colliders : colliders ? meshCollision(colliders) : null;
+      collision = isCollision(colliders)
+        ? colliders
+        : colliders
+          ? meshCollision(colliders, isHelper)
+          : null;
       bound();
       invalidate();
     },

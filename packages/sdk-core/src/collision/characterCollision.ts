@@ -1,6 +1,7 @@
 import { capsulePass, type Capsule, type CapsuleContact, type CapsulePush } from './capsule.ts';
 import { dropSphere } from './drop.ts';
-import { forEachTriangleInBox, type TriangleTree } from './triangleTree.ts';
+import { forEachTriangleInBox } from './triangleQuery.ts';
+import type { TriangleTree } from './triangleTree.ts';
 
 /**
  * THE SEAM BETWEEN A CHARACTER AND THE WORLD IT COLLIDES WITH. The character body
