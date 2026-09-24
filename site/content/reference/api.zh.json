@@ -7370,5 +7370,11 @@
       "distance": "让 `a` 上的 `anchor` 与 `b` 上的 `anchorB` 保持其长度，或在 `limits` 之内。",
       "cone": "`axis` 在半角为 `limits.max` 的锥体内摆动的球关节。"
     }
+  },
+  "JointHost": {
+    "summary": "关节的世界一侧：对它的写入向模拟提出的要求。",
+    "members": {
+      "motor": "马达已更改。"
+    }
   }
 }

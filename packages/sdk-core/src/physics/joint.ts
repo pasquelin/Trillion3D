@@ -117,11 +117,8 @@ export class Joint {
   }
 }
 
-type Make = (a: Object3D, b: Object3D | null, options?: JointOptions) => Joint;
-const make =
-  (kind: JointKind): Make =>
-  (a, b, options) =>
-    new Joint(kind, a, b, options);
+const make = (kind: JointKind) => (a: Object3D, b: Object3D | null, options?: JointOptions) =>
+  new Joint(kind, a, b, options);
 
 /** The `joint` family: two bodies connected, or a body and the world (`b` null). */
 export const joint = {
