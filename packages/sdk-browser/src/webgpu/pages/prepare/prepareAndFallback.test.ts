@@ -88,7 +88,7 @@ test('webgpu pages without a device fail prepare so the explorer can keep the Th
 
 test('the direct WebGPU fallback uses the scene background supplied by its host', async () => {
   installGpuGlobals();
-  const { device, passes } = mockGpu(undefined, undefined, false, true);
+  const { device, passes } = mockGpu({ rejectR32: true });
   const { fixture, backend } = quadBackend(device, {
     clearColor: 0x2d4059,
   });
