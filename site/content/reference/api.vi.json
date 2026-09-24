@@ -1344,7 +1344,9 @@
       "projection": "Phép chiếu.",
       "world": "Ma trận thế giới của camera.",
       "view": "Ma trận view.",
-      "eye": "Vị trí của con mắt."
+      "eye": "Vị trí của con mắt.",
+      "near": "Khoảng cách gần nhất.",
+      "far": "Khoảng cách xa nhất."
     }
   },
   "HostDrawOutput": {

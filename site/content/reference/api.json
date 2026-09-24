@@ -6758,9 +6758,19 @@
     "section": "math-utilities",
     "kind": "Type",
     "title": "HostDrawCamera",
-    "signature": "type HostDrawCamera = {\n  /** The projection. */ projection: Float32Array;\n  /** The camera's world matrix. */ world: Float64Array;\n  /** The view matrix. */ view: Float64Array;\n  /** Where the eye is. */ eye: Float32Array;\n}",
-    "summary": "The matrices a host draws a frame with, as the engine hands them over.",
+    "signature": "type HostDrawCamera = Pick<HostCamera, 'near' | 'far'> & {\n  /** The projection. */ projection: Float32Array;\n  /** The camera's world matrix. */ world: Float64Array;\n  /** The view matrix. */ view: Float64Array;\n  /** Where the eye is. */ eye: Float32Array;\n}",
+    "summary": "The matrices and depth range a host draws a frame with, as the engine hands them over.",
     "members": [
+      {
+        "name": "near",
+        "type": "number",
+        "desc": "Nearest distance."
+      },
+      {
+        "name": "far",
+        "type": "number",
+        "desc": "Farthest distance."
+      },
       {
         "name": "projection",
         "type": "Float32Array<ArrayBufferLike>",
@@ -28148,7 +28158,7 @@
     "kind": "Function",
     "title": "material.meshDepth()",
     "signature": "material.meshDepth(parameters?: MaterialParameters): Material",
-    "summary": "Shades each point by how far it is from the camera.",
+    "summary": "Shades each point by how far it is from the camera: white at `camera.near`, black at `camera.far`, a straight ramp between, the same on WebGPU and WebGL2.",
     "parameters": [
       {
         "name": "parameters?",
