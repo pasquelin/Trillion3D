@@ -73,3 +73,37 @@ fn the_coarsest_cut_that_holds_is_kept() {
     assert_eq!((t, kept), (0.2, expected));
     assert!(error < 1e-9, "{error}");
 }
+
+// Behaviour: every committed example's cooked mesh collider publishes a measured distance at or
+// under its published tolerance (zero tolerances, no level 1, measure float noise and are skipped).
+#[test]
+fn committed_colliders_hold_their_published_tolerance() {
+    let root = std::path::Path::new("../../site/assets/examples");
+    let (mut checked, mut over) = (0, Vec::new());
+    for example in std::fs::read_dir(root).unwrap() {
+        let full = example.unwrap().path().join("cache/native/full");
+        let Ok(manifest) = std::fs::read(full.join("manifest.json")) else {
+            continue;
+        };
+        let key: Value = serde_json::from_slice(&manifest).unwrap();
+        let path = full.join(key["key"].as_str().unwrap()).join("physics.json");
+        let Ok(physics) = std::fs::read(&path) else {
+            continue;
+        };
+        let physics: Value = serde_json::from_slice(&physics).unwrap();
+        for c in physics["colliders"].as_array().unwrap() {
+            let (t, h) = (
+                c["tolerance"].as_f64().unwrap(),
+                c["hausdorff"].as_f64().unwrap(),
+            );
+            if c["kind"] == "mesh" && t > 0.0 {
+                checked += 1;
+                if h > t {
+                    over.push(format!("{}: {h} over {t}", path.display()));
+                }
+            }
+        }
+    }
+    assert!(checked > 0, "no committed collider with a tolerance");
+    assert!(over.is_empty(), "{over:#?}");
+}
