@@ -9,6 +9,7 @@ import {
   MASK_KEEP_WGSL,
   PAGE_INFO_STRUCT_WGSL,
   STIPPLE_WGSL,
+  UV_GRADIENTS_WGSL,
   VIS_UNIFORMS_WGSL,
 } from '../../visibility/shader/pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
@@ -29,8 +30,8 @@ import { wgslFloat } from '../partition/margins.ts';
  *
  * A mask material does its alpha test HERE, the same test as the frame and shadows, at the same
  * threshold, on the same coordinates. This raster has no derivatives: on an accumulating image it
- * computes the pixel's footprint (`uvFootprint`) and stipples like the camera raster; otherwise
- * it passes null gradients and reads the finest already-resident tile.
+ * computes the pixel's gradients (`uvGradients`, as the resolve) and stipples like the camera
+ * raster; otherwise it passes null gradients and reads the finest already-resident tile.
  */
 const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
 ${VIS_UNIFORMS_WGSL}`;
@@ -67,6 +68,7 @@ ${EDGE_WGSL}
 ${COMPUTE_TAKES_WGSL}
 ${MASK_KEEP_WGSL}
 ${STIPPLE_WGSL}
+${UV_GRADIENTS_WGSL}
 ${RASTER_TRI_WGSL}
 ${RASTER_PIXEL_WGSL}
 ${rasterKernels(capacity)}`;
