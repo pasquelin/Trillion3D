@@ -1,5 +1,9 @@
 import type { Texture, TextureFilter } from '../../../../sdk-core/src/index.ts';
-import { grantedAnisotropy, uvTransformed } from '../../../../sdk-core/src/texture/contract.ts';
+import {
+  AFFINE,
+  grantedAnisotropy,
+  uvTransformed,
+} from '../../../../sdk-core/src/texture/contract.ts';
 
 /**
  * How a texture is sampled on WebGPU, carried in its header of the page table
@@ -53,9 +57,6 @@ const MIN_BITS: Record<TextureFilter, number> = {
   'linear-mip-nearest': SAMPLE_MIP_NEAREST,
   'linear-mip-linear': 0,
 };
-
-/** Entries of `Texture.transform` (three columns of three) the affine 2 × 3 part is made of. */
-const AFFINE = [0, 1, 3, 4, 6, 7] as const;
 
 /** Where `samplingWords` writes: one array, reused, read back by its caller before the next call. */
 const scratch = new Uint32Array(1 + TRANSFORM_WORDS),
