@@ -70,6 +70,8 @@ export class Euler extends Observed {
   }
   /** Writes the angles; `quiet` skips the notification, for an owner syncing its twin. */
   set(x: number, y: number, z: number, order = this._order, quiet = false) {
+    // The written angles are the quaternion's as it stands: never derived again over the write.
+    if (this._source) this._follow(this._source);
     this._x = x;
     this._y = y;
     this._z = z;
