@@ -6,6 +6,7 @@ import { createTileSources } from './sources.ts';
 import { createWebgpuTileReduce } from './reduce.ts';
 import { createTileCounters } from './counters.ts';
 import { createTileRequests } from './requests.ts';
+import { followAtlasSampling } from './samplingHeaders.ts';
 
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
@@ -77,6 +78,7 @@ export function createWebgpuTileStreamer(options: {
     color.flush(device);
     data.flush(device);
   };
+  const [colorSampling, dataSampling] = [color, data].map(followAtlasSampling);
   return {
     color,
     data,
@@ -86,6 +88,8 @@ export function createWebgpuTileStreamer(options: {
     prepare() {
       for (const atlas of [color, data])
         atlas.pinTails(device.queue, (slot, place) => sources.tail(atlas, slot, place));
+      colorSampling();
+      dataSampling();
       flushAll();
     },
     /**
@@ -140,8 +144,17 @@ export function createWebgpuTileStreamer(options: {
       counters.pass(now() - started, unbounded);
       return { served, pending: counters.pending };
     },
-    /** Sends the page-table words written outside a pass: a texture's sampling (`sampling.ts`). */
-    flushTables: flushAll,
+    /** Follows every texture's sampling into its header (`samplingHeaders.ts`) and sends what
+     *  moved (#360, #361); a moved colour texture is signalled as a landed tile is, for the cutout
+     *  shadows. True when a word moved: the next image draws it. */
+    followSampling() {
+      colorChanged.clear();
+      const colour = colorSampling(colorChanged);
+      if (!dataSampling() && !colour) return false;
+      flushAll();
+      if (colorChanged.size) options.onColorChanged(colorChanged);
+      return true;
+    },
     /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
      *  pass wrote it — is reduced to counters for the phase, copied to their readback then zeroed. */
     publishRequests(

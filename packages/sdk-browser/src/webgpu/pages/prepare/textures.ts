@@ -20,7 +20,6 @@ import {
   type TexturePreview,
 } from '../../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { writeTextureSampling } from './textureSampling.ts';
 import type { TileTexture } from '../../tile/atlas.ts';
 
 /** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
@@ -125,7 +124,6 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       shadowsFollowTextures(rt.lights, rt.layout.rows, slots);
     },
   });
-  writeTextureSampling(textures, mapLayer, dataLayer);
   textures.prepare();
   vis.textures = textures;
   diag.engineDiagnostic('material-textures-ready', 'Textures and filtering ready', {

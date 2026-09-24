@@ -80,9 +80,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     refreshMaterials() {
       // Every row is written again at the next frame, and the writer rereads each surface whose
-      // version moved (`row/pageRowConstants.ts`), and its maps' sampling with it
-      // (`prepare/textureSampling.ts`); only values changed, so no resolve
-      // class did.
+      // version moved (`row/pageRowConstants.ts`); only values changed, so no resolve class did.
       rt.layout.rows.tableEpoch++;
       run.gate.sceneMoved();
     },
