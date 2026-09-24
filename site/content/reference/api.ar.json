@@ -7004,7 +7004,7 @@
       "paused": "هل الزمن متوقف؛ الكتابات تصل إلى الأجسام مع ذلك.",
       "timeScale": "ثوانٍ محاكاة لكل ثانية حقيقية: 0.25 حركة بطيئة.",
       "stats": "العدّادات والساعتان: ميلي ثانية worker لكل خطوة، ميلي ثانية الصفحة لكل إطار.",
-      "error": "آخر خطأ أطلقته الفيزياء (`PHYSICS_BUDGET`، `PHYSICS_NESTED`، `PHYSICS_FAILED`) أو `null`."
+      "error": "آخر خطأ أطلقته الفيزياء (`PHYSICS_BUDGET`، `PHYSICS_NESTED`، `PHYSICS_FAILED`) أو `null`. الخطأ الذي أوقف المحاكاة يُطفئ `enabled`."
     }
   },
   "ContactEvent": {
@@ -7157,7 +7157,7 @@
       "paused": "هل الزمن متوقف؛ الكتابات تصل إلى الأجسام مع ذلك.",
       "timeScale": "ثوانٍ محاكاة لكل ثانية حقيقية: 0.25 حركة بطيئة.",
       "stats": "العدّادات والساعتان: ميلي ثانية worker لكل خطوة، ميلي ثانية الصفحة لكل إطار.",
-      "error": "آخر خطأ أطلقته الفيزياء (`PHYSICS_BUDGET`، `PHYSICS_NESTED`، `PHYSICS_FAILED`) أو `null`."
+      "error": "آخر خطأ أطلقته الفيزياء (`PHYSICS_BUDGET`، `PHYSICS_NESTED`، `PHYSICS_FAILED`) أو `null`. الخطأ الذي أوقف المحاكاة يُطفئ `enabled`."
     }
   },
   "WorldPhysicsOptions": {

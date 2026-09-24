@@ -7003,7 +7003,7 @@
       "paused": "時間が止まっているか。書き込みは物体に届く。",
       "timeScale": "実時間 1 秒あたりのシミュレーション秒数：0.25 はスロー。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
-      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。"
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。"
     }
   },
   "ContactEvent": {
@@ -7156,7 +7156,7 @@
       "paused": "時間が止まっているか。書き込みは物体に届く。",
       "timeScale": "実時間 1 秒あたりのシミュレーション秒数：0.25 はスロー。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
-      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。"
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。"
     }
   },
   "WorldPhysicsOptions": {

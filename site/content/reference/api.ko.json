@@ -7003,7 +7003,7 @@
       "paused": "시간이 멈췄는지 여부. 쓰기는 여전히 물체에 닿습니다.",
       "timeScale": "실제 1초당 시뮬레이션 초: 0.25는 슬로 모션입니다.",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`."
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다."
     }
   },
   "ContactEvent": {
@@ -7156,7 +7156,7 @@
       "paused": "시간이 멈췄는지 여부. 쓰기는 여전히 물체에 닿습니다.",
       "timeScale": "실제 1초당 시뮬레이션 초: 0.25는 슬로 모션입니다.",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`."
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다."
     }
   },
   "WorldPhysicsOptions": {
