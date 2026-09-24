@@ -11,6 +11,8 @@ import { readyEntries as ready } from '../site/app/examples/list.ts';
 const PHYSICS = new Set([
   'falling-boxes',
   'ten-thousand-bodies',
+  'rolling-on-terrain',
+  'a-walker-among-balls',
   'walk-with-collisions',
   'walk-through-a-temple',
   'create-and-dispose',
