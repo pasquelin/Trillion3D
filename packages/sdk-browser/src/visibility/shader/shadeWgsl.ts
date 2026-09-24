@@ -38,18 +38,8 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  if(HAS_UV){
   let uva=pageUv(page,h,i0);let uvb=pageUv(page,h,i1);let uvc=pageUv(page,h,i2);
   uv=uva*bary.x+uvb*bary.y+uvc*bary.z;
-  let dxb=s1.x-s0.x;let dyb=s1.y-s0.y;let dxc=s2.x-s0.x;let dyc=s2.y-s0.y;let det=dxb*dyc-dxc*dyb;
-  if(det!=0.0){
-   let inv=1.0/det;let dsdx=dyc*inv;let dsdy=-dxc*inv;let dtdx=-dyb*inv;let dtdy=dxb*inv;
-   let s=((p.x-s0.x)*dyc-(p.y-s0.y)*dxc)*inv;let t=((p.y-s0.y)*dxb-(p.x-s0.x)*dyb)*inv;let a0=1.0-s-t;
-   let iw0=1.0/c0.w;let iw1=1.0/c1.w;let iw2=1.0/c2.w;
-   let U=a0*uva*iw0+s*uvb*iw1+t*uvc*iw2;let W=a0*iw0+s*iw1+t*iw2;
-   if(W!=0.0){
-    let dUds=-uva*iw0+uvb*iw1;let dUdt=-uva*iw0+uvc*iw2;let dWds=-iw0+iw1;let dWdt=-iw0+iw2;
-    let dUdx=dUds*dsdx+dUdt*dtdx;let dUdy=dUds*dsdy+dUdt*dtdy;let dWdx=dWds*dsdx+dWdt*dtdx;let dWdy=dWds*dsdy+dWdt*dtdy;
-    ddx=(dUdx*W-U*dWdx)/(W*W);ddy=(dUdy*W-U*dWdy)/(W*W);
-   }
-  }
+  let g=uvGradients(s0.xy,s1.xy,s2.xy,p,uva,uvb,uvc,vec3f(1.0/c0.w,1.0/c1.w,1.0/c2.w));
+  ddx=g[0];ddy=g[1];
  }
  let model=(page.flags>>${MODEL_SHIFT}u)&7u;
  // A matcap material reads its image by the view-space normal: the base map at that coordinate.

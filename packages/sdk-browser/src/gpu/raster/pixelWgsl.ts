@@ -85,7 +85,14 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  if((page.flags&128u)!=0u){
   let inv=wa/t.ca.w+wb/qb.w+wc/qc.w;
   let tc=(t.ua*(wa/t.ca.w)+nb*(wb/qb.w)+nc*(wc/qc.w))/inv;
-  if(!maskKeep(page,tc,vec2f(0.0),vec2f(0.0),0.0)){return;}
+  // Hard cutout at level 0 unless the image accumulates; then the stipple at the footprint.
+  var gx=vec2f(0.0);var gy=vec2f(0.0);var stipple=0.0;
+  if(uni.stipple!=0u){
+   let second=cov.w>0.5;
+   let g=uvGradients(t.a,select(t.b,t.c,second),select(t.c,t.d,second),sample,t.ua,nb,nc,1.0/vec3f(t.ca.w,qb.w,qc.w));
+   gx=g[0];gy=g[1];stipple=stippleOffset(sample);
+  }
+  if(!maskKeep(page,tc,gx,gy,stipple)){return;}
  }
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
  let raw=bitcast<u32>(depth);
