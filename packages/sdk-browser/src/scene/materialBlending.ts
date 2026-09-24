@@ -8,7 +8,9 @@
  * its alpha: normal is `s·a + d·(1 − a)` (alpha `a + t·(1 − a)`), additive `d + s·a` (alpha
  * `t + a·a`), subtractive `d·(1 − s)` (alpha `t`), multiply `d·s` (alpha `t·a`), and none writes
  * `s` as it is — what the witness, three@0.174, computes for the same material. A custom equation
- * is not a mode the engine draws.
+ * is not a mode the engine draws. The WebGPU fallback pass (`webgpu/pages/prepare/shaders.ts`)
+ * applies the same equations after its tone map and sRGB encoding: it blends display values, not
+ * linear light.
  */
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts';
 import {
@@ -47,14 +49,21 @@ export function blendingOf(host: number | undefined): Blending | undefined {
   return BLEND_MODES.find((mode) => HOST[mode] === host);
 }
 
-/** The mode a transparent surface is drawn in, on every GPU path. A transmissive surface composes
- *  by the backdrop it reads, and a mode the engine has no name for is no mode at all: both are
- *  refused by name, never drawn as normal. */
-export function drawnBlending(blending: Blending | undefined, transmissive: boolean): Blending {
-  if (!blending) throw new Error('a transparent surface declares a blending no path draws');
+/** Why a surface's mode is drawn by no path, or `undefined`: the one refusal the admission gate
+ *  and every draw share. A transmissive surface composes by the backdrop it reads, and a mode the
+ *  engine has no name for is no mode at all: both are refused by name, never drawn as normal. */
+export function blendingRefusal(blending: Blending | undefined, transmissive: boolean) {
+  if (!blending) return 'a surface declares a blending no path draws';
   if (transmissive && blending !== 'normal')
-    throw new Error(`a transmissive material cannot use ${blending} blending`);
-  return blending;
+    return `a transmissive material cannot use ${blending} blending`;
+}
+
+/** The mode a transparent surface is drawn in, on every GPU path; what `blendingRefusal` refuses
+ *  is thrown by name. */
+export function drawnBlending(blending: Blending | undefined, transmissive: boolean): Blending {
+  const refusal = blendingRefusal(blending, transmissive);
+  if (refusal) throw new Error(refusal);
+  return blending!;
 }
 
 /** A mode that adds to, takes from or filters the background: it means nothing drawn opaque, so
