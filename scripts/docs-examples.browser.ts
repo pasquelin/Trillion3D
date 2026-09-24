@@ -7,7 +7,12 @@ import { openExample, RENDER_ONLY } from './docs/examples/capture.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
 
 /** The examples that turn physics on: the only pages that fetch the worker and Jolt's module. */
-const PHYSICS = new Set(['falling-boxes', 'ten-thousand-bodies']);
+const PHYSICS = new Set([
+  'falling-boxes',
+  'ten-thousand-bodies',
+  'rolling-on-terrain',
+  'a-walker-among-balls',
+]);
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>

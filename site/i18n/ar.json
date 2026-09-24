@@ -1478,7 +1478,8 @@
       "hands-in-vr": "الأيدي في الواقع الافتراضي",
       "teleport-in-vr": "الانتقال الآني في الواقع الافتراضي",
       "controllers-in-vr": "وحدات التحكم في الواقع الافتراضي",
-      "ar-on-the-table": "الواقع المعزز على الطاولة"
+      "ar-on-the-table": "الواقع المعزز على الطاولة",
+      "a-walker-among-balls": "ماشٍ بين الكرات"
     },
     "missing": {
       "colours-on-the-vertices": "ألوان لكل رأس على WebGPU",
@@ -1641,7 +1642,6 @@
       "breaking-things": "تكامل الفيزياء",
       "cloth-and-rope": "تكامل الفيزياء",
       "soft-bodies": "تكامل الفيزياء",
-      "rolling-on-terrain": "تكامل الفيزياء",
       "hinges-and-joints": "تكامل الفيزياء",
       "walk-with-collisions": "تكامل الفيزياء",
       "drive-a-car": "تكامل الفيزياء",
