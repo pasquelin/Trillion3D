@@ -42,8 +42,9 @@ export type GpuPartition = {
    *  frame share the arithmetic and not only the rule. */
   uniforms: GPUBuffer;
   uploadCorners(packed: Float32Array, from: number, to: number): void;
-  /** Rows `[from, to]` that now carry another page: what they held — rectangle, verdict, kept
-   *  flag — described the page that left, and the next image reads them as never projected. */
+  /** Rows `[from, to]` the table rewrote: what they held — rectangle, verdict, kept flag —
+   *  described the page or the place that left, and the next image reads them as never projected.
+   *  Called once per run: rows scattered across the table forget nothing between them. */
   forgetRows(from: number, to: number): void;
   encode(encoder: GPUCommandEncoder, frame: PartitionFrame): void;
   /** True when the periodic-sample interval has elapsed and none is in flight. */
