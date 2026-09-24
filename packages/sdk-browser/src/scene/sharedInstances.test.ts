@@ -12,25 +12,7 @@ import {
 } from '../webgpu/blend/buffers.ts';
 import { createWebgpuGpuState } from '../webgpu/pages/state/gpu.ts';
 import type { ClusterManifest, Primitive } from '../../../sdk-core/src/index.ts';
-
-/** A device that only knows how to create buffers and count what is written to them. */
-function fakeDevice() {
-  Object.assign(globalThis, { GPUBufferUsage: { COPY_DST: 8, STORAGE: 128 } });
-  const created: Array<{ size: number; writes: number; destroyed: number }> = [];
-  const device = {
-    createBuffer({ size }: { size: number }) {
-      const entry = { size, writes: 0, destroyed: 0 };
-      created.push(entry);
-      return { size, destroy: () => entry.destroyed++, entry } as unknown as GPUBuffer;
-    },
-    queue: {
-      writeBuffer(buffer: GPUBuffer) {
-        (buffer as unknown as { entry: { writes: number } }).entry.writes++;
-      },
-    },
-  } as unknown as GPUDevice;
-  return { device, created };
-}
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 
 function blendGeometry(withUv: boolean) {
   const geometry = new G.GraphGeometry();
@@ -45,7 +27,7 @@ function blendGeometry(withUv: boolean) {
 // of the same geometry share them, each is written only once and counted only once in
 // `vertexBytes`.
 test('two placements of the same transparent geometry share indices, UVs and normals', () => {
-  const { device, created } = fakeDevice();
+  const { device, buffers: created, writes, destroyed } = fakeDevice();
   const gpu = createWebgpuGpuState([1, 1]);
   const shared = blendGeometry(true),
     other = blendGeometry(true);
@@ -64,7 +46,8 @@ test('two placements of the same transparent geometry share indices, UVs and nor
   assert.equal(second.uv, first.uv);
   assert.equal(second.normal, first.normal);
   assert.equal(created.length, 3);
-  for (const entry of created) assert.equal(entry.writes, 1);
+  for (const entry of created)
+    assert.equal(writes.filter((write) => write.buffer === (entry as object)).length, 1);
   const bytesOnce = gpu.vertexBytes;
   assert.equal(
     bytesOnce,
@@ -77,7 +60,8 @@ test('two placements of the same transparent geometry share indices, UVs and nor
   assert.equal(created.length, 6);
   assert.ok(gpu.vertexBytes > bytesOnce);
   dropBlendBuffers(gpu);
-  for (const entry of created) assert.equal(entry.destroyed, 1);
+  for (const entry of created)
+    assert.equal(destroyed.filter((resource) => resource === entry).length, 1);
   assert.equal(gpu.blendIndexBuffers.size, 0);
   assert.equal(gpu.blendUvBuffers.size, 0);
   assert.equal(gpu.blendNormalBuffers.size, 0);
@@ -86,7 +70,7 @@ test('two placements of the same transparent geometry share indices, UVs and nor
 // Behaviour: a geometry without UVs never fabricates any, and the absence is remembered — the
 // second placement does not restart the search and allocates nothing.
 test('a transparent geometry without UVs yields `undefined`, once', () => {
-  const { device, created } = fakeDevice();
+  const { device, buffers: created } = fakeDevice();
   const gpu = createWebgpuGpuState([1, 1]);
   const geometry = blendGeometry(false);
   assert.equal(ensureBlendUvBuffer(device, geometry.attributes, gpu), undefined);
