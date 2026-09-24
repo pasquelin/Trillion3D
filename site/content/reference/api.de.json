@@ -6291,7 +6291,7 @@
       "jumpSpeed": "Nur Charakter: Aufwärtsgeschwindigkeit, mit der ein Sprung beginnt, in m/s; `sqrt(2 g h)` erreicht `h`, standardmäßig 1,1 m.",
       "gravity": "Nur Charakter: Abwärtsbeschleunigung, in m/s²; standardmäßig 9,80665.",
       "airControl": "Nur Charakter: wie schnell die Tasten in der Luft steuern, als Anteil der Bodenreaktion; standardmäßig 0,3, 0 ist ballistisch.",
-      "responseTime": "Nur Charakter: Sekunden, um 95 % der gewünschten Geschwindigkeit zu erreichen, oder um am Boden zu stoppen; standardmäßig ein Schritt-Takt (1 / 1,8 s).",
+      "responseTime": "Nur Charakter: Sekunden, die die Beine brauchen, um am Boden 95 % der gewünschten Geschwindigkeit zu erreichen; standardmäßig 0,12. Die Reibung des Bodens begrenzt den Start zuerst: Eine Sohle schiebt höchstens mit `μ g`, `μ` der Halt einer Gummisohle auf dem `material.physics` des Bodens (Stein ohne Physik), sodass ein Dauerlauf auf Stein in 0,45 s und auf Eis in 2,2 s erreicht ist.",
       "capsuleRadius": "Nur Charakter: Radius des Körpers, in Metern; standardmäßig eine halbe Schulterbreite (0,23 m).",
       "capsuleHeight": "Nur Charakter: Höhe des Körpers, in Metern; standardmäßig 1,75.",
       "eyeHeight": "Nur Charakter: Höhe der Kamera über den Füßen, in Metern; standardmäßig 1,64.",
@@ -6303,7 +6303,7 @@
       "onJump": "Nur Charakter: wird aufgerufen, wenn der Körper bei einem Sprung den Boden verlässt; standardmäßig `null`.",
       "stride": "Nur Charakter: die Phase des Schritts in Radiant, ein Fuß trifft bei 0 und π auf; sonst 0.",
       "fallGravity": "Nur Charakter: Abwärtsbeschleunigung während des Fallens, in m/s²; standardmäßig 1,6 g, damit ein Sprung nicht schwebt.",
-      "stopTime": "Nur Charakter: Sekunden, um 95 % der Geschwindigkeit zu verlieren, sobald keine Taste mehr gedrückt ist, am Boden; standardmäßig 0,08.",
+      "stopTime": "Nur Charakter: Sekunden, die die Beine brauchen, um 95 % der Geschwindigkeit zu verlieren, sobald keine Taste mehr gedrückt ist, am Boden; standardmäßig 0,12. Die Reibung des Bodens begrenzt den Halt zuerst: Ein Dauerlauf gleitet `v² / (2 μ g)`, 0,8 m auf Stein und 3,8 m auf Eis; eine längere Zeit bremst sanfter.",
       "headBob": "Nur Charakter: Meter, um die das Auge bei jedem Schritt im Trab steigt und fällt; standardmäßig 0,035, 0 hält es waagerecht.",
       "landingDip": "Nur Charakter: Sekunden vom Aufsetzen bis zum tiefsten Punkt des Landungsabsenkens des Auges, so tief wie der Aufprall schnell ist; standardmäßig 0,06, 0 schaltet es aus.",
       "mass": "Nur Figur, mit Physik: Kilogramm, die der Körper auf seinen Untergrund drückt; standardmäßig 80.",
@@ -6652,7 +6652,7 @@
   },
   "CharacterCameraControls": {
     "summary": "EIN CHARAKTER, gesehen durch seine Augen: ein Körper mit Masse, der geht, läuft, springt und fällt, und mit den Dreiecken der Welt als aufrechte Kapsel kollidiert.",
-    "description": "Der Zeiger dreht den Kopf wie in der Ich-Perspektive (`look.ts`). Die Tasten, nach `KeyboardEvent.code`, damit jede Tastaturbelegung dieselben Tasten spielt: W/S oder die Pfeiltasten hoch und runter gehen vor und zurück, A/D oder die seitlichen Pfeiltasten schieben seitwärts, Umschalttaste sprintet, Leertaste springt. Der Körper startet und stoppt nicht sofort: er nimmt Fahrt auf über `responseTime` und bremst über `stopTime`, behält seinen Schwung in der Luft, steigt unter `gravity` und fällt unter `fallGravity`, klettert Kanten bis zu `stepHeight` hoch, gleitet an Wänden entlang und steht auf Hängen bis zu `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Die Kamera ist das Auge, `eyeHeight` über den Füßen, wippt mit dem Schritt um `headBob` und taucht bei der Landung ab um `landingDip` (`sdk-core/src/collision/characterEye.ts`); beide wirken auf das Auge nach dem Schritt des Körpers und bewegen nie den Körper selbst. Ein Host, der die Kamera selbst bewegt, teleportiert den Körper dorthin, in Ruhe. Ein ruhender Charakter — am Boden, ohne Geschwindigkeit, ohne Taste, kein Abtauchen übrig — sendet nichts, sodass die Szene ruhig bleibt.",
+    "description": "Der Zeiger dreht den Kopf wie in der Ich-Perspektive (`look.ts`). Die Tasten, nach `KeyboardEvent.code`, damit jede Tastaturbelegung dieselben Tasten spielt: W/S oder die Pfeiltasten hoch und runter gehen vor und zurück, A/D oder die seitlichen Pfeiltasten schieben seitwärts, Umschalttaste sprintet, Leertaste springt. Der Körper startet und stoppt nicht sofort: er nimmt Fahrt auf über `responseTime` und bremst über `stopTime`, nie schneller, als die Reibung seines Bodens eine Sohle schieben lässt, sodass ein Halt auf Stein ein wenig und auf Eis weit gleitet, behält seinen Schwung in der Luft, steigt unter `gravity` und fällt unter `fallGravity`, klettert Kanten bis zu `stepHeight` hoch, gleitet an Wänden entlang und steht auf Hängen bis zu `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Die Kamera ist das Auge, `eyeHeight` über den Füßen, wippt mit dem Schritt um `headBob` und taucht bei der Landung ab um `landingDip` (`sdk-core/src/collision/characterEye.ts`); beide wirken auf das Auge nach dem Schritt des Körpers und bewegen nie den Körper selbst. Ein Host, der die Kamera selbst bewegt, teleportiert den Körper dorthin, in Ruhe. Ein ruhender Charakter — am Boden, ohne Geschwindigkeit, ohne Taste, kein Abtauchen übrig — sendet nichts, sodass die Szene ruhig bleibt.",
     "members": {
       "velocity": "Die Geschwindigkeit des Körpers in Metern pro Sekunde, live: `[x, y, z]`, y nach oben.",
       "onGround": "Ob die Füße auf einem Boden stehen.",
@@ -7254,17 +7254,6 @@
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
   },
-  "GraphAngles": {
-    "summary": "Dieselbe Ausrichtung als drei Winkel und ihre Reihenfolge, die ihre Schreibungen ebenso meldet.",
-    "members": {
-      "x": "Der erste Winkel, im Bogenmaß.",
-      "set": "Schreibt die drei Winkel und, falls angegeben, die Reihenfolge; einmal gemeldet.",
-      "setFromRotation": "Die Winkel von `q` in dieser Reihenfolge (das `Euler` des Kerns); gemeldet, außer bei `quiet`.",
-      "y": "Der zweite Winkel, im Bogenmaß.",
-      "z": "Der dritte Winkel, im Bogenmaß.",
-      "order": "Die Reihenfolge, in der die drei Winkel drehen, `'XYZ'`, sofern nicht gesetzt."
-    }
-  },
   "GraphArray": {
     "summary": "Die typisierten Arrays, die ein Attribut hält."
   },
@@ -7307,40 +7296,6 @@
   },
   "GraphNodeKind": {
     "summary": "Was ein Knoten des Graphen ist: ein bloßer Knoten, die Wurzel, eine Gruppe, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
-  },
-  "GraphRotation": {
-    "summary": "Eine Ausrichtung `(x, y, z, w)`, deren Schreibungen `_onChangeCallback` aufrufen.",
-    "members": {
-      "x": "Die erste Zahl.",
-      "set": "Schreibt die vier Zahlen, einmal gemeldet.",
-      "copy": "Übernimmt die Zahlen einer anderen Rotation.",
-      "fromArray": "Liest vier Zahlen aus einer Liste.",
-      "setFromAngles": "Die Rotation von `angles` in ihrer Reihenfolge (`localTurnQuaternion`); gemeldet, außer bei `quiet`.",
-      "setFromRotationMatrix": "Die Rotation der oberen 3×3 einer spaltenweise gespeicherten Matrix mit Spalten der Länge eins.",
-      "premultiply": "Wird zu `q` gefolgt von dieser Rotation, `q · this`.",
-      "invert": "Wird zur entgegengesetzten Drehung.",
-      "y": "Die zweite Zahl.",
-      "z": "Die dritte Zahl.",
-      "w": "Die vierte Zahl."
-    }
-  },
-  "GraphVector": {
-    "summary": "Drei Zahlen einer Pose oder eines Punkts: einfache Datenfelder und die Operationen, die ein Controller nutzt.",
-    "members": {
-      "set": "Schreibt die drei Zahlen.",
-      "copy": "Übernimmt die Zahlen eines anderen Punkts.",
-      "clone": "Eine Kopie.",
-      "add": "Addiert einen anderen Vektor.",
-      "sub": "Zieht einen anderen Vektor ab.",
-      "multiplyScalar": "Skaliert die drei Zahlen.",
-      "length": "Seine Länge.",
-      "setLength": "Behält die Richtung, setzt die Länge.",
-      "distanceTo": "Abstand zu einem Punkt.",
-      "fromArray": "Liest drei Zahlen aus einer Liste.",
-      "x": "Von links nach rechts.",
-      "y": "Von unten nach oben.",
-      "z": "Von hinten nach vorn."
-    }
   },
   "Joint": {
     "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",
