@@ -914,7 +914,7 @@ await prepare(source, cache, 'full', 150000, { resourceBaseUrl, onProgress: prog
 // ✔ 1/8 city 1,132,930 triangles, 412 primitives, 3395 ms 4.1s
 ```
 
-The executable is found at `packages/asset-compiler-rust/target/release/`, or through `options.executable`, or `TRILLION3D_COMPILER_BIN`. Node never buffers a manifest: its memory stays flat (about 90 MB RSS) whatever the model size.
+The executable is found through `options.executable`, else `TRILLION3D_COMPILER_BIN` (trusted, and announced once on stderr), else at `packages/asset-compiler-rust/target/release/` — refused with `COMPILER_STALE` while a crate source is newer than that build, so no cook publishes products under the previous build's key; `pnpm run build:native` rebuilds it. Node never buffers a manifest: its memory stays flat (about 90 MB RSS) whatever the model size.
 
 ## Using it from any other host
 
