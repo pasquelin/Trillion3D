@@ -30,16 +30,13 @@ export function createExplorerCapture(inputs: Inputs) {
   // scene (`hostBackground`, `worldBackground.write`); `options.clearColor` is only what the
   // session opened on, so a diagnostic reads the colour of now: the world's own
   // (`currentClearColor`), whatever record the engine keeps — the WebGPU one has no `getHex` —,
-  // else the host scene's, never that stale one, or a changed background reads as a mismatch.
+  // the default when it has none, as the engine clears; else the host scene's, never that stale
+  // one, or a changed or removed background reads as a mismatch.
   const currentClearColor = () => {
+    if (options.currentClearColor) return options.currentClearColor() ?? DEFAULT_CLEAR_COLOR;
     const background = state.active.scene?.background as
       { getHex?: () => number } | null | undefined;
-    return (
-      options.currentClearColor?.() ??
-      background?.getHex?.() ??
-      options.clearColor ??
-      DEFAULT_CLEAR_COLOR
-    );
+    return background?.getHex?.() ?? options.clearColor ?? DEFAULT_CLEAR_COLOR;
   };
   const sample = (
     gl: WebGL2RenderingContext,
