@@ -30,9 +30,9 @@ export async function loadImportedLights(
   const none = { lights: [], rejected: {} };
   let file: ImportedLightsFile;
   try {
-    const response = meter(await fetch(new URL(IMPORTED_LIGHTS_FILE, base).href, { signal }));
+    const response = await fetch(new URL(IMPORTED_LIGHTS_FILE, base).href, { signal });
     if (!response.ok) return none;
-    file = (await response.json()) as ImportedLightsFile;
+    file = (await meter(response).json()) as ImportedLightsFile;
   } catch {
     return none;
   }
