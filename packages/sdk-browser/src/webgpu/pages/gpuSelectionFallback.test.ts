@@ -141,8 +141,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
     shadeVisibility(expected, pages, cameraMoteur(cam), [32, 32]),
   );
   assert.equal(image.maxChannelError, 0);
-  // The pool itself, not the probe prepare asked the device for and released.
-  const maps = textures.find((t) => t.format === 'rgba8unorm-srgb' && !t.destroyed);
+  const maps = textures.find((t) => t.format === 'rgba8unorm-srgb');
   assert.ok(maps);
   assert.ok(maps.depthOrArrayLayers >= 1, 'the layer its one queue fills');
   assert.ok(maps.views.some((view) => view?.dimension === '2d-array'));

@@ -5,7 +5,14 @@ import {
   type MemoryBudgetsReport,
 } from '../../../residency/pools.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { grantedGeometryPool, grantedTexturePool, sameLayers } from '../../residency/poolGrants.ts';
+import {
+  geometryProbe,
+  grantedGeometryPool,
+  grantedTexturePool,
+  probed,
+  sameLayers,
+  textureProbe,
+} from '../../residency/poolGrants.ts';
 import type { TexturePool } from '../../residency/memoryBudgets.ts';
 
 /**
@@ -38,7 +45,6 @@ export async function setWebgpuMemoryBudgets(
   // A pool is replaced only by one the device grants; none granted, even at its floor, and the pool
   // in place stays.
   const device = gpu.device;
-  const live = () => !!device && !run.lost;
   // Tiles first: their copy is synchronous, the pages' waits for in-flight loads.
   if (budgets.texturePoolBytes !== undefined) {
     checkTexturePoolBudget(budgets.texturePoolBytes);
@@ -47,8 +53,10 @@ export async function setWebgpuMemoryBudgets(
     if (pools) {
       const bytes = budgets.texturePoolBytes;
       let pool: TexturePool | undefined = pools.poolFor(bytes);
-      if (!sameLayers(pool, pools.pool) && vis.textures && live())
-        pool = await grantedTexturePool(device!, bytes, pools, diagnose);
+      if (!sameLayers(pool, pools.pool) && vis.textures && device && !run.lost)
+        pool = await probed(
+          grantedTexturePool(device, bytes, pools, diagnose, textureProbe(device, pools.encoding)),
+        );
       if (pool) {
         if (vis.textures && !run.lost) evictedTiles = vis.textures.resize(pool.layers);
         pools.pool = pool;
@@ -58,8 +66,10 @@ export async function setWebgpuMemoryBudgets(
   if (budgets.geometryPoolBytes !== undefined) {
     const bytes = budgets.geometryPoolBytes;
     let pool: GeometryPool | undefined = setup.geometryPoolFor(bytes);
-    if (pool.slots !== setup.slots && gpu.cache && live())
-      pool = await grantedGeometryPool(device!, bytes, setup.geometryPoolFor, diagnose);
+    if (pool.slots !== setup.slots && gpu.cache && device && !run.lost)
+      pool = await probed(
+        grantedGeometryPool(device, bytes, setup.geometryPoolFor, diagnose, geometryProbe(device)),
+      );
     if (pool && pool.slots !== setup.slots && gpu.cache && !run.lost) {
       // The root cover keeps its place before any other page: the pool never goes below it, and a
       // cut can only be completed from it.

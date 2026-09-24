@@ -34,15 +34,15 @@ export async function validated<T>(
 }
 
 /**
- * True when the device grants, now, what `allocate` creates: made under an out-of-memory scope,
- * then destroyed whatever the verdict. What a pool asks for is probed this way before the pool is
- * replaced, so a refusal leaves the pool in place instead of an invalid one (`poolGrants.ts`).
+ * What `make` allocates when the device grants it, now: made under an out-of-memory scope, and
+ * destroyed when refused, so a pool is only ever replaced by one the device holds (`poolGrants.ts`).
  */
-export async function deviceGrants(
+export async function deviceMade<R extends { destroy(): void }>(
   device: GPUDevice,
-  allocate: () => ReadonlyArray<{ destroy(): void }>,
-): Promise<boolean> {
-  const { value, error } = await validationScope(device, allocate, 'out-of-memory');
-  for (const resource of value) resource.destroy();
-  return !error;
+  make: () => R,
+): Promise<R | undefined> {
+  const { value, error } = await validationScope(device, make, 'out-of-memory');
+  if (!error) return value;
+  value.destroy();
+  return undefined;
 }

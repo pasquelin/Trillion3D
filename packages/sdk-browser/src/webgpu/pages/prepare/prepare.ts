@@ -86,17 +86,22 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
         : 'texture-only',
     imageReadbackDuringRender: false,
   });
-  // Out of memory absorbed: the geometry pool is the one the device grants (`poolGrants.ts`).
+  // Out of memory absorbed: the geometry pool is the one the device grants, its cache allocated
+  // once, under the out-of-memory scope (`poolGrants.ts`).
   const setup = rt.setup;
-  setup.geometryPool =
-    (await grantedGeometryPool(
-      gpuDevice,
-      setup.geometryPool.budgetBytes,
-      setup.geometryPoolFor,
-      diag.engineDiagnostic,
-    )) ?? setup.geometryPool;
+  const granted = await grantedGeometryPool(
+    gpuDevice,
+    setup.geometryPool.budgetBytes,
+    setup.geometryPoolFor,
+    diag.engineDiagnostic,
+    (pool) => {
+      const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots);
+      return { cache, destroy: () => void cache.dispose() };
+    },
+  );
+  if (granted) setup.geometryPool = granted.pool;
+  gpu.cache = granted?.made.cache ?? createWebgpuPagesCache(rt, gpuDevice);
   throwIfStopped(rt);
-  gpu.cache = createWebgpuPagesCache(rt, gpuDevice);
   ({
     bindGroupLayout: gpu.bindGroupLayout,
     pipelineBack: gpu.pipelineBack,
