@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Falling boxes</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
+
+      // Physics is an option of the world: Jolt starts in a worker, fetched only now.
+      const world = createWorld('view', { controls: 'orbit', physics: true });
+      world.scene.background = math.color('#dfe8f2');
+      world.camera.far = 400;
+
+      // The floor is a static body: it holds the others and never moves.
+      const floor = object.mesh(geometry.box(40, 1, 40), material.meshStandard({ color: '#9aa7b5', physics: 'stone' }));
+      floor.position.y = -0.5;
+      floor.physics = 'static';
+      world.scene.add(floor);
+
+      // Three matters: the material names what a box is made of, the physics reads its mass,
+      // grip and bounce from it.
+      const matters = {
+        wood: material.meshStandard({ color: '#c08a4d', roughness: 0.8, physics: 'wood' }),
+        rubber: material.meshStandard({ color: '#d0453f', roughness: 0.6, physics: 'rubber' }),
+        ice: material.meshStandard({ color: '#a9d8f0', roughness: 0.1, physics: 'ice' }),
+      };
+      const crate = geometry.box(1, 1, 1), next = seeded(3), boxes = [];
+      const drop = (count, matter) => {
+        for (let i = 0; i < count; i++) {
+          const box = object.mesh(crate, matters[matter]);
+          box.position.set((next() - 0.5) * 6, 6 + boxes.length * 0.35, (next() - 0.5) * 6);
+          box.rotation.set(next() * 3, next() * 3, next() * 3);
+          box.castShadow = box.receiveShadow = true;
+          // A dynamic body: the shape is read from the geometry (a box), the mass from the matter.
+          box.physics = 'dynamic';
+          world.scene.add(box);
+          boxes.push(box);
+        }
+      };
+
+      const sun = light.directional({ intensity: 3, castShadow: true });
+      sun.position.set(8, 16, 6);
+      world.scene.add(sun, light.hemisphere({ intensity: 1.2, color: '#ffffff', groundColor: '#8a9099' }));
+      world.camera.position.set(12, 9, 14);
+      world.controls.target.set(0, 2, 0);
+
+      const settings = controls(
+        {
+          matter: ['wood', 'rubber', 'ice'],
+          gravity: ['earth', 'moon', 'mars', 'none'],
+          drop: () => drop(50, settings.matter),
+          jump: () => boxes.forEach((box) => (box.physics.velocity.y = 6)),
+          slowMotion: false,
+        },
+        ({ gravity, slowMotion }) => {
+          world.physics.gravity = gravity;
+          world.physics.timeScale = slowMotion ? 0.25 : 1;
+        },
+        world,
+      );
+      drop(200, 'wood');
+      // Once every box sleeps, the worker sends nothing and the world draws nothing.
+      const bodies = readout('bodies'), awake = readout('awake'), step = readout('step');
+      world.onFrame(() => {
+        const s = world.physics.stats;
+        bodies(String(s.bodies));
+        awake(String(s.active));
+        step(`${s.stepMs.toFixed(2)} ms`);
+      });
+    </script>
+  </body>
+</html>

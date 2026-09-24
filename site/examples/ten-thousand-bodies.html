@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ten thousand bodies</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
+
+      // A stress test of the physics: ten thousand boxes fall at once, every one of them a body
+      // simulated by Jolt in a worker. The panel shows what it costs, live, on both threads.
+      const world = createWorld('view', { controls: 'orbit', physics: true });
+      world.scene.background = math.color('#1d2430');
+      world.camera.far = 600;
+      const floor = object.mesh(geometry.box(120, 2, 120), material.meshStandard({ color: '#56606e', physics: 'stone' }));
+      floor.position.y = -1;
+      floor.physics = 'static';
+      world.scene.add(floor);
+
+      const crate = geometry.box(0.8, 0.8, 0.8);
+      const paints = ['#e07a5f', '#f2cc8f', '#81b29a', '#3d85c6'].map((color) => material.meshStandard({ color, physics: 'wood' }));
+      let boxes = [];
+      const fill = (count) => {
+        for (const box of boxes) world.scene.remove(box);
+        const next = seeded(11), side = Math.ceil(Math.sqrt(count / 10));
+        boxes = Array.from({ length: count }, (_, i) => {
+          const box = object.mesh(crate, paints[i % 4]);
+          const layer = Math.floor(i / (side * side)), cell = i % (side * side);
+          box.position.set((cell % side - side / 2) * 1.6 + next() * 0.4, 4 + layer * 1.6, (Math.floor(cell / side) - side / 2) * 1.6 + next() * 0.4);
+          box.rotation.set(next(), next(), next());
+          box.physics = 'dynamic';
+          return box;
+        });
+        world.scene.add(...boxes);
+      };
+
+      world.scene.add(light.directional({ intensity: 2.5, position: [30, 60, 20] }), light.hemisphere({ intensity: 1.2, color: '#ffffff', groundColor: '#404855' }));
+      world.camera.position.set(60, 45, 60);
+      world.controls.target.set(0, 0, 0);
+
+      const settings = controls({ count: ['10000', '5000', '1000'], again: () => fill(Number(settings.count)) }, ({ count }, key) => {
+        if (key === 'count' || key === undefined) fill(Number(count));
+      }, world);
+      // Two clocks, never added: the worker's step and the page's share of each frame.
+      const bodies = readout('bodies'), awake = readout('awake'), step = readout('step'), page = readout('page');
+      world.onFrame(() => {
+        const s = world.physics.stats;
+        bodies(String(s.bodies));
+        awake(String(s.active));
+        step(`${s.stepMs.toFixed(2)} ms`);
+        page(`${s.mainMs.toFixed(2)} ms`);
+      });
+    </script>
+  </body>
+</html>
