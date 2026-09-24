@@ -3037,7 +3037,8 @@
     "members": {
       "pose": "Một node đã di chuyển.",
       "structure": "Một node được thêm hoặc mất con.",
-      "content": "Hình dạng hoặc vật liệu của một node đã thay đổi."
+      "content": "Hình dạng hoặc vật liệu của một node đã thay đổi.",
+      "posed": "Nhiều nút di chuyển cùng lúc, ghi thẳng vào cây của chúng (các vật thể vật lý): báo một lần."
     }
   },
   "SceneNode": {
@@ -7016,7 +7017,8 @@
       "bodies": "Vật thể mọi loại cùng lúc.",
       "triangles": "Tam giác của mọi hình tam giác tĩnh cùng lúc.",
       "decorative": "Vật trang trí cùng lúc.",
-      "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá."
+      "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá.",
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7086,7 +7088,8 @@
       "bodies": "Vật thể mọi loại cùng lúc.",
       "triangles": "Tam giác của mọi hình tam giác tĩnh cùng lúc.",
       "decorative": "Vật trang trí cùng lúc.",
-      "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá."
+      "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá.",
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang."
     }
   },
   "PhysicsHost": {

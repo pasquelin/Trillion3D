@@ -3037,7 +3037,8 @@
     "members": {
       "pose": "Sebuah node bergerak.",
       "structure": "Sebuah node mendapat atau kehilangan anak.",
-      "content": "Bentuk atau material sebuah node berubah."
+      "content": "Bentuk atau material sebuah node berubah.",
+      "posed": "Banyak node bergerak sekaligus, ditulis langsung ke pohonnya (benda fisika): diberitahukan sekali."
     }
   },
   "SceneNode": {
@@ -7016,7 +7017,8 @@
       "bodies": "Benda dari semua jenis sekaligus.",
       "triangles": "Segitiga dari semua bentuk segitiga statis sekaligus.",
       "decorative": "Benda dekoratif sekaligus.",
-      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya."
+      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya.",
+      "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7086,7 +7088,8 @@
       "bodies": "Benda dari semua jenis sekaligus.",
       "triangles": "Segitiga dari semua bentuk segitiga statis sekaligus.",
       "decorative": "Benda dekoratif sekaligus.",
-      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya."
+      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya.",
+      "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman."
     }
   },
   "PhysicsHost": {
