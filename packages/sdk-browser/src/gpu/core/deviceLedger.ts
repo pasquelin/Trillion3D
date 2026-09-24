@@ -1,3 +1,5 @@
+import { sharedGpuDevice, untaggedLabel } from './deviceOwners.ts';
+
 /**
  * Allocation ledger of a WebGPU device: every texture and buffer created, their bytes computed
  * from the descriptor, returned on destroy. WebGPU does not publish occupied memory; this ledger
@@ -99,6 +101,9 @@ export interface GpuDeviceLedger {
 /** Device subset the ledger observes: what a fake test device provides. */
 export type LedgerDevice = Pick<GPUDevice, 'createTexture' | 'createBuffer'>;
 
+/** An allocation's label as the engine wrote it: the session that made it is not a kind. */
+const labelOf = (descriptor: { label?: string }) => untaggedLabel(descriptor.label) ?? LABEL_NONE;
+
 const ledgers = new WeakMap<LedgerDevice, GpuDeviceLedger>();
 
 /** Installs the ledger on the device, or returns the one already there. */
@@ -125,10 +130,10 @@ export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
   device.createTexture = (descriptor) => {
     const bytes = textureBytesOf(descriptor);
     if (bytes === null) unknownFormats++;
-    return track(createTexture(descriptor), descriptor.label ?? LABEL_NONE, bytes ?? 0);
+    return track(createTexture(descriptor), labelOf(descriptor), bytes ?? 0);
   };
   device.createBuffer = (descriptor) =>
-    track(createBuffer(descriptor), descriptor.label ?? LABEL_NONE, descriptor.size);
+    track(createBuffer(descriptor), labelOf(descriptor), descriptor.size);
   const ledger: GpuDeviceLedger = {
     snapshot() {
       if (held) return held;
@@ -146,6 +151,7 @@ export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
   return ledger;
 }
 
-/** A device's ledger, or `undefined` until one is installed on it. */
+/** A device's ledger — a session's handle reads its device's — or `undefined` until one is
+ *  installed on it. */
 export const gpuDeviceLedgerOf = (device: LedgerDevice | undefined) =>
-  device ? ledgers.get(device) : undefined;
+  device ? ledgers.get(sharedGpuDevice(device)) : undefined;
