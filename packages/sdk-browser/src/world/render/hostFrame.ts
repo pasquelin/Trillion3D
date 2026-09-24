@@ -84,5 +84,5 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     streamer,
     compose,
   });
-  return { render, profiler, streaming };
+  return { render, profiler, streaming, followCells };
 }

@@ -88,9 +88,10 @@ function io(bytes: (url: string) => Uint8Array) {
 
 /** A reach past both cells. */
 const everywhere = 1e5;
-/** Opens a session on `cells` for `reach` from far away: its rows are sized, no cell is read. */
-const opened = (cells: PartitionCells, reach: number) =>
-  cells.prime([1e9, 0, 0], reach, () => Promise.reject(new Error('nothing is read')));
+/** Opens a session on `cells` for `reach` from far away, an owner to open it again unless
+ *  `owned` is false: its rows are sized, no cell is read. */
+const opened = (cells: PartitionCells, reach: number, owned = true) =>
+  cells.prime([1e9, 0, 0], reach, () => Promise.reject(new Error('nothing is read')), owned);
 /** No arrival budget: what a test places never depends on the time the machine takes. */
 const noBudget = Infinity;
 const row = (rows: PlacementRows, at: number) => [...rows.matrices.subarray(at * 16, at * 16 + 16)];
@@ -174,4 +175,24 @@ test('a world that poses the scene root reads the cells its camera sees there', 
   await opened(cells, 100);
   cells.frame([2, 0, 0], 100, port, noBudget);
   assert.deepEqual(asked, ['https://cache.test/key/far.json']);
+});
+
+test('rows that hold every cell never ask for a reopen: sized so, or with no owner', async () => {
+  for (const owned of [true, false]) {
+    const { cells, bytes } = world();
+    const { port, held, outgrown } = io(bytes);
+    await opened(cells, owned ? 1e4 : 100, owned);
+    ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
+    cells.frame([0, 0, 0], 1e7, port, noBudget);
+    assert.deepEqual([cells.stats().held, cells.stats().waiting, outgrown.count], [2, 0, 0]);
+  }
+});
+
+test('a frame says when a cell within reach is left for a later one', async () => {
+  const { cells, bytes } = world();
+  const { port, held } = io(bytes);
+  await opened(cells, everywhere);
+  const unread = cells.frame([0, 0, 0], 100, port, noBudget);
+  held.add('https://cache.test/key/near.json');
+  assert.deepEqual([unread, cells.frame([0, 0, 0], 100, port, noBudget)], [true, false]);
 });
