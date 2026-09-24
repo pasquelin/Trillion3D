@@ -56,6 +56,7 @@ function mount(budgetBytes: number) {
     holdResident: true,
     pageBudget: 0,
     pageBudgetHeld: 0,
+    pageBudgetFrom: 0,
     wanted: [] as DagPage[],
     result: createSelectionResult<DagPage>(),
   };
@@ -97,16 +98,35 @@ test('after a smaller budget no image holds more than it: the cut fits it in the
   }
   assert.ok(pool.budgetPixelError > 1, 'the cut is drawn coarser');
   assert.equal(pool.coverageBudgetLimited, true);
+  assert.equal(pool.settling, false, 'the search settled on the finest step that fits');
+  assert.equal(
+    diagnostics.filter(({ phase }) => phase === 'coverage-budget').length,
+    0,
+    'the verdict waits for the flush',
+  );
+  pool.flush();
+  pool.flush();
   const published = diagnostics.filter(({ phase }) => phase === 'coverage-budget');
-  assert.equal(published.length, 1, 'the verdict is published when it changes');
+  assert.equal(published.length, 1, 'the verdict is published once, when it changes');
   assert.equal(published[0].context?.limited, true);
   assert.equal(published[0].context?.pixelError, 1);
-  assert.ok((published[0].context?.requiredSlots as number) > 20);
-  // A larger budget brings the detail back in the next image, without another.
-  pool.resize(1000 * PAGE);
-  image(1);
+  assert.equal(published[0].context?.requiredSlots, null, 'not known from a stopped pass');
+  // A larger budget, still short of the scene, brings the detail back one step of √2 an image,
+  // asking for each image.
+  pool.resize(400 * PAGE);
+  assert.equal(pool.settling, true, 'a larger pool owes an image');
+  let images = 0;
+  do image(1);
+  while (pool.settling && ++images < 40);
+  assert.ok(images > 1 && images < 40, `${images} images to settle`);
+  assert.ok(state.allocationBytes <= 400 * PAGE);
   assert.equal(pool.budgetPixelError, 0);
   assert.equal(pool.coverageBudgetLimited, false);
   for (let frame = 0; frame < 12; frame++) image(1);
   assert.equal(drawn(), fine, 'the same cut as before the budget changed');
+  pool.flush();
+  const back = diagnostics.filter(({ phase }) => phase === 'coverage-budget');
+  assert.equal(back.length, 2);
+  assert.equal(back[1].context?.limited, false);
+  assert.ok((back[1].context?.requiredSlots as number) > 20, 'the cut the host asked for, counted');
 });

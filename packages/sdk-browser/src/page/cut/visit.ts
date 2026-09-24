@@ -36,7 +36,8 @@ function keep<T extends PageRecord>(
     const level = rec.level;
     if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
     // A page asked for takes its slots whether or not it is drawn: a cut that fits only while
-    // its pages are missing would overflow as they arrive.
+    // its pages are missing would overflow as they arrive. What is drawn in its place charges
+    // nothing more (`chargeDrawn`).
     if (s.budget !== 0) {
       const share = rec.budgetShare;
       if (share !== undefined && chargeShare(s, share)) s.over = true;

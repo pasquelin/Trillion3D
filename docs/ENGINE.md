@@ -276,15 +276,25 @@ engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of
 page, page cap and session ceiling). A slot holds one geometry copy: a classic instance
 (`addInstance`) holds its own copy of every page, so a page three instances draw fills three slots,
 while the records rows place share one. Its cut is drawn on the CPU in the image that shows it, so
-it fits the slots in that image: every page it asks for or draws charges its copies once, the root
-cover held beforehand, and the cut draws coarser until they fit (`selectVisiblePages`'s
-`pageBudget`). A smaller budget therefore takes effect in the next image and a larger one brings the
-detail back in it; the threshold it coarsened to is `budgetPixelError`, and a verdict change is
-published as `coverage-budget`, as on WebGPU. When its pages hold more than the slots, those the
-image no longer keeps leave oldest first (`evictOldest`, the page streamer's order). Only the root
-cover and the pages the host replaced (`replaceGeometryPage`) stay above it. Its
-`geometryPoolAllocatedBytes` is what the pages hold, no pool being reserved. Backends without pools
-throw `UNSUPPORTED_MEMORY_BUDGETS`.
+it fits the slots in that image: every page it asks for charges its copies once, the root cover held
+beforehand, and the cut draws coarser until they fit (`selectVisiblePages`'s `pageBudget`). A
+resident ancestor drawn in place of a missing page charges nothing more: each place on screen
+counts once, for the page that will be resident. The threshold is searched from one image to the
+next (`pageBudgetFrom`): each image starts from the threshold the last one kept, tries one step of
+√2 finer, never under the host's `pixelError`, keeps the last threshold when the finer step does
+not fit, and climbs by √2 in the same image when that one no longer fits (a camera move). An image
+mostly costs one pass, a smaller budget holds in the image that follows it, and the detail
+converges on the finest threshold that fits, to √2; while a finer step is left to try,
+`pendingFrame` asks for another image. A threshold kept coarser than the host's is
+`budgetPixelError`. A verdict change is queued and published as `coverage-budget` by `flush`, as on
+WebGPU, and only once the search has settled, so a threshold still converging never flips it. Its
+`requiredSlots` is the slots the cut at the host's threshold charges, known only when that cut fit,
+and `null` when the cut is drawn coarser, since a pass past the budget stops at its first
+overflowing page. When its pages hold more than the slots, those the image no longer keeps leave
+oldest first (`evictOldest`, the page streamer's order). Only the root cover and the pages the host
+replaced (`replaceGeometryPage`) stay above it; they are counted as the pages' bytes are, every
+geometry copy included. Its `geometryPoolAllocatedBytes` is what the pages hold, no pool being
+reserved. Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 A region keeps a complete resident representation until every replacement page is uploaded; if old
 and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.
