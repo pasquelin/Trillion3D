@@ -7,7 +7,7 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { PhysicsSession } from './session.ts';
 
 /** A shape swept along a ray (`world.raycast(at, { shape })`): what it first touches is the hit. */
-export type SweptShape =
+type SweptShape =
   | { type: 'sphere'; radius: number }
   | { type: 'box'; halfExtents: { x: number; y: number; z: number } }
   | { type: 'capsule'; halfHeight: number; radius: number };
