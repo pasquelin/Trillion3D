@@ -8,8 +8,10 @@ import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virt
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { encodeShadowCasters } from '../../shadow/casters.ts';
 
-/** Pyramid slot of each region this frame, `HIZ_UNTESTED` for a region drawn as culled. */
-const slotOf = new Uint32Array(MAX_SHADOW_REGIONS);
+/** Pyramid slot of each region this frame, `HIZ_UNTESTED` for a region drawn as culled, and the
+ *  region each slot was given to. */
+const slotOf = new Uint32Array(MAX_SHADOW_REGIONS),
+  regionOf = new Uint32Array(MAX_SHADOW_REGIONS);
 
 /**
  * The pages a moving caster is drawn over get a pyramid of their static layer, and each restored
@@ -22,12 +24,14 @@ function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, cou
     { regions, pageHiz, occlusion, cull, spheres, shadows } = lights;
   if (!pageHiz || !occlusion || !cull || !spheres || !shadows) return false;
   let pages = 0;
-  for (let region = 0; region < count; region++)
-    slotOf[region] = regions.startOf(region) === REGION_RESTORE ? pages++ : HIZ_UNTESTED;
+  for (let region = 0; region < count; region++) {
+    const restored = regions.startOf(region) === REGION_RESTORE;
+    if (restored) regionOf[pages] = region;
+    slotOf[region] = restored ? pages++ : HIZ_UNTESTED;
+  }
   if (!pages) return false;
   pageHiz.encode(encoder, pages, (slot, out, at) => {
-    let region = 0;
-    while (slotOf[region] !== slot) region++;
+    const region = regionOf[slot];
     out[at] = regions.x(region);
     out[at + 1] = regions.y(region);
   });

@@ -1,3 +1,4 @@
+import { DRAW_ITEM_WGSL } from '../draw/contract.ts';
 import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /**
@@ -88,7 +89,7 @@ fn shadowCullScatter(@builtin(global_invocation_id) id:vec3u){
  * map fit the eight storage buffers a compute stage is guaranteed.
  */
 export const SHADOW_LIGHT_CULL_SHADER = `${CULL_COMMON}
-struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}
+${DRAW_ITEM_WGSL}
 struct Uni{logBase:u32,offsetWord:u32,countWord:u32,capacity:u32,rows:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(1) var<storage, read> drawn:array<u32>;
 @group(0) @binding(2) var<storage, read> work:array<u32>;

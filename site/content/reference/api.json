@@ -12739,7 +12739,7 @@
     "members": [
       {
         "name": "table",
-        "type": "{ words: Uint32Array<ArrayBuffer>; readonly entries: number; readonly layoutEpoch: number; readonly version: number; baseOf: (slice: number) => number; sizeO...",
+        "type": "{ words: Uint32Array<ArrayBuffer>; readonly entries: number; readonly layoutEpoch: number; readonly version: number; baseOf: (slice: number) => number; claim...",
         "desc": "The page table: one word per virtual page, and the range each light holds in it."
       },
       {
@@ -12749,7 +12749,7 @@
       },
       {
         "name": "sun",
-        "type": "{ frame: Float64Array<ArrayBuffer>; depth: Float64Array<ArrayBuffer>; finest: Int32Array<ArrayBuffer>; origins: Int32Array<ArrayBuffer>; levelIn: (low: numbe...",
+        "type": "{ frame: Float64Array<ArrayBuffer>; depth: Float64Array<ArrayBuffer>; finest: Int32Array<ArrayBuffer>; origins: Int32Array<ArrayBuffer>; movedLevel: (slice: ...",
         "desc": "Each sun's clipmap: its frame, depth range, finest level and extents."
       },
       {

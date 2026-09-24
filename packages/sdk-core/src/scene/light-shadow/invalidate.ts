@@ -1,9 +1,9 @@
-import type { SceneLight } from '../light/contracts.ts';
+import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
 import { writeFace } from './faces.ts';
 import type { ShadowPool } from './pool.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { lampPagesAt, sunPageMetres } from './virtual.ts';
+import { lampFacesOf, lampPagesAt, sunPageMetres } from './virtual.ts';
 import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 
 type Changes = ReturnType<typeof createShadowChanges>;
@@ -109,7 +109,7 @@ export function invalidateLightPages(
 ) {
   let staled = 0;
   const isSun = light.kind === 'directional',
-    faces = light.kind === 'point' ? 6 : 1;
+    faces = lampFacesOf(LIGHT_KIND[light.kind]);
   const range = isSun ? 0 : (light.range ?? 0);
   const [x, y, z] = light.position ?? [0, 0, 0];
   if (!isSun && !whole && changes.count)

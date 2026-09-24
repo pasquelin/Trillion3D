@@ -140,11 +140,11 @@ export function createDagLightCut(resources: DagResources) {
     /** The pages a frame drew short — work dropped, or a placement drawn coarser than wanted —
      *  to draw again (`lightCutRedraws.ts`). */
     redraws,
-    /** A report or a drop flag on its way, or read and not yet taken. */
+    /** A report or a flag word on its way, or read and not yet taken. */
     get unsettled() {
       return reports.unsettled || redraws.unsettled;
     },
-    /** Resolves once every report and drop flag copied so far is read. */
+    /** Resolves once every report and flag word copied so far is read. */
     settled: () => Promise.all([reports.settled(), redraws.settled()]),
   };
 }

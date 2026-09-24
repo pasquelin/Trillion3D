@@ -1,7 +1,14 @@
 import { dotVector3 } from '../../math/primitives/vector.ts';
 import { MAX_SHADOW_SLICES, type ShadowViewpoint } from '../light/contracts.ts';
 import { faceFrame } from './math.ts';
-import { SUN_LEVELS, SUN_WINDOW, finestSunLevel, ringOf, sunPageMetres } from './virtual.ts';
+import {
+  SUN_LEVELS,
+  SUN_LEVEL_ENTRIES,
+  SUN_WINDOW,
+  finestSunLevel,
+  ringOf,
+  sunPageMetres,
+} from './virtual.ts';
 
 /** Frames of layout kept to read a request report back: deeper than any readback lag. */
 const HISTORY = 8;
@@ -40,7 +47,6 @@ export function createSunLevels() {
     depth,
     finest,
     origins,
-    levelIn,
     /** Whether the extent of `level` moved at the last update: only its pages may have left. */
     movedLevel: (slice: number, level: number) =>
       ((moved[slice] >> ringOf(level, SUN_LEVELS)) & 1) !== 0,
@@ -128,8 +134,8 @@ export function createSunLevels() {
     decode(slice: number, relative: number, frameIndex: number, out: Int32Array) {
       const past = slice * HISTORY + (frameIndex % HISTORY);
       if (pastFrame[past] !== frameIndex) return false;
-      const slot = Math.floor(relative / (SUN_WINDOW * SUN_WINDOW)),
-        rest = relative - slot * SUN_WINDOW * SUN_WINDOW,
+      const slot = Math.floor(relative / SUN_LEVEL_ENTRIES),
+        rest = relative - slot * SUN_LEVEL_ENTRIES,
         at = past * LEVEL_WORDS + slot * 2;
       const ox = pastOrigins[at],
         oy = pastOrigins[at + 1];

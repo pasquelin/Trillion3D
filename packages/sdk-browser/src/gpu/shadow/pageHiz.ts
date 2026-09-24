@@ -1,4 +1,6 @@
+import { hizLevelSizes } from '../hiz/oracle.ts';
 import { createHizPipelines } from '../hiz/pipelines.ts';
+import { writeHizLevelUniforms } from '../hiz/uniforms.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_PAGES } from './recordPack.ts';
 
@@ -44,17 +46,18 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
   // Slot 0 copies the page's level 0; slot `l` reduces level `l − 1` into level `l`.
-  const words = new Uint32Array((PAGE_HIZ_LEVELS * UNIFORM_BYTES) / 4);
-  words.set([SHADOW_PAGE, SHADOW_PAGE, 0, 0, 0, 0, PAGE_HIZ_WORDS], 0);
-  for (let level = 1; level < PAGE_HIZ_LEVELS; level++) {
-    const src = SHADOW_PAGE >> (level - 1),
-      dst = SHADOW_PAGE >> level;
-    words.set(
-      [PAGE_HIZ_OFFSETS[level - 1], src, src, PAGE_HIZ_OFFSETS[level], dst, dst, PAGE_HIZ_WORDS],
-      (level * UNIFORM_BYTES) / 4,
-    );
-  }
-  device.queue.writeBuffer(uniforms, 0, words);
+  writeHizLevelUniforms(
+    device,
+    uniforms,
+    new Uint32Array((PAGE_HIZ_LEVELS * UNIFORM_BYTES) / 4),
+    hizLevelSizes(SHADOW_PAGE, SHADOW_PAGE),
+    PAGE_HIZ_OFFSETS,
+    SHADOW_PAGE,
+    SHADOW_PAGE,
+    PAGE_HIZ_LEVELS,
+    UNIFORM_BYTES,
+    PAGE_HIZ_WORDS,
+  );
   const group = device.createBindGroup({
     layout: pipelines.layout,
     entries: [

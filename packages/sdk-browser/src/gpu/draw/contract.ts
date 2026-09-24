@@ -17,6 +17,9 @@ export const UNIFORM_BYTES = 32,
  * reject, without any per-frame walk gathering them.
  */
 export const DRAW_ITEM_U32 = 5;
+/** The draw record as every kernel that reads `items` declares it: `DRAW_ITEM_U32` words. */
+export const DRAW_ITEM_WGSL =
+  'struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}';
 /**
  * Slots a compaction needs for `layerSlots` coplanar layers — one layer means the six slots this
  * path has always had, and a scene with no stacked coplanar surface asks for exactly that. Each

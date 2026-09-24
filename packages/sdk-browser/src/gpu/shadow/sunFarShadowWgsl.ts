@@ -3,7 +3,7 @@ import { BOUNCE_TRACE_WGSL } from '../../bounce/traceWgsl.ts';
 /**
  * Sun shadow beyond the last clipmap level, traced against the scene's resident proxy.
  *
- * Cascades cover a published fraction of the camera far plane; farther out, a surface
+ * Clipmap levels cover a published fraction of the camera far plane; farther out, a surface
  * stayed lit with no shadow test — an interior seen from afar looked like full daylight, then
  * went black when the camera approached and a clipmap level took it over. One shadow ray per
  * affected pixel removes that step: the same ray the probes fire, against the same

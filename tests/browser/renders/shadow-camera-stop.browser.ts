@@ -1,7 +1,7 @@
 // A camera stop releases the representation changes held during the move: their pages go back
 // to the queue, and under a tight shadow budget they wait several frames. Those pages still
 // hold a depth of their extent and must be read until their redraw lands — never skipped to
-// the next cascade or the far proxy, which would drop the shadow. This proof walks the bench's
+// a coarser level or the far proxy, which would drop the shadow. This proof walks the bench's
 // street view of the reference scene, stops with a 0.01 ms budget, captures while pages are
 // pending, and counts the pixels the settled image shades but the stopped frame lights.
 import assert from 'node:assert/strict';
@@ -93,7 +93,7 @@ try {
       shaded = 0;
     for (let i = 0; i < pixels.length; i += 4) {
       // A pixel whose shading differs from the settled image: a shadow that dropped out, or
-      // one that came from the far side of a page or from the proxy instead of its cascade.
+      // one that came from the far side of a page or from the proxy instead of its level.
       const gap = luminance(stopped, i) - luminance(pixels, i);
       if (gap > 40) lighter++;
       else if (gap < -40) darker++;

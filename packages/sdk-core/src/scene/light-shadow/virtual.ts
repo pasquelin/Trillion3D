@@ -91,14 +91,14 @@ export function lampMipOffset(mip: number) {
   return offset;
 }
 
+/** Faces a lamp of kind `rank` draws: six for a point, one for a spot. */
+export const lampFacesOf = (rank: number) => (rank === LIGHT_KIND.point ? POINT_FACES : 1);
+
 /** Table entries a light of kind `rank` needs: a whole sun, or its lamp faces. */
 export function tableEntriesOf(rank: number) {
   if (rank === LIGHT_KIND.directional) return SUN_ENTRIES;
-  return (rank === LIGHT_KIND.point ? POINT_FACES : 1) * LAMP_FACE_ENTRIES;
+  return lampFacesOf(rank) * LAMP_FACE_ENTRIES;
 }
-
-/** Faces a lamp of kind `rank` draws: six for a point, one for a spot. */
-export const lampFacesOf = (rank: number) => (rank === LIGHT_KIND.point ? POINT_FACES : 1);
 
 /** Entry of sun page `(ax, ay)` of level `level`, relative to the light's table base. */
 export const sunEntry = (level: number, ax: number, ay: number) =>

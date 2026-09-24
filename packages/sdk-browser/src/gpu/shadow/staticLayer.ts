@@ -1,15 +1,6 @@
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 
-/**
- * THE STATIC LAYER of the shadow pool: a second depth texture of the pool's size, where each page
- * keeps the depth of its static casters alone. A page whose moving casters changed is restored from
- * it — one full-page triangle that writes each texel's depth — and its moving casters drawn over:
- * the static geometry under a moving object is never drawn again for it.
- *
- * It exists from the first move of an object on (`../../webgpu/shadow/mobility.ts`): a scene where
- * nothing moves pays neither its 64 MiB nor its pass.
- */
 /** Label of the pass that fills the static layer: timed with the Shadows stage. */
 export const SHADOW_LAYER_PASS = 'Trillion3D shadow static layer v1';
 
@@ -22,7 +13,16 @@ const RESTORE_WGSL = `@group(0) @binding(0) var layer:texture_depth_2d;
  return textureLoad(layer,vec2i(p.xy),0);
 }`;
 
-/** The pool's twin, `poolSide` pages a side: the same page at the same place. */
+/**
+ * THE STATIC LAYER of the shadow pool: a second depth texture of the pool's size, `poolSide` pages
+ * a side, where each page keeps the depth of its static casters alone, at the same place. A page
+ * whose moving casters changed is restored from it — one full-page triangle that writes each
+ * texel's depth — and its moving casters drawn over: the static geometry under a moving object is
+ * never drawn again for it.
+ *
+ * It exists from the first move of an object on (`../../webgpu/shadow/mobility.ts`): a scene where
+ * nothing moves pays neither its bytes — as many as the pool's — nor its pass.
+ */
 export async function createShadowStaticLayer(device: GPUDevice, poolSide: number) {
   const size = poolSide * SHADOW_PAGE;
   const texture = device.createTexture({

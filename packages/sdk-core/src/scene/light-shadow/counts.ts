@@ -1,4 +1,4 @@
-import { LIGHT_KIND, LIGHT_SETTINGS } from '../light/contracts.ts';
+import { LIGHT_KIND, MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 
@@ -8,7 +8,8 @@ import type { ShadowRecords } from './records.ts';
  * pages the pool holds. Everything is allocated once.
  */
 export function createShadowCounts() {
-  const drewAt = new Int32Array(LIGHT_SETTINGS.maxLights);
+  /** Frame (plus one) of the last page drawn for each slice's light. */
+  const drewAt = new Int32Array(MAX_SHADOW_SLICES);
   const counts = {
     denied: 0,
     lights: 0,

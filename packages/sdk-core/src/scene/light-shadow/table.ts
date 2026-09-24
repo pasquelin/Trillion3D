@@ -62,7 +62,6 @@ export function createShadowTable(poolPages: number) {
       return version;
     },
     baseOf: (slice: number) => base[slice],
-    sizeOf: (slice: number) => size[slice],
     /** Claims `count` words for `slice`; false when the table has no such room. */
     claim(slice: number, count: number) {
       if (base[slice] >= 0 && size[slice] === count) return true;
