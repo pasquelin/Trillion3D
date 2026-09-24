@@ -1,13 +1,14 @@
 // #362: a map whose picture moves every frame — a canvas redrawn, a video — is copied into the
 // places its texture already holds in the pool, from one working texture of its own that it
-// keeps: no session reopened, no texture made per frame. A new size is the one change the
-// session cannot take in place.
+// keeps, its bytes deducted from the texture pool budget: no session reopened, no texture made
+// per frame. A new size is the one change the session cannot take in place.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
 import { disposeQuadRun } from '../testScenes.fixture.ts';
 import { mappedQuadRun } from './mappedQuad.fixture.ts';
 import { hostTextureWritten } from '../../../host/textureImport.ts';
+import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/memoryBudgets.ts';
 
 type Labelled = { label?: string; destroyed?: boolean };
 
@@ -69,6 +70,12 @@ test('a map redrawn for 120 frames is copied in place, one working texture kept'
     assert.equal(live[0].destroyed, false, 'kept while the session lives');
     const metrics = backend.metrics() as { textureLiveBytes?: number };
     assert.equal(metrics.textureLiveBytes, 4, 'its bytes declared: one RGBA8 texel');
+    // Those bytes are texture memory: the pool is drawn from what the budget leaves them, as soon
+    // as the texture turned live and at every budget set after.
+    const drawn = await backend.setMemoryBudgets!({});
+    assert.equal(drawn.texturePool?.budgetBytes, DEFAULT_TEXTURE_POOL_BUDGET - 4, 'drawn live');
+    const set = await backend.setMemoryBudgets!({ texturePoolBytes: 64 << 20 });
+    assert.equal(set.texturePool?.budgetBytes, (64 << 20) - 4, 'a budget set after deducts them');
     // A still image sends nothing.
     const still = writes.length;
     backend.render(cam);
