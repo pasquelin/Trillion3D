@@ -90,11 +90,15 @@ function sunPageMeets(level: number, ax: number, ay: number) {
  * stale: a page nobody reads has no content to keep, and is drawn whole when first asked for.
  *
  * - **The light moved, changed, or its clipmap changed projection** (`whole`): every page, and
- *   none is read until redrawn — its depth was drawn under a projection the record no longer holds.
+ *   none is read until redrawn (`pool.withdraw`) — its depth was drawn under a projection the
+ *   record no longer holds.
  * - **An object moved within its reach**: only the pages its projected box covers — the rest
- *   still describes the scene, since nothing else changed. An object already moving stales only
- *   their moving casters: the static layer under them holds. With per-page invalidation off,
- *   every page of each light the box touches, the rule from before per-page maps.
+ *   still describes the scene, since nothing else changed. A static caster that moved makes the
+ *   static layer of those pages wrong: they are read no more until redrawn. An object already
+ *   moving stales only their moving casters: the static layer under them holds, and they stay
+ *   read — a static shadow never vanishes because something near it moves; only the moving
+ *   caster's own shadow lags until the redraw. With per-page invalidation off, every page of
+ *   each light the box touches, the rule from before per-page maps.
  * - **The representation changed** (the released boxes of `changes.ts`): the same pages, stale for
  *   detail only — their depth is coarser than the cut, not wrong, and stays read until redrawn.
  *
@@ -123,7 +127,7 @@ export function invalidateLightPages(
     if (!whole && !changes.touches(box, x, y, z, range)) continue;
     const read = whole ? undefined : changes.read(box),
       moved = byPage ? read : undefined,
-      hide = !read?.detail;
+      wrong = !read || (!read.detail && !read.moving);
     if (moved && isSun) sunRect(sun, slice, moved.min, moved.max);
     if (moved && !isSun)
       for (let face = 0; face < faces; face++) faceRect(face, moved.min, moved.max);
@@ -137,8 +141,8 @@ export function invalidateLightPages(
           : lampPageMeets(key >> 4, key & 15, pool.x[page], pool.y[page]));
       const level = moved?.moving ? STALE_DYNAMIC : STALE_FULL;
       if (!meets) continue;
-      if (pool.stale(page, nowMs, frame, level, hide)) staled++;
-      if (whole) pool.withdraw(table, page);
+      if (pool.stale(page, nowMs, frame, level)) staled++;
+      if (wrong) pool.withdraw(table, page);
     }
   }
   return staled;

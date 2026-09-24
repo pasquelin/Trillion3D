@@ -8,6 +8,7 @@ import {
   writeTriangleTotals,
 } from './layout.ts';
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
+import { DAG_BINDING } from './shader/bindings.ts';
 
 export function mockDagDevice(
   packed: PackedDag,
@@ -78,14 +79,14 @@ export function mockDagDevice(
           // Compaction rereads draw flags, like the three kernels it replaces.
           if (stage === 'dagDrawScatter') {
             compactDrawnPages(
-              byBinding.get(3)!.data,
-              byBinding.get(4)!.data,
+              byBinding.get(DAG_BINDING.flags)!.data,
+              byBinding.get(DAG_BINDING.out)!.data,
               packed.nodeCount,
               packed.pageCount,
             );
             return;
           }
-          const { uniforms, residentCut } = readDagUniforms(byBinding.get(2)!.data);
+          const { uniforms, residentCut } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
           // Residency lives as bits behind the cold records: the double rereads it through the
           // shared decoder, like the shader, rather than at a rank copied here.
           const bits = new Uint32Array(
@@ -100,7 +101,7 @@ export function mockDagDevice(
               )
             : undefined;
           const result = evaluateDagSelectionKernel(packed, uniforms, resident);
-          const out = byBinding.get(4)!.data;
+          const out = byBinding.get(DAG_BINDING.out)!.data;
           const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4);
           ints.fill(0);
           ints[0] = result.pageIds.length;
@@ -110,7 +111,7 @@ export function mockDagDevice(
           // The totals `dagMask` writes: without them adoption reads an image with no triangles.
           writeTriangleTotals(ints, result);
           ints.set(result.pageIds, SELECTION_HEADER_WORDS);
-          const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
+          const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
           flags.fill(0, packed.nodeCount);
           for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
         },
