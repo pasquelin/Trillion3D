@@ -17,7 +17,10 @@ export { SCENE_MODEL_VERSION, type SceneNodeOptions } from './nodeContracts.ts';
 
 /** A stable handle into one engine-owned transform hierarchy. */
 export class SceneNode {
-  private childNodes: readonly SceneNode[] = Object.freeze([]);
+  /** Children in insertion order; `children` hands out a frozen copy, remade after a change. */
+  private childNodes: SceneNode[] = [];
+  private childView: readonly SceneNode[] | null = null;
+  private parentNode: SceneNode | null = null; // Held here: a node map would keep it alive.
   protected readonly state: SceneState;
   /** The node's name in the tree. */ readonly id: string;
   /** Its slot in the tree. */ readonly index: number;
@@ -35,37 +38,31 @@ export class SceneNode {
   get root(): SceneRoot {
     return this.state.root as SceneRoot;
   }
-
   /** Whether it is drawn. */ get visible() {
     this.assertAlive();
     return this.visibleState;
   }
-
   set visible(value: boolean) {
     this.assertAlive();
     this.visibleState = sceneNodeVisibility(value, false);
   }
-
   /** Parent in the scene, or null while detached. */
   get parent(): SceneNode | null {
     this.assertAlive();
-    const index = this.state.tree.parent[this.index];
-    return index < 0 ? null : (this.state.nodes.get(index) ?? null);
+    return this.parentNode;
   }
-
   /** Attached children in insertion order. The returned list cannot be mutated. */
   get children(): readonly SceneNode[] {
     this.assertAlive();
-    return this.childNodes;
+    return (this.childView ??= Object.freeze(this.childNodes.slice()));
   }
-
-  /** Read-only by contract; use setLocalMatrix to mark the transform dirty. */
+  // Both matrices are views of the node's slot, reused once the node is gone: never keep one past it.
+  /** Read-only by contract, valid while the node lives; setLocalMatrix marks the transform dirty. */
   get localMatrix(): Readonly<Float64Array> {
     this.assertAlive();
     return this.state.tree.localViews[this.index];
   }
-
-  /** Current world matrix; call updateWorldMatrix after changing a pose. */
+  /** Current world matrix, valid while the node lives; updateWorldMatrix after a pose change. */
   get worldMatrix(): Readonly<Float64Array> {
     this.assertAlive();
     return this.state.tree.worldViews[this.index];
@@ -78,7 +75,9 @@ export class SceneNode {
     const previous = child.parent;
     reparentTransformNode(this.state.tree, child.index, this.index);
     previous?.detachChild(child);
-    this.childNodes = Object.freeze([...this.childNodes, child]);
+    this.childNodes.push(child);
+    this.childView = null;
+    child.parentNode = this;
     return this;
   }
 
@@ -181,9 +180,10 @@ export class SceneNode {
       });
   }
 
+  /** From the end: `clear` detaches in O(1); an absent child (−1 >>> 0) splices none. */
   private detachChild(child: SceneNode) {
-    const at = this.childNodes.indexOf(child);
-    if (at >= 0) this.childNodes = Object.freeze(this.childNodes.filter((node) => node !== child));
+    this.childNodes.splice(this.childNodes.lastIndexOf(child) >>> 0, 1);
+    this.childView = child.parentNode = null;
   }
 
   private invalidate() {
@@ -191,9 +191,8 @@ export class SceneNode {
     while (pending.length) {
       const node = pending.pop()!;
       for (const child of node.childNodes) pending.push(child);
-      node.childNodes = Object.freeze([]);
+      node.childNodes = [];
       node.#alive = false;
-      this.state.nodes.delete(node.index);
       this.state.ids.delete(node.id);
     }
   }
