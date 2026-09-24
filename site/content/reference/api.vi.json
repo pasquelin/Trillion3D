@@ -4295,7 +4295,7 @@
     }
   },
   "budget.memory": {
-    "summary": "Các ngân sách bộ nhớ mà một thế giới đang giữ ngay bây giờ: cả hai bể và mức lớn nhất mà mỗi bể có thể lớn tới."
+    "summary": "Ngân sách bộ nhớ thế giới đang giữ: tổng GPU và CPU, cách chia theo quy tắc, hai pool và mức tối đa của mỗi pool."
   },
   "budget.texturePool": {
     "summary": "Một cài đặt bể kết cấu có `bytes`, sẵn sàng trao cho một thế giới.",
@@ -6599,10 +6599,13 @@
     "members": {
       "geometryPoolCeiling": "Các bể lớn nhất mà một thế giới có thể yêu cầu: các ngân sách khởi đầu của bộ máy.",
       "texturePoolCeiling": "Bể kết cấu lớn nhất mà một thế giới có thể yêu cầu, tính bằng byte.",
-      "geometryPool": "Số byte bộ nhớ GPU giữ cho các trang hình học; đặt nó để thay đổi phong bì.",
-      "texturePool": "Số byte bộ nhớ GPU giữ cho các trang kết cấu; đặt nó để thay đổi phong bì.",
+      "geometryPool": "Số byte bộ nhớ GPU dành cho trang hình học; đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng và pool kết cấu.",
+      "texturePool": "Số byte bộ nhớ GPU dành cho trang kết cấu, `null` trên engine không có pool kết cấu (WebGL2); đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng và pool hình học.",
       "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
-      "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn."
+      "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
+      "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Không bao giờ đọc từ máy.",
+      "cpu": "Số byte bộ nhớ CPU mà các trang đã giải mã của thế giới được giữ; áp dụng ở lần tải cảnh kế tiếp.",
+      "split": "Cách chia hai tổng: pool bóng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bộ đệm trang đã giải mã lấy tổng CPU. Kết quả của quy tắc, trước khi một pool được đặt riêng."
     }
   },
   "world.camera": {
@@ -6869,6 +6872,7 @@
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
+      "waterSurface": "Mặt nước tại thời điểm mô phỏng, để vẽ: cùng các sóng lực nổi đọc, cùng những con số (`height`, `point`, `normal`).",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
       "add": "Thêm một khớp (`joint.hinge(door, frame, …)` và họ hàng): nó được tạo ngay khi cả hai vật được mô phỏng, và giữ cho đến khi bị gỡ hoặc gãy.",
@@ -7019,6 +7023,19 @@
       "current": "Vận tốc của nước (dòng chảy của một con sông), m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "Mặt nước như trang đọc để vẽ (`world.physics.waterSurface`): mô hình sóng mà lực nổi đọc trong worker vật lý, cùng những con số, tại thời điểm của mô phỏng.",
+    "members": {
+      "level": "Độ cao mặt nước khi yên, tính bằng mét.",
+      "crest": "Điểm cao nhất một đỉnh sóng đạt tới trên `level`, tính bằng mét.",
+      "time": "Số giây mô phỏng kể từ khi đặt nước: đồng hồ của sóng.",
+      "setTime": "Đặt sóng tại `t` giây mô phỏng.",
+      "height": "Độ cao mặt nước phía trên điểm thế giới `(x, z)`, tính bằng mét.",
+      "point": "Điểm thế giới `[x, y, z]` mà điểm nghỉ `(x, level, z)` được mang tới, vào `out`: một lưới dời từng điểm chính là mặt nước, đỉnh sóng sắc như sóng.",
+      "wavesNow": "Các sóng đã khai báo, mỗi pha được mang tới lúc này: đặt lại vào `world.physics.water` (sóng của nó bắt đầu lại từ 0 s), mặt nước tiếp tục từ chỗ đang ở thay vì nhảy.",
+      "normal": "Pháp tuyến đơn vị `[x, y, z]` của mặt nước tại điểm nghỉ `(x, z)`, vào `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Một con sóng như một cảnh khai báo.",
     "members": {
@@ -7052,6 +7069,7 @@
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
+      "waterSurface": "Mặt nước tại thời điểm mô phỏng, để vẽ: cùng các sóng lực nổi đọc, cùng những con số (`height`, `point`, `normal`).",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
       "add": "Thêm một khớp (`joint.hinge(door, frame, …)` và họ hàng): nó được tạo ngay khi cả hai vật được mô phỏng, và giữ cho đến khi bị gỡ hoặc gãy.",

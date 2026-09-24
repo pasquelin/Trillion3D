@@ -56,7 +56,7 @@ fn a_regular_grid_becomes_a_height_field() {
     assert!(height::detect(&pos, &triangles).is_none());
 }
 
-fn cluster(level: usize, lod_error: f64, parent_error: f64) -> DagCluster {
+pub(super) fn cluster(level: usize, lod_error: f64, parent_error: f64) -> DagCluster {
     DagCluster {
         indices: vec![0, 1, 2],
         level,

@@ -460,7 +460,7 @@
     "description": "`memory(world)` es lo que el mundo mantiene ahora (`world.budget`); las dos reservas construyen el ajuste que toma un mundo."
   },
   "budget.memory": {
-    "summary": "Los presupuestos de memoria que mantiene un mundo en este momento: las dos reservas y el máximo de cada una."
+    "summary": "Los presupuestos de memoria que tiene un mundo ahora: los totales de GPU y CPU, su reparto según la regla, ambos depósitos y el máximo de cada uno."
   },
   "budget.geometryPool": {
     "summary": "Un ajuste de reserva de geometría de `bytes`, listo para dar a un mundo.",
@@ -6336,10 +6336,13 @@
     "members": {
       "geometryPoolCeiling": "Las reservas más grandes que un mundo puede pedir: los presupuestos de partida del motor.",
       "texturePoolCeiling": "La reserva de texturas más grande que un mundo puede pedir, en bytes.",
-      "geometryPool": "Bytes de memoria de GPU reservados para las páginas de geometría; ajústalo para cambiar el límite.",
-      "texturePool": "Bytes de memoria de GPU reservados para las páginas de textura; ajústalo para cambiar el límite.",
+      "geometryPool": "Bytes de memoria GPU reservados para páginas de geometría; ajústalo para cambiar la envolvente, dentro de lo que `gpu` deja junto a las sombras y el depósito de texturas.",
+      "texturePool": "Bytes de memoria GPU reservados para páginas de textura, `null` en un motor sin depósito de texturas (WebGL2); ajústalo para cambiar la envolvente, dentro de lo que `gpu` deja junto a las sombras y el depósito de geometría.",
       "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
-      "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente."
+      "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente.",
+      "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Nunca se lee de la máquina.",
+      "cpu": "Bytes de memoria CPU que pueden ocupar las páginas decodificadas del mundo; se aplica en la próxima carga de escena.",
+      "split": "Cómo se reparten los dos totales: el depósito de sombras a su máximo, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; la caché de páginas decodificadas toma el total de CPU. Lo que da la regla, antes de ajustar un depósito por separado."
     }
   },
   "world.diagnostic": {
@@ -6868,6 +6871,7 @@
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
+      "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
@@ -7018,6 +7022,19 @@
       "current": "Velocidad del agua (la corriente de un río), en m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "La superficie del agua tal como la página la lee para dibujarla (`world.physics.waterSurface`): el modelo de olas que la flotación lee en el worker de física, los mismos números, a la hora de la simulación.",
+    "members": {
+      "level": "Altura de la superficie en reposo, en metros.",
+      "crest": "Punto más alto que alcanza una cresta sobre `level`, en metros.",
+      "time": "Segundos simulados desde que se puso el agua: el reloj de las olas.",
+      "setTime": "Ajusta las olas a `t` segundos simulados.",
+      "height": "Altura de la superficie sobre el punto del mundo `(x, z)`, en metros.",
+      "point": "El punto del mundo `[x, y, z]` al que se lleva el punto en reposo `(x, level, z)`, en `out`: una malla movida punto a punto es la superficie, con crestas tan agudas como las olas.",
+      "wavesNow": "Las olas declaradas, cada fase llevada a este instante: puestas de nuevo en `world.physics.water` (cuyas olas vuelven a empezar en 0 s), la superficie sigue desde donde está en vez de saltar.",
+      "normal": "Normal unitaria `[x, y, z]` de la superficie en el punto en reposo `(x, z)`, en `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Una ola tal como la declara una escena.",
     "members": {
@@ -7051,6 +7068,7 @@
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
+      "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
