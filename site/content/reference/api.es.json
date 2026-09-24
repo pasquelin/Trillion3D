@@ -5832,7 +5832,7 @@
       "textureLevelsDecoded": "Niveles decodificados.",
       "textureLevelCacheBytes": "Bytes de los niveles decodificados conservados.",
       "textureScratchBuilds": "Texturas temporales construidas.",
-      "textureLiveBytes": "Bytes que guardan las texturas vivas: una textura de trabajo cada una, de su propio tamaño."
+      "textureLiveBytes": "Bytes que guardan las texturas vivas: una textura de trabajo cada una, de su propio tamaño. Se descuentan de `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -6503,7 +6503,7 @@
       "textureLevelsDecoded": "Niveles decodificados.",
       "textureLevelCacheBytes": "Bytes de los niveles decodificados conservados.",
       "textureScratchBuilds": "Texturas temporales construidas.",
-      "textureLiveBytes": "Bytes que guardan las texturas vivas: una textura de trabajo cada una, de su propio tamaño.",
+      "textureLiveBytes": "Bytes que guardan las texturas vivas: una textura de trabajo cada una, de su propio tamaño. Se descuentan de `texturePoolBytes`.",
       "gpuAllocatedBytes": "Bytes asignados activos en el dispositivo, todos los recursos juntos.",
       "gpuAllocatedByLabel": "Bytes asignados agrupados por etiqueta de recurso. Las asignaciones sin etiqueta se agrupan bajo 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Número de texturas con formatos no reconocidos. El valor esperado es 0.",

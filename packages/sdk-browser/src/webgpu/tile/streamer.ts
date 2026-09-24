@@ -85,6 +85,7 @@ export function createWebgpuTileStreamer(options: {
     data,
     feedback,
     counters,
+    sources,
     /** Pins every queue: what the image shows before any tile is requested. */
     prepare() {
       for (const atlas of [color, data])
@@ -170,8 +171,7 @@ export function createWebgpuTileStreamer(options: {
     get requestReduce() {
       return reduce !== undefined;
     },
-    /** Every lane pool whose layers change is replaced while keeping its tiles; returns the
-     *  evicted tiles. Layers already held change nothing, and nothing is signalled. */
+    /** Lane pools whose layers change are replaced, tiles kept; returns the evicted tiles. */
     resize(layers: AtlasLanes) {
       const results = [color.resize(device, layers.color), data.resize(device, layers.data)];
       if (results.some((result) => result.replaced)) {

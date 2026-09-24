@@ -3439,7 +3439,7 @@
       "textureLevelsDecoded": "Çözülen seviyeler.",
       "textureLevelCacheBytes": "Tutulan çözülmüş seviyelerin baytları.",
       "textureScratchBuilds": "İnşa edilen çalışma dokuları.",
-      "textureLiveBytes": "Canlı dokuların tuttuğu baytlar: her birine kendi boyutunda bir çalışma dokusu."
+      "textureLiveBytes": "Canlı dokuların tuttuğu baytlar: her birine kendi boyutunda bir çalışma dokusu. `texturePoolBytes` değerinden düşülür."
     }
   },
   "TextureLayout": {
@@ -3995,7 +3995,7 @@
       "textureLevelsDecoded": "Çözülen seviyeler.",
       "textureLevelCacheBytes": "Tutulan çözülmüş seviyelerin baytları.",
       "textureScratchBuilds": "İnşa edilen çalışma dokuları.",
-      "textureLiveBytes": "Canlı dokuların tuttuğu baytlar: her birine kendi boyutunda bir çalışma dokusu.",
+      "textureLiveBytes": "Canlı dokuların tuttuğu baytlar: her birine kendi boyutunda bir çalışma dokusu. `texturePoolBytes` değerinden düşülür.",
       "gpuAllocatedBytes": "Tüm kaynaklarda cihazda etkin tahsis edilmiş baytlar.",
       "gpuAllocatedByLabel": "Kaynak etiketine göre gruplanmış tahsis edilmiş baytlar. Etiketsiz tahsisler 'unlabeled' olarak gruplanır.",
       "gpuAllocationsUnknownFormat": "Tanınmayan formatlara sahip dokuların sayısı. Beklenen değer 0'dır.",

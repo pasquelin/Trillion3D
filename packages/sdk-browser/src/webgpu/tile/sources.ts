@@ -6,7 +6,6 @@ import type { WebgpuTileAtlas } from './atlas.ts';
 import { createWebgpuTileLevels, type LevelKey } from './levels.ts';
 import { createTileScratch, type TileScratch } from './scratch.ts';
 import { copyLiveTexture, pictureFits } from './live.ts';
-import { mipLevelCountFor } from '../../texture/mips.ts';
 import type { TileKey } from './pageTable.ts';
 import type { TileCounters } from './counters.ts';
 import {
@@ -53,9 +52,12 @@ export function createTileSources(options: {
           ),
       })
     : undefined;
-  const scratches = new Map<string, TileScratch>();
+  /** A working texture's key: its slot and atlas as one number, nothing built per copy. */
+  const scratchId = (atlas: WebgpuTileAtlas, slot: number) =>
+    slot * 2 + (atlas.kind === 'color' ? 0 : 1);
+  const scratches = new Map<number, TileScratch>();
   /** Working textures of the live host textures, kept from pass to pass, and their bytes (#362). */
-  const live = new Map<string, TileScratch>();
+  const live = new Map<number, TileScratch>();
   let liveBytes = 0;
   const build = (atlas: WebgpuTileAtlas, slot: number) => {
     const { layout, source } = atlas.textures[slot];
@@ -73,7 +75,7 @@ export function createTileSources(options: {
     });
   };
   const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {
-    const id = `${atlas.kind}/${slot}`;
+    const id = scratchId(atlas, slot);
     let scratch = live.get(id) ?? scratches.get(id);
     if (scratch) return scratch;
     if (atlas.textures[slot].source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST');
@@ -155,16 +157,12 @@ export function createTileSources(options: {
      */
     refresh(atlas: WebgpuTileAtlas, slot: number) {
       if (!pictureFits(atlas.textures[slot])) return false;
-      const id = `${atlas.kind}/${slot}`;
+      const id = scratchId(atlas, slot);
       let scratch = live.get(id);
       if (scratch) scratch.fill();
       else {
         live.set(id, (scratch = build(atlas, slot)));
-        const { layout, lane } = atlas.textures[slot];
-        for (let level = 0; level < mipLevelCountFor(layout.width, layout.height); level++) {
-          const [width, height] = levelSize(layout.width, layout.height, level);
-          liveBytes += width * height * encoding.texelBytes(lane);
-        }
+        liveBytes += scratch.bytes;
       }
       const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' });
       copyLiveTexture(encoder, atlas, slot, scratch.texture);

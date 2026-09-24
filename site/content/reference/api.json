@@ -16127,7 +16127,7 @@
       {
         "name": "textureLiveBytes?",
         "type": "number | null | undefined",
-        "desc": "Bytes the live textures keep: one working texture each, of its own size."
+        "desc": "Bytes the live textures keep: one working texture each, of its own size. Deducted from `texturePoolBytes`."
       }
     ],
     "description": "These fields live apart from `FrameMetrics` because they describe another queue than the frame: tiles arrive at their own pace, bounded by bytes and by frame, and the pool is sized once. All optional: an engine without textures leaves them absent, `null` says \"unmeasured\", never an estimate."
@@ -19176,7 +19176,7 @@
       {
         "name": "textureLiveBytes?",
         "type": "number | null | undefined",
-        "desc": "Bytes the live textures keep: one working texture each, of its own size."
+        "desc": "Bytes the live textures keep: one working texture each, of its own size. Deducted from `texturePoolBytes`."
       },
       {
         "name": "gpuAllocatedBytes?",

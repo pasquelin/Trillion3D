@@ -3439,7 +3439,7 @@
       "textureLevelsDecoded": "已解码的层级数。",
       "textureLevelCacheBytes": "已解码层级所保留的字节数。",
       "textureScratchBuilds": "已构建的临时纹理数。",
-      "textureLiveBytes": "实时纹理占用的字节:每个纹理保留一张与自身等大的工作纹理。"
+      "textureLiveBytes": "实时纹理占用的字节:每个纹理保留一张与自身等大的工作纹理。从 `texturePoolBytes` 中扣除。"
     }
   },
   "TextureLayout": {
@@ -3995,7 +3995,7 @@
       "textureLevelsDecoded": "已解码的层级数。",
       "textureLevelCacheBytes": "已解码层级所保留的字节数。",
       "textureScratchBuilds": "已构建的临时纹理数。",
-      "textureLiveBytes": "实时纹理占用的字节:每个纹理保留一张与自身等大的工作纹理。",
+      "textureLiveBytes": "实时纹理占用的字节:每个纹理保留一张与自身等大的工作纹理。从 `texturePoolBytes` 中扣除。",
       "gpuAllocatedBytes": "设备上所有资源当前活跃分配的总字节数。",
       "gpuAllocatedByLabel": "按资源标签分组统计的已分配字节数。没有标签的分配会被归入 'unlabeled'。",
       "gpuAllocationsUnknownFormat": "格式无法识别的纹理数量。期望值为 0。",

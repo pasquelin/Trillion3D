@@ -3520,7 +3520,7 @@
       "textureLevelsDecoded": "Tingkat yang diurai.",
       "textureLevelCacheBytes": "Byte tingkat yang diurai disimpan.",
       "textureScratchBuilds": "Tekstur kerja yang dibangun.",
-      "textureLiveBytes": "Byte yang disimpan tekstur hidup: satu tekstur kerja masing-masing, seukuran dirinya."
+      "textureLiveBytes": "Byte yang disimpan tekstur hidup: satu tekstur kerja masing-masing, seukuran dirinya. Dikurangkan dari `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -3980,7 +3980,7 @@
       "textureLevelsDecoded": "Tingkat yang diurai.",
       "textureLevelCacheBytes": "Byte tingkat yang diurai disimpan.",
       "textureScratchBuilds": "Tekstur kerja yang dibangun.",
-      "textureLiveBytes": "Byte yang disimpan tekstur hidup: satu tekstur kerja masing-masing, seukuran dirinya.",
+      "textureLiveBytes": "Byte yang disimpan tekstur hidup: satu tekstur kerja masing-masing, seukuran dirinya. Dikurangkan dari `texturePoolBytes`.",
       "gpuAllocatedBytes": "Byte teralokasi aktif pada perangkat di seluruh sumber daya.",
       "gpuAllocatedByLabel": "Byte teralokasi dikelompokkan menurut label sumber daya. Alokasi tanpa label dikelompokkan sebagai 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Jumlah tekstur dengan format yang tidak dikenal. Nilai yang diharapkan 0.",

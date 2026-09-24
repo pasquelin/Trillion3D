@@ -2,6 +2,7 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import { generateMaterialMips, mipLevelCountFor } from '../../texture/mips.ts';
 import { writeRgba } from './write.ts';
+import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
 
 /**
  * Working texture of a host texture: the whole source, transferred once, and its mip chain built
@@ -18,6 +19,8 @@ import { writeRgba } from './write.ts';
  */
 export type TileScratch = {
   texture: GPUTexture;
+  /** Bytes it holds, mips included (`textureBytesOf`). */
+  bytes: number;
   /** Writes the source's current picture again, mips included: what a live texture keeps. */
   fill(): void;
   destroy(): void;
@@ -34,7 +37,7 @@ export function createTileScratch(
   },
 ): TileScratch {
   const { width, height, format } = options;
-  const texture = device.createTexture({
+  const descriptor: GPUTextureDescriptor = {
     label: 'Trillion3D texture scratch',
     size: { width, height, depthOrArrayLayers: 1 },
     format,
@@ -44,7 +47,8 @@ export function createTileScratch(
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC |
       GPUTextureUsage.RENDER_ATTACHMENT,
-  });
+  };
+  const texture = device.createTexture(descriptor);
   /** Sends the picture as it is now and builds its mips again, in the same texture. */
   const fill = () => {
     const rgba = textureRgba(options.map);
@@ -60,5 +64,10 @@ export function createTileScratch(
     generateMaterialMips(device, texture, format, width, height);
   };
   fill();
-  return { texture, fill, destroy: () => texture.destroy() };
+  return {
+    texture,
+    bytes: textureBytesOf(descriptor) ?? 0,
+    fill,
+    destroy: () => texture.destroy(),
+  };
 }
