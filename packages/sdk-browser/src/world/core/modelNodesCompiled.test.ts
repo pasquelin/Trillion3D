@@ -36,7 +36,7 @@ test('moving a node of a compiled cache moves its drawn placement, and no other'
   const source = model.record.scene.source;
   const [moved, kept] = named(source);
   const placements = hostWorldPlacements(source);
-  const pose = (graph: HostGraphNode) => [...placements.of(graph).elements];
+  const pose = (graph: HostGraphNode) => Array.from(placements.of(graph).elements);
   const before = { moved: pose(moved), kept: pose(kept) };
   const scene = new Object3D();
   scene.add(model);
