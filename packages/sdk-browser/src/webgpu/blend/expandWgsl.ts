@@ -5,19 +5,38 @@ import {
   PLAN_SHIFT,
   PLAN_VERTEX_CULL_BIT,
 } from './plan.ts';
-import { EXPAND_GROUP, expandUniformWgsl, INSTANCE_CULL_SHIFT, RUN_WORDS } from './runs.ts';
+import {
+  EXPAND_GROUP,
+  expandUniformWgsl,
+  INSTANCE_CULL_SHIFT,
+  RUN_WORDS,
+  UNI_WORDS,
+} from './runs.ts';
 
-/** The kernel's eight storage buffers, in the rank order the shader declares. */
-export const STORAGE_TYPES: GPUBufferBindingType[] = [
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
-  'storage',
-  'storage',
-  'storage',
-];
+/** `GPUShaderStage.COMPUTE`, written in the clear: this module is also read from Node, without that global. */
+const COMPUTE = 4;
+
+/**
+ * Group-0 bindings, published under the WGSL that declares them: the uniform at its dynamic
+ * offset, then the eight storage buffers in rank order. The production layout and the browser
+ * probe READ them here — none copies them, so none can lag behind the shader.
+ */
+export function blendExpandBindEntries(): GPUBindGroupLayoutEntry[] {
+  const read = 'read-only-storage',
+    write = 'storage';
+  return [
+    {
+      binding: 0,
+      visibility: COMPUTE,
+      buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: UNI_WORDS * 4 },
+    },
+    ...([read, read, read, read, read, write, write, write] as const).map((type, index) => ({
+      binding: index + 1,
+      visibility: COMPUTE,
+      buffer: { type },
+    })),
+  ];
+}
 
 /**
  * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
