@@ -11,6 +11,7 @@ import type { ClusterDrawScene } from './batchDraw.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
 import { multiplyMatrix4 } from './matrices.ts';
+import { depthOf } from './meshDepth.ts';
 
 /** A node of the display graph, read by shape: a mesh is drawn whole, anything else is walked. */
 type DisplayNode = Partial<SceneCopy> & {
@@ -25,35 +26,6 @@ type DisplayScene = ClusterDrawScene & {
   onBeforeRender?(): void;
   onAfterRender?(): void;
 };
-
-type Centre = { readonly x: number; readonly y: number; readonly z: number };
-type Bounded = {
-  boundingSphere?: { center: Centre } | null;
-  computeBoundingSphere?(): void;
-};
-
-/**
- * The depth a mesh is sorted by, the reference's: the clip-space z of its bounding sphere's
- * centre — the mesh's own sphere where it has one, its geometry's otherwise — never its origin,
- * which a mesh whose vertices carry their pose sets at the scene's. `screen` is the projection
- * times the view.
- */
-function depthOf(mesh: DisplayNode, screen: ArrayLike<number>) {
-  let sphere = (mesh as Bounded).boundingSphere;
-  if (sphere === undefined) {
-    const geometry = mesh.geometry as Bounded | undefined;
-    if (geometry && !geometry.boundingSphere) geometry.computeBoundingSphere?.();
-    sphere = geometry?.boundingSphere;
-  }
-  const c = sphere?.center ?? ORIGIN,
-    m = mesh.matrix!.elements;
-  const x = m[0] * c.x + m[4] * c.y + m[8] * c.z + m[12],
-    y = m[1] * c.x + m[5] * c.y + m[9] * c.z + m[13],
-    z = m[2] * c.x + m[6] * c.y + m[10] * c.z + m[14],
-    w = m[3] * c.x + m[7] * c.y + m[11] * c.z + m[15];
-  return screen[2] * x + screen[6] * y + screen[10] * z + screen[14] * w;
-}
-const ORIGIN: Centre = { x: 0, y: 0, z: 0 };
 
 /**
  * THE ENGINE'S DRAW OF A DISPLAY GRAPH: every visible mesh the graph holds, drawn whole by the
