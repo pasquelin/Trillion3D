@@ -4446,7 +4446,7 @@
       {
         "name": "gpuFrameMs?",
         "type": "GpuFrameMs | undefined",
-        "desc": "GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled every few images, so a number may be a few images old. Null before the first sample, on a held image, without `timestamp-query`, and on WebGL2, which times no frame into the metrics."
+        "desc": "GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled every few images, so a number may be a few images old. Null before the first sample, from a held image until the next device sample, without `timestamp-query`, and on WebGL2."
       },
       {
         "name": "gpuHostGapMs?",
@@ -17222,7 +17222,7 @@
       {
         "name": "gpuFrameMs?",
         "type": "GpuFrameMs | undefined",
-        "desc": "GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled every few images, so a number may be a few images old. Null before the first sample, on a held image, without `timestamp-query`, and on WebGL2, which times no frame into the metrics."
+        "desc": "GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled every few images, so a number may be a few images old. Null before the first sample, from a held image until the next device sample, without `timestamp-query`, and on WebGL2."
       },
       {
         "name": "gpuHostGapMs?",
