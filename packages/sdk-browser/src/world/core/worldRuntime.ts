@@ -9,6 +9,7 @@ import { createWorldContents } from './worldContents.ts';
 import { releaseWorldMirror } from './worldMirror.ts';
 import { createWorldLights } from './worldLights.ts';
 import { createWorldLink } from './worldLink.ts';
+import { createWorldBackground } from './worldBackground.ts';
 import { watchFirstFrame } from '../session/openWatch.ts';
 import { copyWorldCamera, createCanvasFit, drawnAspect } from './worldCamera.ts';
 import type { Cut } from './worldCuts.ts';
@@ -38,16 +39,16 @@ type Inputs = {
 
 /**
  * The session drawing a world, fed by a per-frame change list. What the scene asks is resolved off
- * the frame into tables — resources, material entries, batches and their rows (`worldContents.ts`)
- * — and applied once before each frame: a mesh added or removed takes or parks a row, a full buffer
- * grows in place (`placement/growth.ts`), a pose writes its row, the session reads the rows in place.
- * It is opened again, on the world's same device and once for a burst of changes, only for what it
- * does not hold: a resource or material entry it never had, rows it cannot grow, a model.
+ * the frame into tables (`worldContents.ts`) and applied once before each frame: a mesh added or
+ * removed takes or parks a row, a full buffer grows in place (`placement/growth.ts`), a pose writes
+ * its row, the background its clear colour. It is opened again, on the world's same device and
+ * once per burst, only for a resource or material entry it lacks, rows it cannot grow, a model.
  */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera } = inputs;
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
-    lights = createWorldLights();
+    lights = createWorldLights(),
+    background = createWorldBackground(scene);
   const { poses, cuts } = contents;
   let explorer: MeasuredWorld | null = null,
     mirror: NonNullable<ReturnType<typeof buildWorldSource>> | null = null,
@@ -152,6 +153,7 @@ export function createWorldRuntime(inputs: Inputs) {
       session.setEnvironment({ ...inputs.display(), irradiance });
       lightsChanged = false;
     }
+    if (!background.write(session)) reopens.request();
   };
   const fit = createCanvasFit(canvas, inputs.options().interactive === false);
   const beforeFrame = () => {
@@ -165,7 +167,7 @@ export function createWorldRuntime(inputs: Inputs) {
     if (inputs.drawn() || disposed || !scene.children.length) return null;
     return explorer ? 'its session is open and draws nothing' : `no session has opened, ${closed}`;
   });
-  scene._link = createWorldLink({ contents, lights, invalidate, relight, schedule });
+  scene._link = createWorldLink({ contents, lights, invalidate, relight, schedule, background });
   return {
     beforeFrame,
     invalidate,

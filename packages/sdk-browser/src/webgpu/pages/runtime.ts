@@ -42,7 +42,8 @@ export const VIS_FEATURES = [
 ];
 
 /** The shared state of one WebGPU page-raster backend, handed to every module that implements a
- *  part of it. `setup` and `layout` never change after construction; the other groups do. */
+ *  part of it. `setup` and `layout` never change after construction — the clear colour aside
+ *  (`io/clearColor.ts`); the other groups do. */
 export interface WebgpuPagesRuntime {
   context: BackendContext;
   /** Aborted by `dispose`; `signal` is aborted by it or by the session's. */
