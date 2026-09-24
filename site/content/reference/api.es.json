@@ -894,7 +894,9 @@
       "texturePreviewSha": "La huella de cada vista previa de textura.",
       "texturePreviewPixels": "Los píxeles de las vistas previas.",
       "texturePreviewBc7": "Los bloques BC7 de las vistas previas.",
-      "texturePreviewAstc": "Los bloques ASTC de las vistas previas."
+      "texturePreviewAstc": "Los bloques ASTC de las vistas previas.",
+      "bundleDependencyCount": "Cuántos paquetes necesita cada paquete.",
+      "bundleDependency": "Los paquetes que necesita cada paquete, hasta las raíces."
     }
   },
   "ColumnKind": {
@@ -1072,7 +1074,8 @@
       "bundles": "Paquetes.",
       "previews": "Vistas previas de texturas.",
       "previewBytes": "Bytes de la columna de píxeles, cada nivel de cada entrada puesto a continuación.",
-      "previewBlockBytes": "Bytes de cada columna de bloques: el final de las cadenas conservadas, comprimida, en bloques enteros, entradas seguidas, nada para una cadena que la familia dejó sin pérdida."
+      "previewBlockBytes": "Bytes de cada columna de bloques: el final de las cadenas conservadas, comprimida, en bloques enteros, entradas seguidas, nada para una cadena que la familia dejó sin pérdida.",
+      "bundleDependencies": "Dependencias de los paquetes, las listas de todos los paquetes una tras otra."
     }
   },
   "CpuStepSummary": {
@@ -5384,7 +5387,8 @@
       "version": "Versión del formato.",
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
-      "pages": "Cuántos paquetes."
+      "pages": "Cuántos paquetes.",
+      "maxDependencies": "Mayor número de dependencias de un paquete: el límite que publica el compilador."
     }
   },
   "SlimStructure": {
@@ -5519,7 +5523,8 @@
       "url": "Dónde se lee.",
       "sha256": "Huella de sus bytes.",
       "bytes": "Su tamaño.",
-      "count": "Clústeres que contiene."
+      "count": "Clústeres que contiene.",
+      "dependencies": "Los paquetes que guardan los padres de sus clusters, hasta las raíces siempre cargadas, en orden: se instala después de cada uno de ellos."
     }
   },
   "StreamCatalogue": {
@@ -5529,7 +5534,8 @@
       "version": "Versión del formato.",
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
-      "pages": "Cada paquete."
+      "pages": "Cada paquete.",
+      "maxDependencies": "Mayor número de dependencias de un paquete, tal como lo publicó el compilador."
     }
   },
   "StreamPage": {

@@ -309,7 +309,9 @@
       "texturePreviewSha": "各テクスチャプレビューの指紋。",
       "texturePreviewPixels": "プレビューのピクセル群。",
       "texturePreviewBc7": "プレビューのBC7ブロック群。",
-      "texturePreviewAstc": "プレビューのASTCブロック群。"
+      "texturePreviewAstc": "プレビューのASTCブロック群。",
+      "bundleDependencyCount": "各バンドルがいくつのバンドルに依存するか。",
+      "bundleDependency": "各バンドルが依存するバンドル、ルートまで。"
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -652,7 +654,8 @@
       "bundles": "バンドル数。",
       "previews": "テクスチャプレビュー数。",
       "previewBytes": "ピクセル列のバイト数。すべてのエントリの全レベルを連結したもの。",
-      "previewBlockBytes": "各ブロック列のバイト数: 保持されたチェーンの末尾は圧縮され、ブロック丸ごとの場合はエントリが連続して並び、ファミリーが可逆のまま残したチェーンには何もない。"
+      "previewBlockBytes": "各ブロック列のバイト数: 保持されたチェーンの末尾は圧縮され、ブロック丸ごとの場合はエントリが連続して並び、ファミリーが可逆のまま残したチェーンには何もない。",
+      "bundleDependencies": "バンドルの依存、すべてのバンドルのリストをつなげたもの。"
     }
   },
   "CpuStepSummary": {
@@ -3088,7 +3091,8 @@
       "version": "フォーマットのバージョン。",
       "pinned": "常に保持されるバンドル。",
       "bundleBytes": "目標とするバンドルサイズ。",
-      "pages": "バンドル数。"
+      "pages": "バンドル数。",
+      "maxDependencies": "バンドルの最大依存数：コンパイラが公開する上限。"
     }
   },
   "SlimStructure": {
@@ -3181,7 +3185,8 @@
       "url": "それが読まれる場所。",
       "sha256": "そのバイト列の指紋。",
       "bytes": "そのサイズ。",
-      "count": "それが保持するクラスター数。"
+      "count": "それが保持するクラスター数。",
+      "dependencies": "そのクラスタの親を持つバンドル、常に読み込まれたルートまで、昇順：それぞれの後にインストールされる。"
     }
   },
   "StreamCatalogue": {
@@ -3191,7 +3196,8 @@
       "version": "フォーマットのバージョン。",
       "pinned": "常に保持されるバンドル。",
       "bundleBytes": "目標とするバンドルサイズ。",
-      "pages": "すべてのバンドル。"
+      "pages": "すべてのバンドル。",
+      "maxDependencies": "バンドルの最大依存数、コンパイラが公開したとおり。"
     }
   },
   "StreamPage": {
