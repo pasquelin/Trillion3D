@@ -2,8 +2,8 @@
 // sun straight overhead that casts —, and what stands in for the shading: a request report that
 // names the pages a frame read, stamped as the engine stamps it.
 import type { SceneLight, ShadowViewpoint } from '../light/contracts.ts';
-import type { SceneLightStore } from '../light/store.ts';
-import type { ShadowPlan } from './plan.ts';
+import { createSceneLightStore, type SceneLightStore } from '../light/store.ts';
+import { createShadowPlan, type ShadowPlan } from './plan.ts';
 import { LAMP_MIPS, SUN_LEVELS, lampEntry, sunEntry } from './virtual.ts';
 
 export const VIEW: ShadowViewpoint = {
@@ -85,4 +85,13 @@ export function cycle(
   plan.commit();
   report(plan, store, frame, read());
   return drawn;
+}
+
+/** A point lamp three units up that casts, planned once: its store, its plan and its slice. */
+export function lampScene() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0);
+  return { store, plan, slice: store.sliceOf(0) };
 }

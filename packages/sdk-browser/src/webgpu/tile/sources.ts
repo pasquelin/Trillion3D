@@ -5,6 +5,7 @@ import { writeTileFromBlocks } from './writeBlocks.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
 import { createWebgpuTileLevels, type LevelKey } from './levels.ts';
 import { createTileScratch, type TileScratch } from './scratch.ts';
+import { copyLiveTexture, pictureFits } from './live.ts';
 import type { TileKey } from './pageTable.ts';
 import type { TileCounters } from './counters.ts';
 import {
@@ -51,17 +52,19 @@ export function createTileSources(options: {
           ),
       })
     : undefined;
-  const scratches = new Map<string, TileScratch>();
-  const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {
-    const id = `${atlas.kind}/${slot}`;
-    let scratch = scratches.get(id);
-    if (scratch) return scratch;
+  /** A working texture's key: its slot and atlas as one number, nothing built per copy. */
+  const scratchId = (atlas: WebgpuTileAtlas, slot: number) =>
+    slot * 2 + (atlas.kind === 'color' ? 0 : 1);
+  const scratches = new Map<number, TileScratch>();
+  /** Working textures of the live host textures, kept from pass to pass, and their bytes (#362). */
+  const live = new Map<number, TileScratch>();
+  let liveBytes = 0;
+  const build = (atlas: WebgpuTileAtlas, slot: number) => {
     const { layout, source } = atlas.textures[slot];
     if (source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST');
-    if (scratches.size >= MAX_SCRATCHES) return undefined;
-    scratch = createTileScratch(device, {
+    counters.scratches++;
+    return createTileScratch(device, {
       map: source.map,
-      rgba: source.rgba,
       width: layout.width,
       height: layout.height,
       format: atlas.poolOf(slot).texture.format,
@@ -70,8 +73,14 @@ export function createTileSources(options: {
           ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
           : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
     });
-    counters.scratches++;
-    scratches.set(id, scratch);
+  };
+  const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {
+    const id = scratchId(atlas, slot);
+    let scratch = live.get(id) ?? scratches.get(id);
+    if (scratch) return scratch;
+    if (atlas.textures[slot].source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST');
+    if (scratches.size >= MAX_SCRATCHES) return undefined;
+    scratches.set(id, (scratch = build(atlas, slot)));
     return scratch;
   };
   const dropScratches = () => {
@@ -140,11 +149,37 @@ export function createTileSources(options: {
       device.queue.submit([encoder.finish()]);
       dropScratches();
     },
-    /** End of pass, after its submit: working textures are returned. */
+    /**
+     * A host texture's new picture (#362): the texture turns live — it keeps one working texture
+     * of its own size, refilled in place from now on —, and its tail and resident tiles are
+     * copied again from it, in one submit. A texture whose picture never moves never gets here;
+     * one whose size moved is not copied — false —: only a new session lays its tiles out again.
+     */
+    refresh(atlas: WebgpuTileAtlas, slot: number) {
+      if (!pictureFits(atlas.textures[slot])) return false;
+      const id = scratchId(atlas, slot);
+      let scratch = live.get(id);
+      if (scratch) scratch.fill();
+      else {
+        live.set(id, (scratch = build(atlas, slot)));
+        liveBytes += scratch.bytes;
+      }
+      const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' });
+      copyLiveTexture(encoder, atlas, slot, scratch.texture);
+      device.queue.submit([encoder.finish()]);
+      return true;
+    },
+    /** Bytes the live textures' working textures hold, mips included, beside the pool. */
+    get liveBytes() {
+      return liveBytes;
+    },
+    /** End of pass, after its submit: working textures are returned, the live ones kept. */
     endPass: dropScratches,
     settled: () => levels?.settled() ?? Promise.resolve(),
     destroy() {
       dropScratches();
+      for (const scratch of live.values()) scratch.destroy();
+      live.clear();
       levels?.destroy();
     },
   };
