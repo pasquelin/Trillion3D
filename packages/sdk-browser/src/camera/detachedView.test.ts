@@ -3,14 +3,14 @@
 // camera's local pose, and reading it must leave the main view untouched.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { createEngineCamera, readCameraWorld } from './world.ts';
 
 test('a capture view keeps the resolved world pose and takes the aspect it is drawn at', () => {
-  const rig = new THREE.Group();
+  const rig = new G.GraphGroup();
   rig.position.set(3, -2, 7);
   rig.rotation.set(0.4, -1.2, 0.3);
-  const camera = new THREE.PerspectiveCamera(48, 16 / 9, 0.25, 640);
+  const camera = G.perspectiveCamera(48, 16 / 9, 0.25, 640);
   camera.position.set(-1, 2, 0.5);
   rig.add(camera);
   const capture = readCameraWorld(createEngineCamera(), camera, 1);

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { prepareWebgpuBlend } from '../blend/prepare.ts';
 import { voidStaleBlendGroups } from '../blend/identity.ts';
@@ -45,9 +45,9 @@ export function mountDevice() {
 export const device = mountDevice().device;
 
 /** One triangle per mesh: only the material class distinguishes the three copies. */
-function copy(material: THREE.Material, order: number) {
+function copy(material: G.GraphSurface, order: number) {
   const geometry = triangleGeometry();
-  const mesh = new THREE.Mesh(geometry, material);
+  const mesh = G.mesh(geometry, material);
   mesh.matrixAutoUpdate = false;
   mesh.renderOrder = order;
   mesh.frustumCulled = false;
@@ -55,16 +55,13 @@ function copy(material: THREE.Material, order: number) {
 }
 
 function eau(transmission: number) {
-  return Object.assign(
-    new THREE.MeshPhysicalMaterial({ transparent: true, opacity: 0.6, side: THREE.FrontSide }),
-    {
-      transmission,
-      ior: 1.33,
-      thickness: 2.5,
-      attenuationDistance: 6,
-      attenuationColor: new THREE.Color(0.35, 0.72, 0.68),
-    },
-  );
+  return Object.assign(G.physicalSurface({ transparent: true, opacity: 0.6, side: G.FRONT_SIDE }), {
+    transmission,
+    ior: 1.33,
+    thickness: 2.5,
+    attenuationDistance: 6,
+    attenuationColor: new G.Color().setRGB(0.35, 0.72, 0.68),
+  });
 }
 
 export function prepared() {
@@ -78,11 +75,11 @@ export function prepared() {
     volumeBuffer: buffer(),
   } as unknown as WebgpuGpuState;
   const copies = [
-    copy(new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.4 }), 0),
+    copy(G.standardSurface({ transparent: true, opacity: 0.4 }), 0),
     copy(eau(1), 1),
-    copy(new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.2 }), 2),
+    copy(G.standardSurface({ transparent: true, opacity: 0.2 }), 2),
   ];
-  blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new THREE.Scene());
+  blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new G.GraphScene());
   // The scene's transparent list IS the draw list: static tables and the encode plan are built with
   // it, as `prepareBlendResources` does.
   buildBlendStatics(blendState);

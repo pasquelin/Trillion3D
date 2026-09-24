@@ -1,14 +1,14 @@
 import { hashId } from '../../diagnostic/colors.ts';
 import { materialSide } from '../../scene/materialSide.ts';
 import { triangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
+import { isDrawnNode } from '../graph/kinds.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 import type {
   HostDiagnosticFactory,
   HostDiagnosticGeometry,
-  HostDiagnosticMaterial,
   HostDiagnosticMesh,
-  HostNode,
-  HostTraversable,
+  HostDisposable,
+  HostScene,
 } from '../resources.ts';
 
 /**
@@ -26,15 +26,17 @@ import type {
 export type BeautyMaterials = Map<HostDiagnosticMesh, HostDiagnosticMesh['material']>;
 
 export function repaintHostGraph(
-  scene: HostTraversable,
+  scene: HostScene,
   mode: DiagnosticMode,
   host: HostDiagnosticFactory,
   beautyMaterials: BeautyMaterials,
-  overlays: HostDiagnosticMaterial[],
+  overlays: HostDisposable[],
 ) {
-  scene.traverse((node: HostNode) => {
-    const mesh = node as unknown as HostDiagnosticMesh;
-    if (!mesh.isMesh) return;
+  scene.traverse((node) => {
+    if (!isDrawnNode(node)) return;
+    // A view swaps the factory's own surfaces and geometries onto the mesh: it writes through
+    // the diagnostic shape the witnesses share.
+    const mesh: HostDiagnosticMesh = node;
     if (!beautyMaterials.has(mesh)) beautyMaterials.set(mesh, mesh.material);
     if (!mesh.userData.sourceGeometry) mesh.userData.sourceGeometry = mesh.geometry;
     const sourceGeometry = mesh.userData.sourceGeometry as HostDiagnosticGeometry;
@@ -44,7 +46,7 @@ export function repaintHostGraph(
     if (mode === 'beauty') return;
     if (mode === 'wireframe') {
       const salt = hashId(String(mesh.userData.clusterId ?? mesh.id));
-      mesh.geometry = triangleGeometry(sourceGeometry, host, salt);
+      mesh.geometry = triangleGeometry(sourceGeometry, host, salt, overlays);
       const material = host.triangleMaterial(materialSide(sourceMaterial));
       overlays.push(material);
       mesh.material = material;

@@ -3,19 +3,19 @@
 // Under a rig that no one else walks, only the world pose discriminates.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { emitExplorerFrameDiagnostic } from './frameDiagnostic.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 
 test('emitExplorerFrameDiagnostic: the published camera is the world pose, under a rig the host does not walk', () => {
-  const rig = new THREE.Object3D();
+  const rig = new G.GraphNode();
   rig.position.set(-3, 8, 2);
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 50);
+  const camera = G.perspectiveCamera(45, 1, 0.1, 50);
   rig.add(camera);
   rig.updateWorldMatrix(true, false);
-  const attendu = camera.getWorldPosition(new THREE.Vector3()).toArray();
-  assert.notDeepEqual(attendu, camera.position.toArray(), 'witness: the rig does move the eye');
+  const attendu = G.worldPosition(camera, new G.Vector3()).toArray();
+  assert.notDeepEqual(attendu, G.xyz(camera.position), 'witness: the rig does move the eye');
 
   const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
   const active = {

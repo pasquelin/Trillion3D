@@ -1,5 +1,5 @@
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import assert from 'node:assert/strict';
 import { compareImages } from '../../../../sdk-core/src/index.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -16,10 +16,10 @@ import { dagLevel, dagRoots } from './testDag.fixture.ts';
 import { camera, quadScene } from './testScenes.fixture.ts';
 
 export function occluderScene() {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
+    G.floatAttribute(
       [
         -1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, -0.2, -0.2, -2, 0.2, -0.2, -2, 0.2, 0.2, -2, -0.2,
         0.2, -2,
@@ -27,10 +27,10 @@ export function occluderScene() {
       3,
     ),
   );
-  geometry.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]));
+  const material = G.basicSurface({ color: 0xff0000 }),
+    mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   const pages = dagRoots([
     {
@@ -99,7 +99,7 @@ export function assertOccluderImage(
     visibilityIds(): Uint32Array;
   },
   shown: PageRec[],
-  camera: THREE.PerspectiveCamera,
+  camera: G.GraphCamera,
   viewport: [number, number],
 ) {
   const cam = readCameraWorld(createEngineCamera(), camera);
@@ -127,7 +127,7 @@ export function assertOccluderImage(
 export function twoCoarseQuadsScene() {
   const a = coarseQuadScene(),
     b = coarseQuadScene();
-  const mesh = b.source.children[0] as THREE.Mesh;
+  const mesh = b.source.children[0] as G.GraphMesh;
   mesh.position.x = 100;
   a.source.add(mesh);
   const primitive = {

@@ -1,11 +1,20 @@
 // Scene of the bare Three witness: its lights and what it holds in memory. Served to the page with
 // `threeBarePage.ts`, imports only `three`.
 import * as THREE from 'three';
-import { appliquer, creer } from './witnessPage.ts';
-import type { ThreeLight } from './witnessPage.ts';
+import { appliquer } from './witnessPage.ts';
 import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 
 const BYTES_PER_TEXEL_WITH_MIPS = 4 * 1.34;
+
+type ThreeLight = THREE.DirectionalLight | THREE.SpotLight | THREE.PointLight;
+
+/** The library's light of the declared kind: the bare witness draws with the library alone. */
+const creer = (light: SceneLight): ThreeLight =>
+  light.kind === 'directional'
+    ? new THREE.DirectionalLight()
+    : light.kind === 'spot'
+      ? new THREE.SpotLight()
+      : new THREE.PointLight();
 
 /** The contract's Three light — conversion from the witness (`witnessPage.ts`) — plus what is
  *  specific to the bare path: the shadow. The sun sits outside the model box, its shadow camera covers it. */

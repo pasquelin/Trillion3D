@@ -4,23 +4,22 @@ import type {
   HostAttributes,
   HostColour,
   HostMaterials,
-  HostNode,
 } from '../host/resources.ts';
 import { firstMaterial } from '../scene/materialSide.ts';
+import { isDrawnNode } from '../host/graph/kinds.ts';
 import { copyElements, type MatrixElements } from '../math/matrixElements.ts';
 import type { RenderBackend } from '../backend/types.ts';
 import type { PageRec } from './selection/selection.ts';
 import type { PageSurface } from './surface.ts';
 import { rasterTriangle, type RasterTarget } from './rasterFill.ts';
 import { resolveCameraWorld, type HostCamera } from '../camera/world.ts';
-import { drawnRanges, submittedDraws } from '../cluster/batchMesh.ts';
+import { drawnRanges, drawWorld, submittedDraws } from '../cluster/batchMesh.ts';
 
 export const RASTER_BACKGROUND = 0x171d28;
 const BACKGROUND = RASTER_BACKGROUND;
 
 /** A mesh of the host graph as the oracle reads it: what it draws, and where it stands. */
 type HostRasterMesh = {
-  readonly isMesh?: boolean;
   readonly geometry: { readonly index: HostAttribute | null; readonly attributes: HostAttributes };
   readonly material: HostMaterials;
   readonly matrixWorld: MatrixElements;
@@ -80,7 +79,7 @@ export function rasterPageRecords(
   for (const draw of submittedDraws(backend)) {
     const index = draw.geometry.index,
       position = draw.geometry.attributes.position,
-      world = draw.matrix.elements,
+      world = drawWorld(draw),
       rgb = colorOf(draw.material),
       vertex = (i: number) => (index ? index.array[i] : i);
     for (const [first, length] of drawnRanges(draw))
@@ -97,9 +96,8 @@ export function rasterPageRecords(
         );
   }
   const meshes: HostRasterMesh[] = [];
-  backend.scene.traverse((node: HostNode) => {
-    const mesh = node as unknown as HostRasterMesh;
-    if (mesh.isMesh) meshes.push(mesh);
+  backend.scene.traverse((node) => {
+    if (isDrawnNode(node)) meshes.push(node);
   });
   for (const mesh of meshes) {
     const { index, attributes } = mesh.geometry,

@@ -10,7 +10,7 @@ import {
   installedServer,
   type RequestRecord,
 } from './installed-package-server.ts';
-import { runInstalledWorkers } from './installed-package-workers.ts';
+import { installedWorkerRequests, runInstalledWorkers } from './installed-package-workers.ts';
 
 export async function runInstalledBrowser({
   root,
@@ -59,6 +59,7 @@ export async function runInstalledBrowser({
       pageUrl: geometryUrl,
       decodeWorkerUrl: `http://127.0.0.1:${address.port}${decodeWorkerPath}`,
       integrationWorkerUrl: `http://127.0.0.1:${address.port}${integrationWorkerPath}`,
+      requests: installedWorkerRequests(),
     });
     return installedBrowserResult({
       result,

@@ -8,7 +8,7 @@
 //
 // node --experimental-strip-types tests/browser/renders/shear-transform.browser.ts
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { OPEN_CONE } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import {
   packDagSelection,
@@ -25,18 +25,18 @@ const MIN = [-1, -1, -1],
   MAX = [1, 1, 1];
 
 /** The requested matrix: `y` pushes `x`, two non-orthogonal axes. */
-const cisaillee = () => new THREE.Matrix4().set(1, 3, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+const cisaillee = () => new G.Matrix4().set(1, 3, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
 /** What the defect posed: the same matrix reduced to a translation-rotation-scale product. */
-function recomposee(source: THREE.Matrix4) {
-  const position = new THREE.Vector3(),
-    rotation = new THREE.Quaternion(),
-    echelle = new THREE.Vector3();
+function recomposee(source: G.Matrix4) {
+  const position = new G.Vector3(),
+    rotation = new G.Quaternion(),
+    echelle = new G.Vector3();
   source.decompose(position, rotation, echelle);
-  return new THREE.Matrix4().compose(position, rotation, echelle);
+  return new G.Matrix4().compose(position, rotation, echelle);
 }
 
-function empaquete(world: THREE.Matrix4, sphere: number[]) {
+function empaquete(world: G.Matrix4, sphere: number[]) {
   return packDagSelection([
     {
       world,
@@ -49,7 +49,7 @@ function empaquete(world: THREE.Matrix4, sphere: number[]) {
 
 /** A narrow view on `x`: only the sheared box enters it. */
 function vue(x: number, fov: number) {
-  const camera = new THREE.PerspectiveCamera(fov, 1, 0.1, 100);
+  const camera = G.perspectiveCamera(fov, 1, 0.1, 100);
   camera.position.set(x, 0, 10);
   camera.lookAt(x, 0, 0);
   camera.updateMatrixWorld(true);
@@ -71,7 +71,7 @@ const sphereEtroite = [3.5, 0, 0, 1],
  *  would mix two frames in the same formula, and the frustum would cut wrongly. */
 const appel = (
   nom: string,
-  world: THREE.Matrix4,
+  world: G.Matrix4,
   sphere: number[],
   uniforms: ReturnType<typeof cameraSelectionUniforms>,
 ) => ({

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from './pages.ts';
@@ -58,8 +58,8 @@ test('visSlotPipeline and visPipelineFor route a coplanar-layer slot to its own 
   } as unknown as WebgpuPagesCore;
   assert.equal(visSlotPipeline(rt, BASE_SLOTS), pipelines[0], 'layer 1, occluder, back cull');
   const rec = {
-    material: new THREE.MeshBasicMaterial(),
-    matrix: new THREE.Matrix4(),
+    material: G.basicSurface(),
+    matrix: new G.Matrix4(),
     depthLayer: 1,
   } as unknown as PageRec;
   assert.equal(

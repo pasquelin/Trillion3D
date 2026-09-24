@@ -1,10 +1,11 @@
 import test from 'node:test';
+import { GraphSurface } from '../host/graph/surface.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { applyMeshDiagnostic, triangleGeometry } from './triangleDiagnostic.ts';
-import { hostDiagnostics } from '../host/three/sceneAdapter.ts';
+import { hostDiagnostics } from '../../../../bench/witnesses/three/sceneAdapter.ts';
 import { asHostLibrary } from '../host/resources.ts';
-import { exactPagesBackend, referenceBackend } from '../measurement/measurement.ts';
+import { exactPagesBackend, referenceBackend } from '../../../../bench/witnesses/measurement.ts';
 import { quadScene, frontCamera, quadRootsContext } from '../backend/pagesBackendScenes.fixture.ts';
 import { submittedDraws } from '../cluster/batchMesh.ts';
 
@@ -35,17 +36,26 @@ test('a mesh diagnostic swaps in the triangle colouring and hands the source bac
   mesh.userData.sourceGeometry = geometry;
   mesh.userData.sourceMaterial = material;
   material.side = THREE.DoubleSide;
-  const overlays: THREE.Material[] = [];
+  const overlays: { dispose(): void }[] = [];
   applyMeshDiagnostic(mesh, 'wireframe', overlays, hostDiagnostics);
-  assert.equal(mesh.geometry, triangleGeometry(geometry, hostDiagnostics));
-  assert.equal(overlays.length, 1);
-  assert.equal(mesh.material, overlays[0]);
-  assert.equal((mesh.material as THREE.Material).side, THREE.DoubleSide);
+  const copy = mesh.geometry;
+  assert.equal(copy, triangleGeometry(geometry, hostDiagnostics));
+  assert.equal(overlays.length, 2, 'the copy’s release and the triangle surface');
+  assert.equal(mesh.material, overlays[1]);
+  assert.equal((overlays[1] as THREE.Material).side, THREE.DoubleSide);
   applyMeshDiagnostic(mesh, 'beauty', overlays, hostDiagnostics);
   assert.equal(mesh.geometry, geometry);
   assert.equal(mesh.material, material);
-  assert.equal(overlays.length, 1, 'the overlay stays for its owner to dispose');
-  overlays[0].dispose();
+  assert.equal(overlays.length, 2, 'the overlays stay for their owner to dispose');
+  // Issue #275: the per-triangle copy leaves with the view — never held for the page's life —
+  // and the next view makes its own.
+  let freed = false;
+  (copy as unknown as { released: Set<() => void> }).released.add(() => (freed = true));
+  overlays.splice(0).forEach((overlay) => overlay.dispose());
+  assert.equal(freed, true, 'the copy is freed with the view');
+  applyMeshDiagnostic(mesh, 'wireframe', overlays, hostDiagnostics);
+  assert.notEqual(mesh.geometry, copy, 'a freed copy is never worn again');
+  overlays.splice(0).forEach((overlay) => overlay.dispose());
   geometry.dispose();
   material.dispose();
 });
@@ -63,7 +73,8 @@ test('exact pages wireframe uses non-indexed submitted triangles', () => {
   assert.ok(
     drawn.every(
       (item) =>
-        item.material instanceof THREE.MeshBasicMaterial &&
+        item.material instanceof GraphSurface &&
+        item.material.family === 'basic' &&
         item.material.vertexColors &&
         !item.material.wireframe,
     ),

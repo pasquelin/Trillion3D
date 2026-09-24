@@ -15,8 +15,11 @@ export const firstMaterial = (material: HostMaterials): HostMaterial | undefined
 
 /** The host side constant a material declares, the first of an array deciding; an empty
  *  array declares nothing and gets the host default, front, instead of a crash. */
-export function materialSide(material: HostMaterials): number {
-  return firstMaterial(material)?.side ?? HOST_SIDE_FRONT;
+export function materialSide(
+  material: { readonly side: number } | readonly { readonly side: number }[],
+): number {
+  const first = 'length' in material ? material[0] : material;
+  return first?.side ?? HOST_SIDE_FRONT;
 }
 
 /** The side a host material declares, read once at the boundary into the engine's own enum. */
@@ -34,9 +37,8 @@ export const hostSide = (side: Side): number =>
  * The raster facts a host declares beside the shaded ones: which version of the declaration this
  * is, its opacity, its alpha cutoff, whether it is drawn blended, whether the host draws a
  * double-sided blended surface in one pass, and whether it is declared as one material per
- * geometry group. The cache's material
- * table declares none of them (`packages/sdk-core/src/scene/core/tableContracts.ts`), so they are read here, at the same
- * boundary as the side, and travel on inside the engine's own surface record (`../page/surface.ts`).
+ * geometry group. The host declaration they are read from is built from the cache's material
+ * table (`../host/prepared/materials.ts`); they are read here, at the same boundary as the side, and travel on inside the engine's own surface record (`../page/surface.ts`).
  * They are written INTO the record given: this runs per page row and per plan entry.
  */
 export type MaterialRaster = {

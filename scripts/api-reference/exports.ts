@@ -109,7 +109,9 @@ class ReferenceWalk {
       ? `interface ${name}${heritageOf(node)}`
       : `type ${name}${alias && alias.length <= ALIAS_TEXT_LIMIT ? ` = ${alias}` : ''}`;
     const prefix = INSTANCE_MEMBERS[name];
-    const rows = prefix ? [] : shapes.members(type, symbol).map((row) => shapes.row(row, symbol));
+    // An alias of a named class or interface shows none: its members stay with the type it names.
+    const own = alias ? shapes.inlineMembers(type) : shapes.members(type, symbol);
+    const rows = prefix ? [] : own.map((row) => shapes.row(row, symbol));
     entry({ kind: 'Type', title, signature, members: rows });
     if (prefix) this.memberEntries(prefix, base, type, symbol);
   }

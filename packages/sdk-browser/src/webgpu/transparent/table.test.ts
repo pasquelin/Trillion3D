@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type * as THREE from 'three';
+import type * as G from '../../host/graph/graph.fixture.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
 import type { BlendGpuItem } from '../blend/state.ts';
@@ -8,9 +8,9 @@ import { createTransparentTable, TRANSPARENT_GROUP } from './table.ts';
 import { evaluateTransparentCompaction } from './compactCpu.fixture.ts';
 import { CULL_STRIDE } from '../../gpu/dag/types.ts';
 
-const mesh = (name: string) => ({ name }) as unknown as THREE.Mesh;
+const mesh = (name: string) => ({ name }) as unknown as G.GraphMesh;
 // A placement is named by the world its pages and its item read: here, one per mesh.
-const rec = (sourceMesh: THREE.Mesh, id: number, sourceOrder: number, transparent = true) =>
+const rec = (sourceMesh: G.GraphMesh, id: number, sourceOrder: number, transparent = true) =>
   ({
     id,
     sourceOrder,
@@ -37,7 +37,7 @@ function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
   }
   return { pages, culling: { nodes, stride: CULL_STRIDE } } as unknown as ClusterRoot<PageRec>;
 }
-const item = (sourceMesh: THREE.Mesh | undefined, paged: boolean) =>
+const item = (sourceMesh: G.GraphMesh | undefined, paged: boolean) =>
   ({ sourceMesh, matrix: sourceMesh, paged }) as unknown as BlendGpuItem;
 
 /** A reproducible pseudo-random stream: the sweep below has to be the same on every run. */
@@ -104,7 +104,7 @@ test('the compaction keeps the table order and nothing else, on every subset', (
   for (let trial = 0; trial < 150; trial++) {
     const roots: Array<ClusterRoot<PageRec>> = [];
     const bases: number[] = [];
-    const meshes: THREE.Mesh[] = [];
+    const meshes: G.GraphMesh[] = [];
     const packed: PageRec[] = [];
     for (let m = 0; m < 3; m++) {
       const source = mesh(`m${m}`);

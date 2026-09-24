@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { HIZ_BOUNDS_VALUES } from './hiz.ts';
 import { projectCornersInto } from './corners.ts';
 
@@ -81,13 +81,13 @@ function boites(count: number) {
 }
 
 function compare(
-  camera: THREE.Camera,
-  view: THREE.Matrix4,
+  camera: G.GraphCamera,
+  view: G.Matrix4,
   near: number,
   label: string,
   boxes: Float64Array[],
 ) {
-  const viewProj = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, view);
+  const viewProj = new G.Matrix4().multiplyMatrices(camera.projectionMatrix, view);
   const into = new Float64Array(HIZ_BOUNDS_VALUES);
   let projected = 0;
   for (const corners of boxes) {
@@ -105,7 +105,7 @@ function compare(
 
 test('the projection returns, bit for bit, what the full per-corner dot product returned', () => {
   const boxes = boites(400);
-  const perspective = new THREE.PerspectiveCamera(50, 1280 / 720, 0.1, 5000);
+  const perspective = G.perspectiveCamera(50, 1280 / 720, 0.1, 5000);
   perspective.position.set(3, 40, 160);
   perspective.rotation.set(-0.2, 0.4, 0.1);
   perspective.updateMatrixWorld(true);
@@ -113,7 +113,7 @@ test('the projection returns, bit for bit, what the full per-corner dot product 
 
   // An orthographic projection does not have (0,0,-1,0) for a fourth row: `cw` goes back through
   // its dot product, and the box must come out at the same bits.
-  const ortho = new THREE.OrthographicCamera(-200, 200, 120, -120, 0.1, 5000);
+  const ortho = G.orthographicCamera(-200, 200, 120, -120, 0.1, 5000);
   ortho.position.set(3, 40, 160);
   ortho.updateMatrixWorld(true);
   compare(ortho, ortho.matrixWorldInverse, ortho.near, 'orthographic', boxes);

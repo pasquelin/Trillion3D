@@ -8,8 +8,7 @@ import type {
   HostDiagnosticGeometry,
   HostDiagnosticMaterial,
   HostDiagnosticMesh,
-  HostNode,
-  HostTraversable,
+  HostScene,
 } from '../resources.ts';
 
 /**
@@ -41,20 +40,19 @@ function hostGeometry(count: number, tag: string) {
 }
 function hostMesh(id: number, material: HostDiagnosticMesh['material'], count = 6) {
   return {
-    isMesh: true,
+    kind: 'mesh' as const,
     id,
     material,
     geometry: hostGeometry(count, `g${id}`),
     userData: {} as Record<string, unknown>,
-  } satisfies HostDiagnosticMesh;
+  } satisfies HostDiagnosticMesh & { kind: 'mesh' };
 }
-function hostScene(...meshes: HostDiagnosticMesh[]): HostTraversable {
-  const nodes = meshes as unknown as HostNode[];
+function hostScene(...meshes: HostDiagnosticMesh[]): HostScene {
   return {
-    name: 'display',
-    visible: true,
+    background: null,
+    children: meshes,
     traverse(visit) {
-      for (const node of nodes) visit(node);
+      for (const node of meshes) visit(node);
     },
   };
 }
@@ -103,8 +101,8 @@ test('the repaint keeps the beauty surface of a mesh and hands it back on beauty
 test('a node that is not a mesh is left alone', () => {
   const beauty: BeautyMaterials = new Map();
   const { host, asked } = recordingFactory();
-  const plain = { name: 'group', visible: true } as HostNode;
-  const scene: HostTraversable = { name: 'display', visible: true, traverse: (v) => v(plain) };
+  const plain = { name: 'group', visible: true };
+  const scene: HostScene = { background: null, children: [plain], traverse: (v) => v(plain) };
   repaintHostGraph(scene, 'clusters', host, beauty, []);
   assert.equal(beauty.size, 0);
   assert.deepEqual(asked, []);
@@ -171,7 +169,7 @@ test('the per-triangle view salts on the cluster the host declared, else on the 
   );
   assert.notEqual(hashId('p3'), hashId('12'), 'the two salts are not the same number');
   assert.equal(tagOf(withCluster.material), 'triangle');
-  assert.equal(overlays.length, 2);
+  assert.equal(overlays.length, 4, 'two surfaces and the release of two copies');
 });
 
 test('a second view repaints the source surface, never the previous view’s copy', () => {

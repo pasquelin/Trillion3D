@@ -4,7 +4,7 @@
 // What must stay true: a cut shorter than the previous one leaves nothing behind.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { selectVisiblePages, type PageRec } from './selection.ts';
 import { wideCamera } from './dag.fixture.ts';
 import { culledDagRoots, HELD_EXACT_ASK } from './helpers.fixture.ts';
@@ -12,7 +12,7 @@ import { cameraMoteur } from '../../camera/camera.fixture.ts';
 
 /** A camera that sees none of the model: its cut is empty. */
 function ailleurs() {
-  const cam = new THREE.PerspectiveCamera(20, 16 / 9, 0.1, 1000);
+  const cam = G.perspectiveCamera(20, 16 / 9, 0.1, 1000);
   cam.position.set(1000, 1000, 1000);
   cam.lookAt(2000, 2000, 2000);
   cam.updateMatrixWorld();

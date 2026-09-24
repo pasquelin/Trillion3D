@@ -1,4 +1,4 @@
-import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
+import { LTC_SIZE, ltcTable } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 import { INVERSE_TWO_PI } from '../../lighting/shaderConstants.ts';
 
 /** The WebGL2 program's rank of a rectangle in `lightData`, after its ambient (3). */
@@ -37,3 +37,26 @@ vec3 T1=normalize(dot(side,side)<1e-10?other:side),T2=cross(N,T1);vec4 m=ltcLook
 float lobe=polygonFormFactor(ltcCorner(a,T1,T2,N,m),ltcCorner(b,T1,T2,N,m),ltcCorner(c,T1,T2,N,m),ltcCorner(d,T1,T2,N,m),vec3(0.0,0.0,1.0)).w;
 vec3 f0=mix(vec3(0.04),base,metal);vec3 specular=(f0*t.x+(vec3(1.0)-f0)*t.y)*lobe*colorIntensity.w*window;
 return(base*(1.0-metal)/PI*E+specular)*colorIntensity.rgb;}`;
+
+/** The fitted lobe of the rectangles (`ltcTable.ts`) as a float texture read by `texelFetch`:
+ *  two texels a cell, no filtering asked of the device. */
+export function createLtcTexture(gl: WebGL2RenderingContext) {
+  const texture = gl.createTexture()!;
+  gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA32F,
+    LTC_SIZE * 2,
+    LTC_SIZE,
+    0,
+    gl.RGBA,
+    gl.FLOAT,
+    ltcTable(),
+  );
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  return texture;
+}

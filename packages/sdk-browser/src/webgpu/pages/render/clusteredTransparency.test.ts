@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../pages.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
@@ -13,15 +13,12 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
   const fixture = quadScene(),
     { device, draws, writes } = mockGpu();
   fixture.material.transparent = true;
-  fixture.material.side = THREE.DoubleSide;
+  fixture.material.side = G.DOUBLE_SIDE;
   fixture.geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
-      [-1, -1, 0, 1, -1, 0, 0, 1, 0, 99, -1, 0, 101, -1, 0, 100, 1, 0],
-      3,
-    ),
+    G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0, 99, -1, 0, 101, -1, 0, 100, 1, 0], 3),
   );
-  fixture.geometry.setIndex([0, 1, 2, 3, 4, 5]);
+  fixture.geometry.setIndex(G.indices([0, 1, 2, 3, 4, 5]));
   fixture.indices.set('1', new Uint32Array([3, 4, 5]));
   const primitive = fixture.metadata.primitives[0];
   primitive.pass = 'clustered-blend';
@@ -75,7 +72,7 @@ test('clustered transparency reads the opaque geometry instead of copying it', a
     fixture.metadata.primitives[0].pass = pass;
     const positions = new Float32Array(3000);
     positions.set(fixture.geometry.getAttribute('position').array);
-    fixture.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    fixture.geometry.setAttribute('position', new G.GraphAttribute(positions, 3));
     const backend = webgpuPagesBackend({
       ...fixture,
       gpuDevice: device,
@@ -104,7 +101,7 @@ test('clustered transparency switches LOD with resident coverage and retains bot
   const fixture = coarseQuadScene(),
     { device } = mockGpu();
   fixture.material.transparent = true;
-  fixture.material.side = THREE.DoubleSide;
+  fixture.material.side = G.DOUBLE_SIDE;
   fixture.metadata.primitives[0].pass = 'clustered-blend';
   fixture.metadata.primitives[0].pages[2].count = 3;
   fixture.metadata.primitives[0].pages[2].bytes = 12;
@@ -154,9 +151,9 @@ test('a transparent switched to double-sided still expands all its instances', a
     { device, draws, buffers } = mockGpu();
   fixture.material.transparent = true;
   // Single-sided at prepare: one plan entry, and half the room.
-  fixture.material.side = THREE.FrontSide;
+  fixture.material.side = G.FRONT_SIDE;
   fixture.metadata.primitives[0].pass = 'clustered-blend';
-  const mesh = fixture.source.children[0] as THREE.Mesh;
+  const mesh = fixture.source.children[0] as G.GraphMesh;
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
@@ -167,7 +164,7 @@ test('a transparent switched to double-sided still expands all its instances', a
     await backend.prepare();
     backend.render(camera());
     await backend.flush();
-    fixture.material.side = THREE.DoubleSide;
+    fixture.material.side = G.DOUBLE_SIDE;
     // A move, and the scene rebuilds its plan: that is where the item gains its second entry.
     mesh.position.x = 0.1;
     mesh.updateMatrixWorld(true);

@@ -3,7 +3,7 @@
 // the change at its next image, not one image late.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../host/graph/graph.fixture.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts';
@@ -13,10 +13,10 @@ import { hostTextureWritten } from '../../../host/textureImport.ts';
 test('a filter written on a map is in its header before the image that draws it is submitted', async () => {
   installGpuGlobals();
   const gpu = mockGpu();
-  const map = new THREE.DataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1);
+  const map = G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1);
   map.needsUpdate = true;
   const fixture = quadScene();
-  (fixture.material as THREE.MeshBasicMaterial).map = map;
+  (fixture.material as G.GraphSurface).map = map;
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: gpu.device,
@@ -31,10 +31,10 @@ test('a filter written on a map is in its header before the image that draws it 
     const header = () =>
       gpu.writes.filter((write) => write.label?.startsWith('Trillion3D texture pages'));
     const before = header().length;
-    map.magFilter = THREE.LinearFilter;
+    map.magFilter = G.HOST_FILTER_LINEAR;
     map.needsUpdate = true;
     hostTextureWritten();
-    (fixture.material as THREE.MeshBasicMaterial).needsUpdate = true;
+    (fixture.material as G.GraphSurface).needsUpdate = true;
     backend.refreshMaterials?.();
     const submitted = gpu.submits.length;
     backend.render(cam);

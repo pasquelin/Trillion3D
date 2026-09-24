@@ -3,7 +3,7 @@
 // of the parent — never through `setTransform`, never followed by a manual `updateMatrixWorld` —
 // so the only way the engine can see that change is the resolution it does itself before
 // inverting the parent's matrix (`resolveHostNode`, in `setWebgpuTransform`).
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { libere } from './sharedSceneProof.ts';
 import { difference, image, redCount } from './sceneImageProof.ts';
 import { executerPasses } from './deviceProof.ts';
@@ -11,7 +11,7 @@ import { ouvrePasse } from './transparentTransformScene.ts';
 
 /** A column-major world matrix, pure translation on `x`. */
 function translation(x: number): Float32Array {
-  return new Float32Array(new THREE.Matrix4().makeTranslation(x, 0, 0).elements);
+  return new Float32Array(new G.Matrix4().makeTranslation(x, 0, 0).elements);
 }
 
 /**
@@ -21,7 +21,7 @@ function translation(x: number): Float32Array {
  */
 async function sequence(device: GPUDevice, pagine: boolean, evenements: unknown[]) {
   const { s, backend, canvas, setTransform, camera } = ouvrePasse(device, pagine, evenements);
-  const pivot = s.source.getObjectByName('pivot'),
+  const pivot = G.byName(s.source, 'pivot'),
     etapes: { name: string; tenue: boolean | null | undefined; rouge: number }[] = [];
   if (!pivot) throw new Error('scene missing pivot node');
   const etape = async (name: string) => {

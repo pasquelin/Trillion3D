@@ -42,3 +42,16 @@ export const HOST_BLENDING_NORMAL = 1;
 
 /** A normal texture whose vectors live in the surface's tangent frame, as glTF defines it. */
 export const HOST_NORMAL_MAP_TANGENT_SPACE = 0;
+
+/** The depth test passes at equal or nearer depth: every surface's until it says otherwise. */
+export const HOST_DEPTH_LESS_EQUAL = 3;
+
+/** Channels of a raw texture's texels: four, three, or red alone. */
+export const HOST_FORMAT_RGBA = 1023,
+  HOST_FORMAT_RGB = 1022,
+  HOST_FORMAT_RED = 1028;
+
+/** How a texture's numbers are read: sRGB-encoded colour, linear, or undeclared. */
+export const HOST_COLOUR_SPACE_SRGB = 'srgb',
+  HOST_COLOUR_SPACE_LINEAR = 'srgb-linear',
+  HOST_COLOUR_SPACE_NONE = '';

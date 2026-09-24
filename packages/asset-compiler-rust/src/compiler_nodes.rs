@@ -76,7 +76,7 @@ pub(super) fn check_acyclic(g: &Value) -> Result<()> {
 /// — the one `scene` names, otherwise the first declared. Without `scenes`, the
 /// document names none: the compiler then takes every hierarchy root, and
 /// `docs/COMPILER.md` writes it.
-fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
+pub(super) fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
     let Some(scenes) = g
         .get("scenes")
         .and_then(Value::as_array)

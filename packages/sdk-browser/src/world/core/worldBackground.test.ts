@@ -5,7 +5,7 @@ import { listen } from '../../../../sdk-core/src/world/math/observed.ts';
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { createBlendScene } from '../../cluster/blendSceneRecord.ts';
-import { hostBackground } from '../../host/scene/objects.ts';
+import { graphBackground } from '../../lighting/contractLightingApi.ts';
 import { hostPageScene } from '../../host/pageObjects.ts';
 import { setWebgpuClearColor } from '../../webgpu/pages/io/clearColor.ts';
 import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts';
@@ -134,7 +134,7 @@ test('the session writes every engine it shows, the default for none, and says w
 test('WebGL2: the composer clears with the new colour and the held frame is broken', () => {
   const scene = hostPageScene();
   let changed = 0;
-  const paint = hostBackground(scene, () => changed++);
+  const paint = graphBackground(scene, () => changed++);
   paint(0xff0000);
   const host = scene as unknown as { background: { r: number; g: number; b: number } };
   const colour = host.background;

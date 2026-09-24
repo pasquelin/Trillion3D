@@ -1,40 +1,19 @@
 /**
- * THE HOST RESOURCES A SESSION HOLDS, NAMED BY SHAPE.
- *
- * `../resources.ts` names what the engine READS of a geometry, a surface or a texture, every
- * field of it read-only, because reading is all a frame does. Three of them are also HELD for the
- * life of a loaded graph: a geometry is asked to compute its box and is given back when the graph
- * is released, a surface is given back the same way, and a texture's sampling quality is raised
- * once to what the device allows. That holding is this file — the read shapes plus the release
- * their host expects and the one field a session writes back — and it is deliberately not in
- * `graphNodes.ts`: a resource is not a node of the graph, it is what the nodes point at.
+ * THE RESOURCES A SESSION HOLDS: a geometry asked to compute its box and given back when the
+ * graph is released, a surface given back the same way, a texture whose sampling quality is
+ * raised once to what the device allows. Each is the engine's own (`../graph/`); this file
+ * names them as a session holds them, apart from `graphNodes.ts`: a resource is not a node of
+ * the graph, it is what the nodes point at.
  */
-import type { GpuBuffer } from '../../cluster/batchMesh.ts';
-import type {
-  HostAttribute,
-  HostDisposable,
-  HostGeometry,
-  HostMaterial,
-  HostTexture,
-} from '../resources.ts';
+import type { GraphGeometry } from '../graph/geometry.ts';
+import type { GraphSurface } from '../graph/surface.ts';
+import type { GraphTexture } from '../graph/texture.ts';
 
-/** A geometry of the walked graph: the local box it can compute on demand, the index its
- *  triangles are drawn through, and the release its host expects. */
-export type HostGraphGeometry = HostGeometry &
-  HostDisposable & {
-    computeBoundingBox(): void;
-    /** Triangle list of the geometry, with what an upload compares to skip a re-copy. */
-    readonly index: (HostAttribute & GpuBuffer) | null;
-  };
+/** A geometry of the walked graph. */
+export type HostGraphGeometry = GraphGeometry;
 
-/** A surface of the walked graph: what the engine reads of it, and the release its host expects. */
-export type HostGraphMaterial = HostMaterial & HostDisposable;
+/** A surface of the walked graph. */
+export type HostGraphMaterial = GraphSurface;
 
-/** A texture of the walked graph: the host resource itself, released with the surface that
- *  sampled it, and the sampling quality a session raises to what the device allows. */
-export type HostGraphTexture = Omit<HostTexture, 'anisotropy'> &
-  HostDisposable & {
-    anisotropy: number;
-    /** Raised when a sampler field changed: what tells the host to upload it again. */
-    needsUpdate: boolean;
-  };
+/** A texture of the walked graph. */
+export type HostGraphTexture = GraphTexture;

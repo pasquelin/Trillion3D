@@ -5,7 +5,7 @@
 //
 // This module is SERVED to the harness page (mount `/tests/`) and imported by its URL, like
 // `materialPixelsPage.ts`.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { batisseur, engine, libere } from './sharedSceneProof.ts';
 import { canvasMap } from './materialImages.ts';
 import type { BackendFactory } from '../../../packages/sdk-browser/src/backend/types.ts';
@@ -43,9 +43,9 @@ function floorMap(anisotropy: number) {
       ctx.putImageData(image, 0, 0);
     },
     {
-      colorSpace: THREE.SRGBColorSpace,
-      wrapS: THREE.RepeatWrapping,
-      wrapT: THREE.RepeatWrapping,
+      colorSpace: G.HOST_COLOUR_SPACE_SRGB,
+      wrapS: G.HOST_WRAP_REPEAT,
+      wrapT: G.HOST_WRAP_REPEAT,
       repeat: REPEAT,
       anisotropy,
     },
@@ -61,9 +61,9 @@ async function measure(
   frames: number,
 ): Promise<Reading> {
   const builder = batisseur();
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(2 * HALF, 2 * HALF),
-    new THREE.MeshBasicMaterial({ map: floorMap(anisotropy) }),
+  const floor = G.mesh(
+    G.planeGeometry(2 * HALF, 2 * HALF),
+    G.basicSurface({ map: floorMap(anisotropy) }),
   );
   floor.rotation.x = -Math.PI / 2;
   builder.source.add(floor);
@@ -73,7 +73,7 @@ async function measure(
     viewport: size,
     stageProfile: true,
   });
-  const camera = new THREE.PerspectiveCamera(55, size[0] / size[1], 0.1, 4 * HALF);
+  const camera = G.perspectiveCamera(55, size[0] / size[1], 0.1, 4 * HALF);
   const frameMs: number[] = [],
     passesMs: number[] = [];
   let lastSample = -1;

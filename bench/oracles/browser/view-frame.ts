@@ -1,17 +1,17 @@
 // Batch F oracles, frame side: `packages/sdk-browser/src/webgpu/pages/render/encodeVis.ts:93-98`, `packages/sdk-browser/src/backend/autonomous/instances.ts:76-86`,
 // and `packages/sdk-browser/src/world/render/draw.ts:72-74` from before batch F, copied as-is.
-import type * as THREE from 'three';
+import type { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
 import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts';
 import { createPageStreamer } from '../../../packages/sdk-browser/src/streaming/pages.ts';
 
 /** A page or root as the instance oracle mutates it: only `matrix`/`mesh`/`world` are read or
  *  written, never the rest of `PageRec`/`ClusterRoot`. */
 interface InstancePage {
-  matrix: THREE.Matrix4;
-  mesh?: { matrix: THREE.Matrix4 };
+  matrix: Matrix4;
+  mesh?: { matrix: Matrix4 };
 }
 interface InstanceRoot {
-  world: THREE.Matrix4;
+  world: Matrix4;
 }
 
 /** Colour attachments, rebuilt per frame before batch F. */
@@ -29,7 +29,7 @@ export function referenceUpdateInstance(
   instance: { pages: InstancePage[]; roots: InstanceRoot[] },
   basePages: InstancePage[],
   baseRoots: InstanceRoot[],
-  transform: THREE.Matrix4,
+  transform: Matrix4,
 ) {
   const mapped = new Map(basePages.map((base, i) => [instance.pages[i], base]));
   for (let i = 0; i < instance.roots.length; i++)
