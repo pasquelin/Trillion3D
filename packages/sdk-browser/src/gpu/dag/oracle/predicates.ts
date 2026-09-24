@@ -1,18 +1,18 @@
 import { coneCullsPage } from '../../../page/cone/cone.ts';
 import { SELECTION_NONE as NONE } from '../../core/selection.ts';
 import type { PackedDag } from '../types.ts';
+import { CLUSTER_NEVER } from '../layout.ts';
 import {
   bandError,
   bandSphere,
   boxInto,
   coneInto,
-  CLUSTER_NEVER,
   type DagRecords,
   flagsOf,
   hasBoxOf,
   ownerOf,
   worldOf,
-} from '../layout.ts';
+} from '../records.ts';
 import { copyMatrix4, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
 import {
   boxMissesLightPages,

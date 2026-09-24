@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateDagSelectionKernel } from './selection.ts';
 import { PAGE_CONE_FLOATS } from '../core/selection.ts';
+import { coldBase } from './layout.ts';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { kernelUniforms, packed } from './selectionHelpers.fixture.ts';
 
@@ -48,7 +49,8 @@ test('resident cut: cache and recompute escalate to the same missing pages', () 
 
 test('degenerate cone: hasBox is zero for every page, coneRejects always false', () => {
   const { dag, roots } = packed(dagFixture());
-  for (let i = 0; i < dag.pageCount; i++) dag.pageCones[i * PAGE_CONE_FLOATS + 7] = 0;
+  const at = coldBase(dag.pageCount);
+  for (let r = 0; r < dag.recordCount; r++) dag.pageCones[at + r * PAGE_CONE_FLOATS + 7] = 0;
   const cam = wideCamera();
   const uniforms = kernelUniforms(dag, roots, cam, 1, [1280, 720]);
   const result = assertSameSelection(dag, uniforms);

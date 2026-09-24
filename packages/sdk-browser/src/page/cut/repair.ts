@@ -2,7 +2,7 @@ import { frameClusterError, frameSelects } from '../selection/frame.ts';
 import { residentUnder, truncateShown, type PageRecord, type SelectionState } from './state.ts';
 import { chargeDrawn } from './charge.ts';
 import { ESCALATION_ROUNDS } from '../selection/types.ts';
-import { flatConeKeeps, flatVisible } from './visit.ts';
+import { flatConeKeeps, flatVisible } from './take.ts';
 
 /** The pinned bootstrap cover is the last resort when no resident replacement exists. */
 export function rootCoverInto<T extends PageRecord>(

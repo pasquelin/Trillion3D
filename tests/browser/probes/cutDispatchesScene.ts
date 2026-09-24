@@ -2,11 +2,8 @@
 // encode opens. Split from the page so each of the two keeps its responsibility.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
-import {
-  dagRecords,
-  residentBase,
-  residentWords,
-} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import { residentBase, residentWords } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import { dagRecords } from '../../../packages/sdk-browser/src/gpu/dag/records.ts';
 import {
   scenePages,
   sceneRoots,

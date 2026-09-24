@@ -108,7 +108,6 @@ export function createGpuRaster(
           pages: input.pages,
           hizFlags: input.hizFlags,
           uniform: input.uniform,
-          uniformSize: 96,
           uvs: input.uvs,
           textures: input.textures,
           sampler: input.sampler,

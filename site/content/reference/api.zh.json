@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "引擎交出的、宿主用来绘制一帧所需的矩阵。",
+    "summary": "引擎交出的、宿主用来绘制一帧所需的矩阵和深度范围。",
     "members": {
       "projection": "投影矩阵。",
       "world": "摄像机的世界矩阵。",
       "view": "视图矩阵。",
-      "eye": "眼睛所在的位置。"
+      "eye": "眼睛所在的位置。",
+      "near": "最近距离。",
+      "far": "最远距离。"
     }
   },
   "HostDrawOutput": {
@@ -5812,7 +5814,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "根据每个点到摄像机的距离来上明暗。",
+    "summary": "根据每个点到摄像机的距离来上明暗：在 `camera.near` 处为白色，在 `camera.far` 处为黑色，中间为直线渐变，在 WebGPU 和 WebGL2 上相同。",
     "parameters": {
       "parameters": "页面可以传给材质成员的内容;每个字段都是可选的。",
       "parameters.color": "基础颜色。",
