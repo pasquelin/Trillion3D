@@ -2525,7 +2525,7 @@
   },
   "HostScene": {
     "summary": "Le graphe d’affichage de l’hôte dans lequel dessine un moteur : ce qu’il contient, comment on le parcourt, et la couleur de fond que lit la composition.",
-    "description": "La construire revient à une frontière de l’hôte ; en écrire une, à `HostDrawScene`.",
+    "description": "Le moteur écrit le sien comme un `GraphScene` (`graph/scene.ts`).",
     "members": {
       "name": "Le nom que l’hôte lui donne.",
       "visible": "S’il est dessiné.",

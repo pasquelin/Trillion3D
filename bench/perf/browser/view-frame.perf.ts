@@ -1,4 +1,6 @@
 // what a frame used to rebuild for no reason.
+import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import * as THREE from 'three';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
@@ -64,7 +66,7 @@ const redimensionnee = [petite, petite, grande, grande, petite, liberee, grande]
 /** Fields the instance displacement never reads: shared across every fixture record/root. */
 const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
-const pageOf = (matrix: THREE.Matrix4, mesh?: THREE.Mesh): PageRec => ({
+const pageOf = (matrix: THREE.Matrix4, mesh?: GraphMesh): PageRec => ({
   id: 0,
   url: '',
   clusterId: '',
@@ -89,7 +91,9 @@ const instanceDe = (pages: number) => {
     racines: ClusterRoot<PageRec>[] = [];
   for (let i = 0; i < pages; i++) {
     basePages.push(pageOf(new THREE.Matrix4().makeTranslation(i, i * 2, i * 3)));
-    clones.push(pageOf(new THREE.Matrix4(), i % 3 ? new THREE.Mesh() : undefined));
+    clones.push(
+      pageOf(new THREE.Matrix4(), i % 3 ? new GraphMesh(new GraphGeometry(), []) : undefined),
+    );
   }
   for (let i = 0; i < 10; i++) {
     baseRoots.push({ world: new THREE.Matrix4().makeScale(1 + i, 2, 3), pages: [] });
@@ -121,7 +125,7 @@ const passeInstance =
     for (const rec of instance.pages)
       output.push(
         ...Array.from(rec.matrix.elements),
-        ...Array.from(asHostLibrary<THREE.Mesh | undefined>(rec.mesh)?.matrix.elements ?? []),
+        ...Array.from(rec.mesh?.matrix.elements ?? []),
       );
     for (const root of instance.roots) output.push(...Array.from(root.world.elements));
     return Float64Array.from(output);

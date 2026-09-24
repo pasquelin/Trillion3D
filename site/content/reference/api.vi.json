@@ -1482,7 +1482,7 @@
   },
   "HostScene": {
     "summary": "Đồ thị hiển thị chủ mà một bộ máy vẽ vào: những gì nó chứa, cách nó được duyệt qua, và màu nền mà việc tổng hợp đọc.",
-    "description": "Việc xây dựng nó là của một ranh giới chủ; việc ghi vào một cái, là `HostDrawScene`.",
+    "description": "Engine ghi đồ thị của chính nó dưới dạng `GraphScene` (`graph/scene.ts`).",
     "members": {
       "name": "Tên mà ứng dụng chủ đặt cho nó.",
       "visible": "Nó có được vẽ hay không.",

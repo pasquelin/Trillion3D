@@ -2517,7 +2517,7 @@
   },
   "HostScene": {
     "summary": "Der Anzeigegraph des Hosts, in dem eine Engine zeichnet: was er enthält, wie man ihn durchläuft, und die Hintergrundfarbe, die die Komposition liest.",
-    "description": "Ihn zu bauen ist Sache einer Grenze des Hosts; einen zu schreiben ist Sache von `HostDrawScene`.",
+    "description": "Die Engine schreibt ihren eigenen als `GraphScene` (`graph/scene.ts`).",
     "members": {
       "name": "Der Name, den der Host ihm gibt.",
       "visible": "Ob er gezeichnet wird.",

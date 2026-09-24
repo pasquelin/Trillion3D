@@ -1474,7 +1474,7 @@
   },
   "HostScene": {
     "summary": "エンジンが描画先とするホストの表示グラフ: それが保持するもの、どう走査されるか、そして合成が読み取るクリアカラー。",
-    "description": "それを構築するのはホスト境界の仕事; それに書き込むのが`HostDrawScene`。",
+    "description": "エンジンは自前のものを `GraphScene`（`graph/scene.ts`）として書く。",
     "members": {
       "name": "それに対するホストの名前。",
       "visible": "描かれるかどうか。",

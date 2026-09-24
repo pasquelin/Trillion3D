@@ -1,4 +1,5 @@
 // the autonomous backend detaches by cut delta instead of sweeping the whole DAG.
+import { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
 import * as THREE from 'three';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
@@ -12,7 +13,7 @@ const geometrie = new THREE.BufferGeometry();
 const materiau = new THREE.MeshBasicMaterial();
 
 interface Monde {
-  scene: THREE.Scene;
+  scene: GraphScene;
   allPages: PageRec[];
   shown: PageRec[];
   desired: PageRec[];
@@ -20,7 +21,7 @@ interface Monde {
 
 function monde(total: number, depart: number): Monde {
   const alea = graine(depart);
-  const scene = new THREE.Scene(),
+  const scene = new GraphScene(),
     allPages: PageRec[] = [];
   for (let i = 0; i < total; i++)
     allPages.push({
@@ -127,7 +128,7 @@ await stress({
       modifiedPages: new Set(),
     }).sync(),
   extremes: [
-    { name: 'empty', input: { scene: new THREE.Scene(), allPages: [], shown: [], desired: [] } },
+    { name: 'empty', input: { scene: new GraphScene(), allPages: [], shown: [], desired: [] } },
   ],
 });
 

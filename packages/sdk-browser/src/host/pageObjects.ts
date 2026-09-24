@@ -12,8 +12,7 @@
  * all arrive computed.
  */
 import type { Material } from '../../../sdk-core/src/index.ts';
-import type { HostDrawScene } from './scene/graphNodes.ts';
-import type { HostGeometry, HostMaterial, HostMaterials, HostMesh } from './resources.ts';
+import type { HostGeometry, HostMaterial, HostMaterials } from './resources.ts';
 import type { HostGraphGeometry } from './scene/graphResources.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
@@ -31,10 +30,10 @@ type Surfaces = GraphSurface | GraphSurface[];
 
 /** The display graph the page path hangs its pages on, holding from the start the transparent
  *  copies it draws whole (`../cluster/blendCopyMesh.ts`). */
-export function hostPageScene(copies: readonly object[] = []): HostDrawScene {
+export function hostPageScene(copies: readonly object[] = []): GraphScene {
   const scene = new GraphScene();
   for (const copy of copies) scene.add(copy as unknown as GraphNode);
-  return scene as unknown as HostDrawScene;
+  return scene;
 }
 
 /**
@@ -48,7 +47,7 @@ export function hostPageMesh(
   geometry: HostGeometry,
   declaration: HostMaterials,
   renderOrder: number,
-): HostMesh {
+): GraphMesh {
   const mesh = new GraphMesh(
     geometry as unknown as GraphGeometry,
     declaration as unknown as Surfaces,
@@ -56,7 +55,7 @@ export function hostPageMesh(
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
-  return mesh as unknown as HostMesh;
+  return mesh;
 }
 
 /**
@@ -69,7 +68,7 @@ export function hostPageInstances(
   declaration: HostMaterials,
   renderOrder: number,
   capacity: number,
-): HostMesh {
+): GraphInstancedMesh {
   const mesh = new GraphInstancedMesh(
     geometry as unknown as GraphGeometry,
     declaration as unknown as Surfaces,
@@ -78,34 +77,33 @@ export function hostPageInstances(
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
-  return mesh as unknown as HostMesh;
+  return mesh;
 }
 
 /** Placement `index` of an instanced page: the sixteen floats of its row. */
-export const setHostInstance = (mesh: HostMesh, index: number, pose: MatrixElements) => {
-  (mesh as unknown as GraphInstancedMesh).instanceMatrix.array.set(pose.elements, index * 16);
+export const setHostInstance = (mesh: GraphInstancedMesh, index: number, pose: MatrixElements) => {
+  mesh.instanceMatrix.array.set(pose.elements, index * 16);
 };
 
 /** How many placements the instanced page draws this frame; its matrices go up once. */
-export const setHostInstanceCount = (mesh: HostMesh, count: number) => {
-  const instanced = mesh as unknown as GraphInstancedMesh;
-  instanced.count = count;
-  instanced.instanceMatrix.needsUpdate = true;
+export const setHostInstanceCount = (mesh: GraphInstancedMesh, count: number) => {
+  mesh.count = count;
+  mesh.instanceMatrix.needsUpdate = true;
 };
 
 /** Gives an instanced page's matrices back; its geometry and surface are released by theirs. */
-export const releaseHostInstances = (mesh: HostMesh) => {
-  (mesh as unknown as GraphInstancedMesh).dispose();
+export const releaseHostInstances = (mesh: GraphInstancedMesh) => {
+  mesh.dispose();
 };
 
 /** The pose a drawn page wears: the sixteen floats the engine composed for it. */
-export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
-  (mesh as unknown as GraphMesh).matrix.fromArray(pose.elements);
+export const setHostPose = (mesh: GraphMesh, pose: MatrixElements) => {
+  mesh.matrix.fromArray(pose.elements);
 };
 
 /** The surface a drawn page wears once its primitive has been repainted. */
-export const setHostSurface = (mesh: HostMesh, declaration: HostMaterials) => {
-  (mesh as unknown as GraphMesh).material = declaration as unknown as Surfaces;
+export const setHostSurface = (mesh: GraphMesh, declaration: HostMaterials) => {
+  mesh.material = declaration as unknown as Surfaces;
 };
 
 /**
