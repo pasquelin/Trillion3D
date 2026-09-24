@@ -1,6 +1,8 @@
 import { viewProj } from '../pages/helpers.ts';
 import { UNIFORM_STRIDE } from './uniforms.ts';
 import { voidStaleBlendGroups } from './identity.ts';
+import { refreshSurface } from '../../page/surface.ts';
+import { drawnBlending } from '../../scene/materialBlending.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /**
@@ -44,7 +46,8 @@ export function writeFallbackBlendUniforms(
   );
 }
 
-/** Encodes the fallback pass: one bind group and one dynamic offset per primitive. */
+/** Encodes the fallback pass: one bind group and one dynamic offset per primitive, and the
+ *  pipeline of its blending mode, set when it changes. */
 export function drawFallbackBlendPass(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -62,9 +65,13 @@ export function drawFallbackBlendPass(
     depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
-  pass.setPipeline(gpu.pipelineBlend!);
+  let bound: GPURenderPipeline | undefined;
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
+    // Each item in its own mode, the one table's equation: a mode no path draws is refused by name.
+    const mode = drawnBlending(refreshSurface(item.surface).blending, !!item.transmissive);
+    const pipeline = gpu.pipelineBlend!.at(mode);
+    if (pipeline !== bound) pass.setPipeline((bound = pipeline));
     item.group ??= device.createBindGroup({
       layout: gpu.bindGroupLayout!,
       entries: [
