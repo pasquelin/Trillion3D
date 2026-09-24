@@ -168,3 +168,33 @@ test('an attached page wears the host declaration, not the engine surface record
   assert.equal((attached.material as THREE.Material).visible, true);
   declaration.dispose();
 });
+
+test('the store keeps a page by page, checked against the catalogue even when nothing draws it', () => {
+  const { scene } = fakeScene();
+  const material = new THREE.MeshStandardMaterial();
+  const empty = { url: 'p.bin', array: undefined, geometry: undefined };
+  const recs = [0, 1].map((id) => ({ ...makeRec(id, 1), ...empty }));
+  const env = environnement(scene, recs, []);
+  const descriptor = { vertexCount: 3, indexCount: 3, flags: 0 } as never;
+  env.byUrl.set('p.bin', recs).set('empty.bin', []);
+  env.descriptors.set('p.bin', descriptor).set('empty.bin', descriptor);
+  for (const rec of recs) env.baseMaterials.set(rec, material);
+  env.modifiedPages.add('replaced.bin');
+  const store = createAutonomousGeometry(env);
+  const page = () => ({
+    ...{ indices: new Uint32Array([0, 1, 2]), vertexCount: 3, flags: 0, decodedBytes: 48 },
+    ...{ attributes: { position: new Float32Array(9) }, quantizationError: 0 },
+  });
+  assert.equal(store.acceptGeometryPage('replaced.bin', page()), false, 'the host replaced it');
+  assert.equal(store.acceptGeometryPage('unknown.bin', page()), false);
+  const wrong = { ...page(), vertexCount: 4 };
+  assert.throws(() => store.storeGeometryPage('empty.bin', wrong), /METADATA_MISMATCH/);
+  assert.equal(store.storeGeometryPage('empty.bin', page()), false, 'no record draws it');
+  assert.equal(store.storeGeometryPage('p.bin', page()), true);
+  assert.equal(store.storeGeometryPage('p.bin', page()), true);
+  assert.equal(store.state.residentPages, 1, 'one page, two records, stored twice');
+  assert.deepEqual([store.releasePage('p.bin'), store.releasePage('p.bin')], [true, false]);
+  assert.equal(store.state.residentPages, 0, 'the page, not its two records, left');
+  store.dispose();
+  material.dispose();
+});

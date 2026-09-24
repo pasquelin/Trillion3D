@@ -8,7 +8,7 @@ import type {
 } from '../../../../sdk-core/src/index.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
-import type { MemoryBudgets } from '../../webgpu/pages/io/memory.ts';
+import type { MemoryBudgets } from '../../residency/pools.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 
 type Inputs = {

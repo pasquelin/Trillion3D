@@ -17,7 +17,7 @@ import type {
 } from '../../../sdk-core/src/index.ts';
 import type { BackendDrawCounters, BackendMetrics } from '../diagnostic/metricKeys.ts';
 import type { SceneToneMapping } from '../../../sdk-core/src/scene/core/environment.ts';
-import type { MemoryBudgets, MemoryBudgetsReport } from '../webgpu/pages/io/memory.ts';
+import type { MemoryBudgets, MemoryBudgetsReport } from '../residency/pools.ts';
 import type { CpuStepSummary } from '../stage/cpuProfile.ts';
 import type { BackendDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts';
 import type { PlacementRows } from '../placement/rows.ts';
