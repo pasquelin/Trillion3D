@@ -3111,13 +3111,13 @@
     {
       "name": "GeometryPool",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/webgpu/residency/memoryBudgets.ts",
+      "definingModule": "packages/sdk-browser/src/residency/pools.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/webgpu/residency/memoryBudgets\".GeometryPool"
+      "bindingIdentity": "\"packages/sdk-browser/src/residency/pools\".GeometryPool"
     },
     {
       "name": "getSdkProvenance",
@@ -5673,13 +5673,13 @@
     {
       "name": "PoolClamp",
       "kind": "type",
-      "definingModule": "packages/sdk-browser/src/webgpu/residency/memoryBudgets.ts",
+      "definingModule": "packages/sdk-browser/src/residency/pools.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": ["tests/fixtures/publicBrowser.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/webgpu/residency/memoryBudgets\".PoolClamp"
+      "bindingIdentity": "\"packages/sdk-browser/src/residency/pools\".PoolClamp"
     },
     {
       "name": "pose",

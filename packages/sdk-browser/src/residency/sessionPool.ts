@@ -1,4 +1,4 @@
-import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './memoryBudgets.ts';
+import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './pools.ts';
 
 /**
  * The geometry pool a session starts with (`budgetBytes`, the default when the host names none),

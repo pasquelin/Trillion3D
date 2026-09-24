@@ -140,11 +140,11 @@ export const copyHostGeometry = (geometry: HostGeometry): HostGeometry =>
  *  empty again at every call and nothing is allocated to count one. */
 const counted = new Set<ArrayBufferView>();
 
-/** The bytes a page geometry holds — its index and its attributes — counted where every other
- *  holder of host buffers counts them (`../scene/meshes.ts`). */
-export function hostPageBytes(geometry: HostGeometry) {
-  counted.clear();
-  return geometryBytes(geometry as HostGraphGeometry, counted);
+/** The bytes a page geometry holds, counted where every other holder of host buffers counts them
+ *  (`../scene/meshes.ts`); geometries sharing buffers count them once under one `seen`. */
+export function hostPageBytes(geometry: HostGeometry, seen?: Set<ArrayBufferView>) {
+  if (!seen) counted.clear();
+  return geometryBytes(geometry as HostGraphGeometry, seen ?? counted);
 }
 
 /** Gives a page geometry back to the library that owns it. */
