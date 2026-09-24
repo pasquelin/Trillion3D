@@ -1,4 +1,6 @@
 import { visMaterial } from '../../visibility/shader/material.ts';
+import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import { writeDepthRamp } from '../../camera/depthConvention.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
 import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
@@ -11,6 +13,8 @@ import type { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 export type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 const MAPS = ['map', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'emissiveMap'] as const;
 const MAP_UNIFORMS = ['baseUv', 'roughUv', 'metalUv', 'normalUv', 'aoUv', 'emissiveUv'];
+/** The frame's depth ramp: the fragment holds the view distance, so the perspective weights. */
+const ramp = new Float32Array(3);
 /** Units after the six material maps: the frozen backdrop colour, then its depth. */
 export const BACKDROP_UNITS: [number, number] = [6, 7];
 
@@ -92,6 +96,8 @@ export function bindClusterMaterial(
   uniforms.i1(33, 'flatShaded', (material as { flatShading?: boolean }).flatShading ? 1 : 0);
   const doubleSided = side === undefined ? mat.doubleSided : false,
     backSide = side === undefined ? mat.backSide : side === 'back';
+  // A depth material shows the frame's depth ramp in place of its colour (`beginFrame`).
+  uniforms.i1(35, 'depthShaded', mat.model === SURFACE_MODEL.depth ? 1 : 0);
   // Which faces turn their normal toward the eye: none, the back faces of a surface drawn from
   // behind, or both, whose normal map's tangents then turn with them.
   uniforms.i1(34, 'faceSides', doubleSided ? 2 : backSide ? 1 : 0);
@@ -128,5 +134,11 @@ export class ClusterMaterialPass {
   }
   forget() {
     this.material = undefined;
+  }
+  /** A new frame: nothing bound yet, and the ramp a depth material shows under its camera. */
+  beginFrame(camera: { near: number; far: number }) {
+    this.forget();
+    writeDepthRamp(ramp, 0, camera.near, camera.far, 1);
+    this.binding.uniforms.f2(36, 'depthRamp', ramp[0], ramp[1]);
   }
 }

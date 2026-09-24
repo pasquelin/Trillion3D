@@ -1340,12 +1340,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Các ma trận mà một ứng dụng chủ dùng để vẽ một khung hình, đúng như bộ máy trao lại.",
+    "summary": "Các ma trận và khoảng độ sâu mà một ứng dụng chủ dùng để vẽ một khung hình, đúng như bộ máy trao lại.",
     "members": {
       "projection": "Phép chiếu.",
       "world": "Ma trận thế giới của camera.",
       "view": "Ma trận view.",
-      "eye": "Vị trí của con mắt."
+      "eye": "Vị trí của con mắt.",
+      "near": "Khoảng cách gần nhất.",
+      "far": "Khoảng cách xa nhất."
     }
   },
   "HostDrawOutput": {
@@ -5458,7 +5460,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Tô bóng mỗi điểm theo khoảng cách của nó đến camera.",
+    "summary": "Tô bóng mỗi điểm theo khoảng cách của nó đến camera: trắng tại `camera.near`, đen tại `camera.far`, một dải chuyển thẳng ở giữa, giống nhau trên WebGPU và WebGL2.",
     "parameters": {
       "parameters": "Những gì một trang có thể truyền cho một thành viên vật liệu; mọi trường đều tùy chọn.",
       "parameters.color": "Màu cơ bản.",

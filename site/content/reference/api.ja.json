@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "エンジンが渡す、ホストが1フレームを描くのに使う行列群。",
+    "summary": "エンジンが渡す、ホストが1フレームを描くのに使う行列群と深度範囲。",
     "members": {
       "projection": "投影。",
       "world": "カメラのワールド行列。",
       "view": "ビュー行列。",
-      "eye": "目がある位置。"
+      "eye": "目がある位置。",
+      "near": "最も近い距離。",
+      "far": "最も遠い距離。"
     }
   },
   "HostDrawOutput": {
@@ -5811,7 +5813,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "各点を、カメラからの距離によって陰影づける。",
+    "summary": "各点を、カメラからの距離によって陰影づける。`camera.near` で白、`camera.far` で黒、その間は直線のランプで、WebGPU でも WebGL2 でも同じ。",
     "parameters": {
       "parameters": "ページがマテリアルのメンバーに渡せるもの; どのフィールドも省略可能。",
       "parameters.color": "ベースカラー。",
