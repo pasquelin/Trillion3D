@@ -96,18 +96,18 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       // The session creates through its own handle, whose labels name it.
       claim = claimWebgpuDevice(rt, gpuDevice);
       try {
-        // A device already lost is announced by the claim: nothing is built on it.
-        if (run.lost) throw new Error('WEBGPU_LOST');
+        if (run.lost) throw new Error('WEBGPU_LOST'); // announced by the claim: nothing is built
         prepareGpuTiming(rt, claim.device);
         await prepareWebgpuPages(rt, claim.device);
-        // The batch of root world boxes is reserved last: the module's linear memory will no
-        // longer grow behind it, and a node move will allocate nothing more.
+        // Root world boxes last: linear memory no longer grows behind them, nor a node move.
         context.preparationStep?.('root boxes');
         rt.layout.rootBoxes = await reserveRootBoxes(rt.layout.selectionRoots);
-        stopIfClosed(run);
+        stopIfClosed(rt);
+        if (run.lost) throw new Error('WEBGPU_LOST'); // on a first claim, told a microtask later
       } catch (error) {
-        // Closed while it prepared: cancelled, not failed; what it built since is destroyed too.
-        if (run.closed) await disposeWebgpuPages(rt, claim);
+        // Cancelled, not failed: released through the one `closing`, what it built since too.
+        if (run.closed || context.signal?.aborted)
+          await (closing = Promise.all([closing, disposeWebgpuPages(rt, claim)]).then(() => {}));
         else diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
       }
