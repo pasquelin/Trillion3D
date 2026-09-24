@@ -5,6 +5,9 @@ import { POOL_LANES } from '../../texture/blockFormats.ts';
 import type { GeometryPool, PoolClamp } from '../../residency/pools.ts';
 import type { TexturePool, TexturePools } from './memoryBudgets.ts';
 
+/** What a probe is named: never a pool's own label, which a reader of the device looks for. */
+const PROBE_LABEL = 'Trillion3D pool probe';
+
 type Pool = { budgetBytes: number; allocatedBytes: number; clamp: PoolClamp };
 type Diagnose = (phase: string, message: string, context: Record<string, unknown>) => void;
 
@@ -65,7 +68,8 @@ export const grantedGeometryPool = (
     name: 'geometry',
     budgetBytes,
     draw,
-    grants: (pool) => deviceGrants(device, () => [createPageBuffer(device, pool.allocatedBytes)]),
+    grants: (pool) =>
+      deviceGrants(device, () => [createPageBuffer(device, pool.allocatedBytes, PROBE_LABEL)]),
     floor: 'root-cover',
     diagnose,
   });
@@ -85,15 +89,16 @@ export const grantedTexturePool = (
       deviceGrants(device, () =>
         (['color', 'data'] as const).flatMap((kind) =>
           POOL_LANES.filter((lane) => pool.layers[kind][lane] > 0).map((lane) =>
-            device.createTexture(
-              tilePoolTexture({
+            device.createTexture({
+              ...tilePoolTexture({
                 kind,
                 lane,
                 format: pools.encoding.formatOf(kind, lane),
                 texelBytes: pools.encoding.texelBytes(lane),
                 layers: pool.layers[kind][lane],
               }),
-            ),
+              label: PROBE_LABEL,
+            }),
           ),
         ),
       ),
