@@ -21,7 +21,10 @@ export async function withRepoPage<T>(
     { prefix: '/packages/', dir: resolve(root, 'packages') },
   ];
   const server = await startServer({ port: 0, mounts, captures: new Map() });
-  const browser = await launchChrome({ headless });
+  const browser = await launchChrome({ headless }).catch((error: unknown) => {
+    server.close();
+    throw error;
+  });
   try {
     const page = await browser.newPage();
     const pageErrors: string[] = [];
