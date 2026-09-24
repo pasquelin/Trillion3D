@@ -88,10 +88,15 @@ pub(super) fn build_dag_primitive(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
     );
-    let (pages, reused, stream_report) =
-        bundle_dag_pages(o, &dag, &order, base_id, pos, &|slice: &[u32]| {
-            store_packed(slice, position_exponent)
-        })?;
+    let (pages, reused, stream_report) = bundle_dag_pages(
+        o,
+        &dag,
+        &groups,
+        &order,
+        base_id,
+        pos,
+        &|slice: &[u32]| store_packed(slice, position_exponent),
+    )?;
     laps.lap("pagesMs");
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
     // and the only place the partition and the positions are both in hand.
