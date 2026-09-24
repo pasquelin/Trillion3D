@@ -7250,17 +7250,6 @@
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
   },
-  "GraphAngles": {
-    "summary": "Dieselbe Ausrichtung als drei Winkel und ihre Reihenfolge, die ihre Schreibungen ebenso meldet.",
-    "members": {
-      "x": "Der erste Winkel, im Bogenmaß.",
-      "set": "Schreibt die drei Winkel und, falls angegeben, die Reihenfolge; einmal gemeldet.",
-      "setFromRotation": "Die Winkel von `q` in dieser Reihenfolge (das `Euler` des Kerns); gemeldet, außer bei `quiet`.",
-      "y": "Der zweite Winkel, im Bogenmaß.",
-      "z": "Der dritte Winkel, im Bogenmaß.",
-      "order": "Die Reihenfolge, in der die drei Winkel drehen, `'XYZ'`, sofern nicht gesetzt."
-    }
-  },
   "GraphArray": {
     "summary": "Die typisierten Arrays, die ein Attribut hält."
   },
@@ -7303,40 +7292,6 @@
   },
   "GraphNodeKind": {
     "summary": "Was ein Knoten des Graphen ist: ein bloßer Knoten, die Wurzel, eine Gruppe, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
-  },
-  "GraphRotation": {
-    "summary": "Eine Ausrichtung `(x, y, z, w)`, deren Schreibungen `_onChangeCallback` aufrufen.",
-    "members": {
-      "x": "Die erste Zahl.",
-      "set": "Schreibt die vier Zahlen, einmal gemeldet.",
-      "copy": "Übernimmt die Zahlen einer anderen Rotation.",
-      "fromArray": "Liest vier Zahlen aus einer Liste.",
-      "setFromAngles": "Die Rotation von `angles` in ihrer Reihenfolge (`localTurnQuaternion`); gemeldet, außer bei `quiet`.",
-      "setFromRotationMatrix": "Die Rotation der oberen 3×3 einer spaltenweise gespeicherten Matrix mit Spalten der Länge eins.",
-      "premultiply": "Wird zu `q` gefolgt von dieser Rotation, `q · this`.",
-      "invert": "Wird zur entgegengesetzten Drehung.",
-      "y": "Die zweite Zahl.",
-      "z": "Die dritte Zahl.",
-      "w": "Die vierte Zahl."
-    }
-  },
-  "GraphVector": {
-    "summary": "Drei Zahlen einer Pose oder eines Punkts: einfache Datenfelder und die Operationen, die ein Controller nutzt.",
-    "members": {
-      "set": "Schreibt die drei Zahlen.",
-      "copy": "Übernimmt die Zahlen eines anderen Punkts.",
-      "clone": "Eine Kopie.",
-      "add": "Addiert einen anderen Vektor.",
-      "sub": "Zieht einen anderen Vektor ab.",
-      "multiplyScalar": "Skaliert die drei Zahlen.",
-      "length": "Seine Länge.",
-      "setLength": "Behält die Richtung, setzt die Länge.",
-      "distanceTo": "Abstand zu einem Punkt.",
-      "fromArray": "Liest drei Zahlen aus einer Liste.",
-      "x": "Von links nach rechts.",
-      "y": "Von unten nach oben.",
-      "z": "Von hinten nach vorn."
-    }
   },
   "Joint": {
     "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",

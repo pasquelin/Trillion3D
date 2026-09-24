@@ -7111,17 +7111,6 @@
       "handbrake": "El freninin çekili olup olmadığı."
     }
   },
-  "GraphAngles": {
-    "summary": "Aynı yönelim üç açı ve sıraları olarak; yazımlarını aynı şekilde duyurur.",
-    "members": {
-      "x": "Birinci açı, radyan cinsinden.",
-      "set": "Üç açıyı ve verildiyse sırayı yazar; bir kez duyurulur.",
-      "setFromRotation": "`q`'nun bu sıradaki açıları (çekirdeğin `Euler`'i); `quiet` değilse duyurulur.",
-      "y": "İkinci açı, radyan cinsinden.",
-      "z": "Üçüncü açı, radyan cinsinden.",
-      "order": "Üç açının döndüğü sıra; ayarlanmadıkça `'XYZ'`."
-    }
-  },
   "GraphArray": {
     "summary": "Bir özniteliğin tuttuğu tipli diziler."
   },
@@ -7242,22 +7231,6 @@
   "GraphNodeKind": {
     "summary": "Grafın bir düğümünün ne olduğu: yalın bir düğüm, kök, bir grup, çizilen bir ağ (tek yerleşimde ya da birkaçında), bir göz ya da bir sahnenin bildirdiği ışıklardan biri."
   },
-  "GraphRotation": {
-    "summary": "Yazımları `_onChangeCallback`'i çağıran bir `(x, y, z, w)` yönelimi.",
-    "members": {
-      "x": "İlk sayı.",
-      "set": "Dört sayıyı yazar; bir kez duyurulur.",
-      "copy": "Başka bir dönüşün sayılarını alır.",
-      "fromArray": "Bir listeden dört sayı okur.",
-      "setFromAngles": "`angles`'ın kendi sırasındaki dönüşü (`localTurnQuaternion`); `quiet` değilse duyurulur.",
-      "setFromRotationMatrix": "Sütunları birim uzunlukta olan sütun öncelikli bir matrisin üst 3×3'ünün dönüşü.",
-      "premultiply": "`q` ardından bu dönüş olur, `q · this`.",
-      "invert": "Ters dönüş olur.",
-      "y": "İkinci sayı.",
-      "z": "Üçüncü sayı.",
-      "w": "Dördüncü sayı."
-    }
-  },
   "GraphSurface": {
     "summary": "Bir yüzey: bir ailenin parametreleri, sahne aksini söylemedikçe referansın değerlerinde.",
     "description": "Sürümü, her okuyucunun karşılaştırdığı `needsUpdate` ile artırılır.",
@@ -7318,24 +7291,6 @@
       "repeat": "Kaç kez sığdığı.",
       "center": "Dönmenin ekseni.",
       "rotation": "Dönme, radyan cinsinden."
-    }
-  },
-  "GraphVector": {
-    "summary": "Bir pozun ya da noktanın üç sayısı: düz veri alanları ve bir denetleyicinin kullandığı işlemler.",
-    "members": {
-      "set": "Üç sayıyı yazar.",
-      "copy": "Başka bir noktanın sayılarını alır.",
-      "clone": "Bir kopya.",
-      "add": "Başka bir vektör ekler.",
-      "sub": "Başka bir vektörü çıkarır.",
-      "multiplyScalar": "Üç sayıyı ölçekler.",
-      "length": "Uzunluğu.",
-      "setLength": "Yönü korur, uzunluğu ayarlar.",
-      "distanceTo": "Bir noktaya uzaklık.",
-      "fromArray": "Bir listeden üç sayı okur.",
-      "x": "Soldan sağa.",
-      "y": "Alttan üste.",
-      "z": "Arkadan öne."
     }
   },
   "Joint": {

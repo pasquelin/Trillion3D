@@ -7251,17 +7251,6 @@
     },
     "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
   },
-  "GraphAngles": {
-    "summary": "Orientasi yang sama sebagai tiga sudut dan urutannya, mengumumkan penulisannya dengan cara yang sama.",
-    "members": {
-      "x": "Sudut pertama, dalam radian.",
-      "set": "Menulis tiga sudut, dan urutannya bila diberikan; diumumkan sekali.",
-      "setFromRotation": "Sudut-sudut `q` dalam urutan ini (`Euler` inti); diumumkan kecuali `quiet`.",
-      "y": "Sudut kedua, dalam radian.",
-      "z": "Sudut ketiga, dalam radian.",
-      "order": "Urutan putaran ketiga sudut, `'XYZ'` kecuali diatur."
-    }
-  },
   "GraphArray": {
     "summary": "Array bertipe yang disimpan sebuah atribut."
   },
@@ -7304,40 +7293,6 @@
   },
   "GraphNodeKind": {
     "summary": "Apa sebuah node graf: node polos, akar, grup, mesh yang digambar (di satu penempatan atau beberapa), mata, atau salah satu cahaya yang dideklarasikan adegan."
-  },
-  "GraphRotation": {
-    "summary": "Orientasi `(x, y, z, w)` yang penulisannya memanggil `_onChangeCallback`.",
-    "members": {
-      "x": "Angka pertama.",
-      "set": "Menulis empat angka, diumumkan sekali.",
-      "copy": "Mengambil angka rotasi lain.",
-      "fromArray": "Membaca empat angka dari daftar.",
-      "setFromAngles": "Rotasi dari `angles`, dalam urutannya (`localTurnQuaternion`); diumumkan kecuali `quiet`.",
-      "setFromRotationMatrix": "Rotasi dari 3×3 atas matriks berurutan kolom yang kolom-kolomnya berpanjang satu.",
-      "premultiply": "Menjadi `q` diikuti rotasi ini, `q · this`.",
-      "invert": "Menjadi putaran kebalikannya.",
-      "y": "Angka kedua.",
-      "z": "Angka ketiga.",
-      "w": "Angka keempat."
-    }
-  },
-  "GraphVector": {
-    "summary": "Tiga angka dari pose atau titik: kolom data biasa, dan operasi yang dipakai pengendali.",
-    "members": {
-      "set": "Menulis tiga angka.",
-      "copy": "Mengambil angka titik lain.",
-      "clone": "Sebuah salinan.",
-      "add": "Menambahkan vektor lain.",
-      "sub": "Mengurangkan vektor lain.",
-      "multiplyScalar": "Menskalakan tiga angka.",
-      "length": "Panjangnya.",
-      "setLength": "Mempertahankan arah, menetapkan panjang.",
-      "distanceTo": "Jarak ke sebuah titik.",
-      "fromArray": "Membaca tiga angka dari daftar.",
-      "x": "Kiri ke kanan.",
-      "y": "Bawah ke atas.",
-      "z": "Belakang ke depan."
-    }
   },
   "Joint": {
     "summary": "Sambungan antara dua benda, atau antara benda dan dunia (`b` null), dibuat dengan `joint.*` dan ditambahkan ke simulasi dengan `world.physics.add`.",
