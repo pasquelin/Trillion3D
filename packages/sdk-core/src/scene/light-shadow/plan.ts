@@ -11,6 +11,7 @@ import { DRAW_ALL, createShadowPool } from './pool.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
+import { createShadowThresholds } from './thresholds.ts';
 
 /** The frame's shadow work: which virtual pages are drawn, and which wait. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
@@ -33,7 +34,8 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     changes = createShadowChanges(),
     budget = createShadowBudget(),
     counts = createShadowCounts(),
-    admission = createShadowAdmission(capacity, pool.pages);
+    admission = createShadowAdmission(capacity, pool.pages),
+    thresholds = createShadowThresholds(pool);
   let byPage = true,
     report: ShadowRequestReport | null = null,
     views = 0,
@@ -60,9 +62,11 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     worldChanged: changes.worldChanged,
     /** The same world at another precision: its box waits for the camera to rest. */
     representationChanged: changes.representationChanged,
+    /** The threshold the light cuts select casters at (`thresholds.ts`). */
+    setThreshold: thresholds.set,
     /** True while a representation change waits for the camera to rest. */
     get deferredChanges() {
-      return changes.deferred;
+      return changes.deferred || thresholds.pending;
     },
     /** The frame plans no shadow: the held union enters the list at once. */
     releaseDeferred: changes.releaseDeferred,
@@ -99,7 +103,8 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     ) {
       counts.beginFrame();
       records.release(store);
-      if (!changes.observeView(view)) views++;
+      const still = changes.observeView(view);
+      if (!still) views++;
       for (let slot = 0; slot < store.count; slot++) {
         if (!castsShadow(store, slot)) continue;
         const rank = store.packed[baseOf(slot) + LIGHT_FIELD.kind];
@@ -137,6 +142,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         );
       }
       changes.settled();
+      if (still) counts.invalidatedPages += thresholds.restale(nowMs, frame);
       if (report) {
         const before = stampOf(store),
           read = report;
@@ -156,8 +162,10 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     /** The frame's pages were encoded, each in its `modes` entry: their draws land before
      *  anything reads them. */
     commit(modes?: ArrayLike<number>) {
-      for (let i = 0; i < admission.count; i++)
+      for (let i = 0; i < admission.count; i++) {
         pool.drew(table, admission.list[i], modes ? modes[i] : DRAW_ALL);
+        thresholds.drew(admission.list[i]);
+      }
       admission.reset();
     },
     /** The frame's pages could not be encoded: they stay stale, and wait for the next frame. */
@@ -169,6 +177,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
       records.reset();
       table.reset();
       pool.reset();
+      thresholds.reset();
       requests.reset();
       changes.reset();
       budget.reset();

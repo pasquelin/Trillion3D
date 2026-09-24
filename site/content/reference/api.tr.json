@@ -3058,6 +3058,7 @@
       "counts": "Son planın yaptığı, sayfa olarak.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
+      "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik (`thresholds.ts`).",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
       "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan birleşim hemen listeye girer.",
       "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, çizdiği sayfalara bölünmüş.",

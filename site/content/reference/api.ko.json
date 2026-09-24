@@ -3058,6 +3058,7 @@
       "counts": "마지막 계획이 한 일, 페이지 단위.",
       "worldChanged": "노드가 움직였습니다: 그 박스는 다음 계획에서 덮는 페이지를 낡게 만듭니다.",
       "representationChanged": "다른 정밀도의 같은 월드: 그 박스는 카메라가 멈출 때까지 기다립니다.",
+      "setThreshold": "라이트 컷이 그림자 투사체를 고르는 임계값(`thresholds.ts`).",
       "deferredChanges": "표현 변경이 카메라가 멈추기를 기다리는 동안 참.",
       "releaseDeferred": "프레임이 그림자를 계획하지 않습니다: 보류된 합집합이 즉시 목록에 들어갑니다.",
       "observeCost": "프레임 Shadows 패스의 타이머, 그린 페이지에 나눠 배분.",

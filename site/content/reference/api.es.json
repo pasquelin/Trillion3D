@@ -5271,6 +5271,7 @@
       "counts": "Lo que hizo el último plan, en páginas.",
       "worldChanged": "Un nodo se movió: su caja invalida las páginas que cubre en el siguiente plan.",
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
+      "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra (`thresholds.ts`).",
       "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",
       "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
       "observeCost": "Temporizador del pase Sombras de una imagen, repartido entre las páginas que dibujó.",

@@ -12788,6 +12788,11 @@
         "desc": "The same world at another precision: its box waits for the camera to rest."
       },
       {
+        "name": "setThreshold",
+        "type": "(threshold: number) => void",
+        "desc": "The threshold the light cuts select casters at (`thresholds.ts`)."
+      },
+      {
         "name": "deferredChanges",
         "type": "boolean",
         "desc": "True while a representation change waits for the camera to rest."

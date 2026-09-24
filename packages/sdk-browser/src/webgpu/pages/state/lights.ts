@@ -67,8 +67,6 @@ export interface WebgpuLightState {
   runs: ShadowRuns;
   /** The image's regions, one or two per drawn page (`../../shadow/regions.ts`). */
   regions: ShadowRegionList;
-  /** Threshold the last light cuts selected at, −1 before the first (`followLightThreshold`). */
-  lightThreshold: number;
   /** Image whose shadow pages are planned: a plan is made once per image (`planImageShadows`). */
   plannedFrame: number;
   /** Light cuts the last image ran: one per redrawn face, zero on a still frame. */
@@ -127,7 +125,6 @@ export function createWebgpuLightState(
     faceMatrices: new Float32Array(MAX_SHADOW_REGIONS * 16),
     runs: createShadowRuns(),
     regions: createShadowRegionList(poolSide),
-    lightThreshold: -1,
     plannedFrame: -1,
     lightRuns: 0,
     lightCut: undefined,

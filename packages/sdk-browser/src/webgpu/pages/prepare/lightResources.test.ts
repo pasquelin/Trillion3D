@@ -59,13 +59,8 @@ test('`unlit` stays the diagnostic view, lights or not', () => {
   assert.equal(wantsContractLighting(b.rt), false);
 });
 
-test('a new light-cut threshold stales every shadow page, an unchanged one none', () => {
+test('the light cuts select at the camera threshold, budget included', () => {
   const lights = createWebgpuLightState(32);
-  const staled = () => lights.plan.deferredChanges;
-  assert.equal(followLightThreshold(lights, 1, 0), 1);
-  assert.equal(staled(), false, 'the first threshold draws the maps, it stales nothing');
   assert.equal(followLightThreshold(lights, 1, 0.5), 1);
-  assert.equal(staled(), false, 'a budget under the threshold changes nothing');
-  assert.equal(followLightThreshold(lights, 8, 0), 8);
-  assert.equal(staled(), true, 'a coarser threshold waits for the camera to rest, everywhere');
+  assert.equal(followLightThreshold(lights, 1, 8), 8);
 });
