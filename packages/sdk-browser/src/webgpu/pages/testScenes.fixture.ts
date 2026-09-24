@@ -171,7 +171,7 @@ export function twoPrimitives(
 ) {
   const structure = { version: 1, roots: [0], groups: [] };
   const metadata = {
-    errorModel: 'dag-group-qem-v1',
+    errorModel: 'dag-group-qem-v2',
     clusterStrategy: 'dag-groups',
     primitives: [
       { mesh: 0, primitive: 0, pass: 'exact-clusters', pages: dagRoots([pageA]), structure },

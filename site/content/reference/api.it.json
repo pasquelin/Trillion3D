@@ -1273,7 +1273,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identità della cache per gli errori di DAG per cluster: l'errore QEM del gruppo proiettato attraverso la sfera del gruppo."
+    "summary": "Identità della cache per gli errori del DAG per cluster: errore QEM assoluto del gruppo su posizioni, normali e coordinate di texture, limitato all’estensione del gruppo; una cache v1 viene rifiutata."
   },
   "DagReport": {
     "summary": "Report del DAG di una primitiva; solo i suoi avvisi vengono usati dal motore.",
