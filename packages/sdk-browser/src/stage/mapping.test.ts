@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addGpuPasses, directLightTimings, shadowPagesGpuMs } from './mapping.ts';
+import {
+  addGpuPasses,
+  directLightTimings,
+  GPU_PASS_LABELS,
+  gpuPassStageOf,
+  gpuShadowPartOf,
+  shadowPagesGpuMs,
+} from './mapping.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
 import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
@@ -117,6 +124,18 @@ test('shadow time splits into choosing the casters and drawing them, from the sa
   );
   assert.equal(unmeasured.gpuShadowCullMs, null, 'an unmeasured pass voids its part');
   assert.equal(unmeasured.gpuShadowRasterMs, 4);
+});
+
+// One table names every pass: a shadow row without its part would drop out of the split silently.
+test('every pass of a shadow stage names its shadow part, and no other pass does', () => {
+  const shadowStages = new Set(['shadows', 'shadowCasters']);
+  for (const label of GPU_PASS_LABELS)
+    assert.equal(
+      gpuShadowPartOf(label) !== 'other',
+      shadowStages.has(gpuPassStageOf(label)),
+      label,
+    );
+  assert.equal(gpuShadowPartOf('never-seen pass'), 'other');
 });
 
 test('the bench reference reads the same shadow split as the engine', () => {
