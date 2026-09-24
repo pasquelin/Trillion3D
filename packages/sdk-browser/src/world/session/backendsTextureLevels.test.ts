@@ -105,3 +105,31 @@ test('an abort is a cancellation only when the session asked it; otherwise the W
   });
   assert.deepEqual(phases, ['backend-preparation-start']);
 });
+
+test('a cancelled preparation waits for the release, and diagnoses one that fails', async () => {
+  const cancel = new AbortController();
+  cancel.abort();
+  const signal = cancel.signal;
+  const prepare = async () => {
+    throw new DOMException('closed', 'AbortError');
+  };
+  let released = false;
+  const slow = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    released = true;
+  };
+  await assert.rejects(run({}, undefined, { prepare, dispose: slow }, { signal } as never), {
+    name: 'AbortError',
+  });
+  assert.equal(released, true, 'released before the cancellation goes up');
+  const phases: string[] = [];
+  const diagnose = (phase: string) => phases.push(phase);
+  const failing = async () => {
+    throw new Error('release failed');
+  };
+  await assert.rejects(
+    run({}, undefined, { prepare, dispose: failing }, { diagnose, signal } as never),
+    { name: 'AbortError' },
+  );
+  assert.deepEqual(phases, ['backend-preparation-start', 'backend-dispose-error']);
+});

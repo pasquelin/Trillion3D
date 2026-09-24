@@ -118,7 +118,7 @@ export interface RenderBackend extends BackendSceneUpdates {
   ): Promise<import('../scene/surfaceBuffer.ts').SurfaceCapture>;
   rasterRgba?(): Uint8Array;
   visibilityIds?(): Uint32Array;
-  dispose(): void;
+  dispose(): void | Promise<void>; // A release that finishes later resolves when it has.
 }
 export interface BackendContext {
   source: HostGraphNode;

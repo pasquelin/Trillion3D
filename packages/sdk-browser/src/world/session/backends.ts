@@ -145,7 +145,18 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
       // Cancelled — the session closed: nothing failed, nothing falls back. An abort the session
       // did not ask for is a failure like any other, diagnosed and fallen back from.
       if (signal?.aborted) {
-        backend.dispose();
+        // Its release awaited, so that nothing of it outlives the cancellation; a release that
+        // fails is diagnosed, and the cancellation still goes up.
+        try {
+          await backend.dispose();
+        } catch (disposeError) {
+          diagnose('backend-dispose-error', 'Backend release failed', {
+            kind: 'error',
+            backend: backend.id,
+            error: String(disposeError),
+            scope,
+          });
+        }
         throw error;
       }
       diagnose('backend-preparation-error', 'Backend preparation failed', {
