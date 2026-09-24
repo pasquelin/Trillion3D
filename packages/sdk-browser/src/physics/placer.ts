@@ -161,17 +161,24 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       commit(index);
     },
     /** Moves slot `index` the fraction `step` of the way to `target` (7 numbers from `o`), its
-     *  turn normalised: node, tree, and row. */
+     *  turn normalised and taken the shorter way round: node, tree, and row. */
     lerp(index: number, target: Float32Array, o: number, step: number) {
       const p = index * 3,
         q = index * 4;
       position[p] += (target[o] - position[p]) * step;
       position[p + 1] += (target[o + 1] - position[p + 1]) * step;
       position[p + 2] += (target[o + 2] - position[p + 2]) * step;
-      const x = quaternion[q] + (target[o + 3] - quaternion[q]) * step,
-        y = quaternion[q + 1] + (target[o + 4] - quaternion[q + 1]) * step,
-        z = quaternion[q + 2] + (target[o + 5] - quaternion[q + 2]) * step,
-        w = quaternion[q + 3] + (target[o + 6] - quaternion[q + 3]) * step;
+      // A quaternion and its opposite are one rotation: the target on the drawn one's side.
+      const dot =
+        quaternion[q] * target[o + 3] +
+        quaternion[q + 1] * target[o + 4] +
+        quaternion[q + 2] * target[o + 5] +
+        quaternion[q + 3] * target[o + 6];
+      const s = dot < 0 ? -1 : 1;
+      const x = quaternion[q] + (s * target[o + 3] - quaternion[q]) * step,
+        y = quaternion[q + 1] + (s * target[o + 4] - quaternion[q + 1]) * step,
+        z = quaternion[q + 2] + (s * target[o + 5] - quaternion[q + 2]) * step,
+        w = quaternion[q + 3] + (s * target[o + 6] - quaternion[q + 3]) * step;
       const n = 1 / (Math.sqrt(x * x + y * y + z * z + w * w) || 1);
       quaternion[q] = x * n;
       quaternion[q + 1] = y * n;
