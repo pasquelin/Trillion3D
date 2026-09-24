@@ -16,7 +16,7 @@ import { packDagSelection, packedWorldsToRenderOrigin } from './pack.ts';
 import { evaluateDagSelectionKernel } from './selection.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { dagRecords, worldOf } from './layout.ts';
+import { dagRecords, worldOf } from './records.ts';
 import { dagViewFrames } from './oracle/math.ts';
 import { createDagOraclePredicates } from './oracle/predicates.ts';
 import { descenteComptee } from './cutFrontier.fixture.ts';
