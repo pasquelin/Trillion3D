@@ -147,11 +147,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       if (session && !session.setBounce(on)) runtime.renew();
       invalidate();
     },
-    /** The world's memory pools, read and set in bytes. */ budget: worldBudget(
-      pools,
-      () => runtime.explorer,
-      () => frames.last,
-    ),
+    /** The world's memory pools, read and set in bytes. */
+    budget: worldBudget(pools, runtime, frames, () => renderer),
     diagnostic: diagnostic.handle,
     /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
      *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */

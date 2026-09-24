@@ -2838,6 +2838,7 @@
         "packages/sdk-browser/src/frame/costAudit.test.ts",
         "packages/sdk-browser/src/frame/costAudit.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.test.ts",
         "packages/sdk-browser/src/world/core/worldFrames.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",

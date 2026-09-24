@@ -1,6 +1,7 @@
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
 import { DIAGNOSTICS, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
+import type { WorldRenderer } from '../capability/worldReady.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
 
@@ -16,8 +17,9 @@ export type Pools = { geometryPool?: number; texturePool?: number };
  */
 export function worldBudget(
   pools: Pools,
-  explorer: () => MeasuredWorld | null,
-  last: () => FrameMetrics | null,
+  session: { readonly explorer: MeasuredWorld | null },
+  frames: { readonly last: FrameMetrics | null },
+  renderer: () => WorldRenderer | null,
 ) {
   let pending = false;
   const rebalance = () => {
@@ -25,15 +27,14 @@ export function worldBudget(
     pending = true;
     queueMicrotask(() => {
       pending = false;
-      void explorer()?.setMemoryBudgets({
+      void session.explorer?.setMemoryBudgets({
         geometryPoolBytes: pools.geometryPool,
         texturePoolBytes: pools.texturePool,
       });
     });
   };
-  // What the last frame published: `null` when the engine holds no such pool, `undefined`
-  // before the first frame.
-  const held = (key: string) => (last() as Record<string, number | null> | null)?.[key];
+  // What the last frame published, `null` or `undefined` when it held no such pool.
+  const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key];
   return {
     /** The largest pools a world may ask for: the engine's starting budgets. */
     get geometryPoolCeiling() {
@@ -54,8 +55,8 @@ export function worldBudget(
     /** Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool
      *  (WebGL2); set it to change the envelope. */
     get texturePool(): number | null {
-      const bytes = held('texturePoolBytes');
-      return bytes !== undefined ? bytes : (pools.texturePool ?? DEFAULT_TEXTURE_POOL_BUDGET);
+      if (renderer() === 'webgl2') return null;
+      return held('texturePoolBytes') ?? pools.texturePool ?? DEFAULT_TEXTURE_POOL_BUDGET;
     },
     set texturePool(bytes: number) {
       pools.texturePool = Math.min(bytes, DEFAULT_TEXTURE_POOL_BUDGET);
