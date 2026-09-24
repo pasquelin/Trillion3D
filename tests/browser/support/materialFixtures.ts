@@ -1,31 +1,16 @@
 // The material fixtures of the witness comparison, one per feature the engine claims: base
 // colour, its map — repeated and turned, nearest, anisotropic —, alpha MASK at its cutoff, BLEND,
-// emissive, metal-roughness, normal map and double-sided. Each fixture is a square facing the
-// camera — turned to a grazing angle for anisotropy —, its material, where it is read and how
+// emissive, metal-roughness, normal map, double-sided and glass. Each fixture is a square facing
+// the camera — turned to a grazing angle for anisotropy —, its material, where it is read and how
 // far the two images may differ there — and why.
 //
 // This module is SERVED to the harness page and imported by its URL: the materials are built
 // in the page, with the `three` of its import map, the one the SDK under `dist/` also loads.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { VIEWPORT } from './sharedSceneProof.ts';
 import * as img from './materialImages.ts';
-import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
-
-/** Side of the square viewport every fixture is rendered in, in pixels: `rgbAt` reads both
- * images with this row stride, so a viewport that is not square would misread them silently. */
-export const [SIZE] = VIEWPORT;
-if (VIEWPORT[1] !== SIZE)
-  throw new Error(`material fixtures need a square viewport, got ${VIEWPORT}`);
-
-/** The one declared light of the lit fixtures: a sun above and in front of the square. */
-export const SUN: SceneLight = {
-  id: 'sun',
-  kind: 'directional',
-  direction: [-0.3, -0.5, -0.8],
-  color: [1, 1, 1],
-  intensity: 2.5,
-  castsShadow: false,
-};
+import { SIZE, type Fixture } from './materialFixtureShape.ts';
+import { hostSurface } from '../../../packages/sdk-browser/src/world/core/worldSurface.ts';
+import { material } from '../../../packages/sdk-core/src/world/material/index.ts';
 
 /** Two engines that quantise the same value: at most one 8-bit step apart, per channel. */
 const QUANTISATION = { difference: [0, 1], reason: 'same value, two 8-bit roundings' };
@@ -43,20 +28,6 @@ const INSIDE = [CENTRE, ...QUADRANTS];
 const GRAZING_ROW = Array.from({ length: 49 }, (_, i) => [24 + i, SIZE >> 1]);
 /** Levels of spread along `GRAZING_ROW` anisotropy 16 must add to 1, on each engine. */
 export const ANISOTROPY_GAIN = 64;
-
-export interface Fixture {
-  name: string;
-  material: () => G.GraphSurface;
-  lit?: boolean;
-  points: number[][];
-  difference: number[];
-  reason: string;
-  back?: boolean;
-  /** Turn of the square about its horizontal axis, radians: a grazing view. */
-  tilt?: number;
-  behind?: number;
-  tangents?: boolean;
-}
 
 /** An unlit fixture: a basic material, read within one level unless `extra` says otherwise. */
 const unlit = (
@@ -97,7 +68,8 @@ const BLEND = (): G.SurfaceParameters => ({
  * `back` turns the square away from the camera; `behind` puts an opaque square of that colour
  * behind it, and no hole — the engine shows the background where the witness does not —; `points`
  * are read on both images, and the largest channel gap at each must fall within `difference`, for
- * the `reason` given. Every fixture must publish a held frame.
+ * the `reason` given; `pair` names the two renderers read, the witness and WebGPU unless it says
+ * otherwise. Every fixture must publish a held frame.
  */
 export const fixtures: Fixture[] = [
   unlit('base colour', () => ({ color: 0x993322 })),
@@ -194,4 +166,21 @@ export const fixtures: Fixture[] = [
     () => ({ color: 0x808080, roughness: 0.8, normalMap: img.texture(img.TILTED_NORMAL) }),
     { tangents: true },
   ),
+  // #479: glass built through the world API (`meshPhysical` → `hostSurface`, the route a world
+  // takes on either renderer) over an opaque square, read on WebGL2 against WebGPU. Both draw it
+  // with the engine's one lighting model, transmitted over a frozen linear backdrop (#120, #337):
+  // the same value, so the same window as any value two engines quantise.
+  {
+    name: 'world glass over an opaque surface',
+    material: () =>
+      hostSurface(
+        material.meshPhysical({ roughness: 0, transmission: 1, ior: 1.5, thickness: 0.5 }),
+        false,
+        new Map(),
+      ),
+    points: INSIDE,
+    behind: 0x2244aa,
+    pair: ['webgpu', 'webgl2'],
+    ...QUANTISATION,
+  },
 ];
