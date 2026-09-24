@@ -77,13 +77,12 @@ export function buildWorldMirror(input: MirrorInput) {
     root.add(twin);
     twins.set(node, twin);
   }
-  /** Writes a repainted material entry's values into the host surface built for it: `absent`
-   *  when this mirror built none, `refused` when the change takes a new upload
-   *  (`repaintHostSurface`). */
-  const repaint = (material: Material): 'painted' | 'absent' | 'refused' => {
+  /** Writes a repainted material entry's values into the host surface built for it; false when
+   *  this mirror built none. */
+  const repaint = (material: Material) => {
     const surface = surfaces.get(material);
-    if (!surface) return 'absent';
-    return repaintHostSurface(surface, material) ? 'painted' : 'refused';
+    if (surface) repaintHostSurface(surface, material);
+    return !!surface;
   };
   return { root, twins, associations, repaint };
 }
