@@ -32,13 +32,15 @@ export function clusterColor(id: string, saturation = 0.75) {
 export const hostAimNode = () => new THREE.Object3D() as unknown as HostPlaced;
 
 /** The clear colour a host-rendered engine publishes, the one the composer clears with
- *  (`world/render/compose.ts`). */
+ *  (`world/render/compose.ts`): written in place once a colour is there, nothing allocated. */
 const paint = (scene: HostDrawScene, clearColor: number) => {
-  asHostLibrary<THREE.Scene>(scene).background = new THREE.Color(clearColor);
+  const host = asHostLibrary<THREE.Scene>(scene);
+  if (host.background instanceof THREE.Color) host.background.setHex(clearColor);
+  else host.background = new THREE.Color(clearColor);
 };
 
-/** What sets that colour during the session, then tells `changed` the image moved: a held frame
- *  would otherwise put the old colour back. */
+/** What sets that colour during the session, then tells `changed` the held frame is stale: the
+ *  engine's resource revision, never its scene one — nothing else is walked again. */
 export const hostBackground = (scene: HostDrawScene, changed: () => void) => (hex: number) => {
   paint(scene, hex);
   changed();

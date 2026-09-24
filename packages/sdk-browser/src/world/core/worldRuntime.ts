@@ -153,7 +153,7 @@ export function createWorldRuntime(inputs: Inputs) {
       session.setEnvironment({ ...inputs.display(), irradiance });
       lightsChanged = false;
     }
-    if (!background.write(session)) reopens.request();
+    if (!background.write(session)) queueMicrotask(requestReopen); // after the frame it draws
   };
   const fit = createCanvasFit(canvas, inputs.options().interactive === false);
   const beforeFrame = () => {
@@ -167,7 +167,7 @@ export function createWorldRuntime(inputs: Inputs) {
     if (inputs.drawn() || disposed || !scene.children.length) return null;
     return explorer ? 'its session is open and draws nothing' : `no session has opened, ${closed}`;
   });
-  scene._link = createWorldLink({ contents, lights, invalidate, relight, schedule, background });
+  scene._link = createWorldLink({ contents, lights, invalidate, relight, schedule });
   return {
     beforeFrame,
     invalidate,

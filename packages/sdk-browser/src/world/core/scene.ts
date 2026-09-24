@@ -1,7 +1,7 @@
 import { Object3D, type SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import { listen } from '../../../../sdk-core/src/world/math/observed.ts';
+import { listen, unlisten } from '../../../../sdk-core/src/world/math/observed.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import type { LoadedModel } from './loadedModel.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
@@ -46,22 +46,23 @@ export class Scene extends Object3D {
     this.loader = loader;
     this.type = 'Scene';
   }
-  /** What fills the image behind every object: a colour, or `null` for the default. A change —
-   *  set, or written in place (`background.setHSL(...)`) — shows at the next frame, the session
-   *  kept. A picture is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one. */
+  /** What fills the image behind every object: a colour, or `null` for the default. A change
+   *  shows at the next frame, the session kept: a new colour set here, or the one held written
+   *  through its methods (`set`, `setRGB`, `setHex`, `setHSL`...). A direct write of `.r`, `.g`
+   *  or `.b` is not heard: set `background` again after one. A picture, or any value without
+   *  `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one. */
   get background() {
     return this._background;
   }
   set background(value: Color | null) {
-    if (value !== null && (value as { isColor?: boolean }).isColor !== true)
+    if (value !== null && typeof (value as { getHex?: unknown }).getHex !== 'function')
       throw new EngineError(
         'UNSUPPORTED_SCENE_UPDATE',
         'scene.background takes a colour or null: a picture background is not drawn',
       );
-    const previous = this._background;
-    if (previous?._onChange === this.recoloured) previous._onChange = null;
+    if (this._background) unlisten(this._background, this.recoloured);
     this._background = value;
-    if (value && value._onChange !== this.recoloured) listen(value, this.recoloured);
+    if (value) listen(value, this.recoloured);
     this.recoloured();
   }
   /** Loads a compiled model — its manifest URL — and adds it to this scene. */

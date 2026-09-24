@@ -129,7 +129,7 @@ export function encodeSurfaceLighting(
   uniformBase: number,
 ) {
   const { gpu, run, capture } = rt,
-    { clearColor } = rt.setup;
+    { clearColor } = run;
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.colorView)
     throw new Error('DEFERRED_UNAVAILABLE');
   const [width, height] = gpu.targetSize;

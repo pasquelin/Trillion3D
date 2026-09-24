@@ -741,9 +741,11 @@ no constant sky and no authored scene lighting: a surface no declared light reac
 so a windowless corridor stays black at noon. Emission is a material property and is always added.
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
 a light and cannot brighten a surface no light reaches. `scene.background` is the colour behind every
-object, `null` for the default; set or written in place (`scene.background.setHSL(...)`), it shows at
-the next frame on either renderer, the session kept. A picture background is refused
-(`UNSUPPORTED_SCENE_UPDATE`): no path draws one yet.
+object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
+`set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
+write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
+background, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws
+one yet.
 
 A world declares lights like any other object: `scene.add(light.point({ intensity: 2, position:
 [0, 3, 0] }))`, `light.intensity = 2` afterwards, `scene.remove(light)` to drop it. Underneath, every
