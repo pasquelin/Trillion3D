@@ -121,7 +121,6 @@ export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/
 export type { HostRetentionDelta, StreamPage } from '../../sdk-browser/src/streaming/types.ts';
 export { joint, Joint } from '../../sdk-core/src/physics/joint.ts';
 export type {
-  JointHost,
   JointKind,
   JointLimits,
   JointMotor,
