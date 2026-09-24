@@ -14,6 +14,14 @@
 export const PUBLIC_FAMILIES =
   /^(?:placement\/|world\/(?:core|batch|budget|capability|controls|helper|loader|metric|page|pose|saved|texture)\/|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/;
 
+/**
+ * A module specifier of the host library, in a source, in emitted code or in a declaration: the
+ * one pattern every no-Three guard reads. It keys on the specifier, not on the statement, so a
+ * multi-line `import {…}\nfrom 'three'`, a bare `import 'three'`, a dynamic `import('three')`,
+ * an `export … from 'three'` and any `three/…` subpath (`three/addons/…`) are all caught.
+ */
+export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(?:\/[^'"]*)?['"]/;
+
 // CLOSED LIST OF `sdk-browser` FILES ALLOWED TO IMPORT THE HOST LIBRARY.
 //
 // The rule is inverted: it is no longer a watch list of files, it is the list of EVERYTHING

@@ -121,10 +121,8 @@ test('a packed installation resolves Node and browser runtime and declarations',
         dependencies: {
           meshoptimizer: `link:${resolve(ROOT, 'node_modules/meshoptimizer')}`,
           trillion3d: `file:${join(directory, tarball)}`,
-          three: `file:${resolve(ROOT, 'node_modules/three')}`,
         },
         devDependencies: {
-          '@types/three': `link:${resolve(ROOT, 'node_modules/@types/three')}`,
           '@webgpu/types': `link:${resolve(ROOT, 'node_modules/@webgpu/types')}`,
         },
       }),

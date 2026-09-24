@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { NAMES_THREE } from './engine-without-three-lists.ts';
 
 const repo = new URL('../../', import.meta.url);
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
@@ -39,9 +40,6 @@ interface PackageManifest {
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
 }
-
-/** A module specifier of the host library, in emitted code or in a declaration. */
-const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(?:\/[^'"]*)?['"]/;
 
 /** Every package name a dependency tree printed by `pnpm list --json` reaches. */
 function treeNames(node: { dependencies?: Record<string, unknown> }, names = new Set<string>()) {
