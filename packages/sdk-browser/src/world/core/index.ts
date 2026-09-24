@@ -8,7 +8,7 @@ export type {
   WorldRenderer,
   LoadOptions,
 } from './world.ts';
-export type { CanvasPoint, RaycastOptions, WorldRaycast } from './worldRaycast.ts';
+export type { CanvasPoint, RaycastOptions } from './worldRaycast.ts';
 export type { Intersection } from '../../../../sdk-core/src/world/object/raycast.ts';
 export type {
   SavedScene,
