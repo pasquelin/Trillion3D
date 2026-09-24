@@ -10,6 +10,7 @@ import type { MeasuredWorld } from '../session/explorer.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
+import { raycastTreeBudget } from '../../../../sdk-core/src/world/object/raycastTrees.ts';
 
 export { worldControlsHandle } from './worldControlsHandle.ts';
 
@@ -71,6 +72,14 @@ export function worldBudget(
     set texturePool(bytes: number) {
       pools.texturePool = Math.min(bytes, DEFAULT_TEXTURE_POOL_BUDGET);
       rebalance();
+    },
+    /** Bytes of CPU memory `raycast` keeps for triangle trees, shared by every world on the page;
+     *  past it the tree cast at least recently is dropped. Set it to change the envelope. */
+    get raycastTrees() {
+      return raycastTreeBudget.bytes;
+    },
+    set raycastTrees(bytes: number) {
+      raycastTreeBudget.bytes = bytes;
     },
   };
 }

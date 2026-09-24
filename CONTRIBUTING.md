@@ -125,6 +125,15 @@
   limits. New stages need versioned contracts, bounded cancellation, observable work and explicit
   failure semantics. Algorithms belong in libraries, not CLI/UI.
 
+- **Compiled build outputs (`dist/`, bundles, binaries) are not tracked, with one exception: the
+  WebAssembly modules** (`pageCodec.wasm`, `joltPhysics.wasm`, `joltPhysicsThreads.wasm`). Their
+  toolchains — the Rust `wasm32` target with LLVM tools, and emscripten, CMake, Ninja and the Jolt
+  submodule — are not installed by `pnpm install`, yet the unit suite, the site build, the npm package and every
+  checkout read the modules. Tracking them keeps the repository self-contained and makes every
+  consumer run the same bytes. The cost is staleness, so a change to their sources
+  (`packages/page-codec-wasm`, `packages/physics-jolt-wasm`) rebuilds them (`build:wasm`,
+  `build:physics`) and commits the result in the same pull request.
+
 ## Native compiler (`packages/asset-compiler-rust`)
 
 - Thin CLI; library algorithms behind versioned strategy/stage contracts. Preserve triangle/material

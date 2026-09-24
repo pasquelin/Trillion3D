@@ -21,8 +21,8 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      // Waits for #361: WebGPU samples each texture with its own `minFilter`, `magFilter` and
-      // `anisotropy`; until then the four lanes and the two signs look the same.
+      // Each texture is sampled with its own `minFilter`, `magFilter` and `anisotropy`: the four
+      // lanes and the two signs read the same picture four ways.
       import { createWorld, geometry, material, object, light, math, texture, wrap, filter, side } from '../runtime/engine.js';
       import { controls, readout } from '../runtime/kit.js';
 
