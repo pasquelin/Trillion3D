@@ -1658,7 +1658,8 @@
       "signal": "Sinyal iptal edildiğinde yüklemeyi durdurur.",
       "scope": "`'full'` tüm önbelleği gerektirir, `'progressive'` onun akışlı kesitini; başka bir kapsamdaki bir model isimle reddedilir. Ayarlanmazsa, model göstericisinin bildirdiği kapsamda okunur.",
       "stream": "Sayfanın yapılandırdığı bir akıtıcı; dünyanın oturumu kendi akıtıcısıyla akıtır.",
-      "position": "Modelin başlangıç noktasının sahnede nereye gittiği."
+      "position": "Modelin başlangıç noktasının sahnede nereye gittiği.",
+      "onProgress": "Yüklemenin ne kadar ilerlediğini duyar: manifest okunduğunda `manifest`, ardından sahnenin okuduğu her dosya geldikçe `resources` (o ana kadar bilinen `total` içinden `completed`). Olay bir `JobProgress`'tir: yüklemeyi saran bir `createJob` kendi `progress`'ini buraya verir."
     }
   },
   "LoadedModel": {
@@ -2957,6 +2958,7 @@
       "counts": "Son planın yaptığı, sayfa olarak.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
+      "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
       "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan birleşim hemen listeye girer.",
       "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, çizdiği sayfalara bölünmüş.",
@@ -6866,7 +6868,9 @@
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
+      "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }
   },
   "ContactEvent": {
@@ -7047,7 +7051,9 @@
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
+      "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }
   },
   "WorldPhysicsOptions": {
@@ -7311,6 +7317,77 @@
       "x": "Soldan sağa.",
       "y": "Alttan üste.",
       "z": "Arkadan öne."
+    }
+  },
+  "Joint": {
+    "summary": "İki cisim ya da bir cisimle dünya (`b` null) arasında bir eklem; `joint.*` ile oluşturulur ve `world.physics.add` ile simülasyona eklenir.",
+    "description": "İki cisim de simüle edildikçe ve kırılana dek tutar.",
+    "parameters": {
+      "options": "`joint.*`'ın kabul ettikleri. Noktalar ve eksenler dünyadadır, eklem ilk oluşturulduğunda okunur.",
+      "options.anchor": "Cisimlerin birleştiği yer: menteşenin pimi, nokta ekleminin bilyesi, bir mesafenin `a` üzerindeki ucu.",
+      "options.anchorB": "Bir mesafenin `b` üzerindeki ucu.",
+      "options.axis": "Menteşenin pimi, kızağın rayı, koninin ortası.",
+      "options.limits": "Menteşe, kızak, mesafe ve koni: ne kadar hareket ettiği. Bir mesafe varsayılan olarak uzunluğunu korur.",
+      "options.spring": "Menteşe, kızak ve mesafe: sınırların ötesinde bir duvar yerine yay geri çeker; `frequency` Hz cinsinden, `damping` 0 (yok) ile 1 (kritik) arası.",
+      "options.motor": "Menteşe ve kızak: her an `joint.motor` ile değiştirilebilen bir motor.",
+      "options.breakForce": "Eklemin kırıldığı çekiş (newton); verilmezse hiç kırılmaz."
+    },
+    "members": {
+      "kind": "Eklemin ne olduğu.",
+      "a": "Birinci cisim.",
+      "b": "İkinci cisim ya da dünya için `null`.",
+      "options": "Neyle oluşturulduğu.",
+      "motor": "Menteşenin ya da kızağın motoru; `null` serbestçe dönmesine ya da kaymasına izin verir.",
+      "broken": "Kırılıp kırılmadığı: `breakForce` değerinin ötesinde çekildi. Kırık bir eklem artık bir şey tutmaz.",
+      "on": "Eklem kırıldığında `handler`'ı çağırır."
+    }
+  },
+  "JointKind": {
+    "summary": "Cisimler arasındaki eklemler; her biri Jolt'un kendi kısıtlarından biri."
+  },
+  "JointLimits": {
+    "summary": "Bir eklemin ne kadar hareket edebileceği: menteşe için radyan, kızak ya da mesafe için metre, koni için koninin yarım açısı (`max`).",
+    "members": {
+      "min": "Menteşede −π ile 0 arası, kızakta 0 ya da daha az.",
+      "max": "Menteşede 0 ile π arası, kızakta 0 ya da daha fazla."
+    }
+  },
+  "JointMotor": {
+    "summary": "Menteşenin ya da kızağın motoru: eklemi bir hıza ya da konuma sürer.",
+    "members": {
+      "mode": "`'velocity'`: rad/s ya da m/s; `'position'`: eklemin oluşturulduğu yerden radyan ya da metre.",
+      "target": "Ulaşılacak hız ya da konum.",
+      "maxForce": "Menteşe için N·m, kızak için N; verilmezse sınırsız."
+    }
+  },
+  "JointOptions": {
+    "summary": "`joint.*`'ın kabul ettikleri.",
+    "description": "Noktalar ve eksenler dünyadadır, eklem ilk oluşturulduğunda okunur.",
+    "members": {
+      "anchor": "Cisimlerin birleştiği yer: menteşenin pimi, nokta ekleminin bilyesi, bir mesafenin `a` üzerindeki ucu.",
+      "anchorB": "Bir mesafenin `b` üzerindeki ucu.",
+      "axis": "Menteşenin pimi, kızağın rayı, koninin ortası.",
+      "limits": "Menteşe, kızak, mesafe ve koni: ne kadar hareket ettiği. Bir mesafe varsayılan olarak uzunluğunu korur.",
+      "spring": "Menteşe, kızak ve mesafe: sınırların ötesinde bir duvar yerine yay geri çeker; `frequency` Hz cinsinden, `damping` 0 (yok) ile 1 (kritik) arası.",
+      "motor": "Menteşe ve kızak: her an `joint.motor` ile değiştirilebilen bir motor.",
+      "breakForce": "Eklemin kırıldığı çekiş (newton); verilmezse hiç kırılmaz."
+    }
+  },
+  "joint": {
+    "summary": "`joint` ailesi: bağlı iki cisim ya da bir cisim ve dünya (`b` null).",
+    "members": {
+      "fixed": "Onları kaynaklar: tek bir cisim gibi hareket ederler.",
+      "point": "`anchor` noktasında bir bilyeli eklem: çevresinde serbestçe dönerler.",
+      "hinge": "`anchor` noktasında `axis` boyunca bir pim: bir kapı, bir tekerlek. `limits` radyan cinsinden.",
+      "slider": "`axis` boyunca bir ray: bir çekmece, bir piston. `limits` metre cinsinden.",
+      "distance": "`a` üzerindeki `anchor` ile `b` üzerindeki `anchorB`'yi aralarındaki mesafede ya da `limits` içinde tutar.",
+      "cone": "`axis`'i yarım açısı `limits.max` olan bir koni içinde salınan bilyeli eklem."
+    }
+  },
+  "JointHost": {
+    "summary": "Bir eklemin dünya tarafı: ona yapılan bir yazmanın simülasyondan istediği.",
+    "members": {
+      "motor": "Motor değişti."
     }
   }
 }

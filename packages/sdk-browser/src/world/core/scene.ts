@@ -8,6 +8,7 @@ import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { saveScene } from '../saved/write.ts';
 import { readScene } from '../saved/read.ts';
 import type { SavedScene } from '../saved/format.ts';
+import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
 
 /** What `scene.load` may be told about the model it loads; every field is optional. */
 export interface LoadOptions {
@@ -20,6 +21,10 @@ export interface LoadOptions {
   stream?: unknown;
   /** Where the model's origin goes in the scene. */
   position?: readonly [number, number, number] | { x: number; y: number; z: number };
+  /** Hears how far the load has got: `manifest` once the manifest is read, then `resources`
+   *  as each file the scene reads lands (`completed` of `total` known so far). The event is a
+   *  `JobProgress`: a `createJob` wrapping the load passes its `progress` here. */
+  onProgress?: (event: JobProgress) => void;
 }
 
 /** What a world hears from its scene: a node's changes, and its background set or written. */

@@ -2,7 +2,8 @@ import {
   SELECTION_UNIFORM_BYTES as UNIFORM_BYTES,
   SELECTION_WORKGROUP,
 } from '../core/selection.ts';
-import { FRAME_VEC4, type PackedDag } from './types.ts';
+import type { PackedDag } from './types.ts';
+import { primitiveFrameWords } from './worlds.ts';
 import { createDagPipeline } from './pipeline.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
@@ -38,14 +39,7 @@ export async function createDagResources(
     drawnGroupsOffset = travail.drawnGroups * 4,
     readbackBytes = outputBytes + (residentCut ? drawnBytes : 0);
   const uniformData = new Float32Array(UNIFORM_BYTES / 4);
-  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
-    frameInts = new Uint32Array(frameData.buffer);
-  for (let w = 0; w < packed.worldCount; w++) {
-    frameData[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
-    // The primitive's root travels with its stretch: prepare deposits it in pass 0's queue
-    // without one more storage buffer bound to the stage.
-    frameInts[(w * FRAME_VEC4 + 6) * 4 + 1] = packed.rootNodes[w];
-  }
+  const frameData = primitiveFrameWords(packed);
   const buffers: GPUBuffer[] = [];
   try {
     const clusters = device.createBuffer({

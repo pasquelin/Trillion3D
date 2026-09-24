@@ -2900,7 +2900,8 @@
       "signal": "Stoppt das Laden, wenn das Signal abgebrochen wird.",
       "scope": "`'full'` fordert den ganzen Cache an, `'progressive'` seinen Ausschnitt als Stream; ein Modell mit anderem Umfang wird bei seinem Namen abgelehnt. Ohne Wert wird das Modell mit dem Umfang gelesen, den sein Zeiger deklariert.",
       "stream": "Ein von der Seite eingestellter Stream; die Sitzung der Welt lässt Seiten mit ihrem eigenen ankommen.",
-      "position": "Wohin der Ursprung des Modells in der Szene geht."
+      "position": "Wohin der Ursprung des Modells in der Szene geht.",
+      "onProgress": "Hört, wie weit das Laden ist: `manifest`, sobald das Manifest gelesen ist, dann `resources`, sobald jede Datei ankommt, die die Szene liest (`completed` von dem bisher bekannten `total`). Das Ereignis ist ein `JobProgress`: ein `createJob`, der das Laden umschließt, übergibt hier sein `progress`."
     }
   },
   "LOD_QUALITY": {
@@ -5222,6 +5223,7 @@
       "counts": "Was der letzte Plan getan hat, in Seiten.",
       "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
+      "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
       "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltene Vereinigung kommt sofort in die Liste.",
       "observeCost": "Zeitmesser des Schattendurchgangs eines Bildes, auf die gezeichneten Seiten umgelegt.",
@@ -6866,7 +6868,9 @@
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
+      "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }
   },
   "ContactEvent": {
@@ -7047,7 +7051,9 @@
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
+      "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }
   },
   "WorldPhysicsOptions": {
@@ -7311,6 +7317,77 @@
       "x": "Von links nach rechts.",
       "y": "Von unten nach oben.",
       "z": "Von hinten nach vorn."
+    }
+  },
+  "Joint": {
+    "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",
+    "description": "Es hält, solange beide Körper simuliert werden und bis es bricht.",
+    "parameters": {
+      "options": "Was `joint.*` annimmt. Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
+      "options.anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
+      "options.anchorB": "Das Ende eines Abstands an `b`.",
+      "options.axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
+      "options.limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
+      "options.spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "options.motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "options.breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+    },
+    "members": {
+      "kind": "Was das Gelenk ist.",
+      "a": "Der erste Körper.",
+      "b": "Der zweite Körper oder `null` für die Welt.",
+      "options": "Womit es erzeugt wurde.",
+      "motor": "Der Motor eines Scharniers oder Schiebegelenks; `null` lässt es frei drehen oder gleiten.",
+      "broken": "Ob es gebrochen ist: über seine `breakForce` hinaus gezogen. Ein gebrochenes Gelenk hält nichts mehr.",
+      "on": "Ruft `handler` auf, wenn das Gelenk bricht."
+    }
+  },
+  "JointKind": {
+    "summary": "Die Gelenke zwischen Körpern, jedes eine von Jolts eigenen Bedingungen."
+  },
+  "JointLimits": {
+    "summary": "Wie weit sich ein Gelenk bewegen darf: Radiant für ein Scharnier, Meter für ein Schiebegelenk oder einen Abstand, der halbe Kegelwinkel (`max`) für einen Kegel.",
+    "members": {
+      "min": "Bei einem Scharnier von −π bis 0, bei einem Schiebegelenk 0 oder weniger.",
+      "max": "Bei einem Scharnier von 0 bis π, bei einem Schiebegelenk 0 oder mehr."
+    }
+  },
+  "JointMotor": {
+    "summary": "Der Motor eines Scharniers oder Schiebegelenks: Er treibt das Gelenk auf eine Geschwindigkeit oder eine Position.",
+    "members": {
+      "mode": "`'velocity'`: rad/s oder m/s; `'position'`: Radiant oder Meter ab der Lage, in der das Gelenk entstand.",
+      "target": "Die zu erreichende Geschwindigkeit oder Position.",
+      "maxForce": "N·m für ein Scharnier, N für ein Schiebegelenk; weggelassen: unbegrenzt."
+    }
+  },
+  "JointOptions": {
+    "summary": "Was `joint.*` annimmt.",
+    "description": "Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
+    "members": {
+      "anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
+      "anchorB": "Das Ende eines Abstands an `b`.",
+      "axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
+      "limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
+      "spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+    }
+  },
+  "joint": {
+    "summary": "Die Familie `joint`: zwei verbundene Körper oder ein Körper und die Welt (`b` null).",
+    "members": {
+      "fixed": "Verschweißt sie: Sie bewegen sich wie einer.",
+      "point": "Ein Kugelgelenk bei `anchor`: Sie drehen sich frei darum.",
+      "hinge": "Ein Stift bei `anchor` entlang `axis`: eine Tür, ein Rad. `limits` in Radiant.",
+      "slider": "Eine Schiene entlang `axis`: eine Schublade, ein Kolben. `limits` in Metern.",
+      "distance": "Hält `anchor` an `a` und `anchorB` an `b` in ihrem Abstand oder innerhalb von `limits`.",
+      "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt."
+    }
+  },
+  "JointHost": {
+    "summary": "Die Weltseite eines Gelenks: was ein Schreiben darauf von der Simulation verlangt.",
+    "members": {
+      "motor": "Der Motor hat sich geändert."
     }
   }
 }

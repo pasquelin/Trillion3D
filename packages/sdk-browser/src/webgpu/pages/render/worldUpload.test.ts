@@ -12,6 +12,7 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: () => boolean }) 
     setup: { worlds: {} },
     layout: { selectionRoots: [], worldUpdates: new Float32Array(16), rows: { tableEpoch: 1 } },
     timing: { worldCounts: { racinesRebasees: 0 } },
+    blendState: { blendGpu: [] },
     run: {
       gate: { updateWorlds: () => walked, revisions: { scene: 2 } },
       worldUploadRevision: 1,

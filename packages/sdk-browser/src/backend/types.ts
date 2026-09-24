@@ -105,7 +105,7 @@ export interface RenderBackend extends BackendSceneUpdates {
   ): void;
   dropPage?(url: string): void;
   syncResident?(): void;
-  flush?(): Promise<void>;
+  flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback
   /** Wait for submitted work without image readback; true asks for another interactive frame. */
   pendingFrame?(): Promise<boolean>;
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */

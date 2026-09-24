@@ -1963,5 +1963,20 @@
       "awake": "Aktif",
       "step": "Langkah"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "Buka pintu dan laci, ayunkan rantai, lalu jatuhkan batu ke jembatan dan lihat jembatan itu patah.",
+    "controls": {
+      "openDoor": "Buka pintu",
+      "openDrawer": "Buka laci",
+      "strength": "Kekuatan jembatan (N)",
+      "swingChain": "Ayunkan rantai",
+      "dropStone": "Jatuhkan batu",
+      "rebuild": "Bangun ulang jembatan"
+    },
+    "readouts": {
+      "joints": "Sambungan",
+      "broken": "Patah"
+    }
   }
 }
