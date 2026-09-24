@@ -4,12 +4,17 @@
  * interleaved view is one host buffer per slice of vertices; a sparse accessor is a copy of its
  * base with the substituted elements written in; a run shared by two primitives is one attribute.
  */
-import * as THREE from 'three';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import type {
   TableAccessor,
   TableDocument,
 } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
+import {
+  GraphAttribute,
+  GraphInterleavedAttribute,
+  GraphInterleavedBuffer,
+  type GraphElements,
+} from '../graph/attributes.ts';
 
 /** Storage of each glTF component type. */
 const COMPONENTS = {
@@ -30,7 +35,7 @@ export const NORMALISED: Partial<Record<keyof typeof COMPONENTS, number>> = {
   5123: 1 / 65535,
 };
 
-type Attribute = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+type Attribute = GraphElements;
 
 /** Writes the substituted elements of a sparse accessor into a copy of its base, as the loader does. */
 function substitute(
@@ -46,8 +51,8 @@ function substitute(
   const values = new Values(viewOf(sparse.values.view), sparse.values.offset, sparse.count * width);
   const out =
     accessor.view === null
-      ? (base as THREE.BufferAttribute)
-      : new THREE.BufferAttribute(base.array.slice(), width, base.normalized);
+      ? (base as GraphAttribute)
+      : new GraphAttribute(base.array.slice(), width, base.normalized);
   out.normalized = false;
   for (let i = 0; i < ranks.length; i++) {
     out.setX(ranks[i], values[i * width]);
@@ -64,7 +69,7 @@ function substitute(
 export function preparedAccessors(document: TableDocument, binary: ArrayBuffer | null) {
   const views = new Map<number, ArrayBuffer>();
   const attributes = new Map<number, Attribute>();
-  const interleaved = new Map<string, THREE.InterleavedBuffer>();
+  const interleaved = new Map<string, GraphInterleavedBuffer>();
 
   /** A copy of one view, as the host loader held it: attributes view into it, never beyond. */
   const viewOf = (rank: number) => {
@@ -88,14 +93,10 @@ export function preparedAccessors(document: TableDocument, binary: ArrayBuffer |
     const stride = accessor.view === null ? null : document.views[accessor.view].stride;
     const itemBytes = Storage.BYTES_PER_ELEMENT * width;
     if (accessor.view === null)
-      return new THREE.BufferAttribute(
-        new Storage(accessor.count * width),
-        width,
-        accessor.normalized,
-      );
+      return new GraphAttribute(new Storage(accessor.count * width), width, accessor.normalized);
     const view = viewOf(accessor.view);
     if (!stride || stride === itemBytes)
-      return new THREE.BufferAttribute(
+      return new GraphAttribute(
         new Storage(view, accessor.offset, accessor.count * width),
         width,
         accessor.normalized,
@@ -106,14 +107,14 @@ export function preparedAccessors(document: TableDocument, binary: ArrayBuffer |
     let buffer = interleaved.get(key);
     if (!buffer) {
       const elements = (accessor.count * stride) / Storage.BYTES_PER_ELEMENT;
-      buffer = new THREE.InterleavedBuffer(
+      buffer = new GraphInterleavedBuffer(
         new Storage(view, slice * stride, elements),
         stride / Storage.BYTES_PER_ELEMENT,
       );
       interleaved.set(key, buffer);
     }
     const offset = (accessor.offset % stride) / Storage.BYTES_PER_ELEMENT;
-    return new THREE.InterleavedBufferAttribute(buffer, width, offset, accessor.normalized);
+    return new GraphInterleavedAttribute(buffer, width, offset, accessor.normalized);
   };
 
   const attributeOf = (rank: number) => {

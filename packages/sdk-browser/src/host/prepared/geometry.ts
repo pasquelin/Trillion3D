@@ -9,11 +9,15 @@
  * naming the same runs are one host geometry; an interleaved view is one host buffer per slice;
  * and the local box is the one the positions declare, not one recomputed from them.
  */
-import * as THREE from 'three';
 import type {
   TableDocument,
   TablePrimitive,
 } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
+import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
+import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
+import { GraphGeometry } from '../graph/geometry.ts';
+import { type GraphAttribute } from '../graph/attributes.ts';
 import { NORMALISED, preparedAccessors } from './accessors.ts';
 
 /** The host's attribute names for the glTF semantics it knows; any other is lower-cased. */
@@ -39,7 +43,7 @@ const runs = (set: Readonly<Record<string, number>>) =>
 /** The morph targets of a primitive, laid on its geometry as the loader lays them: one list per
  *  morphed attribute, the base attribute standing in for a target that leaves it alone. */
 function morph(
-  geometry: THREE.BufferGeometry,
+  geometry: GraphGeometry,
   declared: TablePrimitive,
   attributeOf: ReturnType<typeof preparedAccessors>,
 ) {
@@ -48,7 +52,7 @@ function morph(
     if (!targets.some((target) => target[semantic] !== undefined)) continue;
     geometry.morphAttributes[name] = targets.map((target) =>
       target[semantic] !== undefined ? attributeOf(target[semantic]) : geometry.attributes[name],
-    ) as THREE.BufferAttribute[];
+    );
   }
   if (Object.keys(geometry.morphAttributes).length) geometry.morphTargetsRelative = true;
 }
@@ -66,45 +70,48 @@ const MORPHED = [
  */
 export function preparedGeometries(document: TableDocument, binary: ArrayBuffer | null) {
   const attributeOf = preparedAccessors(document, binary);
-  const geometries = new Map<string, THREE.BufferGeometry>();
+  const geometries = new Map<string, GraphGeometry>();
 
   /** A run's declared corner, at the scale a normalised run is read at. */
   const corner = (rank: number, which: 'min' | 'max') => {
     const accessor = document.accessors[rank];
     const scale = accessor.normalized ? (NORMALISED[accessor.componentType] ?? 1) : 1;
-    return accessor[which] && new THREE.Vector3().fromArray(accessor[which]).multiplyScalar(scale);
+    const at = accessor[which];
+    return at && [at[0] * scale, at[1] * scale, at[2] * scale];
   };
 
   /** The box the positions declare, grown by the largest displacement a morph target declares
    *  (the loader's rule: not conservative, but the size of the shapes it blends). */
-  const bound = (geometry: THREE.BufferGeometry, declared: TablePrimitive) => {
+  const bound = (geometry: GraphGeometry, declared: TablePrimitive) => {
     const position = declared.attributes.POSITION;
     const low = position === undefined ? null : corner(position, 'min');
     const high = position === undefined ? null : corner(position, 'max');
     if (!low || !high) return;
-    const box = new THREE.Box3(low, high);
-    const displacement = new THREE.Vector3();
+    const displacement = [0, 0, 0];
     for (const target of declared.targets ?? []) {
       if (target.POSITION === undefined) continue;
       const [min, max] = [corner(target.POSITION, 'min'), corner(target.POSITION, 'max')];
       if (!min || !max) continue;
-      displacement.max(
-        new THREE.Vector3(
-          Math.max(Math.abs(min.x), Math.abs(max.x)),
-          Math.max(Math.abs(min.y), Math.abs(max.y)),
-          Math.max(Math.abs(min.z), Math.abs(max.z)),
-        ),
-      );
+      for (let c = 0; c < 3; c++)
+        displacement[c] = Math.max(displacement[c], Math.max(Math.abs(min[c]), Math.abs(max[c])));
     }
-    if (declared.targets) box.expandByVector(displacement);
-    geometry.boundingBox = box;
-    const sphere = new THREE.Sphere();
-    box.getCenter(sphere.center);
-    sphere.radius = box.min.distanceTo(box.max) / 2;
-    geometry.boundingSphere = sphere;
+    if (declared.targets)
+      for (let c = 0; c < 3; c++) {
+        low[c] -= displacement[c];
+        high[c] += displacement[c];
+      }
+    geometry.boundingBox = new Box3(
+      new Vector3(low[0], low[1], low[2]),
+      new Vector3(high[0], high[1], high[2]),
+    );
+    const [dx, dy, dz] = [low[0] - high[0], low[1] - high[1], low[2] - high[2]];
+    const centre = geometry.boundingBox.isEmpty()
+      ? new Vector3(0, 0, 0)
+      : new Vector3((low[0] + high[0]) * 0.5, (low[1] + high[1]) * 0.5, (low[2] + high[2]) * 0.5);
+    geometry.boundingSphere = new Sphere(centre, Math.sqrt(dx * dx + dy * dy + dz * dz) / 2);
   };
 
-  return (mesh: number, primitive: number): THREE.BufferGeometry => {
+  return (mesh: number, primitive: number): GraphGeometry => {
     const declared = document.meshes[mesh].primitives[primitive];
     const semantics = Object.keys(declared.attributes);
     const key = `${declared.indices}:${runs(declared.attributes)}${(declared.targets ?? [])
@@ -112,14 +119,14 @@ export function preparedGeometries(document: TableDocument, binary: ArrayBuffer 
       .join('')}`;
     let geometry = geometries.get(key);
     if (geometry) return geometry;
-    geometry = new THREE.BufferGeometry();
+    geometry = new GraphGeometry();
     for (const semantic of semantics) {
       const name = NAMES[semantic] ?? semantic.toLowerCase();
       if (!(name in geometry.attributes))
         geometry.setAttribute(name, attributeOf(declared.attributes[semantic]));
     }
     if (declared.indices !== null)
-      geometry.setIndex(attributeOf(declared.indices) as THREE.BufferAttribute);
+      geometry.setIndex(attributeOf(declared.indices) as GraphAttribute);
     bound(geometry, declared);
     morph(geometry, declared, attributeOf);
     geometries.set(key, geometry);

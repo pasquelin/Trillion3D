@@ -3,18 +3,21 @@
  * colour, the lights copied from the source graph, the empty node a copied light aims at, and
  * the colour a diagnostic paints a cluster with.
  *
- * What reaches this file is every engine whose image the HOST RENDERER draws — the reference,
- * exact and level-of-detail witnesses, and the autonomous WebGL2 path, which is a shipping
- * backend and not a witness at all (`../pageObjects.ts`) — through the scene adapter and the
- * contract-lighting API they share. The engine that presents its own surface publishes a
- * display-graph record instead (`../../cluster/blendSceneRecord.ts`) and names no library: the constants and
- * the frame budgets it still shares with the others stayed in `../../backend/common.ts`, which imports
- * nothing.
+ * What reaches this file is every engine whose image the REFERENCE RENDERER draws — the
+ * reference, exact and level-of-detail witnesses, and the autonomous WebGL2 path, which is a
+ * shipping backend and not a witness at all (`../pageObjects.ts`) — through the scene adapter and
+ * the contract-lighting API they share. The engine that presents its own surface publishes a
+ * display-graph record instead (`../../cluster/blendSceneRecord.ts`) and names no library: the
+ * constants and the frame budgets it still shares with the others stayed in
+ * `../../backend/common.ts`, which imports nothing. A light of the engine's own graph is copied
+ * into the library by `fromGraph.ts`.
  */
-import { installSceneLighting } from '../../lighting/sceneLighting.ts';
+import { installSceneLighting, type HostLight } from '../../lighting/sceneLighting.ts';
+import type { GraphLight } from '../graph/light.ts';
 import { clusterHue } from '../../diagnostic/colors.ts';
 import { asHostLibrary, type HostPlaced, type HostTraversable } from '../resources.ts';
-import type { HostDrawScene } from './graphNodes.ts';
+import type { HostDrawScene } from '../scene/graphNodes.ts';
+import { threeLight } from './fromGraphNodes.ts';
 import { hslToLinearRgb } from '../../../../sdk-core/src/index.ts';
 import * as THREE from 'three';
 
@@ -35,5 +38,7 @@ export const hostAimNode = () => new THREE.Object3D() as unknown as HostPlaced;
  *  lights placed on it. Building the host objects is the boundary's, the placement is not. */
 export function lighting(scene: HostDrawScene, clearColor: number, source: HostTraversable) {
   asHostLibrary<THREE.Scene>(scene).background = new THREE.Color(clearColor);
-  return installSceneLighting(scene, source, hostAimNode);
+  return installSceneLighting(scene, source, hostAimNode, (light) =>
+    asHostLibrary<HostLight>(threeLight(asHostLibrary<GraphLight>(light))),
+  );
 }

@@ -5,7 +5,8 @@ import {
   type SceneToneMapping,
 } from '../../../../sdk-core/src/scene/core/environment.ts';
 import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
-import { clusterColor } from '../scene/objects.ts';
+import { clusterColor } from './displayObjects.ts';
+import { threeCamera } from './fromGraphNodes.ts';
 import type { HostDrawScene } from '../scene/graphNodes.ts';
 import {
   asHostLibrary,
@@ -122,7 +123,7 @@ export function createThreeSceneDraw(
       renderer.autoClear = false;
       scene.background = null;
       try {
-        renderer.render(scene, asHostLibrary<THREE.Camera>(camera));
+        renderer.render(scene, threeCamera(asHostLibrary<THREE.Camera>(camera)));
       } finally {
         renderer.autoClear = autoClear;
         scene.background = background;

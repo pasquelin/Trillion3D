@@ -41,8 +41,10 @@ export const PUBLIC_FAMILIES =
 //
 // THE HOST SCENE GRAPH AND ITS CAMERA left the list in their turn: the walk, the bounds, the
 // poses, the watch and the camera-pose contract are written against the shapes of
-// `packages/sdk-browser/src/host/scene/graphNodes.ts` and the `HostCamera` of `packages/sdk-browser/src/camera/world.ts`. What remains of them here is
-// the one file that BUILDS a host object instead of reading one, `packages/sdk-browser/src/host/scene/graphObjects.ts`.
+// `packages/sdk-browser/src/host/scene/graphNodes.ts` and the `HostCamera` of `packages/sdk-browser/src/camera/world.ts`. The graphs the engine
+// BUILDS — the prepared scene, a world's mirror, the explorer's camera — are its own objects of
+// those shapes (`packages/sdk-browser/src/host/graph/`); a renderer of the library receives a copy made on its
+// side of the line (`packages/sdk-browser/src/host/three/fromGraph.ts`).
 //
 // Adding a line is a decision, not an oversight; removing an unused line as well — the
 // second test fails on a dead line. The camera pose contract lives in `packages/sdk-browser/src/camera/world.ts`
@@ -51,48 +53,29 @@ export const PUBLIC_FAMILIES =
 export const AUTORISES: Record<string, string> = {
   // 1. Witness engines.
   'cluster/blendCopyMesh':
-    'witness: its transparent copy is a host mesh, handed to the host renderer',
+    'witness and WebGL2 page path: its transparent copy is a library mesh, handed to the reference renderer',
   'cluster/batches.fixture': 'batch-witness mount',
   'backend/exact/attachment': 'exact witness: it attaches its pages to the host graph',
   'backend/exact/backend': 'exact witness: engine written with the host library',
   'backend/exact/materials': 'exact witness: its materials are the host’s',
-  'backend/exact/metrics': 'exact witness: the host meshes and geometries it counts and disposes',
-  'backend/exact/render': 'exact witness: the host camera and scene copies its frame reads',
-  'backend/exact/requests': 'exact witness: its requests start from its host graph',
   'backend/referenceBackend': 'reference witness: the host engine, as-is',
   'host/three/lod': 'witness: the host level-of-detail selection, `LOD.update` included',
+  'host/three/fromGraph':
+    'witness and WebGL2 page path: the engine graph’s resources copied into the library the reference renderer draws',
+  'host/three/fromGraphNodes':
+    'witness and WebGL2 page path: the engine graph’s nodes, lights and camera copied into that library',
+  'host/three/displayObjects':
+    'witness and WebGL2 page path: the colours, lights and nodes hung on the display graph the reference renderer draws',
 
   // 2. Host boundaries: scene, camera, renderer, lights, poses.
-  'host/prepared/accessors':
-    'boundary: the host attributes of the prepared scene, viewed on the binary the tables lay out',
-  'host/prepared/geometry':
-    'boundary: the host geometries of the prepared scene — attributes, morph targets, bounds',
-  'host/prepared/textures':
-    'boundary: the host textures of the prepared scene, from the texture table and its images',
-  'host/prepared/materials':
-    'boundary: the host surfaces of the prepared scene, from the material table',
-  'host/prepared/nodes':
-    'boundary: the lights, cameras and poses of the prepared scene’s nodes, from the node table',
-  'host/prepared/graph':
-    'boundary: the host scene graph of the prepared scene — nodes, meshes, lights — from the node table',
-  'host/scene/graphObjects':
-    'boundary: the host camera, framing points and instance copies the explorer builds for its host',
   'host/pageObjects':
     'boundary: the scene, meshes, geometries and surfaces the WebGL2 page path is drawn with',
-  'host/scene/objects':
-    'boundary: the host colours, lights and nodes an engine drawn by the host renderer hangs on its display graph',
   'backend/exact/contractLights':
     'boundary: the contract lights of an image the host renderer draws, mapped to host lights',
   'backend/exact/lightWrite':
     'boundary: one contract light built and written as its host light, split from the file above',
   'backend/exact/unlitAlbedo':
     'boundary: the unlit view of that image zeros the host material factors for the frame',
-  'host/three/bounds':
-    'boundary: bounds written back into a host geometry, as the library computes them',
-  'world/core/worldMirror':
-    'boundary: the one host mesh per drawn resource a world built in code hands the engine paths',
-  'world/core/worldSurface':
-    'boundary: the host surface of a world material’s kind, handed to the host renderer',
   'host/three/sceneAdapter':
     'boundary: the host renderer the witnesses and the WebGL2 page path share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 
@@ -107,6 +90,8 @@ export const AUTORISES: Record<string, string> = {
   'webgpu/core/transformShear.fixture':
     'test mount: minimal scene and runtime for `setWebgpuTransform`',
   'webgpu/water/pass.fixture': 'test mount: three transparent host meshes, one of which transmits',
+  'host/prepared/scenes.fixture':
+    'test mount: the prepared-scene proof reads the loader’s graph and the reference renderer’s copy',
 };
 
 // CLOSED LIST OF FILES ALLOWED TO READ `declaration` — the host material a page was read from.
