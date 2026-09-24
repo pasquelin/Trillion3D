@@ -139,3 +139,22 @@ test('a sampler change selects the unit of its texture, already bound or not', (
     `parameters written on units ${onUnit}`,
   );
 });
+
+// #362: a canvas and a video frame upload with their rows flipped, as the WebGPU working texture
+// copies them (`../../webgpu/tile/scratch.ts`); raw texels that say `flipY: false` do not.
+test('each upload flips its rows as its texture says, in place too', () => {
+  const { gl } = context();
+  const flips: boolean[] = [];
+  Object.assign(gl, {
+    UNPACK_FLIP_Y_WEBGL: 0x9240,
+    pixelStorei: (name: number, value: boolean) => void (name === 0x9240 && flips.push(value)),
+  });
+  const binder = new WebglClusterTextures(gl);
+  const video = record({ id: 'video', image: { videoWidth: 2, videoHeight: 2 }, flipY: true });
+  binder.bind(0, video, true);
+  video.version++;
+  binder.bind(0, video, true);
+  binder.bind(1, record({ id: 'canvas', image: { width: 2, height: 2 }, flipY: true }), true);
+  binder.bind(2, record());
+  assert.deepEqual(flips, [true, true, true, false]);
+});
