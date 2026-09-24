@@ -20,7 +20,7 @@ import { hizRejectsFlat } from '../../../packages/sdk-browser/src/hiz/occlusion.
 import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
-/** Doubles of a world box in the `createBoxCorners` layout. */
+/** Doubles of a world box in the `pageCornersInto` layout. */
 const BOX_CORNER_VALUES = 24;
 
 export function emptyOcclusionTotals() {
