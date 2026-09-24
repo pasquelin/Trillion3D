@@ -52,7 +52,11 @@ export function createSceneDraw(
   copies: readonly object[] = [],
 ) {
   const scene: DisplayScene = display;
-  const copied = new Set(copies as readonly DisplayNode[]);
+  // The copies list grows with the placement rows (`growBlendCopies`): the set follows it.
+  const copied = new Set<DisplayNode>();
+  const followCopies = () => {
+    for (let i = copied.size; i < copies.length; i++) copied.add(copies[i] as DisplayNode);
+  };
   // Reused from frame to frame: a draw allocates no list.
   const opaque: WholeMesh[] = [],
     seeThrough: DisplayNode[] = [];
@@ -105,6 +109,7 @@ export function createSceneDraw(
         scene.updateMatrixWorld();
         opaque.length = seeThrough.length = 0;
         depths.clear();
+        followCopies();
         multiplyMatrix4(screen, drawCamera.projection, drawCamera.view);
         for (const child of scene.children) collect(child);
         (opaque as DisplayNode[]).sort(frontToBack);

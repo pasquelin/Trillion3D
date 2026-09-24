@@ -31,16 +31,22 @@ const visibleThroughParents = (object: MatrixNode) => {
 
 export const unsupportedClusterLight = (scene: WebglClusterScene) => {
   let reason: string | undefined;
-  let count = 0;
+  let count = 0,
+    ambient = 0;
   scene.traverse((light) => {
     // A probe takes no light slot: its coefficients add into the program's irradiance.
     if (!isLightNode(light) || light.kind === 'probe' || !visibleThroughParents(light)) return;
-    count++;
+    // The ambient lights share one slot: `upload` sums them into a single irradiance.
+    if (light.kind === 'ambient') ambient = 1;
+    else count++;
     if ((light.kind === 'point' || light.kind === 'spot') && light.decay !== 2)
       reason = `${light.kind} light decay ${light.decay} is unsupported; inverse-square decay 2 is required`;
   });
   return (
-    reason ?? (count > 64 ? `${count} visible lights exceed the 64-light contract` : undefined)
+    reason ??
+    (count + ambient > 64
+      ? `${count + ambient} light slots exceed the 64-light contract`
+      : undefined)
   );
 };
 
