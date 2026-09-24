@@ -9277,6 +9277,17 @@
       "bindingIdentity": "\"packages/sdk-core/src/fluids/buoyancy\".WaterSpec"
     },
     {
+      "name": "WaterSurface",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/fluids/waterSurface.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/worldPhysics.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/fluids/waterSurface\".WaterSurface"
+    },
+    {
       "name": "WaveSpec",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/fluids/waves.ts",
