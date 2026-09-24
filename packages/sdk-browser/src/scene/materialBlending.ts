@@ -8,7 +8,9 @@
  * its alpha: normal is `s·a + d·(1 − a)` (alpha `a + t·(1 − a)`), additive `d + s·a` (alpha
  * `t + a·a`), subtractive `d·(1 − s)` (alpha `t`), multiply `d·s` (alpha `t·a`), and none writes
  * `s` as it is — what the witness, three@0.174, computes for the same material. A custom equation
- * is not a mode the engine draws.
+ * is not a mode the engine draws. The WebGPU fallback pass (`webgpu/pages/prepare/shaders.ts`)
+ * applies the same equations after its tone map and sRGB encoding: it blends display values, not
+ * linear light.
  */
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts';
 import {
