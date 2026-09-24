@@ -1355,10 +1355,6 @@
   "HostGeometry": {
     "summary": "Bir host geometrisi: öznitelikleri, ve host'un onlar üzerinden hesapladığı yerel kutu."
   },
-  "HostGraphNode": {
-    "summary": "Bir dolaşımın gördüğü şekliyle host grafiğinin bir düğümü: kimliği, yerel pozu, host'un onun için çözdüğü dünya matrisi, ve zinciri.",
-    "description": "Motor, yerel pozlardan KENDİ dünya matrislerini hesaplar (`../world/tree.ts`); `matrixWorld`, HOST'un kendi çözümünün bir sınırın ona geri verdiği şey olduğu yerde okunur. `HostPlaced`'IN (`../resources.ts`) POZLANMIŞ BİR DÜĞÜMÜ DE NEDEN TANIMLADIĞI. İkisi bir kopya değildir: bir host'un sunduğu iki farklı çözüme göre anahtarlanmışlardır. `HostPlaced`, `updateWorldMatrix(ancestors, descendants)` ister — TEK bir düğümün zinciri, bir yerleştirme ve görünürlük dolaşımının çıktığı şey; bu ise `updateMatrixWorld(force)` ister — bir düğümün altındaki ALT AĞAÇ, bir tarama, bir sınır birleşimi ve bir replikasyonun tek bir çağrıda çözdüğü şey. İkisinden yalnızca birini sunan bir host, yalnızca yanıt verdiği sözleşmeyi karşılar, bu yüzden ikisi de diğerinin yerini tutamaz."
-  },
   "HostMaterial": {
     "summary": "Motorun okuduğu şekliyle bir host malzemesi: her host malzemesinin paylaştığı, sınırda bir kez motorun `VisMaterial`'ına okunan yüzey parametreleri; yalnızca `sideOf` `side`'ı okur."
   },
@@ -1367,9 +1363,6 @@
   },
   "HostMesh": {
     "summary": "Kimliğe göre tutulan bir host mesh'i: çizim kaydı, şeffaflık tablosu ve seçim setleri, host'un yerleştirdiği yüzeyi adlandırır."
-  },
-  "HostNode": {
-    "summary": "Kimliğe ve bir dolaşımın ihtiyaç duyduğu iki alana göre tutulan, host sahne grafiğinin bir düğümü."
   },
   "HostNodeMatrix": {
     "summary": "Aynı on altı float, terim terim YAZILABİLİR: bir sınırın bir host düğümüne ya da geri yüklediği bir host kamerasına geri koyduğu poz.",
@@ -1421,9 +1414,6 @@
   },
   "HostTexture": {
     "summary": "Bir host dokusu: host'un çözdüğü görsel ve bildirdiği örnekleyici durumu, o da kimliğe göre tutulur."
-  },
-  "HostTraversable": {
-    "summary": "Motorun dolaştığı bir host düğümü: altındaki alt ağaç, önce kendisi, host'un kendi sırasında."
   },
   "HostVector": {
     "summary": "Host'un sakladığı ve bir sınırın geri koyduğu şekliyle bir pozun üç sayısı.",
@@ -7210,15 +7200,12 @@
     "members": {
       "serial": "Düğümün oturumda benzersiz numarası.",
       "kind": "Düğümün ne olduğu: grafın her okuyucusunun daralttığı şey.",
-      "parent": "Ebeveyni.",
-      "children": "Bu düğümün tuttuğu düğümler, sırayla.",
-      "traverse": "Düğümün altındaki alt ağaç, önce kendisi, host'un kendi sırasında.",
       "clone": "Aynı türde, aynı değerlerde bir düğüm; aksi söylenmedikçe çocukları da kopyalanır.",
       "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
     }
   },
   "GraphNodeKind": {
-    "summary": "Grafın bir düğümünün ne olduğu: yalın bir düğüm, kök, bir grup, çizilen bir ağ (tek yerleşimde ya da birkaçında), bir göz ya da bir sahnenin bildirdiği ışıklardan biri."
+    "summary": "Grafın bir düğümünün ne olduğu: kök, çizilen bir ağ (tek yerleşimde ya da birkaçında), bir göz ya da bir sahnenin bildirdiği ışıklardan biri."
   },
   "GraphSurface": {
     "summary": "Bir yüzey: bir ailenin parametreleri, sahne aksini söylemedikçe referansın değerlerinde.",

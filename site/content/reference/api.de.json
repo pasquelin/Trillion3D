@@ -2380,10 +2380,6 @@
   "HostGeometry": {
     "summary": "Eine Host-Geometrie: ihre Attribute, und die lokale Box, die der Host darüber berechnet hat."
   },
-  "HostGraphNode": {
-    "summary": "Ein Knoten des Host-Graphen, so wie ihn ein Durchlauf sieht: seine Identität, seine lokale Pose, die Weltmatrix, die der Host für ihn aufgelöst hat, und seine Kette.",
-    "description": "Die Engine berechnet ihre EIGENEN Weltmatrizen aus den lokalen Posen (`../world/tree.ts`); `matrixWorld` wird dort gelesen, wo es die eigene Auflösung des HOSTS ist, die eine Grenze ihr zurückgibt. WARUM `HostPlaced` (`../resources.ts`) AUCH EINEN PLATZIERTEN KNOTEN BESCHREIBT. Die beiden sind keine Kopie: sie stützen sich auf die beiden unterschiedlichen Auflösungen, die ein Host bietet. `HostPlaced` verlangt `updateWorldMatrix(ancestors, descendants)` — die Kette EINES Knotens, das, was eine Platzierung und ein Sichtbarkeitsdurchlauf zurückgeben; dieses hier verlangt `updateMatrixWorld(force)` — den TEILBAUM unter einem Knoten, das, was ein Durchlauf, eine Grenzenvereinigung und eine Replikation in einem Aufruf auflösen. Ein Host, der nur eines der beiden bietet, erfüllt nur den Vertrag, dem er entspricht, also kann keines das andere ersetzen."
-  },
   "HostMaterial": {
     "summary": "Ein Host-Material, so wie die Engine es liest: die Oberflächenparameter, die jedes Host-Material teilt, einmal an der Grenze in das `VisMaterial` der Engine gelesen; nur `sideOf` liest `side`."
   },
@@ -2392,9 +2388,6 @@
   },
   "HostMesh": {
     "summary": "Ein Host-Mesh, gehalten durch seine Identität: der Zeicheneintrag, die durchsichtige Tabelle und die Auswahlmengen benennen die Oberfläche, die der Host platziert hat."
-  },
-  "HostNode": {
-    "summary": "Ein Knoten des Host-Szenengraphen, gehalten durch seine Identität und die beiden Felder, die ein Durchlauf braucht."
   },
   "HostNodeMatrix": {
     "summary": "Dieselben sechzehn Fließkommazahlen, term-für-term VERÄNDERBAR: die Pose, die eine Grenze auf einen Host-Knoten oder eine Host-Kamera zurücksetzt, die sie wiederherstellt.",
@@ -2446,9 +2439,6 @@
   },
   "HostTexture": {
     "summary": "Eine Host-Textur: das vom Host dekodierte Bild und der von ihm deklarierte Abtastzustand, ebenfalls durch ihre Identität gehalten."
-  },
-  "HostTraversable": {
-    "summary": "Ein Host-Knoten, den die Engine durchläuft: der Teilbaum darunter, er zuerst, in der eigenen Reihenfolge des Hosts."
   },
   "HostVector": {
     "summary": "Drei Zahlen einer Pose, so wie der Host sie hält und eine Grenze sie zurücksetzt.",
@@ -7169,9 +7159,6 @@
     "members": {
       "serial": "Die Nummer des Knotens, eindeutig in der Sitzung.",
       "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt.",
-      "parent": "Sein Elternteil.",
-      "children": "Die Knoten, die dieser hält, der Reihe nach.",
-      "traverse": "Der Teilbaum unter dem Knoten, er zuerst, in der eigenen Reihenfolge des Hosts.",
       "clone": "Ein Knoten derselben Art mit denselben Werten; seine Kinder werden mitkopiert, sofern nicht anders gesagt.",
       "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
     },
@@ -7280,7 +7267,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Was ein Knoten des Graphen ist: ein bloßer Knoten, die Wurzel, eine Gruppe, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
+    "summary": "Was ein Knoten des Graphen ist: die Wurzel, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
   },
   "Joint": {
     "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",
