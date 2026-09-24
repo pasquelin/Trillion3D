@@ -98,7 +98,9 @@ export function createWebgpuCutAdopter(options: {
     metrics.cutHeld = !delta.changed && !drawnDelta.changed;
     metrics.listsRewritten = !metrics.cutHeld;
     metrics.visible = desired.length;
-    if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
+    // A cut from another view, or from poses a placement has left since, has just said what to
+    // stream; it does not say what this image draws.
+    if (cut.stalePose || !sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
     if (cut.result.complete === false) {
       metrics.incomplete = true;
       return false;

@@ -114,11 +114,14 @@ export function createDagDispatch(
               fail();
               return;
             }
-            if (
-              capturedWorldRevision === state.worldRevision &&
-              capturedResidencyRevision === state.residencyRevision
-            )
-              state.last = { uniforms: captured, result: parsed };
+            // A residency that moved since makes the drawable mask a lie; a pose that moved only
+            // makes the cut a frame late, and it still says what to stream.
+            if (capturedResidencyRevision === state.residencyRevision)
+              state.last = {
+                uniforms: captured,
+                result: parsed,
+                stalePose: capturedWorldRevision !== state.worldRevision,
+              };
           } catch {
             // A mapping cut short by `dispose` failed nothing, and its buffer is gone.
             if (state.disposed) return;
