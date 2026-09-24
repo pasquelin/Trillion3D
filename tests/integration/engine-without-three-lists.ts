@@ -47,17 +47,6 @@ export const PUBLIC_FAMILIES =
 // and `tests/integration/engine-structure.test.ts`; the loading computation boundary, in
 // `tests/integration/engine-without-three-math.test.ts`.
 export const AUTORISES: Record<string, string> = {
-  // Test-scene mounts that walk the host graph.
-  'page/selection/blend.fixture': 'test-scene mount: it sets the camera and materials',
-  'page/selection/dag.fixture': 'test-scene mount: it sets the camera and materials',
-  'webgpu/pages/pagedQuad.fixture': 'test-scene mount: the quad clustered into quantized pages',
-  'backend/pagesBackendScenes.fixture': 'test-scene mount: it sets the camera',
-  'visibility/buffer.fixture': 'test-scene mount: it sets the camera and pages',
-  'webgpu/pages/testOccluder.fixture': 'test-scene mount: the occluder and its camera',
-  'webgpu/pages/testScenes.fixture': 'test-scene mounts: meshes and materials',
-  'webgpu/core/transformShear.fixture':
-    'test mount: minimal scene and runtime for `setWebgpuTransform`',
-  'webgpu/water/pass.fixture': 'test mount: three transparent host meshes, one of which transmits',
   'host/prepared/scenes.fixture':
     'test mount: the prepared-scene proof reads the loader’s graph and the reference renderer’s copy',
 };

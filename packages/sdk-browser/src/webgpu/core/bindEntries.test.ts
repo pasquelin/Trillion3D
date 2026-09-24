@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts';
 import { createWebgpuShadePipelines } from '../visibility/pipelines.ts';
@@ -94,8 +94,8 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     uv: {} as GPUBuffer,
     normal: {} as GPUBuffer,
     diagnosticBuffer: {} as GPUBuffer,
-    material: new THREE.MeshBasicMaterial(),
-    matrix: new THREE.Matrix4(),
+    material: G.basicSurface(),
+    matrix: new G.Matrix4(),
     count: 3,
     group: undefined,
   };

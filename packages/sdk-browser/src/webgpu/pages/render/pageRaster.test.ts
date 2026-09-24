@@ -1,7 +1,7 @@
 import test from 'node:test';
 import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../host/graph/graph.fixture.ts';
 import { compareImages, type ClusterManifest } from '../../../../../sdk-core/src/index.ts';
 import { exactPagesBackend } from '../../../../../../bench/witnesses/measurement.ts';
 import { webgpuPagesBackend } from '../pages.ts';
@@ -33,7 +33,7 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   backend.render(camera());
   let pageMeshes = 0;
   backend.scene.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) pageMeshes++;
+    if ((o as G.GraphMesh).isMesh) pageMeshes++;
   });
   assert.equal(pageMeshes, 0);
   assert.equal(backend.metrics().clusters, 2);

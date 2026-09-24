@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { threeLodBackend } from './lod.ts';
+import { threeMaterials } from './fromGraph.ts';
 import { dagLevel } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
 import {
   quadCluster,
@@ -27,7 +28,7 @@ test('THREE.LOD includes transparent simplification and merges its mixed cover i
   assert.equal(lod.levels.length, 2);
   assert.equal(backend.capabilities.simplification, true);
   const coarse = lod.levels[1].object as THREE.Mesh;
-  assert.equal(coarse.material, material);
+  assert.equal(coarse.material, threeMaterials(material), 'the one copy of the source surface');
   assert.deepEqual(Array.from(coarse.geometry.index!.array), [0, 1, 3, 0, 3, 4]);
   backend.dispose();
   geometry.dispose();

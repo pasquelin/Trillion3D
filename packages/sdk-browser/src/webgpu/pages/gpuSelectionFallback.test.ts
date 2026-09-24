@@ -2,7 +2,7 @@ import test from 'node:test';
 import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts';
 import { triangleGeometry } from '../../backend/pagesBackendScenes.fixture.ts';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { webgpuPagesBackend } from './pages.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
@@ -27,10 +27,10 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
   installGpuGlobals();
   const geoA = triangleGeometry([-1, -1, 0, 1, -1, 0, 1, 1, 0]);
   const geoB = triangleGeometry([8, -1, 0, 10, -1, 0, 10, 1, 0]);
-  const material = new THREE.MeshBasicMaterial(),
-    meshA = new THREE.Mesh(geoA, material),
-    meshB = new THREE.Mesh(geoB, material),
-    source = new THREE.Group();
+  const material = G.basicSurface(),
+    meshA = G.mesh(geoA, material),
+    meshB = G.mesh(geoB, material),
+    source = new G.GraphGroup();
   source.add(meshA, meshB);
   const {
     metadata: metadataPartial,
@@ -56,7 +56,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
     maxResidentPages: 4,
     viewport,
   }) as PagesBackend;
-  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const cam = G.perspectiveCamera(55, 1, 0.1, 100);
   cam.position.set(9, 0, 5);
   cam.lookAt(9, 0, 0);
   cam.updateMatrixWorld();
@@ -117,7 +117,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
   backend.render(cam);
   await backend.flush();
   backend.render(cam);
-  const mesh = source.children[0] as THREE.Mesh;
+  const mesh = source.children[0] as G.GraphMesh;
   const pages = [
     {
       array: indices.get('0')!,

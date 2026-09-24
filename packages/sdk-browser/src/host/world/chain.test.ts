@@ -4,25 +4,25 @@
 // non-uniform under a rotation (shear), `-0`, half-turn, a hand-set matrix, NaN and infinities.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../graph/graph.fixture.ts';
 import { hostWorldChainInto } from './chain.ts';
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 
 /** Root → posed child → grandchild → leaf chain, hostile poses included. */
 function chaineHostile() {
-  const racine = new THREE.Group();
+  const racine = new G.GraphGroup();
   racine.position.set(1, -2, 3);
   racine.scale.set(-1, 2, 0.5);
   racine.quaternion.set(0, 1, 0, 0); // half-turn: w = 0
-  const enfant = new THREE.Group();
+  const enfant = new G.GraphGroup();
   enfant.matrixAutoUpdate = false; // the host SETS the local matrix: nothing recomposes it
   enfant.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -2, 0, 0, 3, 0, 0, 0, 0, 1);
   racine.add(enfant);
-  const petitEnfant = new THREE.Group();
+  const petitEnfant = new G.GraphGroup();
   petitEnfant.position.set(-0, 0.25, -7);
   petitEnfant.scale.set(0, 1e150, -3);
   enfant.add(petitEnfant);
-  const feuille = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
+  const feuille = G.mesh(new G.GraphGeometry(), G.basicSurface());
   feuille.position.set(2, -2, 2);
   feuille.quaternion.set(0.5, 0.5, 0.5, 0.5);
   petitEnfant.add(feuille);
@@ -54,10 +54,10 @@ test('hostWorldChainInto retakes a stale ancestor, like the reference that walks
   // Clean chain, no extreme scale: a root move must show in the leaf translation, otherwise
   // the test would prove nothing.
   const chaine = () => {
-    const racine = new THREE.Group();
+    const racine = new G.GraphGroup();
     racine.position.set(1, -2, 3);
     racine.scale.set(-1, 2, 0.5);
-    const feuille = new THREE.Group();
+    const feuille = new G.GraphGroup();
     feuille.position.set(2, -2, 2);
     racine.add(feuille);
     return { racine, feuille };
@@ -78,10 +78,10 @@ test('hostWorldChainInto retakes a stale ancestor, like the reference that walks
 test('hostWorldChainInto holds a chain deeper than its starting buffer, without losing a bit', () => {
   // The ancestor array starts at sixty-four slots: two hundred and fifty nodes force it to grow
   // three times, and the result must stay that of the reference.
-  let node = new THREE.Group();
+  let node = new G.GraphGroup();
   const racine = node;
   for (let rang = 1; rang < 250; rang++) {
-    const enfant = new THREE.Group();
+    const enfant = new G.GraphGroup();
     enfant.position.set(rang, -rang, 1 / rang);
     enfant.scale.set(rang % 3 === 0 ? -1 : 1, 1, 1);
     node.add(enfant);
@@ -94,7 +94,7 @@ test('hostWorldChainInto holds a chain deeper than its starting buffer, without 
 });
 
 test('hostWorldChainInto on a root returns its local matrix alone, like the reference', () => {
-  const racine = new THREE.Group();
+  const racine = new G.GraphGroup();
   racine.position.set(-0, 4, 5);
   racine.scale.set(-1, -1, -1);
   const obtenu = new Float64Array(16);

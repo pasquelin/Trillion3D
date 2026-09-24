@@ -4,15 +4,15 @@
 // `../../../../../bench/oracles/browser/selection.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { clipPlanesFromMatrix, frustumClipBox } from '../../../../sdk-core/src/index.ts';
 import { referenceBoxClip } from '../../../../../bench/oracles/browser/selection.ts';
 
-const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 100);
+const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 100);
 cam.position.z = 6;
 cam.lookAt(0, 0, 0);
 cam.updateMatrixWorld();
-const clip = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+const clip = new G.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
 const planes = new Float64Array(24);
 clipPlanesFromMatrix(planes, clip.elements);
 

@@ -7,7 +7,7 @@ import type { Texture } from '../../../sdk-core/src/index.ts';
 import { importWrapMode } from '../host/surfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import {
   WRAP_S_MIRROR,
   WRAP_S_REPEAT,
@@ -20,29 +20,29 @@ import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
 import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts';
 import { CARTES, nibblesDuMelange } from '../../../../tests/browser/probes/addressingMaps.ts';
 
-const carte = (wrapS: THREE.Wrapping, wrapT: THREE.Wrapping) =>
+const carte = (wrapS: number, wrapT: number) =>
   ({ wrapS: importWrapMode(wrapS), wrapT: importWrapMode(wrapT) }) as Texture;
 /** Expected nibble of a fixture entry, recomputed from its two declared wrap modes. */
 const attendu = (c: (typeof CARTES)[number]) => wrapNibble(carte(c.wrapS, c.wrapT));
 
 test('wrapNibble sets the repeat or mirror bit per axis, no bit in clamp', () => {
   assert.equal(wrapNibble(undefined), 0, 'no map');
-  assert.equal(wrapNibble(carte(THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping)), 0);
+  assert.equal(wrapNibble(carte(G.HOST_WRAP_CLAMP_TO_EDGE, G.HOST_WRAP_CLAMP_TO_EDGE)), 0);
   assert.equal(
-    wrapNibble(carte(THREE.RepeatWrapping, THREE.RepeatWrapping)),
+    wrapNibble(carte(G.HOST_WRAP_REPEAT, G.HOST_WRAP_REPEAT)),
     WRAP_S_REPEAT | WRAP_T_REPEAT,
   );
   assert.equal(
-    wrapNibble(carte(THREE.MirroredRepeatWrapping, THREE.MirroredRepeatWrapping)),
+    wrapNibble(carte(G.HOST_WRAP_MIRRORED_REPEAT, G.HOST_WRAP_MIRRORED_REPEAT)),
     WRAP_S_MIRROR | WRAP_T_MIRROR,
   );
   assert.equal(
-    wrapNibble(carte(THREE.MirroredRepeatWrapping, THREE.RepeatWrapping)),
+    wrapNibble(carte(G.HOST_WRAP_MIRRORED_REPEAT, G.HOST_WRAP_REPEAT)),
     WRAP_S_MIRROR | WRAP_T_REPEAT,
     'a different mode per axis sets a different bit per axis',
   );
   assert.equal(
-    wrapNibble(carte(THREE.ClampToEdgeWrapping, THREE.MirroredRepeatWrapping)),
+    wrapNibble(carte(G.HOST_WRAP_CLAMP_TO_EDGE, G.HOST_WRAP_MIRRORED_REPEAT)),
     WRAP_T_MIRROR,
     'S in clamp sets no S bit',
   );
