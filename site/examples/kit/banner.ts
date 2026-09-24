@@ -5,10 +5,14 @@ import { exampleWord, kitWord } from './words.ts';
 /**
  * The banner over the example, drawn by the example itself at the top of its frame: at start,
  * its line of what to do, `<id>.banner` in its words; then what it announces — a checkpoint, a
- * time, the microphone it listens to. The reader may close it; the page's show/hide of the panels
- * hides it too, and a page opened for a screenshot (`?capture`) never shows it.
+ * time, the microphone it listens to. Emptied out (`announce('')`), it falls back to that line
+ * of what to do rather than vanishing. The reader may close it with its ×; from there, a return
+ * to the line of what to do leaves it closed, but a real announcement (a title, or a line) opens
+ * it again. The page's show/hide of the panels hides it too, and a page opened for a screenshot
+ * (`?capture`) never shows it.
  */
 let said: string | undefined;
+let closed = false;
 let card: HTMLElement | undefined;
 let heading: HTMLElement;
 let text: HTMLElement;
@@ -30,23 +34,32 @@ function banner(): HTMLElement {
   close.className = 'btn btn-sm btn-circle';
   close.ariaLabel = kitWord('banner', 'close', 'Close');
   close.textContent = '×';
-  close.addEventListener('click', () => card?.remove());
+  close.addEventListener('click', () => {
+    closed = true;
+    card?.remove();
+  });
   card.append(words, close);
   hideable(card);
   return card;
 }
 
-/** Shows `title`, large, over `line` in the banner; both empty, the banner goes. A repeat of what
- *  it already says changes nothing, so a banner the reader closed stays closed. */
+/** Shows `title`, large, over `line` in the banner; both empty, the example's own line of what
+ *  to do takes their place, without a title. A repeat of what it already shows changes nothing.
+ *  The reader's × closes the banner; a further return to the line of what to do leaves it closed,
+ *  but a title or a line reopens it. */
 export function announce(title: string, line = '') {
-  const key = `${title}\n${line}`;
-  if (key === said || !globalThis.document || isCapture(document)) return;
-  said = key;
+  const backToWhatToDo = !title && !line;
+  const shownLine = backToWhatToDo ? exampleWord('', 'banner') : line;
+  if (!globalThis.document || isCapture(document)) return;
+  if (backToWhatToDo && closed) return;
   const shown = banner();
-  if (!title && !line) return shown.remove();
+  const key = `${title}\n${shownLine}`;
+  if (key === said && shown.isConnected) return;
+  said = key;
+  if (!backToWhatToDo) closed = false;
   heading.textContent = title;
   heading.hidden = !title;
-  text.textContent = line;
+  text.textContent = shownLine;
   overlay().append(shown);
 }
 

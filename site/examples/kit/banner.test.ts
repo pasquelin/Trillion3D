@@ -4,6 +4,7 @@ import test from 'node:test';
 import english from '../i18n/en.json' with { type: 'json' };
 import { announce } from './banner.ts';
 import { overlay } from './overlay.ts';
+import { useWords } from './words.ts';
 
 test('every example gives the banner a line of what to do', () => {
   const words = english as Record<string, { banner?: unknown }>;
@@ -43,6 +44,9 @@ class Element {
     this.parent?.children.splice(this.parent.children.indexOf(this), 1);
     this.parent = undefined;
   }
+  get isConnected() {
+    return this.parent !== undefined;
+  }
   attachShadow() {
     return new Element('shadow');
   }
@@ -58,6 +62,9 @@ test('the banner says the latest news over the example, until the reader closes 
   Object.assign(globalThis, {
     document: { location, body, createElement: (tag: string) => new Element(tag) },
   });
+  // `document.baseURI` is absent on the fake document, so the example's id falls back to
+  // `about:blank`'s `blank`.
+  useWords({ blank: { banner: 'What to do' } }, 'en');
   try {
     const layer = overlay() as unknown as Element;
     const shown = () => {
@@ -65,21 +72,28 @@ test('the banner says the latest news over the example, until the reader closes 
       const [words] = card?.children ?? [];
       return words?.children.filter(({ hidden }) => !hidden).map(({ textContent }) => textContent);
     };
+    // Démarrage : la ligne « quoi faire » de l'exemple, sans titre.
+    announce('');
+    assert.deepEqual(shown(), ['What to do']);
+    // Un retour à cette ligne ne change rien tant qu'elle y est déjà.
+    announce('');
+    assert.deepEqual(shown(), ['What to do']);
     announce('Checkpoint', 'Keep going');
     assert.deepEqual(shown(), ['Checkpoint', 'Keep going']);
     announce('', 'Listening');
     assert.deepEqual(shown(), ['Listening']);
     layer.children[0].children[1].click();
     assert.equal(shown(), undefined);
-    announce('', 'Listening');
-    assert.equal(shown(), undefined, 'a repeat does not reopen a closed banner');
-    announce('Finished', '12 s');
-    assert.deepEqual(shown(), ['Finished', '12 s']);
+    // Fermé, un retour à la ligne « quoi faire » ne le rouvre pas.
     announce('');
-    assert.equal(shown(), undefined);
+    assert.equal(shown(), undefined, 'a return to the line of what to do leaves it closed');
+    // Fermé, une vraie annonce (un titre, ici) le rouvre.
+    announce('Finished', '12 s');
+    assert.deepEqual(shown(), ['Finished', '12 s'], 'a real announcement reopens a closed banner');
+    layer.children[0].children[1].click();
     location.search = '?capture';
     announce('Checkpoint');
-    assert.equal(shown(), undefined, 'a capture never shows it');
+    assert.equal(shown(), undefined, 'a capture never shows it, not even to reopen it');
   } finally {
     Reflect.deleteProperty(globalThis, 'document');
   }
