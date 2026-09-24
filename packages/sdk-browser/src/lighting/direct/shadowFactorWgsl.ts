@@ -16,8 +16,9 @@ import {
  * `2^L` metres, is at most that footprint; a lamp reads the mip whose texel at the point's
  * distance is. A texel is thus never larger than a pixel where the map can offer it, near or
  * far, and a caster's error counted in texels is counted in pixels. A page not current — not
- * drawn yet, or stale and waiting to be drawn again — hands the point to the next coarser level, as the texture streamer falls back to a coarser tile;
- * beyond a sun's last level, the far-shadow ray answers.
+ * drawn yet, or stale and waiting to be drawn again — hands the point to the next coarser level,
+ * as the texture streamer falls back to a coarser tile; beyond a sun's last level, the far-shadow
+ * ray answers.
  *
  * The read point moves along the normal by a texel of the level read, divided by the incidence
  * cosine: that closes the seam between two faces of a point light and removes grazing acne.
