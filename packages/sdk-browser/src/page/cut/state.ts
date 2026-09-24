@@ -5,7 +5,7 @@ import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElement
 import type { ClusterCut } from '../selection/math.ts';
 import type { ClusterStructureIndex } from '../selection/types.ts';
 import type { PageSurface } from '../surface.ts';
-import type { BudgetShare } from './tally.ts';
+import { budgetTally, type BudgetShare, type BudgetTally } from './tally.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -18,7 +18,7 @@ export interface PageRecord extends ClusterCut {
   budgetShare?: BudgetShare;
 }
 
-export interface SelectionState<T extends PageRecord> {
+export interface SelectionState<T extends PageRecord> extends BudgetTally {
   cam: EngineCamera;
   hold: boolean;
   rootFallback: boolean;
@@ -69,14 +69,6 @@ export interface SelectionState<T extends PageRecord> {
    *  sweep of `wanted` and `shown`, in the same order and at the same bits. */
   wantedTriangles: number;
   shownTriangles: number;
-  /** Page budget beyond which a pass has nothing left to say; `0` when there is none. */
-  budget: number;
-  /** Slots held before any page is charged, those this pass has charged, and the pass itself. */
-  budgetHeld: number;
-  budgetUsed: number;
-  budgetPass: number;
-  /** This pass overflowed the budget: its result is discarded, the descent stops there. */
-  over: boolean;
 }
 
 /** Cut result, filled in place: the caller supplies the object, the image allocates none. */
@@ -96,6 +88,8 @@ export interface SelectionResult<T> {
   requiredSlots: number | null;
   /** Nothing finer is left for the budget search to try (`pageBudgetFrom`). */
   budgetSettled: boolean;
+  /** The cut at the host's threshold fits the budget; `null` when this image did not try it. */
+  hostCutFits: boolean | null;
 }
 
 /** An empty cut result, set once per hot caller: `selectVisiblePages` rewrites every field. */
@@ -113,6 +107,7 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     pixelError: 0,
     requiredSlots: null,
     budgetSettled: true,
+    hostCutFits: null,
   };
 }
 
@@ -187,11 +182,7 @@ const reusedState: SelectionState<PageRecord> = {
   wantedCount: 0,
   wantedTriangles: 0,
   shownTriangles: 0,
-  budget: 0,
-  budgetHeld: 0,
-  budgetUsed: 0,
-  budgetPass: 0,
-  over: false,
+  ...budgetTally(),
 };
 
 /** The reused state, viewed at the requested page type. */

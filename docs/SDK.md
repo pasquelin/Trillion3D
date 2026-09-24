@@ -811,7 +811,10 @@ minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and b
 default: the geometry pool (cluster page slots, the root cover always resident) and the texture pool
 (virtual-texture tiles, every texture's tail always resident). The WebGL2 engine holds the same
 geometry budget, drawn by the same rule: its cut draws coarser beyond it, and the pages no frame
-keeps leave oldest first; it has no texture pool (`texturePoolBytes` is `null` in its metrics).
+keeps leave oldest first. While a view refines, the pool can go past its budget by at most the
+ancestors still drawn in place of the pages replacing them, and is back under it at the next cut
+once they arrived (`geometryPoolAllocatedBytes` shows it). It has no texture pool:
+`texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
 ```js
 world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes

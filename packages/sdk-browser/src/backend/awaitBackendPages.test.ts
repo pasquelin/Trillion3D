@@ -94,3 +94,30 @@ test('synchronous backends accept missing pages before syncing residency', async
   );
   assert.equal(synced, true);
 });
+
+test('a budget search is awaited until it settles and the settled cut is resident', async () => {
+  // Each image steps the threshold one rung finer until the fourth; each rung asks for its page.
+  let rung = 0,
+    renders = 0;
+  const resident = new Set<number>();
+  await awaitBackendPages(
+    {
+      render() {
+        renders++;
+        if (rung < 4 && resident.has(rung)) rung++;
+      },
+      async flush() {},
+      pendingUrls() {
+        return resident.has(rung) ? [] : [`rung-${rung}`];
+      },
+      cutSettling: () => rung < 4,
+    },
+    new THREE.PerspectiveCamera(),
+    async (urls) => {
+      for (const url of urls) resident.add(Number(url.slice(5)));
+    },
+  );
+  assert.equal(rung, 4, 'the search settled');
+  assert.ok(resident.has(4), 'the pages of the settled cut are resident');
+  assert.ok(renders < 40);
+});

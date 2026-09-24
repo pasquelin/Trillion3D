@@ -83,6 +83,8 @@ export function createAutonomousRender(options: {
     result: createSelectionResult<PageRec>(),
   };
   const sourcesDessinees = roots.map((root) => root.pages[0]);
+  // The view revision of the last image the cut ran in.
+  let viewSeen = -1;
   return (camera: HostCamera) => {
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
@@ -107,8 +109,11 @@ export function createAutonomousRender(options: {
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     pool.settle(gate.pixelError, selected);
-    // A search with a finer step left owes an image: the next one is not held on this one.
-    if (pool.settling) gate.resourcesChanged();
+    // A search with a finer step left owes an image: the next one is not held on this one. A view
+    // that moved in this image already breaks the hold, and forces nothing more.
+    const view = gate.revisions.view;
+    if (pool.settling && view === viewSeen) gate.resourcesChanged();
+    viewSeen = view;
     state.overBudget = attachedPages(shown) > cap;
     if (state.overBudget) {
       shown.length = 0;

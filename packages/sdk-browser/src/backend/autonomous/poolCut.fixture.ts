@@ -1,0 +1,123 @@
+import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
+import { createSelectionResult, selectVisiblePages } from '../../page/selection/selection.ts';
+import type { BackendDiagnostic } from '../types.ts';
+import {
+  dag,
+  dagCamera,
+  racine,
+  type DagPage,
+} from '../../../../../bench/perf/browser/support/dagCut.ts';
+import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createGeometryBudget } from './pool.ts';
+import { PAGE } from './pool.fixture.ts';
+
+/**
+ * A DAG of `PAGE`-byte pages — by default 511, only its root resident — drawn by the pool and the
+ * cut as the WebGL2 frame draws them (`render.ts`): the pages an image asks for arrive before the
+ * next. `rootFallback` draws a resident ancestor in place of a missing page, as the forcing
+ * fallback of a DAG with its group structure does. `rootCharged` leaves the root page out of the
+ * root cover the pool holds: the root cover then charges one slot more than the pool, and no cut
+ * fits.
+ */
+export function mount(
+  budgetBytes: number,
+  {
+    pages = dag({ feuilles: 256, seed: 11, residentes: 0 }),
+    rootFallback = false,
+    rootCharged = false,
+  }: { pages?: DagPage[]; rootFallback?: boolean; rootCharged?: boolean } = {},
+) {
+  const root = pages.find((page) => page.parentError === null)!;
+  root.array ??= new Uint32Array(3);
+  const byUrl = new Map(pages.map((page) => [page.url, page]));
+  const shares = new Map(pages.map((page) => [page.url, { pass: 0, slots: 0 }]));
+  for (const page of pages) page.budgetShare = shares.get(page.url);
+  const state = { allocationBytes: pages.filter((page) => page.array).length * PAGE },
+    kept = new Set<string>(),
+    diagnostics: BackendDiagnostic[] = [];
+  const pool = createGeometryBudget({
+    budgetBytes,
+    ceilingBytes: 1000 * PAGE,
+    descriptors: new Map(
+      pages.map((page) => [page.url, { uncompressedBytes: PAGE } as GeometryPageDescriptor]),
+    ),
+    rootUrls: new Set(rootCharged ? [] : [root.url]),
+    copies: { generation: 0, of: () => 1, root: () => 1, scene: () => pages.length },
+    shares,
+    state,
+    floorBytes: () => PAGE,
+    kept: () => kept,
+    drop: (url) => {
+      const page = byUrl.get(url)!;
+      if (!page.array) return;
+      page.array = undefined;
+      state.allocationBytes -= PAGE;
+    },
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+  });
+  let camera = dagCamera();
+  const roots = [racine(pages)],
+    shown: DagPage[] = [];
+  const cut = {
+    pixelError: 0,
+    viewport: [1280, 720] as [number, number],
+    holdResident: true,
+    rootFallback,
+    pageBudget: 0,
+    pageBudgetHeld: 0,
+    pageBudgetFrom: 0,
+    wanted: [] as DagPage[],
+    result: createSelectionResult<DagPage>(),
+  };
+  /** One image at the host's `pixelError`, then the pages it asked for — at most `arrivals` of
+   *  them, as a streamer spreads them; returns the most the pages held meanwhile. `after` is what
+   *  they held once the image trimmed them, what its frame metrics read. */
+  const frame = { after: 0, stand: 0 };
+  const image = (pixelError: number, arrivals = Infinity) => {
+    cut.pixelError = pixelError;
+    pool.bound(cut);
+    const drawn = selectVisiblePages(roots, cameraMoteur(camera), cut, shown);
+    pool.settle(pixelError, drawn);
+    kept.clear();
+    kept.add(root.url);
+    for (const page of drawn.shown) kept.add(page.url);
+    for (const page of drawn.wanted) kept.add(page.url);
+    pool.trim();
+    frame.after = state.allocationBytes;
+    // The resident pages drawn in place of missing ones: the ancestors a refinement replaces.
+    const wanted = new Set(drawn.wanted);
+    frame.stand = drawn.shown.filter((page) => !wanted.has(page)).length;
+    let most = state.allocationBytes,
+      left = arrivals;
+    for (const page of drawn.wanted)
+      if (!page.array && left-- > 0) {
+        page.array = new Uint32Array(3);
+        state.allocationBytes += PAGE;
+        pool.arrived(page.url);
+        most = Math.max(most, state.allocationBytes);
+      }
+    return most;
+  };
+  /** The finest threshold of the √2 ladder from 1 whose cut, budget aside, asks for the root. */
+  const rootCoverAt = () => {
+    const ask = { pixelError: 1, viewport: cut.viewport, holdResident: false, wanted: [] };
+    while (!selectVisiblePages(roots, cameraMoteur(camera), ask, []).wanted.includes(root))
+      ask.pixelError *= Math.SQRT2;
+    return ask.pixelError;
+  };
+  /** Moves the camera `distance` units from the DAG's centre. */
+  const place = (distance: number) => {
+    camera = dagCamera(distance);
+  };
+  return {
+    pool,
+    state,
+    diagnostics,
+    image,
+    frame,
+    place,
+    cut,
+    rootCoverAt,
+    drawn: () => shown.length,
+  };
+}

@@ -76,6 +76,45 @@ export function dag({
   return pages;
 }
 
+/** Errors of the three levels `dagLevels` builds: seen from nine units at 1280 x 720, the fine
+ *  level is under a pixel and the coarse one over it. */
+export const DAG_LEVEL_ERRORS = { fine: 0.01, coarse: 0.02, top: 0.08 };
+
+/**
+ * Three levels on one sphere: `fine` pages whose parent error is that of `coarse` pages, under one
+ * top page, resident. `coarseResident` says whether the coarse pages start resident; the fine ones
+ * start missing. `share` gives every page a budget share of one slot.
+ */
+export function dagLevels(
+  fine: number,
+  coarse: number,
+  { share = true, coarseResident = true }: { share?: boolean; coarseResident?: boolean } = {},
+) {
+  const { fine: fineError, coarse: coarseError, top: topError } = DAG_LEVEL_ERRORS;
+  const sphere = [0, 0, 0, 0.5],
+    level = (count: number, error: number, parent: number | null, resident: boolean) =>
+      Array.from({ length: count }, (_, i) => ({
+        url: `${error}-${i}.bin`,
+        level: Math.log2(error / fineError),
+        triangles: 1,
+        min: [-0.5, -0.5, -0.5],
+        max: [0.5, 0.5, 0.5],
+        sphere,
+        lodError: error,
+        parentError: parent,
+        parentSphere: parent === null ? null : sphere,
+        group: null,
+        source: null,
+        array: resident ? new Uint32Array(3) : undefined,
+        budgetShare: share ? { pass: 0, slots: 1 } : undefined,
+      })) as DagPage[];
+  return [
+    ...level(1, topError, null, true),
+    ...level(coarse, coarseError, topError, coarseResident),
+    ...level(fine, fineError, coarseError, false),
+  ];
+}
+
 /** A selection root without a culling hierarchy: descent takes the pages in order. */
 export function racine(pages: DagPage[]): ClusterRoot<DagPage> {
   const monde = new THREE.Matrix4();
@@ -104,10 +143,10 @@ export function etatDeCoupe(result: SelectionResult<DagPage>) {
   };
 }
 
-/** The camera the budget tests see a DAG through: nine units from its centre, 60°, 16:9. */
-export function dagCamera() {
+/** The camera the budget tests see a DAG through: `distance` units from its centre, 60°, 16:9. */
+export function dagCamera(distance = 9) {
   const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
-  cam.position.set(0, 0, 9);
+  cam.position.set(0, 0, distance);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
   return cam;

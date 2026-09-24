@@ -120,36 +120,40 @@ export function selectVisiblePages<T extends PageRecord>(
   };
   const floor = state.pixelError,
     from = budget ? options.pageBudgetFrom : undefined;
+  state.budgetStrict = from !== undefined;
   // Nothing finer is left to try: the threshold is the host's, or its finer step overflowed.
-  let settled = true;
-  if (from === undefined) {
+  let settled = true,
+    // Whether the cut at the host's threshold fits, once a pass has tried it; without a budget,
+    // it does.
+    hostCutFits: boolean | null = budget ? null : true;
+  const pass = (threshold: number) => {
+    state.pixelError = threshold;
     sweep();
+    if (threshold === floor) hostCutFits = !state.over;
+  };
+  if (from === undefined) {
+    pass(floor);
     // A pass above the budget brings only one thing: the next threshold. The abandoned cut
     // therefore stops at the overflowing page, and only the pass that holds the budget is taken
     // to the end.
-    for (let attempt = 0; budget && state.over && attempt < 16; attempt++) {
-      state.pixelError = state.pixelError > 0 ? state.pixelError * 2 : 1;
-      sweep();
-    }
+    for (let attempt = 0; budget && state.over && attempt < 16; attempt++)
+      pass(state.pixelError > 0 ? state.pixelError * 2 : 1);
   } else {
     // The search goes on from the previous image: one step finer, else the threshold it kept,
     // else coarser by √2 until the cut fits. An image mostly costs one pass, and the detail
-    // converges on the finest step that fits.
+    // converges on the finest step that fits. A pass that asked for root pages only is the
+    // root cover: every coarser threshold cuts the same, so the search stops there
+    // (`budgetFiner`), and the threshold never climbs past the root cover's.
     let current = Math.max(floor, from);
-    // At the floor, the finer step is the floor itself.
-    state.pixelError = finerStep(current, floor);
-    sweep();
-    if (state.pixelError < current) {
-      if (!state.over) settled = state.pixelError === floor;
-      else {
-        state.pixelError = current;
-        sweep();
-      }
+    const finer = finerStep(current, floor);
+    pass(finer);
+    if (finer < current) {
+      if (!state.over) settled = finer === floor;
+      else if (state.budgetFiner) pass(current);
     }
-    for (let attempt = 0; state.over && attempt < BUDGET_CLIMBS; attempt++) {
+    for (let attempt = 0; state.over && state.budgetFiner && attempt < BUDGET_CLIMBS; attempt++) {
       current = current > 0 ? current * BUDGET_STEP : 1;
-      state.pixelError = current;
-      sweep();
+      pass(current);
     }
   }
   // When even the coarsest threshold overflows, the whole cut is redone: the overflow flag rises
@@ -162,6 +166,7 @@ export function selectVisiblePages<T extends PageRecord>(
   const requiredSlots =
     budget && state.budget !== 0 && state.pixelError === floor ? state.budgetUsed : null;
   state.budget = 0;
+  state.budgetStrict = false;
   // The cut is finished: both lists take their length here, and only once. They thus keep their
   // capacity from one image to the next, instead of losing it again at every pass.
   shown.length = state.shownCount;
@@ -184,6 +189,7 @@ export function selectVisiblePages<T extends PageRecord>(
   result.pixelError = state.pixelError;
   result.requiredSlots = requiredSlots;
   result.budgetSettled = settled;
+  result.hostCutFits = hostCutFits;
   // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
   state.flatStructure = undefined;

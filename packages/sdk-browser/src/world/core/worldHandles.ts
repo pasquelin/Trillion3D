@@ -31,8 +31,9 @@ export function worldBudget(
       });
     });
   };
-  const held = (key: string) =>
-    (last() as Record<string, number | null | undefined> | null)?.[key] ?? null;
+  // What the last frame published: `null` when the engine holds no such pool, `undefined`
+  // before the first frame.
+  const held = (key: string) => (last() as Record<string, number | null> | null)?.[key];
   return {
     /** The largest pools a world may ask for: the engine's starting budgets. */
     get geometryPoolCeiling() {
@@ -50,9 +51,11 @@ export function worldBudget(
       pools.geometryPool = Math.min(bytes, DEFAULT_GEOMETRY_POOL_BUDGET);
       rebalance();
     },
-    /** Bytes of GPU memory kept for texture pages; set it to change the envelope. */
-    get texturePool() {
-      return held('texturePoolBytes') ?? pools.texturePool ?? DEFAULT_TEXTURE_POOL_BUDGET;
+    /** Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool
+     *  (WebGL2); set it to change the envelope. */
+    get texturePool(): number | null {
+      const bytes = held('texturePoolBytes');
+      return bytes !== undefined ? bytes : (pools.texturePool ?? DEFAULT_TEXTURE_POOL_BUDGET);
     },
     set texturePool(bytes: number) {
       pools.texturePool = Math.min(bytes, DEFAULT_TEXTURE_POOL_BUDGET);
