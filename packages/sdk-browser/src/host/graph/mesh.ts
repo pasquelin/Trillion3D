@@ -74,6 +74,19 @@ export class GraphInstancedMesh extends GraphMesh {
     this.instanceMatrix = new GraphAttribute(new Float32Array(capacity * 16), 16);
     this.count = capacity;
   }
+  protected override blank(): this {
+    return new GraphInstancedMesh(this.geometry, this.material, this.instanceMatrix.count) as this;
+  }
+  /** The reference's copy: the placements' matrices and their count come along. */
+  override copy(source: GraphNode, recursive = true) {
+    super.copy(source, recursive);
+    const instanced = source as GraphInstancedMesh;
+    const from = instanced.instanceMatrix.array;
+    this.instanceMatrix.array.set(from.subarray(0, this.instanceMatrix.array.length));
+    this.instanceMatrix.needsUpdate = true;
+    this.count = Math.min(instanced.count, this.instanceMatrix.count);
+    return this;
+  }
   /** Called when the matrices are given back: what a renderer's copy of them listens to. */
   readonly released = new Set<() => void>();
   /** Gives the matrices back; the geometry and the surface are released by their owners. */
