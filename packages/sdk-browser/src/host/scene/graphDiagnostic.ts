@@ -6,8 +6,8 @@ import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 import type {
   HostDiagnosticFactory,
   HostDiagnosticGeometry,
-  HostDiagnosticMaterial,
   HostDiagnosticMesh,
+  HostDisposable,
   HostScene,
 } from '../resources.ts';
 
@@ -30,7 +30,7 @@ export function repaintHostGraph(
   mode: DiagnosticMode,
   host: HostDiagnosticFactory,
   beautyMaterials: BeautyMaterials,
-  overlays: HostDiagnosticMaterial[],
+  overlays: HostDisposable[],
 ) {
   scene.traverse((node) => {
     if (!isDrawnNode(node)) return;
@@ -46,7 +46,7 @@ export function repaintHostGraph(
     if (mode === 'beauty') return;
     if (mode === 'wireframe') {
       const salt = hashId(String(mesh.userData.clusterId ?? mesh.id));
-      mesh.geometry = triangleGeometry(sourceGeometry, host, salt);
+      mesh.geometry = triangleGeometry(sourceGeometry, host, salt, overlays);
       const material = host.triangleMaterial(materialSide(sourceMaterial));
       overlays.push(material);
       mesh.material = material;
