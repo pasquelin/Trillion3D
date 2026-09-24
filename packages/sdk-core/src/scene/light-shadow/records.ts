@@ -21,9 +21,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     kind = new Int32Array(MAX_SHADOW_SLICES).fill(-1),
     revision = new Uint32Array(MAX_SHADOW_SLICES),
     noted = new Uint8Array(MAX_SHADOW_SLICES),
-    claimed = new Uint8Array(MAX_SHADOW_SLICES),
-    /** The frame each slice was claimed in. */
-    born = new Int32Array(MAX_SHADOW_SLICES);
+    claimed = new Uint8Array(MAX_SHADOW_SLICES);
   /** Every page of `slice` back to the pool. */
   const dropPages = (slice: number) => {
     for (let page = 0; page < pool.pages; page++)
@@ -40,7 +38,6 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
   return {
     taken,
     kind,
-    born,
     /** Slices held by a light: zero when no light casts a shadow. */
     get count() {
       let held = 0;
@@ -49,12 +46,11 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     },
     dropPages,
     free,
-    /** The first free slice, claimed in `frame`, or −1 when every published slice is taken. */
-    claim(frame: number) {
+    /** The first free slice, or −1 when every published slice is taken. */
+    claim() {
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++)
         if (!taken[slice]) {
           taken[slice] = 1;
-          born[slice] = frame;
           kind[slice] = -1;
           noted[slice] = 0;
           return slice;

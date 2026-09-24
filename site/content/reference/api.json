@@ -14284,7 +14284,7 @@
       },
       {
         "name": "records",
-        "type": "{ taken: Uint8Array<ArrayBuffer>; kind: Int32Array<ArrayBuffer>; born: Int32Array<ArrayBuffer>; readonly count: number; dropPages: (slice: number) => void; f...",
+        "type": "{ taken: Uint8Array<ArrayBuffer>; kind: Int32Array<ArrayBuffer>; readonly count: number; dropPages: (slice: number) => void; free: (slice: number) => void; c...",
         "desc": "The shadow slices, one per light that casts a shadow."
       },
       {
