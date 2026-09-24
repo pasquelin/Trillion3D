@@ -27,8 +27,9 @@ import { type WebgpuPagesRuntime } from '../runtime.ts';
 /** The backend's preparation on its session's handle: its timer, every resource, then its root
  *  world boxes. */
 export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  // A first claim hears of a device already lost when `device.lost` settles: nothing is built.
-  await Promise.race([device.lost, undefined]);
+  // A first claim hears of a device already lost a microtask later (`claimGpuDevice` has already
+  // listened to `device.lost`): one tick, no listener of its own, and nothing is built.
+  await undefined;
   throwIfStopped(rt);
   prepareGpuTiming(rt, device);
   await prepareWebgpuPages(rt, device);
