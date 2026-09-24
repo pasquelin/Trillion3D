@@ -1,3 +1,5 @@
+import { sharedGpuDevice } from '../gpu/core/deviceOwners.ts';
+
 /** Full mip chain length for a texture of the given size. */
 export function mipLevelCountFor(width: number, height: number) {
   return 1 + Math.floor(Math.log2(Math.max(width, height)));
@@ -9,7 +11,8 @@ export function mipLevelCountFor(width: number, height: number) {
  * The mip chain is generated at every working texture: recompiling the same program and the same
  * layout at each made one pay a pipeline compilation per texture, on the very path that must
  * serve its tiles as fast as possible. The cache is held per device, so a lost device takes its
- * pipelines with it.
+ * pipelines with it; it is built on the device itself (`sharedGpuDevice`), never on a session's
+ * handle: it serves every session, and names none.
  */
 type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
 const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
@@ -48,7 +51,8 @@ const MIP_SHADER = `
   return vec4f(mean.rgb,(u+v)*0.5);
  }`;
 
-function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
+function mipPipeline(session: GPUDevice, format: GPUTextureFormat): MipPipeline {
+  const device = sharedGpuDevice(session);
   let byFormat = pipelines.get(device);
   if (!byFormat) pipelines.set(device, (byFormat = new Map()));
   const held = byFormat.get(format);
@@ -78,11 +82,13 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
  *
  * Creating then destroying it at every texture forced waiting for the end of the device's work
  * before releasing it — a full round trip of the GPU queue per texture. A buffer that lives as
- * long as the device rewrites itself in queue order, waiting for nothing.
+ * long as the device rewrites itself in queue order, waiting for nothing. Like the program, it
+ * is the device's own.
  */
 const uniformBuffers = new WeakMap<GPUDevice, { buffer: GPUBuffer; size: number }>();
 
-function mipUniforms(device: GPUDevice, size: number) {
+function mipUniforms(session: GPUDevice, size: number) {
+  const device = sharedGpuDevice(session);
   const held = uniformBuffers.get(device);
   if (held && held.size >= size) return held.buffer;
   const buffer = device.createBuffer({
