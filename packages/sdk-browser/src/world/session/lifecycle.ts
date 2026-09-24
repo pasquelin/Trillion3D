@@ -122,12 +122,12 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
         backend,
         camera,
         async (missing) => {
-          pages.total += missing.length;
-          report(`${missing.length} pages the view reads`);
+          const before = { ...pages };
           await streamer.request(missing, {
-            onPage: (url) => {
-              pages.completed++;
-              report(`Read ${url}`);
+            onPage: (resident, requested) => {
+              pages.completed = before.completed + resident;
+              pages.total = before.total + requested;
+              report(`${resident} of ${requested} pages the view reads`);
             },
           });
           for (const url of missing) {
@@ -144,7 +144,6 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
       );
       retainVisiblePages(backend, streamer);
     }
-    pages.completed = pages.total;
     report('The pages the view reads are resident');
     state.loaded = streamer.stats().loaded;
     state.pageBytesRead = streamer.stats().bytesRead;

@@ -55,6 +55,23 @@ test('awaitPages reports each page the view lacked as it lands, then completed =
   streamer.dispose();
 });
 
+test('awaitPages counts the pages the streamer reads: once each, only those it holds', async () => {
+  const { lifecycle, streamer } = await lackingPages(['a.bin', 'a.bin', 'unknown.bin', 'b.bin']);
+  const heard: JobProgress[] = [];
+  await lifecycle.awaitPages({ onProgress: (event) => heard.push(event) });
+  assert.deepEqual(
+    heard.map(({ completed, total }) => [completed, total]),
+    [
+      [0, 2],
+      [1, 2],
+      [2, 2],
+      [2, 2],
+    ],
+    'the total is what the streamer requests, reached without a jump',
+  );
+  streamer.dispose();
+});
+
 test('awaitPages with every page resident still closes its count', async () => {
   const { lifecycle, streamer } = await lackingPages([]);
   const heard: JobProgress[] = [];
