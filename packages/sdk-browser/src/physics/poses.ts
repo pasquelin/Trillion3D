@@ -133,8 +133,6 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
         to[o + 4] = floats[at + 5];
         to[o + 5] = floats[at + 6];
         to[o + 6] = floats[at + 7];
-        // The shorter way round: a quaternion and its opposite are one rotation.
-        if (dot < 0) for (let k = 3; k < 7; k++) to[o + k] = -to[o + k];
         awake ||= !asleep;
         if (!listed[index]) moving[count++] = index;
         listed[index] = 1;
