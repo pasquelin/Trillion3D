@@ -1,15 +1,16 @@
 use super::*;
-const CUBE_POSITIONS: [f32; 24] = [
+pub(super) const CUBE_POSITIONS: [f32; 24] = [
     0., 0., 0., 1., 0., 0., 1., 1., 0., 0., 1., 0., 0., 0., 1., 1., 0., 1., 1., 1., 1., 0., 1., 1.,
 ];
-const CUBE_INDICES: [u32; 36] = [
+pub(super) const CUBE_INDICES: [u32; 36] = [
     0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6, 0, 4, 5, 0, 5, 1, 3, 2, 6, 3, 6, 7, 1, 5, 6, 1, 6, 2, 0, 3,
     7, 0, 7, 4,
 ];
 #[test]
 fn free_vertices_reduce_a_closed_cube() {
-    let reduced = simplify_with_locked_vertices(&CUBE_POSITIONS, &CUBE_INDICES, 6, 1.0, &|_| false)
-        .expect("cube");
+    let reduced =
+        simplify_with_locked_vertices(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, true, &|_| 0)
+            .expect("cube");
     assert!(
         reduced.triangles < 12,
         "expected a reduction, got {}",
@@ -27,8 +28,10 @@ fn free_vertices_reduce_a_closed_cube() {
 }
 #[test]
 fn locked_vertices_keep_every_triangle() {
-    let kept = simplify_with_locked_vertices(&CUBE_POSITIONS, &CUBE_INDICES, 6, 1.0, &|_| true)
-        .expect("cube");
+    let kept = simplify_with_locked_vertices(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, true, &|_| {
+        VERTEX_LOCK
+    })
+    .expect("cube");
     assert_eq!(kept.triangles, 12);
     assert_eq!(kept.indices, CUBE_INDICES.to_vec());
     assert_eq!(kept.error_object, 0.0);
@@ -37,10 +40,11 @@ fn locked_vertices_keep_every_triangle() {
 fn a_mesh_already_below_the_target_is_returned_untouched() {
     let open = simplify_with_locked_vertices(
         &[0., 0., 0., 1., 0., 0., 0., 1., 0.],
+        &[],
         &[0u32, 1, 2],
         0,
-        1.0,
-        &|_| false,
+        true,
+        &|_| 0,
     )
     .expect("triangle");
     assert_eq!(open.indices, vec![0, 1, 2]);
@@ -49,9 +53,9 @@ fn a_mesh_already_below_the_target_is_returned_untouched() {
 #[test]
 fn malformed_input_is_rejected() {
     assert!(
-        simplify_with_locked_vertices(&CUBE_POSITIONS, &[0u32, 1], 1, 1.0, &|_| false).is_err()
+        simplify_with_locked_vertices(&CUBE_POSITIONS, &[], &[0u32, 1], 1, true, &|_| 0).is_err()
     );
-    assert!(simplify_with_locked_vertices(&[0., 0.], &CUBE_INDICES, 1, 1.0, &|_| false).is_err());
+    assert!(simplify_with_locked_vertices(&[0., 0.], &[], &CUBE_INDICES, 1, true, &|_| 0).is_err());
 }
 #[test]
 fn compact_region_renumbers_each_vertex_once_and_maps_back() {

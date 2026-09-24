@@ -1,4 +1,18 @@
+import { transform } from 'esbuild';
 import type { Browser, Page } from 'playwright';
+
+/**
+ * The module scripts of an example page, each parsed as the browser would load it: a syntax
+ * error — a name declared twice in one scope included — throws here, not in the browser.
+ * Imports are not resolved.
+ */
+export async function exampleModules(html: string): Promise<string[]> {
+  const sources = [...html.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)].map(
+    ([, source]) => source,
+  );
+  for (const source of sources) await transform(source, { loader: 'js', format: 'esm' });
+  return sources;
+}
 
 /** One example roadmap entry, as read from `site/content/gallery-roadmap.json`. */
 export interface GalleryEntry {

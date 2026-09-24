@@ -3,7 +3,7 @@
 use super::cut::{collision_cut, tolerance};
 use super::hausdorff;
 use super::tests::cluster;
-use crate::dag::{build_culling_bvh, build_dag_tallied, DagCluster, DagStrategy};
+use crate::dag::{build_culling_bvh, build_dag_tallied, DagAttributes, DagCluster, DagStrategy};
 use serde_json::Value;
 
 /// The hall example's stone primitive, as drawn: positions and triangles read from its source.
@@ -36,7 +36,14 @@ fn hall_stone() -> (Vec<f32>, Vec<u32>) {
 fn the_hall_collider_holds_its_tolerance() {
     let (pos, source) = hall_stone();
     let strategy = DagStrategy::named("qem-endpoints");
-    let (dag, ..) = build_dag_tallied(&pos, &[], &source, strategy, &|| Ok(())).unwrap();
+    let (dag, ..) = build_dag_tallied(
+        &pos,
+        DagAttributes::default(),
+        &source,
+        strategy,
+        &|| Ok(()),
+    )
+    .unwrap();
     let (order, culling) = build_culling_bvh(&pos, &dag);
     let t = tolerance(&dag);
     let (tiles, error) = collision_cut(&dag, &order, &culling, &pos, &source, t);
