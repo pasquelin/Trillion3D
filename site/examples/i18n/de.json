@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "Der Läufer umrundet die Halle und schiebt die Bälle. Bälle fügt zwanzig hinzu.",
+    "banner": "Klicke, um dich umzusehen, dann geh mit W A S D zwischen den Bällen und schieb sie. Bälle fügt zwanzig hinzu.",
     "controls": {
-      "walking": "Gehen",
       "balls": "Bälle"
     },
     "readouts": {
