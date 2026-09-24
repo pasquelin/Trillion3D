@@ -135,16 +135,16 @@ test("a texture's sampling rides in its header, and only the words that moved ar
   const header = PAGE_HEADER_WORDS + 2 * PAGE_SLOT_WORDS,
     last = layouts()[2].last,
     transform = header + PAGE_TRANSFORM_WORD;
-  table.setSampling(2, map);
+  table.setSampling(2, map, false);
   table.flush(device);
   assert.equal(table.words[header + 2], last, 'the defaults leave the last-level word as it was');
   writes.length = 0;
-  assert.equal(table.setSampling(2, map), false, 'nothing moved');
+  assert.equal(table.setSampling(2, map, false), false, 'nothing moved');
   table.flush(device);
   assert.deepEqual(writes, [], 'nothing moved, nothing sent');
   map.magFilter = 'nearest';
   map.transform[0] = map.transform[4] = 4;
-  assert.equal(table.setSampling(2, map), true);
+  assert.equal(table.setSampling(2, map, false), true);
   table.flush(device);
   assert.deepEqual(writes, [[header + 2, 6]], 'the filter word to the second scale, one span');
   assert.equal(
@@ -154,7 +154,7 @@ test("a texture's sampling rides in its header, and only the words that moved ar
   assert.deepEqual([...new Float32Array(table.words.buffer, transform * 4, 6)], [4, 0, 0, 4, 0, 0]);
   writes.length = 0;
   map.transform[6] = 0.5;
-  table.setSampling(2, map);
+  table.setSampling(2, map, false);
   table.flush(device);
   assert.deepEqual(writes, [[transform + 4, 1]], 'an offset alone sends its word');
 });
