@@ -4101,6 +4101,13 @@
   "object.group": {
     "summary": "Ein leerer Knoten, der andere Objekte hält, damit sie sich zusammen bewegen."
   },
+  "object.clone": {
+    "summary": "Eine Kopie eines Objekts und von allem darunter, die nichts mit ihm teilt: seine Form, Materialien, Lichter und Felder werden kopiert.",
+    "description": "Ein geladenes Modell wird nicht kopiert: `null` dafür, und es bleibt aus einer kopierten Gruppe heraus.",
+    "parameters": {
+      "source": "Das zu kopierende Objekt."
+    }
+  },
   "object.points": {
     "summary": "Zeichnet jeden Scheitelpunkt einer Geometrie als Punkt.",
     "parameters": {

@@ -1,7 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readlinkSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readlinkSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { linkLocalFiles, localPaths } from './local-files.ts';
@@ -61,6 +69,21 @@ test('a path the worktree already has is left untouched', () => {
   writeFileSync(join(tree, 'AGENTS.md'), 'its own copy');
   assert.deepEqual(linkLocalFiles(tree, main), []);
   assert.equal(readFileSync(join(tree, 'AGENTS.md'), 'utf8'), 'its own copy');
+});
+
+test('a local path of the primary worktree that leads nowhere is refused and said', () => {
+  const main = repository(BLOCK);
+  const tree = repository(BLOCK);
+  symlinkSync(join(main, 'AGENTS.md'), join(main, 'AGENTS.md'));
+  mkdirSync(join(main, 'docs/roles'), { recursive: true });
+  symlinkSync(join(main, 'gone.md'), join(main, 'docs/roles/coder.md'));
+  const refused: string[] = [];
+  assert.deepEqual(
+    linkLocalFiles(tree, main, (path) => refused.push(path)),
+    [],
+  );
+  assert.deepEqual(refused, ['AGENTS.md', 'docs/roles/coder.md']);
+  assert.equal(existsSync(join(tree, 'AGENTS.md')), false);
 });
 
 test('the primary worktree links nothing to itself', () => {
