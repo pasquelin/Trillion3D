@@ -7004,7 +7004,7 @@
       "paused": "क्या समय रुका है; लिखावट फिर भी पिंडों तक पहुँचती है।",
       "timeScale": "प्रति वास्तविक सेकंड अनुकरित सेकंड: 0.25 धीमी गति है।",
       "stats": "गिनतियाँ और दोनों घड़ियाँ: प्रति चरण worker मिलीसेकंड, प्रति फ़्रेम पेज मिलीसेकंड।",
-      "error": "भौतिकी की अंतिम त्रुटि (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), या `null`।"
+      "error": "भौतिकी की अंतिम त्रुटि (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), या `null`। जिस त्रुटि ने सिमुलेशन रोक दिया, वह `enabled` को बंद कर देती है।"
     }
   },
   "ContactEvent": {
@@ -7157,7 +7157,7 @@
       "paused": "क्या समय रुका है; लिखावट फिर भी पिंडों तक पहुँचती है।",
       "timeScale": "प्रति वास्तविक सेकंड अनुकरित सेकंड: 0.25 धीमी गति है।",
       "stats": "गिनतियाँ और दोनों घड़ियाँ: प्रति चरण worker मिलीसेकंड, प्रति फ़्रेम पेज मिलीसेकंड।",
-      "error": "भौतिकी की अंतिम त्रुटि (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), या `null`।"
+      "error": "भौतिकी की अंतिम त्रुटि (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), या `null`। जिस त्रुटि ने सिमुलेशन रोक दिया, वह `enabled` को बंद कर देती है।"
     }
   },
   "WorldPhysicsOptions": {
