@@ -53,8 +53,9 @@ export class Joint {
    *  simulation — the motor changed. */
   _host: { motor(joint: Joint): void } | null = null;
   /** The joint's id in the simulation (slot and generation), -1 outside one. */ _id = -1;
-  /** Each end's `point, axis, normal` in its body's frame, fixed when first made. */
-  _frames: { a: number[]; b: number[]; length: number } | null = null;
+  /** Each end's `point, axis, normal` in its body's frame, and the kind's own words (a path's
+   *  track in `b`'s), fixed when first made. */
+  _frames: { a: number[]; b: number[]; length: number; extra: number[] } | null = null;
 
   /** What the joint is. */ readonly kind: JointKind;
   /** The first body. */ readonly a: Object3D;
