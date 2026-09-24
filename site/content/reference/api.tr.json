@@ -4591,7 +4591,7 @@
   },
   "createSceneLightStore": {
     "summary": "Sabit kapasitede sahne ışıkları.",
-    "description": "Tampon, `maxLights` ışık için bir kez tahsis edilir ve asla yeniden tahsis edilmez; bir ışığı eklemek, ayarlamak ya da kaldırmak yalnızca on altı float'ını yazar ve revizyonunu artırır. Işık başına `revision`, gölge zamanlayıcısının bir ışığın değiştiğini bilmek için okuduğu şeydir: hiçbir yapı kare başına yeniden inşa edilmez."
+    "description": "Tampon, `maxLights` ışık için bir kez tahsis edilir ve asla yeniden tahsis edilmez; bir ışığı eklemek, ayarlamak ya da kaldırmak yalnızca on altı float'ını yazar ve revizyonunu artırır. Işık başına `revision`, bir okuyucuya bir ışığın değiştiğini bildirir: hiçbir yapı kare başına yeniden inşa edilmez. Gölge zamanlayıcısı ışığın biçimini kendisi okur, bu yüzden yoğunluk ya da renk değişikliği hiçbir gölge sayfasını eskitmez."
   },
   "createSceneRoot": {
     "summary": "Boş, sürümlenmiş bir sahne hiyerarşisi oluşturur.",

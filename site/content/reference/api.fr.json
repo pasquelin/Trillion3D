@@ -1158,7 +1158,7 @@
   },
   "createSceneLightStore": {
     "summary": "Lumières de la scène, en nombre fixe.",
-    "description": "Le tampon est alloué une fois pour `maxLights` lumières et n’est jamais réalloué ; ajouter, régler ou retirer une lumière n’écrit que ses seize flottants et augmente sa révision. La `revision` par lumière est ce que lit le planificateur d’ombres pour savoir qu’une lumière a changé : aucune structure n’est reconstruite par image."
+    "description": "Le tampon est alloué une fois pour `maxLights` lumières et n’est jamais réalloué ; ajouter, régler ou retirer une lumière n’écrit que ses seize flottants et augmente sa révision. La `revision` par lumière indique à un lecteur qu’une lumière a changé : aucune structure n’est reconstruite par image. Le planificateur d’ombres lit lui-même la forme de la lumière, si bien qu’un changement d’intensité ou de couleur ne périme aucune page d’ombre."
   },
   "createSceneRoot": {
     "summary": "Crée une hiérarchie de scène vide et versionnée.",
