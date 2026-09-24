@@ -48,7 +48,7 @@ export function settledRt() {
     dirtyFrom: 0,
     rowsEpoch: 1,
     tableEpoch: 1,
-    candidateOverflow: false,
+    candidateOverflow: 0,
     packedCount: 1,
     rowCount: 1,
   };
