@@ -99,7 +99,7 @@ function sunPageMeets(level: number, ax: number, ay: number) {
  *   read — a static shadow never vanishes because something near it moves; only the moving
  *   caster's own shadow lags until the redraw. With per-page invalidation off, every page of
  *   each light the box touches, the rule from before per-page maps.
- * - **The representation changed** (the released union of `changes.ts`): the same pages, stale for
+ * - **The representation changed** (the released boxes of `changes.ts`): the same pages, stale for
  *   detail only — their depth is coarser than the cut, not wrong, and stays read until redrawn.
  *
  * Returns the pages staled.
