@@ -36,7 +36,7 @@
       // The handles: drag an arrow, a ring or a cube; the camera rests while a handle is held.
       const gizmo = family.transform(world).attach(crate);
       controls(
-        { help: 'Drag a handle. Drag beside it to turn the camera.', mode: ['translate', 'rotate', 'scale'], axes: ['world', 'local'], snap: false },
+        { mode: ['translate', 'rotate', 'scale'], axes: ['world', 'local'], snap: false },
         ({ mode, axes, snap }) => {
           gizmo.setMode(mode);
           gizmo.setSpace(axes);

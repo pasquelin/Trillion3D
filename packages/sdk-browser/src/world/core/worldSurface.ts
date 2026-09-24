@@ -11,51 +11,16 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { hostSide } from '../../scene/materialSide.ts';
-import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts';
 import { GraphSurface, type GraphSurfaceFamily } from '../../host/graph/surface.ts';
-import { GraphTexture } from '../../host/graph/texture.ts';
-import {
-  HOST_COLOUR_SPACE_LINEAR,
-  HOST_COLOUR_SPACE_SRGB,
-  HOST_FILTER_LINEAR,
-  HOST_FILTER_LINEAR_MIP_LINEAR,
-  HOST_FILTER_LINEAR_MIP_NEAREST,
-  HOST_FILTER_NEAREST,
-  HOST_FILTER_NEAREST_MIP_LINEAR,
-  HOST_FILTER_NEAREST_MIP_NEAREST,
-  HOST_FORMAT_RED,
-  HOST_FORMAT_RGB,
-  HOST_FORMAT_RGBA,
-  HOST_WRAP_CLAMP_TO_EDGE,
-  HOST_WRAP_MIRRORED_REPEAT,
-  HOST_WRAP_REPEAT,
-} from '../../host/surfaceConstants.ts';
 import { linearColour } from '../../host/graph/surfaceFields.ts';
+import {
+  COLOUR_MAPS,
+  HOST_MAPS,
+  hostTexture,
+  repaintHostMaps,
+  type HostTextures,
+} from './worldTextures.ts';
 
-const WRAP = {
-  repeat: HOST_WRAP_REPEAT,
-  clamp: HOST_WRAP_CLAMP_TO_EDGE,
-  mirror: HOST_WRAP_MIRRORED_REPEAT,
-} as const;
-const FILTER = {
-  nearest: HOST_FILTER_NEAREST,
-  linear: HOST_FILTER_LINEAR,
-  nearestMipNearest: HOST_FILTER_NEAREST_MIP_NEAREST,
-  linearMipNearest: HOST_FILTER_LINEAR_MIP_NEAREST,
-  nearestMipLinear: HOST_FILTER_NEAREST_MIP_LINEAR,
-  linearMipLinear: HOST_FILTER_LINEAR_MIP_LINEAR,
-} as const;
-const FORMAT: Record<string, number> = {
-  rgba: HOST_FORMAT_RGBA,
-  rgb: HOST_FORMAT_RGB,
-  r: HOST_FORMAT_RED,
-};
-/** Material fields that hold a texture, by the name both sides give them. */
-export const HOST_MAPS = [...TABLE_SLOTS, 'alphaMap', 'matcap', 'gradientMap'];
-/** The maps that hold a colour: the only ones whose sRGB image is decoded. The others hold data —
- *  a direction, a roughness, an occlusion — read as stored whatever the image declares, as the
- *  WebGPU path reads them. */
-const COLOUR_MAPS = new Set(['map', 'emissiveMap', 'matcap']);
 /** Physically based fields beyond the engine record, carried on a physical surface. */
 const PHYSICAL = [
   'transmission',
@@ -66,42 +31,6 @@ const PHYSICAL = [
   'sheen',
   'iridescence',
 ];
-
-/** Surface textures already built, by engine texture, its version and whether it is read as
- *  colour: a texture worn by several surfaces is uploaded once. */
-export type HostTextures = Map<string, GraphTexture>;
-
-/** The surface texture of a world texture, read as colour or as data, its sampler words
- *  translated; built once per `built` table. */
-function hostTexture(texture: Texture, colour: boolean, built: HostTextures) {
-  const key = `${texture.id}@${texture.version}:${colour}`;
-  const held = built.get(key);
-  if (held) return held;
-  const host = new GraphTexture(texture.image);
-  if (texture.layout === 'data') {
-    // Raw texels: read as they are stored, one level, as the reference reads them.
-    Object.assign(host, {
-      isDataTexture: true,
-      format: FORMAT[texture.format] ?? HOST_FORMAT_RGBA,
-    });
-    host.generateMipmaps = false;
-  }
-  host.wrapS = WRAP[texture.wrapS];
-  host.wrapT = WRAP[texture.wrapT];
-  host.repeat.set(texture.repeat.x, texture.repeat.y);
-  host.offset.set(texture.offset.x, texture.offset.y);
-  host.rotation = texture.rotation;
-  host.minFilter = FILTER[texture.minFilter];
-  host.magFilter = FILTER[texture.magFilter];
-  host.colorSpace =
-    texture.colorSpace === 'srgb' && colour ? HOST_COLOUR_SPACE_SRGB : HOST_COLOUR_SPACE_LINEAR;
-  host.flipY = texture.flipY;
-  host.anisotropy = texture.anisotropy;
-  host.name = texture.name;
-  host.needsUpdate = true;
-  built.set(key, host);
-  return host;
-}
 
 /** The family of each kind that is not physical. */
 const FAMILY: Record<string, GraphSurfaceFamily> = {
@@ -183,11 +112,14 @@ export function hostSurface(material: Material, vertexColors: boolean, textures:
 }
 
 /**
- * Writes a material's value fields — colour, glow, metalness, roughness — into the surface
- * built for it, as `hostSurface` wrote them, and bumps the surface's version: every reader of
- * the surface (`page/surface.ts`) takes them at its next read, no surface built again (#335).
+ * Writes a material's value fields — colour, glow, metalness, roughness — and its maps' sampling
+ * into the surface built for it, as `hostSurface` wrote them, and bumps the surface's version:
+ * every reader of the surface (`page/surface.ts`) takes them at its next read, nothing built again
+ * (#335). A map whose version moved sends its picture again; one whose placement alone moved is
+ * placed again, nothing sent (`repaintHostMaps`).
  */
 export function repaintHostSurface(surface: GraphSurface, material: Material) {
+  repaintHostMaps(surface as unknown as Record<string, unknown>, material);
   const { color, emissive } = material;
   (surface.color as Color | undefined)?.setRGB(color.r, color.g, color.b);
   (surface.emissive as Color | undefined)

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="thumbnail" content="8" />
+    <title>Open world</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f17; }
+      canvas { display: block; width: 100%; height: 100%; }
+      #loading { position: fixed; inset: 0; display: grid; place-content: center; gap: 0.5rem; background: #0b0f17; color: #e8edf5; font: 15px system-ui; text-align: center; }
+      #loading small { opacity: 0.6; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="loading"><strong>Building the world…</strong><small id="step">Reading the world</small></div>
+    <script type="module">
+      /*
+       * An open world of 8 × 8 km, generated from one seed and compiled into one cache
+       * (`node scripts/docs-openworld.ts`). You arrive on foot at the airport: walk it in first
+       * person, take a car or a plane. The engine streams the pages the frame reads, under a
+       * fixed budget.
+       *
+       * Six regions packed around the airport — mountains, a city with its harbour, a desert,
+       * countryside and a coast with islands — share one heightfield, so their borders have no
+       * seam. The simulation (Jolt physics,
+       * traffic, pedestrians) runs in a worker; this page only draws what the worker reports.
+       *
+       * Waiting on the engine: fog and aerial perspective, environment lighting, post-processing
+       * (bloom, heat haze), skinning, and moving hand-built meshes beside a compiled cache.
+       */
+      import { createWorld, geometry, material, object, light, math, buffer, blending, side, texture, metric } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+      import { createPlay, createSky, beamHeading } from '../runtime/openworld.js';
+
+      const assets = '../assets/examples/openworld/';
+      const engine = { geometry, material, object, light, math, buffer, blending, side, texture };
+      // The world builds in steps; the screen says which one it is on, and lifts when the first
+      // frame around you is ready. Waiting on the engine: load progress for `scene.load`.
+      const step = (text) => (document.getElementById('step').textContent = text);
+      // Resolves once the engine has drawn a frame. Waiting on the engine: `awaitPages()` never
+      // settles on a world this size.
+      const drawn = () =>
+        new Promise((done) => {
+          const check = () => (typeof metric.frame(world) === 'object' ? done() : requestAnimationFrame(check));
+          check();
+        });
+      const data = await (await fetch(`${assets}world.json`)).json();
+
+      // One compiled world, under fixed memory pools the panel can change.
+      const world = createWorld('view');
+      world.budget.geometryPool = 512 * 2 ** 20;
+      world.budget.texturePool = 256 * 2 ** 20;
+      const model = await world.scene.load(`${assets}cache/native/full/manifest.json`);
+      // The world draws and settles before anything built in code joins it. Waiting on the engine
+      // (#358): a hand-built mesh added while a compiled world's session is still opening loses
+      // the device (WEBGPU_LOST); three seconds after the first frame, it draws.
+      await drawn();
+      await new Promise((settled) => setTimeout(settled, 3000));
+      step('Starting the physics');
+
+      // Sky, sun, clouds, weather and effects, placed by the regions' markers.
+      const sky = createSky({
+        world, engine, seed: data.seed, size: data.size, tile: data.tile,
+        markers: data.markers, movers: data.movers, time: 18.5,
+      });
+
+      // You arrive on foot; a parked car or plane is what makes you drive or fly. Traffic and
+      // pedestrians live around you.
+      const play = createPlay({
+        world, engine, data,
+        heights: `${assets}heights/{tx}_{tz}.bin`,
+        colliders: `${assets}colliders/{tx}_{tz}.json`,
+      });
+      await play.ready;
+      // You arrive at street level downtown: the frame reads only what stands around you.
+      play.teleport(play.teleports.includes('Airport — terminal') ? 'Airport — terminal' : play.teleports[0]);
+      step('Streaming what stands around you');
+      await drawn();
+      document.getElementById('loading').remove();
+
+      // Lamps the regions declared on their fixtures light up with the night.
+      const nightLamps = data.lights.filter((lamp) => lamp.night);
+      const lampNodes = new Map(model.lights.map((node) => [node.name, node]));
+      const beacons = data.movers.filter((mover) => mover.kind === 'beacon');
+      const beaconNodes = beacons.map((beacon) => model.getObjectByName(beacon.name));
+
+      world.onFrame(() => {
+        play.night = sky.isNight;
+        for (const lamp of nightLamps) {
+          const node = lampNodes.get(lamp.name);
+          if (node) node.intensity = sky.lampIntensity(lamp);
+        }
+        beacons.forEach((beacon, index) => {
+          const node = beaconNodes[index];
+          if (node) node.rotation.y = beamHeading(beacon, sky.elapsed);
+        });
+      });
+
+      // The panel: how to move, where to go, the time of day, the weather, the budgets.
+      const views = ['beauty', 'clusters', 'pages', 'lod', 'screen-error', 'wireframe'];
+      controls(
+        {
+          keys: 'WASD walk · Shift run · Space jump · C crouch · E get in or out of a car or a plane',
+          teleport: ['—', ...play.teleports],
+          timeOfDay: [0, 24, sky.time, 0.05],
+          daySpeed: [0, 60, sky.speed, 0.5],
+          pause: false,
+          rain: [0, 1, 0, 0.05],
+          geometryMB: [128, 2048, 512, 32],
+          textureMB: [64, 1024, 256, 32],
+          view: views,
+        },
+        (values) => {
+          if (values.teleport !== '—') play.teleport(values.teleport);
+          sky.time = values.timeOfDay;
+          sky.speed = values.daySpeed;
+          sky.paused = values.pause;
+          sky.rain.amount = values.rain;
+          world.budget.geometryPool = values.geometryMB * 2 ** 20;
+          world.budget.texturePool = values.textureMB * 2 ** 20;
+          world.diagnostic.mode = values.view;
+        },
+        world,
+      );
+
+      // What the frame did, measured: never an estimate, `—` when the engine did not say.
+      const show = readout('streaming');
+      const shown = (value, unit = '') => (value == null ? '—' : `${Math.round(value).toLocaleString('en')}${unit}`);
+      let last = performance.now(), fps = null;
+      world.onFrame(() => {
+        const now = performance.now();
+        fps = 1000 / (now - last);
+        last = now;
+        const frame = metric.frame(world);
+        if (typeof frame !== 'object') return;
+        show(
+          [
+            `fps ${shown(fps)}`,
+            `resident pages ${shown(frame.residentPages)}`,
+            `selected triangles ${shown(frame.selectedTriangles)}`,
+            `geometry pool ${shown(frame.geometryPoolBytes / 2 ** 20, ' MB')}`,
+            `texture pool ${shown(frame.texturePoolBytes / 2 ** 20, ' MB')}`,
+            `budget-limited ${frame.coverageBudgetLimited ? 'yes' : 'no'}`,
+            `budget pixel error ${frame.budgetPixelError == null ? '—' : frame.budgetPixelError.toFixed(2)}`,
+            `simulation ${play.state.stepMs == null ? '—' : play.state.stepMs.toFixed(2)} ms`,
+            `mode ${play.mode} · ${Math.round(sky.time)}h`,
+          ].join('\n'),
+        );
+      });
+    </script>
+  </body>
+</html>

@@ -318,7 +318,8 @@
       "hands-in-vr": "VRの中の手",
       "teleport-in-vr": "VRの中でテレポートする",
       "controllers-in-vr": "VRのコントローラー",
-      "ar-on-the-table": "テーブルの上のAR"
+      "ar-on-the-table": "テーブルの上のAR",
+      "openworld": "オープンワールド"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPUでの頂点カラー",
