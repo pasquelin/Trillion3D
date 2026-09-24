@@ -1466,7 +1466,8 @@
       "hands-in-vr": "VR में हाथ",
       "teleport-in-vr": "VR में टेलीपोर्ट",
       "controllers-in-vr": "VR में नियंत्रक",
-      "ar-on-the-table": "मेज़ पर AR"
+      "ar-on-the-table": "मेज़ पर AR",
+      "openworld": "खुली दुनिया"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU पर प्रति-वर्टेक्स रंग",

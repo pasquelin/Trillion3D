@@ -100,7 +100,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
       frame: 0,
       imageRevision: 1,
     },
-    gpu: { cache: {}, cutIncomplete: false, selectionFallback: false },
+    gpu: { device: {}, cache: {}, cutIncomplete: false, selectionFallback: false },
     capabilities: { gpuDriven: true, unsupported: [] },
     diag: {
       traceDiagnostic: () => {
@@ -111,7 +111,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     },
     context: {},
     layout: { rows, drawSlots: 4 },
-    setup: { gpuDevice: {}, viewport: VIEWPORT, clearColor: 0, slots: 10 },
+    setup: { viewport: VIEWPORT, clearColor: 0, slots: 10 },
     timing: { marks: {} },
     services: {
       bootstrapState: { ready: true },

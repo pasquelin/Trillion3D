@@ -14,13 +14,11 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { resolveMounts } from '../../../bench/runner/options.ts';
-import { startServer, serverPort } from '../../kit/server/staticServer.ts';
-import { fixtures } from '../support/materialFixtures.ts';
+import { withRepoPage } from '../../kit/server/repoPage.ts';
+import { ANISOTROPY_GAIN, fixtures } from '../support/materialFixtures.ts';
 import type { run as runOnPage } from '../support/materialPixelsPage.ts';
 
-type RunResult = Awaited<ReturnType<typeof runOnPage>> & { pageErrors?: string[] };
+type RunResult = Awaited<ReturnType<typeof runOnPage>>;
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
@@ -29,25 +27,8 @@ assert.ok(
   existsSync(resolve(ROOT, 'dist/witnesses/measurement.js')),
   'dist missing: run `pnpm run build` before this proof',
 );
-const mounts = [
-  ...resolveMounts(ROOT, []),
-  { prefix: '/dist/', dir: resolve(ROOT, 'dist') },
-  { prefix: '/tests/', dir: resolve(ROOT, 'tests') },
-  // The page modules under `tests/` import engine sources by relative path (`DAG`, `asHostLibrary`).
-  { prefix: '/packages/', dir: resolve(ROOT, 'packages') },
-];
-const server = await startServer({ port: 0, mounts, captures: new Map() });
-const browser = await launchChrome({ headless: true });
-let result: RunResult;
-try {
-  const page = await browser.newPage();
-  const pageErrors: string[] = [];
-  page.on('pageerror', (error) => pageErrors.push(error.message));
-  page.on('console', (message) => {
-    if (message.type() === 'error') console.error(message.text());
-  });
-  await page.goto(`http://127.0.0.1:${serverPort(server)}/`);
-  result = await page.evaluate(
+const result: RunResult = await withRepoPage(ROOT, true, (page) =>
+  page.evaluate(
     // A template literal, not a static specifier: TypeScript cannot resolve this page module
     // (served only at runtime by the harness) as a real import, so it stays untyped `any`
     // rather than a "cannot find module" error.
@@ -57,12 +38,8 @@ try {
       coreUrl: '/dist/sdk-core/src/index.js',
       pageUrl: '/tests/browser/support/materialPixelsPage.ts',
     },
-  );
-  result.pageErrors = pageErrors;
-} finally {
-  await browser.close();
-  server.close();
-}
+  ),
+);
 
 await mkdir(out, { recursive: true });
 for (const fixture of result.results ?? [])
@@ -86,7 +63,6 @@ console.log(
 
 assert.equal(result.unavailable ?? null, null, String(result.unavailable));
 assert.equal(result.error ?? null, null, String(result.error));
-assert.deepEqual(result.pageErrors, []);
 assert.deepEqual(result.errors, [], 'GPU uncaptured errors');
 assert.ok(result.results, 'no fixture results');
 assert.equal(result.results.length, fixtures.length, 'one reading per fixture');
@@ -106,6 +82,8 @@ for (const fixture of result.results) {
   );
   if (fixture.holds !== false)
     assert.equal(fixture.held, true, `${fixture.name}: the engine image never settled`);
+  if (fixture.holes !== undefined)
+    assert.equal(fixture.holes, 0, `${fixture.name}: ${fixture.holes} pixels show the background`);
   const [least, most] = fixture.difference;
   for (const { point, witness, engine, gap } of fixture.samples)
     assert.ok(
@@ -113,6 +91,22 @@ for (const fixture of result.results) {
       `${fixture.name} (${point}): witness ${witness}, engine ${engine}, ` +
         `gap ${gap} outside ${least}–${most} (${fixture.reason})`,
     );
+}
+// #361: anisotropy 16 against 1 on the grazing stripes: each engine must gain contrast.
+const spread = (name: string, side: 'witness' | 'engine') => {
+  const means = result
+    .results!.find((fixture) => fixture.name === name)!
+    .samples.map((sample) => sample[side].reduce((sum, c) => sum + c, 0) / sample[side].length);
+  return Math.max(...means) - Math.min(...means);
+};
+for (const side of ['witness', 'engine'] as const) {
+  const flat = spread('grazing stripes, anisotropy 1', side),
+    sharp = spread('grazing stripes, anisotropy 16', side);
+  assert.ok(
+    sharp - flat >= ANISOTROPY_GAIN,
+    `${side}: anisotropy 16 spreads ${sharp} levels, anisotropy 1 ${flat}; ` +
+      `at least ${ANISOTROPY_GAIN} more expected`,
+  );
 }
 console.log(
   `OK: ${result.results.length} material fixtures agree with the witness — ${result.gpu}`,

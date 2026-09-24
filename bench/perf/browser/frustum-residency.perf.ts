@@ -81,7 +81,6 @@ function hote(nombre: number) {
     desired: pages,
     pending: [],
     retained: [],
-    byUrl: new Map(),
     geometryStore: createAutonomousGeometry({
       scene: new THREE.Scene(),
       allPages: [],

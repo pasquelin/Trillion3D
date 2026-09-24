@@ -26,13 +26,19 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # The open world's generation and cook take about twenty minutes of the build.
+    timeout-minutes: 60
     outputs:
       deploy: ${{ steps.plan.outputs.deploy }}
       floor: ${{ steps.plan.outputs.floor }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/node
+      # The open world (#332) is generated from its seed and compiled at build time: its cache is
+      # never committed. The native compiler builds first, then the generator writes the world.
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm run build:native
+      - run: node scripts/docs-openworld.ts
       # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone.
       - run: pnpm run build:docs
       # Whether this run publishes, decided once: only main is ever published.

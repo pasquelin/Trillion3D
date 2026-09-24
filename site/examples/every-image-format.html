@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture, loader } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, ease, flights } from '../runtime/kit.js';
       const say = words();
 
       // One picture, described once as a list of shapes: a sky at sunset, a sun, two ridges, a
@@ -286,13 +286,9 @@
       world.controls.maxDistance = 36;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
       world.controls.update();
-      let flight = null;
-      const flyTo = ({ position, target }, seconds) => {
-        const { position: p } = world.camera, t = world.controls.target;
-        flight = { from: [p.x, p.y, p.z, t.x, t.y, t.z], to: [...position, ...target], seconds, time: 0 };
-      };
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (flight = null), { passive: true });
+      // The opening is the first flight, down to the wide view.
+      const flyTo = flights(world);
+      flyTo(WIDE, 4);
 
       // The size of each picture as a file; the two that are no file take their bytes in memory.
       const kb = (bytes) => `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`;
@@ -307,7 +303,6 @@
       // the new pictures, only once the new files are decoded.
       let waiting = 0, asked = 0;
       controls({
-        mouse: 'Drag to walk along the easels; lower the quality and look closely at JPEG and WebP',
         quality: [0.02, 1, QUALITY, 0.01],
         lookAt: ['allEight', ...FORMATS.map(({ name }) => name)],
       }, (values, key) => {
@@ -340,27 +335,16 @@
 
       // The opening: the camera comes down to the exhibition while the pictures, their backs to
       // the viewer, turn one after another to show their faces.
-      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-      flyTo(WIDE, 4);
       let time = 0;
       world.onFrame(({ delta }) => {
-        const step = Math.min(delta, 0.05);
-        time += step;
         // The last picture has turned by 4 s; after that the frames are never written again.
-        if (time < 4.5)
-          easels.forEach(({ frame }, k) => {
-            const turn = ease(Math.min(1, Math.max(0, (time - 0.8 - k * 0.3) / 1.1)));
-            frame.rotation.set(-0.12, Math.PI * (1 - turn), 0);
-          });
-        if (flight) {
-          flight.time = Math.min(1, flight.time + step / flight.seconds);
-          const e = ease(flight.time), [x, y, z, tx, ty, tz] = flight.from.map((value, i) => value + (flight.to[i] - value) * e);
-          world.camera.position.set(x, y, z);
-          world.controls.target.set(tx, ty, tz);
-          world.controls.update();
-          if (flight.time >= 1) flight = null;
-        }
-        if (flight || time < 4.5) world.invalidate();
+        if (time >= 4.5) return;
+        time += Math.min(delta, 0.05);
+        easels.forEach(({ frame }, k) => {
+          const turn = ease.inOut((time - 0.8 - k * 0.3) / 1.1);
+          frame.rotation.set(-0.12, Math.PI * (1 - turn), 0);
+        });
+        world.invalidate();
       });
     </script>
   </body>

@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, words, language, seeded } from '../runtime/kit.js';
+      import { controls, readout, words, language, seeded, ease, flights } from '../runtime/kit.js';
       const say = words();
 
       // A sequence in [0, 1) from a seed: the same maze on every run.
@@ -132,20 +132,18 @@
           mesh.position.y = height / 2;
         }
       };
-      const ABOVE = { eye: [0, 58, 40], look: [0, 0, 2] };
-      const INSIDE = { eye: [0, 1.7, 25.5], look: [0, 1.4, 19.5] };
-      // `flight` runs from 0 to 1 over six seconds; the opening waits a second above the maze first.
-      let from = ABOVE, to = INSIDE, flight = -1 / 6;
+      const ABOVE = { position: [0, 58, 40], target: [0, 0, 2] };
+      const INSIDE = { position: [0, 1.7, 25.5], target: [0, 1.4, 19.5] };
+      // A flight takes six seconds; the opening waits a second above the maze first.
+      const flyTo = flights(world, ease.smooth);
+      let to = INSIDE;
       controls({
-        mouse: 'Drag to look around; the hedges hide the gilded knots at the dead ends',
         hedgeHeight: [0.3, 4, 2.6, 0.1],
         view: ['beauty', 'visibility'],
         aboveOrInside: () => {
           // From wherever the camera stands now, to the other end of the flight.
-          from = { eye: world.camera.position.toArray(), look: world.controls.target.toArray() };
           to = to === INSIDE ? ABOVE : INSIDE;
-          flight = 0;
-          world.invalidate();
+          flyTo(to, 6);
         },
       }, (values) => {
         setHeight(values.hedgeHeight);
@@ -164,26 +162,13 @@
       // The opening: the maze from above, everything in sight; then down through the gate to the
       // eye of a walker, where the first hedge hides nearly all the rest. The knots turn slowly.
       // A press or a wheel on the canvas hands the camera back at once.
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (flight = 1), { passive: true });
-      world.camera.position.set(...ABOVE.eye);
-      world.controls.target.set(...ABOVE.look);
-      world.controls.update();
-      const ease = (t) => t * t * (3 - 2 * t);
+      world.camera.position.set(...ABOVE.position);
+      world.controls.target.set(...ABOVE.target);
+      flyTo(INSIDE, 6, 1);
       world.onFrame(({ delta }) => {
-        const step = Math.min(delta, 0.1);
-        for (const statue of statues) statue.rotation.y += step * 0.4;
-        if (flight < 1) {
-          flight = Math.min(1, flight + step / 6);
-          const t = ease(math.clamp(flight, 0, 1));
-          const at = (a, b) => a.map((value, axis) => value + (b[axis] - value) * t);
-          world.camera.position.set(...at(from.eye, to.eye));
-          world.controls.target.set(...at(from.look, to.look));
-          world.controls.update();
-        }
+        for (const statue of statues) statue.rotation.y += Math.min(delta, 0.1) * 0.4;
         world.invalidate();
       });
-      world.invalidate();
     </script>
   </body>
 </html>

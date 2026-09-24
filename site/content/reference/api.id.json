@@ -926,6 +926,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "RAYCAST_NO_VIEW": "Titik gambar diminta dari canvas yang tidak punya ukuran: tidak ada gambar untuk dibidik.",
+      "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
+      "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan."
     }
@@ -1510,7 +1512,12 @@
       "colorSpace": "Bagaimana angka-angkanya dibaca.",
       "matrix": "Transform UV sampler, `KHR_texture_transform` disusun jadi tiga baris; host menghitungnya ulang dari offset, repeat dan rotation saat memiliki pembaruannya.",
       "matrixAutoUpdate": "Apakah host membangun ulang `matrix`.",
-      "updateMatrix": "Membangun ulang `matrix` dari offset, repeat dan rotation."
+      "updateMatrix": "Membangun ulang `matrix` dari offset, repeat dan rotation.",
+      "offset": "Dari apa `matrix` disusun.",
+      "repeat": "Berapa kali ia muat.",
+      "center": "Poros rotasi.",
+      "rotation": "Rotasi, dalam radian.",
+      "addEventListener": "Memberi tahu pengimpor saat host melepaskan tekstur."
     }
   },
   "HostTraversable": {
@@ -3516,7 +3523,9 @@
       "flipY": "Apakah gambar itu dibalik terbalik saat dibaca.",
       "anisotropy": "Seberapa tajam gambar itu tetap saat dilihat serong.",
       "channel": "Set UV geometri mana yang diikuti tekstur itu.",
-      "version": "Dinaikkan setiap penulisan: yang dibandingkan sebuah material untuk menyampel ulang.",
+      "version": "Dinaikkan oleh penulisan gambar atau cara membacanya: yang dibandingkan material untuk mengirim gambar lagi.",
+      "sampling": "Dinaikkan oleh penulisan pengalamatan, filter, atau anisotropi: diatur ulang, tidak ada yang dikirim.",
+      "placement": "Dinaikkan oleh penulisan `repeat`, `offset`, atau `rotation`: ditempatkan ulang, tidak ada yang dikirim.",
       "image": "Gambar itu sendiri: sebuah image, canvas, video atau piksel mentah.",
       "layout": "Apa yang dipegang gambar itu selain pikselnya: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Bagaimana setiap piksel disimpan: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -3534,6 +3543,8 @@
       "id": "Identitas tekstur itu dalam scene yang diimpor: yang menyebut namanya sebuah kunci cache dan sebuah pesan.",
       "name": "Nama yang diberikan berkas sumber, kosong saat tidak memberi nama; hanya dibaca pesan.",
       "version": "Dinaikkan setiap texel berubah: yang dibandingkan sebuah unggahan untuk melewati penyalinan ulang.",
+      "sampling": "Dinaikkan saat pengalamatan, filter, atau anisotropi berubah: sampler diatur ulang.",
+      "placement": "Dinaikkan saat `transform` berubah: penempatan ditulis ulang, tidak ada yang diunggah.",
       "image": "Gambar yang diurai. Wadahnya tetap `unknown`: hanya batas yang mengunggahnya yang tahu.",
       "channel": "Set UV yang dibaca sampler, `texCoord` milik `KHR_texture_transform`; mesin menyampel 0 dan 1.",
       "wrapS": "Berulang melintang.",
@@ -6678,10 +6689,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "Apa yang dipegang halaman: mode, dibaca dan ditulis.",
+    "summary": "Apa yang dipegang halaman: mode tampilan, dibaca dan ditulis; sesi yang dibuka dan mengapa sesi terakhir gagal, hanya dibaca.",
     "members": {
       "mode": "Mode tampilan: `'beauty'` untuk gambar normal, atau sebuah mode yang menunjukkan cara kerja mesin.",
       "sessions": "Sesi yang sudah dibuka dunia sejauh ini: perubahan yang membuka ulang sebuah sesi terlihat di sini.",
+      "error": "Mengapa sesi terakhir tidak bisa dibuka, sebagai galat mesin yang bernama: `code`-nya adalah salah satu yang didokumentasikan pada `EngineError` (`WEBGPU_LOST` saat WebGPU kehilangan perangkatnya), atau `SESSION_OPEN_FAILED` untuk alasan tanpa kode sendiri. `EngineError` dengan kode terdokumentasi adalah galat yang dilempar itu sendiri; galat lain dikonversi, dan galat yang dilempar lalu ada di `details.cause`. `null` sejak awal setiap pembukaan, dan saat tidak ada yang dicoba.",
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
     }
   },

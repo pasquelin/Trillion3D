@@ -43,8 +43,6 @@ export type BlendGpuItem = {
   /** Material flags (`../../visibility/types.ts`) in the low sixteen bits; above them the one-based water
    *  rank of a transmissive item, zero for a blend (`../water/surfaceWgsl.ts`). */
   flags: number;
-  /** Wrap of the material's six maps, one nibble each (`../../visibility/wrapModes.ts`). */
-  wrapModes: number;
   group?: GPUBindGroup;
   paged?: boolean;
   /** Rank of a paged item in the transparent table: the base its instances are written at. */
