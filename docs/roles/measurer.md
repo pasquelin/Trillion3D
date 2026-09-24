@@ -24,7 +24,7 @@ merge.
    - a regression, an image difference outside CONTRIBUTING.md's tolerance, or a failing proof:
      `--remove-label measuring`, then **a new issue** written as `docs/roles/writer.md` shows —
      title `Regression after #<n>: <what>`, the numbers, the captures, `Links: #<n>` — labelled
-     `measure ko` plus the domain label of #<n>. Its chef fixes it; #<n> stays closed.
+     `measure ko` plus the domain label of #<n>. Its lead fixes it; #<n> stays closed.
      A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,
      never estimated, and becomes a new issue the same way.
 6. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1.

@@ -1,7 +1,7 @@
 # Role: writer
 
 Anyone can take this role: the maintainer for a new feature, the measurer for a regression, the
-auditor for a finding, a chef for a subject found too large. "Follow `docs/roles/writer.md`:
+auditor for a finding, a lead for a subject found too large. "Follow `docs/roles/writer.md`:
 <what the issue is about>". You write issues; you never code, never measure. Every issue is in
 English, on `.github/ISSUE_TEMPLATE/task.md`.
 
@@ -34,7 +34,7 @@ English, on `.github/ISSUE_TEMPLATE/task.md`.
 - Labels: exactly one domain label (`geometry`, `lighting`, `textures`, `compiler`,
   `calculator`, `benchmarking`, `physics`, `bug`, `documentation`…), exactly one priority
   (`🔴 critical` … `🟢 low`), plus `measure ko` or `audit ko` when it comes from them. The domain
-  label is what routes the issue to its chef.
+  label is what routes the issue to its lead.
 - "Blocked by" is also set natively:
   `gh api -X POST repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by -f issue_id=<id>`.
 
@@ -42,11 +42,11 @@ English, on `.github/ISSUE_TEMPLATE/task.md`.
 
 | Pattern    | Written by       | Why holds                                 | Proof holds                            |
 | ---------- | ---------------- | ----------------------------------------- | -------------------------------------- |
-| feature    | maintainer, chef | what the user cannot do today             | tests, example, measured scene         |
+| feature    | maintainer, lead | what the user cannot do today             | tests, example, measured scene         |
 | bug        | anyone           | what is observed, how to reproduce        | a test that fails before, passes after |
 | regression | measurer         | before/after numbers, captures, the merge | the measurer's run, back to before     |
 | finding    | auditor          | the rule broken, file:line                | the rule held, gate or test named      |
-| parent     | maintainer, chef | the whole goal, its order                 | every child closed                     |
+| parent     | maintainer, lead | the whole goal, its order                 | every child closed                     |
 
 ## Example — a regression, as the measurer writes it
 
