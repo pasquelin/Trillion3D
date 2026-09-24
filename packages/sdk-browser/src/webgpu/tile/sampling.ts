@@ -1,6 +1,5 @@
 import type { Texture, TextureFilter } from '../../../../sdk-core/src/index.ts';
-import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts';
-import { uvTransformed } from '../../visibility/math.ts';
+import { grantedAnisotropy, uvTransformed } from '../../../../sdk-core/src/texture/contract.ts';
 
 /**
  * How a texture is sampled on WebGPU, carried in its header of the page table
@@ -34,7 +33,10 @@ export const SAMPLE_MAG_NEAREST = 1,
   /** Anisotropy minus one, four bits. */
   SAMPLE_ANISOTROPY_SHIFT = 4,
   /** The transform is not the identity: only then does the shader read it. */
-  SAMPLE_TRANSFORMED = 256;
+  SAMPLE_TRANSFORMED = 256,
+  /** Minification starts at level 0.5, not 0: GL's rule for a linear magnification over a
+   *  `nearest-mip-*` minification (OpenGL ES 3.0 § 3.8.11, `c`). */
+  SAMPLE_MAG_HALF = 512;
 
 /** The most reads anisotropic filtering takes, WebGPU's `maxAnisotropy` ceiling. */
 export const MAX_ANISOTROPY = 16;
@@ -71,16 +73,12 @@ export function samplingWords(texture: Texture, compiled: boolean): Uint32Array 
     (texture.magFilter === 'nearest' ? SAMPLE_MAG_NEAREST : 0) |
     (MIN_BITS[texture.minFilter] & (compiled ? ~SAMPLE_MIP_NONE : ~0)) |
     ((anisotropy - 1) << SAMPLE_ANISOTROPY_SHIFT) |
-    (uvTransformed(m) ? SAMPLE_TRANSFORMED : 0);
+    (uvTransformed(m) ? SAMPLE_TRANSFORMED : 0) |
+    (texture.magFilter !== 'nearest' && texture.minFilter.startsWith('nearest-mip')
+      ? SAMPLE_MAG_HALF
+      : 0);
   for (let i = 0; i < TRANSFORM_WORDS; i++) scratchFloats[1 + i] = m[AFFINE[i]];
   return scratch;
-}
-
-/** True when the six floats at `at` hold a texture's transform as `samplingWords` wrote it. */
-export function transformHeld(floats: Float32Array, at: number, m: readonly number[]) {
-  for (let i = 0; i < TRANSFORM_WORDS; i++)
-    if (floats[at + i] !== Math.fround(m[AFFINE[i]])) return false;
-  return true;
 }
 
 /** Elongation a footprint may have and still be read once, at the isotropic level, like a
@@ -103,8 +101,9 @@ struct TileRead{uv:vec2f,axis:vec2f,lod:f32,taps:u32,nearest:bool,}
  * How a footprint reads a texture with a filter word, its coordinate and derivatives already
  * transformed. The level is the GPU's — the log of the longer gradient —, lowered by the
  * anisotropic ratio when \`aniso\` lets the texture's grant apply, clamped to its levels, then
- * rounded (\`nearest\` mip) or pinned to 0 (no mip). Magnification — a level at or under 0 —
- * takes the magnification filter, anything else the minification one. The taps are the
+ * rounded (\`nearest\` mip) or pinned to 0 (no mip). Magnification — a level at or under GL's
+ * threshold, 0.5 with \`SAMPLE_MAG_HALF\`, 0 otherwise — reads level 0 with the magnification
+ * filter, anything else the minification one. The taps are the
  * footprint's elongation, rounded up, capped by the grant.
  */
 fn tileRead(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
@@ -121,10 +120,11 @@ fn tileRead(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
    axis=select(ddy,ddx,lx>=ly);
   }
  }
+ let mag=raw<=select(0.0,0.5,(s.sampling&${SAMPLE_MAG_HALF}u)!=0u);
  var lod=clamp(raw,0.0,f32(s.last));
- if((s.sampling&${SAMPLE_MIP_NONE}u)!=0u){lod=0.0;}
+ if(mag||(s.sampling&${SAMPLE_MIP_NONE}u)!=0u){lod=0.0;}
  else if((s.sampling&${SAMPLE_MIP_NEAREST}u)!=0u){lod=floor(lod+0.5);}
- let nearest=(s.sampling&select(${SAMPLE_MIN_NEAREST}u,${SAMPLE_MAG_NEAREST}u,raw<=0.0))!=0u;
+ let nearest=(s.sampling&select(${SAMPLE_MIN_NEAREST}u,${SAMPLE_MAG_NEAREST}u,mag))!=0u;
  return TileRead(uv,axis,lod,taps,nearest);
 }
 /** The centre of the texel a coordinate falls in, for a nearest read; the coordinate otherwise. */
