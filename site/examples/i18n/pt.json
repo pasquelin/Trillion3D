@@ -1859,27 +1859,5 @@
       "fieldOfView": "Campo de visão",
       "dollyZoom": "Dolly zoom"
     }
-  },
-  "openworld": {
-    "banner": "Ande com W A S D. Aperte E perto de um carro ou avião para entrar.",
-    "controls": {
-      "keys": "WASD andar · Shift correr · Espaço saltar · C agachar · E entrar ou sair de um carro ou avião",
-      "teleport": "Teletransporte",
-      "timeOfDay": "Hora do dia",
-      "daySpeed": "Velocidade do dia",
-      "pause": "Pausa",
-      "rain": "Chuva",
-      "geometryMB": "Geometria MB",
-      "textureMB": "Texturas MB",
-      "view": "Vista"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "Streaming"
-    }
   }
 }
