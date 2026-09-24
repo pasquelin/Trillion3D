@@ -55,3 +55,17 @@ test('a node shown again leaves a parked row parked', async () => {
     material.dispose();
   }
 });
+
+test('a node hidden before the first frame is not drawn by it', async () => {
+  const { backend, camera, geometry, material, source } = triangleBackend();
+  try {
+    source.visible = false;
+    await backend.prepare();
+    backend.render(camera);
+    assert.equal(backend.metrics().submittedTriangles, 0);
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
