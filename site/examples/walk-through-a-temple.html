@@ -11,9 +11,7 @@
         height: 100%;
         overflow: hidden;
         background: #4b3558;
-        font:
-          600 15px/1.2 system-ui,
-          sans-serif;
+        font: 600 15px/1.2 system-ui, sans-serif;
         color: #fff;
       }
       canvas {
@@ -37,14 +35,10 @@
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
         text-shadow: 0 1px 2px #000;
-        transition:
-          box-shadow 0.35s,
-          transform 0.35s;
+        transition: box-shadow 0.35s, transform 0.35s;
       }
       #hud.flash {
-        box-shadow:
-          0 0 0 2px #7cf0ff,
-          0 0 26px #7cf0ff;
+        box-shadow: 0 0 0 2px #7cf0ff, 0 0 26px #7cf0ff;
         transform: translateX(-50%) scale(1.12);
         transition: none;
       }
@@ -79,23 +73,12 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <div id="hud" class="layer" data-example-overlay data-hud>
-      <span id="orbs"></span><span id="clock"></span><span id="sound" data-words="sound"></span>
-    </div>
+    <div id="hud" class="layer" data-example-overlay data-hud><span id="orbs"></span><span id="clock"></span><span id="sound" data-words="sound"></span></div>
     <div id="dot" class="layer" data-example-overlay data-hud></div>
     <div id="veil" class="layer" data-example-overlay></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import {
-        announce,
-        brownNoise,
-        controls,
-        mix,
-        play,
-        sineHash,
-        whiteNoise,
-        words,
-      } from '../runtime/kit.js';
+      import { announce, brownNoise, controls, mix, play, sineHash, whiteNoise, words } from '../runtime/kit.js';
       const say = words();
 
       // ── The course: data, nothing of the engine inside. The temple is built at life size, in
@@ -108,38 +91,17 @@
       // character's reach and 0.2 m of its height spare, every top it lands on is at least
       // 1.2 m deep, and the next top is in sight from the edge.
       const COURSE = [
-        [-4.5, 4.5, 1.8, 9.6, 0],
-        [-1.5, 1.5, -1.2, 1.8, 0.25],
-        [-1.5, 1.5, -3.2, -1.8, 0.25],
-        [-1.5, 1.5, -5.2, -3.8, 0.5],
-        [-1.5, 1.5, -6.8, -5.2, 0.75],
-        [-1, 2, -9.9, -8.3, 0.75],
-        [0.5, 3.5, -13.4, -11.6, 1],
-        [-3.5, -1.3, -13.4, -11.6, 1],
-        [-3.5, -1.1, -17.8, -15.2, 1.25],
-        [-3.5, -1.1, -24, -21, 1.25],
-        [-3.5, -1.1, -27.2, -25.6, 1.5],
-        [0.2, 2.8, -27.2, -25.6, 1.75],
-        [0.2, 2.8, -31.8, -30.2, 2],
-        [-0.5, 2.5, -34.4, -33, 2.25],
-        [-1.5, 1.5, -37, -35.6, 2.5],
-        [-1.5, 1.5, -38.7, -37, 2.75],
+        [-4.5, 4.5, 1.8, 9.6, 0], [-1.5, 1.5, -1.2, 1.8, 0.25], [-1.5, 1.5, -3.2, -1.8, 0.25], [-1.5, 1.5, -5.2, -3.8, 0.5],
+        [-1.5, 1.5, -6.8, -5.2, 0.75], [-1, 2, -9.9, -8.3, 0.75], [0.5, 3.5, -13.4, -11.6, 1], [-3.5, -1.3, -13.4, -11.6, 1],
+        [-3.5, -1.1, -17.8, -15.2, 1.25], [-3.5, -1.1, -24, -21, 1.25], [-3.5, -1.1, -27.2, -25.6, 1.5], [0.2, 2.8, -27.2, -25.6, 1.75],
+        [0.2, 2.8, -31.8, -30.2, 2], [-0.5, 2.5, -34.4, -33, 2.25], [-1.5, 1.5, -37, -35.6, 2.5], [-1.5, 1.5, -38.7, -37, 2.75],
         [-4.5, 4.5, -42.9, -38.7, 3],
-      ].map(([x0, x1, z0, z1, top]) => ({
-        x0,
-        x1,
-        z0,
-        z1,
-        top,
-        x: (x0 + x1) / 2,
-        z: (z0 + z1) / 2,
-      }));
+      ].map(([x0, x1, z0, z1, top]) => ({ x0, x1, z0, z1, top, x: (x0 + x1) / 2, z: (z0 + z1) / 2 }));
       const FINISH = COURSE.at(-1);
       // The lava is no floor: feet this low have fallen in.
       const LAVA = PIT + 0.6;
       // Whether the point (x, z) is within r of a pillar's footprint.
-      const touches = (p, x, z, r) =>
-        Math.hypot(Math.max(p.x0 - x, 0, x - p.x1), Math.max(p.z0 - z, 0, z - p.z1)) <= r;
+      const touches = (p, x, z, r) => Math.hypot(Math.max(p.x0 - x, 0, x - p.x1), Math.max(p.z0 - z, 0, z - p.z1)) <= r;
 
       // The hands, in the eye's frame (x right, y up, -z ahead, metres). A pose is read as where
       // the knuckles sit on the screen — [screen x, screen y] from -1 to 1 — with their depth,
@@ -156,23 +118,9 @@
       // fist only rises into its lower corner, a little toward the chest, at the top of a fast
       // forward swing; standing, the arms hang out of sight.
       function runPose(side, pose) {
-        const swing =
-          -Math.sin(pose.phase) * side * (Math.min(1, pose.move) * 0.3 + pose.sprint * 0.7);
-        const f = Math.max(0, swing),
-          b = Math.max(0, -swing);
-        return [
-          0.8 - 0.2 * f,
-          -1.3 + 0.45 * f - 0.3 * b,
-          0.36 + 0.06 * f - 0.14 * b,
-          0.8,
-          1.45,
-          -0.25,
-          0.1 + 0.3 * f,
-          -1,
-          0.35,
-          -1,
-          0.5 + 0.5 * b,
-        ];
+        const swing = -Math.sin(pose.phase) * side * (Math.min(1, pose.move) * 0.3 + pose.sprint * 0.7);
+        const f = Math.max(0, swing), b = Math.max(0, -swing);
+        return [0.8 - 0.2 * f, -1.3 + 0.45 * f - 0.3 * b, 0.36 + 0.06 * f - 0.14 * b, 0.8, 1.45, -0.25, 0.1 + 0.3 * f, -1, 0.35, -1, 0.5 + 0.5 * b];
       }
       // A jump swings the arms down and back at take-off, drives them up past the lower corners
       // and out to the sides, elbows bent, spreads them a little at the top for balance, and
@@ -190,12 +138,7 @@
       function leapPose(vy) {
         const launch = world.controls.jumpSpeed;
         const t = vy > 0 ? 1 - Math.min(1, vy / launch) : 1 + Math.min(1, -vy / launch);
-        const k = Math.max(
-            1,
-            LEAP.findIndex(([at]) => at >= t),
-          ),
-          [a0, p0] = LEAP[k - 1],
-          [a1, p1] = LEAP[k];
+        const k = Math.max(1, LEAP.findIndex(([at]) => at >= t)), [a0, p0] = LEAP[k - 1], [a1, p1] = LEAP[k];
         return mix(p0, p1, (t - a0) / (a1 - a0));
       }
       // A landing braces the hands low at the sides.
@@ -203,48 +146,24 @@
       // A critically damped spring, solved exactly over `dt`: it reaches `to` as fast as it can
       // without overshooting, at any frame rate.
       function spring(state, to, omega, dt) {
-        const x = state.x - to,
-          k = (state.v + omega * x) * dt,
-          e = Math.exp(-omega * dt);
+        const x = state.x - to, k = (state.v + omega * x) * dt, e = Math.exp(-omega * dt);
         [state.x, state.v] = [to + (x + k) * e, (state.v - omega * k) * e];
       }
       // `pose`: move (stride, 0 to 1.6), sprint (0 to 1), phase (the stride's), air and brace
       // (0 to 1) and leap, the jump's pose as its spring holds it.
       function handPose(side, pose, fov, aspect) {
         const tan = Math.tan((fov * Math.PI) / 360);
-        const [nx, ny, depth, curl, roll, rx, ry, rz, hx, hy, hz] = mix(
-          mix(runPose(side, pose), pose.leap, pose.air),
-          BRACE,
-          pose.brace,
-        );
-        const reach = unit([side * rx, ry, rz]),
-          hint = [side * hx, hy, hz];
+        const [nx, ny, depth, curl, roll, rx, ry, rz, hx, hy, hz] = mix(mix(runPose(side, pose), pose.leap, pose.air), BRACE, pose.brace);
+        const reach = unit([side * rx, ry, rz]), hint = [side * hx, hy, hz];
         const shoulder = [side * ARM.SHOULDER[0], ARM.SHOULDER[1], ARM.SHOULDER[2]];
-        const toWrist = along(
-          along([side * nx * tan * aspect * depth, ny * tan * depth, -depth], reach, -ARM.HAND),
-          shoulder,
-          -1,
-        );
+        const toWrist = along(along([side * nx * tan * aspect * depth, ny * tan * depth, -depth], reach, -ARM.HAND), shoulder, -1);
         // Two bones of fixed length: the elbow bends toward the hint, a straight arm stops short.
-        const d = Math.min(Math.hypot(...toWrist), ARM.UPPER + ARM.FORE - 1e-3),
-          u = unit(toWrist);
+        const d = Math.min(Math.hypot(...toWrist), ARM.UPPER + ARM.FORE - 1e-3), u = unit(toWrist);
         const a = (ARM.UPPER ** 2 - ARM.FORE ** 2 + d * d) / (2 * d);
         const bend = unit(along(hint, u, -dot(hint, u)));
-        const elbow = along(
-          along(shoulder, u, a),
-          bend,
-          Math.sqrt(Math.max(0, ARM.UPPER ** 2 - a * a)),
-        );
+        const elbow = along(along(shoulder, u, a), bend, Math.sqrt(Math.max(0, ARM.UPPER ** 2 - a * a)));
         const wrist = along(shoulder, u, d);
-        return {
-          shoulder,
-          elbow,
-          wrist,
-          knuckles: along(wrist, reach, ARM.HAND),
-          reach,
-          curl,
-          roll: side * roll,
-        };
+        return { shoulder, elbow, wrist, knuckles: along(wrist, reach, ARM.HAND), reach, curl, roll: side * roll };
       }
       // ── The temple.
 
@@ -264,13 +183,9 @@
       Object.assign(world.controls, { minPitch: -1.05, maxPitch: 1.2 });
       const PACE = { walkSpeed: world.controls.walkSpeed, sprintSpeed: world.controls.sprintSpeed };
 
-      const matte = (color, roughness = 0.9, metalness = 0) =>
-        material.meshStandard({ color, roughness, metalness });
-      const glowing = (emissive, emissiveIntensity) =>
-        material.meshStandard({ color: '#000000', emissive, emissiveIntensity });
-      const stone = matte('#5a4d43'),
-        darkStone = matte('#3a302b', 0.95),
-        marble = matte('#efe8da', 0.3);
+      const matte = (color, roughness = 0.9, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      const glowing = (emissive, emissiveIntensity) => material.meshStandard({ color: '#000000', emissive, emissiveIntensity });
+      const stone = matte('#5a4d43'), darkStone = matte('#3a302b', 0.95), marble = matte('#efe8da', 0.3);
       const bronze = matte('#8a6334', 0.4, 0.8);
       function put(shape, matter, at, parent = world.scene) {
         const mesh = object.mesh(shape, matter);
@@ -295,58 +210,24 @@
       // Five warm lamps just above it light the pillars and the walls from below; they never
       // move and cast no shadow.
       box([27.4, 0.6, 60], [0, PIT - 0.3, -16], glowing('#ff3f10', 2.4));
-      const crust = material.meshStandard({
-        color: '#4a2418',
-        roughness: 0.95,
-        emissive: '#5c1606',
-        emissiveIntensity: 0.7,
-      });
-      const seam = geometry.capsule(0.05, 1, 2, 8),
-        crack = glowing('#ffc45c', 4);
+      const crust = material.meshStandard({ color: '#4a2418', roughness: 0.95, emissive: '#5c1606', emissiveIntensity: 0.7 });
+      const seam = geometry.capsule(0.05, 1, 2, 8), crack = glowing('#ffc45c', 4);
       for (let index = 0; index < 48; index++) {
-        const [u, v, w] = [1, 2, 3].map((k) => sineHash(index, k)),
-          x = u * 25 - 12.5,
-          near = Math.abs(x) < 5;
+        const [u, v, w] = [1, 2, 3].map((k) => sineHash(index, k)), x = u * 25 - 12.5, near = Math.abs(x) < 5;
         if (near && index % 2) continue;
         const size = (near ? 0.45 : 1) * (0.8 + w * 2);
-        part(ball, crust, [x, PIT, v * 57 - 43.5], world.scene, [
-          size,
-          0.16 + 0.1 * w,
-          size * (0.6 + u * 0.8),
-        ]).rotation.y = w * 3;
+        part(ball, crust, [x, PIT, v * 57 - 43.5], world.scene, [size, 0.16 + 0.1 * w, size * (0.6 + u * 0.8)]).rotation.y = w * 3;
       }
       for (let index = 0; index < 18; index++) {
         const [u, v, w] = [8, 9, 10].map((k) => sineHash(index, k));
-        part(seam, crack, [u * 25 - 12.5, PIT + 0.01, v * 57 - 43.5], world.scene, [
-          0.6 + w * 0.6,
-          0.8 + w * 1.6,
-          1.4,
-        ]).rotation.set(0, w * 6, Math.PI / 2);
+        part(seam, crack, [u * 25 - 12.5, PIT + 0.01, v * 57 - 43.5], world.scene, [0.6 + w * 0.6, 0.8 + w * 1.6, 1.4]).rotation.set(0, w * 6, Math.PI / 2);
       }
-      for (const [x, z] of [
-        [-3, 6],
-        [3, -6],
-        [-3, -18],
-        [3, -30],
-        [-3, -40],
-      ])
-        world.scene.add(
-          light.point({
-            position: [x, PIT + 1.8, z],
-            color: '#ff6a2a',
-            intensity: 45,
-            distance: 27,
-          }),
-        );
+      for (const [x, z] of [[-3, 6], [3, -6], [-3, -18], [3, -30], [-3, -40]])
+        world.scene.add(light.point({ position: [x, PIT + 1.8, z], color: '#ff6a2a', intensity: 45, distance: 27 }));
       // Embers climbing out of the lava: small glowing beads, moved every frame.
-      const ember = glowing('#ff8a2a', 5),
-        bead = geometry.sphere(0.05, 8, 6);
+      const ember = glowing('#ff8a2a', 5), bead = geometry.sphere(0.05, 8, 6);
       const embers = Array.from({ length: 40 }, (_, index) => ({
-        mesh: put(bead, ember, [0, PIT, 0]),
-        x: sineHash(index, 4) * 24 - 12,
-        z: sineHash(index, 5) * 56 - 43,
-        rise: 0.6 + sineHash(index, 6),
-        at: sineHash(index, 7) * 14,
+        mesh: put(bead, ember, [0, PIT, 0]), x: sineHash(index, 4) * 24 - 12, z: sineHash(index, 5) * 56 - 43, rise: 0.6 + sineHash(index, 6), at: sineHash(index, 7) * 14,
       }));
       // The walls: dark ashlar on a base course, and a colonnade before each — marble shafts on
       // plinths under capitals, an architrave, a pilaster behind each shaft and an arch of three
@@ -374,22 +255,11 @@
       for (const x of [-4.6, 4.6]) box([1, 14, 1], [x, PIT + 7, -44.6], marble);
       box([10.6, 1.2, 1.2], [0, 10.4, -44.6], marble);
       // Broken columns standing in the lava, and one fallen across it.
-      for (const [x, z, height] of [
-        [-7.5, 3, 7],
-        [7, -4, 9.5],
-        [-8, -15, 5.5],
-        [8, -24, 8],
-        [-7, -33, 10],
-        [7.5, -38, 6],
-      ]) {
+      for (const [x, z, height] of [[-7.5, 3, 7], [7, -4, 9.5], [-8, -15, 5.5], [8, -24, 8], [-7, -33, 10], [7.5, -38, 6]]) {
         put(geometry.cylinder(0.6, 0.7, height, 28), marble, [x, PIT + height / 2, z], solid);
         box([1.6, 0.6, 1.6], [x, PIT + 0.3, z], darkStone);
       }
-      put(geometry.cylinder(0.6, 0.6, 9, 28), marble, [6, PIT + 0.3, -12]).rotation.set(
-        Math.PI / 2,
-        0.7,
-        0,
-      );
+      put(geometry.cylinder(0.6, 0.6, 9, 28), marble, [6, PIT + 0.3, -12]).rotation.set(Math.PI / 2, 0.7, 0);
 
       // The pillars of the course: dark stone out of the lava, a bronze band, a marble top.
       for (const p of COURSE) {
@@ -400,41 +270,19 @@
       }
       // Checkpoints: a bronze standard with a gem, dark until reached. Two gems, one shown:
       // lighting a checkpoint changes which mesh is visible, never a material; its lamp rises.
-      const gemOff = matte('#1b2a30', 0.3, 0.6),
-        gemOn = glowing('#7cf0ff', 5),
-        gem = geometry.sphere(0.16, 20, 14);
+      const gemOff = matte('#1b2a30', 0.3, 0.6), gemOn = glowing('#7cf0ff', 5), gem = geometry.sphere(0.16, 20, 14);
       const checkpoints = [0, 4, 8, 12].map((index) => {
-        const p = COURSE[index],
-          [x, z] = [p.x1 - 0.3, p.z1 - 0.3];
+        const p = COURSE[index], [x, z] = [p.x1 - 0.3, p.z1 - 0.3];
         put(geometry.cylinder(0.05, 0.07, 1.6, 12), bronze, [x, p.top + 0.8, z]);
-        const lamp = light.point({
-          position: [x, p.top + 2, z],
-          color: '#7cf0ff',
-          intensity: 0,
-          distance: 8,
-        });
+        const lamp = light.point({ position: [x, p.top + 2, z], color: '#7cf0ff', intensity: 0, distance: 8 });
         world.scene.add(lamp);
-        return {
-          platform: p,
-          off: put(gem, gemOff, [x, p.top + 1.75, z]),
-          on: put(gem, gemOn, [x, p.top + 1.75, z]),
-          lamp,
-        };
+        return { platform: p, off: put(gem, gemOff, [x, p.top + 1.75, z]), on: put(gem, gemOn, [x, p.top + 1.75, z]), lamp };
       });
-      const lit = (entry, on) =>
-        ([entry.on.visible, entry.off.visible, entry.lamp.intensity] = [on, !on, on ? 12 : 0]);
+      const lit = (entry, on) => ([entry.on.visible, entry.off.visible, entry.lamp.intensity] = [on, !on, on ? 12 : 0]);
       // The orbs: glowing beads in a turning bronze ring, two hanging over gaps — one over the
       // first sprint's — and three over tops.
-      const glow = glowing('#7cf0ff', 6),
-        pearl = geometry.sphere(0.2, 24, 16),
-        hoop = geometry.torus(0.3, 0.03, 12, 40);
-      const orbs = [
-        [0, 1.45, -3.5],
-        [2, 2.1, -12.5],
-        [-2.3, 2.4, -19.4],
-        [-2.3, 2.6, -26.4],
-        [1, 3.35, -33.7],
-      ].map((at) => {
+      const glow = glowing('#7cf0ff', 6), pearl = geometry.sphere(0.2, 24, 16), hoop = geometry.torus(0.3, 0.03, 12, 40);
+      const orbs = [[0, 1.45, -3.5], [2, 2.1, -12.5], [-2.3, 2.4, -19.4], [-2.3, 2.6, -26.4], [1, 3.35, -33.7]].map((at) => {
         const orb = joint(world.scene, at);
         put(pearl, glow, [0, 0, 0], orb);
         return { orb, ring: put(hoop, bronze, [0, 0, 0], orb) };
@@ -442,60 +290,26 @@
       // The golden idol on its pedestal: gold that glows, and a lamp of its own that stays put.
       box([1.4, 1.2, 1.4], [0, FINISH.top + 0.6, -41.4], marble, solid);
       const IDOL = math.vector3(0, FINISH.top + 2.05, -41.4);
-      const gold = material.meshStandard({
-        color: '#d4a24c',
-        metalness: 0.9,
-        roughness: 0.25,
-        emissive: '#ff9d2a',
-        emissiveIntensity: 0.6,
-      });
+      const gold = material.meshStandard({ color: '#d4a24c', metalness: 0.9, roughness: 0.25, emissive: '#ff9d2a', emissiveIntensity: 0.6 });
       const idol = put(geometry.torusKnot(0.5, 0.15, 220, 28), gold, [IDOL.x, IDOL.y, IDOL.z]);
-      world.scene.add(
-        light.point({
-          position: [0, IDOL.y, -40.2],
-          color: '#ffc45a',
-          intensity: 30,
-          distance: 14,
-        }),
-      );
+      world.scene.add(light.point({ position: [0, IDOL.y, -40.2], color: '#ffc45a', intensity: 30, distance: 14 }));
       // Everything solid now stands, and never moves: static bodies of the physics.
       for (const mesh of solid.children) mesh.physics = 'static';
       // Braziers at the start and the finish: a bowl of coals on a stand, a flame over it, a lamp
       // without shadows that flickers — the lamp by its intensity, the flame by its size.
-      const flame = glowing('#ff9a3c', 6),
-        coals = glowing('#ff5a1f', 4);
-      const fires = [
-        [-3.9, 8.4, 0],
-        [3.9, 8.4, 0],
-        [-3.9, -39.9, 3],
-        [3.9, -39.9, 3],
-      ].map(([x, z, y]) => {
+      const flame = glowing('#ff9a3c', 6), coals = glowing('#ff5a1f', 4);
+      const fires = [[-3.9, 8.4, 0], [3.9, 8.4, 0], [-3.9, -39.9, 3], [3.9, -39.9, 3]].map(([x, z, y]) => {
         put(geometry.cylinder(0.09, 0.18, 0.78, 12), bronze, [x, y + 0.39, z]);
         put(geometry.cylinder(0.39, 0.21, 0.24, 24), bronze, [x, y + 0.9, z]);
         put(geometry.cylinder(0.33, 0.33, 0.06, 24), coals, [x, y + 1.02, z]);
-        const lamp = light.point({
-          position: [x, y + 1.5, z],
-          color: '#ff9a3c',
-          intensity: 27,
-          distance: 12,
-          radius: 0.24,
-        });
+        const lamp = light.point({ position: [x, y + 1.5, z], color: '#ff9a3c', intensity: 27, distance: 12, radius: 0.24 });
         world.scene.add(lamp);
         return { fire: put(geometry.sphere(0.21, 16, 12), flame, [x, y + 1.26, z]), lamp };
       });
       // Dusk: a low sun behind the start, still, whose long shadows run down the hall — the
       // runner's own among them — and a sky and lava fill from the hemisphere.
-      world.scene.add(
-        light.directional({
-          intensity: 2.6,
-          color: '#ffab66',
-          position: [6, 9, 30],
-          castShadow: true,
-        }),
-      );
-      world.scene.add(
-        light.hemisphere({ color: '#6a5a8c', groundColor: '#ff7a40', intensity: 0.7 }),
-      );
+      world.scene.add(light.directional({ intensity: 2.6, color: '#ffab66', position: [6, 9, 30], castShadow: true }));
+      world.scene.add(light.hemisphere({ color: '#6a5a8c', groundColor: '#ff7a40', intensity: 0.7 }));
 
       // ── The body. A head and two arms ride on the camera; the head is a one-sided shell the eye
       // sits inside, so the eye sees none of it while the sun still draws its shadow. The arms
@@ -504,11 +318,8 @@
       // a little ahead of the eye: seen when looking down, casting the runner's shadow ahead of
       // him. Every part is rounded — stretched spheres, capsules, tapered cylinders on shared
       // shapes — and all of it exists before the first frame.
-      const skin = matte('#c98e6b', 0.6),
-        sleeve = matte('#2f5d73', 0.85),
-        leather = matte('#5a3a22', 0.7);
-      const cloth = matte('#4b3b2a'),
-        boot = matte('#2a1e16', 0.8);
+      const skin = matte('#c98e6b', 0.6), sleeve = matte('#2f5d73', 0.85), leather = matte('#5a3a22', 0.7);
+      const cloth = matte('#4b3b2a'), boot = matte('#2a1e16', 0.8);
       function joint(parent, at = [0, 0, 0]) {
         const node = object.group();
         node.position.set(...at);
@@ -519,17 +330,10 @@
       const rig = joint(camera);
       // A hand along its +y, its back to +z, the thumb on the inner side: a palm, four fingers of
       // two joints that curl toward the palm, a thumb of two.
-      const bone = geometry.capsule(0.0095, 0.03, 3, 10),
-        wristBall = geometry.sphere(0.036, 16, 12);
-      const FINGERS = [
-        [0.03, 1],
-        [0.01, 1.08],
-        [-0.01, 1.02],
-        [-0.029, 0.84],
-      ];
+      const bone = geometry.capsule(0.0095, 0.03, 3, 10), wristBall = geometry.sphere(0.036, 16, 12);
+      const FINGERS = [[0.03, 1], [0.01, 1.08], [-0.01, 1.02], [-0.029, 0.84]];
       function digit(parent, at, length) {
-        const base = joint(parent, at),
-          tip = joint(base, [0, 0.042 * length, 0]);
+        const base = joint(parent, at), tip = joint(base, [0, 0.042 * length, 0]);
         part(bone, skin, [0, 0.021 * length, 0], base, [1, length, 1]);
         part(bone, skin, [0, 0.018 * length, 0], tip, [0.92, 0.85 * length, 0.92]);
         return [base, tip];
@@ -543,14 +347,11 @@
         thumb[0].rotation.z = side * 0.75;
         return { root, fingers, thumb };
       }
-      const upperArm = geometry.capsule(0.052, ARM.UPPER, 4, 14),
-        forearm = geometry.cylinder(0.036, 0.047, ARM.FORE, 16);
-      const cuff = geometry.cylinder(0.058, 0.061, 0.12, 16),
-        hem = geometry.torus(0.057, 0.011, 8, 24);
+      const upperArm = geometry.capsule(0.052, ARM.UPPER, 4, 14), forearm = geometry.cylinder(0.036, 0.047, ARM.FORE, 16);
+      const cuff = geometry.cylinder(0.058, 0.061, 0.12, 16), hem = geometry.torus(0.057, 0.011, 8, 24);
       const bracer = geometry.cylinder(0.043, 0.047, 0.08, 16);
       const arms = [-1, 1].map((side) => {
-        const top = joint(rig),
-          low = joint(rig);
+        const top = joint(rig), low = joint(rig);
         put(upperArm, sleeve, [0, ARM.UPPER / 2, 0], top);
         part(ball, sleeve, [0, 0, 0], low, [0.11, 0.11, 0.11]);
         put(forearm, skin, [0, ARM.FORE / 2, 0], low);
@@ -559,9 +360,7 @@
         put(bracer, leather, [0, ARM.FORE - 0.07, 0], low);
         return { side, top, low, ...hand(side) };
       });
-      const UP = math.vector3(0, 1, 0),
-        toward = math.vector3(),
-        twist = math.quaternion();
+      const UP = math.vector3(0, 1, 0), toward = math.vector3(), twist = math.quaternion();
       // Stands a node at `from` with its +y toward `to`.
       function aim(node, from, to) {
         node.position.set(...from);
@@ -573,12 +372,10 @@
       world.scene.add(body);
       part(ball, sleeve, [0, 1.3, 0.01], body, [0.4, 0.38, 0.25]);
       part(ball, sleeve, [0, 1.07, 0], body, [0.33, 0.32, 0.22]);
-      for (const side of [-1, 1])
-        part(ball, sleeve, [side * 0.18, 1.41, 0.01], body, [0.15, 0.13, 0.15]);
+      for (const side of [-1, 1]) part(ball, sleeve, [side * 0.18, 1.41, 0.01], body, [0.15, 0.13, 0.15]);
       part(geometry.cylinder(0.5, 0.5, 1, 28), leather, [0, 0.95, 0], body, [0.34, 0.06, 0.235]);
       part(ball, cloth, [0, 0.87, 0.01], body, [0.34, 0.2, 0.23]);
-      const thigh = geometry.capsule(0.07, 0.3, 4, 14),
-        shin = geometry.cylinder(0.055, 0.047, 0.3, 14);
+      const thigh = geometry.capsule(0.07, 0.3, 4, 14), shin = geometry.cylinder(0.055, 0.047, 0.3, 14);
       const shaft = geometry.cylinder(0.062, 0.058, 0.2, 14);
       const legs = [-1, 1].map((side) => {
         const hip = joint(body, [side * 0.095, 0.86, 0.01]);
@@ -593,11 +390,7 @@
 
       // ── Sound, made on the spot with Web Audio once a click allows it: footsteps, the jump and
       // the landing, the orb's chime, the checkpoint's bell, the lava's rumble. M mutes it.
-      let audio = null,
-        master,
-        rumble,
-        noise,
-        muted = false;
+      let audio = null, master, rumble, noise, muted = false;
       function startAudio() {
         if (audio) return;
         audio = new AudioContext();
@@ -606,14 +399,8 @@
         master.connect(audio.destination);
         noise = whiteNoise(audio, 2);
         const deep = brownNoise(audio, 2);
-        const source = audio.createBufferSource(),
-          filter = audio.createBiquadFilter();
-        [source.buffer, source.loop, filter.type, filter.frequency.value] = [
-          deep,
-          true,
-          'lowpass',
-          160,
-        ];
+        const source = audio.createBufferSource(), filter = audio.createBiquadFilter();
+        [source.buffer, source.loop, filter.type, filter.frequency.value] = [deep, true, 'lowpass', 160];
         rumble = audio.createGain();
         rumble.gain.value = 0;
         source.connect(filter).connect(rumble).connect(master);
@@ -621,8 +408,7 @@
       }
       // A sound's volume: up in 5 ms, down to silence over `decay` seconds.
       function envelope(gain, decay, delay) {
-        const node = audio.createGain(),
-          at = audio.currentTime + delay;
+        const node = audio.createGain(), at = audio.currentTime + delay;
         node.gain.setValueAtTime(0.0001, at);
         node.gain.exponentialRampToValueAtTime(gain, at + 0.005);
         node.gain.exponentialRampToValueAtTime(0.0001, at + decay);
@@ -631,8 +417,7 @@
       }
       function tone(freq, gain, decay, { to = freq, type = 'sine', delay = 0 } = {}) {
         if (!audio) return;
-        const [node, at] = envelope(gain, decay, delay),
-          osc = audio.createOscillator();
+        const [node, at] = envelope(gain, decay, delay), osc = audio.createOscillator();
         osc.type = type;
         osc.frequency.setValueAtTime(freq, at);
         osc.frequency.exponentialRampToValueAtTime(to, at + decay);
@@ -642,9 +427,7 @@
       }
       function hiss(freq, gain, decay, { type = 'lowpass', to = freq } = {}) {
         if (!audio) return;
-        const [node, at] = envelope(gain, decay, 0),
-          source = audio.createBufferSource(),
-          filter = audio.createBiquadFilter();
+        const [node, at] = envelope(gain, decay, 0), source = audio.createBufferSource(), filter = audio.createBiquadFilter();
         [source.buffer, filter.type] = [noise, type];
         filter.frequency.setValueAtTime(freq, at);
         filter.frequency.exponentialRampToValueAtTime(to, at + decay);
@@ -653,18 +436,9 @@
       }
       const PENTATONIC = [0, 3, 5, 7, 10, 12];
       const sound = {
-        step: (speed) => (
-          hiss(500 + Math.random() * 400, 0.12 + speed * 0.025, 0.08),
-          tone(95, 0.1, 0.07, { to: 55 })
-        ),
-        jump: () => (
-          tone(170, 0.08, 0.14, { to: 320, type: 'triangle' }),
-          hiss(1400, 0.06, 0.16, { type: 'bandpass', to: 500 })
-        ),
-        land: (impact) => (
-          tone(110, Math.min(0.5, impact * 0.05), 0.2, { to: 42 }),
-          hiss(600, Math.min(0.35, impact * 0.03), 0.14)
-        ),
+        step: (speed) => (hiss(500 + Math.random() * 400, 0.12 + speed * 0.025, 0.08), tone(95, 0.1, 0.07, { to: 55 })),
+        jump: () => (tone(170, 0.08, 0.14, { to: 320, type: 'triangle' }), hiss(1400, 0.06, 0.16, { type: 'bandpass', to: 500 })),
+        land: (impact) => (tone(110, Math.min(0.5, impact * 0.05), 0.2, { to: 42 }), hiss(600, Math.min(0.35, impact * 0.03), 0.14)),
         orb(count) {
           const f = 660 * 2 ** (PENTATONIC[count] / 12);
           tone(f, 0.18, 0.7);
@@ -673,23 +447,14 @@
         },
         bell: () => [220, 330, 440, 554].forEach((f, i) => tone(f, 0.1 / (i + 1), 1.8)),
         burn: () => (hiss(3000, 0.4, 0.7, { to: 200 }), tone(70, 0.3, 0.6, { to: 35 })),
-        win: () =>
-          [523, 659, 784, 1047, 1319].forEach((f, i) =>
-            tone(f, 0.12, 1.4, { delay: i * 0.11, type: 'triangle' }),
-          ),
+        win: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.12, 1.4, { delay: i * 0.11, type: 'triangle' })),
         crackle: () => hiss(3500, 0.02 + Math.random() * 0.03, 0.03, { type: 'highpass' }),
       };
 
       // ── The heads-up display and the keys. Walking, sprinting and jumping are the controller's;
       // the page adds R and M.
       const $ = (id) => document.getElementById(id);
-      const [hud, orbsShown, clockShown, soundShown, veil] = [
-        'hud',
-        'orbs',
-        'clock',
-        'sound',
-        'veil',
-      ].map($);
+      const [hud, orbsShown, clockShown, soundShown, veil] = ['hud', 'orbs', 'clock', 'sound', 'veil'].map($);
       const KEYS = [
         { action: 'run', keys: ['W', 'A', 'S', 'D'], azerty: ['Z', 'Q', 'S', 'D'] },
         { action: 'look', keys: ['Mouse'] },
@@ -708,9 +473,7 @@
       // Any press starts it, the menu's Play among them: the game is played without a click.
       addEventListener('pointerdown', startAudio);
       // The sound's level: silent when muted or paused.
-      const volume = () =>
-        master &&
-        master.gain.setTargetAtTime(muted || !game.running ? 0 : 0.8, audio.currentTime, 0.02);
+      const volume = () => master && master.gain.setTargetAtTime(muted || !game.running ? 0 : 0.8, audio.currentTime, 0.02);
       function toggleSound() {
         muted = !muted;
         soundShown.textContent = say(muted ? 'muted' : 'sound');
@@ -737,23 +500,14 @@
       const me = { x: 0, z: 0, feet: 0, grounded: true };
       function locate() {
         const { x, y, z } = camera.position;
-        [me.x, me.z, me.feet, me.grounded] = [
-          x,
-          z,
-          y - world.controls.eyeHeight,
-          world.controls.onGround,
-        ];
+        [me.x, me.z, me.feet, me.grounded] = [x, z, y - world.controls.eyeHeight, world.controls.onGround];
       }
       // On a top, perched on its edge or standing on its band.
-      const standsOn = (p) =>
-        me.grounded &&
-        Math.abs(me.feet - p.top) < 0.2 &&
-        touches(p, me.x, me.z, world.controls.capsuleRadius);
+      const standsOn = (p) => me.grounded && Math.abs(me.feet - p.top) < 0.2 && touches(p, me.x, me.z, world.controls.capsuleRadius);
       let state, checkpoint, started, finished, taken, burnt;
       // Moving the camera teleports the body there, at rest.
       function spawn(p) {
-        const z = p === COURSE[0] ? 6 : p.z,
-          eye = p.top + world.controls.eyeHeight;
+        const z = p === COURSE[0] ? 6 : p.z, eye = p.top + world.controls.eyeHeight;
         camera.position.set(p.x, eye, z);
         camera.lookAt(IDOL.x, eye - 0.35, IDOL.z);
         locate();
@@ -773,25 +527,18 @@
         announce('');
       }
       reset();
-      controls(
-        {
-          keys: "The engine's character control: the menu's Play locks the mouse to look, W A S D to run (Z Q S D on AZERTY), Shift to sprint, Space to jump, Escape frees the mouse. The page adds R to run again, M to mute.",
-          look: [0.5, 3, 1],
-          runAgain: restart,
-        },
-        (values) => (world.controls.lookSpeed = 0.002 * values.look),
-        world,
-      );
+      controls({
+        keys: 'The engine\'s character control: the menu\'s Play locks the mouse to look, W A S D to run (Z Q S D on AZERTY), Shift to sprint, Space to jump, Escape frees the mouse. The page adds R to run again, M to mute.',
+        look: [0.5, 3, 1],
+        runAgain: restart,
+      }, (values) => (world.controls.lookSpeed = 0.002 * values.look), world);
 
       // What the frame reads back, eased so the body moves without jerks.
       const eased = { move: 0, fov: 75, tilt: 0, dip: 0, dipSpeed: 0, sprint: 0 };
-      const ease = (key, to, rate, dt) =>
-        (eased[key] += (to - eased[key]) * Math.min(1, dt * rate));
+      const ease = (key, to, rate, dt) => (eased[key] += (to - eased[key]) * Math.min(1, dt * rate));
       // The jump's weight and pose ride on springs, so no state change pops the arms.
       const motion = { air: { x: 0, v: 0 }, leap: leapPose(-Infinity).map((x) => ({ x, v: 0 })) };
-      let phase = 0,
-        footfall = 0,
-        time = 0;
+      let phase = 0, footfall = 0, time = 0;
       // The controller tells the take-off and the landing: a sound, and a brace of the arms as
       // deep as the fall was fast. The head's bob and the landing's dip are the controller's
       // own: the camera, the arms on it and the body under it all ride them.
@@ -803,11 +550,7 @@
       // Where the eye looks, and that direction on the level.
       function gaze() {
         const q = camera.quaternion;
-        const look = [
-          -2 * (q.x * q.z + q.w * q.y),
-          -2 * (q.y * q.z - q.w * q.x),
-          -(1 - 2 * (q.x * q.x + q.y * q.y)),
-        ];
+        const look = [-2 * (q.x * q.z + q.w * q.y), -2 * (q.y * q.z - q.w * q.x), -(1 - 2 * (q.x * q.x + q.y * q.y))];
         const flat = Math.hypot(look[0], look[2]) || 1;
         return { look, fx: look[0] / flat, fz: look[2] / flat };
       }
@@ -817,26 +560,15 @@
       // tuck in a jump. Paused, the state stands still and so does the body.
       function dress() {
         const { fx, fz } = gaze();
-        const leap = motion.leap.map(({ x }) => x),
-          air = motion.air.x;
-        const pose = {
-          move: eased.move,
-          sprint: eased.sprint,
-          phase,
-          air,
-          leap,
-          brace: Math.max(0, Math.min(1, -eased.dip * 25)),
-        };
+        const leap = motion.leap.map(({ x }) => x), air = motion.air.x;
+        const pose = { move: eased.move, sprint: eased.sprint, phase, air, leap, brace: Math.max(0, Math.min(1, -eased.dip * 25)) };
         for (const { side, top, low, root, fingers, thumb } of arms) {
           const h = handPose(side, pose, camera.fov, camera.aspect);
           aim(top, h.shoulder, h.elbow);
           aim(low, h.elbow, h.wrist);
           root.position.set(...h.wrist);
-          root.quaternion
-            .setFromUnitVectors(UP, toward.set(...h.reach))
-            .premultiply(twist.setFromAxisAngle(toward, h.roll));
-          for (const [base, tip] of fingers)
-            [base.rotation.x, tip.rotation.x] = [-1.1 * h.curl, -1.4 * h.curl];
+          root.quaternion.setFromUnitVectors(UP, toward.set(...h.reach)).premultiply(twist.setFromAxisAngle(toward, h.roll));
+          for (const [base, tip] of fingers) [base.rotation.x, tip.rotation.x] = [-1.1 * h.curl, -1.4 * h.curl];
           [thumb[0].rotation.x, thumb[1].rotation.x] = [-0.5 * h.curl, -0.7 * h.curl];
         }
         rig.position.y = Math.sin(time * 1.7) * 0.006;
@@ -846,8 +578,7 @@
         for (const { side, hip, knee } of legs) {
           const turn = phase + (side > 0 ? 0 : Math.PI);
           hip.rotation.x = Math.sin(turn) * 0.55 * eased.move + air * (side > 0 ? 0.7 : 0.15);
-          knee.rotation.x =
-            -Math.max(0, Math.cos(turn)) * 0.9 * eased.move - air * (side > 0 ? 1.1 : 0.45);
+          knee.rotation.x = -Math.max(0, Math.cos(turn)) * 0.9 * eased.move - air * (side > 0 ? 1.1 : 0.45);
         }
       }
       dress();
@@ -864,18 +595,14 @@
         if (state === 'dead') camera.position.y -= dt * 0.8;
         else world.controls.update(dt);
         locate();
-        const { look, fx, fz } = gaze(),
-          v = world.controls.velocity;
+        const { look, fx, fz } = gaze(), v = world.controls.velocity;
 
         // The run: the controller's stride, a footstep at each foot strike, the arms' brace on a
         // landing (a spring), the field of view widening at a sprint, a lean into a strafe.
-        const [vx, vz] = state === 'dead' ? [0, 0] : [v.x, v.z],
-          going = Math.hypot(vx, vz);
+        const [vx, vz] = state === 'dead' ? [0, 0] : [v.x, v.z], going = Math.hypot(vx, vz);
         ease('move', me.grounded ? Math.min(going / PACE.walkSpeed, 1.6) : eased.move, 10, dt);
         spring(motion.air, me.grounded ? 0 : 1, 14, dt);
-        leapPose(me.grounded ? -Infinity : v.y).forEach((to, i) =>
-          spring(motion.leap[i], to, 25, dt),
-        );
+        leapPose(me.grounded ? -Infinity : v.y).forEach((to, i) => spring(motion.leap[i], to, 25, dt));
         phase = world.controls.stride;
         if (Math.floor(phase / Math.PI) !== footfall) {
           footfall = Math.floor(phase / Math.PI);
@@ -883,12 +610,8 @@
         }
         eased.dipSpeed += (-160 * eased.dip - 20 * eased.dipSpeed) * dt;
         eased.dip = Math.max(-0.35, eased.dip + eased.dipSpeed * dt);
-        eased.sprint = Math.max(
-          0,
-          Math.min(1, (going - PACE.walkSpeed) / (PACE.sprintSpeed - PACE.walkSpeed)),
-        );
-        if (Math.abs(ease('fov', 75 + 10 * eased.sprint, 6, dt) - camera.fov) > 0.01)
-          camera.fov = eased.fov;
+        eased.sprint = Math.max(0, Math.min(1, (going - PACE.walkSpeed) / (PACE.sprintSpeed - PACE.walkSpeed)));
+        if (Math.abs(ease('fov', 75 + 10 * eased.sprint, 6, dt) - camera.fov) > 0.01) camera.fov = eased.fov;
         ease('tilt', Math.max(-0.1, Math.min(0.1, (vx * fz - vz * fx) * 0.015)), 8, dt);
         dress();
 
@@ -897,22 +620,14 @@
           if (started === null && (me.z < COURSE[0].z0 || !me.grounded)) started = time;
           for (const { orb } of orbs) {
             const near = Math.hypot(orb.position.x - me.x, orb.position.z - me.z) < 0.55;
-            if (
-              !orb.visible ||
-              !near ||
-              orb.position.y < me.feet - 0.2 ||
-              orb.position.y > me.feet + 1.9
-            )
-              continue;
+            if (!orb.visible || !near || orb.position.y < me.feet - 0.2 || orb.position.y > me.feet + 1.9) continue;
             orb.visible = false;
             taken += 1;
             sound.orb(taken);
             flash();
           }
           const rank = checkpoints.indexOf(checkpoint);
-          const reached = checkpoints.find(
-            (entry, index) => index > rank && standsOn(entry.platform),
-          );
+          const reached = checkpoints.find((entry, index) => index > rank && standsOn(entry.platform));
           if (reached) {
             checkpoint = reached;
             lit(reached, true);
@@ -937,10 +652,8 @@
           state = 'run';
         } else if (state === 'done') {
           // The eye turns slowly to the idol; the mouse can still look around.
-          const p = camera.position,
-            to = [IDOL.x - p.x, IDOL.y - p.y, IDOL.z - p.z];
-          const far = Math.hypot(...to),
-            k = Math.min(1, dt * 1.2);
+          const p = camera.position, to = [IDOL.x - p.x, IDOL.y - p.y, IDOL.z - p.z];
+          const far = Math.hypot(...to), k = Math.min(1, dt * 1.2);
           const [ax, ay, az] = look.map((value, axis) => value + (to[axis] / far - value) * k);
           camera.lookAt(p.x + ax, p.y + ay, p.z + az);
         }
@@ -956,23 +669,14 @@
           ring.rotation.set(time * 1.3 + index, time * 0.9, 0);
         });
         for (const e of embers)
-          e.mesh.position.set(
-            e.x + Math.sin(time * 0.7 + e.z) * 0.6,
-            PIT + ((e.at + time * e.rise) % 14),
-            e.z + Math.cos(time * 0.5 + e.x) * 0.4,
-          );
+          e.mesh.position.set(e.x + Math.sin(time * 0.7 + e.z) * 0.6, PIT + ((e.at + time * e.rise) % 14), e.z + Math.cos(time * 0.5 + e.x) * 0.4);
         fires.forEach(({ fire, lamp }, index) => {
-          const flicker =
-            0.85 + 0.1 * Math.sin(time * 13 + index * 7) + 0.05 * Math.sin(time * 31 + index);
+          const flicker = 0.85 + 0.1 * Math.sin(time * 13 + index * 7) + 0.05 * Math.sin(time * 31 + index);
           lamp.intensity = 27 * flicker;
           fire.scale.set(1, 0.9 + 0.35 * flicker, 1);
         });
         if (audio) {
-          rumble.gain.setTargetAtTime(
-            0.25 + 0.6 * Math.max(0, 1 - (me.feet - PIT) / 6),
-            audio.currentTime,
-            0.2,
-          );
+          rumble.gain.setTargetAtTime(0.25 + 0.6 * Math.max(0, 1 - (me.feet - PIT) / 6), audio.currentTime, 0.2);
           if (Math.random() < dt * 4) sound.crackle();
         }
         world.invalidate();
