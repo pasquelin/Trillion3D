@@ -29,8 +29,6 @@ const track =
 
 /** Every mixer with an action playing: what a world's loop advances each frame. */
 const playing = new Set<Mixer>();
-/** Each mixer's blends: the properties its actions write; kept off the public type. */
-const blendsOf = new WeakMap<Mixer, Blends>();
 
 /** `path` = `node.property[.property…]`; an empty node is the mixer's root. */
 function resolve(root: Object3D, path: string) {
@@ -121,6 +119,8 @@ export class Action {
 /** Plays clips on the nodes under `root`; a world's loop advances it while an action plays. */
 export class Mixer {
   private readonly actions = new Map<Clip, Action>();
+  /** The properties its actions write, blended each update; `#` keeps the type off the API. */
+  readonly #blends = new Blends();
   /** The node whose children it animates. */ readonly root: Object3D;
   constructor(root: Object3D) {
     this.root = root;
@@ -141,8 +141,7 @@ export class Mixer {
    *  its actions' samples over its rest value. */
   update(seconds: number) {
     let active = false;
-    let blends = blendsOf.get(this);
-    if (!blends) blendsOf.set(this, (blends = new Blends()));
+    const blends = this.#blends;
     for (const action of this.actions.values()) {
       if (!action.playingNow) continue;
       action.time += seconds * action.timeScale;
