@@ -97,9 +97,9 @@ fn border_survived_follows_welding_not_raw_indices() {
 
 #[test]
 fn border_survived_handles_a_group_of_thirty_two_clusters_worth_of_corners() {
-    // Group of DAG_GROUP_MAX (32) clusters of 128 triangles: 32 * 128 * 3 corners, dense locks
-    // and welding, as benchmark B3 measures.
-    const CORNERS: usize = DAG_GROUP_MAX * 128 * 3;
+    // Group of DAG_GROUP_MAX (32) clusters of DAG_CLUSTER_TRIANGLES (128) triangles: 32 * 128 * 3
+    // corners, dense locks and welding, as benchmark B3 measures.
+    const CORNERS: usize = DAG_GROUP_MAX * DAG_CLUSTER_TRIANGLES * 3;
     let merged: Vec<u32> = (0..CORNERS as u32).collect();
     let simplified: Vec<u32> = merged.iter().rev().copied().collect();
     let locks: Vec<bool> = (0..CORNERS).map(|i| i % 4 == 0).collect();

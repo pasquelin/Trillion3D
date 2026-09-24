@@ -12,24 +12,38 @@ const PIPELINE_NONE = 0,
   PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
 /**
- * A plan entry: the item rank in the high bits, then the bit that says whether the item can
- * SHARE its neighbours' draw, and the pipeline in the low four — five modes of three culls.
+ * A plan entry: the item rank, the vertex-cull bit, the SHARE bit, then the pipeline in the low
+ * four — five blend modes of three culls, the cull mode being the pipeline modulo three.
  *
  * The share bit is in the entry, not read on the item, because run slicing walks the SORTED plan:
  * following an item rank to its object is a random memory access per entry, when the only plan
  * read is a sequential walk.
+ *
+ * VERTEX CULL: the back and the face of a double-sided paged item used to set two pipelines, so
+ * each broke the run of the other and a double-sided scene drew one call per entry. Its entries
+ * now keep their cull mode but set the pipeline that culls nothing, and the vertex stage drops the
+ * triangles that mode would have culled (`shader.ts`): the back and the face then share one run,
+ * still in the same order, back first. An unpaged item keeps the hardware cull: its own buffers
+ * give it its own draw anyway. `runs.ts` and `expandWgsl.ts` read the low six bits from here:
+ * shifting the rank without following them would let the other sites compile and decode wrong.
  */
-/** Low five bits of an entry: four of pipeline, then the share bit. The item rank occupies the
- *  rest. `runs.ts` and `expandWgsl.ts` read those five from here: shifting
- *  the rank without following them would let the other three sites compile and decode wrong. */
-export const PLAN_SHIFT = 5;
-export const PLAN_SHARED_BIT = 16;
-/** Mask of the low five bits: two entries share it when they fit in one run. */
-export const PLAN_LOW_MASK = (1 << PLAN_SHIFT) - 1;
-export const planEntry = (item: number, pipeline: number, shared: boolean) =>
-  (item << PLAN_SHIFT) | (shared ? PLAN_SHARED_BIT : 0) | pipeline;
+export const PLAN_SHIFT = 6,
+  PLAN_PIPELINE_MASK = 15,
+  PLAN_SHARED_BIT = 16,
+  PLAN_VERTEX_CULL_BIT = 32;
+export const planEntry = (item: number, pipeline: number, shared: boolean, vertexCull = false) =>
+  (item << PLAN_SHIFT) |
+  (vertexCull ? PLAN_VERTEX_CULL_BIT : 0) |
+  (shared ? PLAN_SHARED_BIT : 0) |
+  pipeline;
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT;
-export const planPipeline = (entry: number) => entry & (PLAN_SHARED_BIT - 1);
+/** Cull mode of the entry, whoever applies it: its rank among the three pipelines of its mode. */
+export const planCull = (entry: number) => (entry & PLAN_PIPELINE_MASK) % 3;
+/** Cull mode the vertex stage applies to the entry's instances: zero when the pipeline culls. */
+export const planVertexCull = (entry: number) =>
+  entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : PIPELINE_NONE;
+/** Pipeline the entry sets: its mode's one that culls nothing when the vertex stage culls for it. */
+export const planPipeline = (entry: number) => (entry & PLAN_PIPELINE_MASK) - planVertexCull(entry);
 export const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0;
 /** No paged primitive behind this item: it draws its own indices, in chunks. */
 export const DRAW_UNPAGED = 0xffffffff;
@@ -165,8 +179,10 @@ export function refreshBlendPlan(blendState: BlendState) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       into = item.transmissive ? transmission : blend;
-    for (const side of sidesOf(item)) {
-      into.push(planEntry(i, side, !!item.paged));
+    const sides = sidesOf(item),
+      vertexCull = !!item.paged && sides.length === MAX_SIDES;
+    for (const side of sides) {
+      into.push(planEntry(i, side, !!item.paged, vertexCull));
       if (item.paged) continue;
       if (item.transmissive) transmissionTriangles += item.count / 3;
       else blendTriangles += item.count / 3;

@@ -3,9 +3,8 @@ import { CLUSTER_TRANSPARENT } from '../layout.ts';
 /**
  * Triangle totals of a frame, held BY THE GPU.
  *
- * The CPU used to sum them by walking the cut delta (`../../../webgpu/cut/counts.ts`): what enters is added,
- * what leaves is subtracted. That required it to know the cut — the whole list, reported frame after
- * frame. Here they are accumulated where the verdict is given, in `dagMask`, the only kernel that
+ * The CPU sums none: that would require it to know the cut — the whole list, reported frame after
+ * frame. They are accumulated where the verdict is given, in `dagMask`, the only kernel that
  * knows what a frame draws.
  *
  * ALL THREE ARE TAKEN ON THE SAME SET, and that is what holds the invariant the CPU documented —

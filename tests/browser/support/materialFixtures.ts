@@ -51,7 +51,6 @@ export interface Fixture {
   points: number[][];
   difference: number[];
   reason: string;
-  holds?: boolean;
   back?: boolean;
   /** Turn of the square about its horizontal axis, radians: a grazing view. */
   tilt?: number;
@@ -96,9 +95,9 @@ const BLEND = (): G.SurfaceParameters => ({
 /**
  * Each fixture: `material()` builds it in the page; `lit` declares the sun on both sides;
  * `back` turns the square away from the camera; `behind` puts an opaque square of that colour
- * behind it, and no hole — the engine shows the background where the witness does not —; `holds:
- * false` excuses the engine from publishing a held frame; `points` are read on both images, and
- * the largest channel gap at each must fall within `difference`, for the `reason` given.
+ * behind it, and no hole — the engine shows the background where the witness does not —; `points`
+ * are read on both images, and the largest channel gap at each must fall within `difference`, for
+ * the `reason` given. Every fixture must publish a held frame.
  */
 export const fixtures: Fixture[] = [
   unlit('base colour', () => ({ color: 0x993322 })),
@@ -121,10 +120,9 @@ export const fixtures: Fixture[] = [
     { points: QUADRANTS },
   ),
   // The engine composes a blend surface over the display background in display space, as the
-  // witness does: the two agree to the level. A scene made only of blend clusters publishes no
-  // held frame — without an opaque row the partition never runs, and the occluder history it
-  // would establish stays missing (#198) — but the image is still after the first frames.
-  unlit('blend over the background', BLEND, { holds: false }),
+  // witness does: the two agree to the level. With no opaque row there is no occluder history to
+  // establish, and the still image is held like any other (#198).
+  unlit('blend over the background', BLEND),
   // Between two drawn surfaces the engine blends in linear radiance and encodes at composition
   // (`docs/ENGINE.md` § Proofs); the witness blends the encoded output.
   // On this pair — red at half opacity over blue — the two spaces are 45 levels apart, and that

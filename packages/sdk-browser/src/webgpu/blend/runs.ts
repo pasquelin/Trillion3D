@@ -1,4 +1,4 @@
-import { PLAN_LOW_MASK, PLAN_SHARED_BIT, planItem, planPipeline, planShared } from './plan.ts';
+import { planItem, planPipeline, planShared } from './plan.ts';
 
 /**
  * RUNS OF THE TRANSPARENT PASS: what replaces a draw per item.
@@ -11,7 +11,8 @@ import { PLAN_LOW_MASK, PLAN_SHARED_BIT, planItem, planPipeline, planShared } fr
  * instances are, in order, those of each entry.
  *
  * A run stops on two things, and on nothing else:
- * - the pipeline changes (the back and the face of a double-sided item set two);
+ * - the pipeline changes (a single-sided neighbour, or the back and the face of an unpaged
+ *   double-sided item; a paged one sets the same pipeline twice, its vertex stage culls, `plan.ts`);
  * - the item is not paged: it carries its own index, position and UV buffers, hence its own bind
  *   group, and cannot share its neighbours' draw.
  * The water surfaces (`../water/pass.ts`) merge on the same terms: their material volume is
@@ -31,9 +32,19 @@ export const EXPAND_GROUP = 64;
  *
  * Pipeline and owner item are read on the plan's first entry, which already carries them in its
  * low bits. Writing them in the run as well doubled what the frame writes on a scene that
- * merges nothing — a double-sided scene, where each run holds only one entry.
+ * merges nothing — a scene of unpaged items, where each run holds only one entry.
  */
 export const RUN_WORDS = 2;
+/**
+ * First word of an expanded instance: its item rank, and above it the cull mode the vertex stage
+ * applies (`planVertexCull`, zero when the pipeline culls). The expansion kernel, its CPU model
+ * and the vertex stage read the split here.
+ */
+export const INSTANCE_CULL_SHIFT = 30;
+export const INSTANCE_ITEM_MASK = (1 << INSTANCE_CULL_SHIFT) - 1;
+export const instanceWord = (item: number, vertexCull: number) =>
+  (item | (vertexCull << INSTANCE_CULL_SHIFT)) >>> 0;
+export const instanceItem = (word: number) => word & INSTANCE_ITEM_MASK;
 /** A shared run belongs to no item: its bind group is that of the paged ones. */
 export const RUN_SHARED = 0xffffffff;
 
@@ -72,11 +83,13 @@ export function buildBlendRuns(order: Uint32Array, out: Uint32Array) {
   while (first < order.length) {
     const pipeline = planPipeline(order[first]);
     const shared = planShared(order[first]);
-    // An entry extends the run when it carries the same pipeline AND the share bit: both fit in the
-    // low bits of the entry, and the plan is walked without ever following a rank.
-    const suite = PLAN_SHARED_BIT | pipeline;
+    // An entry extends the run when it sets the same pipeline AND carries the share bit: both are
+    // in its low bits, and the plan is walked without ever following a rank. Its cull mode may
+    // differ: the vertex stage reads it per instance.
     let end = first + 1;
-    if (shared) while (end < order.length && (order[end] & PLAN_LOW_MASK) === suite) end++;
+    if (shared)
+      while (end < order.length && planShared(order[end]) && planPipeline(order[end]) === pipeline)
+        end++;
     const base = runs * RUN_WORDS;
     out[base] = first;
     out[base + 1] = end - first;
@@ -89,13 +102,19 @@ export function buildBlendRuns(order: Uint32Array, out: Uint32Array) {
 /**
  * ITEM A RUN NAMES, or `RUN_SHARED` when it merges several.
  *
- * A run is ownerless only if it merges: the one that kept a single entry names its item, and the
- * frame can then skip encoding it altogether when the frustum rejects it — exactly what a draw
- * per item used to do. The three paths read it here: encoding, the expansion kernel and its CPU
- * model.
+ * A run is ownerless only if it merges several ITEMS: the one that kept a single item — one entry,
+ * or the back and the face of a double-sided paged item, always adjacent since they carry the same
+ * rank (`order.ts`) — names it, and the frame can then skip encoding it altogether when the
+ * frustum rejects it — exactly what a draw per item used to do. The three paths read it here:
+ * encoding, the expansion kernel and its CPU model.
  */
-export const runOwner = (entry: number, entries: number) =>
-  entries > 1 && planShared(entry) ? RUN_SHARED : planItem(entry);
+export function runOwner(order: Uint32Array, first: number, entries: number) {
+  const entry = order[first],
+    item = planItem(entry);
+  return entries > 1 && planShared(entry) && planItem(order[first + entries - 1]) !== item
+    ? RUN_SHARED
+    : item;
+}
 
 /** What each pass occupies: its order and runs in the plan, its indirect arguments. */
 export function planRegions(maxEntries: number) {
