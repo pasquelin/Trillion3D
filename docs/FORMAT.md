@@ -131,7 +131,7 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 2, `nodeTableVersion` 2, `materialTableVersion` 3, `geometryTableVersion` 1 —
+governs it — `version` 2, `nodeTableVersion` 2, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
@@ -161,7 +161,8 @@ ranks already remapped.
   glTF material rank, and `derivativeTangents` says which variant the entry was written for. A
   primitive that declares no material wears an entry holding the glTF default one.
 - `textures[]` — at the glTF texture rank: `{ name, sampler, image, wrapS, wrapT, magFilter,
-  minFilter }`, in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
+  minFilter }`, `image` the source an `EXT_texture_webp` then `EXT_texture_avif` names before the
+  core `source`, as the loader reads it; in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
   specification's defaults where the sampler is silent; `sampler` is the glTF sampler rank, which
   together with the image's source decides which textures are one. A map slot is
   `{ texture, texCoord, slotTexCoord, transform }`: `texCoord` the set sampled — the
