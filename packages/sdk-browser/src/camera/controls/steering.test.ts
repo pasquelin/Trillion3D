@@ -155,3 +155,16 @@ test('flight turns on its stick inputs as on held keys, summed with them and bou
   controls.rollInput = 0; // A centred stick leaves the scene still.
   assert.equal(controls.update(1), false);
 });
+
+test('flight turns at `lookSpeed` radians per pixel, whatever the surface height', () => {
+  const { camera, surface, controls } = steered(createFlyCameraControls);
+  controls.lookSpeed = Math.PI / 200;
+  controls.update(0);
+  // A hundred pixels on a 400-pixel surface: a quarter turn at this speed, an eighth by default.
+  fixtureDrag(surface, 100, 0);
+  controls.update(0);
+  assert.deepEqual(
+    [...facing(camera)].map((v) => round(v)),
+    [1, 0, 0],
+  );
+});
