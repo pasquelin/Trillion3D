@@ -174,6 +174,16 @@ world.physics.add(joint.point(link, null, { anchor: [0, 5, 0] }));
 const plank = joint.hinge(board, next, { anchor: [1, 2, 0], axis: [0, 0, 1], breakForce: 12000 });
 plank.on('break', () => console.log('snap!'));
 world.physics.add(plank);`,
+      `// Tie motions together: each wheel on its own hinge, then the joints that mesh them.
+world.physics.add(joint.hinge(small, null, { axis: [0, 0, 1], motor: { mode: 'velocity', target: 1 } }));
+world.physics.add(joint.hinge(big, null, { axis: [0, 0, 1] }));
+world.physics.add(joint.gear(small, big, { axis: [0, 0, 1], ratio: 12 / 30 })); // teeth over teeth
+world.physics.add(joint.rackAndPinion(pinion, rack, { axis: [0, 0, 1], axisB: [0, 1, 0], ratio: 1 / 0.5 }));
+
+// A rope over two wheels, a cart on a looped track, a shoulder that swings and twists.
+world.physics.add(joint.pulley(bucket, weight, { over: [[6, 8, 0], [9, 8, 0]] }));
+world.physics.add(joint.path(cart, null, { path: trackPoints, loop: true }));
+world.physics.add(joint.swingTwist(arm, body, { axis: [1, 0, 0], limits: { swing: 0.8, min: -0.5, max: 0.5 } }));`,
     ],
   },
   {

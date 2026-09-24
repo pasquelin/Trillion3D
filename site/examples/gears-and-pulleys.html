@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gears and pulleys</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, joint } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // A clockwork of gears, a lift driven by a rack and pinion, and a bucket on a rope over two
+      // pulley wheels. Every wheel turns on a hinge; `joint.gear`, `joint.rackAndPinion` and
+      // `joint.pulley` are Jolt's own constraints that tie the bodies' motions together.
+      const world = createWorld('view', { controls: 'orbit', physics: true });
+      world.scene.background = math.color('#e3e9f1');
+      world.camera.far = 300;
+
+      // One material per colour and matter, shared by every part painted with it.
+      const paints = new Map();
+      const paint = (color, physics = 'metal', metalness = 0.6) => {
+        const key = `${color} ${physics} ${metalness}`;
+        if (!paints.has(key))
+          paints.set(key, material.meshStandard({ color, roughness: 0.45, metalness, physics }));
+        return paints.get(key);
+      };
+      const place = (mesh, at, physics) => {
+        mesh.position.set(...at);
+        mesh.castShadow = mesh.receiveShadow = true;
+        if (physics) mesh.physics = physics;
+        world.scene.add(mesh);
+        return mesh;
+      };
+      const block = (size, at, color, physics, metalness) =>
+        place(object.mesh(geometry.box(...size), paint(color, 'wood', metalness)), at, physics);
+      block([26, 1, 10], [0, -0.5, 0], '#9aa7b5', 'static', 0);
+      block([26, 9, 0.3], [0, 4.5, -0.9], '#d6dce4', 'static', 0);
+
+      // A gear: a hub that turns on its hinge, its teeth drawn around it. Every gear has the same
+      // tooth spacing (PITCH metres along its rim), so their numbers of teeth set the ratios.
+      const PITCH = 0.3,
+        DEPTH = 0.25;
+      const gear = (teeth, at, color) => {
+        const radius = (teeth * PITCH) / (2 * Math.PI);
+        const hub = object.mesh(
+          geometry.cylinder(radius - 0.1, radius - 0.1, DEPTH, 48),
+          paint(color),
+        );
+        hub.rotation.x = Math.PI / 2; // its axis along z
+        const rim = object.group();
+        rim.rotation.x = -Math.PI / 2; // teeth laid out in the plane of the wall
+        hub.add(rim);
+        hub.teeth = teeth;
+        hub.radius = radius;
+        hub.rim = rim;
+        place(hub, at, { type: 'dynamic', mass: 4 * radius });
+        return hub;
+      };
+      // Teeth at `phase` + k × pitch angle, square to the rim.
+      const cut = (hub, phase, color) => {
+        for (let k = 0; k < hub.teeth; k++) {
+          const angle = phase + (2 * Math.PI * k) / hub.teeth;
+          const tooth = object.mesh(geometry.box(0.2, PITCH * 0.42, DEPTH), paint(color));
+          tooth.position.set(Math.cos(angle) * hub.radius, Math.sin(angle) * hub.radius, 0);
+          tooth.rotation.z = angle;
+          hub.rim.add(tooth);
+        }
+      };
+      // Each wheel turns on a pin through its centre (the anchor defaults to the body's position).
+      const hinge = (hub, motor) => joint.hinge(hub, null, { axis: [0, 0, 1], motor });
+      const joints = [];
+
+      // The clockwork: a driven wheel and three more, each meshing the one before at `bearing`
+      // (radians from it). The next wheel's teeth start half a pitch past the last one's at the
+      // point where they touch, so tooth meets gap.
+      const train = [
+        { teeth: 30, bearing: 0, color: '#c9a227' },
+        { teeth: 14, bearing: 0.35, color: '#b87333' },
+        { teeth: 24, bearing: -0.5, color: '#c9a227' },
+        { teeth: 12, bearing: 0.6, color: '#8d99a6' },
+      ];
+      const wheels = [];
+      let phase = 0;
+      for (const [i, { teeth, bearing, color }] of train.entries()) {
+        const last = wheels[i - 1];
+        const radius = (teeth * PITCH) / (2 * Math.PI);
+        const at = last
+          ? [
+              last.position.x + (last.radius + radius) * Math.cos(bearing),
+              last.position.y + (last.radius + radius) * Math.sin(bearing),
+              0,
+            ]
+          : [-9, 4.2, 0];
+        const hub = gear(teeth, at, color);
+        if (last) {
+          const pitchAngle = (2 * Math.PI) / last.teeth;
+          const offset =
+            ((((phase - bearing) % pitchAngle) + pitchAngle) % pitchAngle) * last.radius;
+          phase = bearing + Math.PI - (offset + PITCH / 2) / radius;
+        }
+        cut(hub, phase, color);
+        wheels.push(hub);
+      }
+      // The last wheel carries a hand.
+      const hand = object.mesh(geometry.box(0.08, 1.1, 0.06), paint('#2b303a'));
+      hand.position.set(0, 0.45, DEPTH / 2 + 0.04);
+      wheels[3].rim.add(hand);
+      const driver = hinge(wheels[0], { mode: 'velocity', target: 0.8, maxForce: 400 });
+      joints.push(driver, ...wheels.slice(1).map((hub) => hinge(hub)));
+      for (let i = 1; i < wheels.length; i++)
+        joints.push(
+          joint.gear(wheels[i - 1], wheels[i], {
+            axis: [0, 0, 1],
+            ratio: wheels[i - 1].teeth / wheels[i].teeth,
+          }),
+        );
+
+      // The lift: a pinion turns in place and climbs a toothed rack that slides up its rail,
+      // carrying a platform and a crate. A turn of the pinion moves the rack by its rim, so the
+      // ratio is 1 / its radius (radians per metre).
+      const pinion = gear(12, [0, 3.4, 0], '#8d99a6');
+      cut(pinion, 0, '#8d99a6');
+      const RACK = 5.4;
+      const rack = block([0.3, RACK, 0.3], [pinion.radius + 0.2, RACK / 2 + 0.2, 0], '#6b7480', {
+        type: 'dynamic',
+        mass: 20,
+      });
+      // Its teeth face the pinion's: half a pitch above the pinion's tooth on the line they share.
+      const toothAt = 3.4 + PITCH / 2 - rack.position.y;
+      const lowest = toothAt - PITCH * Math.floor((toothAt + RACK / 2) / PITCH);
+      for (let y = lowest; y < RACK / 2; y += PITCH) {
+        const tooth = object.mesh(geometry.box(0.2, PITCH * 0.42, DEPTH), paint('#6b7480'));
+        tooth.position.set(-0.2, y, 0);
+        rack.add(tooth);
+      }
+      const platform = block(
+        [1.8, 0.12, 1.4],
+        [rack.position.x + 1.05, RACK + 0.26, 0],
+        '#b98b57',
+        {
+          type: 'dynamic',
+          mass: 8,
+        },
+      );
+      block([0.7, 0.7, 0.7], [rack.position.x + 1.1, RACK + 0.7, 0], '#c08a4d', {
+        type: 'dynamic',
+        mass: 6,
+      });
+      const lift = hinge(pinion, { mode: 'velocity', target: -1, maxForce: 3000 });
+      joints.push(
+        lift,
+        joint.slider(rack, null, { axis: [0, 1, 0], limits: { min: 0, max: 2.6 } }),
+        joint.fixed(platform, rack),
+        joint.rackAndPinion(pinion, rack, {
+          axis: [0, 0, 1],
+          axisB: [0, 1, 0],
+          ratio: 1 / pinion.radius,
+        }),
+      );
+
+      // The pulley: a bucket and a counterweight of the same mass hang on one rope over two
+      // wheels; what goes into the bucket takes it down and lifts the weight.
+      const TOP = 7.6;
+      const over = [
+        [6, TOP, 0],
+        [9, TOP, 0],
+      ];
+      block([4.4, 0.2, 0.4], [7.5, TOP + 0.5, -0.4], '#6b4f36', 'static');
+      const pulleys = over.map((at) => {
+        const wheel = object.mesh(geometry.cylinder(0.35, 0.35, 0.18, 32), paint('#8d99a6'));
+        wheel.rotation.x = Math.PI / 2;
+        const spoke = object.mesh(geometry.box(0.66, 0.06, 0.2), paint('#2b303a'));
+        wheel.add(spoke);
+        return place(wheel, at);
+      });
+      // The bucket: its floor is the body, its four walls parts of the same compound shape.
+      const walls = [
+        { type: 'box', halfExtents: [0.05, 0.45, 0.5], position: [-0.55, 0.5, 0] },
+        { type: 'box', halfExtents: [0.05, 0.45, 0.5], position: [0.55, 0.5, 0] },
+        { type: 'box', halfExtents: [0.6, 0.45, 0.05], position: [0, 0.5, -0.45] },
+        { type: 'box', halfExtents: [0.6, 0.45, 0.05], position: [0, 0.5, 0.45] },
+      ];
+      const bucket = object.mesh(geometry.box(1.2, 0.1, 1), paint('#b87333'));
+      for (const {
+        halfExtents: [x, y, z],
+        position,
+      } of walls) {
+        const wall = object.mesh(geometry.box(2 * x, 2 * y, 2 * z), paint('#b87333'));
+        wall.position.set(...position);
+        wall.castShadow = true;
+        bucket.add(wall);
+      }
+      const floor = { type: 'box', halfExtents: [0.6, 0.05, 0.5] };
+      place(bucket, [6, 2.1, 0], {
+        type: 'dynamic',
+        mass: 6,
+        shape: { type: 'compound', parts: [floor, ...walls] },
+      });
+      const counterweight = block([0.8, 0.8, 0.8], [9, 3.6, 0], '#3c434d', {
+        type: 'dynamic',
+        mass: 6,
+      });
+      // Where the rope holds each: the bucket's rim, the weight's top.
+      const hooks = [1, 0.4];
+      joints.push(
+        joint.pulley(bucket, counterweight, { anchor: [6, 3.1, 0], anchorB: [9, 4, 0], over }),
+      );
+      // The rope, drawn from each hook up to its wheel.
+      const ropes = [0, 1].map(() => {
+        const rope = object.mesh(geometry.cylinder(0.03, 0.03, 1, 8), paint('#6b4f36', 'wood', 0));
+        world.scene.add(rope);
+        return rope;
+      });
+      const top = object.mesh(geometry.box(3, 0.06, 0.06), paint('#6b4f36', 'wood', 0));
+      place(top, [7.5, TOP + 0.35, 0]);
+      for (const j of joints) world.physics.add(j);
+
+      let load = [];
+      controls(
+        {
+          speed: [-3, 3, 0.8, 0.1],
+          raiseLift: false,
+          addWeight: () => {
+            const weight = block(
+              [0.35, 0.35, 0.35],
+              [6 + (Math.random() - 0.5) * 0.4, 6.4, 0],
+              '#6f6a64',
+              {
+                type: 'dynamic',
+                mass: 3,
+              },
+            );
+            load.push(weight);
+          },
+          emptyBucket: () => {
+            for (const weight of load) world.scene.remove(weight);
+            load = [];
+          },
+        },
+        ({ speed, raiseLift }) => {
+          // A motor is changed at any time: the geared wheels and the rack follow their driver.
+          driver.motor = { mode: 'velocity', target: speed, maxForce: 400 };
+          lift.motor = { mode: 'velocity', target: raiseLift ? 1.2 : -1.2, maxForce: 3000 };
+        },
+        world,
+      );
+
+      const sun = light.directional({ intensity: 3, castShadow: true });
+      sun.position.set(6, 16, 12);
+      world.scene.add(
+        sun,
+        light.hemisphere({ intensity: 1.2, color: '#ffffff', groundColor: '#8a9099' }),
+      );
+      world.camera.position.set(0, 6, 17);
+      world.controls.target.set(0, 4, 0);
+
+      const height = readout('lift'),
+        weights = readout('load'),
+        rope = readout('rope');
+      const start = [rack.position.y, bucket.position.y];
+      world.onFrame(() => {
+        [bucket, counterweight].forEach((body, i) => {
+          const [x, y] = [body.position.x, body.position.y + hooks[i]];
+          const [dx, dy] = [over[i][0] - x, over[i][1] - y];
+          ropes[i].position.set(x + dx / 2, y + dy / 2, 0);
+          ropes[i].scale.set(1, Math.hypot(dx, dy), 1);
+          ropes[i].rotation.z = -Math.atan2(dx, dy);
+        });
+        // The wheels turn as the rope runs over them.
+        const run = start[1] - bucket.position.y;
+        for (const wheel of pulleys) wheel.rotation.y = run / 0.35;
+        height(`${(rack.position.y - start[0]).toFixed(2)} m`);
+        weights(String(load.length));
+        rope(`${run.toFixed(2)} m`);
+      });
+    </script>
+  </body>
+</html>

@@ -312,6 +312,7 @@
       "soft-bodies": "やわらかい物体",
       "rolling-on-terrain": "地形を転がる",
       "hinges-and-joints": "ヒンジと関節",
+      "gears-and-pulleys": "歯車と滑車",
       "walk-with-collisions": "衝突しながら歩く",
       "drive-a-car": "車を運転する",
       "a-room-in-vr": "VRの中の部屋",
@@ -1077,7 +1078,8 @@
           "<code>anchor</code> は物体どうしがつながる点、<code>axis</code> はピンやレールの向きです。どちらもワールド座標で、ジョイントを作るときに読まれます。",
           "<code>limits</code> でジョイントを止めます。蝶番はラジアン、スライダーはメートル。<code>spring</code> で止まり方がやわらかくなります。",
           "<code>motor</code> は蝶番やスライダーを速度または位置へ動かします。<code>joint.motor</code> はいつでも変えられます。",
-          "<code>breakForce</code> はジョイントが切れる引っ張りの強さ(ニュートン)です。切れると <code>joint.broken</code> が true になり、<code>joint.on('break', …)</code> が呼ばれます。"
+          "<code>breakForce</code> はジョイントが切れる引っ張りの強さ(ニュートン)です。切れると <code>joint.broken</code> が true になり、<code>joint.on('break', …)</code> が呼ばれます。",
+          "高度なジョイントは動きどうしを結びつけます。<code>joint.gear(a, b, { ratio })</code> は蝶番の 2 つの車輪を 1 つの歯車列として回し、<code>joint.rackAndPinion</code> は回転をすべりに変え、<code>joint.pulley(a, b, { over })</code> は 1 本のロープに 2 つの荷物を吊るし、<code>joint.path(a, b, { path })</code> はトロッコを軌道に乗せ、<code>swingTwist</code> と <code>sixDof</code> で肩や自分だけのジョイントが作れます。"
         ],
         "tryIt": "ドアと引き出しを開けて、石を橋に落としてみよう。橋の強さを下げて作り直すと、自分の重さで壊れます。"
       },

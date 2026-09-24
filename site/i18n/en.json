@@ -312,6 +312,7 @@
       "soft-bodies": "Soft bodies",
       "rolling-on-terrain": "Rolling on terrain",
       "hinges-and-joints": "Hinges and joints",
+      "gears-and-pulleys": "Gears and pulleys",
       "walk-with-collisions": "Walk with collisions",
       "drive-a-car": "Drive a car",
       "a-room-in-vr": "A room in VR",
@@ -1077,7 +1078,8 @@
           "<code>anchor</code> is where the bodies connect and <code>axis</code> the way the pin or the rail points, both in the world, read when the joint is made.",
           "<code>limits</code> stop the joint: radians for a hinge, metres for a slider. A <code>spring</code> makes the stop soft.",
           "A <code>motor</code> drives a hinge or a slider to a speed or a position. Change <code>joint.motor</code> at any time.",
-          "<code>breakForce</code> is the pull, in newtons, past which the joint snaps: <code>joint.broken</code> turns true and <code>joint.on('break', …)</code> is called."
+          "<code>breakForce</code> is the pull, in newtons, past which the joint snaps: <code>joint.broken</code> turns true and <code>joint.on('break', …)</code> is called.",
+          "Advanced joints tie motions together: <code>joint.gear(a, b, { ratio })</code> turns two hinged wheels as one train, <code>joint.rackAndPinion</code> turns a wheel into a slide, <code>joint.pulley(a, b, { over })</code> hangs two loads on one rope, <code>joint.path(a, b, { path })</code> keeps a cart on its track, and <code>swingTwist</code> and <code>sixDof</code> make shoulders and joints of your own."
         ],
         "tryIt": "Open the door and the drawer, then drop the stone on the bridge. Lower the bridge strength and rebuild it: it breaks under its own weight."
       },

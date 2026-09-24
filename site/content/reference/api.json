@@ -7104,39 +7104,77 @@
         "name": "options.anchor?",
         "type": "Vec3Input",
         "default": "a's position",
-        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance or of a pulley's rope on `a`."
       },
       {
         "name": "options.anchorB?",
         "type": "Vec3Input",
-        "default": "b's position, or `anchor` with the world",
-        "desc": "The end of a distance on `b`."
+        "default": "b's position, or `anchor`\nwith the world",
+        "desc": "The end of a distance or of a pulley's rope on `b`."
       },
       {
         "name": "options.axis?",
         "type": "Vec3Input",
-        "default": "[0, 1, 0]",
-        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+        "default": "[0, 1, 0]; a six-DOF's [1, 0, 0]",
+        "desc": "A hinge's pin, a slider's rail, a cone's or a swing-twist's middle, a six-DOF's `x`, a gear's or a pinion's pin (`a`)."
+      },
+      {
+        "name": "options.axisB?",
+        "type": "Vec3Input",
+        "default": "`axis`",
+        "desc": "A gear's pin on `b`, a rack's rail (`b`)."
       },
       {
         "name": "options.limits?",
         "type": "JointLimits",
-        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+        "desc": "Hinge, slider, distance, cone, swing-twist and pulley: how far it moves. A distance's default is its length, a pulley's rope from 0 to its length."
+      },
+      {
+        "name": "options.axes?",
+        "type": "Partial<Record<SixDofAxis, JointLimits | 'free'>>",
+        "desc": "A six-DOF's axes that move, freely (`'free'`) or within limits; the others are locked."
       },
       {
         "name": "options.spring?",
         "type": "{ frequency: number; damping?: number; }",
-        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+        "desc": "Hinge, slider, distance and six-DOF: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
       },
       {
         "name": "options.motor?",
         "type": "JointMotor",
-        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+        "desc": "Hinge, slider, swing-twist (its twist), six-DOF and path: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "options.path?",
+        "type": "readonly Vec3Input[]",
+        "desc": "A path's track: at least two points, `b`'s (or the world's) as they stand when made; `a` starts at the point of it nearest `anchor`."
+      },
+      {
+        "name": "options.loop?",
+        "type": "boolean",
+        "desc": "A path's track closes on itself."
+      },
+      {
+        "name": "options.follow?",
+        "type": "boolean",
+        "default": "true",
+        "desc": "A path's `a` turns with the track, as a cart does, rather than freely, as a bead."
+      },
+      {
+        "name": "options.over?",
+        "type": "readonly [Vec3Input, Vec3Input]",
+        "desc": "A pulley's two wheels in the world: `a`'s rope runs up to the first, `b`'s to the second."
+      },
+      {
+        "name": "options.ratio?",
+        "type": "number",
+        "default": "1",
+        "desc": "A gear's turns of `b` per turn of `a` (the teeth of `a` over those of `b`), the other way round; a pinion's radians per metre of rack, 1 / its radius; a pulley's metres of `b`'s rope per metre of `a`'s."
       },
       {
         "name": "options.breakForce?",
         "type": "number",
-        "desc": "Newtons of pull past which the joint breaks; left out, never."
+        "desc": "Newtons of pull past which the joint breaks (N·m of torque between a gear's or a rack's teeth); left out, never."
       }
     ],
     "members": [
@@ -7163,7 +7201,7 @@
       {
         "name": "motor",
         "type": "JointMotor | null",
-        "desc": "The motor, a hinge's or a slider's; `null` lets the joint turn or slide freely."
+        "desc": "The motor of a hinge, a slider, a swing-twist, a six-DOF or a path; `null` lets the joint move freely."
       },
       {
         "name": "broken",
@@ -7180,52 +7218,57 @@
   },
   {
     "id": "JointKind",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointKind"],
     "section": "types",
     "kind": "Type",
     "title": "JointKind",
-    "signature": "type JointKind = 'fixed' | 'point' | 'hinge' | 'slider' | 'distance' | 'cone'",
+    "signature": "type JointKind = | 'fixed'\n  | 'point'\n  | 'hinge'\n  | 'slider'\n  | 'distance'\n  | 'cone'\n  | 'swingTwist'\n  | 'sixDof'\n  | 'path'\n  | 'pulley'\n  | 'gear'\n  | 'rackAndPinion'",
     "summary": "The joints between bodies, each one of Jolt's own constraints.",
     "description": ""
   },
   {
     "id": "JointLimits",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointLimits"],
     "section": "types",
     "kind": "Type",
     "title": "JointLimits",
     "signature": "interface JointLimits",
-    "summary": "How far a joint may move: radians for a hinge, metres for a slider or a distance, the cone's half angle (`max`) for a cone.",
+    "summary": "How far a joint may move: radians for a hinge or a turn, metres for a slider, a distance or a pulley's rope, the cone's half angle (`max`) for a cone.",
     "members": [
       {
         "name": "min?",
         "type": "number | undefined",
-        "desc": "A hinge's from −π to 0, a slider's 0 or below."
+        "desc": "A hinge's from −π to 0, a slider's 0 or below; a swing-twist's twist from −π."
       },
       {
         "name": "max?",
         "type": "number | undefined",
-        "desc": "A hinge's from 0 to π, a slider's 0 or above."
+        "desc": "A hinge's from 0 to π, a slider's 0 or above; a swing-twist's twist up to π."
+      },
+      {
+        "name": "swing?",
+        "type": "number | undefined",
+        "desc": "A swing-twist's cone: how far its `axis` swings, a half angle up to π."
       }
     ],
     "description": ""
   },
   {
     "id": "JointMotor",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointMotor"],
     "section": "types",
     "kind": "Type",
     "title": "JointMotor",
     "signature": "interface JointMotor",
-    "summary": "A hinge's or a slider's motor: it drives the joint to a velocity or to a position.",
+    "summary": "A joint's motor: it drives the joint to a velocity or to a position.",
     "members": [
       {
         "name": "mode",
         "type": "'position' | 'velocity'",
-        "desc": "`'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made."
+        "desc": "`'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made — for a path, the point along it (1.5: halfway between its second and third)."
       },
       {
         "name": "target",
@@ -7235,14 +7278,19 @@
       {
         "name": "maxForce?",
         "type": "number | undefined",
-        "desc": "N·m for a hinge, N for a slider; left out, no bound."
+        "desc": "N·m for a turn, N for a slide; left out, no bound."
+      },
+      {
+        "name": "axis?",
+        "type": "SixDofAxis | undefined",
+        "desc": "A six-DOF's axis it drives."
       }
     ],
     "description": ""
   },
   {
     "id": "JointOptions",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointOptions"],
     "section": "types",
     "kind": "Type",
@@ -7253,37 +7301,72 @@
       {
         "name": "anchor?",
         "type": "Vec3Input | undefined",
-        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance or of a pulley's rope on `a`."
       },
       {
         "name": "anchorB?",
         "type": "Vec3Input | undefined",
-        "desc": "The end of a distance on `b`."
+        "desc": "The end of a distance or of a pulley's rope on `b`."
       },
       {
         "name": "axis?",
         "type": "Vec3Input | undefined",
-        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+        "desc": "A hinge's pin, a slider's rail, a cone's or a swing-twist's middle, a six-DOF's `x`, a gear's or a pinion's pin (`a`)."
+      },
+      {
+        "name": "axisB?",
+        "type": "Vec3Input | undefined",
+        "desc": "A gear's pin on `b`, a rack's rail (`b`)."
       },
       {
         "name": "limits?",
         "type": "JointLimits | undefined",
-        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+        "desc": "Hinge, slider, distance, cone, swing-twist and pulley: how far it moves. A distance's default is its length, a pulley's rope from 0 to its length."
+      },
+      {
+        "name": "axes?",
+        "type": "Partial<Record<SixDofAxis, JointLimits | 'free'>> | undefined",
+        "desc": "A six-DOF's axes that move, freely (`'free'`) or within limits; the others are locked."
       },
       {
         "name": "spring?",
         "type": "{ frequency: number; damping?: number; } | undefined",
-        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+        "desc": "Hinge, slider, distance and six-DOF: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
       },
       {
         "name": "motor?",
         "type": "JointMotor | null | undefined",
-        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+        "desc": "Hinge, slider, swing-twist (its twist), six-DOF and path: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "path?",
+        "type": "readonly Vec3Input[] | undefined",
+        "desc": "A path's track: at least two points, `b`'s (or the world's) as they stand when made; `a` starts at the point of it nearest `anchor`."
+      },
+      {
+        "name": "loop?",
+        "type": "boolean | undefined",
+        "desc": "A path's track closes on itself."
+      },
+      {
+        "name": "follow?",
+        "type": "boolean | undefined",
+        "desc": "A path's `a` turns with the track, as a cart does, rather than freely, as a bead."
+      },
+      {
+        "name": "over?",
+        "type": "readonly [Vec3Input, Vec3Input] | undefined",
+        "desc": "A pulley's two wheels in the world: `a`'s rope runs up to the first, `b`'s to the second."
+      },
+      {
+        "name": "ratio?",
+        "type": "number | undefined",
+        "desc": "A gear's turns of `b` per turn of `a` (the teeth of `a` over those of `b`), the other way round; a pinion's radians per metre of rack, 1 / its radius; a pulley's metres of `b`'s rope per metre of `a`'s."
       },
       {
         "name": "breakForce?",
         "type": "number | undefined",
-        "desc": "Newtons of pull past which the joint breaks; left out, never."
+        "desc": "Newtons of pull past which the joint breaks (N·m of torque between a gear's or a rack's teeth); left out, never."
       }
     ],
     "description": "Points and axes are in the world, read when the joint is first made."
@@ -14319,6 +14402,17 @@
     "signature": "type Side = (typeof side)[keyof typeof side]",
     "summary": "Which faces a material draws: `'front'`, `'back'` or `'double'`.",
     "description": ""
+  },
+  {
+    "id": "SixDofAxis",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
+    "exports": ["SixDofAxis"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SixDofAxis",
+    "signature": "type SixDofAxis = 'x' | 'y' | 'z' | 'turnX' | 'turnY' | 'turnZ'",
+    "summary": "A six-DOF joint's axes: slides along `x`, `y`, `z` and turns about them.",
+    "description": "`x` lies along the joint's `axis`, `y` as close to the world's up as it can square to it."
   },
   {
     "id": "SlimClusterManifest",
@@ -25775,6 +25869,36 @@
         "name": "cone",
         "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
         "desc": "A ball joint whose `axis` swings within a cone of half angle `limits.max`."
+      },
+      {
+        "name": "swingTwist",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A shoulder: `axis` swings within a cone of half angle `limits.swing` and twists about itself between `limits.min` and `max`; its motor drives the twist."
+      },
+      {
+        "name": "sixDof",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Six axes, each locked, free or limited (`axes`): any joint in between the others."
+      },
+      {
+        "name": "path",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "`a` runs along a smooth track through `path`, fixed to `b` or the world: a roller coaster."
+      },
+      {
+        "name": "pulley",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A rope from `a` over two wheels (`over`) down to `b`: one rises as the other falls."
+      },
+      {
+        "name": "gear",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Two wheels turning together by `ratio`, each about its own pin (`axis`, `axisB`); each needs its own hinge to hold it in place."
+      },
+      {
+        "name": "rackAndPinion",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A pinion `a` turning about `axis` drives a rack `b` along `axisB`; each needs its own hinge or slider to hold it in place."
       }
     ],
     "description": ""
