@@ -34,7 +34,8 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     changes = createShadowChanges(),
     budget = createShadowBudget(),
     counts = createShadowCounts(),
-    admission = createShadowAdmission(capacity, pool.pages),
+    posed = new Int32Array(records.kind.length),
+    admission = createShadowAdmission(capacity, pool.pages, posed),
     thresholds = createShadowThresholds(pool);
   let byPage = true,
     report: ShadowRequestReport | null = null,
@@ -134,7 +135,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
                 if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))
                   pool.release(table, page);
         }
-        if (whole) records.posed[slice] = frame;
+        if (whole) posed[slice] = frame;
         counts.invalidatedPages += invalidateLightPages(
           pool,
           sun,

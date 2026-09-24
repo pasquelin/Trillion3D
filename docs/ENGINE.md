@@ -214,7 +214,10 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   (`shadowBudgetMs`, 1.0 ms, measured on the timestamps of the pages' draws and of the light cuts
   that select their casters) and at most `shadowPagesPerFrame`
   (24) a frame. A light that moves or changes, or a sun whose clipmap moves its projection, stales
-  every page it maps, and none is read until redrawn: its depth belongs to the old projection. An
+  every page it maps, and none is read until redrawn: its depth belongs to the old projection.
+  Unreadable pages go before pages stale for detail only, and a light's pages wait from its latest
+  pose: one that moves every frame gets its coarsest read pages each frame, finer ones as far as
+  the budget pays, the rest once it stops. An
   object that moves stales only the mapped pages its projected box covers; a representation change
   stales them once the camera rests, and a threshold change only the pages drawn at another
   threshold than the one at rest. Such a page is still read until its redraw lands, while a

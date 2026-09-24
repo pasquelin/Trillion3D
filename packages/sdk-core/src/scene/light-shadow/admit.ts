@@ -23,11 +23,12 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * coarser level or no shadow, the second a coarser depth —, a coarse page before a fine one — it
  * covers more pixels, and the finer ones fall back to it —, and the wait already suffered, which
  * rises frame by frame and prevents starvation. A wait counts from the light's current pose
- * (`records.posed`): what a page waited at a past pose is owed to no reader. A light that moves
- * every frame thus restarts the wait of all its pages together, and they stay coarse first: its
- * shadow follows it the same frame at the coarsest level its receivers read, finer as far as the
- * budget pays, never at a past pose — the finer pages come once it stops. The first page always
- * passes: on a device whose single page exceeds the budget, the wait would otherwise never end.
+ * (`posed`, the frame each slice's light took it): what a page waited at a past pose is owed to
+ * no reader. A light that moves every frame thus restarts the wait of all its pages together, and
+ * they stay coarse first: its shadow follows it the same frame at the coarsest level its receivers
+ * read, finer as far as the budget pays, never at a past pose — the finer pages come once it
+ * stops. The first page always passes: on a device whose single page exceeds the budget, the wait
+ * would otherwise never end.
  *
  * How many pages is the budget's alone: its fixed milliseconds over the measured cost of a page.
  * What the light cut bounds is the light views a frame draws in (`setViewLimit`) — one view never
@@ -36,7 +37,7 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * committed (`pool.hideStale`): the shading reads the next coarser current level, never its old
  * depth. A page stale for detail only keeps being read until redrawn. All arrays are allocated once.
  */
-export function createShadowAdmission(capacity: number, poolPages: number) {
+export function createShadowAdmission(capacity: number, poolPages: number, posed: Int32Array) {
   const candidates = new Int32Array(capacity),
     score = new Float64Array(poolPages),
     list = new Int32Array(capacity),
@@ -83,7 +84,7 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
         const value =
           (pool.valid[page] && !pool.hidden[page] ? 0 : 1) +
           coarseness(records, sun, page, pool) +
-          (frame - Math.max(pool.sinceFrame[page], records.posed[pool.slice[page]])) *
+          (frame - Math.max(pool.sinceFrame[page], posed[pool.slice[page]])) *
             LIGHT_SETTINGS.shadowAgingPerFrame;
         score[page] = value;
         found++;
