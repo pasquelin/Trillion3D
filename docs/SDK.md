@@ -437,7 +437,7 @@ world.controls.pushStrength = 400; // a stronger push
 
 **Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` — `throttle`, `brake`, `steer`,
 `handbrake` — and hands it to `world.controls.vehicle.drive(input)` each time it changes. Any object
-with `drive` can be driven; the physics' own vehicles arrive with #398. Setting `kind = 'vehicle'`
+with `drive` can be driven; the physics' own vehicles arrive with #501. Setting `kind = 'vehicle'`
 while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move the camera.
 
 ### Picking, moving and saving
@@ -1034,5 +1034,6 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
   landing, which then runs in slow motion for a short moment; the page's `physics` stage is
   0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
-  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints, vehicles, soft bodies, cooked colliders and
-  loaded models as bodies arrive with the next physics issues (#396, #398–#400).
+  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints and cooked
+  colliders are here (above), not measured at this scale; advanced joints arrive with #500, the
+  physics' own vehicles with #501, soft bodies with #399.
