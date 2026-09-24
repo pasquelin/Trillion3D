@@ -460,7 +460,7 @@
     "description": "`memory(world)` est ce que le monde tient maintenant (`world.budget`) ; les deux réservoirs construisent le réglage que prend un monde."
   },
   "budget.memory": {
-    "summary": "Les budgets de mémoire que tient un monde en ce moment : les deux réservoirs et le maximum de chacun."
+    "summary": "Les budgets de mémoire que tient un monde en ce moment : les totaux GPU et CPU, leur partage par la règle, les deux réservoirs et le maximum de chacun."
   },
   "budget.geometryPool": {
     "summary": "Un réglage de réservoir de géométrie de `bytes`, prêt à donner à un monde.",
@@ -6337,10 +6337,13 @@
     "members": {
       "geometryPoolCeiling": "Les plus grands réservoirs qu’un monde peut demander : les budgets de départ du moteur.",
       "texturePoolCeiling": "Le plus grand réservoir de textures qu’un monde peut demander, en octets.",
-      "geometryPool": "Octets de mémoire GPU gardés pour les pages de géométrie ; règle-le pour changer l’enveloppe.",
-      "texturePool": "Octets de mémoire GPU gardés pour les pages de texture ; règle-le pour changer l’enveloppe.",
+      "geometryPool": "Octets de mémoire GPU gardés pour les pages de géométrie ; règle-le pour changer l’enveloppe, dans ce que `gpu` laisse à côté des ombres et du réservoir de textures.",
+      "texturePool": "Octets de mémoire GPU gardés pour les pages de texture, `null` sur un moteur sans réservoir de textures (WebGL2) ; règle-le pour changer l’enveloppe, dans ce que `gpu` laisse à côté des ombres et du réservoir de géométrie.",
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
-      "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe."
+      "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
+      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Jamais lu sur la machine.",
+      "cpu": "Octets de mémoire CPU que les pages décodées du monde peuvent tenir ; pris au prochain chargement de scène.",
+      "split": "Le partage des deux totaux : le réservoir d’ombres à son maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le cache de pages décodées prend le total CPU. Ce que donne la règle, avant un réservoir réglé seul."
     }
   },
   "world.diagnostic": {
