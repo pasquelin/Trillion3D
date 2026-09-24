@@ -18,6 +18,8 @@ import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { dagRecords, worldOf } from './records.ts';
 import { dagViewFrames } from './oracle/math.ts';
+import { NODE_CEIL } from './packNodes.ts';
+import { DAG_NODE_FLOATS } from './types.ts';
 import { createDagOraclePredicates } from './oracle/predicates.ts';
 import { descenteComptee } from './cutFrontier.fixture.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
@@ -61,7 +63,13 @@ for (const parNiveaux of [false, true]) {
       parNiveaux,
     );
     const packed = packDagSelection(roots);
-    let elagages = 0;
+    // The same packing with every replacement ceiling withdrawn: what the descent walks when
+    // no node certifies a too-fine subtree. The ceiling must spare some of that walk.
+    const sansPlafond = { ...packed, nodes: packed.nodes.slice() };
+    for (let n = 0; n < packed.nodeCount; n++)
+      sansPlafond.nodes[n * DAG_NODE_FLOATS + NODE_CEIL] = -1;
+    let elagages = 0,
+      plafonnes = 0;
     for (const [nom, x, z] of POSES)
       for (const seuil of SEUILS) {
         for (let w = 0; w < roots.length; w++)
@@ -81,8 +89,13 @@ for (const parNiveaux of [false, true]) {
         );
         assert.deepEqual(obtenu, attendu, `${nom} at ${seuil} px`);
         elagages += descenteComptee(packed, uniforms, true).plancherCoupe;
+        plafonnes +=
+          descenteComptee(sansPlafond, uniforms).visites -
+          descenteComptee(packed, uniforms).visites;
       }
     // Without pruning the proof would be empty: the threshold says the bound did cut somewhere.
     assert.ok(elagages > 0, `no subtree pruned: the proof covers nothing`);
+    // Same for the ceiling: packing derives it for a primitive without a manifest too.
+    assert.ok(plafonnes > 0, `no too-fine subtree pruned: the ceiling covers nothing`);
   });
 }
