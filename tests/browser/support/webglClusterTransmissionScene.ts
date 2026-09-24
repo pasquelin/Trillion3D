@@ -58,7 +58,7 @@ export function transmissionScene(glass = {}) {
       scope: 'full' as const,
       sourceTriangles: 6,
       selectedTriangles: 6,
-      selectedNodes: [],
+      selectedNodes: 0,
       totalNodes: 3,
       errorModel: 'dag-group-qem-v1',
       clusterStrategy: 'dag-groups',

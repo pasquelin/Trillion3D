@@ -93,7 +93,7 @@ export function batisseur() {
         scope: 'slice',
         sourceTriangles: primitives.length,
         selectedTriangles: primitives.length,
-        selectedNodes: [],
+        selectedNodes: 0,
         totalNodes: primitives.length,
         primitives,
       };

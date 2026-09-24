@@ -157,7 +157,7 @@
     "name": "usd",
     "version": "usd-openusd-0.7.0-gltf-8"
   },
-  "selectedNodes": [0],
+  "selectedNodes": 1,
   "selectedTriangles": 4,
   "sidecarSha256": "b061bfc6f28d6f9242a4064d4139d28dff71c084794ab8ed23acca9e2dbbff7c",
   "sourceTriangles": 4,
