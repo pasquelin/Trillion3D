@@ -1,3 +1,4 @@
+import { COMPUTE } from '../core/computeBindings.ts';
 import { BASE_SLOTS, DRAW_ITEM_WGSL, slotCount } from './contract.ts';
 
 /**
@@ -23,9 +24,6 @@ import { BASE_SLOTS, DRAW_ITEM_WGSL, slotCount } from './contract.ts';
  * `../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts` carries both kernels and `prefixEquivalence.test.ts`
  * the proof.
  */
-/** `GPUShaderStage.COMPUTE`, written in the clear: this module is also read from Node, without that global. */
-const COMPUTE = 4;
-
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
  * browser proof READ them here — none copies them, so none can lag behind the shader. That lag
