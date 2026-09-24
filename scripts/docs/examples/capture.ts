@@ -59,8 +59,10 @@ export async function openExample(
   gpu = true,
 ) {
   const page = await browser.newPage({ viewport });
-  const errors: string[] = [];
+  const errors: string[] = [],
+    requests: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('request', (request) => requests.push(request.url()));
   if (!gpu)
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'gpu', { get: () => undefined, configurable: true });
@@ -71,5 +73,5 @@ export async function openExample(
     await page.waitForTimeout(500);
     drawn = await drawnShare(page);
   }
-  return { page, errors, drawn };
+  return { page, errors, drawn, requests };
 }
