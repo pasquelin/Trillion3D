@@ -5,38 +5,8 @@ import {
   PLAN_SHIFT,
   PLAN_VERTEX_CULL_BIT,
 } from './plan.ts';
-import {
-  EXPAND_GROUP,
-  expandUniformWgsl,
-  INSTANCE_CULL_SHIFT,
-  RUN_WORDS,
-  UNI_WORDS,
-} from './runs.ts';
-
-/** `GPUShaderStage.COMPUTE`, written in the clear: this module is also read from Node, without that global. */
-const COMPUTE = 4;
-
-/**
- * Group-0 bindings, published under the WGSL that declares them: the uniform at its dynamic
- * offset, then the eight storage buffers in rank order. The production layout and the browser
- * probe READ them here — none copies them, so none can lag behind the shader.
- */
-export function blendExpandBindEntries(): GPUBindGroupLayoutEntry[] {
-  const read = 'read-only-storage',
-    write = 'storage';
-  return [
-    {
-      binding: 0,
-      visibility: COMPUTE,
-      buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: UNI_WORDS * 4 },
-    },
-    ...([read, read, read, read, read, write, write, write] as const).map((type, index) => ({
-      binding: index + 1,
-      visibility: COMPUTE,
-      buffer: { type },
-    })),
-  ];
-}
+import { EXPAND_GROUP, expandUniformWgsl, INSTANCE_CULL_SHIFT, RUN_WORDS } from './runs.ts';
+import { EXPAND_BINDING as B } from './expandBindings.ts';
 
 /**
  * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
@@ -80,15 +50,15 @@ export function blendExpandDispatch(out: number[], entries: number, runs: number
  * names.
  */
 export const BLEND_EXPAND_SHADER = `${expandUniformWgsl()}
-@group(0) @binding(0) var<uniform> uni:Uni;
-@group(0) @binding(1) var<storage,read> plan:array<u32>;
-@group(0) @binding(2) var<storage,read> keep:array<u32>;
-@group(0) @binding(3) var<storage,read> draws:array<vec4u>;
-@group(0) @binding(4) var<storage,read> counts:array<u32>;
-@group(0) @binding(5) var<storage,read> clusters:array<u32>;
-@group(0) @binding(6) var<storage,read_write> scratch:array<u32>;
-@group(0) @binding(7) var<storage,read_write> expanded:array<vec2u>;
-@group(0) @binding(8) var<storage,read_write> args:array<u32>;
+@group(0) @binding(${B.uni}) var<uniform> uni:Uni;
+@group(0) @binding(${B.plan}) var<storage,read> plan:array<u32>;
+@group(0) @binding(${B.keep}) var<storage,read> keep:array<u32>;
+@group(0) @binding(${B.draws}) var<storage,read> draws:array<vec4u>;
+@group(0) @binding(${B.counts}) var<storage,read> counts:array<u32>;
+@group(0) @binding(${B.clusters}) var<storage,read> clusters:array<u32>;
+@group(0) @binding(${B.scratch}) var<storage,read_write> scratch:array<u32>;
+@group(0) @binding(${B.expanded}) var<storage,read_write> expanded:array<vec2u>;
+@group(0) @binding(${B.args}) var<storage,read_write> args:array<u32>;
 const GROUP=${EXPAND_GROUP}u;
 var<workgroup> tuile:array<u32,${EXPAND_GROUP}>;
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}

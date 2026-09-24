@@ -1,3 +1,5 @@
+import { COMPUTE } from './computeBindings.ts';
+
 /**
  * Group-0 buffer bindings a WGSL text declares, as the layout type each one requires: what a
  * test holds a published `*BindEntries()` against, so the entries cannot drift from the shader.
@@ -16,5 +18,5 @@ export function wgslBufferBindings(shader: string) {
 export const entryBufferBindings = (entries: GPUBindGroupLayoutEntry[]) =>
   entries.map(({ binding, visibility, buffer }) => ({
     binding,
-    type: visibility === 4 ? buffer?.type : undefined,
+    type: visibility === COMPUTE ? buffer?.type : undefined,
   }));

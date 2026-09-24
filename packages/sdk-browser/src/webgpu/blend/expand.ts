@@ -1,9 +1,6 @@
-import {
-  BLEND_EXPAND_ENTRIES,
-  BLEND_EXPAND_SHADER,
-  blendExpandBindEntries,
-  blendExpandDispatch,
-} from './expandWgsl.ts';
+import { BLEND_EXPAND_ENTRIES, BLEND_EXPAND_SHADER, blendExpandDispatch } from './expandWgsl.ts';
+import { blendExpandBindEntries, EXPAND_BINDING } from './expandBindings.ts';
+import { namedBufferEntries } from '../../gpu/core/computeBindings.ts';
 import { shaderFailed } from '../../gpu/core/shaderModule.ts';
 import { validated } from '../../gpu/core/errorScope.ts';
 import { cleanupFailedHiz } from '../../gpu/hiz/pipelines.ts';
@@ -143,19 +140,17 @@ export async function createBlendExpand(
       // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.
       const bindGroup = device.createBindGroup({
         layout,
-        entries: [
-          { binding: 0, resource: { buffer: uniforms, size: UNI_WORDS * 4 } },
-          ...[
-            plan,
-            keep,
-            draws,
-            shared.counts ?? draws,
-            shared.clusters ?? draws,
-            scratch,
-            outputs.expanded,
-            outputs.args,
-          ].map((buffer, index) => ({ binding: index + 1, resource: { buffer } })),
-        ],
+        entries: namedBufferEntries(EXPAND_BINDING, {
+          uni: { buffer: uniforms, size: UNI_WORDS * 4 },
+          plan: { buffer: plan },
+          keep: { buffer: keep },
+          draws: { buffer: draws },
+          counts: { buffer: shared.counts ?? draws },
+          clusters: { buffer: shared.clusters ?? draws },
+          scratch: { buffer: scratch },
+          expanded: { buffer: outputs.expanded },
+          args: { buffer: outputs.args },
+        }),
       });
       return { bindGroup, pipelines };
     });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dagBindEntries } from './bindings.ts';
+import { DAG_BINDING, dagBindEntries } from './bindings.ts';
 import { DAG_SELECTION_SHADER } from './shader.ts';
 import { entryBufferBindings, wgslBufferBindings } from '../../core/wgslBindings.fixture.ts';
 
@@ -17,4 +17,9 @@ test('a binding whose access changes in the shader no longer matches the entries
   );
   assert.notEqual(drifted, DAG_SELECTION_SHADER);
   assert.notDeepEqual(entryBufferBindings(dagBindEntries()), wgslBufferBindings(drifted));
+});
+
+test('each DAG buffer name owns its own binding, from 0 without a gap', () => {
+  const bindings = Object.values(DAG_BINDING).sort((a, b) => a - b);
+  assert.deepEqual(bindings, [...bindings.keys()]);
 });
