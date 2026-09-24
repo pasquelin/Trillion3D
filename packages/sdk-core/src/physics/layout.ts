@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 2;
+export const PHYSICS_LAYOUT_VERSION = 3;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -39,7 +39,17 @@ export const SHAPE = { box: 0, sphere: 1, capsule: 2, cylinder: 3, triangles: 4,
 export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8 } as const;
 
 /**
- * Words of the fixed part of ADD: `op, index, motion, layer, shape, flags, px, py, pz, qx, qy,
+ * A body's engine id, carried by ADD and by every pose and event record: its slot in the bits of
+ * `BODY_INDEX`, the slot's generation in the seven bits above. A record naming a body that left is
+ * then never read as the body that took its slot; the other commands name the slot alone.
+ */
+export const BODY_INDEX = 0x00ffffff;
+/** Where the generation starts in an engine id, and how many a slot counts before wrapping. */
+export const GENERATION_SHIFT = 24;
+export const GENERATIONS = 128;
+
+/**
+ * Words of the fixed part of ADD: `op, engine id, motion, layer, shape, flags, px, py, pz, qx, qy,
  * qz, qw, a, b, c, mass, density, friction, restitution, gravityScale, vertexCount, indexCount`,
  * followed by `vertexCount × 3` floats and `indexCount` indices. `a, b, c` are the primitive's
  * sizes (box half extents; sphere radius; capsule and cylinder half height, radius); a mass of 0
@@ -55,14 +65,14 @@ export const ADD_WORDS = 23;
 export const VIEW_WORDS = 9;
 
 /**
- * Words of one pose record: `index | asleep bit, px, py, pz, qx, qy, qz, qw, vx, vy, vz, wx, wy,
+ * Words of one pose record: `engine id | asleep bit, px, py, pz, qx, qy, qz, qw, vx, vy, vz, wx, wy,
  * wz` — the linear and angular velocities let the page extrapolate a late tick.
  */
 export const POSE_WORDS = 14;
 /** Set on a pose record's index word when the body fell asleep during the step. */
 export const ASLEEP_BIT = 0x80000000;
 
-/** Words of one event record: `type, a, b, impulse, px, py, pz`. */
+/** Words of one event record: `type, engine id a, engine id b, impulse, px, py, pz`. */
 export const EVENT_WORDS = 7;
 /** Event types: a pair of bodies started touching, or stopped. */
 export const EVENT = { begin: 1, end: 2 } as const;

@@ -29,10 +29,22 @@ enum Flag : uint32_t { SENSOR = 1, CCD = 2, EVENTS = 4, HIDDEN = 8 };
 /// Error codes returned by `jolt_error` after a failed `jolt_step` (mirrored in layout.ts).
 enum Error : uint32_t { NONE = 0, BODY_LIMIT = 1, UNKNOWN_BODY = 2, BAD_SHAPE = 3, BAD_COMMAND = 4 };
 
+/// A body's engine id: its slot in the low bits, the slot's generation above (layout.ts BODY_INDEX),
+/// so a record naming a body that left is never read as the one that took its slot.
+constexpr uint32_t INDEX_MASK = 0x00FFFFFFu;
+
 struct Slot {
   JPH::BodyID id;
+  /** The engine id the page gave the body (slot and generation). */
+  uint32_t engine = 0;
   uint32_t flags = 0;
+  /** The step whose pose buffer holds this body's record: one record per body and step. */
+  uint32_t sent = 0;
   bool used = false;
+  /** Its shape was refused: commands naming it are skipped until the page removes it. */
+  bool refused = false;
+  /** Listed in `World::waiting`. */
+  bool waiting = false;
   /** A pose was withheld (out of view): it is sent once the body is seen again. */
   bool withheld = false;
   /** Deactivated beyond the range; its velocities are kept here and given back on return. */
@@ -68,18 +80,28 @@ struct World {
   JPH::PhysicsSystem *system = nullptr;
   Listener listener;
   std::vector<Slot> slots;
-  /// Jolt body index -> engine body index, so events survive the removal of a body.
-  std::vector<uint32_t> engineIndex;
+  /// Jolt body index -> engine id, so a contact's removal names the bodies it was reported with.
+  std::vector<uint32_t> engineOf;
+  /** Engine ids of the bodies Jolt put to sleep during the step. */
   std::vector<uint32_t> deactivated;
   /** Bodies whose pose is withheld while asleep, or frozen: examined again every step. */
   std::vector<uint32_t> waiting;
   View view;
+  /** Touching pairs by engine ids: sub-shape contacts counted, `ENTERED` once the page was told. */
   std::unordered_map<uint64_t, uint32_t> pairs;
+  /** Leaves that found the event buffer full: written first at the next step, never lost. */
+  std::vector<uint64_t> leaving;
+  /** This step's bodies whose shape was refused (engine ids), and its enters the buffer dropped. */
+  std::vector<uint32_t> refused;
+  uint32_t dropped = 0;
   std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> primitives;
   uint32_t *buffers[3] = {nullptr, nullptr, nullptr};
   uint32_t capacity[3] = {0, 0, 0};
   uint32_t eventWords = 0;
   uint32_t error = NONE;
+  /** What the last `PhysicsSystem::Update` could not hold (`EPhysicsUpdateError` bits). */
+  uint32_t updateError = 0;
+  uint32_t step = 0;
   float dt = 0;
 };
 
@@ -91,6 +113,8 @@ constexpr uint32_t EVENT_WORDS = 7;
 
 /// Executes `words` command words; returns false (with `world().error` set) on the first failure.
 bool runCommands(const uint32_t *words, uint32_t count);
+/// The page's leave for every pair a body being removed was in; its later removal is ignored.
+void leaveAll(uint32_t engine);
 /// Writes the poses of the dynamic bodies that moved during the step; returns their count.
 uint32_t writePoses();
 
