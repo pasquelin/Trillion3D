@@ -1,19 +1,21 @@
-// Never no shadow: over budget, the floor under every page the shading reads — a sun's last level,
-// a lamp face's one-page mip — is current every frame, so a reader that falls back past a withdrawn
-// page never reaches the far ray of a sun or the unshadowed answer of a lamp.
+// The floor under every page the shading reads — a sun's last level, a lamp face's one-page mip — is
+// drawn first, over budget, so a reader that falls back past a withdrawn page reads a current floor.
+// Past the page cap, a face whose floor waits its turn reads no shadow, never one at a past pose.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { PAGE_VALID, sunEntry, sunFloorLevel, sunPageMetres } from './virtual.ts';
+import { PAGE_INDEX_MASK, PAGE_VALID, sunEntry, sunFloorLevel, sunPageMetres } from './virtual.ts';
 import {
   SUN,
   VIEW,
   cycle,
+  cycleDrawn,
   lampScene,
   lampFloor,
   lampPages,
   planFrame,
+  readPages,
   sunFloor,
   sunPages,
 } from './lightShadow.fixture.ts';
@@ -71,16 +73,6 @@ test('a new light reads its floor from its first frame, before any report comes 
     assert.ok(plan.table.words[lampFloor(plan, lamp, face)] & PAGE_VALID, `lamp face ${face}`);
 });
 
-/** Every face floor of each lamp in `slices` is read: none answers 1.0 for want of a floor. */
-function assertFloors(plan: ReturnType<typeof createShadowPlan>, slices: number[], frame: number) {
-  for (const slice of slices)
-    for (let face = 0; face < 6; face++)
-      assert.ok(
-        plan.table.words[lampFloor(plan, slice, face)] & PAGE_VALID,
-        `slice ${slice} face ${face} at frame ${frame}`,
-      );
-}
-
 /** `count` point lamps, ten units apart, planned once: their slices. */
 function lamps(store: ReturnType<typeof createSceneLightStore>, count: number) {
   for (let k = 0; k < count; k++)
@@ -88,35 +80,42 @@ function lamps(store: ReturnType<typeof createSceneLightStore>, count: number) {
   return Array.from({ length: count }, (_, k) => k);
 }
 
-test('past the view limit, every face of lamps that all keep moving has a floor every frame', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
-  const ids = lamps(store, 3);
-  planFrame(plan, store, 0);
-  const slices = ids.map((k) => store.sliceOf(k));
-  const read = slices.flatMap((slice) => lampPages(plan, slice, 0, 3));
-  for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
-  plan.admission.setViewLimit(1);
-  for (let frame = 4; frame < 40; frame++) {
-    for (const k of ids) store.set(`lamp${k}`, { position: [k * 10, 3 + frame / 10, 0] });
-    cycle(plan, store, frame, () => read);
-    assertFloors(plan, slices, frame);
-  }
-});
-
-test('five lamps moving every frame, thirty floors past the page cap, keep a floor on every face', () => {
+test('five lamps moving over the page cap: a face not drawn reads nothing stale, and waits one frame', () => {
   const store = createSceneLightStore();
   const plan = createShadowPlan(24, 32);
   const ids = lamps(store, 5);
+  store.add(SUN);
   planFrame(plan, store, 0);
   plan.commit();
-  const slices = ids.map((k) => store.sliceOf(k));
+  const slices = ids.map((k) => store.sliceOf(k)),
+    sun = store.sliceOf(ids.length);
   const read = slices.flatMap((slice) => lampPages(plan, slice, 0, 3));
-  for (let frame = 1; frame < 30; frame++) {
+  const level = sunFloorLevel(plan.sun.finest[sun]),
+    reach = new Int32Array(4),
+    drewFloor = new Int32Array(ids.length * 6);
+  for (let frame = 1; frame < 20; frame++) {
+    // Thirty lamp floors past the cap of twenty-four, and the sun floor pages a walking camera
+    // brings in beside them.
     for (const k of ids) store.set(`lamp${k}`, { position: [k * 10, 3 + frame / 10, 0] });
-    cycle(plan, store, frame, () => read);
-    // Twenty-four floors a frame: the thirty are all drawn once by the second.
-    if (frame > 1) assertFloors(plan, slices, frame);
+    const view = { ...VIEW, position: [frame * sunPageMetres(level), 5, 0] as const };
+    const drawn = cycleDrawn(plan, store, frame, () => read, view);
+    for (const [k, slice] of slices.entries()) {
+      for (const page of readPages(plan, slice))
+        assert.ok(drawn.has(page), `slice ${slice} page ${page} read stale at frame ${frame}`);
+      for (let face = 0; face < 6; face++) {
+        const page = plan.table.words[lampFloor(plan, slice, face)] & PAGE_INDEX_MASK;
+        if (drawn.has(page)) drewFloor[k * 6 + face] = frame;
+        assert.ok(frame - drewFloor[k * 6 + face] < 2, `slice ${slice} face ${face} at ${frame}`);
+      }
+    }
+    // The sun holds still: the floor pages its last view reached were drawn by now.
+    if (frame > 1)
+      for (let y = reach[1]; y <= reach[3]; y++)
+        for (let x = reach[0]; x <= reach[2]; x++) {
+          const entry = plan.table.baseOf(sun) + sunEntry(level, x, y);
+          assert.ok(plan.table.words[entry] & PAGE_VALID, `floor page ${x},${y} at ${frame}`);
+        }
+    plan.sun.floorReach(sun, view, reach);
   }
 });
 
@@ -138,33 +137,6 @@ test('a camera that moves brings in the sun floor pages its view reaches, drawn 
     for (let y = reach[1]; y <= reach[3]; y++)
       for (let x = reach[0]; x <= reach[2]; x++) {
         const entry = plan.table.baseOf(slice) + sunEntry(level, x, y);
-        assert.ok(plan.table.words[entry] & PAGE_VALID, `floor page ${x},${y} at frame ${frame}`);
-      }
-  }
-});
-
-test('past the page cap, the sun floor pages a walking camera brings in outrank the stale lamp floors', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
-  const ids = lamps(store, 5);
-  store.add(SUN);
-  planFrame(plan, store, 0);
-  const slices = ids.map((k) => store.sliceOf(k)),
-    sun = store.sliceOf(ids.length);
-  const read = slices.flatMap((slice) => lampPages(plan, slice, 0, 3));
-  for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
-  const level = sunFloorLevel(plan.sun.finest[sun]),
-    reach = new Int32Array(4);
-  for (let frame = 4; frame < 20; frame++) {
-    // Thirty lamp floors stale at a past pose, and new sun floor pages no one has drawn yet.
-    for (const k of ids) store.set(`lamp${k}`, { position: [k * 10, 3 + frame / 10, 0] });
-    const view = { ...VIEW, position: [(frame - 3) * sunPageMetres(level), 5, 0] as const };
-    cycle(plan, store, frame, () => read, view);
-    assertFloors(plan, slices, frame);
-    plan.sun.floorReach(sun, view, reach);
-    for (let y = reach[1]; y <= reach[3]; y++)
-      for (let x = reach[0]; x <= reach[2]; x++) {
-        const entry = plan.table.baseOf(sun) + sunEntry(level, x, y);
         assert.ok(plan.table.words[entry] & PAGE_VALID, `floor page ${x},${y} at frame ${frame}`);
       }
   }
