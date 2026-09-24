@@ -23,7 +23,7 @@ export function pictureFits({ layout, source }: TileTexture) {
 }
 
 /** The places a texture holds in its lane's pool: its pinned tail and its resident tiles. */
-export function slotPlaces(atlas: WebgpuTileAtlas, slot: number) {
+function slotPlaces(atlas: WebgpuTileAtlas, slot: number) {
   const pool = atlas.poolOf(slot);
   let tail: TilePlace | undefined;
   const tiles: { key: TileKey; place: TilePlace }[] = [];
