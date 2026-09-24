@@ -53,7 +53,7 @@ export async function createExplorerPageSources(
     diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
       ? diagnosticChannel.emit
       : undefined,
-    options.maxCachedBytes,
+    options.pageCache,
   );
   let loaded = 0,
     pageBytesRead = 0;
