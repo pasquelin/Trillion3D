@@ -1677,7 +1677,7 @@
       "scope": "`'full'` membutuhkan seluruh cache, `'progressive'` irisan streaming-nya; sebuah model dari cakupan lain ditolak dengan menyebut namanya. Tidak diatur, model dibaca pada cakupan yang dideklarasikan pointer-nya.",
       "stream": "Sebuah streamer yang dikonfigurasi halaman; sesi dunia melakukan streaming dengan miliknya sendiri.",
       "position": "Tempat titik asal model itu masuk ke dalam scene.",
-      "onProgress": "Mendengar sejauh mana pemuatan berjalan: `manifest` setelah manifest dibaca, lalu `resources` saat setiap berkas yang dibaca adegan tiba (`completed` dari `total` yang diketahui sejauh ini). Peristiwanya adalah `JobProgress`: `createJob` yang membungkus pemuatan meneruskan `progress`-nya ke sini."
+      "onProgress": "Mendengar sejauh mana pemuatan berjalan: `bytes` pada setiap potongan setiap berkas yang dibaca, hingga `completed === total`; `manifest` setelah manifes dibaca, `tables` setelah tabel adegan dibaca, lalu `resources` saat setiap berkas yang dibaca adegan tiba (`completed` dari `total` yang diketahui sejauh ini). Peristiwanya adalah `JobProgress`: `createJob` yang membungkus pemuatan meneruskan `progress`-nya ke sini, dan `world.awaitPages` melaporkan halaman pertama dengan bentuk yang sama."
     }
   },
   "LoadedModel": {
@@ -6588,7 +6588,10 @@
     "summary": "Menulis `view` tanpa translasinya: tampilan sebuah kamera dengan orientasi sama yang diposekan di titik asal bingkai render."
   },
   "world.awaitPages": {
-    "summary": "Selesai begitu halaman yang dibaca tampilan sekarang menetap (`awaitViewPages`)."
+    "summary": "Selesai begitu halaman yang dibaca tampilan sekarang menetap (`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress` mendengar `pages`, `completed` dari `total`, saat halaman-halaman itu tiba."
+    }
   },
   "world.bounce": {
     "summary": "Cahaya yang dipantulkan dari permukaan, ditelusuri terhadap proxy yang menetap; mati secara default.",

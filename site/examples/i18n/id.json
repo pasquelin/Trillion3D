@@ -1811,6 +1811,26 @@
       "sound": "M suara"
     }
   },
+  "watch-a-world-load": {
+    "banner": "Lihat bilah terisi saat dunia tiba. Tekan Muat ulang untuk melihatnya dari bita pertama.",
+    "controls": {
+      "loadAgain": "Muat ulang"
+    },
+    "readouts": {
+      "phase": "Langkah",
+      "bytes": "Bita",
+      "pages": "Halaman pertama"
+    },
+    "words": {
+      "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md",
+      "bytes": "membaca bita",
+      "manifest": "manifes terbaca",
+      "tables": "tabel adegan terbaca",
+      "resources": "berkas adegan",
+      "pages": "halaman pertama",
+      "ready": "siap"
+    }
+  },
   "waves-of-points": {
     "banner": "Geser untuk mengelilingi lapangan. Pilih pola untuk mengubah gelombang.",
     "controls": {
