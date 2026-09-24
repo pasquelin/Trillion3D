@@ -29,7 +29,8 @@ interface CookedCollider {
   primitive: number;
   /** The glTF material of every triangle, or `null`. */
   material: number | null;
-  /** The DAG error the level was cut at, and the distance measured to the drawn level 0. */
+  /** The object's DAG error the level holds, and its distance measured to the drawn level 0, at
+   *  or under that tolerance. */
   tolerance: number;
   hausdorff: number;
   triangles: number;

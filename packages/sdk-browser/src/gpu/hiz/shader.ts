@@ -1,3 +1,4 @@
+import { COMPUTE } from '../core/computeBindings.ts';
 import {
   ST_REJECTED,
   ST_REJECTED_TRIANGLES,
@@ -6,9 +7,6 @@ import {
   VERDICT_REJECTED,
 } from '../partition/contract.ts';
 import { HIZ_FAR_WGSL } from './rectWgsl.ts';
-
-/** `GPUShaderStage.COMPUTE`, written in the clear: this module is also read from Node, without that global. */
-const COMPUTE = 4;
 
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
