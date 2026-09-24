@@ -64,15 +64,37 @@ pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, V
     }
     (compact_pos, compact_idx, remap)
 }
-/// Simplify a region with an explicit per-vertex lock table instead of a blanket border lock.
-/// `locked` is queried with source vertex indices. A vertex that no other region shares stays free,
-/// so the open boundary of a primitive keeps simplifying instead of pinning the whole region.
+/// meshoptimizer's per-vertex flags (`meshopt_SimplifyVertex_*`): the vertex does not move.
+pub const VERTEX_LOCK: u8 = 1;
+/// The vertex keeps its attribute discontinuity (a texture seam) under permissive mode.
+pub const VERTEX_PROTECT: u8 = 2;
+
+/// One per-vertex attribute counted in the simplification error: `width` floats per source
+/// vertex, each weighted by `weight` against the positions normalised to the region's extent.
+pub struct Attribute<'a> {
+    pub values: &'a [f32],
+    pub width: usize,
+    pub weight: f32,
+}
+
+/// Simplify a region with an explicit per-vertex flag table instead of a blanket border lock.
+/// `flags` is queried with source vertex indices and answers `VERTEX_LOCK` and `VERTEX_PROTECT`.
+/// A vertex that no other region shares stays free, so the open boundary of a primitive keeps
+/// simplifying instead of pinning the whole region.
+///
+/// The reference's options (meshoptimizer `clusterlod.h`): the error is absolute, `attributes`
+/// count in it, and permissive mode lets a collapse cross an attribute discontinuity — a hard
+/// edge — unless the vertex is protected. `prune` also removes the disconnected parts that fall
+/// under the error; it ignores locks, so a caller that must keep a locked vertex turns it off.
+/// The error is clamped to the region's extent: the attribute share never outweighs the geometry
+/// it sits on, as the reference's `simplify_error_clamped`.
 pub fn simplify_with_locked_vertices(
     positions: &[f32],
+    attributes: &[Attribute],
     indices: &[u32],
     target_triangles: usize,
-    target_error: f32,
-    locked: &dyn Fn(u32) -> bool,
+    prune: bool,
+    flags: &dyn Fn(u32) -> u8,
 ) -> Result<SimplifiedMesh> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) {
         return Err(invalid("Index count must be a positive multiple of three"));
@@ -89,41 +111,76 @@ pub fn simplify_with_locked_vertices(
         });
     }
     let (compact_pos, compact_idx, remap) = compact_region(positions, indices);
-    let locks: Vec<bool> = remap.iter().map(|&source| locked(source)).collect();
+    let flags: Vec<u8> = remap.iter().map(|&source| flags(source)).collect();
+    let (values, weights) = compact_attributes(attributes, &remap);
     let bytes = unsafe {
         std::slice::from_raw_parts(compact_pos.as_ptr() as *const u8, compact_pos.len() * 4)
     };
     let vertices = VertexDataAdapter::new(bytes, 12, 0).map_err(|_| invalid("POSITION adapter"))?;
+    let mut options = SimplifyOptions::ErrorAbsolute | SimplifyOptions::Permissive;
+    if prune {
+        options |= SimplifyOptions::Prune;
+    }
+    let mut out = vec![0u32; compact_idx.len()];
     let mut result_error = 0.0_f32;
-    let out = meshopt::simplify::simplify_with_locks(
-        &compact_idx,
-        &vertices,
-        &locks,
-        (target_triangles.max(1)) * 3,
-        target_error,
-        SimplifyOptions::None,
-        Some(&mut result_error),
-    );
-    let triangles = out.len() / 3;
-    let progressed = triangles < current && !out.is_empty();
-    let scale = meshopt::simplify::simplify_scale(&vertices) as f64;
-    let mapped = if progressed {
-        out.into_iter()
-            .map(|i| remap.get(i as usize).copied().unwrap_or(i))
-            .collect()
-    } else {
-        indices.to_vec()
+    // The crate's wrapper takes the flags as `bool`, which cannot carry `VERTEX_PROTECT`.
+    let count = unsafe {
+        meshopt::ffi::meshopt_simplifyWithAttributes(
+            out.as_mut_ptr(),
+            compact_idx.as_ptr(),
+            compact_idx.len(),
+            compact_pos.as_ptr(),
+            remap.len(),
+            12,
+            values.as_ptr(),
+            weights.len() * 4,
+            weights.as_ptr(),
+            weights.len(),
+            flags.as_ptr(),
+            target_triangles.max(1) * 3,
+            f32::MAX,
+            options.bits(),
+            &mut result_error,
+        )
     };
+    out.truncate(count);
+    let triangles = out.len() / 3;
+    if triangles >= current || out.is_empty() {
+        return Ok(SimplifiedMesh {
+            indices: indices.to_vec(),
+            triangles: current,
+            error_object: 0.0,
+        });
+    }
+    let extent = meshopt::simplify::simplify_scale(&vertices) as f64;
     Ok(SimplifiedMesh {
-        indices: mapped,
-        triangles: if progressed { triangles } else { current },
-        error_object: if progressed {
-            (result_error as f64) * scale
-        } else {
-            0.0
-        },
+        indices: out.into_iter().map(|i| remap[i as usize]).collect(),
+        triangles,
+        error_object: (result_error as f64).min(extent),
     })
 }
+
+/// The attributes of the region's vertices, interleaved in compact order, and one weight per float.
+fn compact_attributes(attributes: &[Attribute], remap: &[u32]) -> (Vec<f32>, Vec<f32>) {
+    let weights: Vec<f32> = attributes
+        .iter()
+        .flat_map(|a| std::iter::repeat_n(a.weight, a.width))
+        .collect();
+    let mut values = Vec::with_capacity(remap.len() * weights.len());
+    for &source in remap {
+        for a in attributes {
+            let i = source as usize * a.width;
+            match a.values.get(i..i + a.width) {
+                Some(v) => values.extend_from_slice(v),
+                None => values.extend(std::iter::repeat_n(0.0, a.width)),
+            }
+        }
+    }
+    (values, weights)
+}
+#[cfg(test)]
+#[path = "qem_attribute_tests.rs"]
+mod attribute_tests;
 #[cfg(test)]
 #[path = "qem_tests.rs"]
 mod tests;
