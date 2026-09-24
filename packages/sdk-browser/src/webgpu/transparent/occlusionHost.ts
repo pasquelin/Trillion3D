@@ -2,6 +2,7 @@ import { CORNER_VALUES } from '../../gpu/partition/contract.ts';
 import { createTransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { packBoxCorners } from '../visibility/corners.ts';
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts';
 
 /**
  * Mounts the occlusion test of transparent clusters, once everything it borrows exists.
@@ -27,13 +28,15 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
   blendState.occlusionEpoch = -1;
 }
 
+const entryCorners = new Float64Array(BOX_CORNER_VALUES);
+
 /**
  * The eight world corners of every transparent-table entry, in the buffer the test reads.
  *
  * A transparent cluster claims no visibility-buffer row: its corners therefore do not travel with
  * the row table's dirty range, and it is here they leave. As for opaques, a corner changes only when
  * its page's world matrix changes, and the table's age names exactly that moment: a moving camera
- * rewrites none. The doubles are those of `createBoxCorners`, each carried by two single-precision
+ * rewrites none. The doubles are those of `pageCornersInto`, each carried by two single-precision
  * values — the rounding and its residue.
  */
 export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
@@ -44,7 +47,7 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
   if (blendState.occlusionEpoch === epoch) return;
   blendState.occlusionEpoch = epoch;
   const packed = blendState.occlusionCorners,
-    { boxCorners, packedPages } = layout;
+    { packedPages } = layout;
   for (let entry = 0; entry < table.capacity; entry++) {
     const base = entry * CORNER_VALUES,
       page = table.pageOfEntry[entry];
@@ -54,7 +57,8 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
       packed.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    packBoxCorners(packed, base, boxCorners.corners, boxCorners.at(page, packedPages[page], epoch));
+    pageCornersInto(entryCorners, 0, packedPages[page]);
+    packBoxCorners(packed, base, entryCorners, 0);
   }
   occlusion.uploadCorners(packed, 0, table.capacity - 1);
 }

@@ -1,9 +1,7 @@
 import { readGpuBuffer, readGpuTextureR32F } from '../../gpu/core/readback.ts';
 import { visLayerTop } from '../visibility/uniforms.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-
-/** Doubles of a world box: eight corners of three coordinates, as `createBoxCorners` holds them. */
-const BOX_CORNER_VALUES = 24;
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts';
 
 /**
  * What the transparent occlusion test REJECTED on the last image, and enough to refute it without
@@ -73,12 +71,10 @@ export async function readTransparentOcclusionAudit(
   if (!depth) return null;
   const rejected = Uint32Array.from(keep);
   const corners = new Float64Array(rejected.length * BOX_CORNER_VALUES);
-  const { boxCorners, packedPages, rows } = layout;
+  const { packedPages } = layout;
   for (let i = 0; i < rejected.length; i++) {
     const page = table.pageOfEntry[rejected[i]];
-    const at = boxCorners.at(page, packedPages[page], rows.tableEpoch);
-    for (let k = 0; k < BOX_CORNER_VALUES; k++)
-      corners[i * BOX_CORNER_VALUES + k] = boxCorners.corners[at + k];
+    pageCornersInto(corners, i * BOX_CORNER_VALUES, packedPages[page]);
   }
   return {
     width: frame.width,

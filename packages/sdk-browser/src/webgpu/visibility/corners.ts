@@ -1,5 +1,6 @@
 import { CORNER_VALUES, writeSplitDouble } from '../../gpu/partition/contract.ts';
 import { forEachRewrittenRun } from '../row/dirty.ts';
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** What describes the corners already sent to the GPU: the age of the table they came from. */
@@ -15,7 +16,7 @@ export function createCornerUploadHold() {
  * dirty travel, run by run — a model whose rows are scattered sends its own and none of the rows
  * between them — and a new age asks for the drawable rows again, once.
  *
- * The corners are those double precision computes (`createBoxCorners`), each carried by TWO single-
+ * The corners are those double precision derives (`pageCornersInto`), each carried by TWO single-
  * precision values: the rounded value and its residue. The kernel reports them to the camera pose,
  * itself in two words, so world magnitude survives no subtraction and its error bound depends only
  * on cluster size (`../../gpu/partition/margins.ts`).
@@ -44,9 +45,11 @@ function forgetAndUploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   uploadRun(rt, from, to);
 }
 
+const rowCorners = new Float64Array(BOX_CORNER_VALUES);
+
 /** Packs the corners of rows `[from, to]` and sends them in one write. */
 function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  const { rows, boxCorners, cornerPacked } = rt.layout;
+  const { rows, cornerPacked } = rt.layout;
   for (let row = from; row <= to; row++) {
     const rec = rows.packedRecs[row];
     const base = row * CORNER_VALUES;
@@ -54,12 +57,8 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
       cornerPacked.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    packBoxCorners(
-      cornerPacked,
-      base,
-      boxCorners.corners,
-      boxCorners.at(rows.packedPageIndex[row], rec, rows.tableEpoch),
-    );
+    pageCornersInto(rowCorners, 0, rec);
+    packBoxCorners(cornerPacked, base, rowCorners, 0);
   }
   rt.vis.gpuPartition!.uploadCorners(cornerPacked, from, to);
 }
