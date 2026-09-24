@@ -3092,6 +3092,10 @@
   "Side": {
     "summary": "Sisi mana yang digambar sebuah material: `'front'`, `'back'` atau `'double'`."
   },
+  "SixDofAxis": {
+    "summary": "Sumbu sambungan enam derajat kebebasan: bergeser sepanjang `x`, `y`, `z` dan berputar di sekitarnya.",
+    "description": "`x` searah `axis` sambungan, `y` sedekat mungkin ke atas dunia sambil tetap tegak lurus padanya."
+  },
   "Side-common": {
     "summary": "Sisi mana dari sebuah permukaan yang digambar, enum milik mesin sendiri, dibandingkan di mana-mana selanjutnya."
   },
@@ -7303,20 +7307,27 @@
     "description": "Sambungan menahan selama kedua benda disimulasikan, dan sampai ia putus.",
     "parameters": {
       "options": "Apa yang diterima `joint.*`. Titik dan sumbu ada di dunia, dibaca saat sambungan pertama kali dibuat.",
-      "options.anchor": "Tempat benda-benda terhubung: pasak engsel, bola sambungan titik, ujung jarak pada `a`.",
-      "options.anchorB": "Ujung jarak pada `b`.",
-      "options.axis": "Pasak engsel, rel peluncur, tengah kerucut.",
-      "options.limits": "Engsel, peluncur, jarak, dan kerucut: seberapa jauh ia bergerak. Jarak secara bawaan mempertahankan panjangnya.",
-      "options.spring": "Engsel, peluncur, dan jarak: melewati batas, pegas menariknya kembali alih-alih dinding; `frequency` dalam Hz, `damping` dari 0 (tidak ada) sampai 1 (kritis).",
-      "options.motor": "Engsel dan peluncur: motor yang bisa diubah kapan saja lewat `joint.motor`.",
-      "options.breakForce": "Tarikan dalam newton yang membuat sambungan putus bila dilewati; bila tidak diisi, tidak pernah."
+      "options.anchor": "Tempat benda-benda terhubung: pasak engsel, bola sambungan titik, ujung jarak atau tali katrol pada `a`.",
+      "options.anchorB": "Ujung jarak atau tali katrol pada `b`.",
+      "options.axis": "Pasak engsel, rel peluncur, tengah kerucut atau sambungan ayun-puntir, `x` sambungan enam derajat kebebasan, pasak roda gigi atau pinion (`a`).",
+      "options.axisB": "Pasak roda gigi pada `b`, rel batang gigi (`b`).",
+      "options.limits": "Engsel, peluncur, jarak, kerucut, ayun-puntir, dan katrol: seberapa jauh ia bergerak. Jarak secara bawaan mempertahankan panjangnya; tali katrol dari 0 sampai panjangnya.",
+      "options.axes": "Sumbu-sumbu sambungan enam derajat kebebasan yang bergerak, bebas (`'free'`) atau dalam batas; yang lain terkunci.",
+      "options.spring": "Engsel, peluncur, jarak, dan enam derajat kebebasan: melewati batas, pegas menariknya kembali alih-alih dinding; `frequency` dalam Hz, `damping` dari 0 (tidak ada) sampai 1 (kritis).",
+      "options.motor": "Engsel, peluncur, ayun-puntir (puntirannya), enam derajat kebebasan, dan lintasan: motor yang bisa diubah kapan saja lewat `joint.motor`.",
+      "options.path": "Rel sebuah lintasan: paling sedikit dua titik, milik `b` (atau dunia) seperti saat dibuat; `a` mulai dari titik rel yang paling dekat ke `anchor`.",
+      "options.loop": "Rel lintasan menutup pada dirinya sendiri.",
+      "options.follow": "`a` sebuah lintasan berputar mengikuti rel, seperti kereta, bukan bebas, seperti manik-manik.",
+      "options.over": "Dua roda katrol di dunia: tali `a` naik ke roda pertama, tali `b` ke roda kedua.",
+      "options.ratio": "Untuk roda gigi, putaran `b` per putaran `a` (gigi `a` dibagi gigi `b`), berlawanan arah; untuk pinion, radian per meter batang gigi, 1 / jari-jarinya; untuk katrol, meter tali `b` per meter tali `a`.",
+      "options.breakForce": "Tarikan dalam newton yang membuat sambungan putus bila dilewati (N·m torsi di antara gigi roda gigi atau batang gigi); bila tidak diisi, tidak pernah."
     },
     "members": {
       "kind": "Jenis sambungannya.",
       "a": "Benda pertama.",
       "b": "Benda kedua, atau `null` untuk dunia.",
       "options": "Isian yang dipakai saat membuatnya.",
-      "motor": "Motor engsel atau peluncur; `null` membiarkannya berputar atau meluncur bebas.",
+      "motor": "Motor engsel, peluncur, sambungan ayun-puntir, enam derajat kebebasan, atau lintasan; `null` membiarkan sambungan bergerak bebas.",
       "broken": "Apakah ia putus: ditarik melewati `breakForce`-nya. Sambungan yang putus tidak menahan apa pun lagi.",
       "on": "Memanggil `handler` saat sambungan putus."
     }
@@ -7325,31 +7336,40 @@
     "summary": "Sambungan antarbenda, masing-masing salah satu batasan milik Jolt sendiri."
   },
   "JointLimits": {
-    "summary": "Seberapa jauh sambungan boleh bergerak: radian untuk engsel, meter untuk peluncur atau jarak, setengah sudut kerucut (`max`) untuk kerucut.",
+    "summary": "Seberapa jauh sambungan boleh bergerak: radian untuk engsel atau putaran, meter untuk peluncur, jarak, atau tali katrol, setengah sudut kerucut (`max`) untuk kerucut.",
     "members": {
-      "min": "Engsel dari −π sampai 0, peluncur 0 atau kurang.",
-      "max": "Engsel dari 0 sampai π, peluncur 0 atau lebih."
+      "min": "Engsel dari −π sampai 0, peluncur 0 atau kurang; puntiran sambungan ayun-puntir mulai dari −π.",
+      "max": "Engsel dari 0 sampai π, peluncur 0 atau lebih; puntiran sambungan ayun-puntir sampai π.",
+      "swing": "Kerucut sambungan ayun-puntir: seberapa jauh `axis`-nya berayun, setengah sudut sampai π."
     }
   },
   "JointMotor": {
-    "summary": "Motor engsel atau peluncur: menggerakkan sambungan ke suatu kecepatan atau posisi.",
+    "summary": "Motor sambungan: menggerakkannya ke suatu kecepatan atau posisi.",
     "members": {
-      "mode": "`'velocity'`: rad/s atau m/s; `'position'`: radian atau meter dari posisi saat sambungan dibuat.",
+      "mode": "`'velocity'`: rad/s atau m/s; `'position'`: radian atau meter dari tempat sambungan dibuat — untuk lintasan, titik di sepanjangnya (1.5: di tengah antara titik kedua dan ketiga).",
       "target": "Kecepatan atau posisi yang dituju.",
-      "maxForce": "N·m untuk engsel, N untuk peluncur; bila tidak diisi, tanpa batas."
+      "maxForce": "N·m untuk putaran, N untuk geseran; bila tidak diisi, tanpa batas.",
+      "axis": "Sumbu yang digerakkannya, pada sambungan enam derajat kebebasan."
     }
   },
   "JointOptions": {
     "summary": "Apa yang diterima `joint.*`.",
     "description": "Titik dan sumbu ada di dunia, dibaca saat sambungan pertama kali dibuat.",
     "members": {
-      "anchor": "Tempat benda-benda terhubung: pasak engsel, bola sambungan titik, ujung jarak pada `a`.",
-      "anchorB": "Ujung jarak pada `b`.",
-      "axis": "Pasak engsel, rel peluncur, tengah kerucut.",
-      "limits": "Engsel, peluncur, jarak, dan kerucut: seberapa jauh ia bergerak. Jarak secara bawaan mempertahankan panjangnya.",
-      "spring": "Engsel, peluncur, dan jarak: melewati batas, pegas menariknya kembali alih-alih dinding; `frequency` dalam Hz, `damping` dari 0 (tidak ada) sampai 1 (kritis).",
-      "motor": "Engsel dan peluncur: motor yang bisa diubah kapan saja lewat `joint.motor`.",
-      "breakForce": "Tarikan dalam newton yang membuat sambungan putus bila dilewati; bila tidak diisi, tidak pernah."
+      "anchor": "Tempat benda-benda terhubung: pasak engsel, bola sambungan titik, ujung jarak atau tali katrol pada `a`.",
+      "anchorB": "Ujung jarak atau tali katrol pada `b`.",
+      "axis": "Pasak engsel, rel peluncur, tengah kerucut atau sambungan ayun-puntir, `x` sambungan enam derajat kebebasan, pasak roda gigi atau pinion (`a`).",
+      "axisB": "Pasak roda gigi pada `b`, rel batang gigi (`b`).",
+      "limits": "Engsel, peluncur, jarak, kerucut, ayun-puntir, dan katrol: seberapa jauh ia bergerak. Jarak secara bawaan mempertahankan panjangnya; tali katrol dari 0 sampai panjangnya.",
+      "axes": "Sumbu-sumbu sambungan enam derajat kebebasan yang bergerak, bebas (`'free'`) atau dalam batas; yang lain terkunci.",
+      "spring": "Engsel, peluncur, jarak, dan enam derajat kebebasan: melewati batas, pegas menariknya kembali alih-alih dinding; `frequency` dalam Hz, `damping` dari 0 (tidak ada) sampai 1 (kritis).",
+      "motor": "Engsel, peluncur, ayun-puntir (puntirannya), enam derajat kebebasan, dan lintasan: motor yang bisa diubah kapan saja lewat `joint.motor`.",
+      "path": "Rel sebuah lintasan: paling sedikit dua titik, milik `b` (atau dunia) seperti saat dibuat; `a` mulai dari titik rel yang paling dekat ke `anchor`.",
+      "loop": "Rel lintasan menutup pada dirinya sendiri.",
+      "follow": "`a` sebuah lintasan berputar mengikuti rel, seperti kereta, bukan bebas, seperti manik-manik.",
+      "over": "Dua roda katrol di dunia: tali `a` naik ke roda pertama, tali `b` ke roda kedua.",
+      "ratio": "Untuk roda gigi, putaran `b` per putaran `a` (gigi `a` dibagi gigi `b`), berlawanan arah; untuk pinion, radian per meter batang gigi, 1 / jari-jarinya; untuk katrol, meter tali `b` per meter tali `a`.",
+      "breakForce": "Tarikan dalam newton yang membuat sambungan putus bila dilewati (N·m torsi di antara gigi roda gigi atau batang gigi); bila tidak diisi, tidak pernah."
     }
   },
   "joint": {
@@ -7360,7 +7380,13 @@
       "hinge": "Pasak di `anchor` sepanjang `axis`: pintu, roda. `limits` dalam radian.",
       "slider": "Rel sepanjang `axis`: laci, piston. `limits` dalam meter.",
       "distance": "Menjaga `anchor` pada `a` dan `anchorB` pada `b` tetap sejauh panjangnya, atau dalam `limits`.",
-      "cone": "Sambungan bola yang `axis`-nya berayun di dalam kerucut dengan setengah sudut `limits.max`."
+      "cone": "Sambungan bola yang `axis`-nya berayun di dalam kerucut dengan setengah sudut `limits.max`.",
+      "swingTwist": "Sebuah bahu: `axis` berayun dalam kerucut bersetengah sudut `limits.swing` dan terpuntir pada dirinya di antara `limits.min` dan `max`; motornya menggerakkan puntiran.",
+      "sixDof": "Enam sumbu, masing-masing terkunci, bebas, atau terbatas (`axes`): sambungan apa pun di antara yang lain.",
+      "path": "`a` melaju di rel halus yang melewati `path`, terpasang pada `b` atau dunia: roller coaster.",
+      "pulley": "Tali dari `a` melewati dua roda (`over`) turun ke `b`: satu naik saat yang lain turun.",
+      "gear": "Dua roda yang berputar bersama menurut `ratio`, masing-masing pada pasaknya sendiri (`axis`, `axisB`); masing-masing perlu engselnya sendiri agar tetap di tempat.",
+      "rackAndPinion": "Pinion `a` yang berputar pada `axis` menggerakkan batang gigi `b` sepanjang `axisB`; masing-masing perlu engsel atau peluncurnya sendiri agar tetap di tempat."
     }
   }
 }

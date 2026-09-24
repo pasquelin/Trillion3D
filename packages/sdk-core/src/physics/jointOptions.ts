@@ -1,6 +1,6 @@
 import type { Vec3Input } from '../world/math/vector3.ts';
 
-/** The joints between bodies `joint.*` makes, each one of Jolt's own constraints. */
+/** The joints between bodies, each one of Jolt's own constraints. */
 export type JointKind =
   | 'fixed'
   | 'point'
