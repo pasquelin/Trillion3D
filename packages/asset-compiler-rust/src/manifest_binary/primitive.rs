@@ -153,12 +153,29 @@ pub(super) fn encode_primitive(
                     integer(item.get("count"), "bundle.count")?,
                     "bundle.count",
                 )?);
+                let dependencies = array(
+                    item.get("dependencies")
+                        .ok_or_else(|| bad("bundle.dependencies is absent"))?,
+                    "bundle.dependencies",
+                )?;
+                columns[BUNDLE_DEPENDENCY_COUNT].u32(as_u32(
+                    dependencies.len() as i64,
+                    "bundle.dependencies length",
+                )?);
+                for dependency in dependencies {
+                    let index = integer(Some(dependency), "bundle dependency")?;
+                    if index < 0 || index as usize >= bundles.len() {
+                        return Err(bad("A bundle depends on a bundle outside its primitive"));
+                    }
+                    columns[BUNDLE_DEPENDENCY].u32(index as u32);
+                }
             }
             binary.insert(
                 "streams".into(),
                 json!({"version":integer(streams.get("version"),"primitive.streams.version")?,
      "pinned":integer(streams.get("pinned"),"primitive.streams.pinned")?,
      "bundleBytes":integer(streams.get("bundleBytes"),"primitive.streams.bundleBytes")?,
+     "maxDependencies":integer(streams.get("maxDependencies"),"primitive.streams.maxDependencies")?,
      "pages":bundles.len()}),
             );
         }
