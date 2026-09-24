@@ -58,6 +58,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     startShown = s.shownCount,
     startRejected = s.frustumRejected,
     startNodes = s.nodesTested;
+  s.flatStartDrawn = s.budgetDrawn;
   s.flatUseForcing = false;
   s.flatMissing = false;
   traverse(s, pages, root.culling);

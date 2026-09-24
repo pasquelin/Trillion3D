@@ -41,6 +41,7 @@ function keep<T extends PageRecord>(
     if (s.budget !== 0) {
       const share = rec.budgetShare;
       if (share !== undefined && chargeShare(s, share)) s.over = true;
+      if (rec.parentError != null) s.budgetFiner = true;
     }
   }
   if (resident !== RESIDENT_ALL && !residentUnder(s, rec, resident)) {
