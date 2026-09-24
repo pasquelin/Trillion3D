@@ -8,6 +8,7 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { checked } from '../../cluster/pages.ts';
+import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts';
 import { tableDocument } from '../../scene/tables.ts';
 import { bakedImageUrls } from '../../texture/skip.ts';
 import type { HostTexture } from '../resources.ts';
@@ -29,26 +30,29 @@ type Inputs = {
   signal: AbortSignal | undefined;
   /** Wraps each resource read, for the session's progress. */
   track: <T>(resource: string, read: Promise<T>) => Promise<T>;
+  /** Counts the bytes of each file read as they arrive; unset, nothing counts them. */
+  meter?: ByteMeter;
 };
 
 /** The scene, the mesh and primitive ranks each drawn host mesh answers to, the rank each host
  *  texture answers to, and how many images the cache spared. */
 export async function buildPreparedScene(inputs: Inputs) {
   const { tables, metadata, sceneFile, base, skipBaked, signal, track } = inputs;
+  const meter = inputs.meter ?? unmetered;
   const document = tableDocument(tables, sceneFile);
   const documentUrl = new URL(sceneFile, base).href;
   const bufferUrl = new URL(document.buffer, documentUrl).href;
   const binary = document.views.length
     ? await track(
         bufferUrl,
-        checked(bufferUrl, signal).then((response) => response.arrayBuffer()),
+        checked(bufferUrl, signal).then((response) => meter(response).arrayBuffer()),
       )
     : null;
   const skipped =
     skipBaked && metadata.textures
       ? bakedImageUrls(metadata, document.images, (uri) => imageAddress(uri, documentUrl))
       : new Set<string>();
-  const images = preparedImages({ document, documentUrl, binary, skipped, signal, track });
+  const images = preparedImages({ document, documentUrl, binary, skipped, signal, track, meter });
   const ranks: TextureRanks = new Map();
   const slot = preparedTextures(tables, document, images, ranks);
   const { scene, ranks: meshes } = await preparedGraph({

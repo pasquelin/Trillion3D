@@ -12,16 +12,18 @@ import {
   type SlimClusterManifest,
 } from '../../../sdk-core/src/index.ts';
 import { checked } from '../cluster/pages.ts';
+import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
 async function jsonResource(
   url: string,
-  signal?: AbortSignal,
+  signal: AbortSignal | undefined,
+  meter: ByteMeter,
 ): Promise<{
   value: Record<string, unknown>;
   details: { url: string; status: number; contentType: string };
   bytes: number;
 }> {
-  const response = await checked(url, signal),
+  const response = meter(await checked(url, signal)),
     contentType = response.headers.get('content-type') ?? '';
   const details = { url, status: response.status, contentType };
   if (!/^application\/(?:[\w.-]+\+)?json(?:;|$)/i.test(contentType))
@@ -99,15 +101,17 @@ export interface LoadedManifest {
  *
  * A cache compiled with a binary sidecar hands over a small JSON and a column file: the columns are
  * mapped, never parsed, so the cost of reading a manifest stops growing with the cluster count. A
- * cache without one is read exactly as before, so older caches stay loadable.
+ * cache without one is read exactly as before, so older caches stay loadable. `meter` counts the
+ * bytes of each file as they arrive (`byteMeter`).
  */
 export async function loadClusterManifest(
   manifestUrl: string,
   requested: AssetScope | undefined,
   signal?: AbortSignal,
+  meter: ByteMeter = unmetered,
 ): Promise<LoadedManifest> {
   const started = performance.now();
-  const pointerResource = await jsonResource(manifestUrl, signal),
+  const pointerResource = await jsonResource(manifestUrl, signal, meter),
     pointer = pointerResource.value;
   const pointerMs = performance.now() - started;
   const declared = requested ?? (pointer as { scope?: AssetScope } | null)?.scope;
@@ -117,7 +121,7 @@ export async function loadClusterManifest(
   );
   const metadataUrl = new URL(pointerTarget, new URL(manifestUrl, location.href)).href;
   const jsonStart = performance.now();
-  const metadataResource = await jsonResource(metadataUrl, signal),
+  const metadataResource = await jsonResource(metadataUrl, signal, meter),
     value = metadataResource.value;
   const jsonMs = performance.now() - jsonStart;
   // Readiness, scope and format are settled before the columns are worth a request. A pointer
@@ -134,7 +138,7 @@ export async function loadClusterManifest(
     assertManifestBinary(value.binary);
     const binaryUrl = new URL((value.binary as { url: string }).url, metadataUrl).href;
     const binaryStart = performance.now();
-    const buffer = await (await checked(binaryUrl, signal)).arrayBuffer();
+    const buffer = await meter(await checked(binaryUrl, signal)).arrayBuffer();
     binaryMs = performance.now() - binaryStart;
     binaryBytes = buffer.byteLength;
     const declared = (value.binary as { bytes: number }).bytes;
