@@ -19,9 +19,9 @@ export function streamCutResidency(
     marks = rt.timing.marks;
   // What the light cuts asked for last time they reported: the lower tier, served after this cut.
   const lightCut = rt.lights.lightCut,
-    asked = lightCut?.takeRequests();
+    asked = lightCut?.reports.takeRequests();
   if (asked) services.shadowTier.offerIds(asked);
-  if (lightCut?.takeDropped())
+  if (lightCut?.reports.takeDropped())
     rt.diag.engineDiagnostic('light-cut-work-dropped', 'The light cut dropped casters', {
       views: rt.lights.lightRuns,
     });

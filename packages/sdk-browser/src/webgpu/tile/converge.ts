@@ -67,16 +67,26 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  * the next is planned. The 1 ms budget stays that of the measured loop: during the barrier it is
  * suspended, otherwise a GPU timestamp arriving mid-drain tightens admission and two identical
  * captures diverge (#25, 0 / 1,392 / 6,278 px). Returns the number of frames drained.
+ *
+ * A drawn page is also a light cut whose report asks for casters: the image after takes it, its
+ * casters load, and a caster that enters residency stales the pages over it. The drain waits for
+ * each step — the report read, its loads landed — and draws one more image after a report was
+ * taken, so its arrivals reach the plan here and not in the first still frame after the barrier.
  */
 async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { budget } = rt.lights.plan;
+  const { lights, services } = rt,
+    { budget } = lights.plan;
   budget.suspend();
-  let drains = 0;
+  let drains = 0,
+    offered = false;
   try {
-    for (; drains < SHADOW_DRAIN_LIMIT && shadowsUnsettled(rt.lights); drains++) {
+    for (; drains < SHADOW_DRAIN_LIMIT && (offered || shadowsUnsettled(lights)); drains++) {
       renderWebgpuPages(rt, rt.run.lastCamera!);
       await gpuDevice.queue.onSubmittedWorkDone();
-      await rt.lights.pageRequests?.settled();
+      await lights.pageRequests?.settled();
+      await lights.lightCut?.reports.settled();
+      offered = !!lights.lightCut?.reports.takeOffered();
+      await services.residency.pending;
     }
   } finally {
     budget.resume();

@@ -59,7 +59,7 @@ export function encodeShadowCasters(
     cull.encodeLight(encoder, lightSource, regions, rows);
     lights.lightRuns = runs.count;
     // A copy still being read keeps its settlement pending: only a new copy takes its place.
-    const settle = light.encodeReadback(encoder);
+    const settle = light.reports.encodeReadback(encoder);
     if (settle) timing.shadowRequests = settle;
     return true;
   }

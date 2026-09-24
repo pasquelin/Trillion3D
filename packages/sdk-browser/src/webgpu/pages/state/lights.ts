@@ -77,8 +77,7 @@ export interface WebgpuLightState {
   lightCut: DagLightCut | undefined;
   /** The casters the CPU cut selected from the light, when it draws the image (`cpuCasters.ts`). */
   cpuCasters: CpuCasterLists | undefined;
-  /** Contract lights kept by the last image, and lights with a page drawn by it. The wait queue
-   *  and its lag are read on the scheduler (`plan.counts`). */
+  /** Contract lights kept by the last image, and lights with a page drawn by it. */
   lightsActive: number;
   shadowsUpdated: number;
   /** Light views the last image drew in — a sun level, a lamp face at one mip —, a light cut each. */
@@ -87,8 +86,7 @@ export interface WebgpuLightState {
   shadowPages: number;
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
-  /** Pages drawn per image, by image rank: the GPU timer comes back late and must find the work of
-   *  the image it describes to deduce the cost of a page. */
+  /** Pages drawn per image, by rank: the late GPU timer finds the work of its image there. */
   pagesByFrame: Uint32Array;
   shadowDraws: number;
   /** Draw calls actually encoded by the shadow pass: a clear to far and an indirect draw per page. */
@@ -188,13 +186,15 @@ export function noteShadowFrame(lights: WebgpuLightState, pagesSlot: number, enc
 
 /**
  * True while the shadow pages can still change what the image shows: a page stale and read, a
- * representation change waiting for the camera to rest, a request report still on its way, or
- * no report yet proving that the image reads only pages already drawn. A scene without a shadow
+ * representation change waiting for the camera to rest, a request report — the shading's, or a
+ * light cut's, whose casters may still load — on its way, or no report yet proving that the image
+ * reads only pages already drawn. A scene without a shadow
  * light, or an unlit view, reads no page and waits for nothing.
  */
 export function shadowsUnsettled(lights: WebgpuLightState) {
   const { plan, store, shadows, pageRequests } = lights;
   if (plan.deferredChanges || plan.counts.pendingPages > 0) return true;
   if (!shadows || !store.count || store.unlit || !plan.records.count) return false;
-  return (pageRequests?.inFlight ?? 0) > 0 || !plan.settled(store);
+  if ((pageRequests?.inFlight ?? 0) > 0 || lights.lightCut?.reports.unsettled) return true;
+  return !plan.settled(store);
 }

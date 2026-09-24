@@ -1,20 +1,10 @@
 import { FRAME_VEC4, type DagViewUniforms, type DrawnLog } from './types.ts';
-import {
-  createDagOutputScratch,
-  parseDagOutput,
-  writeDagUniforms,
-  type DagCutViews,
-} from './uniforms.ts';
+import { writeDagUniforms, type DagCutViews } from './uniforms.ts';
+import { createLightCutReports } from './lightCutReports.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
-import {
-  DAG_MAX_VIEWS,
-  DAG_UNIFORM_BYTES,
-  DAG_VIEW_WORDS,
-  WORK_DROPPED,
-} from './shader/viewsWgsl.ts';
-import { OUT_FLAGS } from './layout.ts';
+import { DAG_MAX_VIEWS, DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
@@ -32,13 +22,13 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  * serves them all. Each view's drawn clusters land in their own range of one log, which the shadow
  * cull then reads for every view at once (`drawnLog`).
  *
- * Its escalation and its pinned fallback live in its own `work`: a caster the light wants and
- * the cache lacks can raise the light's threshold, never the one an object on screen is drawn at.
+ * Its escalation and pinned fallback live in its own `work`: a caster the light wants and the
+ * cache lacks raises the light's threshold, never the one an object on screen is drawn at.
  *
  * Its budget is fixed at creation, whatever the views a frame runs: the lists and queues are the
  * camera cut's — each list the whole catalogue, each queue every node, or one root per slot when
  * the slots outnumber the nodes —, and the per-primitive words one row per view. What several views
- * together keep beyond the catalogue is dropped and said (`WORK_DROPPED`, `takeDropped`). Allocated
+ * together keep beyond the catalogue is dropped and said (`WORK_DROPPED`, `reports`). Allocated
  * once, when a scene first draws a shadow: a scene without one pays nothing.
  */
 export function createDagLightCut(resources: DagResources) {
@@ -81,10 +71,6 @@ export function createDagLightCut(resources: DagResources) {
   });
   const dispatchArgs = own({ size: 16, usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST });
   device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
-  const readback = own({
-    size: outputBytes,
-    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-  });
   const uniforms = own({
     size: DAG_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -121,10 +107,7 @@ export function createDagLightCut(resources: DagResources) {
   };
   const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4);
   const cutViews: DagCutViews = { count: 0, capacity, queueCap };
-  const scratch = createDagOutputScratch();
-  let mapped = false,
-    dropped = false,
-    requests: readonly number[] | null = null;
+  const reports = createLightCutReports(own, output, outputBytes);
   return {
     /** Catalogue pages the logs index. */
     pageCount,
@@ -150,46 +133,7 @@ export function createDagLightCut(resources: DagResources) {
       }
       encodeDagKernels(encoder, view);
     },
-    /**
-     * Copies the frame's requests for the host, unless the previous copy is still being read.
-     * Returns the settlement to call once the command buffer is submitted, or dropped.
-     */
-    encodeReadback(encoder: GPUCommandEncoder) {
-      if (mapped) return undefined;
-      mapped = true;
-      encoder.copyBufferToBuffer(output, 0, readback, 0, outputBytes);
-      return (submitted: boolean) => {
-        if (!submitted) {
-          mapped = false;
-          return;
-        }
-        readback
-          .mapAsync(GPUMapMode.READ)
-          .then(() => {
-            const bytes = readback.getMappedRange();
-            const parsed = parseDagOutput(bytes, 0, bytes.byteLength, 0, scratch);
-            requests = parsed ? parsed.pageIds.slice() : null;
-            if ((new Uint32Array(bytes, 0, OUT_FLAGS + 1)[OUT_FLAGS] & WORK_DROPPED) !== 0)
-              dropped = true;
-            readback.unmap();
-          })
-          .catch(() => {})
-          .finally(() => {
-            mapped = false;
-          });
-      };
-    },
-    /** The pages the last read frame's light cut asked for, highest priority first. */
-    takeRequests() {
-      const taken = requests;
-      requests = null;
-      return taken;
-    },
-    /** Whether a read frame dropped work since the last call: its lists or queues were full. */
-    takeDropped() {
-      const taken = dropped;
-      dropped = false;
-      return taken;
-    },
+    /** Its requests and drops, read back after submission (`lightCutReports.ts`). */
+    reports,
   };
 }
