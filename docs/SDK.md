@@ -356,6 +356,12 @@ positive value selects coarser pages when the cache includes them). `pose.fromBo
 box; `pose.pointOfInterest(name, pose)` names one; `pose.runPath(world, poses, { images })` replays a
 path — an exact A/A image gate, then timed blocks, not a general performance verdict.
 
+`world.temporalAntialiasing` (`createWorld(target, { temporalAntialiasing })`, `true` by default)
+jitters each image by a fraction of a pixel and accumulates it over the previous ones; `false` draws
+each pixel at its centre with no history, what a pixel-exact capture asks. Written, it takes effect
+at the next frame, history dropped, no session reopened. Read, it is what the image carries: `false`
+on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsupported).
+
 Dispose in the actual component or page teardown, **not immediately after startup**:
 `world.dispose()` removes owned controls, observers, queued frames and abort listeners and closes
 the engine, without removing the canvas. A page that wants job semantics around a load — progress,
@@ -956,6 +962,8 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
   stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
+  Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
+  the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,

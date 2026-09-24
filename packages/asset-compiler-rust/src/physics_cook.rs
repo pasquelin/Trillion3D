@@ -6,14 +6,12 @@
 //! What it makes, per primitive: a collision level cut through the DAG at one tolerance derived
 //! from the object (`cut.rs`), split into tiles aligned on the culling hierarchy, each a Jolt
 //! `MeshShape` stored as a SHA-addressed object like the pages; a regular grid becomes a height
-//! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), with the bodies the source declares
-//! through `KHR_physics_rigid_bodies` / `KHR_implicit_shapes` (`declared.rs`) and a convex
-//! decomposition for a declared dynamic body without a shape (`decompose.rs`).
+//! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), each placement carrying the matter its
+//! source declares through `KHR_physics_rigid_bodies` (`declared.rs`).
 use crate::{CompilerError, Result};
 
 mod cut;
 mod declared;
-mod decompose;
 mod hausdorff;
 mod height;
 mod stage;
@@ -25,7 +23,7 @@ pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 1;
+pub const PHYSICS_COOK_VERSION: u32 = 2;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 1;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
@@ -39,8 +37,6 @@ extern "C" {
         vertex_count: u32,
         indices: *const u32,
         triangle_count: u32,
-        materials: *const u32,
-        material_count: u32,
         out: *mut *const u8,
         bytes: *mut u32,
     ) -> u32;
@@ -52,16 +48,6 @@ extern "C" {
         out: *mut *const u8,
         bytes: *mut u32,
     ) -> u32;
-    fn cook_hulls(
-        points: *const f32,
-        counts: *const u32,
-        parts: u32,
-        density: f32,
-        mass: *mut f32,
-        out: *mut *const u8,
-        bytes: *mut u32,
-    ) -> u32;
-    fn cook_hull_planes(points: *const f32, count: u32, planes: *mut f32, room: u32) -> u32;
 }
 
 fn refused(what: &str) -> CompilerError {
@@ -77,9 +63,9 @@ fn taken(status: u32, out: *const u8, bytes: u32, what: &str) -> Result<Vec<u8>>
     Ok(unsafe { std::slice::from_raw_parts(out, bytes as usize) }.to_vec())
 }
 
-/// A static `MeshShape` of `triangles` (indices into `vertices`), every triangle of material 0.
+/// A static `MeshShape` of `triangles` (indices into `vertices`), without material: a tile is of
+/// its collider's, named in `physics.json`.
 pub(crate) fn mesh_shape(vertices: &[f32], triangles: &[u32]) -> Result<Vec<u8>> {
-    let materials = vec![0u32; triangles.len() / 3];
     let (mut out, mut bytes) = (std::ptr::null(), 0u32);
     // SAFETY: every pointer names a live slice of the length passed with it.
     let status = unsafe {
@@ -88,8 +74,6 @@ pub(crate) fn mesh_shape(vertices: &[f32], triangles: &[u32]) -> Result<Vec<u8>>
             (vertices.len() / 3) as u32,
             triangles.as_ptr(),
             (triangles.len() / 3) as u32,
-            materials.as_ptr(),
-            1,
             &mut out,
             &mut bytes,
         )
@@ -111,44 +95,4 @@ pub(crate) fn height_field_shape(
         cook_height_field(samples.as_ptr(), size as u32, o, s, &mut out, &mut bytes)
     };
     taken(status, out, bytes, "height field")
-}
-
-/// Mass, centre of mass and inertia (column-major) of a cooked body.
-pub(crate) struct MassProperties {
-    pub mass: f32,
-    pub centre: [f32; 3],
-    pub inertia: [f32; 9],
-}
-
-/// A compound of convex hulls (one hull alone when `parts` has one) at `density` kg/m³.
-pub(crate) fn hulls_shape(parts: &[Vec<f32>], density: f32) -> Result<(Vec<u8>, MassProperties)> {
-    let points: Vec<f32> = parts.concat();
-    let counts: Vec<u32> = parts.iter().map(|p| (p.len() / 3) as u32).collect();
-    let mut mass = [0f32; 13];
-    let (mut out, mut bytes) = (std::ptr::null(), 0u32);
-    // SAFETY: `counts` sums to the points `points` holds; `mass` has the 13 floats written.
-    let status = unsafe {
-        let (p, c, m) = (points.as_ptr(), counts.as_ptr(), mass.as_mut_ptr());
-        cook_hulls(p, c, parts.len() as u32, density, m, &mut out, &mut bytes)
-    };
-    let shape = taken(status, out, bytes, "convex hulls")?;
-    let properties = MassProperties {
-        mass: mass[0],
-        centre: [mass[1], mass[2], mass[3]],
-        inertia: mass[4..13].try_into().expect("nine floats"),
-    };
-    Ok((shape, properties))
-}
-
-/// The planes of the convex hull of `points` (normal and constant each; inside is negative).
-pub(crate) fn hull_planes(points: &[f32]) -> Vec<[f32; 4]> {
-    const ROOM: usize = 1024;
-    let mut planes = vec![[0f32; 4]; ROOM];
-    // SAFETY: `planes` has room for `ROOM` planes of four floats.
-    let count = unsafe {
-        let out = planes.as_mut_ptr().cast::<f32>();
-        cook_hull_planes(points.as_ptr(), (points.len() / 3) as u32, out, ROOM as u32)
-    };
-    planes.truncate(count as usize);
-    planes
 }
