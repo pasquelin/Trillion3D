@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { claimGpuDevice } from './deviceOwners.ts';
-import { fakeDevice, owner } from './fakeDevice.fixture.ts';
+import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
+import { deviceOwner as owner } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
 
 // As Dawn writes it: the object at fault by its type and its label, in quotes.
 const destroyed = (label: string) =>
@@ -9,35 +10,40 @@ const destroyed = (label: string) =>
 
 test("an error of a closed session's object is a warning, never the next one's loss", (t) => {
   const warned = t.mock.method(console, 'warn', () => {});
-  const device = fakeDevice();
+  const gpu = mockGpu(),
+    { device } = gpu;
   const first = owner(),
     second = owner();
   const closing = claimGpuDevice(device, first);
-  const old = closing.device.createBuffer({ size: 4, usage: 0, label: 'DAG readback' }).label;
+  closing.device.createBuffer({ size: 4, usage: 0, label: 'DAG readback' });
+  const old = gpu.labels.at(-1)!;
   // The next session opens while the closing one's read is still queued.
   const next = claimGpuDevice(device, second);
   closing.release();
-  assert.equal(device.raise(destroyed(old)), false, 'the browser keeps its own line');
-  device.raise(destroyed(old));
+  assert.equal(gpu.raise(destroyed(old)), false, 'the browser keeps its own line');
+  gpu.raise(destroyed(old));
   assert.deepEqual([first.errors, second.errors], [[], []]);
   assert.equal(second.closed.length, 2);
   assert.equal(warned.mock.callCount(), 2, 'one line per error');
   // One of its own objects, or one no tag names: the live session's.
-  const mine = next.device.createTexture({ size: [1, 1], format: 'r8unorm', usage: 0 }).label;
-  device.raise(`[TextureView of Texture "${mine}"] is invalid`);
-  device.raise('[Queue] Submit failed');
+  next.device.createTexture({ size: [1, 1], format: 'r8unorm', usage: 0 });
+  const mine = gpu.labels.at(-1)!;
+  gpu.raise(`[TextureView of Texture "${mine}"] is invalid`);
+  gpu.raise('[Queue] Submit failed');
   assert.deepEqual(second.reasons, ['uncaptured-error', 'uncaptured-error']);
   assert.deepEqual(first.errors, []);
 });
 
 test('with no session live, the last error of a closed one waits for the next claim', (t) => {
   t.mock.method(console, 'warn', () => {});
-  const device = fakeDevice();
+  const gpu = mockGpu(),
+    { device } = gpu;
   const closing = claimGpuDevice(device, owner());
-  const old = closing.device.createBuffer({ size: 4, usage: 0, label: 'readback' }).label;
+  closing.device.createBuffer({ size: 4, usage: 0, label: 'readback' });
+  const old = gpu.labels.at(-1)!;
   closing.release();
-  device.raise(`${destroyed(old)} first`);
-  device.raise(`${destroyed(old)} last`);
+  gpu.raise(`${destroyed(old)} first`);
+  gpu.raise(`${destroyed(old)} last`);
   const next = owner(),
     later = owner();
   claimGpuDevice(device, next);
@@ -49,7 +55,8 @@ test('with no session live, the last error of a closed one waits for the next cl
 
 test("running out of memory is the live sessions' loss, unless it names a closed one's object", (t) => {
   t.mock.method(console, 'warn', () => {});
-  const device = fakeDevice();
+  const gpu = mockGpu(),
+    { device } = gpu;
   // WebGPU's class, by its name: Node has none.
   class GPUOutOfMemoryError {
     message: string;
@@ -61,21 +68,23 @@ test("running out of memory is the live sessions' loss, unless it names a closed
     second = owner();
   const closing = claimGpuDevice(device, first);
   claimGpuDevice(device, second);
-  const old = closing.device.createBuffer({ size: 4, usage: 0, label: 'pages' }).label;
+  closing.device.createBuffer({ size: 4, usage: 0, label: 'pages' });
+  const old = gpu.labels.at(-1)!;
   closing.release();
   const named = `[Buffer "${old}"] out of memory`;
-  device.raise(named, new GPUOutOfMemoryError(named));
-  device.raise('Out of memory', new GPUOutOfMemoryError('Out of memory'));
+  gpu.raise(named, new GPUOutOfMemoryError(named));
+  gpu.raise('Out of memory', new GPUOutOfMemoryError('Out of memory'));
   assert.deepEqual([second.reasons, second.closed.length], [['out-of-memory'], 1]);
 });
 
 test('a claim on a device already lost is lost at once; a released one hears no loss', async () => {
-  const device = fakeDevice();
+  const gpu = mockGpu(),
+    { device } = gpu;
   const closed = owner(),
     live = owner();
   claimGpuDevice(device, closed).release();
   claimGpuDevice(device, live);
-  device.lose({ reason: 'destroyed', message: 'gone' } as GPUDeviceLostInfo);
+  gpu.lose('destroyed');
   await Promise.resolve();
   assert.deepEqual([closed.losses, live.losses], [[], ['destroyed']]);
   const late = owner();

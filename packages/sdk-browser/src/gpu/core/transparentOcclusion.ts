@@ -43,7 +43,7 @@ export async function createTransparentOcclusion(
       'uniform',
     ]);
     const module = device.createShaderModule({ code: transparentOcclusionShader(entryCount) });
-    if (await shaderFailed(device, module)) {
+    if (await shaderFailed(module)) {
       corners.destroy();
       return undefined;
     }

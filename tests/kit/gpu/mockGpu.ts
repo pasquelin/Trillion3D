@@ -2,7 +2,10 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/select
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
 import { bytesOf } from './globals.ts';
 import { untag } from '../../../packages/sdk-browser/src/gpu/core/sessionHandle.ts';
+import { asWebgpuDevice } from './webgpuDevice.ts';
 
+/** The one WebGPU device stand-in of the tests, made a device as WebGPU writes one by
+ *  `asWebgpuDevice`. */
 export function mockGpu(
   limits: Record<string, number> = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
   packed?: PackedDag,
@@ -40,15 +43,10 @@ export function mockGpu(
   const computes: string[] = [];
   const imageCopies: unknown[] = [];
   const layouts: Array<{ entries: Array<{ binding: number; buffer?: { type?: string } }> }> = [];
-  let lostResolve: ((info: { reason: string; message: string }) => void) | undefined;
-  const lost = new Promise<{ reason: string; message: string }>((resolve) => {
-    lostResolve = resolve;
-  });
-  const device: { [key: string]: unknown } = {
+  const members: Record<string, unknown> = {
     limits,
     // No block family: every lane pool is RGBA8, as on a software adapter.
     features: new Set<string>(),
-    lost,
     createBuffer: (descriptor: { size: number; usage: number; label?: string }) => {
       const { size, usage } = descriptor,
         label = untag(descriptor.label);
@@ -160,12 +158,12 @@ export function mockGpu(
     },
   };
   if (packed || enableHiz)
-    device.createComputePipeline = ({ compute }: { compute: { entryPoint: string } }) => {
+    members.createComputePipeline = ({ compute }: { compute: { entryPoint: string } }) => {
       if (failCompact && compute.entryPoint === 'scatterGroups') throw new Error('NO_COMPACT');
       return compute;
     };
   return {
-    device: device as unknown as GPUDevice,
+    ...asWebgpuDevice(members),
     draws,
     writes,
     buffers,
@@ -176,6 +174,5 @@ export function mockGpu(
     layouts,
     imageCopies,
     textureWrites,
-    lose: (reason = 'destroyed') => lostResolve?.({ reason, message: reason }),
   };
 }
