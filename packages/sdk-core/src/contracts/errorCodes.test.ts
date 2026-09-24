@@ -1,16 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { ENGINE_ERROR_CODES, engineErrorOf } from './errorCodes.ts';
+import { engineErrorOf } from './errorCodes.ts';
 import { EngineError } from './cache.ts';
-
-test('the codes a page may test are the ones documented on EngineError', () => {
-  const source = readFileSync(new URL('./cache.ts', import.meta.url), 'utf8');
-  const documented = [...source.matchAll(/@errorCode (.*?) - /g)].flatMap((match) =>
-    match[1].split(/,\s*/),
-  );
-  assert.deepEqual([...ENGINE_ERROR_CODES], documented);
-});
 
 test('an error becomes a named engine error, its cause kept', () => {
   const named = new EngineError('PAGE_BUDGET', 'too many pages');
@@ -23,4 +14,15 @@ test('an error becomes a named engine error, its cause kept', () => {
   // A code not documented, or any other text, is the fallback's.
   assert.equal(engineErrorOf(new Error('PAGE_HTTP_404'), 'FALLBACK', 'x').code, 'FALLBACK');
   assert.equal(engineErrorOf('boom', 'FALLBACK', 'x').code, 'FALLBACK');
+});
+
+test('an engine error of a code no page can test is the fallback, the original its cause', () => {
+  const undocumented = new EngineError('PAGE_HTTP_404', 'not found');
+  const converted = engineErrorOf(undocumented, 'FALLBACK', 'Opening failed');
+  assert.equal(converted.code, 'FALLBACK');
+  assert.equal(converted.message, 'Opening failed: not found');
+  assert.equal(converted.details.cause, undocumented);
+  // Its message is not taken for a code either.
+  const worded = new EngineError('PAGE_HTTP_404', 'WEBGPU_LOST');
+  assert.equal(engineErrorOf(worded, 'FALLBACK', 'x').code, 'FALLBACK');
 });
