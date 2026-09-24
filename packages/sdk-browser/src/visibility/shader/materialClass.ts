@@ -5,6 +5,7 @@ import {
   FLAG_HAS_TANGENT,
   FLAG_HAS_UV,
   FLAG_MASK,
+  FLAG_SAMPLED,
 } from '../types.ts';
 
 /**
@@ -30,12 +31,15 @@ export const CLASS_FEATURE = {
   HAS_VERTEX_NORMAL: 256,
   DOUBLE_SIDED: 512,
   HAS_TANGENT: 1024,
+  /** A map read through its filter rule (`FLAG_SAMPLED`): without it, the class compiles the
+   *  default read alone. */
+  HAS_SAMPLING: 2048,
 } as const;
 export type MaterialClassFeature = keyof typeof CLASS_FEATURE;
 /** Keys addressable: one more bit than the highest feature; key + 1 stays exact as a depth. */
-export const MATERIAL_CLASS_KEYS = 2048;
+export const MATERIAL_CLASS_KEYS = 4096;
 /** Depth denominator: a power of two, so every class depth `(key + 1) / units` is exact in `f32`. */
-export const CLASS_DEPTH_UNITS = 4096;
+export const CLASS_DEPTH_UNITS = 8192;
 /** Format of the material-depth target: exact for every class depth, like the opaque depth. */
 export const MATERIAL_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
 
@@ -63,6 +67,7 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps) {
   if (flags & FLAG_HAS_NORMAL) key |= f.HAS_VERTEX_NORMAL;
   if (flags & FLAG_DOUBLE) key |= f.DOUBLE_SIDED;
   if (flags & FLAG_HAS_TANGENT) key |= f.HAS_TANGENT;
+  if (flags & FLAG_SAMPLED) key |= f.HAS_SAMPLING;
   return key;
 }
 

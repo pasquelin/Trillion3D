@@ -150,7 +150,8 @@ export class WebglClusterRenderer {
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('toneCurve'), this.toneCurve);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
-    // The host's texture units are unknown at frame start; the backdrop pass touches only its own.
+    // The host's texture units are unknown at frame start, the backdrop pass touches only its own;
+    // each record is brought up to its host texture at its first binding of the image.
     this.textures.invalidateBindings();
     let backdropSubmissions = 0,
       copySubmissions = 0;

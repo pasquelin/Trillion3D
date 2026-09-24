@@ -10,23 +10,15 @@
  * shapes of `shadedMaterial.ts`, and the state they declare through the named constants of
  * `surfaceConstants.ts`.
  *
- * A texture keeps ONE record for the session: atlas layers, preview ranks and lane pools address a
- * texture by the identity of its record, so a re-import refills the fields of the held record
- * instead of returning a second one.
+ * A texture keeps ONE record for the session (`textureImport.ts`).
  */
 
 import type { HostColour, HostMaterials, HostTexture } from './resources.ts';
 import { isHostColour, type HostShadedMaterial } from './shadedMaterial.ts';
-import {
-  HOST_FILTER_LINEAR_MIP_LINEAR,
-  HOST_FILTER_LINEAR_MIP_NEAREST,
-  HOST_FILTER_NEAREST,
-  HOST_FILTER_NEAREST_MIP_LINEAR,
-  HOST_FILTER_NEAREST_MIP_NEAREST,
-  HOST_WRAP_CLAMP_TO_EDGE,
-  HOST_WRAP_MIRRORED_REPEAT,
-} from './surfaceConstants.ts';
-import type { Texture, TextureFilter, WrapMode } from '../../../sdk-core/src/index.ts';
+import { importHostTexture } from './textureImport.ts';
+
+export { importHostTexture, importWrapMode } from './textureImport.ts';
+import type { Texture } from '../../../sdk-core/src/index.ts';
 import { sideOf } from '../scene/materialSide.ts';
 import type { VisMaterial } from '../visibility/types.ts';
 import {
@@ -35,51 +27,6 @@ import {
   litModel,
   shininessRoughness,
 } from '../scene/surfaceModel.ts';
-
-/** Addressing the host declared, in the engine's words; anything else repeats, as the samplers do. */
-export function importWrapMode(wrap: number): WrapMode {
-  if (wrap === HOST_WRAP_CLAMP_TO_EDGE) return 'clamp';
-  return wrap === HOST_WRAP_MIRRORED_REPEAT ? 'mirror' : 'repeat';
-}
-
-/** Filtering the host declared; an unknown constant reads linear, as the binders already did. */
-function filterOf(filter: number): TextureFilter {
-  if (filter === HOST_FILTER_NEAREST) return 'nearest';
-  if (filter === HOST_FILTER_NEAREST_MIP_NEAREST) return 'nearest-mip-nearest';
-  if (filter === HOST_FILTER_NEAREST_MIP_LINEAR) return 'nearest-mip-linear';
-  if (filter === HOST_FILTER_LINEAR_MIP_NEAREST) return 'linear-mip-nearest';
-  return filter === HOST_FILTER_LINEAR_MIP_LINEAR ? 'linear-mip-linear' : 'linear';
-}
-
-type Editable = { -readonly [K in keyof Texture]: Texture[K] };
-const imported = new WeakMap<HostTexture, Editable>();
-
-/** The engine record of a host texture, built once and refilled when the host bumps its version. */
-export function importHostTexture(host: HostTexture): Texture {
-  const held = imported.get(host);
-  if (held && held.version === host.version && held.image === host.image) return held;
-  // `KHR_texture_transform` is composed lazily by its owner: the import asks for it once, then
-  // ALIASES the composed elements, so a recomposition the host makes later is read as it stands.
-  if (host.matrixAutoUpdate) host.updateMatrix();
-  const record = held ?? ({} as Editable);
-  record.id = host.uuid;
-  record.name = host.name;
-  record.image = host.image;
-  record.channel = host.channel;
-  record.wrapS = importWrapMode(host.wrapS);
-  record.wrapT = importWrapMode(host.wrapT);
-  record.magFilter = filterOf(host.magFilter);
-  record.minFilter = filterOf(host.minFilter);
-  record.anisotropy = host.anisotropy;
-  record.flipY = host.flipY;
-  record.premultiplyAlpha = host.premultiplyAlpha;
-  record.generateMipmaps = host.generateMipmaps;
-  record.colorSpace = host.colorSpace === 'srgb' ? 'srgb' : 'linear';
-  record.transform = host.matrix.elements;
-  record.version = host.version;
-  if (!held) imported.set(host, record);
-  return record;
-}
 
 const map = (texture: unknown) => (texture ? importHostTexture(texture as HostTexture) : undefined);
 
