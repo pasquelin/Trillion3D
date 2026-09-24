@@ -956,6 +956,8 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
   stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
+  Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
+  the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
