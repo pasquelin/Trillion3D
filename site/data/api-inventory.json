@@ -3076,7 +3076,13 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
-        "packages/sdk-browser/src/world/saved/saved.test.ts"
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs/examples/chess-pieces.ts",
+        "scripts/docs/examples/mesh.ts",
+        "scripts/docs/examples/models.ts",
+        "scripts/docs/examples/solids.ts",
+        "scripts/docs/garden-source.ts",
+        "scripts/docs/observatory/geometry.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/geometry/index\".geometry"
@@ -3095,6 +3101,9 @@
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
+        "scripts/docs/examples/mesh.ts",
+        "scripts/docs/garden-source.ts",
+        "scripts/docs/observatory/geometry.ts",
         "site/app/editor/GeometryFields.tsx",
         "site/app/editor/objects.ts"
       ],

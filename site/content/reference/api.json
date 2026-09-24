@@ -24468,7 +24468,7 @@
     "kind": "Function",
     "title": "geometry.tube()",
     "signature": "geometry.tube(path: Curve, tubularSegments?: number, radius?: number, radialSegments?: number, closed?: boolean): Geometry",
-    "summary": "A tube of `radius` along a curve: rings carried by frames that turn with the curve without twisting about it, closed on request.",
+    "summary": "A tube of `radius` along a curve: rings carried by frames that turn with the curve without twisting about it; closed on request, its rings share the frame's turn round the loop.",
     "parameters": [
       {
         "name": "path",
