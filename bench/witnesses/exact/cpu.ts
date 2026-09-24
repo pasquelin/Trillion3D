@@ -1,11 +1,11 @@
-import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
-import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
-import { createStageProfiler } from '../../stage/profiler.ts';
-import { logFrameCostAudit } from '../../frame/costAudit.ts';
-import { addCpuSteps, cpuStepTable } from '../../stage/cpuSteps.ts';
-import { WEBGL_STAGES } from '../../stage/mapping.ts';
-import type { BackendContext } from '../types.ts';
-import type { HostCpuStep } from '../../host/cpuProfile.ts';
+import { disabledStageProfile } from '../../../packages/sdk-core/src/index.ts';
+import { createCpuStepProfile } from '../../../packages/sdk-browser/src/stage/cpuProfile.ts';
+import { createStageProfiler } from '../../../packages/sdk-browser/src/stage/profiler.ts';
+import { logFrameCostAudit } from '../../../packages/sdk-browser/src/frame/costAudit.ts';
+import { addCpuSteps, cpuStepTable } from '../../../packages/sdk-browser/src/stage/cpuSteps.ts';
+import { WEBGL_STAGES } from '../../../packages/sdk-browser/src/stage/mapping.ts';
+import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
+import type { HostCpuStep } from '../../../packages/sdk-browser/src/host/cpuProfile.ts';
 
 /**
  * CPU bounds of a WebGL2 frame, in order: its public name and the profile step it lands in

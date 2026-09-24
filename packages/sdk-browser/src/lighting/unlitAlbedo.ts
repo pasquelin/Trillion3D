@@ -1,4 +1,4 @@
-import type { GraphScene } from '../../host/graph/scene.ts';
+import type { GraphScene } from '../host/graph/scene.ts';
 
 /** What the view reads of the display graph: its meshes' surfaces, and the two hooks a draw
  *  wraps itself in. */

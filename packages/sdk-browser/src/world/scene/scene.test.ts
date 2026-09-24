@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { exactPagesBounds } from '../../backend/exact/bounds.ts';
+import { pagesBounds } from './pagesBounds.ts';
 import { emptyWorldBox } from '../../host/world/bounds.ts';
 import { asHostLibrary } from '../../host/resources.ts';
 import { indexManifestPages, indexManifestBundles } from '../../scene/manifestPageIndex.ts';
@@ -13,8 +13,8 @@ import {
 import type { ClusterManifest, Page, Primitive } from '../../../../sdk-core/src/index.ts';
 
 // Batch F, F17: three manifest reads go from a `find` or `flatMap` per mesh/page to a single indexed
-// walk. `indexManifestPages`/`indexManifestBundles` (../../scene/manifestPageIndex.ts) and `exactPagesBounds`
-// (../../backend/exact/bounds.ts, via `primitiveFinder`) must return exactly what the four `flatMap`s and the
+// walk. `indexManifestPages`/`indexManifestBundles` (../../scene/manifestPageIndex.ts) and `pagesBounds`
+// (./pagesBounds.ts, via `primitiveFinder`) must return exactly what the four `flatMap`s and the
 // `find` returned before batch F. The oracles are copied as-is in `oracles/scene-chargement.ts`.
 function pageDe(id: number, url: string, geometryUrl?: string): Page {
   const page = { id, url, sha256: url, bytes: 8, count: 3, min: [0, 0, 0], max: [1, 1, 1] } as Page;
@@ -60,7 +60,7 @@ test('a manifest with no page and no bundle yields empty indexes on both sides',
   assert.deepEqual(indexManifestBundles(vide), referenceIndexManifestBundles(vide));
 });
 
-test('exactPagesBounds yields the same box as the reference, a « coarse » page excluded, a mesh without association reported', () => {
+test('pagesBounds yields the same box as the reference, a « coarse » page excluded, a mesh without association reported', () => {
   const geometry = new THREE.BufferGeometry();
   const meshFound = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
   const meshMissing = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
@@ -81,7 +81,7 @@ test('exactPagesBounds yields the same box as the reference, a « coarse » page
   ]);
   const manques: THREE.Mesh[] = [],
     manquesRef: THREE.Mesh[] = [];
-  const obtenu = exactPagesBounds(source, associations, metadata, (m) =>
+  const obtenu = pagesBounds(source, associations, metadata, (m) =>
     manques.push(asHostLibrary<THREE.Mesh>(m)),
   );
   const attendu = referenceExactPagesBounds(source, associations, metadata, (m: THREE.Mesh) =>
@@ -92,10 +92,10 @@ test('exactPagesBounds yields the same box as the reference, a « coarse » page
   assert.deepEqual(manques, [meshMissing]);
 });
 
-// Batch M4a: `exactPagesBounds` now computes via core `boxTransform`/`boxUnion` instead of
+// Batch M4a: `pagesBounds` now computes via core `boxTransform`/`boxUnion` instead of
 // `Box3.applyMatrix4`/`union`. Bit-exact on hostile matrices — negative scale, shear, singular
 // matrix, NaN — and a depth-3 hierarchy.
-test('exactPagesBounds agrees with the reference on hostile matrices, depth-3 hierarchy', () => {
+test('pagesBounds agrees with the reference on hostile matrices, depth-3 hierarchy', () => {
   const geometry = new THREE.BufferGeometry();
   const racine = new THREE.Group();
   racine.scale.set(-3, 1, 1); // negative scale
@@ -125,14 +125,14 @@ test('exactPagesBounds agrees with the reference on hostile matrices, depth-3 hi
     [singulier, { meshes: 0, primitives: 0 }],
     [nanMesh, { meshes: 1, primitives: 0 }],
   ]);
-  const obtenu = exactPagesBounds(source, associations, metadata, () => {});
+  const obtenu = pagesBounds(source, associations, metadata, () => {});
   const attendu = referenceExactPagesBounds(source, associations, metadata, () => {});
   assert.deepEqual(Array.from(obtenu), [...attendu.min.toArray(), ...attendu.max.toArray()]);
 });
 
 // Batch M4a: no allocation per page — one working buffer for the whole loop. Checked by passing
 // the same `into` output from one call to the next: that is what comes back, never a new object.
-test('exactPagesBounds reuses the `into` output instead of allocating one per page', () => {
+test('pagesBounds reuses the `into` output instead of allocating one per page', () => {
   const geometry = new THREE.BufferGeometry();
   const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
   const source = new THREE.Group();
@@ -148,6 +148,6 @@ test('exactPagesBounds reuses the `into` output instead of allocating one per pa
     [mesh, { meshes: 0, primitives: 0 }],
   ]);
   const into = emptyWorldBox();
-  const rendu = exactPagesBounds(source, associations, metadata, () => {}, into);
+  const rendu = pagesBounds(source, associations, metadata, () => {}, into);
   assert.equal(rendu, into, 'the same buffer instance comes back, whatever the number of pages');
 });

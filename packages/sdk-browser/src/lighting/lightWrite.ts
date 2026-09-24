@@ -1,5 +1,5 @@
-import { LIGHT_SETTINGS, type SceneLight } from '../../../../sdk-core/src/index.ts';
-import { GraphLight, GraphRectLight } from '../../host/graph/light.ts';
+import { LIGHT_SETTINGS, type SceneLight } from '../../../sdk-core/src/index.ts';
+import { GraphLight, GraphRectLight } from '../host/graph/light.ts';
 
 /**
  * ONE CONTRACT LIGHT AS A LIGHT OF THE ENGINE'S OWN GRAPH: the WebGL2 path's translation of the
@@ -22,7 +22,7 @@ function applyColor(light: ContractLight, source: SceneLight) {
 /**
  * Penumbra that reproduces the contract cone edge. The WebGPU path softens the cone between
  * `cos(half-angle)` and the larger of `cos(half-angle) + spotEdgeSoftness` and the declared
- * penumbra's inner cosine; Three softens between `cos(angle)` and `cos(angle · (1 − penumbra))`.
+ * penumbra's inner cosine; the reference softens between `cos(angle)` and `cos(angle · (1 − penumbra))`.
  * Equating the cosines gives this penumbra — the same transition, not a neighbouring one.
  */
 function spotPenumbra(coneAngle: number, declared = 0) {
