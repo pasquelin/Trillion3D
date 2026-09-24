@@ -1860,28 +1860,6 @@
       "dollyZoom": "Zoom dolly"
     }
   },
-  "openworld": {
-    "banner": "Berjalan dengan W A S D. Tekan E di dekat mobil atau pesawat untuk masuk.",
-    "controls": {
-      "keys": "WASD berjalan · Shift berlari · Spasi melompat · C jongkok · E naik atau turun dari mobil atau pesawat",
-      "teleport": "Teleportasi",
-      "timeOfDay": "Waktu",
-      "daySpeed": "Kecepatan hari",
-      "pause": "Jeda",
-      "rain": "Hujan",
-      "geometryMB": "Geometri MB",
-      "textureMB": "Tekstur MB",
-      "view": "Tampilan"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "Streaming"
-    }
-  },
   "falling-boxes": {
     "banner": "Tekan Jatuhkan untuk lima puluh kotak lagi. Ubah gravitasi dan lihat kotak jatuh.",
     "controls": {

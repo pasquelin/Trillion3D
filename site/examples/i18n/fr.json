@@ -1287,28 +1287,6 @@
       "fansPlayingIt": "Fans qui la jouent"
     }
   },
-  "openworld": {
-    "banner": "Marche avec W A S D. Appuie sur E près d'une voiture ou d'un avion pour monter.",
-    "controls": {
-      "keys": "ZQSD marcher · Maj courir · Espace sauter · C s'accroupir · E monter ou descendre d'une voiture ou d'un avion",
-      "teleport": "Téléport",
-      "timeOfDay": "Heure",
-      "daySpeed": "Vitesse du jour",
-      "pause": "Pause",
-      "rain": "Pluie",
-      "geometryMB": "Géométrie Mo",
-      "textureMB": "Textures Mo",
-      "view": "Vue"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "Streaming"
-    }
-  },
   "orbit-around-a-clockwork": {
     "banner": "Glisse pour tourner. Clic droit pour déplacer. Fais défiler pour zoomer sur les engrenages.",
     "controls": {
