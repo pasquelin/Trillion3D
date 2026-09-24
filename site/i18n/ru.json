@@ -328,7 +328,7 @@
     "missing": {
       "colours-on-the-vertices": "цвета по вершинам в WebGPU",
       "dashed-lines": "пунктирные линии",
-      "floating-crates": "волны воды, рисуемые на GPU",
+      "floating-crates": "геометрия, перезаписываемая в каждом кадре",
       "thick-lines": "широкие линии",
       "a-line-that-draws-itself": "диапазон отрисовки геометрии",
       "shapes-from-an-svg": "импорт путей SVG",
