@@ -6,6 +6,7 @@ import { STALE_FULL, type ShadowPool } from './pool.ts';
  * holds coarser casters than one drawn at rest. When the camera rests, only the pages drawn at
  * another threshold than the current one go stale — never every page because the threshold moved
  * and came back: a page drawn before the motion and not since is already what rest would draw.
+ * A page staled so is coarser, not wrong: it stays read until redrawn.
  */
 export function createShadowThresholds(pool: ShadowPool) {
   const drawnAt = new Float64Array(pool.pages).fill(NaN);
@@ -35,7 +36,7 @@ export function createShadowThresholds(pool: ShadowPool) {
       for (let page = 0; page < pool.pages; page++) {
         const at = drawnAt[page];
         if (pool.owner[page] < 0 || Number.isNaN(at) || at === current) continue;
-        if (pool.stale(page, nowMs, frame, STALE_FULL)) staled++;
+        if (pool.stale(page, nowMs, frame, STALE_FULL, false)) staled++;
       }
       return staled;
     },

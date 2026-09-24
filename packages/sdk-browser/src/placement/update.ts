@@ -68,7 +68,7 @@ export function followPlacementRows<T>(
     const entry = list[index];
     if (!entry) continue;
     const { root, rank } = entry;
-    const parked = rows.live[index] === 0,
+    const parked = rows.live[index] === 0 || !!root.hidden,
       flipped = parked !== !!root.parked;
     // A row taken or parked moved, whatever its pose; otherwise its pose says whether it moved.
     posed?.(rank, flipped ? undefined : root.world.elements);
