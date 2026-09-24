@@ -11,6 +11,7 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { JointHost } from '../../../sdk-core/src/physics/joint.ts';
 import { rotateByQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts';
+import { normalizeVector3 } from '../../../sdk-core/src/math/primitives/vector.ts';
 import { readVec3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { hasBody, worldPoseOf, type createPhysicsBodies } from './bodies.ts';
@@ -22,9 +23,10 @@ const turn = (q: ArrayLike<number>, v: Vec): Vec => {
   rotateByQuaternion(turned, q, v[0], v[1], v[2]);
   return [turned[0], turned[1], turned[2]];
 };
+/** `v` made unit length, in place. */
 const unit = (v: Vec): Vec => {
-  const length = Math.hypot(v[0], v[1], v[2]) || 1;
-  return [v[0] / length, v[1] / length, v[2] / length];
+  normalizeVector3(v);
+  return v;
 };
 /** A unit vector square to `axis`: the direction a joint's angle 0 is read from. */
 const normalTo = ([x, y, z]: Vec): Vec => unit(Math.abs(x) < 0.9 ? [0, z, -y] : [-z, 0, x]);
