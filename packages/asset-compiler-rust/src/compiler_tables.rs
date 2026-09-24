@@ -25,7 +25,7 @@ use materials::{material_entry, texture_table};
 /// glTF parse.
 const SCENE_TABLES_VERSION: u32 = 2;
 const NODE_TABLE_VERSION: u32 = 2;
-const MATERIAL_TABLE_VERSION: u32 = 2;
+const MATERIAL_TABLE_VERSION: u32 = 3;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";
 

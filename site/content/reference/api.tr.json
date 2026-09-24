@@ -3374,7 +3374,8 @@
     "summary": "Dolu bir harita yuvası: hangi doku, hangi koordinat takımı ve bildirdiği dönüşüm.",
     "members": {
       "texture": "Hangi doku.",
-      "texCoord": "Hangi UV seti.",
+      "texCoord": "Hangi UV kümesinin örneklendiği: dönüşümü bir küme adlandırıyorsa onunki, yoksa kendisininki.",
+      "slotTexCoord": "Yuvanın herhangi bir dönüşümden önce kendisinin adlandırdığı UV kümesi: ilkinden başka birini adlandıran bir yuva, dokusunun hiçbir sıraya karşılık gelmeyen bir kopyasından çizilir.",
       "transform": "Yuvanın bildirdiği `KHR_texture_transform` — kaydırma, radyan cinsinden dönme, germe, belirtilmediğinde her biri `null` — ya da hiç yoksa `null`."
     }
   },
