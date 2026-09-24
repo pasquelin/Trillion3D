@@ -1,19 +1,15 @@
-import type { HostDrawCamera } from '../../camera/world.ts';
+import type { HostDrawCamera } from '../../../../packages/sdk-browser/src/camera/world.ts';
 import {
   drawPasses,
   recordTriangles,
   wholeMeshTriangles,
   type ClusterDrawMesh,
   type WholeMesh,
-} from '../../cluster/batchMesh.ts';
-import type { ClusterBatchStats, ClusterDrawOwner } from '../../cluster/batches.ts';
-import { firstMaterial } from '../../scene/materialSide.ts';
-import type { SceneCopy } from './copyCulling.ts';
-import type { WebglClusterScene } from './lights.ts';
-
-/** The host scene the owner reads for its lights and background, its world matrices resolved
- *  before the read. */
-export type ClusterDrawScene = WebglClusterScene & { updateMatrixWorld(): void };
+} from '../../../../packages/sdk-browser/src/cluster/batchMesh.ts';
+import type { ClusterBatchStats, ClusterDrawOwner } from './batches.ts';
+import { firstMaterial } from '../../../../packages/sdk-browser/src/scene/materialSide.ts';
+import type { SceneCopy } from '../../../../packages/sdk-browser/src/webgl/cluster/copyCulling.ts';
+import type { ClusterDrawScene } from '../../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 /** Submissions a material asks for this frame: none while hidden, otherwise its passes. */
 const passCount = (material: WholeMesh['material']) =>

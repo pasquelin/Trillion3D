@@ -1,6 +1,6 @@
-import type { BatchPage } from './batchRange.ts';
+import type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
 import { BatchGroup } from './batchPrimitive.ts';
-import { ClusterDrawMesh } from './batchMesh.ts';
+import { ClusterDrawMesh } from '../../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import { groupForPage } from './batchLayers.ts';
 import type { ClusterBatchStats } from './batches.ts';
 

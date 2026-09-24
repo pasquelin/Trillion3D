@@ -7,10 +7,7 @@ import type {
   HostDrawOutput,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
 import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
-import {
-  ClusterBatches,
-  type BatchPage,
-} from '../../../packages/sdk-browser/src/cluster/batches.ts';
+import { ClusterBatches, type BatchPage } from './batches/batches.ts';
 import { clusterWebglCompatibility } from '../../../packages/sdk-browser/src/webgl/cluster/compatibility.ts';
 import { clusterRefusal } from '../../../packages/sdk-browser/src/webgl/cluster/refusal.ts';
 import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/cluster/owner.ts';

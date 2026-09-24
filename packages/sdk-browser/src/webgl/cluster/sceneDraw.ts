@@ -7,11 +7,15 @@ import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import type { GraphScene } from '../../host/graph/scene.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
-import type { ClusterDrawScene } from './batchDraw.ts';
+import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
 import { multiplyMatrix4 } from './matrices.ts';
 import { depthOf } from './meshDepth.ts';
+
+/** The scene the owner reads for its lights and background, its world matrices resolved
+ *  before the read. */
+export type ClusterDrawScene = WebglClusterScene & { updateMatrixWorld(): void };
 
 /** A node of the display graph, read by shape: a mesh is drawn whole, anything else is walked. */
 type DisplayNode = Partial<SceneCopy> & {
