@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import { describe, printed } from '../site/examples/kit/controls.ts';
 import { labelOf } from '../site/examples/kit/words.ts';
 import {
@@ -7,6 +7,7 @@ import {
   shadowLines,
   statLines,
   statsCorners,
+  watchStats,
 } from '../site/examples/kit/statsLines.ts';
 import { profileLines, profileWindow } from '../site/examples/kit/profile.ts';
 
@@ -99,6 +100,29 @@ test('the stats corner shows only what was measured, and never a dash or a zero'
   );
   // A frame that measured no triangle at all shows none: never the scene's count in its place.
   assert.deepEqual(statLines({ ...unmeasured, selectedTriangles: 0, sceneTriangles: 12 }), []);
+  // A GPU time of zero was measured, so it shows; one kept from an earlier frame is marked last.
+  assert.deepEqual(statLines({ ...unmeasured, gpuFrameMs: 0 }), [['GPU frame', '0.00 ms']]);
+  assert.deepEqual(statLines({ ...unmeasured, gpuFrameMs: 2.5, gpuFrameLast: true }), [
+    ['GPU frame (last)', '2.50 ms'],
+  ]);
+});
+
+test('the stats corner keeps the GPU time last measured while frames time nothing', () => {
+  mock.timers.enable({ apis: ['setInterval'] });
+  let hook: (frame: { metrics: { gpuFrameMs?: number | null } }) => void = () => {};
+  const shown: [string, string][][] = [];
+  const stop = watchStats({ onFrame: (h) => void (hook = h), scene: {} }, (lines) =>
+    shown.push(lines),
+  );
+  const gpu = () => shown.at(-1)?.find(([label]) => label.startsWith('GPU'));
+  hook({ metrics: { gpuFrameMs: 1.5 } });
+  mock.timers.tick(500);
+  assert.deepEqual(gpu(), ['GPU frame', '1.50 ms']);
+  hook({ metrics: { gpuFrameMs: null } });
+  mock.timers.tick(500);
+  assert.deepEqual(gpu(), ['GPU frame (last)', '1.50 ms']);
+  stop();
+  mock.timers.reset();
 });
 
 test('a shadow counter shows under the name the engine publishes, zero included, and only when measured', () => {
