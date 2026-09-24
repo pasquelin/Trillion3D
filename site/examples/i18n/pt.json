@@ -1930,5 +1930,39 @@
       "awake": "Acordados",
       "speed": "Velocidade"
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "Clique no chão para soltar uma bola ali. Chuva solta mais vinte.",
+    "controls": {
+      "matter": "Matéria",
+      "rain": "Chuva"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "borracha",
+        "stone": "pedra",
+        "ice": "gelo"
+      }
+    },
+    "words": {
+      "credit": "Vale modelado em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "O caminhante contorna o salão e empurra as bolas. Bolas adiciona mais vinte.",
+    "controls": {
+      "walking": "Andar",
+      "balls": "Bolas"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo"
+    }
   }
 }

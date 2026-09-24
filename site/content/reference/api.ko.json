@@ -926,6 +926,8 @@
       "PHYSICS_BUDGET": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
       "PHYSICS_NESTED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
       "PHYSICS_FAILED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
+      "PHYSICS_FORMAT": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.vehicle`이 `null`인데 `world.controls.kind`를 `'vehicle'`로 설정했습니다: 운전할 것이 없습니다."
     }
   },
@@ -3909,7 +3911,7 @@
       "zoomSpeed": "피벗 컨트롤러: 휠과 핀치의 줌 속도; 기본값은 1.",
       "autoForward": "비행 전용: 키 없이 `movementSpeed`로 전진, W로 가속, S로 정지.",
       "autoUpdate": "세계의 루프가 매 프레임, `world.beforeFrame` 훅보다 먼저 `update`를 호출하는지 여부. `false`로 하면 그 단계는 페이지에 맡겨지며, 페이지는 그런 훅에서 `update`를 호출한다; 원하는 빈도로, 원하는 하위 단계로 나누어 적분할 수 있다; 이 경우 세계가 그것을 진행시키는 일은 결코 없다.",
-      "colliders": "캐릭터 전용: 몸체가 충돌하는 메시 — 단일 객체나 목록, 그 자손들도 포함 — 또는 `null`. 이를 설정하면 지금 상태의 월드 공간 삼각형으로부터 정적인 삼각형 트리가 구축된다: 삼각형에 대한 한 번의 패스, `O(T log T)` 구축, 삼각형당 약 52바이트가 유지된다. 컴파일된 모델은 아직 읽히지 않는다: 대신 단순한 메시를 주어라. `CharacterCollision`(물리 엔진의 월드처럼 `resolveCapsule`과 `groundBelow`에 답하는 것)은 그대로 사용됩니다. `world.physics`가 실행 중이면 쓰이지 않습니다: 몸은 물리의 것이 되어 그 물체들(`mesh.physics`)과 만납니다.",
+      "colliders": "캐릭터 전용: 몸체가 충돌하는 메시 — 단일 객체나 목록, 그 자손들도 포함 — 또는 `null`. 이를 설정하면 지금 상태의 월드 공간 삼각형으로부터 정적인 삼각형 트리가 구축된다: 삼각형에 대한 한 번의 패스, `O(T log T)` 구축, 삼각형당 약 52바이트가 유지된다. 컴파일된 모델은 아직 읽히지 않는다: 대신 단순한 메시를 주어라. `CharacterCollision`(물리 엔진의 월드처럼 `resolveCapsule`과 `groundBelow`에 답하는 것)은 그대로 사용됩니다.",
       "rebuildColliders": "캐릭터 전용: 콜라이더가 움직이거나 바뀐 뒤, 충돌 트리를 재구축한다. `CharacterCollision`은 그 자체로 월드이므로 그대로 전달됩니다.",
       "velocity": "캐릭터 전용: 몸체 속도의 사본, 초당 미터; 그 외에는 0.",
       "onGround": "캐릭터 전용: 발이 바닥 위에 있는지 여부; 다른 컨트롤러에서는 `false`.",

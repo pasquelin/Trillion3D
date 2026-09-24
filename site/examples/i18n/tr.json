@@ -1930,5 +1930,39 @@
       "awake": "Uyanık",
       "speed": "Hız"
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "Oraya bir top bırakmak için zemine tıklayın. Yağmur yirmi tane daha bırakır.",
+    "controls": {
+      "matter": "Madde",
+      "rain": "Yağmur"
+    },
+    "readouts": {
+      "bodies": "Cisimler",
+      "awake": "Uyanık",
+      "step": "Adım"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "kauçuk",
+        "stone": "taş",
+        "ice": "buz"
+      }
+    },
+    "words": {
+      "credit": "Vadi bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "Yürüyüşçü salonun çevresinde döner ve topları iter. Toplar yirmi tane daha ekler.",
+    "controls": {
+      "walking": "Yürüme",
+      "balls": "Toplar"
+    },
+    "readouts": {
+      "bodies": "Cisimler",
+      "awake": "Uyanık",
+      "step": "Adım"
+    }
   }
 }

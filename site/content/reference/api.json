@@ -3968,6 +3968,14 @@
         "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory, body pairs and contacts per step), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed or refused a body's shape (`PHYSICS_FAILED`): on `world.physics.error`."
       },
       {
+        "name": "PHYSICS_FORMAT",
+        "desc": "A compiled model's cooked physics (`physics.json`) is of another format, or was cooked by another Jolt than the engine's (`PHYSICS_FORMAT`): compile it again. An exact raycast was asked with the physics off (`PHYSICS_OFF`)."
+      },
+      {
+        "name": "PHYSICS_OFF",
+        "desc": "A compiled model's cooked physics (`physics.json`) is of another format, or was cooked by another Jolt than the engine's (`PHYSICS_FORMAT`): compile it again. An exact raycast was asked with the physics off (`PHYSICS_OFF`)."
+      },
+      {
         "name": "NO_VEHICLE",
         "desc": "`world.controls.kind` was set to `'vehicle'` while `world.controls.vehicle` is `null`: there is nothing to drive."
       }
@@ -17722,7 +17730,7 @@
     "section": "world",
     "kind": "Function",
     "title": "world.raycast()",
-    "signature": "world.raycast(at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null",
+    "signature": "world.raycast(at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null\nworld.raycast(at: CanvasPoint | Ray, options: { exact?: true; shape?: { type: 'sphere'; radius: number; } | { type: 'box'; halfExtents: { x: number; y: number; z: number; }; } | { type: 'capsule'; halfHe...): Promise<(Intersection & { material: number; }) | null>",
     "summary": "The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`: the node the page added, the world point and normal hit, the distance (`worldRaycast`).",
     "parameters": [
       {

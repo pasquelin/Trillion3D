@@ -320,7 +320,8 @@
       "teleport-in-vr": "VR'da ışınlanmak",
       "controllers-in-vr": "VR'da kumandalar",
       "ar-on-the-table": "Masada AR",
-      "shadows-case-by-case": "Gölgeler, durum durum"
+      "shadows-case-by-case": "Gölgeler, durum durum",
+      "a-walker-among-balls": "Toplar arasında bir yürüyüşçü"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU'da köşe başına renkler",
@@ -483,7 +484,6 @@
       "breaking-things": "bir fizik motoru entegrasyonu",
       "cloth-and-rope": "bir fizik motoru entegrasyonu",
       "soft-bodies": "bir fizik motoru entegrasyonu",
-      "rolling-on-terrain": "bir fizik motoru entegrasyonu",
       "hinges-and-joints": "bir fizik motoru entegrasyonu",
       "drive-a-car": "bir fizik motoru entegrasyonu",
       "a-room-in-vr": "WebXR oturumu",
@@ -1060,7 +1060,8 @@
           "Dünyaya <code>physics: true</code> ver. Simülasyon çizimden ayrı, bir <em>worker</em> içinde çalışır; görüntüyü asla yavaşlatmaz.",
           "Zemini <code>'static'</code> işaretle: diğerlerini taşır, hiç kıpırdamaz. Bir kutuyu <code>'dynamic'</code> işaretle: yerçekimi onu çeker.",
           "Şekil geometriden, ağırlık malzemeden gelir: <code>physics: 'wood'</code> hafif, <code>'metal'</code> ağır, <code>'rubber'</code> zıplar.",
-          "Bir cismi <code>applyImpulse</code> ile it ya da <code>contact</code> olayını dinle. Tüm cisimler uyuyunca hiçbir şey hesaplanmaz ve çizilmez."
+          "Bir cismi <code>applyImpulse</code> ile it ya da <code>contact</code> olayını dinle. Tüm cisimler uyuyunca hiçbir şey hesaplanmaz ve çizilmez.",
+          "<code>scene.load</code> ile yüklenen bir model, derlenirken hazırlanan kendi üçgenleriyle çarpışır. <code>await world.raycast(point, { exact: true })</code> imlecin altındaki üçgenin tam kendisini bulur."
         ],
         "tryIt": "Daha fazla kutu bırak, yerçekimini Ay’a çevir ve ağır çekimi aç."
       },

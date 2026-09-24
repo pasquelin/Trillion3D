@@ -4,6 +4,7 @@ import { box, plane, sphere } from '../world/geometry/basic.ts';
 import { capsule } from '../world/geometry/round.ts';
 import { Material } from '../world/material/material.ts';
 import { CommandWriter } from './commands.ts';
+import { JOLT_COMMIT, readCookedPhysics } from './cooked.ts';
 import { ADD_WORDS, OP, SHAPE, VIEW_WORDS } from './layout.ts';
 import { physicsMatterOf } from './matter.ts';
 import { resolveShape } from './shape.ts';
@@ -80,4 +81,14 @@ test('a dynamic body declared as triangles is refused: triangles hold no mass', 
   assert.throws(() => resolveShape(box(), { x: 1, y: 1, z: 1 }, 'dynamic', { type: 'triangles' }), {
     code: 'PHYSICS_FAILED',
   });
+});
+
+test('physics.json of another format, or cooked by another Jolt, is refused by name', () => {
+  const file = { formatVersion: 1, jolt: JOLT_COMMIT, colliders: [], instances: [] };
+  assert.equal(readCookedPhysics(file).colliders.length, 0);
+  for (const wrong of [
+    { ...file, formatVersion: 2 },
+    { ...file, jolt: '0'.repeat(40) },
+  ])
+    assert.throws(() => readCookedPhysics(wrong), { code: 'PHYSICS_FORMAT' });
 });

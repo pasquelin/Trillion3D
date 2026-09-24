@@ -14,7 +14,7 @@ const ERROR_LADDER: usize = 16;
 /// covers surface once and once only — no hole, no double layer. A root has infinite
 /// `parent_error`: retained as soon as error exceeds threshold, otherwise
 /// children are retained because replacement is precisely this coarse root.
-fn selected(cluster: &DagCluster, threshold: f64) -> bool {
+pub(crate) fn selected(cluster: &DagCluster, threshold: f64) -> bool {
     cluster.lod_error <= threshold && cluster.parent_error > threshold
 }
 

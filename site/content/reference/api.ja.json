@@ -926,6 +926,8 @@
       "PHYSICS_BUDGET": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
       "PHYSICS_NESTED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
       "PHYSICS_FAILED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
+      "PHYSICS_FORMAT": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
+      "PHYSICS_OFF": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "`world.controls.vehicle` が `null` のまま `world.controls.kind` に `'vehicle'` が設定された：運転するものがない。"
     }
   },
@@ -3909,7 +3911,7 @@
       "zoomSpeed": "ピボットコントローラー: ホイールとピンチのズーム速度; デフォルトは1。",
       "autoForward": "フライトのみ: キーなしで`movementSpeed`で前進する。Wでさらに速く、Sで停止する。",
       "autoUpdate": "世界のループが、各フレームより前、`world.beforeFrame`フックより前に`update`を呼ぶかどうか。`false`にすると、そのステップはページに任され、ページはそのようなフックから`update`を呼ぶ。好きな頻度で、好きなサブステップに分けて積分できる; その場合、世界がそれを進めることは決してない。",
-      "colliders": "キャラクターのみ: ボディが衝突するメッシュ — 1つのオブジェクトかリスト。それらの子孫も含む — あるいは`null`。それらを設定すると、今の状態でのワールド空間の三角形から静的な三角形ツリーが構築される: 三角形への1回のパスと`O(T log T)`の構築、三角形あたり約52バイトが保持される。コンパイル済みモデルはまだ読まれない: それらの代わりに単純なメッシュを与えること。 `CharacterCollision`(物理エンジンの世界など、`resolveCapsule` と `groundBelow` に答えるもの)は、そのまま使われる。 `world.physics` の動作中は使われない：身体は物理のものとなり、その物体（`mesh.physics`）と出会う。",
+      "colliders": "キャラクターのみ: ボディが衝突するメッシュ — 1つのオブジェクトかリスト。それらの子孫も含む — あるいは`null`。それらを設定すると、今の状態でのワールド空間の三角形から静的な三角形ツリーが構築される: 三角形への1回のパスと`O(T log T)`の構築、三角形あたり約52バイトが保持される。コンパイル済みモデルはまだ読まれない: それらの代わりに単純なメッシュを与えること。 `CharacterCollision`(物理エンジンの世界など、`resolveCapsule` と `groundBelow` に答えるもの)は、そのまま使われる。",
       "rebuildColliders": "キャラクターのみ: コライダーが動いたり変わったりした後、衝突ツリーを再構築する。 `CharacterCollision` はそれ自体が世界なので、そのまま渡される。",
       "velocity": "キャラクターのみ: ボディの速度、1秒あたりのメートル、コピー; それ以外はゼロ。",
       "onGround": "キャラクターのみ: 足が床の上にあるかどうか; 他のコントローラーでは`false`。",

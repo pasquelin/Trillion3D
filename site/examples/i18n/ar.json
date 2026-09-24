@@ -1930,5 +1930,39 @@
       "awake": "نشطة",
       "speed": "السرعة"
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "انقر على الأرض لإسقاط كرة هناك. المطر يسقط عشرين كرة أخرى.",
+    "controls": {
+      "matter": "المادة",
+      "rain": "المطر"
+    },
+    "readouts": {
+      "bodies": "الأجسام",
+      "awake": "المستيقظة",
+      "step": "الخطوة"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "مطاط",
+        "stone": "حجر",
+        "ice": "جليد"
+      }
+    },
+    "words": {
+      "credit": "وادٍ نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "يدور الماشي حول القاعة ويدفع الكرات. زر الكرات يضيف عشرين أخرى.",
+    "controls": {
+      "walking": "المشي",
+      "balls": "الكرات"
+    },
+    "readouts": {
+      "bodies": "الأجسام",
+      "awake": "المستيقظة",
+      "step": "الخطوة"
+    }
   }
 }

@@ -1930,5 +1930,39 @@
       "awake": "Aktif",
       "speed": "Kecepatan"
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "Klik tanah untuk menjatuhkan bola di sana. Hujan menjatuhkan dua puluh lagi.",
+    "controls": {
+      "matter": "Bahan",
+      "rain": "Hujan"
+    },
+    "readouts": {
+      "bodies": "Benda",
+      "awake": "Aktif",
+      "step": "Langkah"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "karet",
+        "stone": "batu",
+        "ice": "es"
+      }
+    },
+    "words": {
+      "credit": "Lembah dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "Pejalan mengelilingi aula dan mendorong bola. Bola menambah dua puluh lagi.",
+    "controls": {
+      "walking": "Berjalan",
+      "balls": "Bola"
+    },
+    "readouts": {
+      "bodies": "Benda",
+      "awake": "Aktif",
+      "step": "Langkah"
+    }
   }
 }

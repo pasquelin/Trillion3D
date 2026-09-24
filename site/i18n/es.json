@@ -320,7 +320,8 @@
       "teleport-in-vr": "Teletransportarse en RV",
       "controllers-in-vr": "Mandos en RV",
       "ar-on-the-table": "RA sobre la mesa",
-      "shadows-case-by-case": "Las sombras, caso por caso"
+      "shadows-case-by-case": "Las sombras, caso por caso",
+      "a-walker-among-balls": "Un caminante entre pelotas"
     },
     "missing": {
       "colours-on-the-vertices": "colores por vértice en WebGPU",
@@ -483,7 +484,6 @@
       "breaking-things": "integración de un motor de física",
       "cloth-and-rope": "integración de un motor de física",
       "soft-bodies": "integración de un motor de física",
-      "rolling-on-terrain": "integración de un motor de física",
       "hinges-and-joints": "integración de un motor de física",
       "drive-a-car": "integración de un motor de física",
       "a-room-in-vr": "sesión WebXR",
@@ -1060,7 +1060,8 @@
           "Da al mundo <code>physics: true</code>. La simulación corre aparte del dibujo, en un <em>worker</em>, y nunca frena la imagen.",
           "Marca el suelo <code>'static'</code>: sostiene a los demás y nunca se mueve. Marca una caja <code>'dynamic'</code>: la gravedad la atrae.",
           "La forma sale de la geometría y el peso del material: <code>physics: 'wood'</code> es ligera, <code>'metal'</code> pesada, <code>'rubber'</code> rebota.",
-          "Empuja un cuerpo con <code>applyImpulse</code> o escucha su <code>contact</code>. Cuando todos duermen, no se calcula ni se dibuja nada."
+          "Empuja un cuerpo con <code>applyImpulse</code> o escucha su <code>contact</code>. Cuando todos duermen, no se calcula ni se dibuja nada.",
+          "Un modelo cargado con <code>scene.load</code> choca con sus propios triángulos, preparados al compilarlo. <code>await world.raycast(point, { exact: true })</code> encuentra el triángulo exacto bajo el cursor."
         ],
         "tryIt": "Suelta más cajas, pon la gravedad de la Luna y activa la cámara lenta."
       },

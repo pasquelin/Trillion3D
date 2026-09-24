@@ -320,7 +320,8 @@
       "teleport-in-vr": "Teleport in VR",
       "controllers-in-vr": "Controllers in VR",
       "ar-on-the-table": "AR on the table",
-      "shadows-case-by-case": "Shadows, case by case"
+      "shadows-case-by-case": "Shadows, case by case",
+      "a-walker-among-balls": "A walker among balls"
     },
     "missing": {
       "colours-on-the-vertices": "per-vertex colours on WebGPU",
@@ -483,7 +484,6 @@
       "breaking-things": "physics integration",
       "cloth-and-rope": "physics integration",
       "soft-bodies": "physics integration",
-      "rolling-on-terrain": "physics integration",
       "hinges-and-joints": "physics integration",
       "drive-a-car": "physics integration",
       "a-room-in-vr": "WebXR session",
@@ -1060,7 +1060,8 @@
           "Give the world <code>physics: true</code>. The simulation runs apart from the drawing, in a <em>worker</em>, so it never slows the picture down.",
           "Mark the floor <code>'static'</code>: it holds the others and never moves. Mark a box <code>'dynamic'</code>: gravity pulls it.",
           "The shape comes from the geometry, the weight from the material: <code>physics: 'wood'</code> is light, <code>'metal'</code> is heavy, <code>'rubber'</code> bounces.",
-          "Push a body with <code>applyImpulse</code>, or listen to its <code>contact</code>. Once every body sleeps, nothing is computed and nothing is drawn."
+          "Push a body with <code>applyImpulse</code>, or listen to its <code>contact</code>. Once every body sleeps, nothing is computed and nothing is drawn.",
+          "A model loaded with <code>scene.load</code> collides with its own triangles, cooked when it was compiled. <code>await world.raycast(point, { exact: true })</code> finds the very triangle under the cursor."
         ],
         "tryIt": "Drop more boxes, switch the gravity to the Moon, and turn on slow motion."
       },

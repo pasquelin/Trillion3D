@@ -659,6 +659,8 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/support/publicScene.ts",
+        "packages/sdk-browser/src/physics/tilePlace.ts",
+        "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -2318,6 +2320,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/module.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
@@ -2635,7 +2638,9 @@
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/joltModule.ts",
         "packages/sdk-browser/src/physics/physicsWorker.ts",
+        "packages/sdk-browser/src/physics/raycast.ts",
         "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/scene/manifestLoad.ts",
         "packages/sdk-browser/src/scene/proxyLoad.ts",
@@ -3347,6 +3352,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
@@ -3891,7 +3897,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/core/worldRaycast.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/raycast.ts",
+        "packages/sdk-browser/src/world/core/worldRaycast.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/object/raycast\".Intersection"
     },
@@ -4589,7 +4598,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/physics/tilePlace.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/matrix4\".Matrix4"
     },
@@ -5065,9 +5074,13 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/contacts.ts",
+        "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/placer.ts",
         "packages/sdk-browser/src/physics/poses.ts",
+        "packages/sdk-browser/src/physics/raycast.ts",
         "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/tilePlace.ts",
+        "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
@@ -5702,7 +5715,9 @@
         "packages/sdk-browser/src/physics/module.fixture.ts",
         "packages/sdk-browser/src/physics/protocol.ts",
         "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/sessionWorker.ts",
         "packages/sdk-browser/src/physics/tickResults.ts",
+        "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts"
       ],
@@ -5718,6 +5733,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/physics/session.ts"
@@ -6434,6 +6450,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
         "packages/sdk-browser/src/world/controls/transformDrag.ts",
         "packages/sdk-browser/src/world/controls/transformMath.test.ts",
@@ -6471,10 +6488,11 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/cooked.test.ts",
+        "packages/sdk-browser/src/physics/raycast.ts",
         "packages/sdk-browser/src/world/controls/transformDrag.ts",
         "packages/sdk-browser/src/world/controls/transformMath.test.ts",
         "packages/sdk-browser/src/world/controls/transformMath.ts",
-        "packages/sdk-browser/src/world/core/world.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.ts"
       ],
       "disposition": "retained",
@@ -8833,6 +8851,9 @@
       "affectedConsumers": [
         "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/cooked.test.ts",
+        "packages/sdk-browser/src/physics/raycast.ts",
+        "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",

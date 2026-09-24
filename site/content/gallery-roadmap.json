@@ -1463,8 +1463,12 @@
     {
       "id": "rolling-on-terrain",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/rolling-on-terrain.html"
+    },
+    {
+      "id": "a-walker-among-balls",
+      "theme": "physics",
+      "file": "examples/a-walker-among-balls.html"
     },
     {
       "id": "hinges-and-joints",

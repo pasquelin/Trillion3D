@@ -1,0 +1,81 @@
+import type { CookedInstance, CookedTile } from '../../../sdk-core/src/physics/index.ts';
+import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
+import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
+import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Bodied } from './bodies.ts';
+import { resolveCameraWorld } from '../camera/world.ts';
+
+/** A compiled model as the streamer reads it (`LoadedModel`): where its files are. */
+export type Model = Object3D & { isLoadedModel: true; record: { base: string } };
+export const isModel = (node: Object3D): node is Model =>
+  (node as { isLoadedModel?: boolean }).isLoadedModel === true;
+
+/** One cooked tile placed by one instance: its world box, and whether its body is in. */
+export interface Placed {
+  model: Model;
+  instance: CookedInstance;
+  tile: CookedTile;
+  box: Box3;
+  /** The body's engine id once resident, -1 while out. */
+  id: number;
+  /** Its bytes are on their way. */
+  loading: boolean;
+}
+
+/** Seconds of travel a moving body's tiles are loaded ahead of it. */
+const LOOKAHEAD_S = 1;
+
+const place = new Matrix4(),
+  local = new Matrix4(),
+  position = new Vector3(),
+  turn = new Quaternion(),
+  size = new Vector3(),
+  bounds = new Box3();
+
+/** A tile's world pose — its model's world matrix times its instance — as position, turn, scale
+ *  (scratch shared by every caller: read them at once). */
+export function tilePose(p: Placed) {
+  const { position: t, rotation: r, scale: s } = p.instance;
+  position.set(t[0], t[1], t[2]);
+  local.compose(position, turn.set(r[0], r[1], r[2], r[3]), size.set(s[0], s[1], s[2]));
+  place
+    .multiplyMatrices(resolveCameraWorld(p.model).matrixWorld, local)
+    .decompose(position, turn, size);
+  return { place, position: position.elements, quaternion: turn.elements, scale: size };
+}
+
+/** Places a tile's world box from its pose. */
+export function locate(p: Placed) {
+  const b = p.tile.bounds;
+  p.box.set({ x: b[0], y: b[1], z: b[2] }, { x: b[3], y: b[4], z: b[5] });
+  p.box.applyMatrix4(tilePose(p).place);
+}
+
+/** The distance from a point to a box, 0 inside. */
+export const boxDistance = (box: Box3, x: number, y: number, z: number) =>
+  Math.hypot(
+    Math.max(box.min.x - x, 0, x - box.max.x),
+    Math.max(box.min.y - y, 0, y - box.max.y),
+    Math.max(box.min.z - z, 0, z - box.max.z),
+  );
+
+/**
+ * Where each moving body wants ground: `x, y, z, reach` per dynamic body, the reach its half size
+ * plus the way it travels in `LOOKAHEAD_S` seconds.
+ */
+export function moversOf(meshes: readonly (Bodied | null)[]) {
+  const out: number[] = [];
+  for (const mesh of meshes) {
+    if (!mesh || mesh.physics.type !== 'dynamic') continue;
+    const box = mesh.localBounds();
+    bounds.makeEmpty();
+    if (box) bounds.copy(box).applyMatrix4(mesh.matrixWorld);
+    const half = bounds.isEmpty() ? 0 : bounds.getSize(size).length() / 2;
+    const v = mesh.physics.velocity;
+    out.push(mesh.position.x, mesh.position.y, mesh.position.z);
+    out.push(half + Math.hypot(v.x, v.y, v.z) * LOOKAHEAD_S);
+  }
+  return out;
+}

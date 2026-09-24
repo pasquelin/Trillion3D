@@ -1930,5 +1930,39 @@
       "awake": "Svegli",
       "speed": "Velocità"
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "Fai clic sul terreno per lasciarvi cadere una palla. Pioggia ne lascia cadere altre venti.",
+    "controls": {
+      "matter": "Materia",
+      "rain": "Pioggia"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "awake": "Svegli",
+      "step": "Passo"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "gomma",
+        "stone": "pietra",
+        "ice": "ghiaccio"
+      }
+    },
+    "words": {
+      "credit": "Valle modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "Il camminatore gira per la sala e spinge le palline. Palline ne aggiunge venti.",
+    "controls": {
+      "walking": "Cammina",
+      "balls": "Palline"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "awake": "Svegli",
+      "step": "Passo"
+    }
   }
 }
