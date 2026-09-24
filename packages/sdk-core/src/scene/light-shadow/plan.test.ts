@@ -35,14 +35,14 @@ test('the pages the shading reads are mapped and drawn the frame their report co
   assert.equal(plan.counts.poolPages, 3);
 });
 
-test('a frame admits no more pages than its limit, the rest wait for the next', () => {
-  const { store, plan, pages } = sunScene();
-  report(plan, store, 0, pages);
-  plan.admission.setLimit(1);
-  assert.equal(planFrame(plan, store, 1), 1, 'one page under a limit of one');
+test('a frame admits the pages of no more views than its limit, the rest wait for the next', () => {
+  const { store, plan, slice, level, pages } = sunScene();
+  const coarser = sunPages(plan, slice, level + 1, [[0, 0]]);
+  report(plan, store, 0, [...pages, ...coarser]);
+  plan.admission.setViewLimit(1);
+  assert.equal(planFrame(plan, store, 1), 1, 'the coarser view alone: its one page');
   plan.commit();
-  plan.admission.setLimit(24);
-  assert.equal(planFrame(plan, store, 2), 2, 'the two that waited');
+  assert.equal(planFrame(plan, store, 2), 3, 'every page of the view that waited');
 });
 
 test('a page nobody reads is never drawn, and a still scene draws nothing', () => {
@@ -158,7 +158,8 @@ test('a light that moves reads none of its pages until each is drawn again', () 
   assert.ok(pages.every((entry) => word(entry) === (PAGE_MAPPED | PAGE_VALID)));
   // Its depth was drawn from the old position: the record the shading reads is the new one.
   store.set('lamp', { position: [0, 4, 0] });
-  plan.admission.setLimit(1);
+  // A page costs the whole budget: one a frame.
+  plan.observeCost(plan.budget.budgetMs, 1);
   planFrame(plan, store, 3);
   assert.ok(
     pages.every((entry) => word(entry) === PAGE_MAPPED),
