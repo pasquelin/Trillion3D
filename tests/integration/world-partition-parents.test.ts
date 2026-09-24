@@ -60,7 +60,10 @@ test(
       partitions: [cells],
       streamer,
       camera,
-      active: () => ({ updatePlacements: (rows) => void written.add(rows) }) as RenderBackend,
+      active: () =>
+        ({
+          updatePlacements: (rows) => void written.add(rows),
+        }) as Partial<RenderBackend> as RenderBackend,
       renew: () => void renewed++,
     })!;
     for (let step = 0; step < 16; step++) {
