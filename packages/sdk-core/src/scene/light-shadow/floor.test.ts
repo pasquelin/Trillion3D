@@ -85,13 +85,17 @@ test('past the view limit, the floors of lamps that all keep moving take turns b
   // Still first, until the floors every new lamp asks for itself are drawn and no report names them.
   for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
   plan.admission.setViewLimit(1);
-  const lastDrawn = lamps.map(() => 3);
-  for (let frame = 4; frame < 24; frame++) {
+  // A moving lamp asks for the floor of each of its six faces, each its own view: one a frame.
+  const floorViews = lamps.length * 6,
+    lastDrawn = lamps.map(() => [3, 3, 3, 3, 3, 3]);
+  for (let frame = 4; frame < 4 + 3 * floorViews; frame++) {
     for (const k of lamps) store.set(`lamp${k}`, { position: [k * 10, 3 + frame / 10, 0] });
     cycle(plan, store, frame, () => read);
-    for (const k of lamps) {
-      if (plan.table.words[lampFloor(plan, slices[k], 0)] & PAGE_VALID) lastDrawn[k] = frame;
-      assert.ok(frame - lastDrawn[k] < lamps.length, `lamp ${k} waits at frame ${frame}`);
-    }
+    for (const k of lamps)
+      for (let face = 0; face < 6; face++) {
+        if (plan.table.words[lampFloor(plan, slices[k], face)] & PAGE_VALID)
+          lastDrawn[k][face] = frame;
+        assert.ok(frame - lastDrawn[k][face] <= floorViews, `lamp ${k} face ${face} at ${frame}`);
+      }
   }
 });
