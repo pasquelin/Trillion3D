@@ -1,4 +1,4 @@
-import { importHostTexture } from '../../host/surfaceImport.ts';
+import { importHostTexture } from '../../host/textureImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
