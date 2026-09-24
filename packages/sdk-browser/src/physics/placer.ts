@@ -1,10 +1,12 @@
 import { NODE_TRS_DIRTY } from '../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import { composeMatrix4At } from '../../../sdk-core/src/math/matrix/matrix4Compose.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import type { PlacedRow } from '../../../sdk-core/src/world/object/sceneLink.ts';
+import type { SceneLink } from '../../../sdk-core/src/world/object/sceneLink.ts';
 import type { Bodied } from './bodies.ts';
 
-type Batch = PlacedRow['batch'];
+type Batch = NonNullable<ReturnType<NonNullable<SceneLink['seat']>>>['batch'];
+const UNASKED = -2,
+  NO_ROW = -1;
 
 /** True when `node` sits at the origin, unturned and unscaled: its children's world is their local. */
 const atRest = (node: Object3D) => {
@@ -42,10 +44,9 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     scale: Float64Array[] = [],
     trees: ReturnType<typeof Object3D._treeOf>[] = [],
     node = new Int32Array(maxBodies);
-  /** Each slot's row, `undefined` until asked, `null` when it has none (or must not use it). */
-  let seats: (PlacedRow | null | undefined)[] = [];
-  /** Each slot's row and batch, as a rank in `batches`, whose written span is `from`..`to`. */
-  const rowOf = new Int32Array(maxBodies),
+  /** Each slot's row (`UNASKED` until asked, `NO_ROW` when it has none or must not use it) and
+   *  batch, as a rank in `batches`, whose written span is `from`..`to`. */
+  const rowOf = new Int32Array(maxBodies).fill(UNASKED),
     batchOf = new Int32Array(maxBodies);
   const batches: Batch[] = [],
     matrices: Float64Array[] = [],
@@ -56,8 +57,8 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     placed: Bodied[] = [];
   const seatOf = (index: number, mesh: Bodied) => {
     const seat = direct && !mesh.children.length ? (mesh._link?.seat?.(mesh) ?? null) : null;
-    seats[index] = seat;
-    if (!seat) return seat;
+    rowOf[index] = NO_ROW;
+    if (!seat) return;
     let rank = batches.indexOf(seat.batch);
     if (rank < 0) {
       rank = batches.push(seat.batch) - 1;
@@ -67,7 +68,6 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     }
     batchOf[index] = rank;
     rowOf[index] = seat.row;
-    return seat;
   };
   return {
     owner,
@@ -80,7 +80,7 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       scale[index] = mesh.scale.elements;
       node[index] = mesh.index;
       trees[index] = Object3D._treeOf(mesh);
-      seats[index] = undefined;
+      rowOf[index] = UNASKED;
     },
     /** Opens a batch of writes: the rows asked before are dropped when the world moved them. */
     begin() {
@@ -88,7 +88,7 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       const now = link?.seatEpoch?.() ?? NaN,
         rest = !!link?.seat && atRest(root);
       if (now !== epoch || rest !== direct) {
-        seats = [];
+        rowOf.fill(UNASKED);
         batches.length = matrices.length = 0;
       }
       epoch = now;
@@ -114,10 +114,10 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       tq[n * 4 + 3] = q[3] = pose[at + 6];
       tree.flags[n] |= NODE_TRS_DIRTY;
       if (!mesh._link) return;
-      if (!(seats[index] === undefined ? seatOf(index, mesh) : seats[index]))
-        return void placed.push(mesh);
+      if (rowOf[index] === UNASKED) seatOf(index, mesh);
       const b = batchOf[index],
         row = rowOf[index];
+      if (row === NO_ROW) return void placed.push(mesh);
       composeMatrix4At(matrices[b], row * 16, p, 0, q, 0, scale[index], 0);
       if (row < from[b]) from[b] = row;
       if (row > to[b]) to[b] = row;

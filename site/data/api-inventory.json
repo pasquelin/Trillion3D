@@ -2314,7 +2314,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts"
       ],
@@ -3370,6 +3370,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -4428,6 +4429,7 @@
         "packages/sdk-browser/src/host/pageObjects.test.ts",
         "packages/sdk-browser/src/host/pageObjects.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
@@ -4459,6 +4461,7 @@
         "packages/sdk-browser/src/host/pageObjects.test.ts",
         "packages/sdk-browser/src/host/pageObjects.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
@@ -4767,6 +4770,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldBatches.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
@@ -5078,6 +5082,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/placer.ts",
         "packages/sdk-browser/src/physics/poses.ts",
         "packages/sdk-browser/src/physics/session.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
@@ -5122,7 +5127,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/physics.test.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/physics/poses.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".ObjectPhysics"
     },
@@ -5736,6 +5741,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/physics/session.ts"
       ],
       "disposition": "retained",
@@ -6984,6 +6990,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/placer.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldLink.ts"
