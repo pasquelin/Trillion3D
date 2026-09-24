@@ -126,8 +126,9 @@ fn cut_tiles(
 }
 
 /// The tiles of a cut whose measured distance to `source` (level 0) holds the tolerance `t`, the
-/// coarsest the search finds, and that distance. The cut changes only at a cluster error, so the thresholds tried are
-/// those errors: `t` first, then a bisection between the finest that failed and level 0.
+/// coarsest the search finds, and that distance. The cut changes only at a cluster error, so the
+/// thresholds tried are those errors: `t` first, then a bisection between the coarsest threshold
+/// that failed and level 0.
 pub(crate) fn collision_cut(
     dag: &[DagCluster],
     order: &[usize],
