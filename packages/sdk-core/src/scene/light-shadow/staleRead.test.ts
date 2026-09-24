@@ -7,6 +7,7 @@ import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
 import { PAGE_INDEX_MASK, PAGE_STALE, PAGE_VALID } from './virtual.ts';
 import { SUN, VIEW, cycle, planFrame, sunPages } from './lightShadow.fixture.ts';
+import type { ShadowViewpoint } from '../light/contracts.ts';
 
 /** A sun whose level `finest + 4` the shading reads at `pages`, drawn and settled. */
 function drawnSun(pages: number[][]) {
@@ -66,7 +67,10 @@ test('a pure camera translation redraws no page whose casters and light are stat
   const step = 128 * 2 ** level;
   let frame = 30;
   for (let i = 1; i <= 4; i++) {
-    const view = { ...VIEW, position: [VIEW.position[0] + (i * step) / 2, 5, 1.5 * i] };
+    const view: ShadowViewpoint = {
+      ...VIEW,
+      position: [VIEW.position[0] + (i * step) / 2, 5, 1.5 * i],
+    };
     assert.equal(
       cycle(plan, store, frame++, () => entries, view),
       0,
