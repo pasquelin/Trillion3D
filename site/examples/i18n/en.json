@@ -1287,28 +1287,6 @@
       "fansPlayingIt": "Fans playing it"
     }
   },
-  "openworld": {
-    "banner": "Walk with W A S D. Press E near a car or a plane to get in.",
-    "controls": {
-      "keys": "WASD walk · Shift run · Space jump · C crouch · E get in or out of a car or a plane",
-      "teleport": "Teleport",
-      "timeOfDay": "Time of day",
-      "daySpeed": "Day speed",
-      "pause": "Pause",
-      "rain": "Rain",
-      "geometryMB": "Geometry MB",
-      "textureMB": "Texture MB",
-      "view": "View"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "Streaming"
-    }
-  },
   "orbit-around-a-clockwork": {
     "banner": "Drag to turn around. Right-drag to slide. Scroll to zoom on the gears.",
     "controls": {

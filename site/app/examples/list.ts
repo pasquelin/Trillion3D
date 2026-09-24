@@ -5,12 +5,14 @@ import type { Locale } from '../../content/locale.ts';
 /** One entry of the gallery roadmap. A ready example has a file and no status. One still to write
  *  is `buildable`, or `needs-engine` with the feature it lacks. One written against the intended
  *  API but parked until the engine draws it is `waiting-engine`: its `file`, the feature it lacks
- *  and the `issue` that delivers it. Its words — title, the feature it lacks — are each
+ *  and the `issue` that delivers it. One published apart, from its own repository, has no file
+ *  and an `href`, the address its card opens. Its words — title, the feature it lacks — are each
  *  language's `gallery`, by its id. */
 interface RoadmapEntry {
   id: string;
   theme: string;
   file: string;
+  href?: string;
   status?: 'buildable' | 'needs-engine' | 'waiting-engine';
   issue?: number;
 }

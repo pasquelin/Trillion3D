@@ -1859,27 +1859,5 @@
       "fieldOfView": "Campo visivo",
       "dollyZoom": "Dolly zoom"
     }
-  },
-  "openworld": {
-    "banner": "Cammina con W A S D. Premi E vicino a un'auto o a un aereo per salire.",
-    "controls": {
-      "keys": "WASD camminare · Maiusc correre · Spazio saltare · C accovacciarsi · E salire o scendere da un'auto o un aereo",
-      "teleport": "Teletrasporto",
-      "timeOfDay": "Ora del giorno",
-      "daySpeed": "Velocità del giorno",
-      "pause": "Pausa",
-      "rain": "Pioggia",
-      "geometryMB": "Geometria MB",
-      "textureMB": "Texture MB",
-      "view": "Vista"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "Streaming"
-    }
   }
 }
