@@ -35,7 +35,7 @@ export const WEBGPU_REQUIRED_LIMITS = [
   'maxBufferSize',
 ] as const;
 export const baseCapabilities: BackendCapabilities = {
-  renderer: 'Three.js WebGL2',
+  renderer: 'Engine WebGL2 graph',
   materials: 'Converted glTF PBR, textures, alpha and double-sided flags preserved; no shadow map',
   hierarchy: false,
   gpuDriven: false,
