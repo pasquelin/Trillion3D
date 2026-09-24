@@ -116,12 +116,13 @@ export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
 /**
  * Copies the shadow pages the resolve just asked for, stamped with the plan's state, for the
  * scheduler to read once the image is submitted (`../../shadow/pageRequests.ts`). An image that
- * lit nothing — unlit view, no light, no pool — asked for nothing and copies nothing.
+ * lit nothing — unlit view, no light, no pool (no light casts a shadow) — asked for nothing and
+ * copies nothing.
  */
 export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { lights, run, timing } = rt,
     { plan, store, pageRequests } = lights;
-  if (!pageRequests || !lights.shadows || !store.count || store.unlit) return;
+  if (!pageRequests || !lights.shadows?.texture || !store.count || store.unlit) return;
   const settle = pageRequests.copy(
     encoder,
     run.frame,

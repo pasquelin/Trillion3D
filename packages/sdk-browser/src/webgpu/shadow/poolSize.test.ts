@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { sizeShadowPool } from './poolSize.ts';
+import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 // A world prepares on a canvas that is not laid out yet — 300 × 150, the HTML default — and takes
@@ -32,6 +33,10 @@ test('the shadow pool is sized by the first frame on the canvas, not by the canv
   sizeShadowPool(rt);
   assert.deepEqual(sized, [], "a capture's temporary size sizes nothing");
   capture.capturing = false;
+  lights.store.add({ ...SUN, castsShadow: false });
+  sizeShadowPool(rt);
+  assert.deepEqual(sized, [], 'no light casts a shadow: no pool');
+  lights.store.add({ ...SUN, id: 'shadow sun' });
   sizeShadowPool(rt);
   assert.deepEqual(sized, [51]);
   assert.equal(lights.plan.pool.side, 51, 'the plan follows the atlas');

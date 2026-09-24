@@ -68,9 +68,10 @@ export function encodeDirectLights(
   const encoded = !regions || encodeShadowAtlas(rt, device, encoder, regions);
   if (encoded) lights.plan.commit(pageModes);
   else lights.plan.reissue();
-  if (lights.shadows) {
+  if (lights.shadows?.texture) {
     // Records and table words go out after the draws are encoded, before the resolve reads them;
-    // the request buffer is zeroed for the resolve to record into.
+    // the request buffer is zeroed for the resolve to record into. No pool, no shadow light yet:
+    // nothing to push, nothing to record (`../../shadow/poolSize.ts`).
     lights.shadows.flushData(lights.plan.table);
     lights.pageRequests?.clear(encoder);
   }
