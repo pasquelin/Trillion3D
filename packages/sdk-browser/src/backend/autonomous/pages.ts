@@ -14,6 +14,7 @@ import { createAutonomousPool } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
 import { createContractLighting } from '../../lighting/contractLightingApi.ts';
 import { createThreeSceneDraw, hostDiagnostics } from '../../host/three/sceneAdapter.ts';
+import { hostBackground } from '../../host/scene/objects.ts';
 import type { BackendFactory } from '../types.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
@@ -156,6 +157,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       coverChanged: heldFloor.changed,
     }),
     ...lightingApi,
+    setClearColor: hostBackground(scene, gate.resourcesChanged),
     pendingUrls: residency.pendingUrls,
     pageUrls: residency.pageUrls,
     ...pool.api,

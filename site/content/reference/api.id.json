@@ -2945,7 +2945,7 @@
       "isScene": "Selalu `true`: membedakan root scene dari objek lain.",
       "environment": "Sebuah gambar lingkungan yang dipantulkan permukaan mengkilap; `null` untuk tidak ada.",
       "fog": "Kabut yang memudarkan objek ke `color` antara `near` dan `far`; `null` untuk tidak ada.",
-      "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, sebuah gambar, atau `null` untuk bawaan.",
+      "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, atau `null` untuk bawaan. Perubahan tampil pada bingkai berikutnya, sesi tetap dipertahankan: warna baru yang diatur di sini, atau warna yang ada ditulis lewat metodenya (`set`, `setRGB`, `setHex`, `setHSL`...). Penulisan langsung ke `.r`, `.g`, atau `.b` tidak terdengar: atur ulang `background` sesudahnya. Gambar, atau nilai apa pun tanpa `getHex`, ditolak (`UNSUPPORTED_SCENE_UPDATE`): tidak ada jalur yang menggambarnya.",
       "load": "Memuat sebuah model terkompilasi — URL manifestnya — dan menambahkannya ke scene ini.",
       "toJSON": "Scene sebagai JSON sederhana berversi: objeknya, bentuk lewat panggilan yang membangunnya, material, cahaya, dan model yang dimuat lewat alamatnya; pose `camera` juga jika diberikan.",
       "fromJSON": "Mengganti isi scene dengan scene yang disimpan `toJSON`, penanda `helper`-nya tetap dipertahankan; selesai setelah model-modelnya dimuat. Format atau versi lain ditolak (`UNSUPPORTED_SCENE_FORMAT`). Panggilan yang dilakukan selama pembacaan berjalan satu per satu, berurutan, masing-masing pada hasil yang ditinggalkan panggilan sebelumnya: dua scene tersimpan tidak pernah bercampur."

@@ -432,7 +432,7 @@ draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-sca
 hand, stores its vertices), each material by its parameters, lights, background, fog and the
 camera's pose; shapes and materials worn by several meshes are stored once; a loaded model is
 stored by its manifest address, never inlined; `helper` marks are left out. A texture, a picture
-background or a shader material cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
+environment or a shader material cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
 `await scene.fromJSON(json, camera)` replaces the content — the `helper` marks stay — loads the
 models again, and refuses another format or version (`UNSUPPORTED_SCENE_FORMAT`) before removing
 anything. Calls made while one is reading wait for it and run in order, each replacing what the one
@@ -740,7 +740,12 @@ Nothing lights an opaque surface except a light the host declared. There is no f
 no constant sky and no authored scene lighting: a surface no declared light reaches is exactly zero,
 so a windowless corridor stays black at noon. Emission is a material property and is always added.
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
-a light and cannot brighten a surface no light reaches.
+a light and cannot brighten a surface no light reaches. `scene.background` is the colour behind every
+object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
+`set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
+write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
+background, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws
+one yet.
 
 A world declares lights like any other object: `scene.add(light.point({ intensity: 2, position:
 [0, 3, 0] }))`, `light.intensity = 2` afterwards, `scene.remove(light)` to drop it. Underneath, every

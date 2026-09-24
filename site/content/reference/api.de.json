@@ -5015,7 +5015,7 @@
       "isScene": "Immer `true`: unterscheidet die Szenenwurzel von jedem anderen Objekt.",
       "environment": "Ein Umgebungsbild, das glänzende Oberflächen spiegeln; `null` für keines.",
       "fog": "Ein Nebel, der Objekte in `color` zwischen `near` und `far` verschmelzen lässt; `null` für keinen.",
-      "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe, ein Bild, oder `null` für den Standardhintergrund.",
+      "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
       "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
       "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."

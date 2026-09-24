@@ -11952,8 +11952,8 @@
       },
       {
         "name": "background",
-        "type": "Color | Texture | null",
-        "desc": "What fills the image behind every object: a colour, a picture, or `null` for the default."
+        "type": "Color | null",
+        "desc": "What fills the image behind every object: a colour, or `null` for the default. A change shows at the next frame, the session kept: a new colour set here, or the one held written through its methods (`set`, `setRGB`, `setHex`, `setHSL`...). A direct write of `.r`, `.g` or `.b` is not heard: set `background` again after one. A picture, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one."
       },
       {
         "name": "load(manifestUrl: string, options?: LoadOptions)",
