@@ -1,7 +1,12 @@
 import { shaderErrors } from '../../gpu/core/shaderModule.ts';
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
-import { VIS_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
+import {
+  VIS_BINDINGS,
+  VIS_UNIFORM_BYTES,
+  atlasLayoutEntries,
+  readOnly,
+} from '../core/bindLayout.ts';
 import {
   DIAGNOSTIC_SHADE_WGSL,
   DIAGNOSTIC_VIS_WGSL,
@@ -34,8 +39,9 @@ export async function createWebgpuVisibilityShaders(
       { binding: b.flags, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       {
         binding: b.uniform,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: { type: 'uniform', minBindingSize: 96 },
+        // The fragment reads the cutout stipple word (`STIPPLE_WGSL`).
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform', minBindingSize: VIS_UNIFORM_BYTES },
       },
       { binding: b.uv, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       ...atlasLayoutEntries(b.color),

@@ -19,6 +19,7 @@ export function worldModelLoader(
     const read = {
       scope: load.scope === undefined ? undefined : load.scope === 'full' ? 'full' : 'slice',
       signal: load.signal ?? signal,
+      onProgress: load.onProgress,
       textureSource: renderer() === 'webgpu' && models++ === 0 ? 'cache' : 'host',
     } as const;
     return loadModelOfAnyFormat(url, read, { manifest: loadModel });

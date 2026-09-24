@@ -1658,7 +1658,8 @@
       "signal": "Para o carregamento quando o sinal é abortado.",
       "scope": "`'full'` exige o cache inteiro, `'progressive'` seu recorte transmitido; um modelo de outro escopo é recusado pelo nome. Se não definido, o modelo é lido no escopo que seu ponteiro declara.",
       "stream": "Um streamer que a página configurou; a sessão do mundo transmite com o seu próprio.",
-      "position": "Para onde vai a origem do modelo na cena."
+      "position": "Para onde vai a origem do modelo na cena.",
+      "onProgress": "Ouve até onde o carregamento chegou: `manifest` quando o manifesto é lido, depois `resources` à medida que chega cada arquivo que a cena lê (`completed` de um `total` conhecido até então). O evento é um `JobProgress`: um `createJob` que envolve o carregamento passa aqui o seu `progress`."
     }
   },
   "LoadedModel": {
@@ -2957,6 +2958,7 @@
       "counts": "O que o último plano fez, em páginas.",
       "worldChanged": "Um nó moveu-se: a sua caixa invalida as páginas que cobre no plano seguinte.",
       "representationChanged": "O mesmo mundo com outra precisão: a sua caixa espera que a câmera pare.",
+      "resting": "A câmera estava em repouso no último plano: sua vista era a do plano anterior.",
       "deferredChanges": "Verdadeiro enquanto uma mudança de representação espera que a câmera pare.",
       "releaseDeferred": "O quadro não planeja nenhuma sombra: a união retida entra na lista de imediato.",
       "observeCost": "Temporizador do passe Sombras de um quadro, repartido pelas páginas que desenhou.",
