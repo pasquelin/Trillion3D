@@ -4,6 +4,7 @@ import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
 import { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { createControlBase } from '../../camera/controls/base.ts';
 import { canvasRay } from '../core/worldRaycast.ts';
+import { isHelper } from '../helper/mark.ts';
 import type { buildTransformHandles } from './transformHandles.ts';
 import type { TransformEvent, TransformHost } from './transform.ts';
 import {
@@ -37,8 +38,9 @@ type Control = {
  * The pointer of a transform control. A press is picked on the handles first — a capture
  * listener, heard before the camera controller on the same canvas — and one that hits a handle is
  * kept from every later listener: the camera rests for the whole drag, its controller never having
- * heard the press. Each move writes the pose `dragTransform` asks for, through the object's
- * parents; the release restores the handle's colour. A press beside the handles is left alone.
+ * heard the press; a handle hidden behind the scene's own triangles is not picked. Each move
+ * writes the pose `dragTransform` asks for, through the object's parents; the release restores
+ * the handle's colour. A press beside the handles is left alone.
  */
 export function trackTransformDrag(
   host: TransformHost,
@@ -63,6 +65,11 @@ export function trackTransformDrag(
     object.quaternion.copy(quaternion);
     object.scale.copy(scale);
   };
+  /** Whether a triangle of the scene stands nearer than `distance` along `ray`: the handles are
+   *  drawn depth-tested, so what hides one from the eye hides it from the pointer too. A loaded
+   *  model, hit on its box alone, hides nothing. */
+  const hidden = (ray: Ray, distance: number) =>
+    raycast(host.scene, ray, isHelper).some((hit) => hit.face >= 0 && hit.distance < distance);
   const paint = (handle: TransformHandle, colour?: number) => {
     const key = colourOf(handle);
     parts.materials[key].color.set(colour ?? parts.colours[key]);
@@ -72,7 +79,7 @@ export function trackTransformDrag(
     control.fit();
     const ray = rayAt(event);
     const hit = raycast(parts.root, ray)[0];
-    if (!hit) return;
+    if (!hit || hidden(ray, hit.distance)) return;
     event.stopImmediatePropagation();
     event.preventDefault();
     host.canvas.setPointerCapture?.(event.pointerId);

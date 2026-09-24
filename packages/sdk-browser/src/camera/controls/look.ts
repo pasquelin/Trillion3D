@@ -100,13 +100,20 @@ export function createHead(
       base.emit();
     },
   });
+  // The first move a browser reports once the lock is granted may carry the cursor's whole jump
+  // to the middle of the screen: it is dropped, never turned into a look.
+  let fresh = false;
   base.listen<PointerEvent>(surface, 'pointermove', (event) => {
     if (!head.locked()) return;
+    if (fresh) return void (fresh = false);
     lookX += event.movementX;
     lookY += event.movementY;
     base.emit();
   });
-  base.listen<Event>(owner, 'pointerlockchange', () => base.emit());
+  base.listen<Event>(owner, 'pointerlockchange', () => {
+    fresh = head.locked();
+    base.emit();
+  });
   base.undo(() => head.unlock());
   base.onPause(() => {
     head.unlock();

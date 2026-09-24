@@ -6182,6 +6182,13 @@
   "object.group": {
     "summary": "다른 오브젝트를 담는 빈 노드. 이를 통해 그것들이 함께 움직인다."
   },
+  "object.clone": {
+    "summary": "객체와 그 아래 모든 것의 복사본으로, 원본과 아무것도 공유하지 않습니다. 모양, 재질, 조명, 필드가 복사됩니다.",
+    "description": "불러온 모델은 복사되지 않습니다. 그 경우 `null`이며, 복사된 그룹에서도 빠집니다.",
+    "parameters": {
+      "source": "복사할 객체."
+    }
+  },
   "object.points": {
     "summary": "지오메트리의 각 정점을 점으로 그린다.",
     "parameters": {
