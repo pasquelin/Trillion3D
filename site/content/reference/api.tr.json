@@ -6853,6 +6853,7 @@
       "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
     }
@@ -6984,6 +6985,33 @@
     "summary": "Geometriden çıkarılan uygun değilse bir çarpışma şekli.",
     "description": "Boyutlar nesnenin kendi çerçevesindedir, ölçeğinden önce."
   },
+  "PhysicsPart": {
+    "summary": "Bileşik bir şeklin bir parçası: nesnenin çerçevesinde yerleştirilmiş ve döndürülmüş bir ilkel."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Tam bir ilkel: boyutları nesnenin kendi çerçevesinde."
+  },
+  "WaterSpec": {
+    "summary": "Cisimlerin yüzdüğü bir su kütlesi, `world.physics.water` onu nasıl alıyorsa.",
+    "members": {
+      "waves": "Yüzeyin Gerstner dalgaları; durgun su için hiçbiri.",
+      "level": "Yüzeyin durgunken yüksekliği, metre.",
+      "density": "kg/m³; varsayılan olarak 1000, tatlı su.",
+      "linearDrag": "İkinci dereceden sürükleme katsayısı: bir cismin ne kadar hızlı durulduğu, asla nerede değil; varsayılan 0.5.",
+      "angularDrag": "Suyun bir cismin dönüşünü ne kadar sönümlediği; varsayılan 0.05.",
+      "current": "Suyun hızı (bir nehrin akıntısı), m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Bir sahnenin bildirdiği şekliyle bir dalga.",
+    "members": {
+      "direction": "Yatay ilerleme yönü `[x, z]`; burada normalleştirilir.",
+      "wavelength": "Tepeden tepeye metre.",
+      "amplitude": "Durgun seviyeden tepeye metre.",
+      "steepness": "0 (bir sinüs dalgası) ile 1 (kıvrılmayan en keskin tepe) arası; toplam üzerinden normalleştirilir.",
+      "phase": "`t = 0` anındaki faz, radyan."
+    }
+  },
   "PhysicsStats": {
     "summary": "Dünya fiziğinin bildirdiği: son tikin sayımları ve ayrı tutulan iki saat.",
     "members": {
@@ -7006,6 +7034,7 @@
       "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
     }

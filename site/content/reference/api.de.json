@@ -6853,6 +6853,7 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
       "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
     }
@@ -6984,6 +6985,33 @@
     "summary": "Eine Kollisionsform, wenn die aus der Geometrie abgeleitete nicht passt.",
     "description": "Die Größen gelten im eigenen Rahmen des Objekts, vor seiner Skalierung."
   },
+  "PhysicsPart": {
+    "summary": "Ein Teil einer zusammengesetzten Form: ein Grundkörper, im Bezugssystem des Objekts platziert und gedreht."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Ein exakter Grundkörper: seine Maße im eigenen Bezugssystem des Objekts."
+  },
+  "WaterSpec": {
+    "summary": "Ein Gewässer, in dem die Körper schwimmen, so wie `world.physics.water` es nimmt.",
+    "members": {
+      "waves": "Die Gerstner-Wellen der Oberfläche; keine für stilles Wasser.",
+      "level": "Höhe der ruhenden Oberfläche, in Metern.",
+      "density": "kg/m³; standardmäßig 1000, Süßwasser.",
+      "linearDrag": "Quadratischer Widerstandsbeiwert: wie schnell ein Körper zur Ruhe kommt, nie wo; standardmäßig 0.5.",
+      "angularDrag": "Wie stark das Wasser die Drehung eines Körpers dämpft; standardmäßig 0.05.",
+      "current": "Geschwindigkeit des Wassers (die Strömung eines Flusses), in m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Eine Welle, wie eine Szene sie deklariert.",
+    "members": {
+      "direction": "Horizontale Laufrichtung `[x, z]`; hier normalisiert.",
+      "wavelength": "Meter von Kamm zu Kamm.",
+      "amplitude": "Meter von der Ruhelage bis zum Kamm.",
+      "steepness": "0 (eine Sinuswelle) bis 1 (der schärfste Kamm, der sich nicht überschlägt); über die Summe normalisiert.",
+      "phase": "Phase bei `t = 0`, in Radiant."
+    }
+  },
   "PhysicsStats": {
     "summary": "Was die Physik der Welt meldet: Zählungen des letzten Ticks und beide Uhren getrennt.",
     "members": {
@@ -7006,6 +7034,7 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
       "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
     }

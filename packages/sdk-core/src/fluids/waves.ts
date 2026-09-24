@@ -1,7 +1,7 @@
 /**
  * The one wave model of the engine: a sum of Gerstner waves. Buoyancy reads it on the CPU (the
- * physics worker), the renderers read the same numbers through the uniforms and the shader code
- * `waveCode.ts` generates from it; nothing about a wave is written twice. A Gerstner wave moves a
+ * physics worker); the water surface's shader code will be generated from the same numbers
+ * (#422), so nothing about a wave is written twice. A Gerstner wave moves a
  * point of the rest plane both up and sideways, towards the crest, so the height above a world
  * position is found by iterating on the rest position (`surface.ts`). The previous
  * frame's surface is the same formula at `t - dt`: nothing is stored.

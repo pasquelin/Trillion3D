@@ -9403,7 +9403,7 @@
       {
         "name": "update(seconds: number)",
         "type": "false",
-        "desc": "Advances every playing action by `seconds` and writes the sampled values."
+        "desc": "Advances every playing action by `seconds`, then writes each property the weighted blend of its actions' samples over its rest value."
       }
     ],
     "description": ""
@@ -11486,6 +11486,28 @@
     "title": "PhysicsOption",
     "signature": "type PhysicsOption = PhysicsType | PhysicsBodyOptions",
     "summary": "What `obj.physics` may be set to.",
+    "description": ""
+  },
+  {
+    "id": "PhysicsPart",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsPart"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsPart",
+    "signature": "type PhysicsPart = PhysicsPrimitive & {\n  /** @defaultValue [0, 0, 0] */ position?: readonly [number, number, number];\n  /** A unit quaternion `[x, y, z, w]`. @defaultValue [0, 0, 0, 1] */\n  quaternion?: readonly [number, number, number, number];\n}",
+    "summary": "One part of a compound shape: a primitive, placed and turned in the object's frame.",
+    "description": ""
+  },
+  {
+    "id": "PhysicsPrimitive",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsPrimitive"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsPrimitive",
+    "signature": "type PhysicsPrimitive = | { type: 'box'; halfExtents: readonly [number, number, number] }\n  | { type: 'sphere'; radius: number }\n  | { type: 'capsule'; halfHeight: number; radius: number }\n  | { type: 'cylinder'; halfHeight: number; radius: number }",
+    "summary": "An exact primitive: its sizes in the object's own frame.",
     "description": ""
   },
   {
@@ -17703,6 +17725,87 @@
     "description": "The vehicle's own physics — engine, wheels, suspension — answers them; this contract is all the controls know."
   },
   {
+    "id": "WaterSpec",
+    "module": "packages/sdk-core/src/fluids/buoyancy.ts",
+    "exports": ["WaterSpec"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WaterSpec",
+    "signature": "interface WaterSpec",
+    "summary": "A body of water the bodies float in, as `world.physics.water` takes it.",
+    "members": [
+      {
+        "name": "waves",
+        "type": "WaveSpec[]",
+        "desc": "The Gerstner waves of the surface; none for still water."
+      },
+      {
+        "name": "level",
+        "type": "number",
+        "desc": "Height of the surface at rest, metres."
+      },
+      {
+        "name": "density?",
+        "type": "number | undefined",
+        "desc": "kg/m³; fresh water's 1000 by default."
+      },
+      {
+        "name": "linearDrag?",
+        "type": "number | undefined",
+        "desc": "Quadratic drag coefficient: how fast a body settles, never where; 0.5 by default."
+      },
+      {
+        "name": "angularDrag?",
+        "type": "number | undefined",
+        "desc": "How much the water damps a body's turning; 0.05 by default."
+      },
+      {
+        "name": "current?",
+        "type": "readonly [number, number, number] | undefined",
+        "desc": "Velocity of the water (a river's current), m/s."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "WaveSpec",
+    "module": "packages/sdk-core/src/fluids/waves.ts",
+    "exports": ["WaveSpec"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WaveSpec",
+    "signature": "interface WaveSpec",
+    "summary": "One wave as a scene declares it.",
+    "members": [
+      {
+        "name": "direction",
+        "type": "readonly [number, number]",
+        "desc": "Horizontal direction of travel `[x, z]`; normalised here."
+      },
+      {
+        "name": "wavelength",
+        "type": "number",
+        "desc": "Metres from crest to crest."
+      },
+      {
+        "name": "amplitude",
+        "type": "number",
+        "desc": "Metres from rest to crest."
+      },
+      {
+        "name": "steepness",
+        "type": "number",
+        "desc": "0 (a sine wave) to 1 (the sharpest crest that does not loop); normalised over the sum."
+      },
+      {
+        "name": "phase?",
+        "type": "number | undefined",
+        "desc": "Phase at `t = 0`, radians."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "World",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["World"],
@@ -18205,6 +18308,11 @@
         "name": "timeScale",
         "type": "number",
         "desc": "Simulated seconds per real second: 0.25 is slow motion, 0 stands still like `paused`."
+      },
+      {
+        "name": "water",
+        "type": "WaterSpec | null",
+        "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
       },
       {
         "name": "stats",
@@ -19088,6 +19196,11 @@
         "name": "timeScale",
         "type": "number",
         "desc": "Simulated seconds per real second: 0.25 is slow motion, 0 stands still like `paused`."
+      },
+      {
+        "name": "water",
+        "type": "WaterSpec | null",
+        "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
       },
       {
         "name": "stats",

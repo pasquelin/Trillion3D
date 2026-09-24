@@ -6853,6 +6853,7 @@
       "gravity": "Gravedad en m/s², un vector vivo; pon un preajuste (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vector.",
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
+      "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`."
     }
@@ -6984,6 +6985,33 @@
     "summary": "Una forma de colisión, cuando la deducida de la geometría no sirve.",
     "description": "Los tamaños están en el marco propio del objeto, antes de su escala."
   },
+  "PhysicsPart": {
+    "summary": "Una parte de una forma compuesta: una primitiva, colocada y girada en el marco del objeto."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Una primitiva exacta: sus tamaños en el marco propio del objeto."
+  },
+  "WaterSpec": {
+    "summary": "Una masa de agua en la que flotan los cuerpos, tal como la recibe `world.physics.water`.",
+    "members": {
+      "waves": "Las olas de Gerstner de la superficie; ninguna para agua quieta.",
+      "level": "Altura de la superficie en reposo, en metros.",
+      "density": "kg/m³; 1000, agua dulce, por defecto.",
+      "linearDrag": "Coeficiente de arrastre cuadrático: lo rápido que un cuerpo se asienta, nunca dónde; 0.5 por defecto.",
+      "angularDrag": "Cuánto frena el agua el giro de un cuerpo; 0.05 por defecto.",
+      "current": "Velocidad del agua (la corriente de un río), en m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Una ola tal como la declara una escena.",
+    "members": {
+      "direction": "Dirección horizontal de avance `[x, z]`; normalizada aquí.",
+      "wavelength": "Metros de cresta a cresta.",
+      "amplitude": "Metros del reposo a la cresta.",
+      "steepness": "De 0 (una onda sinusoidal) a 1 (la cresta más aguda que no se enrosca); normalizada sobre la suma.",
+      "phase": "Fase en `t = 0`, en radianes."
+    }
+  },
   "PhysicsStats": {
     "summary": "Lo que informa la física del mundo: recuentos del último tick y los dos relojes por separado.",
     "members": {
@@ -7006,6 +7034,7 @@
       "gravity": "Gravedad en m/s², un vector vivo; pon un preajuste (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vector.",
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
+      "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`."
     }
