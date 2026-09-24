@@ -70,6 +70,20 @@ test('a static shadow stays read while a caster near it moves', () => {
   }
 });
 
+test('a floor still read waits its turn: a caster that keeps moving never starves the finer pages', () => {
+  const { store, plan, entries } = drawnSun(row(3));
+  // One page a frame; an object already moving crosses every page, the floor too, every frame.
+  plan.observeCost(plan.budget.budgetMs, 1);
+  const redrawn = new Set<number>();
+  for (let frame = 70; frame < 90; frame++) {
+    plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6], true);
+    cycle(plan, store, frame, () => entries);
+    for (const entry of entries)
+      if (!plan.pool.dirty[plan.table.words[entry] & PAGE_INDEX_MASK]) redrawn.add(entry);
+  }
+  assert.equal(redrawn.size, entries.length, 'every finer page redrawn while the caster moves');
+});
+
 test('pages pending drain in N / limit frames at the fixed budget, whatever the cut dropped', () => {
   const { store, plan, entries } = drawnSun(row(12));
   // A page costs a quarter of the budget: four a frame. The cut dropped down to one view.
