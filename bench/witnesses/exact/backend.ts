@@ -23,7 +23,7 @@ import {
 import { createExactPagesMetrics } from './metrics.ts';
 import { createExactPagesAttachment, disposePageGeometry, pageIndexBuffers } from './attachment.ts';
 import { createExactPagesMaterials } from './materials.ts';
-import * as THREE from 'three';
+import { isDrawnNode } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
 import { createExactPagesClusterBatches } from './clusterBatches.ts';
 
 export const exactPagesBackend: BackendFactory = (context) => {
@@ -44,7 +44,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
   const { roots, allPages, bootstrap, requestCount, prepared, worlds } = collected;
   // The witness draws the transparent copies with the host library it is written in: this is where
   // the engine's contract copies go back to being its meshes.
-  const blendCopies = asHostLibrary<THREE.Mesh[]>(collected.blendCopies);
+  const blendCopies = collected.blendCopies.flatMap((copy) => (isDrawnNode(copy) ? [copy] : []));
   const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
     scene = new GraphScene();
   const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source);

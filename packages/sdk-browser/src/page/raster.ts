@@ -4,9 +4,9 @@ import type {
   HostAttributes,
   HostColour,
   HostMaterials,
-  HostNode,
 } from '../host/resources.ts';
 import { firstMaterial } from '../scene/materialSide.ts';
+import { isDrawnNode } from '../host/graph/kinds.ts';
 import { copyElements, type MatrixElements } from '../math/matrixElements.ts';
 import type { RenderBackend } from '../backend/types.ts';
 import type { PageRec } from './selection/selection.ts';
@@ -20,7 +20,6 @@ const BACKGROUND = RASTER_BACKGROUND;
 
 /** A mesh of the host graph as the oracle reads it: what it draws, and where it stands. */
 type HostRasterMesh = {
-  readonly isMesh?: boolean;
   readonly geometry: { readonly index: HostAttribute | null; readonly attributes: HostAttributes };
   readonly material: HostMaterials;
   readonly matrixWorld: MatrixElements;
@@ -97,9 +96,8 @@ export function rasterPageRecords(
         );
   }
   const meshes: HostRasterMesh[] = [];
-  backend.scene.traverse((node: HostNode) => {
-    const mesh = node as unknown as HostRasterMesh;
-    if (mesh.isMesh) meshes.push(mesh);
+  backend.scene.traverse((node) => {
+    if (isDrawnNode(node)) meshes.push(node);
   });
   for (const mesh of meshes) {
     const { index, attributes } = mesh.geometry,

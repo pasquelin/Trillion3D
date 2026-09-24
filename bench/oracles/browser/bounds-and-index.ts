@@ -1,6 +1,8 @@
 // Batch F oracles, scene and page-source side: `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
 // `packages/sdk-browser/src/world/session/pageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
+import type { GraphNode } from '../../../packages/sdk-browser/src/host/graph/node.ts';
+import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import type {
   ClusterManifest,
   GeometryPageDescriptor,
@@ -16,17 +18,17 @@ const hasGeometry = (page: Page): page is PageWithGeometry => !!page.geometry;
 
 /** `pagesBounds` before batch F: one `find` per mesh, three objects per exact page. */
 export function referenceExactPagesBounds(
-  source: THREE.Object3D,
+  source: GraphNode,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
-  onMissing: (mesh: THREE.Mesh) => void,
+  onMissing: (mesh: GraphMesh) => void,
   into = new THREE.Box3(),
 ) {
   // `meshes` resolved the host subtree before batch 8; the witness now resolves it
   // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
   source.updateMatrixWorld(true);
   for (const sourceMesh of objects(source)) {
-    const mesh = asHostLibrary<THREE.Mesh>(sourceMesh);
+    const mesh = sourceMesh;
     const association = associations.get(mesh);
     const primitive = metadata.primitives.find(
       (item) =>
@@ -42,7 +44,7 @@ export function referenceExactPagesBounds(
           new THREE.Box3(
             new THREE.Vector3().fromArray(page.min),
             new THREE.Vector3().fromArray(page.max),
-          ).applyMatrix4(mesh.matrixWorld),
+          ).applyMatrix4(new THREE.Matrix4().fromArray(mesh.matrixWorld.elements)),
         );
   }
   return into;

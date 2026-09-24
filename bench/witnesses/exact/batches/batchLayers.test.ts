@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { buildLayerGroups, groupForPage, everyGroup } from './batchLayers.ts';
 import { BatchGroup } from './batchPrimitive.ts';
 import type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
@@ -10,7 +10,7 @@ import { attributes } from './batches.fixture.ts';
 import { depthLayerUnits } from '../../../../packages/sdk-core/src/index.ts';
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 
-const BASE_MATERIAL = new THREE.MeshBasicMaterial();
+const BASE_MATERIAL = G.basicSurface();
 const page = (extra: Partial<BatchPage>): BatchPage => ({
   id: 0,
   url: 'u',
@@ -20,7 +20,7 @@ const page = (extra: Partial<BatchPage>): BatchPage => ({
   attributes: attributes(3),
   material: surfaceOf(BASE_MATERIAL),
   declaration: BASE_MATERIAL,
-  matrix: new THREE.Matrix4(),
+  matrix: new G.Matrix4(),
   renderOrder: 0,
   ...extra,
 });
@@ -92,8 +92,8 @@ test('everyGroup walks the layer-0 groups and every one of their twins', () => {
 });
 
 test('a layered cluster draws the source material on a record that carries the layer bias', () => {
-  const scene = new THREE.Scene();
-  const original = new THREE.MeshBasicMaterial();
+  const scene = new G.GraphScene();
+  const original = G.basicSurface();
   const shared = attributes(6);
   const pages: BatchPage[] = [
     page({

@@ -7,9 +7,7 @@ import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { GraphNode } from './node.ts';
 
 export class GraphScene extends GraphNode {
-  /** Always `true`: tells the root of a display graph apart. */
-  readonly isScene = true as const;
-  override type = 'Scene';
+  override readonly kind = 'scene' as const;
   /** What the frame is cleared with; `null` clears to black. */
   background: Color | null = null;
   /** Called by the draw before it reads the graph. */

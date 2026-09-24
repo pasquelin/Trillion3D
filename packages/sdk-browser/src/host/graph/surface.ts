@@ -15,45 +15,31 @@ import { coloured, extensions, glow, metalRough, raster, relief } from './surfac
 
 /**
  * The families a surface is declared in: a scene's unlit, standard and physical ones, and the
- * others a world draws — each with its name, the brands the surface model reads
- * (`../../scene/surfaceModel.ts`) and the fields the reference gives it.
+ * others a world draws — each with the fields the reference gives it. The surface model reads the
+ * family itself (`../../scene/surfaceModel.ts`).
  */
 const FAMILIES = {
-  basic: { type: 'MeshBasicMaterial', brands: ['isMeshBasicMaterial'], fields: [coloured] },
+  basic: { fields: [coloured] },
   standard: {
-    type: 'MeshStandardMaterial',
-    brands: ['isMeshStandardMaterial'],
     fields: [coloured, glow, relief, metalRough],
   },
   physical: {
-    type: 'MeshPhysicalMaterial',
-    brands: ['isMeshStandardMaterial', 'isMeshPhysicalMaterial'],
     fields: [coloured, glow, relief, metalRough, extensions],
   },
   lambert: {
-    type: 'MeshLambertMaterial',
-    brands: ['isMeshLambertMaterial'],
     fields: [coloured, glow, relief],
   },
   phong: {
-    type: 'MeshPhongMaterial',
-    brands: ['isMeshPhongMaterial'],
     fields: [coloured, glow, relief, () => ({ specular: new Color(0x111111), shininess: 30 })],
   },
   toon: {
-    type: 'MeshToonMaterial',
-    brands: ['isMeshToonMaterial'],
     fields: [coloured, glow, relief, () => ({ gradientMap: null })],
   },
-  normal: { type: 'MeshNormalMaterial', brands: ['isMeshNormalMaterial'], fields: [relief] },
+  normal: { fields: [relief] },
   matcap: {
-    type: 'MeshMatcapMaterial',
-    brands: ['isMeshMatcapMaterial'],
     fields: [coloured, relief, () => ({ matcap: null })],
   },
   depth: {
-    type: 'MeshDepthMaterial',
-    brands: ['isMeshDepthMaterial'],
     fields: [() => ({ map: null, alphaMap: null, displacementMap: null, wireframe: false })],
   },
 } as const;
@@ -83,8 +69,8 @@ export class GraphSurface extends Releasable {
   version = 0;
   /** Free room for the data of whoever built the surface. */
   userData: Record<string, unknown> = {};
-  /** The family's name. */
-  readonly type: string;
+  /** What the resource is; `family` says which surface. */
+  readonly kind = 'surface' as const;
   // The raster state every family carries, set by `raster` at the reference's values.
   declare visible: boolean;
   declare side: number;
@@ -108,8 +94,6 @@ export class GraphSurface extends Releasable {
     super();
     this.family = family;
     const declared = FAMILIES[family];
-    this.type = declared.type;
-    for (const brand of declared.brands) Object.assign(this, { [brand]: true });
     Object.assign(this, raster());
     for (const fields of declared.fields) Object.assign(this, fields());
     for (const [key, value] of Object.entries(parameters))
@@ -135,4 +119,4 @@ export class GraphSurface extends Releasable {
 }
 
 /** The fields a copy leaves as they are: identity, bookkeeping, family. */
-const SKIPPED = new Set(['uuid', 'version', 'released', 'type', 'family', 'userData']);
+const SKIPPED = new Set(['uuid', 'version', 'released', 'kind', 'family', 'userData']);

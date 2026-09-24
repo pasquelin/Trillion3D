@@ -1,10 +1,10 @@
+import type { GraphScene } from '../host/graph/scene.ts';
 import {
   hostPageInstances,
   releaseHostInstances,
   setHostInstance,
   setHostInstanceCount,
 } from '../host/pageObjects.ts';
-import type { GraphScene } from '../host/graph/scene.ts';
 import type { HostGeometry, HostMaterials } from '../host/resources.ts';
 import type { GraphInstancedMesh } from '../host/graph/mesh.ts';
 import type { PageRec } from '../page/selection/types.ts';

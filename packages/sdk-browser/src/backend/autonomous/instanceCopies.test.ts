@@ -1,9 +1,9 @@
+import type { GraphScene } from '../../host/graph/scene.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { createAutonomousGeometry } from './geometry.ts';
-import type { GraphScene } from '../../host/graph/scene.ts';
 import type { HostMaterial } from '../../host/resources.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 

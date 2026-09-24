@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { createExactPagesMaterials } from './materials.ts';
 import { clusterColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import { hashId, screenErrorColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
-import { hostDiagnostics } from '../three/sceneAdapter.ts';
+import { pageDiagnostics } from '../../../packages/sdk-browser/src/host/pageDiagnostics.ts';
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
@@ -14,21 +14,21 @@ import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
  *  facts the pages and the level-of-detail views colour by. */
 function page(
   clusterId: string,
-  declaration: THREE.Material | THREE.Material[],
+  declaration: G.GraphSurface | G.GraphSurface[],
   extra: Partial<PageRec> = {},
 ) {
   return { clusterId, declaration, lodError: 0, ...extra } as unknown as PageRec;
 }
 function indexedQuad() {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0], 3),
+    G.floatAttribute([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0], 3),
   );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   return geometry;
 }
-function materials(diagnostic: DiagnosticMode, blendCopies: THREE.Mesh[] = []) {
+function materials(diagnostic: DiagnosticMode, blendCopies: G.GraphMesh[] = []) {
   const options = {
     blendCopies,
     viewport: [640, 400] as const,
@@ -40,7 +40,7 @@ function materials(diagnostic: DiagnosticMode, blendCopies: THREE.Mesh[] = []) {
 }
 
 test('the beauty view hands back the host declaration itself, untouched', () => {
-  const declaration = new THREE.MeshStandardMaterial();
+  const declaration = G.standardSurface();
   const { made } = materials('beauty');
   assert.equal(made.materialFor(page('c1', declaration)), declaration);
   made.disposeMaterials();
@@ -48,13 +48,13 @@ test('the beauty view hands back the host declaration itself, untouched', () => 
 });
 
 test('the wireframe view is one unshaded vertex-colour surface per cluster, on the declared side', () => {
-  const declaration = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide });
+  const declaration = G.standardSurface({ side: G.DOUBLE_SIDE });
   const { made } = materials('wireframe');
-  const first = made.materialFor(page('c1', declaration)) as THREE.MeshBasicMaterial;
-  assert.ok(first instanceof THREE.MeshBasicMaterial);
+  const first = made.materialFor(page('c1', declaration)) as G.GraphSurface;
+  assert.equal(first.family, 'basic');
   assert.equal(first.vertexColors, true);
   assert.equal(first.wireframe, false, 'the triangles are coloured, not outlined');
-  assert.equal(first.side, THREE.DoubleSide);
+  assert.equal(first.side, G.DOUBLE_SIDE);
   assert.equal(made.materialFor(page('c1', declaration)), first, 'one surface per cluster');
   assert.notEqual(made.materialFor(page('c2', declaration)), first);
   made.disposeMaterials();
@@ -62,44 +62,44 @@ test('the wireframe view is one unshaded vertex-colour surface per cluster, on t
 });
 
 test('the pages, level-of-detail and cluster views colour by residency, role and identity', () => {
-  const declaration = new THREE.MeshStandardMaterial();
+  const declaration = G.standardSurface();
   const resident = page('c1', declaration, { array: new Uint32Array(1) }),
     loading = page('c2', declaration);
   const pages = materials('pages').made;
-  assert.equal((pages.materialFor(resident) as THREE.MeshBasicMaterial).color.getHex(), 0x34d399);
-  assert.equal((pages.materialFor(loading) as THREE.MeshBasicMaterial).color.getHex(), 0xfbbf24);
+  assert.equal(((pages.materialFor(resident) as G.GraphSurface).color as G.Color).getHex(), 0x34d399);
+  assert.equal(((pages.materialFor(loading) as G.GraphSurface).color as G.Color).getHex(), 0xfbbf24);
   assert.equal(pages.materialFor(page('c9', declaration)), pages.materialFor(loading));
   const lod = materials('lod').made;
   const coarse = page('c1', declaration, { role: 'coarse' }),
     exact = page('c2', declaration, { role: 'exact' });
-  assert.equal((lod.materialFor(coarse) as THREE.MeshBasicMaterial).color.getHex(), 0xf59e0b);
-  assert.equal((lod.materialFor(exact) as THREE.MeshBasicMaterial).color.getHex(), 0x38bdf8);
+  assert.equal(((lod.materialFor(coarse) as G.GraphSurface).color as G.Color).getHex(), 0xf59e0b);
+  assert.equal(((lod.materialFor(exact) as G.GraphSurface).color as G.Color).getHex(), 0x38bdf8);
   const clusters = materials('clusters').made;
-  const tint = clusters.materialFor(page('c1', declaration)) as THREE.MeshBasicMaterial;
-  assert.deepEqual(tint.color.toArray(), clusterColor('c1', 0.75).toArray());
+  const tint = clusters.materialFor(page('c1', declaration)) as G.GraphSurface;
+  assert.deepEqual((tint.color as G.Color).toArray(), clusterColor('c1', 0.75).toArray());
   for (const set of [pages, lod, clusters]) set.disposeMaterials();
   declaration.dispose();
 });
 
 test('the screen-error view rewrites its colour from the error the page projects', () => {
-  const declaration = new THREE.MeshStandardMaterial();
+  const declaration = G.standardSurface();
   const { options, made } = materials('screen-error');
   const rec = page('c1', declaration);
-  assert.equal((made.materialFor(rec) as THREE.MeshBasicMaterial).color.getHex(), 0x00ff1f);
+  assert.equal(((made.materialFor(rec) as G.GraphSurface).color as G.Color).getHex(), 0x00ff1f);
   options.cam = {} as EngineCamera;
-  const painted = made.materialFor(rec) as THREE.MeshBasicMaterial;
-  assert.deepEqual(painted.color.toArray(), screenErrorColor(0, 1));
+  const painted = made.materialFor(rec) as G.GraphSurface;
+  assert.deepEqual((painted.color as G.Color).toArray(), screenErrorColor(0, 1));
   made.disposeMaterials();
   declaration.dispose();
 });
 
 test('painting a page swaps the expanded triangles in under wireframe and the source elsewhere', () => {
   const geometry = indexedQuad(),
-    declaration = new THREE.MeshStandardMaterial();
-  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), declaration);
+    declaration = G.standardSurface();
+  const mesh = G.mesh(new G.GraphGeometry(), declaration);
   const wireframe = materials('wireframe').made;
   wireframe.paint(mesh, geometry, declaration, hashId('c1'));
-  assert.equal(mesh.geometry, triangleGeometry(geometry, hostDiagnostics, hashId('c1')));
+  assert.equal(mesh.geometry, triangleGeometry(geometry, pageDiagnostics, hashId('c1')));
   assert.equal(mesh.geometry.getIndex(), null);
   assert.equal(mesh.geometry.getAttribute('color').count, 6);
   materials('pages').made.paint(mesh, geometry, declaration);
@@ -111,16 +111,16 @@ test('painting a page swaps the expanded triangles in under wireframe and the so
 
 test('a transparent copy is repainted like a page, on its own identity, and given back on beauty', () => {
   const geometry = indexedQuad(),
-    declaration = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.4 });
-  const copy = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
+    declaration = G.standardSurface({ transparent: true, opacity: 0.4 });
+  const copy = G.mesh(new G.GraphGeometry(), G.basicSurface());
   copy.userData.sourceGeometry = geometry;
   copy.userData.sourceMaterial = declaration;
   const wireframe = materials('wireframe', [copy]).made;
   wireframe.paintBlend();
-  const painted = copy.material as THREE.MeshBasicMaterial;
-  assert.ok(painted instanceof THREE.MeshBasicMaterial);
+  const painted = copy.material as G.GraphSurface;
+  assert.equal(painted.family, 'basic');
   assert.equal(painted.vertexColors, true);
-  assert.equal(copy.geometry, triangleGeometry(geometry, hostDiagnostics, hashId(copy.uuid)));
+  assert.equal(copy.geometry, triangleGeometry(geometry, pageDiagnostics, hashId(String(copy.id))));
   wireframe.paintBlend();
   assert.equal(copy.material, painted, 'one surface per transparent copy, kept across frames');
   const beauty = materials('beauty', [copy]).made;
@@ -133,11 +133,11 @@ test('a transparent copy is repainted like a page, on its own identity, and give
 });
 
 test('disposing releases every surface the views made, and none of the host declarations', () => {
-  const declaration = new THREE.MeshStandardMaterial();
+  const declaration = G.standardSurface();
   const { made } = materials('clusters');
-  const tint = made.materialFor(page('c1', declaration)) as THREE.MeshBasicMaterial;
+  const tint = made.materialFor(page('c1', declaration)) as G.GraphSurface;
   let disposed = 0;
-  tint.addEventListener('dispose', () => disposed++);
+  tint.released.add(() => disposed++);
   made.disposeMaterials();
   assert.equal(disposed, 1);
   assert.equal(made.materialFor(page('c1', declaration)), tint, 'the table is the caller’s');

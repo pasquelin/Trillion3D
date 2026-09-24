@@ -94,7 +94,7 @@ export class WebglClusterRenderer {
       material = mesh.material as Material;
     if (!material.visible) return 0;
     const record = isClusterDrawMesh(mesh) ? mesh : undefined,
-      instanced = !record && !!(mesh as WholeMesh).isInstancedMesh;
+      instanced = !record && (mesh as WholeMesh).kind === 'instancedMesh';
     if (instanced && !(mesh as WholeMesh).count) return 0;
     this.geometry.bind(mesh.geometry, record ? undefined : (mesh as WholeMesh));
     if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);

@@ -6,11 +6,7 @@ import { inReferenceOrder } from './lightOrder.ts';
 const light = (name: string, kind: 'point' | 'spot' | 'sun' | 'rect', castShadow = false) => ({
   name,
   castShadow,
-  isLight: true,
-  isPointLight: kind === 'point',
-  isSpotLight: kind === 'spot',
-  isDirectionalLight: kind === 'sun',
-  isRectAreaLight: kind === 'rect',
+  kind: kind === 'sun' ? 'directional' : kind,
 });
 
 // Issue #275: the reference files its lights after a stable sort that puts the shadow casters

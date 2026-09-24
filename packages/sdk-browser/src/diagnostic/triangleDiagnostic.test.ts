@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { GraphSurface } from '../host/graph/surface.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { applyMeshDiagnostic, triangleGeometry } from './triangleDiagnostic.ts';
@@ -63,7 +64,8 @@ test('exact pages wireframe uses non-indexed submitted triangles', () => {
   assert.ok(
     drawn.every(
       (item) =>
-        item.material instanceof THREE.MeshBasicMaterial &&
+        item.material instanceof GraphSurface &&
+        item.material.family === 'basic' &&
         item.material.vertexColors &&
         !item.material.wireframe,
     ),

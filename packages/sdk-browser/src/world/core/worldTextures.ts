@@ -8,7 +8,7 @@
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts';
-import { GraphTexture } from '../../host/graph/texture.ts';
+import { GraphTexture, isGraphTexture } from '../../host/graph/texture.ts';
 import {
   HOST_COLOUR_SPACE_LINEAR,
   HOST_COLOUR_SPACE_SRGB,
@@ -95,10 +95,8 @@ export function hostTexture(texture: Texture, colour: boolean, built: HostTextur
     host = new GraphTexture(texture.image);
     if (texture.layout === 'data') {
       // Raw texels: read as they are stored, one level, as the reference reads them.
-      Object.assign(host, {
-        isDataTexture: true,
-        format: FORMAT[texture.format] ?? HOST_FORMAT_RGBA,
-      });
+      host.kind = 'texels';
+      host.format = FORMAT[texture.format] ?? HOST_FORMAT_RGBA;
       host.generateMipmaps = false;
     }
     host.name = texture.name;
@@ -113,7 +111,7 @@ export function repaintHostMaps(into: Record<string, unknown>, material: Materia
   for (const field of HOST_MAPS) {
     const texture = material[field] as Texture | undefined,
       host = into[field] as GraphTexture | null | undefined;
-    if (texture?.isTexture && host?.isTexture)
+    if (texture?.isTexture && isGraphTexture(host))
       writeHostTexture(host, texture, COLOUR_MAPS.has(field));
   }
 }

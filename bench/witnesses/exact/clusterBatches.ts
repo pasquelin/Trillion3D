@@ -14,7 +14,7 @@ import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/clust
 
 type HostScene = ConstructorParameters<typeof ClusterBatches>[0];
 type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[number] & {
-  userData: { sourceGeometry?: unknown; sourceMaterial?: unknown };
+  userData: Record<string, unknown>;
 };
 
 /**

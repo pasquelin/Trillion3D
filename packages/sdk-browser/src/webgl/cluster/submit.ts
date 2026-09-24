@@ -41,10 +41,10 @@ export function submitClusterMesh(
  *  instanced mesh, in one submission. */
 export function submitDiagnosticMesh(
   gl: WebGL2RenderingContext,
-  mesh: Pick<WholeMesh, 'geometry' | 'isInstancedMesh' | 'count'>,
+  mesh: Pick<WholeMesh, 'geometry' | 'kind' | 'count'>,
 ) {
   const index = mesh.geometry.index,
-    copies = mesh.isInstancedMesh ? mesh.count! : 0;
+    copies = mesh.kind === 'instancedMesh' ? mesh.count! : 0;
   if (!index) {
     const count = mesh.geometry.attributes.position.count;
     if (copies) gl.drawArraysInstanced(gl.TRIANGLES, 0, count, copies);

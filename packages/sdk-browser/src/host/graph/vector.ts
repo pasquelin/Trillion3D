@@ -11,8 +11,6 @@ type XYZ = { readonly x: number; readonly y: number; readonly z: number };
 
 /** Three numbers of a pose or a point: plain data fields, and the operations a controller uses. */
 export class GraphVector {
-  /** Always `true`: tells a vector apart (on the prototype, so a hooked twin carries it). */
-  declare readonly isVector3: true;
   x: number;
   y: number;
   z: number;
@@ -68,5 +66,3 @@ export class GraphVector {
     return this.set(array[offset], array[offset + 1], array[offset + 2]);
   }
 }
-
-Object.defineProperty(GraphVector.prototype, 'isVector3', { value: true });

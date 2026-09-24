@@ -12,6 +12,7 @@
  * (`drawn.ts`), the surface is the host family of the material's kind (`worldSurface.ts`), and
  * every node of the graph is one this file built, of the engine's own (`../../host/graph/`).
  */
+import { isDrawnNode } from '../../host/graph/kinds.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
@@ -97,8 +98,8 @@ export function buildWorldMirror(input: MirrorInput) {
 export function releaseWorldMirror(root: GraphNode) {
   const released = new Set<object>();
   for (const twin of root.children) {
-    if (!(twin as GraphMesh).isMesh) continue;
-    const { geometry, material } = twin as GraphMesh;
+    if (!isDrawnNode(twin)) continue;
+    const { geometry, material } = twin;
     const surface = material as GraphSurface;
     for (const owned of [geometry, surface] as { dispose(): void }[])
       if (!released.has(owned)) {

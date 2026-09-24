@@ -1,5 +1,5 @@
 // loading a scene.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts';
 import { pagesBounds } from '../../../packages/sdk-browser/src/world/scene/pagesBounds.ts';
 import {
@@ -17,8 +17,10 @@ import {
 import { manifesteEtScene } from './support/scenesLoading.ts';
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../packages/sdk-core/src/index.ts';
 
-const boiteVersTableau = (boite: THREE.Box3 | ArrayLike<number>): number[] =>
-  'isBox3' in boite && boite.isBox3
+/** A box the reference returns, or the engine's six numbers. */
+type Boite = { readonly min: { toArray(): number[] }; readonly max: { toArray(): number[] } };
+const boiteVersTableau = (boite: Boite | ArrayLike<number>): number[] =>
+  'min' in boite
     ? [...boite.min.toArray(), ...boite.max.toArray()]
     : Array.from(boite as ArrayLike<number>);
 
@@ -42,7 +44,7 @@ const videMetadata: ClusterManifest = {
   primitives: [],
 };
 const videScene: ChargementScene = {
-  source: new THREE.Group(),
+  source: new G.GraphGroup(),
   associations: new Map(),
   metadata: videMetadata,
   indices: new Map(),

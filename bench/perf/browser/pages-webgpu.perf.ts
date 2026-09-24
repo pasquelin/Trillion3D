@@ -1,5 +1,5 @@
 // winding of a cluster and view-camera comparison.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { sameHizView } from '../../../packages/sdk-browser/src/hiz/temporal.ts';
 import {
@@ -19,9 +19,9 @@ import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/t
 const alea = graine(67);
 
 /** Fields the winding test never reads: shared across every fixture record. */
-const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
+const DUMMY_ATTRIBUTES: G.GraphGeometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
-const pageOf = (matrix: THREE.Matrix4): PageRec => ({
+const pageOf = (matrix: G.Matrix4): PageRec => ({
   id: 0,
   url: '',
   clusterId: '',
@@ -41,12 +41,12 @@ const pageOf = (matrix: THREE.Matrix4): PageRec => ({
 function clusters(nombre: number): PageRec[] {
   const recs: PageRec[] = [];
   for (let i = 0; i < nombre; i++) {
-    const matrix = new THREE.Matrix4().compose(
-      new THREE.Vector3((alea() - 0.5) * 40, (alea() - 0.5) * 20, -alea() * 60),
-      new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(alea() * 6.28, alea() * 6.28, alea() * 6.28),
+    const matrix = new G.Matrix4().compose(
+      new G.Vector3((alea() - 0.5) * 40, (alea() - 0.5) * 20, -alea() * 60),
+      new G.Quaternion().setFromEuler(
+        new G.Euler(alea() * 6.28, alea() * 6.28, alea() * 6.28),
       ),
-      new THREE.Vector3(1, 1, i % 7 ? 1 : -1),
+      new G.Vector3(1, 1, i % 7 ? 1 : -1),
     );
     recs.push(pageOf(matrix));
   }
@@ -67,12 +67,12 @@ const imageDeSens = (sens: (rec: PageRec) => boolean, pose: boolean) => (recs: P
   return verdicts;
 };
 
-const vue = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+const vue = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 const courante = createEngineCamera();
 let gardeeReference: EngineCamera | undefined = undefined,
   gardeeOptimisee: EngineCamera | undefined = undefined;
 const parcoursDeVue =
-  (garder: (camera: THREE.PerspectiveCamera) => boolean) => (images: number) => {
+  (garder: (camera: G.GraphCamera) => boolean) => (images: number) => {
     const verdicts = new Uint8Array(images),
       elements = new Float64Array(16);
     for (let image = 0; image < images; image++) {
@@ -129,9 +129,9 @@ await stress({
   extremes: [
     {
       name: 'zero matrix',
-      input: pageOf(new THREE.Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+      input: pageOf(new G.Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
     },
-    { name: 'negative scale', input: pageOf(new THREE.Matrix4().makeScale(-1, -1, -1)) },
+    { name: 'negative scale', input: pageOf(new G.Matrix4().makeScale(-1, -1, -1)) },
   ],
 });
 

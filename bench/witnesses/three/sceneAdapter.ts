@@ -1,3 +1,4 @@
+import type { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
 import * as THREE from 'three';
 import type { HostDrawOutput } from '../../../packages/sdk-browser/src/backend/types.ts';
 import {

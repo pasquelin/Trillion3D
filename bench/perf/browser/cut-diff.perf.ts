@@ -1,5 +1,5 @@
 // GEO-1: cut readers and budget ranking by delta.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import {
   RequestStamps,
@@ -29,8 +29,8 @@ const PAGES = 160000,
 const niveaux = new Int32Array(PAGES);
 for (let k = 0; k < PAGES; k++) niveaux[k] = Math.floor(alea() * NIVEAUX);
 /** Fields the cut readers never touch: shared across every record, never mutated. */
-const DUMMY_MATRIX = new THREE.Matrix4();
-const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
+const DUMMY_MATRIX = new G.Matrix4();
+const DUMMY_ATTRIBUTES: G.GraphGeometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 const pages: PageRec[] = [];
 for (let i = 0; i < PAGES; i++)

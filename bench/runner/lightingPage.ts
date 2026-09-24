@@ -21,7 +21,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const lighting = options.witness
     ? (
         (await import(`${options.modulesUrl}witnessPage.ts`)) as typeof PageTemoin
-      ).creerEclairageTemoin()
+      ).creerEclairageTemoin(sdk)
     : null;
   const factory = options.backend ? sdk[options.backend] : undefined;
   if (!factory) return { erreur: `engine missing from dist: ${options.backend}` };

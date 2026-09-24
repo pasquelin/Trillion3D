@@ -4,6 +4,7 @@
  * default, not the images whose chain the cache baked. Proven on a published cache
  * (`site/assets/examples/bust`), served from disk.
  */
+import { isDrawnNode } from '../../host/graph/kinds.ts';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
@@ -73,7 +74,7 @@ test('a session prepares its scene from the tables, the binary and the images, a
     'the images are read',
   );
   let meshes = 0;
-  source.traverse((node) => void (meshes += (node as { isMesh?: boolean }).isMesh ? 1 : 0));
+  source.traverse((node) => void (meshes += isDrawnNode(node) ? 1 : 0));
   assert.ok(meshes > 0 && textureIndices.size > 0, 'a scene with its surfaces');
 });
 

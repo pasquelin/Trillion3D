@@ -88,7 +88,7 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     assert.equal(backend.metrics().submittedTriangles, 2);
     backend.updateInstance?.('copy', new G.Matrix4().makeTranslation(2, 0, 0).elements.slice());
     backend.render(camera);
-    const copies = backend.scene.children.filter((o) => (o as G.GraphMesh).isMesh) as G.GraphMesh[];
+    const copies = backend.scene.children.filter(G.isDrawnNode);
     assert.ok(copies.some((copy) => copy.matrix.elements[12] === 2));
     // The contract carries material parameters, not a host material: the engine builds its own.
     const red: Material = {
@@ -112,7 +112,7 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     backend.acceptGeometryPage?.('triangle-geometry.bin', decodeGeometryPage(encoded.data));
     backend.dropPage?.('triangle-geometry.bin');
     backend.render(camera);
-    const updated = backend.scene.children.find((o) => (o as G.GraphMesh).isMesh) as G.GraphMesh;
+    const updated = backend.scene.children.find(G.isDrawnNode)!;
     assert.equal(updated.geometry.getAttribute('position').getX(0), -0.25);
     assert.equal(backend.metrics().submittedTriangles, 2);
     backend.removeInstance?.('copy');

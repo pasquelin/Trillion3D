@@ -1,3 +1,4 @@
+import type { GraphScene } from '../../host/graph/scene.ts';
 import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
@@ -5,7 +6,6 @@ import {
 import type { HostDrawOutput } from '../core/renderTarget.ts';
 import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
-import type { GraphScene } from '../../host/graph/scene.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
@@ -19,7 +19,7 @@ export type ClusterDrawScene = WebglClusterScene & { updateMatrixWorld(): void }
 
 /** A node of the display graph, read by shape: a mesh is drawn whole, anything else is walked. */
 type DisplayNode = Partial<SceneCopy> & {
-  readonly isMesh?: boolean;
+  readonly kind?: string;
   readonly visible: boolean;
   readonly id: number;
   readonly renderOrder: number;
@@ -65,7 +65,7 @@ export function createSceneDraw(
   const counters = { triangles: 0 };
   const collect = (node: DisplayNode) => {
     if (!node.visible) return;
-    if (node.isMesh) {
+    if (node.kind === 'mesh' || node.kind === 'instancedMesh') {
       if (copied.has(node) || firstMaterial(node.material!)?.transparent) seeThrough.push(node);
       else opaque.push(node as WholeMesh);
       depths.set(node, depthOf(node, screen));

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { threeLodBackend } from './lod.ts';
 import { dagLevel } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
 import {

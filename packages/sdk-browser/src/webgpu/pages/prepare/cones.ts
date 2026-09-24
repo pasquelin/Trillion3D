@@ -22,12 +22,11 @@ export function prepareCones(rt: WebgpuPagesRuntime) {
         // interleaved, normalized, another stride — goes through the accessors that can read it.
         const flat = attr.array as ArrayLike<number> & {
           subarray?(begin: number, end: number): ArrayLike<number>;
-          isInterleavedBufferAttribute?: boolean;
         };
         if (
           attr.itemSize === 3 &&
           !attr.normalized &&
-          !(attr as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute &&
+          attr.kind === 'attribute' &&
           flat.subarray &&
           flat.length >= attr.count * 3
         )

@@ -1,6 +1,8 @@
 // Batch F oracles, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
 // `packages/sdk-browser/src/world/session/pageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
+import type { GraphNode } from '../../../packages/sdk-browser/src/host/graph/node.ts';
+import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   DAG_ERROR_MODEL,
@@ -39,7 +41,7 @@ type ReferenceRoot = Omit<ClusterRoot<PageRec>, 'worldBox' | 'localBox'> & {
 /** `collectClusterPages` before batch F: `find` per mesh, `flatMap` of a spread, three
  *  Three.js objects per page for the box union. */
 export function referenceCollectClusterPages(
-  source: THREE.Object3D,
+  source: GraphNode,
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
   associations: BackendContext['associations'],
@@ -47,7 +49,7 @@ export function referenceCollectClusterPages(
 ) {
   const roots: ReferenceRoot[] = [],
     allPages: PageRec[] = [],
-    blendCopies: THREE.Mesh[] = [],
+    blendCopies: GraphMesh[] = [],
     bootstrap: PageRec[] = [];
   const structures = new Map<Primitive, ReturnType<typeof structureIndex>>();
   let order = 0;
@@ -55,14 +57,14 @@ export function referenceCollectClusterPages(
   // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
   source.updateMatrixWorld(true);
   for (const sourceMesh of objects(source)) {
-    const mesh = asHostLibrary<THREE.Mesh>(sourceMesh);
+    const mesh = sourceMesh;
     const association = associations.get(mesh),
       primitive = metadata.primitives.find(
         (p) => p.mesh === association?.meshes && p.primitive === (association?.primitives ?? 0),
       );
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
     if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
-      const copy = new THREE.Mesh(mesh.geometry, mesh.material);
+      const copy = new GraphMesh(mesh.geometry, mesh.material);
       copy.matrixAutoUpdate = false;
       copy.matrix.copy(mesh.matrixWorld);
       copy.frustumCulled = mesh.frustumCulled;
@@ -173,7 +175,7 @@ export function referenceCollectClusterPages(
       world: mesh.matrixWorld,
       pages,
       culling: culling && { ...culling, bounds: cullingBounds(culling, pages) },
-      worldBox: local.clone().applyMatrix4(mesh.matrixWorld),
+      worldBox: local.clone().applyMatrix4(new THREE.Matrix4().fromArray(mesh.matrixWorld.elements)),
       localBox: local.clone(),
       structure,
       forced: structure ? new Uint8Array(structure.groupCount) : undefined,

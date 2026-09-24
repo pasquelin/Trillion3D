@@ -18,17 +18,10 @@ export const isHostColour = (value: unknown): value is HostColour =>
   !!value && (value as { isColor?: boolean }).isColor === true;
 
 /**
- * A host material as the two surface boundaries read it. Every field is optional: an unlit
- * material declares none of the lit ones, and the flags the host raises — `isMeshBasicMaterial`,
- * `isMeshStandardMaterial`, `isMeshPhysicalMaterial` — are what says which family this is.
+ * A surface as the two surface boundaries read it. Every field is optional: an unlit family
+ * declares none of the lit ones, and its `family` says which one it is.
  */
 export type HostShadedMaterial = HostMaterial & {
-  /** The name the host gives the material family, quoted back in an admission refusal. */
-  readonly type?: string;
-  readonly isMeshBasicMaterial?: boolean;
-  readonly isMeshStandardMaterial?: boolean;
-  readonly isMeshPhysicalMaterial?: boolean;
-  readonly isMeshPhongMaterial?: boolean;
   /** A Phong material's exponent, and a matcap material's image. */
   readonly shininess?: number;
   readonly matcap?: HostMap;
@@ -69,13 +62,4 @@ export type HostShadedMaterial = HostMaterial & {
   /** The compile hook a host may install on a material; `surfaceGate.ts` reads only whether
    *  one was installed, never what it does. */
   readonly onBeforeCompile?: unknown;
-};
-
-/** A host texture as the gate reads it: the sampler state, plus the storage the host declares
- *  it in — a compressed, raw or array storage the engine has no path for. */
-export type HostStoredTexture = HostTexture & {
-  readonly isCompressedTexture?: boolean;
-  readonly isDataTexture?: boolean;
-  readonly isDataArrayTexture?: boolean;
-  readonly mapping?: number;
 };

@@ -101,7 +101,7 @@ export function dataTexture(
   format = HOST_FORMAT_RGBA,
 ) {
   const texture = new GraphTexture({ data, width, height });
-  Object.assign(texture, { isDataTexture: true, format });
+  Object.assign(texture, { kind: 'texels', format });
   texture.magFilter = texture.minFilter = HOST_FILTER_NEAREST;
   texture.generateMipmaps = false;
   texture.flipY = false;
@@ -163,3 +163,4 @@ export function byName(root: GraphNode, name: string) {
   });
   return found;
 }
+export * from './kinds.ts';

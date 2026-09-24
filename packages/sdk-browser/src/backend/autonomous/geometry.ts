@@ -1,3 +1,4 @@
+import type { GraphScene } from '../../host/graph/scene.ts';
 import {
   colouredTwin,
   hostPageBytes,
@@ -11,7 +12,6 @@ import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/s
 import type { HostGeometry, HostMaterial, HostMaterials } from '../../host/resources.ts';
 import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
 import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
-import type { GraphScene } from '../../host/graph/scene.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 

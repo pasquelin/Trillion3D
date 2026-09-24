@@ -52,10 +52,8 @@ const whole = new Float64Array(6),
  * move them, and the local box and sphere computed over them.
  */
 export class GraphGeometry extends Releasable {
-  /** Always `true`: tells a geometry apart. */
-  readonly isBufferGeometry = true as const;
-  /** The kind, as a renderer names it. */
-  readonly type = 'BufferGeometry';
+  /** What the resource is. */
+  readonly kind = 'geometry' as const;
   /** Its name. */
   name = '';
   /** The triangle list, or `null` to draw the vertices in order. */

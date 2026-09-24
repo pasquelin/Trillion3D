@@ -11,7 +11,7 @@ function scene() {
   const mesh = G.mesh();
   parent.add(mesh);
   const light = G.spotLight(0xffffff, 1, 10, 0.5, 0.2, 2);
-  const sky = G.hemisphereLight(0xffffff, 0x404040, 1);
+  const sky = G.lightProbe();
   return { parent, mesh, light, sky };
 }
 
@@ -52,9 +52,9 @@ const WRITES: Array<{
     write: ({ light }) => void Object.assign(light, { color: new G.Color(0xff0000) }),
   },
   {
-    name: 'a ground colour component',
+    name: 'a probe colour component',
     node: 'sky',
-    write: ({ sky }) => void (sky.groundColor.g = 0.9),
+    write: ({ sky }) => void (sky.color.g = 0.9),
   },
   {
     name: 'a light target replaced',

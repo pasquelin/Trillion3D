@@ -1,5 +1,13 @@
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
-import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
+import type {
+  HostDiagnosticMaterial,
+  HostMaterials,
+} from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
+import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
+import { Color } from '../../../packages/sdk-core/src/world/math/color.ts';
+import { pageDiagnostics } from '../../../packages/sdk-browser/src/host/pageDiagnostics.ts';
 import { clusterColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import { hashId, screenErrorColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import {
@@ -7,13 +15,11 @@ import {
   type PageRec,
 } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
-import { hostDiagnostics } from '../three/sceneAdapter.ts';
 import { materialSide } from '../../../packages/sdk-browser/src/scene/materialSide.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
-import * as THREE from 'three';
 
 type MaterialsOptions = {
-  blendCopies: THREE.Mesh[];
+  blendCopies: GraphMesh[];
   viewport: readonly [number, number] | undefined;
   readonly diagnostic: DiagnosticMode;
   /** Engine camera of the last frame, absent as long as no frame has been rendered. */
@@ -22,18 +28,18 @@ type MaterialsOptions = {
 };
 
 export function createExactPagesMaterials(options: MaterialsOptions) {
-  const diagnosticMaterials = new Map<string, THREE.Material>();
-  const materialFor = (rec: PageRec) => {
+  const diagnosticMaterials = new Map<string, HostDiagnosticMaterial>();
+  const materialFor = (rec: PageRec): HostMaterials => {
     if (options.diagnostic === 'beauty') return rec.declaration;
     const side = materialSide(rec.declaration);
     if (options.diagnostic === 'wireframe') {
       const key = `wireframe:${rec.clusterId}`;
       let material = diagnosticMaterials.get(key);
       if (!material) {
-        material = asHostLibrary<THREE.Material>(hostDiagnostics.triangleMaterial(side));
+        material = pageDiagnostics.triangleMaterial(side);
         diagnosticMaterials.set(key, material);
       }
-      return material;
+      return material as GraphSurface;
     }
     const key =
       options.diagnostic === 'pages'
@@ -64,8 +70,11 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
               ? 0x34d399
               : options.diagnostic === 'screen-error'
                 ? 0x00ff1f
-                : new THREE.Color().setRGB(...clusterColor(key, 0.75).toArray());
-      material = new THREE.MeshBasicMaterial({ color, side: asHostLibrary<THREE.Side>(side) });
+                : clusterColor(key, 0.75);
+      material = new GraphSurface('basic', {
+        color: typeof color === 'number' ? new Color(color) : color,
+        side,
+      });
       diagnosticMaterials.set(key, material);
     }
     if (options.diagnostic === 'screen-error' && options.cam) {
@@ -73,38 +82,36 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
         projectedPageError(rec, options.cam, options.viewport ?? [1, 1]),
         options.lastPixelError,
       );
-      (material as THREE.MeshBasicMaterial).color.setRGB(...color);
+      ((material as GraphSurface).color as Color).setRGB(...color);
     }
-    return material;
+    return material as GraphSurface;
   };
   const paint = (
-    mesh: THREE.Mesh,
-    sourceGeometry: THREE.BufferGeometry,
-    material: THREE.Material | THREE.Material[],
+    mesh: GraphMesh,
+    sourceGeometry: GraphGeometry,
+    material: HostMaterials,
     salt = 0,
   ) => {
     mesh.material = material;
     mesh.geometry =
       options.diagnostic === 'wireframe'
-        ? asHostLibrary<THREE.BufferGeometry>(
-            triangleGeometry(sourceGeometry, hostDiagnostics, salt),
-          )
+        ? (triangleGeometry(sourceGeometry, pageDiagnostics, salt) as GraphGeometry)
         : sourceGeometry;
   };
   const paintBlend = () => {
     for (const copy of options.blendCopies) {
-      const sourceGeometry = copy.userData.sourceGeometry as THREE.BufferGeometry;
-      const sourceMaterial = copy.userData.sourceMaterial as THREE.Material | THREE.Material[];
+      // What the copy wore before any view, kept by the batches (`clusterBatches.ts`).
+      const sourceGeometry = copy.userData.sourceGeometry as GraphGeometry;
+      const sourceMaterial = copy.userData.sourceMaterial as HostMaterials;
       if (options.diagnostic === 'wireframe') {
-        const key = `blend:${copy.uuid}`;
+        // A copy is told apart by its node number: a graph mesh carries no library `uuid`.
+        const key = `blend:${copy.id}`;
         let material = diagnosticMaterials.get(key);
         if (!material) {
-          material = asHostLibrary<THREE.Material>(
-            hostDiagnostics.triangleMaterial(materialSide(sourceMaterial)),
-          );
+          material = pageDiagnostics.triangleMaterial(materialSide(sourceMaterial));
           diagnosticMaterials.set(key, material);
         }
-        paint(copy, sourceGeometry, material, hashId(copy.uuid));
+        paint(copy, sourceGeometry, material as GraphSurface, hashId(String(copy.id)));
       } else paint(copy, sourceGeometry, sourceMaterial);
     }
   };

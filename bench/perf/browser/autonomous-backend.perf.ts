@@ -1,6 +1,6 @@
 // the autonomous backend detaches by cut delta instead of sweeping the whole DAG.
 import { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
@@ -9,8 +9,8 @@ import { referenceAutonomousSync } from '../../oracles/browser/autonomous-backen
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
 
 const HOSTILES = [...HOSTILE_FLOATS, 1.7976931348623157e308];
-const geometrie = new THREE.BufferGeometry();
-const materiau = new THREE.MeshBasicMaterial();
+const geometrie = new G.GraphGeometry();
+const materiau = G.basicSurface();
 
 interface Monde {
   scene: GraphScene;
@@ -34,7 +34,7 @@ function monde(total: number, depart: number): Monde {
       material: surfaceOf(materiau),
       declaration: materiau,
       renderOrder: i,
-      matrix: new THREE.Matrix4().makeTranslation(alea(), alea(), alea()),
+      matrix: new G.Matrix4().makeTranslation(alea(), alea(), alea()),
       array: new Uint32Array(3),
       triangles: i < HOSTILES.length ? HOSTILES[i] : Math.floor(alea() * 400),
       // The exercised sync() path never reads these; filled with real, harmless values so the

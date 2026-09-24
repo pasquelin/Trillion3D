@@ -5,6 +5,7 @@
  * object crosses as it is. Every number is the engine's.
  */
 import * as THREE from 'three';
+import { isGraphTexture } from '../../../packages/sdk-browser/src/host/graph/texture.ts';
 import type { GraphElements } from '../../../packages/sdk-browser/src/host/graph/attributes.ts';
 import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import type {
@@ -36,7 +37,7 @@ function sourceOf(image: unknown) {
 }
 
 /** The library's texture of an engine texture, its sampler state and transform kept in step. */
-function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Texture {
+export function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Texture {
   if (texture instanceof THREE.Texture) return texture;
   let held = textures.get(texture);
   if (held && held.version === texture.version) return held.made;
@@ -44,12 +45,12 @@ function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Texture {
     const pixels = texture.image as { data: THREE.TypedArray; width: number; height: number };
     const format = texture.format as THREE.PixelFormat;
     held = {
-      made: texture.isDataTexture
+      made: texture.kind === 'texels'
         ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, format)
         : new THREE.Texture(),
       version: -1,
     };
-    if (!texture.isDataTexture) held.made.source = sourceOf(texture.image);
+    if (texture.kind !== 'texels') held.made.source = sourceOf(texture.image);
     textures.set(texture, held);
     follow(texture, held.made);
   }
@@ -100,8 +101,8 @@ function paint(into: THREE.Material, surface: GraphSurface) {
   for (const [key, value] of Object.entries(surface)) {
     if (BOOKKEEPING.has(key) || BRAND.test(key) || !(key in into)) continue;
     const held = target[key] as { isColor?: boolean; isVector2?: boolean } | null;
-    const given = value as { isTexture?: boolean } & Record<'r' | 'g' | 'b' | 'x' | 'y', number>;
-    if (given?.isTexture) target[key] = threeTexture(value as GraphTexture);
+    const given = value as Record<'r' | 'g' | 'b' | 'x' | 'y', number>;
+    if (isGraphTexture(value)) target[key] = threeTexture(value);
     else if (held?.isColor && value) (held as THREE.Color).setRGB(given.r, given.g, given.b);
     else if (held?.isVector2 && value) (held as THREE.Vector2).set(given.x, given.y);
     else target[key] = Array.isArray(value) ? value.slice() : value;

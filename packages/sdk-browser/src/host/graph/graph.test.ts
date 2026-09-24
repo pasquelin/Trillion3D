@@ -165,10 +165,10 @@ test('a copied geometry owns its buffers, and a triangle list spells every corne
 
 test('the ambient, rectangle and probe lights copy themselves whole', () => {
   const ambient = new GraphAmbientLight(undefined, Math.PI).clone();
-  assert.ok(ambient.isAmbientLight);
+  assert.equal(ambient.kind, 'ambient');
   assert.equal(ambient.intensity, Math.PI);
   const rect = Object.assign(new GraphRectLight(), { width: 2, height: 3, distance: 9 }).clone();
-  assert.deepEqual([rect.isRectAreaLight, rect.width, rect.height, rect.distance], [true, 2, 3, 9]);
+  assert.deepEqual([rect.kind, rect.width, rect.height, rect.distance], ['rect', 2, 3, 9]);
   const probe = new GraphLightProbe();
   probe.sh.fromArray(Array.from({ length: 27 }, (_, i) => i));
   const copy = probe.clone();

@@ -6,7 +6,13 @@
  */
 import * as THREE from 'three';
 import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
-import type { GraphLight } from '../../../packages/sdk-browser/src/host/graph/light.ts';
+import type {
+  GraphAmbientLight,
+  GraphLight,
+  GraphLightProbe,
+  GraphRectLight,
+} from '../../../packages/sdk-browser/src/host/graph/light.ts';
+import { isPlacedLight } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
 import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import type { GraphNode } from '../../../packages/sdk-browser/src/host/graph/node.ts';
 import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts';
@@ -72,30 +78,57 @@ export function threeLight(light: GraphLight | THREE.Light): THREE.Light {
   return made;
 }
 
-/** A node of the library for one engine node, of the same kind, its children not included. */
+/** The library's light of an engine light that takes no aim: ambient, rectangle or probe. */
+function threeSurroundingLight(light: GraphAmbientLight | GraphRectLight | GraphLightProbe) {
+  const colour = new THREE.Color().setRGB(light.color.r, light.color.g, light.color.b);
+  if (light.kind === 'ambient') return new THREE.AmbientLight(colour, light.intensity);
+  if (light.kind === 'rect')
+    return Object.assign(
+      new THREE.RectAreaLight(colour, light.intensity, light.width, light.height),
+      { distance: light.distance },
+    );
+  const probe = new THREE.LightProbe(undefined, light.intensity);
+  probe.color.copy(colour);
+  light.sh.coefficients.forEach((c, k) => probe.sh.coefficients[k].set(c.x, c.y, c.z));
+  return probe;
+}
+
+/** A node of the library for one engine node, of the class its `kind` names, its children not
+ *  included: the one place an engine kind is given a library's class. */
 function threeNode(node: GraphNode): THREE.Object3D {
-  const as = node as unknown as {
-    isMesh?: boolean;
-    isLight?: boolean;
-    isCamera?: boolean;
-  } & Partial<GraphMesh>;
-  if (as.isMesh) {
-    const mesh = threeMeshCopy(node as GraphMesh);
-    if (as.morphTargetInfluences) mesh.morphTargetInfluences = as.morphTargetInfluences.slice();
-    if (as.morphTargetDictionary) mesh.morphTargetDictionary = { ...as.morphTargetDictionary };
-    return place(mesh, node);
+  switch (node.kind) {
+    case 'mesh':
+    case 'instancedMesh': {
+      const source = node as GraphMesh;
+      const mesh = threeMeshCopy(source);
+      if (source.morphTargetInfluences)
+        mesh.morphTargetInfluences = source.morphTargetInfluences.slice();
+      if (source.morphTargetDictionary)
+        mesh.morphTargetDictionary = { ...source.morphTargetDictionary };
+      return place(mesh, node);
+    }
+    case 'directional':
+    case 'point':
+    case 'spot': {
+      const light = threeLight(node as GraphLight);
+      // The target is a node of the graph: the copy of the graph places it, not the light.
+      if ('target' in light) (light as THREE.DirectionalLight).target = new THREE.Object3D();
+      return light;
+    }
+    case 'ambient':
+    case 'rect':
+    case 'probe':
+      return place(
+        threeSurroundingLight(node as GraphAmbientLight | GraphRectLight | GraphLightProbe),
+        node,
+      );
+    case 'camera':
+      return place(threeCameraOf(node as GraphCamera), node);
+    case 'group':
+      return place(new THREE.Group(), node);
+    default:
+      return place(new THREE.Object3D(), node);
   }
-  if (as.isLight) {
-    const light = threeLight(node as GraphLight);
-    // The target is a node of the graph: the copy of the graph places it, not the light.
-    if ('target' in light) (light as THREE.DirectionalLight).target = new THREE.Object3D();
-    return light;
-  }
-  if (as.isCamera) return place(threeCameraOf(node as GraphCamera), node);
-  return place(
-    (node as { isGroup?: boolean }).isGroup ? new THREE.Group() : new THREE.Object3D(),
-    node,
-  );
 }
 
 /**
@@ -114,7 +147,7 @@ export function threeGraph(root: GraphNode | THREE.Object3D): THREE.Object3D {
   const made = copy(root);
   for (const [node, light] of copies) {
     const target = (node as GraphLight).target;
-    if ((node as GraphLight).isLight && target)
+    if (isPlacedLight(node) && target)
       (light as THREE.DirectionalLight).target =
         copies.get(target) ?? place(new THREE.Object3D(), target);
   }

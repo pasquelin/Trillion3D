@@ -3,11 +3,10 @@
  * until a scene says otherwise, the node a directional or spot light aims at included.
  */
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import { GraphNode } from './node.ts';
+import { GraphNode, type GraphLightKind } from './node.ts';
 import { GraphVector } from './vector.ts';
 
-/** The kinds of light a scene declares. */
-export type GraphLightKind = 'directional' | 'point' | 'spot';
+export type { GraphLightKind } from './node.ts';
 
 /**
  * A light: its colour and intensity, the reach and cone of the kinds that have them, and the
@@ -15,12 +14,6 @@ export type GraphLightKind = 'directional' | 'point' | 'spot';
  * scene declares it.
  */
 export class GraphLight extends GraphNode {
-  /** Always `true`: tells a light apart. */
-  readonly isLight = true as const;
-  /** Present on the kind of light it is. */
-  declare readonly isDirectionalLight?: true;
-  declare readonly isPointLight?: true;
-  declare readonly isSpotLight?: true;
   /** Its colour, linear. */
   readonly color: Color;
   /** Its strength. */
@@ -36,14 +29,11 @@ export class GraphLight extends GraphNode {
   /** What a directional or spot light aims at. */
   declare target?: GraphNode;
   /** The kind of light. */
-  readonly kind: GraphLightKind;
+  override readonly kind: GraphLightKind;
   constructor(kind: GraphLightKind, colour = new Color().setRGB(1, 1, 1)) {
     super();
     this.kind = kind;
     this.color = colour;
-    const brand = { directional: 'isDirectionalLight', point: 'isPointLight', spot: 'isSpotLight' };
-    Object.assign(this, { [brand[kind]]: true });
-    this.type = { directional: 'DirectionalLight', point: 'PointLight', spot: 'SpotLight' }[kind];
     if (kind !== 'directional') {
       this.distance = 0;
       this.decay = 2;
@@ -82,11 +72,7 @@ export class GraphLight extends GraphNode {
 
 /** Light that reaches every surface alike, from no direction: an irradiance, added once. */
 export class GraphAmbientLight extends GraphNode {
-  /** Always `true`: tells a light apart. */
-  readonly isLight = true as const;
-  /** Always `true`: tells the ambient kind apart. */
-  readonly isAmbientLight = true as const;
-  override type = 'AmbientLight';
+  override readonly kind = 'ambient' as const;
   /** Its colour, linear. */
   readonly color: Color;
   /** Its strength. */
@@ -114,11 +100,7 @@ export class GraphAmbientLight extends GraphNode {
  * energy as the other kinds' range does; 0 is endless.
  */
 export class GraphRectLight extends GraphNode {
-  /** Always `true`: tells a light apart. */
-  readonly isLight = true as const;
-  /** Always `true`: tells the rectangle kind apart. */
-  readonly isRectAreaLight = true as const;
-  override type = 'RectAreaLight';
+  override readonly kind = 'rect' as const;
   /** Its colour, linear. */
   readonly color = new Color().setRGB(1, 1, 1);
   /** Its radiance. */
@@ -160,11 +142,8 @@ class GraphIrradiance {
 
 /** The irradiance an environment sends, from every direction, as nine coefficients. */
 export class GraphLightProbe extends GraphNode {
-  /** Always `true`: tells a light apart. */
-  readonly isLight = true as const;
-  /** Always `true`: tells the probe apart; it takes no light slot. */
-  readonly isLightProbe = true as const;
-  override type = 'LightProbe';
+  /** The probe takes no light slot. */
+  override readonly kind = 'probe' as const;
   /** A tint, white: the coefficients carry the colour. */
   readonly color = new Color().setRGB(1, 1, 1);
   /** Scales every coefficient. */
