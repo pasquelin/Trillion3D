@@ -82,6 +82,8 @@ export const AUTORISES: Record<string, string> = {
     'boundary: the one host mesh per drawn resource a world built in code hands the engine paths',
   'world/core/worldSurface':
     'boundary: the host surface of a world material’s kind, handed to the host renderer',
+  'world/core/worldTextures':
+    'boundary: the host textures of a world material’s maps, uploaded once and resampled in place',
   'host/three/sceneAdapter':
     'boundary: the host renderer the witnesses and the WebGL2 page path share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 

@@ -13,43 +13,14 @@ import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { hostPageSurface } from '../../host/pageObjects.ts';
 import { asHostLibrary } from '../../host/resources.ts';
 import { hostSide } from '../../scene/materialSide.ts';
-import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import {
-  HOST_FILTER_LINEAR,
-  HOST_FILTER_LINEAR_MIP_LINEAR,
-  HOST_FILTER_LINEAR_MIP_NEAREST,
-  HOST_FILTER_NEAREST,
-  HOST_FILTER_NEAREST_MIP_LINEAR,
-  HOST_FILTER_NEAREST_MIP_NEAREST,
-  HOST_WRAP_CLAMP_TO_EDGE,
-  HOST_WRAP_MIRRORED_REPEAT,
-  HOST_WRAP_REPEAT,
-} from '../../host/surfaceConstants.ts';
+  COLOUR_MAPS,
+  HOST_MAPS,
+  hostTexture,
+  repaintHostMaps,
+  type HostTextures,
+} from './worldTextures.ts';
 
-const WRAP = {
-  repeat: HOST_WRAP_REPEAT,
-  clamp: HOST_WRAP_CLAMP_TO_EDGE,
-  mirror: HOST_WRAP_MIRRORED_REPEAT,
-} as const;
-const FILTER = {
-  nearest: HOST_FILTER_NEAREST,
-  linear: HOST_FILTER_LINEAR,
-  nearestMipNearest: HOST_FILTER_NEAREST_MIP_NEAREST,
-  linearMipNearest: HOST_FILTER_LINEAR_MIP_NEAREST,
-  nearestMipLinear: HOST_FILTER_NEAREST_MIP_LINEAR,
-  linearMipLinear: HOST_FILTER_LINEAR_MIP_LINEAR,
-} as const;
-const FORMAT: Record<string, THREE.PixelFormat> = {
-  rgba: THREE.RGBAFormat,
-  rgb: THREE.RGBFormat,
-  r: THREE.RedFormat,
-};
-/** Material fields that hold a texture, by the name both sides give them. */
-export const HOST_MAPS = [...TABLE_SLOTS, 'alphaMap', 'matcap', 'gradientMap'];
-/** The maps that hold a colour: the only ones whose sRGB image is decoded. The others hold data —
- *  a direction, a roughness, an occlusion — read as stored whatever the image declares, as the
- *  WebGPU path reads them. */
-const COLOUR_MAPS = new Set(['map', 'emissiveMap', 'matcap']);
 /** Physically based fields beyond the engine record, carried on a physical host surface. */
 const PHYSICAL = [
   'transmission',
@@ -60,39 +31,6 @@ const PHYSICAL = [
   'sheen',
   'iridescence',
 ];
-
-/** Host textures already built, by engine texture, its version and whether it is read as colour:
- *  a texture worn by several surfaces is uploaded once. */
-export type HostTextures = Map<string, THREE.Texture>;
-
-/** The host texture of an engine texture, read as colour or as data, its sampler words
- *  translated; built once per `built` table. */
-function hostTexture(texture: Texture, colour: boolean, built: HostTextures) {
-  const key = `${texture.id}@${texture.version}:${colour}`;
-  const held = built.get(key);
-  if (held) return held;
-  const pixels = texture.image as { data: ArrayBufferView; width: number; height: number };
-  const format = FORMAT[texture.format] ?? THREE.RGBAFormat;
-  const host =
-    texture.layout === 'data'
-      ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, format)
-      : new THREE.Texture(texture.image as THREE.Texture['image']);
-  host.wrapS = WRAP[texture.wrapS];
-  host.wrapT = WRAP[texture.wrapT];
-  host.repeat.set(texture.repeat.x, texture.repeat.y);
-  host.offset.set(texture.offset.x, texture.offset.y);
-  host.rotation = texture.rotation;
-  host.minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter;
-  host.magFilter = FILTER[texture.magFilter] as THREE.MagnificationTextureFilter;
-  host.colorSpace =
-    texture.colorSpace === 'srgb' && colour ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
-  host.flipY = texture.flipY;
-  host.anisotropy = texture.anisotropy;
-  host.name = texture.name;
-  host.needsUpdate = true;
-  built.set(key, host);
-  return host;
-}
 
 /** The host family of each kind that is not physical. */
 const FAMILY: Record<string, new () => THREE.Material> = {
@@ -171,12 +109,15 @@ export function hostSurface(material: Material, vertexColors: boolean, textures:
 }
 
 /**
- * Writes a material's value fields — colour, glow, metalness, roughness — into the host surface
- * built for it, as `hostSurface` wrote them, and bumps the surface's version: every reader of
- * the surface (`page/surface.ts`) takes them at its next read, no surface built again (#335).
+ * Writes a material's value fields — colour, glow, metalness, roughness — and its maps' sampling
+ * into the host surface built for it, as `hostSurface` wrote them, and bumps the surface's
+ * version: every reader of the surface (`page/surface.ts`) takes them at its next read, nothing
+ * built again (#335). A map whose version moved sends its picture again; one whose placement
+ * alone moved is placed again, nothing sent (`repaintHostMaps`).
  */
 export function repaintHostSurface(surface: THREE.Material, material: Material) {
   const into = surface as THREE.Material & Record<string, unknown>;
+  repaintHostMaps(into, material);
   const { color, emissive } = material;
   (into.color as THREE.Color | undefined)?.setRGB(color.r, color.g, color.b);
   (into.emissive as THREE.Color | undefined)
