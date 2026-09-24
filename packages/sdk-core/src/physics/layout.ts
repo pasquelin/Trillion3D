@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 3;
+export const PHYSICS_LAYOUT_VERSION = 4;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -20,6 +20,7 @@ export const OP = {
   view: 10,
   flags: 11,
   material: 12,
+  buoyancy: 13,
 } as const;
 
 /** How a body moves: fixed, moved by the page, or moved by the simulation. */
@@ -32,8 +33,24 @@ export const MOTION = { static: 0, kinematic: 1, dynamic: 2 } as const;
  */
 export const LAYER = { static: 0, moving: 1, decorative: 2 } as const;
 
-/** Shape kinds of the ADD command: four exact primitives, a triangle mesh, a convex hull. */
-export const SHAPE = { box: 0, sphere: 1, capsule: 2, cylinder: 3, triangles: 4, hull: 5 } as const;
+/** Shape kinds of the ADD command: four exact primitives, a triangle mesh, a convex hull, a
+ *  compound of primitives. */
+export const SHAPE = {
+  box: 0,
+  sphere: 1,
+  capsule: 2,
+  cylinder: 3,
+  triangles: 4,
+  hull: 5,
+  compound: 6,
+} as const;
+
+/**
+ * Words of one part of a compound: `kind, a, b, c, px, py, pz, qx, qy, qz, qw` — a primitive, its
+ * sizes, its place in the body. A compound ADD carries its parts as data: `indexCount` counts
+ * their words and `vertexCount` is 0.
+ */
+export const PART_WORDS = 11;
 
 /** Per-body flag bits: sensor, continuous collision, contact events wanted, hidden (no pose). */
 export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8 } as const;
@@ -63,6 +80,21 @@ export const ADD_WORDS = 23;
  * sent: a body outside the cone of half angle `halfCone` (radians; 0 sees everything) sends no pose.
  */
 export const VIEW_WORDS = 9;
+
+/**
+ * Words of one piece `jolt_water_query` lists: `engine id, index | count << 16, x, z, half x,
+ * half z` — a compound's sub-shape, a slice of a long primitive or the whole body, by its centre
+ * and horizontal half extents in world space.
+ */
+export const WATER_PIECE_WORDS = 6;
+/**
+ * Words of BUOYANCY before its planes: `op, plane count, water density, linear drag, angular
+ * drag, current x, y, z`, then per piece `PLANE_WORDS` words: `engine id, index | count << 16,
+ * point x, y, z, normal x, y, z` — the water plane under that piece. A body's pieces are
+ * consecutive.
+ */
+export const BUOYANCY_WORDS = 8;
+export const PLANE_WORDS = 8;
 
 /**
  * Words of one pose record: `engine id | asleep bit, px, py, pz, qx, qy, qz, qw, vx, vy, vz, wx, wy,

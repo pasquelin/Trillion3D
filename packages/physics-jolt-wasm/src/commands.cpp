@@ -13,7 +13,7 @@ namespace {
 
 enum Op : uint32_t {
   ADD = 1, REMOVE, TELEPORT, MOVE_KINEMATIC, VELOCITY, IMPULSE, WAKE, GRAVITY, GRAVITY_SCALE,
-  VIEW, FLAGS, MATERIAL
+  VIEW, FLAGS, MATERIAL, BUOYANCY
 };
 /// Words of each fixed-size command, by opcode (layout.ts).
 constexpr uint32_t SIZES[] = {0, 0, 2, 9, 9, 5, 5, 2, 4, 3, 9, 3, 4};
@@ -80,6 +80,10 @@ bool runCommands(const uint32_t *w, uint32_t count) {
     if (op == GRAVITY) {
       world.system->SetGravity(vec3(w + 1));
       w += 4;
+      continue;
+    }
+    if (op == BUOYANCY) {
+      w += runBuoyancy(w);
       continue;
     }
     if (op == VIEW) {
