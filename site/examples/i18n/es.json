@@ -1954,15 +1954,29 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "El caminante rodea la sala y empuja las pelotas. Pelotas añade veinte más.",
+    "banner": "Haz clic para mirar alrededor y camina entre las pelotas con W A S D para empujarlas. Pelotas añade veinte más.",
     "controls": {
-      "walking": "Caminar",
       "balls": "Pelotas"
     },
     "readouts": {
       "bodies": "Cuerpos",
       "awake": "Despiertos",
       "step": "Paso"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Abre la puerta y el cajón, balancea la cadena y luego deja caer la piedra sobre el puente y mira cómo se rompe.",
+    "controls": {
+      "openDoor": "Abrir la puerta",
+      "openDrawer": "Abrir el cajón",
+      "strength": "Resistencia del puente (N)",
+      "swingChain": "Balancear la cadena",
+      "dropStone": "Soltar la piedra",
+      "rebuild": "Reconstruir el puente"
+    },
+    "readouts": {
+      "joints": "Uniones",
+      "broken": "Rotas"
     }
   }
 }

@@ -39,12 +39,12 @@ fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{
 }
 fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,rank:u32,pixel:vec2f)->vec3f{
  let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
- let kept=min(tileLights[base],MAX_TILE_LIGHTS);
- if(kept<=LIGHT_SAMPLES){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,4u);}
- var weights:array<f32,MAX_TILE_LIGHTS>;
+ let kept=min(tileLights[base],MAX_LIGHTS);
+ if(kept<=LIGHT_SAMPLES){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
+ var weights:array<f32,MAX_LIGHTS>;
  var total=0.0;
  for(var index=0u;index<kept;index++){
-  weights[index]=lightWeight(directLights.items[tileLights[base+4u+index]],N,P);
+  weights[index]=lightWeight(directLights.items[tileLights[base+TILE_OPAQUE_BASE+index]],N,P);
   total+=weights[index];
  }
  if(total<=0.0){return vec3f(0.0);}
@@ -82,7 +82,7 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
  }
  var result=vec3f(0.0);
  for(var slot=0u;slot<used;slot++){
-  let light=directLights.items[tileLights[base+4u+chosen[slot]]];
+  let light=directLights.items[tileLights[base+TILE_OPAQUE_BASE+chosen[slot]]];
   result+=declaredLight(light,rgb,metal,rough,N,V,P,ao)*factors[slot];
  }
  return result;

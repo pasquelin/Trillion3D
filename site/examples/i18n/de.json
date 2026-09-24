@@ -1954,15 +1954,29 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "Der Läufer umrundet die Halle und schiebt die Bälle. Bälle fügt zwanzig hinzu.",
+    "banner": "Klicke, um dich umzusehen, dann geh mit W A S D zwischen den Bällen und schieb sie. Bälle fügt zwanzig hinzu.",
     "controls": {
-      "walking": "Gehen",
       "balls": "Bälle"
     },
     "readouts": {
       "bodies": "Körper",
       "awake": "Wach",
       "step": "Schritt"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Öffne die Tür und die Schublade, lass die Kette schwingen, dann lass den Stein auf die Brücke fallen und sieh zu, wie sie bricht.",
+    "controls": {
+      "openDoor": "Tür öffnen",
+      "openDrawer": "Schublade öffnen",
+      "strength": "Brückenfestigkeit (N)",
+      "swingChain": "Kette schwingen",
+      "dropStone": "Stein fallen lassen",
+      "rebuild": "Brücke neu bauen"
+    },
+    "readouts": {
+      "joints": "Gelenke",
+      "broken": "Gebrochen"
     }
   }
 }
