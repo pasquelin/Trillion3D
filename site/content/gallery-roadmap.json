@@ -260,16 +260,12 @@
     {
       "id": "a-texture-turned-and-tiled",
       "theme": "materials",
-      "file": "examples/a-texture-turned-and-tiled.html",
-      "status": "waiting-engine",
-      "issue": 360
+      "file": "examples/a-texture-turned-and-tiled.html"
     },
     {
       "id": "texture-filters-compared",
       "theme": "materials",
-      "file": "examples/texture-filters-compared.html",
-      "status": "waiting-engine",
-      "issue": 361
+      "file": "examples/texture-filters-compared.html"
     },
     {
       "id": "every-image-format",
