@@ -3,7 +3,12 @@ import type { BackendDiagnostic } from '../types.ts';
 import type { BudgetShare } from '../../page/cut/tally.ts';
 import { sessionGeometryPool } from '../../residency/sessionPool.ts';
 import type { GeometryPool } from '../../residency/pools.ts';
-import { coverageBudgetEvent, sendCoverageBudget } from '../../diagnostic/engineDiagnostic.ts';
+import {
+  coverageBudgetEvent,
+  sendCoverageBudget,
+  sendEngineDiagnostic,
+  type EngineDiagnosticEmitter,
+} from '../../diagnostic/engineDiagnostic.ts';
 import { createResidentOrder } from './poolOrder.ts';
 
 /**
@@ -50,9 +55,15 @@ type PoolEnvironment = {
  * page drawn by three classic instances fills three, since each holds its own (`PageCopies`).
  *
  * The slots bound the cut in the image that draws it: the cut charges the copies of each page it
- * asks for or draws (`BudgetShare`), the root cover held beforehand, and draws coarser until they
- * fit (`selectVisiblePages`'s `pageBudget`). A cut never holds more than the pool, so a smaller
- * budget takes effect in the next image, and a larger one brings the detail back in it.
+ * asks for (`BudgetShare`), the root cover held beforehand, and draws coarser until they fit
+ * (`selectVisiblePages`'s `pageBudget`). A cut never holds more than the pool, so a smaller budget
+ * takes effect in the image that follows it.
+ *
+ * The threshold is searched from one image to the next (`pageBudgetFrom`): each image tries one
+ * step of √2 finer than the last, never under the host's `pixelError`, keeps the last one when the
+ * finer step does not fit, and climbs by √2 in the same image when that one no longer fits. The
+ * detail converges on the finest step that fits; until nothing finer is left to try, `settling`
+ * asks for another image.
  *
  * The bytes bound what stays resident, as the slots do (`poolOrder.ts`). Under the budget nothing
  * is walked: an arrival costs two set insertions, an image one comparison of bytes.
@@ -92,8 +103,14 @@ export function createGeometryBudget(env: PoolEnvironment) {
     }
     return pool;
   };
+  const emit: EngineDiagnosticEmitter = (phase, message, details) =>
+    sendEngineDiagnostic(env.onDiagnostic, phase, message, details);
   let budgetPixelError = 0,
-    limited = false;
+    limited = false,
+    // The threshold the last cut was kept at, where the next one starts its search.
+    threshold = 0,
+    settling = false,
+    event: Record<string, unknown> | undefined;
   // What the pool may hold above its slots: only what nothing may evict.
   const resident = createResidentOrder({
     state,
@@ -111,28 +128,42 @@ export function createGeometryBudget(env: PoolEnvironment) {
     get budgetPixelError() {
       return budgetPixelError;
     },
-    /** The cut at the requested threshold did not fit the slots. */
+    /** The cut at the requested threshold did not fit the slots, as of the last settled search. */
     get coverageBudgetLimited() {
       return limited;
     },
+    /** A finer threshold is left to try: the search owes another image. */
+    get settling() {
+      return settling;
+    },
     /** The budget the cut about to be drawn must fit: the slots, those the root cover holds, and
-     *  none at all when the pool holds the whole scene. */
-    bound(cut: { pageBudget: number; pageBudgetHeld: number }) {
+     *  none at all when the pool holds the whole scene; the search starts where the last ended. */
+    bound(cut: { pageBudget: number; pageBudgetHeld: number; pageBudgetFrom: number }) {
       const { slots, clamp } = current();
       cut.pageBudget = clamp === 'scene' ? 0 : slots;
       cut.pageBudgetHeld = copies.root();
+      cut.pageBudgetFrom = threshold;
     },
-    /** Reads the cut drawn for the host's `pixelError`: the threshold it was coarsened to is the
-     *  floor, and a verdict that changes is published as `coverage-budget`. */
-    settle(pixelError: number, cut: { pixelError: number; requestedSlots: number }) {
-      const was = limited;
-      limited = cut.pixelError > pixelError;
-      budgetPixelError = limited ? cut.pixelError : 0;
-      if (limited !== was)
-        sendCoverageBudget(
-          env.onDiagnostic,
-          coverageBudgetEvent(limited, cut.requestedSlots, pool.slots, true, pixelError),
-        );
+    /** Reads the cut drawn for the host's `pixelError`: the threshold it kept is the floor. The
+     *  verdict moves only on a settled search, as WebGPU's moves only on a sample cut at its
+     *  floor, so a search still converging never flips it; a change waits for `flush`. */
+    settle(
+      pixelError: number,
+      cut: { pixelError: number; requiredSlots: number | null; budgetSettled: boolean },
+    ) {
+      threshold = cut.pixelError;
+      settling = !cut.budgetSettled;
+      const coarser = cut.pixelError > pixelError;
+      budgetPixelError = coarser ? cut.pixelError : 0;
+      if (settling || coarser === limited) return;
+      limited = coarser;
+      event = coverageBudgetEvent(limited, cut.requiredSlots, pool.slots, true, pixelError);
+    },
+    /** Publishes the verdict the last images changed, as `coverage-budget`. */
+    flush() {
+      if (!event) return;
+      sendCoverageBudget(emit, event);
+      event = undefined;
     },
     /** A page has arrived, or arrived again; the root cover is held outside the order. */
     arrived(url: string) {
@@ -145,6 +176,8 @@ export function createGeometryBudget(env: PoolEnvironment) {
     resize(budgetBytes: number) {
       current();
       pool = session.poolFor(budgetBytes);
+      // A larger pool may hold a finer threshold: the search owes an image.
+      settling = true;
       return resident.shed();
     },
   };

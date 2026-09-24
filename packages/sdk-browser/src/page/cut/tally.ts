@@ -2,14 +2,18 @@ import type { PageRecord, SelectionState } from './state.ts';
 
 /**
  * The slots a page takes in a page budget, named by every record that draws it: the cut charges
- * them once per pass, whether it asks for the page or draws it. A record that names none takes one
- * slot per record drawn.
+ * them once per pass, where it asks for the page. A record that names none takes one slot per
+ * record drawn.
  */
 export interface BudgetShare {
   /** The pass that last charged it. */
   pass: number;
   slots: number;
 }
+
+/** Finest threshold, in pixels, a budget search steps down to: below it the cut is the one the
+ *  host asked for. */
+export const MIN_BUDGET_PIXEL_ERROR = 0.125;
 
 /** Passes are numbered across calls: a share a previous cut marked is never taken as counted. */
 let budgetPasses = 0;
@@ -29,21 +33,26 @@ export function chargeShare<T extends PageRecord>(s: SelectionState<T>, share: B
   return s.budgetUsed > s.budget;
 }
 
-/** Charges a record drawn: its page's share, or one slot. */
+/**
+ * Charges a record drawn; true when the pass has gone past the budget. A page's share is charged
+ * where the cut asks for it: a record drawn in place of a missing page — a resident ancestor, the
+ * root cover — charges nothing more, so each place on screen counts once, for the page that will
+ * be resident. A record that names no share takes one slot per record drawn.
+ */
 export function chargeDrawn<T extends PageRecord>(s: SelectionState<T>, rec: T) {
-  const share = rec.budgetShare;
-  if (share !== undefined) return chargeShare(s, share);
-  return ++s.budgetUsed > s.budget;
+  if (rec.budgetShare === undefined) s.budgetUsed++;
+  return s.budgetUsed > s.budget;
 }
 
 /** Shrinks `shown` to a prefix and its triangle sum with it: same order, same bits as the
- *  sweep this sum replaces. Fallbacks are the only ones that shorten the cut. */
+ *  sweep this sum replaces. Fallbacks are the only ones that shorten the cut. The budget is
+ *  charged again on what stays, and a pass it leaves past the budget is marked `over`. */
 export function truncateShown<T extends PageRecord>(s: SelectionState<T>, to: number) {
   s.shownCount = to;
   let sum = 0;
   if (s.budget === 0) for (let i = 0; i < to; i++) sum += s.shown[i].triangles;
   else {
-    // The budget is charged again on what stays: a share only the dropped tail named is freed.
+    // The budget is charged again on what stays: a slot only the dropped tail took is freed.
     startBudgetPass(s);
     for (let i = 0; i < s.wantedCount; i++) {
       const share = s.wanted[i].budgetShare;
@@ -54,6 +63,7 @@ export function truncateShown<T extends PageRecord>(s: SelectionState<T>, to: nu
       sum += rec.triangles;
       chargeDrawn(s, rec);
     }
+    if (s.budgetUsed > s.budget) s.over = true;
   }
   s.shownTriangles = sum;
 }

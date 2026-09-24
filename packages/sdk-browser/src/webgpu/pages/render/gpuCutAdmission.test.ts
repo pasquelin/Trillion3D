@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { admitGpuCut, BUDGET_RELAX_RATIO, MIN_BUDGET_PIXEL_ERROR } from './gpuCutAdmission.ts';
+import { admitGpuCut, BUDGET_RELAX_RATIO } from './gpuCutAdmission.ts';
+import { MIN_BUDGET_PIXEL_ERROR } from '../../../page/cut/tally.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { createWebgpuBudgetState } from '../../residency/budgetState.ts';
 

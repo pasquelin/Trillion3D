@@ -52,7 +52,7 @@ export function createAutonomousRender(options: {
   collectKept: () => void;
   /** The geometry pool: the budget the cut fits, the verdict read on it, and the shedding of what
    *  it left (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'bound' | 'settle' | 'trim'>;
+  pool: Pick<ReturnType<typeof createGeometryBudget>, 'bound' | 'settle' | 'settling' | 'trim'>;
 }) {
   const {
     state,
@@ -78,6 +78,7 @@ export function createAutonomousRender(options: {
     holdResident: true,
     pageBudget: 0,
     pageBudgetHeld: 0,
+    pageBudgetFrom: 0,
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
@@ -94,8 +95,8 @@ export function createAutonomousRender(options: {
       sourcesDessinees,
     );
     if (state.frameHeld) return;
-    // The cut fits the pool in this image: it draws coarser until the copies it asks for and draws
-    // fit the slots.
+    // The cut fits the pool in this image: its threshold is searched from the last image's, by
+    // steps of √2, until the copies it asks for fit the slots.
     selectOptions.pixelError = gate.pixelError;
     pool.bound(selectOptions);
     // Copied world matrices and lights are a function of the scene only.
@@ -106,6 +107,8 @@ export function createAutonomousRender(options: {
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     pool.settle(gate.pixelError, selected);
+    // A search with a finer step left owes an image: the next one is not held on this one.
+    if (pool.settling) gate.resourcesChanged();
     state.overBudget = attachedPages(shown) > cap;
     if (state.overBudget) {
       shown.length = 0;

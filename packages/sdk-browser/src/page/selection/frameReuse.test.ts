@@ -46,7 +46,8 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
     lodLevel: 0,
     complete: true,
     pixelError: 0,
-    requestedSlots: 0,
+    requiredSlots: null,
+    budgetSettled: true,
   };
   const cam = camera(),
     ask = {

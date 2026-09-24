@@ -4,7 +4,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { HostGeometry } from '../../host/resources.ts';
-import { createHeldFloor, pageCopies } from './poolApi.ts';
+import { pageCopies } from './poolApi.ts';
+import { createHeldFloor } from './heldFloor.ts';
 
 /** A page geometry of `floats` position floats and three indices: `floats * 4 + 12` bytes. */
 function pageGeometry(floats: number) {
@@ -59,6 +60,22 @@ test('the floor counts the root cover and the replaced pages, read again only on
   byUrl.get('page')![0].geometry = pageGeometry(60);
   floor.changed();
   assert.equal(floor.bytes(), 9 * 4 + 12 + 3 * 4 + 12 + 60 * 4 + 12);
+});
+
+test('the floor counts every geometry the store counts: copies sharing their arrays included', () => {
+  // Two records of one page, as the store builds them from one decoded page: two geometries on
+  // the same arrays, each uploaded on its own; and an instance's clone of the first.
+  const first = pageGeometry(9);
+  const second = new THREE.BufferGeometry();
+  const source = first as unknown as THREE.BufferGeometry;
+  second.setIndex(new THREE.BufferAttribute(source.index!.array, 1));
+  second.setAttribute('position', new THREE.BufferAttribute(source.attributes.position.array, 3));
+  const clone = source.clone() as unknown as HostGeometry;
+  const bootstrap = [first, second as unknown as HostGeometry, clone].map((geometry) =>
+    rec('root', { geometry }),
+  );
+  const floor = createHeldFloor({ bootstrap, modifiedPages: new Set(), byUrl: new Map() });
+  assert.equal(floor.bytes(), 3 * (9 * 4 + 12), 'three geometries held, three copies counted');
 });
 
 /** The modules `entry` loads when it runs: its value imports, followed; a type import loads
