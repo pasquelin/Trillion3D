@@ -6799,7 +6799,7 @@
       "currentEntryPoints": ["trillion3d (node condition)"],
       "proposedEnvironments": "node",
       "classification": "public",
-      "affectedConsumers": ["bench/runner/assets.ts", "scripts/native-compiler.ts"],
+      "affectedConsumers": ["bench/runner/assets.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-node/src/compiler/process\".resolveCompilerExecutable"
     },
