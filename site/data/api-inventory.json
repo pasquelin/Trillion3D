@@ -1334,6 +1334,7 @@
         "packages/sdk-browser/src/world/camera/camera.test.ts",
         "packages/sdk-browser/src/world/camera/camera.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
+        "packages/sdk-browser/src/world/core/worldFrames.test.ts",
         "packages/sdk-browser/src/world/core/worldSource.ts",
         "packages/sdk-browser/src/world/diagnostic/metrics.test.ts",
         "packages/sdk-browser/src/world/diagnostic/metrics.ts",
@@ -1389,7 +1390,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/scene.ts",
-        "packages/sdk-browser/src/world/core/world.ts",
+        "packages/sdk-browser/src/world/core/worldBackground.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
@@ -2603,6 +2604,7 @@
         "packages/sdk-browser/src/world/api/lightApi.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/capability/worldReady.ts",
+        "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldDiagnostic.test.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.ts",
@@ -6759,8 +6761,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/world/core/world.ts",
-        "packages/sdk-browser/src/world/core/worldLink.ts"
+        "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/world.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/object/object3d\".SceneLink"
@@ -7827,6 +7829,7 @@
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
         "packages/sdk-browser/src/webgpu/tile/streamerSampling.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/worldBackground.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
@@ -7877,6 +7880,7 @@
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
         "packages/sdk-browser/src/webgpu/tile/streamerSampling.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/worldBackground.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",

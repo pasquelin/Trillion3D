@@ -30,6 +30,7 @@
       "geometry pool": "geometry pool",
       "lights": "lights",
       "GPU frame": "GPU frame",
+      "GPU frame (last)": "GPU frame (last)",
       "CPU frame": "CPU frame",
       "page hooks": "page hooks",
       "engine CPU": "engine CPU"

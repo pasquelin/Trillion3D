@@ -29,6 +29,7 @@ import { setWebgpuTransform } from './render/transform.ts';
 import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
+import { setWebgpuClearColor } from './io/clearColor.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
@@ -87,6 +88,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       run.gate.sceneMoved();
     },
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
+    setClearColor: (hex) => setWebgpuClearColor(rt, hex),
     async prepare() {
       rt.signal.throwIfAborted();
       const { gpuDevice } = context;
@@ -144,9 +146,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     retainedRanks() {
       return retainedRanks(rt);
     },
-    pageSpecs(url) {
-      return pageSpecs(url);
-    },
+    pageSpecs,
     acceptPage(url, array, plan) {
       acceptPage(rt, url, array, plan);
     },

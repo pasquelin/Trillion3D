@@ -1033,7 +1033,6 @@
       "rafIntervalMs": "Waktu antara dua bingkai.",
       "cpuFrameMs": "Waktu CPU bingkai itu.",
       "cpuSubmitMs": "Waktu CPU untuk mengirim pekerjaannya.",
-      "gpuMs": "Waktu GPU bingkai itu.",
       "drawCalls": "Panggilan gambar bingkai ini, seperti dihitung mesin. `null` saat belum dihitung: nol akan terbaca sebagai bingkai tanpa gambar.",
       "autonomousClusterDrawsTotal": "Gambar cluster berhalaman yang dikeluarkan program WebGL2 milik mesin dalam sesi ini.",
       "autonomousCopyDraws": "Salinan scene — permukaan tembus cahaya — yang digambar program WebGL2 milik mesin bingkai ini.",
@@ -1066,7 +1065,7 @@
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
-      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`.",
+      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung, dikurangi cluster tanpa halaman yang tersimpan yang dihitung `uncoveredTriangles`. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung pada tahap yang sama dengan `uncoveredTriangles`, saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`. Hubungan cakupan yang diharapkan pada sampel ini: `selected − drawn − uncovered = 0`.",
@@ -2946,7 +2945,7 @@
       "isScene": "Selalu `true`: membedakan root scene dari objek lain.",
       "environment": "Sebuah gambar lingkungan yang dipantulkan permukaan mengkilap; `null` untuk tidak ada.",
       "fog": "Kabut yang memudarkan objek ke `color` antara `near` dan `far`; `null` untuk tidak ada.",
-      "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, sebuah gambar, atau `null` untuk bawaan.",
+      "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, atau `null` untuk bawaan. Perubahan tampil pada bingkai berikutnya, sesi tetap dipertahankan: warna baru yang diatur di sini, atau warna yang ada ditulis lewat metodenya (`set`, `setRGB`, `setHex`, `setHSL`...). Penulisan langsung ke `.r`, `.g`, atau `.b` tidak terdengar: atur ulang `background` sesudahnya. Gambar, atau nilai apa pun tanpa `getHex`, ditolak (`UNSUPPORTED_SCENE_UPDATE`): tidak ada jalur yang menggambarnya.",
       "load": "Memuat sebuah model terkompilasi — URL manifestnya — dan menambahkannya ke scene ini.",
       "toJSON": "Scene sebagai JSON sederhana berversi: objeknya, bentuk lewat panggilan yang membangunnya, material, cahaya, dan model yang dimuat lewat alamatnya; pose `camera` juga jika diberikan.",
       "fromJSON": "Mengganti isi scene dengan scene yang disimpan `toJSON`, penanda `helper`-nya tetap dipertahankan; selesai setelah model-modelnya dimuat. Format atau versi lain ditolak (`UNSUPPORTED_SCENE_FORMAT`). Panggilan yang dilakukan selama pembacaan berjalan satu per satu, berurutan, masing-masing pada hasil yang ditinggalkan panggilan sebelumnya: dua scene tersimpan tidak pernah bercampur."
@@ -3995,12 +3994,11 @@
     "description": "`'firstPerson'` menggerakkan sebuah kamera; `'character'` menggerakkan sebuah tubuh — massa, gravitasi, lompatan, tabrakan dengan `world.controls.colliders` — dan melihat lewat matanya."
   },
   "WorldFrameMetrics": {
-    "summary": "Metrik sebuah bingkai, dengan nama yang dipakai sebuah halaman membacanya; `null` di mana jalur itu tidak menghitung.",
+    "summary": "Metrik sebuah gambar sebagaimana host menyalinnya dari mesin, dan dua yang dibaca halaman yang disusun darinya; `null` di mana jalur tidak menghitung.",
     "members": {
       "rafIntervalMs": "Waktu antara dua bingkai.",
       "cpuFrameMs": "Waktu CPU bingkai itu.",
       "cpuSubmitMs": "Waktu CPU untuk mengirim pekerjaannya.",
-      "gpuMs": "Waktu GPU bingkai itu.",
       "drawCalls": "Panggilan gambar bingkai ini, seperti dihitung mesin. `null` saat belum dihitung: nol akan terbaca sebagai bingkai tanpa gambar.",
       "autonomousClusterDrawsTotal": "Gambar cluster berhalaman yang dikeluarkan program WebGL2 milik mesin dalam sesi ini.",
       "autonomousCopyDraws": "Salinan scene — permukaan tembus cahaya — yang digambar program WebGL2 milik mesin bingkai ini.",
@@ -4033,7 +4031,7 @@
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
-      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`.",
+      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung, dikurangi cluster tanpa halaman yang tersimpan yang dihitung `uncoveredTriangles`. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung pada tahap yang sama dengan `uncoveredTriangles`, saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`. Hubungan cakupan yang diharapkan pada sampel ini: `selected − drawn − uncovered = 0`.",
