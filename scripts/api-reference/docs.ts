@@ -1,5 +1,6 @@
 import ts from 'typescript';
 import { ENGINE_ERROR_CODES } from '../../packages/sdk-core/src/contracts/errorCodes.ts';
+import { ENGINE_ERROR_MEANINGS } from './errorCodeMeanings.ts';
 
 /** What the TSDoc of one symbol says: its text, `@param` lines, `@returns`, `@defaultValue` and
  *  `@example`. */
@@ -93,8 +94,8 @@ export function readDoc(symbol: ts.Symbol, checker: ts.TypeChecker, owner?: ts.S
     return match && tagText(match);
   };
   const codes = tags.some((candidate) => candidate.name === 'errorCodes')
-    ? ENGINE_ERROR_CODES.flatMap(([names, meaning]) =>
-        names.map((code): [string, string] => [code, meaning]),
+    ? ENGINE_ERROR_CODES.flatMap((names) =>
+        names.map((code): [string, string] => [code, ENGINE_ERROR_MEANINGS[names[0]]]),
       )
     : [];
   const text = found

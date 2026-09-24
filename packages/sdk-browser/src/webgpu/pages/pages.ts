@@ -5,10 +5,8 @@ import { readTransparentOcclusionAudit } from '../transparent/occlusionAudit.ts'
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import type { BackendFactory } from '../../backend/types.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
-import { prepareGpuTiming } from './prepare/timing.ts';
-import { prepareWebgpuPages } from './prepare/prepare.ts';
+import { prepareWebgpuBackend } from './prepare/prepare.ts';
 import { setWebgpuBounce } from './prepare/bounce.ts';
-import { reserveRootBoxes } from '../../math/batchBoxes.ts';
 import { renderWebgpuPages } from './render/render.ts';
 import { flushWebgpuPages } from './render/flush.ts';
 import { captureSurfaceView } from './io/surfaceCapture.ts';
@@ -31,7 +29,7 @@ import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
-import { claimWebgpuDevice, stopIfClosed } from './io/lost.ts';
+import { claimWebgpuDevice } from './io/lost.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
 
@@ -44,8 +42,10 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   // Integer record of a request, set once per address: that is all off-thread integration
   // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
-  // The device this session holds, until it is disposed: the errors it raises reach it alone.
-  let claim: GpuDeviceClaim | undefined, closing: Promise<void> | undefined;
+  // The device this session holds until it is disposed; the preparation running, settled or not.
+  let claim: GpuDeviceClaim | undefined,
+    preparing: Promise<unknown> | undefined,
+    closing: Promise<void> | undefined;
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
@@ -85,31 +85,22 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     async prepare() {
-      context.signal?.throwIfAborted();
+      rt.signal.throwIfAborted();
       const { gpuDevice } = context;
       if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
-      // Disposed before it prepared: nothing failed, and a claim now would never be released.
-      if (run.lost)
-        throw new DOMException('The backend was disposed before it prepared', 'AbortError');
-      // The allocation ledger, once per device: everything that follows is counted in it.
-      installGpuDeviceLedger(gpuDevice);
-      // The session creates through its own handle, whose labels name it.
+      // The session creates through its own handle, whose labels name it; the allocation ledger
+      // sits on it, above the tags.
       claim = claimWebgpuDevice(rt, gpuDevice);
+      installGpuDeviceLedger(claim.device);
+      const building = prepareWebgpuBackend(rt, claim.device);
+      preparing = building.catch(() => {});
       try {
-        if (run.lost) throw new Error('WEBGPU_LOST'); // announced by the claim: nothing is built
-        prepareGpuTiming(rt, claim.device);
-        await prepareWebgpuPages(rt, claim.device);
-        // Root world boxes last: linear memory no longer grows behind them, nor a node move.
-        context.preparationStep?.('root boxes');
-        rt.layout.rootBoxes = await reserveRootBoxes(rt.layout.selectionRoots);
-        stopIfClosed(rt);
-        if (run.lost) throw new Error('WEBGPU_LOST'); // on a first claim, told a microtask later
+        await building;
       } catch (error) {
-        // Cancelled, not failed: released through the one `closing`, what it built since too.
-        if (run.closed || context.signal?.aborted)
-          await (closing = Promise.all([closing, disposeWebgpuPages(rt, claim)]).then(() => {}));
-        else diag.diagnosticFailure('webgpu-prepare-failed', error);
+        if (!rt.signal.aborted) diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
+      } finally {
+        preparing = undefined;
       }
     },
     render(camera) {
@@ -192,8 +183,13 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       return readShadowAtlasDigest(device, rt.lights.shadows);
     },
     dispose() {
-      // Once: a backend closed before it prepared is closed again by whoever prepared it.
-      return (closing ??= disposeWebgpuPages(rt, claim));
+      // Inert at once: what still runs stops at its next creation or wait. Torn down once, after
+      // the preparation stopped, so that nothing it built outlives the backend.
+      rt.closer.abort();
+      claim?.release();
+      return (closing ??= preparing
+        ? preparing.then(() => disposeWebgpuPages(rt))
+        : disposeWebgpuPages(rt));
     },
   };
   return backend;
