@@ -25,5 +25,7 @@ test('angles set after a quaternion write are the angles kept, and turn the node
   node.quaternion.set(0, Math.SQRT1_2, 0, Math.SQRT1_2);
   node.rotation.set(0.5, 0, 0);
   assert.deepEqual([node.rotation.x, node.rotation.y, node.rotation.z], [0.5, 0, 0]);
-  assert.ok(Math.abs(node.quaternion.x - Math.sin(0.25)) < 1e-12 && Math.abs(node.quaternion.y) < 1e-12);
+  assert.ok(
+    Math.abs(node.quaternion.x - Math.sin(0.25)) < 1e-12 && Math.abs(node.quaternion.y) < 1e-12,
+  );
 });
