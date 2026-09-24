@@ -129,7 +129,9 @@ export function assertSceneTables(value: unknown): PreparedSceneTables {
     if (tables[field] !== expected)
       throw new EngineError(
         'UNSUPPORTED_SCENE_TABLES',
-        `scene tables ${field} ${String(tables[field])} is not the ${expected} this runtime reads`,
+        `scene tables ${field} ${String(tables[field])} is not the ${expected} this runtime reads: ` +
+          `the cache was written by another compiler — recompile it with this one ` +
+          `(pnpm run build:native, then trillion3d-compiler <source> <cache> …)`,
         { [field]: tables[field] ?? null },
       );
   const missing = (['nodes', 'lights', 'cameras', 'materials', 'textures'] as const).filter(

@@ -33,5 +33,13 @@ test('tables of an unknown version are refused rather than half-read', () => {
     () => assertSceneTables({ ...tables(), geometryTableVersion: 99 }),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'geometryTableVersion 99'),
   );
+  // Issue #275: the refusal says what to do — recompile the cache, and with which command.
+  assert.throws(
+    () => assertSceneTables({ ...tables(), materialTableVersion: 3 }),
+    hasCode(
+      'UNSUPPORTED_SCENE_TABLES',
+      'recompile it with this one (pnpm run build:native, then trillion3d-compiler',
+    ),
+  );
   assert.throws(() => assertSceneTables(null), hasCode('INVALID_SCENE_TABLES'));
 });
