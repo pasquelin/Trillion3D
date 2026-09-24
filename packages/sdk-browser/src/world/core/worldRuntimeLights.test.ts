@@ -17,11 +17,7 @@ const lightsOf = () => [
  * frame before it returns, as `openMeasuredWorld` does, while the runtime holds no session yet;
  * `gate` holds the opening so lights can land while it is in flight.
  */
-type Runtime = ReturnType<typeof runtimeOf>;
-
-async function lightsAfterLoad(
-  addLights: (scene: Scene, opening: Promise<void>, runtime: Runtime) => Promise<void>,
-) {
+async function lightsAfterLoad(addLights: (scene: Scene, opening: Promise<void>) => Promise<void>) {
   const ready = Promise.resolve();
   const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
   const { session, written } = sessionStandIn();
@@ -38,7 +34,7 @@ async function lightsAfterLoad(
   const failures: unknown[] = [];
   const runtime = runtimeOf(scene, ready, (error) => failures.push(error), open);
   await scene.load(MODEL);
-  await addLights(scene, opening, runtime);
+  await addLights(scene, opening);
   release();
   await runtime.settled();
   runtime.render();
@@ -65,11 +61,12 @@ test('lights added right after a compiled model loads reach its session', async 
 });
 
 test('lights resolved while the session opens survive its first frame', async () => {
-  const written = await lightsAfterLoad(async (scene, opening, runtime) => {
+  const written = await lightsAfterLoad(async (scene, opening) => {
     await opening;
     scene.add(...lightsOf());
-    // Their resolution ends before the opening draws the frame that holds no session yet.
-    await runtime.resolved();
+    // Lights read no resource: their resolution runs on microtasks alone, all drained by the next
+    // turn — so it ends before the opening draws the frame that holds no session yet.
+    await new Promise(setImmediate);
   });
   assertLit(written);
 });
