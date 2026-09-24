@@ -138,8 +138,13 @@ against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, C
   the camera read as shadowed. Publishing the current extent's matrix with the wrap origin of an
   undrawn slid cascade moved this by under 0.2 % and was not kept; the cause is not isolated.
 
-The geometry-garden lesson has since left the portal with the other lessons (#327), and with it
-the part of `explorer-startup` that failed; that proof has not been re-read since.
+The geometry-garden lesson has since left the portal with the other lessons (#327, `18ce55b5b`):
+its page, its telemetry and the proof step that opened it (`explorerStartupGarden.ts`) are gone,
+and `explorer-startup` now drives the engine's interactive session directly. #492 read the engine
+side of the symptom: a canvas whose CSS box grows after the world opens is resized and scheduled a
+frame (unit test in `world/session/interactive.test.ts`), so the frozen 300 × 150 buffer belonged
+to the lesson's own mounting, which no longer exists. `explorer-startup` leaves this list once the
+measurer re-reads it passing.
 
 Before #281 the same reading gave 10 fail (`origin/develop` at `ea7e3ecf4` and the head of #322,
 54 pass / 10 fail each). A batch that leaves exactly these two failing has changed nothing
