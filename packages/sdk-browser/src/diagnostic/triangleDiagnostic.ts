@@ -88,7 +88,7 @@ export function applyMeshDiagnostic(
   mesh.geometry = sourceGeometry;
   mesh.material = sourceMaterial;
   if (mode !== 'wireframe') return;
-  mesh.geometry = triangleGeometry(sourceGeometry, host, hashId(String(mesh.id)), overlays);
+  mesh.geometry = triangleGeometry(sourceGeometry, host, hashId(String(mesh.serial ?? mesh.id)), overlays);
   const material = host.triangleMaterial(materialSide(sourceMaterial));
   overlays.push(material);
   mesh.material = material;
