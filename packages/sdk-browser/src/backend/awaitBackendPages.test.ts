@@ -118,3 +118,16 @@ test('awaitPages returns on a fixed search, its pages resident', async () => {
   assert.equal(rung, 4, 'the search is fixed');
   assert.deepEqual([...resident], [4], 'only the pages of the fixed cut were loaded');
 });
+
+test('a wait for pages alone asks every flush for no image (#408)', async () => {
+  const asked: unknown[] = [];
+  const backend = {
+    render() {},
+    async flush(options?: { image?: boolean }) {
+      asked.push(options);
+    },
+    pendingUrls: () => [],
+  };
+  await awaitBackendPages(backend, G.perspectiveCamera(), async () => {}, { image: false });
+  assert.deepEqual(asked, [{ image: false }, { image: false }, { image: false }]);
+});
