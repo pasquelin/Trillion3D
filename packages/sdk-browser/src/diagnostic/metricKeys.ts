@@ -68,6 +68,7 @@ export const BACKEND_METRIC_KEYS = [
   'textureLevelsDecoded',
   'textureLevelCacheBytes',
   'textureScratchBuilds',
+  'textureLiveBytes',
   'lightsActive',
   'lightsSampled',
   'shadowsUpdated',
