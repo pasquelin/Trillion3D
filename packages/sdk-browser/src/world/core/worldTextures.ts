@@ -1,9 +1,9 @@
 /**
  * THE HOST TEXTURES OF A WORLD'S MATERIALS: each engine texture uploaded once through the host
  * library, its addressing, filters and placement written in the host's words, and written again
- * in place when a repaint moves them (#335, #360, #361). Every version a texture moves to sends
- * its picture again — nothing tells pixels written in place under the same image from a sampler
- * change —, except a move of its placement alone, which the host reads at every draw.
+ * in place when a repaint moves them (#335, #360, #361). A texture counts its placement apart
+ * from its version: every version sends its picture again — nothing tells pixels written in place
+ * under the same image from a sampler change —, a placement never.
  */
 import * as THREE from 'three';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
@@ -49,48 +49,24 @@ export const COLOUR_MAPS = new Set(['map', 'emissiveMap', 'matcap']);
  *  a texture worn by several surfaces is uploaded once. */
 export type HostTextures = Map<string, THREE.Texture>;
 
-/** True when a host texture's placement — repeat, offset, rotation — is the texture's. */
-const placementHeld = (host: THREE.Texture, texture: Texture) =>
-  host.repeat.x === texture.repeat.x &&
-  host.repeat.y === texture.repeat.y &&
-  host.offset.x === texture.offset.x &&
-  host.offset.y === texture.offset.y &&
-  host.rotation === texture.rotation;
-
-/** True when a host texture's addressing, filters and anisotropy are the texture's. */
-const addressingHeld = (host: THREE.Texture, texture: Texture) =>
-  host.wrapS === WRAP[texture.wrapS] &&
-  host.wrapT === WRAP[texture.wrapT] &&
-  host.minFilter === FILTER[texture.minFilter] &&
-  host.magFilter === FILTER[texture.magFilter] &&
-  host.anisotropy === texture.anisotropy;
-
-/** True when a host texture shows the texture's picture: its image, flip and colour space. */
-const pictureHeld = (host: THREE.Texture, texture: Texture, colour: boolean) =>
-  host.image === texture.image &&
-  host.flipY === texture.flipY &&
-  host.colorSpace === colourSpace(texture, colour);
-
 const colourSpace = (texture: Texture, colour: boolean) =>
   texture.colorSpace === 'srgb' && colour ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
 
 /**
- * Writes a texture's version into the host texture built for it — all of it on a texture just
- * built. Its placement is the UV matrix the import recomposes at its next read
- * (`../../host/surfaceImport.ts`): moved alone, it uploads nothing. Any other move sends the
- * picture again with its sampler state, as the host does on `needsUpdate`.
+ * Writes a texture into the host texture built for it: its placement when its placement counter
+ * moved — the UV matrix the import recomposes once per image (`../../host/surfaceImport.ts`),
+ * nothing uploaded —, and everything else when its version moved, the picture sent again with its
+ * sampler state, as the host does on `needsUpdate`. A texture just built takes both.
  */
 function writeHostTexture(host: THREE.Texture, texture: Texture, colour: boolean) {
-  const placementOnly =
-    host.userData.version !== undefined &&
-    !placementHeld(host, texture) &&
-    addressingHeld(host, texture) &&
-    pictureHeld(host, texture, colour);
+  if (host.userData.placement !== texture.placement) {
+    host.userData.placement = texture.placement;
+    host.repeat.set(texture.repeat.x, texture.repeat.y);
+    host.offset.set(texture.offset.x, texture.offset.y);
+    host.rotation = texture.rotation;
+  }
+  if (host.userData.version === texture.version) return;
   host.userData.version = texture.version;
-  host.repeat.set(texture.repeat.x, texture.repeat.y);
-  host.offset.set(texture.offset.x, texture.offset.y);
-  host.rotation = texture.rotation;
-  if (placementOnly) return;
   host.wrapS = WRAP[texture.wrapS];
   host.wrapT = WRAP[texture.wrapT];
   host.minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter;
@@ -106,7 +82,10 @@ function writeHostTexture(host: THREE.Texture, texture: Texture, colour: boolean
 export function hostTexture(texture: Texture, colour: boolean, built: HostTextures) {
   const key = `${texture.id}@${texture.version}:${colour}`;
   const held = built.get(key);
-  if (held) return held;
+  if (held) {
+    writeHostTexture(held, texture, colour);
+    return held;
+  }
   const pixels = texture.image as { data: ArrayBufferView; width: number; height: number };
   const format = FORMAT[texture.format] ?? THREE.RGBAFormat;
   const host =
@@ -119,12 +98,12 @@ export function hostTexture(texture: Texture, colour: boolean, built: HostTextur
   return host;
 }
 
-/** Writes the version of each map of a material into the host texture a surface holds. */
+/** Writes what moved of each map of a material into the host texture a surface holds. */
 export function repaintHostMaps(into: Record<string, unknown>, material: Material) {
   for (const field of HOST_MAPS) {
     const texture = material[field] as Texture | undefined,
       host = into[field] as THREE.Texture | null | undefined;
-    if (texture?.isTexture && host?.isTexture && host.userData.version !== texture.version)
+    if (texture?.isTexture && host?.isTexture)
       writeHostTexture(host, texture, COLOUR_MAPS.has(field));
   }
 }
