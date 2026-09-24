@@ -20,7 +20,9 @@ export type ClusterGeometry = { index: IndexBuffer; attributes: HostAttributes }
 export type WholeMesh = {
   geometry: { index: IndexBuffer | null; attributes: HostAttributes } & Partial<Released>;
   material: HostMaterials;
-  matrix: { elements: ArrayLike<number> };
+  /** Its world placement, the one the graph resolves through its parents: what it is drawn,
+   *  sorted and culled at. */
+  matrixWorld: { elements: ArrayLike<number> };
   /** Set on a mesh drawn at `count` placements, one matrix each in `instanceMatrix`. */
   readonly kind?: string;
   readonly instanceMatrix?: GpuBuffer;
@@ -51,6 +53,10 @@ export function submittedDraws(backend: object): readonly ClusterDraw[] {
 /** A batch record, as opposed to the whole page mesh of a diagnostic mode. */
 export const isClusterDrawMesh = (draw: ClusterDraw): draw is ClusterDrawMesh =>
   '_multiDrawCount' in draw;
+/** The world placement a submission is drawn at: a batch record carries it, a whole mesh reads
+ *  the world matrix its graph resolved through its parents. */
+export const drawWorld = (draw: ClusterDraw) =>
+  (isClusterDrawMesh(draw) ? draw.matrix : draw.matrixWorld).elements;
 /** Index ranges a submission draws: those of a batch record, the whole index — or the whole
  *  vertex list, a wireframe page being non-indexed — of a page mesh. */
 export function* drawnRanges(draw: ClusterDraw): Generator<[number, number]> {

@@ -4,7 +4,9 @@ import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
+import { GraphGroup, GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
+import { GraphCamera } from '../../host/graph/camera.ts';
+import { readHostDrawCamera } from '../../camera/world.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
 import { GraphAttribute } from '../../host/graph/attributes.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
@@ -70,4 +72,45 @@ test('without a context the draw is refused by name', () => {
     () => draw.drawHostGeometry(createHostDrawCamera(), OUTPUT),
     /HOST_SURFACE_MISSING/,
   );
+});
+
+// Issue #275: a mesh under a moved parent draws at its WORLD placement, as the reference draws it
+// — never at its own local matrix.
+test('a mesh under a translated and rotated group draws where the reference draws it', async () => {
+  const three = await import('three');
+  const pose = (
+    node: {
+      position: { set(...v: number[]): unknown };
+      rotation: { set(...v: number[]): unknown };
+    },
+    p: number[],
+    r: number[],
+  ) => {
+    node.position.set(p[0], p[1], p[2]);
+    node.rotation.set(r[0], r[1], r[2]);
+  };
+  const scene = new GraphScene(),
+    group = new GraphGroup(),
+    child = mesh(3, 0),
+    witness = new three.Group(),
+    witnessChild = new three.Mesh();
+  pose(group, [4, -1, -6], [0.3, 0.9, 0]);
+  pose(witness, [4, -1, -6], [0.3, 0.9, 0]);
+  pose(child, [1, 2, -3], [0, 0, 0.4]);
+  pose(witnessChild, [1, 2, -3], [0, 0, 0.4]);
+  group.add(child);
+  scene.add(group);
+  witness.add(witnessChild);
+  witness.updateMatrixWorld();
+  const context = createTestContext(),
+    draw = createSceneDraw(context.gl, scene),
+    camera = new GraphCamera({ fov: 60, aspect: 1, near: 0.1, far: 100 });
+  draw.render({} as HostCamera);
+  draw.drawHostGeometry(readHostDrawCamera(createHostDrawCamera(), camera), OUTPUT);
+  const uploaded = context
+    .of('uniformMatrix4fv')
+    .find((args) => (args[0] as { uniform: string }).uniform === 'modelViewMatrix')!;
+  const expected = new Float32Array(witnessChild.matrixWorld.elements);
+  assert.deepEqual(Array.from(uploaded[2] as Float32Array), Array.from(expected));
+  draw.dispose();
 });
