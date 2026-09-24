@@ -8,18 +8,17 @@
  * test reads as it did and the engine receives only objects of its own graph.
  */
 import { Color, type ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
-import { box } from '../../../../sdk-core/src/world/geometry/basic.ts';
+import { box, plane, sphere } from '../../../../sdk-core/src/world/geometry/basic.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { resolveCameraWorld } from '../../camera/world.ts';
 import { HOST_FILTER_NEAREST, HOST_FORMAT_RGBA } from '../surfaceConstants.ts';
-import { GraphAttribute, type GraphArray } from './attributes.ts';
+import { GraphAttribute } from './attributes.ts';
 import { GraphCamera } from './camera.ts';
 import { GraphGeometry } from './geometry.ts';
-import { GraphLight } from './light.ts';
 import { GraphMesh } from './mesh.ts';
 import { GraphSurface, type GraphSurfaceFamily } from './surface.ts';
 import { GraphTexture } from './texture.ts';
-import type { GraphNode } from './node.ts';
+import { GraphNode } from './node.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 
 export { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
@@ -27,6 +26,7 @@ export { Color } from '../../../../sdk-core/src/world/math/color.ts';
 export { Euler } from '../../../../sdk-core/src/world/math/euler.ts';
 export { Matrix3, Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
 export { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
+export { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
 export { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 export * from '../surfaceConstants.ts';
 export { GraphAttribute, GraphInterleavedAttribute, GraphInterleavedBuffer } from './attributes.ts';
@@ -39,6 +39,7 @@ export { GraphScene } from './scene.ts';
 export { GraphSurface } from './surface.ts';
 export { GraphTexture } from './texture.ts';
 export { GraphVector } from './vector.ts';
+export * from './graphLights.fixture.ts';
 
 /** The faces a surface draws, as a surface's `side` holds them (`../../scene/materialSide.ts`). */
 export const FRONT_SIDE = 0,
@@ -46,7 +47,10 @@ export const FRONT_SIDE = 0,
   DOUBLE_SIDE = 2;
 
 /** The parameters a surface is declared with. */
-type SurfaceParameters = Record<string, unknown>;
+export type SurfaceParameters = Record<string, unknown>;
+
+/** The depth test that passes only strictly nearer. */
+export const DEPTH_LESS = 2;
 
 /** A drawn node: an empty geometry and an unlit surface unless given. */
 export const mesh = (
@@ -89,36 +93,6 @@ export const orthographicCamera = (
   far = 2000,
 ) => new GraphCamera({ near, far }, { left, right, top, bottom });
 
-const colour = (value: ColorInput | undefined) => new Color(value ?? 0xffffff);
-
-/** A light that shines one way from far off. */
-export function directionalLight(color?: ColorInput, intensity = 1) {
-  const light = new GraphLight('directional', colour(color));
-  light.intensity = intensity;
-  return light;
-}
-
-/** A light that shines every way from a point, fading with distance. */
-export function pointLight(color?: ColorInput, intensity = 1, distance = 0, decay = 2) {
-  const light = new GraphLight('point', colour(color));
-  Object.assign(light, { intensity, distance, decay });
-  return light;
-}
-
-/** A light that shines in a cone. */
-export function spotLight(
-  color?: ColorInput,
-  intensity = 1,
-  distance = 0,
-  angle = Math.PI / 3,
-  penumbra = 0,
-  decay = 2,
-) {
-  const light = new GraphLight('spot', colour(color));
-  Object.assign(light, { intensity, distance, angle, penumbra, decay });
-  return light;
-}
-
 /** A texture of raw texels: read as they are, nearest, no mips, rows not flipped. */
 export function dataTexture(
   data: ArrayBufferView | null = null,
@@ -135,21 +109,33 @@ export function dataTexture(
   return texture;
 }
 
-/** The core's primitive as a geometry of the graph: its attributes, index and groups. */
+/** A texture drawn on a canvas, uploaded at its first use. */
+export function canvasTexture(canvas: unknown) {
+  const texture = new GraphTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/**
+ * The core's primitive as a geometry of the graph, stored as the reference stores its own: 32-bit
+ * floats per vertex, a 16- or 32-bit triangle list, and its groups.
+ */
 function graphGeometry(source: Geometry) {
   const geometry = new GraphGeometry();
   for (const [name, attribute] of Object.entries(source.attributes))
-    geometry.setAttribute(
-      name,
-      new GraphAttribute(attribute.array as GraphArray, attribute.itemSize, attribute.normalized),
-    );
-  if (source.index) geometry.setIndex(new GraphAttribute(source.index.array as GraphArray, 1));
+    geometry.setAttribute(name, floatAttribute(attribute.array, attribute.itemSize));
+  if (source.index) geometry.setIndex(indices(Array.from(source.index.array)));
   for (const group of source.groups) geometry.groups.push({ ...group });
   return geometry;
 }
 
 /** A box centred on the origin. */
 export const boxGeometry = (...sizes: Parameters<typeof box>) => graphGeometry(box(...sizes));
+/** A rectangle in the `xy` plane, facing `+z`. */
+export const planeGeometry = (...sizes: Parameters<typeof plane>) => graphGeometry(plane(...sizes));
+/** A sphere, its poles on `y`. */
+export const sphereGeometry = (...sizes: Parameters<typeof sphere>) =>
+  graphGeometry(sphere(...sizes));
 
 /** A triangle list as the reference stores one: 16-bit while every vertex fits, else 32-bit. */
 export const indices = (list: readonly number[]) =>
@@ -167,4 +153,13 @@ export const xyzw = (q: { x: number; y: number; z: number; w: number }) => [q.x,
 /** Where a node stands in the world, its chain resolved first. */
 export function worldPosition(node: GraphNode, target = new Vector3()) {
   return target.setFromMatrixPosition(resolveCameraWorld(node).matrixWorld);
+}
+
+/** The first node of the subtree with that name, the root included. */
+export function byName(root: GraphNode, name: string) {
+  let found: GraphNode | undefined;
+  root.traverse((node) => {
+    if (!found && node.name === name) found = node;
+  });
+  return found;
 }

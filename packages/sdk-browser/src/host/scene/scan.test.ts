@@ -3,7 +3,6 @@
 // once, the same value read again is nothing, and the reference's own walk writes nothing new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
 import * as G from '../graph/graph.fixture.ts';
 import { scan, snapshot, type WatchVerdict } from './scan.ts';
 
@@ -12,7 +11,7 @@ function scene() {
   const mesh = G.mesh();
   parent.add(mesh);
   const light = G.spotLight(0xffffff, 1, 10, 0.5, 0.2, 2);
-  const sky = new THREE.HemisphereLight(0xffffff, 0x404040, 1);
+  const sky = G.hemisphereLight(0xffffff, 0x404040, 1);
   return { parent, mesh, light, sky };
 }
 

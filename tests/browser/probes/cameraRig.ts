@@ -83,3 +83,7 @@ export function cameraSansParent(pose: PoseLibre, fov = 55, aspect = 16 / 9): G.
   camera.updateMatrixWorld();
   return camera;
 }
+
+/** A point in normalised device coordinates: seen from `camera`, then projected by it. */
+export const project = (point: G.Vector3, camera: G.GraphCamera) =>
+  point.applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix);

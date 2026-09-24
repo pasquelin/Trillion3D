@@ -9,7 +9,7 @@
 //
 // node --experimental-strip-types tests/browser/probes/cone-non-uniform-scale.ts
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import {
   coneContextFor,
   coneCullsPageWith,
@@ -29,6 +29,7 @@ import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/con
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { triggerCase } from './coneNonUniformScaleCase.ts';
+import { project } from './cameraRig.ts';
 
 const { positions, indices, cone, min, max, world, camera } = triggerCase();
 const TRIANGLES = indices.length / 3;
@@ -37,14 +38,16 @@ const VIEWPORT: [number, number] = [1000, 1000];
 /** What the camera sees, computed on world vertices: the face is visible, and large. */
 function temoin() {
   const sommets = [0, 1, 2].map((i) =>
-    new THREE.Vector3().fromArray(positions, i * 3).applyMatrix4(world),
+    new G.Vector3().fromArray(positions, i * 3).applyMatrix4(world),
   );
-  const normale = new THREE.Vector3()
+  const normale = new G.Vector3()
     .subVectors(sommets[1], sommets[0])
-    .cross(new THREE.Vector3().subVectors(sommets[2], sommets[0]))
+    .cross(new G.Vector3().subVectors(sommets[2], sommets[0]))
     .normalize();
-  const face = normale.dot(camera.position.clone().sub(sommets[0]).normalize());
-  const ndc = sommets.map((v) => v.clone().project(camera));
+  const face = normale.dot(
+    new G.Vector3().copy(camera.position.clone().sub(sommets[0])).normalize(),
+  );
+  const ndc = sommets.map((v) => project(v.clone(), camera));
   const aire =
     (Math.abs(
       (ndc[1].x - ndc[0].x) * (ndc[2].y - ndc[0].y) - (ndc[2].x - ndc[0].x) * (ndc[1].y - ndc[0].y),
@@ -58,9 +61,7 @@ function temoin() {
 
 /** The engine's CPU cut, cones on or off. */
 function coupeCpu(cones: boolean) {
-  const box = new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max)).applyMatrix4(
-    world,
-  );
+  const box = new G.Box3(new G.Vector3(...min), new G.Vector3(...max)).applyMatrix4(world);
   const page = {
     id: '0',
     url: '0',
@@ -70,7 +71,7 @@ function coupeCpu(cones: boolean) {
     cone,
     lodError: 0,
     matrix: world,
-    material: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.FrontSide })),
+    material: surfaceOf(G.basicSurface({ side: G.FRONT_SIDE })),
   };
   const root = {
     world,

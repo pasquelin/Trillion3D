@@ -13,7 +13,7 @@
 //
 // node --experimental-strip-types tests/browser/probes/error-floor-cpu-gpu.ts
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
@@ -45,7 +45,7 @@ const POSES: Array<[string, number, number, number, number[]]> = [
   ['four depths, 1 px', 0, 16, 1, [0, 12, 30, 70]],
 ];
 const pages = scenePages(4096, 8);
-const camera = new THREE.PerspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 200);
+const camera = G.perspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 200);
 
 const cas: Array<{
   nom: string;
@@ -57,7 +57,7 @@ const cas: Array<{
   oracle: ReturnType<typeof evaluateDagSelectionKernel>;
 }> = [];
 for (const [nom, x, z, seuil, profondeurs] of POSES) {
-  const mondes = profondeurs.map((p) => new THREE.Matrix4().makeTranslation(0, 0, -p));
+  const mondes = profondeurs.map((p) => new G.Matrix4().makeTranslation(0, 0, -p));
   const roots = sceneRoots(pages, mondes);
   camera.position.set(x, 0, z);
   camera.lookAt(x, 0, 0);
