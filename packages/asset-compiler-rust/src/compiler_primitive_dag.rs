@@ -22,6 +22,8 @@ pub(super) struct DagResult {
     pub stream_report: Value,
     /// Grid the primitive's pages were quantized on.
     pub position_exponent: i32,
+    /// The primitive's cooked collision (`physics_cook::cook_primitive`).
+    pub collision: Value,
 }
 
 /// Minimum, median and maximum of a DAG level's errors. Three order statistics
@@ -108,6 +110,9 @@ pub(super) fn build_dag_primitive(
         crate::dag::build_culling_bvh(pos, &dag)
     };
     laps.lap("cullingMs");
+    let collision =
+        crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)?;
+    laps.lap("physicsMs");
     let base_id = 0usize;
     let mut page_of = vec![0usize; dag.len()];
     for (rank, &slot) in order.iter().enumerate() {
@@ -190,5 +195,6 @@ pub(super) fn build_dag_primitive(
         structure_report,
         stream_report,
         position_exponent,
+        collision,
     })
 }

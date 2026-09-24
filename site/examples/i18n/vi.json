@@ -1908,6 +1908,40 @@
       }
     }
   },
+  "rolling-on-terrain": {
+    "banner": "Nhấp vào mặt đất để thả một quả bóng ở đó. Mưa thả thêm hai mươi quả.",
+    "controls": {
+      "matter": "Chất liệu",
+      "rain": "Mưa"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "cao su",
+        "stone": "đá",
+        "ice": "băng"
+      }
+    },
+    "words": {
+      "credit": "Thung lũng được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "Người đi bộ đi vòng quanh sảnh và đẩy các quả bóng. Bóng thêm hai mươi quả.",
+    "controls": {
+      "walking": "Đi bộ",
+      "balls": "Bóng"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng.",
     "controls": {
