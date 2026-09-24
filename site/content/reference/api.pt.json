@@ -1662,7 +1662,7 @@
       "scope": "`'full'` exige o cache inteiro, `'progressive'` seu recorte transmitido; um modelo de outro escopo é recusado pelo nome. Se não definido, o modelo é lido no escopo que seu ponteiro declara.",
       "stream": "Um streamer que a página configurou; a sessão do mundo transmite com o seu próprio.",
       "position": "Para onde vai a origem do modelo na cena.",
-      "onProgress": "Ouve até onde o carregamento chegou: `manifest` quando o manifesto é lido, depois `resources` à medida que chega cada arquivo que a cena lê (`completed` de um `total` conhecido até então). O evento é um `JobProgress`: um `createJob` que envolve o carregamento passa aqui o seu `progress`."
+      "onProgress": "Ouve até onde o carregamento chegou: `bytes` a cada pedaço de cada arquivo lido, até `completed === total`; `manifest` quando o manifesto é lido, `tables` quando as tabelas da cena são lidas, e depois `resources` à chegada de cada arquivo que a cena lê (`completed` de `total` conhecido até agora). O evento é um `JobProgress`: um `createJob` que envolve o carregamento passa aqui o seu `progress`, e `world.awaitPages` relata as primeiras páginas na mesma forma."
     }
   },
   "LoadedModel": {
@@ -3900,7 +3900,10 @@
     "summary": "Perfil por etapa dos quadros da sessão."
   },
   "world.awaitPages": {
-    "summary": "Resolve assim que as páginas que a visão atual lê estão residentes (`awaitViewPages`)."
+    "summary": "Resolve assim que as páginas que a visão atual lê estão residentes (`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress` ouve `pages`, `completed` de `total`, à medida que chegam."
+    }
   },
   "world.dispose": {
     "summary": "Para o mundo e devolve tudo que ele tomou: memória de GPU, laço, controles."
