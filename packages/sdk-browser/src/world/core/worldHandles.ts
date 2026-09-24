@@ -1,88 +1,9 @@
-import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
-import {
-  DIAGNOSTICS,
-  type EngineError,
-  type FrameMetrics,
-} from '../../../../sdk-core/src/index.ts';
-import { engineErrorOf } from '../../../../sdk-core/src/contracts/errorCodes.ts';
+import { DIAGNOSTICS, type EngineError } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
-import type { WorldRenderer } from '../capability/worldReady.ts';
-import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
-import { raycastTreeBudget } from '../../../../sdk-core/src/world/object/raycastTrees.ts';
+import { engineErrorOf } from '../../../../sdk-core/src/contracts/errorCodes.ts';
 
 export { worldControlsHandle } from './worldControlsHandle.ts';
-
-/** The pools a page asks for, kept to open every later session with them. */
-export type Pools = { geometryPool?: number; texturePool?: number };
-
-/**
- * `world.budget`: the fixed pools, as properties. A write is clamped to its ceiling and applied
- * with the session's `setMemoryBudgets`; two writes before the next frame make one rebalance. A
- * read is what the last frame held, or what was asked before the first.
- */
-export function worldBudget(
-  pools: Pools,
-  session: { readonly explorer: MeasuredWorld | null },
-  frames: { readonly last: FrameMetrics | null },
-  renderer: () => WorldRenderer | null,
-  physics: PhysicsBudget,
-) {
-  let pending = false;
-  const rebalance = () => {
-    if (pending) return;
-    pending = true;
-    queueMicrotask(() => {
-      pending = false;
-      void session.explorer?.setMemoryBudgets({
-        geometryPoolBytes: pools.geometryPool,
-        texturePoolBytes: pools.texturePool,
-      });
-    });
-  };
-  // What the last frame published, `null` or `undefined` when it held no such pool.
-  const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key];
-  return {
-    /** The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the
-     *  physics starts; exceeding one raises `PHYSICS_BUDGET`. */
-    physics,
-    /** The largest pools a world may ask for: the engine's starting budgets. */
-    get geometryPoolCeiling() {
-      return DEFAULT_GEOMETRY_POOL_BUDGET;
-    },
-    /** The largest texture pool a world may ask for, in bytes. */
-    get texturePoolCeiling() {
-      return DEFAULT_TEXTURE_POOL_BUDGET;
-    },
-    /** Bytes of GPU memory kept for geometry pages; set it to change the envelope. */
-    get geometryPool() {
-      return held('geometryPoolBytes') ?? pools.geometryPool ?? DEFAULT_GEOMETRY_POOL_BUDGET;
-    },
-    set geometryPool(bytes: number) {
-      pools.geometryPool = Math.min(bytes, DEFAULT_GEOMETRY_POOL_BUDGET);
-      rebalance();
-    },
-    /** Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool
-     *  (WebGL2); set it to change the envelope. */
-    get texturePool(): number | null {
-      if (renderer() === 'webgl2') return null;
-      return held('texturePoolBytes') ?? pools.texturePool ?? DEFAULT_TEXTURE_POOL_BUDGET;
-    },
-    set texturePool(bytes: number) {
-      pools.texturePool = Math.min(bytes, DEFAULT_TEXTURE_POOL_BUDGET);
-      rebalance();
-    },
-    /** Bytes of CPU memory `raycast` keeps for triangle trees, shared by every world on the page;
-     *  past it the tree cast at least recently is dropped. Set it to change the envelope. */
-    get raycastTrees() {
-      return raycastTreeBudget.bytes;
-    },
-    set raycastTrees(bytes: number) {
-      raycastTreeBudget.bytes = bytes;
-    },
-  };
-}
 
 /** The modes a page may name: every diagnostic the engine offers, and `triangles`. */
 const WORLD_MODES = [
