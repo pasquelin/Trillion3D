@@ -13,6 +13,7 @@ mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]
 pub mod oracle;
 mod perf;
+pub mod physics_cook;
 pub mod plugins;
 pub mod proxy;
 mod qem;
