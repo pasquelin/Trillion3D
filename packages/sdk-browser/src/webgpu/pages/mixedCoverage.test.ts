@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { webgpuPagesBackend } from './pages.ts';
@@ -10,6 +10,9 @@ import { quadScene, camera } from './testScenes.fixture.ts';
 
 test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async () => {
   installGpuGlobals();
+  // The clock stands still: on a loaded machine the page uploads would otherwise yield between
+  // slices (`UPLOAD_SLICE_MS`) and land a frame later, and what the test counts would follow it.
+  mock.method(performance, 'now', () => 0);
   const fixture = quadScene(),
     blend = quadScene();
   const mesh = blend.source.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
@@ -63,6 +66,7 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
     assert.equal(backend.metrics().transparentSubmittedTriangles, 2);
     assert.equal(backend.metrics().submittedTriangles, 4);
   } finally {
+    mock.restoreAll();
     await backend.dispose();
     fixture.geometry.dispose();
     fixture.material.dispose();
