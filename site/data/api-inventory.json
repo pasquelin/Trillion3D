@@ -918,6 +918,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/session.ts",
         "packages/sdk-browser/src/physics/view.ts",
@@ -2332,6 +2333,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/cooked.test.ts",
+        "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/module.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
@@ -3542,6 +3544,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/cooked.test.ts",
+        "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
@@ -4203,6 +4207,80 @@
       "bindingIdentity": "\"packages/sdk-core/src/runtime/jobs\".JobStatus"
     },
     {
+      "name": "joint",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/joints.test.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".joint"
+    },
+    {
+      "name": "Joint",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/jointList.ts",
+        "packages/sdk-browser/src/physics/joints.fixture.ts",
+        "packages/sdk-browser/src/physics/joints.ts",
+        "packages/sdk-browser/src/physics/session.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".Joint"
+    },
+    {
+      "name": "JointKind",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointKind"
+    },
+    {
+      "name": "JointLimits",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointLimits"
+    },
+    {
+      "name": "JointMotor",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/joints.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointMotor"
+    },
+    {
+      "name": "JointOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointOptions"
+    },
+    {
       "name": "JsonSchemaObject",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/llm/types.ts",
@@ -4632,6 +4710,8 @@
         "packages/sdk-browser/src/backend/autonomous/pages.test.ts",
         "packages/sdk-browser/src/host/pageObjects.test.ts",
         "packages/sdk-browser/src/host/pageObjects.ts",
+        "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
@@ -4665,6 +4745,8 @@
         "packages/sdk-browser/src/backend/autonomous/pages.test.ts",
         "packages/sdk-browser/src/host/pageObjects.test.ts",
         "packages/sdk-browser/src/host/pageObjects.ts",
+        "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
@@ -4973,6 +5055,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
@@ -5275,6 +5359,7 @@
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/contacts.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
+        "packages/sdk-browser/src/physics/joints.ts",
         "packages/sdk-browser/src/physics/placer.ts",
         "packages/sdk-browser/src/physics/poses.ts",
         "packages/sdk-browser/src/physics/raycast.ts",
@@ -5943,6 +6028,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
+        "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/physics/sessionHost.ts"
@@ -6034,7 +6120,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/physics/joints.fixture.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsType"
     },
@@ -6841,7 +6927,8 @@
         "packages/sdk-browser/src/camera/controls/math.ts",
         "packages/sdk-browser/src/camera/controls/pivot.ts",
         "packages/sdk-browser/src/camera/controls/steering.fixture.ts",
-        "packages/sdk-browser/src/camera/controls/trackballControls.ts"
+        "packages/sdk-browser/src/camera/controls/trackballControls.ts",
+        "packages/sdk-browser/src/physics/joints.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/quaternion\".rotateByQuaternion"
