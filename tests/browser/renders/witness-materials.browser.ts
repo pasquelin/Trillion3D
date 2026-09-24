@@ -1,9 +1,10 @@
 // Proof by the real render: what a material is worth on screen, engine against witness. Every
-// fixture of `tests/browser/support/materialFixtures.ts` is drawn by `three-webgl-reference` and by
-// `webgpu-page-raster`, both from `dist/`, and read pixel by pixel at the points that exercise
-// its feature — base colour, its map, alpha MASK at its cutoff, BLEND, emissive, metal-roughness,
-// normal map, double-sided. A gap outside the fixture's declared window, a missing render
-// diagnostic, a GPU failure or an engine image that never holds turns the run red.
+// fixture of `tests/browser/support/materialFixtures.ts` is drawn by its pair of renderers, all
+// from `dist/` — `three-webgl-reference` and `webgpu-page-raster`, or WebGPU and the WebGL2 exact
+// pages path where the fixture names them (glass, #479) — and read pixel by pixel at the points
+// that exercise its feature — base colour, its map, alpha MASK at its cutoff, BLEND, emissive,
+// metal-roughness, normal map, double-sided, glass. A gap outside the fixture's declared window,
+// a missing render diagnostic, a GPU failure or an engine image that never holds turns the run red.
 //
 // The harness server of `bench/runner` serves the page and its import map, the SDK, the page
 // modules of `tests/` and the engine sources they import; nothing outside this repository is
@@ -85,21 +86,22 @@ for (const fixture of result.results) {
   if (fixture.holes !== undefined)
     assert.equal(fixture.holes, 0, `${fixture.name}: ${fixture.holes} pixels show the background`);
   const [least, most] = fixture.difference;
-  for (const { point, witness, engine, gap } of fixture.samples)
+  const [reference, read] = fixture.pair;
+  for (const { point, reference: expected, engine, gap } of fixture.samples)
     assert.ok(
       gap >= least && gap <= most,
-      `${fixture.name} (${point}): witness ${witness}, engine ${engine}, ` +
+      `${fixture.name} (${point}): ${reference} ${expected}, ${read} ${engine}, ` +
         `gap ${gap} outside ${least}–${most} (${fixture.reason})`,
     );
 }
 // #361: anisotropy 16 against 1 on the grazing stripes: each engine must gain contrast.
-const spread = (name: string, side: 'witness' | 'engine') => {
+const spread = (name: string, side: 'reference' | 'engine') => {
   const means = result
     .results!.find((fixture) => fixture.name === name)!
     .samples.map((sample) => sample[side].reduce((sum, c) => sum + c, 0) / sample[side].length);
   return Math.max(...means) - Math.min(...means);
 };
-for (const side of ['witness', 'engine'] as const) {
+for (const side of ['reference', 'engine'] as const) {
   const flat = spread('grazing stripes, anisotropy 1', side),
     sharp = spread('grazing stripes, anisotropy 16', side);
   assert.ok(
@@ -109,5 +111,5 @@ for (const side of ['witness', 'engine'] as const) {
   );
 }
 console.log(
-  `OK: ${result.results.length} material fixtures agree with the witness — ${result.gpu}`,
+  `OK: ${result.results.length} material fixtures agree with their reference — ${result.gpu}`,
 );
