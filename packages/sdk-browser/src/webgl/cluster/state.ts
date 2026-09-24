@@ -1,5 +1,6 @@
 import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
-import { BLEND_EQUATIONS, blendingOf } from '../../scene/materialBlending.ts';
+import { BLEND_EQUATIONS, blendingOf, drawnBlending } from '../../scene/materialBlending.ts';
+import { isTransmissive } from '../../visibility/shader/material.ts';
 
 type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 
@@ -14,10 +15,12 @@ const glBlendEnums = (gl: WebGL2RenderingContext): Record<string, number> => ({
   add: gl.FUNC_ADD,
 });
 
-/** The equation of a transparent surface's mode, or `undefined` when it replaces the target. The
- *  gate (`../../host/surfaceGate.ts`) has refused a mode the engine has no name for. */
+/** The equation of a transparent surface's mode, or `undefined` when it replaces the target: the
+ *  mode every path draws, refused by the one refusal the gate shares (`drawnBlending`). */
 const equationOf = (material: Material) =>
-  BLEND_EQUATIONS[blendingOf(material.blending as number | undefined)!];
+  BLEND_EQUATIONS[
+    drawnBlending(blendingOf(material.blending as number | undefined), isTransmissive(material))
+  ];
 
 const depthFunction = (gl: WebGL2RenderingContext, value: number) => {
   switch (value) {
