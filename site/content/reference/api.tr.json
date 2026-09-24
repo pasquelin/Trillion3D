@@ -1669,6 +1669,7 @@
       "bounds": "Modelin kendi çerçevesinde doldurduğu kutu.",
       "lights": "Model altındaki ışıklar — kaynak dosyanın düğümler olarak taşıdıkları: bir sayfa onları kendisininmiş gibi düzenler, hareket ettirir ya da kaldırır, ve modelle birlikte hareket ederler.",
       "record": "Dünyanın bu model hakkında tuttuğu her şey: adresleri, manifestosu ve grafiği.",
+      "getObjectByName": "Altta bu adı taşıyan ilk düğüm: model, kaynak dosyasının bir düğümü, sonra başka herhangi bir çocuk — dosyanın taşıdığı ışık, bir sayfanın yerleştirdiği düğüm.",
       "metadata": "Modelin derlenmiş manifestosu — primitifleri, `sourceTriangles` — ve `clusters`, sayfalarının tuttuğu cluster'lar, DAG'larının her seviyesi sayılmış.",
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
     }
