@@ -19,14 +19,20 @@ import type { JoltModule } from './joltModule.ts';
 export function createWaterStep() {
   let water: Water | null = null,
     cut = 0,
-    time = 0;
+    time = 0,
+    epoch = 0;
   const words = new StepWords();
   return {
-    /** Declares the water (null removes it); its waves start at 0 s. */
-    set(spec: WaterSpec | null) {
+    /** Declares the water (null removes it), the page's `epoch` for it; its waves start at 0 s. */
+    set(spec: WaterSpec | null, from: number) {
+      epoch = from;
       water = spec ? createWater(spec) : null;
       cut = water ? sliceLength(water) : 0;
       time = 0;
+    },
+    /** The epoch the page gave the water set last. */
+    get epoch() {
+      return epoch;
     },
     /** Simulated seconds the waves have run since the water was set. */
     get time() {

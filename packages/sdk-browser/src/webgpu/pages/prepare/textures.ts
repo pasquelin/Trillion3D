@@ -127,7 +127,8 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       },
     });
   // Out of memory absorbed: the lane pools are those the device grants, allocated once, under the
-  // out-of-memory scope (`poolGrants.ts`).
+  // out-of-memory scope (`poolGrants.ts`). One refused even at its floor is refused by name, never
+  // allocated at the full request outside any scope: the material pipeline then drops.
   const granted = await grantedTexturePool(
     gpuDevice,
     budget,
@@ -135,9 +136,12 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     diag.engineDiagnostic,
     (pool) => streamer(pool.layers),
   );
-  const pools = { choice, encoding, pool: granted?.pool ?? poolFor(budget), poolFor };
+  if (!granted) throw new Error('WEBGPU_TEXTURE_POOL_REFUSED');
+  const pools = { choice, encoding, pool: granted.pool, poolFor };
   rt.setup.texturePools = pools;
-  const textures = granted?.made ?? streamer(pools.pool.layers);
+  // The budget recorded is the one granted, not the one asked.
+  rt.setup.texturePoolBudget = granted.pool.budgetBytes;
+  const textures = granted.made;
   textures.prepare();
   vis.textures = textures;
   diag.engineDiagnostic('material-textures-ready', 'Textures and filtering ready', {

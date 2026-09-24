@@ -178,7 +178,7 @@ test('a named blending is admitted, an unnamed one and a transmissive non-normal
       mode,
     );
   const custom = G.basicSurface({ transparent: true, blending: 5 });
-  assert.match(clusterMaterialReason(custom, { position })!, /blending 5, which no path draws/);
+  assert.match(clusterMaterialReason(custom, { position })!, /no path draws \(blending 5\)/);
   const glass = G.physicalSurface({ transmission: 1, blending: hostBlending('additive') });
   assert.match(
     clusterMaterialReason(glass, { position, normal }, true)!,
