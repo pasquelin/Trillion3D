@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Appuie sur Jouer, puis cours avec W A S D et saute avec Espace.",
+    "banner": "Appuie sur Jouer, puis cours avec W A S D et saute avec Espace. Lâche tôt : sur la pierre, tu glisses un peu avant de t’arrêter.",
     "controls": {
       "keys": "Le contrôle de personnage du moteur : le Jouer du menu capture la souris pour regarder, W A S D pour courir (Z Q S D en AZERTY), Maj pour sprinter, Espace pour sauter, Échap libère la souris. La page ajoute R pour recommencer la course, M pour couper le son.",
       "look": "Regard",
@@ -1937,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses.",
+    "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses, et lâchez les touches sur la glace pour glisser.",
     "controls": {
       "pushStrength": "Force de poussée (N)",
       "platformSpeed": "Vitesse de la plateforme",
