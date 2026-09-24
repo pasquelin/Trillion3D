@@ -26,7 +26,7 @@ test('paged transparent commands disappear outside the view and return with both
       fixture.indices,
       fixture.associations,
     ).roots;
-    const mock = mockGpu(undefined, gpuCut ? packDagSelection(roots) : undefined);
+    const mock = mockGpu({ packed: gpuCut ? packDagSelection(roots) : undefined });
     const backend = webgpuPagesBackend({
       ...fixture,
       gpuDevice: mock.device,

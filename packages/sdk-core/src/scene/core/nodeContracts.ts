@@ -17,8 +17,6 @@ export interface SceneNodeOptions {
 export type SceneState = {
   /** The transform tree. */
   tree: TransformTree;
-  /** Nodes by slot. */
-  nodes: Map<number, SceneNode>;
   /** Nodes by name. */
   ids: Map<string, SceneNode>;
   /** The next free name number. */

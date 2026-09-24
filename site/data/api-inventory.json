@@ -2733,7 +2733,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/host/graph/node.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/euler\".Euler"
     },
@@ -4898,7 +4898,6 @@
       "affectedConsumers": [
         "bench/oracles/browser/view-frame.ts",
         "packages/sdk-browser/src/host/graph/camera.ts",
-        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/webgpu/cut/publication.test.ts"
       ],
@@ -5368,6 +5367,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/contacts.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
@@ -6774,7 +6774,6 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
@@ -8320,6 +8319,7 @@
         "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.ts",
+        "packages/sdk-browser/src/webgpu/tile/scratch.test.ts",
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
         "packages/sdk-browser/src/webgpu/tile/streamerSampling.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
@@ -8371,6 +8371,7 @@
         "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.ts",
+        "packages/sdk-browser/src/webgpu/tile/scratch.test.ts",
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
         "packages/sdk-browser/src/webgpu/tile/streamerSampling.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
@@ -8817,6 +8818,17 @@
       "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transformMath\".TransformMode"
     },
     {
+      "name": "TransformNode",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/object/transformNode.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/object/transformNode\".TransformNode"
+    },
+    {
       "name": "transformPointsBatch",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/batch/points.ts",
@@ -9173,7 +9185,6 @@
         "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/graph/light.ts",
-        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/scene/graphObjects.ts",
         "packages/sdk-browser/src/physics/bodies.ts",

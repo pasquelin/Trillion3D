@@ -74,7 +74,7 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
     fixture.indices,
     fixture.associations,
   );
-  const { device } = mockGpu(undefined, packDagSelection(collected.roots));
+  const { device } = mockGpu({ packed: packDagSelection(collected.roots) });
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
