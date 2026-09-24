@@ -1894,6 +1894,19 @@
       "bodies": "Bodies",
       "awake": "Awake",
       "step": "Step"
+    },
+    "choices": {
+      "matter": {
+        "wood": "wood",
+        "rubber": "rubber",
+        "ice": "ice"
+      },
+      "gravity": {
+        "earth": "Earth",
+        "moon": "Moon",
+        "mars": "Mars",
+        "none": "none"
+      }
     }
   },
   "ten-thousand-bodies": {
@@ -1907,6 +1920,13 @@
       "awake": "Awake",
       "step": "Step",
       "page": "Page"
+    },
+    "choices": {
+      "count": {
+        "10000": "10,000",
+        "5000": "5,000",
+        "1000": "1,000"
+      }
     }
   }
 }

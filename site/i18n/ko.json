@@ -480,7 +480,6 @@
       "sort-and-reduce": "GPU 연산 API",
       "a-software-rasteriser": "GPU 연산 API",
       "sound-from-the-gpu": "GPU 연산 API",
-      "falling-boxes": "물리 엔진 연동",
       "breaking-things": "물리 엔진 연동",
       "cloth-and-rope": "물리 엔진 연동",
       "soft-bodies": "물리 엔진 연동",
