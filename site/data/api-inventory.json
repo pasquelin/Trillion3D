@@ -1419,6 +1419,8 @@
         "packages/sdk-browser/src/lighting/contractLightingApi.ts",
         "packages/sdk-browser/src/lighting/contractLights.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/sceneFog.test.ts",
+        "packages/sdk-browser/src/world/core/sceneFog.ts",
         "packages/sdk-browser/src/world/core/worldBackground.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
@@ -2846,6 +2848,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/flyControls\".FlyCameraControls"
+    },
+    {
+      "name": "Fog",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/core/sceneFog.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/core/sceneFog\".Fog"
     },
     {
       "name": "FORMAT_VERSION",
@@ -7103,7 +7116,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/state/lights.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/lighting/fogShader.test.ts",
+        "packages/sdk-browser/src/webgpu/pages/state/lights.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/core/environment\".SCENE_ENVIRONMENT_FLOATS"
     },
@@ -7207,6 +7223,36 @@
       "bindingIdentity": "\"packages/sdk-core/src/scene/core/environment\".SceneEnvironment"
     },
     {
+      "name": "SceneExponentialFog",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/scene/core/fog.ts",
+      "currentEntryPoints": ["trillion3d (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/world/core/sceneFog.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/scene/core/fog\".SceneExponentialFog"
+    },
+    {
+      "name": "SceneFog",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/scene/core/fog.ts",
+      "currentEntryPoints": ["trillion3d (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/scene.ts",
+        "packages/sdk-browser/src/lighting/fogShader.test.ts",
+        "packages/sdk-browser/src/webgl/cluster/fog.ts",
+        "packages/sdk-browser/src/webgl/cluster/lights.ts",
+        "packages/sdk-browser/src/world/core/sceneFog.ts",
+        "packages/sdk-browser/src/world/core/worldRuntime.ts",
+        "packages/sdk-browser/src/world/saved/format.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/scene/core/fog\".SceneFog"
+    },
+    {
       "name": "SceneLight",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/scene/light/contracts.ts",
@@ -7266,6 +7312,17 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light/store\".SceneLightStore"
+    },
+    {
+      "name": "SceneLinearFog",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/scene/core/fog.ts",
+      "currentEntryPoints": ["trillion3d (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/world/core/sceneFog.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/scene/core/fog\".SceneLinearFog"
     },
     {
       "name": "SceneLink",
