@@ -10,6 +10,7 @@ import { loadPreparedScene } from '../scene/scene.ts';
 import { primePartitions } from '../scene/partitionFrame.ts';
 import type { ExplorerSession } from './session.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
+import type { HostCamera } from '../../camera/world.ts';
 
 export type ExplorerResources = {
   source?: BackendContext['source'];
@@ -27,10 +28,14 @@ export type ExplorerSource = {
   base: string;
   metadata: import('../../../../sdk-core/src/index.ts').ClusterManifest;
   scene: ExplorerScene;
+  /** Puts the session's camera where the page draws from, before anything is read for it: a
+   *  partitioned scene reads and sizes its cells for that camera, not the framing one. */
+  placeCamera?: (camera: HostCamera) => void;
 };
 
 type Inputs = {
   scene?: ExplorerScene;
+  placeCamera?: ExplorerSource['placeCamera'];
   manifestUrl: string;
   metadataUrl: string;
   base: string;
@@ -120,7 +125,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   );
   loadedScene.framingLot?.release();
   // The cells the first camera needs are placed before the engines read their rows: the first
-  // frame reads them and nothing further (`partitionFrame.ts`).
+  // frame reads them and nothing further (`partitionFrame.ts`). That camera is the page's when it
+  // hands one in (a world), else the framing one, which sees the whole scene.
+  inputs.placeCamera?.(cameraState.camera);
   if (loadedScene.partitions.length) {
     const bytes = await primePartitions(
       loadedScene.partitions,

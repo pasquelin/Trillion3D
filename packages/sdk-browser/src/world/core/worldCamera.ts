@@ -63,6 +63,12 @@ export function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number
   into.updateMatrixWorld();
 }
 
+/** Puts a session's camera on the page's `camera()`, at the shape of `canvas`: before the session
+ *  reads anything for its first frame, then before every frame. */
+export const followPageCamera =
+  (camera: () => Camera, canvas: HTMLCanvasElement) => (into: HostCamera) =>
+    copyWorldCamera(camera(), into, drawnAspect(canvas));
+
 const view = new Float64Array(4);
 /** The host renderer's orthographic matrix — forward depth, `near` to −1 and `far` to 1 — of
  *  the box a camera sees, scaled by its zoom about the box centre, and its inverse. */
