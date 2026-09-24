@@ -82,7 +82,7 @@
       video.loop = true;
       video.playsInline = true;
       video.srcObject = studio.captureStream(30);
-      video.play().catch(() => {});
+      video.play();
 
       // The video on a great sphere seen from inside, unlit, and the camera at its centre. The
       // sphere's picture runs from +x towards +z, left to right for an eye at its centre.
@@ -103,7 +103,7 @@
         fieldOfView: [40, 110, 75, 1],
         openVideo: () => picker.click(),
       }, (values, key) => {
-        if (key === 'playing') values.playing ? video.play().catch(() => {}) : video.pause();
+        if (key === 'playing') values.playing ? video.play() : video.pause();
         world.camera.fov = values.fieldOfView;
         world.invalidate();
       }, world);

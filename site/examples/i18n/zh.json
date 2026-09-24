@@ -1187,7 +1187,6 @@
     }
   },
   "migrating-from-three": {
-    "banner": "拖动绕着胸像、木箱和玻璃球转。",
     "words": {
       "credit": "Marble Bust 01，作者 Rico Cilliers，Poly Haven，CC0；木箱作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"
     }
