@@ -7,6 +7,7 @@ import { sampleLinear } from './math.ts';
 import { texture } from '../world/texture/index.ts';
 import { hostTexture } from '../world/core/worldTextures.ts';
 import { importHostTexture } from '../host/textureImport.ts';
+import { GraphTexture } from '../host/graph/graph.fixture.ts';
 
 // Two rows of two texels, first row first: A B over C D.
 const A = [255, 0, 0, 255],
@@ -38,4 +39,16 @@ test('a turned, tiled flipY picture: repeat, then a counter-clockwise turn, then
   assert.deepEqual(m, [0, -2, 0, 2, 0, 0, 0, 0, 1]);
   // (0.3, 0.1) reads (0.2, -0.6), wrapped to (0.2, 0.4): the lower row, left — C.
   assert.deepEqual(sampleLinear(map, 0.3, 0.1), [0, 0, 1]);
+});
+
+test('a premultiplyAlpha picture is read colour times alpha, as both GPU paths upload it', () => {
+  const host = new GraphTexture({ data: new Uint8Array([255, 102, 0, 128]), width: 1, height: 1 });
+  host.flipY = false;
+  host.premultiplyAlpha = true;
+  const map = importHostTexture(host);
+  // 255 × 128 / 255 = 128, 102 × 128 / 255 = 51.2 → 51: the bytes the upload stores.
+  assert.deepEqual(sampleLinear(map, 0.5, 0.5), [128 / 255, 51 / 255, 0]);
+  host.premultiplyAlpha = false;
+  host.version++;
+  assert.deepEqual(sampleLinear(importHostTexture(host), 0.5, 0.5), [1, 102 / 255, 0]);
 });
