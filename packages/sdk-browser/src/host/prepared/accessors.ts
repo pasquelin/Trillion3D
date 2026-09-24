@@ -12,7 +12,7 @@ import type {
 } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 
 /** Storage of each glTF component type. */
-export const COMPONENTS = {
+const COMPONENTS = {
   5120: Int8Array,
   5121: Uint8Array,
   5122: Int16Array,
@@ -21,7 +21,7 @@ export const COMPONENTS = {
   5126: Float32Array,
 } as const;
 /** Components per element of each glTF element type. */
-export const WIDTHS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 } as const;
+const WIDTHS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 } as const;
 /** What one unit of a normalised integer is worth: the scale a declared box is read at. */
 export const NORMALISED: Partial<Record<keyof typeof COMPONENTS, number>> = {
   5120: 1 / 127,
