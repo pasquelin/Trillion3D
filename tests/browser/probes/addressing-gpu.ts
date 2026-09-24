@@ -10,7 +10,7 @@
 // weight the sampler quantises, but it must return the same colour to that level.
 // For the record only: nearest on an exact boundary, the texel depends on the 32-bit
 // rounding of u·size.
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { wrapNibble } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';

@@ -6,6 +6,7 @@ import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { followHostTexture, importHostTexture } from '../../host/textureImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
+import { hostTexture } from './worldTextures.ts';
 
 // #335: a repainted entry writes its values into the surface the session already holds, and the
 // version bump is what the page rows reread it on (`page/surface.ts`).
@@ -102,4 +103,17 @@ test('a repaint that moves a map’s placement and its pixels together takes bot
   followHostTexture(record);
   assert.equal(record.version, sent + 1, 'the record refilled, its picture to send again');
   assert.equal(record.transform[6], 0.5, 'the offset reaches the record');
+});
+
+// #402: the key named the texture and the colour reading only, so a texture of another layout or
+// format under the same name was handed the host texture built for the first.
+test('a host texture is built per layout and format', () => {
+  const built = new Map();
+  const pixels = { data: new Uint8Array(4), width: 1, height: 1 };
+  const rgba = new Texture(pixels, 'data', 'rgba'),
+    red = new Texture(pixels, 'data', 'r');
+  Object.defineProperty(red, 'id', { value: rgba.id });
+  const first = hostTexture(rgba, false, built);
+  assert.notEqual(hostTexture(red, false, built), first, 'another format, another host texture');
+  assert.equal(hostTexture(rgba, false, built), first, 'the same one is built once');
 });

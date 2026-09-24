@@ -1,8 +1,7 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
 import { bytesOf } from './globals.ts';
-import { untag } from '../../../packages/sdk-browser/src/gpu/core/sessionHandle.ts';
-import { asWebgpuDevice } from './webgpuDevice.ts';
+import { asWebgpuDevice, untag } from './webgpuDevice.ts';
 
 /** The one WebGPU device stand-in of the tests, made a device as WebGPU writes one by
  *  `asWebgpuDevice`. */
