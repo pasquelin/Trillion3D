@@ -173,6 +173,11 @@ export function libere(
 ): void {
   backend.dispose();
   canvas.remove();
+  releaseScene(scene);
+}
+
+/** Releases a prepared scene: its geometries, its materials and their textures. */
+export function releaseScene(scene: ScenePreparee): void {
   for (const g of scene.geometries) g.dispose();
   for (const m of scene.materials) {
     // A material's texture-valued properties are not typed generically by three.js: read as
