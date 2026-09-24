@@ -2445,11 +2445,10 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "bench/witnesses/exact/backend.ts",
         "bench/witnesses/exact/materials.test.ts",
         "bench/witnesses/exact/materials.ts",
+        "bench/witnesses/exact/metrics.ts",
         "bench/witnesses/referenceBackend.ts",
-        "packages/sdk-browser/src/backend/exact/metrics.ts",
         "packages/sdk-browser/src/backend/exact/residency.ts",
         "packages/sdk-browser/src/backend/types.ts",
         "packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts",
@@ -3545,7 +3544,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["bench/witnesses/three/sceneAdapter.ts"],
+      "affectedConsumers": [
+        "bench/witnesses/exact/metrics.ts",
+        "bench/witnesses/three/sceneAdapter.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostDiagnosticGeometry"
     },
@@ -3579,6 +3581,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/witnesses/exact/clusterBatches.ts",
         "bench/witnesses/three/sceneAdapter.ts",
         "tests/browser/support/webglClusterCoplanarBlend.ts",
         "tests/browser/support/webglClusterNormalMapPage.ts",
@@ -3596,7 +3599,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["bench/witnesses/three/sceneAdapter.ts", "tests/kit/lighting/draw.ts"],
+      "affectedConsumers": [
+        "bench/witnesses/exact/clusterBatches.ts",
+        "bench/witnesses/three/sceneAdapter.ts",
+        "tests/kit/lighting/draw.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/webgl/core/renderTarget\".HostDrawOutput"
     },
@@ -3607,7 +3614,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/witnesses/exact/metrics.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostGeometry"
     },
@@ -8001,7 +8008,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/backend/exact/clusterBatches.ts",
+        "bench/witnesses/exact/clusterBatches.ts",
         "packages/sdk-browser/src/lighting/deferred/view.ts",
         "packages/sdk-browser/src/lighting/toneMappingWgsl.ts",
         "packages/sdk-browser/src/webgl/cluster/renderer.ts",
