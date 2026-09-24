@@ -45,7 +45,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
   const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY };
   const collected = collectClusterPages(source, metadata, indices, associations);
   const packed = packDagSelection(collected.roots);
-  const { device } = mockGpu(undefined, packed);
+  const { device } = mockGpu({ packed });
   const viewport: [number, number] = [32, 32];
   const backend = webgpuPagesBackend({
     source,
@@ -76,7 +76,7 @@ test('a failed GPU selection readback falls back to the CPU cut and clears gpuDr
   const { source, metadata, indices, associations, geometry, material } = quadScene();
   const collected = collectClusterPages(source, metadata, indices, associations);
   const packed = packDagSelection(collected.roots);
-  const { device } = mockGpu(undefined, packed, true);
+  const { device } = mockGpu({ packed, failMap: true });
   const backend = webgpuPagesBackend({
     source,
     metadata,

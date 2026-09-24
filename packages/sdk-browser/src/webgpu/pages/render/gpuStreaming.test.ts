@@ -18,7 +18,7 @@ test('a GPU-driven image reaches the queue as one command buffer', async () => {
     fixture.indices,
     fixture.associations,
   );
-  const { device, submits } = mockGpu(undefined, packDagSelection(collected.roots));
+  const { device, submits } = mockGpu({ packed: packDagSelection(collected.roots) });
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
@@ -60,7 +60,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     fixture.associations,
   );
   const packed = packDagSelection(collected.roots);
-  const { device, draws, buffers } = mockGpu(undefined, packed);
+  const { device, draws, buffers } = mockGpu({ packed });
   const backend = streamingQuadBackend(fixture, device) as WebgpuPagesBackend;
   const render = () => {
     draws.length = 0;

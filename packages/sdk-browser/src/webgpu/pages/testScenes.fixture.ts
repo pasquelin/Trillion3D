@@ -98,7 +98,7 @@ export async function flushedGpuScene(
     scene.associations,
   );
   const packed = packDagSelection(collected.roots);
-  const gpu = mockGpu(undefined, packed);
+  const gpu = mockGpu({ packed });
   const backend = webgpuPagesBackend({
     ...scene,
     gpuDevice: gpu.device,
