@@ -10,7 +10,8 @@ import { createAutonomousGeometry } from './geometry.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './manifest.ts';
 import { createAutonomousResidency } from './residency.ts';
-import { createAutonomousPool, createHeldFloor } from './poolApi.ts';
+import { createAutonomousPool } from './poolApi.ts';
+import { createHeldFloor } from './heldFloor.ts';
 import { createContractLighting } from '../../lighting/contractLightingApi.ts';
 import { createThreeSceneDraw, hostDiagnostics } from '../../host/three/sceneAdapter.ts';
 import type { BackendFactory } from '../types.ts';
@@ -38,9 +39,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       Math.max(1024, bootstrapUrls.size),
     scene = hostPageScene(blendCopies);
   const shown: PageRec[] = [],
-    desired: PageRec[] = [],
-    pending: string[] = [],
-    retained: string[] = [];
+    desired: PageRec[] = [];
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
     colorMaterials = new Map<HostMaterial, HostMaterial>();
   const modifiedPages = new Set<string>();
@@ -83,9 +82,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     modifiedPages,
     shown,
     desired,
-    pending,
-    retained,
-    byUrl,
     geometryStore,
   });
   const pool = createAutonomousPool({
@@ -100,8 +96,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     residency,
     heldFloor,
     instanceCount,
+    settle: () => cut.settle(),
   });
-  const renderFrame = createAutonomousRender({
+  const cut = createAutonomousRender({
     state,
     context,
     gate,
@@ -113,7 +110,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     bootstrap,
     cap,
     sync,
-    collectKept: residency.collectKept,
+    keptChanged: residency.keptChanged,
     pool: pool.budget,
   });
   return {
@@ -142,11 +139,11 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       ready = true;
       shown.push(...bootstrap);
       sync();
-      residency.collectKept();
+      residency.keptChanged();
     },
     render(camera) {
       hostDraw.render(camera);
-      if (ready) renderFrame(camera);
+      if (ready) cut.frame(camera);
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,

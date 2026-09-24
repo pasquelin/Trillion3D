@@ -44,12 +44,10 @@ export function mount(
     root = rootPages[0];
   for (const page of rootPages) page.array ??= new Uint32Array(3);
   const byUrl = new Map(all.map((page) => [page.url, page]));
-  const shares = new Map(all.map((page) => [page.url, { pass: 0, slots: 0 }]));
-  let rootError = 0;
-  for (const page of all) {
-    page.budgetShare = shares.get(page.url);
+  let rootError = 0,
+    views = 0;
+  for (const page of all)
     if (page.parentError != null) rootError = Math.max(rootError, page.parentError);
-  }
   const state = { allocationBytes: 0 },
     kept = new Set<string>(),
     diagnostics: BackendDiagnostic[] = [];
@@ -67,12 +65,12 @@ export function mount(
     rootUrls: new Set(rootCharged ? [] : rootPages.map((page) => page.url)),
     rootError,
     copies: {
-      generation: 0,
       of: () => 1,
       root: () => rootPages.length,
       scene: () => byUrl.size,
     },
-    shares,
+    coverRevision: () => 0,
+    viewRevision: () => views,
     state,
     floorBytes: () => rootBytes,
     kept: () => kept,
@@ -92,10 +90,8 @@ export function mount(
     viewport: [1280, 720] as [number, number],
     holdResident: true,
     rootFallback,
-    pageBudget: 0,
-    pageBudgetHeld: 0,
-    pageBudgetFrom: 0,
-    pageBudgetRootError: 0,
+    slotsOf: pool.slotsOf,
+    search: pool.search,
     wanted: [] as DagPage[],
     result: createSelectionResult<DagPage>(),
   };
@@ -105,9 +101,7 @@ export function mount(
   const frame = { after: 0, stand: 0 };
   const image = (pixelError: number, arrivals = Infinity) => {
     cut.pixelError = pixelError;
-    pool.bound(cut);
     const drawn = selectVisiblePages(roots, cameraMoteur(camera), cut, shown);
-    pool.settle(pixelError, drawn);
     kept.clear();
     for (const page of rootPages) kept.add(page.url);
     for (const page of drawn.shown) kept.add(page.url);
@@ -138,6 +132,7 @@ export function mount(
   /** Moves the camera `distance` units from the DAG's centre. */
   const place = (distance: number) => {
     camera = dagCamera(distance);
+    views++;
   };
   return {
     pool,
@@ -146,7 +141,6 @@ export function mount(
     image,
     frame,
     place,
-    cut,
     rootCoverAt,
     drawn: () => shown.length,
   };

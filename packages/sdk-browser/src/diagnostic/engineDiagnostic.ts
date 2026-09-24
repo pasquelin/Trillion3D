@@ -15,13 +15,6 @@ export function sendEngineDiagnostic(
   }
 }
 
-/** Publishes an engine diagnostic: the engine's own channel, one per backend. */
-export type EngineDiagnosticEmitter = (
-  phase: string,
-  message: string,
-  details: Record<string, unknown>,
-) => void;
-
 /** The page budget's verdict just changed: the cut sampled at `pixelError` asked for
  *  `requiredSlots` against `slots` — `null` when the engine does not know it without a pass it
  *  did not run. Both engines build it here and publish it under one phase, from their flush. */
@@ -33,5 +26,7 @@ export const coverageBudgetEvent = (
   pixelError: number,
 ) => ({ version: 1, limited, requiredSlots, slots, fallbackRetained, pixelError });
 
-export const sendCoverageBudget = (emit: EngineDiagnosticEmitter, event: Record<string, unknown>) =>
-  emit('coverage-budget', 'Admission of the requested cut', event);
+export const sendCoverageBudget = (
+  onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
+  event: Record<string, unknown>,
+) => sendEngineDiagnostic(onDiagnostic, 'coverage-budget', 'Admission of the requested cut', event);

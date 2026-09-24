@@ -813,7 +813,8 @@ default: the geometry pool (cluster page slots, the root cover always resident) 
 geometry budget, drawn by the same rule: its cut draws coarser beyond it, and the pages no frame
 keeps leave oldest first. While a view refines, the pool can go past its budget by at most the
 ancestors still drawn in place of the pages replacing them, and is back under it at the next cut
-once they arrived (`geometryPoolAllocatedBytes` shows it). It has no texture pool:
+once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
+`geometryPoolAllocatedBytes` is `null`). It has no texture pool:
 `texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
 ```js

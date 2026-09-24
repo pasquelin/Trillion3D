@@ -5,7 +5,7 @@ import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElement
 import type { ClusterCut } from '../selection/math.ts';
 import type { ClusterStructureIndex } from '../selection/types.ts';
 import type { PageSurface } from '../surface.ts';
-import { budgetTally, type BudgetShare, type BudgetTally } from './tally.ts';
+import { cutCharge, type CutCharge } from './charge.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -15,10 +15,9 @@ export interface PageRecord extends ClusterCut {
   cone?: NormalCone;
   material?: PageSurface;
   array?: Uint32Array;
-  budgetShare?: BudgetShare;
 }
 
-export interface SelectionState<T extends PageRecord> extends BudgetTally {
+export interface SelectionState<T extends PageRecord> extends CutCharge<T> {
   cam: EngineCamera;
   hold: boolean;
   rootFallback: boolean;
@@ -69,6 +68,10 @@ export interface SelectionState<T extends PageRecord> extends BudgetTally {
    *  sweep of `wanted` and `shown`, in the same order and at the same bits. */
   wantedTriangles: number;
   shownTriangles: number;
+  /** Page budget beyond which a pass has nothing left to say; `0` when there is none. */
+  budget: number;
+  /** This pass overflowed the budget: its result is discarded, the descent stops there. */
+  over: boolean;
 }
 
 /** Cut result, filled in place: the caller supplies the object, the image allocates none. */
@@ -84,18 +87,10 @@ export interface SelectionResult<T> {
   lodLevel: number;
   complete: boolean;
   pixelError: number;
-  /** Slots the cut at the host's threshold charges, held ones included; `null` if it overflowed. */
-  requiredSlots: number | null;
-  /** Nothing finer is left for the budget search to try (`pageBudgetFrom`). */
-  budgetSettled: boolean;
-  /** The cut at the host's threshold fits the budget; `null` when this image did not try it. */
-  hostCutFits: boolean | null;
-  /** Even the search's coarsest threshold overflowed the budget: the cut is drawn there without
-   *  it, limited by what no threshold coarsens — the root cover, and what reaches the near plane. */
-  budgetExceeded: boolean;
 }
 
-/** An empty cut result, set once per hot caller: `selectVisiblePages` rewrites every field. */
+/** An empty cut result, to set once per hot caller then reuse from image to image:
+ *  `selectVisiblePages` rewrites every field, only the object's identity matters. */
 export function createSelectionResult<T>(): SelectionResult<T> {
   return {
     shown: [],
@@ -108,10 +103,6 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     lodLevel: 0,
     complete: true,
     pixelError: 0,
-    requiredSlots: null,
-    budgetSettled: true,
-    hostCutFits: null,
-    budgetExceeded: false,
   };
 }
 
@@ -186,8 +177,19 @@ const reusedState: SelectionState<PageRecord> = {
   wantedCount: 0,
   wantedTriangles: 0,
   shownTriangles: 0,
-  ...budgetTally(),
+  budget: 0,
+  over: false,
+  ...cutCharge(),
 };
+
+/** Shrinks `shown` to a prefix and its triangle sum with it: same order, same bits as the
+ *  sweep this sum replaces. Fallbacks are the only ones that shorten the cut. */
+export function truncateShown<T extends PageRecord>(s: SelectionState<T>, to: number) {
+  s.shownCount = to;
+  let sum = 0;
+  for (let i = 0; i < to; i++) sum += s.shown[i].triangles;
+  s.shownTriangles = sum;
+}
 
 /** The reused state, viewed at the requested page type. */
 export function selectionState<T extends PageRecord>(): SelectionState<T> {

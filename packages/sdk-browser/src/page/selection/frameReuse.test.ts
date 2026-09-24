@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   collectClusterPages,
-  createSelectionResult,
   selectVisiblePages,
   type PageRec,
   type SelectionResult,
@@ -36,7 +35,18 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
   const table = roots[0].culling,
     shown: PageRec[] = [],
     wanted: PageRec[] = [];
-  const result = { ...createSelectionResult<PageRec>(), shown, wanted };
+  const result: SelectionResult<PageRec> = {
+    shown,
+    wanted,
+    visible: 0,
+    selectedTriangles: 0,
+    displayedTriangles: 0,
+    frustumRejected: 0,
+    nodesTested: 0,
+    lodLevel: 0,
+    complete: true,
+    pixelError: 0,
+  };
   const cam = camera(),
     ask = {
       pixelError: 100,

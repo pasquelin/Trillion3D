@@ -28,7 +28,6 @@ export type DagPage = Pick<
   | 'group'
   | 'source'
   | 'array'
-  | 'budgetShare'
 >;
 
 /**
@@ -83,12 +82,12 @@ export const DAG_LEVEL_ERRORS = { fine: 0.01, coarse: 0.02, top: 0.08 };
 /**
  * Three levels on one sphere: `fine` pages whose parent error is that of `coarse` pages, under one
  * top page, resident. `coarseResident` says whether the coarse pages start resident; the fine ones
- * start missing. `share` gives every page a budget share of one slot.
+ * start missing.
  */
 export function dagLevels(
   fine: number,
   coarse: number,
-  { share = true, coarseResident = true }: { share?: boolean; coarseResident?: boolean } = {},
+  { coarseResident = true }: { coarseResident?: boolean } = {},
 ) {
   const { fine: fineError, coarse: coarseError, top: topError } = DAG_LEVEL_ERRORS;
   const sphere = [0, 0, 0, 0.5],
@@ -106,7 +105,6 @@ export function dagLevels(
         group: null,
         source: null,
         array: resident ? new Uint32Array(3) : undefined,
-        budgetShare: share ? { pass: 0, slots: 1 } : undefined,
       })) as DagPage[];
   return [
     ...level(1, topError, null, true),
