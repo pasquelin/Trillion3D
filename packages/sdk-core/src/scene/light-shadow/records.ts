@@ -1,4 +1,5 @@
-import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
+import { MAX_SHADOW_SLICES, type SceneLight } from '../light/contracts.ts';
+import { sameShadowShape } from '../light/equal.ts';
 import type { SceneLightStore } from '../light/store.ts';
 import { castsShadow } from './casters.ts';
 import { tableEntriesOf } from './virtual.ts';
@@ -19,8 +20,9 @@ import type { SunLevels } from './sunLevels.ts';
 export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: SunLevels) {
   const taken = new Uint8Array(MAX_SHADOW_SLICES),
     kind = new Int32Array(MAX_SHADOW_SLICES).fill(-1),
-    revision = new Uint32Array(MAX_SHADOW_SLICES),
-    noted = new Uint8Array(MAX_SHADOW_SLICES),
+    /** The light each slice was last planned for, null until its first plan: the store replaces a
+     *  light's record on every change, never edits it, so the one kept is the shape drawn. */
+    last: (SceneLight | null)[] = new Array(MAX_SHADOW_SLICES).fill(null),
     claimed = new Uint8Array(MAX_SHADOW_SLICES);
   /** Every page of `slice` back to the pool. */
   const dropPages = (slice: number) => {
@@ -33,7 +35,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     sun.release(slice);
     taken[slice] = 0;
     kind[slice] = -1;
-    noted[slice] = 0;
+    last[slice] = null;
   };
   return {
     taken,
@@ -52,7 +54,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
         if (!taken[slice]) {
           taken[slice] = 1;
           kind[slice] = -1;
-          noted[slice] = 0;
+          last[slice] = null;
           return slice;
         }
       return -1;
@@ -62,17 +64,17 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
       if (kind[slice] === rank && table.baseOf(slice) >= 0) return true;
       dropPages(slice);
       kind[slice] = rank;
-      noted[slice] = 0;
+      last[slice] = null;
       if (table.claim(slice, tableEntriesOf(rank))) return true;
       free(slice);
       return false;
     },
-    /** True when the light moved, changed or is new since its pages were drawn; notes it. */
-    moved(slice: number, lightRevision: number) {
-      const changed = !noted[slice] || revision[slice] !== lightRevision;
-      revision[slice] = lightRevision;
-      noted[slice] = 1;
-      return changed;
+    /** True when the light is new, or moved or changed shape since its last plan (`sameShadowShape`):
+     *  an intensity or a colour is no move. Notes it. */
+    moved(slice: number, light: SceneLight) {
+      const before = last[slice];
+      last[slice] = light;
+      return !before || !sameShadowShape(before, light);
     },
     /** Frees every slice no live shadow-casting light holds any more. */
     release(store: SceneLightStore) {

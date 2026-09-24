@@ -422,7 +422,13 @@ each one a setting of `world.controls`. What it collides with depends on the wor
   velocity, at most one step ahead.
 
 Both bodies read the same drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
-`stopTime`, jumps with a coyote time and a jump buffer. The triangle body catches up every tick
+`stopTime`, jumps with a coyote time and a jump buffer. No leg changes the ground speed faster than
+the floor's friction lets a sole push, `μ g`, `μ` a rubber sole's grip on the floor's matter (the
+geometric mean of the two frictions, the physics' own rule): with physics on, the matter of the body
+the feet stand on (`material.physics`, a body's `friction`); without, declared stone. A jog then
+gathers its pace in 0.45 s on stone and 2.2 s on ice, and glides `v² / (2 μ g)` to a stop, 0.8 m on
+stone and 3.8 m on ice; the two times only shape the last centimetres, and a longer one brakes more
+gently. The triangle body catches up every tick
 of a frame, however slow the page; only a stall past 0.25 s is dropped (`MAX_CHARACTER_DELTA`), and
 the body resumes where it stopped. Jolt's body steps on the physics worker's own clock, never on the
 page's frames: a slow page draws it late, never slower; a stalled worker drops what its catch-up

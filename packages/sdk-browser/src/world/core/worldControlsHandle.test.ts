@@ -114,7 +114,8 @@ test('`world.controls` as a character falls onto its colliders, walks, jumps, an
   assert.ok(Math.abs(camera.position.y - controls.eyeHeight) < 1e-6);
   surface.key('keydown', { code: 'KeyW' });
   live(1);
-  assert.ok(camera.position.z < -3 && controls.velocity.z < -3, `walked to ${camera.position.z}`);
+  // A jog gathered in 0.45 s on the declared stone floor: 2.7 m in the first second.
+  assert.ok(camera.position.z < -2.5 && controls.velocity.z < -3, `walked to ${camera.position.z}`);
   surface.key('keyup', { code: 'KeyW' });
   live(2);
   const before = redraws;

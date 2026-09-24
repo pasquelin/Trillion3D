@@ -142,6 +142,9 @@ export const lampCoarseness = (mip: number) => mip * SUN_LEVELS;
  *  lamp face's one-page mip. */
 export const sunFloorLevel = (finest: number) => finest + SUN_LEVELS - 1;
 export const LAMP_FLOOR_MIP = LAMP_MIPS - 1;
+/** True when a page's `view` — a sun level, or a lamp's `face · 16 + mip` — is its light's floor. */
+export const isFloorView = (sun: boolean, view: number, finest: number) =>
+  sun ? view === sunFloorLevel(finest) : (view & 15) === LAMP_FLOOR_MIP;
 
 /** Side of a sun page at `level`, in metres: 128 texels of `2^level`. */
 export const sunPageMetres = (level: number) => SHADOW_PAGE * 2 ** level;
