@@ -1,3 +1,5 @@
+import { geometry, type Geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts';
+
 /** One material's authored surface: interleaved position/normal streams and triangle indices. */
 export interface SurfaceMesh {
   positions: number[];
@@ -5,21 +7,25 @@ export interface SurfaceMesh {
   indices: number[];
 }
 
-/** Original parametric masonry, turned stone and metalwork, in metres. */
+/** Original parametric masonry, turned stone and metalwork, in metres; boxes and rings: sdk-core. */
 export function createWorkshop() {
   const surfaces = new Map<number, SurfaceMesh>();
+  function surface(material: number) {
+    let mesh = surfaces.get(material);
+    if (!mesh) {
+      mesh = { positions: [], normals: [], indices: [] };
+      surfaces.set(material, mesh);
+    }
+    return mesh;
+  }
   function patch(
     material: number,
     columns: number,
     rows: number,
     point: (u: number, v: number) => number[],
   ) {
-    let mesh = surfaces.get(material);
-    if (!mesh) {
-      mesh = { positions: [], normals: [], indices: [] };
-      surfaces.set(material, mesh);
-    }
-    const base = mesh.positions.length / 3;
+    const mesh = surface(material),
+      base = mesh.positions.length / 3;
     for (let j = 0; j <= rows; j++) {
       for (let i = 0; i <= columns; i++) {
         const u = i / columns,
@@ -44,19 +50,18 @@ export function createWorkshop() {
         mesh.indices.push(a, a + 1, b + 1, a, b + 1, b);
       }
   }
+  /** An sdk-core geometry appended to one material's surface. */
+  function add(material: number, built: Geometry) {
+    const mesh = surface(material),
+      base = mesh.positions.length / 3,
+      { position, normal } = built.attributes;
+    for (const value of position.array) mesh.positions.push(value);
+    for (const value of normal.array) mesh.normals.push(value);
+    for (const index of built.index!.array) mesh.indices.push(base + index);
+  }
   function block(material: number, center: number[], size: number[]) {
-    for (let axis = 0; axis < 3; axis++)
-      for (const sign of [-1, 1]) {
-        const a = (axis + 1) % 3,
-          b = (axis + 2) % 3;
-        patch(material, 1, 1, (u, v) => {
-          const p = [...center];
-          p[axis] += (sign * size[axis]) / 2;
-          p[a] += sign * (u - 0.5) * size[a];
-          p[b] += (v - 0.5) * size[b];
-          return p;
-        });
-      }
+    const [width, height, depth] = size;
+    add(material, geometry.box(width, height, depth).translate(center[0], center[1], center[2]));
   }
   function turned(
     material: number,
@@ -66,10 +71,19 @@ export function createWorkshop() {
     flutes = 0,
     segments = 64,
   ) {
+    const profile = (v: number) => radius * (1 - 0.12 * v + 0.035 * Math.sin(v * Math.PI));
+    if (!flutes) {
+      const points = Array.from(
+        { length: 25 },
+        (_, j) => [profile(j / 24), (j / 24) * height] as const,
+      );
+      add(material, geometry.lathe(points, segments).translate(center[0], center[1], center[2]));
+      return;
+    }
+    // Flutes ripple the radius round the shaft, which a lathe profile cannot carry.
     patch(material, segments, 24, (u, v) => {
       const angle = u * Math.PI * 2;
-      const profile = radius * (1 - 0.12 * v + 0.035 * Math.sin(v * Math.PI));
-      const r = profile * (1 + (flutes ? 0.06 * Math.cos(angle * flutes) : 0));
+      const r = profile(v) * (1 + 0.06 * Math.cos(angle * flutes));
       return [
         center[0] + r * Math.cos(angle),
         center[1] + v * height,
@@ -77,26 +91,12 @@ export function createWorkshop() {
       ];
     });
   }
-  function ring(
-    material: number,
-    center: number[],
-    radius: number,
-    tube: number,
-    tilt = 0,
-    sweep = Math.PI * 2,
-  ) {
-    patch(material, 96, 16, (u, v) => {
-      const a = u * sweep,
-        b = v * Math.PI * 2;
-      const x = (radius + tube * Math.cos(b)) * Math.cos(a);
-      const y = (radius + tube * Math.cos(b)) * Math.sin(a);
-      const z = tube * Math.sin(b);
-      return [
-        center[0] + x,
-        center[1] + y * Math.cos(tilt) - z * Math.sin(tilt),
-        center[2] + y * Math.sin(tilt) + z * Math.cos(tilt),
-      ];
-    });
+  /** A full ring about `z`, tilted `tilt` about `x`. */
+  function ring(material: number, center: number[], radius: number, tube: number, tilt = 0) {
+    add(
+      material,
+      geometry.torus(radius, tube, 16, 96).rotateX(tilt).translate(center[0], center[1], center[2]),
+    );
   }
   return { surfaces, patch, block, turned, ring };
 }
