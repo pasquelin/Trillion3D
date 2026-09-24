@@ -52,7 +52,7 @@ test('a mode written before the session opens is put on it; one it refuses leave
   assert.deepEqual(live.put, ['wireframe']);
 });
 
-test('a session that fails to open is named on the handle until one opens or none is tried', (t) => {
+test('a session that fails to open is named on the handle until the next opening', (t) => {
   const logged = t.mock.method(console, 'error', () => {});
   const diagnostic = worldDiagnostic(() => null);
   // Read through a function: a direct read after the null check narrows the getter to `never`.
@@ -74,11 +74,12 @@ test('a session that fails to open is named on the handle until one opens or non
   assert.equal(error()?.details.cause, thrown);
   const named = new EngineError('PAGE_BUDGET', 'too many pages');
   diagnostic.failed(named);
-  assert.equal(error(), named);
+  assert.equal(error(), named, 'a documented engine error is the one thrown');
+  assert.equal(error()?.details.cause, undefined, 'with no cause of its own');
   diagnostic.apply(session().opened);
   assert.equal(error(), null);
-  // The scene emptied after a failure: nothing is tried, so nothing failed.
+  // A new opening, tried or not (the scene emptied): the last failure no longer holds.
   diagnostic.failed(thrown);
-  diagnostic.idle();
+  diagnostic.opening();
   assert.equal(error(), null);
 });

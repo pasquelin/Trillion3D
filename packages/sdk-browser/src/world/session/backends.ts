@@ -142,8 +142,9 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
         scope,
       });
     } catch (error) {
-      // Cancelled — the session closed, or the backend did: nothing failed, nothing falls back.
-      if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+      // Cancelled — the session closed: nothing failed, nothing falls back. An abort the session
+      // did not ask for is a failure like any other, diagnosed and fallen back from.
+      if (signal?.aborted) {
         backend.dispose();
         throw error;
       }
