@@ -18,7 +18,8 @@ test('at rest, only the pages drawn at another threshold than the current one go
   ]);
   let frame = 1;
   for (; frame < 8; frame++) cycle(plan, store, frame, () => read);
-  assert.equal(plan.pool.used, 2);
+  // The two pages read, and the four floor pages the view reached at the sun's first frame.
+  assert.equal(plan.pool.used, 2 + 4);
   plan.setThreshold(8);
   plan.setThreshold(1);
   cycle(plan, store, frame++, () => read);
@@ -27,5 +28,5 @@ test('at rest, only the pages drawn at another threshold than the current one go
   plan.setThreshold(8);
   assert.equal(plan.deferredChanges, true, 'waits for the camera to rest');
   cycle(plan, store, frame, () => read);
-  assert.equal(plan.counts.invalidatedPages, 2, 'drawn at another threshold: redrawn');
+  assert.equal(plan.counts.invalidatedPages, 2 + 4, 'drawn at another threshold: redrawn');
 });
