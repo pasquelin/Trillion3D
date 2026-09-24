@@ -104,22 +104,28 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     for (const backend of backends) await backend.flush?.();
     await diagnosticChannel.flush();
   };
-  const awaitPages = async () => {
+  /** The pages the view reads, made resident; `image: false` takes no picture of them. */
+  const awaitPages = async (options: { image?: boolean } = {}) => {
     check();
     if (streaming.promise) await streaming.promise;
     for (const backend of backends) {
-      await awaitBackendPages(backend, camera, async (missing) => {
-        await streamer.request(missing);
-        for (const url of missing) {
-          if (geometryUrls.has(url)) {
-            const bytes = streamer.getBytes(url);
-            if (bytes) backend.acceptGeometryPage?.(url, await decodePageOffThread(bytes));
-          } else {
-            const array = streamer.get(url);
-            if (array) backend.acceptPage?.(url, array);
+      await awaitBackendPages(
+        backend,
+        camera,
+        async (missing) => {
+          await streamer.request(missing);
+          for (const url of missing) {
+            if (geometryUrls.has(url)) {
+              const bytes = streamer.getBytes(url);
+              if (bytes) backend.acceptGeometryPage?.(url, await decodePageOffThread(bytes));
+            } else {
+              const array = streamer.get(url);
+              if (array) backend.acceptPage?.(url, array);
+            }
           }
-        }
-      });
+        },
+        options,
+      );
       retainVisiblePages(backend, streamer);
     }
     state.loaded = streamer.stats().loaded;
