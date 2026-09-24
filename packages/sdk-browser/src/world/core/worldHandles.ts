@@ -1,5 +1,10 @@
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
-import { DIAGNOSTICS, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
+import {
+  DIAGNOSTICS,
+  type EngineError,
+  type FrameMetrics,
+} from '../../../../sdk-core/src/index.ts';
+import { engineErrorOf } from '../../../../sdk-core/src/contracts/errorCodes.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
@@ -79,7 +84,8 @@ const WORLD_MODES = [
  */
 export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
   let mode = 'beauty',
-    sessions = 0;
+    sessions = 0,
+    error: EngineError | null = null;
   const said = new Set<string>();
   const warn = (text: string) => {
     if (said.has(text)) return;
@@ -116,6 +122,14 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     get sessions() {
       return sessions;
     },
+    /** Why the last session could not open, as a named engine error: its `code` is one of those
+     *  documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device), or
+     *  `SESSION_OPEN_FAILED` for a reason without one. An `EngineError` of a documented code is
+     *  the one thrown; any other error is converted, and the error thrown is then in
+     *  `details.cause`. `null` from the start of each opening, and when nothing is tried. */
+    get error() {
+      return error;
+    },
     /** Every view mode the current renderer offers. */
     get modes() {
       const current = explorer();
@@ -124,7 +138,8 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     },
   };
   return {
-    /** What the page holds: the mode, read and written. */
+    /** What the page holds: the view mode, read and written; the sessions opened and why the
+     *  last one failed, read only. */
     handle,
     notices: createWorldNotices(),
     /** Puts the mode on a session just opened; the world's own, never the page's. A mode this
@@ -132,6 +147,19 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     apply(opened: MeasuredWorld) {
       sessions++;
       if (mode !== 'beauty' && !put(opened, mode)) mode = 'beauty';
+    },
+    /** A session that could not open: named on the handle and said on the console with the error
+     *  thrown, stack included. An engine error is kept as it is, and a bare documented code — the
+     *  `WEBGPU_LOST` of the WebGPU renderer — becomes that code; anything else is
+     *  `SESSION_OPEN_FAILED`. */
+    failed(cause: unknown) {
+      error = engineErrorOf(cause, 'SESSION_OPEN_FAILED', "The world's session failed to open");
+      console.error('World session failed to open', cause);
+    },
+    /** A session is about to open, or none is tried: a failure that may no longer hold is no
+     *  longer shown. */
+    opening() {
+      error = null;
     },
   };
 }
