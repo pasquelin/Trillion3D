@@ -2845,8 +2845,8 @@
       "visible": "是否被绘制。",
       "parent": "在场景中的父节点;分离状态下为 null。",
       "children": "按插入顺序排列的已挂载子节点。返回的列表不可修改。",
-      "localMatrix": "根据契约为只读;要标记变换为脏数据,请使用 setLocalMatrix。",
-      "worldMatrix": "当前的世界矩阵;修改姿态后请调用 updateWorldMatrix。",
+      "localMatrix": "根据契约为只读,仅在节点存活期间有效;setLocalMatrix 将变换标记为脏数据。",
+      "worldMatrix": "当前的世界矩阵,仅在节点存活期间有效;修改姿态后请调用 updateWorldMatrix。",
       "add": "添加一个子节点。",
       "remove": "移除一个子节点。",
       "clear": "移除所有子节点。",
@@ -2916,7 +2916,6 @@
     "summary": "同一个场景中每个节点共享的内容:它的变换树及其各种索引。",
     "members": {
       "tree": "变换树。",
-      "nodes": "按槽位索引的节点。",
       "ids": "按名称索引的节点。",
       "nextId": "下一个可用的名称编号。",
       "root": "场景根节点。"

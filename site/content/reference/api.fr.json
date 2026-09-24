@@ -5081,8 +5081,8 @@
       "visible": "S’il est dessiné.",
       "parent": "Le parent dans la scène, ou null s’il est détaché.",
       "children": "Enfants attachés dans l’ordre d’ajout. La liste renvoyée ne peut pas être modifiée.",
-      "localMatrix": "En lecture seule par contrat ; utilise setLocalMatrix pour marquer la transformation à refaire.",
-      "worldMatrix": "Matrice actuelle dans le monde ; appelle updateWorldMatrix après avoir changé une pose.",
+      "localMatrix": "En lecture seule par contrat, valable tant que le nœud vit ; setLocalMatrix marque la transformation à refaire.",
+      "worldMatrix": "Matrice actuelle dans le monde, valable tant que le nœud vit ; appelle updateWorldMatrix après un changement de pose.",
       "add": "Ajoute un enfant.",
       "remove": "Retire un enfant.",
       "clear": "Retire chaque enfant.",
@@ -5152,7 +5152,6 @@
     "summary": "Ce que partagent tous les nœuds d’une scène : son arbre de transformations et ses index.",
     "members": {
       "tree": "L’arbre de transformations.",
-      "nodes": "Nœuds par emplacement.",
       "ids": "Nœuds par nom.",
       "nextId": "Le prochain numéro de nom libre.",
       "root": "La racine de la scène."
