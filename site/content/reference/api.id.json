@@ -309,7 +309,9 @@
       "texturePreviewSha": "Sidik jari setiap pratinjau tekstur.",
       "texturePreviewPixels": "Piksel pratinjau-pratinjau itu.",
       "texturePreviewBc7": "Blok BC7 pratinjau-pratinjau itu.",
-      "texturePreviewAstc": "Blok ASTC pratinjau-pratinjau itu."
+      "texturePreviewAstc": "Blok ASTC pratinjau-pratinjau itu.",
+      "bundleDependencyCount": "Berapa banyak bundel yang dibutuhkan tiap bundel.",
+      "bundleDependency": "Bundel yang dibutuhkan tiap bundel, sampai ke akar."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -659,7 +661,8 @@
       "bundles": "Bundle.",
       "previews": "Pratinjau tekstur.",
       "previewBytes": "Byte kolom piksel, setiap tingkat setiap entri digabungkan.",
-      "previewBlockBytes": "Byte setiap kolom blok: ekor rantai yang disimpan dikompresi, blok utuh, entri berurutan, tidak ada apa pun untuk rantai yang keluarganya dibiarkan lossless."
+      "previewBlockBytes": "Byte setiap kolom blok: ekor rantai yang disimpan dikompresi, blok utuh, entri berurutan, tidak ada apa pun untuk rantai yang keluarganya dibiarkan lossless.",
+      "bundleDependencies": "Dependensi bundel, daftar semua bundel disambung berurutan."
     }
   },
   "CpuStepSummary": {
@@ -3165,7 +3168,8 @@
       "version": "Versi format.",
       "pinned": "Bundle yang selalu disimpan.",
       "bundleBytes": "Ukuran bundle target.",
-      "pages": "Berapa banyak bundle."
+      "pages": "Berapa banyak bundle.",
+      "maxDependencies": "Jumlah dependensi terbesar sebuah bundel: batas yang diterbitkan kompiler."
     }
   },
   "SlimStructure": {
@@ -3258,7 +3262,8 @@
       "url": "Tempat ia dibaca.",
       "sha256": "Sidik jari byte-nya.",
       "bytes": "Ukurannya.",
-      "count": "Cluster yang disimpannya."
+      "count": "Cluster yang disimpannya.",
+      "dependencies": "Bundel yang menyimpan induk dari klasternya, sampai akar yang selalu dimuat, urut naik: ia dipasang setelah masing-masing darinya."
     }
   },
   "StreamCatalogue": {
@@ -3268,7 +3273,8 @@
       "version": "Versi format.",
       "pinned": "Bundle yang selalu disimpan.",
       "bundleBytes": "Ukuran bundle target.",
-      "pages": "Setiap bundle."
+      "pages": "Setiap bundle.",
+      "maxDependencies": "Jumlah dependensi terbesar sebuah bundel, seperti yang diterbitkan kompiler."
     }
   },
   "StreamPage": {
