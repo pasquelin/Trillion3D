@@ -1474,7 +1474,7 @@
   },
   "HostScene": {
     "summary": "O grafo de exibição do host em que um motor desenha: o que ele contém, como é percorrido, e a cor de fundo que a composição lê.",
-    "description": "Construí-lo é tarefa de uma fronteira de host; escrever um, `HostDrawScene`.",
+    "description": "O motor escreve o seu como um `GraphScene` (`graph/scene.ts`).",
     "members": {
       "name": "O nome do host para ela.",
       "visible": "Se é desenhada.",

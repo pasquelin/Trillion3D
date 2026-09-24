@@ -1,3 +1,4 @@
+import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import * as THREE from 'three';
 import {
   asHostLibrary,
@@ -54,7 +55,8 @@ export function createExactPagesAttachment(
       copy.userData.clusterId = rec.clusterId;
       copy.userData.lodRole = rec.role ?? 'exact';
       rec.geometry = geometry;
-      rec.mesh = copy;
+      // The witness keeps its library's mesh in the slot the engine's page path fills with its own.
+      rec.mesh = asHostLibrary<GraphMesh>(copy);
     }
     const placed = asHostLibrary<THREE.Mesh>(rec.mesh);
     if (!fresh) placed.material = threeMaterials(materialFor(rec));
