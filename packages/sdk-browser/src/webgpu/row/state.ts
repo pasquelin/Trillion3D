@@ -139,33 +139,3 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
     },
   };
 }
-
-/** What `dirtyRange` just computed, returned as-is: the buffer is reread on the spot by its caller,
- *  before any other call, so no image allocates to carry two integers. */
-const dirty = { from: 0, to: -1 };
-
-/**
- * Row range a witness must rewrite: the one the table declares dirty, bounded to the drawable rank.
- * A stale witness — the table's age has changed, or what it described no longer exists — asks for
- * the whole table again; otherwise a rank that grew widens the range to the rows that just entered.
- * `held` is the number of rows the witness held, never negative.
- */
-export function dirtyRange(
-  rows: { dirtyFrom: number; dirtyTo: number; packedCount: number },
-  stale: boolean,
-  held: number,
-) {
-  const last = rows.packedCount - 1;
-  let from = rows.dirtyFrom,
-    to = Math.min(rows.dirtyTo, last);
-  if (stale) {
-    from = 0;
-    to = last;
-  } else if (rows.packedCount > held) {
-    from = Math.min(from, held);
-    to = last;
-  }
-  dirty.from = from;
-  dirty.to = to;
-  return dirty;
-}
