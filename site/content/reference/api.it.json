@@ -7250,17 +7250,6 @@
     },
     "summary": "Un’immagine e lo stato di campionamento con cui è letta, e la trasformazione delle sue coordinate."
   },
-  "GraphAngles": {
-    "summary": "La stessa orientazione come tre angoli e il loro ordine, che annuncia le sue scritture allo stesso modo.",
-    "members": {
-      "x": "Il primo angolo, in radianti.",
-      "set": "Scrive i tre angoli, e l’ordine se dato; annunciato una volta.",
-      "setFromRotation": "Gli angoli di `q` in questo ordine (l’`Euler` del nucleo); annunciato salvo con `quiet`.",
-      "y": "Il secondo angolo, in radianti.",
-      "z": "Il terzo angolo, in radianti.",
-      "order": "L’ordine in cui ruotano i tre angoli, `'XYZ'` salvo impostazione."
-    }
-  },
   "GraphArray": {
     "summary": "Gli array tipizzati che un attributo contiene."
   },
@@ -7303,40 +7292,6 @@
   },
   "GraphNodeKind": {
     "summary": "Che cosa è un nodo del grafo: un nodo semplice, la radice, un gruppo, una mesh disegnata (in una collocazione o in più), un occhio, o una delle luci che una scena dichiara."
-  },
-  "GraphRotation": {
-    "summary": "Un’orientazione `(x, y, z, w)` le cui scritture chiamano `_onChangeCallback`.",
-    "members": {
-      "x": "Il primo numero.",
-      "set": "Scrive i quattro numeri, annunciato una volta.",
-      "copy": "Prende i numeri di un’altra rotazione.",
-      "fromArray": "Legge quattro numeri da una lista.",
-      "setFromAngles": "La rotazione di `angles`, nel loro ordine (`localTurnQuaternion`); annunciato salvo con `quiet`.",
-      "setFromRotationMatrix": "La rotazione del 3×3 superiore di una matrice per colonne le cui colonne hanno lunghezza unitaria.",
-      "premultiply": "Diventa `q` seguito da questa rotazione, `q · this`.",
-      "invert": "Diventa la rotazione opposta.",
-      "y": "Il secondo numero.",
-      "z": "Il terzo numero.",
-      "w": "Il quarto numero."
-    }
-  },
-  "GraphVector": {
-    "summary": "Tre numeri di una posa o di un punto: semplici campi di dati, e le operazioni che usa un controller.",
-    "members": {
-      "set": "Scrive i tre numeri.",
-      "copy": "Prende i numeri di un altro punto.",
-      "clone": "Una copia.",
-      "add": "Aggiunge un altro vettore.",
-      "sub": "Sottrae un altro vettore.",
-      "multiplyScalar": "Scala i tre numeri.",
-      "length": "La sua lunghezza.",
-      "setLength": "Mantiene la direzione, imposta la lunghezza.",
-      "distanceTo": "Distanza da un punto.",
-      "fromArray": "Legge tre numeri da una lista.",
-      "x": "Da sinistra a destra.",
-      "y": "Dal basso verso l'alto.",
-      "z": "Da dietro in avanti."
-    }
   },
   "Joint": {
     "summary": "Un giunto tra due corpi, o tra un corpo e il mondo (`b` null), creato con `joint.*` e aggiunto alla simulazione con `world.physics.add`.",

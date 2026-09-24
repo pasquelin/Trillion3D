@@ -7111,17 +7111,6 @@
       "handbrake": "手刹是否拉起。"
     }
   },
-  "GraphAngles": {
-    "summary": "以三个角度及其顺序表示的同一朝向，以同样方式通知其写入。",
-    "members": {
-      "x": "第一个角度，单位为弧度。",
-      "set": "写入三个角度，给定时也写入顺序；只通知一次。",
-      "setFromRotation": "按此顺序的 `q` 的角度（核心的 `Euler`）；除非 `quiet`，否则通知。",
-      "y": "第二个角度，单位为弧度。",
-      "z": "第三个角度，单位为弧度。",
-      "order": "三个角度的旋转顺序，未设置时为 `'XYZ'`。"
-    }
-  },
   "GraphArray": {
     "summary": "属性持有的类型化数组。"
   },
@@ -7242,22 +7231,6 @@
   "GraphNodeKind": {
     "summary": "图的节点是什么：普通节点、根、分组、被绘制的网格（一个或多个放置处）、眼睛，或场景声明的某种光源。"
   },
-  "GraphRotation": {
-    "summary": "写入时调用 `_onChangeCallback` 的朝向 `(x, y, z, w)`。",
-    "members": {
-      "x": "第一个数字。",
-      "set": "写入四个数，只通知一次。",
-      "copy": "取用另一个旋转的数值。",
-      "fromArray": "从列表读取四个数。",
-      "setFromAngles": "按其顺序的 `angles` 的旋转（`localTurnQuaternion`）；除非 `quiet`，否则通知。",
-      "setFromRotationMatrix": "列主序且各列为单位长度的矩阵左上 3×3 部分的旋转。",
-      "premultiply": "变为 `q` 之后接本旋转，即 `q · this`。",
-      "invert": "变为相反的旋转。",
-      "y": "第二个数字。",
-      "z": "第三个数字。",
-      "w": "第四个数字。"
-    }
-  },
   "GraphSurface": {
     "summary": "表面：一个族的参数，除非场景另有说明，取参考实现的值。",
     "description": "其版本由 `needsUpdate` 递增，每个读取方都会比较。",
@@ -7318,24 +7291,6 @@
       "repeat": "它能容纳几次。",
       "center": "旋转的中心。",
       "rotation": "旋转，单位为弧度。"
-    }
-  },
-  "GraphVector": {
-    "summary": "姿态或点的三个数：普通的数据字段，以及控制器使用的运算。",
-    "members": {
-      "set": "写入三个数。",
-      "copy": "取用另一个点的数值。",
-      "clone": "一个副本。",
-      "add": "加上另一个向量。",
-      "sub": "减去另一个向量。",
-      "multiplyScalar": "缩放这三个数。",
-      "length": "它的长度。",
-      "setLength": "保持方向，设定长度。",
-      "distanceTo": "到一个点的距离。",
-      "fromArray": "从列表读取三个数。",
-      "x": "从左到右。",
-      "y": "从下到上。",
-      "z": "从后到前。"
     }
   },
   "Joint": {
