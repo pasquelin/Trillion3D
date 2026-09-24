@@ -1232,9 +1232,7 @@
     {
       "id": "smooth-edges-over-time",
       "theme": "effects",
-      "file": "examples/smooth-edges-over-time.html",
-      "status": "waiting-engine",
-      "issue": 363
+      "file": "examples/smooth-edges-over-time.html"
     },
     {
       "id": "tone-mapping-compared",

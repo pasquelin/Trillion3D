@@ -6763,9 +6763,19 @@
     "section": "math-utilities",
     "kind": "Type",
     "title": "HostDrawCamera",
-    "signature": "type HostDrawCamera = {\n  /** The projection. */ projection: Float32Array;\n  /** The camera's world matrix. */ world: Float64Array;\n  /** The view matrix. */ view: Float64Array;\n  /** Where the eye is. */ eye: Float32Array;\n}",
-    "summary": "The matrices a host draws a frame with, as the engine hands them over.",
+    "signature": "type HostDrawCamera = Pick<HostCamera, 'near' | 'far'> & {\n  /** The projection. */ projection: Float32Array;\n  /** The camera's world matrix. */ world: Float64Array;\n  /** The view matrix. */ view: Float64Array;\n  /** Where the eye is. */ eye: Float32Array;\n}",
+    "summary": "The matrices and depth range a host draws a frame with, as the engine hands them over.",
     "members": [
+      {
+        "name": "near",
+        "type": "number",
+        "desc": "Nearest distance."
+      },
+      {
+        "name": "far",
+        "type": "number",
+        "desc": "Farthest distance."
+      },
       {
         "name": "projection",
         "type": "Float32Array<ArrayBufferLike>",
@@ -7746,12 +7756,7 @@
       {
         "name": "maxLights",
         "type": "64",
-        "desc": "Lights the contract accepts in total; beyond that, `addLight` rejects."
-      },
-      {
-        "name": "maxLightsPerTile",
-        "type": "32",
-        "desc": "Lights a screen tile keeps; the pixel loop is bounded by this number (X2)."
+        "desc": "Lights the contract accepts in total; beyond that, `addLight` rejects. A screen tile keeps every one of them that touches it: its list, and the pixel loop, are bounded by this (X2)."
       },
       {
         "name": "tileSize",
@@ -8350,6 +8355,11 @@
         "desc": "Everything the world keeps about this model: its addresses, manifest and graph."
       },
       {
+        "name": "getObjectByName(name: string)",
+        "type": "Object3D | undefined",
+        "desc": "The first node below with this name: the model, a node of its source file, then any other child — a light the file carried, a node a page placed."
+      },
+      {
         "name": "metadata",
         "type": "{ clusters: number; formatVersion?: number; compilerVersion?: string; errorModel?: string; geometryPages?: GeometryPageFormat; simplification?: boolean; sche...",
         "desc": "The model's compiled manifest — its primitives, `sourceTriangles` — and `clusters`, the clusters its pages hold, every level of its DAGs counted."
@@ -8360,7 +8370,7 @@
         "desc": "The box of this node's own content, local frame; a plain node holds none."
       }
     ],
-    "description": "`bounds` is the box it spans in its own frame."
+    "description": "A node of its source file is found by name (`getObjectByName`) and moved like any node: it joins the model's children, under its ancestors, when first looked up. `bounds` is the box it spans in its own frame."
   },
   {
     "id": "LodQualityId",
@@ -13537,7 +13547,7 @@
     "members": [
       {
         "name": "settings",
-        "type": "{ readonly maxLights: 64; readonly maxLightsPerTile: 32; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowPagesPerFrame: 24; readonly shado...",
+        "type": "{ readonly maxLights: 64; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowPagesPerFrame: 24; readonly shadowPage: 128; readonly shadowBudg...",
         "desc": "Published settings of direct lighting. These are named product choices, not buried constants: every runtime bound rereads them, and the diagnostic publishes them as-is."
       },
       {
@@ -18517,6 +18527,17 @@
     "description": "A change is applied in place on a path that carries it, and taken by the next opening on one that does not."
   },
   {
+    "id": "world.temporalAntialiasing",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Constant",
+    "title": "world.temporalAntialiasing",
+    "signature": "world.temporalAntialiasing: boolean",
+    "summary": "Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default.",
+    "description": "Written, it takes effect at the next frame, history dropped, no session reopened. Read, it is what the image carries: false on WebGL2, and while the program compiles after it was turned on."
+  },
+  {
     "id": "world.physics",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["createWorld"],
@@ -19387,6 +19408,11 @@
         "name": "physics?",
         "type": "boolean | WorldPhysicsOptions | undefined",
         "desc": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      },
+      {
+        "name": "temporalAntialiasing?",
+        "type": "boolean | undefined",
+        "desc": "Temporal antialiasing, WebGPU only: sub-pixel jitter accumulated over frames. `false` draws each pixel at its centre, with no history, what a pixel-exact capture asks; switched later by `world.temporalAntialiasing`."
       }
     ],
     "description": ""
@@ -23071,6 +23097,12 @@
         "type": "boolean | WorldPhysicsOptions",
         "default": "false",
         "desc": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      },
+      {
+        "name": "options.temporalAntialiasing?",
+        "type": "boolean",
+        "default": "true",
+        "desc": "Temporal antialiasing, WebGPU only: sub-pixel jitter accumulated over frames. `false` draws each pixel at its centre, with no history, what a pixel-exact capture asks; switched later by `world.temporalAntialiasing`."
       }
     ],
     "returns": {
@@ -24703,7 +24735,7 @@
     "kind": "Function",
     "title": "geometry.tube()",
     "signature": "geometry.tube(path: Curve, tubularSegments?: number, radius?: number, radialSegments?: number, closed?: boolean): Geometry",
-    "summary": "A tube of `radius` along a curve: rings carried by frames that turn with the curve without twisting about it, closed on request.",
+    "summary": "A tube of `radius` along a curve: rings carried by frames that turn with the curve without twisting about it; closed on request, its rings share the frame's turn round the loop.",
     "parameters": [
       {
         "name": "path",
@@ -28453,7 +28485,7 @@
     "kind": "Function",
     "title": "material.meshDepth()",
     "signature": "material.meshDepth(parameters?: MaterialParameters): Material",
-    "summary": "Shades each point by how far it is from the camera.",
+    "summary": "Shades each point by how far it is from the camera: white at `camera.near`, black at `camera.far`, a straight ramp between, the same on WebGPU and WebGL2.",
     "parameters": [
       {
         "name": "parameters?",

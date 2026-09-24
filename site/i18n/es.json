@@ -446,7 +446,6 @@
       "drag-objects": "selección por rayo (raycast)",
       "edit-a-spline": "selección por rayo (raycast)",
       "sound-in-space": "audio posicional",
-      "smooth-edges-over-time": "el ajuste del antialiasing temporal",
       "tone-mapping-compared": "elección del operador de tone mapping",
       "a-first-post-effect": "cadena de posproceso",
       "a-glow-around-lights": "posproceso: resplandor (bloom)",
