@@ -32,7 +32,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     { geometryPool } = rt.setup;
   const stats = gpu.cache?.stats();
   const vertexBytes = vertexBytesOf(gpu, vis);
-  const ledger = gpuDeviceLedgerOf(rt.setup.gpuDevice)?.snapshot();
+  const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
   // What the occlusion test dropped, from the path that ran it: counts the GPU wrote on the last
   // sampled image, or the CPU oracle's where no GPU test runs. `null` when neither has counted an

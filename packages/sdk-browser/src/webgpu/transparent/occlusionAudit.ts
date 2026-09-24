@@ -44,7 +44,7 @@ export async function readTransparentOcclusionAudit(
   rt: WebgpuPagesRuntime,
 ): Promise<TransparentOcclusionAudit | null> {
   const { blendState, layout, vis } = rt,
-    device = rt.setup.gpuDevice,
+    device = rt.gpu.device,
     table = blendState.table,
     compaction = blendState.compaction,
     frame = vis.gpuPartition?.lastFrame;

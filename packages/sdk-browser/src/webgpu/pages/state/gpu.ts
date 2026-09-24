@@ -12,6 +12,9 @@ import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
+  /** The session's handle on the device (`gpu/core/deviceOwners.ts`), from `prepare`: everything
+   *  the session creates goes through it, so that the labels name the session. */
+  device: GPUDevice | undefined;
   cache: ReturnType<typeof createGpuPageCache> | undefined;
   bindGroupLayout: GPUBindGroupLayout | undefined;
   pipelineBack: GPURenderPipeline | undefined;
@@ -86,6 +89,7 @@ export interface TransmissionBackdrop {
 
 export function createWebgpuGpuState(viewport: readonly [number, number]): WebgpuGpuState {
   return {
+    device: undefined,
     cache: undefined,
     bindGroupLayout: undefined,
     pipelineBack: undefined,

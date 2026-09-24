@@ -86,22 +86,20 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     async prepare() {
       context.signal?.throwIfAborted();
-      const { gpuDevice } = setup;
+      const { gpuDevice } = context;
       if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
       // Disposed before it prepared: nothing failed, and a claim now would never be released.
       if (run.lost)
         throw new DOMException('The backend was disposed before it prepared', 'AbortError');
-      // The allocation ledger is installed before the first one, and before the handle binds the
-      // creations it counts: everything that follows is counted in it.
+      // The allocation ledger, once per device: everything that follows is counted in it.
       installGpuDeviceLedger(gpuDevice);
       // The session creates through its own handle, whose labels name it.
       claim = claimWebgpuDevice(rt, gpuDevice);
-      // A device already lost is announced by the claim: nothing is built on it.
-      if (run.lost) throw new Error('WEBGPU_LOST');
-      const device = (setup.gpuDevice = claim.device);
-      prepareGpuTiming(rt, device);
       try {
-        await prepareWebgpuPages(rt, device);
+        // A device already lost is announced by the claim: nothing is built on it.
+        if (run.lost) throw new Error('WEBGPU_LOST');
+        prepareGpuTiming(rt, claim.device);
+        await prepareWebgpuPages(rt, claim.device);
         // The batch of root world boxes is reserved last: the module's linear memory will no
         // longer grow behind it, and a node move will allocate nothing more.
         context.preparationStep?.('root boxes');
@@ -186,7 +184,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       return readTransparentOcclusionAudit(rt);
     },
     shadowAtlasDigest() {
-      const device = rt.setup.gpuDevice;
+      const device = rt.gpu.device;
       if (!device || !rt.lights.shadows) return Promise.resolve(null);
       return readShadowAtlasDigest(device, rt.lights.shadows);
     },

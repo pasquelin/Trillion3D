@@ -67,13 +67,13 @@ export function prepareCones(rt: WebgpuPagesRuntime) {
     }
 }
 
-/** Builds every GPU resource an image needs; called once, after the device and lighting exist. */
+/** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
     { allPages, blendCopies, scene, viewport, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
   const step = <T>(name: string, work: Promise<T>) => (rt.context.preparationStep?.(name), work);
-  rt.lights.buffer = createSceneLightContractBuffer(gpuDevice);
+  rt.lights.buffer = createSceneLightContractBuffer((gpu.device = gpuDevice));
   // No more light written into the scene, on either side: opaques and transparents read the same
   // declared-light buffer, with the same shadows and the same exposure (P6).
   diag.engineDiagnostic('scene-lighting', 'Scene lights active', {

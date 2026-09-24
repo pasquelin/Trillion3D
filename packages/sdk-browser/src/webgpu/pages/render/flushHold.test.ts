@@ -51,7 +51,7 @@ function vidange(adopte?: () => boolean, arme = true) {
       residency: { pending: Promise.resolve() },
       adoptGpuCut: adopte ?? (() => false),
     },
-    setup: { gpuDevice: undefined, bootstrap: [] },
+    setup: { bootstrap: [] },
     context: { gpuCanvas: undefined },
     blendState: { blendGpu: [], visibleBlend: [] },
     lights: { plan: { counts: { pendingPages: 0 } } },
