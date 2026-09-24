@@ -12,7 +12,7 @@ test('coupe processeur (visibility buffer indisponible) : drawnTriangles = selec
   installGpuGlobals();
   // `rejectR32 = true`: the visbuffer r32uint target fails, the engine falls back to the page raster
   // and the CPU cut — the same fallback as in ./hizOcclusion.test.ts.
-  const { device } = mockGpu(undefined, undefined, false, true);
+  const { device } = mockGpu({ rejectR32: true });
   const { fixture, backend } = quadBackend(device);
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), true);
