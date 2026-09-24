@@ -21,8 +21,8 @@ disagreement is reported to the maintainer.
    and a chef splits an issue too large for one pull request; all of them write it as the writer.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
    rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
-7. **Three.js is a witness only**: bench, measurement and migration sections, never beside the
-   engine. Every maintained source, script, test and page is TypeScript.
+7. **The witness library stays a witness**: named only in bench, measurement and migration
+   sections, never beside the engine. Every maintained source, script, test and page is TypeScript.
 8. **Commits carry no trailer, no co-author, no tool name, no forced identity.** Branch
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
