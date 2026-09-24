@@ -58,8 +58,7 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
     },
     seatEpoch: () => contents.seatEpoch,
     placed(batch, from, to) {
-      contents.poses.touch(batch as Batch, from);
-      contents.poses.touch(batch as Batch, to);
+      contents.poses.touchRange(batch as Batch, from, to);
       lights.boundsMoved();
       parts.invalidate();
     },
