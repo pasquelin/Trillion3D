@@ -18,18 +18,11 @@ import {
   resultWords,
   type FromPhysics,
   type PhysicsResults,
+  type ToPhysics,
 } from './protocol.ts';
 import { createPhysicsView } from './view.ts';
-
-/**
- * Threads the step gets: the budget's, capped by the logical cores minus the page's own; one where
- * memory cannot be shared (a page that is not cross-origin isolated) or the cores are not reported.
- */
-function stepThreads(wanted: number) {
-  const cores = navigator.hardwareConcurrency;
-  if (!globalThis.crossOriginIsolated || !Number.isInteger(cores) || cores < 2) return 1;
-  return Math.max(1, Math.min(Math.floor(wanted), cores - 1));
-}
+import { stepThreads } from './joltThreads.ts';
+import type { CharacterReport } from './characterDriver.ts';
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -113,8 +106,9 @@ export function createPhysicsSession(
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
     const moved = poses.receive(words, m.poses, bodies, ms);
     emitContacts(words, eventsAt(budget), m.events, bodies.meshOf);
+    if (m.character) character.hear?.(m.character);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
-    const changed = moved > 0 || m.active !== stats.active;
+    const changed = moved > 0 || m.active !== stats.active || m.character !== null;
     Object.assign(stats, { active: m.active, poses: m.poses, events: m.events });
     stats.droppedEvents += m.dropped;
     stats.bodies = bodies.count.bodies;
@@ -140,9 +134,15 @@ export function createPhysicsSession(
   worker.onerror = (event) =>
     failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`), true);
   const clock = { paused: false, timeScale: 1 };
+  /** The world's character (`physicsCharacter.ts`): what it sends, and who hears its reports. */
+  const character = {
+    send: (message: ToPhysics) => worker.postMessage(message),
+    hear: null as ((report: CharacterReport) => void) | null,
+  };
   return {
     stats,
     writer,
+    character,
     /** Pauses or scales the simulation's time; a scale of 0 stands still, like a pause. */
     setClock(paused: boolean, timeScale: number) {
       Object.assign(clock, { paused, timeScale });

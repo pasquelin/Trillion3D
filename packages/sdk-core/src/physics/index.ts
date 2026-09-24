@@ -9,3 +9,4 @@ export {
   type ContactEventName,
   type PhysicsHost,
 } from './objectPhysics.ts';
+export type { VehicleDriver, VehicleInput } from './vehicle.ts';

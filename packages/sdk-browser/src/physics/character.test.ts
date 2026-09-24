@@ -1,0 +1,116 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { CommandWriter, PHYSICS_STEP, POSE_WORDS } from '../../../sdk-core/src/physics/index.ts';
+import {
+  HUMAN_BODY,
+  type CharacterInput,
+} from '../../../sdk-core/src/collision/characterSettings.ts';
+import { createCharacterDriver } from './characterDriver.ts';
+import { body, startModule, type Module } from './module.fixture.ts';
+
+const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false };
+const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false };
+
+/** A box body: its slot, motion, centre and half sizes, turned by `quaternion`. */
+const block = (
+  slot: number,
+  motion: number,
+  centre: number[],
+  half: [number, number, number],
+  quaternion = [0, 0, 0, 1],
+) => ({ ...body(slot, motion, 0, 0), position: centre, size: half, quaternion });
+
+/** A module with a floor under y = 0 and `blocks`, and the human character standing at `feet`. */
+async function world(blocks: ReturnType<typeof block>[], feet = [0, 0, 0]) {
+  const jolt = await startModule();
+  const writer = new CommandWriter();
+  writer.gravity([0, -9.81, 0]);
+  writer.add(block(0, 0, [0, -0.5, 0], [50, 0.5, 50]));
+  for (const b of blocks) writer.add(b);
+  const driver = createCharacterDriver();
+  const made = driver.configure({ ...HUMAN_BODY }, feet)!;
+  const words = writer.take();
+  const all = new Uint32Array(words.length + made.length);
+  all.set(words);
+  all.set(made, words.length);
+  jolt.step(all, 0);
+  driver.read(jolt.character(), 0);
+  return { jolt, driver };
+}
+
+/** Steps as the worker does for `seconds`, the character driven by `input`; returns its feet. */
+function live(
+  { jolt, driver }: { jolt: Module; driver: ReturnType<typeof createCharacterDriver> },
+  seconds: number,
+  input: CharacterInput,
+  each: (jolt: Module, t: number) => Uint32Array | null = () => null,
+) {
+  driver.press(input, 0);
+  let top = -Infinity;
+  const xs = new Map<number, number>();
+  for (let t = 0; t < seconds; t += PHYSICS_STEP) {
+    const move = driver.command(PHYSICS_STEP, jolt.active() > 0);
+    const extra = each(jolt, t);
+    const words = [extra, move].filter((w) => w !== null);
+    const all = new Uint32Array(words.reduce((n, w) => n + w.length, 0));
+    words.reduce((at, w) => (all.set(w, at), at + w.length), 0);
+    const count = jolt.step(all, PHYSICS_STEP);
+    const poses = jolt.poses(count),
+      floats = new Float32Array(poses.buffer, poses.byteOffset, poses.length);
+    for (let r = 0; r < count; r++)
+      xs.set(poses[r * POSE_WORDS] & 0xffffff, floats[r * POSE_WORDS + 1]);
+    driver.read(jolt.character(), PHYSICS_STEP);
+    top = Math.max(top, jolt.character()[2]);
+  }
+  const state = jolt.character();
+  return { x: state[1], y: state[2], z: state[3], top, xs };
+}
+
+test('the Jolt character climbs a step up to its step height and is stopped by a higher one', async () => {
+  const low = await world([block(1, 0, [7, 0.15, 0], [5, 0.15, 5])]);
+  const onLow = live(low, 1.5, EAST);
+  assert.ok(Math.abs(onLow.y - 0.3) < 0.02 && onLow.x > 1.6, `on the 0.3 m step: ${onLow.y}`);
+  const high = await world([block(1, 0, [7, 0.4, 0], [5, 0.4, 5])]);
+  const blocked = live(high, 1.5, EAST);
+  assert.ok(blocked.y < 0.05 && blocked.x < 2, `before the 0.8 m wall: ${blocked.x}`);
+});
+
+test('the Jolt character walks up a slope below its steepest and not up one above', async () => {
+  const ramp = (degrees: number) => {
+    const half = (degrees * Math.PI) / 360;
+    // A slab turned about z, rising toward +x, its top surface through the origin's height.
+    return block(1, 0, [4, 0, 0], [3, 0.1, 5], [0, 0, Math.sin(half), Math.cos(half)]);
+  };
+  const gentle = live(await world([ramp(30)]), 2.5, EAST);
+  assert.ok(gentle.y > 0.8, `up the 30° slope: ${gentle.y}`);
+  const steep = live(await world([ramp(60)]), 2.5, EAST);
+  assert.ok(steep.y < 0.5, `not up the 60° slope: ${steep.y}`);
+});
+
+test('the Jolt character rides a moving platform and jumps to the same apex', async () => {
+  const deck = block(1, 1, [0, 0.1, 0], [2, 0.1, 2]);
+  const scene = await world([deck], [0, 0.2, 0]);
+  live(scene, 0.5, STILL);
+  const writer = new CommandWriter();
+  const ride = live(scene, 1, STILL, (_, t) => {
+    writer.moveKinematic(1, [t + PHYSICS_STEP, 0.1, 0], [0, 0, 0, 1]);
+    return writer.take();
+  });
+  assert.ok(Math.abs(ride.x - 1) < 0.1, `carried 1 m by the platform: ${ride.x}`);
+  const ground = ride.y;
+  scene.driver.press(STILL, 1);
+  const { top } = live(scene, 1, STILL, (_, t) => {
+    writer.moveKinematic(1, [1 + t + PHYSICS_STEP, 0.1, 0], [0, 0, 0, 1]);
+    return writer.take();
+  });
+  const apex = HUMAN_BODY.jumpSpeed ** 2 / (2 * HUMAN_BODY.gravity);
+  assert.ok(Math.abs(top - ground - apex) < 0.05, `apex ${top - ground} for ${apex}`);
+});
+
+test('the Jolt character pushes a crate lighter than its strength', async () => {
+  // A 0.6 m cardboard box, too high to step onto: 32 kg, 160 N of friction under a 250 N push.
+  const crate = { ...block(1, 2, [1.5, 0.3, 0], [0.3, 0.3, 0.3]), density: 150 };
+  const { xs } = live(await world([crate]), 2, EAST);
+  const x = xs.get(1) ?? 1.5;
+  assert.ok(x > 2.5, `the crate was pushed to ${x}`);
+});

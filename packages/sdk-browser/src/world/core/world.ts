@@ -85,6 +85,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     () => camera,
     canvas,
     invalidate,
+    physics.character,
   );
   const live = () => {
     if (disposed) throw new Error('World disposed');
