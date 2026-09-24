@@ -4,6 +4,7 @@ import {
   SHADE_BINDINGS,
   SMALL_BINDINGS,
   VIS_BINDINGS,
+  VIS_UNIFORM_BYTES,
   type AtlasBindings,
 } from './bindLayout.ts';
 
@@ -109,7 +110,10 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
     { binding: b.position, resource: { buffer: r.position } },
     { binding: b.pageTable, resource: { buffer: r.pageTable } },
     { binding: b.flags, resource: { buffer: r.flags } },
-    { binding: b.uniform, resource: { buffer: r.uniform, offset: r.uniformOffset, size: 96 } },
+    {
+      binding: b.uniform,
+      resource: { buffer: r.uniform, offset: r.uniformOffset, size: VIS_UNIFORM_BYTES },
+    },
     { binding: b.uv, resource: { buffer: r.uv } },
     ...atlasEntries(b.color, r.textures.color),
     { binding: b.sampler, resource: r.sampler },
