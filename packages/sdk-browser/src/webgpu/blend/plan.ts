@@ -1,33 +1,49 @@
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts';
-import { refreshSurface, surfaceSide } from '../../page/surface.ts';
+import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts';
+import { BLEND_MODES } from '../../scene/materialBlending.ts';
 import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './runs.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
-/** The pass's three pipelines, named by a rank: a plan entry picks them without a test, and the
- *  rank indexes the pipeline tuple of the pass (`BlendPipelines`, `draw.ts`). */
+/** The three cull ranks of a pass's pipelines: a plan entry picks them without a test, and the
+ *  rank, plus three per blend mode (`BLEND_MODES`), indexes the pipelines of the pass
+ *  (`BlendModePipelines`, `draw.ts`). The water surfaces have only the three normal ones. */
 const PIPELINE_NONE = 0,
   PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
 /**
- * A plan entry: the item rank in the high bits, then the bit that says whether the item can
- * SHARE its neighbours' draw, and the pipeline in the low two.
+ * A plan entry: the item rank, the vertex-cull bit, the SHARE bit, then the pipeline in the low
+ * four — five blend modes of three culls, the cull mode being the pipeline modulo three.
  *
  * The share bit is in the entry, not read on the item, because run slicing walks the SORTED plan:
  * following an item rank to its object is a random memory access per entry, when the only plan
  * read is a sequential walk.
+ *
+ * VERTEX CULL: the back and the face of a double-sided paged item used to set two pipelines, so
+ * each broke the run of the other and a double-sided scene drew one call per entry. Its entries
+ * now keep their cull mode but set the pipeline that culls nothing, and the vertex stage drops the
+ * triangles that mode would have culled (`shader.ts`): the back and the face then share one run,
+ * still in the same order, back first. An unpaged item keeps the hardware cull: its own buffers
+ * give it its own draw anyway. `runs.ts` and `expandWgsl.ts` read the low six bits from here:
+ * shifting the rank without following them would let the other sites compile and decode wrong.
  */
-/** Low three bits of an entry: two of pipeline, then the share bit. The item rank occupies the
- *  rest. `runs.ts` and `expandWgsl.ts` read those three from here: shifting
- *  the rank without following them would let the other three sites compile and decode wrong. */
-export const PLAN_SHIFT = 3;
-export const PLAN_SHARED_BIT = 4;
-/** Mask of the low three bits: two entries share it when they fit in one run. */
-export const PLAN_LOW_MASK = (1 << PLAN_SHIFT) - 1;
-export const planEntry = (item: number, pipeline: number, shared: boolean) =>
-  (item << PLAN_SHIFT) | (shared ? PLAN_SHARED_BIT : 0) | pipeline;
+export const PLAN_SHIFT = 6,
+  PLAN_PIPELINE_MASK = 15,
+  PLAN_SHARED_BIT = 16,
+  PLAN_VERTEX_CULL_BIT = 32;
+export const planEntry = (item: number, pipeline: number, shared: boolean, vertexCull = false) =>
+  (item << PLAN_SHIFT) |
+  (vertexCull ? PLAN_VERTEX_CULL_BIT : 0) |
+  (shared ? PLAN_SHARED_BIT : 0) |
+  pipeline;
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT;
-export const planPipeline = (entry: number) => entry & 3;
+/** Cull mode of the entry, whoever applies it: its rank among the three pipelines of its mode. */
+export const planCull = (entry: number) => (entry & PLAN_PIPELINE_MASK) % 3;
+/** Cull mode the vertex stage applies to the entry's instances: zero when the pipeline culls. */
+export const planVertexCull = (entry: number) =>
+  entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : PIPELINE_NONE;
+/** Pipeline the entry sets: its mode's one that culls nothing when the vertex stage culls for it. */
+export const planPipeline = (entry: number) => (entry & PLAN_PIPELINE_MASK) - planVertexCull(entry);
 export const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0;
 /** No paged primitive behind this item: it draws its own indices, in chunks. */
 export const DRAW_UNPAGED = 0xffffffff;
@@ -119,6 +135,17 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.runs = [new Uint32Array(entries * RUN_WORDS), new Uint32Array(entries * RUN_WORDS)];
 }
 
+/** First pipeline rank of an item's blend mode. A transmissive item composes by the backdrop it
+ *  reads, and a mode the engine has no name for is no mode at all: both are refused by name,
+ *  never drawn as normal. */
+function modeBase(surface: PageSurface, transmissive: boolean) {
+  const { blending } = surface;
+  if (!blending) throw new Error('a transparent surface declares a blending no path draws');
+  if (transmissive && blending !== 'normal')
+    throw new Error(`a transmissive material cannot use ${blending} blending`);
+  return BLEND_MODES.indexOf(blending) * 3;
+}
+
 /** Two plan entries of a double-sided item, in the order the pass encoded: back, face. */
 function sidesOf(item: BlendGpuItem) {
   // One determinant: the call used to yield the same value twice to pick the two faces.
@@ -128,11 +155,12 @@ function sidesOf(item: BlendGpuItem) {
   // The record is reread here: the host writes `side` on the declaration it shares with its
   // mesh, and the plan is what must see it (see the room reserved above).
   const surface = refreshSurface(item.surface);
-  const side = surfaceSide(surface);
-  if (side === 'double' && !surface.forceSinglePass) return [back, front];
-  if (side === 'front') return [front];
-  if (side === 'back') return [back];
-  return [PIPELINE_NONE];
+  const side = surfaceSide(surface),
+    base = modeBase(surface, !!item.transmissive);
+  if (side === 'double' && !surface.forceSinglePass) return [base + back, base + front];
+  if (side === 'front') return [base + front];
+  if (side === 'back') return [base + back];
+  return [base + PIPELINE_NONE];
 }
 
 /**
@@ -151,8 +179,10 @@ export function refreshBlendPlan(blendState: BlendState) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       into = item.transmissive ? transmission : blend;
-    for (const side of sidesOf(item)) {
-      into.push(planEntry(i, side, !!item.paged));
+    const sides = sidesOf(item),
+      vertexCull = !!item.paged && sides.length === MAX_SIDES;
+    for (const side of sides) {
+      into.push(planEntry(i, side, !!item.paged, vertexCull));
       if (item.paged) continue;
       if (item.transmissive) transmissionTriangles += item.count / 3;
       else blendTriangles += item.count / 3;

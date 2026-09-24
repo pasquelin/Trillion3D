@@ -21,7 +21,6 @@ function banc(ids: number[]) {
   let peeked: GpuCut | null = releve(false);
   const mounted = mountCutAdopter({
     packedPages,
-    residentOffsetWords: new Int32Array(packedPages.length).fill(0),
     uniforms: shared,
     selection: () => peekOnly(() => peeked),
   });
@@ -100,7 +99,6 @@ async function bench() {
   selection.updateResidency(new Uint32Array(dag.pageCount).fill(1));
   const { adopter } = mountCutAdopter({
     packedPages: fixturePages(dag.pageCount),
-    residentOffsetWords: new Int32Array(dag.pageCount),
     uniforms,
     selection: () => selection,
   });
