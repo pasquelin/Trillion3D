@@ -31,7 +31,7 @@ import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
-import { claimWebgpuDevice } from './io/lost.ts';
+import { claimWebgpuDevice, stopIfClosed } from './io/lost.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
 
@@ -104,8 +104,11 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
         // longer grow behind it, and a node move will allocate nothing more.
         context.preparationStep?.('root boxes');
         rt.layout.rootBoxes = await reserveRootBoxes(rt.layout.selectionRoots);
+        stopIfClosed(run);
       } catch (error) {
-        diag.diagnosticFailure('webgpu-prepare-failed', error);
+        // Closed while it prepared: cancelled, not failed; what it built since is destroyed too.
+        if (run.closed) await disposeWebgpuPages(rt, claim);
+        else diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
       }
     },

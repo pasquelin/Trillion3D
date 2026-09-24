@@ -1,4 +1,3 @@
-import type { HostAttributes } from '../../../host/resources.ts';
 import { createDeferredLighting } from '../../../lighting/deferred/deferred.ts';
 import { prepareTemporalAntialiasing } from '../../../taa/prepare.ts';
 import { createSceneLightContractBuffer } from '../state/lights.ts';
@@ -12,67 +11,26 @@ import { createTransparentCompaction } from '../../transparent/compact.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import { VOLUME_WORDS, createVolumeBuffer } from '../../transparent/transmission.ts';
 import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/selection.ts';
-import { OPEN_CONE, triangleCone } from '../../../page/cone/cone.ts';
-import { surfaceFrontOnly } from '../../../page/surface.ts';
+import { prepareCones } from './cones.ts';
 import { ensureTargets } from './targets.ts';
 import { ensureUniform } from './pipelineFor.ts';
 import { dropVis, grantCapability } from '../io/drops.ts';
+import { stopIfClosed } from '../io/lost.ts';
 import { prepareWebgpuTextures } from './textures.ts';
 import { prepareWebgpuVisibility } from './visibility.ts';
 import { prepareDirectLights } from './lights.ts';
 import { createWebgpuPagesCache } from './cache.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 
-/** Every cluster carries its own cone; a double-sided or back-facing material keeps it open.
- *  Posting a cone is declaring it: the page's root raises its flag, or the cut would believe it has
- *  no cone and would no longer read `cone`. Pages are walked by root: the `allPages` catalogue is the
- *  concatenation of their pages, in the same order. */
-export function prepareCones(rt: WebgpuPagesRuntime) {
-  const xyzCache = new WeakMap<HostAttributes, Float32Array>();
-  for (const root of rt.setup.roots)
-    for (const rec of root.pages) {
-      const array = rec.array,
-        attr = rec.attributes.position;
-      if (!array || !attr) continue;
-      root.cones = true;
-      let xyz = xyzCache.get(rec.attributes);
-      if (!xyz) {
-        xyz = new Float32Array(attr.count * 3);
-        // A plain three-component attribute is already that array, copied as a block; any other —
-        // interleaved, normalized, another stride — goes through the accessors that can read it.
-        const flat = attr.array as ArrayLike<number> & {
-          subarray?(begin: number, end: number): ArrayLike<number>;
-          isInterleavedBufferAttribute?: boolean;
-        };
-        if (
-          attr.itemSize === 3 &&
-          !attr.normalized &&
-          !(attr as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute &&
-          flat.subarray &&
-          flat.length >= attr.count * 3
-        )
-          xyz.set(flat.subarray(0, attr.count * 3));
-        else
-          for (let i = 0; i < attr.count; i++) {
-            xyz[i * 3] = attr.getX(i);
-            xyz[i * 3 + 1] = attr.getY(i);
-            xyz[i * 3 + 2] = attr.getZ(i);
-          }
-        xyzCache.set(rec.attributes, xyz);
-      }
-      // Front-only alone gets a closed cone, and the side is read from the declaration at this
-      // very moment: a surface the host later opens in place reopens its cone at the cut
-      // (`../../../page/surface.ts`, `gpuSelection.leafCone`).
-      rec.cone = surfaceFrontOnly(rec.material) ? triangleCone(xyz, array) : OPEN_CONE;
-    }
-}
-
-/** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. */
+/** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. A
+ *  backend disposed meanwhile stops at the next wait, what it built in `rt` for the caller. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
     { allPages, blendCopies, scene, viewport, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
   const step = <T>(name: string, work: Promise<T>) => (rt.context.preparationStep?.(name), work);
+  // After each wait, once what it gave is in `rt`: a backend disposed meanwhile stops there.
+  const stop = () => stopIfClosed(run);
   rt.lights.buffer = createSceneLightContractBuffer((gpu.device = gpuDevice));
   // No more light written into the scene, on either side: opaques and transparents read the same
   // declared-light buffer, with the same shadows and the same exposure (P6).
@@ -93,6 +51,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
       prepareTemporalAntialiasing(rt, gpuDevice),
     ]),
   );
+  stop();
   context.signal?.throwIfAborted();
   gpu.presenter = prepareWebgpuPresentation(gpuDevice, context.gpuCanvas);
   if (gpu.presenter) grantCapability(capabilities, 'direct WebGPU present');
@@ -137,6 +96,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     'transparent compaction',
     createTransparentCompaction(gpuDevice, blendState.table),
   );
+  stop();
   diag.engineDiagnostic('transparent-clusters', 'Transparent cluster table', {
     version: 1,
     items: blendState.table.pagedItems.length,
@@ -150,10 +110,14 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   ensureUniform(rt, gpuDevice, cap);
   try {
     await step('textures', prepareWebgpuTextures(rt, gpuDevice));
+    stop();
     // Item rows cite atlas layers: they are therefore mounted AFTER the textures.
     await step('blend resources', prepareBlendResources(rt, gpuDevice));
+    stop();
     await step('visibility programs', prepareWebgpuVisibility(rt, gpuDevice));
+    stop();
   } catch (error) {
+    stop(); // A close is no material failure.
     diag.diagnosticFailure('material-pipeline-failed', error);
     dropVis(rt);
   }
@@ -162,6 +126,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
   await step('direct lights', prepareDirectLights(rt, gpuDevice));
+  stop();
   prepareCones(rt);
   // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
   if (vis.gpuDraw && selectionRoots.length) {
@@ -172,12 +137,14 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
         diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
       }),
     );
+    stop();
     // The GPU has just received ABSOLUTE world matrices: no render origin is posted there yet, and
     // the first image will bring them back to the eye wherever it is then.
     run.worldUploadOrigin.fill(NaN);
   }
   capabilities.gpuDriven = !!run.gpuSelection;
   await step('coverage bootstrap', services.bootstrapState.ensure());
+  stop();
   diag.engineDiagnostic('render-capabilities', 'Render paths ready', {
     surfaceVersion: gpu.surfaces?.version ?? null,
     deferredLighting: !!gpu.deferred,
