@@ -1540,8 +1540,7 @@
     "summary": "Các cài đặt đã công bố của ánh sáng trực tiếp.",
     "description": "Đây là các lựa chọn sản phẩm có tên, không phải các hằng số bị chôn giấu: mọi giới hạn khi chạy đều đọc lại chúng, và bảng chẩn đoán công bố chúng nguyên trạng.",
     "members": {
-      "maxLights": "Số nguồn sáng mà hợp đồng chấp nhận tổng cộng; vượt quá đó, `addLight` từ chối.",
-      "maxLightsPerTile": "Số nguồn sáng mà một ô màn hình giữ lại; vòng lặp điểm ảnh bị giới hạn bởi con số này (X2).",
+      "maxLights": "Số nguồn sáng mà hợp đồng chấp nhận tổng cộng; vượt quá đó, `addLight` từ chối. Một ô màn hình giữ mọi nguồn sáng chạm vào nó; danh sách của nó và vòng lặp điểm ảnh bị giới hạn bởi con số này (X2).",
       "tileSize": "Cạnh tính bằng điểm ảnh của một ô màn hình trong danh sách nguồn sáng.",
       "samplesPerPixel": "Số nguồn sáng được tô bóng đầy đủ — kể cả đọc bóng đổ — cho mỗi điểm ảnh của một hình ảnh ĐANG CHUYỂN ĐỘNG (X2): những nguồn còn lại được cân nhắc mà không có bóng đổ của chúng, và những nguồn được tô bóng thì được vẽ theo tỉ lệ, nên ước lượng không thiên lệch và khử răng cưa theo thời gian sẽ lấy trung bình nó. Một hình ảnh đứng yên tô bóng mọi nguồn sáng trong ô của nó và hội tụ về tổng chính xác; ở đó, con số này không có vai trò gì.",
       "shadowPage": "Cạnh của một trang bóng, tính bằng texel: đơn vị của bể vật lý, của các bản đồ ảo và của việc vô hiệu hóa. Một vật chuyển động chỉ làm cũ các trang mà hộp chiếu của nó phủ.",

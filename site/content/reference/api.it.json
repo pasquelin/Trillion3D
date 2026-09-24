@@ -2757,8 +2757,7 @@
     "summary": "Impostazioni pubblicate dell'illuminazione diretta.",
     "description": "Sono scelte di prodotto nominate, non costanti sepolte: ogni limite a runtime le rilegge, e la diagnostica le pubblica così come sono.",
     "members": {
-      "maxLights": "Luci accettate in totale dal contratto; oltre, `addLight` rifiuta.",
-      "maxLightsPerTile": "Luci mantenute da una tessera di schermo; il ciclo per pixel è limitato da questo numero (X2).",
+      "maxLights": "Luci accettate in totale dal contratto; oltre, `addLight` rifiuta. Una tessera di schermo mantiene ognuna di quelle che la toccano; la sua lista e il ciclo per pixel sono limitati da questo numero (X2).",
       "tileSize": "Lato in pixel di una tessera di schermo della lista di luci.",
       "samplesPerPixel": "Luci illuminate per intero — lettura dell'ombra inclusa — per pixel di un'immagine IN MOVIMENTO (X2): le altre sono pesate senza la loro ombra, e quelle illuminate sono estratte a sorte in proporzione, quindi la stima è senza distorsioni e l'antialiasing temporale ne fa la media. Un'immagine ferma illumina ogni luce della sua tessera e converge verso la somma esatta; lì, questo numero non gioca alcun ruolo.",
       "shadowPage": "Lato di una pagina d’ombra, in texel: l’unità del pool fisico, delle mappe virtuali e dell’invalidazione. Un oggetto in movimento invalida solo le pagine coperte dal suo box proiettato.",

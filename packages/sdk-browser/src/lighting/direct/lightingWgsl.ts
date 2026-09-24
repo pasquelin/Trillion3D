@@ -58,7 +58,7 @@ fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y
 fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
  var result=vec3f(0.0);
  let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
- let kept=min(tileLights[base+countSlot],MAX_TILE_LIGHTS);
+ let kept=min(tileLights[base+countSlot],MAX_LIGHTS);
  for(var index=0u;index<kept;index++){
   result+=declaredLight(directLights.items[tileLights[base+firstSlot+index]],rgb,metal,rough,N,V,P,ao);
  }
@@ -91,7 +91,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tilesY=u32(view.lightParams.z);
  if(tile.x>=tilesX||tile.y>=tilesY){return vec3f(0.0);}
  let rank=u32(view.viewport.w);
- if(rank==0u){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,4u);}
+ if(rank==0u){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
  return sampledTileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,rank,pixel);
 }`;
 
@@ -125,5 +125,5 @@ fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
   }
   return result;
  }
- return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,2u,TILE_BLEND_BASE);
+ return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,1u,TILE_BLEND_BASE);
 }`;

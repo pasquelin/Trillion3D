@@ -1522,8 +1522,7 @@
     "summary": "Configurações publicadas de iluminação direta.",
     "description": "Essas são escolhas de produto nomeadas, não constantes enterradas: todo limite em tempo de execução as relê, e o diagnóstico as publica como estão.",
     "members": {
-      "maxLights": "Luzes que o contrato aceita no total; além disso, `addLight` recusa.",
-      "maxLightsPerTile": "Luzes que um ladrilho de tela mantém; o laço de pixel é limitado por esse número (X2).",
+      "maxLights": "Luzes que o contrato aceita no total; além disso, `addLight` recusa. Um ladrilho de tela mantém cada uma que o toca; sua lista e o laço de pixel são limitados por esse número (X2).",
       "tileSize": "Lado em pixels de um ladrilho de tela da lista de luzes.",
       "samplesPerPixel": "Luzes sombreadas por completo — leitura de sombra incluída — por pixel de uma imagem EM MOVIMENTO (X2): as outras são pesadas sem sua sombra, e as sombreadas são desenhadas em proporção, então a estimativa é não enviesada e o antisserrilhamento temporal a faz convergir. Uma imagem parada sombreia toda luz do seu ladrilho e converge para a soma exata; ali, esse número não tem papel nenhum.",
       "shadowPage": "Lado de uma página de sombra, em texels: a unidade do pool físico, dos mapas virtuais e da invalidação. Um objeto em movimento só invalida as páginas que a sua caixa projetada cobre.",

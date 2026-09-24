@@ -2757,8 +2757,7 @@
     "summary": "Veröffentlichte Einstellungen der direkten Beleuchtung.",
     "description": "Das sind benannte Produktentscheidungen, keine vergrabenen Konstanten: jede Laufzeitgrenze liest sie erneut, und die Diagnose veröffentlicht sie unverändert.",
     "members": {
-      "maxLights": "Insgesamt vom Vertrag akzeptierte Lichter; darüber hinaus lehnt `addLight` ab.",
-      "maxLightsPerTile": "Von einer Bildschirmkachel gehaltene Lichter; die Schleife pro Pixel ist durch diese Zahl begrenzt (X2).",
+      "maxLights": "Insgesamt vom Vertrag akzeptierte Lichter; darüber hinaus lehnt `addLight` ab. Eine Bildschirmkachel behält jedes davon, das sie berührt; ihre Liste und die Pixelschleife sind dadurch begrenzt (X2).",
       "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
       "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
