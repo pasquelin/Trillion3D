@@ -14,6 +14,7 @@ import {
 import { encodeBlend } from './encodeBlend.ts';
 import { encodeVis } from './encodeVis.ts';
 import { dropVis } from '../io/drops.ts';
+import { forEachDirtyRun } from '../../row/dirty.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
@@ -33,21 +34,25 @@ export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   });
 }
 
-/** Uploads the span of rows whose bytes changed, and nothing when none did. */
-export function uploadDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { rows, drawSlots } = rt.layout,
-    { pageTable } = rt.vis;
-  rt.timing.encodeCounts.lignesTeleversees = Math.max(0, rows.dirtyTo - rows.dirtyFrom + 1);
-  if (rows.dirtyTo < rows.dirtyFrom || !pageTable || !rows.pageTableFloats) return;
-  device.queue.writeBuffer(
-    pageTable,
-    rows.dirtyFrom * PAGE_INFO_STRIDE,
-    rows.pageTableFloats.buffer as ArrayBuffer,
-    rows.dirtyFrom * PAGE_INFO_STRIDE,
-    (rows.dirtyTo - rows.dirtyFrom + 1) * PAGE_INFO_STRIDE,
+/** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
+export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
+  const { rows } = rt.layout;
+  rt.timing.encodeCounts.lignesTeleversees = 0;
+  if (rows.dirtyTo < rows.dirtyFrom || !rt.vis.pageTable || !rows.pageTableFloats) return;
+  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, rt, uploadRun);
+  rows.clearDirty();
+}
+
+function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
+  const floats = rt.layout.rows.pageTableFloats!;
+  rt.gpu.device!.queue.writeBuffer(
+    rt.vis.pageTable!,
+    from * PAGE_INFO_STRIDE,
+    floats.buffer as ArrayBuffer,
+    floats.byteOffset + from * PAGE_INFO_STRIDE,
+    (to - from + 1) * PAGE_INFO_STRIDE,
   );
-  rows.dirtyFrom = drawSlots;
-  rows.dirtyTo = -1;
+  rt.timing.encodeCounts.lignesTeleversees += to - from + 1;
 }
 
 /** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
@@ -102,7 +107,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     }
   }
   if (!gpu.pipelineBack) return 0;
-  uploadDirtyRows(rt, device);
+  uploadDirtyRows(rt);
   if (!rows.packedCount) {
     const encoder = createRenderEncoder(rt, device);
     encodeClear(rt, encoder);

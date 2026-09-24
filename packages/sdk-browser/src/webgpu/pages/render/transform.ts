@@ -28,6 +28,8 @@ const local = new Float64Array(16),
   movedMin = [0, 0, 0],
   movedMax = [0, 0, 0],
   moved = new Float64Array(BOX_VALUES);
+/** One flag per selection root: under the moved node or not. Grown once, never per move. */
+let underNode = new Uint8Array(0);
 
 /** The named node of the prepared scene, or `undefined`: the search is a walk, not an index. */
 function findNode(source: HostGraphNode, nodeName: string) {
@@ -98,10 +100,15 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
   // A host pose written in this same task is read before the engine's own write hides it.
   run.gate.engineWriting();
+  // The hierarchy is climbed once per root, here: the boxes and the rows below read the flags.
+  const roots = layout.selectionRoots;
+  if (underNode.length < roots.length) underNode = new Uint8Array(roots.length);
   boxEmpty(moved, 0);
-  for (const root of layout.selectionRoots)
-    if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node))
-      boxUnionBatch(moved, root.worldBox, 1);
+  for (let i = 0; i < roots.length; i++) {
+    const root = roots[i];
+    underNode[i] = isUnder(root.pages[0]?.sourceMesh, node) ? 1 : 0;
+    if (underNode[i] && root.worldBox) boxUnionBatch(moved, root.worldBox, 1);
+  }
   // The local matrix is authoritative, not the three fields: not every matrix is a
   // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
   // scale under a rotation produces — does not decompose into it, and `updateMatrixWorld` would
@@ -124,13 +131,10 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // World boxes of the moved roots reproject IN BATCH, through the governor, in the buffer
   // reserved at prepare. A missing or released buffer hands over to the box-by-box computation,
   // which yields the same bits — the same `boxTransform` on the same inputs.
-  const enLot =
-    !!layout.rootBoxes &&
-    transformRootBoxes(layout.rootBoxes, layout.selectionRoots, (root) =>
-      isUnder(root.pages[0]?.sourceMesh, node),
-    );
-  for (const root of layout.selectionRoots) {
-    if (!isUnder(root.pages[0]?.sourceMesh, node)) continue;
+  const enLot = !!layout.rootBoxes && transformRootBoxes(layout.rootBoxes, roots, underNode);
+  for (let i = 0; i < roots.length; i++) {
+    if (!underNode[i]) continue;
+    const root = roots[i];
     moveRootRows(rt, root);
     if (!root.localBox || !root.worldBox) continue;
     if (!enLot) boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
