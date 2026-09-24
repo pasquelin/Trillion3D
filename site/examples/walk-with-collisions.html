@@ -25,7 +25,8 @@
       import { controls, readout } from '../runtime/kit.js';
 
       // The engine's character, with the physics on: its body is the physics' own. It climbs
-      // the stairs and the ramp, rides the platform and pushes the boxes, and they push back.
+      // the stairs and the ramp, rides the platform and pushes the boxes, and they push back;
+      // it starts and stops no faster than the floor's friction lets it, and slides on the ice.
       // A click locks the mouse to look; W A S D walk (Z Q S D on AZERTY), Shift sprints,
       // Space jumps, Escape frees the mouse.
       const world = createWorld('view', { controls: 'character', physics: true });
@@ -34,10 +35,11 @@
       world.camera.position.set(0, world.controls.eyeHeight, 9);
       world.camera.lookAt(0, 1, 0);
 
-      const matte = (color) => material.meshStandard({ color, roughness: 0.85 });
-      // Everything that never moves is a static body: the floor, the stairs, the ramp.
-      const fixed = (size, at, color, turn = [0, 0, 0]) => {
-        const block = object.mesh(geometry.box(...size), matte(color));
+      // Stone underfoot: the soles grip it, and a stop glides a little (`physics`, its friction).
+      const matte = (color, physics = 'stone') => material.meshStandard({ color, roughness: 0.85, physics });
+      // Everything that never moves is a static body: the floor, the stairs, the ramp, the ice.
+      const fixed = (size, at, matter, turn = [0, 0, 0]) => {
+        const block = object.mesh(geometry.box(...size), typeof matter === 'string' ? matte(matter) : matter);
         block.position.set(...at);
         block.rotation.set(...turn);
         block.receiveShadow = block.castShadow = true;
@@ -53,6 +55,10 @@
       // A ramp of 20°, gentler than the steepest floor the character stands on.
       const RAMP = (20 * Math.PI) / 180;
       fixed([3, 0.2, 6], [7, Math.sin(RAMP) * 3 - 0.1, -1], '#a8b8a0', [RAMP, 0, 0]);
+      // A patch of ice, 2 cm thick: a rubber sole grips it five times less than stone, so a jog
+      // let go on it slides almost 4 m, and a start from rest takes seconds.
+      const ice = material.meshStandard({ color: '#d4ecf7', roughness: 0.15, physics: 'ice' });
+      fixed([6, 0.02, 8], [0, 0.01, 4], ice);
 
       // The platform is kinematic: the page moves it, and it carries what stands on it.
       const platform = object.mesh(geometry.box(3, 0.3, 3), matte('#d9824b'));

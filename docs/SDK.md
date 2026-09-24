@@ -422,7 +422,13 @@ each one a setting of `world.controls`. What it collides with depends on the wor
   velocity, at most one step ahead.
 
 Both bodies read the same drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
-`stopTime`, jumps with a coyote time and a jump buffer. The triangle body catches up every tick
+`stopTime`, jumps with a coyote time and a jump buffer. No leg changes the ground speed faster than
+the floor's friction lets a sole push, `μ g`, `μ` a rubber sole's grip on the floor's matter (the
+geometric mean of the two frictions, the physics' own rule): with physics on, the matter of the body
+the feet stand on (`material.physics`, a body's `friction`); without, declared stone. A jog then
+gathers its pace in 0.45 s on stone and 2.2 s on ice, and glides `v² / (2 μ g)` to a stop, 0.8 m on
+stone and 3.8 m on ice; the two times only shape the last centimetres, and a longer one brakes more
+gently. The triangle body catches up every tick
 of a frame, however slow the page; only a stall past 0.25 s is dropped (`MAX_CHARACTER_DELTA`), and
 the body resumes where it stopped. Jolt's body steps on the physics worker's own clock, never on the
 page's frames: a slow page draws it late, never slower; a stalled worker drops what its catch-up
@@ -437,7 +443,7 @@ world.controls.pushStrength = 400; // a stronger push
 
 **Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` — `throttle`, `brake`, `steer`,
 `handbrake` — and hands it to `world.controls.vehicle.drive(input)` each time it changes. Any object
-with `drive` can be driven; the physics' own vehicles arrive with #398. Setting `kind = 'vehicle'`
+with `drive` can be driven; the physics' own vehicles arrive with #501. Setting `kind = 'vehicle'`
 while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move the camera.
 
 ### Picking, moving and saving
@@ -1036,5 +1042,6 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
   landing, which then runs in slow motion for a short moment; the page's `physics` stage is
   0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
-  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints, vehicles, soft bodies, cooked colliders and
-  loaded models as bodies arrive with the next physics issues (#396, #398–#400).
+  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints and cooked
+  colliders are here (above), not measured at this scale; advanced joints arrive with #500, the
+  physics' own vehicles with #501, soft bodies with #399.

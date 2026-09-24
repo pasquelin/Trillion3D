@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import {
   CommandWriter,
   EVENT_WORDS,
+  PHYSICS_MATERIALS,
   PHYSICS_STEP,
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts';
+import { gripOf } from '../../../sdk-core/src/collision/characterDrive.ts';
 import {
   HUMAN_BODY,
   type CharacterInput,
@@ -25,12 +27,13 @@ const block = (
   quaternion = [0, 0, 0, 1],
 ) => ({ ...body(slot, motion, 0, 0), position: centre, size: half, quaternion });
 
-/** A module with a floor under y = 0 and `blocks`, and the human character standing at `feet`. */
-async function world(blocks: ReturnType<typeof block>[], feet = [0, 0, 0]) {
+/** A module with a floor of `friction` under y = 0 and `blocks`, and the human character
+ *  standing at `feet`. */
+async function world(blocks: ReturnType<typeof block>[], feet = [0, 0, 0], friction = 0.5) {
   const jolt = await startModule();
   const writer = new CommandWriter();
   writer.gravity([0, -9.81, 0]);
-  writer.add(block(0, 0, [0, -0.5, 0], [50, 0.5, 50]));
+  writer.add({ ...block(0, 0, [0, -0.5, 0], [50, 0.5, 50]), friction });
   for (const b of blocks) writer.add(b);
   const driver = createCharacterDriver();
   const made = driver.configure({ ...HUMAN_BODY }, feet)!;
@@ -115,6 +118,18 @@ test('the Jolt character rides a moving platform and jumps to the same apex', as
   });
   const apex = HUMAN_BODY.jumpSpeed ** 2 / (2 * HUMAN_BODY.gravity);
   assert.ok(Math.abs(top - ground - apex) < 0.05, `apex ${top - ground} for ${apex}`);
+});
+
+test('the Jolt character glides to a stop over the friction of the floor it stands on', async () => {
+  const v = HUMAN_BODY.walkSpeed;
+  for (const { friction } of [PHYSICS_MATERIALS.stone, PHYSICS_MATERIALS.ice]) {
+    const scene = await world([], [-45, 0, 0], friction);
+    const from = live(scene, 3, EAST).x,
+      glide = live(scene, 6, STILL).x - from,
+      expected = (v * v) / (2 * gripOf(friction) * HUMAN_BODY.gravity);
+    // One step of the page's input late, and the legs' last centimetre: within 3 cm.
+    assert.ok(Math.abs(glide - expected) < 0.03 + v * PHYSICS_STEP, `${glide} m for ${expected} m`);
+  }
 });
 
 test('the Jolt character pushes a crate lighter than its strength', async () => {
