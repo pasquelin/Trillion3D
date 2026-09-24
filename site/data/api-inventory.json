@@ -3072,6 +3072,7 @@
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs/examples/chess-pieces.ts",
         "scripts/docs/examples/mesh.ts",
+        "scripts/docs/examples/models.ts",
         "scripts/docs/examples/solids.ts"
       ],
       "disposition": "retained",
