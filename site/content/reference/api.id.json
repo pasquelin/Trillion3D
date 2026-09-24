@@ -4590,7 +4590,7 @@
   },
   "createSceneLightStore": {
     "summary": "Lampu scene, pada kapasitas tetap.",
-    "description": "Buffer dialokasikan sekali untuk `maxLights` lampu dan tidak pernah dialokasikan ulang; menambah, mengatur atau menghapus sebuah lampu hanya menulis enam belas float-nya dan menaikkan revisinya. `revision` per lampu adalah yang dibaca penjadwal bayangan untuk mengetahui bahwa sebuah lampu telah berubah: tidak ada struktur yang dibangun ulang per bingkai."
+    "description": "Buffer dialokasikan sekali untuk `maxLights` lampu dan tidak pernah dialokasikan ulang; menambah, mengatur atau menghapus sebuah lampu hanya menulis enam belas float-nya dan menaikkan revisinya. `revision` per lampu memberi tahu pembaca bahwa sebuah lampu telah berubah: tidak ada struktur yang dibangun ulang per bingkai. Penjadwal bayangan membaca sendiri bentuk lampu, sehingga perubahan intensitas atau warna tidak membuat satu pun halaman bayangan usang."
   },
   "createSceneRoot": {
     "summary": "Membuat sebuah hierarki scene kosong dan berversi.",
