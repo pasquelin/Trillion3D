@@ -5370,7 +5370,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/camera/engineCamera.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/camera/depthRamp.test.ts",
+        "packages/sdk-browser/src/camera/engineCamera.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/camera\".orthographicProjection"
     },
@@ -5880,6 +5883,7 @@
         "bench/oracles/browser/occlusion.ts",
         "bench/perf/browser/support/hierarchyReplayEngine.ts",
         "bench/perf/core/three-vs-core-camera.perf.ts",
+        "packages/sdk-browser/src/camera/depthRamp.test.ts",
         "packages/sdk-browser/src/camera/engineCamera.ts",
         "packages/sdk-browser/src/camera/world.test.ts"
       ],
