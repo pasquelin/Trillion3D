@@ -8,6 +8,7 @@ import { loadClusterManifest } from '../../scene/manifestLoad.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
+import { modelNodes } from './modelNodes.ts';
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
@@ -27,7 +28,9 @@ export type ModelRecord = {
 
 /**
  * A compiled model added to a scene like any other object: its pages stream by what the frame
- * reads, and its node poses it. `bounds` is the box it spans in its own frame.
+ * reads, and its node poses it. The nodes of its source file are its children: a page finds one
+ * by name (`getObjectByName`) and moves it like any node. `bounds` is the box it spans in its
+ * own frame.
  */
 export class LoadedModel extends Object3D {
   /** Always `true`: tells a loaded model apart from any other object. */
@@ -62,6 +65,7 @@ export class LoadedModel extends Object3D {
       new Vector3(flat[0], flat[1], flat[2]),
       new Vector3(flat[3], flat[4], flat[5]),
     );
+    this._addFromFile(modelNodes(record.scene.source));
   }
   /** The model's compiled manifest — its primitives, `sourceTriangles` — and `clusters`, the
    *  clusters its pages hold, every level of its DAGs counted. */

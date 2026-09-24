@@ -8118,7 +8118,7 @@
         "desc": "The box of this node's own content, local frame; a plain node holds none."
       }
     ],
-    "description": "`bounds` is the box it spans in its own frame."
+    "description": "The nodes of its source file are its children: a page finds one by name (`getObjectByName`) and moves it like any node. `bounds` is the box it spans in its own frame."
   },
   {
     "id": "LodQualityId",
