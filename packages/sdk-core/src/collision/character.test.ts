@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { box } from '../world/geometry/basic.ts';
 import { Mesh } from '../world/object/mesh.ts';
 import { meshCollision } from './meshTriangles.ts';
-import { createCharacterBody, MAX_CHARACTER_TICKS } from './characterBody.ts';
+import { createCharacterBody, MAX_CHARACTER_DELTA } from './characterBody.ts';
 import { HUMAN_BODY, type CharacterInput, type CharacterSettings } from './characterSettings.ts';
 
 /** An axis-aligned block from its two corners, as a mesh the collision world reads. */
@@ -49,12 +49,17 @@ test('a body falls, lands on the floor and reports the impact once', () => {
   assert.ok(Math.abs(impacts[0] - Math.sqrt(2 * HUMAN_BODY.fallGravity * 2)) < 0.15);
 });
 
-test('a stalled page resumes where it stopped: one call lives a ceiling of ticks', () => {
+test('a slow page walks as fast; a stall resumes where it stopped, 0.25 s later at most', () => {
   const made = body([FLOOR()]);
   live(made, 1, EAST);
-  const before = made.feet[0];
+  let before = made.feet[0];
+  // Five frames a second: every tick is lived, at the walking speed.
+  for (let k = 0; k < 5; k++) made.advance(0.2, EAST);
+  const walked = made.feet[0] - before;
+  assert.ok(Math.abs(walked - HUMAN_BODY.walkSpeed) < 0.05, `walked ${walked} m in 1 s at 5 fps`);
+  before = made.feet[0];
   made.advance(10, EAST);
-  const most = (MAX_CHARACTER_TICKS / 120) * HUMAN_BODY.walkSpeed;
+  const most = MAX_CHARACTER_DELTA * HUMAN_BODY.walkSpeed;
   assert.ok(made.feet[0] - before <= most + 1e-9, `moved ${made.feet[0] - before} in one call`);
 });
 

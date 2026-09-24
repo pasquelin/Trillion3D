@@ -406,8 +406,11 @@ each one a setting of `world.controls`. What it collides with depends on the wor
   velocity, at most one step ahead.
 
 Both bodies read the same drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
-`stopTime`, jumps with a coyote time and a jump buffer. A stalled page lives at most 8 ticks
-(67 ms) in one call, then resumes where it stopped.
+`stopTime`, jumps with a coyote time and a jump buffer. The triangle body catches up every tick
+of a frame, however slow the page; only a stall past 0.25 s is dropped (`MAX_CHARACTER_DELTA`), and
+the body resumes where it stopped. Jolt's body steps on the physics worker's own clock, never on the
+page's frames: a slow page draws it late, never slower; a stalled worker drops what its catch-up
+ceiling cannot hold (`MAX_CATCH_UP_STEPS`), as every body of the simulation does.
 
 ```js
 const world = createWorld('view', { controls: 'character', physics: true });

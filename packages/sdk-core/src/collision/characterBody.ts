@@ -27,9 +27,10 @@ import { createDrive, driveTick, type DriveStep } from './characterDrive.ts';
  *  contacts are read and how late a landing or a jump can be noticed: one tick, 8 ms. */
 const CHARACTER_TICK = 1 / 120;
 
-/** Ticks one call lives at most: a stalled page (a hidden tab, a long frame) resumes where it
- *  stopped, 67 ms later at most, instead of spending one frame on the whole stall. */
-export const MAX_CHARACTER_TICKS = 8;
+/** Seconds one call lives at most, the usual clamp of a fixed-step loop: a stall (a hidden tab,
+ *  a long frame) resumes where it stopped, 0.25 s later at most, instead of spending one frame on
+ *  the whole stall. Any shorter delta is caught up in full, so a page at 5 fps walks as fast. */
+export const MAX_CHARACTER_DELTA = 0.25;
 
 /** What a character's controller drives, whatever the body collides with. */
 export interface CharacterBody {
@@ -44,6 +45,10 @@ export interface CharacterBody {
   /** Releases what the body holds outside the page; the triangle body holds nothing. */
   dispose?(): void;
 }
+
+/** Makes a character's body under `settings`, read live: how a physics backend hands the
+ *  controller a body of its own (`world.controls` gives it the world's physics one). */
+export type CharacterBodyFactory = (settings: CharacterSettings) => CharacterBody;
 
 export function createCharacterBody(settings: CharacterSettings) {
   const capsule = { feet: new Float64Array(3), radius: 0, height: 0 },
@@ -174,13 +179,8 @@ export function createCharacterBody(settings: CharacterSettings) {
     advance(delta: number, input: CharacterInput, events: CharacterEvents = {}) {
       shape();
       // `carry` is the present less the last tick's time, in (-tick, 0] between calls.
-      carry += Math.max(0, delta);
-      for (let ticks = 0; carry > 0; carry -= CHARACTER_TICK, ticks++) {
-        // The rest of a stall past the ceiling is dropped, not caught up.
-        if (ticks === MAX_CHARACTER_TICKS) {
-          carry = 0;
-          break;
-        }
+      carry += Math.min(Math.max(0, delta), MAX_CHARACTER_DELTA);
+      for (; carry > 0; carry -= CHARACTER_TICK) {
         previous.set(capsule.feet);
         tick(CHARACTER_TICK, input, events);
       }
