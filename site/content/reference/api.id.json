@@ -1540,8 +1540,7 @@
     "summary": "Pengaturan pencahayaan langsung yang dipublikasikan.",
     "description": "Ini adalah pilihan produk bernama, bukan konstanta terkubur: setiap batas saat berjalan membacanya ulang, dan diagnostik mempublikasikannya apa adanya.",
     "members": {
-      "maxLights": "Cahaya yang diterima kontrak secara total; melebihi itu, `addLight` menolak.",
-      "maxLightsPerTile": "Cahaya yang disimpan sebuah tile layar; loop piksel dibatasi angka ini (X2).",
+      "maxLights": "Cahaya yang diterima kontrak secara total; melebihi itu, `addLight` menolak. Sebuah tile layar menyimpan setiap cahaya yang menyentuhnya; daftarnya dan loop piksel dibatasi angka ini (X2).",
       "tileSize": "Sisi dalam piksel sebuah tile layar daftar cahaya.",
       "samplesPerPixel": "Cahaya yang dishading penuh — termasuk pembacaan bayangan — per piksel sebuah gambar BERGERAK (X2): yang lain ditimbang tanpa bayangannya, dan yang dishading digambar sebanding, jadi perkiraannya tidak bias dan antialiasing temporal merata-ratakannya. Sebuah gambar diam men-shading setiap cahaya tile-nya dan berkonvergensi ke jumlah pasti; di situ, angka ini tidak berperan.",
       "shadowPage": "Sisi halaman bayangan, dalam texel: satuan pool fisik, peta virtual, dan invalidasi. Objek bergerak hanya membuat usang halaman yang tertutup kotak proyeksinya.",
