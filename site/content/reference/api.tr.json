@@ -1658,7 +1658,8 @@
       "signal": "Sinyal iptal edildiğinde yüklemeyi durdurur.",
       "scope": "`'full'` tüm önbelleği gerektirir, `'progressive'` onun akışlı kesitini; başka bir kapsamdaki bir model isimle reddedilir. Ayarlanmazsa, model göstericisinin bildirdiği kapsamda okunur.",
       "stream": "Sayfanın yapılandırdığı bir akıtıcı; dünyanın oturumu kendi akıtıcısıyla akıtır.",
-      "position": "Modelin başlangıç noktasının sahnede nereye gittiği."
+      "position": "Modelin başlangıç noktasının sahnede nereye gittiği.",
+      "onProgress": "Yüklemenin ne kadar ilerlediğini duyar: manifest okunduğunda `manifest`, ardından sahnenin okuduğu her dosya geldikçe `resources` (o ana kadar bilinen `total` içinden `completed`). Olay bir `JobProgress`'tir: yüklemeyi saran bir `createJob` kendi `progress`'ini buraya verir."
     }
   },
   "LoadedModel": {
@@ -2957,6 +2958,7 @@
       "counts": "Son planın yaptığı, sayfa olarak.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
+      "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
       "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan birleşim hemen listeye girer.",
       "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, çizdiği sayfalara bölünmüş.",

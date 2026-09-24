@@ -145,6 +145,9 @@ export type { ResidentPage } from './gpu/page/pages.ts';
 export { createPageStreamer } from './streaming/pages.ts';
 export type { ComparisonLayout } from './measurement/comparison.ts';
 export { COMPARISON_LIBRARIES, LOD_QUALITY } from '../../sdk-core/src/index.ts';
+// A job around a load — cancellation, a status to observe — for pages built on the runtime.
+export { createJob } from '../../sdk-core/src/index.ts';
+export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts';
 export { detectCapabilities } from './measurement/capabilities.ts';
 export {
   HIERARCHY_ROOT,

@@ -1914,7 +1914,7 @@
       "name": "createJob",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/runtime/jobs.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
+      "currentEntryPoints": ["trillion3d (common)", "trillion3d (browser condition)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [],
@@ -2954,6 +2954,7 @@
         "packages/sdk-browser/src/gpu/core/selection.ts",
         "packages/sdk-browser/src/page/cut/state.ts",
         "packages/sdk-browser/src/webgl/cluster/copyCulling.ts",
+        "packages/sdk-browser/src/webgpu/blend/footprint.ts",
         "packages/sdk-browser/src/webgpu/blend/state.ts"
       ],
       "disposition": "retained",
@@ -4191,10 +4192,14 @@
       "name": "JobProgress",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/runtime/jobs.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
+      "currentEntryPoints": ["trillion3d (common)", "trillion3d (browser condition)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/loadedModel.ts",
+        "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/worldLoadProgress.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/runtime/jobs\".JobProgress"
     },
@@ -4202,7 +4207,7 @@
       "name": "JobSnapshot",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/runtime/jobs.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
+      "currentEntryPoints": ["trillion3d (common)", "trillion3d (browser condition)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
@@ -4216,7 +4221,7 @@
       "name": "JobStatus",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/runtime/jobs.ts",
-      "currentEntryPoints": ["trillion3d (common)"],
+      "currentEntryPoints": ["trillion3d (common)", "trillion3d (browser condition)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [],
@@ -4441,6 +4446,7 @@
       "affectedConsumers": [
         "bench/oracles/browser/core-math-shadows.ts",
         "bench/oracles/browser/gpuLightTileColumnOracle.ts",
+        "packages/sdk-browser/src/gpu/dag/lightCutRedraws.ts",
         "packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts",
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
