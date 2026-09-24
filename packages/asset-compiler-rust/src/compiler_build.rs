@@ -164,7 +164,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let proxy_sha = hash(&proxy_bytes);
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
-    // Cache products, each under its own name: lights, node and material tables, physics.
+    // Cache products, each under its own name: lights, node and material tables and cells, physics.
     let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal, autonomous, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
@@ -189,8 +189,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         },
         &result,
     )?;
-    // Prune belongs to the job, its time too: the manifest, written already, carries only
-    // `compileMs`; the caller receives `wallMs`, taken once the cache is pruned.
+    // Prune belongs to the job: the manifest carries `compileMs`, the caller `wallMs` after it.
     let prune_start = Instant::now();
     let keep = Keep::of_result(&result, &texture_previews)?;
     let pruned = prune_cache(o, &key, keep, &progress)?;
