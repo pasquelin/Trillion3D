@@ -2845,8 +2845,8 @@
       "visible": "Se é desenhado.",
       "parent": "Pai na cena, ou nulo enquanto desanexado.",
       "children": "Filhos anexados na ordem de inserção. A lista devolvida não pode ser alterada.",
-      "localMatrix": "Somente leitura por contrato; use setLocalMatrix para marcar a transformação como suja.",
-      "worldMatrix": "Matriz de mundo atual; chame updateWorldMatrix depois de mudar uma pose.",
+      "localMatrix": "Somente leitura por contrato, válida enquanto o nó vive; setLocalMatrix marca a transformação como suja.",
+      "worldMatrix": "Matriz de mundo atual, válida enquanto o nó vive; chame updateWorldMatrix depois de mudar uma pose.",
       "add": "Adiciona um filho.",
       "remove": "Remove um filho.",
       "clear": "Remove cada filho.",
@@ -2916,7 +2916,6 @@
     "summary": "O que cada nó de uma cena compartilha: sua árvore de transformações e seus índices.",
     "members": {
       "tree": "A árvore de transformações.",
-      "nodes": "Nós por slot.",
       "ids": "Nós por nome.",
       "nextId": "O próximo número de nome livre.",
       "root": "A raiz da cena."

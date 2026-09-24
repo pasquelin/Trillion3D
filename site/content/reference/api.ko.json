@@ -2845,8 +2845,8 @@
       "visible": "그려지는지 여부.",
       "parent": "씬에서의 부모, 분리되어 있는 동안은 null.",
       "children": "삽입 순서대로 붙어 있는 자식들. 반환된 목록은 변경할 수 없다.",
-      "localMatrix": "계약상 읽기 전용; 변환을 더티로 표시하려면 setLocalMatrix를 사용할 것.",
-      "worldMatrix": "현재의 월드 행렬; 자세를 바꾼 뒤에는 updateWorldMatrix를 호출할 것.",
+      "localMatrix": "계약상 읽기 전용이며 노드가 살아 있는 동안만 유효; setLocalMatrix가 변환을 더티로 표시한다.",
+      "worldMatrix": "현재의 월드 행렬이며 노드가 살아 있는 동안만 유효; 자세를 바꾼 뒤에는 updateWorldMatrix를 호출할 것.",
       "add": "자식을 추가한다.",
       "remove": "자식을 제거한다.",
       "clear": "모든 자식을 제거한다.",
@@ -2916,7 +2916,6 @@
     "summary": "한 씬의 모든 노드가 공유하는 것: 그 변환 트리와 그 인덱스들.",
     "members": {
       "tree": "변환 트리.",
-      "nodes": "슬롯별 노드들.",
       "ids": "이름별 노드들.",
       "nextId": "다음으로 비어 있는 이름 번호.",
       "root": "씬 루트."

@@ -56,12 +56,13 @@ export class SceneNode {
     this.assertAlive();
     return (this.childView ??= Object.freeze(this.childNodes.slice()));
   }
-  /** Read-only by contract; use setLocalMatrix to mark the transform dirty. */
+  // Both matrices are views of the node's slot, reused once the node is gone: never keep one past it.
+  /** Read-only by contract, valid while the node lives; setLocalMatrix marks the transform dirty. */
   get localMatrix(): Readonly<Float64Array> {
     this.assertAlive();
     return this.state.tree.localViews[this.index];
   }
-  /** Current world matrix; call updateWorldMatrix after changing a pose. */
+  /** Current world matrix, valid while the node lives; updateWorldMatrix after a pose change. */
   get worldMatrix(): Readonly<Float64Array> {
     this.assertAlive();
     return this.state.tree.worldViews[this.index];
@@ -192,7 +193,6 @@ export class SceneNode {
       for (const child of node.childNodes) pending.push(child);
       node.childNodes = [];
       node.#alive = false;
-      this.state.nodes.delete(node.index);
       this.state.ids.delete(node.id);
     }
   }

@@ -2926,8 +2926,8 @@
       "visible": "Apakah ia digambar.",
       "parent": "Induk di scene, atau null saat terlepas.",
       "children": "Anak yang terpasang dalam urutan penyisipan. Daftar yang dikembalikan tidak bisa diubah.",
-      "localMatrix": "Hanya-baca menurut kontrak; pakai setLocalMatrix untuk menandai transform kotor.",
-      "worldMatrix": "Matriks dunia saat ini; panggil updateWorldMatrix setelah mengubah sebuah pose.",
+      "localMatrix": "Hanya-baca menurut kontrak, berlaku selama node hidup; setLocalMatrix menandai transform kotor.",
+      "worldMatrix": "Matriks dunia saat ini, berlaku selama node hidup; panggil updateWorldMatrix setelah pose berubah.",
       "add": "Menambahkan sebuah anak.",
       "remove": "Menghapus sebuah anak.",
       "clear": "Menghapus setiap anak.",
@@ -2997,7 +2997,6 @@
     "summary": "Yang dibagi setiap node satu scene: pohon transform-nya dan indeksnya.",
     "members": {
       "tree": "Pohon transform-nya.",
-      "nodes": "Node menurut slot.",
       "ids": "Node menurut nama.",
       "nextId": "Nomor nama bebas berikutnya.",
       "root": "Root scene-nya."

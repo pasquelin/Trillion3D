@@ -5073,8 +5073,8 @@
       "visible": "Si se dibuja.",
       "parent": "El padre en la escena, o null si está desconectado.",
       "children": "Hijos conectados en orden de adición. La lista devuelta no se puede modificar.",
-      "localMatrix": "De solo lectura por contrato; usa setLocalMatrix para marcar la transformación a rehacer.",
-      "worldMatrix": "Matriz actual en el mundo; llama a updateWorldMatrix después de cambiar una pose.",
+      "localMatrix": "De solo lectura por contrato, válida mientras el nodo vive; setLocalMatrix marca la transformación a rehacer.",
+      "worldMatrix": "Matriz actual en el mundo, válida mientras el nodo vive; llama a updateWorldMatrix tras cambiar una pose.",
       "add": "Añade un hijo.",
       "remove": "Retira un hijo.",
       "clear": "Retira cada hijo.",
@@ -5144,7 +5144,6 @@
     "summary": "Lo que comparten todos los nodos de una escena: su árbol de transformaciones y sus índices.",
     "members": {
       "tree": "El árbol de transformaciones.",
-      "nodes": "Nodos por emplazamiento.",
       "ids": "Nodos por nombre.",
       "nextId": "El próximo número de nombre libre.",
       "root": "La raíz de la escena."

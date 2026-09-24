@@ -2845,8 +2845,8 @@
       "visible": "Çizilip çizilmediği.",
       "parent": "Sahnedeki ebeveyn, ya da ayrıldığında null.",
       "children": "Ekleme sırasına göre eklenmiş çocuklar. Döndürülen liste değiştirilemez.",
-      "localMatrix": "Sözleşme gereği yalnızca okunur; dönüşümü kirli olarak işaretlemek için setLocalMatrix kullanın.",
-      "worldMatrix": "Mevcut dünya matrisi; bir pozu değiştirdikten sonra updateWorldMatrix'i çağırın.",
+      "localMatrix": "Sözleşme gereği yalnızca okunur, düğüm yaşadıkça geçerlidir; setLocalMatrix dönüşümü kirli olarak işaretler.",
+      "worldMatrix": "Mevcut dünya matrisi, düğüm yaşadıkça geçerlidir; bir pozu değiştirdikten sonra updateWorldMatrix'i çağırın.",
       "add": "Bir çocuk ekler.",
       "remove": "Bir çocuğu kaldırır.",
       "clear": "Her çocuğu kaldırır.",
@@ -2916,7 +2916,6 @@
     "summary": "Bir sahnenin her düğümünün paylaştığı şey: dönüşüm ağacı ve indeksleri.",
     "members": {
       "tree": "Dönüşüm ağacı.",
-      "nodes": "Slota göre düğümler.",
       "ids": "Ada göre düğümler.",
       "nextId": "Bir sonraki boş ad numarası.",
       "root": "Sahne kökü."

@@ -2926,8 +2926,8 @@
       "visible": "Nó có được vẽ hay không.",
       "parent": "Cha trong cảnh, hoặc null khi bị tách rời.",
       "children": "Các con đã gắn theo thứ tự chèn vào. Danh sách trả về không thể bị thay đổi.",
-      "localMatrix": "Chỉ đọc theo hợp đồng; dùng setLocalMatrix để đánh dấu phép biến đổi là bẩn (cần cập nhật).",
-      "worldMatrix": "Ma trận thế giới hiện tại; gọi updateWorldMatrix sau khi thay đổi một tư thế.",
+      "localMatrix": "Chỉ đọc theo hợp đồng, có hiệu lực khi nút còn sống; setLocalMatrix đánh dấu phép biến đổi là bẩn (cần cập nhật).",
+      "worldMatrix": "Ma trận thế giới hiện tại, có hiệu lực khi nút còn sống; gọi updateWorldMatrix sau khi thay đổi một tư thế.",
       "add": "Thêm một con.",
       "remove": "Gỡ một con.",
       "clear": "Gỡ mọi con.",
@@ -2997,7 +2997,6 @@
     "summary": "Những gì mọi node của một cảnh chia sẻ: cây biến đổi và các chỉ số của nó.",
     "members": {
       "tree": "Cây biến đổi.",
-      "nodes": "Các node theo khe.",
       "ids": "Các node theo tên.",
       "nextId": "Số tên tự do tiếp theo.",
       "root": "Gốc của cảnh."
