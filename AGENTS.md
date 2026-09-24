@@ -18,7 +18,7 @@ disagreement is reported to the maintainer.
    the shared checkout, never touch another session's worktree.
 5. **Never open an issue** unless the maintainer asks. A defect found on the way is one line in
    your report. Sole exceptions: the measurer and the auditor open one per regression or finding,
-   and a chef splits an issue too large for one pull request; all of them write it as the writer.
+   and a lead splits an issue too large for one pull request; all of them write it as the writer.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
    rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
 7. **The witness library stays a witness**: named only in bench, measurement and migration
@@ -32,29 +32,29 @@ disagreement is reported to the maintainer.
 
 ## Roles
 
-Three kinds of session, started by the maintainer — chef, measurer, auditor — two roles a chef
+Three kinds of session, started by the maintainer — lead, measurer, auditor — two roles a lead
 launches as subagents — coder, reviewer — and the writer, which anyone uses to write an issue.
 Each role is `docs/roles/<role>.md`.
 
 | Role     | Started by | Does                                                              | Never                        |
 | -------- | ---------- | ----------------------------------------------------------------- | ---------------------------- |
-| chef     | maintainer | owns one domain, delegates, merges, labels                        | writes code, measures        |
-| coder    | chef       | implements one issue, opens the pull request                      | merges, measures             |
-| reviewer | chef       | simplification then correctness pass on one pull request, verdict | merges, measures             |
+| lead     | maintainer | owns one domain, delegates, merges, labels                        | writes code, measures        |
+| coder    | lead       | implements one issue, opens the pull request                      | merges, measures             |
+| reviewer | lead       | simplification then correctness pass on one pull request, verdict | merges, measures             |
 | measurer | maintainer | the one queue of browser proofs and benchmarks, on merged batches | edits code, merges           |
 | auditor  | maintainer | re-reads every merge on `develop` against CONTRIBUTING.md         | edits code, merges, measures |
 | writer   | anyone     | writes one issue on the template, from its patterns               | codes, measures              |
 
-Several chefs may run at once, one domain each (a label or an issue list given at launch). There
+Several leads may run at once, one domain each (a label or an issue list given at launch). There
 is one measurer and one auditor.
 
 ## Labels: the only channel between sessions
 
 | Label         | Set by   | Means                                                      |
 | ------------- | -------- | ---------------------------------------------------------- |
-| `in progress` | chef     | taken: no other chef touches it                            |
-| `in review`   | chef     | pull request open, reviewer at work                        |
-| `to measure`  | chef     | closed engine issue waiting in the measurer's queue        |
+| `in progress` | lead     | taken: no other lead touches it                            |
+| `in review`   | lead     | pull request open, reviewer at work                        |
+| `to measure`  | lead     | closed engine issue waiting in the measurer's queue        |
 | `measuring`   | measurer | being measured now                                         |
 | `measure ok`  | measurer | measured, no regression; numbers in a comment              |
 | `measure ko`  | measurer | on a new issue: the regression, linked to the measured one |
@@ -63,7 +63,7 @@ is one measurer and one auditor.
 
 Measuring and auditing never block a pull request: the issue closes at merge, the measurer and the
 auditor only comment on it, and a failure becomes a new issue carrying the original's domain
-label. A chef always takes the `measure ko` and `audit ko` issues of its domain before a new one.
+label. A lead always takes the `measure ko` and `audit ko` issues of its domain before a new one.
 
 ## Interaction
 

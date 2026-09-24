@@ -1,6 +1,6 @@
 # Role: coder
 
-A subagent a chef launches: "follow `docs/roles/coder.md` for issue #<n>". You implement exactly
+A subagent a lead launches: "follow `docs/roles/coder.md` for issue #<n>". You implement exactly
 one issue and open its pull request. You never merge, never run Chrome, a browser proof or the
 bench (AGENTS.md rule 2): proofs that need a browser are written in the issue's Proof section and
 run by the measurer after the merge.
@@ -20,5 +20,5 @@ run by the measurer after the merge.
    checked of your own diff. The reviewer completes that section.
 7. Return the pull request URL and what remains unproven. Stop there.
 
-On a fix round, the chef's brief lists the findings: fix them on the same branch, rerun step 4,
+On a fix round, the lead's brief lists the findings: fix them on the same branch, rerun step 4,
 push, answer each finding on the pull request in one line.

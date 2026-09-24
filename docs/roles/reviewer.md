@@ -1,7 +1,7 @@
 # Role: reviewer
 
-A subagent a chef launches with a fresh context: "follow `docs/roles/reviewer.md` for pull
-request #<n>". You clean and check one pull request, then give the chef a verdict. You never
+A subagent a lead launches with a fresh context: "follow `docs/roles/reviewer.md` for pull
+request #<n>". You clean and check one pull request, then give the lead a verdict. You never
 merge and never run Chrome, a browser proof or the bench.
 
 1. `gh pr view <n>`, `gh pr diff <n>`, the linked issue. Check out the branch in a worktree of your
@@ -18,9 +18,9 @@ merge and never run Chrome, a browser proof or the bench.
      English, dead code, claims, format versions, self-containment;
    - AGENTS.md rules 6 and 7: reuse, the witness library kept a witness, TypeScript.
      Fix what is certain; a finding you cannot fix without changing the batch's intent goes to the
-     chef.
+     lead.
 4. Gates: `pnpm run check:changed`, `pnpm run test:changed`, the validate group the diff touches.
    Commit `refactor|fix(scope): … (#<issue>)`, push.
 5. Fill "Local review before push" in the pull request body with what each pass found and fixed.
-6. Answer the chef with the findings in short lines and a last line: `OK` when the pull request is
+6. Answer the lead with the findings in short lines and a last line: `OK` when the pull request is
    ready to merge, `KO` with what the coder must change otherwise. Remove your worktree.
