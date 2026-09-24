@@ -4324,6 +4324,11 @@
         "desc": "The roll deflection in [-1, 1], left positive as Q; as `pitchInput`."
       },
       {
+        "name": "lookSpeed",
+        "type": "number | null",
+        "desc": "Radians the view turns per pixel the pointer moves; `null` (the default) is half a turn per surface height, whatever the surface's size."
+      },
+      {
         "name": "dragToLook",
         "type": "boolean",
         "desc": "Whether dragging turns the view."
@@ -6419,8 +6424,8 @@
     "members": [
       {
         "name": "lookSpeed",
-        "type": "number",
-        "desc": "Radians turned per pixel of pointer motion."
+        "type": "number | null",
+        "desc": "Radians turned per pixel of pointer motion; `null` (the default) is 0.002."
       },
       {
         "name": "minPitch",
@@ -17914,8 +17919,8 @@
       },
       {
         "name": "lookSpeed",
-        "type": "number",
-        "desc": "First person and character: radians the view turns per pixel the pointer moves."
+        "type": "number | null",
+        "desc": "Flight, first person and character: radians the view turns per pixel the pointer moves; `null` (the default) keeps each one's own — 0.002 for a head, half a turn per canvas height for flight."
       },
       {
         "name": "minPitch",
@@ -18448,7 +18453,7 @@
     "title": "WorldControls",
     "signature": "type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'character' | 'vehicle' | 'trackball' | 'panZoom' | 'none'",
     "summary": "The ways a page can steer the camera with the mouse and keyboard, or `'none'`.",
-    "description": "`'firstPerson'` moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with `world.controls.colliders` — and looks through its eyes."
+    "description": "`'firstPerson'` moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with `world.controls.colliders` — and looks through its eyes. `'fly'` and `'firstPerson'` move at `world.controls.movementSpeed` and turn at `world.controls.lookSpeed`."
   },
   {
     "id": "WorldFrameMetrics",
