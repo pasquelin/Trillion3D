@@ -147,12 +147,16 @@ export const releaseHostGeometry = (geometry: HostGeometry) => {
   (geometry as unknown as GraphGeometry).dispose();
 };
 
-/** The surface the engine's own material parameters describe. The face constant is the one the
- *  engine already names (`../scene/materialSide.ts`); nothing else is converted. */
-export function hostPageSurface(material: Material, vertexColors: boolean): HostMaterial {
+/** The standard (or physical) surface the engine's material parameters describe. The face
+ *  constant is the engine's (`../scene/materialSide.ts`); nothing else is converted. */
+export function hostPageSurface(
+  material: Material,
+  vertexColors: boolean,
+  family: 'standard' | 'physical' = 'standard',
+) {
   const [r, g, b] = material.baseColor,
     [er, eg, eb] = material.emissive;
-  return new GraphSurface('standard', {
+  return new GraphSurface(family, {
     color: { r, g, b },
     emissive: { r: er, g: eg, b: eb },
     metalness: material.metalness,
@@ -162,7 +166,7 @@ export function hostPageSurface(material: Material, vertexColors: boolean): Host
     alphaTest: material.alphaMode === 'mask' ? material.alphaCutoff : 0,
     side: hostSide(material.side),
     vertexColors,
-  }) as unknown as HostMaterial;
+  }) as unknown as GraphSurface & HostMaterial;
 }
 
 /**

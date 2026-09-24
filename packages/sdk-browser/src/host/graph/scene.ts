@@ -1,7 +1,7 @@
 /**
  * The root of a display graph the engine draws itself: the nodes it holds, the colour behind
  * them, and the two hooks a view wraps a draw in — the unlit view zeroes a few surface factors
- * before and gives them back after (`../../backend/exact/unlitAlbedo.ts`).
+ * before and gives them back after (`../../lighting/unlitAlbedo.ts`).
  */
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { GraphNode } from './node.ts';

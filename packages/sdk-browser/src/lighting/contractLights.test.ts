@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LIGHT_SETTINGS, createSceneLightStore } from '../../../../sdk-core/src/index.ts';
+import { LIGHT_SETTINGS, createSceneLightStore } from '../../../sdk-core/src/index.ts';
 import { attachContractLights } from './contractLights.ts';
-import { installLighting } from '../../lighting/contractLightingApi.ts';
-import { unsupportedClusterLight } from '../../webgl/cluster/lights.ts';
-import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphNode } from '../../host/graph/node.ts';
-import { GraphLight, GraphLightProbe, type GraphLightKind } from '../../host/graph/light.ts';
+import { installLighting } from './contractLightingApi.ts';
+import { unsupportedClusterLight } from '../webgl/cluster/lights.ts';
+import { GraphScene } from '../host/graph/scene.ts';
+import { GraphNode } from '../host/graph/node.ts';
+import { GraphLight, GraphLightProbe, type GraphLightKind } from '../host/graph/light.ts';
 
 /** Coordinates of a vector, negative zero brought back to zero: `−0` is not a position. */
 const coords = (v: { x: number; y: number; z: number }) => [v.x, v.y, v.z].map((n) => n + 0);

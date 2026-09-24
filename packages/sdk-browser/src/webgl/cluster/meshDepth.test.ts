@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { placementsCentre } from './meshDepth.ts';
+import { depthOf, placementsCentre } from './meshDepth.ts';
 import { GraphInstancedMesh } from '../../host/graph/mesh.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
 import { GraphAttribute } from '../../host/graph/attributes.ts';
@@ -53,4 +53,19 @@ test('an instanced mesh sorts on the union of its placement spheres, as the refe
   assert.equal(placementsCentre(placed, geometry.boundingSphere!), centre);
   placed.instanceMatrix.needsUpdate = true;
   assert.notEqual(placementsCentre(placed, geometry.boundingSphere!), centre);
+});
+
+// Issue #275: a mesh is sorted on the normalised-device z of its sphere's centre, the clip z over
+// the clip w, so two meshes behind the camera order as the reference orders them.
+test('the sort depth is the normalised-device z, behind the camera as in front', async () => {
+  const { Matrix4, PerspectiveCamera, Vector3 } = await import('three');
+  const camera = new PerspectiveCamera(60, 1, 0.1, 100);
+  camera.updateMatrixWorld();
+  const screen = new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  for (const z of [-5, -50, 3, 40]) {
+    const matrix = new Matrix4().makeTranslation(1, 2, z);
+    const expected = new Vector3().setFromMatrixPosition(matrix).applyMatrix4(screen).z;
+    const mesh = { boundingSphere: { center: { x: 0, y: 0, z: 0 } }, matrix };
+    assert.equal(depthOf(mesh, screen.elements), expected, `a centre at z = ${z}`);
+  }
 });

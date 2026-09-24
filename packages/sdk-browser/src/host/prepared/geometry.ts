@@ -18,7 +18,7 @@ import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { GraphGeometry } from '../graph/geometry.ts';
 import { type GraphAttribute } from '../graph/attributes.ts';
-import { NORMALISED, preparedAccessors } from './accessors.ts';
+import { normalisedScale, preparedAccessors } from './accessors.ts';
 
 /** The host's attribute names for the glTF semantics it knows; any other is lower-cased. */
 const NAMES: Record<string, string> = {
@@ -75,7 +75,7 @@ export function preparedGeometries(document: TableDocument, binary: ArrayBuffer 
   /** A run's declared corner, at the scale a normalised run is read at. */
   const corner = (rank: number, which: 'min' | 'max') => {
     const accessor = document.accessors[rank];
-    const scale = accessor.normalized ? (NORMALISED[accessor.componentType] ?? 1) : 1;
+    const scale = accessor.normalized ? normalisedScale(accessor.componentType) : 1;
     const at = accessor[which];
     return at && [at[0] * scale, at[1] * scale, at[2] * scale];
   };

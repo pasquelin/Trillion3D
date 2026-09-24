@@ -1,11 +1,14 @@
-// Three side: a held frame runs no cut. Its cut duration and visited-node count still
+// Exact witness: a held frame runs no cut. Its cut duration and visited-node count still
 // equalled those of the last frame that had run one; they now equal zero. What the frame
 // shows — retained pages, selected triangles, frustum rejection — stays that of the
 // redisplayed cut.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts';
-import { quadRootsContext, frontCamera } from '../pagesBackendScenes.fixture.ts';
+import { exactPagesBackend } from '../measurement.ts';
+import {
+  quadRootsContext,
+  frontCamera,
+} from '../../../packages/sdk-browser/src/backend/pagesBackendScenes.fixture.ts';
 
 function engine() {
   const { geometry, material, context } = quadRootsContext(true);

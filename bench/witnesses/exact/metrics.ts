@@ -6,7 +6,7 @@ import type { HostGraphGeometry } from '../../../packages/sdk-browser/src/host/s
 import { geometryBytes } from '../../../packages/sdk-browser/src/scene/meshes.ts';
 import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
-import type { ExactPagesRenderState } from '../../../packages/sdk-browser/src/backend/exact/render.ts';
+import type { ExactPagesRenderState } from './render.ts';
 import type { WebglFrameGate } from '../../../packages/sdk-browser/src/webgl/core/frameGate.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
 import { ClusterBatches } from '../../../packages/sdk-browser/src/cluster/batches.ts';

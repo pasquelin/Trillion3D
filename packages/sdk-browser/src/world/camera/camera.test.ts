@@ -62,7 +62,7 @@ test('createExplorerCamera (non-autonomous) yields the same bounds, centre and r
   assert.ok(Object.is(rendu.radius, radius), `rayon : ${rendu.radius} !== ${radius}`);
 });
 
-test('createExplorerCamera (autonomous) yields the same bounds, centre and radius as the reference exactPagesBounds/expandByObject', () => {
+test('createExplorerCamera (autonomous) yields the same bounds, centre and radius as the reference pagesBounds/expandByObject', () => {
   const geometry = new THREE.BufferGeometry();
   const source = new THREE.Group();
   const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());

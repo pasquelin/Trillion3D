@@ -2,7 +2,7 @@ import { meshes as objects } from '../../scene/meshes.ts';
 import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 import { assertFiniteTransform } from '../../host/world/matrices.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
-import { exactPagesBounds, exactPagesLot } from '../../backend/exact/bounds.ts';
+import { pagesBounds, pagesLot } from './pagesBounds.ts';
 import { replicateInstances } from '../../scene/replicateInstances.ts';
 import { hostBoundsLot, hostWorldBounds } from '../../host/world/bounds.ts';
 import { hostWorldLot } from '../../host/world/tree.ts';
@@ -36,7 +36,7 @@ function sceneBoundsLot(
   metadata: ClusterManifest,
   autonomous: boolean,
 ) {
-  return autonomous ? exactPagesLot(source, associations, metadata) : hostBoundsLot(source);
+  return autonomous ? pagesLot(source, associations, metadata) : hostBoundsLot(source);
 }
 
 /** Counts the resources a preparation reads, and tells the host of each as it lands. */
@@ -139,7 +139,7 @@ export async function loadPreparedScene(
   // Buffer of the world matrices the engine composes itself, at the subtree size.
   const mondes = !autonomous && replicas > 1 ? await hostWorldLot(source) : null;
   const preparedBounds = autonomous
-    ? exactPagesBounds(source, associations, metadata, manquante, undefined, bornes)
+    ? pagesBounds(source, associations, metadata, manquante, undefined, bornes)
     : replicas > 1
       ? hostWorldBounds(source, undefined, bornes, mondes)
       : undefined;

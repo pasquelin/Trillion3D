@@ -9,7 +9,7 @@
  * resolved down the chain, the copy a node shared by several parents becomes, the aim of a
  * camera — because the engine's image is proven by being the same image. The numbers are the
  * core's (`Matrix4`, `Color`, `lookAtQuaternion`); a renderer that needs its own library's objects
- * receives a copy made at its boundary (`../three/fromGraph.ts`), never one of these.
+ * receives a copy made at its boundary (the witnesses' `bench/witnesses/three/fromGraph.ts`), never one of these.
  */
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
 import { lookAtQuaternion } from '../../../../sdk-core/src/math/transform-tree/lookAt.ts';

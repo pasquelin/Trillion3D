@@ -11,8 +11,8 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { hostSide } from '../../scene/materialSide.ts';
+import { hostPageSurface } from '../../host/pageObjects.ts';
 import { GraphSurface, type GraphSurfaceFamily } from '../../host/graph/surface.ts';
-import { linearColour } from '../../host/graph/surfaceFields.ts';
 import {
   COLOUR_MAPS,
   HOST_MAPS,
@@ -57,17 +57,7 @@ function physicalSurface(material: Material, vertexColors: boolean) {
   const upgrade = PHYSICAL.some(
     (field) => typeof material[field] === 'number' && material[field] !== 0,
   );
-  const surface = new GraphSurface(upgrade ? 'physical' : 'standard', {
-    color: linearColour(record.baseColor),
-    emissive: linearColour(record.emissive),
-    metalness: record.metalness,
-    roughness: record.roughness,
-    opacity: record.opacity,
-    transparent: record.alphaMode === 'blend',
-    alphaTest: record.alphaMode === 'mask' ? record.alphaCutoff : 0,
-    side: hostSide(record.side),
-    vertexColors,
-  });
+  const surface = hostPageSurface(record, vertexColors, upgrade ? 'physical' : 'standard');
   if (upgrade)
     for (const field of PHYSICAL)
       if (typeof material[field] === 'number') surface[field] = material[field];

@@ -27,6 +27,9 @@ type DisplayScene = ClusterDrawScene & {
   onAfterRender?(): void;
 };
 
+/** A scene draw hands the program no page batch: shared, so a frame allocates no empty list. */
+const NO_BATCHES: readonly never[] = [];
+
 /**
  * THE ENGINE'S DRAW OF A DISPLAY GRAPH: every visible mesh the graph holds, drawn whole by the
  * engine's program (`owner.ts`) in the order the reference draws a scene — the opaque meshes by
@@ -103,7 +106,7 @@ export function createSceneDraw(
         (opaque as DisplayNode[]).sort(frontToBack);
         seeThrough.sort(backToFront);
         owner.draw(
-          [],
+          NO_BATCHES,
           scene,
           drawCamera,
           output.toneMapped,

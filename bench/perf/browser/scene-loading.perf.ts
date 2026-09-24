@@ -1,7 +1,7 @@
 // loading a scene.
 import * as THREE from 'three';
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts';
-import { exactPagesBounds } from '../../../packages/sdk-browser/src/backend/exact/bounds.ts';
+import { pagesBounds } from '../../../packages/sdk-browser/src/world/scene/pagesBounds.ts';
 import {
   indexManifestBundles,
   indexManifestPages,
@@ -101,7 +101,7 @@ const passeCollect =
   };
 
 const passeBounds =
-  (fn: typeof exactPagesBounds | typeof referenceExactPagesBounds) => (input: ChargementScene) => {
+  (fn: typeof pagesBounds | typeof referenceExactPagesBounds) => (input: ChargementScene) => {
     const manquants: string[] = [];
     const boite = fn(input.source, input.associations, input.metadata, (mesh) =>
       manquants.push(mesh.name),
@@ -141,9 +141,9 @@ const resCollect = await mesure({
 
 const resBounds = await mesure({
   name: 'exact page bounds',
-  fichier: 'packages/sdk-browser/src/backend/exact/bounds.ts',
+  fichier: 'packages/sdk-browser/src/world/scene/pagesBounds.ts',
   cas,
-  calcul: passeBounds(exactPagesBounds),
+  calcul: passeBounds(pagesBounds),
   attendu: passeBounds(referenceExactPagesBounds),
   options: { tours: 40, budgetMs: 1500 },
 });
@@ -161,9 +161,9 @@ const resIndex = await mesure({
 });
 
 await stress({
-  name: 'exactPagesBounds extremes',
+  name: 'pagesBounds extremes',
   calcul: (scene: ChargementScene) =>
-    exactPagesBounds(scene.source, scene.associations, scene.metadata, () => {}),
+    pagesBounds(scene.source, scene.associations, scene.metadata, () => {}),
   extremes: [{ name: 'empty', input: videScene }],
 });
 

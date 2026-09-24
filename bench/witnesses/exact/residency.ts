@@ -1,7 +1,10 @@
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
-import { ClusterBatches } from '../../cluster/batches.ts';
-import { asWholeMesh, type WholeMesh } from '../../cluster/batchMesh.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
+import { ClusterBatches } from '../../../packages/sdk-browser/src/cluster/batches.ts';
+import {
+  asWholeMesh,
+  type WholeMesh,
+} from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 
 export function createExactPagesResidency(
   shown: PageRec[],

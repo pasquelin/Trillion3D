@@ -14,7 +14,7 @@ import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.
 type PageWithGeometry = Page & { geometry: GeometryPageDescriptor };
 const hasGeometry = (page: Page): page is PageWithGeometry => !!page.geometry;
 
-/** `exactPagesBounds` before batch F: one `find` per mesh, three objects per exact page. */
+/** `pagesBounds` before batch F: one `find` per mesh, three objects per exact page. */
 export function referenceExactPagesBounds(
   source: THREE.Object3D,
   associations: BackendContext['associations'],

@@ -18,6 +18,9 @@ const SCALES = new Map<unknown, [scale: number, signed: boolean]>([
   [Int8Array, [127.0, true]],
 ]);
 
+/** What one unit of a normalised element of `type` is worth (1 for a float type). */
+export const normalisedUnit = (type: unknown) => 1 / (SCALES.get(type)?.[0] ?? 1);
+
 /** A stored element read as the number it stands for. */
 function denormalize(value: number, array: GraphArray) {
   const scale = SCALES.get(array.constructor);

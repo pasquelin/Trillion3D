@@ -18,7 +18,7 @@ const M4A = [
   'backend/awaitBackendPages',
   'backend/common',
   'backend/types',
-  'backend/exact/bounds',
+  'world/scene/pagesBounds',
   'world/session/backends',
   'world/camera/camera',
   'world/api/cameraApi',

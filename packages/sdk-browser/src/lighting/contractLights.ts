@@ -1,12 +1,15 @@
-import type { SceneLight, SceneLightStore } from '../../../../sdk-core/src/index.ts';
-import type { HostDrawScene } from '../../host/scene/graphNodes.ts';
-import { GraphAmbientLight, GraphLightProbe } from '../../host/graph/light.ts';
-import { GraphGroup } from '../../host/graph/mesh.ts';
-import type { GraphScene } from '../../host/graph/scene.ts';
-import { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import { baseCapabilities } from '../common.ts';
+import type { SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
+import type { HostDrawScene } from '../host/scene/graphNodes.ts';
+import { GraphAmbientLight, GraphLight, GraphLightProbe } from '../host/graph/light.ts';
+import { GraphGroup } from '../host/graph/mesh.ts';
+import type { GraphScene } from '../host/graph/scene.ts';
+import { Color } from '../../../sdk-core/src/world/math/color.ts';
+import { baseCapabilities } from '../backend/common.ts';
 import { createUnlitAlbedo } from './unlitAlbedo.ts';
 import { createLight, writeLight, type ContractLight } from './lightWrite.ts';
+
+/** The node a light aims at, carried in the graph beside it: a sun's or a spot's, none for a rectangle. */
+const aimOf = (light: ContractLight) => (light instanceof GraphLight ? light.target : undefined);
 
 /** A WebGL2 engine applies the contract lights; only their shadows are missing — one map per
  *  light, six faces for a point light, would be outside the frame budget. Both constants say
@@ -53,7 +56,7 @@ function createContractLights(display: HostDrawScene, store: SceneLightStore | u
   const drop = (id: string) => {
     const entry = lights.get(id)!;
     group.remove(entry.light);
-    const target = 'target' in entry.light ? entry.light.target : undefined;
+    const target = aimOf(entry.light);
     if (target) group.remove(target);
     lights.delete(id);
   };
@@ -71,7 +74,7 @@ function createContractLights(display: HostDrawScene, store: SceneLightStore | u
         entry = { light: createLight(source), kind: source.kind };
         lights.set(id, entry);
         group.add(entry.light);
-        const target = 'target' in entry.light ? entry.light.target : undefined;
+        const target = aimOf(entry.light);
         if (target) group.add(target);
       }
       writeLight(entry.light, source);

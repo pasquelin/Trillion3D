@@ -4,30 +4,33 @@
  * sphere computed over them — every vertex spanned, the morph targets included, as the reference
  * spans them.
  */
+import {
+  boxEmpty,
+  boxExpandByPoint,
+  boxIsEmpty,
+} from '../../../../sdk-core/src/math/primitives/box.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { GraphAttribute, type GraphArray, type GraphElements } from './attributes.ts';
 import { Releasable } from './resource.ts';
 
-/** The box of an attribute's vertices, written into `min` and `max` (six numbers). */
+/** The box of an attribute's vertices, written into `into` (six numbers). */
 function spanInto(into: Float64Array, attribute: GraphElements) {
-  into.set([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
+  boxEmpty(into, 0);
   for (let i = 0; i < attribute.count; i++)
-    for (let c = 0; c < 3; c++) {
-      const v = attribute.getComponent(i, c);
-      into[c] = Math.min(into[c], v);
-      into[3 + c] = Math.max(into[3 + c], v);
-    }
+    boxExpandByPoint(
+      into,
+      0,
+      attribute.getComponent(i, 0),
+      attribute.getComponent(i, 1),
+      attribute.getComponent(i, 2),
+    );
 }
 
 /** Grows the box `into` by `point` (three numbers at `at`). */
-function grow(into: Float64Array, point: ArrayLike<number>, at: number) {
-  for (let c = 0; c < 3; c++) {
-    into[c] = Math.min(into[c], point[at + c]);
-    into[3 + c] = Math.max(into[3 + c], point[at + c]);
-  }
-}
+const grow = (into: Float64Array, point: ArrayLike<number>, at: number) =>
+  boxExpandByPoint(into, 0, point[at], point[at + 1], point[at + 2]);
 
 /** `source`'s elements in a buffer of its type and their own: every vertex, or those `order` lists. */
 function ownElements(source: GraphElements, order?: ArrayLike<number>) {
@@ -165,7 +168,7 @@ export class GraphGeometry extends Releasable {
     this.boundingSphere ??= new Sphere();
     const position = this.attributes.position;
     if (!position || !this.span()) return;
-    const empty = whole[3] < whole[0] || whole[4] < whole[1] || whole[5] < whole[2];
+    const empty = boxIsEmpty(whole, 0);
     const cx = empty ? 0 : (whole[0] + whole[3]) * 0.5,
       cy = empty ? 0 : (whole[1] + whole[4]) * 0.5,
       cz = empty ? 0 : (whole[2] + whole[5]) * 0.5;

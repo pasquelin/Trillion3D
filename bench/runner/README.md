@@ -67,7 +67,7 @@ scene graph. The harness is an ordinary host — it creates in Three the lights 
 via the `sceneLighting` option of `openMeasuredWorld` (`witnessPage.ts`, served under `/runner/` and
 imported by URL). Nothing is hardcoded: everything comes from the measured world's `lights()`, thus
 from the compiled cache and the contract, and no scene is named. `exact-cluster-pages` translates
-the store itself on every store revision (`packages/sdk-browser/src/backend/exact/contractLights.ts`).
+the store itself on every store revision (`packages/sdk-browser/src/lighting/contractLights.ts`).
 
 The mapping is exact in Three units: linear colour, unscaled radiometric intensity (W/sr for a point
 or a spot, irradiance for a directional), `distance` = range and `decay` = 2 — term for term the

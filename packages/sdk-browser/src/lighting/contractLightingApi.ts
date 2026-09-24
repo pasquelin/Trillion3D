@@ -3,7 +3,7 @@ import { DEFAULT_TONE_MAPPING } from '../../../sdk-core/src/scene/core/environme
 import { DEFAULT_CLEAR_COLOR } from '../backend/common.ts';
 import type { BackendContext } from '../backend/types.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
-import { attachContractLights, CONTRACT_LIGHTS_LIGHTING } from '../backend/exact/contractLights.ts';
+import { attachContractLights, CONTRACT_LIGHTS_LIGHTING } from './contractLights.ts';
 import type { HostTraversable } from '../host/resources.ts';
 import { GraphNode } from '../host/graph/node.ts';
 import type { GraphScene } from '../host/graph/scene.ts';

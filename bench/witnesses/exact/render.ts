@@ -1,17 +1,21 @@
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
+import type { HostGraphNode } from '../../../packages/sdk-browser/src/host/scene/graphNodes.ts';
 import {
   createSelectionResult,
   selectVisiblePages,
   type PageRec,
   type ClusterRoot,
-} from '../../page/selection/selection.ts';
-import type { BackendContext } from '../types.ts';
-import type { installSceneLighting } from '../../lighting/sceneLighting.ts';
-import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
+import type { installSceneLighting } from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts';
+import { createCpuStepProfile } from '../../../packages/sdk-browser/src/stage/cpuProfile.ts';
 import { EXACT_CPU_STEP } from './cpu.ts';
-import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
-import type { CameraMotion, EngineCamera, HostCamera } from '../../camera/world.ts';
-import type { HostWorldPlacements } from '../../host/world/placements.ts';
+import type { WebglFrameGate } from '../../../packages/sdk-browser/src/webgl/core/frameGate.ts';
+import type {
+  CameraMotion,
+  EngineCamera,
+  HostCamera,
+} from '../../../packages/sdk-browser/src/camera/world.ts';
+import type { HostWorldPlacements } from '../../../packages/sdk-browser/src/host/world/placements.ts';
 
 export type ExactPagesRenderState = {
   visible: number;
