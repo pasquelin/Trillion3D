@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Motorun teslim ettiği şekliyle, host'un bir kareyi çizdiği matrisler.",
+    "summary": "Motorun teslim ettiği şekliyle, host'un bir kareyi çizdiği matrisler ve derinlik aralığı.",
     "members": {
       "projection": "İzdüşüm.",
       "world": "Kameranın dünya matrisi.",
       "view": "View matrisi.",
-      "eye": "Gözün nerede olduğu."
+      "eye": "Gözün nerede olduğu.",
+      "near": "En yakın mesafe.",
+      "far": "En uzak mesafe."
     }
   },
   "HostDrawOutput": {
@@ -5641,7 +5643,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Her noktayı kameradan ne kadar uzakta olduğuna göre gölgelendirir.",
+    "summary": "Her noktayı kameradan ne kadar uzakta olduğuna göre gölgelendirir: `camera.near` noktasında beyaz, `camera.far` noktasında siyah, arada düz bir geçiş; WebGPU ve WebGL2 üzerinde aynıdır.",
     "parameters": {
       "parameters": "Bir sayfanın bir malzeme üyesine geçirebileceği şey; her alan isteğe bağlıdır.",
       "parameters.color": "Temel renk.",

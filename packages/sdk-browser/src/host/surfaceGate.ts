@@ -42,7 +42,8 @@ export function clusterMaterialReason(
 ) {
   if (Array.isArray(material)) return 'material arrays are unsupported';
   const host = material as HostShadedMaterial;
-  if (!metalRough(host) && host.family !== 'basic') return `material ${host.family} is unsupported`;
+  if (!metalRough(host) && host.family !== 'basic' && host.family !== 'depth')
+    return `material ${host.family} is unsupported`;
   const blending = blendingOf(host.blending);
   if (!blending)
     return `material ${host.family} uses blending ${host.blending}, which no path draws`;
