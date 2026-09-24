@@ -7,7 +7,8 @@ import {
   NODE_WORLD_NEEDS_UPDATE,
   type TransformTree,
 } from './transformTree.ts';
-import { ensureOrder, nextStamp, visitSubtree } from './structure.ts';
+import { nextStamp, visitSubtree } from './structure.ts';
+import { nextInSubtree } from './links.ts';
 
 /**
  * World-matrix update, batched and without allocation, with the semantics of the reference
@@ -91,31 +92,28 @@ function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean
 const stepWorldMatrix = (tree: TransformTree, node: number) => refreshNode(tree, node, true);
 
 /**
- * `node.updateMatrixWorld(force)`: the node and its whole subtree, parents first. A node is
- * reached if it updates automatically, if it is marked, or if `force` — that of the call for
- * `node`, otherwise "the parent was reached". Ancestors of `node` are not reread. The stamp of a
- * visited node is `2 · traversal + reached`: one read tells the child whether it is in the
- * subtree and what its parent passes it.
+ * `node.updateMatrixWorld(force)`: the node and its whole subtree, parents first, and how many
+ * nodes it walked — the subtree, whatever else shares the tree. A node is reached if it updates
+ * automatically, if it is marked, or if `force` — that of the call for `node`, otherwise "the
+ * parent was reached". Ancestors of `node` are not reread. The stamp of a walked node is
+ * `2 · traversal + reached`: what its children read of it.
  */
 export function updateNodeMatrixWorld(tree: TransformTree, node: number, force = false) {
-  ensureOrder(tree);
-  const { order, parent, stamp, flags } = tree;
+  const { parent, stamp, flags } = tree;
   const visited = nextStamp(tree) * 2,
     reach = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
   const reached = force || (flags[node] & reach) !== 0;
   if (reached) refreshNode(tree, node, false);
   stamp[node] = reached ? visited | 1 : visited;
-  for (let k = tree.orderAt[node] + 1, end = tree.orderCount; k < end; k++) {
-    const j = order[k],
-      p = parent[j];
-    if (p < 0) continue;
-    const mark = stamp[p];
-    if ((mark | 1) !== (visited | 1)) continue;
-    if (mark !== visited || (flags[j] & reach) !== 0) {
+  let walked = 1;
+  for (let j = nextInSubtree(tree, node, node); j >= 0; j = nextInSubtree(tree, j, node)) {
+    walked++;
+    if (stamp[parent[j]] !== visited || (flags[j] & reach) !== 0) {
       refreshNode(tree, j, false);
       stamp[j] = visited | 1;
     } else stamp[j] = visited;
   }
+  return walked;
 }
 
 /**
