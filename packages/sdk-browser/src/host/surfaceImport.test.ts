@@ -6,7 +6,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import * as G from './graph/graph.fixture.ts';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { importHostSurface } from './surfaceImport.ts';
 import { followHostTexture, importHostTexture } from './textureImport.ts';
 
@@ -88,10 +87,10 @@ test('A held record is handed back with the image its host holds now', () => {
 });
 
 // Review of #389: a host that disposes of a texture it still draws — Three uploads it again at
-// its next use — keeps one record, followed as before, its picture to send again.
+// its next use — keeps one record, followed as before, its picture to send again. The graph's
+// texture signals its release as every graph resource does (`graph/resource.ts`).
 test('A disposed texture keeps its record, followed, its picture sent again', () => {
-  const host = new THREE.DataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
-  host.needsUpdate = true;
+  const host = G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1);
   const record = importHostTexture(host);
   const { version } = record;
   host.dispose();
@@ -147,31 +146,12 @@ test('A placement written without a version is recomposed at the next follow, on
 // #360: `KHR_texture_transform` is applied by the loader to the texture's offset, repeat and
 // rotation, never composed: the first import composes it, since the load check reads the
 // transform before any image (`../scene/tables.ts`, `materialDivergence`).
-test('A glTF texture transform is composed at the first import', async () => {
-  const gltf = JSON.stringify({
-    asset: { version: '2.0' },
-    extensionsUsed: ['KHR_texture_transform'],
-    textures: [{ source: 0 }],
-    images: [{ uri: 'unread.png' }],
-    materials: [
-      {
-        pbrMetallicRoughness: {
-          baseColorTexture: {
-            index: 0,
-            extensions: {
-              KHR_texture_transform: { offset: [0.25, 0.5], scale: [2, 3], rotation: 0.5 },
-            },
-          },
-        },
-      },
-    ],
-  });
-  const loader = new GLTFLoader().register(() => ({
-    name: 'fixture-image',
-    loadTexture: () => Promise.resolve(new THREE.DataTexture(new Uint8Array(4), 1, 1)),
-  }));
-  const { parser } = await loader.parseAsync(gltf, '');
-  const material = (await parser.getDependency('material', 0)) as THREE.MeshStandardMaterial;
+test('A texture transform is composed at the first import, as the reference composes it', () => {
+  const map = G.dataTexture(new Uint8Array(4), 1, 1);
+  map.offset.set(0.25, 0.5);
+  map.repeat.set(2, 3);
+  map.rotation = 0.5;
+  const material = G.standardSurface({ map });
   const expected = new THREE.Matrix3().setUvTransform(0.25, 0.5, 2, 3, 0.5, 0, 0).elements;
   const record = importHostSurface(material)!.map!;
   for (const i of [0, 1, 3, 4, 6, 7]) assert.ok(Math.abs(record.transform[i] - expected[i]) < 1e-9);

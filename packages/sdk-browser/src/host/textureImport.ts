@@ -73,11 +73,16 @@ function fillPicture(entry: Imported) {
   entry.image = host.image;
 }
 
+/** Marks the record stale when its texture is given back (`graph/resource.ts`): a release runs
+ *  each hook once, so the hook is set again once the record has followed that release. */
+const followRelease = (entry: Imported) => entry.host.released.add(() => (entry.stale = true));
+
 /** Refills the record's picture when its host's version or image moved, or the host disposed of
  *  it since — `version` moves then. */
 function followPicture(entry: Imported) {
   const { host } = entry;
   if (!entry.stale && entry.hostVersion === host.version && entry.image === host.image) return;
+  if (entry.stale) followRelease(entry);
   entry.stale = false;
   fillPicture(entry);
   entry.record.version++;
@@ -163,7 +168,7 @@ export function importHostTexture(host: HostTexture): Texture {
   fillPlacement(host, entry.placed);
   imported.set(host, entry);
   byRecord.set(entry.record, entry);
-  host.addEventListener?.('dispose', () => (entry.stale = true));
+  followRelease(entry);
   return entry.record;
 }
 
