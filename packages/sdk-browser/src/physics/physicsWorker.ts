@@ -1,20 +1,17 @@
 /**
  * The physics worker: it loads the Jolt module, steps it at a fixed 60 Hz and hands each tick's
  * poses and contact events back to the page in a transferable buffer. Two buffers go back and
- * forth; when the page still holds both, the tick's results wait for the next one rather than the
- * worker waiting for the page. With every body asleep and no command queued, it stops ticking: a
- * still scene costs no work here either.
+ * forth, and a tick writes straight into a free one; when the page still holds both, the tick's
+ * results wait in a staging copy for the next buffer rather than the worker waiting for the page.
+ * With every body asleep and no command queued, it stops ticking: a still scene costs no work
+ * here either.
  */
-import {
-  ASLEEP_BIT,
-  EVENT_WORDS,
-  MAX_CATCH_UP_STEPS,
-  PHYSICS_STEP,
-  POSE_WORDS,
-} from '../../../sdk-core/src/physics/index.ts';
-import { instantiateJolt, type JoltModule } from './joltModule.ts';
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
+import { openJolt, startJolt, type JoltModule } from './joltModule.ts';
 import { runJoltThread, type JoltThreadStart } from './joltThreads.ts';
-import { MAX_EVENTS, PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts';
+import { PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts';
+import { createTickResults } from './tickResults.ts';
 
 const scope = globalThis as unknown as {
   location: { href: string };
@@ -22,7 +19,8 @@ const scope = globalThis as unknown as {
   postMessage(message: FromPhysics, transfer?: Transferable[]): void;
 };
 
-let jolt: JoltModule | null = null;
+let jolt: JoltModule | null = null,
+  results: ReturnType<typeof createTickResults> | null = null;
 const buffers: ArrayBuffer[] = [];
 const queued: Uint32Array[] = [];
 let paused = false,
@@ -30,46 +28,16 @@ let paused = false,
   last = 0,
   owed = 0,
   timer: ReturnType<typeof setTimeout> | null = null,
-  active = 0;
-const events = new Uint32Array(MAX_EVENTS * EVENT_WORDS);
-/** This tick's results: one slot per body (a later step overwrites), then the events. */
-let slotOf = new Int32Array(0),
-  stamp = new Uint32Array(0),
-  tickId = 0,
-  poses = new Uint32Array(0),
-  poseCount = 0,
-  eventCount = 0,
+  active = 0,
   steps = 0,
   stepMs = 0;
 
 function fail(error: unknown) {
-  const text = String((error as Error)?.message ?? error);
-  const budget = jolt?.full() || text.startsWith('PHYSICS_BUDGET');
-  scope.postMessage({
-    type: 'error',
-    code: budget ? 'PHYSICS_BUDGET' : 'PHYSICS_FAILED',
-    message: text,
-  });
+  const code =
+    error instanceof EngineError ? error.code : jolt?.full() ? 'PHYSICS_BUDGET' : 'PHYSICS_FAILED';
+  const message = String((error as Error)?.message ?? error);
+  scope.postMessage({ type: 'error', code, message, fatal: true });
   jolt = null;
-}
-
-/** Keeps a step's poses, one slot per body, and its events; nothing is allocated per record. */
-function gather(count: number) {
-  const words = jolt!.poses(count);
-  for (let r = 0; r < count; r++) {
-    const at = r * POSE_WORDS,
-      index = (words[at] & ~ASLEEP_BIT) >>> 0;
-    if (stamp[index] !== tickId) {
-      stamp[index] = tickId;
-      slotOf[index] = poseCount++;
-    }
-    const to = slotOf[index] * POSE_WORDS;
-    for (let k = 0; k < POSE_WORDS; k++) poses[to + k] = words[at + k];
-  }
-  const fresh = jolt!.events();
-  const room = Math.min(fresh.length, events.length - eventCount * EVENT_WORDS);
-  events.set(fresh.subarray(0, room), eventCount * EVENT_WORDS);
-  eventCount += room / EVENT_WORDS;
 }
 
 /** Runs the queued commands and one step; `stepMs` counts the module's step alone, the clock the
@@ -79,15 +47,15 @@ function run(dt: number) {
   const t = performance.now();
   const count = jolt!.step(words, dt);
   stepMs += performance.now() - t;
-  gather(count);
+  results!.gather(count);
 }
 
 function concat(parts: Uint32Array[]) {
   if (parts.length === 1) return parts[0];
-  const out = new Uint32Array(parts.reduce((n, p) => n + p.length, 0));
+  const all = new Uint32Array(parts.reduce((n, p) => n + p.length, 0));
   let at = 0;
-  for (const part of parts) out.set(part, (at += part.length) - part.length);
-  return out;
+  for (const part of parts) all.set(part, (at += part.length) - part.length);
+  return all;
 }
 
 /** Steps what the time since the last tick holds (a ceiling of catch-up steps), then posts. */
@@ -101,8 +69,8 @@ function tick() {
   try {
     // Paused, commands still reach the bodies; running, they wait for the next step, so a
     // kinematic move is a move over a step (pushing what it meets), never a teleport.
-    if (queued.length && paused) run(0);
-    while (!paused && owed >= PHYSICS_STEP) {
+    if (queued.length && paused && results!.room()) run(0);
+    while (!paused && owed >= PHYSICS_STEP && results!.room()) {
       run(PHYSICS_STEP);
       owed -= PHYSICS_STEP;
       steps++;
@@ -116,15 +84,7 @@ function tick() {
 }
 
 function post() {
-  const buffer = poseCount || eventCount || steps ? buffers.pop() : undefined;
-  if (!buffer) return;
-  const words = new Uint32Array(buffer);
-  words.set(poses.subarray(0, poseCount * POSE_WORDS));
-  words.set(events.subarray(0, eventCount * EVENT_WORDS), poseCount * POSE_WORDS);
-  const message = { poses: poseCount, events: eventCount, steps, seconds: steps * PHYSICS_STEP };
-  scope.postMessage({ type: 'results', buffer, ...message, stepMs, active }, [buffer]);
-  tickId++;
-  poseCount = eventCount = steps = stepMs = 0;
+  if (results?.post(steps, stepMs, active)) steps = stepMs = 0;
 }
 
 function schedule(ms: number) {
@@ -132,10 +92,12 @@ function schedule(ms: number) {
 }
 
 async function start(message: Extract<ToPhysics, { type: 'start' }>) {
-  if (message.protocol !== PHYSICS_PROTOCOL) throw new Error('PHYSICS_FAILED: protocol mismatch');
+  if (message.protocol !== PHYSICS_PROTOCOL)
+    throw new EngineError('PHYSICS_FAILED', 'Physics: protocol mismatch.');
   const response = await fetch(message.wasm);
-  if (!response.ok) throw new Error(`PHYSICS_FAILED: ${message.wasm} ${response.status}`);
-  const { bodies, memoryBytes } = message.budget;
+  if (!response.ok)
+    throw new EngineError('PHYSICS_FAILED', `Physics: ${message.wasm} ${response.status}.`);
+  const budget = message.budget;
   // The module's threads run in workers of this same script (`thread` messages below).
   const spawn = (start: JoltThreadStart) => {
     const thread = new Worker(scope.location.href, { type: 'module' });
@@ -143,10 +105,9 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
     thread.postMessage(start);
   };
   const threads = message.threads > 1 ? { count: message.threads, spawn } : null;
-  jolt = await instantiateJolt(await response.arrayBuffer(), bodies, memoryBytes, threads);
-  slotOf = new Int32Array(bodies);
-  stamp = new Uint32Array(bodies).fill(0xffffffff);
-  poses = new Uint32Array(bodies * POSE_WORDS);
+  const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, threads);
+  jolt = startJolt(opened, budget, message.threads);
+  results = createTickResults(jolt, budget, buffers, scope.postMessage.bind(scope));
   buffers.push(...message.buffers);
   last = performance.now();
   scope.postMessage({ type: 'ready' });
@@ -158,7 +119,9 @@ scope.onmessage = ({ data: message }) => {
   else if (message.type === 'thread') runJoltThread(message).catch(fail);
   else if (message.type === 'buffer') {
     buffers.push(message.buffer);
-    if (poseCount || eventCount) post();
+    post();
+    // A tick held back for room in its results resumes.
+    if (jolt && (owed >= PHYSICS_STEP || queued.length)) schedule(0);
   } else if (message.type === 'commands') {
     queued.push(message.words);
     // A resting world steps at once: the command's step is owed now, not a frame later.

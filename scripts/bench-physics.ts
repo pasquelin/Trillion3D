@@ -15,8 +15,17 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { Worker, isMainThread, workerData } from 'node:worker_threads';
-import { CommandWriter, LAYER, MOTION, SHAPE } from '../packages/sdk-core/src/physics/index.ts';
-import { instantiateJolt } from '../packages/sdk-browser/src/physics/joltModule.ts';
+import {
+  CommandWriter,
+  DEFAULT_PHYSICS_BUDGET,
+  LAYER,
+  MOTION,
+  PHYSICS_MATERIALS,
+  SHAPE,
+} from '../packages/sdk-core/src/physics/index.ts';
+import { Quaternion } from '../packages/sdk-core/src/world/math/quaternion.ts';
+import { openJolt, startJolt } from '../packages/sdk-browser/src/physics/joltModule.ts';
+import { seeded } from '../site/examples/kit/random.ts';
 import {
   runJoltThread,
   type JoltThreadStart,
@@ -35,49 +44,37 @@ const STEPS = 600;
 /** The fall-and-landing window whose steps are averaged: the first 3 simulated seconds. */
 const WINDOW = 180;
 
-/** The example's scene as command words: a stone floor, then `count` wooden boxes in ten layers. */
+/** The example's scene as command words: a stone floor, then `count` wooden boxes in ten layers,
+ *  laid out by the same seeded sequence (`site/examples/ten-thousand-bodies.html`). */
 function scene(count: number) {
   const writer = new CommandWriter();
-  const body = (
-    index: number,
-    motion: number,
-    position: number[],
-    quaternion: number[],
-    half: number[],
-  ) =>
+  const body = (id: number, motion: number, position: number[], turn: Quaternion, half: number) => {
+    const matter = motion === MOTION.static ? PHYSICS_MATERIALS.stone : PHYSICS_MATERIALS.wood;
     writer.add({
-      index,
+      id,
       motion,
       layer: motion === MOTION.static ? LAYER.static : LAYER.moving,
       shape: SHAPE.box,
       flags: 0,
       position,
-      quaternion,
-      size: half as [number, number, number],
+      quaternion: turn.elements,
+      size: motion === MOTION.static ? [60, 1, 60] : [half, half, half],
       mass: 0,
-      density: motion === MOTION.static ? 2600 : 600,
-      friction: motion === MOTION.static ? 0.7 : 0.5,
-      restitution: motion === MOTION.static ? 0.1 : 0.3,
       gravityScale: 1,
+      ...matter,
     });
-  body(0, MOTION.static, [0, -1, 0], [0, 0, 0, 1], [60, 1, 60]);
-  let seed = 11;
-  const next = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
-  const side = Math.ceil(Math.sqrt(count / 10));
+  };
+  body(0, MOTION.static, [0, -1, 0], new Quaternion(), 0);
+  const next = seeded(11),
+    side = Math.ceil(Math.sqrt(count / 10)),
+    turn = new Quaternion();
   for (let i = 0; i < count; i++) {
     const layer = Math.floor(i / (side * side)),
       cell = i % (side * side);
     const x = ((cell % side) - side / 2) * 1.6 + next() * 0.4;
     const z = (Math.floor(cell / side) - side / 2) * 1.6 + next() * 0.4;
-    const [a, b, c] = [next() / 2, next() / 2, next() / 2].map((h) => [Math.sin(h), Math.cos(h)]);
-    // Euler XYZ to a quaternion, from the half angles' sines and cosines.
-    const q = [
-      a[0] * b[1] * c[1] + a[1] * b[0] * c[0],
-      a[1] * b[0] * c[1] - a[0] * b[1] * c[0],
-      a[1] * b[1] * c[0] + a[0] * b[0] * c[1],
-      a[1] * b[1] * c[1] - a[0] * b[0] * c[0],
-    ];
-    body(i + 1, MOTION.dynamic, [x, 4 + layer * 1.6, z], q, [0.4, 0.4, 0.4]);
+    turn.setFromEuler({ x: next(), y: next(), z: next(), order: 'XYZ' });
+    body(i + 1, MOTION.dynamic, [x, 4 + layer * 1.6, z], turn, 0.4);
   }
   return writer.take();
 }
@@ -85,7 +82,13 @@ function scene(count: number) {
 /** The landing window a profiled build's per-phase totals cover (`bench/native.cpp`). */
 const PROFILE_FROM = 50,
   PROFILE_TO = 180;
-type Run = { steps: { ms: number; active: number }[]; phases: Map<string, number> };
+/** The engine's default budget, its bodies the scene's (the floor included) and memory unbounded. */
+const budgetFor = (bodies: number) => ({
+  ...DEFAULT_PHYSICS_BUDGET,
+  bodies: bodies + 1,
+  memoryBytes: 1 << 30,
+});
+type Run = { steps: { ms: number; active: number; full?: number }[]; phases: Map<string, number> };
 
 /**
  * The first step apart (it builds every contact cache), the mean, p95 and worst of the rest of
@@ -98,7 +101,9 @@ function summary(label: string, { steps, phases }: Run) {
   const asleep = steps.findIndex((r) => r.active === 0);
   const [p95, worst] = [sorted[Math.floor(sorted.length * 0.95)], sorted[sorted.length - 1]];
   const text = `${label}: first ${steps[0].ms.toFixed(1)} ms, mean ${mean.toFixed(2)}, p95 ${p95.toFixed(2)}, worst ${worst.toFixed(2)} ms`;
-  console.log(`${text}, all asleep at step ${asleep < 0 ? `> ${STEPS}` : asleep + 1}`);
+  const full = steps.filter((r) => r.full).length;
+  const note = full ? `, contact budgets exceeded in ${full} steps` : '';
+  console.log(`${text}, all asleep at step ${asleep < 0 ? `> ${STEPS}` : asleep + 1}${note}`);
   const top = [...phases].sort((a, b) => b[1] - a[1]).slice(0, 14);
   for (const [name, ms] of top)
     console.log(`    ${name.padEnd(40)} ${ms.toFixed(3)} thread-ms/step`);
@@ -114,14 +119,11 @@ async function web(words: Uint32Array, bodies: number, threads: number, file: st
   const name = threads > 1 ? 'joltPhysicsThreads.wasm' : 'joltPhysics.wasm';
   const spawn = (start: JoltThreadStart) =>
     new Worker(fileURLToPath(import.meta.url), { workerData: start }).unref();
-  const jolt = await instantiateJolt(
-    readFileSync(file ?? join(PHYSICS, name)),
-    bodies + 1,
-    1 << 30,
-    threads > 1 || file ? { count: threads, spawn } : null,
-  );
+  const pool = threads > 1 || file ? { count: threads, spawn } : null;
+  const opened = await openJolt(readFileSync(file ?? join(PHYSICS, name)), 1 << 30, pool);
+  const jolt = startJolt(opened, budgetFor(bodies), threads);
   const profile =
-    'jolt_profile_name' in jolt.exports ? (jolt.exports as unknown as Profiled) : null;
+    'jolt_profile_name' in opened.exports ? (opened.exports as unknown as Profiled) : null;
   const phases = new Map<string, number>();
   jolt.step(words, 0);
   const steps = [];
@@ -131,13 +133,13 @@ async function web(words: Uint32Array, bodies: number, threads: number, file: st
       for (let i = 0; i < 256; i++) {
         const at = profile.jolt_profile_name(i);
         if (!at) continue;
-        const bytes = new Uint8Array(jolt.memory.buffer, at, 128);
+        const bytes = new Uint8Array(opened.memory.buffer, at, 128);
         const text = new TextDecoder().decode(bytes.slice(0, bytes.indexOf(0)));
         phases.set(text, profile.jolt_profile_ms(i) / (PROFILE_TO - PROFILE_FROM));
       }
     const t = performance.now();
     jolt.step(null, 1 / 60);
-    steps.push({ ms: performance.now() - t, active: jolt.active() });
+    steps.push({ ms: performance.now() - t, active: jolt.active(), full: jolt.overflow().length });
   }
   return { steps, phases };
 }
@@ -145,9 +147,9 @@ async function web(words: Uint32Array, bodies: number, threads: number, file: st
 function native(tool: string, words: Uint32Array, bodies: number, threads: number): Run {
   const file = join(dirname(tool), 'commands.bin');
   writeFileSync(file, words);
-  const out = execFileSync(tool, [file, String(bodies + 1), String(threads), String(STEPS)], {
-    encoding: 'utf8',
-  });
+  const budget = budgetFor(bodies);
+  const sizes = [budget.bodies, budget.bodyPairs, budget.contactConstraints, threads, STEPS];
+  const out = execFileSync(tool, [file, ...sizes.map(String)], { encoding: 'utf8' });
   const phases = new Map<string, number>();
   const steps = [];
   for (const line of out.trim().split('\n')) {

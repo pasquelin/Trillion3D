@@ -84,6 +84,21 @@ export interface PhysicsBudget {
   /** Bytes of the physics module's memory: a hard ceiling, the module cannot grow past it. */
   memoryBytes: number;
   /**
+   * Pairs of bodies whose bounds overlap in one step. A dense pile holds about four per body; a
+   * step that finds more misses contacts and raises `PHYSICS_BUDGET`.
+   */
+  bodyPairs: number;
+  /**
+   * Touching pairs solved in one step. A settled pile holds about two per body; a step that
+   * finds more misses contacts and raises `PHYSICS_BUDGET`.
+   */
+  contactConstraints: number;
+  /**
+   * Contact events (`enter`, `leave`) one step reports. An `enter` past it is dropped and counted
+   * (`world.physics.stats.droppedEvents`), and its `leave` is never sent; a `leave` is only delayed.
+   */
+  contactEvents: number;
+  /**
    * Threads that step the simulation, the physics worker's included. Above 1 it needs a
    * cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more
    * than the machine's logical cores minus the page's own.
@@ -97,6 +112,9 @@ export const DEFAULT_PHYSICS_BUDGET: Readonly<PhysicsBudget> = Object.freeze({
   triangles: 2_000_000,
   decorative: 1024,
   memoryBytes: 128 * 1024 * 1024,
+  bodyPairs: 65536,
+  contactConstraints: 32768,
+  contactEvents: 4096,
   threads: 8,
 });
 

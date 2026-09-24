@@ -24,6 +24,8 @@ enum Op : uint32_t {
 };
 enum ShapeKind : uint32_t { BOX = 0, SPHERE, CAPSULE, CYLINDER, TRIANGLES, HULL };
 constexpr uint32_t ADD_WORDS = 23;
+/// Words of each fixed-size command, by opcode (layout.ts).
+constexpr uint32_t SIZES[] = {0, 0, 2, 9, 9, 5, 5, 2, 4, 3, 9, 3, 4};
 /** Adds in one batch past which the broad phase is rebuilt after it. */
 constexpr uint32_t BULK_ADDS = 256;
 /// Density every shape is built with; a body's mass is set from the engine's density or mass.
@@ -76,14 +78,24 @@ RefConst<Shape> meshShape(uint32_t kind, const uint32_t *data, uint32_t vertices
 
 bool add(const uint32_t *w) {
   World &world = trillion::world();
-  uint32_t index = w[1], motion = w[2], layer = w[3], kind = w[4], flags = w[5];
-  if (index >= world.slots.size() || world.slots[index].used) return (world.error = BAD_COMMAND, false);
+  uint32_t engine = w[1], index = engine & INDEX_MASK, motion = w[2], layer = w[3], kind = w[4],
+           flags = w[5];
+  if (index >= world.slots.size() || world.slots[index].used || world.slots[index].refused)
+    return (world.error = BAD_COMMAND, false);
+  // A mesh has no volume: only a body that never moves by force may be one (the page refuses it).
   RefConst<Shape> shape = kind <= CYLINDER ? primitive(kind, f32(w + 13), f32(w + 14), f32(w + 15))
-                                           : meshShape(kind, w + ADD_WORDS, w[21], w[22]);
-  if (!shape) return (world.error = BAD_SHAPE, false);
+                          : kind == TRIANGLES && motion == 2 ? nullptr
+                                                             : meshShape(kind, w + ADD_WORDS, w[21], w[22]);
+  // A refused shape fails its body alone: the page hears its id and removes it.
+  if (!shape) {
+    world.slots[index] = {};
+    world.slots[index].refused = true;
+    world.refused.push_back(engine);
+    return true;
+  }
   EMotionType type = motion == 0 ? EMotionType::Static : motion == 1 ? EMotionType::Kinematic : EMotionType::Dynamic;
   BodyCreationSettings settings(shape, RVec3(vec3(w + 6)), quat(w + 9), type, ObjectLayer(layer));
-  settings.mUserData = index;
+  settings.mUserData = engine;
   settings.mIsSensor = (flags & SENSOR) != 0;
   settings.mMotionQuality = (flags & CCD) ? EMotionQuality::LinearCast : EMotionQuality::Discrete;
   settings.mFriction = f32(w + 18);
@@ -98,8 +110,13 @@ bool add(const uint32_t *w) {
   Body *body = world.system->GetBodyInterfaceNoLock().CreateBody(settings);
   if (!body) return (world.error = BODY_LIMIT, false);
   world.system->GetBodyInterfaceNoLock().AddBody(body->GetID(), type == EMotionType::Static ? EActivation::DontActivate : EActivation::Activate);
-  world.slots[index] = {body->GetID(), flags, true};
-  world.engineIndex[body->GetID().GetIndex()] = index;
+  Slot &slot = world.slots[index];
+  slot = {};
+  slot.id = body->GetID();
+  slot.engine = engine;
+  slot.flags = flags;
+  slot.used = true;
+  world.engineOf[body->GetID().GetIndex()] = engine;
   return true;
 }
 
@@ -130,49 +147,51 @@ bool runCommands(const uint32_t *w, uint32_t count) {
     }
     uint32_t index = w[1];
     if (op < REMOVE || op > MATERIAL || op == VIEW) return (world.error = BAD_COMMAND, false);
-    if (index >= world.slots.size() || !world.slots[index].used) return (world.error = UNKNOWN_BODY, false);
+    if (index >= world.slots.size()) return (world.error = UNKNOWN_BODY, false);
     Slot &slot = world.slots[index];
+    // Commands the page wrote before it heard of a refused shape.
+    if (slot.refused) {
+      if (op == REMOVE) slot = Slot{};
+      w += SIZES[op];
+      continue;
+    }
+    if (!slot.used) return (world.error = UNKNOWN_BODY, false);
     switch (op) {
-      case REMOVE:
-        bodies.RemoveBody(slot.id);
-        bodies.DestroyBody(slot.id);
+      case REMOVE: {
+        BodyID id = slot.id;
+        leaveAll(slot.engine);
         slot = Slot{};
-        w += 2;
+        bodies.RemoveBody(id);
+        bodies.DestroyBody(id);
         break;
+      }
       case TELEPORT:
         bodies.SetPositionAndRotation(slot.id, RVec3(vec3(w + 2)), quat(w + 5), EActivation::Activate);
-        w += 9;
         break;
       case MOVE_KINEMATIC:
         if (world.dt > 0) bodies.MoveKinematic(slot.id, RVec3(vec3(w + 2)), quat(w + 5), world.dt);
         else bodies.SetPositionAndRotation(slot.id, RVec3(vec3(w + 2)), quat(w + 5), EActivation::DontActivate);
-        w += 9;
         break;
       case VELOCITY:
         bodies.SetLinearVelocity(slot.id, vec3(w + 2));
-        w += 5;
         break;
       case IMPULSE:
         bodies.AddImpulse(slot.id, vec3(w + 2));
-        w += 5;
         break;
       case WAKE:
         bodies.ActivateBody(slot.id);
-        w += 2;
         break;
       case GRAVITY_SCALE:
         bodies.SetGravityFactor(slot.id, f32(w + 2));
-        w += 3;
         break;
       case FLAGS:
         slot.flags = w[2];
-        w += 3;
         break;
       default:  // MATERIAL
         bodies.SetFriction(slot.id, f32(w + 2));
         bodies.SetRestitution(slot.id, f32(w + 3));
-        w += 4;
     }
+    w += SIZES[op];
   }
   // Bodies added in bulk leave the broad phase tree unbalanced: rebuilt once, after the batch.
   if (added >= BULK_ADDS) world.system->OptimizeBroadPhase();
