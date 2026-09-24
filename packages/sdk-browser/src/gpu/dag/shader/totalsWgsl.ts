@@ -33,9 +33,9 @@ fn ouvreTotaux(lid:u32){
  if(lid<4u){atomicStore(&totauxGroupe[lid],0u);}
  workgroupBarrier();
 }
-fn noteImage(i:u32,flags:u32,voulu:bool,dessinee:bool,trou:bool){
+fn noteImage(r:u32,flags:u32,voulu:bool,dessinee:bool,trou:bool){
  if(!voulu){return;}
- let tri=trianglesOf(i);
+ let tri=trianglesOf(r);
  atomicAdd(&totauxGroupe[0],tri);
  if((flags&${CLUSTER_TRANSPARENT}u)!=0u){atomicAdd(&totauxGroupe[1],tri);}
  if(dessinee){atomicAdd(&totauxGroupe[2],tri);}

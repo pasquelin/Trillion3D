@@ -22,12 +22,12 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
  // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
  let entry=flags[candBase()+s];let i=entryIndex(entry);vi=entryView(entry);
- let cluster=clusters[i];
- if(!visible(i,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
+ let w=pageWorld(i);let r=recordOf(i,w);
+ let cluster=clusters[r];
+ if(!visible(r,w,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
  liveAppend(entry);
- let rejected=(views[0u].viewFlags&VIEW_LIGHT)==0u&&coneRejects(i,cluster);
+ let rejected=(views[0u].viewFlags&VIEW_LIGHT)==0u&&coneRejects(r,w);
  flags[coneCache(i)]=select(0u,1u,rejected);
- let w=cluster.worldIndex;
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  if(!selects(cluster,e,stretch,focal,views[vi].pixelError)){return;}
  if(rejected){return;}
@@ -49,8 +49,8 @@ fn dagEscalate(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=liveCount()||views[0u].residentCut==0u){return;}
  let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
  if(isResident(i)){return;}
- let cluster=clusters[i];
- let w=cluster.worldIndex;let slot=slotOf(w);
+ let w=pageWorld(i);let cluster=clusters[recordOf(i,w)];
+ let slot=slotOf(w);
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[slot])))){return;}
  if(coneRejected(i)){return;}
@@ -61,8 +61,8 @@ fn dagCheck(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=liveCount()||views[0u].residentCut==0u){return;}
  let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
  if(isResident(i)){return;}
- let cluster=clusters[i];
- let w=cluster.worldIndex;let slot=slotOf(w);
+ let w=pageWorld(i);let cluster=clusters[recordOf(i,w)];
+ let slot=slotOf(w);
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[slot])))){return;}
  if(coneRejected(i)){return;}
