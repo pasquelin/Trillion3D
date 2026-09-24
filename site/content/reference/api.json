@@ -8076,6 +8076,11 @@
         "name": "position?",
         "type": "readonly [number, number, number] | { x: number; y: number; z: number; } | undefined",
         "desc": "Where the model's origin goes in the scene."
+      },
+      {
+        "name": "onProgress?",
+        "type": "((event: JobProgress) => void) | undefined",
+        "desc": "Hears how far the load has got: `manifest` once the manifest is read, then `resources` as each file the scene reads lands (`completed` of `total` known so far). The event is a `JobProgress`: a `createJob` wrapping the load passes its `progress` here."
       }
     ],
     "description": ""
@@ -14062,7 +14067,7 @@
       },
       {
         "name": "admission",
-        "type": "{ list: Int32Array<ArrayBuffer>; readonly count: number; readonly limit: number; run(pool: ShadowPool, table: ShadowTable, records: ShadowRecords, sun: SunLe...",
+        "type": "{ list: Int32Array<ArrayBuffer>; readonly count: number; readonly viewLimit: number; run(pool: ShadowPool, table: ShadowTable, records: ShadowRecords, sun: S...",
         "desc": "This frame's pages, in admission order."
       },
       {
@@ -14079,6 +14084,11 @@
         "name": "setThreshold",
         "type": "(threshold: number) => void",
         "desc": "The threshold the light cuts select casters at (`thresholds.ts`)."
+      },
+      {
+        "name": "resting",
+        "type": "boolean",
+        "desc": "The camera rested at the last plan: its view was the one of the plan before."
       },
       {
         "name": "deferredChanges",
