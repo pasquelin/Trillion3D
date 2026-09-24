@@ -1811,6 +1811,26 @@
       "sound": "M sonido"
     }
   },
+  "watch-a-world-load": {
+    "banner": "Mira cómo se llena la barra mientras llega el mundo. Pulsa Cargar de nuevo para verlo desde el primer byte.",
+    "controls": {
+      "loadAgain": "Cargar de nuevo"
+    },
+    "readouts": {
+      "phase": "Paso",
+      "bytes": "Bytes",
+      "pages": "Primeras páginas"
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md",
+      "bytes": "leyendo bytes",
+      "manifest": "manifiesto leído",
+      "tables": "tablas de la escena leídas",
+      "resources": "archivos de la escena",
+      "pages": "primeras páginas",
+      "ready": "listo"
+    }
+  },
   "waves-of-points": {
     "banner": "Arrastra para rodear el campo. Elige un patrón para cambiar las olas.",
     "controls": {

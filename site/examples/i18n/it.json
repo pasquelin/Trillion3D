@@ -1811,6 +1811,26 @@
       "sound": "M suono"
     }
   },
+  "watch-a-world-load": {
+    "banner": "Guarda la barra riempirsi mentre il mondo arriva. Premi Ricarica per rivederlo dal primo byte.",
+    "controls": {
+      "loadAgain": "Ricarica"
+    },
+    "readouts": {
+      "phase": "Fase",
+      "bytes": "Byte",
+      "pages": "Prime pagine"
+    },
+    "words": {
+      "credit": "Viale di urne modellato nel codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md",
+      "bytes": "lettura dei byte",
+      "manifest": "manifesto letto",
+      "tables": "tabelle della scena lette",
+      "resources": "file della scena",
+      "pages": "prime pagine",
+      "ready": "pronto"
+    }
+  },
   "waves-of-points": {
     "banner": "Trascina per girare intorno al campo. Scegli un motivo per cambiare le onde.",
     "controls": {
