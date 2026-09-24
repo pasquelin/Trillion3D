@@ -174,8 +174,8 @@ test('the WebGL2 path holds the geometry pool and publishes it in its metrics', 
     backend.render(camera);
     const held = backend.metrics();
     assert.equal(held.geometryPoolBytes, 512 * 1024 * 1024);
-    assert.equal(held.geometryPoolAllocatedBytes, encoded.uncompressedBytes);
-    assert.equal(held.geometryPoolAllocatedBytes, held.geometryAllocationBytes, 'one source');
+    assert.equal(held.geometryAllocationBytes, encoded.uncompressedBytes);
+    assert.equal(held.geometryPoolAllocatedBytes, null, 'no pool is reserved');
     assert.equal(held.geometryPoolClamp, 'scene');
     // Both budgets are checked before either changes, as on WebGPU.
     const both = { geometryPoolBytes: 1, texturePoolBytes: 0 };

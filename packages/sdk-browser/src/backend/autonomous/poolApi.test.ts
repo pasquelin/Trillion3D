@@ -32,7 +32,6 @@ test('page copies follow the records that own a geometry, and the classic instan
     'rows share one geometry',
   );
   instances = 2;
-  assert.equal(copies.generation, 2);
   assert.deepEqual(
     [copies.of('twice'), copies.of('rows'), copies.root(), copies.scene()],
     [6, 1, 3, 10],

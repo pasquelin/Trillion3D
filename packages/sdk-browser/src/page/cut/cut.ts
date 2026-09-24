@@ -1,7 +1,5 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import { selectFlat } from './select.ts';
-import { startBudgetPass } from './tally.ts';
-import { budgetCeiling, searchBudget } from './search.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
@@ -23,6 +21,20 @@ import type { EngineCamera } from '../../camera/world.ts';
  */
 const rootWorld = new Float64Array(16);
 
+/** One pass of the cut at a threshold: whether it went past its budget, what it charged
+ *  (`slotsOf`, held places included), and whether it asked for a page a coarser threshold may
+ *  still cut down. Read before the next pass: it is the reused cut state. */
+export type CutPass = { readonly over: boolean; readonly used: number; readonly finer: boolean };
+
+/** A strategy that searches the threshold under a budget: it runs `pass` at the thresholds it
+ *  tries, with `budget` places (0: none) of which `held` are taken beforehand, from the host's
+ *  `floor`. The cut keeps the last pass, redone without its budget if it overflowed. */
+export type BudgetSearch = (
+  pass: (threshold: number, budget: number, held: number) => CutPass,
+  floor: number,
+  cam: EngineCamera,
+) => void;
+
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
   roots: ReadonlyArray<ClusterRoot<T>>,
@@ -34,16 +46,10 @@ export function selectVisiblePages<T extends PageRecord>(
     isResident?: (page: T) => boolean;
     rootFallback?: boolean;
     pageBudget?: number;
-    /** Slots of `pageBudget` held before the cut charges any page: what stays resident whatever
-     *  it draws. */
-    pageBudgetHeld?: number;
-    /** The threshold the previous image kept under `pageBudget`: the search starts there, tries
-     *  one √2 step finer, and climbs by √2 in this image only when it no longer fits. Without it,
-     *  the search starts at `pixelError` and doubles. */
-    pageBudgetFrom?: number;
-    /** The largest error the DAG roots carry as parents, in object units: the search's ceiling,
-     *  seen at the near plane (`budgetCeiling`). Without it, the search has none. */
-    pageBudgetRootError?: number;
+    /** What a page asked for costs in the budget; without it, one place per record drawn. */
+    slotsOf?: (page: T) => number;
+    /** Replaces the doubling search of `pageBudget` (`BudgetSearch`). */
+    search?: BudgetSearch;
     wanted?: T[];
     result?: SelectionResult<T>;
   },
@@ -84,10 +90,9 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatMissing = false;
   state.flatShort = false;
   state.budget = budget;
-  state.budgetHeld = options.pageBudgetHeld ?? 0;
+  state.slotsOf = options.slotsOf;
   const sweep = () => {
     state.over = false;
-    startBudgetPass(state);
     state.shownCount = 0;
     state.wantedCount = 0;
     state.wantedTriangles = 0;
@@ -110,36 +115,35 @@ export function selectVisiblePages<T extends PageRecord>(
       selectFlat(state, root);
     }
   };
-  const floor = state.pixelError,
-    from = budget ? options.pageBudgetFrom : undefined;
-  const ceiling = budgetCeiling(
-    floor,
-    budget ? options.pageBudgetRootError : 0,
-    state.cameraStretch,
-    cam,
-  );
-  state.budgetStrict = from !== undefined;
-  // Whether the cut at the host's threshold fits, once a pass has tried it; without a budget, it
-  // does.
-  let hostCutFits: boolean | null = budget ? null : true;
-  const pass = (threshold: number) => {
-    state.pixelError = threshold;
+  const search = options.search;
+  if (search)
+    search(
+      (threshold, passBudget, held) => {
+        state.pixelError = threshold;
+        state.budget = passBudget;
+        state.used = held;
+        state.finer = false;
+        sweep();
+        return state;
+      },
+      state.pixelError,
+      cam,
+    );
+  else sweep();
+  // A pass above the budget brings only one thing: the next threshold. The abandoned cut
+  // therefore stops at the overflowing page, and only the pass that holds the budget is taken to
+  // the end. When even the coarsest threshold overflows, the whole cut is redone: the overflow
+  // flag rises on a complete cover, never on a truncated cut.
+  for (let attempt = 0; budget && state.over && attempt < 16; attempt++) {
+    state.pixelError = state.pixelError > 0 ? state.pixelError * 2 : 1;
     sweep();
-    if (threshold === floor) hostCutFits = !state.over;
-  };
-  const settled = searchBudget(state, pass, floor, from, ceiling);
-  // When even the coarsest threshold overflows, the whole cut is redone: the overflow flag rises
-  // on a complete cover, never on a truncated cut.
-  const exceeded = state.over;
-  if (exceeded) {
+  }
+  if (state.over) {
     state.budget = 0;
     sweep();
   }
-  // What the cut at the host's threshold charges is known only when that pass ran to the end.
-  const requiredSlots =
-    budget && state.budget !== 0 && state.pixelError === floor ? state.budgetUsed : null;
   state.budget = 0;
-  state.budgetStrict = false;
+  state.slotsOf = undefined;
   // The cut is finished: both lists take their length here, and only once. They thus keep their
   // capacity from one image to the next, instead of losing it again at every pass.
   shown.length = state.shownCount;
@@ -160,10 +164,6 @@ export function selectVisiblePages<T extends PageRecord>(
   result.lodLevel = state.lodLevel;
   result.complete = state.complete;
   result.pixelError = state.pixelError;
-  result.requiredSlots = requiredSlots;
-  result.budgetSettled = settled;
-  result.hostCutFits = hostCutFits;
-  result.budgetExceeded = exceeded;
   // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
   state.flatStructure = undefined;
