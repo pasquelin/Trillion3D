@@ -1,46 +1,31 @@
 import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts';
 import { REQUEST_PAGE_MAX } from './request.ts';
 import { PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from '../core/selection.ts';
-import { leafCone } from '../../page/cone/cone.ts';
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts';
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts';
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts';
-import {
-  CLUSTER_WORDS,
-  COLD_CONE,
-  COLD_HAS_BOX,
-  COLD_MAX,
-  COLD_MIN,
-  COLD_OWNER,
-  COLD_TRIANGLES,
-  HOT_FLAGS,
-  HOT_LOD_ERROR,
-  HOT_PARENT_ERROR,
-  HOT_PARENT_SPHERE,
-  HOT_SPHERE,
-  HOT_WORLD,
-  packClusterFlags,
-  residentWords,
-} from './layout.ts';
+import { CLUSTER_WORDS, coldBase } from './layout.ts';
+import { createRecordTable } from './packRecords.ts';
 
-function writeSphere(
-  target: Float32Array,
-  at: number,
-  sphere: ArrayLike<number> | null | undefined,
-) {
-  const ok = !!sphere && sphere.length >= 4;
-  target[at] = ok ? sphere![0] : 0;
-  target[at + 1] = ok ? sphere![1] : 0;
-  target[at + 2] = ok ? sphere![2] : 0;
-  target[at + 3] = ok ? sphere![3] : 0;
-}
-
-/** Pack the cluster bands, their cone/box records and the per-primitive culling nodes. */
+/**
+ * Pack the cluster bands, their cone/box records and the per-primitive culling nodes.
+ *
+ * Records are stored once per unique cluster (`packRecords.ts`): the placements of one
+ * primitive share them, and the working table names each page's placement, whose record
+ * shift leads the page to its record (`layout.ts`). Nodes stay per placement.
+ */
 export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   const pageUrls: string[] = [];
   // Every primitive descends the same hierarchy: the manifest's, or the one packing
-  // gives it. One path, and level descent never has a page range without a root.
-  const cullings = roots.map((root) => root.culling ?? flatHierarchy(root.pages));
+  // gives it — once per page array, so placements sharing their pages share it too.
+  // One path, and level descent never has a page range without a root.
+  const flats = new Map<DagRoot['pages'], NonNullable<DagRoot['culling']>>();
+  const cullings = roots.map((root) => {
+    if (root.culling) return root.culling;
+    let flat = flats.get(root.pages);
+    if (!flat) flats.set(root.pages, (flat = flatHierarchy(root.pages)));
+    return flat;
+  });
   let clusterCount = 0,
     nodeCount = 0;
   // Levels of every primitive, summed level by level: pass `L`'s queue only holds
@@ -70,25 +55,19 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   // the readout would return a page for another: better to refuse it by name.
   if (clusterCount > REQUEST_PAGE_MAX)
     throw new Error(`GPU_SELECTION_PAGE_RANGE: ${clusterCount} > ${REQUEST_PAGE_MAX}`);
-  // The hot record only holds what all five passes of a frame reread; the owner
-  // node and the cone go to the cold, which the open pass alone reads.
-  const clusters = new Float32Array(Math.max(1, clusterCount) * CLUSTER_WORDS),
-    clusterInts = new Uint32Array(clusters.buffer);
   const nodes = new Float32Array(Math.max(1, nodeCount) * DAG_NODE_FLOATS),
     nodeInts = new Uint32Array(nodes.buffer);
-  // Residency bits extend the cold records: one word for thirty-two clusters,
-  // written by delta rather than a float per cluster rewritten page by page.
-  const pageCones = new Float32Array(
-    Math.max(1, clusterCount) * PAGE_CONE_FLOATS + residentWords(Math.max(1, clusterCount)),
-  );
-  const coneInts = new Uint32Array(pageCones.buffer);
+  // The working table's word per page: its placement, the only field a placement owns.
+  const pageWorlds = new Uint32Array(clusterCount);
   const worldSlots = Math.max(1, roots.length);
   const worlds = new Float32Array(worldSlots * 16),
     worldStretch = new Float32Array(worldSlots),
+    recordShift = new Uint32Array(worldSlots),
     // Each primitive's root, which prepare deposits in pass 0's queue; a parked row deposits
     // none, and `rootBases` keeps the node it takes back.
     rootNodes = new Uint32Array(worldSlots).fill(NONE),
     rootBases = new Uint32Array(worldSlots).fill(NONE);
+  const records = createRecordTable();
   let cluster = 0,
     node = 0,
     rootClusters = 0;
@@ -110,46 +89,24 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       { world: w, nodeBase, pageBase },
       owner,
     );
-    for (let i = 0; i < root.pages.length; i++) {
-      const rec = root.pages[i],
-        dst = cluster * CLUSTER_WORDS;
+    recordShift[w] = (records.place(root.pages, culling.nodes, owner, nodeBase) - pageBase) >>> 0;
+    pageWorlds.fill(w, pageBase, pageBase + root.pages.length);
+    for (const rec of root.pages) {
       pageUrls.push(rec.url);
-      writeSphere(clusters, dst + HOT_SPHERE, rec.sphere);
-      writeSphere(clusters, dst + HOT_PARENT_SPHERE, rec.parentSphere ?? rec.sphere);
-      const parent =
-        typeof rec.parentError === 'number' && Number.isFinite(rec.parentError)
-          ? rec.parentError
-          : -1;
-      clusters[dst + HOT_LOD_ERROR] = rec.lodError ?? 0;
-      clusters[dst + HOT_PARENT_ERROR] = parent;
-      clusterInts[dst + HOT_WORLD] = w;
-      // A cluster that no culling leaf owns is unreachable for the CPU cut too; never select it.
-      clusterInts[dst + HOT_FLAGS] = packClusterFlags(
-        parent < 0,
-        owner[i] === NONE,
-        rec.level ?? 0,
-        !!rec.transparent,
-      );
-      if (parent < 0) rootClusters++;
-      const cone = leafCone(rec),
-        base = cluster * PAGE_CONE_FLOATS,
-        hasBox = rec.min && rec.max ? 1 : 0;
-      pageCones[base + COLD_CONE] = cone.axis[0];
-      pageCones[base + COLD_CONE + 1] = cone.axis[1];
-      pageCones[base + COLD_CONE + 2] = cone.axis[2];
-      pageCones[base + COLD_CONE + 3] = cone.angle;
-      pageCones[base + COLD_HAS_BOX] = hasBox;
-      for (let a = 0; a < 3; a++) {
-        pageCones[base + COLD_MIN + a] = hasBox ? rec.min![a] : 0;
-        pageCones[base + COLD_MAX + a] = hasBox ? rec.max![a] : 0;
-      }
-      // The owner node is only read by the oracle, which replays descent: it stays cold.
-      coneInts[base + COLD_OWNER] = owner[i];
-      // Cluster triangles, as an integer word: the GPU now holds the totals.
-      coneInts[base + COLD_TRIANGLES] = Math.max(0, Math.trunc(rec.triangles ?? 0));
-      cluster++;
+      if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError)))
+        rootClusters++;
     }
+    cluster += root.pages.length;
   }
+  // The hot record only holds what all five passes of a frame reread; the owner
+  // node and the cone go to the cold, which the open pass alone reads. Residency bits
+  // follow the working table: one word for thirty-two pages, written by delta.
+  const recordSlots = Math.max(1, records.count),
+    coldAt = coldBase(clusterCount);
+  const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
+    pageCones = new Float32Array(coldAt + recordSlots * PAGE_CONE_FLOATS);
+  new Uint32Array(pageCones.buffer).set(pageWorlds);
+  records.finish(clusters, pageCones, coldAt);
   return {
     kind: 'dag',
     clusters,
@@ -163,6 +120,8 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     nodeCount,
     worldCount: roots.length,
     pageCount: clusterCount,
+    recordCount: records.count,
+    recordShift,
     rootCount: rootClusters,
     pageUrls,
   };
