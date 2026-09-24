@@ -3444,7 +3444,8 @@
       "textureLevelReads": "As origens. `textureLevelReads`: níveis pré-processados sendo lidos no cache. `textureLevelsDecoded`: níveis pré-processados decodificados desde o início. `textureLevelCacheBytes`: bytes de host de níveis decodificados mantidos para cortar mais blocos deles, sob um orçamento fixo. `textureScratchBuilds`: texturas de rascunho construídas para uma textura sem cadeia pré-processada, a origem inteira a cada vez.",
       "textureLevelsDecoded": "Níveis decodificados.",
       "textureLevelCacheBytes": "Bytes de níveis decodificados mantidos.",
-      "textureScratchBuilds": "Texturas de rascunho construídas."
+      "textureScratchBuilds": "Texturas de rascunho construídas.",
+      "textureLiveBytes": "Bytes que as texturas vivas mantêm: uma textura de trabalho cada, do próprio tamanho. Descontados de `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -4000,6 +4001,7 @@
       "textureLevelsDecoded": "Níveis decodificados.",
       "textureLevelCacheBytes": "Bytes de níveis decodificados mantidos.",
       "textureScratchBuilds": "Texturas de rascunho construídas.",
+      "textureLiveBytes": "Bytes que as texturas vivas mantêm: uma textura de trabalho cada, do próprio tamanho. Descontados de `texturePoolBytes`.",
       "gpuAllocatedBytes": "Bytes ativos alocados no dispositivo, somando todos os recursos.",
       "gpuAllocatedByLabel": "Bytes alocados agrupados por rótulo de recurso. Alocações sem rótulo são agrupadas como 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Contagem de texturas com formatos não reconhecidos. O valor esperado é 0.",
@@ -6437,7 +6439,7 @@
   },
   "texture": {
     "summary": "A família `texture`: uma imagem e como ela é amostrada.",
-    "description": "Imagens de cor são sRGB, imagens de dados são lineares; `needsUpdate` depois de escrever os pixels faz os amostradores relê-los."
+    "description": "Imagens de cor são sRGB, imagens de dados são lineares; `needsUpdate` depois de escrever os pixels faz os amostradores lê-los de novo, copiados no lugar na textura que já está na GPU — só um tamanho novo a reconstrói. Um vídeo é vivo: seus quadros chegam sozinhos."
   },
   "texture.image": {
     "summary": "Uma textura de cor a partir de uma imagem já na página: uma imagem, um bitmap ou um quadro de vídeo.",
@@ -6456,12 +6458,14 @@
   },
   "texture.canvas": {
     "summary": "Uma textura que mostra o que um canvas contém.",
+    "description": "Depois de desenhar de novo no canvas, defina `needsUpdate`: os pixels novos são copiados na textura que já está na GPU, nada é reconstruído.",
     "parameters": {
       "c": "O canvas a mostrar."
     }
   },
   "texture.video": {
-    "summary": "Uma textura que mostra um vídeo em reprodução.",
+    "summary": "Uma textura que mostra um vídeo em reprodução, ou o fluxo de uma câmera reproduzido em um vídeo.",
+    "description": "Cada quadro novo é copiado sozinho na textura que já está na GPU; um vídeo pausado não custa nada.",
     "parameters": {
       "v": "O vídeo a mostrar."
     }

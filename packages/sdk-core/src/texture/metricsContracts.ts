@@ -75,4 +75,7 @@ export interface TextureFrameMetrics {
   textureLevelCacheBytes?: number | null;
   /** Scratch textures built. */
   textureScratchBuilds?: number | null;
+  /** Bytes the live textures keep: one working texture each, of its own size. Deducted from
+   *  `texturePoolBytes`. */
+  textureLiveBytes?: number | null;
 }

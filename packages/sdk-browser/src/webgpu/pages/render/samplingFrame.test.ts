@@ -4,30 +4,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts';
-import { webgpuPagesBackend } from '../pages.ts';
+import { disposeQuadRun } from '../testScenes.fixture.ts';
+import { mappedQuadRun } from './mappedQuad.fixture.ts';
 import { hostTextureWritten } from '../../../host/textureImport.ts';
 
 test('a filter written on a map is in its header before the image that draws it is submitted', async () => {
-  installGpuGlobals();
-  const gpu = mockGpu();
   const map = G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1);
-  map.needsUpdate = true;
-  const fixture = quadScene();
-  (fixture.material as G.GraphSurface).map = map;
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: gpu.device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { gpu, fixture, backend, cam } = await mappedQuadRun(map);
   try {
-    await backend.prepare();
-    const cam = camera();
-    backend.render(cam);
-    await backend.flush?.();
     const header = () =>
       gpu.writes.filter((write) => write.label?.startsWith('Trillion3D texture pages'));
     const before = header().length;
@@ -40,7 +24,9 @@ test('a filter written on a map is in its header before the image that draws it 
     backend.render(cam);
     const written = header().slice(before);
     assert.ok(written.length > 0, 'the header was written');
-    const submit = gpu.submits[submitted];
+    // The image is the render's last submit: the copy of the picture `needsUpdate` moved (#362)
+    // is submitted before it.
+    const submit = gpu.submits.slice(submitted).at(-1);
     assert.ok(submit !== undefined, 'the image was submitted');
     assert.ok(
       written.every((write) => write.seq < submit),

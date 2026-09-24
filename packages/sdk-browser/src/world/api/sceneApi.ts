@@ -128,13 +128,13 @@ export function createExplorerSceneApi(inputs: Inputs) {
       for (const backend of backends) backend.setClearColor?.(hex);
       return backends.every((backend) => backend.setClearColor);
     },
-    /** Host surfaces rewritten in place are read again; false when the active path cannot, and
-     *  only a new session will draw them. */
+    /** Host surfaces rewritten in place are read again; false when the active path cannot — or
+     *  cannot for this change, a picture that changed size —, and only a new session will draw
+     *  them. */
     refreshMaterials() {
       check();
       const active = getActive();
-      active.refreshMaterials?.();
-      return !!active.refreshMaterials;
+      return !!active.refreshMaterials && active.refreshMaterials() !== false;
     },
     updateMaterial(primitive: string, material: Material) {
       check();

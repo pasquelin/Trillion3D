@@ -32,7 +32,7 @@ export function createTileCounters() {
     },
     metrics(
       atlases: readonly WebgpuTileAtlas[],
-      levels: WebgpuTileLevels | undefined,
+      { levels, liveBytes }: { levels?: WebgpuTileLevels; liveBytes: number },
       family: string,
     ) {
       const sum = (of: (atlas: WebgpuTileAtlas) => number) =>
@@ -60,6 +60,7 @@ export function createTileCounters() {
         textureLevelsDecoded: levels ? levels.fetched : null,
         textureLevelCacheBytes: levels ? levels.bytes : null,
         textureScratchBuilds: this.scratches,
+        textureLiveBytes: liveBytes,
       };
       return metrics;
     },
