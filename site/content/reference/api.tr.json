@@ -1522,8 +1522,7 @@
     "summary": "Yayımlanmış doğrudan aydınlatma ayarları.",
     "description": "Bunlar adlandırılmış ürün kararlarıdır, gömülü sabitler değil: her çalışma zamanı sınırı onları yeniden okur, ve tanı onları oldukları gibi yayımlar.",
     "members": {
-      "maxLights": "Sözleşmenin toplamda kabul ettiği ışıklar; bunun ötesinde `addLight` reddeder.",
-      "maxLightsPerTile": "Bir ekran karosunun tuttuğu ışıklar; piksel döngüsü bu sayıyla sınırlıdır (X2).",
+      "maxLights": "Sözleşmenin toplamda kabul ettiği ışıklar; bunun ötesinde `addLight` reddeder. Bir ekran karosu kendisine dokunan her ışığı tutar; listesi ve piksel döngüsü bu sayıyla sınırlıdır (X2).",
       "tileSize": "Işık listesinin bir ekran karosunun piksel cinsinden kenarı.",
       "samplesPerPixel": "HAREKETLİ bir görselin pikseli başına tamamen gölgelendirilen — gölge okuması dahil — ışıklar (X2): diğerleri gölgeleri olmadan tartılır, ve gölgelendirilenler orantılı olarak çizilir, bu yüzden tahmin yansız kalır ve zamansal kenar yumuşatma onu ortalar. Sabit bir görsel, karosunun her ışığını gölgelendirir ve tam toplama yakınsar; orada bu sayının hiçbir rolü yoktur.",
       "shadowPage": "Bir gölge sayfasının kenarı, texel olarak: fiziksel havuzun, sanal haritaların ve geçersiz kılmanın birimi. Hareket eden bir nesne yalnızca izdüşen kutusunun kapladığı sayfaları eskitir.",
