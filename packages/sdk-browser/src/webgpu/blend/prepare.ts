@@ -11,7 +11,6 @@ import {
   FLAG_PAGED,
   FLAG_TRANSMISSIVE,
 } from '../../visibility/buffer.ts';
-import { wrapModes } from '../../visibility/wrapModes.ts';
 import { WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { ensureWebgpuPositionBuffer } from '../core/positions.ts';
 import { ensureBlendIndexBuffer, ensureBlendNormalBuffer, ensureBlendUvBuffer } from './buffers.ts';
@@ -95,8 +94,6 @@ export function prepareWebgpuBlend(
       ],
       map: mat.map,
       flags,
-      // Each material map addresses its texture in its own wrap mode, like an opaque page.
-      wrapModes: wrapModes(mat),
       paged,
       // Reset by `refreshEyeKeys` before each sort; here only so they exist.
       orderKey: 0,

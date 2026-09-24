@@ -41,7 +41,6 @@ export function writeBlendItemRecord(
   ints[base + 22] = item.flags;
   ints[base + 23] = layer;
   ints[base + 24] = mat.emissiveMap ? (tables.mapLayer.get(mat.emissiveMap) ?? 0) : 0;
-  ints[base + 25] = item.wrapModes;
   floats[base + 26] = mat.alphaTest;
   floats[base + 27] = mat.aoIntensity;
   floats[base + 28] = mat.roughness;
@@ -59,4 +58,4 @@ export function writeBlendItemRecord(
 }
 
 /** WGSL declaration of the record, written once for the shader and for the layout. */
-export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,wrapModes:u32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,}`;
+export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,pad0:u32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,}`;

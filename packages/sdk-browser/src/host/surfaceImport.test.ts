@@ -1,11 +1,13 @@
 // The import boundary's own contract: what a texture record keeps between two reads, and when it
 // is refilled. Everything downstream — atlas layers, preview ranks, lane pools, the WebGL2 binder
 // — addresses a texture by the identity of its record and reads the UV transform it holds, so the
-// identity, the refill on a version bump and the aliased transform are the boundary's promises.
+// identity, the refill at the next image and the aliased transform are the boundary's promises.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { followHostTexture, importHostSurface, importHostTexture } from './surfaceImport.ts';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { importHostSurface } from './surfaceImport.ts';
+import { followHostTextures, importHostTexture } from './textureImport.ts';
 
 const texture = () => {
   const map = new THREE.DataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
@@ -21,17 +23,22 @@ test('One host texture keeps one record for the session', () => {
   assert.equal(surface?.map, first, 'a surface reads the same record as a direct import');
 });
 
-test('A version bump refills the held record instead of returning a second one', () => {
+test('A version bump refills the held record at the next image, its counters with it', () => {
   const host = texture();
   const record = importHostTexture(host);
+  const { sampling, placement } = record;
   assert.equal(record.wrapS, 'clamp');
   host.wrapS = THREE.RepeatWrapping;
   host.anisotropy = 4;
   host.needsUpdate = true;
-  const refilled = importHostTexture(host);
-  assert.equal(refilled, record, 'the record the pools address keeps its identity');
-  assert.equal(refilled.wrapS, 'repeat');
-  assert.equal(refilled.anisotropy, 4);
+  assert.ok(followHostTextures().has(record), 'the record moved');
+  assert.equal(importHostTexture(host), record, 'the record the pools address keeps its identity');
+  assert.equal(record.wrapS, 'repeat');
+  assert.equal(record.anisotropy, 4);
+  assert.equal(record.version, host.version, 'the picture is sent again');
+  assert.equal(record.sampling, sampling + 1, 'the sampler is set again');
+  assert.equal(record.placement, placement, 'nothing placed again');
+  assert.equal(followHostTextures().size, 0, 'nothing moved since');
 });
 
 test('The record aliases the composed UV transform, so a later recomposition is read', () => {
@@ -49,20 +56,58 @@ test('The record aliases the composed UV transform, so a later recomposition is 
 });
 
 // #360: a host animates a placement the way Three lets it — repeat, offset or rotation written,
-// the texture's version untouched —: the matrix is recomposed once per image, as the host's own
-// renderer recomposes it at every draw, and the held record reads it.
-test('A placement written without a version is recomposed at the next image', () => {
+// the texture's version untouched —: the matrix is recomposed at the next image, as the host's own
+// renderer recomposes it at every draw, and only then: a texture that stays put is not recomposed.
+test('A placement written without a version is recomposed at the next image, only then', () => {
   const host = texture();
-  const material = new THREE.MeshStandardMaterial({ map: host });
-  const record = importHostSurface(material)!.map!;
-  const version = host.version;
+  const record = importHostTexture(host);
+  const { version, sampling, placement } = record;
+  let composed = 0;
+  const updateMatrix = host.updateMatrix.bind(host);
+  host.updateMatrix = () => (composed++, updateMatrix());
+  followHostTextures();
+  assert.equal(composed, 0, 'nothing moved, nothing recomposed');
   host.offset.set(0.25, 0.5);
   host.rotation = Math.PI / 2;
-  followHostTexture(record);
-  assert.equal(importHostSurface(material)!.map, record, 'the same record');
-  assert.equal(host.version, version, 'no texture version moved');
+  followHostTextures();
+  assert.equal(composed, 1);
+  assert.deepEqual([record.version, record.sampling], [version, sampling], 'nothing sent again');
+  assert.equal(record.placement, placement + 1);
   assert.deepEqual([record.transform[6], record.transform[7]], [0.25, 0.5]);
   assert.ok(Math.abs(record.transform[0]) < 1e-9, 'the quarter turn read');
+});
+
+// #360: `KHR_texture_transform` is applied by the loader to the texture's offset, repeat and
+// rotation, never composed: the first import composes it, since the load check reads the
+// transform before any image (`../scene/tables.ts`, `materialDivergence`).
+test('A glTF texture transform is composed at the first import', async () => {
+  const gltf = JSON.stringify({
+    asset: { version: '2.0' },
+    extensionsUsed: ['KHR_texture_transform'],
+    textures: [{ source: 0 }],
+    images: [{ uri: 'unread.png' }],
+    materials: [
+      {
+        pbrMetallicRoughness: {
+          baseColorTexture: {
+            index: 0,
+            extensions: {
+              KHR_texture_transform: { offset: [0.25, 0.5], scale: [2, 3], rotation: 0.5 },
+            },
+          },
+        },
+      },
+    ],
+  });
+  const loader = new GLTFLoader().register(() => ({
+    name: 'fixture-image',
+    loadTexture: () => Promise.resolve(texture()),
+  }));
+  const { parser } = await loader.parseAsync(gltf, '');
+  const material = (await parser.getDependency('material', 0)) as THREE.MeshStandardMaterial;
+  const expected = new THREE.Matrix3().setUvTransform(0.25, 0.5, 2, 3, 0.5, 0, 0).elements;
+  const record = importHostSurface(material)!.map!;
+  for (const i of [0, 1, 3, 4, 6, 7]) assert.ok(Math.abs(record.transform[i] - expected[i]) < 1e-9);
 });
 
 test('A material is read in one place, and never cached: a replaced map is seen as it stands', () => {
@@ -81,7 +126,7 @@ test('A filter written after needsUpdate reaches the record at the next image', 
   host.needsUpdate = true;
   host.magFilter = THREE.LinearFilter;
   assert.equal(record.magFilter, 'nearest', 'nothing read at needsUpdate');
-  followHostTexture(record);
+  followHostTextures();
   assert.equal(record.magFilter, 'linear');
   assert.equal(record.version, host.version);
 });

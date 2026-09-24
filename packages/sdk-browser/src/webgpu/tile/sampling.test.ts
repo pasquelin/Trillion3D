@@ -10,16 +10,18 @@ import {
   SAMPLE_MIP_NEAREST,
   SAMPLE_MIP_NONE,
   SAMPLE_TRANSFORMED,
-  SAMPLING_WGSL,
+  SAMPLE_WRAP_SHIFT,
   samplingWords,
-  atlasReadWgsl,
 } from './sampling.ts';
+import { SAMPLING_WGSL, atlasReadWgsl } from './samplingWgsl.ts';
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
 /** An engine texture record with the default sampling, `fields` written over it. */
 const record = (fields: Partial<Texture> = {}) =>
   ({
+    wrapS: 'clamp',
+    wrapT: 'clamp',
     magFilter: 'linear',
     minFilter: 'linear-mip-linear',
     anisotropy: 1,
@@ -34,6 +36,14 @@ const filterOf = (fields: Partial<Texture>, compiled = false) =>
 test('the default sampling is the zero word: the read the pools had before', () => {
   assert.deepEqual([...samplingWords(record(), false)], [0, 0x3f800000, 0, 0, 0x3f800000, 0, 0]);
   assert.equal(filterOf({}, true), 0);
+});
+
+// #360, #361: the addressing rides above the filter bits, outside the zero test: a repeating
+// texture at the default filters keeps the default read.
+test('the addressing nibble sits above the filter bits', () => {
+  const word = filterOf({ wrapS: 'repeat', wrapT: 'mirror' });
+  assert.equal(word, (1 | 8) << SAMPLE_WRAP_SHIFT);
+  assert.equal(word & ((1 << SAMPLE_WRAP_SHIFT) - 1), 0, 'the default read');
 });
 
 test('each filter name sets its base filter and mip rule, on a texture created in the page', () => {
@@ -102,14 +112,14 @@ test('anisotropy is clamped to the ceiling, and granted only to a linear read mi
 test('a cutout read takes one tap, a shaded read the taps of its footprint', () => {
   const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true),
     cutout = atlasReadWgsl('maskAlpha', 'color', 'f32', false);
-  assert.match(shaded, /colorRead\(slot,s,uv,ddx,ddy,true\)/);
-  assert.match(shaded, /for\(var i=0u;i<r\.taps/);
-  assert.match(cutout, /colorRead\(slot,s,uv,ddx,ddy,false\)/);
-  assert.doesNotMatch(cutout, /r\.taps/);
+  assert.match(shaded, /colorFootprint\(slot,s,uv,ddx,ddy,true\)/);
+  assert.match(shaded, /if\(r\.taps>1u\)\{return colorSampleTaps\(s,r\);\}/);
+  assert.match(cutout, /colorFootprint\(slot,s,uv,ddx,ddy,false\)/);
+  assert.doesNotMatch(cutout, /taps/i);
   // Face-on, up to rounding, the footprint is not elongated: one tap at the isotropic level.
   assert.match(
     SAMPLING_WGSL,
-    /if\(ratio>1\.01\)\{\s*raw-=log2\(ratio\);\s*taps=u32\(ceil\(ratio-0\.01\)\)/,
+    /if\(ratio>1\.01\)\{\s*raw-=log2\(ratio\);\s*taps=min\(u32\(ceil\(ratio-0\.01\)\),8u\)/,
   );
 });
 
@@ -119,4 +129,20 @@ test('the affine part of the transform is carried, and flagged when it is not th
   const words = samplingWords(record({ transform }), false);
   assert.equal(words[0], SAMPLE_TRANSFORMED);
   assert.deepEqual([...new Float32Array(words.buffer, 4, 6)], [0, -2, 4, 0, 0.25, 0.5]);
+});
+
+// #360, #361: a tap line that stays in one period, off its seams, is folded once and read one
+// level at a time — a table entry once per tile —, the two levels mixed once; a line that meets
+// a seam or leaves its period folds each tap alone, as a one-tap read does.
+test('an anisotropic line is folded once when it stays in its period', () => {
+  const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true);
+  assert.match(shaded, /let line=foldLine\(r,s\.wrap,s\.size\);/);
+  assert.match(
+    shaded,
+    /if\(line\.dir\.x==0\.0\)\{[^}]*colorSampleTap\(s,r\.uv\+r\.axis\*tapOffset\(i,n\)/,
+  );
+  assert.match(
+    shaded,
+    /return mix\(a,colorLine\(s,line\.uv,step,n,u32\(l0\)\+1u,r\.nearest\),t\);/,
+  );
 });

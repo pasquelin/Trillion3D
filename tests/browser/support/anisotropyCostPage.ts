@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { batisseur, engine, libere } from './sharedSceneProof.ts';
 import { canvasMap } from './materialImages.ts';
 import type { BackendFactory } from '../../../packages/sdk-browser/src/backend/types.ts';
+import { median } from '../../kit/median.ts';
 import type * as SdkBrowser from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 
 /** Half side of the floor, in scene units: the far edge reaches the horizon of the view. */
@@ -26,8 +27,7 @@ interface Reading {
   samples: number;
 }
 
-const p50 = (values: number[]) =>
-  values.length ? [...values].sort((a, b) => a - b)[values.length >> 1] : null;
+const p50 = (values: number[]) => (values.length ? median(values) : null);
 
 /** A picture with detail at every texel: a seeded noise, so the reads cannot share a cache line. */
 function floorMap(anisotropy: number) {

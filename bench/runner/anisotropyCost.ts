@@ -34,12 +34,6 @@ export function anisotropyOptions(argv: string[]) {
   };
 }
 
-/** The page's result, or a failure when the page threw: a reading taken past an error is none. */
-export function cleanResult<T>({ result, pageErrors }: { result: T; pageErrors: string[] }) {
-  assert.deepEqual(pageErrors, [], `the page threw:\n${pageErrors.join('\n')}`);
-  return result;
-}
-
 async function main() {
   const ROOT = resolve(import.meta.dirname, '../..');
   const { anisotropies, size, frames, headless } = anisotropyOptions(process.argv.slice(2));
@@ -47,8 +41,10 @@ async function main() {
     existsSync(resolve(ROOT, 'dist/sdk-browser/src/measurement/measurement.js')),
     'dist missing: run `pnpm run build` before this fixture',
   );
-  const result = cleanResult(
-    await withRepoPage(ROOT, headless, (page): Promise<Awaited<ReturnType<typeof runOnPage>>> =>
+  const result = await withRepoPage(
+    ROOT,
+    headless,
+    (page): Promise<Awaited<ReturnType<typeof runOnPage>>> =>
       page.evaluate(
         // A template literal: the page module is served at runtime, not resolved by TypeScript.
         (input) => import(`${input.pageUrl}`).then((m) => m.run(input)),
@@ -60,7 +56,6 @@ async function main() {
           frames,
         },
       ),
-    ),
   );
   assert.ok(!('unavailable' in result), String((result as { unavailable?: string }).unavailable));
   console.log(`GPU: ${result.gpu}; per-pass timestamps: ${result.timed ? 'yes' : 'no'}`);

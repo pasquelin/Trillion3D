@@ -5,9 +5,9 @@
  * only the slot source is the item's. The host shader declares `VSOut`, `uni.feedback` and
  * inserts `TILE_REQUEST_WGSL` before this block.
  */
-export const BLEND_REQUEST_WGSL = `fn blendRequest(in:VSOut,wrap:u32,gradX:vec2f,gradY:vec2f)->u32{
+export const BLEND_REQUEST_WGSL = `fn blendRequest(in:VSOut,gradX:vec2f,gradY:vec2f)->u32{
  if(!feedbackPhase(in.position.xy,uni.feedback)){return 0u;}
  let p=requestPick(in.position.xy,MAP_CHOICES);
- return mapRequest(p,vec2u(in.ids.x,in.ids.z),in.maps,in.uv,wrap,gradX,gradY,false);
+ return mapRequest(p,vec2u(in.ids.x,in.ids.z),in.maps,in.uv,gradX,gradY,false);
 }
 `;

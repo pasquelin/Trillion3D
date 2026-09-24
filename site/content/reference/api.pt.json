@@ -1502,7 +1502,12 @@
       "colorSpace": "Como seus números são lidos.",
       "matrix": "Transformação UV do amostrador, `KHR_texture_transform` composta em três linhas; o host a recalcula a partir de offset, repeat e rotation quando possui a atualização.",
       "matrixAutoUpdate": "Se o host reconstrói `matrix`.",
-      "updateMatrix": "Reconstrói `matrix` a partir de offset, repeat e rotation."
+      "updateMatrix": "Reconstrói `matrix` a partir de offset, repeat e rotation.",
+      "offset": "Aquilo de que `matrix` é composta.",
+      "repeat": "Quantas vezes ela cabe.",
+      "center": "O pivô da rotação.",
+      "rotation": "A rotação, em radianos.",
+      "addEventListener": "Avisa o importador quando o anfitrião solta a textura."
     }
   },
   "HostTraversable": {
@@ -3454,6 +3459,8 @@
       "id": "Identidade da textura na cena importada: o que uma chave de cache e uma mensagem usam para nomeá-la.",
       "name": "Nome que o arquivo de origem lhe deu, vazio quando não deu nenhum; lido só por mensagens.",
       "version": "Incrementado sempre que os texels mudam: o que um envio compara para pular uma recópia.",
+      "sampling": "Aumentado quando o endereçamento, os filtros ou a anisotropia mudam: o amostrador é ajustado de novo.",
+      "placement": "Aumentado quando `transform` muda: o posicionamento é reescrito, nada é enviado.",
       "image": "A imagem decodificada. Seu contêiner permanece `unknown`: só a fronteira que a envia sabe.",
       "channel": "Conjunto de UV que o amostrador lê, o `texCoord` de `KHR_texture_transform`; o motor amostra 0 e 1.",
       "wrapS": "Repetição horizontal.",
@@ -3486,8 +3493,9 @@
       "flipY": "Se a imagem é virada de cabeça para baixo ao ser lida.",
       "anisotropy": "Quão nítida a imagem permanece quando vista em ângulo.",
       "channel": "Qual conjunto de UVs da geometria a textura segue.",
-      "version": "Aumenta a cada escrita, exceto as do posicionamento: o que um material compara para reenviar a imagem, com a sua amostragem.",
-      "placement": "Aumenta quando o posicionamento muda — `repeat`, `offset`, `rotation` —: move a imagem, nunca os seus píxeis; o que um material compara para a reposicionar.",
+      "version": "Aumentado por uma escrita da imagem ou de como ela é lida: o que um material compara para enviar a imagem de novo.",
+      "sampling": "Aumentado por uma escrita do endereçamento, dos filtros ou da anisotropia: ajustado de novo, nada é enviado.",
+      "placement": "Aumentado por uma escrita de `repeat`, `offset` ou `rotation`: reposicionado, nada é enviado.",
       "image": "A própria imagem: uma imagem, um canvas, um vídeo ou pixels brutos.",
       "layout": "O que a imagem contém além de seus pixels: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Como cada pixel é armazenado: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",

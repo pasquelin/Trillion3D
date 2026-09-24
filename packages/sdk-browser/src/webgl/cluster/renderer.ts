@@ -21,6 +21,7 @@ import { BACKDROP_UNITS, bindClusterMaterial, type Material } from './materialBi
 import { refuseCluster } from './refusal.ts';
 import { WebglClusterCopies, type SceneCopy } from './copyCulling.ts';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './submit.ts';
+import { followHostTextures } from '../../host/textureImport.ts';
 
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
@@ -150,7 +151,9 @@ export class WebglClusterRenderer {
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('toneCurve'), this.toneCurve);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
-    // The host's texture units are unknown at frame start; the backdrop pass touches only its own.
+    // The records brought up to their host textures once for the image, then bound as they stand;
+    // the host's texture units are unknown at frame start, the backdrop pass touches only its own.
+    followHostTextures();
     this.textures.invalidateBindings();
     let backdropSubmissions = 0,
       copySubmissions = 0;

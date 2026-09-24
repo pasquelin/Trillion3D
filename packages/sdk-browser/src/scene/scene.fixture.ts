@@ -69,6 +69,8 @@ export const hostTexture = (over: Partial<Texture> = {}): Texture => ({
   id: 'texture',
   name: '',
   version: 1,
+  sampling: 0,
+  placement: 0,
   image: null,
   channel: 0,
   wrapS: 'repeat',

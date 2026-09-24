@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
+import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
 import { createWorldMaterials } from './worldMaterials.ts';
 
 // #335: a material written every frame on a value — a pulsing lamp, a colour picker — keeps its
@@ -39,4 +41,31 @@ test('a shared, blended or restructured entry is copied on write, never repainte
   glass.color.set(0xff0000);
   assert.notEqual(table.entryOf(glass), pane, 'a blended surface is laid out at opening');
   assert.equal(table.takeRepainted().length, 1);
+});
+
+// #360, #361: a map's sampling or placement written after the entry was made repaints the entry,
+// whose host texture the repaint then writes in place; a new vector for the offset is heard like
+// the one it replaced. Neither moves the texture's version: nothing is sent again.
+test('a map’s sampling or placement repaints its entry, a new offset vector heard too', () => {
+  const table = createWorldMaterials();
+  const map = new Texture({ width: 2, height: 2 });
+  const paint = material.meshStandard({ map });
+  const entry = table.entryOf(paint);
+  const writes: [() => unknown, 'sampling' | 'placement'][] = [
+    [() => map.offset.set(0.5, 0), 'placement'],
+    [() => (map.rotation = 1), 'placement'],
+    [() => (map.wrapS = 'repeat'), 'sampling'],
+    [() => (map.minFilter = 'nearest'), 'sampling'],
+    [() => (map.offset = new Vector2(0.25, 0)), 'placement'],
+    [() => map.offset.set(0.75, 0), 'placement'],
+  ];
+  for (const [write, counter] of writes) {
+    const count = map[counter],
+      version = map.version;
+    write();
+    assert.equal(map[counter], count + 1, `${write}: counted as ${counter}`);
+    assert.equal(map.version, version, 'no picture to send');
+    assert.equal(table.entryOf(paint), entry, 'the entry kept');
+    assert.deepEqual(table.takeRepainted(), [entry], `${write}: repainted`);
+  }
 });

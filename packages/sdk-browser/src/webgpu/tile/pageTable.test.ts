@@ -127,6 +127,8 @@ test("a texture's sampling rides in its header, and only the words that moved ar
   const { device, writes } = fakeDevice();
   const table = createWebgpuTilePageTable(device, layouts(), { kind: 'color', feedbackOffset: 0 });
   const map = {
+    wrapS: 'clamp',
+    wrapT: 'clamp',
     magFilter: 'linear',
     minFilter: 'linear-mip-linear',
     anisotropy: 1,

@@ -52,8 +52,8 @@ export const FLAG_LIT = 1,
   FLAG_UNLIT_VIEW = 8192,
   /** The material transmits: the surface reads the already-drawn background instead of blending by alpha. */
   FLAG_TRANSMISSIVE = 16384;
-// Bits 64, 32768 and 65536 are free: they carried wrap of a single map, which
-// `wrapModes.ts` now stores per map, in a word of its own.
+// Bits 64, 32768 and 65536 are free: they carried wrap of a single map, which each texture's
+// header now carries (`wrapModes.ts`).
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;

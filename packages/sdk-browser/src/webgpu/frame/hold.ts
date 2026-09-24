@@ -119,19 +119,6 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
 }
 
 /**
- * The host textures, followed at every image before the hold verdict (#360, #361): a filter, an
- * anisotropy or a placement written since the last image — after `needsUpdate` included, on a
- * texture that only a transparent surface wears included — reaches its texture's header, and the
- * streamer signals the resource change that releases a held image, which draws it in the same
- * image. A refill that moved a texture's addressing rewrites the page rows, which carry it.
- */
-export function followHostTextures(rt: WebgpuPagesRuntime) {
-  if (!rt.vis.textures?.followSampling()) return;
-  rt.layout.rows.tableEpoch++;
-  rt.run.gate.resourcesChanged();
-}
-
-/**
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
  * target IS this frame, to the bit, since nothing it depends on has moved. It is simply
  * redisplayed.

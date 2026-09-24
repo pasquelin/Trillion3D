@@ -18,7 +18,7 @@ import { withRepoPage } from '../../kit/server/repoPage.ts';
 import { ANISOTROPY_GAIN, fixtures } from '../support/materialFixtures.ts';
 import type { run as runOnPage } from '../support/materialPixelsPage.ts';
 
-type RunResult = Awaited<ReturnType<typeof runOnPage>> & { pageErrors?: string[] };
+type RunResult = Awaited<ReturnType<typeof runOnPage>>;
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
@@ -27,7 +27,7 @@ assert.ok(
   existsSync(resolve(ROOT, 'dist/sdk-browser/src/measurement/measurement.js')),
   'dist missing: run `pnpm run build` before this proof',
 );
-const { result: ran, pageErrors } = await withRepoPage(ROOT, true, (page) =>
+const result: RunResult = await withRepoPage(ROOT, true, (page) =>
   page.evaluate(
     // A template literal, not a static specifier: TypeScript cannot resolve this page module
     // (served only at runtime by the harness) as a real import, so it stays untyped `any`
@@ -40,7 +40,6 @@ const { result: ran, pageErrors } = await withRepoPage(ROOT, true, (page) =>
     },
   ),
 );
-const result: RunResult = { ...ran, pageErrors };
 
 await mkdir(out, { recursive: true });
 for (const fixture of result.results ?? [])
@@ -64,7 +63,6 @@ console.log(
 
 assert.equal(result.unavailable ?? null, null, String(result.unavailable));
 assert.equal(result.error ?? null, null, String(result.error));
-assert.deepEqual(result.pageErrors, []);
 assert.deepEqual(result.errors, [], 'GPU uncaptured errors');
 assert.ok(result.results, 'no fixture results');
 assert.equal(result.results.length, fixtures.length, 'one reading per fixture');

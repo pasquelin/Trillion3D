@@ -13,7 +13,8 @@ import {
   PAGE_SLOT_WORDS,
   PAGE_TRANSFORM_WORD,
 } from './pageTable.ts';
-import { SAMPLING_WGSL, samplingReadWgsl, atlasReadWgsl } from './sampling.ts';
+import { SAMPLE_WRAP_SHIFT } from './sampling.ts';
+import { SAMPLING_WGSL, samplingReadWgsl, atlasReadWgsl } from './samplingWgsl.ts';
 
 /**
  * Virtual-texture reads shared by every pass: an indirection through the page table, then a sample
@@ -36,9 +37,10 @@ import { SAMPLING_WGSL, samplingReadWgsl, atlasReadWgsl } from './sampling.ts';
  * recomputed in a loop instead of being read — 6.5 ms, the divergent arithmetic costs more than the
  * read it avoids.
  *
- * A texture's sampling — filters, anisotropy, UV transform — rides in the same header
- * (`sampling.ts`): its filter word shares the last-level word, so a texture left at the defaults
- * reads no more words than before and takes the same read, behind one test of that word.
+ * A texture's sampling — addressing, filters, anisotropy, UV transform — rides in the same header
+ * (`sampling.ts`): its filter word and addressing nibble share the last-level word, so a texture
+ * left at the default filters reads no more words than before and takes the same read, behind one
+ * test of that word.
  *
  * Coordinates are clamped to the half-texel of the level being read: linear filtering therefore never
  * leaves a level's texels, nor a tail tile toward its neighbour, and the seam of a repeating period
@@ -67,8 +69,9 @@ const PAGE_LEVELS:u32=${MAX_LEVELS}u;
 const PAGE_TRANSFORM:u32=${PAGE_TRANSFORM_WORD}u;
 struct TileTap{uv:vec2f,layer:i32,}
 /** A texture header: size, first tail level, last level, the word where its level addresses begin,
- *  the tail's placement, the tap of its pool, its filter word (\`sampling.ts\`). */
-struct TileSlot{size:vec2f,tail:u32,last:u32,levels:u32,tailWord:u32,tap:u32,sampling:u32,}
+ *  the tail's placement, the tap of its pool, its filter word and its addressing nibble
+ *  (\`sampling.ts\`). */
+struct TileSlot{size:vec2f,tail:u32,last:u32,levels:u32,tailWord:u32,tap:u32,sampling:u32,wrap:u32,}
 /** A normal map's Z from its X and Y, as the map stores them (0..1), for a two-channel lane. */
 fn rebuiltZ(xy:vec2f)->f32{let n=xy*2.0-1.0;return (sqrt(max(0.0,1.0-dot(n,n)))+1.0)*0.5;}
 fn atlasLod(px:vec2f,py:vec2f)->f32{return 0.5*log2(max(max(dot(px,px),dot(py,py)),1e-20));}
@@ -77,9 +80,9 @@ fn atlasLod(px:vec2f,py:vec2f)->f32{return 0.5*log2(max(max(dot(px,px),dot(py,py
 fn slotLod(s:TileSlot,ddx:vec2f,ddy:vec2f)->f32{return clamp(atlasLod(ddx*s.size,ddy*s.size),0.0,f32(s.last));}
 ${SAMPLING_WGSL}
 /** Coordinate brought back into the texture by its addressing nibble, near side of a seam. */
-fn slotWrapped(s:TileSlot,uv:vec2f,wrap:u32)->vec2f{
- if(!wrapRepete(wrap)){return wrapReplie(uv,wrap);}
- return wrapUv(uv,wrap,s.size).proche;
+fn slotWrapped(s:TileSlot,uv:vec2f)->vec2f{
+ if(!wrapRepete(s.wrap)){return wrapReplie(uv,s.wrap);}
+ return wrapUv(uv,s.wrap,s.size).proche;
 }
 fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)&~3u);}
 fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&0xffu),f32((word>>8u)&0xffu))*TEXEL_PITCH+TEXEL_BORDER;}
@@ -97,8 +100,8 @@ fn tileEntry(texel:vec2f,lsize:vec2f)->u32{return u32(texel.y/TEXEL_TILE)*u32(ce
  */
 const kind = (k: string) => `fn ${k}Slot(slot:u32)->TileSlot{
  let h=PAGE_HEADER+slot*PAGE_SLOT;
- let last=${k}Pages[h+2u];let tail=${k}Pages[h+3u];
- return TileSlot(sizeOf(${k}Pages[h]),${k}Pages[h+1u],last&0xffu,${k}Pages[3]+slot*PAGE_LEVELS,tail&0xffffffu,tail>>24u,last>>${PAGE_FILTER_SHIFT}u);
+ let last=${k}Pages[h+2u];let tail=${k}Pages[h+3u];let word=last>>${PAGE_FILTER_SHIFT}u;
+ return TileSlot(sizeOf(${k}Pages[h]),${k}Pages[h+1u],last&0xffu,${k}Pages[3]+slot*PAGE_LEVELS,tail&0xffffffu,tail>>24u,word&${(1 << SAMPLE_WRAP_SHIFT) - 1}u,word>>${SAMPLE_WRAP_SHIFT}u);
 }
 ${samplingReadWgsl(k)}
 /** The tap read in the pool of the texture's lane: lossless (0), RGBA blocks (1), or two
@@ -147,13 +150,13 @@ fn ${k}Blend(s:TileSlot,uv:vec2f,lod:f32,nearest:bool,finest:bool)->vec4f{
 }
 fn ${k}SampleAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->vec4f{return ${k}Blend(s,uv,lod,nearest,false);}`;
 
-/** Color-atlas sample: `colorSample(slot, uv, wrap, ddx, ddy)`. The colour atlas has no
+/** Color-atlas sample: `colorSample(slot, uv, ddx, ddy)`. The colour atlas has no
  *  two-channel texture; its read is generated all the same, so the two atlases share one text. */
 export const COLOR_SAMPLE_WGSL = `${kind('color')}
 ${atlasReadWgsl('colorSample', 'color', 'vec4f', true)}`;
 
 /**
- * Cutout of a masked material: `maskAlpha(slot, uv, wrap, ddx, ddy)`, the base-map alpha read
+ * Cutout of a masked material: `maskAlpha(slot, uv, ddx, ddy)`, the base-map alpha read
  * as the materials pass reads its colour — same transform, filter and mix — at the derivatives of
  * the pass that reads, in one tap at the isotropic level: a cutout only compares a threshold, and
  * the visibility and shadow passes that read it do not pay for anisotropy's taps. `finest` is the shadow pass's fallback rule (see the header); the camera raster
@@ -163,7 +166,7 @@ export const maskAlphaWgsl = (finest: boolean) =>
   `fn maskAlphaAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->f32{return colorBlend(s,uv,lod,nearest,${finest}).w;}
 ${atlasReadWgsl('maskAlpha', 'color', 'f32', false)}`;
 
-/** Data-atlas sample: `dataSample(slot, uv, wrap, ddx, ddy)`. */
+/** Data-atlas sample: `dataSample(slot, uv, ddx, ddy)`. */
 export const DATA_SAMPLE_WGSL = `${kind('data')}
 ${atlasReadWgsl('dataSample', 'data', 'vec4f', true)}`;
 

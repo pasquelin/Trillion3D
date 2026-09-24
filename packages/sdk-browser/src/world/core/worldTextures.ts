@@ -1,9 +1,9 @@
 /**
  * THE HOST TEXTURES OF A WORLD'S MATERIALS: each engine texture uploaded once through the host
- * library, its addressing, filters and placement written in the host's words, and written again
- * in place when a repaint moves them (#335, #360, #361). A texture counts its placement apart
- * from its version: every version sends its picture again — nothing tells pixels written in place
- * under the same image from a sampler change —, a placement never.
+ * library, and written again in place when a repaint moves it (#335, #360, #361). The texture
+ * counts three things apart (`Texture.version`, `sampling`, `placement`): the picture is sent again
+ * for a version only, the sampler and the placement are written as fields, read by the import at
+ * the next image (`../../host/surfaceImport.ts`).
  */
 import * as THREE from 'three';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
@@ -45,56 +45,58 @@ export const HOST_MAPS = [...TABLE_SLOTS, 'alphaMap', 'matcap', 'gradientMap'];
  *  a direction, a roughness, an occlusion — read as stored whatever the image declares, as the
  *  WebGPU path reads them. */
 export const COLOUR_MAPS = new Set(['map', 'emissiveMap', 'matcap']);
-/** Host textures already built, by engine texture, its version and whether it is read as colour:
- *  a texture worn by several surfaces is uploaded once. */
+/** Host textures already built, by engine texture and whether it is read as colour: a texture
+ *  worn by several surfaces is uploaded once. */
 export type HostTextures = Map<string, THREE.Texture>;
 
 const colourSpace = (texture: Texture, colour: boolean) =>
   texture.colorSpace === 'srgb' && colour ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
 
-/**
- * Writes a texture into the host texture built for it: its placement when its placement counter
- * moved — the UV matrix the import recomposes once per image (`../../host/surfaceImport.ts`),
- * nothing uploaded —, and everything else when its version moved, the picture sent again with its
- * sampler state, as the host does on `needsUpdate`. A texture just built takes both.
- */
+/** The counters a host texture was last written at, in its `userData`. */
+type Written = { version?: number; sampling?: number; placement?: number };
+
+/** Writes into the host texture built for it what moved of a texture, by its counters: a new
+ *  version sends the picture again (`needsUpdate`); sampling and placement are fields only. */
 function writeHostTexture(host: THREE.Texture, texture: Texture, colour: boolean) {
-  if (host.userData.placement !== texture.placement) {
-    host.userData.placement = texture.placement;
+  const written = host.userData as Written;
+  if (written.placement !== texture.placement) {
+    written.placement = texture.placement;
     host.repeat.set(texture.repeat.x, texture.repeat.y);
     host.offset.set(texture.offset.x, texture.offset.y);
     host.rotation = texture.rotation;
   }
-  if (host.userData.version === texture.version) return;
-  host.userData.version = texture.version;
-  host.wrapS = WRAP[texture.wrapS];
-  host.wrapT = WRAP[texture.wrapT];
-  host.minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter;
-  host.magFilter = FILTER[texture.magFilter] as THREE.MagnificationTextureFilter;
-  host.anisotropy = texture.anisotropy;
+  if (written.sampling !== texture.sampling) {
+    written.sampling = texture.sampling;
+    host.wrapS = WRAP[texture.wrapS];
+    host.wrapT = WRAP[texture.wrapT];
+    host.minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter;
+    host.magFilter = FILTER[texture.magFilter] as THREE.MagnificationTextureFilter;
+    host.anisotropy = texture.anisotropy;
+  }
+  if (written.version === texture.version) return;
+  written.version = texture.version;
   host.image = texture.image as THREE.Texture['image'];
   host.flipY = texture.flipY;
   host.colorSpace = colourSpace(texture, colour);
   host.needsUpdate = true;
 }
 
-/** The host texture of an engine texture, read as colour or as data; built once per table. */
+/** The host texture of an engine texture, read as colour or as data; built once per table and
+ *  written in place afterwards. */
 export function hostTexture(texture: Texture, colour: boolean, built: HostTextures) {
-  const key = `${texture.id}@${texture.version}:${colour}`;
-  const held = built.get(key);
-  if (held) {
-    writeHostTexture(held, texture, colour);
-    return held;
+  const key = `${texture.id}:${colour}`;
+  let host = built.get(key);
+  if (!host) {
+    const pixels = texture.image as { data: ArrayBufferView; width: number; height: number };
+    const format = FORMAT[texture.format] ?? THREE.RGBAFormat;
+    host =
+      texture.layout === 'data'
+        ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, format)
+        : new THREE.Texture(texture.image as THREE.Texture['image']);
+    host.name = texture.name;
+    built.set(key, host);
   }
-  const pixels = texture.image as { data: ArrayBufferView; width: number; height: number };
-  const format = FORMAT[texture.format] ?? THREE.RGBAFormat;
-  const host =
-    texture.layout === 'data'
-      ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, format)
-      : new THREE.Texture(texture.image as THREE.Texture['image']);
-  host.name = texture.name;
   writeHostTexture(host, texture, colour);
-  built.set(key, host);
   return host;
 }
 

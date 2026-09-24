@@ -6167,6 +6167,31 @@
         "name": "updateMatrix()",
         "type": "void",
         "desc": "Rebuilds `matrix` from offset, repeat and rotation."
+      },
+      {
+        "name": "offset",
+        "type": "Readonly<{ x: number; y: number; }>",
+        "desc": "What `matrix` is composed from."
+      },
+      {
+        "name": "repeat",
+        "type": "Readonly<{ x: number; y: number; }>",
+        "desc": "How many times it fits."
+      },
+      {
+        "name": "center",
+        "type": "Readonly<{ x: number; y: number; }>",
+        "desc": "The pivot of the rotation."
+      },
+      {
+        "name": "rotation",
+        "type": "number",
+        "desc": "The rotation, in radians."
+      },
+      {
+        "name": "addEventListener?",
+        "type": "((type: 'dispose', listener: () => void) => void) | undefined",
+        "desc": "Tells the importer when the host lets go of the texture."
       }
     ],
     "description": "Its pixels stay `unknown`: only the boundary that uploads them knows their container."
@@ -14370,6 +14395,16 @@
         "desc": "Bumped whenever the texels change: what an upload compares to skip a re-copy."
       },
       {
+        "name": "sampling",
+        "type": "number",
+        "desc": "Bumped when the addressing, the filters or the anisotropy move: the sampler set again."
+      },
+      {
+        "name": "placement",
+        "type": "number",
+        "desc": "Bumped when `transform` moves: the placement written again, nothing uploaded."
+      },
+      {
         "name": "image",
         "type": "unknown",
         "desc": "The decoded image. Its container stays `unknown`: only the boundary that uploads it knows."
@@ -14534,12 +14569,17 @@
       {
         "name": "version",
         "type": "number",
-        "desc": "Bumped by every write but the placement's: what a material compares to send the picture again, with its sampling."
+        "desc": "Bumped by a write of the picture or of how it is read: what a material compares to send the picture again."
+      },
+      {
+        "name": "sampling",
+        "type": "number",
+        "desc": "Bumped by a write of the addressing, the filters or the anisotropy: set again, nothing sent."
       },
       {
         "name": "placement",
         "type": "number",
-        "desc": "Bumped by a write of the placement — `repeat`, `offset`, `rotation` —, which moves where the picture lands and never its pixels: what a material compares to place it again."
+        "desc": "Bumped by a write of `repeat`, `offset` or `rotation`: placed again, nothing sent."
       },
       {
         "name": "image",

@@ -1,7 +1,6 @@
-// #360, #361: the WebGL2 binder uploads a texture again at every version it moves to — nothing
-// tells pixels written in place from a sampler change —, its sampler with it, and grants
-// anisotropy as the WebGPU path and the Three witness do: to a linear magnification over a chain
-// mixed across levels, or not at all.
+// #360, #361: the WebGL2 binder uploads a texture again at every version it moves to, sets its
+// sampler alone when only its sampling moved, and grants anisotropy as the WebGPU path and the
+// Three witness do: to a linear magnification over a chain mixed across levels, or not at all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WebglClusterTextures } from './textures.ts';
@@ -36,6 +35,8 @@ const record = (fields: Partial<Texture> = {}) =>
   ({
     id: 'map',
     version: 1,
+    sampling: 0,
+    placement: 0,
     image: { data: new Uint8Array(4), width: 1, height: 1 },
     wrapS: 'clamp',
     wrapT: 'clamp',
@@ -48,31 +49,31 @@ const record = (fields: Partial<Texture> = {}) =>
     colorSpace: 'srgb',
     transform: [1, 0, 0, 0, 1, 0, 0, 0, 1],
     ...fields,
-  }) as Texture & { version: number };
+  }) as Texture & { version: number; sampling: number };
 
-test('every version uploads the texture again, its sampler with it', () => {
+test('a version uploads the texture again, a sampling sets its sampler alone', () => {
   const { gl, calls } = context();
   const binder = new WebglClusterTextures(gl);
   const map = record();
   binder.bind(0, map);
   binder.bind(0, map);
   assert.equal(calls.uploads, 1, 'the same version: held');
-  Object.assign(map, { version: 2, wrapS: 'repeat', anisotropy: 8 });
+  Object.assign(map, { sampling: 1, wrapS: 'repeat', anisotropy: 8 });
   binder.bind(0, map);
-  assert.equal(calls.uploads, 2, 'a sampler change uploads the picture again');
-  assert.deepEqual(calls.anisotropy, [8], 'the sampler set on the new upload');
+  assert.equal(calls.uploads, 1, 'a sampler change uploads nothing');
+  assert.deepEqual(calls.anisotropy, [1, 8], 'the sampler set again');
   (map.image as { data: Uint8Array }).data[0] = 255;
-  map.version = 3;
+  map.version = 2;
   binder.bind(0, map);
-  assert.equal(calls.uploads, 3, 'pixels written in place: uploaded');
+  assert.equal(calls.uploads, 2, 'pixels written in place: uploaded');
 });
 
 test('anisotropy is granted only to a linear magnification mixed across levels', () => {
   for (const [fields, granted] of [
     [{ minFilter: 'nearest-mip-linear' }, [8]],
-    [{ magFilter: 'nearest' }, []],
-    [{ minFilter: 'linear-mip-nearest' }, []],
-    [{ minFilter: 'linear' }, []],
+    [{ magFilter: 'nearest' }, [1]],
+    [{ minFilter: 'linear-mip-nearest' }, [1]],
+    [{ minFilter: 'linear' }, [1]],
   ] as const) {
     const { gl, calls } = context();
     new WebglClusterTextures(gl).bind(0, record({ ...fields, anisotropy: 8 }));
@@ -80,14 +81,14 @@ test('anisotropy is granted only to a linear magnification mixed across levels',
   }
 });
 
-// #360, #361: the UV placement is outside the version — the material binding uploads it at every
+// #360, #361: the UV placement is not the binder's — the material binding uploads it at every
 // draw —, so moving it alone uploads nothing.
 test('a placement moved without a version uploads nothing', () => {
   const { gl, calls } = context();
   const binder = new WebglClusterTextures(gl);
   const map = record();
   binder.bind(0, map);
-  Object.assign(map, { transform: [2, 0, 0, 0, 2, 0, 0.5, 0, 1] });
+  Object.assign(map, { placement: 1, transform: [2, 0, 0, 0, 2, 0, 0.5, 0, 1] });
   binder.bind(0, map);
   assert.equal(calls.uploads, 1);
 });

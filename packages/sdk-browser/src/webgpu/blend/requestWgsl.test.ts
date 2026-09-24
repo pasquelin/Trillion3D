@@ -25,20 +25,18 @@ test('both passes request their tiles by the same rule, phase then position', ()
 });
 
 // #361: an anisotropic read spreads its taps along the footprint, into tiles its centre does not
-// touch; the pixels of the footprint ask for the first tap, the centre and the last by position.
-// A texture at the defaults asks for its level as before, and one tap puts all three on the centre.
-test('an anisotropic footprint asks for the tiles of its end taps, a default one as before', () => {
-  assert.match(TILE_REQUEST_WGSL, /if\(s\.sampling==0u\)\{lod=slotLod\(s,ddx,ddy\);\}/);
+// touch; the pixels of the footprint ask for the first tap, the middle one and the last by
+// position, placed by the read's own `tapOffset`. One tap puts all three on the centre.
+test('an anisotropic footprint asks for the tiles of its end taps, placed as the read places them', () => {
   assert.match(
     TILE_REQUEST_WGSL,
-    /at=r\.uv\+r\.axis\*\(f32\(i32\(along\)-1\)\*\(0\.5-0\.5\/f32\(r\.taps\)\)\);/,
+    /at=r\.uv\+r\.axis\*tapOffset\(along\*\(r\.taps-1u\)\/2u,r\.taps\);/,
   );
-  assert.match(TILE_REQUEST_WGSL, /slotWrapped\(s,at,wrap\)/);
-  // The ends asked are the ends read: tap i of n sits at (i + 0.5) / n - 0.5 (`../tile/wgsl.ts`).
-  for (const taps of [1, 2, 7, 16]) {
-    const end = 0.5 - 0.5 / taps;
-    assert.ok(Math.abs(-end - (0.5 / taps - 0.5)) < 1e-12, `${taps} taps: the first`);
-    assert.ok(Math.abs(end - ((taps - 0.5) / taps - 0.5)) < 1e-12, `${taps} taps: the last`);
+  assert.match(TILE_REQUEST_WGSL, /slotWrapped\(s,at\)/);
+  const tap = (along: number, taps: number) => Math.floor((along * (taps - 1)) / 2);
+  for (const taps of [1, 2, 7, 8]) {
+    assert.equal(tap(0, taps), 0, `${taps} taps: the first`);
+    assert.equal(tap(2, taps), taps - 1, `${taps} taps: the last`);
   }
 });
 
@@ -47,8 +45,8 @@ test('an anisotropic footprint asks for the tiles of its end taps, a default one
 // so their maps ask the anisotropic level; a data map is never read by a cutout.
 test('a request asks the level of the read that posts it', () => {
   assert.match(TILE_REQUEST_WGSL, /next:bool,along:u32,aniso:bool\)->u32\{/);
-  assert.match(TILE_REQUEST_WGSL, /let r=(color|data)Read\(slot,s,uv,ddx,ddy,aniso\);/);
-  assert.doesNotMatch(TILE_REQUEST_WGSL, /Read\(slot,s,uv,ddx,ddy,true\)/);
+  assert.match(TILE_REQUEST_WGSL, /let r=(color|data)Footprint\(slot,s,uv,ddx,ddy,aniso\);/);
+  assert.doesNotMatch(TILE_REQUEST_WGSL, /Footprint\(slot,s,uv,ddx,ddy,true\)/);
   assert.match(TILE_REQUEST_WGSL, /dataRequestIndex\([^;]*,p\.next,p\.along,true\);/);
   assert.match(BLEND_REQUEST_WGSL, /mapRequest\(p,[^;]*,false\);/, 'no cutout in the blend');
 });

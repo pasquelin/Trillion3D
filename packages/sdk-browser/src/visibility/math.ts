@@ -93,19 +93,21 @@ export { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
 /**
  * Rank of the texel a map reads at a coordinate, not its components: that byte indexes the sRGB
  * table. The coordinate goes through the map's UV transform first — its affine part, as both GPU
- * paths apply it —, untouched when it is the identity. No footprint here: the texel the
- * coordinate falls in, the `nearest` rule.
+ * paths apply it —, untouched when it is the identity (`transformed`, which a caller reading many
+ * texels of one map computes once). No footprint here: the texel the coordinate falls in, the
+ * `nearest` rule.
  */
 export function mapTexel(
   image: { width: number; height: number },
   map: Texture,
   u: number,
   v: number,
+  transformed = uvTransformed(map.transform),
 ) {
   const m = map.transform;
   let u2 = u,
     v2 = v;
-  if (uvTransformed(m)) {
+  if (transformed) {
     u2 = m[0] * u + m[3] * v + m[6];
     v2 = m[1] * u + m[4] * v + m[7];
   }
