@@ -6,8 +6,8 @@ import { SHADOW_TABLE_ENTRIES as ENTRIES, SHADOW_TABLE_STRIDE as STRIDE } from '
  * it maps to and whether that page's draw has landed — and the range each light holds in it.
  *
  * The words are the GPU buffer's mirror, and a frame uploads only the words it changed, grouped
- * in contiguous runs. Each slice owns a fixed window of `SHADOW_TABLE_STRIDE` words, the largest
- * range a light needs: a light's range starts at its slice's window, so every slice finds room and
+ * in contiguous runs. Each slice owns a fixed span of `SHADOW_TABLE_STRIDE` words, the largest
+ * range a light needs: a light's range starts at its slice's span, so every slice finds room and
  * no shadow light is ever denied for want of table.
  */
 export function createShadowTable(poolPages: number) {
@@ -48,7 +48,7 @@ export function createShadowTable(poolPages: number) {
       return version;
     },
     baseOf: (slice: number) => base[slice],
-    /** Claims `count` words, at most `SHADOW_TABLE_STRIDE`, at the start of `slice`'s window. */
+    /** Claims `count` words, at most `SHADOW_TABLE_STRIDE`, at the start of `slice`'s span. */
     claim(slice: number, count: number) {
       if (base[slice] >= 0 && size[slice] === count) return;
       base[slice] = slice * STRIDE;
