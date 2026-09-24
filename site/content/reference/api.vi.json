@@ -4590,7 +4590,7 @@
   },
   "createSceneLightStore": {
     "summary": "Các nguồn sáng của cảnh, ở dung lượng cố định.",
-    "description": "Bộ đệm được cấp phát một lần cho `maxLights` nguồn sáng và không bao giờ được cấp phát lại; việc thêm, đặt hoặc xóa một nguồn sáng chỉ ghi mười sáu số thực của nó và tăng phiên bản của nó. `revision` theo từng nguồn sáng là thứ mà bộ lập lịch bóng đổ đọc để biết rằng một nguồn sáng đã thay đổi: không có cấu trúc nào được xây dựng lại theo từng khung hình."
+    "description": "Bộ đệm được cấp phát một lần cho `maxLights` nguồn sáng và không bao giờ được cấp phát lại; việc thêm, đặt hoặc xóa một nguồn sáng chỉ ghi mười sáu số thực của nó và tăng phiên bản của nó. `revision` theo từng nguồn sáng cho người đọc biết rằng một nguồn sáng đã thay đổi: không có cấu trúc nào được xây dựng lại theo từng khung hình. Bộ lập lịch bóng đổ tự đọc hình dạng của nguồn sáng, nên một thay đổi về cường độ hay màu sắc không làm cũ trang bóng đổ nào."
   },
   "createSceneRoot": {
     "summary": "Tạo một hệ thống phân cấp cảnh trống, có phiên bản.",
