@@ -9,6 +9,7 @@ import {
 } from './pageTable.ts';
 import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from './sampling.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
+import { slotSampled } from './samplingHeaders.ts';
 import { entryLevel, entryPlace, MAX_LEVELS, packEntry, tileLayout } from '../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 
@@ -140,6 +141,7 @@ test("a texture's sampling rides in its header, and only the words that moved ar
   table.setSampling(2, map, false);
   table.flush(device);
   assert.equal(table.words[header + 2], last, 'the defaults leave the last-level word as it was');
+  assert.equal(slotSampled(table, 2), false, 'the default read');
   writes.length = 0;
   assert.equal(table.setSampling(2, map, false), false, 'nothing moved');
   table.flush(device);
@@ -154,6 +156,7 @@ test("a texture's sampling rides in its header, and only the words that moved ar
     last | ((SAMPLE_MAG_NEAREST | SAMPLE_TRANSFORMED) << PAGE_FILTER_SHIFT),
   );
   assert.deepEqual([...new Float32Array(table.words.buffer, transform * 4, 6)], [4, 0, 0, 4, 0, 0]);
+  assert.equal(slotSampled(table, 2), true, 'read through its filter rule');
   writes.length = 0;
   map.transform[6] = 0.5;
   table.setSampling(2, map, false);
