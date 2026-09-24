@@ -17,7 +17,10 @@ import {
   VIS_SHADER,
   PAGE_INFO_STRIDE,
 } from '../../../packages/sdk-browser/src/visibility/buffer.ts';
-import { VIS_BINDINGS } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
+import {
+  VIS_BINDINGS,
+  VIS_UNIFORM_BYTES,
+} from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
 import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
 
 const cap = 192,
@@ -110,7 +113,7 @@ try {
       bindEntries: drawBindEntries(),
       slots: BASE_SLOTS,
       drawItemU32: DRAW_ITEM_U32,
-      visBindings: VIS_BINDINGS,
+      visBindings: { ...VIS_BINDINGS, uniformBytes: VIS_UNIFORM_BYTES },
     },
   )) as DrawRunResult;
   Object.assign(report, result);
