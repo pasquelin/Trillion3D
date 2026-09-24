@@ -1880,5 +1880,33 @@
     "readouts": {
       "streaming": "스트리밍"
     }
+  },
+  "falling-boxes": {
+    "banner": "떨어뜨리기를 누르면 상자 50개가 더 떨어집니다. 중력을 바꿔 보세요.",
+    "controls": {
+      "matter": "재질",
+      "gravity": "중력",
+      "drop": "떨어뜨리기",
+      "jump": "점프",
+      "slowMotion": "슬로 모션"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "상자 만 개가 한꺼번에 떨어집니다. 패널에 물리 비용이 실시간으로 표시됩니다.",
+    "controls": {
+      "count": "개수",
+      "again": "다시"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝",
+      "page": "페이지"
+    }
   }
 }

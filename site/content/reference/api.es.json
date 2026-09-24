@@ -1224,7 +1224,8 @@
       "options.interactive": "Si el mundo hace correr su propio bucle: dibuja cuando algo cambia y descansa tras 120 fotogramas sin novedad. `false` deja que la página llame ella misma a `world.render()`.",
       "options.pixelRatio": "Cuántos píxeles de imagen por píxel de pantalla.",
       "options.controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
-      "options.signal": "Detiene las cargas del mundo cuando se cancela la señal."
+      "options.signal": "Detiene las cargas del mundo cuando se cancela la señal.",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -1581,7 +1582,10 @@
       "SESSION_OPEN_FAILED": "La sesión del mundo no pudo abrirse, por un motivo sin código propio (`world.diagnostic.error`): el error lanzado está en `details.cause`.",
       "WEBGPU_LOST": "WebGPU perdió su dispositivo, o un error en él dejó un estado desde el que nada puede dibujar: lo lanzan `render`, `flush` y las lecturas que necesitan el dispositivo, lo nombra el diagnóstico `gpu-device-lost`, y aparece en `world.diagnostic.error` cuando una sesión no pudo abrirse por ello.",
       "UNSUPPORTED_SCENE_FORMAT": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar.",
-      "SCENE_NOT_SAVABLE": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar."
+      "SCENE_NOT_SAVABLE": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar.",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "enginePose": {
@@ -3108,7 +3112,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.meshPhysical": {
@@ -3142,7 +3150,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.meshBasic": {
@@ -3176,7 +3188,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.meshPhong": {
@@ -3210,7 +3226,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.meshLambert": {
@@ -3244,7 +3264,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.meshToon": {
@@ -3278,7 +3302,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.meshNormal": {
@@ -3312,7 +3340,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.meshMatcap": {
@@ -3346,7 +3378,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.meshDepth": {
@@ -3380,7 +3416,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.points": {
@@ -3414,7 +3454,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.line": {
@@ -3448,7 +3492,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.lineDashed": {
@@ -3482,7 +3530,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.sprite": {
@@ -3516,7 +3568,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.shadow": {
@@ -3550,7 +3606,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "material.createShader": {
@@ -3604,7 +3664,11 @@
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "parameters.depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "parameters.depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "parameters.density": "kg/m³, por el volumen da la masa.",
+      "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     },
     "members": {
       "isMaterial": "Siempre `true`: distingue un material de todo lo demás.",
@@ -3626,7 +3690,11 @@
       "needsUpdate": "`material.needsUpdate = true`: las mallas que lo llevan se repintan.",
       "surface": "El registro físico de superficie del motor para este material (`contracts/material.ts`). Un tipo fuera de la familia física lo dibuja la familia del host que lleva su nombre, que el motor remite a su único modelo de iluminación (`surfaceModel.ts`).",
       "clone": "Un nuevo material del mismo tipo, con los mismos valores.",
-      "dispose": "Olvida a quienes lo llevan: un material liberado ya no repinta a nadie."
+      "dispose": "Olvida a quienes lo llevan: un material liberado ya no repinta a nadie.",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "MATERIAL_TABLE_VERSION": {
@@ -3662,7 +3730,11 @@
       "gapSize": "Longitud del espacio entre dos guiones.",
       "vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
       "depthWrite": "Si la superficie escribe su profundidad, y oculta lo que se dibuja después de ella.",
-      "depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca."
+      "depthTest": "Si la superficie se oculta detrás de lo que ya está más cerca.",
+      "physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
+      "density": "kg/m³, por el volumen da la masa.",
+      "friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
+      "restitution": "Cuánto rebota un cuerpo, de 0 a 1."
     }
   },
   "materialSide": {
@@ -3975,7 +4047,8 @@
       "primitive": "Cómo se leen los vértices de la geometría: triángulos, puntos o líneas.",
       "geometry": "La forma de la malla; da otra geometría para cambiarla.",
       "material": "El material de la malla, o uno por grupo; da otro para cambiarlo.",
-      "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna."
+      "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna.",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "metric": {
@@ -6399,7 +6472,8 @@
       "geometryPoolCeiling": "Las reservas más grandes que un mundo puede pedir: los presupuestos de partida del motor.",
       "texturePoolCeiling": "La reserva de texturas más grande que un mundo puede pedir, en bytes.",
       "geometryPool": "Bytes de memoria de GPU reservados para las páginas de geometría; ajústalo para cambiar el límite.",
-      "texturePool": "Bytes de memoria de GPU reservados para las páginas de textura; ajústalo para cambiar el límite."
+      "texturePool": "Bytes de memoria de GPU reservados para las páginas de textura; ajústalo para cambiar el límite.",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.diagnostic": {
@@ -6577,7 +6651,8 @@
       "interactive": "Si el mundo hace correr su propio bucle: dibuja cuando algo cambia y descansa tras 120 fotogramas sin novedad. `false` deja que la página llame ella misma a `world.render()`.",
       "pixelRatio": "Cuántos píxeles de imagen por píxel de pantalla.",
       "controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
-      "signal": "Detiene las cargas del mundo cuando se cancela la señal."
+      "signal": "Detiene las cargas del mundo cuando se cancela la señal.",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -6910,5 +6985,17 @@
   "raycast": {
     "summary": "Cada objeto bajo `roots` que `ray` encuentra, el más cercano primero, un impacto por objeto: el más cercano de los suyos.",
     "description": "La dirección se convierte en vector unitario a la entrada, así que cada `distance` está en unidades del mundo sea cual sea la longitud que dio la página. Se saltan los subárboles ocultos — también una raíz bajo un ancestro oculto — y los nodos que nombra `skip` con sus subárboles: las marcas con las que trabaja una página, nunca su contenido."
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+    }
   }
 }

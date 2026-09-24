@@ -922,7 +922,10 @@
       "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
-      "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。"
+      "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1859,7 +1862,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     },
     "members": {
       "isMaterial": "始终为 `true`:用来把材质和其他对象区分开来。",
@@ -1881,7 +1888,11 @@
       "needsUpdate": "`material.needsUpdate = true`:穿着它的网格会被重绘。",
       "surface": "该材质对应的、引擎自身的物理表面记录(`contracts/material.ts`)。不属于物理材质家族的类型,会通过与其同名的宿主材质家族来绘制,引擎会把它映射到自己唯一的光照模型上(`surfaceModel.ts`)。",
       "clone": "一个类型相同、数值也相同的新材质。",
-      "dispose": "忘记所有使用者:一个已释放的材质不会再为任何东西重绘。"
+      "dispose": "忘记所有使用者:一个已释放的材质不会再为任何东西重绘。",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "MaterialParameters": {
@@ -1914,7 +1925,11 @@
       "gapSize": "两段虚线之间空隙的长度。",
       "vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "depthTest": "表面是否会被已经更近的物体遮挡。"
+      "depthTest": "表面是否会被已经更近的物体遮挡。",
+      "physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "density": "kg/m³，乘以体积得到质量。",
+      "friction": "物体的抓地程度，0 及以上。",
+      "restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "MathPath": {
@@ -2048,7 +2063,8 @@
       "primitive": "几何体的顶点如何被解读:三角形、点,还是线。",
       "geometry": "该网格的形状;设置另一个几何体即可改变它。",
       "material": "该网格的材质,或每个分组各一个;设置另一个即可改变它。",
-      "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。"
+      "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "Mixer": {
@@ -3945,7 +3961,8 @@
       "geometryPoolCeiling": "一个世界可以请求的最大池:引擎的初始预算。",
       "texturePoolCeiling": "一个世界可以请求的最大纹理池,单位字节。",
       "geometryPool": "为几何体页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
-      "texturePool": "为纹理页面保留的 GPU 内存字节数;设置它可以改变这个范围。"
+      "texturePool": "为纹理页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.diagnostic": {
@@ -4109,7 +4126,8 @@
       "interactive": "世界是否运行自己的循环:有变化时就绘制,连续 120 帧没有新内容后就休息。设为 `false` 则由页面自己调用 `world.render()`。",
       "pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
-      "signal": "当该信号被中止时停止世界的加载操作。"
+      "signal": "当该信号被中止时停止世界的加载操作。",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -4741,7 +4759,8 @@
       "options.interactive": "世界是否运行自己的循环:有变化时就绘制,连续 120 帧没有新内容后就休息。设为 `false` 则由页面自己调用 `world.render()`。",
       "options.pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "options.controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
-      "options.signal": "当该信号被中止时停止世界的加载操作。"
+      "options.signal": "当该信号被中止时停止世界的加载操作。",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -5656,7 +5675,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshPhysical": {
@@ -5690,7 +5713,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshBasic": {
@@ -5724,7 +5751,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshPhong": {
@@ -5758,7 +5789,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshLambert": {
@@ -5792,7 +5827,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshToon": {
@@ -5826,7 +5865,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshNormal": {
@@ -5860,7 +5903,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshMatcap": {
@@ -5894,7 +5941,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshDepth": {
@@ -5928,7 +5979,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.points": {
@@ -5962,7 +6017,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.line": {
@@ -5996,7 +6055,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.lineDashed": {
@@ -6030,7 +6093,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.sprite": {
@@ -6064,7 +6131,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.shadow": {
@@ -6098,7 +6169,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "metric": {
@@ -6910,5 +6985,17 @@
   "raycast": {
     "summary": "`roots` 之下被 `ray` 遇到的每个对象,最近的在前,每个对象一个交点:它自身最近的那个。",
     "description": "方向在入口处被归一化为单位向量,因此无论页面给出的长度如何,每个 `distance` 都以世界单位计。隐藏的子树会被跳过 —— 位于隐藏祖先之下的根也一样 —— `skip` 指定的节点及其子树也会被跳过:它们是页面工作时用的标记,从不是页面的内容。"
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+    }
   }
 }

@@ -16,8 +16,7 @@ import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 const position = new Vector3(),
-  turn = new Quaternion(),
-  size = new Vector3();
+  turn = new Quaternion();
 
 /** A mesh the simulation holds a body for. */
 export type Bodied = Mesh & { physics: NonNullable<Mesh['physics']> };
@@ -67,8 +66,15 @@ export function createPhysicsBodies(
       );
     check('bodies', 1);
     if (p.decorative) check('decorative', 1);
-    mesh.updateWorldMatrix(true, false);
-    mesh.matrixWorld.decompose(position, turn, size);
+    // The world pose as the transform tree composes it; the scale, axis by axis up the chain.
+    mesh.getWorldPosition(position);
+    mesh.getWorldQuaternion(turn);
+    const size = { x: 1, y: 1, z: 1 };
+    for (let node: Object3D | null = mesh; node; node = node.parent) {
+      size.x *= node.scale.x;
+      size.y *= node.scale.y;
+      size.z *= node.scale.z;
+    }
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape);
     check('triangles', shape.triangles);
     const matter = physicsMatterOf(mesh.material);

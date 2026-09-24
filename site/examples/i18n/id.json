@@ -1880,5 +1880,33 @@
     "readouts": {
       "streaming": "Streaming"
     }
+  },
+  "falling-boxes": {
+    "banner": "Tekan Jatuhkan untuk lima puluh kotak lagi. Ubah gravitasi dan lihat kotak jatuh.",
+    "controls": {
+      "matter": "Bahan",
+      "gravity": "Gravitasi",
+      "drop": "Jatuhkan",
+      "jump": "Lompat",
+      "slowMotion": "Gerak lambat"
+    },
+    "readouts": {
+      "bodies": "Benda",
+      "awake": "Aktif",
+      "step": "Langkah"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Sepuluh ribu kotak jatuh bersamaan. Panel menunjukkan biaya fisika secara langsung.",
+    "controls": {
+      "count": "Jumlah",
+      "again": "Lagi"
+    },
+    "readouts": {
+      "bodies": "Benda",
+      "awake": "Aktif",
+      "step": "Langkah",
+      "page": "Halaman"
+    }
   }
 }
