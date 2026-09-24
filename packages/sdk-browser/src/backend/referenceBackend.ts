@@ -3,7 +3,7 @@ import { asHostLibrary } from '../host/resources.ts';
 import { copyElements } from '../math/matrixElements.ts';
 import { hostMeshCopy } from '../host/scene/graphObjects.ts';
 import { baseCapabilities, DEFAULT_CLEAR_COLOR } from './common.ts';
-import { lighting } from '../host/scene/objects.ts';
+import { hostBackground, lighting } from '../host/scene/objects.ts';
 import { sceneLightingApi } from '../lighting/sceneLighting.ts';
 import { createThreeSceneDraw, hostDiagnostics } from '../host/three/sceneAdapter.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from '../diagnostic/triangleDiagnostic.ts';
@@ -52,6 +52,7 @@ export const referenceBackend: BackendFactory = ({
     async prepare() {},
     // This engine re-traverses scene on every frame: no revision needs to notify it.
     ...sceneLightingApi(sceneLights, () => {}),
+    setClearColor: hostBackground(scene, () => {}),
     render(camera) {
       hostDraw.render(camera);
       asHostLibrary<THREE.Object3D>(source).updateMatrixWorld(true);
