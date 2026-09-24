@@ -110,3 +110,25 @@ test('a page staled by a caster change is hidden until it is redrawn', () => {
   const hidden = entries.filter((entry) => plan.table.words[entry] & PAGE_STALE);
   assert.equal(hidden.length, 2, 'the two pages not yet redrawn are hidden');
 });
+
+test('a page restaled for another cut threshold stays readable until it is redrawn', () => {
+  const { store, plan, entries } = drawnSun(row(3));
+  // Drawn again at a first threshold, then one page a frame and the cut's threshold moves.
+  plan.setThreshold(1);
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
+  for (let frame = 50; cycle(plan, store, frame, () => entries); frame++);
+  plan.observeCost(plan.budget.budgetMs, 1);
+  plan.setThreshold(8);
+  assert.equal(
+    cycle(plan, store, 60, () => entries),
+    1,
+  );
+  const stale = entries.filter(
+    (entry) => plan.pool.dirty[plan.table.words[entry] & PAGE_INDEX_MASK],
+  );
+  assert.equal(stale.length, 2, 'two pages wait to be redrawn');
+  assert.ok(
+    entries.every((entry) => current(plan.table.words[entry])),
+    'coarser casters, not wrong ones: still read',
+  );
+});
