@@ -10,6 +10,22 @@ import {
   growPlacementRows,
   type PlacementRows,
 } from '../../placement/rows.ts';
+import { MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
+import type { CellNode } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
+import { GraphNode } from '../../host/graph/node.ts';
+import { pose } from '../../host/prepared/nodes.ts';
+import { hostLocalInto } from '../../host/world/matrices.ts';
+
+const scratch = new GraphNode();
+
+/** The local matrix the engine composes for a cell node's declared pose, as for a host node. */
+export function rowLocal(node: CellNode) {
+  scratch.position.set(0, 0, 0);
+  scratch.quaternion.set(0, 0, 0, 1);
+  scratch.scale.set(1, 1, 1);
+  pose(scratch, node);
+  return hostLocalInto(new Float64Array(MATRIX_VALUES), scratch);
+}
 
 /** The association of a host mesh placed by rows: its mesh and primitive ranks, and the rows. */
 export type RowLink = { meshes?: number; primitives?: number; placements?: PlacementRows };

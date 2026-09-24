@@ -75,7 +75,10 @@ export function buildWorldSource(plan: WorldPlan) {
       const moved = { ...link, meshes: (link.meshes ?? 0) + offset };
       // Rows a partition's cells place grow on the model's own link: the session reads them there.
       if (link.placements)
-        Object.defineProperty(moved, 'placements', { get: () => link.placements, enumerable: true });
+        Object.defineProperty(moved, 'placements', {
+          get: () => link.placements,
+          enumerable: true,
+        });
       associations.set(node, moved);
     }
     offset += Math.max(-1, ...metadata.primitives.map((p) => p.mesh)) + 1;
