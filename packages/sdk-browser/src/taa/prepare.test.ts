@@ -56,3 +56,36 @@ test('a pass switched off while it compiles is not kept', async () => {
   assert.equal(rt.gpu.temporal, undefined);
   assert.equal(served(rt), false);
 });
+
+const still = { viewProjection: new Float64Array(16), eye: [0, 0, 0] } as unknown as EngineCamera;
+
+// A barrier replays the last ordinary image's checkpoint: after a switch, not its history.
+test('a barrier after the switch does not replay the history from before it', async () => {
+  const { rt } = runtime(true);
+  await prepareTemporalAntialiasing(rt, rt.gpu.device!);
+  const temporal = rt.gpu.temporal!;
+  Object.assign(rt.gpu, { targetSize: [4, 2] });
+  Object.assign(rt.run, { frame: 3, textureConverging: false });
+  temporal.frame.hasHistory = true;
+  beginTaaFrame(rt, still, false);
+  setWebgpuTemporalAntialiasing(rt, false);
+  setWebgpuTemporalAntialiasing(rt, true);
+  rt.run.textureConverging = true;
+  beginTaaFrame(rt, still, true);
+  assert.equal(temporal.frame.active, true);
+  assert.equal(temporal.frame.hasHistory, false, 'the old history is not read');
+  assert.equal(temporal.frame.sampledRank, 0, 'nothing averages this image: every light shaded');
+});
+
+// A capture at the view's size reallocates no target after it: the history is made at once.
+test('a pass rigged during a capture gets its history targets', async () => {
+  const { rt } = runtime(false);
+  await prepareTemporalAntialiasing(rt, rt.gpu.device!);
+  Object.assign(rt.gpu, { colorTexture: {}, targetSize: [4, 2] });
+  rt.capture.capturing = true;
+  setWebgpuTemporalAntialiasing(rt, true);
+  for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate);
+  const bytes = rt.gpu.temporal!.historyBytes;
+  assert.ok(bytes > 0);
+  assert.equal(rt.gpu.targetBytes, bytes, 'counted with the targets');
+});

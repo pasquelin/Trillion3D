@@ -43,15 +43,23 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
   if (gpu.temporalWanted === on) return;
   gpu.temporalWanted = on;
   dropTaaHistory(rt);
+  // A barrier (`settlePose`) before the next ordinary image replays the checkpoint: it must not
+  // bring back the history of the images before the switch.
+  if (gpu.temporal) {
+    gpu.temporal.frame.sampledRank = 0;
+    gpu.temporal.checkpoint(false);
+  }
   if (on && gpu.temporal) {
     grantCapability(capabilities, TAA_CAPABILITY);
     grantCapability(capabilities, MOTION_CAPABILITY);
   } else if (on && gpu.device) {
     void rigTemporalAntialiasing(rt, gpu.device).then(
       () => {
-        // The history joins the targets as they stand; unallocated, `ensureTargets` counts it.
-        if (gpu.temporal && gpu.colorTexture)
-          gpu.targetBytes += ensureTaaTargets(rt, ...gpu.targetSize);
+        // The history joins the targets as they stand, under a capture too — a capture at the
+        // view's size reallocates nothing after it; unallocated, `ensureTargets` counts it.
+        const { temporal } = gpu;
+        if (temporal && gpu.colorTexture && temporal.resize(...gpu.targetSize))
+          gpu.targetBytes += temporal.historyBytes;
         rt.run.gate.resourcesChanged();
       },
       () => {},
