@@ -3,6 +3,7 @@ import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 import type { Batch, Seat } from './worldBatches.ts';
 import { copyElements } from '../../math/matrixElements.ts';
+import { writeModelNode } from './modelNodes.ts';
 
 /** A loaded model, drawn whole through a host node posed by its world matrix alone
  *  (`worldMirror.ts`). */
@@ -90,6 +91,9 @@ export function createWorldPoses() {
             if (twin) writeTwin(child, twin, drawn);
             for (const grandchild of child.children) visit(grandchild, drawn);
           };
+          // A node of a loaded model is drawn from its graph node, which holds its local pose:
+          // the moved node alone is written, its subtree follows in the graph.
+          writeModelNode(node);
           visit(node, node === scene || (!!node.parent && shownUnder(node.parent, scene)));
         }
         moved.clear();
