@@ -138,9 +138,11 @@ export function createWorldPhysics(
 /** `world.physics`. */
 export type WorldPhysics = ReturnType<typeof createWorldPhysics>['handle'];
 
-/** The scene link a world's runtime set, with the physics told of every change too. */
+/** The scene link a world's runtime set, with the physics told of every change too; what else
+ *  that link answers (the scene's `background`) is kept. */
 function physicsLink(link: SceneLink | null, physics: Omit<SceneLink, 'posed'>): SceneLink {
   return {
+    ...link,
     pose(node) {
       link?.pose(node);
       physics.pose(node);

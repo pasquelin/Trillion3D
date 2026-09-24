@@ -9,7 +9,7 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 ```
 packages/
   sdk-core/src/       75 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    365 *.test.ts
+  sdk-browser/src/    368 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        20 *.test.ts — architecture, boundaries, public contracts
@@ -224,7 +224,7 @@ identical budgets, scenes, and poses.
 | `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                |
 | `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                           |
 | `pnpm run check:helpers`      | No small helper copied into a second module of the same package          |
-| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                   |
+| `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite     |
 | `pnpm run check:unused`       | Dead exports and files (`knip`)                                          |
 | `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript               |
 | `pnpm run check:docs-three`   | Three.js named only in witness, benchmark, measurement or migration sections |

@@ -5,6 +5,8 @@ import { localizeDemoText } from '../content/i18n/canvas.ts';
 import { Canvas } from './ui/Canvas.tsx';
 import { Card } from './ui/Card.tsx';
 import { Alert } from './ui/Alert.tsx';
+import { Badge } from './ui/Badge.tsx';
+import { Table } from './ui/Table.tsx';
 import { Field, Form, Range } from './ui/Input.tsx';
 import type { Locale } from '../content/locale.ts';
 import type {
@@ -48,21 +50,19 @@ function Matrix({ view }: { view: MatrixView }) {
     Array.from({ length: 4 }, (_, column) => view.values[column * 4 + row]),
   );
   return (
-    <div className="overflow-x-auto">
-      <table className="table table-xs w-auto">
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>
-              {row.map((value, column) => (
-                <td className="font-mono text-xs text-right" key={column}>
-                  {formatNumber(value)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table compact>
+      <tbody>
+        {rows.map((row, index) => (
+          <tr key={index}>
+            {row.map((value, column) => (
+              <td className="font-mono text-xs text-right" key={column}>
+                {formatNumber(value)}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </Table>
   );
 }
 
@@ -111,7 +111,7 @@ function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }) {
   } else if (view.kind === 'verdict') {
     body = (
       <Alert tone={view.ok ? 'success' : 'error'}>
-        <span className="badge badge-sm">{text(view.ok ? 'kept' : 'rejected', locale)}</span>
+        <Badge size="sm">{text(view.ok ? 'kept' : 'rejected', locale)}</Badge>
         <span>{text(view.text, locale)}</span>
       </Alert>
     );

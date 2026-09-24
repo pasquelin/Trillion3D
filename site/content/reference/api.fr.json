@@ -1737,7 +1737,6 @@
       "rafIntervalMs": "Temps entre deux images.",
       "cpuFrameMs": "Temps CPU de l’image.",
       "cpuSubmitMs": "Temps CPU pour envoyer le travail.",
-      "gpuMs": "Temps GPU de l’image.",
       "drawCalls": "Appels de dessin de cette image, tels que le moteur les a comptés. `null` quand il ne les a pas comptés : un zéro se lirait comme une image sans dessin.",
       "autonomousClusterDrawsTotal": "Dessins de clusters par pages lancés par le programme WebGL2 du moteur pendant cette session.",
       "autonomousCopyDraws": "Copies de la scène — les surfaces transmissives — que le programme WebGL2 du moteur a dessinées à cette image.",
@@ -1770,7 +1769,7 @@
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
-      "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`.",
+      "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2.",
       "gpuHostGapMs": "Temps CPU que la même image a passé entre deux de ses propres envois, et zéro quand elle n’envoie qu’une fois. C’est du temps de l’hôte, pas du GPU, c’est pourquoi `gpuFrameMs` l’exclut. Null quand il n’est pas mesuré.",
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
       "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis, moins les clusters sans page résidente que compte `uncoveredTriangles`. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté dans le même passage que `uncoveredTriangles`, à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`. Relation de couverture attendue sur cette mesure : `selected − drawn − uncovered = 0`.",
@@ -4183,6 +4182,13 @@
   "object.group": {
     "summary": "Un nœud vide qui tient d’autres objets, pour qu’ils bougent ensemble."
   },
+  "object.clone": {
+    "summary": "Une copie d’un objet et de tout ce qu’il porte, qui ne partage rien avec lui : sa forme, ses matériaux, ses lumières et ses champs sont copiés.",
+    "description": "Un modèle chargé n’est pas copié : `null` pour lui, et il est laissé hors d’un groupe copié.",
+    "parameters": {
+      "source": "L’objet à copier."
+    }
+  },
   "object.points": {
     "summary": "Dessine chaque sommet d’une géométrie en point.",
     "parameters": {
@@ -5097,7 +5103,7 @@
       "isScene": "Toujours `true` : distingue la racine de la scène de tout autre objet.",
       "environment": "Une image de l’environnement que reflètent les surfaces brillantes ; `null` pour aucune.",
       "fog": "Un brouillard qui fond les objets dans `color` entre `near` et `far` ; `null` pour aucun.",
-      "background": "Ce qui remplit l’image derrière chaque objet : une couleur, une image, ou `null` pour le fond par défaut.",
+      "background": "Ce qui remplit l’image derrière chaque objet : une couleur, ou `null` pour le fond par défaut. Un changement s’affiche à l’image suivante, la session gardée : une nouvelle couleur donnée ici, ou celle en place écrite par ses méthodes (`set`, `setRGB`, `setHex`, `setHSL`...). Une écriture directe de `.r`, `.g` ou `.b` n’est pas entendue : redonnez `background` après. Une image, ou toute valeur sans `getHex`, est refusée (`UNSUPPORTED_SCENE_UPDATE`) : aucun chemin ne la dessine.",
       "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
       "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
       "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON`, ses repères `helper` gardés ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
@@ -6549,12 +6555,11 @@
     "description": "`'firstPerson'` déplace une caméra ; `'character'` déplace un corps — masse, gravité, sauts, collisions avec `world.controls.colliders` — et regarde par ses yeux."
   },
   "WorldFrameMetrics": {
-    "summary": "Les mesures d’une image, avec les noms sous lesquels une page les lit ; `null` là où le chemin ne compte pas.",
+    "summary": "Les mesures d’une image telles que l’hôte les a copiées du moteur, et deux qu’une page lit composées à partir d’elles ; `null` là où le chemin ne compte pas.",
     "members": {
       "rafIntervalMs": "Temps entre deux images.",
       "cpuFrameMs": "Temps CPU de l’image.",
       "cpuSubmitMs": "Temps CPU pour envoyer le travail.",
-      "gpuMs": "Temps GPU de l’image.",
       "drawCalls": "Appels de dessin de cette image, tels que le moteur les a comptés. `null` quand il ne les a pas comptés : un zéro se lirait comme une image sans dessin.",
       "autonomousClusterDrawsTotal": "Dessins de clusters par pages lancés par le programme WebGL2 du moteur pendant cette session.",
       "autonomousCopyDraws": "Copies de la scène — les surfaces transmissives — que le programme WebGL2 du moteur a dessinées à cette image.",
@@ -6587,7 +6592,7 @@
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
-      "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`.",
+      "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2.",
       "gpuHostGapMs": "Temps CPU que la même image a passé entre deux de ses propres envois, et zéro quand elle n’envoie qu’une fois. C’est du temps de l’hôte, pas du GPU, c’est pourquoi `gpuFrameMs` l’exclut. Null quand il n’est pas mesuré.",
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
       "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis, moins les clusters sans page résidente que compte `uncoveredTriangles`. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté dans le même passage que `uncoveredTriangles`, à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`. Relation de couverture attendue sur cette mesure : `selected − drawn − uncovered = 0`.",

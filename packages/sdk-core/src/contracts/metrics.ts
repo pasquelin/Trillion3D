@@ -33,8 +33,7 @@ export interface GpuPassTimings {
  * submission is one contiguous GPU execution, so passes the device runs concurrently are inside its
  * span once — unlike `gpuPassMs.totalMs`, a sum of passes, which counts an overlap twice. The host
  * time between two submissions of the same image is NOT in here; `gpuHostGapMs` carries it alone.
- * Null when a pass of the image went unmeasured, the list was truncated, or the device exposes no
- * timestamp query.
+ * Null when a pass of the image went unmeasured, the list was truncated, or no timestamp query exists.
  */
 export type GpuFrameMs = number | null;
 /** What one frame cost and held: times, triangles, pages, memory. */ export interface FrameMetrics
@@ -42,7 +41,6 @@ export type GpuFrameMs = number | null;
   /** Time between two frames. */ rafIntervalMs: number | null;
   /** CPU time of the frame. */ cpuFrameMs: number;
   /** CPU time to send the work. */ cpuSubmitMs: number | null;
-  /** GPU time of the frame. */ gpuMs: number | null;
   /** Draw calls of this frame, as the engine counted them. `null` when it has not counted
    *  them: a zero would read as a frame with no draw. */
   drawCalls: number | null;
@@ -127,7 +125,9 @@ export type GpuFrameMs = number | null;
   streamingError?: string | null;
   /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
   gpuPassMs?: GpuPassTimings | null;
-  /** GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */
+  /** GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled
+   *  every few images, so a number may be a few images old. Null before the first sample, from a
+   *  held image until the next device sample, without `timestamp-query`, and on WebGL2. */
   gpuFrameMs?: GpuFrameMs;
   /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
    *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */
