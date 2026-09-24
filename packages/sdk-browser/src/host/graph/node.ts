@@ -14,12 +14,13 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { GraphNodeKind } from './nodeKind.ts';
 export type { GraphLightKind, GraphNodeKind } from './nodeKind.ts';
 
-/** Numbered from one, like every node of a session. */
+/** The next node's number, from one. */
 let nextSerial = 1;
 
 /** A node of the graph: the core's node, told apart by its `kind`, copied as the reference copies. */
 export class GraphNode extends Object3D {
-  /** The node's number in creation order: a diagnostic seeds a colour with it, a draw breaks ties. */
+  // In creation order: a diagnostic seeds a colour with it, a draw breaks ties with it.
+  /** The node's number, unique in the session. */
   readonly serial = nextSerial++;
   /** What the node is: what every reader of the graph narrows on. */
   readonly kind: GraphNodeKind = 'node';

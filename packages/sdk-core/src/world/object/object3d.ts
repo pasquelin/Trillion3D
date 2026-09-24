@@ -127,7 +127,7 @@ export class Object3D extends TransformNode {
     }
     return undefined;
   }
-  /** Composes the local matrix from the pose now, and marks the world matrix to follow. */
+  /** Composes the local matrix from the pose. */
   updateMatrix() {
     this.matrix.compose(this.position, this.quaternion, this.scale);
     this.matrixWorldNeedsUpdate = true;
