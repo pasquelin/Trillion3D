@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Watch a world load</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #a9c6e4;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #1d2a3a;
+        font: 12px system-ui;
+      }
+      /* The bar the engine drives: a track at the foot of the view, filled by `onProgress`. */
+      #bar {
+        position: absolute;
+        left: 50%;
+        bottom: 2.5rem;
+        width: min(28rem, 80%);
+        height: 0.6rem;
+        transform: translateX(-50%);
+        border-radius: 1rem;
+        background: #1d2a3a55;
+        overflow: hidden;
+        transition: opacity 0.6s 0.8s;
+      }
+      #bar > div {
+        width: 0;
+        height: 100%;
+        background: #1d2a3a;
+        transition: width 0.15s;
+      }
+      #bar.done {
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="bar"><div></div></div>
+    <p data-words="credit"></p>
+    <script type="module">
+      import { createWorld, light, math, pose } from '../runtime/engine.js';
+      import { controls, readout, words, language } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#a9c6e4');
+      world.scene.add(
+        light.directional({ intensity: 3.2, color: '#ffe4bd', position: [5, 7, 4] }),
+        light.hemisphere({ intensity: 0.9, color: '#d2e4ff', groundColor: '#6f7a4a' }),
+      );
+
+      // The panel: a button that loads the world again from its first byte, and what the engine
+      // said last.
+      controls({ loadAgain: () => location.reload() }, world);
+      const phase = readout('phase'),
+        bytes = readout('bytes'),
+        pages = readout('pages');
+      const fill = document.querySelector('#bar > div');
+      const kilobytes = (count) => `${Math.round(count / 1024).toLocaleString(language())} KB`;
+
+      // One listener for the whole load. The bytes of every file fill the first nine tenths of
+      // the bar as they arrive; the pages the first view lacks fill the last tenth as they land.
+      // The other phases — manifest, tables, resources — name the step. The bar only ever grows.
+      let filled = 0;
+      const fillTo = (percent) => {
+        filled = Math.max(filled, percent);
+        fill.style.width = `${filled}%`;
+      };
+      const progress = ({ phase: step, completed = 0, total = 0 }) => {
+        const share = total > 0 ? completed / total : 1;
+        phase(say(step));
+        if (step === 'bytes') {
+          bytes(`${kilobytes(completed)} / ${kilobytes(total)}`);
+          fillTo(90 * share);
+        }
+        if (step === 'pages') {
+          pages(`${completed} / ${total}`);
+          fillTo(90 + 10 * share);
+        }
+      };
+
+      // A maquette avenue compiled into clusters: a light world, read file by file.
+      const avenue = await world.scene.load(
+        '../assets/examples/detail-by-pixel-error/cache/native/full/manifest.json',
+        { onProgress: progress },
+      );
+      world.camera.near = 0.01;
+      world.camera.far = 60;
+      const framing = pose.fromBounds(avenue.bounds);
+      world.camera.set(framing);
+      world.controls.target.set(...framing.target);
+      world.controls.update();
+
+      // Then the pages the view reads: the same listener hears them land.
+      await world.awaitPages({ onProgress: progress });
+      phase(say('ready'));
+      document.querySelector('#bar').classList.add('done');
+    </script>
+  </body>
+</html>

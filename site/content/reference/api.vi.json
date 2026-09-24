@@ -1680,7 +1680,7 @@
       "scope": "`'full'` yêu cầu toàn bộ bộ nhớ đệm, `'progressive'` yêu cầu lát truyền tải của nó; một mô hình thuộc phạm vi khác bị từ chối theo đúng tên. Nếu không đặt, mô hình được đọc ở phạm vi mà con trỏ của nó khai báo.",
       "stream": "Một bộ truyền tải mà trang đã cấu hình; phiên của thế giới truyền tải bằng bộ riêng của nó.",
       "position": "Nơi gốc của mô hình đi vào trong cảnh.",
-      "onProgress": "Nghe quá trình tải đã đến đâu: `manifest` khi manifest đã được đọc, rồi `resources` khi từng tệp mà cảnh đọc về tới (`completed` trên `total` đã biết đến lúc đó). Sự kiện là một `JobProgress`: một `createJob` bao quanh việc tải sẽ truyền `progress` của nó vào đây."
+      "onProgress": "Nghe việc tải đã đến đâu: `bytes` ở mỗi mẩu của mỗi tệp được đọc, cho đến `completed === total`; `manifest` khi manifest đã được đọc, `tables` khi các bảng cảnh đã được đọc, rồi `resources` khi mỗi tệp mà cảnh đọc đến nơi (`completed` trên `total` đã biết đến lúc đó). Sự kiện là một `JobProgress`: một `createJob` bọc quá trình tải chuyển `progress` của nó vào đây, và `world.awaitPages` báo các trang đầu tiên theo cùng dạng đó."
     }
   },
   "LoadedModel": {
@@ -6594,7 +6594,10 @@
     "summary": "Ghi `view` mà không có phép tịnh tiến của nó: khung nhìn của một camera cùng hướng được đặt tại gốc tọa độ của khung render."
   },
   "world.awaitPages": {
-    "summary": "Hoàn tất ngay khi các trang mà khung nhìn hiện tại đọc đã cư trú (`awaitViewPages`)."
+    "summary": "Hoàn tất ngay khi các trang mà khung nhìn hiện tại đọc đã cư trú (`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress` nghe `pages`, `completed` trên `total`, khi từng trang đến."
+    }
   },
   "world.bounce": {
     "summary": "Ánh sáng dội lại từ các bề mặt, được vẽ tia so với proxy đang cư trú; tắt theo mặc định.",
