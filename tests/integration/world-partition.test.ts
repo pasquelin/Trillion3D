@@ -112,23 +112,26 @@ test(
   },
 );
 
-test(
-  'a bare explorer, with no page camera, reads for its framing camera: the whole scene',
-  { skip: !existsSync(compiler) },
-  async (t) => {
-    const root = await mkdtemp(join(tmpdir(), 'world-partition-'));
-    t.after(() => rm(root, { recursive: true, force: true }));
-    const pointer = await compiled(root, world(96));
-    const { canvas } = machine(t, pointer);
-    const seen: { primed?: Primed } = {};
-    const explorer = await openMeasuredWorld(canvas, {
-      manifestUrl: pointer.href,
-      scope: 'full',
-      renderer: 'webgl2',
-      onDiagnostic: primedBy(seen),
-    });
-    t.after(() => explorer.dispose());
-    const [cells] = seen.primed!.cells;
-    assert.deepEqual([cells.held, cells.rows], [cells.cells, 96 * 96]);
-  },
-);
+// At 16× the framing camera holds every placement: the WebGL2 path shows its whole bootstrap at
+// once, which a spread argument list overflowed the stack on (`pages.ts`).
+for (const side of [96, 384])
+  test(
+    `a bare explorer, with no page camera, reads for its framing camera: the whole ${side}² scene`,
+    { skip: !existsSync(compiler) },
+    async (t) => {
+      const root = await mkdtemp(join(tmpdir(), 'world-partition-'));
+      t.after(() => rm(root, { recursive: true, force: true }));
+      const pointer = await compiled(root, world(side));
+      const { canvas } = machine(t, pointer);
+      const seen: { primed?: Primed } = {};
+      const explorer = await openMeasuredWorld(canvas, {
+        manifestUrl: pointer.href,
+        scope: 'full',
+        renderer: 'webgl2',
+        onDiagnostic: primedBy(seen),
+      });
+      t.after(() => explorer.dispose());
+      const [cells] = seen.primed!.cells;
+      assert.deepEqual([cells.held, cells.rows], [cells.cells, side * side]);
+    },
+  );
