@@ -45,8 +45,8 @@ export function clusterMaterialReason(
   if (!metalRough(host) && host.family !== 'basic' && host.family !== 'depth')
     return `material ${host.family} is unsupported`;
   // The draws' own refusal (`drawnBlending`): a mode admitted here is one every path draws.
-  const blending = blendingRefusal(blendingOf(host.blending), isTransmissive(material));
-  if (blending) return `material ${host.family}: ${blending} (blending ${host.blending})`;
+  const refusal = blendingRefusal(blendingOf(host.blending), isTransmissive(material));
+  if (refusal) return `material ${host.family}: ${refusal} (blending ${host.blending})`;
   if (
     host.alphaHash ||
     host.premultipliedAlpha ||
