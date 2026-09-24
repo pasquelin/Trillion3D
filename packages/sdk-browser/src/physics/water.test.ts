@@ -128,6 +128,8 @@ test('water set or removed wakes every dynamic body, so one asleep floats or fal
     crate.physics = 'dynamic';
     scene.add(floor, crate);
     physics.frame();
+    const body = crate.physics;
+    assert.ok(body);
     const woken = () => {
       worker.words.length = 0;
       physics.frame();
@@ -135,9 +137,9 @@ test('water set or removed wakes every dynamic body, so one asleep floats or fal
       return Array.from(worker.words[0].subarray(0, 2));
     };
     physics.handle.water = { waves: [], level: 2 };
-    assert.deepEqual(woken(), [OP.wake, crate.physics._index]);
+    assert.deepEqual(woken(), [OP.wake, body._index]);
     physics.handle.water = null;
-    assert.deepEqual(woken(), [OP.wake, crate.physics._index]);
+    assert.deepEqual(woken(), [OP.wake, body._index]);
     physics.dispose();
   } finally {
     globalThis.Worker = saved;
