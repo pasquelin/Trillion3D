@@ -22,17 +22,17 @@ import { threeGraph } from '../three/fromGraphNodes.ts';
 import type { GraphNode } from '../graph/node.ts';
 import { caches, describe, describeShape, serveFiles, type Ranks } from './scenes.fixture.ts';
 
-async function witness(folder: URL, document: string) {
-  const text = await readFile(new URL(document, folder), 'utf8');
+async function witness(folder: URL, document: string, text?: string) {
+  text ??= await readFile(new URL(document, folder), 'utf8');
   const gltf = await new GLTFLoader().parseAsync(text, folder.href);
   const associations = gltf.parser.associations as Map<object, ReturnType<Ranks>>;
   const ranks: Ranks = (object) => associations.get(object);
   return { shape: describeShape(gltf.scene, ranks), whole: describe(gltf.scene, () => undefined) };
 }
 
-async function prepared(folder: URL, document: string) {
+async function prepared(folder: URL, document: string, written?: unknown) {
   const tables = assertSceneTables(
-    JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8')),
+    written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8')),
   );
   const built = await buildPreparedScene({
     tables,
@@ -71,4 +71,42 @@ test('the scene built from the tables is the scene the loader built, on every pu
         `${pathToFileURL(fileURLToPath(folder)).pathname.split('site/assets/')[1]}${document}`,
       );
     }
+});
+
+/** A slot as the tables write it: the texture, the set sampled, the slot's own, the transform. */
+const slot = (texture: number, texCoord: number, slotTexCoord: number, moved = false) => ({
+  texture,
+  texCoord,
+  slotTexCoord,
+  transform: { offset: moved ? [0.25, 0.5] : null, rotation: null, scale: null },
+});
+
+test('a slot whose transform names another set keeps the texture and the rank the loader gives it', async (t) => {
+  serveFiles(t);
+  const folder = (await caches()).find((one) => one.pathname.includes('/marble-bust/'))!;
+  const gltf = JSON.parse(await readFile(new URL('source.gltf', folder), 'utf8'));
+  const tables = JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'));
+  const transform = (texCoord?: number, moved = false) => ({
+    KHR_texture_transform: { texCoord, ...(moved ? { offset: [0.25, 0.5] } : {}) },
+  });
+  // Own set 1 sent back to 0: two copies, no rank. Own set 0 sent to 1: one copy, the rank kept.
+  // Own set 1 named again: one copy, no rank. Own set 0 moved: one copy, the rank kept.
+  const [material] = gltf.materials,
+    pbr = material.pbrMetallicRoughness;
+  gltf.extensionsUsed = ['KHR_texture_transform'];
+  material.normalTexture = { index: 0, texCoord: 1, extensions: transform(0) };
+  pbr.baseColorTexture = { index: 1, extensions: transform(1) };
+  pbr.metallicRoughnessTexture = { index: 2, texCoord: 1, extensions: transform(1) };
+  material.occlusionTexture = { index: 2, extensions: transform(undefined, true) };
+  Object.assign(tables.materials[0], {
+    normalMap: slot(0, 0, 1),
+    map: slot(1, 1, 0),
+    metalnessMap: slot(2, 1, 1),
+    roughnessMap: slot(2, 1, 1),
+    aoMap: slot(2, 0, 0, true),
+  });
+  assert.deepEqual(
+    await prepared(folder, 'source.gltf', tables),
+    await witness(folder, 'source.gltf', JSON.stringify(gltf)),
+  );
 });

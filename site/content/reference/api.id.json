@@ -3455,7 +3455,8 @@
     "summary": "Satu slot peta yang terisi: tekstur mana, set koordinat mana, dan transformasi yang dideklarasikannya.",
     "members": {
       "texture": "Tekstur mana.",
-      "texCoord": "Set UV mana.",
+      "texCoord": "Set UV mana yang disampel: milik transformasinya bila transformasi itu menyebut satu set, jika tidak miliknya sendiri.",
+      "slotTexCoord": "Set UV yang disebut slot itu sendiri, sebelum transformasi apa pun: slot yang menyebut set selain yang pertama digambar dari salinan teksturnya, yang tidak sesuai dengan peringkat mana pun.",
       "transform": "`KHR_texture_transform` yang dideklarasikan slot — geseran, putaran dalam radian, regangan, masing-masing `null` bila tidak disebut — atau `null` bila tidak ada."
     }
   },

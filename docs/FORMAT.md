@@ -131,7 +131,7 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 2, `nodeTableVersion` 2, `materialTableVersion` 2, `geometryTableVersion` 1 —
+governs it — `version` 2, `nodeTableVersion` 2, `materialTableVersion` 3, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
@@ -164,8 +164,11 @@ ranks already remapped.
   minFilter }`, in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
   specification's defaults where the sampler is silent; `sampler` is the glTF sampler rank, which
   together with the image's source decides which textures are one. A map slot is
-  `{ texture, texCoord, transform }`, the transform the `KHR_texture_transform` it declares —
-  `{ offset, rotation, scale }`, each `null` when silent — or `null`; the host composes the matrix.
+  `{ texture, texCoord, slotTexCoord, transform }`: `texCoord` the set sampled — the
+  `KHR_texture_transform`'s when it names one —, `slotTexCoord` the set the slot names itself,
+  which decides whether the host reads the glTF texture or a copy of it and so which rank the slot
+  keeps, and the transform the `KHR_texture_transform` it declares — `{ offset, rotation, scale }`,
+  each `null` when silent — or `null`; the host composes the matrix.
 - `documents` — the geometry layout of each published document, keyed by its file name
   (`source.gltf`, and `scene.gltf` when written): `{ buffer, views, accessors, meshes, images }`.
   `buffer` names the one binary the document is published with; a view is `{ offset, length,

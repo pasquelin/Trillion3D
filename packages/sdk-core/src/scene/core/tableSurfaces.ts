@@ -37,8 +37,11 @@ type TableSlotName = (typeof TABLE_SLOTS)[number];
 export interface TableTextureSlot {
   /** Which texture. */
   texture: number;
-  /** Which UV set. */
+  /** Which UV set it samples: its transform's when that one names a set, its own otherwise. */
   texCoord: number;
+  /** The UV set the slot names itself, before any transform: a slot naming another than the first
+   *  is drawn from a copy of its texture, which answers to no rank. */
+  slotTexCoord: number;
   /** The `KHR_texture_transform` the slot declares — offset, turn in radians, stretch, each
    *  `null` when silent — or `null` for none. */
   transform: {
