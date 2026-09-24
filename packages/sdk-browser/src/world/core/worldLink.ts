@@ -3,6 +3,7 @@ import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isLight, lightsUnder, type createWorldLights } from './worldLights.ts';
 import type { createWorldContents } from './worldContents.ts';
 import type { WorldSceneLink } from './scene.ts';
+import type { Batch } from './worldBatches.ts';
 
 type Parts = {
   contents: ReturnType<typeof createWorldContents>;
@@ -50,6 +51,17 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
       contents.stale(node as Mesh);
       lights.boundsMoved();
       schedule();
+    },
+    seat: (node) => {
+      const seat = contents.seats.get(node as Mesh);
+      return seat && seat.batch.rows && seat.row >= 0 ? seat : null;
+    },
+    seatEpoch: () => contents.seatEpoch,
+    placed(batch, from, to) {
+      contents.poses.touch(batch as Batch, from);
+      contents.poses.touch(batch as Batch, to);
+      lights.boundsMoved();
+      parts.invalidate();
     },
     background: parts.invalidate,
   };

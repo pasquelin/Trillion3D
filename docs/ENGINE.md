@@ -400,15 +400,20 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
   ticks arrive, not the time it simulates, and a late one is extrapolated from the linear and
   angular velocities of its records, one interval at most: a slow worker shows slow motion, never
   a held frame. The poses are written flat into each node and its transform tree, the angles
-  derived when read, and the world is told once for the batch (`SceneLink.posed`). A pose sent
-  again unchanged asks for no frame, so a sleeping world draws nothing.
+  derived when read (`placer.ts`); each body's world matrix is composed straight into the row of
+  the instance buffer the renderer draws it from (`SceneLink.seat`), and the world hears the
+  written span of each buffer once (`SceneLink.placed`), so no per-node world update runs. A body
+  with no row, with children, or under a moved scene root goes through `SceneLink.posed`, which
+  recomposes it like any moved node. A pose sent again unchanged asks for no frame, so a
+  sleeping world draws nothing.
 - **Distance and view.** The page sends its eye, facing, view cone and range (`camera.far`) only
   when they change. In the module, a dynamic body beyond the range is deactivated with its
   velocities kept; a body out of the cone or hidden sends no pose until it is seen again.
 - **Budgets.** Bodies, static triangles and decorative bodies are counted on the page; memory is
   enforced by the module's memory maximum.
 - **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is the
-  page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`.
+  page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`
+  (the module's step alone, the clock `scripts/bench-physics.ts` reads in Node).
 - **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
   bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
   through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that

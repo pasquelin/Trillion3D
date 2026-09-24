@@ -113,7 +113,7 @@ test('a body past the bodies budget is refused with PHYSICS_BUDGET', () => {
 });
 
 test('a pose sent again unchanged moves nothing and asks for no frame', () => {
-  const poses = createPhysicsPoses(4);
+  const poses = createPhysicsPoses(4, new Group());
   const crate = new Mesh(box()) as Bodied;
   crate.physics = new ObjectPhysics('dynamic');
   const words = new Uint32Array(POSE_WORDS);
@@ -132,7 +132,7 @@ test('a pose sent again unchanged moves nothing and asks for no frame', () => {
 });
 
 test('a pose drawn by the batch leaves position, quaternion and angles coherent', () => {
-  const poses = createPhysicsPoses(4);
+  const poses = createPhysicsPoses(4, new Group());
   const crate = new Mesh(box()) as Bodied;
   crate.physics = new ObjectPhysics('dynamic');
   const words = new Uint32Array(POSE_WORDS);
@@ -149,6 +149,35 @@ test('a pose drawn by the batch leaves position, quaternion and angles coherent'
   assert.ok(Math.abs(crate.matrixWorld.elements[13] - 2) < 1e-6, 'the tree holds the pose');
 });
 
+test('a seated body is drawn straight into its row, the world told the span once', () => {
+  const scene = new Group();
+  const crate = new Mesh(box()) as Bodied;
+  crate.physics = new ObjectPhysics('dynamic');
+  crate.scale.set(2, 2, 2);
+  scene.add(crate);
+  const batch = { rows: { matrices: new Float64Array(64) } };
+  const told: unknown[] = [];
+  scene._link = {
+    pose() {},
+    posed: (nodes) => told.push(['posed', nodes.length]),
+    structure() {},
+    content() {},
+    seat: () => ({ batch, row: 2 }),
+    seatEpoch: () => 0,
+    placed: (at, from, to) => told.push([at === batch, from, to]),
+  };
+  crate._link = scene._link;
+  const poses = createPhysicsPoses(4, scene);
+  const words = new Uint32Array(POSE_WORDS);
+  new Float32Array(words.buffer).set([1, 2, 3, 0, 0, 0, 1], 1);
+  poses.receive(words, 1, [crate], 0, () => {});
+  told.length = 0;
+  poses.apply([crate]);
+  assert.deepEqual(told, [[true, 2, 2]]);
+  crate.updateWorldMatrix(true, false);
+  assert.deepEqual(batch.rows.matrices.subarray(32, 48), crate.matrixWorld.elements);
+});
+
 test('a decorative body asleep is placed, taken out, and never added again', () => {
   const scene = new Group();
   const bodies = createPhysicsBodies(
@@ -162,7 +191,7 @@ test('a decorative body asleep is placed, taken out, and never added again', () 
   const chip = mesh as Bodied;
   scene.add(chip);
   bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
-  const poses = createPhysicsPoses(4);
+  const poses = createPhysicsPoses(4, scene);
   const words = new Uint32Array(POSE_WORDS);
   words[0] = chip.physics._index | ASLEEP_BIT;
   new Float32Array(words.buffer).set([0, 0.5, 0, 0, 0, 0, 1], 1);
