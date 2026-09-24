@@ -33,9 +33,8 @@ export class SceneRoot extends SceneNode {
     return { state: this.state, id, index: addTransformNode(this.state.tree), visible };
   }
 
-  /** Makes a node built on `reserve` reachable by its index and its identifier. */
+  /** Makes a node built on `reserve` reachable by its identifier. */
   register<T extends SceneNode>(node: T) {
-    this.state.nodes.set(node.index, node);
     this.state.ids.set(node.id, node);
     return node;
   }
@@ -53,10 +52,9 @@ export function createSceneRoot(options: SceneNodeOptions = {}): SceneRoot {
     sceneNodeFail('INVALID_SCENE_NODE_ID', 'A scene root id must be a non-empty string', { id });
   const visible = sceneNodeVisibility(options.visible);
   const tree = createTransformTree();
-  const state: SceneState = { tree, nodes: new Map(), ids: new Map(), nextId: 1 };
+  const state: SceneState = { tree, ids: new Map(), nextId: 1 };
   const root = new SceneRoot(state, id, addTransformNode(tree), visible);
   state.root = root;
-  state.nodes.set(root.index, root);
   state.ids.set(id, root);
   return root;
 }
