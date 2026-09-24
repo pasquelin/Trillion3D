@@ -602,7 +602,8 @@
           "Beri dunia <code>physics: true</code>. Simulasi berjalan terpisah dari gambar, di <em>worker</em>, jadi tak pernah memperlambat gambar.",
           "Tandai lantai <code>'static'</code>: menahan yang lain dan tak pernah bergerak. Tandai kotak <code>'dynamic'</code>: gravitasi menariknya.",
           "Bentuk dari geometri, berat dari material: <code>physics: 'wood'</code> ringan, <code>'metal'</code> berat, <code>'rubber'</code> memantul.",
-          "Dorong benda dengan <code>applyImpulse</code>, atau dengarkan <code>contact</code>-nya. Saat semua benda tidur, tak ada yang dihitung atau digambar."
+          "Dorong benda dengan <code>applyImpulse</code>, atau dengarkan <code>contact</code>-nya. Saat semua benda tidur, tak ada yang dihitung atau digambar.",
+          "Model yang dimuat dengan <code>scene.load</code> bertabrakan dengan segitiganya sendiri, yang disiapkan saat dikompilasi. <code>await world.raycast(point, { exact: true })</code> menemukan segitiga tepat di bawah kursor."
         ],
         "tryIt": "Jatuhkan lebih banyak kotak, ganti gravitasi ke Bulan, dan nyalakan gerak lambat."
       },
