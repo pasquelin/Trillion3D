@@ -5190,7 +5190,8 @@
     "members": {
       "pose": "Ein Knoten hat sich bewegt.",
       "structure": "Ein Knoten hat Kinder gewonnen oder verloren.",
-      "content": "Die Form oder das Material eines Knotens hat sich geändert."
+      "content": "Die Form oder das Material eines Knotens hat sich geändert.",
+      "posed": "Viele Knoten haben sich auf einmal bewegt, direkt in ihren Baum geschrieben (die Körper der Physik): einmal gemeldet."
     }
   },
   "SceneNode": {
@@ -7015,7 +7016,8 @@
       "bodies": "Körper jeder Art gleichzeitig.",
       "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
       "decorative": "Dekorative Körper gleichzeitig.",
-      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen."
+      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen.",
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7085,7 +7087,8 @@
       "bodies": "Körper jeder Art gleichzeitig.",
       "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
       "decorative": "Dekorative Körper gleichzeitig.",
-      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen."
+      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen.",
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite."
     }
   },
   "PhysicsHost": {

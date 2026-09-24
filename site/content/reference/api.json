@@ -3118,6 +3118,11 @@
         "name": "memoryBytes",
         "type": "number",
         "desc": "Bytes of the physics module's memory: a hard ceiling, the module cannot grow past it."
+      },
+      {
+        "name": "threads",
+        "type": "number",
+        "desc": "Threads that step the simulation, the physics worker's included. Above 1 it needs a cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more than the machine's logical cores minus the page's own."
       }
     ],
     "description": ""
@@ -10699,6 +10704,11 @@
         "name": "memoryBytes",
         "type": "number",
         "desc": "Bytes of the physics module's memory: a hard ceiling, the module cannot grow past it."
+      },
+      {
+        "name": "threads",
+        "type": "number",
+        "desc": "Threads that step the simulation, the physics worker's included. Above 1 it needs a cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more than the machine's logical cores minus the page's own."
       }
     ],
     "description": ""
@@ -12804,7 +12814,7 @@
   },
   {
     "id": "SceneLink",
-    "module": "packages/sdk-core/src/world/object/object3d.ts",
+    "module": "packages/sdk-core/src/world/object/sceneLink.ts",
     "exports": ["SceneLink"],
     "section": "object",
     "kind": "Type",
@@ -12816,6 +12826,11 @@
         "name": "pose(node: Object3D)",
         "type": "void",
         "desc": "A node moved."
+      },
+      {
+        "name": "posed(nodes: readonly Object3D[])",
+        "type": "void",
+        "desc": "Many nodes moved at once, written straight into their tree (the physics' bodies): told once."
       },
       {
         "name": "structure(node: Object3D)",

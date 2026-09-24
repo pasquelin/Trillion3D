@@ -210,9 +210,10 @@ Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/Trillion3
 - No N-API binding of the compiler, published packages, signed native distributions or
   cross-platform performance CI yet; WebAssembly serves the page decoder, three math kernels and
   the physics.
-- Physics ([docs/SDK.md](docs/SDK.md#physics)) runs Jolt in one worker: its thread pool is not
-  wired yet, and 10,000 bodies landing at once cost the worker about 50 ms a step, so the
-  simulation then runs in slow motion rather than at 60 Hz.
+- Physics ([docs/SDK.md](docs/SDK.md#physics)) steps Jolt on its thread pool when the page is
+  cross-origin isolated, on one worker elsewhere. In Chrome, 10,000 boxes landing at once still
+  cost the worker about 20 ms a step on eight threads, so the landing runs in slow motion; the
+  page keeps its pace and its share is about 3 ms a frame, not yet the 0.5 ms aimed at.
 
 ## Licence
 
