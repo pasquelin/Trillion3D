@@ -12,7 +12,7 @@ import { WebglClusterTextures } from './textures.ts';
 import { unsupportedClusterLight, WebglClusterLights, type WebglClusterScene } from './lights.ts';
 import { WebglClusterState } from './state.ts';
 import { TONE_MAPPING_RANK, normalMatrix3 } from '../../../../sdk-core/src/index.ts';
-import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './uniforms.ts';
 import { WebglClusterMaterialUniforms } from './materialUniforms.ts';

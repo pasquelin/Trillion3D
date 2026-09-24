@@ -3,7 +3,7 @@ import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
 } from '../../../../sdk-core/src/scene/core/environment.ts';
-import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import type { HostDrawOutput } from '../core/renderTarget.ts';
 import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';

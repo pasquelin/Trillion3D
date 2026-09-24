@@ -168,22 +168,3 @@ export function copyMatrix4<T extends NumberSink>(
   for (let i = 0; i < 16; i++) out[outAt + i] = m[mAt + i];
   return out;
 }
-
-const leftOperand = new Float64Array(16),
-  rightOperand = new Float64Array(16),
-  product = new Float64Array(16);
-
-/**
- * `out = a · b` for any buffer type — a `Float32Array` projection or upload, a host
- * matrix's plain array. The operands are copied into double, `multiplyMatrix4` computes the
- * product, and `copyMatrix4` writes it into `out`: one rounding per term, the send conversion
- * above, while the product's forty-eight sites stay `Float64Array` only. `out` may alias an input.
- */
-export function multiplyMatrix4Typed<T extends NumberSink>(
-  out: T,
-  a: ArrayLike<number>,
-  b: ArrayLike<number>,
-) {
-  multiplyMatrix4(product, copyMatrix4(leftOperand, a), copyMatrix4(rightOperand, b));
-  return copyMatrix4(out, product);
-}
