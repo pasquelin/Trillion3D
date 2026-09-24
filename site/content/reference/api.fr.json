@@ -4117,6 +4117,7 @@
       "children": "Enfants attachés dans l’ordre d’ajout. La liste renvoyée ne peut pas être modifiée.",
       "add": "Fait des objets les enfants de ce nœud.",
       "remove": "Retire des enfants de ce nœud.",
+      "destroy": "Libère le nœud et tout ce qui est dessous tout de suite, plutôt qu’à leur collecte.",
       "removeFromParent": "Retire le nœud de son parent.",
       "clear": "Retire tous les enfants de ce nœud.",
       "traverse": "Appelle `fn` sur ce nœud et tous ceux en dessous.",
@@ -6009,7 +6010,7 @@
   },
   "TransformTree": {
     "summary": "Hiérarchie de transformations du moteur, orientée données : un nœud est un indice dans des tableaux à plat — parent, drapeaux, position, quaternion `(x, y, z, w)`, taille, matrice locale et matrice du monde colonne par colonne.",
-    "description": "`localViews[i]` et `worldViews[i]` sont des vues de seize nombres sur `local` et `world`, créées à la croissance et jamais pendant une mise à jour : le GPU lit tout le tampon, les formules des noyaux lisent la vue d’un nœud. Les écritures passent par les fonctions de réglage, qui marquent ce qu’elles changent. Une croissance remplace chaque tableau : un appelant relit `tree.world` ou `tree.worldViews` après un ajout.",
+    "description": "`localViews[i]` et `worldViews[i]` sont des vues de seize nombres sur `local` et `world`, créées à la croissance et jamais pendant une mise à jour : le GPU lit tout le tampon, les formules des noyaux lisent la vue d’un nœud. Les écritures passent par les fonctions de réglage, qui marquent ce qu’elles changent. Une croissance remplace chaque tableau : un appelant relit `tree.world` ou `tree.worldViews` après un ajout. Chaque nœud liste ses enfants : un parcours de sous-arbre ne lit jamais hors du sous-arbre (`links.ts`).",
     "members": {
       "capacity": "Combien de nœuds tiennent avant qu’il grandisse.",
       "end": "Indices servis : chaque nœud vivant est sous cette limite.",
@@ -6026,14 +6027,12 @@
       "seen": "La version du parent vue en dernier par chaque nœud.",
       "free": "Indices libérés, réutilisés avant d’agrandir `end`.",
       "freeCount": "Combien d’indices libérés attendent.",
-      "order": "Ordre de mise à jour, les parents avant les enfants, et le rang de chaque nœud dans cet ordre.",
-      "orderAt": "Le rang de chaque nœud dans `order`.",
-      "orderCount": "Nœuds dans `order`.",
-      "orderDirty": "Si `order` doit être reconstruit.",
-      "depth": "Tampons de travail du parcours : profondeur, chaîne des ancêtres, seaux, marques.",
+      "firstChild": "Les enfants de chaque nœud en liste chaînée, −1 pour aucun : un parcours de sous-arbre coûte le sous-arbre.",
+      "lastChild": "Dernier enfant, où un rattachement se lie.",
+      "nextSibling": "Enfant suivant du même parent.",
+      "previousSibling": "Enfant précédent du même parent.",
       "chain": "Tampon de la chaîne des ancêtres.",
-      "buckets": "Tampon de seaux.",
-      "stamp": "Tampon de marques.",
+      "stamp": "Tampon de marques : ce qu’un parcours transmet d’un parent à ses enfants.",
       "call": "Numéro du parcours en cours."
     }
   },

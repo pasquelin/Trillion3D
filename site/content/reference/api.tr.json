@@ -2024,6 +2024,7 @@
       "children": "Ekleme sırasına göre eklenmiş çocuklar. Döndürülen liste değiştirilemez.",
       "add": "Nesneleri bu düğümün çocukları yapar.",
       "remove": "Çocukları bu düğümden çıkarır.",
+      "destroy": "Düğümü ve altındaki her şeyi toplanmalarını beklemeden hemen serbest bırakır.",
       "removeFromParent": "Düğümü ebeveyninden çıkarır.",
       "clear": "Her çocuğu bu düğümden çıkarır.",
       "traverse": "`fn`'i bu düğümde ve altındaki her şeyde çağırır.",
@@ -3533,7 +3534,7 @@
   },
   "TransformTree": {
     "summary": "Motorun veri odaklı dönüşüm hiyerarşisi: bir düğüm doğrusal dizilerdeki bir indekstir — ebeveyn, bayraklar, pozisyon, kuaterniyon `(x, y, z, w)`, ölçek, yerel matris ve column-major dünya matrisi.",
-    "description": "`localViews[i]` ve `worldViews[i]`, `local` ve `world` üzerinde büyümede oluşturulan ve asla bir güncelleme sırasında oluşturulmayan on altı sayılık görünümlerdir: GPU tüm tamponu okur, çekirdek formülleri bir düğümün görünümünü okur. Yazmalar, neyi değiştirdiklerini işaretleyen setter'lardan geçer. Bir büyüme her diziyi değiştirir: bir çağıran, bir ekleme sonrasında `tree.world` ya da `tree.worldViews`'i yeniden okur.",
+    "description": "`localViews[i]` ve `worldViews[i]`, `local` ve `world` üzerinde büyümede oluşturulan ve asla bir güncelleme sırasında oluşturulmayan on altı sayılık görünümlerdir: GPU tüm tamponu okur, çekirdek formülleri bir düğümün görünümünü okur. Yazmalar, neyi değiştirdiklerini işaretleyen setter'lardan geçer. Bir büyüme her diziyi değiştirir: bir çağıran, bir ekleme sonrasında `tree.world` ya da `tree.worldViews`'i yeniden okur. Her düğüm çocuklarını listeler: bir alt ağaç gezintisi alt ağacın dışını hiç okumaz (`links.ts`).",
     "members": {
       "capacity": "Büyümeden önce kaç düğümün sığdığı.",
       "end": "Hizmet verilen indeksler: her canlı düğüm bu sınırın altındadır.",
@@ -3550,14 +3551,12 @@
       "seen": "Her düğümün son gördüğü ebeveyn sürümü.",
       "free": "`end`'i genişletmeden önce yeniden kullanılan, serbest bırakılmış indeksler.",
       "freeCount": "Kaç serbest indeksin beklediği.",
-      "order": "Güncelleme sırası, ebeveynler çocuklardan önce, ve her düğümün o sıradaki sırası.",
-      "orderAt": "Her düğümün `order`'daki sırası.",
-      "orderCount": "`order`'daki düğümler.",
-      "orderDirty": "`order`'ın yeniden inşa edilmesi gerekip gerekmediği.",
-      "depth": "Dolaşım çalışma tamponları: derinlik, ata zinciri, kovalar, damgalar.",
+      "firstChild": "Her düğümün çocukları bağlı liste olarak, yoksa −1: bir alt ağaç gezintisi alt ağaç kadar tutar.",
+      "lastChild": "Son çocuk, bir eklemenin bağlandığı yer.",
+      "nextSibling": "Aynı ebeveynin sonraki çocuğu.",
+      "previousSibling": "Aynı ebeveynin önceki çocuğu.",
       "chain": "Ata zinciri tamponu.",
-      "buckets": "Kova tamponu.",
-      "stamp": "Damga tamponu.",
+      "stamp": "Damga tamponu: bir gezintinin ebeveynden çocuklarına aktardığı.",
       "call": "Mevcut dolaşım numarası."
     }
   },

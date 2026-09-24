@@ -4109,6 +4109,7 @@
       "children": "Angehängte Kinder in Hinzufügereihenfolge. Die zurückgegebene Liste kann nicht verändert werden.",
       "add": "Macht Objekte zu Kindern dieses Knotens.",
       "remove": "Entfernt Kinder von diesem Knoten.",
+      "destroy": "Gibt den Knoten und alles darunter sofort frei, statt erst bei ihrer Einsammlung.",
       "removeFromParent": "Entfernt den Knoten von seinem Elternteil.",
       "clear": "Entfernt alle Kinder dieses Knotens.",
       "traverse": "Ruft `fn` für diesen Knoten und alle darunter auf.",
@@ -6001,7 +6002,7 @@
   },
   "TransformTree": {
     "summary": "Transformationshierarchie der Engine, datenorientiert: ein Knoten ist ein Index in flache Arrays — Elternteil, Flags, Position, Quaternion `(x, y, z, w)`, Größe, lokale Matrix und Weltmatrix, spaltenweise.",
-    "description": "`localViews[i]` und `worldViews[i]` sind Sichten aus sechzehn Zahlen auf `local` und `world`, beim Wachstum erstellt und nie während eines Updates: die GPU liest den ganzen Puffer, die Kernel-Formeln lesen die Sicht eines Knotens. Schreibvorgänge laufen über die Setter, die markieren, was sie ändern. Ein Wachstum ersetzt jedes Array: ein Aufrufer liest `tree.world` oder `tree.worldViews` nach einem Hinzufügen erneut.",
+    "description": "`localViews[i]` und `worldViews[i]` sind Sichten aus sechzehn Zahlen auf `local` und `world`, beim Wachstum erstellt und nie während eines Updates: die GPU liest den ganzen Puffer, die Kernel-Formeln lesen die Sicht eines Knotens. Schreibvorgänge laufen über die Setter, die markieren, was sie ändern. Ein Wachstum ersetzt jedes Array: ein Aufrufer liest `tree.world` oder `tree.worldViews` nach einem Hinzufügen erneut. Jeder Knoten listet seine Kinder: Ein Teilbaumdurchlauf liest nie außerhalb des Teilbaums (`links.ts`).",
     "members": {
       "capacity": "Wie viele Knoten Platz haben, bevor er wächst.",
       "end": "Bediente Indizes: jeder lebende Knoten liegt unter dieser Grenze.",
@@ -6018,14 +6019,12 @@
       "seen": "Die zuletzt von jedem Knoten gesehene Version des Elternteils.",
       "free": "Freigegebene Indizes, vor dem Vergrößern von `end` wiederverwendet.",
       "freeCount": "Wie viele freigegebene Indizes warten.",
-      "order": "Aktualisierungsreihenfolge, Eltern vor Kindern, und der Rang jedes Knotens in dieser Reihenfolge.",
-      "orderAt": "Der Rang jedes Knotens in `order`.",
-      "orderCount": "Knoten in `order`.",
-      "orderDirty": "Ob `order` neu aufgebaut werden muss.",
-      "depth": "Arbeitspuffer des Durchlaufs: Tiefe, Vorfahrenkette, Eimer, Markierungen.",
+      "firstChild": "Die Kinder jedes Knotens als verkettete Liste, −1 für keines: Ein Teilbaumdurchlauf kostet den Teilbaum.",
+      "lastChild": "Letztes Kind, an das ein Anhängen anknüpft.",
+      "nextSibling": "Nächstes Kind desselben Elternknotens.",
+      "previousSibling": "Vorheriges Kind desselben Elternknotens.",
       "chain": "Puffer der Vorfahrenkette.",
-      "buckets": "Eimer-Puffer.",
-      "stamp": "Markierungspuffer.",
+      "stamp": "Markenpuffer: was ein Durchlauf von einem Elternknoten an seine Kinder weitergibt.",
       "call": "Nummer des laufenden Durchlaufs."
     }
   },

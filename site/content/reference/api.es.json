@@ -4109,6 +4109,7 @@
       "children": "Hijos conectados en orden de adición. La lista devuelta no se puede modificar.",
       "add": "Convierte objetos en hijos de este nodo.",
       "remove": "Quita hijos de este nodo.",
+      "destroy": "Libera el nodo y todo lo que está debajo ahora, en lugar de cuando se recolecten.",
       "removeFromParent": "Quita el nodo de su padre.",
       "clear": "Quita todos los hijos de este nodo.",
       "traverse": "Llama a `fn` sobre este nodo y todos los que hay debajo.",
@@ -6001,7 +6002,7 @@
   },
   "TransformTree": {
     "summary": "Jerarquía de transformaciones del motor, orientada a datos: un nodo es un índice en arrays planos — padre, banderas, posición, cuaternión `(x, y, z, w)`, tamaño, matriz local y matriz del mundo columna por columna.",
-    "description": "`localViews[i]` y `worldViews[i]` son vistas de dieciséis números sobre `local` y `world`, creadas al crecer y nunca durante una actualización: la GPU lee todo el búfer, las fórmulas de los núcleos leen la vista de un nodo. Las escrituras pasan por los ajustadores, que marcan lo que cambian. Un crecimiento reemplaza cada array: un llamador vuelve a leer `tree.world` o `tree.worldViews` después de una adición.",
+    "description": "`localViews[i]` y `worldViews[i]` son vistas de dieciséis números sobre `local` y `world`, creadas al crecer y nunca durante una actualización: la GPU lee todo el búfer, las fórmulas de los núcleos leen la vista de un nodo. Las escrituras pasan por los ajustadores, que marcan lo que cambian. Un crecimiento reemplaza cada array: un llamador vuelve a leer `tree.world` o `tree.worldViews` después de una adición. Cada nodo enumera sus hijos: un recorrido de subárbol nunca lee fuera del subárbol (`links.ts`).",
     "members": {
       "capacity": "Cuántos nodos caben antes de que crezca.",
       "end": "Índices servidos: cada nodo vivo está bajo este límite.",
@@ -6018,14 +6019,12 @@
       "seen": "La versión del padre vista por última vez por cada nodo.",
       "free": "Índices liberados, reutilizados antes de agrandar `end`.",
       "freeCount": "Cuántos índices liberados esperan.",
-      "order": "Orden de actualización, padres antes que hijos, y el rango de cada nodo en ese orden.",
-      "orderAt": "El rango de cada nodo en `order`.",
-      "orderCount": "Nodos en `order`.",
-      "orderDirty": "Si `order` debe reconstruirse.",
-      "depth": "Búferes de trabajo del recorrido: profundidad, cadena de ancestros, cubos, marcas.",
+      "firstChild": "Los hijos de cada nodo como lista enlazada, −1 si no hay: un recorrido de subárbol cuesta el subárbol.",
+      "lastChild": "Último hijo, donde se enlaza una unión.",
+      "nextSibling": "Siguiente hijo del mismo padre.",
+      "previousSibling": "Hijo anterior del mismo padre.",
       "chain": "Búfer de la cadena de ancestros.",
-      "buckets": "Búfer de cubos.",
-      "stamp": "Búfer de marcas.",
+      "stamp": "Búfer de marcas: lo que un recorrido pasa de un padre a sus hijos.",
       "call": "Número del recorrido en curso."
     }
   },

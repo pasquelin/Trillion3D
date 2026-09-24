@@ -2042,6 +2042,7 @@
       "children": "Anak yang terpasang dalam urutan penyisipan. Daftar yang dikembalikan tidak bisa diubah.",
       "add": "Menjadikan objek anak dari node ini.",
       "remove": "Melepas anak dari node ini.",
+      "destroy": "Membebaskan simpul dan semua di bawahnya sekarang, bukan saat dikumpulkan.",
       "removeFromParent": "Melepas node itu dari induknya.",
       "clear": "Melepas setiap anak dari node ini.",
       "traverse": "Memanggil `fn` pada node ini dan semua di bawahnya.",
@@ -3670,7 +3671,7 @@
   },
   "TransformTree": {
     "summary": "Hierarki transform mesin, berbasis data: sebuah node adalah indeks ke dalam larik datar — parent, flags, position, quaternion `(x, y, z, w)`, scale, matriks lokal dan matriks dunia column-major.",
-    "description": "`localViews[i]` dan `worldViews[i]` adalah view enam belas angka atas `local` dan `world`, dibuat saat pertumbuhan dan tidak pernah saat pembaruan: GPU membaca seluruh buffer, rumus kernel membaca view sebuah node. Penulisan lewat setter, yang menandai apa yang mereka ubah. Sebuah pertumbuhan mengganti setiap larik: seorang pemanggil membaca ulang `tree.world` atau `tree.worldViews` setelah sebuah penambahan.",
+    "description": "`localViews[i]` dan `worldViews[i]` adalah view enam belas angka atas `local` dan `world`, dibuat saat pertumbuhan dan tidak pernah saat pembaruan: GPU membaca seluruh buffer, rumus kernel membaca view sebuah node. Penulisan lewat setter, yang menandai apa yang mereka ubah. Sebuah pertumbuhan mengganti setiap larik: seorang pemanggil membaca ulang `tree.world` atau `tree.worldViews` setelah sebuah penambahan. Setiap simpul mencatat anak-anaknya: penelusuran subpohon tidak pernah membaca di luar subpohon (`links.ts`).",
     "members": {
       "capacity": "Berapa banyak node yang muat sebelum ia tumbuh.",
       "end": "Indeks yang dilayani: setiap node hidup ada di bawah batas ini.",
@@ -3687,14 +3688,12 @@
       "seen": "Versi induk yang terakhir dilihat setiap node.",
       "free": "Indeks yang dibebaskan, dipakai ulang sebelum memperluas `end`.",
       "freeCount": "Berapa banyak indeks bebas menunggu.",
-      "order": "Urutan pembaruan, induk sebelum anak, dan peringkat setiap node dalam urutan itu.",
-      "orderAt": "Peringkat setiap node dalam `order`.",
-      "orderCount": "Node dalam `order`.",
-      "orderDirty": "Apakah `order` harus dibangun ulang.",
-      "depth": "Buffer kerja penjelajahan: kedalaman, rantai leluhur, ember, stempel.",
+      "firstChild": "Anak-anak setiap simpul sebagai daftar berantai, −1 bila tidak ada: penelusuran subpohon seharga subpohonnya.",
+      "lastChild": "Anak terakhir, tempat penyambungan ditautkan.",
+      "nextSibling": "Anak berikutnya dari induk yang sama.",
+      "previousSibling": "Anak sebelumnya dari induk yang sama.",
       "chain": "Buffer rantai leluhur.",
-      "buckets": "Buffer ember.",
-      "stamp": "Buffer stempel.",
+      "stamp": "Penyangga cap: apa yang diteruskan penelusuran dari induk ke anak-anaknya.",
       "call": "Nomor penjelajahan saat ini."
     }
   },
