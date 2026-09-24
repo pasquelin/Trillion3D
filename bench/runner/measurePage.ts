@@ -150,6 +150,7 @@ const SHADOW_COUNTERS = [
   'shadowPagesDrawn',
   'shadowLightCuts',
   'shadowPoolPages',
+  'shadowPagesRefetched',
   'shadowFacesDrawn',
 ] as const;
 

@@ -25,32 +25,43 @@ export const LAMP_MIPS = Math.log2(LAMP_SIDE) + 1;
 /** The largest 2D texture side WebGPU guarantees on every device (the default
  *  `maxTextureDimension2D`): the pool's atlas never asks for more. */
 const PORTABLE_TEXTURE_SIDE = 8192;
-/** Texels a pixel reads at most from the level it picks: that level's texel is at most the
- *  pixel's footprint and more than half of it, so up to two texels a side. */
-const TEXELS_PER_PIXEL = 4;
-
 /**
  * Physical pages per side of the shadow pool, for a `width × height` screen: a fixed budget,
- * derived once when the world is created, never read off the machine.
+ * derived once from the screen the first frame draws, never read off the machine.
  *
- * What a frame can read: a pixel reads the sun level whose texel is at most its footprint and more
- * than half of it — up to `TEXELS_PER_PIXEL` texels —, so one level seen by the whole screen reads
- * at most `width · height · 4 / 128²` pages. A pixel can pick any of the `SUN_LEVELS` levels — its
- * footprint grows with its depth, and the clipmap keeps every level's extent around the camera —,
- * and the pool holds all of them at once: the camera can sweep the screen over any level without
- * the pool evicting a page it read. The static layer mirrors the pool page for page
- * (`gpu/shadow/staticLayer.ts`), so it adds bytes, never pages.
+ * What one frame reads. A pixel reads ONE sun level — the one whose texel is at most its
+ * footprint and more than half of it — around one point, the PCF taps a few texels wide. A page
+ * of that level is `P` texels, so more than `P / 2` of the footprints that read it: a tile of
+ * `P / 2 × P / 2` screen pixels lying on one surface lands in light space inside `P × P` texels —
+ * projection on the light's plane never lengthens a distance — and reads at most the 2 × 2 pages
+ * such a square straddles, its PCF border included: four pages a tile. A pixel whose page is not
+ * drawn yet reads — and asks for — the next coarser level instead, whose pages each cover four of
+ * the finer: while pages wait, the requests grow by at most a quarter, a sixteenth, … — a third.
+ * So a frame asks for at most `⁴⁄₃ · 4 · ⌈2W / P⌉ · ⌈2H / P⌉` pages.
  *
- * At 1280 × 720: 225 pages a level, 3 600 in all — 60 × 60 pages, a 7 680² depth texture of
- * 225 MiB, and as much for the static layer once something moves. The side is capped where the
- * atlas would pass the texture side every WebGPU device offers (64 pages): at 1920 × 1080 and
- * above, the pool is 4 096 pages and the screen's sweep over every level no longer fits.
+ * That bound is exact for a tile on one surface at one level, and loose everywhere else by the
+ * same count: two tiles side by side on one floor share their pages, so a smooth screen reads a
+ * quarter of it (a `2W × 2H` texel rectangle). What a tile loses at an edge — a level switch, a
+ * silhouette whose two sides read two places of the map — its smooth neighbours leave free.
+ * Named approximation: a screen where most tiles straddle an edge (dense foliage) can read more;
+ * the pages past the pool wait a frame, read at the coarser level meanwhile.
+ *
+ * The request that asks for a frame's pages comes back a frame later, and the pages the latest
+ * report named are never taken (`pool.ts`): the pool holds that report's pages and the next
+ * report's, which a turn of the camera may have renewed in full — twice a frame's read. The static
+ * layer mirrors the pool page for page (`gpu/shadow/staticLayer.ts`), so it adds bytes, never
+ * pages. One shadowed light over the whole screen is what this holds; a second light's pages
+ * share it.
+ *
+ * At 1280 × 720: 20 × 12 tiles, 1 280 pages a frame, 2 560 held — 51 × 51 pages, a 6 528² depth
+ * texture of 163 MiB, and as much for the static layer once something moves. The side is capped
+ * where the atlas would pass the texture side every WebGPU device offers (64 pages, 4 096 pages):
+ * from 1920 × 1080 on, the pool is that cap.
  */
 export function shadowPoolSide(width: number, height: number) {
-  const perLevel = Math.ceil(
-    (Math.max(1, width) * Math.max(1, height) * TEXELS_PER_PIXEL) / (SHADOW_PAGE * SHADOW_PAGE),
-  );
-  const side = Math.ceil(Math.sqrt(perLevel * SUN_LEVELS));
+  const tiles = (pixels: number) => Math.ceil((2 * Math.max(1, pixels)) / SHADOW_PAGE);
+  const perFrame = Math.ceil((4 * 4 * tiles(width) * tiles(height)) / 3);
+  const side = Math.ceil(Math.sqrt(2 * perFrame));
   return Math.min(side, Math.floor(PORTABLE_TEXTURE_SIDE / SHADOW_PAGE));
 }
 /** Entries of a sun level, of a whole sun, of one lamp face (every mip). */

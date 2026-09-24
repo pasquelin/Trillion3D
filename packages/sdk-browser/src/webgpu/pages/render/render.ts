@@ -11,6 +11,7 @@ import { renderGpuCut } from './gpuCut.ts';
 import { renderCpuCut } from './cpu.ts';
 import { setWindingEpoch } from './winding.ts';
 import { holdWebgpuFrame } from '../../frame/hold.ts';
+import { sizeShadowPool } from '../../shadow/poolSize.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';
 import { refreshBlendWorlds } from '../../blend/worlds.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
@@ -42,6 +43,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     () => [...selectionRoots.map((root) => root.pages[0]), ...blendState.blendGpu],
     aspect,
   );
+  sizeShadowPool(rt);
   const pixelError = run.gate.pixelError,
     cam = run.gate.cam;
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the

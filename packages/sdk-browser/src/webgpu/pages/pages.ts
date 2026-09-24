@@ -173,8 +173,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     shadowAtlasDigest() {
       const device = rt.setup.gpuDevice;
-      if (!device || !rt.lights.shadows) return Promise.resolve(null);
-      return readShadowAtlasDigest(device, rt.lights.shadows);
+      const atlas = rt.lights.shadows;
+      if (!device || !atlas?.texture) return Promise.resolve(null);
+      return readShadowAtlasDigest(device, atlas.texture, atlas.size);
     },
     dispose() {
       return disposeWebgpuPages(rt, onGpuError);

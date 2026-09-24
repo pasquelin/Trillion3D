@@ -100,6 +100,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowPagesRequested: lights.plan.requests.counts.requested,
     shadowPagesCached: lights.plan.counts.cachedPages,
     shadowPoolPages: lights.plan.counts.poolPages,
+    shadowPagesRefetched: lights.plan.pool.refetched,
     shadowCastersKept: lights.cull?.counts.counts()?.kept ?? null,
     shadowCastersHidden: lights.occlusion?.counts.counts()?.kept ?? null,
     shadowPagesDrawn: lights.shadowPages,

@@ -27,29 +27,17 @@ export const shadowAtlasBytes = (poolSide: number) => (poolSide * SHADOW_PAGE) *
 export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 
 /**
- * The shadow pool and what reads and fills it: a depth texture of `poolSide²` physical pages
- * (`shadowPoolSide`, derived from the screen when the world is created); one
+ * The shadow pool and what reads and fills it: a depth texture of `poolSide²` physical pages; one
  * buffer holding every light's record then the page table (`SHADOW_DATA_WGSL`); the buffer the
  * opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
  * by dynamic offset.
+ *
+ * The texture waits for `sizePool`: its side is derived from the screen the first frame draws
+ * (`shadowPoolSide`), which the world may not know when it prepares — until then no page exists
+ * and the shading reads the placeholder.
  */
-export async function createGpuShadowAtlas(
-  device: GPUDevice,
-  pageLayout: GPUBindGroupLayout,
-  poolSide: number,
-) {
-  const size = poolSide * SHADOW_PAGE;
-  const texture = device.createTexture({
-    label: 'WG shadow depth atlas v1',
-    size: [size, size, 1],
-    format: 'depth32float',
-    // `COPY_SRC` is there only for the proof: the host can reread the pool and compare its
-    // fingerprint between two runs. No frame pass copies it.
-    usage:
-      GPUTextureUsage.RENDER_ATTACHMENT |
-      GPUTextureUsage.TEXTURE_BINDING |
-      GPUTextureUsage.COPY_SRC,
-  });
+export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
+  let texture: GPUTexture | undefined;
   // Also storage: the occlusion test of the moving casters reads each region's matrix there.
   const faceUniform = device.createBuffer({
     label: 'WG shadow faces v1',
@@ -66,10 +54,10 @@ export async function createGpuShadowAtlas(
     size: SHADOW_REQUEST_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
-  const pack = createShadowRecordPack(FACE_STRIDE, poolSide),
+  const pack = createShadowRecordPack(FACE_STRIDE, 1),
     { records, facePacked } = pack;
   const release = () => {
-    texture.destroy();
+    texture?.destroy();
     faceUniform.destroy();
     dataBuffer.destroy();
     requestBuffer.destroy();
@@ -113,10 +101,13 @@ export async function createGpuShadowAtlas(
       layout: faceLayout,
       entries: [{ binding: 0, resource: { buffer: faceUniform, size: FACE_BYTES } }],
     });
-    return {
-      size,
-      texture,
-      view: texture.createView(),
+    const atlas = {
+      /** Texels a side, zero until the pool is sized. */
+      size: 0,
+      get texture() {
+        return texture;
+      },
+      view: undefined as GPUTextureView | undefined,
       dataBuffer,
       requestBuffer,
       /** Host mirror of the records: what the shading rereads. */
@@ -126,8 +117,28 @@ export async function createGpuShadowAtlas(
       faceGroup,
       faceUniform,
       faceStride: FACE_STRIDE,
-      allocationBytes:
-        shadowAtlasBytes(poolSide) + faceUniform.size + dataBuffer.size + requestBuffer.size,
+      allocationBytes: faceUniform.size + dataBuffer.size + requestBuffer.size,
+      /**
+       * Creates the pool's texture, `poolSide²` pages: once, before the first page is drawn.
+       * `COPY_SRC` is there only for the proof: the host can reread the pool and compare its
+       * fingerprint between two runs. No frame pass copies it.
+       */
+      sizePool(poolSide: number) {
+        if (texture) throw new Error('the shadow pool is sized once');
+        atlas.size = poolSide * SHADOW_PAGE;
+        texture = device.createTexture({
+          label: 'WG shadow depth atlas v1',
+          size: [atlas.size, atlas.size, 1],
+          format: 'depth32float',
+          usage:
+            GPUTextureUsage.RENDER_ATTACHMENT |
+            GPUTextureUsage.TEXTURE_BINDING |
+            GPUTextureUsage.COPY_SRC,
+        });
+        atlas.view = texture.createView();
+        atlas.allocationBytes += shadowAtlasBytes(poolSide);
+        pack.setPoolSide(poolSide);
+      },
       writePage: pack.writePage,
       writeLamp: pack.writeLamp,
       writeSun: pack.writeSun,
@@ -148,6 +159,7 @@ export async function createGpuShadowAtlas(
       },
       dispose: release,
     };
+    return atlas;
   } catch (error) {
     release();
     throw error;

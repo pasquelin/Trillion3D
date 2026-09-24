@@ -119,7 +119,7 @@ Finer than the stages, `series[].sides[].bornesCpu` holds the engine's CPU bound
 
 Capture is taken on a **still pose**: after warmup, pose renders until held — temporal accumulation converged, no pending work —, max 64 frames (`poseCalme`, `measurePage.ts`). Mid-accumulation captures reflect trajectory history with non-deterministic tile streaming across runs. `series[].sides[].imagesCalme` records required frame count, `null` if engine does not hold frames (Three witness).
 
-What the shadow pass did on each measured frame is in `series[].sides[].ombresParImage`: for `shadowPagesRequested`, `shadowPagesCached`, `shadowPagesDrawn`, `shadowLightCuts`, `shadowPoolPages` and `shadowFacesDrawn`, the mean, p95 and max over the frames that published it (`shadowCountersPerFrame`, `measurePage.ts`); a counter the dist does not publish is `null`, never zero.
+What the shadow pass did on each measured frame is in `series[].sides[].ombresParImage`: for `shadowPagesRequested`, `shadowPagesCached`, `shadowPagesDrawn`, `shadowLightCuts`, `shadowPoolPages`, `shadowPagesRefetched` (cumulative: its max is the pages the pool evicted then drew again since the explorer opened) and `shadowFacesDrawn`, the mean, p95 and max over the frames that published it (`shadowCountersPerFrame`, `measurePage.ts`); a counter the dist does not publish is `null`, never zero.
 
 Each series runs in a fresh page, closed immediately after. A large scene leaves hundreds of MBs active; reusing pages causes `new THREE.WebGLRenderer` to fail context creation ("Error creating WebGL context", observed Sept 14, 2026). Closing page restores WebGL context and heap to browser.
 

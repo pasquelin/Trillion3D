@@ -1863,7 +1863,8 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/lamp-shadows.perf.ts",
-        "packages/sdk-browser/src/webgpu/pages/state/lights.ts"
+        "packages/sdk-browser/src/webgpu/pages/state/lights.ts",
+        "packages/sdk-browser/src/webgpu/shadow/poolSize.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/plan\".createShadowPlan"

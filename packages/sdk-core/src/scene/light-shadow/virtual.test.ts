@@ -34,15 +34,16 @@ test('a lamp entry decodes to the face, mip and page it was built from, every en
   assert.equal(tableEntriesOf(LIGHT_KIND.spot), LAMP_FACE_ENTRIES);
 });
 
-test('the pool holds a screen read at every sun level, within the portable texture side', () => {
-  // 1280 × 720 at up to four texels a pixel: 225 pages a level, sixteen levels, 60 pages a side.
-  assert.equal(shadowPoolSide(1280, 720), 60);
-  assert.ok(shadowPoolSide(1280, 720) ** 2 >= 225 * SUN_LEVELS);
+test('the pool holds two frames of four pages a 64-pixel tile, not the screen once per level', () => {
+  // 1280 × 720: 20 × 12 tiles, four pages each and a third more while pages wait — 1 280 a frame,
+  // twice that held, 51 pages a side.
+  assert.equal(shadowPoolSide(1280, 720), 51);
+  assert.ok(shadowPoolSide(1280, 720) ** 2 >= (2 * 4 * 4 * 20 * 12) / 3);
   assert.ok(
     shadowPoolSide(640, 360) < shadowPoolSide(1280, 720),
     'a smaller screen, a smaller pool',
   );
-  assert.equal(shadowPoolSide(3840, 2160), 64, 'never past an 8192-texel atlas');
+  assert.equal(shadowPoolSide(1920, 1080), 64, 'never past an 8192-texel atlas');
 });
 
 test('a sun page keeps its entry whichever extent sees it: absolute page modulo the extent', () => {

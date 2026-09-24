@@ -1,3 +1,4 @@
+import { LIGHT_SETTINGS } from '../light/contracts.ts';
 import { PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
@@ -46,7 +47,10 @@ export function createShadowPool(side: number) {
   const free = new Int32Array(pages),
     /** Eviction keys: last request, then rank, then page, packed into one exact number. */
     order = new Float64Array(pages);
-  let freeCount = 0,
+  /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
+  const evicted = new Uint32Array(LIGHT_SETTINGS.shadowTableEntries / 32);
+  let refetched = 0,
+    freeCount = 0,
     orderCount = -1,
     orderAt = 0,
     orderFrame = -1;
@@ -69,6 +73,8 @@ export function createShadowPool(side: number) {
     layered.fill(0);
     for (let page = 0; page < pages; page++) free[page] = pages - 1 - page;
     freeCount = pages;
+    evicted.fill(0);
+    refetched = 0;
   };
   init();
   const pool = {
@@ -89,6 +95,10 @@ export function createShadowPool(side: number) {
     pages,
     get used() {
       return pages - freeCount;
+    },
+    /** Entries mapped again after the pool evicted them: redraws the pool's size caused. */
+    get refetched() {
+      return refetched;
     },
     /**
      * The page is stale from now on — its moving casters only, or its static ones too —, at the
@@ -144,13 +154,19 @@ export function createShadowPool(side: number) {
         if (orderCount < 0) buildOrder();
         while (orderAt < orderCount && page < 0) {
           const candidate = order[orderAt++] % pages;
-          if (owner[candidate] >= 0 && requested[candidate] < reportFrame) {
+          const lost = owner[candidate];
+          if (lost >= 0 && requested[candidate] < reportFrame) {
+            evicted[lost >> 5] |= 1 << (lost & 31);
             pool.release(table, candidate);
             page = free[--freeCount];
           }
         }
       }
       if (page < 0) return -1;
+      if (evicted[entry >> 5] & (1 << (entry & 31))) {
+        evicted[entry >> 5] &= ~(1 << (entry & 31));
+        refetched++;
+      }
       owner[page] = entry;
       valid[page] = 0;
       layered[page] = 0;

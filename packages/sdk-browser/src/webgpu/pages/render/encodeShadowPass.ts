@@ -63,7 +63,7 @@ export function encodeShadowAtlas(
   const { lights, vis, run } = rt,
     { shadows, cull, regions, staticLayer, occlusion } = lights;
   lights.shadowDraws = 0;
-  if (!count || !shadows || !cull || !vis.visBindGroupLayout) return false;
+  if (!count || !shadows?.view || !cull || !vis.visBindGroupLayout) return false;
   if (regions.layered && !staticLayer) return false;
   if (!shadowRegionGroup(rt, device, 0)) return false;
   if (!encodeShadowCasters(rt, encoder, count)) return false;

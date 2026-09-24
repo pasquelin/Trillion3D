@@ -1,5 +1,3 @@
-import type { GpuShadowAtlas } from './atlas.ts';
-
 /** What a shadow-atlas read publishes: its size, what is written there, its fingerprint. */
 export interface ShadowAtlasDigest {
   /** Side of the atlas, in texels. */
@@ -16,7 +14,8 @@ const OFFSET = 0x811c9dc5,
   PRIME = 0x01000193;
 
 /**
- * Reads the depth shadow atlas and returns its fingerprint, bit for bit.
+ * Reads the depth shadow atlas — `texture`, `size` texels a side — and returns its fingerprint,
+ * bit for bit.
  *
  * This is the proof tool of the page draw: two runs of the same scene, one redrawing whole faces
  * and the other only the invalidated pages, must return **the same fingerprint**. The read only
@@ -27,9 +26,9 @@ const OFFSET = 0x811c9dc5,
  */
 export async function readShadowAtlasDigest(
   device: GPUDevice,
-  atlas: GpuShadowAtlas,
+  texture: GPUTexture,
+  size: number,
 ): Promise<ShadowAtlasDigest> {
-  const { size } = atlas;
   const bytesPerRow = size * 4;
   const buffer = device.createBuffer({
     label: 'WG shadow atlas digest',
@@ -39,7 +38,7 @@ export async function readShadowAtlasDigest(
   try {
     const encoder = device.createCommandEncoder({ label: 'WG shadow atlas digest' });
     encoder.copyTextureToBuffer(
-      { texture: atlas.texture, aspect: 'depth-only' },
+      { texture, aspect: 'depth-only' },
       { buffer, bytesPerRow, rowsPerImage: size },
       [size, size, 1],
     );

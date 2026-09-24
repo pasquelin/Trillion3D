@@ -35,6 +35,9 @@ export interface ShadowFrameMetrics {
   shadowPagesCached?: number | null;
   /** Physical pages of the fixed pool that hold a virtual page. */
   shadowPoolPages?: number | null;
+  /** Virtual pages mapped again after the pool evicted them to make room, since the explorer
+   *  opened: the redraws a pool too small for what the frames read costs. */
+  shadowPagesRefetched?: number | null;
   /** Casters the per-page cull kept, all drawn pages together, on the frame the device last
    *  sampled — one in fifteen; `null` until a sample has returned. */
   shadowCastersKept?: number | null;

@@ -46,7 +46,7 @@ function fakeDevice() {
 
 test('the face bind group declares 96 bytes, read at the fragment as at the vertex', async () => {
   const { device, bindGroupLayouts, bindGroups } = fakeDevice();
-  await createGpuShadowAtlas(device, {} as GPUBindGroupLayout, 32);
+  await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
   const entry = (bindGroupLayouts[0] as { entries: Array<Record<string, unknown>> }).entries[0];
   assert.deepEqual(entry.visibility, GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT);
   assert.equal((entry.buffer as { minBindingSize: number }).minBindingSize, 96);
@@ -57,7 +57,8 @@ test('the face bind group declares 96 bytes, read at the fragment as at the vert
 
 test("a page's uniform carries its matrix, its physical page, then the emitter's centre and radius", async () => {
   const { device, writes } = fakeDevice();
-  const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout, 32);
+  const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
+  atlas.sizePool(32);
   const matrices = new Float32Array(16);
   for (let i = 0; i < 16; i++) matrices[i] = i + 1;
   // Physical page 33 of a pool 32 pages wide: column 1, row 1.
@@ -75,7 +76,8 @@ test("a page's uniform carries its matrix, its physical page, then the emitter's
 
 test('a light without an envelope — directional, or zero radius — carries a zero centre and radius', async () => {
   const { device, writes } = fakeDevice();
-  const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout, 32);
+  const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
+  atlas.sizePool(32);
   atlas.writePage(0, new Float32Array(16), 0, 0, undefined, 0);
   atlas.flushPages(1);
   assert.deepEqual(Array.from(writes[0].slice(20, 24)), [0, 0, 0, 0]);

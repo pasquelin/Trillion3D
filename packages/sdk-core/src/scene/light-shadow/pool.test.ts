@@ -37,3 +37,20 @@ test('a full stale is never lowered by a moving one, and a page drawn whole has 
   pool.stale(page, 0, 2, STALE_DYNAMIC);
   assert.equal(pool.drawMode(page, true), DRAW_DYNAMIC);
 });
+
+test('an entry mapped again after the pool evicted it counts as refetched, once', () => {
+  const table = createShadowTable(1),
+    pool = createShadowPool(1);
+  const take = (entry: number, report: number) => {
+    pool.beginAllocation(report);
+    return pool.take(table, entry, report, 0, report);
+  };
+  take(7, 0);
+  take(9, 1);
+  assert.equal(pool.refetched, 0, 'a first mapping is no refetch');
+  take(7, 2);
+  assert.equal(pool.refetched, 1, 'entry 7 comes back after its eviction');
+  take(11, 3);
+  take(12, 4);
+  assert.equal(pool.refetched, 1, 'entries never mapped before are not refetches');
+});

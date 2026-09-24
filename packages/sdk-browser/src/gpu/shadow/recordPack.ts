@@ -26,7 +26,8 @@ export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
  * push nothing.
  */
 export function createShadowRecordPack(faceStride: number, poolSide: number) {
-  const size = poolSide * SHADOW_PAGE;
+  let side = poolSide,
+    size = side * SHADOW_PAGE;
   const records = new Float32Array(MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS);
   const words = new Int32Array(records.buffer);
   const facePacked = new Float32Array((MAX_SHADOW_REGIONS * faceStride) / 4);
@@ -46,6 +47,11 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
   return {
     records,
     facePacked,
+    /** The pool the pages land in has `poolSide` pages a side from now on. */
+    setPoolSide(poolSide: number) {
+      side = poolSide;
+      size = side * SHADOW_PAGE;
+    },
     /**
      * Region `index`: its page's matrix — the page's own projection, which the viewport lands on
      * physical page `phys` —, that page's atlas rectangle, and the light envelope the depth pass
@@ -61,8 +67,8 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
     ) {
       const uniform = (index * faceStride) / 4;
       for (let i = 0; i < 16; i++) facePacked[uniform + i] = matrices[matrixBase + i];
-      facePacked[uniform + 16] = ((phys % poolSide) * SHADOW_PAGE) / size;
-      facePacked[uniform + 17] = (Math.floor(phys / poolSide) * SHADOW_PAGE) / size;
+      facePacked[uniform + 16] = ((phys % side) * SHADOW_PAGE) / size;
+      facePacked[uniform + 17] = (Math.floor(phys / side) * SHADOW_PAGE) / size;
       facePacked[uniform + 18] = SHADOW_PAGE / size;
       facePacked[uniform + 19] = SHADOW_PAGE;
       facePacked[uniform + 20] = center ? center[0] : 0;

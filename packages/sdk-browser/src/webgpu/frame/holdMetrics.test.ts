@@ -90,6 +90,7 @@ function tenue() {
     lights: {
       plan: {
         counts: { pendingPages: 0, waitedMs: 0, cachedPages: 0, poolPages: 0 },
+        pool: { refetched: 0 },
         requests: { counts: { requested: 0 } },
       },
     },

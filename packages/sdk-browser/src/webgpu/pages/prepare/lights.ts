@@ -1,6 +1,6 @@
 import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts';
-import { createGpuShadowAtlas, shadowAtlasBytes } from '../../../gpu/shadow/atlas.ts';
+import { createGpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import { createGpuShadowCull } from '../../../gpu/shadow/cull.ts';
 import { createShadowPageRequests } from '../../shadow/pageRequests.ts';
 import { grantCapability } from '../io/drops.ts';
@@ -42,11 +42,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
   // The atlas and per-face cull go together: the shadow pass draws from the list cull produces.
   // One without the other would light nothing, so failure of one yields both.
   try {
-    lights.shadows = await createGpuShadowAtlas(
-      device,
-      vis.visBindGroupLayout,
-      lights.plan.pool.side,
-    );
+    lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
     lights.cull = await createGpuShadowCull(device, drawSlots);
     lights.pageRequests = createShadowPageRequests(device, lights.shadows.requestBuffer);
   } catch (error) {
@@ -64,9 +60,9 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     version: 1,
     settings: { ...LIGHT_SETTINGS },
     tileLists: !!lights.tiles,
-    shadowAtlas: lights.shadows ? lights.shadows.size : null,
+    // The atlas is sized at the first frame (`../../shadow/poolSize.ts`, diagnostic `shadow-pool`).
+    shadowAtlas: !!lights.shadows,
     shadowCullRows: lights.cull ? drawSlots : null,
-    shadowAtlasBytes: lights.shadows ? shadowAtlasBytes(lights.plan.pool.side) : 0,
     shadowBudgetMs: lights.plan.budget.budgetMs,
     shadowPageInvalidation: lights.plan.pageInvalidation,
     unavailable: lights.shadowReason,
