@@ -112,6 +112,6 @@ test('the hooked fields read back what was written, for the host and for the ref
   mesh.updateMatrix();
   twin.updateMatrix();
   assert.deepEqual(mesh.matrix.elements, twin.matrix.elements, 'the same composed matrix');
-  assert.ok(mesh.position.isVector3 && mesh.position instanceof G.GraphVector);
+  assert.ok(mesh.position instanceof G.GraphVector);
   assert.deepEqual(G.xyz(mesh.clone().position), [1, 2, 3], 'a clone copies through the accessors');
 });

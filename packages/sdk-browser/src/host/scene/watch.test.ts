@@ -147,7 +147,7 @@ function litEngine() {
   source.add(lampe);
   const backend = exactPagesBackend(context);
   const copie = () =>
-    backend.scene.children.find((child) => (child as G.GraphLight).isLight) as G.GraphLight;
+    backend.scene.children.find(G.isPlacedLight) as G.GraphLight;
   return { backend, lampe, copie, dispose: () => (geometry.dispose(), material.dispose()) };
 }
 

@@ -16,8 +16,9 @@ import { Releasable, identity } from './resource.ts';
 
 /** An image and the sampler state it is read with, and the transform of its coordinates. */
 export class GraphTexture extends Releasable {
-  /** Always `true`: tells a texture from any other field of a surface. */
-  readonly isTexture = true as const;
+  /** Tells a texture from any other field of a surface: a decoded picture, or raw texels
+   *  (`image` holding `{ data, width, height }`). */
+  kind: 'texture' | 'texels' = 'texture';
   /** A name unique to the texture. */
   readonly uuid = identity('texture');
   /** Its name. */
@@ -57,8 +58,6 @@ export class GraphTexture extends Releasable {
   version = 0;
   /** Free room for the data of whoever built the texture. */
   userData: Record<string, unknown> = {};
-  /** Present on a texture of raw texels, `image` holding `{ data, width, height }`. */
-  declare isDataTexture?: true;
   /** The channels of a raw texture's texels (`HOST_FORMAT_*`). */
   declare format?: number;
   /** The decoded picture, in the container its decoder gave. */
@@ -116,3 +115,10 @@ export class GraphTexture extends Releasable {
     return copy;
   }
 }
+
+/** Whether a field of a surface is a texture of the graph: told by its `kind`, whatever its slot. */
+export const isGraphTexture = (value: unknown): value is GraphTexture =>
+  typeof value === 'object' &&
+  value !== null &&
+  'kind' in value &&
+  (value.kind === 'texture' || value.kind === 'texels');

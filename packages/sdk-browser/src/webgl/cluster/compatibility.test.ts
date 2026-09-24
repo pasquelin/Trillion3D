@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import * as THREE from 'three';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterMaterialReason } from './compatibility.ts';
 import { validateClusterMeshes } from './validation.ts';
@@ -151,13 +150,9 @@ test('a transmissive copy mutated into another physical extension is refused bef
 // The gate no longer compares against the host library's own class to find a shader hook: it
 // asks whether the material reaches a compile hook other than the one it inherits.
 test('a compile hook the host installed is refused, the empty one it inherits is not', () => {
-  const normal = new THREE.BufferAttribute(new Float32Array(9), 3);
-  const material = new THREE.MeshStandardMaterial();
+  const normal = new G.GraphAttribute(new Float32Array(9), 3);
+  const material = G.standardSurface();
   assert.equal(clusterMaterialReason(material, { position, normal }), undefined);
   material.onBeforeCompile = () => {};
   assert.match(clusterMaterialReason(material, { position, normal })!, /carries a shader hook/);
-  class Hooked extends THREE.MeshStandardMaterial {
-    override onBeforeCompile() {}
-  }
-  assert.match(clusterMaterialReason(new Hooked(), { position, normal })!, /carries a shader hook/);
 });

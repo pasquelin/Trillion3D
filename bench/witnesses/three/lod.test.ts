@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { threeLodBackend } from './lod.ts';
 import { threeMaterials } from './fromGraph.ts';
 import { dagLevel } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
@@ -35,15 +36,15 @@ test('THREE.LOD includes transparent simplification and merges its mixed cover i
   material.dispose();
 });
 test('THREE.LOD keeps one exact level for source-ordered transparent pages', () => {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3),
+    G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3),
   );
-  geometry.setIndex([0, 1, 2]);
-  const material = new THREE.MeshBasicMaterial({ transparent: true }),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+  geometry.setIndex(G.indices([0, 1, 2]));
+  const material = G.basicSurface({ transparent: true }),
+    mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   const primitive = dagLevel([], [], 1, [quadCluster(0)]);
   const backend = threeLodBackend({

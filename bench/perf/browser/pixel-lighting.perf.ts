@@ -1,6 +1,7 @@
 // per-pixel shading of the CPU visbuffer.
 import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { shadeLit } from '../../../packages/sdk-browser/src/visibility/shader/lighting.ts';
 import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts';
@@ -29,9 +30,9 @@ function texture(depart: number) {
   const data = new Uint8Array(8 * 8 * 4),
     tire = graine(depart);
   for (let i = 0; i < data.length; i++) data[i] = Math.floor(tire() * 256) & 255;
-  const map = new THREE.Texture();
+  const map = new G.GraphTexture();
   map.image = { data, width: 8, height: 8 };
-  map.wrapS = THREE.RepeatWrapping;
+  map.wrapS = G.HOST_WRAP_REPEAT;
   map.wrapT = THREE.ClampToEdgeWrapping;
   return importHostTexture(map);
 }
@@ -51,21 +52,21 @@ function page(depart: number) {
   return {
     array: new Uint32Array([0, 1, 2]),
     attributes: {
-      position: new THREE.BufferAttribute(positions, 3),
-      normal: new THREE.BufferAttribute(normales, 3),
-      tangent: new THREE.BufferAttribute(tangentes, 4),
-      uv: new THREE.BufferAttribute(uvs, 2),
+      position: new G.GraphAttribute(positions, 3),
+      normal: new G.GraphAttribute(normales, 3),
+      tangent: new G.GraphAttribute(tangentes, 4),
+      uv: new G.GraphAttribute(uvs, 2),
     },
-    matrix: new THREE.Matrix4().makeRotationY(0.7).setPosition(0.3, -0.2, 0.9),
-    material: surfaceOf(new THREE.MeshStandardMaterial()),
+    matrix: new G.Matrix4().makeRotationY(0.7).setPosition(0.3, -0.2, 0.9),
+    material: surfaceOf(G.standardSurface()),
   };
 }
 
-const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 500);
+const camera = G.perspectiveCamera(60, 16 / 9, 0.1, 500);
 camera.position.set(2, 3, 8);
 camera.updateMatrixWorld();
 camera.updateProjectionMatrix();
-const viewProj = new THREE.Matrix4().multiplyMatrices(
+const viewProj = new G.Matrix4().multiplyMatrices(
   camera.projectionMatrix,
   camera.matrixWorldInverse,
 );

@@ -3,8 +3,7 @@
  * argument lists and defaults: re-exported by `./graph.fixture.ts`, where tests take them.
  */
 import { Color, type ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
-import { GraphAmbientLight, GraphLight } from './light.ts';
-import { GraphNode } from './node.ts';
+import { GraphAmbientLight, GraphLight, GraphLightProbe } from './light.ts';
 
 const colour = (value: ColorInput | undefined) => new Color(value ?? 0xffffff);
 
@@ -40,20 +39,11 @@ export function spotLight(
 export const ambientLight = (color?: ColorInput, intensity = 1) =>
   new GraphAmbientLight(colour(color), intensity);
 
-/**
- * A sky light: one colour from above, another from the ground. The graph builds no kind of its
- * own for it; this node carries the shape the engine reads of one (`../scene/graphNodes.ts`).
- */
-export function hemisphereLight(sky?: ColorInput, ground?: ColorInput, intensity = 1) {
-  const light = Object.assign(new GraphNode(), {
-    isLight: true as const,
-    isHemisphereLight: true as const,
-    color: colour(sky),
-    groundColor: colour(ground),
-    intensity,
-  });
-  light.type = 'HemisphereLight';
-  light.position.set(0, 1, 0);
-  light.updateMatrix();
-  return light;
+/** An environment's irradiance as nine coefficients: what a sky over a ground becomes in the
+ *  engine (`addLightIrradiance`, `sdk-core/src/world/light/lightRecord.ts`). */
+export function lightProbe(coefficients: ArrayLike<number> = new Float32Array(27), intensity = 1) {
+  const probe = new GraphLightProbe();
+  probe.sh.fromArray(coefficients);
+  probe.intensity = intensity;
+  return probe;
 }
