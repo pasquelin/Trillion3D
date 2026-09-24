@@ -1811,6 +1811,26 @@
       "sound": "M ses"
     }
   },
+  "watch-a-world-load": {
+    "banner": "Dünya gelirken çubuğun dolmasını izle. İlk bayttan görmek için Yeniden yükle'ye bas.",
+    "controls": {
+      "loadAgain": "Yeniden yükle"
+    },
+    "readouts": {
+      "phase": "Adım",
+      "bytes": "Bayt",
+      "pages": "İlk sayfalar"
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md",
+      "bytes": "baytlar okunuyor",
+      "manifest": "manifest okundu",
+      "tables": "sahne tabloları okundu",
+      "resources": "sahne dosyaları",
+      "pages": "ilk sayfalar",
+      "ready": "hazır"
+    }
+  },
   "waves-of-points": {
     "banner": "Alanın etrafında dönmek için sürükle. Dalgaları değiştirmek için bir desen seç.",
     "controls": {
