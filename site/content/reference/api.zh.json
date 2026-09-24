@@ -926,6 +926,8 @@
       "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
       "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
       "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
+      "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。"
     }
   },
@@ -3777,7 +3779,7 @@
       "zoomSpeed": "枢轴类控制器:滚轮和捏合缩放的速度;默认为 1。",
       "autoForward": "仅限飞行模式:不按任何键时以 `movementSpeed` 向前飞行,按 W 加速,按 S 减速至停止。",
       "autoUpdate": "世界的循环是否在每一帧、在 `world.beforeFrame` 钩子之前调用 `update`。设为 `false` 后,这一步就交给页面负责,由页面从这样的钩子中调用 `update`,想以多高的频率、拆成多少子步骤积分都可以;此时世界自身绝不会推进它。",
-      "colliders": "仅角色模式:身体会与之碰撞的网格——单个对象或一个列表,包括它们的所有后代——或者为 `null`。设置它们时,会根据当前世界空间中的三角形构建一棵静态三角形树:对三角形进行一次遍历,构建复杂度为 `O(T log T)`,每个三角形约占用 52 字节。目前还不会读取已编译的模型:请改用普通网格。 `CharacterCollision`(物理引擎的世界,任何能回答 `resolveCapsule` 和 `groundBelow` 的对象)会被原样使用。 `world.physics` 运行时不使用：身体属于物理，与其物体（`mesh.physics`）相遇。",
+      "colliders": "仅角色模式:身体会与之碰撞的网格——单个对象或一个列表,包括它们的所有后代——或者为 `null`。设置它们时,会根据当前世界空间中的三角形构建一棵静态三角形树:对三角形进行一次遍历,构建复杂度为 `O(T log T)`,每个三角形约占用 52 字节。目前还不会读取已编译的模型:请改用普通网格。 `CharacterCollision`(物理引擎的世界,任何能回答 `resolveCapsule` 和 `groundBelow` 的对象)会被原样使用。",
       "rebuildColliders": "仅角色模式:在碰撞体移动或改变之后,重建碰撞树。 `CharacterCollision` 本身就是一个世界,会原样传递。",
       "velocity": "仅角色模式:身体速度的一份拷贝,单位为米每秒;其他模式下为零。",
       "onGround": "仅角色模式:双脚是否在地面上;其他控制器中为 `false`。",

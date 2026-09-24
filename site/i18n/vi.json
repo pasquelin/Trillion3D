@@ -602,7 +602,8 @@
           "Cho thế giới <code>physics: true</code>. Mô phỏng chạy tách khỏi việc vẽ, trong một <em>worker</em>, nên không làm hình chậm lại.",
           "Đánh dấu sàn <code>'static'</code>: nó đỡ các vật khác và không bao giờ di chuyển. Đánh dấu hộp <code>'dynamic'</code>: trọng lực kéo nó.",
           "Hình lấy từ hình học, trọng lượng từ vật liệu: <code>physics: 'wood'</code> nhẹ, <code>'metal'</code> nặng, <code>'rubber'</code> nảy.",
-          "Đẩy vật bằng <code>applyImpulse</code>, hoặc lắng nghe <code>contact</code>. Khi mọi vật đều ngủ, không gì được tính hay vẽ."
+          "Đẩy vật bằng <code>applyImpulse</code>, hoặc lắng nghe <code>contact</code>. Khi mọi vật đều ngủ, không gì được tính hay vẽ.",
+          "Mô hình tải bằng <code>scene.load</code> va chạm bằng chính các tam giác của nó, được chuẩn bị khi biên dịch. <code>await world.raycast(point, { exact: true })</code> tìm đúng tam giác dưới con trỏ."
         ],
         "tryIt": "Thả thêm hộp, đổi trọng lực sang Mặt Trăng và bật chế độ chậm."
       },
@@ -1489,7 +1490,8 @@
       "hands-in-vr": "Bàn tay trong VR",
       "teleport-in-vr": "Dịch chuyển tức thời trong VR",
       "controllers-in-vr": "Bộ điều khiển trong VR",
-      "ar-on-the-table": "AR trên bàn"
+      "ar-on-the-table": "AR trên bàn",
+      "a-walker-among-balls": "Người đi bộ giữa những quả bóng"
     },
     "missing": {
       "colours-on-the-vertices": "màu theo từng đỉnh trên WebGPU",
@@ -1652,7 +1654,6 @@
       "breaking-things": "tích hợp vật lý",
       "cloth-and-rope": "tích hợp vật lý",
       "soft-bodies": "tích hợp vật lý",
-      "rolling-on-terrain": "tích hợp vật lý",
       "hinges-and-joints": "tích hợp vật lý",
       "drive-a-car": "tích hợp vật lý",
       "a-room-in-vr": "phiên WebXR",

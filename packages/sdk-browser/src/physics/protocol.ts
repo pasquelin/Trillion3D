@@ -32,6 +32,8 @@ export type ToPhysics =
   | { type: 'commands'; words: Uint32Array }
   /** The clock: `timeScale` is above 0 unless `paused` (the page sends a scale of 0 as a pause). */
   | { type: 'clock'; paused: boolean; timeScale: number }
+  /** Scene queries (`CAST_WORDS` each), answered against the last step by a `cast` reply. */
+  | { type: 'cast'; id: number; queries: Uint32Array }
   /** The world's character: its settings (`null` removes it), and its feet when it is put there. */
   | { type: 'character'; settings: CharacterSettings | null; feet: number[] | null }
   /** The character's keys, and the jump presses counted since it began. */
@@ -69,6 +71,8 @@ export interface PhysicsResults {
 export type FromPhysics =
   | { type: 'ready' }
   | PhysicsResults
+  /** The hits of a `cast` request (`HIT_WORDS` each), in its order. */
+  | { type: 'cast'; id: number; hits: Uint32Array }
   | { type: 'error'; code: string; message: string; fatal: boolean; bodies?: number[] };
 
 /** Word where a result buffer's events start: after one pose per body. */

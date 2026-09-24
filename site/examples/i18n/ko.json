@@ -1908,6 +1908,40 @@
       }
     }
   },
+  "rolling-on-terrain": {
+    "banner": "땅을 클릭하면 그 자리에 공을 떨어뜨립니다. 비는 스무 개를 더 떨어뜨립니다.",
+    "controls": {
+      "matter": "재질",
+      "rain": "비"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "고무",
+        "stone": "돌",
+        "ice": "얼음"
+      }
+    },
+    "words": {
+      "credit": "이 예제를 위해 코드로 만든 계곡, CC0 — assets/examples/CREDITS.md 참고"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "걷는 사람이 홀을 돌며 공을 밉니다. 공은 스무 개를 더합니다.",
+    "controls": {
+      "walking": "걷기",
+      "balls": "공"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝"
+    }
+  },
   "walk-with-collisions": {
     "banner": "클릭해 둘러본 뒤 W A S D로 걷고 스페이스로 점프하세요: 계단과 경사로를 오르고, 발판에 올라타고, 상자를 밀어 보세요.",
     "controls": {
