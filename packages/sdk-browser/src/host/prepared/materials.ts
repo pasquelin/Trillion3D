@@ -9,13 +9,15 @@
  *   adds — vertex colours, flat shading where it has no normal — are built per primitive kind;
  * - the physical extensions are applied under the parameter names the table writes them with.
  */
-import * as THREE from 'three';
 import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts';
+import { Color } from '../../../../sdk-core/src/world/math/color.ts';
+import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
+import { GraphSurface } from '../graph/surface.ts';
+import { type GraphTexture } from '../graph/texture.ts';
+import { hostSide } from '../../scene/materialSide.ts';
+import { HOST_COLOUR_SPACE_SRGB } from '../surfaceConstants.ts';
 
-type Slot = (
-  slot: TableTextureSlot,
-  colorSpace?: THREE.ColorSpace,
-) => Promise<THREE.Texture | null>;
+type Slot = (slot: TableTextureSlot, colorSpace?: string) => Promise<GraphTexture | null>;
 type Params = Record<string, unknown>;
 
 /** The extension maps that hold colour, and are read in sRGB. */
@@ -23,8 +25,7 @@ const COLOUR_MAPS = new Set(['sheenColorMap', 'specularColorMap']);
 /** The extension factors that are colours. */
 const COLOURS = new Set(['sheenColor', 'specularColor']);
 
-const linear = (rgb: readonly number[]) =>
-  new THREE.Color().setRGB(rgb[0], rgb[1], rgb[2], THREE.LinearSRGBColorSpace);
+const linear = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2]);
 const isSlot = (value: unknown): value is TableTextureSlot =>
   typeof value === 'object' && value !== null && 'texture' in value;
 
@@ -39,15 +40,14 @@ function extensionParams(
   for (const [name, value] of Object.entries(entry.extensions)) {
     if (isSlot(value)) assign(name, value, COLOUR_MAPS.has(name));
     else if (name === 'clearcoatNormalScale')
-      params[name] = new THREE.Vector2(value as number, value as number);
+      params[name] = new Vector2(value as number, value as number);
     else if (COLOURS.has(name)) params[name] = linear(value as number[]);
     else params[name] = Array.isArray(value) ? [...value] : value;
   }
   // The host rebuilds the tangent frame from screen derivatives on geometry without tangents, and
   // turns the second clear-coat normal factor the way it turns the first.
   if (entry.kind === 'physical' && entry.derivativeTangents) {
-    const scale =
-      (params.clearcoatNormalScale as THREE.Vector2 | undefined) ?? new THREE.Vector2(1, 1);
+    const scale = (params.clearcoatNormalScale as Vector2 | undefined) ?? new Vector2(1, 1);
     params.clearcoatNormalScale = scale.set(scale.x, -scale.y);
   }
 }
@@ -58,7 +58,7 @@ async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) 
   const assign = (name: string, from: TableTextureSlot | null, colour = false) => {
     if (from)
       pending.push(
-        slot(from, colour ? THREE.SRGBColorSpace : undefined).then((texture) => {
+        slot(from, colour ? HOST_COLOUR_SPACE_SRGB : undefined).then((texture) => {
           if (texture) params[name] = texture;
         }),
       );
@@ -70,7 +70,7 @@ async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) 
     assign('metalnessMap', entry.metalnessMap);
     assign('roughnessMap', entry.roughnessMap);
     assign('normalMap', entry.normalMap);
-    params.normalScale = new THREE.Vector2(entry.normalScale, entry.normalScaleY);
+    params.normalScale = new Vector2(entry.normalScale, entry.normalScaleY);
     assign('aoMap', entry.aoMap);
     params.aoMapIntensity = entry.aoIntensity;
     params.emissive = linear(entry.emissive);
@@ -84,19 +84,16 @@ async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) 
     params.attenuationDistance = entry.attenuationDistance || Infinity;
     params.attenuationColor = linear(entry.attenuationColor);
   }
-  if (entry.doubleSided) params.side = THREE.DoubleSide;
+  if (entry.doubleSided) params.side = hostSide('double');
   params.transparent = entry.alphaMode === 'BLEND';
   if (entry.alphaMode === 'BLEND') params.depthWrite = false;
   if (entry.alphaMode === 'MASK') params.alphaTest = entry.alphaTest;
   if (variant.vertexColors) params.vertexColors = true;
   if (variant.flatShading) params.flatShading = true;
   await Promise.all(pending);
-  const material =
-    entry.kind === 'unlit'
-      ? new THREE.MeshBasicMaterial(params)
-      : entry.kind === 'physical'
-        ? new THREE.MeshPhysicalMaterial(params)
-        : new THREE.MeshStandardMaterial(params);
+  const family =
+    entry.kind === 'unlit' ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard';
+  const material = new GraphSurface(family, params);
   if (entry.name) material.name = entry.name;
   return material;
 }
@@ -106,7 +103,7 @@ async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) 
  * wears it: a record the engine holds per surface is then held once per surface.
  */
 export function preparedMaterials(materials: readonly TableMaterial[], slot: Slot) {
-  const built = new Map<string, Promise<THREE.Material>>();
+  const built = new Map<string, Promise<GraphSurface>>();
   return (rank: number, variant: SurfaceVariant) => {
     const key = `${rank}:${variant.vertexColors}:${variant.flatShading}`;
     let material = built.get(key);

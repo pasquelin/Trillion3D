@@ -1,6 +1,5 @@
 import type { EngineCamera } from '../../camera/world.ts';
-import { asHostLibrary } from '../../host/resources.ts';
-import * as THREE from 'three';
+import type { HostAttribute, HostGeometry } from '../../host/resources.ts';
 import {
   acceptPageArray,
   collectPendingUrls,
@@ -54,8 +53,8 @@ export type ExactPagesRequestContext = {
   bundled: boolean;
   batches: ClusterBatches;
   byUrl: Map<string, PageRec[]>;
-  indexByUrl: Map<string, THREE.BufferAttribute>;
-  disposeGeometry: (geometry: THREE.BufferGeometry) => void;
+  indexByUrl: Map<string, HostAttribute>;
+  disposeGeometry(geometry: HostGeometry): void;
   /** Engine camera of the last frame, absent as long as no frame has been rendered. */
   readonly cam: EngineCamera | undefined;
   readonly lastPixelError: number;
@@ -171,7 +170,7 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
         rec.array = undefined;
         rec.indexBytes = rec.triangles * 12;
         if (rec.geometry) {
-          disposeGeometry(asHostLibrary<THREE.BufferGeometry>(rec.geometry));
+          disposeGeometry(rec.geometry);
           rec.geometry = undefined;
         }
         rec.mesh = undefined;
