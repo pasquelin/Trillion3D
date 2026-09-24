@@ -78,7 +78,7 @@ export function createPhysicsSession(
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
     const moved = poses.receive(words, m.poses, posed, ms);
     emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
-    waves.received(m.water, m.active, began);
+    waves.received(m.water, m.active, began, m.waterEpoch);
     if (m.character) character.hear?.(m.character);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
     const changed = moved > 0 || m.active !== stats.active || m.character !== null;
@@ -128,8 +128,7 @@ export function createPhysicsSession(
     /** The water the bodies float in, or none: buoyancy runs in the worker, before each step, on
      *  the awake bodies; every dynamic body is woken, so one at rest floats or falls. */
     setWater(water: WaterSpec | null) {
-      worker.postMessage({ type: 'water', water });
-      waves.reset();
+      worker.postMessage({ type: 'water', water, epoch: waves.reset() });
       for (const mesh of bodies.meshes)
         if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
     },

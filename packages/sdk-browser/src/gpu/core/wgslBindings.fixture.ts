@@ -20,3 +20,9 @@ export const entryBufferBindings = (entries: GPUBindGroupLayoutEntry[]) =>
     binding,
     type: visibility === COMPUTE ? buffer?.type : undefined,
   }));
+
+/** Group-0 texture bindings a WGSL text declares: what the layout's texture entries must be. */
+export const wgslTextureBindings = (shader: string) =>
+  Array.from(shader.matchAll(/@group\(0\)\s*@binding\((\d+)\)\s*var\s+\w+\s*:\s*texture_/g), (m) =>
+    Number(m[1]),
+  ).sort((a, b) => a - b);
