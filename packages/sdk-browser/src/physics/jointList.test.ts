@@ -7,24 +7,10 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
-
-/** The session's code, fetched on the first use (`worldPhysics.ts`), has been loaded. */
-const loaded = () => import('./session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
+import { fakeWorkers, loaded } from './worker.fixture.ts';
 
 test('world.physics.add sends the joint once its body is simulated; a break reply breaks it', async () => {
-  const workers: { onmessage(event: { data: unknown }): void; words: Uint32Array[] }[] = [];
-  const saved = globalThis.Worker;
-  globalThis.Worker = class {
-    words: Uint32Array[] = [];
-    onmessage = (_: { data: unknown }) => {};
-    constructor() {
-      workers.push(this);
-    }
-    postMessage(message: { type: string; words?: Uint32Array }) {
-      if (message.words) this.words.push(message.words);
-    }
-    terminate() {}
-  } as unknown as typeof Worker;
+  const { workers, restore } = fakeWorkers();
   try {
     const scene = new Group();
     const runtime = { invalidate() {}, explorer: null };
@@ -52,6 +38,6 @@ test('world.physics.add sends the joint once its body is simulated; a break repl
     physics.handle.remove(hinge);
     physics.dispose();
   } finally {
-    globalThis.Worker = saved;
+    restore();
   }
 });
