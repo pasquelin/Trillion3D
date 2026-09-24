@@ -89,12 +89,16 @@
       // are crossed: steps and short hops first, running jumps after, two gaps only a sprint
       // clears, and a stair up to the idol. Every jump leaves more than a quarter of the
       // character's reach and 0.2 m of its height spare, every top it lands on is at least
-      // 1.2 m deep, and the next top is in sight from the edge.
+      // 1.2 m deep, and the next top is in sight from the edge. The floor's friction sets the
+      // start and the stop (0.8 m to gather a jog or lose it on stone, 2.7 m for a sprint): a
+      // top a jog lands on holds its glide once the keys are let go, each sprint gap is cleared
+      // from a standing start at the back of the top before it, and the top after it holds a
+      // sprint let go on landing, 3.4 m deep or more.
       const COURSE = [
         [-4.5, 4.5, 1.8, 9.6, 0], [-1.5, 1.5, -1.2, 1.8, 0.25], [-1.5, 1.5, -3.2, -1.8, 0.25], [-1.5, 1.5, -5.2, -3.8, 0.5],
         [-1.5, 1.5, -6.8, -5.2, 0.75], [-1, 2, -9.9, -8.3, 0.75], [0.5, 3.5, -13.4, -11.6, 1], [-3.5, -1.3, -13.4, -11.6, 1],
-        [-3.5, -1.1, -17.8, -15.2, 1.25], [-3.5, -1.1, -24, -21, 1.25], [-3.5, -1.1, -27.2, -25.6, 1.5], [0.2, 2.8, -27.2, -25.6, 1.75],
-        [0.2, 2.8, -31.8, -30.2, 2], [-0.5, 2.5, -34.4, -33, 2.25], [-1.5, 1.5, -37, -35.6, 2.5], [-1.5, 1.5, -38.7, -37, 2.75],
+        [-3.5, -1.1, -17.8, -15.2, 1.25], [-3.5, -1.1, -24.8, -21, 1.25], [-3.5, -1.1, -28, -26.4, 1.5], [0.2, 2.8, -27.4, -24.2, 1.75],
+        [0.2, 2.8, -33.8, -30.4, 2], [-0.5, 2.5, -36.2, -35, 2.25], [-1.5, 2.5, -37, -36.2, 2.5], [-1.5, 2.5, -38.7, -37, 2.75],
         [-4.5, 4.5, -42.9, -38.7, 3],
       ].map(([x0, x1, z0, z1, top]) => ({ x0, x1, z0, z1, top, x: (x0 + x1) / 2, z: (z0 + z1) / 2 }));
       const FINISH = COURSE.at(-1);
@@ -185,8 +189,11 @@
 
       const matte = (color, roughness = 0.9, metalness = 0) => material.meshStandard({ color, roughness, metalness });
       const glowing = (emissive, emissiveIntensity) => material.meshStandard({ color: '#000000', emissive, emissiveIntensity });
-      const stone = matte('#5a4d43'), darkStone = matte('#3a302b', 0.95), marble = matte('#efe8da', 0.3);
-      const bronze = matte('#8a6334', 0.4, 0.8);
+      // The temple is stone and its bands bronze: their matter is what the soles grip on, so a
+      // stop glides a little on the stone (`physics`, the physics materials' friction).
+      const rock = (color, roughness) => material.meshStandard({ color, roughness, metalness: 0, physics: 'stone' });
+      const stone = rock('#5a4d43', 0.9), darkStone = rock('#3a302b', 0.95), marble = rock('#efe8da', 0.3);
+      const bronze = material.meshStandard({ color: '#8a6334', roughness: 0.4, metalness: 0.8, physics: 'metal' });
       function put(shape, matter, at, parent = world.scene) {
         const mesh = object.mesh(shape, matter);
         mesh.position.set(...at);
@@ -282,7 +289,7 @@
       // The orbs: glowing beads in a turning bronze ring, two hanging over gaps — one over the
       // first sprint's — and three over tops.
       const glow = glowing('#7cf0ff', 6), pearl = geometry.sphere(0.2, 24, 16), hoop = geometry.torus(0.3, 0.03, 12, 40);
-      const orbs = [[0, 1.45, -3.5], [2, 2.1, -12.5], [-2.3, 2.4, -19.4], [-2.3, 2.6, -26.4], [1, 3.35, -33.7]].map((at) => {
+      const orbs = [[0, 1.45, -3.5], [2, 2.1, -12.5], [-2.3, 2.4, -19.4], [-2.3, 2.6, -27.2], [1, 3.35, -35.6]].map((at) => {
         const orb = joint(world.scene, at);
         put(pearl, glow, [0, 0, 0], orb);
         return { orb, ring: put(hoop, bronze, [0, 0, 0], orb) };

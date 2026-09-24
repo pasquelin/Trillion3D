@@ -1952,7 +1952,7 @@
         "desc": "Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did."
       }
     ],
-    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
+    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, never faster than the friction of its floor lets a sole push, so a stop glides a little on stone and far on ice; it keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`, `characterDrive.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
   },
   {
     "id": "CharacterCollision",
@@ -5221,49 +5221,6 @@
     "description": ""
   },
   {
-    "id": "GraphAngles",
-    "module": "packages/sdk-browser/src/host/graph/rotation.ts",
-    "exports": ["GraphAngles"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphAngles",
-    "signature": "class GraphAngles\nnew GraphAngles(): GraphAngles",
-    "summary": "The same orientation as three angles and their order, announcing its writes the same way.",
-    "members": [
-      {
-        "name": "x",
-        "type": "number",
-        "desc": "The first angle, in radians."
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "desc": "The second angle, in radians."
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "desc": "The third angle, in radians."
-      },
-      {
-        "name": "order",
-        "type": "string",
-        "desc": "The order the three angles turn in, `'XYZ'` unless set."
-      },
-      {
-        "name": "set(x: number, y: number, z: number, order?: string)",
-        "type": "GraphAngles",
-        "desc": "Writes the three angles, and the order when given; announced once."
-      },
-      {
-        "name": "setFromRotation(q: GraphRotation, quiet?: boolean)",
-        "type": "GraphAngles",
-        "desc": "The angles of `q` in this order (the core `Euler`); announced unless `quiet`."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "GraphArray",
     "module": "packages/sdk-browser/src/host/graph/attributes.ts",
     "exports": ["GraphArray"],
@@ -5692,27 +5649,27 @@
       },
       {
         "name": "up",
-        "type": "GraphVector",
+        "type": "Vector3",
         "desc": "Which way is up for `lookAt`."
       },
       {
         "name": "position",
-        "type": "GraphVector",
+        "type": "Vector3",
         "desc": "Where the node stands, from its parent."
       },
       {
         "name": "rotation",
-        "type": "GraphAngles",
+        "type": "Euler",
         "desc": "How the node is turned, as three angles."
       },
       {
         "name": "quaternion",
-        "type": "GraphRotation",
+        "type": "Quaternion",
         "desc": "How the node is turned, as a quaternion."
       },
       {
         "name": "scale",
-        "type": "GraphVector",
+        "type": "Vector3",
         "desc": "How the node is stretched on each axis."
       },
       {
@@ -5842,100 +5799,6 @@
     "title": "GraphNodeKind",
     "signature": "type GraphNodeKind = | 'node'\n  | 'scene'\n  | 'group'\n  | 'mesh'\n  | 'instancedMesh'\n  | 'camera'\n  | GraphLightKind\n  | 'ambient'\n  | 'rect'\n  | 'probe'",
     "summary": "What a node of the graph is: a bare node, the root, a group, a drawn mesh (at one placement or several), an eye, or one of the lights a scene declares.",
-    "description": ""
-  },
-  {
-    "id": "GraphRotation",
-    "module": "packages/sdk-browser/src/host/graph/rotation.ts",
-    "exports": ["GraphRotation"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphRotation",
-    "signature": "class GraphRotation\nnew GraphRotation(x?: number, y?: number, z?: number, w?: number): GraphRotation",
-    "summary": "An orientation `(x, y, z, w)` whose writes call `_onChangeCallback`.",
-    "parameters": [
-      {
-        "name": "x",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "w",
-        "type": "number",
-        "default": "1",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "x",
-        "type": "number",
-        "desc": "The first number."
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "desc": "The second number."
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "desc": "The third number."
-      },
-      {
-        "name": "w",
-        "type": "number",
-        "desc": "The fourth number."
-      },
-      {
-        "name": "set(x: number, y: number, z: number, w: number)",
-        "type": "GraphRotation",
-        "desc": "Writes the four numbers, announced once."
-      },
-      {
-        "name": "copy(q: { readonly x: number; readonly y: number; readonly z: number; readonly w: number; })",
-        "type": "GraphRotation",
-        "desc": "Takes another rotation's numbers."
-      },
-      {
-        "name": "fromArray(array: ArrayLike<number>, offset?: number)",
-        "type": "GraphRotation",
-        "desc": "Reads four numbers from a list."
-      },
-      {
-        "name": "setFromAngles(angles: GraphAngles, quiet?: boolean)",
-        "type": "GraphRotation",
-        "desc": "The rotation of `angles`, in their order (`localTurnQuaternion`); announced unless `quiet`."
-      },
-      {
-        "name": "setFromRotationMatrix(m: ArrayLike<number>)",
-        "type": "GraphRotation",
-        "desc": "The rotation of the upper 3×3 of a column-major matrix whose columns are unit length."
-      },
-      {
-        "name": "premultiply(q: GraphRotation)",
-        "type": "GraphRotation",
-        "desc": "Becomes `q` followed by this rotation, `q · this`."
-      },
-      {
-        "name": "invert()",
-        "type": "GraphRotation",
-        "desc": "Becomes the opposite turn."
-      }
-    ],
     "description": ""
   },
   {
@@ -6236,104 +6099,6 @@
         "name": "clone()",
         "type": "HostTexture",
         "desc": "A texture of the same image and state, announced as changed."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphVector",
-    "module": "packages/sdk-browser/src/host/graph/vector.ts",
-    "exports": ["GraphVector"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphVector",
-    "signature": "class GraphVector\nnew GraphVector(x?: number, y?: number, z?: number): GraphVector",
-    "summary": "Three numbers of a pose or a point: plain data fields, and the operations a controller uses.",
-    "parameters": [
-      {
-        "name": "x",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "x",
-        "type": "number",
-        "desc": "Left to right."
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "desc": "Bottom to top."
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "desc": "Back to front."
-      },
-      {
-        "name": "set(x: number, y: number, z: number)",
-        "type": "GraphVector",
-        "desc": "Writes the three numbers."
-      },
-      {
-        "name": "copy(v: HostPoint)",
-        "type": "GraphVector",
-        "desc": "Takes another point's numbers."
-      },
-      {
-        "name": "clone()",
-        "type": "GraphVector",
-        "desc": "A copy."
-      },
-      {
-        "name": "add(v: HostPoint)",
-        "type": "GraphVector",
-        "desc": "Adds another vector."
-      },
-      {
-        "name": "sub(v: HostPoint)",
-        "type": "GraphVector",
-        "desc": "Takes another vector away."
-      },
-      {
-        "name": "multiplyScalar(s: number)",
-        "type": "GraphVector",
-        "desc": "Scales the three numbers."
-      },
-      {
-        "name": "length()",
-        "type": "number",
-        "desc": "Its length."
-      },
-      {
-        "name": "setLength(length: number)",
-        "type": "GraphVector",
-        "desc": "Keeps the direction, sets the length."
-      },
-      {
-        "name": "distanceTo(v: HostPoint)",
-        "type": "number",
-        "desc": "Distance to a point."
-      },
-      {
-        "name": "fromArray(array: ArrayLike<number>, offset?: number)",
-        "type": "GraphVector",
-        "desc": "Reads three numbers from a list."
       }
     ],
     "description": ""
@@ -18462,12 +18227,12 @@
       {
         "name": "responseTime",
         "type": "number",
-        "desc": "Character only: seconds to reach 95 % of the wished speed on the ground; 0.12 by default."
+        "desc": "Character only: seconds the legs take to reach 95 % of the wished speed on the ground; 0.12 by default. The floor's friction bounds the start first: a sole pushes at most `μ g`, `μ` a rubber sole's grip on the floor's `material.physics` (stone without physics), so a jog is reached in 0.45 s on stone and 2.2 s on ice."
       },
       {
         "name": "stopTime",
         "type": "number",
-        "desc": "Character only: seconds to lose 95 % of the speed once no key is held, on the ground; 0.08 by default."
+        "desc": "Character only: seconds the legs take to lose 95 % of the speed once no key is held, on the ground; 0.12 by default. The floor's friction bounds the stop first: a jog glides `v² / (2 μ g)`, 0.8 m on stone and 3.8 m on ice; a longer time brakes more gently."
       },
       {
         "name": "capsuleRadius",
