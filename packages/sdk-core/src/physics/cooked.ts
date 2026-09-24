@@ -7,7 +7,9 @@ import { EngineError } from '../contracts/cache.ts';
  * commit, and a reader refuses another.
  */
 const PHYSICS_FORMAT_VERSION = 1;
-/** The Jolt commit the engine's physics module is built from (`packages/physics-jolt-wasm`). */
+/** The Jolt commit the engine's physics module is built from: the pin of the submodule
+ *  `packages/physics-jolt-wasm/JoltPhysics`, which the compiler's cook reads (`build.rs`). A test
+ *  fails while the two differ (`physics.test.ts`). */
 export const JOLT_COMMIT = 'e77f175595e64cb44218cc9d9d56fc365ad0e36a';
 
 /** One cooked shape: a SHA-addressed object beside the manifest. */
@@ -34,13 +36,16 @@ interface CookedCollider {
   tiles: CookedTile[];
 }
 
-/** A collider placed by a node of the model: static ground. */
+/** A collider placed by a node of the model: static ground, of the matter the node's collider
+ *  declares (`KHR_physics_rigid_bodies` `physicsMaterial`), when it declares one. */
 export interface CookedInstance {
   node: number;
   collider: number;
   position: [number, number, number];
   rotation: [number, number, number, number];
   scale: [number, number, number];
+  friction?: number;
+  restitution?: number;
 }
 
 /** The whole file. */
@@ -50,8 +55,6 @@ export interface CookedPhysics {
   stage: { name: string; version: number };
   colliders: CookedCollider[];
   instances: CookedInstance[];
-  /** Bodies the source declares (`KHR_physics_rigid_bodies`), as cooked. */
-  bodies: unknown[];
   report: Record<string, number>;
 }
 

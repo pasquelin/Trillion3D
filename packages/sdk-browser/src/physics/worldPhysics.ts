@@ -1,4 +1,6 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
+import { Waves } from '../../../sdk-core/src/fluids/waves.ts';
 import {
   DEFAULT_PHYSICS_BUDGET,
   GRAVITY_PRESETS,
@@ -8,8 +10,9 @@ import {
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
-import type { Object3D, SceneLink } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { HostCpuProfile } from '../host/cpuProfile.ts';
+import { physicsLink } from './physicsLink.ts';
 import type { PhysicsSession } from './session.ts';
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts';
 
@@ -43,6 +46,7 @@ export function createWorldPhysics(
     loading: Promise<typeof import('./session.ts')> | null = null,
     paused = false,
     timeScale = 1,
+    water: WaterSpec | null = null,
     error: EngineError | null = null,
     /** Told when a session starts or ends: the character's body changes with it. */
     watcher: (() => void) | null = null;
@@ -72,6 +76,7 @@ export function createWorldPhysics(
         // The session sizes its arrays from the budget: a copy of it, frozen, for its whole life.
         session = createPhysicsSession(root, Object.freeze({ ...budget }), invalidate, failed);
         session.writer.gravity(gravity.elements);
+        if (water) session.setWater(water);
         clock();
         watcher?.();
       },
@@ -122,6 +127,19 @@ export function createWorldPhysics(
       timeScale = scale;
       clock();
     },
+    /** The water the bodies float in: its level, its waves, its density and drags. A body
+     *  lighter than the water floats, pushed by the weight of the water it displaces.
+     *  @defaultValue null (no water) */
+    get water(): WaterSpec | null {
+      return water;
+    },
+    set water(spec: WaterSpec | null) {
+      // Resolved here once, so a wrong wave throws on the page, not in the worker.
+      if (spec) new Waves(spec.waves);
+      water = spec;
+      session?.setWater(spec);
+      invalidate();
+    },
     /** Counts and both clocks: worker milliseconds per step, page milliseconds per frame. */
     get stats(): Readonly<PhysicsStats> {
       return session?.stats ?? stopped;
@@ -170,27 +188,3 @@ export function createWorldPhysics(
 
 /** `world.physics`. */
 export type WorldPhysics = ReturnType<typeof createWorldPhysics>['handle'];
-
-/** The scene link a world's runtime set, with the physics told of every change too; what else
- *  that link answers (the scene's `background`) is kept. */
-function physicsLink(link: SceneLink | null, physics: Omit<SceneLink, 'posed'>): SceneLink {
-  return {
-    ...link,
-    pose(node) {
-      link?.pose(node);
-      physics.pose(node);
-    },
-    // Only the physics places nodes by the batch: nothing to tell it of its own writes.
-    posed(nodes) {
-      link?.posed(nodes);
-    },
-    structure(node) {
-      link?.structure(node);
-      physics.structure(node);
-    },
-    content(node) {
-      link?.content(node);
-      physics.content(node);
-    },
-  };
-}
