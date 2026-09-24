@@ -1,10 +1,9 @@
-import {
-  LIGHT_SETTINGS,
-  MAX_SHADOW_SLICES,
-  SHADOW_RECORD_FLOATS,
-} from '../../../../sdk-core/src/index.ts';
+import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
 import type { ShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import {
+  SHADOW_PAGE,
+  SHADOW_TABLE_ENTRIES,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
@@ -46,7 +45,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
   });
   const dataBuffer = device.createBuffer({
     label: 'Trillion3D shadow records and page table v1',
-    size: RECORD_BYTES + LIGHT_SETTINGS.shadowTableEntries * 4,
+    size: RECORD_BYTES + SHADOW_TABLE_ENTRIES * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const requestBuffer = device.createBuffer({
