@@ -18,6 +18,7 @@ import { sceneMaterialClasses } from '../../row/pageRowMaterial.ts';
 import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from '../../../scene/surfaceBuffer.ts';
 import { dropGpuHiz, dropVis, grantCapability } from '../io/drops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from '../runtime.ts';
+import { isCancelled } from '../../../backend/common.ts';
 
 /** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
  *  pyramid and the indirect draw; leaves `visEnabled` telling whether the image can use them. */
@@ -75,6 +76,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       variant,
     );
   } catch (error) {
+    if (isCancelled(rt.signal)) throw error;
     diag.diagnosticFailure('hiz-pipeline-fallback', error);
     dropGpuHiz(rt);
     rasterPipelines = await createWebgpuVisibilityRasterPipelines(

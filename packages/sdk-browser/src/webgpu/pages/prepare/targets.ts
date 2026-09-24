@@ -23,7 +23,8 @@ export function frameTargetAllocation(
   height: number,
   additional = 0,
 ) {
-  const { gpuDevice, reserveHiz } = rt.setup;
+  const { reserveHiz } = rt.setup,
+    gpuDevice = rt.gpu.device;
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
   checkSurfaceSize(gpuDevice, width, height, 1);
   return frameTargetBytes(width, height, reserveHiz) + additional;
