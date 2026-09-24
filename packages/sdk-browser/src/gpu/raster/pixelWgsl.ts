@@ -66,6 +66,15 @@ fn coverAt(t:Tri,sample:vec2f)->vec4f{
  }
  return vec4f(0.0,0.0,0.0,-1.0);
 }
+/** Screen gradients (per pixel in x, then y) of the perspective-correct coordinate \`uv\` at a
+ *  pixel of triangle \`(a,b,c)\`, of clip \`1/w\` \`q\`, vertex coordinates \`u0..u2\` and
+ *  \`inv\`, the sum of weight times \`q\`: the derivatives a fragment reads, exact at the pixel. */
+fn uvFootprint(a:vec2f,b:vec2f,c:vec2f,q:vec3f,u0:vec2f,u1:vec2f,u2:vec2f,uv:vec2f,inv:f32)->mat2x2f{
+ let e1=b-a;let e2=c-a;let det=e1.x*e2.y-e1.y*e2.x;
+ let wx=vec3f(e1.y-e2.y,e2.y,-e1.y)/det;let wy=vec3f(e2.x-e1.x,-e2.x,e1.x)/det;
+ let d0=(u0-uv)*q.x;let d1=(u1-uv)*q.y;let d2=(u2-uv)*q.z;
+ return mat2x2f((d0*wx.x+d1*wx.y+d2*wx.z)/inv,(d0*wy.x+d1*wy.y+d2*wy.z)/inv);
+}
 fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  // The only frame bound of the whole raster: thread tiles overshoot the triangle box as soon as
  // it is not a round count, and the box is already clamped to the last pixel of the frame.
@@ -85,7 +94,14 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  if((page.flags&128u)!=0u){
   let inv=wa/t.ca.w+wb/qb.w+wc/qc.w;
   let tc=(t.ua*(wa/t.ca.w)+nb*(wb/qb.w)+nc*(wc/qc.w))/inv;
-  if(!maskKeep(page,tc,vec2f(0.0),vec2f(0.0),0.0)){return;}
+  // Hard cutout at level 0 unless the image accumulates; then the stipple at the footprint.
+  var gx=vec2f(0.0);var gy=vec2f(0.0);var stipple=0.0;
+  if(uni.stipple!=0u){
+   let second=cov.w>0.5;
+   let g=uvFootprint(t.a,select(t.b,t.c,second),select(t.c,t.d,second),1.0/vec3f(t.ca.w,qb.w,qc.w),t.ua,nb,nc,tc,inv);
+   gx=g[0];gy=g[1];stipple=stippleOffset(sample);
+  }
+  if(!maskKeep(page,tc,gx,gy,stipple)){return;}
  }
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
  let raw=bitcast<u32>(depth);
