@@ -24,18 +24,13 @@ import { holdsEvery, inCellFrame, planCells, residentRows } from './plan.ts';
 import { capacityOf, releaseRow, rowLocal, rowsFree, sizeRows, takeRow } from './rows.ts';
 import type { PlacedMesh, RowLink } from './rows.ts';
 
-type Read = (url: string) => Promise<Uint8Array>;
 type Placement = { mesh: PlacedMesh; row: number; parent: GraphNode; local: Float64Array };
 type Inputs = {
   partition: TablePartition;
-  /** The folder the tables were read from. */
-  base: string;
-  /** The prepared scene's root: the parent of a cell node the tables hang on the scene. */
-  root: GraphNode;
-  /** The host node of each core rank. */
-  parents: readonly GraphNode[];
-  /** The placed mesh of each mesh rank the cells place. */
-  meshes: ReadonlyMap<number, PlacedMesh>;
+  /** The folder the tables were read from. */ base: string;
+  /** The prepared scene's root: where the tables hang a cell node. */ root: GraphNode;
+  /** The host node of each core rank. */ parents: readonly GraphNode[];
+  /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>;
 };
 
 const product = new Float64Array(MATRIX_VALUES);
@@ -176,7 +171,12 @@ export function createPartitionCells(inputs: Inputs) {
     },
     /** Before the engines read the rows: sizes them for the camera at `eye` or the largest reach a
      *  frame asked (every cell unless `owned`), then places the cells within reach; bytes read. */
-    async prime(eye: ArrayLike<number>, reach: number, read: Read, owned: boolean) {
+    async prime(
+      eye: ArrayLike<number>,
+      reach: number,
+      read: (url: string) => Promise<Uint8Array>,
+      owned: boolean,
+    ) {
       const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
       const plan = planCells(boxes(), local.eye, local.reach, new Set(held.keys()));
       plan.leave.forEach(leave);
