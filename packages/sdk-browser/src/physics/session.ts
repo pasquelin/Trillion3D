@@ -64,7 +64,7 @@ export function createPhysicsSession(
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
     const moved = poses.receive(words, m.poses, bodies, ms);
     emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
-    waves.received(m.seconds, began);
+    waves.received(m.water, m.active, began);
     if (m.character) character.hear?.(m.character);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
     const changed = moved > 0 || m.active !== stats.active || m.character !== null;
@@ -106,6 +106,7 @@ export function createPhysicsSession(
     characterBody: createPhysicsCharacter.bind(null, character),
     /** Pauses or scales the simulation's time; a scale of 0 stands still, like a pause. */
     setClock(paused: boolean, timeScale: number) {
+      waves.retime();
       Object.assign(clock, { paused, timeScale });
       worker.postMessage({ type: 'clock', paused: paused || timeScale === 0, timeScale });
     },

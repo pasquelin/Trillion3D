@@ -58,6 +58,9 @@ export interface PhysicsResults {
   /** Fixed steps taken, and the simulated seconds they cover. */
   steps: number;
   seconds: number;
+  /** Simulated seconds the water's waves have run since it was set, after the tick (0 without
+   *  water): the clock buoyancy used, read by the page to draw the same waves. */
+  water: number;
   /** Worker milliseconds spent in the module during this tick: its own clock, never the page's. */
   stepMs: number;
   /** Bodies awake after the tick. */

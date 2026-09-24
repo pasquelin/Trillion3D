@@ -919,7 +919,7 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
   never where; setting or removing it wakes every dynamic body. A wave out of range throws
   `RangeError`. `world.physics.waterSurface` reads those same waves at the simulation's time, to
-  draw them: `height(x, z)`, `point(x, z, out)` (where a rest point of a grid is carried),
+  draw them (they run on while every body sleeps, and stand still when paused): `height(x, z)`, `point(x, z, out)` (where a rest point of a grid is carried),
   `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
   goes on from where it is. Live: [floating crates](../site/examples/floating-crates.html).
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
