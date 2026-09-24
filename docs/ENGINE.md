@@ -257,7 +257,10 @@ A world keeps its device across sessions, and each session creates through its o
 (`gpu/core/sessionHandle.ts`, `gpu/core/deviceOwners.ts`), which tags every label. `dispose` releases
 the handle before anything else, and a released handle is inert: its `create*` throw an `AbortError`,
 so a preparation still running stops there (cancelled, torn down once after it stopped), and its
-queue writes and submits nothing. What a closed session submitted before may still raise an error:
+queue writes and submits nothing. From `dispose` on, the backend reads as lost: its audits and
+digests answer `null`. The device's error scopes are one stack every session shares: each creation
+path closes the scope it opened in every case, an abort included (`gpu/core/errorScope.ts`), so no
+scope is left to swallow the next session's errors. What a closed session submitted before may still raise an error:
 one that names only closed sessions' objects is a console warning and a `gpu-closed-session-error`
 diagnostic (`kind: 'warning'`, `message`) for the live session, or for the next one to claim the
 device when none is live. An uncaptured error is otherwise a loss for the live session whose objects

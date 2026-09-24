@@ -1,6 +1,6 @@
 import { REST_COMPACT_SHADER, REST_COMPACT_WORKGROUP } from './restCompactWgsl.ts';
 import { MAX_DRAW_SLOTS } from '../draw/draw.ts';
-import { openValidation, validationError } from '../core/errorScope.ts';
+import { validated } from '../core/errorScope.ts';
 import { cleanupFailedHiz } from '../hiz/pipelines.ts';
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
@@ -53,28 +53,25 @@ export async function createGpuRestCompact(
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
     owned = [uniforms, last];
-    openValidation(device);
-    const layout = bounceLayout(device, [
-      'read-only-storage',
-      'storage',
-      'read-only-storage',
-      'read-only-storage',
-      'read-only-storage',
-      'storage',
-      'uniform',
-    ]);
-    const module = device.createShaderModule({ code: REST_COMPACT_SHADER });
-    if (await shaderFailed(device, module)) return bail();
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-    const markPipeline = device.createComputePipeline({
-      layout: pipelineLayout,
-      compute: { module, entryPoint: 'restMark' },
+    const made = await validated(device, async () => {
+      const layout = bounceLayout(device, [
+        'read-only-storage',
+        'storage',
+        'read-only-storage',
+        'read-only-storage',
+        'read-only-storage',
+        'storage',
+        'uniform',
+      ]);
+      const module = device.createShaderModule({ code: REST_COMPACT_SHADER });
+      if (await shaderFailed(module)) return undefined;
+      const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+      const stage = (entryPoint: string) =>
+        device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
+      return { layout, markPipeline: stage('restMark'), applyPipeline: stage('restApply') };
     });
-    const applyPipeline = device.createComputePipeline({
-      layout: pipelineLayout,
-      compute: { module, entryPoint: 'restApply' },
-    });
-    if (await validationError(device)) return bail();
+    if (!made) return bail();
+    const { layout, markPipeline, applyPipeline } = made;
     const uniData = new Uint32Array(4);
     let disposed = false,
       boundPages: GPUBuffer | undefined,
@@ -118,7 +115,7 @@ export async function createGpuRestCompact(
       },
     };
   } catch {
-    await cleanupFailedHiz(device, owned);
+    cleanupFailedHiz(owned);
     return undefined;
   }
 }

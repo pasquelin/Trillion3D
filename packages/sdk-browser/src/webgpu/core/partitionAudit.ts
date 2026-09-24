@@ -51,7 +51,7 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
   const partition = rt.vis.gpuPartition,
     device = rt.gpu.device,
     frame = partition?.lastFrame;
-  if (!partition || !device || !frame) return null;
+  if (rt.run.lost || !partition || !device || !frame) return null;
   const { rows } = frame;
   if (rows < 1) return null;
   const words = await partition.readRowData(rows);

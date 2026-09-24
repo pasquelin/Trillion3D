@@ -4,6 +4,7 @@ import { readPartitionAudit } from '../core/partitionAudit.ts';
 import { readTransparentOcclusionAudit } from '../transparent/occlusionAudit.ts';
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import type { BackendFactory } from '../../backend/types.ts';
+import { isCancelled } from '../../backend/common.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
 import { prepareWebgpuBackend } from './prepare/prepare.ts';
 import { setWebgpuBounce } from './prepare/bounce.ts';
@@ -29,7 +30,8 @@ import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
-import { claimWebgpuDevice } from './io/lost.ts';
+import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
+import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
 
@@ -49,6 +51,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
+    signal: rt.signal,
     scene: setup.scene,
     get presentedSurface() {
       // The host canvas needs no composition: the engine already presented into it. A lost or
@@ -89,15 +92,16 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       const { gpuDevice } = context;
       if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
       // The session creates through its own handle, whose labels name it; the allocation ledger
-      // sits on it, above the tags.
+      // sits on it, above the tags, and carries the device's, which counts the shared caches.
       claim = claimWebgpuDevice(rt, gpuDevice);
-      installGpuDeviceLedger(claim.device);
+      const base = installGpuDeviceLedger(gpuDevice, { counts: namesNoSession });
+      installGpuDeviceLedger(claim.device, { base });
       const building = prepareWebgpuBackend(rt, claim.device);
       preparing = building.catch(() => {});
       try {
         await building;
       } catch (error) {
-        if (!rt.signal.aborted) diag.diagnosticFailure('webgpu-prepare-failed', error);
+        if (!isCancelled(rt.signal)) diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
       } finally {
         preparing = undefined;
@@ -179,14 +183,14 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     shadowAtlasDigest() {
       const device = rt.gpu.device;
-      if (!device || !rt.lights.shadows) return Promise.resolve(null);
+      if (rt.run.lost || !device || !rt.lights.shadows) return Promise.resolve(null);
       return readShadowAtlasDigest(device, rt.lights.shadows);
     },
     dispose() {
-      // Inert at once: what still runs stops at its next creation or wait. Torn down once, after
-      // the preparation stopped, so that nothing it built outlives the backend.
+      // Inert and read as lost at once; torn down once, after the preparation stopped.
       rt.closer.abort();
       claim?.release();
+      markWebgpuLost(rt);
       return (closing ??= preparing
         ? preparing.then(() => disposeWebgpuPages(rt))
         : disposeWebgpuPages(rt));
