@@ -48,7 +48,6 @@ export const PUBLIC_FAMILIES =
 // `tests/integration/engine-without-three-math.test.ts`.
 export const AUTORISES: Record<string, string> = {
   // Test-scene mounts that walk the host graph.
-  'cluster/batches.fixture': 'batch-witness mount',
   'page/selection/blend.fixture': 'test-scene mount: it sets the camera and materials',
   'page/selection/dag.fixture': 'test-scene mount: it sets the camera and materials',
   'webgpu/pages/pagedQuad.fixture': 'test-scene mount: the quad clustered into quantized pages',
@@ -83,8 +82,9 @@ export const DECLARATION: Record<string, string> = {
   'placement/webglPageBatches':
     'WebGL2 page path: the pages rows place are drawn instanced, one mesh per page and declaration',
   'host/pageObjects': 'boundary: the declaration it gives back to the library that draws it',
-  'cluster/batchUpdate': 'the WebGL2 draw record hands the declaration to the host renderer',
-  'cluster/batches.fixture': 'batch-witness mount',
+  'bench/witnesses/exact/batches/batchUpdate':
+    'exact witness: its draw record hands the declaration to the host renderer',
+  'bench/witnesses/exact/batches/batches.fixture': 'batch-witness mount',
   'bench/witnesses/exact/materials': 'exact witness: the host material each page is drawn with',
   'webgl/cluster/compatibility': 'the admission gate reads the declaration it refuses',
 

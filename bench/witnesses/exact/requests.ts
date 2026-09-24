@@ -21,7 +21,7 @@ import {
   createArrivalSpecs,
 } from '../../../packages/sdk-browser/src/page/integration/arrivalSpecs.ts';
 import type { ArrivalPlan } from '../../../packages/sdk-browser/src/page/integration/host.ts';
-import { ClusterBatches } from '../../../packages/sdk-browser/src/cluster/batches.ts';
+import { ClusterBatches } from './batches/batches.ts';
 
 export function createExactPagesRequestData(allPages: PageRec[], requestCount: number) {
   const byUrl = indexPagesByUrl(allPages);
