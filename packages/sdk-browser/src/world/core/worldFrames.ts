@@ -37,7 +37,7 @@ function named(m: FrameMetrics): WorldFrameMetrics {
   const total = m.shadowPagesTotal,
     pending = m.shadowPagesPending;
   return Object.assign(m, {
-    gpuFrameMs: m.gpuMs,
+    gpuFrameMs: m.gpuFrameMs ?? null,
     hizCulled: m.hizRejectedClusters ?? null,
     shadowPagesResident: total != null && pending != null ? total - pending : null,
   });
@@ -52,7 +52,6 @@ export const NOT_DRAWN: Readonly<WorldFrameMetrics> = Object.freeze({
   rafIntervalMs: null,
   cpuFrameMs: 0,
   cpuSubmitMs: null,
-  gpuMs: null,
   drawCalls: null,
   triangles: null,
   clusters: null,

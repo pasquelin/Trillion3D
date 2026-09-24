@@ -80,3 +80,13 @@ test('a frame steps the controls, then the before hooks, then draws, then the af
   frames.step(controls, scene);
   assert.deepEqual(order, []);
 });
+
+test('the GPU frame time the engine measured reaches the page; an unmeasured one stays null', () => {
+  const frames = createWorldFrames();
+  const seen: (number | null)[] = [];
+  frames.add((frame) => seen.push(frame.metrics.gpuFrameMs));
+  frames.dispatch({ ...NOT_DRAWN, gpuFrameMs: 3.2 });
+  const { gpuFrameMs: _, ...unmeasured } = NOT_DRAWN;
+  frames.dispatch(unmeasured);
+  assert.deepEqual(seen, [3.2, null]);
+});

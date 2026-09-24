@@ -42,7 +42,6 @@ export type GpuFrameMs = number | null;
   /** Time between two frames. */ rafIntervalMs: number | null;
   /** CPU time of the frame. */ cpuFrameMs: number;
   /** CPU time to send the work. */ cpuSubmitMs: number | null;
-  /** GPU time of the frame. */ gpuMs: number | null;
   /** Draw calls of this frame, as the engine counted them. `null` when it has not counted
    *  them: a zero would read as a frame with no draw. */
   drawCalls: number | null;
@@ -127,7 +126,8 @@ export type GpuFrameMs = number | null;
   streamingError?: string | null;
   /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
   gpuPassMs?: GpuPassTimings | null;
-  /** GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */
+  /** GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. Null
+   *  on a device without `timestamp-query` and on WebGL2, which times no frame into the metrics. */
   gpuFrameMs?: GpuFrameMs;
   /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
    *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */

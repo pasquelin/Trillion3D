@@ -4284,11 +4284,6 @@
         "desc": "CPU time to send the work."
       },
       {
-        "name": "gpuMs",
-        "type": "number | null",
-        "desc": "GPU time of the frame."
-      },
-      {
         "name": "drawCalls",
         "type": "number | null",
         "desc": "Draw calls of this frame, as the engine counted them. `null` when it has not counted them: a zero would read as a frame with no draw."
@@ -4451,7 +4446,7 @@
       {
         "name": "gpuFrameMs?",
         "type": "GpuFrameMs | undefined",
-        "desc": "GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field."
+        "desc": "GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. Null on a device without `timestamp-query` and on WebGL2, which times no frame into the metrics."
       },
       {
         "name": "gpuHostGapMs?",
@@ -17065,11 +17060,6 @@
         "desc": "CPU time to send the work."
       },
       {
-        "name": "gpuMs",
-        "type": "number | null",
-        "desc": "GPU time of the frame."
-      },
-      {
         "name": "drawCalls",
         "type": "number | null",
         "desc": "Draw calls of this frame, as the engine counted them. `null` when it has not counted them: a zero would read as a frame with no draw."
@@ -17232,7 +17222,7 @@
       {
         "name": "gpuFrameMs",
         "type": "number | null",
-        "desc": "GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field."
+        "desc": "GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. Null on a device without `timestamp-query` and on WebGL2, which times no frame into the metrics."
       },
       {
         "name": "gpuHostGapMs?",
