@@ -1907,5 +1907,17 @@
         "1000": "1,000"
       }
     }
+  },
+  "walk-with-collisions": {
+    "banner": "Click to look around, then walk with W A S D and jump with Space: climb the stairs and the ramp, ride the platform, push the boxes.",
+    "controls": {
+      "pushStrength": "Push strength (N)",
+      "platformSpeed": "Platform speed",
+      "stackAgain": "Stack again"
+    },
+    "readouts": {
+      "awake": "Awake",
+      "speed": "Speed"
+    }
   }
 }

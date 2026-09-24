@@ -1,6 +1,7 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
+  CHARACTER_STATE_WORDS,
   EVENT_WORDS,
   MODULE_ERROR,
   POSE_WORDS,
@@ -28,6 +29,7 @@ interface JoltExports {
   jolt_error(): number;
   jolt_active_count(): number;
   jolt_owed_leaves(): number;
+  jolt_character(): number;
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
@@ -77,8 +79,8 @@ export async function openJolt(
  */
 export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget, threads = 1) {
   const jolt = exports as unknown as JoltExports;
-  if (budget.bodies > BODY_INDEX + 1)
-    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX + 1}.`);
+  if (budget.bodies > BODY_INDEX)
+    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX}.`);
   jolt._initialize();
   const { bodies, bodyPairs, contactConstraints } = budget;
   if (jolt.jolt_init(bodies, bodyPairs, contactConstraints, TEMP_BYTES, threads) !== 0)
@@ -122,6 +124,8 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     refused: () =>
       Array.from({ length: jolt.jolt_refused_count() }, (_, i) => jolt.jolt_refused(i)),
     active: () => jolt.jolt_active_count(),
+    /** The character's state after the last step (`CHARACTER_STATE_WORDS`). */
+    character: () => new Float32Array(memory.buffer, jolt.jolt_character(), CHARACTER_STATE_WORDS),
     /** Leaves a full event buffer held back: the next step sends them first. */
     owedLeaves: () => jolt.jolt_owed_leaves(),
     /** Whether the memory has grown to its budget: a trap then is the budget, not a fault. */
