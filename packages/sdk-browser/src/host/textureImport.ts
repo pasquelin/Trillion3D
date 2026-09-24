@@ -1,8 +1,8 @@
 /**
  * The engine record of a host texture, read in one place — here — and kept ONE per host texture:
  * atlas layers, preview ranks and lane pools address a texture by the identity of its record, so
- * the record is refilled in place, once per image, by `followHostTexture`, called by each consumer
- * on the records it holds. Its three counters say what moved: `version` (the picture), `sampling`,
+ * the record is refilled in place by `followHostTexture`, called by each consumer on the records
+ * it holds when it renders. Its three counters say what moved: `version` (the picture), `sampling`,
  * `placement` (#360, #361).
  */
 import type { HostTexture } from './resources.ts';
@@ -35,8 +35,7 @@ function filterOf(filter: number): TextureFilter {
 type Editable = { -readonly [K in keyof Texture]: Texture[K] };
 /**
  * A record and what it was last filled from: the host's version and image, and the placement
- * its matrix was composed from (`placed`); `stale` when the host disposed of it since, and the
- * image it was last followed at (`followed`).
+ * its matrix was composed from (`placed`); `stale` when the host disposed of it since.
  */
 type Imported = {
   host: HostTexture;
@@ -45,7 +44,6 @@ type Imported = {
   image: unknown;
   placed: Float64Array;
   stale: boolean;
-  followed: number;
 };
 /** One record per host texture, for as long as the host keeps it: an identity table, never
  *  walked — each consumer follows the records it holds. */
@@ -73,6 +71,16 @@ function fillPicture(entry: Imported) {
   record.colorSpace = host.colorSpace === 'srgb' ? 'srgb' : 'linear';
   entry.hostVersion = host.version;
   entry.image = host.image;
+}
+
+/** Refills the record's picture when its host's version or image moved, or the host disposed of
+ *  it since — `version` moves then. */
+function followPicture(entry: Imported) {
+  const { host } = entry;
+  if (!entry.stale && entry.hostVersion === host.version && entry.image === host.image) return;
+  entry.stale = false;
+  fillPicture(entry);
+  entry.record.version++;
 }
 
 /** Refills the record's sampler fields; 1 when one moved. */
@@ -122,31 +130,21 @@ function fillPlacement(host: HostTexture, placed: Float64Array) {
 }
 
 /**
- * The image a follow belongs to: one per task — the host's animation-frame callback renders
- * every engine of its image in one —, opened by the first follow of the task and closed after
- * it. A record is brought up to its host once per image, whichever engine asks first.
- */
-let image = 0,
-  imageOpen = false;
-function currentImage() {
-  if (!imageOpen) {
-    imageOpen = true;
-    image++;
-    queueMicrotask(() => (imageOpen = false));
-  }
-  return image;
-}
-
-/**
  * The engine record of a host texture: built once, its UV matrix composed at once — a
  * `KHR_texture_transform` is read at load (`../scene/tables.ts`) —, then brought up to its host
- * once per image by `followHostTexture`. The record ALIASES the host's UV matrix (`transform`).
- * A host that disposes of a texture it still draws keeps its record: the picture is sent again at
- * the next follow, as the host's own renderer uploads it again at its next use.
+ * by `followHostTexture`. A held record is handed back with its picture current — a new version
+ * or image read, the matrix left to the follow —, so what reads it at prepare (`tileCatalogue`)
+ * or on the CPU (`../visibility/math.ts`, `../visibility/raster.ts`) reads the host's image. The
+ * record ALIASES the host's UV matrix (`transform`). A host that disposes of a texture it still
+ * draws keeps its record: the picture is sent again at the next follow, as the host's own
+ * renderer uploads it again at its next use.
  */
 export function importHostTexture(host: HostTexture): Texture {
   const held = imported.get(host);
-  if (held) return held.record;
+  if (held) {
+    followPicture(held);
+    return held.record;
+  }
   const entry: Imported = {
     host,
     record: Object.assign({} as Editable, {
@@ -159,7 +157,6 @@ export function importHostTexture(host: HostTexture): Texture {
     image: undefined,
     placed: new Float64Array(7).fill(NaN),
     stale: false,
-    followed: 0,
   };
   fillPicture(entry);
   fillSampling(entry.record, host);
@@ -171,24 +168,19 @@ export function importHostTexture(host: HostTexture): Texture {
 }
 
 /**
- * Brings a record up to its host, once per image, before a consumer reads it — as the host's own
+ * Brings a record up to its host at every render of a consumer that holds it — as the host's own
  * renderer reads its textures at every draw: a new version, image or disposal, a sampler field, a
- * placement, a filter written after `needsUpdate` included. Its three counters, monotonic, say
- * what moved (`version`: the picture, `sampling`, `placement`); each consumer compares them with
- * the ones it last read. A record that no host texture made is left as it is.
+ * placement, a filter written after `needsUpdate` included. A few comparisons when nothing moved,
+ * so its cost is that of the textures the consumer holds, and a second render in the same task
+ * reads what changed between the two. Its three counters, monotonic, say what moved (`version`:
+ * the picture, `sampling`, `placement`); each consumer compares them with the ones it last read.
+ * A record that no host texture made is left as it is.
  */
 export function followHostTexture(record: Texture) {
   const entry = byRecord.get(record);
   if (!entry) return;
-  const now = currentImage();
-  if (entry.followed === now) return;
-  entry.followed = now;
   const { host, record: into } = entry;
-  if (entry.stale || entry.hostVersion !== host.version || entry.image !== host.image) {
-    entry.stale = false;
-    fillPicture(entry);
-    into.version++;
-  }
+  followPicture(entry);
   if (fillSampling(into, host)) into.sampling++;
   if (fillPlacement(host, entry.placed)) into.placement++;
 }

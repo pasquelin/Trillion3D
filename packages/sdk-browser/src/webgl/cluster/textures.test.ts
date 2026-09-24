@@ -92,3 +92,29 @@ test('a placement moved without a version uploads nothing', () => {
   binder.bind(0, map);
   assert.equal(calls.uploads, 1);
 });
+
+// The sampler is written on the ACTIVE unit's texture: a texture already bound on unit 1 while
+// unit 0 was active last must select unit 1 before its parameters.
+test('a sampler change selects the unit of its texture, already bound or not', () => {
+  const { gl } = context();
+  let active = -1;
+  const onUnit: number[] = [];
+  Object.assign(gl, {
+    TEXTURE0: 0x84c0,
+    activeTexture: (unit: number) => void (active = unit - 0x84c0),
+    texParameteri: () => void onUnit.push(active),
+  });
+  const binder = new WebglClusterTextures(gl);
+  const first = record({ id: 'first' }),
+    second = record({ id: 'second' });
+  binder.bind(1, second);
+  binder.bind(0, first);
+  onUnit.length = 0;
+  Object.assign(second, { sampling: 1, wrapS: 'repeat' });
+  binder.bind(1, second);
+  assert.ok(onUnit.length > 0, 'the sampler set again');
+  assert.ok(
+    onUnit.every((unit) => unit === 1),
+    `parameters written on units ${onUnit}`,
+  );
+});
