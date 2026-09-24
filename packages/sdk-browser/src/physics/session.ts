@@ -106,8 +106,13 @@ export function createPhysicsSession(
       Object.assign(clock, { paused, timeScale });
       worker.postMessage({ type: 'clock', paused: paused || timeScale === 0, timeScale });
     },
-    /** The water the bodies float in, or none: buoyancy runs in the worker, before each step. */
-    setWater: (water: WaterSpec | null) => worker.postMessage({ type: 'water', water }),
+    /** The water the bodies float in, or none: buoyancy runs in the worker, before each step, on
+     *  the awake bodies; every dynamic body is woken, so one at rest floats or falls. */
+    setWater(water: WaterSpec | null) {
+      worker.postMessage({ type: 'water', water });
+      for (const mesh of bodies.meshes)
+        if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
+    },
     /** The scene's tree changed: bodies are reconciled before the next frame. */
     structure() {
       dirty = true;
