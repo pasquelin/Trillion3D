@@ -3,7 +3,7 @@
 // so the table carries exactly the same floats as the pre-lot-C formula, reproduced here as-is as
 // an explicit oracle. The expected equality is bit-exact (`Object.is`), with no tolerance.
 import type { Texture } from '../../../sdk-core/src/index.ts';
-import { followHostTexture, importHostTexture } from '../host/surfaceImport.ts';
+import { followHostTextures, importHostTexture } from '../host/textureImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -141,6 +141,7 @@ test('an image replaced by a new buffer yields new bytes, identical to the refer
   host.image = { data: new Uint8Array(16).map((_, i) => i & 255), width: 2, height: 2 };
   const premier = textureRgba(importHostTexture(host));
   host.image = { data: new Uint8Array(16).fill(7), width: 2, height: 2 };
+  followHostTextures();
   const imported = importHostTexture(host);
   const second = textureRgba(imported);
   assert.notEqual(second, premier, 'a new source buffer invalidates the cache');
@@ -153,6 +154,7 @@ test('a subview of the same buffer (different offset or length) is never confuse
   map.image = { data: buffer.subarray(0, 16), width: 2, height: 2 };
   const premier = textureRgba(importHostTexture(map));
   map.image = { data: buffer.subarray(4, 20), width: 2, height: 2 }; // same buffer, other offset
+  followHostTextures();
   const imported = importHostTexture(map);
   const second = textureRgba(imported);
   assert.notEqual(second, premier, 'a different offset on the same buffer invalidates the cache');
@@ -165,6 +167,7 @@ test('the same width/height but an image resized without changing buffer also in
   map.image = { data: buffer, width: 4, height: 4 };
   const premier = textureRgba(importHostTexture(map));
   map.image = { data: buffer, width: 8, height: 2 }; // same buffer, different dimensions
+  followHostTextures();
   const imported = importHostTexture(map);
   const second = textureRgba(imported);
   assert.notEqual(second, premier);
@@ -183,7 +186,7 @@ test('a map is read through its UV transform, the raw coordinate when it is the 
   host.repeat.set(2, 1);
   host.needsUpdate = true;
   const repeated = importHostTexture(host);
-  followHostTexture(repeated);
+  followHostTextures();
   assert.deepEqual(sampleLinear(repeated, 0.3, 0.5), before);
   assert.deepEqual(sampleLinear(repeated, 0.8, 0.5), before, 'the second period');
 });

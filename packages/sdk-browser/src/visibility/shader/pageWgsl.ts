@@ -1,4 +1,3 @@
-import { WRAP_MAP } from '../wrapModes.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 
 /**
@@ -10,7 +9,7 @@ import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 /** The six `pad*Uv` are the atlas uv scales that virtual textures made useless: a texture is
  *  read in its own space. They stay at zero, never read, until the record is recompacted
  *  (Textures backlog). */
-export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,padBaseUv:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,padRoughUv:vec2f,padMetalUv:vec2f,padNormalUv:vec2f,aoIndex:u32,aoIntensity:f32,padAoUv:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,padEmissiveUv:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,wrapModes:u32,placement:u32,materialClass:u32,}`;
+export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,padBaseUv:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,padRoughUv:vec2f,padMetalUv:vec2f,padNormalUv:vec2f,aoIndex:u32,aoIntensity:f32,padAoUv:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,padEmissiveUv:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5:u32,placement:u32,materialClass:u32,}`;
 
 /** Uniform of a visibility-buffer image, the same word for word for both rasters and the
  *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. */
@@ -82,5 +81,5 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:
  // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
  // the cutout stays right at every level. A mean, itself, made the silhouette grow level after
  // level and made the quad opaque during loading.
- return maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy)>=page.baseColor.w;
+ return maskAlpha(page.mapIndex,uv,ddx,ddy)>=page.baseColor.w;
 }`;

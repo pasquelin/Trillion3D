@@ -1,5 +1,5 @@
-// Set dressing of the dispatch measurement: the measured scene, the median, and the command
-// count an encode opens. Split from the page so each of the two keeps its responsibility.
+// Set dressing of the dispatch measurement: the measured scene and the command count an
+// encode opens. Split from the page so each of the two keeps its responsibility.
 import * as THREE from 'three';
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
 import {
@@ -21,9 +21,6 @@ export function scene(feuilles: number, niveaux: number) {
   dagRecords(packed).coldInts.fill(0xffffffff, debut, debut + residentWords(packed.pageCount));
   return { packed, roots };
 }
-
-export const mediane = (valeurs: number[]): number =>
-  [...valeurs].sort((a, b) => a - b)[valeurs.length >> 1];
 
 /**
  * Commands an encode actually opens, counted on an encoder that only notes them.
