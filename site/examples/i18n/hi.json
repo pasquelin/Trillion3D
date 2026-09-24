@@ -1925,6 +1925,9 @@
         "stone": "पत्थर",
         "ice": "बर्फ़"
       }
+    },
+    "words": {
+      "credit": "इस उदाहरण के लिए कोड में बनाई गई घाटी, CC0 — देखें assets/examples/CREDITS.md"
     }
   },
   "a-walker-among-balls": {

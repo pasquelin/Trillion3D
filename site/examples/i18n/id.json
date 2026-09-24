@@ -1925,6 +1925,9 @@
         "stone": "batu",
         "ice": "es"
       }
+    },
+    "words": {
+      "credit": "Lembah dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
   },
   "a-walker-among-balls": {

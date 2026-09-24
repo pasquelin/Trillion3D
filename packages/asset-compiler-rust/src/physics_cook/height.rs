@@ -62,7 +62,7 @@ pub(crate) fn detect(pos: &[f32], source: &[u32]) -> Option<Grid> {
         samples[z * size + x] = p[1];
         point.insert(i, (x, z));
     }
-    for tri in source.chunks_exact(3) {
+    for tri in source.as_chunks::<3>().0.iter() {
         let cells: Vec<(usize, usize)> = tri.iter().map(|i| point[i]).collect();
         let span = |f: fn(&(usize, usize)) -> usize| {
             cells.iter().map(f).max().unwrap_or(0) - cells.iter().map(f).min().unwrap_or(0)

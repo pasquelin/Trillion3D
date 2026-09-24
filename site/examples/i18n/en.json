@@ -1925,6 +1925,9 @@
         "stone": "stone",
         "ice": "ice"
       }
+    },
+    "words": {
+      "credit": "Valley modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
   },
   "a-walker-among-balls": {

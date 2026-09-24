@@ -30,7 +30,9 @@ fn concavity(pos: &[f32], triangles: &[u32], planes: &[[f32; 4]]) -> f64 {
             .max(0.0)
     };
     triangles
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .flat_map(|tri| {
             let v = |k: usize| {
                 let at = tri[k] as usize * 3;
@@ -54,7 +56,7 @@ fn split(pos: &[f32], triangles: &[u32], tolerance: f64, depth: u32, out: &mut V
         return out.push(points);
     }
     let (mut min, mut max) = ([f32::MAX; 3], [f32::MIN; 3]);
-    for p in points.chunks_exact(3) {
+    for p in points.as_chunks::<3>().0.iter() {
         for a in 0..3 {
             min[a] = min[a].min(p[a]);
             max[a] = max[a].max(p[a]);
@@ -63,12 +65,13 @@ fn split(pos: &[f32], triangles: &[u32], tolerance: f64, depth: u32, out: &mut V
     let axis = (0..3)
         .max_by(|&a, &b| (max[a] - min[a]).total_cmp(&(max[b] - min[b])))
         .unwrap_or(0);
-    let centre = |tri: &[u32]| tri.iter().map(|&i| pos[i as usize * 3 + axis]).sum::<f32>() / 3.0;
-    let mut centres: Vec<f32> = triangles.chunks_exact(3).map(centre).collect();
+    let centre =
+        |tri: &[u32; 3]| tri.iter().map(|&i| pos[i as usize * 3 + axis]).sum::<f32>() / 3.0;
+    let mut centres: Vec<f32> = triangles.as_chunks::<3>().0.iter().map(centre).collect();
     let middle = centres.len() / 2;
     let cut = *centres.select_nth_unstable_by(middle, f32::total_cmp).1;
     let (mut below, mut above) = (Vec::new(), Vec::new());
-    for tri in triangles.chunks_exact(3) {
+    for tri in triangles.as_chunks::<3>().0.iter() {
         if centre(tri) < cut {
             &mut below
         } else {

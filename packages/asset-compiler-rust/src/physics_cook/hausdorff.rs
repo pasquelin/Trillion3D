@@ -92,7 +92,7 @@ impl<'a> Grid<'a> {
             cell,
             cells: HashMap::new(),
         };
-        for (t, tri) in triangles.chunks_exact(3).enumerate() {
+        for (t, tri) in triangles.as_chunks::<3>().0.iter().enumerate() {
             let (lo, hi) = tri
                 .iter()
                 .fold(([i64::MAX; 3], [i64::MIN; 3]), |(lo, hi), &i| {
@@ -114,7 +114,9 @@ impl<'a> Grid<'a> {
     }
     fn brute(&self, p: P) -> f64 {
         self.triangles
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .map(|tri| {
                 let [a, b, c] = [0, 1, 2].map(|k| at(self.pos, tri[k]));
                 triangle_distance2(p, a, b, c)

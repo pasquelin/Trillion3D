@@ -1925,6 +1925,9 @@
         "stone": "камень",
         "ice": "лёд"
       }
+    },
+    "words": {
+      "credit": "Долина смоделирована в коде для этого примера, CC0 — см. assets/examples/CREDITS.md"
     }
   },
   "a-walker-among-balls": {

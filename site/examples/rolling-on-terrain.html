@@ -16,10 +16,18 @@
         width: 100%;
         height: 100%;
       }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #1f2a37;
+        font: 12px system-ui;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
+    <p data-words="credit"></p>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
       import { controls, readout, seeded } from '../runtime/kit.js';

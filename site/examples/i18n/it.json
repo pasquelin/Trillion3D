@@ -1925,6 +1925,9 @@
         "stone": "pietra",
         "ice": "ghiaccio"
       }
+    },
+    "words": {
+      "credit": "Valle modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
     }
   },
   "a-walker-among-balls": {

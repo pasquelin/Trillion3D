@@ -1925,6 +1925,9 @@
         "stone": "đá",
         "ice": "băng"
       }
+    },
+    "words": {
+      "credit": "Thung lũng được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
   },
   "a-walker-among-balls": {
