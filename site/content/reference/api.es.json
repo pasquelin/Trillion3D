@@ -193,15 +193,6 @@
   "batch": {
     "summary": "La familia `batch`: mil matrices de una vez en lugar de un bucle, sobre los núcleos por lotes del core (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
   },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` para `count` matrices, columna por columna, dispuestas planas.",
-    "parameters": {
-      "out": "A dónde van los productos.",
-      "a": "Las matrices de la izquierda.",
-      "b": "Las matrices de la derecha.",
-      "count": "Cuántos productos."
-    }
-  },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` para `count` puntos, dispuestos tres números por punto.",
     "parameters": {
@@ -6335,7 +6326,8 @@
       "texturePoolCeiling": "La reserva de texturas más grande que un mundo puede pedir, en bytes.",
       "geometryPool": "Bytes de memoria de GPU reservados para las páginas de geometría; ajústalo para cambiar el límite.",
       "texturePool": "Bytes de memoria de GPU reservados para las páginas de textura; ajústalo para cambiar el límite.",
-      "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`."
+      "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
+      "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente."
     }
   },
   "world.diagnostic": {
