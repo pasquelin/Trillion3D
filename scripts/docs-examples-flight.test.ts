@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { exampleModules } from './docs/examples/capture.ts';
 import { Quaternion } from '../packages/sdk-core/src/world/math/quaternion.ts';
 
 type Surface = [number, number, number, number, number, number, boolean];
@@ -10,13 +11,17 @@ type Ground = ((x: number, z: number, key?: string) => [number, boolean]) & {
   send(): void;
 };
 
-/** One function of the flight example, taken from the page as it is served. */
+/**
+ * One function of the flight example, taken from the page as it is served. The whole module is
+ * parsed first: a slip anywhere in the page fails here, not only in the function taken (#534).
+ */
 async function pageFunction<T>(name: string): Promise<T> {
   const html = await readFile(
     new URL('../site/examples/fly-over-a-model-town.html', import.meta.url),
     'utf8',
   );
-  const source = new RegExp(`\\n( *)function ${name}\\([\\s\\S]*?\\n\\1}\\n`).exec(html)?.[0];
+  const [module] = await exampleModules(html);
+  const source = new RegExp(`\\n( *)function ${name}\\([\\s\\S]*?\\n\\1}\\n`).exec(module)?.[0];
   assert.ok(source, name);
   return new Function(`${source}; return ${name};`)() as T;
 }
