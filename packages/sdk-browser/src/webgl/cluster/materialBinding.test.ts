@@ -61,3 +61,20 @@ test('A host recomposition of the UV transform reaches the next bind', () => {
   assert.deepEqual(Array.from(uploaded[0].value), [...map.matrix.elements]);
   assert.equal(uploaded[0].value[6], 0.25, 'the offset the host composed is what the shader reads');
 });
+
+test('A Depth material, and it alone, shows the frame depth ramp', () => {
+  const shaded = (material: G.GraphSurface) => {
+    const flags = new Map<string, number>();
+    const { binding } = recorder();
+    (binding.uniforms as unknown as Record<string, unknown>).i1 = (
+      _: number,
+      name: string,
+      value: number,
+    ) => void flags.set(name, value);
+    bindClusterMaterial(binding, material, true);
+    return flags.get('depthShaded');
+  };
+  assert.equal(shaded(new G.GraphSurface('depth')), 1);
+  assert.equal(shaded(G.standardSurface()), 0);
+  assert.equal(shaded(G.basicSurface()), 0);
+});

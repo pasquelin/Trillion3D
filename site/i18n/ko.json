@@ -446,7 +446,6 @@
       "drag-objects": "선택(레이캐스트)",
       "edit-a-spline": "선택(레이캐스트)",
       "sound-in-space": "위치 기반 오디오",
-      "smooth-edges-over-time": "시간적 안티앨리어싱 설정",
       "tone-mapping-compared": "톤 매핑 연산자 선택",
       "a-first-post-effect": "후처리 체인",
       "a-glow-around-lights": "후처리: 블룸",

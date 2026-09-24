@@ -11,6 +11,7 @@ import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { MemoryBudgets } from '../../residency/pools.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
+import { TAA_CAPABILITY } from '../../taa/capability.ts';
 
 type Inputs = {
   check: () => void;
@@ -102,6 +103,22 @@ export function createExplorerSceneApi(inputs: Inputs) {
       const active = getActive();
       active.setBounce?.(on);
       return !!active.setBounce;
+    },
+    /** Temporal antialiasing on or off in the active engine at the next frame, no session
+     *  reopened; an engine without it (WebGL2) ignores it. */
+    setTemporalAntialiasing(on: boolean) {
+      check();
+      getActive().setTemporalAntialiasing?.(on);
+    },
+    /** Whether the active engine's image carries temporal antialiasing now: false on an engine
+     *  without it, switched off, refused by the device or while its program compiles. */
+    temporalAntialiasing() {
+      check();
+      const active = getActive();
+      return (
+        !!active.setTemporalAntialiasing &&
+        !active.capabilities.unsupported.includes(TAA_CAPABILITY)
+      );
     },
     /** The clear colour behind the scene, `0xrrggbb` or the default, on every engine of the
      *  session — each one a comparison shows, not the active one alone — at the next frame; false
