@@ -35,7 +35,8 @@ function filterOf(filter: number): TextureFilter {
 type Editable = { -readonly [K in keyof Texture]: Texture[K] };
 /**
  * A record and what it was last filled from: the host's version and image, and the placement
- * its matrix was composed from (`placed`); `stale` when the host disposed of it since.
+ * its matrix was composed from (`placed`); `stale` when the host disposed of it since;
+ * `followed`, the count of host writes it was last brought up at.
  */
 type Imported = {
   host: HostTexture;
@@ -44,7 +45,17 @@ type Imported = {
   image: unknown;
   placed: Float64Array;
   stale: boolean;
+  followed: number;
 };
+/** Host texture writes announced since the session began. */
+let hostWrites = 0;
+/** Announces a write of a host texture — picture, sampler or placement. Every engine path that
+ *  writes one calls it: the follows are driven by it, never by polling the hosts. */
+export function hostTextureWritten() {
+  hostWrites++;
+}
+/** The count of announced host writes: a consumer that saw it unchanged has nothing to follow. */
+export const hostTextureWrites = () => hostWrites;
 /** One record per host texture, for as long as the host keeps it: an identity table, never
  *  walked — each consumer follows the records it holds. */
 const imported = new WeakMap<HostTexture, Imported>();
@@ -157,28 +168,31 @@ export function importHostTexture(host: HostTexture): Texture {
     image: undefined,
     placed: new Float64Array(7).fill(NaN),
     stale: false,
+    followed: hostWrites,
   };
   fillPicture(entry);
   fillSampling(entry.record, host);
   fillPlacement(host, entry.placed);
   imported.set(host, entry);
   byRecord.set(entry.record, entry);
-  host.addEventListener?.('dispose', () => (entry.stale = true));
+  host.addEventListener?.('dispose', () => {
+    entry.stale = true;
+    hostWrites++;
+  });
   return entry.record;
 }
 
 /**
- * Brings a record up to its host at every render of a consumer that holds it — as the host's own
- * renderer reads its textures at every draw: a new version, image or disposal, a sampler field, a
- * placement, a filter written after `needsUpdate` included. A few comparisons when nothing moved,
- * so its cost is that of the textures the consumer holds, and a second render in the same task
- * reads what changed between the two. Its three counters, monotonic, say what moved (`version`:
- * the picture, `sampling`, `placement`); each consumer compares them with the ones it last read.
+ * Brings a record up to its host at a render of a consumer that holds it, once per announced host
+ * write (`hostTextureWritten`): a new version, image or disposal, a sampler field, a placement.
+ * Nothing is read in a still scene. Its three counters, monotonic, say what moved (`version`: the
+ * picture, `sampling`, `placement`); each consumer compares them with the ones it last read.
  * A record that no host texture made is left as it is.
  */
 export function followHostTexture(record: Texture) {
   const entry = byRecord.get(record);
-  if (!entry) return;
+  if (!entry || entry.followed === hostWrites) return;
+  entry.followed = hostWrites;
   const { host, record: into } = entry;
   followPicture(entry);
   if (fillSampling(into, host)) into.sampling++;
