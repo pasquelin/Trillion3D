@@ -67,7 +67,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const { sync, acceptGeometryPage } = geometryStore;
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
-  const { disposeOwnedMaterials, ...instances } = createAutonomousInstances({
+  const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
     ...tables,
     baseRoots,
     basePages,
@@ -95,7 +95,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   });
   // The fixed geometry budget, drawn by the WebGPU pool's rule; `setMemoryBudgets` redraws it.
   const pool = createAutonomousPool({
-    ...tables,
+    bootstrap,
+    byUrl,
     context,
     descriptors,
     bootstrapUrls,
@@ -104,8 +105,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     gate,
     geometryStore,
     residency,
-    instances,
-    placements,
+    instanceCount,
   });
   const renderFrame = createAutonomousRender({
     state,
@@ -143,7 +143,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
           acceptGeometryPage(url, await decodePageOffThread(bytes, context.signal));
         }),
       );
-      pool.budget.rootsChanged();
+      gate.sceneChanged(); // the root cover is held: what reads it per scene revision reads again
       ready = true;
       shown.push(...bootstrap);
       sync();
@@ -152,6 +152,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       hostDraw.render(camera);
       if (ready) renderFrame(camera);
     },
+    /** Another image while the pool's floor moves, as WebGPU asks until its cut settles. */
+    pendingFrame: async () => pool.budget.settling,
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,
     ...placements,

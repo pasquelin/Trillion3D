@@ -1,19 +1,5 @@
 import type { BackendDiagnostic } from '../../../backend/types.ts';
-
-/** One engine diagnostic to the host's observer, versioned: an error the observer throws is its
- *  own, never the frame's. */
-export function sendEngineDiagnostic(
-  onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
-  phase: string,
-  message: string,
-  details: Record<string, unknown>,
-) {
-  try {
-    onDiagnostic?.({ phase, message, context: { pipelineVersion: 1, ...details } });
-  } catch {
-    /* Observers do not control rendering. */
-  }
-}
+import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts';
 
 export function createWebgpuDiagnostics(
   onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,

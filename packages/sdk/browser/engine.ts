@@ -37,11 +37,7 @@ export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts';
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts';
 export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/flyControls.ts';
 export { framingFromBounds } from '../../sdk-browser/src/camera/framing.ts';
-export type {
-  GeometryPool,
-  PoolClamp,
-  TexturePool,
-} from '../../sdk-browser/src/webgpu/residency/memoryBudgets.ts';
+export type { GeometryPool, PoolClamp } from '../../sdk-browser/src/residency/pools.ts';
 export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapping.ts';
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
@@ -94,6 +90,7 @@ export type {
   TextureLevelReader,
   TextureLevelRequest,
 } from '../../sdk-browser/src/texture/levelReader.ts';
+export type { TexturePool } from '../../sdk-browser/src/webgpu/residency/memoryBudgets.ts';
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts';
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';

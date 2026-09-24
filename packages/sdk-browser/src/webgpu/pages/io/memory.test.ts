@@ -4,7 +4,7 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { camera, quadBackend } from '../testScenes.fixture.ts';
 import { setWebgpuMemoryBudgets } from './memory.ts';
-import { geometryPoolFor } from '../../residency/memoryBudgets.ts';
+import { geometryPoolFor } from '../../../residency/pools.ts';
 
 // The engine changes pools mid-session — what an application slider calls — without preparing
 // again and without losing the image: the report says what it actually holds.

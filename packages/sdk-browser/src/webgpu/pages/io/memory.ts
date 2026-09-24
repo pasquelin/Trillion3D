@@ -1,8 +1,5 @@
-import {
-  checkTexturePoolBudget,
-  type GeometryPool,
-  type TexturePool,
-} from '../../residency/memoryBudgets.ts';
+import type { TexturePool } from '../../residency/memoryBudgets.ts';
+import { checkTexturePoolBudget, type GeometryPool } from '../../../residency/pools.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** What a host can change mid-session; a missing field keeps its value. */

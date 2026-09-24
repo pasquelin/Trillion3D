@@ -111,6 +111,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     releaseHostSurface(painted);
   };
   return {
+    /** Classic instances held: each holds its own copy of every page geometry. */
+    instanceCount: () => instances.size,
     disposeOwnedMaterials() {
       for (const painted of owned.values()) releasePaint(painted);
       owned.clear();

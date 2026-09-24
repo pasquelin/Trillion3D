@@ -186,6 +186,10 @@ test('the WebGL2 path holds the geometry pool and publishes it in its metrics', 
     backend.render(camera);
     assert.equal(backend.metrics().geometryPoolBytes, 1);
     assert.equal(backend.metrics().submittedTriangles, 1);
+    assert.equal(await backend.pendingFrame!(), false, 'a settled pool owes no image');
+    // A classic instance holds its own copy of the page: it fills a second slot.
+    backend.addInstance!('copy', new THREE.Matrix4().toArray(new Float64Array(16)));
+    assert.equal(backend.metrics().geometryPoolSlots, 2);
   } finally {
     backend.dispose();
     geometry.dispose();

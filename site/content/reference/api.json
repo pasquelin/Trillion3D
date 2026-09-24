@@ -4822,7 +4822,7 @@
   },
   {
     "id": "GeometryPool",
-    "module": "packages/sdk-browser/src/webgpu/residency/memoryBudgets.ts",
+    "module": "packages/sdk-browser/src/residency/pools.ts",
     "exports": ["GeometryPool"],
     "section": "types",
     "kind": "Type",
@@ -10445,7 +10445,7 @@
   },
   {
     "id": "PoolClamp",
-    "module": "packages/sdk-browser/src/webgpu/residency/memoryBudgets.ts",
+    "module": "packages/sdk-browser/src/residency/pools.ts",
     "exports": ["PoolClamp"],
     "section": "types",
     "kind": "Type",

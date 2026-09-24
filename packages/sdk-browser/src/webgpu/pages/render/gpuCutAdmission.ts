@@ -1,4 +1,8 @@
-import { releasePassedFloor, stepPageBudgetLadder } from '../../residency/budgetState.ts';
+import {
+  coverageBudgetEvent,
+  releasePassedFloor,
+  stepPageBudgetLadder,
+} from '../../../residency/pageBudgetLadder.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -28,12 +32,11 @@ export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number) {
   const view = run.gate.revisions.view;
   stepPageBudgetLadder(run, pixelError, sampled, view, slots, requested, keepCount);
   if (wasLimited !== run.coverageBudgetLimited)
-    run.coverageBudgetEvent = {
-      version: 1,
-      limited: run.coverageBudgetLimited,
-      requiredSlots: requested,
+    run.coverageBudgetEvent = coverageBudgetEvent(
+      run,
+      requested,
       slots,
-      fallbackRetained: rt.services.bootstrapState.ready,
-      pixelError: sampled,
-    };
+      services.bootstrapState.ready,
+      sampled,
+    );
 }

@@ -4,30 +4,96 @@ import type { BackendContext } from '../types.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
-import { comptePagesResidentes, type createAutonomousResidency } from './residency.ts';
-import { createGeometryBudget } from './pool.ts';
-import { checkTexturePoolBudget } from '../../webgpu/residency/memoryBudgets.ts';
-import { sendEngineDiagnostic } from '../../webgpu/pages/io/diagnostics.ts';
+import type { createAutonomousResidency } from './residency.ts';
+import { createGeometryBudget, type PageCopies } from './pool.ts';
+import { checkTexturePoolBudget } from '../../residency/pools.ts';
+import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 import { hostPageBytes } from '../../host/pageObjects.ts';
 
-/** Decoded bytes `recs` hold, a geometry shared by several records counted once. */
-function heldBytes(recs: readonly PageRec[]) {
-  const seen = new Set<object>();
-  let bytes = 0;
-  for (const rec of recs)
-    if (rec.geometry && !seen.has(rec.geometry)) {
-      seen.add(rec.geometry);
-      bytes += hostPageBytes(rec.geometry);
+/**
+ * The copies each page holds once resident (`PageCopies`), from the records collected when the
+ * backend opens: those that own their geometry, and whether rows share one more. Every classic
+ * instance clones each of those records, rows only add records that share: the counts follow the
+ * instance count, and nothing is walked again after this.
+ */
+export function pageCopies(
+  byUrl: ReadonlyMap<string, readonly PageRec[]>,
+  rootUrls: ReadonlySet<string>,
+  instanceCount: () => number,
+): PageCopies {
+  const owned = new Map<string, number>(),
+    shared = new Set<string>();
+  let sceneOwned = 0,
+    rootOwned = 0,
+    rootShared = 0,
+    mostOwned = 0;
+  for (const [url, recs] of byUrl) {
+    let own = 0;
+    for (const rec of recs)
+      if (rec.placement) shared.add(url);
+      else own++;
+    owned.set(url, own);
+    sceneOwned += own;
+    mostOwned = Math.max(mostOwned, own);
+    if (rootUrls.has(url)) {
+      rootOwned += own;
+      if (shared.has(url)) rootShared++;
     }
-  return bytes;
+  }
+  const each = () => 1 + instanceCount();
+  return {
+    get generation() {
+      return instanceCount();
+    },
+    of: (url) => (owned.get(url) ?? 0) * each() + (shared.has(url) ? 1 : 0),
+    root: () => rootOwned * each() + rootShared,
+    scene: () => sceneOwned * each() + shared.size,
+    most: () => mostOwned * each() + 1,
+  };
+}
+
+/**
+ * Decoded bytes nothing may evict: the root cover and the pages the host replaced, a geometry
+ * several records share counted once. Read again only when the scene revision moves — an
+ * instance, a row growth, the root cover loaded — or the host replaces another page.
+ */
+export function heldFloorBytes(env: {
+  gate: Pick<WebglFrameGate, 'revisions'>;
+  bootstrap: readonly PageRec[];
+  modifiedPages: ReadonlySet<string>;
+  byUrl: ReadonlyMap<string, readonly PageRec[]>;
+}) {
+  const { gate, bootstrap, modifiedPages, byUrl } = env;
+  const seen = new Set<ArrayBufferView>();
+  let scene = -1,
+    modified = -1,
+    bytes = 0;
+  const add = (rec: PageRec) => {
+    if (rec.geometry) bytes += hostPageBytes(rec.geometry, seen);
+  };
+  return () => {
+    if (scene === gate.revisions.scene && modified === modifiedPages.size) return bytes;
+    scene = gate.revisions.scene;
+    modified = modifiedPages.size;
+    seen.clear();
+    bytes = 0;
+    for (const rec of bootstrap) add(rec);
+    for (const url of modifiedPages) for (const rec of byUrl.get(url) ?? []) add(rec);
+    return bytes;
+  };
+}
+
+/** Distinct pages whose geometry is resident: counted by page, as the pool evicts them. */
+export function residentPages(byUrl: ReadonlyMap<string, readonly PageRec[]>) {
+  let pages = 0;
+  for (const recs of byUrl.values()) if (recs.some((rec) => rec.array)) pages++;
+  return pages;
 }
 
 /**
  * The geometry pool wired into the WebGL2 backend (`pool.ts`): page arrivals and departures go
- * through it, what changes the root cover tells it, the host sets its budget mid-session and reads
- * it in the frame metrics.
+ * through it, the host sets its budget mid-session and reads it in the frame metrics.
  */
 export function createAutonomousPool(env: {
   context: BackendContext;
@@ -35,20 +101,14 @@ export function createAutonomousPool(env: {
   bootstrap: readonly PageRec[];
   bootstrapUrls: ReadonlySet<string>;
   modifiedPages: Set<string>;
-  allPages: readonly PageRec[];
   byUrl: ReadonlyMap<string, readonly PageRec[]>;
   cap: number;
   gate: WebglFrameGate;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   residency: ReturnType<typeof createAutonomousResidency>;
-  instances: {
-    addInstance(id: string, transform: Float64Array): void;
-    removeInstance(id: string): void;
-  };
-  placements: { growPlacements(from: PlacementRows, to: PlacementRows): void };
+  instanceCount: () => number;
 }) {
-  const { context, bootstrap, allPages, byUrl, gate, geometryStore, residency } = env;
-  const { instances, placements } = env,
+  const { context, byUrl, gate, geometryStore, residency } = env,
     { state } = geometryStore;
   const budget = createGeometryBudget({
     budgetBytes: context.geometryPoolBytes,
@@ -56,10 +116,12 @@ export function createAutonomousPool(env: {
     maxResidentPages: env.cap,
     descriptors: env.descriptors,
     rootUrls: env.bootstrapUrls,
+    copies: pageCopies(byUrl, env.bootstrapUrls, env.instanceCount),
     state,
-    rootBytes: () => heldBytes(bootstrap),
+    floorBytes: heldFloorBytes(env),
     kept: residency.pageUrls,
     drop: residency.dropPage,
+    onDiagnostic: context.onDiagnostic,
   });
   return {
     budget,
@@ -95,25 +157,13 @@ export function createAutonomousPool(env: {
         gate.resourcesChanged();
         if (geometryStore.acceptGeometryPage(url, data)) budget.arrived(url);
       },
-      // What changes the root cover changes the floor the pool never goes below.
+      /** A replaced page is the host's for good: it leaves the order and joins the floor. */
       replaceGeometryPage(url: string, data: DecodedGeometryPage) {
         if (!byUrl.has(url)) throw new Error('AUTONOMOUS_PAGE_MISSING');
         gate.resourcesChanged();
         geometryStore.storeGeometryPage(url, data);
         env.modifiedPages.add(url);
-        budget.rootsChanged();
-      },
-      addInstance(id: string, transform: Float64Array) {
-        instances.addInstance(id, transform);
-        budget.rootsChanged();
-      },
-      removeInstance(id: string) {
-        instances.removeInstance(id);
-        budget.rootsChanged();
-      },
-      growPlacements(from: PlacementRows, to: PlacementRows) {
-        placements.growPlacements(from, to);
-        budget.rootsChanged();
+        budget.left(url);
       },
       /** The geometry pool only: the texture pools are the WebGPU engine's, this path samples the
        *  host's textures whole (`texturePool: null`). Both budgets are checked before either
@@ -122,7 +172,7 @@ export function createAutonomousPool(env: {
         if (budgets.texturePoolBytes !== undefined)
           checkTexturePoolBudget(budgets.texturePoolBytes);
         const started = performance.now(),
-          before = comptePagesResidentes(allPages);
+          before = residentPages(byUrl);
         const evictedPages =
           budgets.geometryPoolBytes === undefined ? 0 : budget.resize(budgets.geometryPoolBytes);
         gate.resourcesChanged();
@@ -131,7 +181,7 @@ export function createAutonomousPool(env: {
           texturePool: null,
           evictedPages,
           evictedTiles: 0,
-          residentPages: { before, after: comptePagesResidentes(allPages) },
+          residentPages: { before, after: residentPages(byUrl) },
           residentTiles: { before: 0, after: 0 },
           durationMs: performance.now() - started,
         };
