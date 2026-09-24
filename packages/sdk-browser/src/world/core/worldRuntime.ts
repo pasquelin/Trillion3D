@@ -97,7 +97,8 @@ export function createWorldRuntime(inputs: Inputs) {
       // The session reads at the scope its first model was read at, or the default.
       const scope = built.source.metadata.scope;
       await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
-      explorer = await open(canvas, { ...inputs.options(), scope }, built.source);
+      const onRowsOutgrown = () => reopens.request();
+      explorer = await open(canvas, { ...inputs.options(), scope, onRowsOutgrown }, built.source);
     } catch (error) {
       closed = 'its session failed to open';
       if (!disposed) inputs.diagnostic.failed(error); // cut short by disposal, it failed nothing

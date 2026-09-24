@@ -28,6 +28,9 @@ export interface MeasuredWorldOptions {
   renderer?: 'webgpu' | 'webgl2';
   /** Called before every frame the interactive session draws: the host writes its scene then. */
   beforeFrame?: () => void;
+  /** Asked when the rows a partitioned scene places outgrew what the active engine holds and it
+   *  cannot grow them in place: the owner opens the session again on the grown rows. */
+  onRowsOutgrown?: () => void;
   /** False: the interactive session installs no camera controller of its own. */
   ownControls?: boolean;
   /** Called after every frame the session draws, with that frame's metrics. */

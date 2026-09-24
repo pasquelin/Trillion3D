@@ -17,6 +17,8 @@ import type { WebglSurface } from '../../webgl/core/surface.ts';
 
 type Inputs = {
   check: () => void;
+  /** Places the cells of a partitioned scene the camera now needs, before the frame draws. */
+  followCells: (() => void) | null;
   state: ExplorerHostState;
   camera: HostCamera;
   lookAtTarget: { x: number; y: number; z: number };
@@ -56,6 +58,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
   const { scope, diagnosticChannel, emit, diagnose } = session;
   const {
     check,
+    followCells,
     state,
     camera,
     lookAtTarget,
@@ -88,6 +91,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     const frameNumber = ++state.hostFrame;
     const start = performance.now();
     if (pose) setPose(pose);
+    followCells?.();
     // Single drain of arrivals, outside the frame they would have lengthened.
     const arrivalStart = performance.now();
     streaming.arrivals.drain();

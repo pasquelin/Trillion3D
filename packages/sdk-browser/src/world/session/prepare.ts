@@ -7,6 +7,7 @@ import { prepareExplorerBackends } from './backends.ts';
 import { createExplorerCamera } from '../camera/camera.ts';
 import { createExplorerPageSources } from './pageSources.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
+import { primePartitions } from '../scene/partitionFrame.ts';
 import type { ExplorerSession } from './session.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 
@@ -93,6 +94,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     diagnosticChannel,
     progress,
+    loadedScene.partitions.flatMap((cells) => cells.pages),
   );
   const directGpu = directWebgpu(options, choice.factories, gpuDevice);
   await configureExplorer(session, {
@@ -106,6 +108,35 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     pageSources,
     resources,
   });
+  // Framing replays the buffer reserved at load, then returns it: it is its last reader.
+  const cameraState = createExplorerCamera(
+    source,
+    autonomous,
+    loadedScene.associations,
+    metadata,
+    canvas,
+    options,
+    loadedScene.framingLot,
+  );
+  loadedScene.framingLot?.release();
+  // The cells the first camera needs are placed before the engines read their rows: the first
+  // frame reads them and nothing further (`partitionFrame.ts`).
+  if (loadedScene.partitions.length) {
+    const bytes = await primePartitions(
+      loadedScene.partitions,
+      cameraState.camera,
+      canvas.height,
+      options.pixelError ?? 0,
+      pageSources.streamer,
+      signal,
+    );
+    diagnose('partition', 'Cells read before the first frame', {
+      kind: 'preparation',
+      scope,
+      bytes,
+      cells: loadedScene.partitions.map((cells) => cells.stats()),
+    });
+  }
   const { viewport, context } = await prepareExplorerBackends(session, {
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,
@@ -119,19 +150,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     base,
   });
-  // Framing replays the buffer reserved at load, then returns it: it is its last reader.
-  const cameraState = createExplorerCamera(
-    source,
-    autonomous,
-    loadedScene.associations,
-    metadata,
-    canvas,
-    options,
-    loadedScene.framingLot,
-  );
-  loadedScene.framingLot?.release();
   return {
     source,
+    partitions: loadedScene.partitions,
     pageSources,
     capabilities,
     directGpu,
