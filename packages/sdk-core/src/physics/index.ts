@@ -13,7 +13,6 @@ export {
 export {
   Joint,
   joint,
-  type JointHost,
   type JointKind,
   type JointLimits,
   type JointMotor,
