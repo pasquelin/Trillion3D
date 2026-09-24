@@ -73,7 +73,8 @@ export function createWebgpuCutAdopter(options: {
     metrics.listsRewritten = false;
     metrics.incomplete = false;
     metrics.truncated = false;
-    const cut = options.selection()?.peek();
+    const selection = options.selection(),
+      cut = selection?.peek();
     if (!cut?.result.drawablePageIds) return false;
     // Before any difference: a truncated list describes less than the cut, and the difference taken
     // from it would EXIT pages the cut still holds.
@@ -95,8 +96,11 @@ export function createWebgpuCutAdopter(options: {
     // landed — must not replay the previous one, which would count every page twice.
     options.onCutDelta();
     options.onDrawnDelta();
-    metrics.cutHeld = !delta.changed && !drawnDelta.changed;
-    metrics.listsRewritten = !metrics.cutHeld;
+    metrics.listsRewritten = delta.changed || drawnDelta.changed;
+    // A cut from poses a placement has left since draws and counts as a camera's late cut does —
+    // the frame's own mask decides the draw —, but no image is held on it: the next readback,
+    // cut under the poses in place, may still ask for pages.
+    metrics.cutHeld = !metrics.listsRewritten && cut.worldRevision === selection?.worldRevision;
     metrics.visible = desired.length;
     if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
     if (cut.result.complete === false) {
