@@ -10,13 +10,18 @@ import {
   type PreparedSceneTables,
 } from '../../../sdk-core/src/scene/core/tableContracts.ts';
 import { checked } from '../cluster/pages.ts';
+import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
 /** The tables of a prepared cache, with the size of the product read: this read is on the load
  *  critical path of every session, so what it costs is published, not supposed. Absent or of an
  *  unknown version, the tables are a refusal: the cache format that carries them is the only one
- *  this runtime reads. */
-export async function loadPreparedSceneTables(base: string, signal?: AbortSignal) {
-  const response = await checked(new URL(SCENE_TABLES_FILE, base).href, signal);
+ *  this runtime reads. `meter` counts its bytes as they arrive. */
+export async function loadPreparedSceneTables(
+  base: string,
+  signal?: AbortSignal,
+  meter: ByteMeter = unmetered,
+) {
+  const response = meter(await checked(new URL(SCENE_TABLES_FILE, base).href, signal));
   const body = await response.arrayBuffer();
   const tables = assertSceneTables(JSON.parse(new TextDecoder().decode(body)));
   return { tables, bytes: body.byteLength };

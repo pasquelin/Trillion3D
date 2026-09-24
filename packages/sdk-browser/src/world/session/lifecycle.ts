@@ -11,6 +11,10 @@ import type { createExplorerStreaming } from '../scene/streaming.ts';
 import type { createPageStreamer } from '../../streaming/pages.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
+import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
+
+/** How `awaitPages` waits: with or without a picture, and who hears the pages land. */
+type PageWait = { image?: boolean; onProgress?: (event: JobProgress) => void };
 
 type Inputs = {
   check: () => void;
@@ -104,8 +108,13 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     for (const backend of backends) await backend.flush?.();
     await diagnosticChannel.flush();
   };
-  /** The pages the view reads, made resident; `image: false` takes no picture of them. */
-  const awaitPages = async (options: { image?: boolean } = {}) => {
+  /** The pages the view reads, made resident; `image: false` takes no picture of them.
+   *  `onProgress` hears `pages`: how many of those it lacked are resident, the last event once
+   *  they all are (`completed === total`). */
+  const awaitPages = async (options: PageWait = {}) => {
+    const { onProgress, ...wait } = options;
+    const pages = { completed: 0, total: 0 };
+    const report = (message: string) => onProgress?.({ phase: 'pages', ...pages, message });
     check();
     if (streaming.promise) await streaming.promise;
     for (const backend of backends) {
@@ -113,7 +122,14 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
         backend,
         camera,
         async (missing) => {
-          await streamer.request(missing);
+          pages.total += missing.length;
+          report(`${missing.length} pages the view reads`);
+          await streamer.request(missing, {
+            onPage: (url) => {
+              pages.completed++;
+              report(`Read ${url}`);
+            },
+          });
           for (const url of missing) {
             if (geometryUrls.has(url)) {
               const bytes = streamer.getBytes(url);
@@ -124,10 +140,12 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
             }
           }
         },
-        options,
+        wait,
       );
       retainVisiblePages(backend, streamer);
     }
+    pages.completed = pages.total;
+    report('The pages the view reads are resident');
     state.loaded = streamer.stats().loaded;
     state.pageBytesRead = streamer.stats().bytesRead;
   };
