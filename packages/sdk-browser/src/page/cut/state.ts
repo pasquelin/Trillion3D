@@ -5,6 +5,7 @@ import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElement
 import type { ClusterCut } from '../selection/math.ts';
 import type { ClusterStructureIndex } from '../selection/types.ts';
 import type { PageSurface } from '../surface.ts';
+import { cutCharge, type CutCharge } from './charge.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -16,7 +17,7 @@ export interface PageRecord extends ClusterCut {
   array?: Uint32Array;
 }
 
-export interface SelectionState<T extends PageRecord> {
+export interface SelectionState<T extends PageRecord> extends CutCharge<T> {
   cam: EngineCamera;
   hold: boolean;
   rootFallback: boolean;
@@ -178,6 +179,7 @@ const reusedState: SelectionState<PageRecord> = {
   shownTriangles: 0,
   budget: 0,
   over: false,
+  ...cutCharge(),
 };
 
 /** Shrinks `shown` to a prefix and its triangle sum with it: same order, same bits as the

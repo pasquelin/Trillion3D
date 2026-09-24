@@ -11,7 +11,7 @@ import { createEffects, type Effects } from './effects.ts';
 import type { SkyEngine, SkyWorld } from './engine.ts';
 import { createSkyLights } from './lights.ts';
 import { createRain, type Rain } from './rain.ts';
-import { hash } from './random.ts';
+import { hash } from '../../random.ts';
 import { createStars } from './stars.ts';
 import { moonPhase } from './sun.ts';
 import { createWind, type Wind, type WindSettings } from './wind.ts';

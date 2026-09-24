@@ -41,7 +41,7 @@
       world.camera.position.set(0, 4, 6);
       world.camera.lookAt(0, 0, 0);
 
-      controls({ help: 'Click a shape: it lights up, and the panel says where the ray met it.' });
+      controls({});
       const picked = readout('picked'), where = readout('point'), far = readout('distance');
 
       // A click that did not drag the camera: the ray through the pointer, nearest object first.
