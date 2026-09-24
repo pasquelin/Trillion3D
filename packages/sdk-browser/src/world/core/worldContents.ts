@@ -76,8 +76,7 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     const seated: Mesh[] = [];
     for (const { batch, from } of batches.growHeld((mesh) => seated.push(mesh))) {
       grow(from, batch.rows!);
-      poses.touch(batch, 0);
-      poses.touch(batch, batch.rows!.capacity - 1);
+      poses.touchRange(batch, 0, batch.rows!.capacity - 1);
     }
     seated.forEach(writeRow);
   }
