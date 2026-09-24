@@ -5,14 +5,21 @@
  * What reaches this file is every witness whose image the REFERENCE RENDERER draws — the
  * reference and level-of-detail witnesses — through the scene adapter. The engine's own WebGL2
  * paths light a display graph of the engine's own objects
- * (`../../lighting/contractLightingApi.ts`), and the engine that presents its own surface
- * publishes a display-graph record (`../../cluster/blendSceneRecord.ts`): neither names a
+ * (`packages/sdk-browser/src/lighting/contractLightingApi.ts`), and the engine that presents its own surface
+ * publishes a display-graph record (`packages/sdk-browser/src/cluster/blendSceneRecord.ts`): neither names a
  * library. A light of the engine's own graph is copied into the library by `fromGraphNodes.ts`.
  */
-import { installSceneLighting, type HostLight } from '../../lighting/sceneLighting.ts';
-import type { GraphLight } from '../graph/light.ts';
-import { asHostLibrary, type HostPlaced, type HostTraversable } from '../resources.ts';
-import type { HostDrawScene } from '../scene/graphNodes.ts';
+import {
+  installSceneLighting,
+  type HostLight,
+} from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts';
+import type { GraphLight } from '../../../packages/sdk-browser/src/host/graph/light.ts';
+import {
+  asHostLibrary,
+  type HostPlaced,
+  type HostTraversable,
+} from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { HostDrawScene } from '../../../packages/sdk-browser/src/host/scene/graphNodes.ts';
 import { threeLight } from './fromGraphNodes.ts';
 import * as THREE from 'three';
 

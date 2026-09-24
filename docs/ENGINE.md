@@ -6,7 +6,7 @@ functions below are public, for a standalone host that drives pages or diagnosti
 `createGpuPageCache` and `createDiagnosticChannel`, exported by `trillion3d`. Every other internal
 name — `openMeasuredWorld`, backend ids, session options — is reachable only through the measurement
 entry point (`packages/sdk-browser/src/measurement/measurement.ts`), for the bench, the proofs and the
-comparison views ([SDK.md, "Entry points"](SDK.md#entry-points)).
+comparison views, which reach the witnesses through `bench/witnesses/measurement.ts` ([SDK.md, "Entry points"](SDK.md#entry-points)).
 
 ## The internal session
 

@@ -18,7 +18,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import { buildPreparedScene } from './build.ts';
-import { threeGraph } from '../three/fromGraphNodes.ts';
+import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
 import type { GraphNode } from '../graph/node.ts';
 import { caches, describe, describeShape, serveFiles, type Ranks } from './scenes.fixture.ts';
 
