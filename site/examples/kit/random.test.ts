@@ -54,14 +54,22 @@ test('the temple keeps its scatter', () => {
   );
 });
 
-// #402: the relief of three pages, gathered here: `scattered-on-a-surface` keeps its values.
-test('the relief keeps its noise', () => {
+// #402: the relief of three pages, gathered here, each on the lattice it was laid out with:
+// `scattered-on-a-surface` keeps its values bit for bit, the planet its own to rounding.
+test('the reliefs keep their noise', () => {
+  const at = [
+    [0.3, 1.7, -2.2, 1],
+    [11.4, -0.6, 3.9, 2],
+    [-5.25, 2.5, 0.75, 3],
+  ];
+  const scattered = valueNoise();
   assert.deepEqual(
-    [
-      [0.3, 1.7, -2.2],
-      [11.4, -0.6, 3.9],
-      [-5.25, 2.5, 0.75],
-    ].map(([x, y, z]) => valueNoise(x, y, z)),
+    at.map(([x, y, z]) => scattered(x, y, z)),
     [-0.34218649521303457, 0.12095994121124098, -0.10903564714681124],
+  );
+  const planet = valueNoise(1274126177);
+  const before = [0.19532346389272182, -0.24616740278646237, 0.050191393227578374];
+  at.forEach(([x, y, z, seed], i) =>
+    assert.ok(Math.abs(planet(x, y, z, seed) - before[i]) < 1e-15),
   );
 });
