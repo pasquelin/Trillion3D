@@ -4147,6 +4147,7 @@
         "bench/perf/browser/support/coreHierarchy.ts",
         "bench/perf/core/three-vs-core-matrices.perf.ts",
         "packages/sdk-browser/src/camera/world.ts",
+        "packages/sdk-browser/src/lighting/tiles/skyColumn.test.ts",
         "packages/sdk-browser/src/page/raster.ts",
         "packages/sdk-browser/src/taa/frame.ts",
         "packages/sdk-browser/src/taa/motion.ts",
@@ -4349,6 +4350,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/browser/core-math-shadows.ts",
+        "bench/oracles/browser/gpuLightTileColumnOracle.ts",
         "packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts",
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
@@ -5070,6 +5072,7 @@
         "packages/sdk-browser/src/gpu/dag/oracle/math.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
         "packages/sdk-browser/src/host/world/chain.ts",
+        "packages/sdk-browser/src/lighting/tiles/skyColumn.test.ts",
         "packages/sdk-browser/src/page/cut/cut.ts",
         "packages/sdk-browser/src/page/cut/select.ts",
         "packages/sdk-browser/src/page/raster.ts",
@@ -5897,7 +5900,8 @@
         "bench/perf/browser/support/hierarchyReplayEngine.ts",
         "bench/perf/core/three-vs-core-camera.perf.ts",
         "packages/sdk-browser/src/camera/engineCamera.ts",
-        "packages/sdk-browser/src/camera/world.test.ts"
+        "packages/sdk-browser/src/camera/world.test.ts",
+        "packages/sdk-browser/src/lighting/tiles/skyColumn.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/camera\".perspectiveProjection"
