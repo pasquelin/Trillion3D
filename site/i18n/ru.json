@@ -425,8 +425,6 @@
       "reflections-from-the-screen": "отражения в экранном пространстве",
       "an-ocean": "рендер в текстуру: отражение и преломление воды",
       "a-raging-sea": "материалы со своим шейдером",
-      "a-town-in-the-fog": "туман",
-      "fog-on-the-ground": "туман: туман по высоте",
       "fog-that-scatters-light": "объёмный туман и лучи света",
       "a-cloud-in-a-box": "объёмный рендер",
       "a-fire-in-a-volume": "объёмный рендер",
