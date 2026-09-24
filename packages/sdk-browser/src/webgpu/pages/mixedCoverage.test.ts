@@ -34,13 +34,12 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   );
   // One catalogue for one cut: the kernel the mock replays selects the transparent clusters too,
   // opaque roots first then transparent, exactly as the layout packs them.
-  const { device } = mockGpu(
-    undefined,
-    packDagSelection([
+  const { device } = mockGpu({
+    packed: packDagSelection([
       ...collected.roots.filter((root) => !root.pages[0].transparent),
       ...collected.roots.filter((root) => root.pages[0].transparent),
     ]),
-  );
+  });
   const backend = webgpuPagesBackend({
     ...fixture,
     indices: new Map(),
