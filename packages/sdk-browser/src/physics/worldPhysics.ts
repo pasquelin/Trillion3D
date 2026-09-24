@@ -53,9 +53,11 @@ export function createWorldPhysics(
   });
   const setGravity = (g: GravityInput) =>
     typeof g === 'string' ? gravity.set(0, -GRAVITY_PRESETS[g], 0) : gravity.set(g.x, g.y, g.z);
-  const failed = (cause: EngineError) => {
+  const failed = (cause: EngineError, fatal = false) => {
     error = cause;
     console.error(cause);
+    // The simulation stopped: its session ends and sends nothing more; `enabled` reads false.
+    if (fatal) handle.enabled = false;
   };
   const handle = {
     /** Whether bodies are simulated. Turning it on fetches the physics the first time.
@@ -107,7 +109,7 @@ export function createWorldPhysics(
       return session?.stats ?? stopped;
     },
     /** The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`,
-     *  `PHYSICS_FAILED`), or `null`. */
+     *  `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off. */
     get error() {
       return error;
     },

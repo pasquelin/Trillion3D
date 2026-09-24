@@ -3,8 +3,8 @@
  * poses and contact events back to the page in a transferable buffer. Two buffers go back and
  * forth, and a tick writes straight into a free one; when the page still holds both, the tick's
  * results wait in a staging copy for the next buffer rather than the worker waiting for the page.
- * With every body asleep and no command queued, it stops ticking: a still scene costs no work
- * here either.
+ * With every body asleep, no command queued and no leave owed, it stops ticking: a still scene
+ * costs no work here either.
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
@@ -32,12 +32,14 @@ let paused = false,
   steps = 0,
   stepMs = 0;
 
+/** A fatal error stops the simulation: nothing steps again, and later commands are dropped. */
 function fail(error: unknown) {
   const code =
     error instanceof EngineError ? error.code : jolt?.full() ? 'PHYSICS_BUDGET' : 'PHYSICS_FAILED';
   const message = String((error as Error)?.message ?? error);
   scope.postMessage({ type: 'error', code, message, fatal: true });
-  jolt = null;
+  jolt = results = null;
+  queued.length = 0;
 }
 
 /** Runs the queued commands and one step; `stepMs` counts the module's step alone, the clock the
@@ -66,6 +68,7 @@ function tick() {
   if (!paused)
     owed = Math.min(owed + ((now - last) / 1000) * timeScale, MAX_CATCH_UP_STEPS * PHYSICS_STEP);
   last = now;
+  let owing: boolean;
   try {
     // Paused, commands still reach the bodies; running, they wait for the next step, so a
     // kinematic move is a move over a step (pushing what it meets), never a teleport.
@@ -76,11 +79,14 @@ function tick() {
       steps++;
     }
     active = jolt.active();
+    // A leave held back by a full event buffer is sent by one more step, even in a world at rest.
+    owing = jolt.owedLeaves() > 0;
   } catch (error) {
     return fail(error);
   }
   post();
-  if (active > 0 && !paused) schedule(Math.max(1, ((PHYSICS_STEP - owed) * 1000) / timeScale));
+  if ((active > 0 || owing) && !paused)
+    schedule(Math.max(1, ((PHYSICS_STEP - owed) * 1000) / timeScale));
 }
 
 function post() {
@@ -123,6 +129,8 @@ scope.onmessage = ({ data: message }) => {
     // A tick held back for room in its results resumes.
     if (jolt && (owed >= PHYSICS_STEP || queued.length)) schedule(0);
   } else if (message.type === 'commands') {
+    // Only a running simulation queues them: the page sends none before `ready`.
+    if (!jolt) return;
     queued.push(message.words);
     // A resting world steps at once: the command's step is owed now, not a frame later.
     if (timer === null) {
