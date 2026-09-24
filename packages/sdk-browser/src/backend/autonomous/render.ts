@@ -10,6 +10,7 @@ import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 import type { CameraMotion, HostCamera } from '../../camera/world.ts';
 import type { HostWorldPlacements } from '../../host/world/placements.ts';
 import { attachedPages } from '../../placement/autonomousPlacements.ts';
+import { followHostVisibility } from '../../placement/hidden.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { MAX_SEARCH_STEPS } from './poolSearch.ts';
 
@@ -103,7 +104,11 @@ export function createAutonomousRender(options: {
     // The cut fits the pool in this image: its threshold is searched from the last image's.
     selectOptions.pixelError = gate.pixelError;
     // Copied world matrices and lights are a function of the scene only.
-    if (gate.updateWorlds(worlds)) lighting.update();
+    // A node the host hid or showed parks its roots or takes them back (`placement/hidden.ts`).
+    if (gate.updateWorlds(worlds)) {
+      followHostVisibility(roots);
+      lighting.update();
+    }
     const selected = selectVisiblePages(roots, gate.cam, selectOptions, shown);
     state.visible = selected.visible;
     state.selectedTriangles = selected.selectedTriangles;
