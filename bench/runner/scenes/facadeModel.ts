@@ -6,6 +6,8 @@
 // count; the bay — one storey tall, one bay wide — is the scene's unit, and every length is
 // counted in it. Two seeds give two different blocks with the same guarantees.
 
+import { mulberry32 } from '../../../site/examples/kit/random.ts';
+
 /** The three ways a wall lays its texture coordinates out, one per wall around the block, and
  *  `per-brick`, asked for every wall at once: each cell of the bay's cut owns its four corners and
  *  maps the whole texture, one island per brick, so every position is a seam corner. */
@@ -21,20 +23,9 @@ export interface WallMesh {
   indices: Uint32Array;
 }
 
-/** `mulberry32`: a seeded generator in four lines, so a seed alone reproduces a block. */
-export function random(seed: number) {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 2 ** 32;
-  };
-}
-
 /** The plan of the block, in bays: two side lengths, a height, and which bays are open. */
 export function facadePlan(seed: number) {
-  const draw = random(seed);
+  const draw = mulberry32(seed);
   const between = (low: number, high: number) => low + Math.floor(draw() * (high + 1 - low));
   // A block is longer than it is tall and wider than one room: between six and twelve bays a
   // side, between four and eight storeys. The ranges are the block's, not a measurement's.

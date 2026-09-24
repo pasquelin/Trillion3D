@@ -1,6 +1,7 @@
 /**
- * The examples' seeded numbers, one module for the kit and the pages: the same seed gives the
- * same scene on every run and every machine. Each generator keeps the exact sequence its scenes
+ * The repository's seeded numbers, one module for the kit, the pages, the scenes modelled in code,
+ * the bench and the correctness campaigns: the same seed gives the same scene on every run and
+ * every machine. Each generator keeps the exact sequence its scenes
  * were laid out with, so gathering them here moved nothing on screen. Plenty for placing pebbles
  * and stones, never for anything that must be unpredictable.
  */
@@ -15,6 +16,18 @@ export type Random = () => number;
 export function seeded(seed: number): Random {
   let state = seed >>> 0;
   return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
+}
+
+/** Mulberry32: a 32-bit sequence on integer arithmetic alone, so every machine draws the same
+ *  numbers; the scenes modelled in code, the bench's facade and the correctness campaigns. */
+export function mulberry32(seed: number): Random {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = Math.imul(state ^ (state >>> 15), state | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 /** The temple's scatter: a value in [0, 1) for `index` and channel `k`, the fraction of a scaled
