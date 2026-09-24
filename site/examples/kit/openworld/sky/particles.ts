@@ -100,6 +100,8 @@ export function createParticleSystem(
     update(seconds, wind) {
       forces.wind = preset.response > 0 ? wind.at(10) : { x: 0, z: 0 };
       step(pool, seconds, preset.motion, forces, shape);
+      // An empty pool already hidden writes nothing: every write asks the world for a frame.
+      if (!pool.alive && !node.visible) return;
       const live = pool.alive * 3;
       const out = positions.array;
       for (let i = 0; i < live; i++) out[i] = pool.position[i];
@@ -107,7 +109,7 @@ export function createParticleSystem(
       positions.needsUpdate = true;
       // Waiting on the engine: `setDrawRange` on a points geometry.
       geometry.setDrawRange?.(0, pool.alive);
-      node.visible = pool.alive > 0;
+      if (node.visible !== pool.alive > 0) node.visible = pool.alive > 0;
     },
   };
 }
