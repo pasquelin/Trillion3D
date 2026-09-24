@@ -7250,17 +7250,6 @@
     },
     "summary": "Una imagen y el estado de muestreo con el que se lee, y la transformación de sus coordenadas."
   },
-  "GraphAngles": {
-    "summary": "La misma orientación como tres ángulos y su orden, que anuncia sus escrituras de la misma forma.",
-    "members": {
-      "x": "El primer ángulo, en radianes.",
-      "set": "Escribe los tres ángulos, y el orden si se da; anunciado una vez.",
-      "setFromRotation": "Los ángulos de `q` en este orden (el `Euler` del núcleo); anunciado salvo con `quiet`.",
-      "y": "El segundo ángulo, en radianes.",
-      "z": "El tercer ángulo, en radianes.",
-      "order": "El orden en que giran los tres ángulos, `'XYZ'` salvo que se fije."
-    }
-  },
   "GraphArray": {
     "summary": "Los arrays tipados que guarda un atributo."
   },
@@ -7303,40 +7292,6 @@
   },
   "GraphNodeKind": {
     "summary": "Qué es un nodo del grafo: un nodo simple, la raíz, un grupo, una malla dibujada (en una colocación o en varias), un ojo, o una de las luces que declara una escena."
-  },
-  "GraphRotation": {
-    "summary": "Una orientación `(x, y, z, w)` cuyas escrituras llaman a `_onChangeCallback`.",
-    "members": {
-      "x": "El primer número.",
-      "set": "Escribe los cuatro números, anunciado una vez.",
-      "copy": "Toma los números de otra rotación.",
-      "fromArray": "Lee cuatro números de una lista.",
-      "setFromAngles": "La rotación de `angles`, en su orden (`localTurnQuaternion`); anunciado salvo con `quiet`.",
-      "setFromRotationMatrix": "La rotación del 3×3 superior de una matriz por columnas cuyas columnas son unitarias.",
-      "premultiply": "Se convierte en `q` seguido de esta rotación, `q · this`.",
-      "invert": "Se convierte en el giro opuesto.",
-      "y": "El segundo número.",
-      "z": "El tercer número.",
-      "w": "El cuarto número."
-    }
-  },
-  "GraphVector": {
-    "summary": "Tres números de una pose o de un punto: campos de datos simples y las operaciones que usa un controlador.",
-    "members": {
-      "set": "Escribe los tres números.",
-      "copy": "Toma los números de otro punto.",
-      "clone": "Una copia.",
-      "add": "Suma otro vector.",
-      "sub": "Resta otro vector.",
-      "multiplyScalar": "Escala los tres números.",
-      "length": "Su longitud.",
-      "setLength": "Mantiene la dirección, fija la longitud.",
-      "distanceTo": "Distancia a un punto.",
-      "fromArray": "Lee tres números de una lista.",
-      "x": "De izquierda a derecha.",
-      "y": "De abajo arriba.",
-      "z": "De atrás hacia adelante."
-    }
   },
   "Joint": {
     "summary": "Una unión entre dos cuerpos, o entre un cuerpo y el mundo (`b` null), creada con `joint.*` y añadida a la simulación con `world.physics.add`.",
