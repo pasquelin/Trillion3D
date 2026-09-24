@@ -150,6 +150,3 @@ export function createPhysicsBodies(
     },
   };
 }
-
-/** What `createPhysicsBodies` returns. */
-export type PhysicsBodies = ReturnType<typeof createPhysicsBodies>;

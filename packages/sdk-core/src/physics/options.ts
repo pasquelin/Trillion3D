@@ -29,8 +29,8 @@ export interface PhysicsBodyOptions {
   sensor?: boolean;
   /** Continuous collision, for fast small bodies that would pass through thin walls. @defaultValue false */
   ccd?: boolean;
-  /** Debris: meets the static world only, simulated only when near and in view, and dropped
-   *  from the simulation once asleep. Capped by `budget.physics.decorative`. @defaultValue false */
+  /** Debris: meets the static world only, and is simulated only in range and in view. Capped by
+   *  `budget.physics.decorative`. @defaultValue false */
   decorative?: boolean;
   /** Overrides the material's friction, 0 and up. */
   friction?: number;

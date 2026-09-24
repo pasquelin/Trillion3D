@@ -13,7 +13,7 @@ interface JoltExports {
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
-export const TEMP_BYTES = 16 * 1024 * 1024;
+const TEMP_BYTES = 16 * 1024 * 1024;
 const PAGE = 65536;
 /** Pages the module declares as its initial memory (`-sINITIAL_MEMORY`, CMakeLists.txt). */
 const INITIAL_PAGES = 512;

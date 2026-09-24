@@ -1,7 +1,7 @@
 export * from './layout.ts';
 export * from './options.ts';
-export { CommandWriter, type BodyRecord } from './commands.ts';
-export { resolveShape, recipeShape, type ResolvedShape } from './shape.ts';
+export { CommandWriter } from './commands.ts';
+export { resolveShape } from './shape.ts';
 export { physicsMatterOf } from './matter.ts';
 export {
   ObjectPhysics,
