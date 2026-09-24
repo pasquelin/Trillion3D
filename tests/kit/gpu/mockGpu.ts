@@ -180,9 +180,9 @@ export function mockGpu({
     },
   };
   if (packed || compute)
-    members.createComputePipeline = ({ compute }: { compute: { entryPoint: string } }) => {
-      if (failCompact && compute.entryPoint === 'scatterGroups') throw new Error('NO_COMPACT');
-      return compute;
+    members.createComputePipeline = ({ compute: stage }: { compute: { entryPoint: string } }) => {
+      if (failCompact && stage.entryPoint === 'scatterGroups') throw new Error('NO_COMPACT');
+      return stage;
     };
   return {
     ...asWebgpuDevice(members),
