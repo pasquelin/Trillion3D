@@ -14,7 +14,7 @@ mod levels;
 mod median_alpha;
 
 /// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
-pub(super) fn temp_dir(tag: &str) -> PathBuf {
+pub(crate) fn temp_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "trillion3d-texture-preview-{tag}-{}-{}",
         std::process::id(),
@@ -27,7 +27,7 @@ pub(super) fn temp_dir(tag: &str) -> PathBuf {
     dir
 }
 /// Minimal `Options` a stage needs; only `cancelled`, `source` and `cache` ever matter to these tests.
-pub(super) fn options(source: &Path) -> Options {
+pub(crate) fn options(source: &Path) -> Options {
     Options {
         source: source.to_path_buf(),
         cache: source.join("cache"),
