@@ -4333,6 +4333,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/browser/core-math-shadows.ts",
+        "packages/sdk-browser/src/gpu/dag/lightCutRedraws.ts",
         "packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts",
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
