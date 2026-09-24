@@ -95,6 +95,13 @@ interface Inventory {
 }
 
 test('generated inventory and explicit facade files are current', async () => {
+  // The generator's `--check` compares every facade file and the inventory with what the sources
+  // export now: an export added to `sdk-core` without regenerating fails here, in the unit suite
+  // `test:changed` selects for any change under `packages/sdk-core/`.
+  execFileSync(process.execPath, ['scripts/generate-sdk-facade.ts', '--check'], {
+    cwd: new URL('../..', import.meta.url),
+    stdio: 'pipe',
+  });
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   );
