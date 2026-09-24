@@ -908,7 +908,8 @@
     {
       "id": "openworld",
       "theme": "streaming",
-      "file": "examples/openworld.html"
+      "file": "",
+      "href": "/openworld/"
     },
     {
       "id": "see-the-triangles",
