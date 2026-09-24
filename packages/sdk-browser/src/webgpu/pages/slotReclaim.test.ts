@@ -42,7 +42,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
     fixture.associations,
   );
   const packed = packDagSelection(collected.roots);
-  const { device, draws, buffers } = mockGpu(undefined, packed);
+  const { device, draws, buffers } = mockGpu({ packed });
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
