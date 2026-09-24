@@ -62,6 +62,7 @@ export function createWebgpuResidentEnsurer({
     lower: readonly PageRec[],
     cache: Cache,
     signal: AbortSignal | undefined,
+    cameraWaiting: () => boolean,
   ) => {
     const skip = (rec: PageRec) => {
       const key = tracking.keyOf(rec);
@@ -72,12 +73,14 @@ export function createWebgpuResidentEnsurer({
       if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]))) held++;
     let spare = cache.unpinnedSlots() - held;
     // Upload slices, as the camera's burst: each yields to the event loop and the job resumes
-    // after it. A slice that ended the job instead left casters for a later cut to ask again —
-    // the job, and every wait on it, ended before the tier had posted its pages (#281).
+    // after it — unless a camera cut asked for pages meanwhile: the tier then leaves, the queue
+    // serves the camera first and runs the tier again. A job only ends on a tier pass nobody
+    // interrupted, so every wait on it finds the tier posted (#281).
     let sliceStart = performance.now();
     for (let i = 0; i < lower.length && spare > 0; i++) {
       if (performance.now() - sliceStart >= UPLOAD_SLICE_MS) {
         await yieldToEventLoop();
+        if (cameraWaiting()) return;
         sliceStart = performance.now();
       }
       const rec = lower[i],
@@ -95,7 +98,16 @@ export function createWebgpuResidentEnsurer({
       spare--;
     }
   };
-  return async (wanted: readonly PageRec[], jobFrame: number, jobId: number) => {
+  /**
+   * `cameraWaiting` says a camera cut is queued behind this job: the queue passes it, so the
+   * caster tier gives way to the camera. A barrier passes none and loads the whole tier.
+   */
+  return async (
+    wanted: readonly PageRec[],
+    jobFrame: number,
+    jobId: number,
+    cameraWaiting: () => boolean = () => false,
+  ) => {
     let cache = getCache();
     if (!cache) return;
     const started = performance.now(),
@@ -162,7 +174,7 @@ export function createWebgpuResidentEnsurer({
     // A copy: the tier's list is rewritten in place by every report taken while this one loads,
     // and a loop resumed on another list keeps neither its order nor its count of free slots.
     const lower = full ? [] : shadowPages();
-    if (lower.length) await loadShadowTier(lower.slice(), cache, signal);
+    if (lower.length) await loadShadowTier(lower.slice(), cache, signal, cameraWaiting);
     traceDiagnostic('residency-ensure-end', 'GPU residency checked', () => ({
       ...payload({
         loaded: loaded(),

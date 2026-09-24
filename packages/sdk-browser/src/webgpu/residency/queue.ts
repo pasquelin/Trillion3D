@@ -16,7 +16,12 @@ type QueueOptions = {
   getCache: () => Cache | undefined;
   getFrame: () => number;
   updatePins: () => void;
-  ensureResident: (wanted: readonly PageRec[], frame: number, jobId: number) => Promise<void>;
+  ensureResident: (
+    wanted: readonly PageRec[],
+    frame: number,
+    jobId: number,
+    cameraWaiting: () => boolean,
+  ) => Promise<void>;
   markLost: (error: unknown) => void;
   traceEnabled: boolean;
   traceDiagnostic: Diagnostics['traceDiagnostic'];
@@ -70,7 +75,8 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
       try {
         while (scheduled) {
           scheduled = false;
-          await ensureResident(items, jobFrame, jobId);
+          // The job yields its caster tier to a cut queued meanwhile, and runs again for it.
+          await ensureResident(items, jobFrame, jobId, () => scheduled);
         }
       } catch (error) {
         // The withdrawal precedes the report: a host drawing on it finds nothing stale.

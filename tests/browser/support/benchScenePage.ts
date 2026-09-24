@@ -72,6 +72,11 @@ export function shadingGap(
     if (d > 0) darkening.push(d);
   }
   darkening.sort((a, b) => a - b);
+  // The factor 1/2 is not derived: it is the midpoint between "unchanged" (0) and "shadowed" (the
+  // median darkening), so a pixel counts on the side it is nearer to; it stands for a noise level
+  // the frame cannot measure on its own. Sensitivity: every count below is monotone in it — a
+  // smaller factor lets texture and 8-bit noise in as "moved", a larger one drops penumbra pixels.
+  // With nothing darkened the step is 0 and `shadowedOffEdge` stays 0: the proof fails, as it should.
   const step = (darkening[darkening.length >> 1] ?? 0) / 2;
   const edge = (i: number) => {
     const x = i % width,
