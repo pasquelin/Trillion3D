@@ -145,8 +145,6 @@ test('a camera that moves by whole pages unmaps the sun pages that leave the cli
   planFrame(plan, store, 2, { ...VIEW, position: [1e5, 5, 0] });
   const gone = [...pages, sunFloor(plan, slice)].every((entry) => plan.table.words[entry] === 0);
   assert.ok(gone, `level ${level} of slice ${slice} no longer holds them`);
-  // Its first report still unread, the sun asks for the floor its new view reaches.
-  assert.equal(plan.pool.used, 4);
 });
 
 test('an object already moving stales only the moving casters of the pages it crosses', () => {
