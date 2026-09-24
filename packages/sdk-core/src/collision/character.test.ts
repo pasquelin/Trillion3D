@@ -4,7 +4,13 @@ import { box } from '../world/geometry/basic.ts';
 import { Mesh } from '../world/object/mesh.ts';
 import { meshCollision } from './meshTriangles.ts';
 import { createCharacterBody, MAX_CHARACTER_DELTA } from './characterBody.ts';
-import { HUMAN_BODY, type CharacterInput, type CharacterSettings } from './characterSettings.ts';
+import {
+  DECLARED_FLOOR,
+  HUMAN_BODY,
+  type CharacterInput,
+  type CharacterSettings,
+} from './characterSettings.ts';
+import { gripOf } from './characterDrive.ts';
 
 /** An axis-aligned block from its two corners, as a mesh the collision world reads. */
 function block(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) {
@@ -12,6 +18,12 @@ function block(x0: number, y0: number, z0: number, x1: number, y1: number, z1: n
   mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
   return mesh;
 }
+
+/** The floor's push on the default human's declared stone, and the legs' rate over `time`. */
+const legs = (time: number) => ({
+  push: gripOf(DECLARED_FLOOR) * HUMAN_BODY.gravity,
+  rate: -Math.log(0.05) / time,
+});
 
 const FLOOR = () => block(-50, -1, -50, 50, 0, 50);
 const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false };
@@ -96,20 +108,22 @@ test('a jump reaches v² / 2g and lands after the rise and the heavier fall', ()
   assert.ok(air > 0.55 && air < 0.65 && made.onGround, `air ${air}`);
 });
 
-test('a key starts the jog within the response, and is seen in the first frame', () => {
+test('a key starts the jog at the floor\'s push, and is seen in the first frame', () => {
   const made = body([FLOOR()]);
   live(made, 0.5, STILL);
   const frame = 1 / 60,
-    k = -Math.log(0.05) / HUMAN_BODY.responseTime,
-    v = HUMAN_BODY.walkSpeed;
-  // The analytic run from rest: v (t - (1 - exp(-k t)) / k).
-  const ran = (t: number) => v * (t - (1 - Math.exp(-k * t)) / k);
-  const first = made.advance(frame, EAST)[0];
+    v = HUMAN_BODY.walkSpeed,
+    { push, rate } = legs(HUMAN_BODY.responseTime);
+  // From rest the sole pushes at μ g, the whole first frame: `push t² / 2`.
+  const first = made.advance(frame, EAST)[0],
+    ran = (t: number) => (push * t * t) / 2;
   // Drawn at the present: at most one tick of the fixed step late, under one frame.
   assert.ok(first >= ran(frame - 1 / 120) - 1e-9 && first <= ran(frame) + 1e-9, `first ${first}`);
   let t = frame;
   for (; made.velocity[0] < 0.95 * v; t += frame) made.advance(frame, EAST);
-  assert.ok(Math.abs(t - HUMAN_BODY.responseTime) <= frame, `jog reached after ${t} s`);
+  // The push closes the gap down to push / rate, the legs' exponential the rest.
+  const expected = (v - push / rate) / push + Math.log(push / rate / (0.05 * v)) / rate;
+  assert.ok(Math.abs(t - expected) <= frame, `jog reached after ${t} s, expected ${expected}`);
 });
 
 test('20 m/s never tunnels through a 0.1 m wall, even at 30 Hz', () => {
@@ -118,19 +132,21 @@ test('20 m/s never tunnels through a 0.1 m wall, even at 30 Hz', () => {
   assert.ok(feet[0] < 2, `tunnelled to ${feet[0]}`);
 });
 
-test('released keys stop the body within stopTime, then it stays still', () => {
+test('released keys glide v² / (2 μ g) on the declared stone floor, then it stays still', () => {
   const made = body([FLOOR()]);
   const moving = live(made, 2, EAST);
-  let t = 0;
-  for (; made.velocity[0] >= 0.05 * HUMAN_BODY.walkSpeed; t += 1 / 240)
-    made.advance(1 / 240, STILL);
-  // The velocity read is the tick's, up to one tick past the present.
-  assert.ok(Math.abs(t - HUMAN_BODY.stopTime) <= 1 / 120 + 1 / 240, `stopped after ${t} s`);
-  const stopped = live(made, 2, STILL);
-  const glide = stopped[0] - moving[0];
-  // An exponential brake glides v / k, k = -ln(0.05) / stopTime: 9 cm from a jog.
-  const bound = (HUMAN_BODY.walkSpeed * HUMAN_BODY.stopTime) / -Math.log(0.05);
-  assert.ok(glide > 0 && glide <= bound + 1e-3, `glide ${glide}, bound ${bound}`);
+  const stopped = live(made, 3, STILL);
+  const glide = stopped[0] - moving[0],
+    v = HUMAN_BODY.walkSpeed,
+    { push, rate } = legs(HUMAN_BODY.stopTime);
+  // The legs' exponential closes the last push / rate: (push / rate)² / (2 push) less, 1 / rate
+  // of it more; the body is drawn up to one tick behind the one it lives.
+  const expected = (v * v) / (2 * push);
+  assert.ok(Math.abs(expected - 0.79) < 0.01, `a jog glides ${expected} m on stone`);
+  assert.ok(
+    glide >= expected - 1e-3 && glide <= expected + push / rate ** 2 + v / 120,
+    `glide ${glide}, expected ${expected}`,
+  );
   assert.deepEqual([...made.velocity], [0, 0, 0]);
   assert.deepEqual(live(made, 1, STILL), stopped);
 });
