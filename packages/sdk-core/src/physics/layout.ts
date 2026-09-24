@@ -67,11 +67,11 @@ export const RESTORE_WORDS = 3;
 /**
  * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c` — a ray, or a
  * sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`) swept
- * along `travel`. Its hit: `engine id, fraction, point x, y, z, normal x, y, z, material`; a miss
- * names no body (`0xFFFFFFFF`), a hit on a shape without cooked material has that material.
+ * along `travel`. Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
+ * body (`0xFFFFFFFF`). A tile's glTF material is its collider's, read from `physics.json`.
  */
 export const CAST_WORDS = 10;
-export const HIT_WORDS = 9;
+export const HIT_WORDS = 8;
 export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const;
 export const MISS = 0xffffffff;
 

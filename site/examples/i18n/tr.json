@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "Yürüyüşçü salonun çevresinde döner ve topları iter. Toplar yirmi tane daha ekler.",
+    "banner": "Etrafa bakmak için tıklayın, sonra W A S D ile topların arasında yürüyüp onları itin. Toplar yirmi tane daha ekler.",
     "controls": {
-      "walking": "Yürüme",
       "balls": "Toplar"
     },
     "readouts": {
