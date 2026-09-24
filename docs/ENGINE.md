@@ -256,12 +256,13 @@ the image back for presentation.
 A world keeps its device across sessions, and each session creates through its own handle on it,
 which tags every label (`gpu/core/deviceOwners.ts`); the handle is read-only, nothing is set on the
 shared device through it. An uncaptured error is a loss for the live session whose objects it
-names, or, naming none, for every live session, as before. One that names only a closed session's objects is said once
-per closed session, as a warning, under `gpu-closed-session-error` (`kind: 'warning'`, `message`,
-`errors`: the session's tag and a count its later errors raise in place), and the browser's own
-console line for it is cancelled. A session closed while it prepares stops at its next wait and
-destroys what it built since. Running out of memory is the device's condition, not an object's:
-it stays a loss for the live sessions, under `reason: 'out-of-memory'`.
+names, or, naming none, for every live session, as before. One that names only closed sessions'
+objects, out of memory or not, is counted, and said once per closed session, as one warning per
+error, under `gpu-closed-session-error` (`kind: 'warning'`, `message`, `errors`: a frozen copy of
+each named session's tag and count), and the browser's own console line for it is cancelled. A
+session closed or aborted while it prepares stops at its next wait and destroys what it built
+since. Running out of memory is otherwise the device's condition, not an object's: it stays a loss
+for the live sessions, under `reason: 'out-of-memory'`.
 
 For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before anything
 else: attributes, drawing-buffer size from logical size and DPR, loss and restoration, one release.

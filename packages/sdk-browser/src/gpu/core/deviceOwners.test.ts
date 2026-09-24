@@ -26,7 +26,9 @@ test("an object the closing session creates after the next claim keeps the closi
   // ones are counted in that warning, not swallowed.
   assert.equal(second.closed.length, 1);
   assert.match(second.closed[0], /DAG readback/);
-  assert.deepEqual(second.counts, [{ session: closing.tag, count: 3 }]);
+  // A frozen copy, taken then: the later errors raise the device's count, not this one.
+  assert.deepEqual(second.counts, [{ session: closing.tag, count: 1 }]);
+  assert.ok(Object.isFrozen(second.counts[0]));
   assert.equal(warned.mock.callCount(), 1);
   // One of its own objects, or one no tag names: the live session's, as before.
   const mine = next.device.createTexture({ size: [1, 1], format: 'r8unorm', usage: 0 }).label;
@@ -49,6 +51,35 @@ test('a claim on a device already lost is lost at once; a released one hears no 
   assert.deepEqual(late.losses, ['destroyed'], 'before the claim returns');
 });
 
+test('the first claim on a device already lost hears of it a microtask later', async () => {
+  const device = fakeDevice();
+  device.lose({ reason: 'destroyed', message: 'gone' } as GPUDeviceLostInfo);
+  const first = owner();
+  claimGpuDevice(device, first);
+  await Promise.resolve();
+  assert.deepEqual(first.losses, ['destroyed']);
+});
+
+test('one error naming two closed sessions is one warning, with both counts', (t) => {
+  const warned = t.mock.method(console, 'warn', () => {});
+  const device = fakeDevice();
+  const a = claimGpuDevice(device, owner()),
+    b = claimGpuDevice(device, owner());
+  const live = owner();
+  claimGpuDevice(device, live);
+  const one = a.device.createBuffer({ size: 4, usage: 0, label: 'a' }).label;
+  const two = b.device.createBuffer({ size: 4, usage: 0, label: 'b' }).label;
+  a.release();
+  b.release();
+  device.raise(`[Buffer "${one}"] used with [Buffer "${two}"]`);
+  assert.equal(warned.mock.callCount(), 1);
+  assert.equal(live.closed.length, 1);
+  assert.deepEqual(live.counts, [
+    { session: a.tag, count: 1 },
+    { session: b.tag, count: 1 },
+  ]);
+});
+
 test("an error naming no object is the live sessions', even just after a session closed", (t) => {
   const warned = t.mock.method(console, 'warn', () => {});
   const device = fakeDevice();
@@ -66,7 +97,8 @@ test("an error naming no object is the live sessions', even just after a session
   assert.deepEqual(first.errors, []);
 });
 
-test("running out of memory is the live sessions' loss, whoever made the object", () => {
+test("running out of memory is the live sessions' loss, unless it names a closed one's object", (t) => {
+  t.mock.method(console, 'warn', () => {});
   const device = fakeDevice();
   // WebGPU's class, by its name: Node has none.
   class GPUOutOfMemoryError {
@@ -81,11 +113,12 @@ test("running out of memory is the live sessions' loss, whoever made the object"
   claimGpuDevice(device, second);
   const old = closing.device.createBuffer({ size: 4, usage: 0, label: 'pages' }).label;
   closing.release();
-  // Named on the closed session's object: still the device's condition.
-  device.raise(`[Buffer "${old}"] out of memory`, new GPUOutOfMemoryError('out of memory'));
+  // Named on the closed session's object alone: that session's, said as a warning.
+  const named = `[Buffer "${old}"] out of memory`;
+  device.raise(named, new GPUOutOfMemoryError(named));
   device.raise('Out of memory', new GPUOutOfMemoryError('Out of memory'));
-  assert.deepEqual(second.reasons, ['out-of-memory', 'out-of-memory']);
-  assert.deepEqual(second.closed, []);
+  assert.deepEqual(second.reasons, ['out-of-memory']);
+  assert.equal(second.closed.length, 1);
 });
 
 test("with no session live, a closed one's error is said once on the console, then counted", (t) => {

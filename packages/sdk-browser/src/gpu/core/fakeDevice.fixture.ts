@@ -97,9 +97,9 @@ export function owner() {
     counts,
     losses,
     error: (message: string, reason: string) => (errors.push(message), reasons.push(reason)),
-    closedError: (message: string, count: { session: string; count: number }) => (
+    closedError: (message: string, sessions: readonly { session: string; count: number }[]) => (
       closed.push(message),
-      counts.push(count)
+      counts.push(...sessions)
     ),
     lost: (info: { reason: string }) => losses.push(info.reason),
   };
