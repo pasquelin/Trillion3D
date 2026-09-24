@@ -5,7 +5,7 @@ import {
   FRUSTUM_PLANE_VALUES,
   frustumExcludesBox,
 } from '../../../../sdk-core/src/index.ts';
-import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import { placementsSphere } from './meshDepth.ts';
 import { readHostBox } from '../../host/boxBounds.ts';
 import { isTransmissive } from '../../visibility/shader/material.ts';
