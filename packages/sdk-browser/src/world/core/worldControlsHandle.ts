@@ -4,18 +4,9 @@ import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts';
 import { controlSettingAccessors } from './worldControlsAccessors.ts';
 import { characterSettingAccessors } from './worldCharacterAccessors.ts';
-import { meshCollision } from '../../../../sdk-core/src/collision/meshTriangles.ts';
-import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { isHelper } from '../helper/mark.ts';
-
-/** What `world.controls.colliders` takes: meshes to build a triangle tree from, or a world. */
-type Colliders = Object3D | readonly Object3D[] | CharacterCollision | null;
-
-/** Whether `value` is a collision world rather than meshes: it answers the two questions. */
-const isCollision = (value: Colliders): value is CharacterCollision =>
-  typeof (value as Partial<CharacterCollision> | null)?.resolveCapsule === 'function' &&
-  typeof (value as Partial<CharacterCollision> | null)?.groundBelow === 'function';
+import { controlTargets } from './worldControlTargets.ts';
+import type { CharacterPort } from '../../physics/physicsCharacter.ts';
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 
 /**
  * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
@@ -31,7 +22,8 @@ const isCollision = (value: Colliders): value is CharacterCollision =>
  * speeds, jump and hooks the character — so a page may set them before or after it picks its
  * controller. The character's `colliders` are kept the same way: the triangle tree is built
  * once when they are set, handed to every character `kind` makes, and rebuilt only on
- * `rebuildColliders()`. A cruising flight or a turning orbit moves on every frame, so the
+ * `rebuildColliders()`. With the world's physics on, the character's body is Jolt's and meets
+ * the simulation's bodies instead (`physics` below). A cruising flight or a turning orbit moves on every frame, so the
  * handle asks for the first one; a paused controller, or any other kind, leaves the scene
  * still.
  */
@@ -40,12 +32,11 @@ export function worldControlsHandle(
   camera: () => Camera,
   surface: HTMLElement,
   invalidate: () => void,
+  physics: () => CharacterPort | null = () => null,
 ) {
   let kind = initial,
     enabled = true,
-    current: Controller | null = null,
-    colliders: Colliders = null,
-    collision: CharacterCollision | null = null;
+    current: Controller | null = null;
   const standingTarget = new Vector3(),
     settings = { ...CONTROL_SETTINGS };
   /** Whether the controller in place moves on its own — cruising, a stick input held, a turn —
@@ -60,7 +51,7 @@ export function worldControlsHandle(
     if (!live) return;
     for (const name of Object.keys(settings) as ControlSetting[])
       if (name in live) live[name] = settings[name];
-    if ('collision' in live && live.collision !== collision) live.collision = collision;
+    targets.bind(live);
     wake(live);
   };
   const setting = <K extends ControlSetting>(name: K, value: (typeof CONTROL_SETTINGS)[K]) => {
@@ -85,6 +76,10 @@ export function worldControlsHandle(
     }
     current?.addEventListener('change', invalidate);
   };
+  const targets = controlTargets(physics, () => {
+    targets.bind(current as Record<string, unknown> | null);
+    invalidate();
+  });
   rebuild();
   const handle = {
     /** Which controller steers the camera; set another name to switch. */
@@ -92,6 +87,11 @@ export function worldControlsHandle(
       return kind;
     },
     set kind(next: WorldControls) {
+      if (next === 'vehicle' && !targets.accessors.vehicle)
+        throw new EngineError(
+          'NO_VEHICLE',
+          "world.controls: 'vehicle' drives world.controls.vehicle, which is null — set it first.",
+        );
       kind = next;
       rebuild();
     },
@@ -117,32 +117,6 @@ export function worldControlsHandle(
      *  hooks. `false` hands the step to the page, which calls `update` from such a hook, as
      *  often and over whatever sub-steps it integrates; the world then never steps it. */
     autoUpdate: true,
-    /**
-     * Character only: what the body collides with, or `null`. Meshes — one object or a list,
-     * their descendants included — build a static triangle tree from their world-space
-     * triangles as they stand now: one pass over the triangles and an `O(T log T)` build, about
-     * 52 bytes kept per triangle. Compiled models are not read yet: give a simple mesh stand-in
-     * for them. A `CharacterCollision` — a physics backend's world, anything that answers
-     * `resolveCapsule` and `groundBelow` — is used as it is.
-     */
-    get colliders(): Object3D | readonly Object3D[] | CharacterCollision | null {
-      return colliders;
-    },
-    set colliders(next: Object3D | readonly Object3D[] | CharacterCollision | null) {
-      colliders = next;
-      handle.rebuildColliders();
-    },
-    /** Character only: builds the collision tree again, after the colliders moved or changed; a
-     *  `CharacterCollision` is its own world and is handed on unchanged. */
-    rebuildColliders() {
-      collision = isCollision(colliders)
-        ? colliders
-        : colliders
-          ? meshCollision(colliders, isHelper)
-          : null;
-      bound();
-      invalidate();
-    },
     /** Character only: the body's velocity in metres per second, a copy; zero otherwise. */
     get velocity(): Vector3 {
       const v = (current as { velocity?: ArrayLike<number> } | null)?.velocity;
@@ -159,7 +133,11 @@ export function worldControlsHandle(
     /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose,
      *  and an orbit turns by `autoRotate`. A paused controller does nothing. */
     update(delta = 0) {
-      if (enabled) current?.update?.(delta);
+      if (!enabled) return;
+      // The world's physics started or stopped since: the character's body follows it.
+      if (current && 'physics' in current)
+        targets.bind(current as unknown as Record<string, unknown>);
+      current?.update?.(delta);
     },
     /** The world's camera changed: the controller follows it. */
     follow: rebuild,
@@ -173,8 +151,10 @@ export function worldControlsHandle(
   const kept = {
     ...Object.getOwnPropertyDescriptors(controlSettingAccessors(settings, setting)),
     ...Object.getOwnPropertyDescriptors(characterSettingAccessors(settings, setting)),
+    ...Object.getOwnPropertyDescriptors(targets.accessors),
   };
   type Kept = ReturnType<typeof controlSettingAccessors> &
-    ReturnType<typeof characterSettingAccessors>;
+    ReturnType<typeof characterSettingAccessors> &
+    typeof targets.accessors;
   return Object.defineProperties(handle, kept) as typeof handle & Kept;
 }
