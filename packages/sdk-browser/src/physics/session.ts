@@ -30,7 +30,7 @@ import type { CharacterReport } from './characterDriver.ts';
  */
 export function createPhysicsSession(
   root: Object3D,
-  budget: PhysicsBudget,
+  budget: Readonly<PhysicsBudget>,
   invalidate: () => void,
   failed: (error: EngineError, fatal?: boolean) => void,
 ) {
