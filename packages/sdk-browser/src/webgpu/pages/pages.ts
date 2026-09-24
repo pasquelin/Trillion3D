@@ -148,7 +148,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     pageSpecs,
     acceptPage(url, array, plan) {
-      acceptPage(rt, url, array, plan);
+      acceptPage(rt, url, array, plan, rt.services.affectsImage);
     },
     dropPage(url) {
       dropPage(rt, url);
