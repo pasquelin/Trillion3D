@@ -20,7 +20,7 @@ import {
 import type { PlacementRows } from '../../placement/rows.ts';
 import type { GraphNode } from '../../host/graph/node.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
-import { planCells } from './plan.ts';
+import { inCellFrame, planCells } from './plan.ts';
 import {
   releaseRow,
   rowLocal,
@@ -45,6 +45,7 @@ type Inputs = {
 };
 
 const product = new Float64Array(MATRIX_VALUES);
+const rootWorld = new Float64Array(MATRIX_VALUES);
 
 export function createPartitionCells(inputs: Inputs) {
   const { partition, base, root, parents, meshes } = inputs;
@@ -145,7 +146,8 @@ export function createPartitionCells(inputs: Inputs) {
       budgetMs: number,
     ) {
       followParents();
-      const plan = planCells(cells, eye, reach, new Set(held.keys()));
+      const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
+      const plan = planCells(cells, local.eye, local.reach, new Set(held.keys()));
       plan.leave.forEach(leave);
       const started = performance.now();
       let placed = 0;
@@ -177,7 +179,8 @@ export function createPartitionCells(inputs: Inputs) {
       reach: (size: number) => number,
       read: (url: string) => Promise<Uint8Array>,
     ) {
-      const { visible } = planCells(cells, eye, reach, new Set(held.keys()));
+      const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
+      const { visible } = planCells(cells, local.eye, local.reach, new Set(held.keys()));
       const bodies = await Promise.all(visible.map((cell) => read(cells[cell].url)));
       visible.forEach((cell, at) => place(cell, bodies[at], () => {}));
       touched.clear();

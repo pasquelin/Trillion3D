@@ -140,3 +140,14 @@ test('rows grow through the session, and a session that cannot grow them keeps t
   fixed.cells.frame([0, 0, 0], () => 100, still.port, 2);
   assert.deepEqual(fixed.cells.stats(), { cells: 2, held: 0, waiting: 1 });
 });
+
+test('a world that poses the scene root reads the cells its camera sees there', () => {
+  // The far cell stands at the world's origin once the root is moved back 5 km and shrunk ten
+  // times: a camera there asks for it, and not for the near cell, now 500 m away.
+  const { cells, root, bytes } = world();
+  root.position.set(-500, 0, 0);
+  root.scale.set(0.1, 0.1, 0.1);
+  const { port, asked } = io(bytes);
+  cells.frame([2, 0, 0], () => 100, port, 2);
+  assert.deepEqual(asked, ['https://cache.test/key/far.json']);
+});

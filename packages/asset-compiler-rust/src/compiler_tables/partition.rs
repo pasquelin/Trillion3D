@@ -1,7 +1,7 @@
 //! The world partition of the node table (#404): a node that only places a mesh — a leaf of the
-//! scene, carrying no light, no camera, no skin, no morph weights, and that no animation moves —
-//! leaves the table the runtime reads before its first frame and is written in a spatial cell
-//! instead, which the runtime reads by distance to its camera. What stays is the core: every other
+//! scene, carrying no light, no camera, no skin, no morph weights, that no animation moves, nor any
+//! of its ancestors — leaves the table the runtime reads before its first frame and is written in
+//! a spatial cell instead, which the runtime reads by distance to its camera. What stays is the core: every other
 //! node, the ranks renumbered without the placed ones.
 //!
 //! A cell holds the nodes of one size class — objects whose world box diagonal rounds up to the
@@ -92,7 +92,10 @@ pub(super) fn partition(
         let bare = ["light", "camera", "weights"]
             .iter()
             .all(|field| node[*field].is_null());
-        let still = gltf_nodes[id].get("skin").is_none() && !moved.contains(&id);
+        // Its box is written once, from the declared poses: nothing above it may move either.
+        let posed =
+            std::iter::successors(Some(id), |at| parent[*at]).all(|at| !moved.contains(&at));
+        let still = gltf_nodes[id].get("skin").is_none() && posed;
         (reached[id] && leaf && bare && still && boxes.get(mesh)?.is_some()).then_some(mesh)
     };
     let placed_ids: Vec<(usize, usize)> = (0..table.len())
