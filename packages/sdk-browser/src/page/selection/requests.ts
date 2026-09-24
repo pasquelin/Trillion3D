@@ -135,25 +135,38 @@ export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
 }
 /** Fallback without stamps: one set for the whole host, cleared on each call. */
 const vuesSansEstampille = new Set<string>();
-export function collectPendingUrls<
-  T extends { array?: Uint32Array; url: string; streamUrl?: string; requestIndex?: number },
->(shown: readonly T[], into: string[], stamps?: RequestStamps) {
+type Requested = { array?: Uint32Array; url: string; streamUrl?: string; requestIndex?: number };
+/**
+ * Request addresses of the records still missing bytes. A request brings its closure: the missing
+ * bundles a record's bundle is installed after (`dependencies`, `./bundleDependencies.ts`) are
+ * listed before the records themselves, so a parent outside the cut is fetched too.
+ */
+export function collectPendingUrls<T extends Requested & { dependencies?: readonly Requested[] }>(
+  shown: readonly T[],
+  into: string[],
+  stamps?: RequestStamps,
+) {
   into.length = 0;
   if (stamps) {
     stamps.begin();
+    for (let i = 0; i < shown.length; i++) {
+      const dependencies = shown[i].dependencies;
+      if (dependencies?.length) stamps.mark(dependencies, into, true);
+    }
     return stamps.mark(shown, into, true);
   }
   // Fallback without stamps: a host that has not numbered its requests deduplicates by the strings.
   const seen = vuesSansEstampille;
   seen.clear();
-  for (let i = 0; i < shown.length; i++) {
-    const rec = shown[i];
-    if (rec.array) continue;
+  const add = (rec: Requested) => {
+    if (rec.array) return;
     const key = pageRequestUrl(rec);
-    if (seen.has(key)) continue;
+    if (seen.has(key)) return;
     seen.add(key);
     into.push(key);
-  }
+  };
+  for (let i = 0; i < shown.length; i++) shown[i].dependencies?.forEach(add);
+  for (let i = 0; i < shown.length; i++) add(shown[i]);
   return into;
 }
 /** Hand a loaded page or bundle to every record that shares it; a bundled record gets a view at its
