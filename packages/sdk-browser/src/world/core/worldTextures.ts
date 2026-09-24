@@ -1,8 +1,9 @@
 /**
  * THE HOST TEXTURES OF A WORLD'S MATERIALS: each engine texture uploaded once through the host
  * library, its addressing, filters and placement written in the host's words, and written again
- * in place when a repaint moves them (#335, #360, #361) — as long as the picture itself did not
- * change, which only a new upload shows.
+ * in place when a repaint moves them (#335, #360, #361). A picture that changed — which only a
+ * new upload shows — is left as it was uploaded: textures that change their pixels live are
+ * #362's.
  */
 import * as THREE from 'three';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
@@ -53,49 +54,58 @@ export type HostTextures = Map<string, THREE.Texture>;
 const pictureOf = (texture: Texture) =>
   [texture.image, texture.flipY, texture.colorSpace, texture.channel] as const;
 
-/** True when a host texture still shows the picture it was built from (`pictureOf`). */
-const samePicture = (host: THREE.Texture, texture: Texture) => {
-  const held = host.userData.picture as ReturnType<typeof pictureOf>;
-  return pictureOf(texture).every((value, i) => value === held[i]);
-};
+/** True when a host texture's placement — repeat, offset, rotation — is the texture's. */
+const placementHeld = (host: THREE.Texture, texture: Texture) =>
+  host.repeat.x === texture.repeat.x &&
+  host.repeat.y === texture.repeat.y &&
+  host.offset.x === texture.offset.x &&
+  host.offset.y === texture.offset.y &&
+  host.rotation === texture.rotation;
+
+/** True when a host texture's addressing, filters and anisotropy are the texture's. */
+const addressingHeld = (host: THREE.Texture, texture: Texture) =>
+  host.wrapS === WRAP[texture.wrapS] &&
+  host.wrapT === WRAP[texture.wrapT] &&
+  host.minFilter === FILTER[texture.minFilter] &&
+  host.magFilter === FILTER[texture.magFilter] &&
+  host.anisotropy === texture.anisotropy;
 
 /**
- * Writes how a host texture samples, and only what moved. The placement of the picture —
- * repeat, offset, rotation — is its UV matrix, recomposed in place and read at every draw: no
- * upload. Addressing and filters are the host texture's upload state: only a change there bumps
- * its version, which uploads it again on WebGL2 and refills its engine record
- * (`../../host/surfaceImport.ts`). A repaint of a colour alone changes nothing here.
+ * True when the picture a host texture shows is no longer the texture's: another image, flip,
+ * colour space or UV set — or a version that moved with neither its sampling nor its placement,
+ * the pixels written in place then `needsUpdate`. Only a new upload would show it.
+ */
+function pictureMoved(host: THREE.Texture, texture: Texture) {
+  const held = host.userData.picture as ReturnType<typeof pictureOf>;
+  if (pictureOf(texture).some((value, i) => value !== held[i])) return true;
+  return (
+    texture.version !== host.userData.version &&
+    placementHeld(host, texture) &&
+    addressingHeld(host, texture)
+  );
+}
+
+/**
+ * Writes how a host texture samples, and only what moved. The placement of the picture is its UV
+ * matrix, recomposed in place and read at every draw. Addressing and filters are the host
+ * texture's sampler state: a change there bumps its version, which refills its engine record
+ * (`../../host/surfaceImport.ts`); the pixels stay, the WebGL2 binder sets the sampler on the
+ * texture it holds (`../../webgl/cluster/textures.ts`). A repaint of a colour alone changes
+ * nothing here.
  */
 function writeHostSampling(host: THREE.Texture, texture: Texture) {
-  const { repeat, offset } = texture;
-  if (
-    host.repeat.x !== repeat.x ||
-    host.repeat.y !== repeat.y ||
-    host.offset.x !== offset.x ||
-    host.offset.y !== offset.y ||
-    host.rotation !== texture.rotation
-  ) {
-    host.repeat.set(repeat.x, repeat.y);
-    host.offset.set(offset.x, offset.y);
+  host.userData.version = texture.version;
+  if (!placementHeld(host, texture)) {
+    host.repeat.set(texture.repeat.x, texture.repeat.y);
+    host.offset.set(texture.offset.x, texture.offset.y);
     host.rotation = texture.rotation;
     host.updateMatrix();
   }
-  const wrapS = WRAP[texture.wrapS],
-    wrapT = WRAP[texture.wrapT],
-    minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter,
-    magFilter = FILTER[texture.magFilter] as THREE.MagnificationTextureFilter;
-  if (
-    host.wrapS === wrapS &&
-    host.wrapT === wrapT &&
-    host.minFilter === minFilter &&
-    host.magFilter === magFilter &&
-    host.anisotropy === texture.anisotropy
-  )
-    return;
-  host.wrapS = wrapS;
-  host.wrapT = wrapT;
-  host.minFilter = minFilter;
-  host.magFilter = magFilter;
+  if (addressingHeld(host, texture)) return;
+  host.wrapS = WRAP[texture.wrapS];
+  host.wrapT = WRAP[texture.wrapT];
+  host.minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter;
+  host.magFilter = FILTER[texture.magFilter] as THREE.MagnificationTextureFilter;
   host.anisotropy = texture.anisotropy;
   host.needsUpdate = true;
 }
@@ -123,18 +133,16 @@ export function hostTexture(texture: Texture, colour: boolean, built: HostTextur
 }
 
 /**
- * Writes the sampling of a material's maps into the host textures a surface holds — `false`, and
- * nothing written, when one of them shows another picture than the one it was uploaded from.
+ * Writes the sampling of a material's maps into the host textures a surface holds. A map whose
+ * picture moved (`pictureMoved`) is left as uploaded, sampling included, as before #360: a
+ * repaint never uploads, nor reopens the session — a video or a canvas reassigned at every frame
+ * would reopen it at every frame. Live pictures are #362's.
  */
 export function repaintHostMaps(into: Record<string, unknown>, material: Material) {
-  const maps: [THREE.Texture, Texture][] = [];
   for (const field of HOST_MAPS) {
     const texture = material[field] as Texture | undefined,
       host = into[field] as THREE.Texture | null | undefined;
-    if (!texture?.isTexture || !host?.isTexture) continue;
-    if (!samePicture(host, texture)) return false;
-    maps.push([host, texture]);
+    if (texture?.isTexture && host?.isTexture && !pictureMoved(host, texture))
+      writeHostSampling(host, texture);
   }
-  for (const [host, texture] of maps) writeHostSampling(host, texture);
-  return true;
 }

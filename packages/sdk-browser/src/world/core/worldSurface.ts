@@ -112,13 +112,12 @@ export function hostSurface(material: Material, vertexColors: boolean, textures:
  * Writes a material's value fields — colour, glow, metalness, roughness — and its maps' sampling
  * into the host surface built for it, as `hostSurface` wrote them, and bumps the surface's
  * version: every reader of the surface (`page/surface.ts`) takes them at its next read, nothing
- * built again (#335). False, and nothing written, when a map shows another picture than the one
- * its host texture was uploaded from — an image, a `flipY`, a colour space or a UV set changed —:
- * that takes a new upload, the session's reopening.
+ * built again (#335). A map that shows another picture keeps the one it was uploaded with
+ * (`repaintHostMaps`).
  */
 export function repaintHostSurface(surface: THREE.Material, material: Material) {
   const into = surface as THREE.Material & Record<string, unknown>;
-  if (!repaintHostMaps(into, material)) return false;
+  repaintHostMaps(into, material);
   const { color, emissive } = material;
   (into.color as THREE.Color | undefined)?.setRGB(color.r, color.g, color.b);
   (into.emissive as THREE.Color | undefined)
@@ -127,5 +126,4 @@ export function repaintHostSurface(surface: THREE.Material, material: Material) 
   if (typeof into.metalness === 'number') into.metalness = material.metalness;
   if (typeof into.roughness === 'number') into.roughness = material.roughness;
   surface.needsUpdate = true;
-  return true;
 }
