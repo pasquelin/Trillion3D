@@ -1212,7 +1212,8 @@
       "options.pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "options.controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
       "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
-      "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
+      "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
+      "options.temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet."
     }
   },
   "crossVector3": {
@@ -2356,12 +2357,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Die Matrizen, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
+    "summary": "Die Matrizen und der Tiefenbereich, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
     "members": {
       "projection": "Die Projektion.",
       "world": "Die Matrix der Kamera in der Welt.",
       "view": "Die Sichtmatrix.",
-      "eye": "Wo das Auge ist."
+      "eye": "Wo das Auge ist.",
+      "near": "Nächste Entfernung.",
+      "far": "Fernste Entfernung."
     }
   },
   "HostDrawOutput": {
@@ -2758,8 +2761,7 @@
     "summary": "Veröffentlichte Einstellungen der direkten Beleuchtung.",
     "description": "Das sind benannte Produktentscheidungen, keine vergrabenen Konstanten: jede Laufzeitgrenze liest sie erneut, und die Diagnose veröffentlicht sie unverändert.",
     "members": {
-      "maxLights": "Insgesamt vom Vertrag akzeptierte Lichter; darüber hinaus lehnt `addLight` ab.",
-      "maxLightsPerTile": "Von einer Bildschirmkachel gehaltene Lichter; die Schleife pro Pixel ist durch diese Zahl begrenzt (X2).",
+      "maxLights": "Insgesamt vom Vertrag akzeptierte Lichter; darüber hinaus lehnt `addLight` ab. Eine Bildschirmkachel behält jedes davon, das sie berührt; ihre Liste und die Pixelschleife sind dadurch begrenzt (X2).",
       "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
       "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
@@ -2852,6 +2854,7 @@
       "bounds": "Die Box, die das Modell füllt, in seinem eigenen Bezugssystem.",
       "lights": "Die Lichter unter dem Modell — die, die die Quelldatei trug, als Knoten: eine Seite ändert, verschiebt oder entfernt sie wie ihre eigenen, und sie bewegen sich mit dem Modell.",
       "record": "Alles, was die Welt über dieses Modell hält: seine Adressen, sein Manifest und seinen Graphen.",
+      "getObjectByName": "Der erste Knoten darunter mit diesem Namen: das Modell, ein Knoten seiner Quelldatei, dann jedes andere Kind — ein Licht aus der Datei, ein von einer Seite platzierter Knoten.",
       "metadata": "Das kompilierte Manifest des Modells — seine Primitive, `sourceTriangles` — und `clusters`, die Cluster, die seine Seiten enthalten, jede Stufe seiner DAGs gezählt.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
     }
@@ -2897,7 +2900,8 @@
       "signal": "Stoppt das Laden, wenn das Signal abgebrochen wird.",
       "scope": "`'full'` fordert den ganzen Cache an, `'progressive'` seinen Ausschnitt als Stream; ein Modell mit anderem Umfang wird bei seinem Namen abgelehnt. Ohne Wert wird das Modell mit dem Umfang gelesen, den sein Zeiger deklariert.",
       "stream": "Ein von der Seite eingestellter Stream; die Sitzung der Welt lässt Seiten mit ihrem eigenen ankommen.",
-      "position": "Wohin der Ursprung des Modells in der Szene geht."
+      "position": "Wohin der Ursprung des Modells in der Szene geht.",
+      "onProgress": "Hört, wie weit das Laden ist: `manifest`, sobald das Manifest gelesen ist, dann `resources`, sobald jede Datei ankommt, die die Szene liest (`completed` von dem bisher bekannten `total`). Das Ereignis ist ein `JobProgress`: ein `createJob`, der das Laden umschließt, übergibt hier sein `progress`."
     }
   },
   "LOD_QUALITY": {
@@ -3260,7 +3264,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera.",
+    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera: weiß bei `camera.near`, schwarz bei `camera.far`, dazwischen ein gerader Verlauf, gleich auf WebGPU und WebGL2.",
     "parameters": {
       "parameters": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
       "parameters.color": "Die Grundfarbe.",
@@ -5219,6 +5223,7 @@
       "counts": "Was der letzte Plan getan hat, in Seiten.",
       "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
+      "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
       "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltene Vereinigung kommt sofort in die Liste.",
       "observeCost": "Zeitmesser des Schattendurchgangs eines Bildes, auf die gezeichneten Seiten umgelegt.",
@@ -6320,6 +6325,10 @@
     "summary": "Das Licht, das auf Oberflächen zurückstrahlt, gegen den residenten Proxy verfolgt; standardmäßig aus.",
     "description": "Eine Änderung wird sofort auf einem Pfad angewendet, der es trägt, und bei der nächsten Öffnung auf einem Pfad übernommen, der es nicht trägt."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Zeitliche Kantenglättung: Subpixel-Versatz, über Bilder hinweg akkumuliert; standardmäßig an.",
+    "description": "Geschrieben, wirkt sie ab dem nächsten Bild, der Verlauf wird verworfen, keine Sitzung neu geöffnet. Gelesen, ist sie das, was das Bild trägt: false unter WebGL2 und solange das Programm nach dem Einschalten kompiliert."
+  },
   "world.budget": {
     "summary": "Die Speicherreservoirs der Welt, in Bytes gelesen und eingestellt.",
     "members": {
@@ -6512,7 +6521,8 @@
       "pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
       "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
-      "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
+      "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
+      "temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet."
     }
   },
   "WorldPageSource": {
@@ -6855,7 +6865,9 @@
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
+      "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }
   },
   "ContactEvent": {
@@ -7036,7 +7048,9 @@
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
+      "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }
   },
   "WorldPhysicsOptions": {
@@ -7300,6 +7314,77 @@
       "x": "Von links nach rechts.",
       "y": "Von unten nach oben.",
       "z": "Von hinten nach vorn."
+    }
+  },
+  "Joint": {
+    "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",
+    "description": "Es hält, solange beide Körper simuliert werden und bis es bricht.",
+    "parameters": {
+      "options": "Was `joint.*` annimmt. Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
+      "options.anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
+      "options.anchorB": "Das Ende eines Abstands an `b`.",
+      "options.axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
+      "options.limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
+      "options.spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "options.motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "options.breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+    },
+    "members": {
+      "kind": "Was das Gelenk ist.",
+      "a": "Der erste Körper.",
+      "b": "Der zweite Körper oder `null` für die Welt.",
+      "options": "Womit es erzeugt wurde.",
+      "motor": "Der Motor eines Scharniers oder Schiebegelenks; `null` lässt es frei drehen oder gleiten.",
+      "broken": "Ob es gebrochen ist: über seine `breakForce` hinaus gezogen. Ein gebrochenes Gelenk hält nichts mehr.",
+      "on": "Ruft `handler` auf, wenn das Gelenk bricht."
+    }
+  },
+  "JointKind": {
+    "summary": "Die Gelenke zwischen Körpern, jedes eine von Jolts eigenen Bedingungen."
+  },
+  "JointLimits": {
+    "summary": "Wie weit sich ein Gelenk bewegen darf: Radiant für ein Scharnier, Meter für ein Schiebegelenk oder einen Abstand, der halbe Kegelwinkel (`max`) für einen Kegel.",
+    "members": {
+      "min": "Bei einem Scharnier von −π bis 0, bei einem Schiebegelenk 0 oder weniger.",
+      "max": "Bei einem Scharnier von 0 bis π, bei einem Schiebegelenk 0 oder mehr."
+    }
+  },
+  "JointMotor": {
+    "summary": "Der Motor eines Scharniers oder Schiebegelenks: Er treibt das Gelenk auf eine Geschwindigkeit oder eine Position.",
+    "members": {
+      "mode": "`'velocity'`: rad/s oder m/s; `'position'`: Radiant oder Meter ab der Lage, in der das Gelenk entstand.",
+      "target": "Die zu erreichende Geschwindigkeit oder Position.",
+      "maxForce": "N·m für ein Scharnier, N für ein Schiebegelenk; weggelassen: unbegrenzt."
+    }
+  },
+  "JointOptions": {
+    "summary": "Was `joint.*` annimmt.",
+    "description": "Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
+    "members": {
+      "anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
+      "anchorB": "Das Ende eines Abstands an `b`.",
+      "axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
+      "limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
+      "spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+    }
+  },
+  "joint": {
+    "summary": "Die Familie `joint`: zwei verbundene Körper oder ein Körper und die Welt (`b` null).",
+    "members": {
+      "fixed": "Verschweißt sie: Sie bewegen sich wie einer.",
+      "point": "Ein Kugelgelenk bei `anchor`: Sie drehen sich frei darum.",
+      "hinge": "Ein Stift bei `anchor` entlang `axis`: eine Tür, ein Rad. `limits` in Radiant.",
+      "slider": "Eine Schiene entlang `axis`: eine Schublade, ein Kolben. `limits` in Metern.",
+      "distance": "Hält `anchor` an `a` und `anchorB` an `b` in ihrem Abstand oder innerhalb von `limits`.",
+      "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt."
+    }
+  },
+  "JointHost": {
+    "summary": "Die Weltseite eines Gelenks: was ein Schreiben darauf von der Simulation verlangt.",
+    "members": {
+      "motor": "Der Motor hat sich geändert."
     }
   }
 }
