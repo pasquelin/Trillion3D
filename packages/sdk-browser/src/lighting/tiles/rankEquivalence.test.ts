@@ -97,6 +97,8 @@ test('fuzz: random masks and counts, any thread order gives the ascending list',
 
 test('the tile shader writes each kept light at its rank, with no guard on the rank', () => {
   assert.doesNotMatch(LIGHT_TILES_SHADER, /MAX_TILE_LIGHTS/, 'no per-tile ceiling');
+  // The oracle clamps the count to MAX_LIGHTS only; a lower clamp here drops lights unseen.
+  assert.match(LIGHT_TILES_SHADER, /let count=min\(lights\.count,MAX_LIGHTS\);/);
   for (const slice of ['OPAQUE', 'BLEND'])
     assert.match(
       LIGHT_TILES_SHADER,
