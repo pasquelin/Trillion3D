@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
+import { asWebgpuDevice } from '../../../../../../tests/kit/gpu/webgpuDevice.ts';
 import { camera, quadBackend } from '../testScenes.fixture.ts';
 import { setWebgpuMemoryBudgets } from './memory.ts';
 import { geometryPoolFor } from '../../../residency/pools.ts';
@@ -121,4 +122,52 @@ test('a texture budget set before prepare is kept and drawn by prepare, the repo
     fixture.geometry.dispose();
     fixture.material.dispose();
   }
+});
+
+// Out of memory absorbed: a pool the device refuses is drawn smaller, the pool in place replaced
+// only by one it grants, a diagnostic names the pool and the bytes, and nothing reaches the page.
+test('a geometry pool the device refuses mid-session shrinks, and the session goes on', async () => {
+  installGpuGlobals();
+  const gpu = asWebgpuDevice({
+    limits: {},
+    createBuffer: ({ size }: { size: number }) => {
+      if (size > 16) gpu.raise('Out of memory', { message: 'Out of memory' });
+      return { destroy() {} };
+    },
+  });
+  const resized: number[] = [],
+    diagnostics: Array<[string, Record<string, unknown>]> = [];
+  const setup = {
+    geometryPool: geometryPoolFor({ budgetBytes: 8, pageBytes: 8, uniquePages: 100, rootPages: 1 }),
+    geometryPoolFor: (budgetBytes: number) =>
+      geometryPoolFor({ budgetBytes, pageBytes: 8, uniquePages: 100, rootPages: 1 }),
+    tracking: { pageCatalogIds: new Map(), unmarkPinned() {} },
+    get slots() {
+      return this.geometryPool.slots;
+    },
+  };
+  const run = { lost: false, gate: { resourcesChanged() {} } };
+  const rt = {
+    setup,
+    gpu: {
+      device: gpu.device,
+      cache: { resize: async (n: number) => (resized.push(n), []), stats: () => ({}) },
+    },
+    vis: {},
+    run,
+    diag: {
+      engineDiagnostic: (phase: string, _message: string, context: Record<string, unknown>) =>
+        diagnostics.push([phase, context]),
+    },
+  };
+  const report = await setWebgpuMemoryBudgets(rt as never, { geometryPoolBytes: 64 });
+  // 64 → 32 → 16 bytes: two slots, what the device grants.
+  assert.deepEqual(resized, [2]);
+  assert.equal(report.geometryPool.slots, 2);
+  assert.equal(run.lost, false);
+  assert.deepEqual(diagnostics[0], [
+    'gpu-out-of-memory',
+    { kind: 'warning', pool: 'geometry', requestedBytes: 64, grantedBytes: 16, clamp: null },
+  ]);
+  assert.equal(gpu.scopes.length, 0);
 });
