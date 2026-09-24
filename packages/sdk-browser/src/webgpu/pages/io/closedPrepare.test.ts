@@ -1,4 +1,5 @@
-// A backend closed while it prepares: cancelled at its next wait, nothing left on the world's device.
+// A backend closed while it prepares: cancelled at its next wait, nothing left on the world's device;
+// one on a device lost before its first claim: failed at the end of its preparation.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
@@ -21,6 +22,19 @@ test('a backend closed while it prepares stops there, and leaves nothing on the 
     [],
   );
   assert.ok(!phases.includes('webgpu-prepare-failed'), 'cancelled, not failed');
+  fixture.geometry.dispose();
+  fixture.material.dispose();
+});
+
+test("a session's first claim on a device already lost fails its preparation", async () => {
+  installGpuGlobals();
+  const { device, lose } = mockGpu();
+  lose('destroyed');
+  const phases: string[] = [];
+  const { fixture, backend } = quadBackend(device, { onDiagnostic: (e) => phases.push(e.phase) });
+  await assert.rejects(backend.prepare(), /WEBGPU_LOST/);
+  assert.ok(phases.includes('gpu-device-lost'));
+  await backend.dispose();
   fixture.geometry.dispose();
   fixture.material.dispose();
 });

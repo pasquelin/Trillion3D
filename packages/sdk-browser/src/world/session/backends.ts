@@ -142,11 +142,9 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
         scope,
       });
     } catch (error) {
-      // Cancelled — the session closed: nothing failed, nothing falls back. An abort the session
-      // did not ask for is a failure like any other, diagnosed and fallen back from.
-      if (signal?.aborted) {
-        // Its release awaited, so that nothing of it outlives the cancellation; a release that
-        // fails is diagnosed, and the cancellation still goes up.
+      // Its release awaited, so that nothing of it outlives the failure or the cancellation; a
+      // release that fails is diagnosed, and what went wrong before it still goes on.
+      const release = async () => {
         try {
           await backend.dispose();
         } catch (disposeError) {
@@ -157,6 +155,11 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
             scope,
           });
         }
+      };
+      // Cancelled — the session closed: nothing failed, nothing falls back. An abort the session
+      // did not ask for is a failure like any other, diagnosed and fallen back from.
+      if (signal?.aborted) {
+        await release();
         throw error;
       }
       diagnose('backend-preparation-error', 'Backend preparation failed', {
@@ -165,7 +168,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
         error: String(error),
         scope,
       });
-      backend.dispose();
+      await release();
       if (backend.id === 'webgpu-page-raster' && !directGpu) {
         emit({
           eventVersion: 1,
