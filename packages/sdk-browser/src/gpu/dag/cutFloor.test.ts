@@ -13,11 +13,13 @@ import { asHostLibrary } from '../../host/resources.ts';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection, packedWorldsToRenderOrigin } from './pack.ts';
-import { evaluateDagSelectionKernel } from './selection.ts';
+import { DAG_SELECTION_SHADER, evaluateDagSelectionKernel } from './selection.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { dagRecords, worldOf } from './records.ts';
+import { dagRecords, flagsOf, worldOf } from './records.ts';
+import { CLUSTER_ROOT } from './layout.ts';
 import { dagViewFrames } from './oracle/math.ts';
+import { dagOracleDescent } from './oracle/descent.ts';
 import { createDagOraclePredicates } from './oracle/predicates.ts';
 import { descenteComptee } from './cutFrontier.fixture.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
@@ -52,37 +54,103 @@ const POSES: Array<[string, number, number]> = [
 ];
 const SEUILS = [0.25, 1, 4];
 
+/** Every pose at every threshold, the four worlds placed on their grid: the uniforms of each case. */
+function* cases(packed: ReturnType<typeof packDagSelection>, roots: ReturnType<typeof sceneRoots>) {
+  for (const [nom, x, z] of POSES)
+    for (const seuil of SEUILS) {
+      for (let w = 0; w < roots.length; w++)
+        asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
+          (w % 2) * 6.5 - 3.25,
+          Math.floor(w / 2) * 6.5 - 3.25,
+          0,
+        );
+      cam.position.set(x, 0, z);
+      cam.lookAt(x, 0, 0);
+      cam.updateMatrixWorld();
+      const uniforms = cameraSelectionUniforms(cameraMoteur(cam), seuil, [1280, 720]);
+      packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
+      yield { cas: `${nom} at ${seuil} px`, uniforms };
+    }
+}
+
+const sceneFor = (parNiveaux: boolean) => {
+  const roots = sceneRoots(
+    pages,
+    Array.from({ length: 4 }, () => new G.Matrix4()),
+    parNiveaux,
+  );
+  return { roots, packed: packDagSelection(roots) };
+};
+
 for (const parNiveaux of [false, true]) {
   const nomHierarchie = parNiveaux ? 'compiler hierarchy' : 'packing hierarchy';
   test(`${nomHierarchie}: top-down pruning removes no kept cluster`, () => {
-    const roots = sceneRoots(
-      pages,
-      Array.from({ length: 4 }, () => new G.Matrix4()),
-      parNiveaux,
-    );
-    const packed = packDagSelection(roots);
+    const { roots, packed } = sceneFor(parNiveaux);
     let elagages = 0;
-    for (const [nom, x, z] of POSES)
-      for (const seuil of SEUILS) {
-        for (let w = 0; w < roots.length; w++)
-          asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
-            (w % 2) * 6.5 - 3.25,
-            Math.floor(w / 2) * 6.5 - 3.25,
-            0,
-          );
-        cam.position.set(x, 0, z);
-        cam.lookAt(x, 0, 0);
-        cam.updateMatrixWorld();
-        const uniforms = cameraSelectionUniforms(cameraMoteur(cam), seuil, [1280, 720]);
-        packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
-        const attendu = coupeSansElagage(packed, uniforms);
-        const obtenu = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort(
-          (a, b) => a - b,
-        );
-        assert.deepEqual(obtenu, attendu, `${nom} at ${seuil} px`);
-        elagages += descenteComptee(packed, uniforms, true).plancherCoupe;
-      }
+    for (const { cas, uniforms } of cases(packed, roots)) {
+      const attendu = coupeSansElagage(packed, uniforms);
+      const obtenu = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort(
+        (a, b) => a - b,
+      );
+      assert.deepEqual(obtenu, attendu, cas);
+      elagages += descenteComptee(packed, uniforms, true).plancherCoupe;
+    }
     // Without pruning the proof would be empty: the threshold says the bound did cut somewhere.
     assert.ok(elagages > 0, `no subtree pruned: the proof covers nothing`);
+  });
+
+  // The edge case of `pruneCrossed` (`shader/floorWgsl.ts`), mirrored at `oracle/oracle.ts`: the
+  // kept cut is missing, escalation raises the threshold toward coarser levels, and those levels
+  // are the ones the descent pruned. Without the fallback the primitive draws nothing and says
+  // it is complete — a hole no total reports.
+  test(`${nomHierarchie}: escalation past a pruned floor draws the pinned roots, then recovers`, () => {
+    const { roots, packed } = sceneFor(parNiveaux);
+    const records = dagRecords(packed);
+    const deMonde = (ids: readonly number[], w: number) =>
+      ids.filter((i) => worldOf(records, i) === w).sort((a, b) => a - b);
+    let franchis = 0;
+    for (const { cas, uniforms } of cases(packed, roots)) {
+      const { prunedFloor } = dagOracleDescent(packed, dagViewFrames(packed, uniforms));
+      const gardees = evaluateDagSelectionKernel(packed, uniforms).pageIds;
+      // The roots alone cover the primitive: the cut at a threshold no replacement meets.
+      const racines = coupeSansElagage(packed, { ...uniforms, pixelError: 3.4e38 });
+      // Crossing frame: everything is resident except the cut the view wants.
+      const resident = new Uint32Array(packed.pageCount).fill(1);
+      for (const i of gardees) resident[i] = 0;
+      const croise = evaluateDagSelectionKernel(packed, uniforms, resident);
+      assert.equal(croise.complete, true, cas);
+      assert.equal(croise.uncoveredTriangles, 0, cas);
+      for (let w = 0; w < roots.length; w++) {
+        const voulues = deMonde(gardees, w);
+        if (!voulues.length) continue;
+        const dessinees = deMonde(croise.drawablePageIds ?? [], w);
+        assert.ok(dessinees.length, `${cas}, world ${w}: a hole where the cut was missing`);
+        if (!dessinees.every((i) => flagsOf(records, i) & CLUSTER_ROOT)) continue;
+        // A fallback is the WHOLE pinned cover, and only past a floor the descent dropped.
+        assert.deepEqual(dessinees, deMonde(racines, w), `${cas}, world ${w}`);
+        assert.ok(prunedFloor[w] < Infinity, `${cas}, world ${w}: fallback with nothing pruned`);
+        if (voulues.some((i) => !(flagsOf(records, i) & CLUSTER_ROOT))) franchis++;
+      }
+      // Next frame the wanted cut has arrived: the finer levels come back, whole.
+      const retour = evaluateDagSelectionKernel(packed, uniforms, resident.fill(1));
+      assert.equal(retour.complete, true, cas);
+      assert.deepEqual(
+        [...(retour.drawablePageIds ?? [])].sort((a, b) => a - b),
+        [...gardees].sort((a, b) => a - b),
+        cas,
+      );
+    }
+    assert.ok(franchis > 0, 'no escalation crossed a pruned floor: the proof covers nothing');
+    // The kernel arms the same fallback: `dagMask` reads `pruneCrossed` beside the missing flag,
+    // and `pruneCrossed` compares the final threshold with the smallest floor dropped. Node does
+    // not run WGSL: its execution is `tests/browser/probes/top-pruning-gpu.ts`'s.
+    assert.match(
+      DAG_SELECTION_SHADER,
+      /atomicLoad\(&work\[slots\(\)\+slot\]\)!=0u\|\|pruneCrossed\(slot\)/,
+    );
+    assert.match(
+      DAG_SELECTION_SHADER,
+      /fn pruneCrossed\(slot:u32\)->bool\{return bitcast<f32>\(atomicLoad\(&work\[slot\]\)\)>bitcast<f32>\(atomicLoad\(&work\[floorSlot\(slot\)\]\)\);\}/,
+    );
   });
 }
