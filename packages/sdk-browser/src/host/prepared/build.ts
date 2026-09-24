@@ -45,7 +45,9 @@ export async function buildPreparedScene(inputs: Inputs) {
   const binary = document.views.length
     ? await track(
         bufferUrl,
-        checked(bufferUrl, signal).then((response) => meter(response).arrayBuffer()),
+        checked(bufferUrl, signal).then((response) =>
+          meter.read(response, bufferUrl).arrayBuffer(),
+        ),
       )
     : null;
   const skipped =

@@ -106,8 +106,8 @@ export class LoadedModel extends Object3D {
  * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a
  * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
  * WebGPU world's first model does; any other path samples the images themselves. `onProgress`
- * hears `bytes` as each chunk of every file lands (`byteMeter`), the manifest read, the scene
- * tables read, then each resource the scene reads (`loadPreparedScene`).
+ * hears `bytes` against every file the manifest declares as each chunk lands (`byteMeter`), the
+ * manifest read, the scene tables read, then each resource the scene reads (`loadPreparedScene`).
  */
 export async function loadModel(
   manifestUrl: string,
@@ -148,6 +148,7 @@ export async function loadModel(
     }),
     loadImportedLights(base, signal, meter),
   ]);
+  meter.settle();
   const model = new LoadedModel({
     manifestUrl,
     metadataUrl,
