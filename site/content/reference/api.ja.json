@@ -3835,7 +3835,8 @@
       "texturePoolCeiling": "世界が要求できる最大のテクスチャプール、バイト単位。",
       "geometryPool": "ジオメトリページ用に保持されるGPUメモリのバイト数; 設定するとその範囲が変わる。",
       "texturePool": "テクスチャページ用に保持されるGPUメモリのバイト数; 設定するとその範囲が変わる。",
-      "physics": "物理の上限（物体、三角形、装飾物体、メモリ）。開始時に一度読まれ、超えると `PHYSICS_BUDGET` になる。"
+      "physics": "物理の上限（物体、三角形、装飾物体、メモリ）。開始時に一度読まれ、超えると `PHYSICS_BUDGET` になる。",
+      "raycastTrees": "`raycast` が三角形ツリーのために保持する CPU メモリのバイト数。ページ上のすべてのワールドで共有されます。超えると最も長く使われていないツリーが破棄されます。設定すると上限が変わります。"
     }
   },
   "world.diagnostic": {
@@ -4191,15 +4192,6 @@
   },
   "batch": {
     "summary": "`batch`ファミリー: ループの代わりに一度に千個の行列を扱う。コアのバッチ化されたカーネル群(`packages/sdk-core/src/math/batch/batch.ts`、`packages/sdk-core/src/math/batch/points.ts`、`packages/sdk-core/src/math/matrix/matrix4Compose.ts`、`packages/sdk-core/src/math/batch/culling.ts`)にもとづく。"
-  },
-  "batch.multiplyMatrix4": {
-    "summary": "平坦に保存された`count`個の列優先行列に対する`out[i] = a[i] · b[i]`。",
-    "parameters": {
-      "out": "積が書き込まれる場所。",
-      "a": "左側の行列群。",
-      "b": "右側の行列群。",
-      "count": "積の個数。"
-    }
   },
   "batch.transformPoints": {
     "summary": "それぞれ3つの数値で保存された`count`個の点に対する`out[i] = m · points[i]`。",
