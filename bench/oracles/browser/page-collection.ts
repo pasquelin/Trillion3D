@@ -3,7 +3,6 @@
 import * as THREE from 'three';
 import type { GraphNode } from '../../../packages/sdk-browser/src/host/graph/node.ts';
 import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
-import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   DAG_ERROR_MODEL,
   EngineError,
@@ -175,7 +174,9 @@ export function referenceCollectClusterPages(
       world: mesh.matrixWorld,
       pages,
       culling: culling && { ...culling, bounds: cullingBounds(culling, pages) },
-      worldBox: local.clone().applyMatrix4(new THREE.Matrix4().fromArray(mesh.matrixWorld.elements)),
+      worldBox: local
+        .clone()
+        .applyMatrix4(new THREE.Matrix4().fromArray(mesh.matrixWorld.elements)),
       localBox: local.clone(),
       structure,
       forced: structure ? new Uint8Array(structure.groupCount) : undefined,

@@ -1,4 +1,4 @@
-import { LTC_UNIT, WEBGL_RECT_KIND, createLtcTexture } from './rectGlsl.ts';
+import { LTC_UNIT, createLtcTexture } from './rectGlsl.ts';
 import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe } from './probe.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';

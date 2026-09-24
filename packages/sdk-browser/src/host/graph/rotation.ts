@@ -146,6 +146,5 @@ export class GraphAngles {
   }
 }
 
-
 announced(GraphRotation.prototype, ['x', 'y', 'z', 'w']);
 announced(GraphAngles.prototype, ['x', 'y', 'z', 'order']);

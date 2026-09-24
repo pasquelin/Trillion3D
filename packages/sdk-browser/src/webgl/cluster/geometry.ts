@@ -1,4 +1,4 @@
-import type { GpuBuffer, VertexAttribute, WholeMesh } from '../../cluster/batchMesh.ts';
+import type { GpuBuffer, WholeMesh } from '../../cluster/batchMesh.ts';
 import { glType, upload, type CachedAttribute } from './buffers.ts';
 import { WebglClusterPlacements } from './placements.ts';
 
@@ -36,10 +36,7 @@ export class WebglClusterGeometry {
     this.placements = new WebglClusterPlacements(gl, locations.instanceMatrix);
   }
   /** Binds `geometry`, and the placement matrices of an instanced mesh when `mesh` is one. */
-  bind(
-    geometry: Geometry,
-    mesh?: Pick<WholeMesh, 'kind' | 'instanceMatrix' | 'released'>,
-  ) {
+  bind(geometry: Geometry, mesh?: Pick<WholeMesh, 'kind' | 'instanceMatrix' | 'released'>) {
     const gl = this.gl;
     let cached = this.cache.get(geometry);
     if (!cached) {
