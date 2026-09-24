@@ -44,7 +44,7 @@ function runtime() {
     },
   };
   const rt = {
-    gpu: { temporal, targetSize: [64, 32], depthView: { depth: true }, hdrView: { hdr: true } },
+    gpu: { temporal, temporalWanted: true, targetSize: [64, 32], depthView: {}, hdrView: {} },
     vis: { visView: { ids: true }, pageTable: { pages: true } },
     run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate: { revisions: { scene: 1 } } },
     capture: { capturing: false },

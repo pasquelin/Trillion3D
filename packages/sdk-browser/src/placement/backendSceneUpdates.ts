@@ -22,6 +22,9 @@ export interface BackendSceneUpdates {
   setClearColor?(hex: number): void;
   /** Bounced light on or off in place, where the engine carries it (`BackendContext.bounce`). */
   setBounce?(on: boolean): void;
+  /** Temporal antialiasing on or off in place (`BackendContext.temporalAntialiasing`); whether
+   *  the image carries it is the `'temporal antialiasing'` capability. Absent, the engine has none. */
+  setTemporalAntialiasing?(on: boolean): void;
   /** The host surfaces the session was opened with had their values rewritten in place, their
    *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
    *  again at the next frame, no table rebuilt. Absent, the owner opens the session again. */

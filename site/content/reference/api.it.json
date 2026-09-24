@@ -1212,7 +1212,8 @@
       "options.pixelRatio": "Quanti pixel di immagine per pixel di schermo.",
       "options.controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "options.signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
-      "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato."
+      "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
+      "options.temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -1677,6 +1678,7 @@
     "description": "I tasti la spostano lungo i propri assi e la ruotano intorno ad essi, rollio incluso; un trascinamento guarda intorno. Nulla viene integrato finché l'host non chiama `update(delta)` con i secondi trascorsi, e `update` restituisce — ed emette — solo quando un tasto è tenuto premuto, un ingresso di leva è impostato o un trascinamento è in sospeso, così una leva rilasciata lascia la scena immobile. `autoForward` è l'unica eccezione: una camera in crociera si muove ad ogni `update` e richiede il fotogramma successivo emettendo `change` ogni volta. TASTI, secondo `KeyboardEvent.code`: W/S avanti e indietro, A/D sinistra e destra, R/F su e giù, frecce per beccheggio e imbardata, Q/E per rollio. Nulla limita una virata: tenere premuto un tasto fa fare loop o rollare alla camera all'infinito, così un loop, un tonneau, un Immelmann o uno split-S si pilotano come con una leva. `inputResponse` dà ai tasti la corsa di quella leva. `dragToLook` (predefinito) guarda intorno mentre un puntatore è tenuto premuto; impostato su false, il puntatore guarda non appena si muove sulla superficie; con `pointerLook` su false, non gira mai la vista, solo i tasti pilotano. Un tasto premuto mentre Ctrl o Meta è tenuto premuto viene ignorato, così una scorciatoia del browser (Ctrl+W, Cmd+S) non pilota mai; il modificatore deve essere rilasciato affinché il tasto successivo conti.",
     "members": {
       "rollSpeed": "Radianti al secondo di rotazione del rollio a piena deflessione; beccheggio e imbardata lo seguono per impostazione predefinita.",
+      "lookSpeed": "Radianti di cui ruota la vista per pixel di movimento del puntatore; `null` (predefinito) è mezzo giro per altezza della superficie, qualunque sia la sua dimensione.",
       "dragToLook": "Se trascinare gira la vista.",
       "pitchSpeed": "Radianti al secondo di rotazione del beccheggio a piena deflessione; `null` (predefinito) equivale a `rollSpeed`.",
       "yawSpeed": "Radianti al secondo di rotazione dell'imbardata a piena deflessione; `null` (predefinito) equivale a `rollSpeed`.",
@@ -2757,8 +2759,7 @@
     "summary": "Impostazioni pubblicate dell'illuminazione diretta.",
     "description": "Sono scelte di prodotto nominate, non costanti sepolte: ogni limite a runtime le rilegge, e la diagnostica le pubblica così come sono.",
     "members": {
-      "maxLights": "Luci accettate in totale dal contratto; oltre, `addLight` rifiuta.",
-      "maxLightsPerTile": "Luci mantenute da una tessera di schermo; il ciclo per pixel è limitato da questo numero (X2).",
+      "maxLights": "Luci accettate in totale dal contratto; oltre, `addLight` rifiuta. Una tessera di schermo mantiene ognuna di quelle che la toccano; la sua lista e il ciclo per pixel sono limitati da questo numero (X2).",
       "tileSize": "Lato in pixel di una tessera di schermo della lista di luci.",
       "samplesPerPixel": "Luci illuminate per intero — lettura dell'ombra inclusa — per pixel di un'immagine IN MOVIMENTO (X2): le altre sono pesate senza la loro ombra, e quelle illuminate sono estratte a sorte in proporzione, quindi la stima è senza distorsioni e l'antialiasing temporale ne fa la media. Un'immagine ferma illumina ogni luce della sua tessera e converge verso la somma esatta; lì, questo numero non gioca alcun ruolo.",
       "shadowPage": "Lato di una pagina d’ombra, in texel: l’unità del pool fisico, delle mappe virtuali e dell’invalidazione. Un oggetto in movimento invalida solo le pagine coperte dal suo box proiettato.",
@@ -6261,7 +6262,7 @@
       "maxAzimuthAngle": "Solo orbita: fine di questo arco; può essere più piccolo di `minAzimuthAngle`.",
       "autoRotate": "Solo orbita: radianti al secondo di cui ruota da sola attorno a `target`, fino alla prima pressione o scatto di rotellina; 0 di default.",
       "movementSpeed": "Volo e prima persona: unità del mondo al secondo a tasto pieno; 1 per impostazione predefinita.",
-      "lookSpeed": "Prima persona e personaggio: radianti di cui ruota la vista per pixel di movimento del puntatore.",
+      "lookSpeed": "Volo, prima persona e personaggio: radianti di cui ruota la vista per pixel di movimento del puntatore; `null` (predefinito) mantiene il valore proprio di ciascuno — 0.002 per una testa, mezzo giro per altezza del canvas per il volo.",
       "minPitch": "Prima persona e personaggio: il punto più basso in cui guarda la testa, in radianti (0 è l'orizzonte, negativo verso il basso).",
       "maxPitch": "Prima persona e personaggio: il punto più alto in cui guarda la testa, in radianti sopra l'orizzonte.",
       "pointerLook": "Solo volo: se il puntatore gira la vista; su false, solo i tasti pilotano.",
@@ -6318,6 +6319,10 @@
   "world.bounce": {
     "summary": "La luce che rimbalza sulle superfici, tracciata contro il proxy residente; spenta per impostazione predefinita.",
     "description": "Un cambiamento si applica sul posto su un percorso che lo porta, e viene preso alla prossima apertura su un percorso che non lo porta."
+  },
+  "world.temporalAntialiasing": {
+    "summary": "Antialiasing temporale: spostamento sub-pixel accumulato tra le immagini; attivo per impostazione predefinita.",
+    "description": "Scritto, ha effetto dall’immagine successiva, cronologia scartata, nessuna sessione riaperta. Letto, è ciò che l’immagine porta: false su WebGL2, e mentre il programma si compila dopo l’attivazione."
   },
   "world.budget": {
     "summary": "Le riserve di memoria del mondo, lette e impostate in byte.",
@@ -6391,7 +6396,7 @@
   },
   "WorldControls": {
     "summary": "I modi in cui una pagina può dirigere la camera con mouse e tastiera, o `'none'`.",
-    "description": "`'firstPerson'` muove una telecamera; `'character'` muove un corpo — massa, gravità, salti, collisioni con `world.controls.colliders` — e guarda attraverso i suoi occhi."
+    "description": "`'firstPerson'` muove una telecamera; `'character'` muove un corpo — massa, gravità, salti, collisioni con `world.controls.colliders` — e guarda attraverso i suoi occhi. `'fly'` e `'firstPerson'` si muovono a `world.controls.movementSpeed` e ruotano a `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "Le metriche di un fotogramma come l’host le ha copiate dal motore, e due che una pagina legge composte da esse; `null` dove il percorso non conta.",
@@ -6511,7 +6516,8 @@
       "pixelRatio": "Quanti pixel di immagine per pixel di schermo.",
       "controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
-      "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato."
+      "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
+      "temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {
@@ -6653,7 +6659,7 @@
     "summary": "LA TESTA DI UN CAMMINATORE, puntatore bloccato: il puntatore la gira, l'orizzonte resta livellato — imbardata attorno allo zenit del mondo, beccheggio limitato a `[minPitch, maxPitch]`, mai rollio.",
     "description": "Condivisa da ogni controller che guarda attraverso gli occhi di una persona. IL BLOCCO SPETTA ALL'HOST RICHIEDERLO. Un browser concede un blocco del puntatore solo all'interno di un gesto, quindi la testa lo richiede su `pointerdown` e pubblica `lock()`, `unlock()` e `locked()` per un host che preferisca scegliere il proprio momento; un blocco da cui lo spettatore fugge interrompe semplicemente lo sguardo, e un trascinamento senza blocco gira comunque la testa.",
     "members": {
-      "lookSpeed": "Radianti ruotati per pixel di movimento del puntatore.",
+      "lookSpeed": "Radianti ruotati per pixel di movimento del puntatore; `null` (predefinito) è 0.002.",
       "minPitch": "Il punto più basso guardato dalla testa, in radianti sotto l'orizzonte contati negativi (0 è l'orizzonte); di default appena prima della verticale verso il basso. Alzalo perché un camminatore non guardi mai dentro il proprio corpo.",
       "maxPitch": "Il punto più alto guardato dalla testa, in radianti sopra l'orizzonte; di default appena prima dello zenit."
     }
