@@ -110,7 +110,9 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
 export function disposeWebgpuPages(rt: WebgpuPagesRuntime, claim?: GpuDeviceClaim) {
   const { gpu, vis, capture, timing, blendState, services } = rt,
     { scene, pagedBlendCopies } = rt.setup;
-  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
+  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included; a
+  // preparation still running stops at its next wait.
+  rt.run.closed = true;
   markWebgpuLost(rt);
   // Let go before its objects are destroyed: from here, an error naming them is a closed session's.
   claim?.release();
