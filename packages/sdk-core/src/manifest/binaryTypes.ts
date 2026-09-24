@@ -50,6 +50,8 @@ export interface SlimStreams {
   pinned: number;
   /** Target bundle size. */
   bundleBytes: number;
+  /** Largest dependency count of a bundle: the bound the compiler publishes. */
+  maxDependencies: number;
   /** How many bundles. */
   pages: number;
 }
@@ -138,6 +140,7 @@ export function slimBinaryOf(primitive: {
     version: number;
     pinned: number;
     bundleBytes: number;
+    maxDependencies: number;
     pages: { length: number };
   } | null;
 }): SlimPrimitiveBinary {
@@ -164,6 +167,7 @@ export function slimBinaryOf(primitive: {
             version: primitive.streams.version,
             pinned: primitive.streams.pinned,
             bundleBytes: primitive.streams.bundleBytes,
+            maxDependencies: primitive.streams.maxDependencies,
             pages: primitive.streams.pages.length,
           };
   return slim;
