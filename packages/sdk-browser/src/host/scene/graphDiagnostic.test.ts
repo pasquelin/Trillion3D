@@ -169,7 +169,7 @@ test('the per-triangle view salts on the cluster the host declared, else on the 
   );
   assert.notEqual(hashId('p3'), hashId('12'), 'the two salts are not the same number');
   assert.equal(tagOf(withCluster.material), 'triangle');
-  assert.equal(overlays.length, 2);
+  assert.equal(overlays.length, 4, 'two surfaces and the release of two copies');
 });
 
 test('a second view repaints the source surface, never the previous view’s copy', () => {
