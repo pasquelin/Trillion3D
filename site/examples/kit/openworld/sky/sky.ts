@@ -47,7 +47,7 @@ export type SkyOptions = {
 };
 
 export type Sky = {
-  /** Solar time, hours in [0, 24); writing it jumps the sky there. */
+  /** Solar time, hours in [0, 24); writing it jumps the sky there, even in a still world. */
   time: number;
   /** Game hours per real minute. */
   speed: number;
@@ -67,6 +67,8 @@ export type Sky = {
   lampIntensity(lamp: LampLight): number;
   /** Advances the sky by `seconds` of real time; `createSky` hooks it on `world.onFrame`. */
   step(seconds: number): void;
+  /** Unhooks the sky from the world's frames and takes everything it added out of the scene. */
+  dispose(): void;
 };
 
 /**
@@ -120,7 +122,8 @@ export function createSky(options: SkyOptions): Sky {
     pixelAngle,
     limit: size,
   });
-  world.scene.add(dome.node, stars.node, clouds.node, rain.node, effects.node);
+  const nodes = [dome.node, stars.node, clouds.node, rain.node, effects.node];
+  world.scene.add(...nodes);
 
   let painted = Number.NaN;
   let elapsed = 0;
@@ -131,8 +134,16 @@ export function createSky(options: SkyOptions): Sky {
     lights.apply(day, dome.horizon);
     painted = sky.time;
   };
+  let time = options.time ?? 18.5;
   const sky: Sky = {
-    time: options.time ?? 18.5,
+    get time() {
+      return time;
+    },
+    set time(hours) {
+      if (hours === time) return;
+      time = hours;
+      world.invalidate();
+    },
     speed: options.speed ?? 1,
     paused: false,
     get daylight() {
@@ -154,7 +165,7 @@ export function createSky(options: SkyOptions): Sky {
     lampIntensity: (lamp) => (lamp.night ? lamp.intensity * day.nightFactor : lamp.intensity),
     step(seconds) {
       elapsed += seconds;
-      if (!sky.paused) sky.time = (((sky.time + (seconds * sky.speed) / 60) % 24) + 24) % 24;
+      if (!sky.paused) time = (((time + (seconds * sky.speed) / 60) % 24) + 24) % 24;
       // The sky is repainted once the sun has moved by its own diameter: finer steps cannot show.
       const moved = Math.abs(sky.time - painted) * 15 * (Math.PI / 180);
       if (!(moved < 2 * DISC)) refresh();
@@ -174,13 +185,16 @@ export function createSky(options: SkyOptions): Sky {
       effects.update(seconds, at, wind, day.nightFactor);
       if (world.scene.fog)
         world.scene.fog.far = size + (RAIN_VISIBILITY - size) * Math.min(1, rain.amount);
-      world.exposure = day.exposure;
+      if (world.exposure !== day.exposure) world.exposure = day.exposure;
+    },
+    dispose() {
+      unhook();
+      world.scene.remove(...nodes);
+      lights.dispose();
     },
   };
   refresh();
-  world.onFrame(({ delta }) => {
-    sky.step(delta);
-    world.invalidate();
-  });
+  // No frame asked for here: what a step moves asks for the next by its own write.
+  const unhook = world.onFrame(({ delta }) => sky.step(delta));
   return sky;
 }
