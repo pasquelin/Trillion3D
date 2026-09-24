@@ -33,7 +33,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    onOffsetChange: (page, words) => (rows.touchPage(page), updateTransparentSpan(rt, page, words)),
+    // The CPU cut reads residency from the pool: its shadows compare the slot at their next plan.
+    onOffsetChange: (page, words) => (
+      rows.touchPage(page),
+      updateTransparentSpan(rt, page, words),
+      rt.lights.residence.notePool(page, packedPages.length)
+    ),
   });
   /**
    * Writes one page-table row. Called when a cluster claims a row, when its GPU slot moves, or when a
@@ -65,7 +70,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     // the flag at their next plan (`../shadow/residence.ts`).
     (rec) => (
       run.gate.resourcesChanged(),
-      rt.lights.residence.note(rows.pageIndexOf(rec) ?? -1, packedPages.length)
+      rt.lights.residence.noteRow(rows.pageIndexOf(rec) ?? -1, packedPages.length)
     ),
   );
   /**
