@@ -3039,6 +3039,7 @@
       "counts": "Những gì kế hoạch trước đã làm, tính theo trang.",
       "worldChanged": "Một nút đã di chuyển: hộp của nó làm cũ các trang nó phủ ở kế hoạch tiếp theo.",
       "representationChanged": "Cùng thế giới ở độ chính xác khác: hộp của nó chờ camera dừng.",
+      "resting": "Camera đứng yên ở lần lập kế hoạch cuối: góc nhìn của nó giống lần trước đó.",
       "deferredChanges": "Đúng khi một thay đổi biểu diễn đang chờ camera dừng.",
       "releaseDeferred": "Khung không lập kế hoạch bóng nào: phần hợp đang giữ vào danh sách ngay.",
       "observeCost": "Bộ đếm thời gian của lượt Bóng trong một khung, chia cho các trang nó đã vẽ.",
@@ -6865,7 +6866,9 @@
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
-      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`."
+      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
+      "add": "Thêm một khớp (`joint.hinge(door, frame, …)` và họ hàng): nó được tạo ngay khi cả hai vật được mô phỏng, và giữ cho đến khi bị gỡ hoặc gãy.",
+      "remove": "Gỡ một khớp: các vật nó giữ tách ra tự do."
     }
   },
   "ContactEvent": {
@@ -7046,7 +7049,9 @@
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
-      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`."
+      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
+      "add": "Thêm một khớp (`joint.hinge(door, frame, …)` và họ hàng): nó được tạo ngay khi cả hai vật được mô phỏng, và giữ cho đến khi bị gỡ hoặc gãy.",
+      "remove": "Gỡ một khớp: các vật nó giữ tách ra tự do."
     }
   },
   "WorldPhysicsOptions": {
@@ -7310,6 +7315,77 @@
       "x": "Trái sang phải.",
       "y": "Dưới lên trên.",
       "z": "Sau ra trước."
+    }
+  },
+  "Joint": {
+    "summary": "Một khớp nối giữa hai vật, hoặc giữa một vật và thế giới (`b` là null), tạo bằng `joint.*` và thêm vào mô phỏng bằng `world.physics.add`.",
+    "description": "Khớp giữ chừng nào cả hai vật còn được mô phỏng, và cho đến khi nó gãy.",
+    "parameters": {
+      "options": "Những gì `joint.*` nhận. Điểm và trục nằm trong thế giới, được đọc khi khớp được tạo lần đầu.",
+      "options.anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách trên `a`.",
+      "options.anchorB": "Đầu của khoảng cách trên `b`.",
+      "options.axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón.",
+      "options.limits": "Bản lề, khớp trượt, khoảng cách và hình nón: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài của nó.",
+      "options.spring": "Bản lề, khớp trượt và khoảng cách: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
+      "options.motor": "Bản lề và khớp trượt: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
+      "options.breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy; bỏ trống thì không bao giờ."
+    },
+    "members": {
+      "kind": "Khớp đó là loại gì.",
+      "a": "Vật thứ nhất.",
+      "b": "Vật thứ hai, hoặc `null` cho thế giới.",
+      "options": "Những gì dùng để tạo ra nó.",
+      "motor": "Động cơ của bản lề hoặc khớp trượt; `null` để nó quay hoặc trượt tự do.",
+      "broken": "Nó đã gãy chưa: bị kéo vượt quá `breakForce`. Khớp đã gãy không giữ gì nữa.",
+      "on": "Gọi `handler` khi khớp gãy."
+    }
+  },
+  "JointKind": {
+    "summary": "Các khớp nối giữa các vật, mỗi loại là một ràng buộc của chính Jolt."
+  },
+  "JointLimits": {
+    "summary": "Khớp được di chuyển bao xa: radian cho bản lề, mét cho khớp trượt hoặc khoảng cách, nửa góc hình nón (`max`) cho hình nón.",
+    "members": {
+      "min": "Của bản lề từ −π đến 0, của khớp trượt 0 hoặc nhỏ hơn.",
+      "max": "Của bản lề từ 0 đến π, của khớp trượt 0 hoặc lớn hơn."
+    }
+  },
+  "JointMotor": {
+    "summary": "Động cơ của bản lề hoặc khớp trượt: đưa khớp tới một vận tốc hoặc một vị trí.",
+    "members": {
+      "mode": "`'velocity'`: rad/s hoặc m/s; `'position'`: radian hoặc mét tính từ chỗ khớp được tạo.",
+      "target": "Vận tốc hoặc vị trí cần đạt.",
+      "maxForce": "N·m cho bản lề, N cho khớp trượt; bỏ trống thì không giới hạn."
+    }
+  },
+  "JointOptions": {
+    "summary": "Những gì `joint.*` nhận.",
+    "description": "Điểm và trục nằm trong thế giới, được đọc khi khớp được tạo lần đầu.",
+    "members": {
+      "anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách trên `a`.",
+      "anchorB": "Đầu của khoảng cách trên `b`.",
+      "axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón.",
+      "limits": "Bản lề, khớp trượt, khoảng cách và hình nón: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài của nó.",
+      "spring": "Bản lề, khớp trượt và khoảng cách: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
+      "motor": "Bản lề và khớp trượt: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
+      "breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy; bỏ trống thì không bao giờ."
+    }
+  },
+  "joint": {
+    "summary": "Họ `joint`: hai vật được nối, hoặc một vật và thế giới (`b` là null).",
+    "members": {
+      "fixed": "Hàn chúng lại: chúng di chuyển như một.",
+      "point": "Một khớp cầu tại `anchor`: chúng quay tự do quanh đó.",
+      "hinge": "Một chốt tại `anchor` dọc theo `axis`: cánh cửa, bánh xe. `limits` tính bằng radian.",
+      "slider": "Một ray dọc theo `axis`: ngăn kéo, pít-tông. `limits` tính bằng mét.",
+      "distance": "Giữ `anchor` trên `a` và `anchorB` trên `b` cách nhau đúng độ dài, hoặc trong `limits`.",
+      "cone": "Một khớp cầu có `axis` đung đưa trong hình nón nửa góc `limits.max`."
+    }
+  },
+  "JointHost": {
+    "summary": "Phía thế giới của một khớp: điều mà một lần ghi vào nó yêu cầu mô phỏng.",
+    "members": {
+      "motor": "Động cơ đã thay đổi."
     }
   }
 }
