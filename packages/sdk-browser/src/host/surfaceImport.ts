@@ -28,6 +28,7 @@ import {
 } from './surfaceConstants.ts';
 import type { Texture, TextureFilter, WrapMode } from '../../../sdk-core/src/index.ts';
 import { sideOf } from '../scene/materialSide.ts';
+import { followHostVersion, reviseTexture } from './textureRevisions.ts';
 import type { VisMaterial } from '../visibility/types.ts';
 import {
   SURFACE_MODEL,
@@ -54,15 +55,31 @@ function filterOf(filter: number): TextureFilter {
 type Editable = { -readonly [K in keyof Texture]: Texture[K] };
 const imported = new WeakMap<HostTexture, Editable>();
 
-/** The engine record of a host texture, built once and refilled when the host bumps its version. */
+/** The affine words of the UV matrix, read before it is recomposed. */
+const placement = new Float64Array(6);
+const AFFINE = [0, 1, 3, 4, 6, 7] as const;
+
+/**
+ * The engine record of a host texture, built once and refilled when the host bumps its version;
+ * a refill, or a placement the read recomposed, names the record to the watchers.
+ */
 export function importHostTexture(host: HostTexture): Texture {
   // The UV matrix is composed lazily by its owner, from repeat, offset and rotation, without a
   // version: a host animates them and sets `needsUpdate` on the material alone. It is recomposed
   // at every read, as the host's own renderer does at every draw, and the record ALIASES its
   // elements, so the placement written since is the one read.
-  if (host.matrixAutoUpdate) host.updateMatrix();
+  const m = host.matrix.elements;
+  let placed = false;
+  if (host.matrixAutoUpdate) {
+    for (let i = 0; i < 6; i++) placement[i] = m[AFFINE[i]];
+    host.updateMatrix();
+    for (let i = 0; i < 6 && !placed; i++) placed = placement[i] !== m[AFFINE[i]];
+  }
   const held = imported.get(host);
-  if (held && held.version === host.version && held.image === host.image) return held;
+  if (held && held.version === host.version && held.image === host.image) {
+    if (placed) reviseTexture(held);
+    return held;
+  }
   const record = held ?? ({} as Editable);
   record.id = host.uuid;
   record.name = host.name;
@@ -77,9 +94,13 @@ export function importHostTexture(host: HostTexture): Texture {
   record.premultiplyAlpha = host.premultiplyAlpha;
   record.generateMipmaps = host.generateMipmaps;
   record.colorSpace = host.colorSpace === 'srgb' ? 'srgb' : 'linear';
-  record.transform = host.matrix.elements;
+  record.transform = m;
   record.version = host.version;
-  if (!held) imported.set(host, record);
+  if (held) reviseTexture(held);
+  else {
+    imported.set(host, record);
+    followHostVersion(host, importHostTexture);
+  }
   return record;
 }
 

@@ -1,25 +1,27 @@
 // #360, #361: a texture's sampling follows its record, not the surfaces that wear it — once per
-// record version, whichever pass reads the texture —, and a moved colour texture is signalled as a
-// landed tile is, so the cutout shadows that read it follow.
+// revision the import names, whichever pass reads the texture —, and a moved colour texture is
+// signalled as a landed tile is, so the cutout shadows that read it follow.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTileStreamer } from './streamer.ts';
 import { poolEncoding } from '../../texture/blockFormats.ts';
 import { tileLayout } from '../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { importHostTexture } from '../../host/surfaceImport.ts';
+import type { HostTexture } from '../../host/resources.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
+import * as THREE from 'three';
 
 installGpuGlobals();
 
-/** A record at the default sampling, its version and transform written by the test. */
-const record = () =>
-  ({
-    version: 0,
-    magFilter: 'linear',
-    minFilter: 'linear-mip-linear',
-    anisotropy: 1,
-    transform: [1, 0, 0, 0, 1, 0, 0, 0, 1],
-  }) as unknown as Texture & { version: number; transform: number[]; anisotropy: number };
+/** A host texture at the default sampling. */
+const host = () => {
+  const texture = new THREE.DataTexture(new Uint8Array(4), 1, 1);
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  return texture;
+};
+const record = (texture: THREE.Texture) => importHostTexture(texture as unknown as HostTexture);
 
 /** A streamer over one colour and one data texture, both whole in their tail; counts the page
  *  table writes and the colour signals. */
@@ -65,24 +67,29 @@ function streamer(colour: Texture, data: Texture) {
   return { textures, writes: () => tableWrites, signalled };
 }
 
-test('the sampling follows each texture once per version, and signals a moved colour texture', () => {
-  const colour = record(),
-    data = record();
-  const { textures, writes, signalled } = streamer(colour, data);
+test('the sampling follows the records the import revised, and signals a moved colour texture', () => {
+  const colour = host(),
+    data = host();
+  const { textures, writes, signalled } = streamer(record(colour), record(data));
   const opened = writes();
-  let fills = 0;
-  assert.equal(textures.followSampling(++fills), false, 'nothing moved: nothing written');
-  assert.equal(writes(), opened);
+  textures.followSampling();
+  assert.equal(writes(), opened, 'nothing revised: nothing written');
+  // The host bumps the version on `needsUpdate` alone, no material told: the record follows it.
   colour.anisotropy = 8;
-  assert.equal(textures.followSampling(++fills), false, 'a field without a version is not read');
-  colour.version++;
-  assert.equal(textures.followSampling(fills), false, 'no surface filled since: not walked');
-  assert.equal(textures.followSampling(++fills), true);
+  colour.needsUpdate = true;
+  textures.followSampling();
   assert.deepEqual(signalled, [[1]], 'the colour slot, as a landed tile');
-  assert.equal(textures.followSampling(++fills), false, 'the same version: written once');
-  // A refill recomposes a placement without a version: the transform is compared all the same.
-  data.transform[6] = 0.5;
-  assert.equal(textures.followSampling(fills + 1), true, 'a data map moved');
-  assert.deepEqual(signalled, [[1]], 'no shadow reads a data map');
+  assert.equal(writes(), opened + 1);
+  textures.followSampling();
+  assert.equal(writes(), opened + 1, 'the same revision: written once');
+  // A placement moves no version: the read that recomposes its matrix names the record.
+  data.offset.x = 0.5;
+  record(data);
+  textures.followSampling();
+  assert.deepEqual(signalled, [[1], []], 'signalled, no shadow reads a data map');
   assert.equal(writes(), opened + 2, 'one send per atlas that moved');
+  record(data);
+  textures.followSampling();
+  assert.equal(writes(), opened + 2, 'the same placement: nothing named');
+  textures.destroy();
 });
