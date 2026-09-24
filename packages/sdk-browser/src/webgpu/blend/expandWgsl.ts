@@ -146,8 +146,9 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u){
  let entries=plan[at+1u];
  let last=first+entries-1u;
  let base=scratch[first];
- // The merging run draws clusters, at the table stride; the one that kept a single entry draws
- // what ITS item carries. The owner is read on the entry, as on the CPU.
+ // A merging run draws clusters, at the table stride; a run of one unpaged item draws what ITS
+ // item carries. The first entry decides: a double-sided paged item, which runOwner names,
+ // is paged, so the table stride holds for it as on the CPU.
  let entry=plan[uni.orderBase+first];
  let fusionne=entries>1u&&(entry&${PLAN_SHARED_BIT}u)!=0u;
  var vertexCount=uni.maxVertexWords;
