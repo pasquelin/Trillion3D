@@ -18,7 +18,7 @@ import {
   DAG_UNIFORM_BYTES,
   VIEW_WORD_ROWS,
 } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
-import { FRAME_VEC4 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
 import { ESCALATION_ROUNDS } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 export { DAG_LEVEL_WGSL_AVANT } from './cut-dispatches-wgsl.ts';
 
@@ -32,6 +32,7 @@ interface PackedAvant {
   nodeCount: number;
   worldStretch: Float32Array;
   rootNodes: Uint32Array;
+  recordShift: Uint32Array;
   worlds: BufferSource;
   pageCones: BufferSource;
   levelSizes: readonly unknown[];
@@ -61,12 +62,8 @@ export function ressourcesAvant(
   const blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP);
   const base = worldCount * 2 + blockCount * 2;
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
-  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
-    frameInts = new Uint32Array(frameData.buffer);
-  for (let w = 0; w < packed.worldCount; w++) {
-    frameData[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
-    frameInts[(w * FRAME_VEC4 + 6) * 4 + 1] = packed.rootNodes[w];
-  }
+  // The frame words are the shipped ones: the frozen descent reads the same records.
+  const frameData = primitiveFrameWords(packed);
   const tampon = (taille: number, source?: BufferSource | null, usage = STORAGE) => {
     const buffer = device.createBuffer({ size: Math.max(taille, source?.byteLength ?? 0), usage });
     if (source) device.queue.writeBuffer(buffer, 0, source);

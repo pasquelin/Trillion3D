@@ -176,6 +176,16 @@ export function taaSampledRank(rt: WebgpuPagesRuntime) {
   return temporal?.frame.active ? temporal.frame.sampledRank : 0;
 }
 
+/**
+ * Word the cutout stipple reads (`STIPPLE_WGSL`): the jitter rank of this image plus one when it
+ * accumulates, zero otherwise — without temporal antialiasing, switched off, in a capture or a
+ * diagnostic view the cutout keeps its hard threshold, and nothing would average a stipple.
+ */
+export function taaStippleWord(rt: WebgpuPagesRuntime) {
+  const temporal = rt.gpu.temporal;
+  return temporal?.frame.active ? temporal.frame.sample + 1 : 0;
+}
+
 /** True when the image can be held without freezing an accumulation in progress: without
  *  temporal antialiasing, switched off, or after a full cycle of quiet images. */
 export function taaSettled(rt: WebgpuPagesRuntime) {
