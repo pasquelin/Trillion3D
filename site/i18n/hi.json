@@ -602,7 +602,8 @@
           "दुनिया को <code>physics: true</code> दें। सिमुलेशन ड्रॉइंग से अलग एक <em>worker</em> में चलता है, इसलिए चित्र धीमा नहीं होता।",
           "फ़र्श को <code>'static'</code> करें: वह बाकी को थामता है और कभी नहीं हिलता। डिब्बे को <code>'dynamic'</code> करें: गुरुत्व उसे खींचता है।",
           "आकार ज्यामिति से, वज़न सामग्री से आता है: <code>physics: 'wood'</code> हल्का, <code>'metal'</code> भारी, <code>'rubber'</code> उछलता है।",
-          "<code>applyImpulse</code> से धक्का दें या <code>contact</code> सुनें। जब सब पिंड सो जाते हैं, न कुछ गिना जाता है न बनाया जाता है।"
+          "<code>applyImpulse</code> से धक्का दें या <code>contact</code> सुनें। जब सब पिंड सो जाते हैं, न कुछ गिना जाता है न बनाया जाता है।",
+          "<code>scene.load</code> से लोड किया गया मॉडल अपने ही त्रिभुजों से टकराता है, जो कंपाइल के समय तैयार हुए थे। <code>await world.raycast(point, { exact: true })</code> कर्सर के नीचे का ठीक वही त्रिभुज ढूँढता है।"
         ],
         "tryIt": "और डिब्बे गिराएँ, गुरुत्व चंद्रमा का करें और धीमी गति चालू करें।"
       },
@@ -1489,7 +1490,8 @@
       "hands-in-vr": "VR में हाथ",
       "teleport-in-vr": "VR में टेलीपोर्ट",
       "controllers-in-vr": "VR में नियंत्रक",
-      "ar-on-the-table": "मेज़ पर AR"
+      "ar-on-the-table": "मेज़ पर AR",
+      "a-walker-among-balls": "गेंदों के बीच चलने वाला"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU पर प्रति-वर्टेक्स रंग",
@@ -1652,7 +1654,6 @@
       "breaking-things": "फ़िज़िक्स इंटीग्रेशन",
       "cloth-and-rope": "फ़िज़िक्स इंटीग्रेशन",
       "soft-bodies": "फ़िज़िक्स इंटीग्रेशन",
-      "rolling-on-terrain": "फ़िज़िक्स इंटीग्रेशन",
       "hinges-and-joints": "फ़िज़िक्स इंटीग्रेशन",
       "drive-a-car": "फ़िज़िक्स इंटीग्रेशन",
       "a-room-in-vr": "WebXR सेशन",

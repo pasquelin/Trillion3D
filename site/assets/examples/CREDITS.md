@@ -32,7 +32,7 @@ scene of the lessons.
 
 ## Scenes modelled in code
 
-Five scenes are modelled in code for their example and released under
+Six scenes are modelled in code for their example and released under
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/): nothing in them was taken from another
 work. Each has a writer under `scripts/docs/examples/`, seeded so the same code writes the same
 bytes on every machine, and is rebuilt, source and cache, by
@@ -46,3 +46,4 @@ scenes above (`full`, 2 threads, 256 MB, `qem-endpoints`, the default `bc7` text
 | `compressed-textures/`   | `courtyard.ts` | `courtyard.gltf` and its five drawn images: glazed tiles, brick, marble, the tiles' and brick's relief                  |
 | `detail-by-pixel-error/` | `avenue.ts`    | `avenue.gltf`: an avenue of fluted urns and a bronze knot at a tenth of life size                                       |
 | `ten-thousand-objects/`  | `ring.ts`      | `ring.gltf`: a planet and ten thousand moonlets, four rock shapes in three stones placed ten thousand times             |
+| `terrain/`               | `terrain.ts`   | `terrain.gltf`: a valley on a regular two-metre grid and three boulders                                                 |
