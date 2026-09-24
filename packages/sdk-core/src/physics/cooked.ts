@@ -6,7 +6,7 @@ import { EngineError } from '../contracts/cache.ts';
  * names are Jolt binary state, readable only by the Jolt that wrote them: the file names that
  * commit, and a reader refuses another.
  */
-export const PHYSICS_FORMAT_VERSION = 1;
+const PHYSICS_FORMAT_VERSION = 1;
 /** The Jolt commit the engine's physics module is built from (`packages/physics-jolt-wasm`). */
 export const JOLT_COMMIT = 'e77f175595e64cb44218cc9d9d56fc365ad0e36a';
 
@@ -22,7 +22,7 @@ export interface CookedTile {
 }
 
 /** The collision of one compiled primitive: a DAG cut in tiles, or one height field. */
-export interface CookedCollider {
+interface CookedCollider {
   kind: 'mesh' | 'heightField';
   primitive: number;
   /** The glTF material of every triangle, or `null`. */
