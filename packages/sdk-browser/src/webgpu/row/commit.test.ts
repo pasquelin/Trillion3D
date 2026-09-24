@@ -55,7 +55,11 @@ function images(): Plan[] {
 
 test('F4: the row table stays identical image after image, including empty, reversed and replayed', () => {
   const neuf = mount(createWebgpuRowState, createWebgpuRowCommit);
-  const ref = mount(referenceRowState, referenceRowCommit);
+  // The frozen oracle keeps one dirty interval and no per-row marks, which no commit reads.
+  const ref = mount(
+    referenceRowState as unknown as typeof createWebgpuRowState,
+    referenceRowCommit,
+  );
   const seq = images();
   for (let tour = 0; tour < seq.length; tour++) {
     if (tour === 8) {
