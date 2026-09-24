@@ -155,7 +155,7 @@ export interface ClusterManifest {
   /** How clusters were made. */ clusterStrategy?: string;
   /** Triangles in the source. */ sourceTriangles: number;
   /** Triangles kept. */ selectedTriangles: number;
-  /** Nodes kept. */ selectedNodes: number[];
+  /** Nodes kept. */ selectedNodes: number;
   /** Nodes in all. */ totalNodes: number;
   /** Its built-in scene. */ autonomousScene?: string | null;
   /** Its primitives. */ primitives: Primitive[];

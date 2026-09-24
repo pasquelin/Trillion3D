@@ -20,7 +20,7 @@ function manifestWith(previews: TexturePreview[]): ClusterManifest {
     scope: 'full',
     sourceTriangles: 0,
     selectedTriangles: 0,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     primitives: [],
     texturePreviews: previews,

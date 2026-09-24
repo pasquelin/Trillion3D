@@ -34,7 +34,7 @@ Required fields consumed by the browser adapter:
 - `schema` / `formatVersion` — must agree: `6` when the cache contains `clustered-blend`, otherwise `5`
 - `status` — `ready`
 - `scope` — `slice` or `full`
-- `selectedTriangles`, `selectedNodes`
+- `selectedTriangles`, `selectedNodes` — how many triangles and nodes were kept: counts, not lists, so they do not grow with the number of placed objects
 - `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, culling, structure, streams, dag, topology }`
   - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`, skins / `JOINTS_0` / `WEIGHTS_0`, and morph targets).
   - `clusterStrategy` is `dag-groups` on every primitive the DAG covers, and `null` on a `shared-blend` primitive, which carries no pages.

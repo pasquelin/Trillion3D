@@ -2105,7 +2105,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -2518,7 +2518,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -14635,7 +14635,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
