@@ -289,7 +289,8 @@
       "wave": "Welle",
       "dance": "Tanzen",
       "speed": "Tempo",
-      "colour": "Farbe"
+      "colour": "Farbe",
+      "shadow": "Schatten"
     }
   },
   "a-scene-of-your-own": {
@@ -1902,10 +1903,32 @@
     },
     "choices": {
       "count": {
-        "10000": "10.000",
+        "1000": "1.000",
         "5000": "5.000",
-        "1000": "1.000"
+        "10000": "10.000"
       }
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "Wähle im Panel einen Fall; bei „free“ ziehe, um dich umzusehen.",
+    "controls": {
+      "case": "Fall",
+      "caster": "Schattenwerfer"
+    },
+    "readouts": {
+      "Look for": "Achte auf"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben.",
+    "controls": {
+      "pushStrength": "Schubkraft (N)",
+      "platformSpeed": "Plattformtempo",
+      "stackAgain": "Neu stapeln"
+    },
+    "readouts": {
+      "awake": "Wach",
+      "speed": "Tempo"
     }
   },
   "rolling-on-terrain": {
@@ -1940,18 +1963,6 @@
       "bodies": "Körper",
       "awake": "Wach",
       "step": "Schritt"
-    }
-  },
-  "walk-with-collisions": {
-    "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben.",
-    "controls": {
-      "pushStrength": "Schubkraft (N)",
-      "platformSpeed": "Plattformtempo",
-      "stackAgain": "Neu stapeln"
-    },
-    "readouts": {
-      "awake": "Wach",
-      "speed": "Tempo"
     }
   }
 }

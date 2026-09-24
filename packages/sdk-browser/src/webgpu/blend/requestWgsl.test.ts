@@ -57,7 +57,7 @@ test('a request asks the level of the read that posts it', () => {
   );
 });
 
-// #360, #361: the shadow cutout reads the isotropic level, and its cascades ask for it alone; the
+// #360, #361: the shadow cutout reads the isotropic level, and its pages ask for it alone; the
 // camera cutout reads the base map as the shading does, so every map on screen asks one level.
 test('the shadow cutout asks the isotropic level it reads, the screen the anisotropic one', () => {
   assert.match(

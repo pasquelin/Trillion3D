@@ -1409,7 +1409,7 @@
   },
   "HostScene": {
     "summary": "Bir motorun içine çizdiği host görüntü grafiği: neyi tuttuğu, nasıl dolaşıldığı, ve kompozisyonun okuduğu temizleme rengi.",
-    "description": "Motor kendininkini bir `GraphScene` (`graph/scene.ts`) olarak yazar.",
+    "description": "Onu inşa etmek bir host sınırının işidir; birine yazmak, `HostDrawScene`.",
     "members": {
       "traverse": "Kendini, sonra alt ağacı ziyaret eder.",
       "background": "Görselin arkasını neyin doldurduğu.",
@@ -1526,28 +1526,26 @@
       "maxLightsPerTile": "Bir ekran karosunun tuttuğu ışıklar; piksel döngüsü bu sayıyla sınırlıdır (X2).",
       "tileSize": "Işık listesinin bir ekran karosunun piksel cinsinden kenarı.",
       "samplesPerPixel": "HAREKETLİ bir görselin pikseli başına tamamen gölgelendirilen — gölge okuması dahil — ışıklar (X2): diğerleri gölgeleri olmadan tartılır, ve gölgelendirilenler orantılı olarak çizilir, bu yüzden tahmin yansız kalır ve zamansal kenar yumuşatma onu ortalar. Sabit bir görsel, karosunun her ışığını gölgelendirir ve tam toplama yakınsar; orada bu sayının hiçbir rolü yoktur.",
-      "shadowUpdatesPerFrame": "Kare başına en fazla gölge bölgesi: tampon tavanı, asla bir kalite ayarı değil. Milisaniye bütçesi neredeyse her zaman önce durur; bu tavan yalnızca nihai bir sınırdır, ve GPU saati olmayan bir cihazdaki tek sınırdır.",
-      "shadowPage": "Gölge atlası sayfasının teksel cinsinden kenarı: bir yüzün geçersiz kılma hücresi. Hareketli bir nesne yalnızca izdüşürülmüş kutusunun kapladığı sayfaları eskitir, asla tüm yüzü değil.",
+      "shadowPage": "Bir gölge sayfasının kenarı, texel olarak: fiziksel havuzun, sanal haritaların ve geçersiz kılmanın birimi. Hareket eden bir nesne yalnızca izdüşen kutusunun kapladığı sayfaları eskitir.",
       "shadowBudgetMs": "Gölge aşaması bütçesi, kare başına GPU milisaniyesi cinsinden (X4, RX3). Bunun ötesinde geçersiz kılınan sayfalar sırasını bekler; asla kaybolmazlar, ve gecikmeleri yayımlanır.",
       "shadowAgingPerFrame": "Sırada geçirilen kare başına, bir sayfanın önceliğinde beklemenin ağırlığı: açlığa karşı.",
       "shadowCostBlend": "Bir sayfanın ortalama maliyetinde bir karenin örneğinin payı: zamanlayıcının üstel yumuşatması.",
-      "shadowAtlasSize": "Derinlik gölge atlasının teksel cinsinden kenarı.",
-      "shadowSliceMax": "Bir gölge kesitinin maksimum kenarı; bir nokta ışığın yüzü alanının altıda birini kaplar.",
-      "shadowSliceMin": "Bir gölge kesitinin minimum kenarı: bunun altında, ışık kesitini inceltmeden korur.",
       "pcfTaps": "Piksel ve gölgeli ışık başına PCF örneği (X2).",
       "spotEdgeSoftness": "Bir spot koninin yumuşatılmış kenarının kosinüs birimindeki genişliği: merdivenlenmeye karşı.",
-      "sunCascades": "Bir yönlü ışığın kademeleri: en az üç, asla bir kesitin yüzlerinden fazla değil.",
-      "sunShadowFarFraction": "Kademelerin, yakın düzlemden uzağa doğru kapladığı kamera frustum'unun payı. Ötesinde, bir yüzey, düşen bir gölge olmadan aydınlatılmış kalır: tanı içinde yayımlanan, adlandırılmış bir yaklaşıklık.",
-      "sunCascadeRatioMax": "İki ardışık kademe bölme sınırı arasındaki oran: bir dikişte, teksel yoğunluğu tam olarak bu oranla değişir, ve kademeler arasındaki keskinlik sıçramasına başka hiçbir şey karar vermez. Yakın düzlem tabanı ondan çıkarılır — `gölge mesafesi / oran^kademeler`.",
       "sunFarShadowOffsetMetres": "Uzak gölge ışını başlangıcının normal boyunca ötelemesi, metre cinsinden. Yalnızca aydınlatılan yüzeyin düzlemini terk etmeye yarar; kendi kendini gölgelemeye karşı gerçek çare, aşağıdaki, ışın boyunca başlangıçtır.",
-      "sunFarShadowStartCells": "Uzak gölge ışınının kendi yönü boyunca başlangıcı, proxy hücrelerinde. Aydınlatılan nokta ince geometriden gelir, gizleyen kaba proxy'den: proxy'nin gerçek yüzeyin üzerinde oturduğu yerde, sıfırdan başlayan bir ışın, aydınlattığı yüzeyin kendisine çarpardı. Bir proxy hücresi, proxy'nin hiçbir şey söylemediği ölçektir; oradan başlamak, bir gölge uydurmadan bu sahte teması atlar. Sonuç adlandırılmıştır: ışın boyunca bir hücreden daha yakın bir gizleyen hiçbir uzak gölge taşımaz, ve o, kademelerle kalır.",
-      "sunCascadeDepthScale": "Bir kademenin yakın düzleminin, küresinin yarıçapları cinsinden geri çekilmesi: kademenin üzerinde, onunla güneş arasında olan şey, orada gölgesini düşürmek için haritaya girmelidir. Genişlik her iki tarafa iki yarıçap ekler, derinlik çapasının küreye bıraktığı boşluk (`../light-shadow/sunFaces.ts`).",
+      "sunFarShadowStartCells": "Uzak gölge ışınının kendi yönü boyunca başlangıcı, proxy hücrelerinde. Aydınlatılan nokta ince geometriden gelir, gizleyen kaba proxy'den: proxy'nin gerçek yüzeyin üzerinde oturduğu yerde, sıfırdan başlayan bir ışın, aydınlattığı yüzeyin kendisine çarpardı. Bir proxy hücresi, proxy'nin hiçbir şey söylemediği ölçektir; oradan başlamak, bir gölge uydurmadan bu sahte teması atlar. Sonuç adlandırılmıştır: ışın boyunca bir hücreden daha yakın bir gizleyen hiçbir uzak gölge taşımaz, ve o, clipmap düzeyleriyle kalır.",
       "shadowDepthBias": "Metre cinsinden gölge sapması, asla derinlik biriminde değil: bir kesitin izdüşürülmüş derinliği son derece doğrusal değildir, normalize edilmiş derinlikte bir sabit, ışığa yakın metreler ve uzakta milimetreler olurdu. Shader bu metreleri, ele alınan noktada derinliğe geri getirir.",
       "shadowSlopeBias": "`shadowSlopeBiasMax` ile sınırlanan, `tan(acos(N·L))` birimi başına metre cinsinden eğim sapması.",
       "shadowSlopeBiasMax": "En büyük eğim sapması.",
       "shadowNearFraction": "Bir kesitin yakın düzlemi: menzilin bir payı, asla bu tabandan az değil.",
       "shadowNearMin": "En yakın gölge mesafesi.",
-      "shadowNormalOffsetTexels": "Örnek noktasının normal boyunca ötelemesi, kesit tekselleri cinsinden. Bir nokta ışığın iki yüzü arasındaki dikişi kapatan ve sıyırma sivilcelerini kaldıran şey budur; metre değil teksel cinsindedir, böylece ışığın elde ettiği çözünürlükle orantılı kalır."
+      "shadowNormalOffsetTexels": "Örnek noktasının normal boyunca ötelemesi, kesit tekselleri cinsinden. Bir nokta ışığın iki yüzü arasındaki dikişi kapatan ve sıyırma sivilcelerini kaldıran şey budur; metre değil teksel cinsindedir, böylece ışığın elde ettiği çözünürlükle orantılı kalır.",
+      "shadowPagesPerFrame": "Kare başına en fazla çizilen gölge sayfaları: tampon tavanı, asla bir kalite ayarı değil. Milisaniye bütçesi neredeyse her zaman önce durur; bu tavan yalnızca son bir sınırdır ve GPU saati olmayan bir aygıtta tek sınırdır.",
+      "lampFaceSize": "Bir lamba yüzünün en ince mip düzeyinin kenarı, texel olarak: 128’lik 32 × 32 sayfa (havuz: `shadowPoolSide`).",
+      "shadowTableEntries": "Gölge sayfa tablosunun girdileri, sanal sayfa başına bir sözcük: sabit 4 MiB’lık bir tampon. On altı güneş ya da 128 noktasal ışık alır; yer bulamayan bir ışık gölgesiz kalır ve sayılır.",
+      "shadowRequestCap": "Gölgelendirmenin kare başına isteyebileceği sanal sayfalar; kalanlar sonraki karede yeniden ister.",
+      "sunLevels": "Yönlü bir ışığın clipmap düzeyleri. `L` düzeyinin texelleri `2^L` metredir ve bir piksel, texeli kendi izinden büyük olmayan düzeyi okur: on altı düzey 2^15’lik bir uzak/yakın oranını kapsar. Son düzeyin ötesinde uzak gölge devralır.",
+      "sunLevelPages": "Kamera çevresindeki bir clipmap düzeyi alanının kenar başına sayfaları. Bir kapasitedir, ayar değil: `height / tan(halfFovY)` değeri `sunLevelPages · shadowPage / 2` = 4096’yı aşmadıkça her piksel kendi yoğunluğunu okur (55° dikey alanlı 4K bir tuval); ötesinde dış pikseller sonraki düzeyi yarı yoğunlukta okur."
     }
   },
   "LOD_QUALITY": {
@@ -2116,7 +2114,7 @@
     "summary": "Geçmeden önce o üstünlükte ardışık çalıştırmalar: bir kaza değil, bir seri."
   },
   "POINT_FACES": {
-    "summary": "Bir kesitin yüzleri: bir nokta için altı, bir spot için bir, güneşin kademeleri."
+    "summary": "Noktasal bir ışığın diliminin yüzleri: altı."
   },
   "POINT_FACE_AXES": {
     "summary": "Shader'ın onları ana ışık ekseninden → nokta yönünden kurtardığı sırada, bir nokta ışığın altı ekseni: +X, −X, +Y, −Y, +Z, −Z.",
@@ -2607,9 +2605,6 @@
       "toArray": "Dört sayı, bir liste olarak."
     }
   },
-  "RECTS_PER_SLICE": {
-    "summary": "Bir kesitin dikdörtgenleri: yüz başına `(x, y, side)`, her kesit için ayrılmış altı yüz."
-  },
   "Ray": {
     "summary": "Bir yarı doğru: başlangıç ve birim yön.",
     "members": {
@@ -2679,23 +2674,10 @@
     "summary": "Bu motorun paketinin sürümü."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Bir bölge hacminin float'ları: merkez ve uzak düzlem, yüz ekseni ve yarı açı, sonra — negatif bir yarı açıyla işaretlenen bir kutu için — yarı genişlikleriyle diğer iki eksen."
-  },
-  "SHADOW_FACE_FLOATS": {
-    "summary": "Kesit tamponunda bir yüzün float'ları: matris, atlas dikdörtgeni — bir kez çizildiğinde dördüncü float'ı 1, asla 0 —, sonra dört kelime: tutulan sayfa maskesi, mevcut genişliğin bir derinliğini tutan fiziksel sayfa başına bir bit, iki kelimede sekizli satırlar, ve genişlik başlangıcının fiziksel sayfası, okumanın genişlik koordinatlarını sardığı, önce `x` sonra `y`.",
-    "description": "Girmiş ama henüz çizilmemiş bir genişlik sayfası, hâlâ uzak tarafın orada bıraktığını tutar: okumanın bunu bilmesi ve bir sonraki kademeye geri dönmesi gerekir, onu asla örneklememesi. Yalnızca bir yeniden çizimi bekleyen bir sayfa hâlâ tutulur, ve okunur."
-  },
-  "SHADOW_FACE_MASK_WORD": {
-    "summary": "Bir ışığın GPU kaydındaki gölge yüzlerinin kelimesi."
-  },
-  "SHADOW_FACE_SIDES": {
-    "summary": "Atlasın yerleştirmeyi bildiği yüz kenarları, en büyükten en küçüğe."
+    "summary": "Bir ayıklama hacminin float değerleri: merkez ve uzak düzlem, yüz ekseni ve yarım açı, sonra — negatif yarım açıyla işaretlenen bir kutu için — diğer iki eksen ve yarı uzunlukları, sonra bölgenin hangi gölge düşürücüleri çizdiğini söyleyen sözcük, onları seçen ışık kesiti görünümü ve iki dolgu."
   },
   "SHADOW_PAGE": {
-    "summary": "Teksel cinsinden, bir atlas sayfasının kenarı: bir yüzün geçersiz kılma hücresi."
-  },
-  "SHADOW_SLICE_FLOATS": {
-    "summary": "Bir kesitin float'ları: altı yüz artı bir başlık `vec4f` (yüzler, tür, kenar, dolgu)."
+    "summary": "Bir gölge sayfasının kenarı, texel olarak: havuzun, sanal haritaların ve geçersiz kılmanın birimi."
   },
   "SINGULAR_DETERMINANT": {
     "summary": "NORMALİZE EDİLMİŞ determinant üzerindeki eşik.",
@@ -2781,7 +2763,7 @@
   },
   "SceneLight": {
     "summary": "Bir sahne ışığı, sürüm 2.",
-    "description": "Birimler radyometrik ve doğrusaldır (P1): `color` doğrusal bir renktir ve `intensity` kesinlikle pozitif bir radyometrik yoğunluktur — bir `rect` için bir radyans. Dört tür, ve bu motorda başka hiçbir şey ışık yapmaz (P6): - `point`: bir pozisyon ve ötesinde hiçbir şeyi aydınlatmadığı metre cinsinden bir menzil; - `spot`: aynısı artı bir yön ve radyan cinsinden bir koni yarı açısı; - `directional`: güneş ya da kapalı bir gökyüzü — bir yayılma yönü, pozisyon yok ve menzil yok, her yerde aynı ışınım, ve kamerayı takip eden kademe gölgeleri; - `rect`: `position`'da ortalanmış, `direction` boyunca yayan, genişliği `right` boyunca olan, `size` metrelik tek taraflı bir dikdörtgen; gölge düşürmez (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Bir türün kullanmadığı alanlar doğrulamada reddedilir: pozisyonlu bir yönlü ışık, motorun tutmayacağı bir vaat olurdu.",
+    "description": "Birimler radyometrik ve doğrusaldır (P1): `color` doğrusal bir renktir ve `intensity` kesinlikle pozitif bir radyometrik yoğunluktur — bir `rect` için bir radyans. Dört tür, ve bu motorda başka hiçbir şey ışık yapmaz (P6): - `point`: bir pozisyon ve ötesinde hiçbir şeyi aydınlatmadığı metre cinsinden bir menzil; - `spot`: aynısı artı bir yön ve radyan cinsinden bir koni yarı açısı; - `directional`: güneş ya da kapalı bir gökyüzü — bir yayılma yönü, pozisyon yok ve menzil yok, her yerde aynı ışınım, ve kamerayı takip eden clipmap gölgeleri; - `rect`: `position`'da ortalanmış, `direction` boyunca yayan, genişliği `right` boyunca olan, `size` metrelik tek taraflı bir dikdörtgen; gölge düşürmez (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Bir türün kullanmadığı alanlar doğrulamada reddedilir: pozisyonlu bir yönlü ışık, motorun tutmayacağı bir vaat olurdu.",
     "members": {
       "id": "Işığın adı.",
       "kind": "Nokta, spot, güneş ya da dikdörtgen.",
@@ -2946,8 +2928,8 @@
     "members": {
       "lightsActive": "Karenin aydınlattığı `SceneLight` sözleşme ışıkları. Onları yok sayan bir motorda null.",
       "lightsSampled": "Bu karenin aydınlatmasının örneklenen modunda çalıştığında doğru — bir geçmişin üzerinde biriken hareketli bir görsel, `samplesPerPixel`'den fazla ışığı olan bir pikselin çizilen bir alt kümeyi gölgelendirdiği —, sabit bir görselin yaptığı gibi her pikselin her ışığı gölgelendirdiğinde yanlış. Işıkları yok sayan bir motorda null.",
-      "shadowsUpdated": "Bu kare tarafından yeniden çizilen, en fazla zamanlayıcının yayımlanmış tavanı kadar gölge kesitleri. Sıfır, sabit bir sahnenin normal değeridir: sabit bir ışık kesitini korur.",
-      "shadowFacesDrawn": "Gölge geçişinin yeniden çizdiği şey: yüzler (görünümler) ve gerçekte kodlanan çizim çağrıları. Bu, geri kalanından ayrılmış, gölgeli ışık başına maliyettir. Hiçbir gölge çizmeyen bir motorda null.",
+      "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
+      "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
       "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
@@ -2955,28 +2937,43 @@
       "shadowWaitMs": "Ne kadar süre bekledikleri.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
-      "gpuLightingMs": "Aydınlatmanın GPU süresi."
+      "gpuLightingMs": "Aydınlatmanın GPU süresi.",
+      "shadowLightCuts": "Işıklardan yürütülen küme kesitleri: çizilen ışık görünümü başına bir, durağan bir karede sıfır.",
+      "shadowPagesRequested": "Görüntünün okuduğu sanal gölge sayfaları, son istek raporunun adlandırdığı biçimde: kameranın alıcılarının işaretledikleri.",
+      "shadowPagesCached": "Bunlardan doğrudan havuzdan okunan sayfalar: güncel, çizim yok.",
+      "shadowPoolPages": "Sabit havuzun sanal bir sayfa tutan fiziksel sayfaları.",
+      "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
+      "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
+      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
     }
   },
   "ShadowPlan": {
-    "summary": "Bu karede hangi gölge bölgelerinin çizildiği, ve hangilerinin beklediği.",
+    "summary": "Karenin gölge işi: hangi sanal sayfaların çizildiği ve hangilerinin beklediği.",
     "members": {
-      "slices": "Gölge kesitleri.",
-      "regions": "Gölge bölgeleri.",
-      "budget": "Zaman bütçesi.",
-      "coverage": "Her ışığın neyi kapladığı.",
-      "counts": "Tanı için sayımlar.",
-      "worldChanged": "Bir düğüm hareket etti: kutusu, zamanlayıcının bir sonraki karede tüketeceği listeye girer.",
-      "representationChanged": "Başka bir hassasiyette aynı dünya — ayrıntı seviyesi, yerleşiklik, renk karosu —: kutusu kameranın durmasını bekler, sonra listeye girer (`changes.ts`).",
-      "deferredChanges": "Bir temsil değişikliği kameranın durmasını beklerken doğru: bir plan onu tüketmeden önce kare tutulmamalıdır.",
-      "releaseDeferred": "Kare hiçbir gölge planlamaz — atlas yok, ışık yok, ışıksız görünüm —: tutulan birleşim, kareyi tutmaktan alıkoymak yerine, bir sonraki planın onu okuduğu listeye hemen girer.",
-      "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, yeniden çizdiği sayfalara bildirilir.",
-      "setBudgetMs": "Host tarafından yayımlanan bütçe; sonlu olmayan ya da negatif bir değer, yuvarlanmadan reddedilir.",
-      "setPageInvalidation": "Sayfa başına geçersiz kılmayı kapatır: dokunulan her yüz tamamen yeniden başlar. Varsayılan olarak açık.",
-      "pageInvalidation": "Yeniden çizilecek sayfalar.",
-      "plan": "Bu karenin bölgelerini seçer. Sayılarını döndürür; `plan.regions` onları teker teker betimler, ve kapladıkları sayfalar kuyruktan zaten kaldırılmıştır.",
-      "reissue": "Bu karenin bölgeleri kodlanamadı: sayfaları kuyruğa geri döner. Zamanlayıcı ve geçiş yalnızca bu liste üzerinden konuştuğu için kabulde onu terk etmişlerdi; geçiş hiçbir şey çizmezse, kuyruğun onları yeniden bulması gerekir.",
-      "reset": "Yeniden başlar."
+      "budget": "Gölgeler aşamasının milisaniye bütçesi ve bir sayfanın ölçülen maliyeti.",
+      "counts": "Son planın yaptığı, sayfa olarak.",
+      "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
+      "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
+      "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
+      "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan birleşim hemen listeye girer.",
+      "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, çizdiği sayfalara bölünmüş.",
+      "setBudgetMs": "Ana makinenin yayımladığı bütçe, kare başına GPU milisaniyesi.",
+      "setPageInvalidation": "Sayfa başına geçersiz kılmayı kapatır: hareket eden bir nesne dokunduğu ışıkların her sayfasını eskitir. Varsayılan olarak açık.",
+      "pageInvalidation": "Hareket eden bir nesnenin yalnızca kutusunun kapladığı sayfaları eskitip eskitmediği.",
+      "plan": "Bir kare planlar: hareket edeni eskitir, son raporu okur, çizilecek sayfaları kabul eder.",
+      "reissue": "Karenin sayfaları kodlanamadı: eski kalırlar ve sonraki kareyi beklerler.",
+      "reset": "Yeniden başlar.",
+      "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik (`thresholds.ts`).",
+      "table": "Sayfa tablosu: sanal sayfa başına bir sözcük ve her ışığın içinde tuttuğu aralık.",
+      "pool": "Havuzun fiziksel sayfaları ve her birinin tuttuğu sanal sayfa.",
+      "sun": "Her güneşin clipmap’i: çerçevesi, derinlik aralığı, en ince düzeyi ve alanları.",
+      "records": "Gölge dilimleri, gölge düşüren her ışık için bir tane.",
+      "requests": "Geri okunan istek raporları: sonuncusunun adlandırdığı, ayırdığı ya da reddettiği.",
+      "admission": "Bu karenin sayfaları, kabul sırasına göre.",
+      "stamp": "Gölgelendirme, ışıklar ve görünümün sonraki görüntüye verdiği: bununla damgalanmış ve yeni hiçbir şey adlandırmayan bir rapor, görüntünün yalnızca çizileni okuduğunu kanıtlar.",
+      "settled": "Bir rapor mevcut durumun hiçbir şey istemediğini kanıtladığında doğru: görüntü tutulabilir.",
+      "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
+      "commit": "Karenin sayfaları kodlandı, her biri kendi `modes` girdisinde: çizimleri, onları bir şey okumadan önce tamamlanır."
     }
   },
   "ShadowViewpoint": {
@@ -2987,7 +2984,8 @@
       "halfFovY": "Dikey açıklığının yarısı.",
       "aspect": "Genişliğin yüksekliğe oranı.",
       "near": "En yakın mesafe.",
-      "far": "En uzak mesafe."
+      "far": "En uzak mesafe.",
+      "pixelNear": "Yakın düzlemde bir pikselin dünya boyutu: görünümün bir pikselinin sahip olduğu en ince iz."
     }
   },
   "Shape": {
@@ -3287,22 +3285,22 @@
   "TableTexture": {
     "summary": "Bir glTF dokusunun örnekleyici durumu, motorun kelimeleriyle.",
     "members": {
-      "name": "Adı.",
-      "sampler": "Bildirdiği glTF örnekleyicisinin sırası, yoksa `null`.",
       "image": "Hangi görsel.",
       "wrapS": "Yatayda tekrar.",
       "wrapT": "Dikeyde tekrar.",
       "magFilter": "Daha büyükken filtre.",
-      "minFilter": "Daha küçükken filtre."
+      "minFilter": "Daha küçükken filtre.",
+      "name": "Adı.",
+      "sampler": "Bildirdiği glTF örnekleyicisinin sırası, yoksa `null`."
     }
   },
   "TableTextureSlot": {
-    "summary": "Dolu bir harita yuvası: hangi doku, hangi koordinat takımı ve bildirdiği dönüşüm.",
+    "summary": "Bir dolu harita slotu: hangi doku, hangi koordinat seti, ve onun için oluşturulan 3×3.",
     "members": {
       "texture": "Hangi doku.",
-      "texCoord": "Hangi UV kümesinin örneklendiği: dönüşümü bir küme adlandırıyorsa onunki, yoksa kendisininki.",
-      "slotTexCoord": "Yuvanın herhangi bir dönüşümden önce kendisinin adlandırdığı UV kümesi: ilkinden başka birini adlandıran bir yuva, dokusunun hiçbir sıraya karşılık gelmeyen bir kopyasından çizilir.",
-      "transform": "Yuvanın bildirdiği `KHR_texture_transform` — kaydırma, radyan cinsinden dönme, germe, belirtilmediğinde her biri `null` — ya da hiç yoksa `null`."
+      "texCoord": "Hangi UV seti.",
+      "transform": "UV dönüşümü, 3×3.",
+      "slotTexCoord": "Yuvanın herhangi bir dönüşümden önce kendisinin adlandırdığı UV kümesi: ilkinden başka birini adlandıran bir yuva, dokusunun hiçbir sıraya karşılık gelmeyen bir kopyasından çizilir."
     }
   },
   "TelemetryReport": {
@@ -3942,8 +3940,8 @@
       "pagePlanMs": "Varışları planlamaya harcanan süre.",
       "lightsActive": "Karenin aydınlattığı `SceneLight` sözleşme ışıkları. Onları yok sayan bir motorda null.",
       "lightsSampled": "Bu karenin aydınlatmasının örneklenen modunda çalıştığında doğru — bir geçmişin üzerinde biriken hareketli bir görsel, `samplesPerPixel`'den fazla ışığı olan bir pikselin çizilen bir alt kümeyi gölgelendirdiği —, sabit bir görselin yaptığı gibi her pikselin her ışığı gölgelendirdiğinde yanlış. Işıkları yok sayan bir motorda null.",
-      "shadowsUpdated": "Bu kare tarafından yeniden çizilen, en fazla zamanlayıcının yayımlanmış tavanı kadar gölge kesitleri. Sıfır, sabit bir sahnenin normal değeridir: sabit bir ışık kesitini korur.",
-      "shadowFacesDrawn": "Gölge geçişinin yeniden çizdiği şey: yüzler (görünümler) ve gerçekte kodlanan çizim çağrıları. Bu, geri kalanından ayrılmış, gölgeli ışık başına maliyettir. Hiçbir gölge çizmeyen bir motorda null.",
+      "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
+      "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
       "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
@@ -3990,7 +3988,13 @@
       "geometryPoolSaturated": "Mevcut karenin havuz slot kapasitesinin ötesinde gerektirdiği sayfalar.",
       "texturePoolClamp": "Doku havuzu sınırlamasının nedeni: `minimum`, `device-limit`.",
       "hizCulled": "Gizlenme testinin bu karede gizli bulduğu cluster'lar; yolun onları saymadığı yerde `null`.",
-      "shadowPagesResident": "Bu karede bellekte tutulan gölge sayfaları; yolun hiçbiri olmadığı yerde `null`."
+      "shadowLightCuts": "Işıklardan yürütülen küme kesitleri: çizilen ışık görünümü başına bir, durağan bir karede sıfır.",
+      "shadowPagesRequested": "Görüntünün okuduğu sanal gölge sayfaları, son istek raporunun adlandırdığı biçimde: kameranın alıcılarının işaretledikleri.",
+      "shadowPagesCached": "Bunlardan doğrudan havuzdan okunan sayfalar: güncel, çizim yok.",
+      "shadowPoolPages": "Sabit havuzun sanal bir sayfa tutan fiziksel sayfaları.",
+      "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
+      "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
+      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
     }
   },
   "WorldOptions": {
@@ -4587,8 +4591,8 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Gölge zamanlayıcısı.",
-    "description": "Bir karenin işi artık \"dört ışık\" değil, **milisaniye bütçesine kadar en yüksek öncelikli bayat sayfalardır** (RX3, X4): hareket eden bir ışık ya da kademe tüm haritasını bayatlatır, hareket eden bir nesne yalnızca izdüşürülmüş kutusunun kapladığı sayfaları bayatlatır, ve bu karede reddedilen sayfalar bir sonrakini bekler — asla kaybolmazlar, gecikmeleri yayımlanır. Sabit bir sahnedeki sabit bir ışık yine de hiçbir şeye mal olmaz (X5). Tüm diziler bir kez tahsis edilir; `plan()` asla tahsis etmeyecektir."
+    "summary": "Sanal haritaların gölge zamanlayıcısı.",
+    "description": "Gölgelendirme okuduğu sayfaları kaydeder; birkaç kare sonra geri okunan raporu, eksik olanı sabit havuzdan ayırır. Hareket eden, kapladığı eşlenmiş sayfaları eskitir. Ardından bir kare, görüntünün okuduğu eski sayfaları çizer — önce kaba olanları, bir milisaniye bütçesine kadar —, kalanı bekler, asla kaybolmaz, gecikmesi yayımlanır. Gölgelendirmesi artık çalışmayan durağan bir sahne hiçbir şey istemez ve hiçbir şey çizmez. Tüm diziler bir kez ayrılır; `plan()` hiçbir şey ayırmaz."
   },
   "createTerminalProgress": {
     "summary": "Derleyicinin olaylarını takip eden, terminalde bir ilerleme çubuğu.",
@@ -4663,10 +4667,6 @@
     "summary": "Bir katmanın bir cluster'ı kameraya DOĞRU taşıdığı donanım birimi sayısı, bir büyüklük olarak: sıfır ya da daha fazla, asla işaretli değil.",
     "description": "Her yol bu tek fonksiyonu okur ve kendi derinlik testi için ona işaret verir."
   },
-  "desiredFaceSide": {
-    "summary": "Bir ışığın hak ettiği yüz kenarı: ekrana izdüşürülmüş menzili, atlastaki payıyla sınırlı.",
-    "description": "Tüm ekranı kaplayan ve yalnız olan bir ışık `shadowSliceMax`'i alır; otuz gölge ışığında, her biri sonuncuları kesitsiz bırakmak yerine kendi kendine küçülür. Taban `shadowSliceMin`'dir: bir şey kaldığı sürece hiçbir ışık yer darlığından kaybolmaz."
-  },
   "detectCapabilities": {
     "summary": "Bu makinenin neyle çizebildiğini kontrol eder, ve çizemediğinde nedenini söyler."
   },
@@ -4738,9 +4738,6 @@
   "exportLightingGltf": {
     "summary": "glTF ve ayrı, little-endian bir ikili tampon; adaptörler kalıcılığa sahiptir."
   },
-  "faceCountOf": {
-    "summary": "Bir ışık için gerçekten çizilen yüzler: bir nokta için altı, bir spot için bir, ve yönlü bir ışık için kademeler — asla kesit başına ayrılan altı yüzden fazla değil."
-  },
   "filter": {
     "summary": "Doku örnekleme kuralları."
   },
@@ -4761,10 +4758,6 @@
   },
   "filter.linearMipLinear": {
     "summary": "Pürüzsüz piksel, iki küçük kopya arasında karıştırılmış: en pürüzsüzü."
-  },
-  "forEachShadowFace": {
-    "summary": "Bir gölge bildiren ve bir kesit tutan her ışığın her yüzünü ziyaret eder: sayaçların, tutulan maske yayınının ve yüz başına diğer her okuyucunun paylaştığı tek tarama.",
-    "description": "Yüz sayısı ışığın türününkidir; `fn`, yayımlanmış kesitler ve yüzlerle sınırlıdır."
   },
   "frameStatistics": {
     "summary": "Kareler arasındaki sürelerden kare hızı ve pürüzsüzlük."
@@ -6218,9 +6211,6 @@
     "summary": "Çözme havuzunun boyutu: asla makinenin bildirdiği çekirdeklerden fazla değil, asla paket tavanından fazla değil, asla aktarımlarda zaten yürürlükte olan kabul sınırından fazla değil, ve en az bir.",
     "description": "Eksik ya da tam sayı olmayan bir değer, tek bir yürütücüye eşittir: hiçbir şey bildirmeyen bir platformda, paralellik uydurmayız."
   },
-  "pageRowsOf": {
-    "summary": "Maskenin taşıyabileceğiyle sınırlı, `side` tekselli bir yüzün kenarı başına sayfalar."
-  },
   "perspectiveProjection": {
     "summary": "Derece cinsinden dikey `fov`, `aspect` oranı, yakın düzlem `near`, zoom `zoom` olan bir kameranın perspektif izdüşümü."
   },
@@ -6599,8 +6589,8 @@
     "summary": "Bir karenin okuduğu her şeyi, zaten ayarlanmış `into.world`'den ve bildirilen optikten türetir: motorun derinlik kuralındaki izdüşüm, sonra view, view-projection ve altı frustum düzlemi (`updateCameraFrame`), render karesi (`renderOrigin.ts`) ve göz."
   },
   "writeFace": {
-    "summary": "Bir yüzün view-projection matrisini `matrices`'teki slotuna, ve reject etkinse, o yüzün `rect` bölgesine karşı koyduğu hacmi yazar.",
-    "description": "İkisi de aynı eksenden ve aynı alandan başlar — tek bir hesaplama, bu yüzden farklı yönlere işaret etme riski yoktur. Bir nokta `POINT_FACE_AXES` eksenini ve 90°'yi alır; bir spot kendi yönünü ve genişletilmiş konisini alır; yönlü bir ışık, kamerayı takip eden `face` kademesini alır. Yayıcı yarıçapı, kendi payına, ne izdüşüme ne de reject'e dokunur: dışlanması tam olarak bir küredir, gölge derinliğinin yazıldığı yere yazılır, ve yükseltilmiş bir yakın düzlem ondan bir küp çıkarırdı. `rect`, normalize edilmiş koordinatlarda, yüzün yeniden çizilecek kısmıdır; varsayılan olarak `FULL_FACE`, ve hacim o zaman tam olarak sayfa başına geçersiz kılmadan öncekiyle aynıdır. Dünya küresi ne menzile ne de bu hacme dokunan bir cluster, bölgeye hiçbir şey yazamaz: izdüşüm ve makas onu zaten reddederdi. Bu yüzden reject tamdır, asla bir kalite yaklaşıklığı değildir — bölge bir teksel bile değişmez."
+    "summary": "Bir lamba yüzünün görünüm-izdüşüm matrisini `matrices` içindeki yerine yazar ve ayıklama etkinse, o yüzün `rect` dikdörtgenine karşı koyduğu hacmi.",
+    "description": "İkisi de aynı eksenden ve aynı alandan başlar — tek bir hesap, bu yüzden farklı yönlere nişan alma riski yoktur. Bir nokta `POINT_FACE_AXES` eksenini ve 90°’yi alır; bir spot kendi yönünü ve genişletilmiş konisini alır. Yayıcının yarıçapı ne izdüşüme ne ayıklamaya dokunur: dışlaması tam olarak bir küredir, gölge derinliğinin yazıldığı yere yazılır. `rect`, yüzün çizilecek kısmıdır, normalleştirilmiş koordinatlarda; varsayılan `FULL_FACE`. Dünya küresi ne menzile ne bu hacme dokunan bir küme buraya hiçbir şey yazamaz: izdüşüm ve viewport onu zaten reddederdi, bu yüzden ayıklama kesindir."
   },
   "BeforeFrameInfo": {
     "summary": "Bir kare-öncesi kancasının aldığı şey: kontrolcülerin az önce entegre ettiği saniyeler, ve dünyanın başlangıcından bu yana geçenler.",
@@ -7034,6 +7024,35 @@
       "gravity": "Dünyanın yerçekimi: bir ön ayar ya da vektör."
     }
   },
+  "SHADOW_RECORD_FLOATS": {
+    "summary": "Bir ışığın gölgelendirmesinin okuduğu gölge kaydının float değerleri: altı lamba yüzü matrisi, sonra güneş düzleminin çerçevesi — `right, zNear`, `up, zFar`, `axis, 0` —, sonra her clipmap düzeyinin alan kökeni iki tamsayı olarak, sonra bir `vec4f` başlığı: yüzler (lamba) ya da düzeyler (güneş), lambanın yarım alan tanjantı ya da güneşin en ince düzeyi, lambanın yakın düzlemi ve kaydın sayfa tablosundaki ilk girdisi."
+  },
+  "ShadowRequestReport": {
+    "summary": "Gölgelendirmenin bir karede okuduğu: istediği tablo girdileri, sırasız.",
+    "members": {
+      "frame": "Raporu gölgelendirmesi yazan kare.",
+      "layoutEpoch": "O karenin okuduğu tablo düzeni (`ShadowTable.layoutEpoch`).",
+      "stamp": "O kare kodlandığında planın damgası (`ShadowPlan.stamp`).",
+      "count": "İstenen girdiler, belki `entries`’in tuttuğundan fazla: kalanlar sonraki karede yeniden ister.",
+      "entries": "İstenen girdiler, en fazla ilk `count` tanesi."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle`’ın sürebileceği her şey: girdi her değiştiğinde onu alır.",
+    "members": {
+      "drive": "Bir tuş değiştirdiğinde pedalları ve direksiyonu alır."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Sürücünün araçtan istediği: `world.controls` `'vehicle'` tuşlarının ayarladığı pedallar ve direksiyon.",
+    "description": "Aracın kendi fiziği — motor, tekerlekler, süspansiyon — bunlara yanıt verir; kontrollerin bildiği yalnızca bu sözleşmedir.",
+    "members": {
+      "throttle": "Gaz pedalı, 0 ile 1 arası.",
+      "brake": "Fren pedalı, 0 ile 1 arası.",
+      "steer": "Direksiyon, −1 tam sol ile 1 tam sağ arası.",
+      "handbrake": "El freninin çekili olup olmadığı."
+    }
+  },
   "GraphAngles": {
     "summary": "Aynı yönelim üç açı ve sıraları olarak; yazımlarını aynı şekilde duyurur.",
     "members": {
@@ -7259,22 +7278,6 @@
       "x": "Soldan sağa.",
       "y": "Alttan üste.",
       "z": "Arkadan öne."
-    }
-  },
-  "VehicleDriver": {
-    "summary": "`world.controls.vehicle`’ın sürebileceği her şey: girdi her değiştiğinde onu alır.",
-    "members": {
-      "drive": "Bir tuş değiştirdiğinde pedalları ve direksiyonu alır."
-    }
-  },
-  "VehicleInput": {
-    "summary": "Sürücünün araçtan istediği: `world.controls` `'vehicle'` tuşlarının ayarladığı pedallar ve direksiyon.",
-    "description": "Aracın kendi fiziği — motor, tekerlekler, süspansiyon — bunlara yanıt verir; kontrollerin bildiği yalnızca bu sözleşmedir.",
-    "members": {
-      "throttle": "Gaz pedalı, 0 ile 1 arası.",
-      "brake": "Fren pedalı, 0 ile 1 arası.",
-      "steer": "Direksiyon, −1 tam sol ile 1 tam sağ arası.",
-      "handbrake": "El freninin çekili olup olmadığı."
     }
   }
 }

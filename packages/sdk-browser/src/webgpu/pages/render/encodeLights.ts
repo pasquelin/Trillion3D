@@ -4,8 +4,9 @@ import {
   TONE_MAPPING_RANK,
 } from '../../../../../sdk-core/src/scene/core/environment.ts';
 import { PAGES_RING, noteShadowFrame, uploadSceneLights } from '../state/lights.ts';
-import { planShadowRegions } from './encodeShadows.ts';
+import { planImageShadows } from './encodeShadows.ts';
 import { encodeShadowAtlas } from './encodeShadowPass.ts';
+import { pageModes } from '../../shadow/pages.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -33,6 +34,7 @@ export function encodeDirectLights(
     [width, height] = gpu.targetSize;
   const active = store.count;
   lights.lightsActive = active;
+  lights.lightRuns = 0;
   const environment = store.environment;
   directParams.fill(0);
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
@@ -48,10 +50,8 @@ export function encodeDirectLights(
     if (!store.unlit) uploadSceneLights(device, lights);
     return directParams;
   }
-  const frame = rt.run.frame,
-    nowMs = performance.now(),
-    pagesSlot = frame % PAGES_RING;
-  const regions = planShadowRegions(rt, cam, frame, nowMs);
+  const pagesSlot = rt.run.frame % PAGES_RING;
+  const regions = planImageShadows(rt, cam);
   // The pass timer comes back late: the image must leave behind how many pages it redrew, or the
   // sample would not know what it is numbering.
   lights.pagesByFrame[pagesSlot] = lights.shadowPages;
@@ -63,12 +63,18 @@ export function encodeDirectLights(
   // is encoded before the lighting pass that will fill them.
   ensureSunFarShadow(rt, device);
   rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
-  // The pass may refuse to encode (reject or missing selection): pages the scheduler just took out
-  // of the queue then go back in, or their map would keep a stale depth with nothing saying so.
-  // Their held-page mask, pushed with the plan, says "held" for this one frame; `reissue`
-  // gives them back what they held before, and the next plan pushes that mask.
+  // The pass may refuse to encode (reject or missing selection): its pages then stay stale, and
+  // their table words say what they said — a page is readable only once its draw has landed.
   const encoded = !regions || encodeShadowAtlas(rt, device, encoder, regions);
-  if (!encoded) lights.plan.reissue(frame, nowMs);
+  if (encoded) lights.plan.commit(pageModes);
+  else lights.plan.reissue();
+  if (lights.shadows?.texture) {
+    // Records and table words go out after the draws are encoded, before the resolve reads them;
+    // the request buffer is zeroed for the resolve to record into. No pool, no shadow light yet:
+    // nothing to push, nothing to record (`../../shadow/poolSize.ts`).
+    lights.shadows.flushData(lights.plan.table);
+    lights.pageRequests?.clear(encoder);
+  }
   noteShadowFrame(lights, pagesSlot, encoded);
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
@@ -162,20 +168,22 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     unlit: lights.store.unlit,
     shadowsUpdated: lights.shadowsUpdated,
     sunShadowsUpdated: lights.plan.counts.sunLights,
-    shadowsReused: lights.plan.counts.reused,
     shadowFaces: lights.shadowFaces,
-    sunCascades: lights.sunCascades,
     shadowDraws: lights.shadowDraws,
-    shadowRegions: lights.shadowRegions,
     shadowPagesDrawn: lights.shadowPages,
+    shadowPagesRequested: lights.plan.requests.counts.requested,
+    shadowPagesCached: lights.plan.counts.cachedPages,
     shadowPagesInvalidated: lights.plan.counts.invalidatedPages,
     shadowPagesPending: lights.plan.counts.pendingPages,
+    shadowPagesOverflow: lights.plan.requests.counts.refused + lights.plan.requests.counts.unlisted,
     shadowWaitMs: lights.plan.counts.waitedMs,
     shadowWaitFrames: lights.plan.counts.waitedFrames,
     shadowBudgetMs: lights.plan.budget.budgetMs,
     shadowMsPerPage: lights.plan.budget.msPerPage,
     shadowsDenied: lights.plan.counts.denied,
-    atlasCells: lights.shadows ? lights.plan.slices.atlas.occupancy() : null,
+    poolPages: lights.shadows
+      ? { used: lights.plan.counts.poolPages, total: lights.plan.pool.pages }
+      : null,
     unavailable: lights.shadowReason,
   };
 }

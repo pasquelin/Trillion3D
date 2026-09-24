@@ -11,7 +11,7 @@ import {
  * settings block made four bindings. Deferred resolve just held them; the blend pass,
  * which already binds seven storage buffers at its fragment stage, had only one free
  * of the eight the spec guarantees. That missing binding, and nothing else, is what
- * denied transparents the sun shadow beyond the last cascade.
+ * denied transparents the sun shadow beyond the last clipmap level.
  *
  * One binding therefore carries everything: a twelve-word header, then the three
  * columns back to back, whose start ranks are written in the header. Float columns

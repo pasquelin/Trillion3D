@@ -1,4 +1,13 @@
-import { LIGHT_SETTINGS, POINT_FACES, SHADOW_PAGE } from '../../../../sdk-core/src/index.ts';
+import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../../../../sdk-core/src/index.ts';
+import {
+  LAMP_MIPS,
+  PAGE_INDEX_MASK,
+  PAGE_VALID,
+  SHADOW_PAGE,
+  SUN_LEVELS,
+  lampMipOffset,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
 
 const POISSON_16 = [
   [-0.94201624, -0.39906216],
@@ -19,133 +28,151 @@ const POISSON_16 = [
   [0.14383161, -0.1410079],
 ];
 
-/**
- * Shadow-atlas read: one slice per light, six faces for a point light, one for a spotlight,
- * the cascades for a directional light. Depth compare with constant bias and slope bias,
- * then average of sixteen taps. Bounds come from the published settings — neither the slice
- * nor the kernel can overflow the face rectangle.
- */
-/** A shadow slice as the GPU reads it: the matrix and atlas rectangle of each face, then
- *  the header (faces, aperture, side, near plane). Shared by every shader that reads a
- *  slice, in the buffer or copied into a uniform. */
-export const SHADOW_SLICE_WGSL = `struct ShadowFace{viewProjection:mat4x4f,rect:vec4f,drawn:vec4u,}
-struct ShadowSlice{faces:array<ShadowFace,${POINT_FACES}>,info:vec4f,}`;
+/** Words of the request buffer: the count, the entries the shading asked for, then one bit per
+ *  table entry — a page is listed once however many pixels read it. */
+export const SHADOW_REQUEST_WORDS =
+  1 + LIGHT_SETTINGS.shadowRequestCap + LIGHT_SETTINGS.shadowTableEntries / 32;
 
-export const DIRECT_SHADOW_WGSL = `
-${SHADOW_SLICE_WGSL}
-struct ShadowSlices{items:array<ShadowSlice>,}
+/**
+ * The shadow buffer as the GPU reads it: every slice's record (`SHADOW_RECORD_FLOATS`) — lamp
+ * faces, the sun's frame, the window origin of each clipmap slot two by two, then the header —,
+ * then the page table, one word per virtual page. One binding for both: the blend stage has no
+ * storage binding to spare.
+ */
+const SHADOW_DATA_WGSL = `struct ShadowRecord{faces:array<mat4x4f,${POINT_FACES}>,frame:array<vec4f,3>,origins:array<vec4i,${SUN_LEVELS / 2}>,info:vec4f,}
+struct ShadowData{records:array<ShadowRecord,${MAX_SHADOW_SLICES}>,table:array<u32>,}`;
+
+/**
+ * What a reading asks of the scheduler. The shading that marks writes the page into the request
+ * buffer the first time any pixel reads it this frame — a bit per table entry, tested before the
+ * atomic, so a page thousands of pixels read costs one list slot. A pass that does not mark —
+ * the blend forward stage, which keeps its early depth reject — reads without asking.
+ */
+const requestWgsl = (binding: number | null) =>
+  binding === null
+    ? 'fn requestShadowPage(e:u32){}'
+    : `@group(0) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
+fn requestShadowPage(e:u32){
+ let word=${1 + LIGHT_SETTINGS.shadowRequestCap}u+(e>>5u);let bit=1u<<(e&31u);
+ if((atomicLoad(&shadowRequests[word])&bit)!=0u){return;}
+ if((atomicOr(&shadowRequests[word],bit)&bit)!=0u){return;}
+ let at=atomicAdd(&shadowRequests[0],1u);
+ if(at<${LIGHT_SETTINGS.shadowRequestCap}u){atomicStore(&shadowRequests[1u+at],e);}
+}`;
+
+/**
+ * The virtual shadow read, shared by every pass that lights a surface: records and page table,
+ * requests, the pool, and a PCF whose taps each find their own physical page.
+ *
+ * A map is `ShadowMap`: its first table entry, whether it is a ring — a sun level, whose pages
+ * are addressed by absolute page modulo the window, `(ox, oy)` its origin — or a lamp face mip,
+ * clamped at its edge, and its pages per side. Texel coordinates are relative to the map's first
+ * page, texel centres at `+0.5`.
+ *
+ * A tap whose bilinear footprint lies in one page is one hardware comparison in that page; one
+ * that straddles a seam is split along it (\`shadowPcf\`): no seam, no guard band.
+ */
+export const directShadowWgsl = (dataBinding: number, requestBinding: number | null) => `
+${SHADOW_DATA_WGSL}
+@group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
+${requestWgsl(requestBinding)}
 const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
 const SHADOW_BIAS:f32=${LIGHT_SETTINGS.shadowDepthBias};
 const SHADOW_SLOPE:f32=${LIGHT_SETTINGS.shadowSlopeBias};
 const SHADOW_SLOPE_MAX:f32=${LIGHT_SETTINGS.shadowSlopeBiasMax};
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PAGE:f32=${SHADOW_PAGE}.0;
+const PAGE_VALID:u32=${PAGE_VALID}u;
+const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
+const LAMP_MIP_OFFSET:array<u32,${LAMP_MIPS}>=array<u32,${LAMP_MIPS}>(${Array.from({ length: LAMP_MIPS }, (_, mip) => `${lampMipOffset(mip)}u`).join(',')});
 const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTINGS.pcfTaps}>(${POISSON_16.map(
   ([x, y]) => `vec2f(${x},${y})`,
 ).join(',')});
+/** Pixel footprint at the lit point, in metres: set by the pass before it lights a surface. */
+var<private> shadowFootprint:f32=0.0;
 /** Bias in metres at the considered point: a grazing surface needs more margin than a facing
- *  one. The margin is ADDED to the reference, shadow depth being reversed like the camera's:
- *  bringing the reference closer to the light means increasing it. */
+ *  one. The margin is ADDED to the reference, shadow depth being reversed like the camera's. */
 fn shadowBiasMetres(cosine:f32)->f32{
  return SHADOW_BIAS+min(SHADOW_SLOPE*sqrt(1.0-cosine*cosine)/cosine,SHADOW_SLOPE_MAX);
 }
-/** Pages per side of a face. */
-fn faceRows(side:f32)->f32{return max(round(side/SHADOW_PAGE),1.0);}
-/** Physical page of the extent origin, as a fraction of the face: the two spare words of the
- *  held mask. A cascade map is addressed by absolute page modulo the face; a point or spot
- *  face, whose extent never slides, wraps by zero. */
-fn faceWrap(entry:ShadowFace,rows:f32)->vec2f{return vec2f(entry.drawn.zw)/rows;}
-/** Does the page under this extent coordinate hold a depth of the extent? A page that entered
- *  a slid extent but is not drawn yet holds what the far side left there: it is read by no one.
- *  A page merely awaiting a redraw still holds one, and is read until its redraw lands. */
-fn pageDrawn(entry:ShadowFace,local:vec2f,rows:f32,wrap:vec2f)->bool{
- let page=vec2u(clamp(fract(local+wrap)*rows,vec2f(0.0),vec2f(rows-1.0)));
- // Rows of eight bits, whatever the face's own row count: the host packs the mask that way.
- let bit=page.y*8u+page.x;
- let word=select(entry.drawn.x,entry.drawn.y,bit>=32u);
- return ((word>>(bit&31u))&1u)!=0u;
+struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
+fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
+/** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable. */
+fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
+ var e=0;
+ if(m.ring!=0u){
+  if(any(p<vec2i(0))||any(p>=vec2i(m.pages))){return 0u;}
+  e=i32(m.base)+shadowRing(p.y+m.oy,m.pages)*m.pages+shadowRing(p.x+m.ox,m.pages);
+ }else{
+  let q=clamp(p,vec2i(0),vec2i(m.pages-1));
+  e=i32(m.base)+q.y*m.pages+q.x;
+ }
+ requestShadowPage(u32(e));
+ let word=shadows.table[u32(e)];
+ return select(0u,word,(word&PAGE_VALID)!=0u);
+}
+/** Atlas texel offset of page \`p\`, held by physical page \`word\`: added to a texel coordinate
+ *  of the map, it gives that texel's place in the atlas. */
+fn shadowOffset(word:u32,p:vec2i)->vec2f{
+ let phys=word&PAGE_INDEX_MASK;let side=textureDimensions(shadowAtlas).x/u32(SHADOW_PAGE);
+ return (vec2f(f32(phys%side),f32(phys/side))-vec2f(p))*SHADOW_PAGE;
+}
+/** Texels a side of the pool: its size is the world's, derived from the screen (\`shadowPoolSide\`). */
+fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
+fn shadowCompare(offset:vec2f,t:vec2f,reference:f32)->f32{
+ return textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/shadowAtlasTexels(),reference);
+}
+/** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
+fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec2f)->vec3f{
+ let word=shadowPageWord(m,p);
+ if(word==0u){return vec3f(home,0.0);}
+ return vec3f(shadowOffset(word,p),1.0);
 }
 /**
- * Sixteen taps in the face rectangle, offset by a slice texel, never by an atlas texel. The
- * extent coordinate is wrapped onto the face by \`wrap\`, zero for a face that never slides. A
- * tap is held at the last
- * texel centre of the extent, so an extent edge never wraps to the far side; and at the last
- * texel centre of the face, so the seam of a slid extent never blends with the neighbouring
- * face — the tap that would straddle the seam reads the edge texel instead, a named
- * approximation one texel wide along that seam.
+ * Sixteen taps a texel apart around \`t\`; a lamp face clamps them at its edge (\`side\` > 0).
+ * Every tap's bilinear footprint lies within 1.5 texels of \`t\`, so the filter reaches at most
+ * the home page's neighbours across the one or two edges that close: their words are read, and
+ * asked for, once per pixel, before the taps. Away from any edge — all but the pixels within two
+ * texels of one — each tap is one hardware comparison in the home page.
+ *
+ * Near an edge a tap is split along the seam, never texel by texel: each page's share of the
+ * bilinear weight across the seam, \`saturate(0.5 + distance to the seam)\`, multiplies one
+ * hardware comparison in that page, clamped to its last texel centre on that axis, the other axis
+ * still filtered by the sampler. A tap is thus two comparisons beside one edge, four at a corner,
+ * which the pixel decides once for all its taps. A neighbour not readable is read at the home page's nearest texel.
  */
-fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32,wrap:vec2f)->f32{
- let step=1.0/max(side,1.0);
- let edge=vec2f(0.5*step);
+fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)->f32{
+ let first=vec2f(home)*SHADOW_PAGE;
+ let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);
+ let offset=shadowOffset(homeWord,home);
  var lit=0.0;
+ if(!any(edge)){
+  let texels=shadowAtlasTexels();let uv=(offset+t)/texels;
+  for(var tap=0u;tap<PCF_TAPS;tap++){
+   lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/texels,reference);
+  }
+  return lit/f32(PCF_TAPS);
+ }
+ let up=t-first>=vec2f(0.5*SHADOW_PAGE);
+ let step=select(vec2i(-1),vec2i(1),up);
+ let toward=select(vec2f(-1.0),vec2f(1.0),up);
+ let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
+ var nx=vec3f(offset,0.0);var ny=nx;var nd=nx;
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset);}
  for(var tap=0u;tap<PCF_TAPS;tap++){
-  let offset=POISSON[tap]*step;
-  let inside=clamp(local+offset,edge,vec2f(1.0)-edge);
-  let uv=entry.rect.xy+clamp(fract(inside+wrap),edge,vec2f(1.0)-edge)*entry.rect.z;
-  lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv,reference);
+  var at=t+POISSON[tap];
+  if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}
+  let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);
+  let n=select(min(at,seam-0.5),max(at,seam+0.5),up);
+  let w=saturate(0.5+(seam-at)*toward);
+  var sum=w.x*w.y*shadowCompare(offset,h,reference);
+  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xy,vec2f(select(h.x,n.x,nx.z>0.0),h.y),reference);}
+  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xy,vec2f(h.x,select(h.y,n.y,ny.z>0.0)),reference);}
+  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xy,select(h,n,nd.z>0.0),reference);}
+  lit+=sum;
  }
  return lit/f32(PCF_TAPS);
 }
-/**
- * Sun cascades: the first whose point falls in the unit cube, on a drawn page, wins, and the
- * loop is bounded by the published cascade count (X2). A page not drawn yet hands the point
- * to the next cascade, as an unmapped page of a virtual shadow map falls back to a coarser
- * level. The cascade scale is read from its own matrix — orthographic, so the world texel is
- * 2/(scale in x · side) and a metre of depth is the scale in z. No double data, so nothing
- * that can diverge.
- */
-fn sunShadowFactor(slice:u32,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32{
- let cosine=clamp(dot(N,L),1e-3,1.0);
- let side=max(shadows.items[slice].info.z,1.0);
- let rows=faceRows(side);
- for(var c=0u;c<min(SUN_CASCADES,cascades);c++){
-  // One face read per cascade tried, never the whole slice: the record is six faces wide.
-  let entry=shadows.items[slice].faces[c];
-  if(entry.rect.w<0.5){continue;}
-  let m=entry.viewProjection;
-  let scaleX=max(length(vec3f(m[0][0],m[1][0],m[2][0])),1e-9);
-  let scaleZ=length(vec3f(m[0][2],m[1][2],m[2][2]));
-  let texel=2.0/(scaleX*side);
-  let clip=m*vec4f(P+N*texel*SHADOW_NORMAL_TEXELS/max(cosine,0.2),1.0);
-  let ndc=clip.xyz/clip.w;
-  if(abs(ndc.x)>1.0||abs(ndc.y)>1.0||ndc.z<0.0||ndc.z>1.0){continue;}
-  let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
-  let wrap=faceWrap(entry,rows);
-  if(!pageDrawn(entry,local,rows,wrap)){continue;}
-  return shadowPcf(entry,local,ndc.z+shadowBiasMetres(cosine)*scaleZ,side,wrap);
- }
- // Beyond the last cascade, the shadow is tested by a ray against the resident proxy. With
- // no proxy in the cache, that ray returns one, the distant surface stays lit with no cast
- // shadow, and the diagnostic says "distant shadow unavailable": never an invented shadow.
- return sunFarShadowFactor(P,N,L);
-}
-/** Fraction of light that reaches the point: 1 in full light, 0 fully in shadow. */
-fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
- if(slice<0){return 1.0;}
- let index=u32(slice);
- let info=shadows.items[index].info;
- let faces=u32(info.x);
- if(faces==0u){return 1.0;}
- if(isSun(light)){return sunShadowFactor(index,faces,P,N,L);}
- let face=select(0u,pointFaceOf(P-light.positionRange.xyz),faces==POINT_FACES);
- let entry=shadows.items[index].faces[face];
- if(entry.rect.w<0.5){return 1.0;}
- // The read point is offset along the normal by a slice texel, divided by the incidence
- // cosine: a texel covers more depth the more grazing the surface. That is the offset that
- // closes the seam between two faces of a point light and removes grazing acne.
- let cosine=clamp(dot(N,L),1e-3,1.0);
- let radius=length(light.positionRange.xyz-P);
- let side=max(info.z,1.0);
- let texel=2.0*info.y*radius/side;
- let clip=entry.viewProjection*vec4f(P+N*texel*SHADOW_NORMAL_TEXELS/max(cosine,0.2),1.0);
- if(clip.w<=0.0){return 1.0;}
- let ndc=clip.xyz/clip.w;
- if(abs(ndc.x)>1.0||abs(ndc.y)>1.0||ndc.z<0.0||ndc.z>1.0){return 1.0;}
- let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
- // These metres become a depth margin at the considered point: dz/dd of a perspective
- // projection is near·far/((far−near)·d²), so the margin follows the distance to the light.
- let near=info.w;
- let far=max(near*1.001,light.positionRange.w);
- let scale=near*far/((far-near)*max(clip.w*clip.w,1e-4));
- return shadowPcf(entry,local,ndc.z+shadowBiasMetres(cosine)*scale,side,vec2f(0.0));
-}`;
+${SHADOW_FACTOR_WGSL}`;

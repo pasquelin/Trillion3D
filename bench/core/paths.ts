@@ -1,11 +1,14 @@
-// Measurement base paths, written once: repo root, fragment directory
-// deposited by benchmarks, baseline directory, and rule mapping domain to filename.
+// Measurement base paths, written once: repo root, fragment directory deposited by benchmarks,
+// baseline directory, the output folder of a batch, and rule mapping domain to filename.
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const FRAGMENTS = join(RACINE, '.mesure', 'perf');
 const BASELINES = join(RACINE, '.mesure', 'baselines');
+
+/** Where a bench, cook or browser proof writes: `.mesure/out/<batch>/…`, off git (AGENTS.md). */
+export const measureOutput = (...parts: string[]) => join(RACINE, '.mesure', 'out', ...parts);
 
 /** Sanitizes a domain name for use as a filename. */
 const assainir = (domaine: string) => domaine.replace(/[/\\]/g, '-').replace(/^-+|-+$/g, '');

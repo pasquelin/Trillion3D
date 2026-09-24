@@ -32,14 +32,18 @@
  * `work` after the compaction blocks, from which the dispatch argument is copied — WebGPU
  * forbids the same buffer as write and as argument in one scope.
  */
-export const DAG_LIVE_WGSL = `fn liveBase()->u32{return uni.nodeCount+uni.clusterCount*2u;}
-fn liveCounter()->u32{return uni.worldCount*2u+blockCount()*2u;}
+export const DAG_LIVE_WGSL = `fn liveBase()->u32{return views[0u].queueCap+views[0u].clusterCount*2u;}
+fn liveCounter()->u32{return slots()*2u+blockCount()*2u;}
 fn liveGroups()->u32{return liveCounter()+1u;}
-fn liveCount()->u32{return atomicLoad(&work[liveCounter()]);}
-fn liveAppend(i:u32){
+fn liveCount()->u32{return min(atomicLoad(&work[liveCounter()]),views[0u].clusterCount);}
+/** \`entry\` is the candidate's, view included. A light cut also counts each view's live
+ *  clusters: they bound the view's share of the drawn log (\`dagViewOffsets\`). */
+fn liveAppend(entry:u32){
  let s=atomicAdd(&work[liveCounter()],1u);
- flags[liveBase()+s]=i;
+ if(s>=views[0u].clusterCount){dropWork();return;}
+ flags[liveBase()+s]=entry;
  if((s&63u)==0u){atomicAdd(&work[liveGroups()],1u);}
+ if(isLightCut()){atomicAdd(&work[viewWord(0u,vi)],1u);}
 }
 fn liveAt(s:u32)->u32{return flags[liveBase()+s];}
 `;

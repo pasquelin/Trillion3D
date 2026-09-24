@@ -7,7 +7,7 @@
 //
 // The harness server of `bench/runner` serves the page and its import map, the SDK, the page
 // modules of `tests/` and the engine sources they import; nothing outside this repository is
-// read. Per-fixture readings and both images land under `benchmark-runs/material-pixels/<run>/`.
+// read. Per-fixture readings and both images land under `.mesure/out/material-pixels/<run>/`.
 //
 //   node tests/browser/renders/witness-materials.browser.ts [run-name]
 import assert from 'node:assert/strict';
@@ -17,12 +17,13 @@ import { resolve } from 'node:path';
 import { withRepoPage } from '../../kit/server/repoPage.ts';
 import { ANISOTROPY_GAIN, fixtures } from '../support/materialFixtures.ts';
 import type { run as runOnPage } from '../support/materialPixelsPage.ts';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 type RunResult = Awaited<ReturnType<typeof runOnPage>>;
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
-const out = resolve(ROOT, 'benchmark-runs/material-pixels', run);
+const out = measureOutput('material-pixels', run);
 assert.ok(
   existsSync(resolve(ROOT, 'dist/witnesses/measurement.js')),
   'dist missing: run `pnpm run build` before this proof',

@@ -3,8 +3,9 @@
 import { resolve, join } from 'node:path';
 import { parseArgs } from './options.ts';
 import { exportReport } from './report/export.ts';
+import { measureOutput } from '../core/paths.ts';
 const flags = parseArgs(process.argv.slice(2));
-const source = resolve(flags.get('dossier') ?? '.mesure/out/global');
+const source = resolve(flags.get('dossier') ?? measureOutput('global'));
 const output = resolve(flags.get('vers') ?? join(source, 'report-data'));
 const id = flags.get('id') ?? 'current';
 const report = exportReport(source, output, id);

@@ -8,6 +8,8 @@ import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
+import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
+import { DAG_VIEWS_WGSL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { ESCALATION_SLACK } from '../../../page/selection/types.ts';
 import {
@@ -21,11 +23,14 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
 // \`perspective\` is the projection's clip-w weight, 1 perspective and 0 orthographic (\`viewPoint\`).
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,pad1:u32,pad2:u32,}
+// \`viewFlags\`, \`pageRows\`, \`pageMask\`, \`clipScale\` and \`clipPad\` serve a light cut alone (\`pagesWgsl.ts\`): a camera sends zeros.
+// One block per view (\`viewsWgsl.ts\`): block 0 also carries what the views share — counts, caps, flags — and the
+// \`view*\` words; \`queueCap\` is the capacity of each descent queue.
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,stateRow:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
 @group(0) @binding(1) var<storage, read> nodes:array<CullNode>;
-@group(0) @binding(2) var<uniform> uni:Uniforms;
+@group(0) @binding(2) var<uniform> views:array<Uniforms,MAX_VIEWS>;
 @group(0) @binding(3) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(4) var<storage, read_write> out:Output;
 @group(0) @binding(5) var<storage, read_write> work:array<atomic<u32>>;
@@ -65,8 +70,8 @@ fn isConformal(m:mat3x3f)->bool{
 /** The camera as one homogeneous point of the render frame (\`EngineCamera.viewPoint\`): the origin
  *  under a perspective projection, the way back — the view's third row — under an orthographic one. */
 fn viewPoint()->vec4f{
- let back=vec3f(uni.view[0].z,uni.view[1].z,uni.view[2].z);
- return vec4f(back*(1.0-uni.perspective),uni.perspective);
+ let back=vec3f(views[vi].view[0].z,views[vi].view[1].z,views[vi].view[2].z);
+ return vec4f(back*(1.0-views[vi].perspective),views[vi].perspective);
 }
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  if(cone.w>=${HALF_PI_WGSL}){return false;}
@@ -98,38 +103,45 @@ fn coneRejects(index:u32,cluster:Cluster)->bool{
  *  the five passes of one frame. \`dagWanted\` computes it once per visible page and stores it
  *  behind the draw flags; later passes reread it instead of redoing \`asin\`, \`sin\` and the two
  *  \`length\`s. They only read it for a visible page, the only one it was written for. */
-fn coneCache(index:u32)->u32{return uni.nodeCount+uni.clusterCount+index;}
+fn coneCache(index:u32)->u32{return views[0u].queueCap+views[0u].clusterCount+index;}
 fn coneRejected(index:u32)->bool{return flags[coneCache(index)]!=0u;}
 fn visible(index:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
- return !outsideFrustum(cluster.worldIndex*FRAME,boxMin(index),boxMax(index));
+ return !outsideFrustum(slotOf(cluster.worldIndex)*FRAME,boxMin(index),boxMax(index))&&!pageMissed(cluster.worldIndex,boxMin(index),boxMax(index));
 }
-fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*uni.cameraStretch;}
+fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStretch;}
 /** Raise the primitive's threshold to the replacement band, or demand the pinned cover.
  *  The threshold is set STRICTLY above the parent's error (\`ESCALATION_SLACK\` slack): passes that
  *  reread it recompute that error in another entry point, where the driver does not return the
  *  same f32 to the last bit. An exact equality there left the missing cluster kept by \`dagMask\`
  *  — a non-resident page drawn, hence coverage declared incomplete. */
-fn escalate(world:u32,parentPixels:f32){
+fn escalate(slot:u32,parentPixels:f32){
+ noteEscalation();
  let raised=parentPixels*${ESCALATION_SLACK};
- if(parentPixels>0.0&&raised<INF){atomicMax(&work[world],bitcast<u32>(raised));}
- else{atomicOr(&work[uni.worldCount+world],1u);}
+ if(parentPixels>0.0&&raised<INF){atomicMax(&work[slot],bitcast<u32>(raised));}
+ else{atomicOr(&work[slots()+slot],1u);}
 }
 /** Reset and per-primitive planes: two kernels yesterday, a single dispatch today.
  *  Nothing tied them — the first writes the thresholds, output counters and block counts that
- *  \`dagMask\` accumulates, the second the frustum planes — and only the descent reads the second. */
+ *  \`dagMask\` accumulates, the second the frustum planes — and only the descent reads the second.
+ *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
- let w=id.x;
- if(w==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetTotaux();resetCounters();}
- if(w<blockCount()){atomicStore(&work[blockBase()+w],0u);}
- if(w>=uni.worldCount){return;}
+ let t=id.x;
+ if(t==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetTotaux();resetCounters();}
+ if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);}
+ if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
+ if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);}
+ let world=views[0u].worldCount;
+ if(t>=world*views[0u].viewCount){return;}
+ vi=t/world;let w=t-vi*world;let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for.
- flags[queueBase(0u)+w]=rootOf(w);
- atomicStore(&work[w],bitcast<u32>(resetPrune(w)));
- atomicStore(&work[uni.worldCount+w],0u);
- let t=transpose(worlds[w]);let base=w*FRAME;
- for(var i=0u;i<6u;i++){frames[base+i]=t*uni.planes[i];}
+ let root=rootOf(w);
+ flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
+ atomicStore(&work[slot],bitcast<u32>(resetPrune(slot)));
+ atomicStore(&work[slots()+slot],0u);
+ let m=transpose(worlds[w]);let base=slot*FRAME;
+ for(var i=0u;i<6u;i++){frames[base+i]=m*views[vi].planes[i];}
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){
@@ -138,28 +150,32 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
  ouvreTotaux(lid);
  let s=id.x;
  if(s<liveCount()){
-  let i=liveAt(s);
+  let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
   let cluster=clusters[i];
   var draw=false;
   var trou=false;
   if(!coneRejected(i)){
-   let w=cluster.worldIndex;
-   if(uni.residentCut!=0u&&(atomicLoad(&work[uni.worldCount+w])!=0u||pruneCrossed(w))){
+   let w=cluster.worldIndex;let slot=slotOf(w);
+   if(views[0u].residentCut!=0u&&(atomicLoad(&work[slots()+slot])!=0u||pruneCrossed(slot))){
     // No resident ancestor replaces the missing cluster: this primitive falls back to its pinned roots.
     draw=(cluster.flags&1u)!=0u;
     if(draw&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
    }else{
-    let e=uni.view*worlds[w];
-    let threshold=select(uni.pixelError,bitcast<f32>(atomicLoad(&work[w])),uni.residentCut!=0u);
+    let e=views[vi].view*worlds[w];
+    let threshold=select(views[vi].pixelError,bitcast<f32>(atomicLoad(&work[slot])),views[0u].residentCut!=0u);
     draw=selects(cluster,e,stretchOf(w),focalPixels(),threshold);
-    if(draw&&uni.residentCut!=0u&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
+    if(draw&&views[0u].residentCut!=0u&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
    }
   }
-  let posee=select(0u,1u,draw);
-  flags[uni.nodeCount+i]=posee;
   noteImage(i,cluster.flags,draw||trou,draw,trou);
-  // Drawn count of this page's block, held here rather than reread later page by page.
-  if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);}
+  // A light cut keeps no draw flag — two views may draw the same cluster —, only its view's log.
+  if(isLightCut()){if(draw){viewDrawnAppend(i);}}
+  else{
+   let posee=select(0u,1u,draw);
+   flags[views[0u].queueCap+i]=posee;
+   // Drawn count of this page's block, held here rather than reread later page by page.
+   if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);}
+  }
  }
  verseTotaux(lid);
 }
@@ -169,4 +185,6 @@ ${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
 ${DAG_FLOOR_WGSL}
+${DAG_PAGES_WGSL}
+${DAG_VIEWS_WGSL}
 ${DAG_RECORD_WGSL}`;

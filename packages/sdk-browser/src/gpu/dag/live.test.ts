@@ -78,7 +78,7 @@ test('list kernels read their cluster from the list, not from their thread id', 
   // missing from the list is exactly a cluster whose `visible` was false.
   for (const noyau of ['dagEscalate', 'dagCheck', 'dagMask']) {
     const corps = DAG_SELECTION_SHADER.split(`fn ${noyau}(`)[1].split('\n}')[0];
-    assert.match(corps, /let i=liveAt\(s\);/, `${noyau} reads the list`);
+    assert.match(corps, /=liveAt\(s\);/, `${noyau} reads the list`);
     assert.doesNotMatch(corps, /visible\(/, `${noyau} does not redo the rejection`);
   }
 });

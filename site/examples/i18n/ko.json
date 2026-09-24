@@ -289,7 +289,8 @@
       "wave": "물결",
       "dance": "춤추기",
       "speed": "속도",
-      "colour": "색"
+      "colour": "색",
+      "shadow": "그림자"
     }
   },
   "a-scene-of-your-own": {
@@ -1902,10 +1903,32 @@
     },
     "choices": {
       "count": {
-        "10000": "10,000",
+        "1000": "1,000",
         "5000": "5,000",
-        "1000": "1,000"
+        "10000": "10,000"
       }
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "패널에서 사례를 고르세요. “free”에서는 드래그해 둘러보세요.",
+    "controls": {
+      "case": "사례",
+      "caster": "그림자 드리우는 물체"
+    },
+    "readouts": {
+      "Look for": "살펴볼 것"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "클릭해 둘러본 뒤 W A S D로 걷고 스페이스로 점프하세요: 계단과 경사로를 오르고, 발판에 올라타고, 상자를 밀어 보세요.",
+    "controls": {
+      "pushStrength": "미는 힘 (N)",
+      "platformSpeed": "발판 속도",
+      "stackAgain": "다시 쌓기"
+    },
+    "readouts": {
+      "awake": "활성",
+      "speed": "속도"
     }
   },
   "rolling-on-terrain": {
@@ -1940,18 +1963,6 @@
       "bodies": "물체",
       "awake": "활성",
       "step": "스텝"
-    }
-  },
-  "walk-with-collisions": {
-    "banner": "클릭해 둘러본 뒤 W A S D로 걷고 스페이스로 점프하세요: 계단과 경사로를 오르고, 발판에 올라타고, 상자를 밀어 보세요.",
-    "controls": {
-      "pushStrength": "미는 힘 (N)",
-      "platformSpeed": "발판 속도",
-      "stackAgain": "다시 쌓기"
-    },
-    "readouts": {
-      "awake": "활성",
-      "speed": "속도"
     }
   }
 }

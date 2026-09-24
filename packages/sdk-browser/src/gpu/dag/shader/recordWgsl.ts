@@ -18,5 +18,5 @@ fn boxMax(i:u32)->vec3f{return vec3f(coldF(i,8u),coldF(i,9u),coldF(i,10u));}
 /** Cluster triangles, read as a whole word: frame totals accumulate them. */
 fn trianglesOf(i:u32)->u32{return cold[i*COLD+12u];}
 /** Residency bits extend the cold records: one word for thirty-two clusters. */
-fn isResident(i:u32)->bool{return (cold[uni.clusterCount*COLD+(i>>5u)]&(1u<<(i&31u)))!=0u;}
+fn isResident(i:u32)->bool{return (cold[views[0u].clusterCount*COLD+(i>>5u)]&(1u<<(i&31u)))!=0u;}
 `;

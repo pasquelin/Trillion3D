@@ -2,10 +2,8 @@
 // kernel (`selectionKernelGpu.ts`) reads and returns. Split apart so the kernel file holds
 // `check:lines`.
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
-import {
-  SELECTION_UNIFORM_BYTES,
-  SELECTION_WORKGROUP,
-} from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { FRAME_VEC4 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
@@ -16,7 +14,8 @@ const octets = (vue: ArrayBufferView): number[] =>
 
 /** A packed case, ready to cross into the page: raw bytes, including cluster integers. */
 export function versPage(name: string, packed: PackedDag, uniforms: SelectionUniforms) {
-  const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
+  // The whole uniform array the kernel binds; the case fills its first view.
+  const uni = new Float32Array(DAG_UNIFORM_BYTES / 4);
   writeDagUniforms(uni, packed, uniforms, false);
   const frames = new Float32Array(Math.max(1, packed.worldCount) * FRAME_VEC4 * 4);
   const frameInts = new Uint32Array(frames.buffer);

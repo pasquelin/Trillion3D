@@ -1178,8 +1178,8 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Der Schattenplaner.",
-    "description": "Die Arbeit eines Bildes ist nicht mehr „vier Lichter“, sondern **die veralteten Seiten mit der höchsten Priorität, bis zu einem Budget in Millisekunden** (RX3, X4): ein Licht oder eine Kaskade, die sich bewegt, macht seine ganze Karte veraltet, ein Objekt, das sich bewegt, macht nur die Seiten veraltet, die seine projizierte Box abdeckt, und in diesem Bild abgelehnte Seiten warten auf das nächste — nie verloren, ihre Verzögerung veröffentlicht. Ein festes Licht in einer unbewegten Szene kostet weiterhin nichts (X5). Alle Arrays werden einmal zugewiesen; `plan()` wird nie zuweisen."
+    "summary": "Der Schattenplaner der virtuellen Karten.",
+    "description": "Die Schattierung vermerkt die Seiten, die sie liest; ihr Bericht, Bilder später zurückgelesen, weist aus dem festen Pool zu, was fehlt. Was sich bewegt hat, macht die abgebildeten Seiten ungültig, die es bedeckt. Ein Bild zeichnet dann die ungültigen Seiten, die das Bild liest — grobe zuerst, bis zu einem Millisekundenbudget —, und der Rest wartet, nie verloren, seine Verzögerung veröffentlicht. Eine ruhende Szene, deren Schattierung nicht mehr läuft, fordert nichts an und zeichnet nichts. Alle Arrays werden einmal angelegt; `plan()` alloziert nichts."
   },
   "createTerminalProgress": {
     "summary": "Ein Fortschrittsbalken im Terminal, der die Ereignisse des Compilers verfolgt.",
@@ -1365,10 +1365,6 @@
   "depthLayerUnits": {
     "summary": "Um wie viele Hardware-Einheiten eine Schicht einen Cluster der Kamera annähert, als Betrag: null oder mehr, nie vorzeichenbehaftet.",
     "description": "Jeder Pfad liest diese eine Funktion und gibt ihr für seinen eigenen Tiefentest ein Vorzeichen."
-  },
-  "desiredFaceSide": {
-    "summary": "Die Kantenlänge, die ein Licht verdient: seine auf den Bildschirm projizierte Reichweite, gedeckelt durch seinen Anteil am Atlas.",
-    "description": "Ein Licht, das den ganzen Bildschirm abdeckt und allein ist, erhält `shadowSliceMax`; bei dreißig Schattenlichtern verkleinert sich jedes von selbst, statt die letzten ohne Kachel zu lassen. Der Mindestwert ist `shadowSliceMin`: kein Licht verschwindet aus Platzmangel, solange noch welcher übrig ist."
   },
   "detectCapabilities": {
     "summary": "Prüft, womit diese Maschine zeichnen kann, und sagt warum, wenn sie es nicht kann."
@@ -1654,9 +1650,6 @@
       "curveSegments": "In wie viele geraden Stücke jede Kurve des Umrisses umgewandelt wird."
     }
   },
-  "faceCountOf": {
-    "summary": "Wirklich gezeichnete Flächen für ein Licht: sechs für ein Punktlicht, eine für einen Spot, und die Kaskaden für ein Richtungslicht — nie mehr als die sechs pro Kachel reservierten Flächen."
-  },
   "filter": {
     "summary": "Regeln für die Textur-Abtastung."
   },
@@ -1703,10 +1696,6 @@
       "pointerLook": "Ob der Zeiger die Ansicht überhaupt dreht, durch Ziehen oder Schweben; standardmäßig true.",
       "autoForward": "REISEFLUG, standardmäßig deaktiviert: die Kamera fliegt ohne gehaltene Taste mit `movementSpeed` nach vorn, wie ein Flugzeug. W fügt dann `movementSpeed` hinzu (doppelt so schnell) und S nimmt es weg (die Kamera bleibt stehen); sie fliegt nie rückwärts. Nichts bewegt sich vor dem nächsten `update`, sodass ein Host, der bei `change` neu zeichnet, ein Bild anfordert, wenn er den Reiseflug aktiviert."
     }
-  },
-  "forEachShadowFace": {
-    "summary": "Besucht jede Fläche jedes Lichts, das einen Schatten deklariert und eine Kachel hält: der einzige Durchlauf, den sich die Zähler, die Veröffentlichung der gehaltenen Maske, und jeder andere Leser pro Fläche teilen.",
-    "description": "Die Anzahl der Flächen ist die der Lichtart; `fn` ist durch die Kacheln und die veröffentlichten Flächen begrenzt."
   },
   "FORMAT_VERSION": {
     "summary": "Cache-Format, das diese Engine liest.",
@@ -2453,7 +2442,7 @@
   },
   "HostScene": {
     "summary": "Der Anzeigegraph des Hosts, in dem eine Engine zeichnet: was er enthält, wie man ihn durchläuft, und die Hintergrundfarbe, die die Komposition liest.",
-    "description": "Die Engine schreibt ihren eigenen als `GraphScene` (`graph/scene.ts`).",
+    "description": "Ihn zu bauen ist Sache einer Grenze des Hosts; einen zu schreiben ist Sache von `HostDrawScene`.",
     "members": {
       "traverse": "Besucht sich, dann den Teilbaum.",
       "background": "Was das Bild dahinter füllt.",
@@ -2781,28 +2770,26 @@
       "maxLightsPerTile": "Von einer Bildschirmkachel gehaltene Lichter; die Schleife pro Pixel ist durch diese Zahl begrenzt (X2).",
       "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
-      "shadowUpdatesPerFrame": "Höchstens Schattenregionen pro Bild: die Pufferobergrenze, nie eine Qualitätseinstellung. Das Millisekundenbudget hält fast immer vorher an; diese Obergrenze ist nur eine letzte Grenze, und die einzige auf einem Gerät ohne GPU-Uhr.",
-      "shadowPage": "Seitenlänge einer Seite des Schattenatlas, in Texeln: die Ungültigkeitszelle einer Fläche. Ein sich bewegendes Objekt macht nur die Seiten ungültig, die seine projizierte Box abdeckt, nie die ganze Fläche.",
+      "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
       "shadowBudgetMs": "Budget der Schattenphase, in GPU-Millisekunden pro Bild (X4, RX3). Darüber hinaus ungültig gemachte Seiten warten auf ihre Reihe; sie gehen nie verloren, und ihre Verzögerung wird veröffentlicht.",
       "shadowAgingPerFrame": "Gewicht der Wartezeit in der Priorität einer Seite, pro in der Warteschlange verbrachtem Bild: gegen das Verhungern.",
       "shadowCostBlend": "Anteil der Messung eines Bildes an den durchschnittlichen Kosten einer Seite: eine exponentielle Glättung der Zeitmessung.",
-      "shadowAtlasSize": "Seitenlänge des Tiefen-Schattenatlas, in Texeln.",
-      "shadowSliceMax": "Maximale Seitenlänge einer Schattenkachel; eine Fläche eines Punktlichts nimmt ein Sechstel davon ein.",
-      "shadowSliceMin": "Mindestseitenlänge einer Schattenkachel: darunter behält das Licht seine Kachel, ohne sie zu verfeinern.",
       "pcfTaps": "PCF-Abtastungen pro Pixel und pro Schattenlicht (X2).",
       "spotEdgeSoftness": "Breite des weichgezeichneten Randes des Kegels eines Spots, in Kosinuseinheiten: gegen den Treppeneffekt.",
-      "sunCascades": "Kaskaden eines Richtungslichts: mindestens drei, nie mehr als die Flächen einer Kachel.",
-      "sunShadowFarFraction": "Anteil des Kamera-Sichtkegels, den die Kaskaden von der Nahebene zur Ferne abdecken. Darüber hinaus bleibt eine Oberfläche beleuchtet, ohne geworfenen Schatten: eine benannte Näherung, in der Diagnose veröffentlicht.",
-      "sunCascadeRatioMax": "Verhältnis zwischen zwei aufeinanderfolgenden Grenzen der Kaskadenaufteilung: an einer Naht ändert sich die Texeldichte um genau dieses Verhältnis, und nichts anderes entscheidet über den Schärfesprung zwischen Kaskaden. Der Mindestwert der Nahebene ergibt sich daraus — `shadow distance / ratio^cascades`.",
       "sunFarShadowOffsetMetres": "Versatz des Ursprungs des fernen Schattenstrahls entlang der Normale, in Metern. Er dient nur dazu, die Ebene der beleuchteten Oberfläche zu verlassen; das wahre Mittel gegen Selbstverschattung ist der Start entlang des Strahls, weiter unten.",
-      "sunFarShadowStartCells": "Start des fernen Schattenstrahls entlang seiner eigenen Richtung, in Zellen des Proxys. Der beleuchtete Punkt kommt von der feinen Geometrie, das Hindernis vom groben Proxy: wo der Proxy über der wahren Oberfläche liegt, würde ein von null gestarteter Strahl die Oberfläche berühren, die er beleuchtet. Eine Proxy-Zelle ist die Skala, unter der der Proxy nichts aussagt; von dort zu starten vermeidet diesen falschen Kontakt, ohne einen Schatten zu erfinden. Die Folge ist benannt: ein Hindernis weniger als eine Zelle entlang des Strahls trägt keinen fernen Schatten, und dieser bleibt bei den Kaskaden.",
-      "sunCascadeDepthScale": "Rückzug der Nahebene einer Kaskade, in Radien ihrer Kugel: was über der Kaskade liegt, zwischen ihr und der Sonne, muss in die Karte eintreten, um dort seinen Schatten zu werfen. Die Ausdehnung fügt auf jeder Seite zwei Radien hinzu, der Spielraum, den der Tiefenanker der Kugel lässt (`../light-shadow/sunFaces.ts`).",
+      "sunFarShadowStartCells": "Start des fernen Schattenstrahls entlang seiner eigenen Richtung, in Zellen des Proxys. Der beleuchtete Punkt kommt von der feinen Geometrie, das Hindernis vom groben Proxy: wo der Proxy über der wahren Oberfläche liegt, würde ein von null gestarteter Strahl die Oberfläche berühren, die er beleuchtet. Eine Proxy-Zelle ist die Skala, unter der der Proxy nichts aussagt; von dort zu starten vermeidet diesen falschen Kontakt, ohne einen Schatten zu erfinden. Die Folge ist benannt: ein Hindernis weniger als eine Zelle entlang des Strahls trägt keinen fernen Schatten, und dieser bleibt bei den Clipmap-Stufen.",
       "shadowDepthBias": "Schatten-Bias in Metern, nie in Tiefeneinheiten: die projizierte Tiefe einer Kachel ist sehr nichtlinear, eine Konstante in normalisierter Tiefe würde Meter nahe dem Licht und Millimeter in der Ferne ergeben. Der Shader wandelt diese Meter am betrachteten Punkt in Tiefe um.",
       "shadowSlopeBias": "Neigungs-Bias, in Metern pro Einheit von `tan(acos(N·L))`, gedeckelt durch `shadowSlopeBiasMax`.",
       "shadowSlopeBiasMax": "Größter Neigungs-Bias.",
       "shadowNearFraction": "Nahebene einer Kachel: ein Anteil der Reichweite, nie weniger als dieser Mindestwert.",
       "shadowNearMin": "Nächste Schattenentfernung.",
-      "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat."
+      "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat.",
+      "shadowPagesPerFrame": "Höchstzahl der pro Bild gezeichneten Schattenseiten: die Puffergrenze, nie eine Qualitätseinstellung. Das Millisekundenbudget greift fast immer zuerst; diese Grenze ist nur eine letzte Schranke und die einzige auf einem Gerät ohne GPU-Uhr.",
+      "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSide`).",
+      "shadowTableEntries": "Einträge der Schattenseitentabelle, ein Wort pro virtueller Seite: ein fester Puffer von 4 MiB. Er fasst sechzehn Sonnen oder 128 Punktlichter; ein Licht ohne Platz bekommt keinen Schatten und wird gezählt.",
+      "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
+      "sunLevels": "Clipmap-Stufen eines gerichteten Lichts. Stufe `L` hat Texel von `2^L` Metern, und ein Pixel liest die Stufe, deren Texel höchstens seinem eigenen Fußabdruck entspricht: sechzehn Stufen decken ein Fern/Nah-Verhältnis von 2^15. Jenseits der letzten Stufe übernimmt der Fernschatten.",
+      "sunLevelPages": "Seiten pro Seite des Ausschnitts einer Clipmap-Stufe um die Kamera. Eine Kapazität, keine Einstellung: jedes Pixel liest seine eigene Dichte, solange `height / tan(halfFovY)` höchstens `sunLevelPages · shadowPage / 2` = 4096 beträgt (eine 4K-Leinwand bei 55° vertikalem Feld); darüber lesen die äußeren Pixel die nächste Stufe mit halber Dichte."
     }
   },
   "LightingCapabilities": {
@@ -4435,9 +4422,6 @@
       "specs": "Das Anfrageblatt, bei der ersten Ankunft dieser Adresse übertragen und danach `null`: es hängt nur vom Katalog ab, der sich nicht bewegt, und der Ausführende behält es."
     }
   },
-  "pageRowsOf": {
-    "summary": "Seiten pro Seite einer Fläche von `side` Texeln, begrenzt durch das, was die Maske tragen kann."
-  },
   "PageSource": {
     "summary": "Woher die Seiten eines Modells gelesen werden, nach Schlüssel.",
     "members": {
@@ -4571,7 +4555,7 @@
     "description": "Die Reihenfolge ist Teil des Vertrags, kein Detail."
   },
   "POINT_FACES": {
-    "summary": "Flächen einer Kachel: sechs für ein Punktlicht, eine für einen Spot, die Kaskaden der Sonne."
+    "summary": "Flächen der Scheibe eines Punktlichts: sechs."
   },
   "PointOfInterest": {
     "summary": "Eine benannte Ansicht einer Szene, zu der eine Seite springen kann.",
@@ -4878,9 +4862,6 @@
   "readCameraWorld": {
     "summary": "Kopiert die Host-Kamera in die Engine-Kamera, Vorfahren aufgelöst."
   },
-  "RECTS_PER_SLICE": {
-    "summary": "Rechtecke einer Kachel: `(x, y, side)` pro Fläche, sechs Flächen für jede Kachel reserviert."
-  },
   "referenceScreenError": {
     "summary": "Bildschirmfehler der externen Referenz: `(error × stretch) × focal / w`, unendlich, wenn das Zentrum die Nahebene nicht erreicht; `w` ist das Clip-Gewicht der Tiefe des Zentrums, die Tiefe selbst unter perspektivischer Projektion (`perspective` = 1) und 1 unter orthografischer Projektion (0, `screenErrorBound.ts`).",
     "description": "WGSL-Spiegelung in `packages/sdk-browser/src/gpu/dag/shader/error.ts`, dieselben Operanden und dieselbe Reihenfolge, in f32. Der Aufrufer hat einen null oder unendlichen Fehler bereits behandelt."
@@ -5018,7 +4999,7 @@
   },
   "SceneLight": {
     "summary": "Ein Szenenlicht, Version 2.",
-    "description": "Die Einheiten sind radiometrisch und linear (P1): `color` ist eine lineare Farbe und `intensity` eine streng positive radiometrische Intensität — eine Radianz für ein `rect`. Vier Arten, und nichts anderes erzeugt Licht in dieser Engine (P6): - `point`: eine Position und eine Reichweite in Metern, jenseits derer es nichts beleuchtet; - `spot`: dasselbe plus eine Richtung und ein Kegel-Halbwinkel in Radiant; - `directional`: die Sonne oder ein bedeckter Himmel — eine Ausbreitungsrichtung, ohne Position oder Reichweite, dieselbe Bestrahlungsstärke überall, und Kaskadenschatten, die der Kamera folgen; - `rect`: ein einseitiges Rechteck von `size` Metern, zentriert bei `position`, das entlang `direction` strahlt, seine Breite entlang `right`; ohne geworfenen Schatten (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Felder, die eine Art nicht nutzt, werden bei der Prüfung abgelehnt: ein Richtungslicht mit einer Position wäre ein Versprechen, das die Engine nicht einhalten würde.",
+    "description": "Die Einheiten sind radiometrisch und linear (P1): `color` ist eine lineare Farbe und `intensity` eine streng positive radiometrische Intensität — eine Radianz für ein `rect`. Vier Arten, und nichts anderes erzeugt Licht in dieser Engine (P6): - `point`: eine Position und eine Reichweite in Metern, jenseits derer es nichts beleuchtet; - `spot`: dasselbe plus eine Richtung und ein Kegel-Halbwinkel in Radiant; - `directional`: die Sonne oder ein bedeckter Himmel — eine Ausbreitungsrichtung, ohne Position oder Reichweite, dieselbe Bestrahlungsstärke überall, und Clipmap-Schatten, die der Kamera folgen; - `rect`: ein einseitiges Rechteck von `size` Metern, zentriert bei `position`, das entlang `direction` strahlt, seine Breite entlang `right`; ohne geworfenen Schatten (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Felder, die eine Art nicht nutzt, werden bei der Prüfung abgelehnt: ein Richtungslicht mit einer Position wäre ein Versprechen, das die Engine nicht einhalten würde.",
     "members": {
       "id": "Der Name des Lichts.",
       "kind": "Punkt, Spot, Sonne oder Rechteck.",
@@ -5200,23 +5181,10 @@
     "description": "`null`/`undefined` setzt unsere zurück: keine Sitzung erbt sie."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Fließkommazahlen des Volumens einer Region: Zentrum und Fernebene, Achse der Fläche und Halbwinkel, dann — für eine Box, durch einen negativen Halbwinkel signalisiert — die beiden anderen Achsen mit ihren Halbausdehnungen."
-  },
-  "SHADOW_FACE_FLOATS": {
-    "summary": "Fließkommazahlen einer Fläche im Kachelpuffer: die Matrix, das Atlas-Rechteck — seine vierte Fließkommazahl bei 1, sobald gezeichnet, sonst nie 0 —, dann vier Wörter: die Maske der gehaltenen Seiten, ein Bit pro physischer Seite, die eine Tiefe der aktuellen Ausdehnung hält, Reihen von acht auf zwei Wörtern, und die physische Seite des Ursprungs der Ausdehnung, `x` dann `y`, mit der die Lesung die Koordinaten der Ausdehnung zurückfaltet.",
-    "description": "Eine eingetretene, aber noch nicht gezeichnete Ausdehnungsseite enthält noch, was die ferne Seite dort hinterlassen hat: die Lesung muss das wissen und zur nächsten Kaskade übergehen, sie nie abtasten. Eine Seite, die nur auf ein Neuzeichnen wartet, wird noch gehalten und gelesen."
-  },
-  "SHADOW_FACE_MASK_WORD": {
-    "summary": "Wort der Schattenflächen eines Lichts in seinem GPU-Datensatz."
-  },
-  "SHADOW_FACE_SIDES": {
-    "summary": "Flächenseiten, die der Atlas platzieren kann, von der größten zur kleinsten."
+    "summary": "Gleitkommazahlen eines Cull-Volumens: Mittelpunkt und ferne Ebene, Flächenachse und halber Winkel, dann — für eine Box, markiert durch einen negativen halben Winkel — die zwei anderen Achsen mit ihren halben Ausdehnungen, dann das Wort, das sagt, welche Schattenwerfer die Region zeichnet, die Lichtschnitt-Ansicht, die sie ausgewählt hat, und zwei zum Auffüllen."
   },
   "SHADOW_PAGE": {
-    "summary": "Seite einer Atlasseite, in Texeln: die Ungültigkeitszelle einer Fläche."
-  },
-  "SHADOW_SLICE_FLOATS": {
-    "summary": "Fließkommazahlen einer Kachel: sechs Flächen plus ein `vec4f`-Header (Flächen, Art, Seite, Füllung)."
+    "summary": "Seitenlänge einer Schattenseite in Texeln: die Einheit des Pools, der virtuellen Karten und der Invalidierung."
   },
   "ShadowAtlasDigest": {
     "summary": "Was eine Lesung des Schattenatlas veröffentlicht: seine Größe, was hineingeschrieben ist, sein Fingerabdruck.",
@@ -5233,8 +5201,8 @@
     "members": {
       "lightsActive": "Lichter des `SceneLight`-Vertrags, die das Bild beleuchtet hat. Null für eine Engine, die sie ignoriert.",
       "lightsSampled": "Wahr, wenn die Beleuchtung dieses Bildes im abgetasteten Modus lief — ein bewegtes Bild, das über eine Historie akkumuliert, wobei ein Pixel mit mehr Lichtern als `samplesPerPixel` einen ausgelosten Teil davon beleuchtet —, falsch, wenn jedes Pixel jedes Licht beleuchtet hat, wie es ein unbewegtes Bild tut. Null für eine Engine, die Lichter ignoriert.",
-      "shadowsUpdated": "Von diesem Bild neu gezeichnete Schattenkacheln, höchstens die veröffentlichte Obergrenze des Planers. Null ist der normale Wert einer unbewegten Szene: ein festes Licht behält seine Kachel.",
-      "shadowFacesDrawn": "Was der Schattendurchgang neu gezeichnet hat: Flächen (Ansichten) und wirklich kodierte Zeichenaufrufe. Das sind die Kosten pro Schattenlicht, vom Rest getrennt. Null für eine Engine, die keinen Schatten zeichnet.",
+      "shadowsUpdated": "Schattenlichter, von denen dieses Bild eine Seite gezeichnet hat. Null ist der normale Wert einer ruhenden Szene: ein festes Licht behält seine Seiten.",
+      "shadowFacesDrawn": "Lichtansichten, in die der Schattendurchgang gezeichnet hat — eine Clipmap-Stufe der Sonne, eine Lampenfläche auf einer Mip-Stufe —, und die tatsächlich kodierten Draw-Calls. Null bei einer Engine, die keinen Schatten zeichnet.",
       "shadowDrawCalls": "Schatten-Zeichenaufrufe.",
       "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und die Verzögerung der ältesten in Millisekunden. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
@@ -5242,28 +5210,43 @@
       "shadowWaitMs": "Wie lange sie gewartet haben.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
-      "gpuLightingMs": "GPU-Zeit der Beleuchtung."
+      "gpuLightingMs": "GPU-Zeit der Beleuchtung.",
+      "shadowLightCuts": "Cluster-Schnitte der Lichter: einer pro gezeichneter Lichtansicht, null in einem ruhenden Bild.",
+      "shadowPagesRequested": "Virtuelle Schattenseiten, die das Bild gelesen hat, wie sein letzter Anforderungsbericht sie nannte: was die Empfänger der Kamera markieren.",
+      "shadowPagesCached": "Davon direkt aus dem Pool gelesene Seiten: aktuell, ohne Zeichnen.",
+      "shadowPoolPages": "Physische Seiten des festen Pools, die eine virtuelle Seite halten.",
+      "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
+      "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
+      "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
     }
   },
   "ShadowPlan": {
-    "summary": "Welche Schattenregionen bei diesem Bild gezeichnet werden, und welche warten.",
+    "summary": "Die Schattenarbeit des Bildes: welche virtuellen Seiten gezeichnet werden und welche warten.",
     "members": {
-      "slices": "Schattenkacheln.",
-      "regions": "Schattenregionen.",
-      "budget": "Zeitbudget.",
-      "coverage": "Was jedes Licht abdeckt.",
-      "counts": "Zahlen für die Diagnose.",
-      "worldChanged": "Ein Knoten hat sich bewegt: seine Box tritt in die Liste ein, die der Planer beim nächsten Bild bearbeitet.",
-      "representationChanged": "Dieselbe Welt in einer anderen Genauigkeit — Detailstufe, Residenz, Farbkachel —: ihre Box wartet, bis die Kamera anhält, und tritt dann in die Liste ein (`changes.ts`).",
-      "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera anhält: das Bild darf nicht gehalten werden, bevor ein Plan es verbraucht.",
-      "releaseDeferred": "Das Bild plant keinen Schatten — kein Atlas, kein Licht, unbeleuchtete Ansicht —: die gehaltene Vereinigung tritt sofort in die Liste ein, wo der nächste Plan sie liest, statt das Bild am Halten zu hindern.",
-      "observeCost": "Zeitmessung des Schattendurchgangs eines Bildes, bezogen auf die Seiten, die es neu gezeichnet hat.",
-      "setBudgetMs": "Vom Host veröffentlichtes Budget; ein nicht endlicher oder negativer Wert wird abgelehnt, nicht gerundet.",
-      "setPageInvalidation": "Schaltet die Invalidierung pro Seite ab: jede berührte Fläche geht als Ganzes neu los. Standardmäßig aktiv.",
-      "pageInvalidation": "Neu zu zeichnende Seiten.",
-      "plan": "Wählt die Regionen dieses Bildes. Gibt ihre Anzahl zurück; `plan.regions` beschreibt sie einzeln, und die Seiten, die sie abdecken, sind bereits aus der Warteschlange entfernt.",
-      "reissue": "Die Regionen dieses Bildes konnten nicht kodiert werden: ihre Seiten kehren in die Warteschlange zurück. Sie hatten sie bei der Zulassung verlassen, weil sich Planer und Durchgang nur über diese Liste verständigen; wenn der Durchgang nichts zeichnet, muss die Warteschlange sie wiederfinden.",
-      "reset": "Beginnt neu."
+      "budget": "Das Millisekundenbudget der Schattenstufe und die gemessenen Kosten einer Seite.",
+      "counts": "Was der letzte Plan getan hat, in Seiten.",
+      "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
+      "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
+      "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
+      "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltene Vereinigung kommt sofort in die Liste.",
+      "observeCost": "Zeitmesser des Schattendurchgangs eines Bildes, auf die gezeichneten Seiten umgelegt.",
+      "setBudgetMs": "Vom Host veröffentlichtes Budget in GPU-Millisekunden pro Bild.",
+      "setPageInvalidation": "Schaltet die Invalidierung pro Seite ab: ein bewegtes Objekt macht jede Seite der Lichter ungültig, die es berührt. Standardmäßig aktiv.",
+      "pageInvalidation": "Ob ein bewegtes Objekt nur die Seiten ungültig macht, die seine Box bedeckt.",
+      "plan": "Plant ein Bild: macht Bewegtes ungültig, liest den letzten Bericht, lässt die zu zeichnenden Seiten zu.",
+      "reissue": "Die Seiten des Bildes konnten nicht kodiert werden: sie bleiben ungültig und warten auf das nächste Bild.",
+      "reset": "Beginnt neu.",
+      "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen (`thresholds.ts`).",
+      "table": "Die Seitentabelle: ein Wort pro virtueller Seite und der Bereich, den jedes Licht darin hält.",
+      "pool": "Die physischen Seiten des Pools und die virtuelle Seite, die jede hält.",
+      "sun": "Die Clipmap jeder Sonne: ihr Bezugssystem, Tiefenbereich, feinste Stufe und Ausschnitte.",
+      "records": "Die Schattenscheiben, eine pro schattenwerfendem Licht.",
+      "requests": "Die zurückgelesenen Anforderungsberichte: was der letzte nannte, zuwies oder ablehnte.",
+      "admission": "Die Seiten dieses Bildes in Zulassungsreihenfolge.",
+      "stamp": "Was Schattierung, Lichter und Ansicht dem nächsten Bild übergeben: ein damit gestempelter Bericht, der nichts Neues nennt, beweist, dass das Bild nur Gezeichnetes liest.",
+      "settled": "Wahr, sobald ein Bericht beweist, dass der aktuelle Zustand nichts anfordert: das Bild darf gehalten werden.",
+      "receive": "Ein Anforderungsbericht kam zurück; der nächste Plan liest ihn. Ein neuerer ersetzt einen ungelesenen.",
+      "commit": "Die Seiten des Bildes wurden kodiert, jede in ihrem `modes`-Eintrag: ihre Zeichnungen landen, bevor etwas sie liest."
     }
   },
   "ShadowViewpoint": {
@@ -5274,7 +5257,8 @@
       "halfFovY": "Die Hälfte seiner vertikalen Öffnung.",
       "aspect": "Breite geteilt durch Höhe.",
       "near": "Nächste Entfernung.",
-      "far": "Fernste Entfernung."
+      "far": "Fernste Entfernung.",
+      "pixelNear": "Weltgröße eines Pixels an der nahen Ebene: der feinste Fußabdruck, den ein Pixel der Ansicht hat."
     }
   },
   "Shape": {
@@ -5634,22 +5618,22 @@
   "TableTexture": {
     "summary": "Abtastzustand einer glTF-Textur, in den Worten der Engine.",
     "members": {
-      "name": "Ihr Name.",
-      "sampler": "Der Rang des glTF-Samplers, den sie deklariert, `null` wenn keiner.",
       "image": "Welches Bild.",
       "wrapS": "Wiederholung in der Breite.",
       "wrapT": "Wiederholung nach oben.",
       "magFilter": "Filter, wenn es größer ist.",
-      "minFilter": "Filter, wenn es kleiner ist."
+      "minFilter": "Filter, wenn es kleiner ist.",
+      "name": "Ihr Name.",
+      "sampler": "Der Rang des glTF-Samplers, den sie deklariert, `null` wenn keiner."
     }
   },
   "TableTextureSlot": {
-    "summary": "Ein belegter Map-Platz: welche Textur, welcher Koordinatensatz und die Transformation, die er deklariert.",
+    "summary": "Ein gefüllter Bildplatz: welche Textur, welcher Koordinatensatz, und das für ihn zusammengesetzte 3×3.",
     "members": {
       "texture": "Welche Textur.",
-      "texCoord": "Welcher UV-Satz abgetastet wird: der seiner Transformation, wenn diese einen nennt, sonst sein eigener.",
-      "slotTexCoord": "Der UV-Satz, den der Slot selbst nennt, vor jeder Transformation: Ein Slot, der einen anderen als den ersten nennt, wird aus einer Kopie seiner Textur gezeichnet, die auf keinen Rang antwortet.",
-      "transform": "Das `KHR_texture_transform`, das der Platz deklariert — Versatz, Drehung im Bogenmaß, Streckung, jeweils `null`, wenn nicht angegeben — oder `null`, wenn keines."
+      "texCoord": "Welcher UV-Satz.",
+      "transform": "Die Transformation der UV, 3×3.",
+      "slotTexCoord": "Der UV-Satz, den der Slot selbst nennt, vor jeder Transformation: Ein Slot, der einen anderen als den ersten nennt, wird aus einer Kopie seiner Textur gezeichnet, die auf keinen Rang antwortet."
     }
   },
   "TelemetryReport": {
@@ -6470,8 +6454,8 @@
       "pagePlanMs": "Zeit, die für die Planung der Ankünfte aufgewendet wurde.",
       "lightsActive": "Lichter des `SceneLight`-Vertrags, die das Bild beleuchtet hat. Null für eine Engine, die sie ignoriert.",
       "lightsSampled": "Wahr, wenn die Beleuchtung dieses Bildes im abgetasteten Modus lief — ein bewegtes Bild, das über eine Historie akkumuliert, wobei ein Pixel mit mehr Lichtern als `samplesPerPixel` einen ausgelosten Teil davon beleuchtet —, falsch, wenn jedes Pixel jedes Licht beleuchtet hat, wie es ein unbewegtes Bild tut. Null für eine Engine, die Lichter ignoriert.",
-      "shadowsUpdated": "Von diesem Bild neu gezeichnete Schattenkacheln, höchstens die veröffentlichte Obergrenze des Planers. Null ist der normale Wert einer unbewegten Szene: ein festes Licht behält seine Kachel.",
-      "shadowFacesDrawn": "Was der Schattendurchgang neu gezeichnet hat: Flächen (Ansichten) und wirklich kodierte Zeichenaufrufe. Das sind die Kosten pro Schattenlicht, vom Rest getrennt. Null für eine Engine, die keinen Schatten zeichnet.",
+      "shadowsUpdated": "Schattenlichter, von denen dieses Bild eine Seite gezeichnet hat. Null ist der normale Wert einer ruhenden Szene: ein festes Licht behält seine Seiten.",
+      "shadowFacesDrawn": "Lichtansichten, in die der Schattendurchgang gezeichnet hat — eine Clipmap-Stufe der Sonne, eine Lampenfläche auf einer Mip-Stufe —, und die tatsächlich kodierten Draw-Calls. Null bei einer Engine, die keinen Schatten zeichnet.",
       "shadowDrawCalls": "Schatten-Zeichenaufrufe.",
       "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und die Verzögerung der ältesten in Millisekunden. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
@@ -6518,7 +6502,13 @@
       "geometryPoolSaturated": "Vom aktuellen Bild angeforderte Seiten über die Anzahl der Pool-Plätze hinaus.",
       "texturePoolClamp": "Grund für die Begrenzung des Textur-Pools: `minimum`, `device-limit`.",
       "hizCulled": "Cluster, die der Verdeckungstest bei diesem Bild als versteckt gefunden hat; `null`, wo der Pfad sie nicht zählt.",
-      "shadowPagesResident": "Bei diesem Bild im Speicher gehaltene Schattenseiten; `null`, wo der Pfad keine hat."
+      "shadowLightCuts": "Cluster-Schnitte der Lichter: einer pro gezeichneter Lichtansicht, null in einem ruhenden Bild.",
+      "shadowPagesRequested": "Virtuelle Schattenseiten, die das Bild gelesen hat, wie sein letzter Anforderungsbericht sie nannte: was die Empfänger der Kamera markieren.",
+      "shadowPagesCached": "Davon direkt aus dem Pool gelesene Seiten: aktuell, ohne Zeichnen.",
+      "shadowPoolPages": "Physische Seiten des festen Pools, die eine virtuelle Seite halten.",
+      "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
+      "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
+      "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
     }
   },
   "WorldOptions": {
@@ -6570,8 +6560,8 @@
     "summary": "Leitet alles, was ein Bild liest, aus dem bereits gesetzten `into.world` und der deklarierten Optik ab: die Projektion in der Tiefenkonvention der Engine, dann die Sicht, die View-Projektion und die sechs Ebenen des Sichtkegels (`updateCameraFrame`), das Render-Bezugssystem (`renderOrigin.ts`) und das Auge."
   },
   "writeFace": {
-    "summary": "Schreibt die View-Projektionsmatrix einer Fläche an ihren Platz in `matrices`, und, wenn die Ablehnung aktiviert ist, das Volumen, das sie der `rect`-Region dieser Fläche entgegensetzt.",
-    "description": "Beide gehen von derselben Achse und demselben Feld aus — eine einzige Berechnung, also kein Risiko, dass sie auf unterschiedliche Richtungen zielen. Ein Punktlicht nimmt die Achse von `POINT_FACE_AXES` und 90°; ein Spot nimmt seine Richtung und seinen erweiterten Kegel; ein Richtungslicht nimmt die Kaskadenfläche `face`, die der Kamera folgt. Der Radius des Emitters berührt weder die Projektion noch die Ablehnung: sein Ausschluss ist genau eine Kugel, geschrieben dort, wo die Schattentiefe geschrieben wird, und eine angehobene Nahebene würde daraus einen Würfel machen. `rect` ist der neu zu zeichnende Teil der Fläche, in normalisierten Koordinaten; standardmäßig `FULL_FACE`, und das Volumen ist dann genau das von vor der Seiteninvalidierung. Ein Cluster, dessen Kugel in der Welt weder die Reichweite noch dieses Volumen berührt, kann nichts in die Region schreiben: die Projektion und das Zuschneiden würden ihn ohnehin ablehnen. Die Ablehnung ist also exakt, nie eine Qualitätsannäherung — die Region ändert sich nicht um ein Texel."
+    "summary": "Schreibt die View-Projection-Matrix einer Lampenfläche an ihren Platz in `matrices` und, falls das Culling aktiv ist, das Volumen, das sie dem Rechteck `rect` dieser Fläche entgegensetzt.",
+    "description": "Beide gehen von derselben Achse und demselben Feld aus — eine Rechnung, also keine Gefahr, dass sie in verschiedene Richtungen zielen. Ein Punkt nimmt die Achse `POINT_FACE_AXES` und 90°; ein Spot nimmt seine Richtung und seinen erweiterten Kegel. Der Radius des Strahlers berührt weder Projektion noch Culling: sein Ausschluss ist genau eine Kugel, geschrieben dort, wo die Schattentiefe geschrieben wird. `rect` ist der zu zeichnende Teil der Fläche in normierten Koordinaten; standardmäßig `FULL_FACE`. Ein Cluster, dessen Weltkugel weder die Reichweite noch dieses Volumen berührt, kann nichts darin schreiben: Projektion und Viewport würden ihn ohnehin verwerfen, also ist das Culling exakt."
   },
   "XYLike": {
     "summary": "Alles, was ein `x` und ein `y` hat: ein 2D-Punkt, gelesen über seine Felder.",
@@ -7034,6 +7024,35 @@
       "gravity": "Die Schwerkraft der Welt: eine Vorgabe oder ein Vektor."
     }
   },
+  "SHADOW_RECORD_FLOATS": {
+    "summary": "Gleitkommazahlen eines Schattendatensatzes, den die Schattierung eines Lichts liest: sechs Matrizen der Lampenflächen, dann das Bezugssystem der Sonnenebene — `right, zNear`, `up, zFar`, `axis, 0` —, dann der Ursprung des Ausschnitts jeder Clipmap-Stufe als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der Tangens des halben Felds der Lampe oder die feinste Stufe der Sonne, die nahe Ebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
+  },
+  "ShadowRequestReport": {
+    "summary": "Was die Schattierung in einem Bild gelesen hat: die angeforderten Tabelleneinträge, ohne Reihenfolge.",
+    "members": {
+      "frame": "Bild, dessen Schattierung den Bericht schrieb.",
+      "layoutEpoch": "Tabellenlayout, mit dem dieses Bild gelesen hat (`ShadowTable.layoutEpoch`).",
+      "stamp": "Der Stempel des Plans, als dieses Bild kodiert wurde (`ShadowPlan.stamp`).",
+      "count": "Angeforderte Einträge, möglicherweise mehr als `entries` fasst: der Rest fragt im nächsten Bild erneut.",
+      "entries": "Die angeforderten Einträge, höchstens die ersten `count`."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Alles, was `world.controls.vehicle` fahren kann: Es erhält die Eingabe bei jeder Änderung.",
+    "members": {
+      "drive": "Erhält Pedale und Lenkrad, jedes Mal wenn eine Taste sie ändert."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Was ein Fahrer von einem Fahrzeug verlangt: Pedale und Lenkrad, wie die Tasten von `world.controls` `'vehicle'` sie setzen.",
+    "description": "Die Physik des Fahrzeugs – Motor, Räder, Federung – beantwortet sie; dieser Vertrag ist alles, was die Steuerung kennt.",
+    "members": {
+      "throttle": "Gaspedal, 0 bis 1.",
+      "brake": "Bremspedal, 0 bis 1.",
+      "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
+      "handbrake": "Ob die Handbremse gezogen ist."
+    }
+  },
   "GraphAttribute": {
     "members": {
       "count": "Wie viele Scheitelpunkte.",
@@ -7259,22 +7278,6 @@
       "x": "Von links nach rechts.",
       "y": "Von unten nach oben.",
       "z": "Von hinten nach vorn."
-    }
-  },
-  "VehicleDriver": {
-    "summary": "Alles, was `world.controls.vehicle` fahren kann: Es erhält die Eingabe bei jeder Änderung.",
-    "members": {
-      "drive": "Erhält Pedale und Lenkrad, jedes Mal wenn eine Taste sie ändert."
-    }
-  },
-  "VehicleInput": {
-    "summary": "Was ein Fahrer von einem Fahrzeug verlangt: Pedale und Lenkrad, wie die Tasten von `world.controls` `'vehicle'` sie setzen.",
-    "description": "Die Physik des Fahrzeugs – Motor, Räder, Federung – beantwortet sie; dieser Vertrag ist alles, was die Steuerung kennt.",
-    "members": {
-      "throttle": "Gaspedal, 0 bis 1.",
-      "brake": "Bremspedal, 0 bis 1.",
-      "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
-      "handbrake": "Ob die Handbremse gezogen ist."
     }
   }
 }
