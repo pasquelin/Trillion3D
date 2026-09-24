@@ -28,6 +28,7 @@ function carteNormales(): Texture {
     image: { data, width: 2, height: 2 },
     wrapS: 'repeat',
     wrapT: 'clamp',
+    transform: [1, 0, 0, 0, 1, 0, 0, 0, 1],
   } as unknown as Texture;
 }
 

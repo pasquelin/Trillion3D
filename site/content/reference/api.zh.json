@@ -1504,7 +1504,12 @@
       "colorSpace": "它的数值该如何被读取。",
       "matrix": "采样器的 UV 变换,即 `KHR_texture_transform` 组合成的三行矩阵;当宿主自己负责更新时,它会根据偏移、重复和旋转重新计算这个矩阵。",
       "matrixAutoUpdate": "宿主是否会重建 `matrix`。",
-      "updateMatrix": "根据偏移、重复和旋转重建 `matrix`。"
+      "updateMatrix": "根据偏移、重复和旋转重建 `matrix`。",
+      "offset": "`matrix` 由之组成的值。",
+      "repeat": "它能容纳几次。",
+      "center": "旋转的中心。",
+      "rotation": "旋转，单位为弧度。",
+      "addEventListener": "宿主释放纹理时通知导入器。"
     }
   },
   "HostTraversable": {
@@ -3456,6 +3461,8 @@
       "id": "该纹理在导入场景中的身份标识:缓存键和消息用来指名它的依据。",
       "name": "源文件为它取的名字,没有取名时为空;仅供消息读取。",
       "version": "纹素变化时递增:上传操作据此比较,以跳过重复拷贝。",
+      "sampling": "寻址、过滤或各向异性变化时递增：重新设置采样器。",
+      "placement": "`transform` 变化时递增：重写放置，不上传任何内容。",
       "image": "解码后的图像。它的容器类型始终是 `unknown`:只有负责上传它的边界层才知道。",
       "channel": "采样器读取的 UV 组,对应 `KHR_texture_transform` 的 `texCoord`;引擎会采样 0 和 1。",
       "wrapS": "水平方向的重复方式。",
@@ -3488,7 +3495,9 @@
       "flipY": "读取时图像是否被上下翻转。",
       "anisotropy": "从斜角观察时图像能保持多清晰。",
       "channel": "纹理所遵循的是几何体的哪一套 UV。",
-      "version": "每次写入都会递增:材质据此比较是否需要重新采样。",
+      "version": "写入图片或其读取方式时递增：材质比较它以重新发送图片。",
+      "sampling": "写入寻址、过滤或各向异性时递增：重新设置，不发送任何内容。",
+      "placement": "写入 `repeat`、`offset` 或 `rotation` 时递增：重新放置，不发送任何内容。",
       "image": "图像本身:一张图片、一个 canvas、一段视频,或原始像素数据。",
       "layout": "图像在像素之外还携带的信息:`'cube'`、`'array'`、`'depth'`、`'compressed'`。",
       "format": "每个像素是如何存储的:`'rgba'`、`'rgb'`、`'r'`、`'depth'`……",
