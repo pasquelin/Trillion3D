@@ -87,10 +87,11 @@
 
       // The clockwork: a driven wheel and three more, each meshing the one before at `bearing`
       // (radians from it). The next wheel's teeth start half a pitch past the last one's at the
-      // point where they touch, so tooth meets gap.
+      // point where they touch, so tooth meets gap. Of two meshing wheels, one has a whole
+      // multiple of the other's teeth: then the gear holds them in that phase, not only in step.
       const train = [
-        { teeth: 30, bearing: 0, color: '#c9a227' },
-        { teeth: 14, bearing: 0.35, color: '#b87333' },
+        { teeth: 36, bearing: 0, color: '#c9a227' },
+        { teeth: 12, bearing: 0.35, color: '#b87333' },
         { teeth: 24, bearing: -0.5, color: '#c9a227' },
         { teeth: 12, bearing: 0.6, color: '#8d99a6' },
       ];

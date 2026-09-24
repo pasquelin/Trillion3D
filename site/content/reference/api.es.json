@@ -7387,8 +7387,8 @@
       "sixDof": "Seis ejes, cada uno bloqueado, libre o limitado (`axes`): cualquier unión entre las demás.",
       "path": "`a` recorre una vía suave que pasa por `path`, fija a `b` o al mundo: una montaña rusa.",
       "pulley": "Una cuerda de `a` sobre dos ruedas (`over`) hasta `b`: uno sube cuando el otro baja.",
-      "gear": "Dos ruedas que giran juntas según `ratio`, cada una sobre su propio eje (`axis`, `axisB`); cada una necesita su bisagra para mantenerse en su sitio.",
-      "rackAndPinion": "Un piñón `a` que gira alrededor de `axis` mueve una cremallera `b` a lo largo de `axisB`; cada uno necesita su bisagra o su corredera para mantenerse en su sitio."
+      "gear": "Dos ruedas que giran juntas según `ratio`, cada una sobre su propio eje (`axis`, `axisB`) y sujeta por su bisagra (la rueda como su `a`); cuando `ratio` o 1 / `ratio` es entero, sus dientes también conservan la fase en que se hicieron.",
+      "rackAndPinion": "Un piñón `a` que gira alrededor de `axis` mueve una cremallera `b` a lo largo de `axisB`, cada uno sujeto por su bisagra o su corredera (el cuerpo como su `a`), sus dientes en la fase en que se hicieron."
     }
   }
 }

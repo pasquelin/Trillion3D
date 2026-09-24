@@ -44,12 +44,28 @@ Ref<PathConstraintPathHermite> pathOf(const uint32_t *extra, uint32_t count) {
   return path;
 }
 
+/// Whether `x` is a whole number of turns, not 0.
+bool whole(float x) { return std::isfinite(x) && std::round(x) != 0 && std::abs(x - std::round(x)) < 1e-4f; }
+
+/// A gear's or a pulley's ratio word, 1 when there is none.
+float ratioOf(const uint32_t *extra, uint32_t count) {
+  return count > 0 && std::isfinite(f32(extra)) ? f32(extra) : 1.0f;
+}
+
 }  // namespace
+
+GearOrder gearOrder(uint32_t kind, const uint32_t *extra, uint32_t count) {
+  if (kind == RACK_AND_PINION) return {true, true};
+  if (kind != GEAR) return {};
+  float ratio = ratioOf(extra, count);
+  if (whole(ratio)) return {false, true};
+  return whole(1 / ratio) ? GearOrder{true, true} : GearOrder{};
+}
 
 Ref<TwoBodyConstraintSettings> advancedSettings(uint32_t kind, const Frame &f1, const Frame &f2, const uint32_t *v,
                                                 const uint32_t *extra, uint32_t count, Vec3 anchor1) {
   float min = f32(v), max = f32(v + 1);
-  float ratio = count > 0 && std::isfinite(f32(extra)) ? f32(extra) : 1.0f;
+  float ratio = ratioOf(extra, count);
   switch (kind) {
     case SWING_TWIST: {
       auto *s = new SwingTwistConstraintSettings;
@@ -96,11 +112,12 @@ Ref<TwoBodyConstraintSettings> advancedSettings(uint32_t kind, const Frame &f1, 
       s->mMaxLength = Clamp(max, s->mMinLength, FLT_MAX);
       return s;
     }
-    case GEAR: {
+    case GEAR: {  // Jolt holds `first turn + ratio × second turn` at 0.
       auto *s = new GearConstraintSettings;
       s->mSpace = EConstraintSpace::LocalToBodyCOM;
-      s->mHingeAxis1 = f1.axis, s->mHingeAxis2 = f2.axis;
-      s->mRatio = ratio;
+      bool aFirst = gearOrder(kind, extra, count).aFirst;
+      s->mHingeAxis1 = aFirst ? f2.axis : f1.axis, s->mHingeAxis2 = aFirst ? f1.axis : f2.axis;
+      s->mRatio = aFirst ? 1 / ratio : ratio;
       return s;
     }
     default: {  // RACK_AND_PINION: made with the pinion, the page's `a`, as Jolt's first body.
@@ -156,6 +173,11 @@ bool driveAdvanced(Constraint *constraint, uint32_t kind, EMotorState state, flo
     return true;
   }
   return false;
+}
+
+void linkGear(Constraint *constraint, uint32_t kind, const Constraint *first, const Constraint *second) {
+  if (kind == GEAR) static_cast<GearConstraint *>(constraint)->SetConstraints(first, second);
+  else static_cast<RackAndPinionConstraint *>(constraint)->SetConstraints(first, second);
 }
 
 float advancedPull(Constraint *constraint, uint32_t kind) {
