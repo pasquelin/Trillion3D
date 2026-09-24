@@ -1432,6 +1432,11 @@
       "file": "examples/falling-boxes.html"
     },
     {
+      "id": "floating-crates",
+      "theme": "physics",
+      "file": "examples/floating-crates.html"
+    },
+    {
       "id": "ten-thousand-bodies",
       "theme": "physics",
       "file": "examples/ten-thousand-bodies.html"

@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "물의 높이, 파도, 밀도, 물살을 바꿔 보세요. 상자가 뜨고, 떠내려가고, 가라앉고, 자리를 잡습니다.",
+    "controls": {
+      "level": "수위",
+      "waves": "파도",
+      "density": "물의 밀도",
+      "current": "물살",
+      "drop": "떨어뜨리기",
+      "again": "다시",
+      "slowMotion": "슬로 모션"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "상자 만 개가 한꺼번에 떨어집니다. 패널에 물리 비용이 실시간으로 표시됩니다.",
     "controls": {
