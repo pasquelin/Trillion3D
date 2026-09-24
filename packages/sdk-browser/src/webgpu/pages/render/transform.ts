@@ -96,6 +96,8 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // expressed in the parent space JUST RESOLVED: a moved parent gives another `local` for the
   // same requested world pose, and the request is therefore not judged as no-effect.
   if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
+  // A host pose written in this same task is read before the engine's own write hides it.
+  run.gate.engineWriting();
   boxEmpty(moved, 0);
   for (const root of layout.selectionRoots)
     if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node))
