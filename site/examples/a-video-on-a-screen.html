@@ -22,8 +22,6 @@
     <canvas id="view"></canvas>
     <input id="file" type="file" accept="video/*" hidden />
     <script type="module">
-      // Waits for #362: a texture made from a video shows each new frame of the video by itself,
-      // without a change to its material; until then the screen keeps its first frame.
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
       import { controls, playPickedVideo, readout, words } from '../runtime/kit.js';
       const say = words();

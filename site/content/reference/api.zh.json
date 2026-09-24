@@ -3438,7 +3438,8 @@
       "textureLevelReads": "各个数据来源。`textureLevelReads`:正在从缓存中读取的已烘焙层级。`textureLevelsDecoded`:自会话开始以来已解码的已烘焙层级数。`textureLevelCacheBytes`:为了从中进一步切出图块而保留的、已解码层级所占用的宿主字节数,受固定预算限制。`textureScratchBuilds`:为没有已烘焙链条的纹理构建的临时纹理数,每次都要用到整个源图像。",
       "textureLevelsDecoded": "已解码的层级数。",
       "textureLevelCacheBytes": "已解码层级所保留的字节数。",
-      "textureScratchBuilds": "已构建的临时纹理数。"
+      "textureScratchBuilds": "已构建的临时纹理数。",
+      "textureLiveBytes": "实时纹理占用的字节:每个纹理保留一张与自身等大的工作纹理。从 `texturePoolBytes` 中扣除。"
     }
   },
   "TextureLayout": {
@@ -3997,6 +3998,7 @@
       "textureLevelsDecoded": "已解码的层级数。",
       "textureLevelCacheBytes": "已解码层级所保留的字节数。",
       "textureScratchBuilds": "已构建的临时纹理数。",
+      "textureLiveBytes": "实时纹理占用的字节:每个纹理保留一张与自身等大的工作纹理。从 `texturePoolBytes` 中扣除。",
       "gpuAllocatedBytes": "设备上所有资源当前活跃分配的总字节数。",
       "gpuAllocatedByLabel": "按资源标签分组统计的已分配字节数。没有标签的分配会被归入 'unlabeled'。",
       "gpuAllocationsUnknownFormat": "格式无法识别的纹理数量。期望值为 0。",
@@ -6434,7 +6436,7 @@
   },
   "texture": {
     "summary": "`texture` 系列:一张图像,以及它是如何被采样的。",
-    "description": "彩色图像采用 sRGB,数据图像采用线性值;在写入像素之后设置 `needsUpdate`,可以让采样器重新读取它们。"
+    "description": "彩色图像采用 sRGB,数据图像采用线性值;写入像素后设置 `needsUpdate`,采样器会重新读取它们,并就地复制到已在 GPU 上的纹理中——只有尺寸变化才会重建纹理。视频是实时的:它的帧会自动到来。"
   },
   "texture.image": {
     "summary": "由页面中已有的一张图片制作出的彩色纹理:可以是一张图像、一个位图,或是一帧视频画面。",
@@ -6453,12 +6455,14 @@
   },
   "texture.canvas": {
     "summary": "显示一个 canvas 内容的纹理。",
+    "description": "在画布上重新绘制后,设置 `needsUpdate`:新像素会复制到已在 GPU 上的纹理中,不会重建任何东西。",
     "parameters": {
       "c": "要显示的 canvas。"
     }
   },
   "texture.video": {
-    "summary": "显示正在播放的视频的纹理。",
+    "summary": "显示正在播放的视频,或在视频中播放的摄像头流的纹理。",
+    "description": "每一帧新画面都会自动复制到已在 GPU 上的纹理中;暂停的视频不产生任何开销。",
     "parameters": {
       "v": "要显示的视频。"
     }
