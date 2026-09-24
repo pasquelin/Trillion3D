@@ -32,7 +32,7 @@ test('a plan read a second time in a frame returns its regions, not its pages', 
   assert.equal(planImageShadows(rt, undefined as never), 4);
 });
 
-test('a frame on the CPU cut keeps the light cut, and a dropped cut lifts its page limit', () => {
+test('a frame on the CPU cut keeps the light cut, and a dropped cut lifts its view limit', () => {
   const lights = createWebgpuLightState(32);
   const cut = { unsettled: true };
   lights.lightCut = cut as never;
@@ -51,8 +51,8 @@ test('a frame on the CPU cut keeps the light cut, and a dropped cut lifts its pa
   } as unknown as WebgpuPagesRuntime;
   encodeShadowCasters(rt, {} as GPUCommandEncoder, 0);
   assert.equal(lights.lightCut, cut, 'its waiting pages and its reports stay');
-  lights.plan.admission.setLimit(3);
+  lights.plan.admission.setViewLimit(3);
   lights.lightCut = undefined;
   redrawShortPages(rt, 4, 64, false);
-  assert.equal(lights.plan.admission.limit, 24, 'no cut left to limit the frame');
+  assert.equal(lights.plan.admission.viewLimit, 24, 'no cut left to limit the frame');
 });

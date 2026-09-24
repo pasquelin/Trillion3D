@@ -4,7 +4,15 @@ import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import type { BlendGpuItem } from './state.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
 import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
-import { ALPHA_BLEND, blendStagePipelines } from './stagePipelines.ts';
+import {
+  blendStagePipelines,
+  blendStagePipelinesNow,
+  pipelinesByMode,
+  type BlendModePipelines,
+} from './stagePipelines.ts';
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
+import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
+import { refreshSurface } from '../../page/surface.ts';
 import { createWaterPass, type WaterPass } from '../water/pass.ts';
 import {
   blendVariantPipeline,
@@ -77,22 +85,41 @@ export async function createWebgpuBlendPipelines(
       (wantsWater ? WATER_SURFACE_WGSL : '') +
       (variant ? DIAGNOSTIC_BLEND_WGSL : ''),
   });
-  const blendPipelines = await blendStagePipelines(
-    device,
-    blendModule,
-    blendBindGroupLayout,
-    {
-      module: blendModule,
-      entryPoint,
-      targets: [
-        { format: 'rgba16float', writeMask, blend: ALPHA_BLEND },
-        // Tile rank the pixel requests from the virtual textures: an integer target, without blend,
-        // that reduction rereads after the pass.
-        { format: FEEDBACK_FORMAT },
-      ],
-    },
-    false,
+  // Normal always — the transmission slice draws on it under a diagnostic —, then every mode a
+  // blend item declares: a scene of plain glass compiles the three pipelines it always did. A mode
+  // written on a surface later is compiled by the first draw that asks for it (`at`).
+  const modes = BLEND_MODES.filter(
+    (mode, rank) =>
+      !rank ||
+      items.some((item) => !item.transmissive && refreshSurface(item.surface).blending === mode),
   );
+  const fragment = (mode: Blending): GPUFragmentState => ({
+    module: blendModule,
+    entryPoint,
+    targets: [
+      { format: 'rgba16float', writeMask, blend: BLEND_EQUATIONS[mode] },
+      // Tile rank the pixel requests from the virtual textures: an integer target, without blend,
+      // that reduction rereads after the pass.
+      { format: FEEDBACK_FORMAT },
+    ],
+  });
+  const perMode = pipelinesByMode((mode) =>
+    blendStagePipelinesNow(device, blendModule, blendBindGroupLayout, fragment(mode), false),
+  );
+  const compiled = await Promise.all(
+    modes.map((mode) =>
+      blendStagePipelines(device, blendModule, blendBindGroupLayout, fragment(mode), false),
+    ),
+  );
+  modes.forEach((mode, at) => (perMode.byMode[BLEND_MODES.indexOf(mode)] = compiled[at]));
+  const blendPipelines: BlendModePipelines = {
+    byMode: perMode.byMode,
+    at(rank) {
+      const mode = BLEND_MODES[Math.floor(rank / 3)];
+      if (!mode) throw new Error(`blend pipeline rank ${rank} names no blending mode`);
+      return perMode.at(mode)[rank % 3];
+    },
+  };
   // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.
   let water: WaterPass | undefined, waterRefused: Error | undefined;
   if (wantsWater)
@@ -101,5 +128,10 @@ export async function createWebgpuBlendPipelines(
     } catch (error) {
       waterRefused = error instanceof Error ? error : new Error(String(error));
     }
-  return { blendBindGroupLayout, blendPipelines, water, waterRefused };
+  return {
+    blendBindGroupLayout,
+    blendPipelines,
+    water,
+    waterRefused,
+  };
 }

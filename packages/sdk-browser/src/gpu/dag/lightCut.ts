@@ -115,7 +115,7 @@ export function createDagLightCut(resources: DagResources) {
   const reports = createLightCutReports(own, output, outputBytes);
   const redraws = createLightCutRedraws(own, output, capacity);
   return {
-    /** The most views a frame's cut runs, hence the most pages a frame draws. */
+    /** The most views a frame's cut runs: what bounds the views a frame draws in. */
     capacity,
     /** Catalogue pages the logs index. */
     pageCount,
