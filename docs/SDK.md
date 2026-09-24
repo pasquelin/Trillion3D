@@ -900,9 +900,9 @@ granted (`grantedBytes`, `null` when even the floor was refused and the pool in 
 At prepare there is no pool in place to keep: a pool the device refuses even at its floor is
 refused by name, never allocated in full outside the check — `WEBGPU_GEOMETRY_POOL_REFUSED` for
 the geometry pool, `WEBGPU_TEXTURE_POOL_REFUSED` for a texture pool (named by the
-`material-pipeline-failed` diagnostic, then `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`). The WebGPU
-backend's preparation fails (`backend-preparation-error`); drawing to the canvas, the load rejects
-with that error.
+`material-pipeline-failed` diagnostic, then `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`). Drawing to
+the canvas, the WebGPU backend's preparation then fails (`backend-preparation-error`) and the load
+rejects with that error.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
