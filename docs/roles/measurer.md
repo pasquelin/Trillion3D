@@ -11,7 +11,7 @@ merge.
    Measuring never blocks anything: the issue is already closed, you only add to it. Empty queue: wait (`/loop` paces you), never measure something else.
 2. `gh issue edit <n> --remove-label "to measure" --add-label "measuring"`.
 3. **Tree.** A worktree of your own on the merge commit:
-   `git worktree add --detach ../Trillion3D-measure-<n> <merge-sha>`, `pnpm install`, and
+   `git worktree add --detach .worktrees/measure-<n> <merge-sha>`, `pnpm install`, and
    `TRILLION3D_ASSETS` pointing at the primary checkout's `.mesure/assets/`. The before side is the
    merge's first parent, checked out the same way.
 4. **Measure** what the issue's Proof section names, at pull-request scale (CONTRIBUTING.md "Two
