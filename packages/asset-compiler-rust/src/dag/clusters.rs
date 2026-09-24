@@ -142,9 +142,9 @@ pub fn weld_positions(positions: &[f32], indices: &[u32]) -> Vec<u32> {
     })
 }
 /// Canonical vertex per (position, every texture coordinate): copies that differ only by their
-/// normal or their colour are one point, those on a texture seam of any set stay two, so this
-/// fallback weld never lets a coarse level draw one side of a seam with the other's texture. The
-/// key allocates nothing: three position words, then two per set of the two a page can carry.
+/// normal or their colour are one point, those on a texture seam of any set stay two. It names
+/// the seams a reduction protects and the normal copies a coarse corner picks from. The key
+/// allocates nothing: three position words, then two per set of the two a page can carry.
 pub fn weld_positions_and_uv(positions: &[f32], uv_sets: &[&[f32]], indices: &[u32]) -> Vec<u32> {
     weld_by(positions.len() / 3, indices, |id| {
         let mut key = [0u32; 7];
@@ -157,7 +157,7 @@ pub fn weld_positions_and_uv(positions: &[f32], uv_sets: &[&[f32]], indices: &[u
         key
     })
 }
-fn weld_by<K: std::hash::Hash + Eq>(
+pub(super) fn weld_by<K: std::hash::Hash + Eq>(
     count: usize,
     indices: &[u32],
     key: impl Fn(u32) -> K,
