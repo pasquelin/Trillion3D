@@ -18067,8 +18067,8 @@
         "desc": "Height of the surface above the world point `(x, z)`, metres."
       },
       {
-        "name": "point(x: number, z: number, out: Float64Array<ArrayBufferLike> | number[])",
-        "type": "Float64Array<ArrayBufferLike> | number[]",
+        "name": "point(x: number, z: number, out: Float64Array<ArrayBufferLike>)",
+        "type": "Float64Array<ArrayBufferLike>",
         "desc": "The world point `[x, y, z]` the rest point `(x, level, z)` is carried to, into `out`: a grid moved point by point is the surface, crests drawn as sharp as the waves are."
       },
       {
@@ -18077,8 +18077,8 @@
         "desc": "The declared waves, each phase carried to this time: set again in `world.physics.water` (whose waves start again at 0 s), the surface goes on from where it is instead of jumping."
       },
       {
-        "name": "normal(x: number, z: number, out: Float64Array<ArrayBufferLike> | number[])",
-        "type": "Float64Array<ArrayBufferLike> | number[]",
+        "name": "normal(x: number, z: number, out: Float64Array<ArrayBufferLike>)",
+        "type": "Float64Array<ArrayBufferLike>",
         "desc": "Unit normal `[x, y, z]` of the surface at the rest point `(x, z)`, into `out`."
       }
     ],
