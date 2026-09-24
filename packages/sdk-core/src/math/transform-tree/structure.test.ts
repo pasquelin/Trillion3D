@@ -1,4 +1,4 @@
-// Batch M3a, structure.ts: update order (contiguous and by depth),
+// Batch M3a, structure.ts: children lists (walk cost, parents first),
 // subtree traversal, removal (with index reuse) and reparenting (including the rejected cycle).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,32 +9,51 @@ import {
   NODE_LOCAL_CHANGED,
 } from './transformTree.ts';
 import {
-  ensureOrder,
   nextStamp,
+  releaseTransformNode,
   removeTransformNode,
   reparentTransformNode,
   visitSubtree,
 } from './structure.ts';
+import { updateNodeMatrixWorld } from './update.ts';
 
-test('ensureOrder: parents of lower index than children, contiguous order (monotonic path)', () => {
-  const tree = createTransformTree(4);
-  const racine = addTransformNode(tree);
-  const enfant = addTransformNode(tree, racine);
-  const petitEnfant = addTransformNode(tree, enfant);
-  ensureOrder(tree);
-  assert.deepEqual([...tree.order.subarray(0, 3)], [racine, enfant, petitEnfant]);
-  assert.equal(tree.orderAt[racine], 0);
-  assert.equal(tree.orderAt[enfant], 1);
-  assert.equal(tree.orderAt[petitEnfant], 2);
-});
-
-test('ensureOrder: after a reparent that inverts the indices, each parent precedes its children', () => {
+test('visitSubtree: after a reparent that inverts the indices, each parent precedes its children', () => {
   const tree = createTransformTree(4);
   const a = addTransformNode(tree);
-  const b = addTransformNode(tree); // b after a, but will become its child
-  reparentTransformNode(tree, a, b); // a (lower index) under b (higher index): non-monotonic
-  ensureOrder(tree);
-  assert.ok(tree.orderAt[b] < tree.orderAt[a], 'b (parent) must precede a (child) in the order');
+  const b = addTransformNode(tree); // b after a, but will become its parent
+  reparentTransformNode(tree, a, b);
+  const visits: number[] = [];
+  visitSubtree(tree, b, (_t, n) => visits.push(n));
+  assert.deepEqual(visits, [b, a]);
+});
+
+test('a subtree walk costs the subtree, not the tree: a leaf beside 10 000 other nodes walks one', () => {
+  const tree = createTransformTree(4);
+  const scene = addTransformNode(tree);
+  let leaf = -1;
+  for (let i = 0; i < 10_000; i++) leaf = addTransformNode(tree, i % 2 ? scene : -1);
+  assert.equal(updateNodeMatrixWorld(tree, leaf), 1);
+  assert.equal(
+    visitSubtree(tree, leaf, () => {}),
+    1,
+  );
+  assert.equal(updateNodeMatrixWorld(tree, scene), 5_001);
+});
+
+test('releaseTransformNode: frees one slot, its children become roots, the next add reuses it', () => {
+  const tree = createTransformTree(4);
+  const parent = addTransformNode(tree);
+  const node = addTransformNode(tree, parent);
+  const child = addTransformNode(tree, node);
+  releaseTransformNode(tree, node);
+  assert.equal(tree.flags[node] & NODE_ALIVE, 0);
+  assert.equal(tree.parent[child], -1);
+  assert.equal(
+    visitSubtree(tree, parent, () => {}),
+    1,
+  );
+  assert.equal(addTransformNode(tree), node);
+  assert.equal(tree.end, 3);
 });
 
 test('nextStamp: a fresh stamp on every call, never zero', () => {
@@ -70,6 +89,11 @@ test('removeTransformNode: removes the node and its descendants, a sibling stays
   assert.equal(tree.flags[feuille] & NODE_ALIVE, 0);
   assert.ok(tree.flags[frere] & NODE_ALIVE);
   assert.equal(tree.flags[racine] & NODE_ALIVE, NODE_ALIVE);
+  assert.equal(
+    visitSubtree(tree, racine, () => {}),
+    2,
+    'the removed branch left its parent',
+  );
 });
 
 test('removeTransformNode: freed indices are reused, as a stack, by the next add', () => {
