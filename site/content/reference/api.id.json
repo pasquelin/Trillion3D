@@ -932,7 +932,8 @@
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
       "PHYSICS_NESTED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
-      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`."
+      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan."
     }
   },
   "EngineProfiler": {
@@ -6643,7 +6644,7 @@
       "autoUpdate": "Apakah loop dunia memanggil `update` sebelum setiap bingkai, sebelum hook `world.beforeFrame`. `false` menyerahkan langkah ke halaman, yang memanggil `update` dari hook semacam itu, sesering dan lewat sub-langkah apa pun yang diintegrasikannya; dunia kemudian tidak pernah melangkahkannya.",
       "capsuleHeight": "Hanya character: tinggi tubuh, meter; 1,75 secara default.",
       "capsuleRadius": "Hanya character: jari-jari tubuh, meter; setengah lebar bahu (0,23 m) secara default.",
-      "colliders": "Hanya character: apa yang ditabrakkan tubuh, atau `null`. Mesh — satu objek atau sebuah daftar, keturunannya disertakan — membangun sebuah pohon segitiga statis dari segitiga ruang-dunianya sebagaimana berdiri sekarang: satu pass melewati segitiga dan sebuah build `O(T log T)`, sekitar 52 byte disimpan per segitiga. Model terkompilasi belum dibaca: berikan sebuah mesh sederhana sebagai pengganti untuk mereka. Sebuah `CharacterCollision` — dunia sebuah backend fisika, apa pun yang menjawab `resolveCapsule` dan `groundBelow` — dipakai apa adanya.",
+      "colliders": "Hanya character: apa yang ditabrakkan tubuh, atau `null`. Mesh — satu objek atau sebuah daftar, keturunannya disertakan — membangun sebuah pohon segitiga statis dari segitiga ruang-dunianya sebagaimana berdiri sekarang: satu pass melewati segitiga dan sebuah build `O(T log T)`, sekitar 52 byte disimpan per segitiga. Model terkompilasi belum dibaca: berikan sebuah mesh sederhana sebagai pengganti untuk mereka. Sebuah `CharacterCollision` — dunia sebuah backend fisika, apa pun yang menjawab `resolveCapsule` dan `groundBelow` — dipakai apa adanya. Tidak dipakai selama `world.physics` berjalan: tubuh lalu milik fisika dan bertemu benda-bendanya, `mesh.physics`.",
       "coyoteTime": "Hanya character: detik setelah berjalan turun dari sebuah tepi sebuah lompatan masih diberikan; 0,1 secara default.",
       "eyeHeight": "Hanya character: tinggi kamera di atas kaki, meter; 1,64 secara default.",
       "fallGravity": "Hanya character: percepatan ke bawah saat jatuh, m/s²; 1,6 g secara default, jadi sebuah lompatan tidak melayang.",
@@ -6666,7 +6667,10 @@
       "stride": "Hanya character: fase langkah dalam radian, satu kaki melangkah pada 0 dan π; 0 sebaliknya.",
       "velocity": "Hanya character: kecepatan tubuh dalam meter per detik, sebuah salinan; nol sebaliknya.",
       "walkSpeed": "Hanya character: meter per detik berjalan kaki; 3,5 secara default, sebuah jog.",
-      "yawInput": "Hanya flight: stick yaw dalam [-1, 1] (kiri), ditambahkan ke tombol panah; 0 secara default."
+      "yawInput": "Hanya flight: stick yaw dalam [-1, 1] (kiri), ditambahkan ke tombol panah; 0 secara default.",
+      "mass": "Hanya karakter, dengan fisika: kilogram yang ditekankan tubuh pada pijakannya; bawaan 80.",
+      "pushStrength": "Hanya karakter, dengan fisika: newton yang dipakai tubuh untuk mendorong benda; bawaan 250, dorongan berkelanjutan orang dewasa.",
+      "vehicle": "Hanya kendaraan: yang dikemudikan kontrol `'vehicle'` — apa pun yang punya `drive(input)`, yang menerima gas, rem, setir, dan rem tangan setiap kali tombol berubah. Bawaan `null`, dan selama itu `kind = 'vehicle'` melempar `NO_VEHICLE`."
     }
   },
   "world.diagnostic": {
@@ -7254,6 +7258,22 @@
       "x": "Kiri ke kanan.",
       "y": "Bawah ke atas.",
       "z": "Belakang ke depan."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Apa pun yang bisa dikemudikan `world.controls.vehicle`: menerima masukan setiap kali berubah.",
+    "members": {
+      "drive": "Menerima pedal dan setir setiap kali tombol mengubahnya."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Yang diminta pengemudi dari kendaraan: pedal dan setir, sebagaimana tombol `world.controls` `'vehicle'` mengaturnya.",
+    "description": "Fisika kendaraan itu sendiri — mesin, roda, suspensi — menjawabnya; kontrak ini adalah semua yang diketahui kontrol.",
+    "members": {
+      "throttle": "Pedal gas, 0 sampai 1.",
+      "brake": "Pedal rem, 0 sampai 1.",
+      "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
+      "handbrake": "Apakah rem tangan ditarik."
     }
   }
 }

@@ -1581,7 +1581,8 @@
       "SCENE_NOT_SAVABLE": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
       "PHYSICS_BUDGET": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
       "PHYSICS_NESTED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
-      "PHYSICS_FAILED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`."
+      "PHYSICS_FAILED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
+      "NO_VEHICLE": "`world.controls.kind` a reçu `'vehicle'` alors que `world.controls.vehicle` vaut `null` : il n’y a rien à conduire."
     }
   },
   "enginePose": {
@@ -6301,7 +6302,7 @@
       "update": "Fait avancer un contrôleur piloté sur `delta` secondes ; un contrôleur à pivot relit sa pose, et une orbite tourne de `autoRotate`. Un contrôleur en pause ne fait rien.",
       "follow": "La caméra du monde a changé : le contrôleur la suit.",
       "dispose": "Arrête le contrôleur et retire ses écouteurs du canevas.",
-      "colliders": "Personnage seulement : les maillages que le corps heurte — un objet ou une liste, descendants compris — ou `null`. Les poser construit un arbre de triangles statique depuis leurs triangles en espace monde tels qu’ils sont maintenant : un passage sur les triangles et une construction en `O(T log T)`, environ 52 octets gardés par triangle. Les modèles compilés ne sont pas encore lus : donne-leur une doublure en maillage simple. Un `CharacterCollision` — le monde d’un moteur physique, tout ce qui répond à `resolveCapsule` et `groundBelow` — est utilisé tel quel.",
+      "colliders": "Personnage seulement : les maillages que le corps heurte — un objet ou une liste, descendants compris — ou `null`. Les poser construit un arbre de triangles statique depuis leurs triangles en espace monde tels qu’ils sont maintenant : un passage sur les triangles et une construction en `O(T log T)`, environ 52 octets gardés par triangle. Les modèles compilés ne sont pas encore lus : donne-leur une doublure en maillage simple. Un `CharacterCollision` — le monde d’un moteur physique, tout ce qui répond à `resolveCapsule` et `groundBelow` — est utilisé tel quel. Inutilisé tant que `world.physics` tourne : le corps est alors celui de la physique et rencontre ses corps, `mesh.physics`.",
       "rebuildColliders": "Personnage seulement : reconstruit l’arbre de collision, après que les collisionneurs ont bougé ou changé. Un `CharacterCollision` est son propre monde et passe inchangé.",
       "velocity": "Personnage seulement : la vitesse du corps en mètres par seconde, une copie ; zéro sinon.",
       "onGround": "Personnage seulement : si les pieds sont sur un sol ; `false` pour tout autre contrôleur.",
@@ -6324,7 +6325,10 @@
       "headBob": "Personnage seulement : mètres dont l’œil monte et descend à chaque pas en footing ; 0,035 par défaut, 0 le garde à niveau.",
       "landingDip": "Personnage seulement : secondes entre le contact au sol et le point le plus bas de l’affaissement de l’œil à l’atterrissage, aussi profond que l’impact est rapide ; 0,06 par défaut, 0 le désactive.",
       "onLand": "Personnage seulement : appelée à l’atterrissage avec la vitesse de descente en m/s ; `null` par défaut.",
-      "onJump": "Personnage seulement : appelée quand le corps quitte le sol sur un saut ; `null` par défaut."
+      "onJump": "Personnage seulement : appelée quand le corps quitte le sol sur un saut ; `null` par défaut.",
+      "mass": "Personnage seulement, avec la physique : kilogrammes que le corps pèse sur ce qui le porte ; 80 par défaut.",
+      "pushStrength": "Personnage seulement, avec la physique : newtons avec lesquels le corps pousse les corps ; 250 par défaut, la poussée soutenue d’un adulte.",
+      "vehicle": "Véhicule seulement : ce que conduisent les contrôles `'vehicle'` — tout objet doté de `drive(input)`, qui reçoit l’accélérateur, le frein, la direction et le frein à main à chaque changement des touches. `null` par défaut, et `kind = 'vehicle'` lève `NO_VEHICLE` tant qu’il l’est."
     }
   },
   "world.renderer": {
@@ -7253,6 +7257,22 @@
       "x": "De gauche à droite.",
       "y": "De bas en haut.",
       "z": "D’arrière en avant."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Tout ce que `world.controls.vehicle` peut conduire : il reçoit l’entrée à chacun de ses changements.",
+    "members": {
+      "drive": "Reçoit les pédales et le volant, chaque fois qu’une touche les change."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Ce qu’un conducteur demande à un véhicule : les pédales et le volant, tels que les touches de `world.controls` `'vehicle'` les règlent.",
+    "description": "La physique du véhicule — moteur, roues, suspension — y répond ; ce contrat est tout ce que les contrôles en savent.",
+    "members": {
+      "throttle": "Accélérateur, de 0 à 1.",
+      "brake": "Pédale de frein, de 0 à 1.",
+      "steer": "Volant, de −1 tout à gauche à 1 tout à droite.",
+      "handbrake": "Si le frein à main est tiré."
     }
   }
 }
