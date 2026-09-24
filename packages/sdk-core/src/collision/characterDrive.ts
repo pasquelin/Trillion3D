@@ -144,8 +144,7 @@ function approach(
     decay = Math.exp(-rate * (h - linear)),
     reach = rate > 0 ? (1 - decay) / rate : h - linear;
   // The gap's integral over the tick, then the gap left, as fractions of the gap at its start.
-  const covered = gap > 0 ? ((gap + middle) / 2) * linear + middle * reach : 0,
-    along = gap > 0 ? covered / gap : 0,
+  const along = gap > 0 ? (((gap + middle) / 2) * linear + middle * reach) / gap : 0,
     left = gap > 0 ? (middle * decay) / gap : 0;
   step.dx = tx * h + gx * along;
   step.dz = tz * h + gz * along;
