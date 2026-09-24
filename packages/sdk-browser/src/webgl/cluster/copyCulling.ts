@@ -5,7 +5,7 @@ import {
   FRUSTUM_PLANE_VALUES,
   frustumExcludesBox,
 } from '../../../../sdk-core/src/index.ts';
-import { multiplyMatrix4 } from './matrices.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4.ts';
 import { placementsSphere } from './meshDepth.ts';
 import { readHostBox } from '../../host/boxBounds.ts';
 import { isTransmissive } from '../../visibility/shader/material.ts';
@@ -46,7 +46,7 @@ class WebglClusterCopyCulling {
   private box = new Float64Array(BOX_VALUES);
   /** Reads the frame's frustum once; the copies are then tested against it. */
   begin(camera: HostDrawCamera) {
-    multiplyMatrix4(this.viewProjection, camera.projection, camera.view);
+    multiplyMatrix4Typed(this.viewProjection, camera.projection, camera.view);
     clipPlanesFromMatrix(this.planes, this.viewProjection);
   }
   visible(copy: CulledCopy) {
