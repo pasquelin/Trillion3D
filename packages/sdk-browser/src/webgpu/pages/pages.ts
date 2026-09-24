@@ -31,8 +31,8 @@ import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
-import { markWebgpuLost } from './io/lost.ts';
-import { claimGpuDevice, type GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
+import { claimWebgpuDevice } from './io/lost.ts';
+import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
 
 /** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
@@ -45,7 +45,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
   // The device this session holds, until it is disposed: the errors it raises reach it alone.
-  let claim: GpuDeviceClaim | undefined;
+  let claim: GpuDeviceClaim | undefined, closing: Promise<void> | undefined;
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
@@ -88,20 +88,20 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       context.signal?.throwIfAborted();
       const { gpuDevice } = setup;
       if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
-      // Disposed before it prepared: a claim now would never be released.
-      if (run.lost) throw new Error('WEBGPU_LOST');
-      // Claimed before any call on it, and before the ledger wraps the same creations. An
-      // uncaptured error abandons the device: what follows would draw on a state no one knows. It
-      // is reported once, as the loss it is, with the error's text.
-      claim = claimGpuDevice(gpuDevice, {
-        error: (message) => markWebgpuLost(rt, { reason: 'uncaptured-error', message }),
-        lost: (info) => markWebgpuLost(rt, info),
-      });
-      // The allocation ledger is installed before the first one: everything that follows is counted in it.
+      // Disposed before it prepared: nothing failed, and a claim now would never be released.
+      if (run.lost)
+        throw new DOMException('The backend was disposed before it prepared', 'AbortError');
+      // The allocation ledger is installed before the first one, and before the handle binds the
+      // creations it counts: everything that follows is counted in it.
       installGpuDeviceLedger(gpuDevice);
-      prepareGpuTiming(rt, gpuDevice);
+      // The session creates through its own handle, whose labels name it.
+      claim = claimWebgpuDevice(rt, gpuDevice);
+      // A device already lost is announced by the claim: nothing is built on it.
+      if (run.lost) throw new Error('WEBGPU_LOST');
+      const device = (setup.gpuDevice = claim.device);
+      prepareGpuTiming(rt, device);
       try {
-        await prepareWebgpuPages(rt, gpuDevice);
+        await prepareWebgpuPages(rt, device);
         // The batch of root world boxes is reserved last: the module's linear memory will no
         // longer grow behind it, and a node move will allocate nothing more.
         context.preparationStep?.('root boxes');
@@ -191,7 +191,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       return readShadowAtlasDigest(device, rt.lights.shadows);
     },
     dispose() {
-      return disposeWebgpuPages(rt, claim);
+      // Once: a backend closed before it prepared is closed again by whoever prepared it.
+      return (closing ??= disposeWebgpuPages(rt, claim));
     },
   };
   return backend;

@@ -1,3 +1,4 @@
+import { claimGpuDevice } from '../../../gpu/core/deviceOwners.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -34,4 +35,25 @@ export function markWebgpuLost(
   console.error(`[trillion3d] WebGPU device lost (${cause.reason}): ${cause.message}`);
   diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', { code: 'WEBGPU_LOST', ...cause });
   return true;
+}
+
+/**
+ * Claims `device` for the backend (`gpu/core/deviceOwners.ts`). An uncaptured error of its own
+ * abandons the device: what follows would draw on a state no one knows, so it is reported once,
+ * as the loss it is, with the error's text. An error of a closed session's objects is said under
+ * `gpu-closed-session-error`, as a warning: it is not this session's.
+ */
+export function claimWebgpuDevice(
+  rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu' | 'diag'>,
+  device: GPUDevice,
+) {
+  return claimGpuDevice(device, {
+    error: (message) => markWebgpuLost(rt, { reason: 'uncaptured-error', message }),
+    closedError: (message) =>
+      rt.diag.engineDiagnostic('gpu-closed-session-error', 'WebGPU error of a closed session', {
+        kind: 'warning',
+        message,
+      }),
+    lost: (info) => markWebgpuLost(rt, info),
+  });
 }
