@@ -65,6 +65,7 @@ export const tierEnsurer = (
     tracking,
     bootstrapKey: new Uint8Array(tracking.keyCount),
     hasBytes: () => true,
+    parentsOf: () => [],
     isLost: () => false,
     traceEnabled: false,
     traceDiagnostic: () => {},
