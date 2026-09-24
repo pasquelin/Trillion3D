@@ -1934,7 +1934,7 @@
       {
         "name": "collision",
         "type": "CharacterCollision | null",
-        "desc": "What the body collides with — the world's colliders, or a physics backend's world through the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls. Unused while the world's physics runs: the body is then the physics' own."
+        "desc": "What the body collides with — the world's colliders as a triangle tree, or any world that answers the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls. Unused while the world's physics runs: physics replaces the body with its own."
       },
       {
         "name": "update(delta?: number)",
@@ -1965,7 +1965,7 @@
         "desc": "Lowers the capsule's bottom sphere straight down, by at most `depth`, and returns how far it goes before it first rests on a surface `accepts` takes — the highest such support; negative when the capsule already sinks into it and must rise. `null` when there is none. `capsule.feet` is left where it was. `accepts` sees each candidate touch as a contact: `point`, `normal` from the point to the sphere's centre, `surface` the face turned up."
       }
     ],
-    "description": "The character body (`characterBody.ts`) never reads triangles: it moves its capsule in parts shorter than its radius and, after each, asks what the capsule overlaps and which way out; and a walker asks where the floor under its feet is. Everything else — speed, gravity, steps, slopes, jumps — is the body's own. A physics backend implements this interface to put a character in its world: it answers the overlap from its own shapes and broad phase, and the body walks on them unchanged. The default implementation is the static triangle tree of `triangleCollision`."
+    "description": "The character body (`characterBody.ts`) never reads triangles: it moves its capsule in parts shorter than its radius and, after each, asks what the capsule overlaps and which way out; and a walker asks where the floor under its feet is. Everything else — speed, gravity, steps, slopes, jumps — is the body's own. The static triangle tree of `triangleCollision` implements it, and so may any world that answers the two questions. A physics backend does not: it replaces the whole body through `CharacterBodyFactory`, and its character meets the simulation's own bodies."
   },
   {
     "id": "Clip",
