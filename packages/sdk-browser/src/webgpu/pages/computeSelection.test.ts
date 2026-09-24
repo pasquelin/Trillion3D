@@ -28,7 +28,7 @@ test('webgpu compute selection page ids match the CPU oracle for the same camera
   const { source, metadata, indices, associations, geometry, material } = quadScene();
   const collected = collectClusterPages(source, metadata, indices, associations);
   const packed = packDagSelection(collected.roots);
-  const { device } = mockGpu(undefined, packed);
+  const { device } = mockGpu({ packed });
   const viewport: [number, number] = [960, 540];
   const backend = webgpuPagesBackend({
     source,
@@ -72,7 +72,7 @@ test('webgpu compute selection matches the CPU coarse LOD cut', async () => {
   const viewport: [number, number] = [960, 540];
   const collected = collectClusterPages(source, metadata, allIndices, associations);
   const packed = packDagSelection(collected.roots);
-  const { device } = mockGpu(undefined, packed);
+  const { device } = mockGpu({ packed });
   const backend = webgpuPagesBackend({
     source,
     metadata,

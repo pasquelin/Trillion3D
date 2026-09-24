@@ -1,14 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPageCache } from './pages.ts';
-import { mockDevice } from '../../../../../tests/kit/gpu/pagesDevice.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
-installGpuGlobals();
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 };
 
 test('the page pool shrinks while keeping its pages: copy, move, eviction of the last ones', async () => {
-  const { device: gpu, copies, destroyed } = mockDevice(LIMITS);
+  const { device: gpu, copies, destroyed } = fakeDevice({ limits: LIMITS });
   const cache = createGpuPageCache(
     gpu,
     { read: async () => new Uint8Array(8) },
@@ -24,7 +22,7 @@ test('the page pool shrinks while keeping its pages: copy, move, eviction of the
   assert.equal(cache.stats().slots, 3);
   assert.equal(cache.stats().allocatedBytes, 24);
   assert.notEqual(cache.buffer, before);
-  assert.equal(destroyed(), 1, 'the old buffer is destroyed');
+  assert.equal(destroyed.length, 1, 'the old buffer is destroyed');
   assert.equal(copies[0].size, 24, 'the common prefix is copied in one go');
   assert.deepEqual(evicted.sort(), ['b', 'c', 'd']);
   assert.ok(cache.get('e') && cache.get('f'));
@@ -38,7 +36,7 @@ test('the page pool shrinks while keeping its pages: copy, move, eviction of the
 });
 
 test('the held cover keeps its place before every pinned page, and no held page is evicted', async () => {
-  const { device: gpu } = mockDevice(LIMITS);
+  const { device: gpu } = fakeDevice({ limits: LIMITS });
   const cache = createGpuPageCache(
     gpu,
     { read: async () => new Uint8Array(8) },
@@ -54,7 +52,7 @@ test('the held cover keeps its place before every pinned page, and no held page 
 });
 
 test('a page outside the pool is moved into a free slot rather than evicted, and the log says so', async () => {
-  const { device: gpu, copies } = mockDevice(LIMITS);
+  const { device: gpu, copies } = fakeDevice({ limits: LIMITS });
   const cache = createGpuPageCache(
     gpu,
     { read: async () => new Uint8Array(8) },

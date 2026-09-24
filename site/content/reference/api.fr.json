@@ -1158,7 +1158,7 @@
   },
   "createSceneLightStore": {
     "summary": "Lumières de la scène, en nombre fixe.",
-    "description": "Le tampon est alloué une fois pour `maxLights` lumières et n’est jamais réalloué ; ajouter, régler ou retirer une lumière n’écrit que ses seize flottants et augmente sa révision. La `revision` par lumière est ce que lit le planificateur d’ombres pour savoir qu’une lumière a changé : aucune structure n’est reconstruite par image."
+    "description": "Le tampon est alloué une fois pour `maxLights` lumières et n’est jamais réalloué ; ajouter, régler ou retirer une lumière n’écrit que ses seize flottants et augmente sa révision. La `revision` par lumière indique à un lecteur qu’une lumière a changé : aucune structure n’est reconstruite par image. Le planificateur d’ombres lit lui-même la forme de la lumière, si bien qu’un changement d’intensité ou de couleur ne périme aucune page d’ombre."
   },
   "createSceneRoot": {
     "summary": "Crée une hiérarchie de scène vide et versionnée.",
@@ -6351,7 +6351,7 @@
       "texturePool": "Octets de mémoire GPU gardés pour les pages de texture, `null` sur un moteur sans réservoir de textures (WebGL2) ; règle-le pour changer l’enveloppe, dans ce que `gpu` laisse à côté des ombres et du réservoir de géométrie.",
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
       "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
-      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Jamais lu sur la machine.",
+      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Un total sous le réservoir d’ombres est refusé (`GPU_BUDGET_UNDER_SHADOW_POOL`). Jamais lu sur la machine.",
       "cpu": "Octets de mémoire CPU que les pages décodées du monde peuvent tenir ; pris au prochain chargement de scène.",
       "split": "Le partage des deux totaux : le réservoir d’ombres à son maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le cache de pages décodées prend le total CPU. Ce que donne la règle, avant un réservoir réglé seul."
     }

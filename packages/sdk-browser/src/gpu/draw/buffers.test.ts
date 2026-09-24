@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mockDrawDevice } from '../../../../../tests/kit/gpu/drawDevice.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createGpuDrawBuffers } from './buffers.ts';
 import {
   BASE_SLOTS,
@@ -17,8 +16,7 @@ import {
 // case which must reproduce the sizes from before layers.
 
 test('createGpuDrawBuffers sizes the item, rest and instance buffers from slotCap alone, for layerSlots = 1', () => {
-  installGpuGlobals();
-  const { device } = mockDrawDevice();
+  const { device } = fakeDevice();
   const slotCap = 8;
   const buffers = createGpuDrawBuffers(device, slotCap, 1);
   assert.equal(buffers.slots, BASE_SLOTS, 'layerSlots = 1 reproduces the six slots from before');
@@ -32,10 +30,9 @@ test('createGpuDrawBuffers sizes the item, rest and instance buffers from slotCa
 });
 
 test('the indirect, group and slotUsed buffers grow with layerSlots; the item, rest and instance buffers do not', () => {
-  installGpuGlobals();
   const slotCap = 20;
   const sizesFor = (layerSlots: number) => {
-    const { device } = mockDrawDevice();
+    const { device } = fakeDevice();
     return createGpuDrawBuffers(device, slotCap, layerSlots);
   };
   const one = sizesFor(1),
@@ -61,10 +58,9 @@ test('the indirect, group and slotUsed buffers grow with layerSlots; the item, r
 });
 
 test('every allocated buffer is word-aligned, including an odd slotCap and several layer counts', () => {
-  installGpuGlobals();
   for (const slotCap of [1, 3, 17, 65]) {
     for (const layerSlots of [1, 2, 5]) {
-      const { device } = mockDrawDevice();
+      const { device } = fakeDevice();
       const buffers = createGpuDrawBuffers(device, slotCap, layerSlots);
       for (const buffer of buffers.all)
         assert.equal(buffer.size % 4, 0, `slotCap=${slotCap} layerSlots=${layerSlots}`);
@@ -73,13 +69,12 @@ test('every allocated buffer is word-aligned, including an odd slotCap and sever
 });
 
 test('slotUsedBuf starts every slot at one: a caller that counts nothing pays the full compaction, exactly like before', () => {
-  installGpuGlobals();
   for (const layerSlots of [1, 3]) {
-    const { device } = mockDrawDevice();
+    const { device, writes } = fakeDevice();
     const buffers = createGpuDrawBuffers(device, 8, layerSlots);
-    const raw = buffers.slotUsedBuf as unknown as { data: Uint8Array };
+    const initial = writes.find((write) => write.buffer === buffers.slotUsedBuf)!;
     assert.deepEqual(
-      [...new Uint32Array(raw.data.buffer)],
+      [...written(initial)],
       new Array(slotCount(layerSlots)).fill(1),
       'every slot starts marked used, so an unmodified caller compacts everything as before',
     );
