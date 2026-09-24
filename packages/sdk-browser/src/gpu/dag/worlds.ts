@@ -51,3 +51,23 @@ export function worldsChanged(previous: Float32Array, next: Float32Array) {
   for (let j = 0; j < next.length; j++) if (previous[j] !== next[j]) return true;
   return false;
 }
+
+/**
+ * Per-primitive frame words, behind the six planes of its first row: the stretch, the root the
+ * descent starts from, and the record shift that leads its pages to their shared records
+ * (`layout.ts`). Three words the kernel reads without one more storage buffer bound to the stage.
+ */
+export function primitiveFrameWords(
+  packed: Pick<PackedDag, 'worldCount' | 'worldStretch' | 'rootNodes' | 'recordShift'>,
+) {
+  const worldCount = Math.max(1, packed.worldCount);
+  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
+    frameInts = new Uint32Array(frameData.buffer);
+  for (let w = 0; w < packed.worldCount; w++) {
+    const at = (w * FRAME_VEC4 + 6) * 4;
+    frameData[at] = packed.worldStretch[w];
+    frameInts[at + 1] = packed.rootNodes[w];
+    frameInts[at + 2] = packed.recordShift[w];
+  }
+  return frameData;
+}
