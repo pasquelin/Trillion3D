@@ -480,7 +480,6 @@
       "sort-and-reduce": "GPU计算API",
       "a-software-rasteriser": "GPU计算API",
       "sound-from-the-gpu": "GPU计算API",
-      "falling-boxes": "物理引擎集成",
       "breaking-things": "物理引擎集成",
       "cloth-and-rope": "物理引擎集成",
       "soft-bodies": "物理引擎集成",

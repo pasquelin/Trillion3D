@@ -930,9 +930,9 @@
       "WEBGPU_LOST": "فقد WebGPU جهازه، أو ترك خطأ عليه حالة لا يمكن الرسم منها: تطلقه `render` و`flush` والقراءات التي تحتاج إلى الجهاز، ويسمّيه التشخيص `gpu-device-lost`، ويظهر في `world.diagnostic.error` عندما تعذّر فتح جلسة بسببه.",
       "UNSUPPORTED_SCENE_FORMAT": "مشهد محفوظ من صيغة أو إصدار آخر، أو يحتوي على ما لا يستطيع المشهد المحفوظ تخزينه.",
       "SCENE_NOT_SAVABLE": "مشهد محفوظ من صيغة أو إصدار آخر، أو يحتوي على ما لا يستطيع المشهد المحفوظ تخزينه.",
-      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      "PHYSICS_BUDGET": "طُلب من الفيزياء تجاوز أحد حدودها (`world.budget.physics`: الأجسام، المثلثات، الأجسام الزخرفية، الذاكرة)، أو لم يكن جسم ديناميكي ابنًا مباشرًا للمشهد (`PHYSICS_NESTED`)، أو فشلت وحدة الفيزياء (`PHYSICS_FAILED`): على `world.physics.error`.",
+      "PHYSICS_NESTED": "طُلب من الفيزياء تجاوز أحد حدودها (`world.budget.physics`: الأجسام، المثلثات، الأجسام الزخرفية، الذاكرة)، أو لم يكن جسم ديناميكي ابنًا مباشرًا للمشهد (`PHYSICS_NESTED`)، أو فشلت وحدة الفيزياء (`PHYSICS_FAILED`): على `world.physics.error`.",
+      "PHYSICS_FAILED": "طُلب من الفيزياء تجاوز أحد حدودها (`world.budget.physics`: الأجسام، المثلثات، الأجسام الزخرفية، الذاكرة)، أو لم يكن جسم ديناميكي ابنًا مباشرًا للمشهد (`PHYSICS_NESTED`)، أو فشلت وحدة الفيزياء (`PHYSICS_FAILED`): على `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1894,10 +1894,10 @@
       "surface": "سجلّ السطح الفيزيائي للمحرك لهذه المادة (`contracts/material.ts`). يُرسم نوع خارج العائلة الفيزيائية عبر عائلة المضيف بنفس اسمه، التي يخطّطها المحرك على نموذج إضاءته الواحد (`surfaceModel.ts`).",
       "clone": "مادة جديدة من النوع نفسه، بالقيم نفسها.",
       "dispose": "ينسى مرتديها: مادة مُتلَفة لا تُعيد رسم أحد.",
-      "physics": "Physics matter preset of the bodies wearing it.",
-      "density": "kg/m³, for a body's mass.",
-      "friction": "Physics friction.",
-      "restitution": "Physics restitution."
+      "physics": "إعداد مادة فيزيائية مسبق للأجسام التي ترتديها.",
+      "density": "كغ/م³، لكتلة الجسم.",
+      "friction": "الاحتكاك الفيزيائي.",
+      "restitution": "الارتداد الفيزيائي."
     }
   },
   "Material-common": {
@@ -2082,7 +2082,7 @@
       "geometry": "شكل الشبكة؛ اضبط هندسة أخرى لتغييرها.",
       "material": "مادة الشبكة، أو واحدة لكل مجموعة؛ اضبط أخرى لتغييرها.",
       "localBounds": "صندوق محتوى هذه العقدة الخاص، إطار محلي؛ عقدة عادية لا تحمل شيئًا.",
-      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
+      "physics": "الشبكة جسمًا في فيزياء العالم، أو `null` إن لم تكن. اضبط `'static'` أو `'dynamic'` أو `'kinematic'` أو خيارات؛ يُستنتج الشكل من الهندسة."
     }
   },
   "Mixer": {
@@ -4123,7 +4123,7 @@
       "pixelRatio": "كم بكسل صورة لكل بكسل شاشة.",
       "controls": "أداة التحكّم التي تحرّك الكاميرا من الـ canvas؛ `world.controls.kind` تغيّرها لاحقًا.",
       "signal": "يوقف تحميلات العالم عند إلغاء الإشارة.",
-      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "physics": "يشغّل الفيزياء (`world.physics`): `true` أو الجاذبية والميزانيات. لا يُحمَّل Jolt إلا حينها."
     }
   },
   "WorldPageSource": {
@@ -4770,7 +4770,7 @@
       "options.pixelRatio": "كم بكسل صورة لكل بكسل شاشة.",
       "options.controls": "المتحكِّم الذي يحرّك الكاميرا من اللوحة؛ `world.controls.kind` يغيّره لاحقًا.",
       "options.signal": "يوقف تحميلات العالم عند إلغاء الإشارة.",
-      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "options.physics": "يشغّل الفيزياء (`world.physics`): `true` أو الجاذبية والميزانيات. لا يُحمَّل Jolt إلا حينها."
     }
   },
   "crossVector3": {
@@ -6731,7 +6731,7 @@
       "texturePoolCeiling": "أكبر تجمّع نسيج يمكن لعالم طلبه، بالبايت.",
       "geometryPool": "بايتات ذاكرة GPU المحتفَظ بها لصفحات الهندسة؛ اضبطها لتغيير الظرف.",
       "texturePool": "بايتات ذاكرة GPU المحتفَظ بها لصفحات النسيج؛ اضبطها لتغيير الظرف.",
-      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      "physics": "حدود الفيزياء (الأجسام، المثلثات، الأجسام الزخرفية، الذاكرة)، تُقرأ مرة عند البدء؛ تجاوز أحدها يطلق `PHYSICS_BUDGET`."
     }
   },
   "world.camera": {
@@ -6988,15 +6988,15 @@
     }
   },
   "world.physics": {
-    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "summary": "أجسام الفيزياء وجاذبيتها وزمنها (Jolt، في worker).",
     "members": {
-      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
-      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
-      "paused": "Whether time stands still; writes still reach the bodies.",
-      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
-      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
-      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
-      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      "enabled": "هل تُحاكى الأجسام. تشغيلها أول مرة يحمّل الفيزياء.",
+      "gravity": "الجاذبية بوحدة م/ث²، متجه حي؛ اضبط إعدادًا مسبقًا (`'earth'`، `'moon'`، `'mars'`، `'none'`) أو متجهًا.",
+      "paused": "هل الزمن متوقف؛ الكتابات تصل إلى الأجسام مع ذلك.",
+      "timeScale": "ثوانٍ محاكاة لكل ثانية حقيقية: 0.25 حركة بطيئة.",
+      "budget": "الحدود الثابتة (`budget.physics`)، تُقرأ مرة عند بدء الفيزياء.",
+      "stats": "العدّادات والساعتان: ميلي ثانية worker لكل خطوة، ميلي ثانية الصفحة لكل إطار.",
+      "error": "آخر خطأ أطلقته الفيزياء (`PHYSICS_BUDGET`، `PHYSICS_NESTED`، `PHYSICS_FAILED`) أو `null`."
     }
   }
 }

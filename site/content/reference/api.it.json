@@ -1225,7 +1225,7 @@
       "options.pixelRatio": "Quanti pixel di immagine per pixel di schermo.",
       "options.controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "options.signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
-      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato."
     }
   },
   "crossVector3": {
@@ -1583,9 +1583,9 @@
       "WEBGPU_LOST": "WebGPU ha perso il suo dispositivo, oppure un errore su di esso ha lasciato uno stato da cui nulla può disegnare: lanciato da `render`, `flush` e dalle letture che richiedono il dispositivo, nominato dalla diagnostica `gpu-device-lost`, e su `world.diagnostic.error` quando una sessione non si è potuta aprire per questo.",
       "UNSUPPORTED_SCENE_FORMAT": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
       "SCENE_NOT_SAVABLE": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
-      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      "PHYSICS_BUDGET": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`.",
+      "PHYSICS_NESTED": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`.",
+      "PHYSICS_FAILED": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`."
     }
   },
   "enginePose": {
@@ -3691,10 +3691,10 @@
       "surface": "Il record fisico di superficie del motore per questo materiale (`contracts/material.ts`). Un tipo fuori dalla famiglia fisica viene disegnato dalla famiglia dell'host che ne porta il nome, che il motore riconduce al proprio unico modello di illuminazione (`surfaceModel.ts`).",
       "clone": "Un nuovo materiale dello stesso tipo, con gli stessi valori.",
       "dispose": "Dimentica chi lo porta: un materiale liberato non ridipinge più nessuno.",
-      "physics": "Physics matter preset of the bodies wearing it.",
-      "density": "kg/m³, for a body's mass.",
-      "friction": "Physics friction.",
-      "restitution": "Physics restitution."
+      "physics": "Preimpostazione di materia fisica dei corpi che lo indossano.",
+      "density": "kg/m³, per la massa di un corpo.",
+      "friction": "Attrito fisico.",
+      "restitution": "Rimbalzo fisico."
     }
   },
   "MATERIAL_TABLE_VERSION": {
@@ -4048,7 +4048,7 @@
       "geometry": "La forma della mesh; fornisci un'altra geometria per cambiarla.",
       "material": "Il materiale della mesh, o uno per gruppo; fornisci un altro per cambiarlo.",
       "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una.",
-      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
+      "physics": "La mesh come corpo della fisica del mondo, `null` se non lo è. Imposta `'static'`, `'dynamic'`, `'kinematic'` o opzioni; la forma è dedotta dalla geometria."
     }
   },
   "metric": {
@@ -6473,7 +6473,7 @@
       "texturePoolCeiling": "La riserva di texture più grande che un mondo può richiedere, in byte.",
       "geometryPool": "Byte di memoria GPU mantenuti per le pagine di geometria; impostalo per cambiare il limite.",
       "texturePool": "Byte di memoria GPU mantenuti per le pagine di texture; impostalo per cambiare il limite.",
-      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      "physics": "I limiti della fisica (corpi, triangoli, corpi decorativi, memoria), letti una volta all’avvio; superarne uno solleva `PHYSICS_BUDGET`."
     }
   },
   "world.diagnostic": {
@@ -6652,7 +6652,7 @@
       "pixelRatio": "Quanti pixel di immagine per pixel di schermo.",
       "controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
-      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato."
     }
   },
   "WorldPageSource": {
@@ -6987,15 +6987,15 @@
     "description": "La direzione viene resa unitaria all'ingresso, così ogni `distance` è in unità del mondo qualunque lunghezza abbia dato la pagina. I sottoalberi nascosti vengono saltati — anche una radice sotto un antenato nascosto — così come i nodi che `skip` nomina, con i loro sottoalberi: i segni con cui lavora una pagina, mai il suo contenuto."
   },
   "world.physics": {
-    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "summary": "Corpi, gravità e tempo della fisica (Jolt, in un worker).",
     "members": {
-      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
-      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
-      "paused": "Whether time stands still; writes still reach the bodies.",
-      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
-      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
-      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
-      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      "enabled": "Se i corpi sono simulati. Accenderla carica la fisica la prima volta.",
+      "gravity": "Gravità in m/s², un vettore vivo; imposta una preimpostazione (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vettore.",
+      "paused": "Se il tempo è fermo; le scritture raggiungono comunque i corpi.",
+      "timeScale": "Secondi simulati per secondo reale: 0.25 è il rallentatore.",
+      "budget": "I limiti fissi (`budget.physics`), letti una volta all’avvio della fisica.",
+      "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
+      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`."
     }
   }
 }

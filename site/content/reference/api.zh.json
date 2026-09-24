@@ -923,9 +923,9 @@
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
-      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。"
     }
   },
   "EngineProfiler": {
@@ -1889,10 +1889,10 @@
       "surface": "该材质对应的、引擎自身的物理表面记录(`contracts/material.ts`)。不属于物理材质家族的类型,会通过与其同名的宿主材质家族来绘制,引擎会把它映射到自己唯一的光照模型上(`surfaceModel.ts`)。",
       "clone": "一个类型相同、数值也相同的新材质。",
       "dispose": "忘记所有使用者:一个已释放的材质不会再为任何东西重绘。",
-      "physics": "Physics matter preset of the bodies wearing it.",
-      "density": "kg/m³, for a body's mass.",
-      "friction": "Physics friction.",
-      "restitution": "Physics restitution."
+      "physics": "穿戴它的物体的物理材质预设。",
+      "density": "kg/m³，用于物体的质量。",
+      "friction": "物理摩擦。",
+      "restitution": "物理回弹。"
     }
   },
   "MaterialParameters": {
@@ -2064,7 +2064,7 @@
       "geometry": "该网格的形状;设置另一个几何体即可改变它。",
       "material": "该网格的材质,或每个分组各一个;设置另一个即可改变它。",
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。",
-      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
+      "physics": "网格作为世界物理中的物体，不是时为 `null`。设为 `'static'`、`'dynamic'`、`'kinematic'` 或选项；形状由几何体推断。"
     }
   },
   "Mixer": {
@@ -3962,7 +3962,7 @@
       "texturePoolCeiling": "一个世界可以请求的最大纹理池,单位字节。",
       "geometryPool": "为几何体页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
       "texturePool": "为纹理页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
-      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      "physics": "物理的上限（物体、三角形、装饰物体、内存），启动时读取一次；超出任一项会抛出 `PHYSICS_BUDGET`。"
     }
   },
   "world.diagnostic": {
@@ -4127,7 +4127,7 @@
       "pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "signal": "当该信号被中止时停止世界的加载操作。",
-      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
     }
   },
   "WorldPageSource": {
@@ -4760,7 +4760,7 @@
       "options.pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "options.controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "options.signal": "当该信号被中止时停止世界的加载操作。",
-      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
     }
   },
   "crossVector3": {
@@ -6987,15 +6987,15 @@
     "description": "方向在入口处被归一化为单位向量,因此无论页面给出的长度如何,每个 `distance` 都以世界单位计。隐藏的子树会被跳过 —— 位于隐藏祖先之下的根也一样 —— `skip` 指定的节点及其子树也会被跳过:它们是页面工作时用的标记,从不是页面的内容。"
   },
   "world.physics": {
-    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "summary": "物理的物体、重力与时间（Jolt，在 worker 中）。",
     "members": {
-      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
-      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
-      "paused": "Whether time stands still; writes still reach the bodies.",
-      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
-      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
-      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
-      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      "enabled": "物体是否被模拟。首次打开时加载物理。",
+      "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
+      "paused": "时间是否静止；写入仍会到达物体。",
+      "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "budget": "固定上限（`budget.physics`），物理启动时读取一次。",
+      "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。"
     }
   }
 }

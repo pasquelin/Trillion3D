@@ -1894,6 +1894,19 @@
       "bodies": "물체",
       "awake": "활성",
       "step": "스텝"
+    },
+    "choices": {
+      "matter": {
+        "wood": "나무",
+        "rubber": "고무",
+        "ice": "얼음"
+      },
+      "gravity": {
+        "earth": "지구",
+        "moon": "달",
+        "mars": "화성",
+        "none": "없음"
+      }
     }
   },
   "ten-thousand-bodies": {
@@ -1907,6 +1920,13 @@
       "awake": "활성",
       "step": "스텝",
       "page": "페이지"
+    },
+    "choices": {
+      "count": {
+        "10000": "10,000",
+        "5000": "5,000",
+        "1000": "1,000"
+      }
     }
   }
 }

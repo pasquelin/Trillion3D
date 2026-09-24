@@ -1894,6 +1894,19 @@
       "bodies": "物体",
       "awake": "活动",
       "step": "步长"
+    },
+    "choices": {
+      "matter": {
+        "wood": "木头",
+        "rubber": "橡胶",
+        "ice": "冰"
+      },
+      "gravity": {
+        "earth": "地球",
+        "moon": "月球",
+        "mars": "火星",
+        "none": "无"
+      }
     }
   },
   "ten-thousand-bodies": {
@@ -1907,6 +1920,13 @@
       "awake": "活动",
       "step": "步长",
       "page": "页面"
+    },
+    "choices": {
+      "count": {
+        "10000": "10,000",
+        "5000": "5,000",
+        "1000": "1,000"
+      }
     }
   }
 }

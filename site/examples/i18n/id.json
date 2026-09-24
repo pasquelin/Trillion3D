@@ -1894,6 +1894,19 @@
       "bodies": "Benda",
       "awake": "Aktif",
       "step": "Langkah"
+    },
+    "choices": {
+      "matter": {
+        "wood": "kayu",
+        "rubber": "karet",
+        "ice": "es"
+      },
+      "gravity": {
+        "earth": "Bumi",
+        "moon": "Bulan",
+        "mars": "Mars",
+        "none": "tidak ada"
+      }
     }
   },
   "ten-thousand-bodies": {
@@ -1907,6 +1920,13 @@
       "awake": "Aktif",
       "step": "Langkah",
       "page": "Halaman"
+    },
+    "choices": {
+      "count": {
+        "10000": "10.000",
+        "5000": "5.000",
+        "1000": "1.000"
+      }
     }
   }
 }

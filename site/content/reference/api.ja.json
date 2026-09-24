@@ -923,9 +923,9 @@
       "WEBGPU_LOST": "WebGPU がデバイスを失ったか、デバイス上のエラーによって何も描画できない状態になりました。`render`、`flush`、およびデバイスを必要とする読み取りがスローし、診断 `gpu-device-lost` がこの名前で報告し、そのためにセッションを開けなかったときは `world.diagnostic.error` に現れます。",
       "UNSUPPORTED_SCENE_FORMAT": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
       "SCENE_NOT_SAVABLE": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
-      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      "PHYSICS_BUDGET": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
+      "PHYSICS_NESTED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
+      "PHYSICS_FAILED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。"
     }
   },
   "EngineProfiler": {
@@ -1889,10 +1889,10 @@
       "surface": "このマテリアルの、エンジン独自の物理表面レコード(`contracts/material.ts`)。物理系ファミリーの外にある種別は、その名前を持つホストファミリーを通じて描かれ、エンジンはそれを自身の唯一のライティングモデルにマッピングする(`surfaceModel.ts`)。",
       "clone": "同じ種別・同じ値を持つ新しいマテリアル。",
       "dispose": "まとっているものを忘れる: dispose済みのマテリアルは誰も再描画しない。",
-      "physics": "Physics matter preset of the bodies wearing it.",
-      "density": "kg/m³, for a body's mass.",
-      "friction": "Physics friction.",
-      "restitution": "Physics restitution."
+      "physics": "これをまとう物体の物理素材プリセット。",
+      "density": "kg/m³。物体の質量に使う。",
+      "friction": "物理の摩擦。",
+      "restitution": "物理の反発。"
     }
   },
   "MaterialParameters": {
@@ -2064,7 +2064,7 @@
       "geometry": "メッシュの形; 別のジオメトリを設定すると変わる。",
       "material": "メッシュのマテリアル、またはグループごとに1つ; 別のものを設定すると変わる。",
       "localBounds": "このノード自身の内容が占めるボックス、ローカルフレームで; 普通のノードは何も持たない。",
-      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
+      "physics": "ワールドの物理における物体としてのメッシュ。物体でなければ `null`。`'static'`、`'dynamic'`、`'kinematic'` かオプションを設定。形はジオメトリから推定される。"
     }
   },
   "Mixer": {
@@ -3962,7 +3962,7 @@
       "texturePoolCeiling": "世界が要求できる最大のテクスチャプール、バイト単位。",
       "geometryPool": "ジオメトリページ用に保持されるGPUメモリのバイト数; 設定するとその範囲が変わる。",
       "texturePool": "テクスチャページ用に保持されるGPUメモリのバイト数; 設定するとその範囲が変わる。",
-      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      "physics": "物理の上限（物体、三角形、装飾物体、メモリ）。開始時に一度読まれ、超えると `PHYSICS_BUDGET` になる。"
     }
   },
   "world.diagnostic": {
@@ -4127,7 +4127,7 @@
       "pixelRatio": "画面の1ピクセルあたりの画像ピクセル数。",
       "controls": "canvasからカメラを動かすコントローラー; 後から`world.controls.kind`で変更できる。",
       "signal": "そのシグナルが中止されると世界の読み込みを止める。",
-      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。"
     }
   },
   "WorldPageSource": {
@@ -4760,7 +4760,7 @@
       "options.pixelRatio": "画面の1ピクセルあたりの画像ピクセル数。",
       "options.controls": "canvasからカメラを動かすコントローラー; 後から`world.controls.kind`で変更できる。",
       "options.signal": "そのシグナルが中止されると世界の読み込みを止める。",
-      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "options.physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。"
     }
   },
   "crossVector3": {
@@ -6987,15 +6987,15 @@
     "description": "方向は入口で単位ベクトルにされるため、ページが与えた長さにかかわらず、すべての `distance` はワールド単位です。非表示のサブツリーは飛ばされ(非表示の祖先の下にあるルートも)、`skip` が指定するノードもそのサブツリーごと飛ばされます: ページが作業に使う目印であり、決してその内容ではありません。"
   },
   "world.physics": {
-    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "summary": "物理の物体、重力、時間（Jolt、worker 内）。",
     "members": {
-      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
-      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
-      "paused": "Whether time stands still; writes still reach the bodies.",
-      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
-      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
-      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
-      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      "enabled": "物体をシミュレートするか。初めてオンにすると物理が読み込まれる。",
+      "gravity": "重力（m/s²）、生きたベクトル。プリセット（`'earth'`、`'moon'`、`'mars'`、`'none'`）かベクトルを設定。",
+      "paused": "時間が止まっているか。書き込みは物体に届く。",
+      "timeScale": "実時間 1 秒あたりのシミュレーション秒数：0.25 はスロー。",
+      "budget": "固定の上限（`budget.physics`）。物理の開始時に一度読まれる。",
+      "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。"
     }
   }
 }
