@@ -7,6 +7,7 @@ import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.
 import { batisseur, engine, libere, type ScenePreparee } from './sharedSceneProof.ts';
 import { jusquaTenue } from './sceneImageProof.ts';
 import { SIZE, type Fixture } from './materialFixtureShape.ts';
+import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
 import type {
   BackendFactory,
@@ -129,12 +130,13 @@ export async function engineImage(
   }
 }
 
-/** The WebGL2 engine image of a prepared scene: the public exact-pages path composed on its own
- *  canvas, the way a world composes it. Held when a second frame repeats the first; releases the
- *  scene. */
+/** The WebGL2 engine image of a prepared scene: the shipping autonomous backend reading each page
+ *  encoded from the scene's geometry, composed on its own canvas the way a world composes it. Held
+ *  when a second frame repeats the first; releases the scene. */
 export async function webgl2Image(
-  exactPagesBackend: BackendFactory,
+  autonomousPagesBackend: BackendFactory,
   scene: ScenePreparee,
+  sceneLights: SdkCore.SceneLightStore,
   camera: G.GraphCamera,
 ): Promise<{ pixels: Uint8Array; held: boolean; dataUrl: string }> {
   const canvas = document.createElement('canvas');
@@ -142,15 +144,17 @@ export async function webgl2Image(
   document.body.append(canvas);
   const gl = canvas.getContext('webgl2');
   if (!gl) throw new Error('WebGL2 unavailable');
-  const backend = exactPagesBackend({
+  const { metadata, readGeometryPage } = pagedManifest(scene.metadata, scene.geometries);
+  const backend = autonomousPagesBackend({
     source: scene.source,
-    metadata: scene.metadata,
-    indices: scene.indices,
+    metadata,
+    indices: new Map(),
     associations: scene.associations,
-    pixelError: 0,
+    readGeometryPage,
     viewport: [SIZE, SIZE],
     webglContext: gl,
     clearColor: CLEAR_COLOR,
+    sceneLights,
   });
   const draw = createFrameComposer(gl, camera);
   const frame = () => {
