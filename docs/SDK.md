@@ -610,6 +610,14 @@ Nodes from different roots cannot be combined, duplicate ids are rejected, and a
 hierarchy unchanged. Pose setters mark the transform dirty; call `updateWorldMatrix()` before
 reading `worldMatrix`. The matrix views are read-only by contract; write through the setters.
 
+`TransformNode`, exported by the browser facade, is that node read through the reference's
+matrices: `matrix` and `matrixWorld` are views of its slot, `matrixAutoUpdate` and
+`matrixWorldNeedsUpdate` its flags, and `updateMatrixWorld(force)` the reference's rule. `Object3D`
+and the engine's own graph nodes extend it. Each node lists its children, so an update or a walk
+costs the subtree it starts from, never the other nodes of the hierarchy. The scene objects share
+one hierarchy that holds none of them: a dropped object frees its slot when it is collected, and
+`destroy()` frees a subtree at once.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop
