@@ -37,8 +37,6 @@ extern "C" {
         vertex_count: u32,
         indices: *const u32,
         triangle_count: u32,
-        materials: *const u32,
-        material_count: u32,
         out: *mut *const u8,
         bytes: *mut u32,
     ) -> u32;
@@ -65,9 +63,9 @@ fn taken(status: u32, out: *const u8, bytes: u32, what: &str) -> Result<Vec<u8>>
     Ok(unsafe { std::slice::from_raw_parts(out, bytes as usize) }.to_vec())
 }
 
-/// A static `MeshShape` of `triangles` (indices into `vertices`), every triangle of material 0.
+/// A static `MeshShape` of `triangles` (indices into `vertices`), without material: a tile is of
+/// its collider's, named in `physics.json`.
 pub(crate) fn mesh_shape(vertices: &[f32], triangles: &[u32]) -> Result<Vec<u8>> {
-    let materials = vec![0u32; triangles.len() / 3];
     let (mut out, mut bytes) = (std::ptr::null(), 0u32);
     // SAFETY: every pointer names a live slice of the length passed with it.
     let status = unsafe {
@@ -76,8 +74,6 @@ pub(crate) fn mesh_shape(vertices: &[f32], triangles: &[u32]) -> Result<Vec<u8>>
             (vertices.len() / 3) as u32,
             triangles.as_ptr(),
             (triangles.len() / 3) as u32,
-            materials.as_ptr(),
-            1,
             &mut out,
             &mut bytes,
         )
