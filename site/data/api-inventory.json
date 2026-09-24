@@ -3086,6 +3086,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs/examples/chess-pieces.ts",
@@ -4690,6 +4691,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
@@ -5345,6 +5347,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
+        "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs-scene-editor.test.ts"
@@ -8295,6 +8298,7 @@
         "packages/sdk-browser/src/webgpu/row/pageRowMaterial.ts",
         "packages/sdk-browser/src/webgpu/tile/atlas.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
+        "packages/sdk-browser/src/webgpu/tile/live.ts",
         "packages/sdk-browser/src/webgpu/tile/pageTable.test.ts",
         "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
@@ -8308,7 +8312,9 @@
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
         "packages/sdk-browser/src/world/core/worldTextures.ts",
-        "packages/sdk-browser/src/world/texture/index.ts"
+        "packages/sdk-browser/src/world/texture/index.ts",
+        "packages/sdk-browser/src/world/texture/liveVideo.test.ts",
+        "packages/sdk-browser/src/world/texture/liveVideo.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/contract\".Texture"
@@ -8343,6 +8349,7 @@
         "packages/sdk-browser/src/webgpu/row/pageRowMaterial.ts",
         "packages/sdk-browser/src/webgpu/tile/atlas.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
+        "packages/sdk-browser/src/webgpu/tile/live.ts",
         "packages/sdk-browser/src/webgpu/tile/pageTable.test.ts",
         "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
@@ -8356,7 +8363,9 @@
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
         "packages/sdk-browser/src/world/core/worldTextures.ts",
-        "packages/sdk-browser/src/world/texture/index.ts"
+        "packages/sdk-browser/src/world/texture/index.ts",
+        "packages/sdk-browser/src/world/texture/liveVideo.test.ts",
+        "packages/sdk-browser/src/world/texture/liveVideo.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/texture/texture\".Texture"
