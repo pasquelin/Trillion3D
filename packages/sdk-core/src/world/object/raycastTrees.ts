@@ -6,8 +6,8 @@ import type { TriangleTree } from '../../collision/triangleTree.ts';
  * shape's own frame, so a second ray reuses it. The cache holds at most `raycastTreeBudget.bytes`
  * — a fixed, settable envelope, never read from the machine — and drops the tree cast at least
  * recently when a new one would exceed it. `Geometry.dispose()` drops its tree at once. The cache
- * never keeps a geometry alive (it holds it weakly); the tree of one collected without dispose
- * stays held and counted until it is the oldest and evicted.
+ * never keeps a geometry alive (it holds it weakly), and drops the tree of one collected without
+ * dispose once the collector has finalised it. The budget is the page's: every world shares it.
  */
 
 /** A shape's tree, the geometry version it was built from, and each tree triangle's rank. */
@@ -27,8 +27,11 @@ const trees = new WeakMap<Geometry, Held>();
 const order = new Set<Held>();
 let heldBytes = 0,
   budget = RAYCAST_TREE_BUDGET;
+/** Drops the tree of a geometry collected without `dispose()`. */
+const collected = new FinalizationRegistry<Held>((held) => drop(held));
 
 function drop(held: Held) {
+  collected.unregister(held);
   order.delete(held);
   heldBytes -= held.bytes;
   const geometry = held.key.deref();
@@ -77,6 +80,7 @@ export function holdTree(geometry: Geometry, shape: ShapeTree) {
   makeRoom(bytes);
   const held = { ...shape, key: new WeakRef(geometry), bytes };
   trees.set(geometry, held);
+  collected.register(geometry, held, held);
   order.add(held);
   heldBytes += bytes;
 }
