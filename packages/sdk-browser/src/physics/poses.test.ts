@@ -143,7 +143,44 @@ test('a turn is drawn the shorter way round, whichever sign its quaternion comes
   placer.place(0, [0, 0, 0, 0, 0, 0, 1], 0);
   // A quarter turn about y, sent as its opposite quaternion: halfway is an eighth, not 3/8.
   const half = Math.SQRT1_2;
-  placer.lerp(0, new Float32Array([0, 0, 0, 0, -half, 0, -half]), 0, 0.5);
+  placer.draw(new Int32Array([0]), 1, new Float32Array([0, 0, 0, 0, -half, 0, -half]), 0.5);
   placer.end();
   assert.ok(Math.abs(crate.rotation.y - Math.PI / 4) < 1e-3, `an eighth turn, ${crate.rotation.y}`);
+});
+
+test('a slot retired and taken again before a frame is drawn once, not twice', (t) => {
+  let clock = 0;
+  t.mock.method(performance, 'now', () => clock);
+  const scene = new Group();
+  const poses = createPhysicsPoses(2, scene);
+  const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 2 };
+  const bodies = createPhysicsBodies(
+    new CommandWriter(),
+    budget,
+    {} as PhysicsHost,
+    scene,
+    poses.state,
+  );
+  const add = (mesh: Bodied) => {
+    scene.add(mesh);
+    bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
+    return mesh.physics._index | (bodies.generation[mesh.physics._index] << GENERATION_SHIFT);
+  };
+  const chip = new Mesh(box(), new Material('meshStandard')) as Bodied;
+  chip.physics = new ObjectPhysics({ decorative: true });
+  const id = add(chip);
+  // Listed while it falls, then asleep and out before any frame drew it.
+  poses.receive(record(id, [0, 1, 0, 0, 0, 0, 1]), 1, bodies, 16);
+  clock += 16;
+  poses.receive(record(id | ASLEEP_BIT, [0, 0.5, 0, 0, 0, 0, 1]), 1, bodies, 16);
+  const crate = new Mesh(box(), new Material('meshStandard')) as Bodied;
+  crate.physics = new ObjectPhysics('dynamic');
+  const next = add(crate);
+  assert.equal(crate.physics._index, 0, 'the slot is taken again');
+  clock += 16;
+  poses.receive(record(next, [0, 2, 0, 0, 0, 0, 1]), 1, bodies, 16);
+  // Halfway through the tick: halfway to the target, from where it stood.
+  clock += 8;
+  poses.apply(bodies);
+  assert.equal(crate.position.y, 1);
 });
