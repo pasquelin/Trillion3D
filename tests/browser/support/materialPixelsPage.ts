@@ -24,13 +24,14 @@ import type {
   BackendFactory,
   BackendDiagnostic,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
-import type * as SdkBrowser from '../../../bench/witnesses/measurement.ts';
+import type * as Witnesses from '../../../bench/witnesses/measurement.ts';
+import type * as Engine from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 interface Sides {
   referenceBackend: BackendFactory;
   webgpuPagesBackend: BackendFactory;
-  exactPagesBackend: BackendFactory;
+  autonomousPagesBackend: BackendFactory;
   device: GPUDevice;
   renderer: THREE.WebGLRenderer;
   canvas: HTMLCanvasElement;
@@ -83,9 +84,10 @@ async function drawn(
 ): Promise<{ pixels: ArrayLike<number>; held: boolean; dataUrl: string }> {
   const scene = sceneOf(fixture, sides.sun);
   const { camera } = sides;
-  if (renderer === 'webgl2') return webgl2Image(sides.exactPagesBackend, scene, camera);
+  const lights = fixture.lit ? sides.stores.sun : sides.stores.none;
+  if (renderer === 'webgl2')
+    return webgl2Image(sides.autonomousPagesBackend, scene, lights, camera);
   if (renderer === 'webgpu') {
-    const lights = fixture.lit ? sides.stores.sun : sides.stores.none;
     const { pixels, held, dataUrl } = await engineImage(
       sides.webgpuPagesBackend,
       scene,
@@ -143,14 +145,15 @@ interface RunResult {
 /** Runs every fixture on both engines and returns their readings, or what stopped the run. */
 export async function run({
   sdkUrl,
+  engineUrl,
   coreUrl,
 }: {
   sdkUrl: string;
+  engineUrl: string;
   coreUrl: string;
 }): Promise<RunResult> {
-  const { referenceBackend, webgpuPagesBackend, exactPagesBackend } = (await import(
-    sdkUrl
-  )) as typeof SdkBrowser;
+  const { referenceBackend } = (await import(sdkUrl)) as typeof Witnesses;
+  const { webgpuPagesBackend, autonomousPagesBackend } = (await import(engineUrl)) as typeof Engine;
   const { createSceneLightStore } = (await import(coreUrl)) as typeof SdkCore;
   const gpu = await ouvrirAppareil();
   if (!gpu) return { unavailable: 'no WebGPU adapter' };
@@ -168,7 +171,7 @@ export async function run({
   const sides: Sides = {
     referenceBackend,
     webgpuPagesBackend,
-    exactPagesBackend,
+    autonomousPagesBackend,
     device,
     renderer,
     canvas,
