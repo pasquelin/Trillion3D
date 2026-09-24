@@ -1,18 +1,18 @@
-// #360, #361: a texture's sampling follows its host, not the surfaces that wear it — compared
-// with its header once per image, before the hold verdict, whichever pass reads the texture —,
-// and a moved colour texture is signalled as a landed tile is, so the cutout shadows that read it
-// follow and a held image is released.
+// #360, #361: a texture's sampling follows its host, not the surfaces that wear it — the records
+// brought up once per image, before the hold verdict, then the headers written where a word
+// moved, whichever pass reads the texture —, and a moved colour texture is signalled as a landed
+// tile is, so the cutout shadows that read it follow and a held image is released.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTileStreamer } from './streamer.ts';
 import { poolEncoding } from '../../texture/blockFormats.ts';
 import { tileLayout } from '../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { importHostTexture } from '../../host/surfaceImport.ts';
+import { followHostTextures, importHostTexture } from '../../host/textureImport.ts';
 import type { HostMaterials, HostTexture } from '../../host/resources.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
-import { followHostTextures, holdWebgpuFrame, keepWebgpuFrame } from '../frame/hold.ts';
+import { holdWebgpuFrame, keepWebgpuFrame } from '../frame/hold.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
 import * as THREE from 'three';
 
@@ -74,36 +74,40 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
   return { textures, writes: () => tableWrites, signalled };
 }
 
-test('the sampling follows its host at every image, a filter written after needsUpdate included', () => {
+/** One image's follow, as `../pages/render/render.ts` runs it before the hold verdict. */
+const follow = (textures: { followSampling(moved: ReadonlySet<Texture>): void }) => {
+  const moved = followHostTextures();
+  if (moved.size) textures.followSampling(moved);
+};
+
+test('the headers follow their hosts once per image, only what moved written', () => {
   const colour = host(),
     data = host();
   const colourRecord = record(colour);
   const { textures, writes, signalled } = streamer([colourRecord], record(data));
   const opened = writes();
-  assert.equal(textures.followSampling(), false);
+  follow(textures);
   assert.equal(writes(), opened, 'nothing moved: nothing written');
   // Three's order as often as the other: `needsUpdate` first, the filter after it.
   colour.needsUpdate = true;
   colour.minFilter = THREE.NearestMipmapNearestFilter;
   colour.anisotropy = 8;
-  textures.followSampling();
+  follow(textures);
   assert.equal(colourRecord.minFilter, 'nearest-mip-nearest', 'the filter written after it');
   assert.deepEqual(signalled, [[1]], 'the colour slot, as a landed tile');
   assert.equal(writes(), opened + 1);
-  textures.followSampling();
+  follow(textures);
   assert.equal(writes(), opened + 1, 'the same state: written once');
   // A placement moves no version: the matrix recomposed at the image moves the header.
   data.offset.x = 0.5;
-  textures.followSampling();
+  follow(textures);
   assert.deepEqual(signalled, [[1], []], 'signalled, no shadow reads a data map');
   assert.equal(writes(), opened + 2, 'one send per atlas that moved');
-  textures.followSampling();
-  assert.equal(writes(), opened + 2, 'the same placement: nothing written');
-  // An addressing lives in the page rows, not in the header: said, not written.
-  data.wrapS = THREE.RepeatWrapping;
-  data.needsUpdate = true;
-  assert.equal(textures.followSampling(), true, 'the addressing moved');
-  assert.equal(writes(), opened + 2);
+  // An addressing rides in the header too: written, and the cutout shadows told, as a filter.
+  colour.wrapS = THREE.RepeatWrapping;
+  follow(textures);
+  assert.deepEqual(signalled, [[1], [], [1]], 'the colour slot, for its cutout shadows');
+  assert.equal(writes(), opened + 3);
   textures.destroy();
 });
 
@@ -113,9 +117,9 @@ test('the map of a transparent surface alone follows its host, no surface reread
   const read = visMaterial(surface as unknown as HostMaterials).map!;
   const { textures, signalled } = streamer([read], record(host()));
   map.magFilter = THREE.NearestFilter;
-  map.needsUpdate = true;
-  textures.followSampling();
-  assert.equal(read.magFilter, 'nearest', 'the record the transparent item holds');
+  map.wrapT = THREE.MirroredRepeatWrapping;
+  follow(textures);
+  assert.deepEqual([read.magFilter, read.wrapT], ['nearest', 'mirror'], 'the item’s record');
   assert.deepEqual(signalled, [[1]]);
   textures.destroy();
 });
@@ -126,39 +130,37 @@ test('a filter changed on a held image releases it, and the image draws it', () 
   const { textures } = streamer([record(colour)], record(host()), () =>
     rt.run.gate.resourcesChanged(),
   );
-  Object.assign(rt.vis, { textures });
   const device = {} as GPUDevice;
   for (let i = 0; i < 2; i++) {
     rt.run.frame++;
     keepWebgpuFrame(rt);
   }
-  followHostTextures(rt);
+  follow(textures);
   assert.equal(holdWebgpuFrame(rt, device), true, 'nothing moved: the image is held');
-  colour.needsUpdate = true;
   colour.magFilter = THREE.NearestFilter;
-  followHostTextures(rt);
+  follow(textures);
   assert.equal(holdWebgpuFrame(rt, device), false, 'the next image is drawn');
-  // An addressing moved: the page rows that fold it are written again.
-  const { rows } = rt.layout as unknown as { rows: { tableEpoch: number } },
-    epoch = rows.tableEpoch;
-  colour.wrapT = THREE.MirroredRepeatWrapping;
-  colour.needsUpdate = true;
-  followHostTextures(rt);
-  assert.equal(rows.tableEpoch, epoch + 1, 'the page rows written again');
   textures.destroy();
 });
 
-// The cost of the walk, paid at every image, held or not: 1 000 textures, nothing moved — the
-// matrix recomposed, the words compared. Printed, bounded loosely so a slow machine passes.
-test('the walk over 1 000 textures costs microseconds per image', (t) => {
-  const records = Array.from({ length: 1000 }, () => record(host()));
-  const { textures } = streamer(records, record(host()));
-  for (let i = 0; i < 200; i++) textures.followSampling();
-  const images = 2000,
-    started = performance.now();
-  for (let i = 0; i < images; i++) textures.followSampling();
-  const perImage = ((performance.now() - started) / images) * 1000;
-  t.diagnostic(`followSampling, 1 000 textures: ${perImage.toFixed(1)} µs per image`);
-  assert.ok(perImage < 2000);
+// The cost paid at every image, held or not, by 1 000 host textures: nothing moved — the import
+// compares each record with its host, no trigonometry —, then one texture sliding — its matrix
+// recomposed, every header's words compared. Printed, bounded loosely so a slow machine passes.
+test('following 1 000 textures costs microseconds per image', (t) => {
+  const hosts = Array.from({ length: 1000 }, host);
+  const { textures } = streamer(hosts.map(record), record(host()));
+  const perImage = (step: (image: number) => void) => {
+    for (let i = 0; i < 200; i++) step(i);
+    const images = 2000,
+      started = performance.now();
+    for (let i = 0; i < images; i++) step(i);
+    return ((performance.now() - started) / images) * 1000;
+  };
+  const still = perImage(() => follow(textures)),
+    sliding = perImage((image) => ((hosts[0].offset.x = image / 1000), follow(textures)));
+  t.diagnostic(
+    `1 000 textures, µs per image: ${still.toFixed(1)} still, ${sliding.toFixed(1)} one sliding`,
+  );
+  assert.ok(still < 2000 && sliding < 2000);
   textures.destroy();
 });

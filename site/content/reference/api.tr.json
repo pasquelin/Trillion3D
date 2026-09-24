@@ -1502,7 +1502,12 @@
       "colorSpace": "Sayılarının nasıl okunduğu.",
       "matrix": "Örnekleyicinin UV dönüşümü, üç satıra bileşik `KHR_texture_transform`; host, güncellemeye sahip olduğunda onu offset, repeat ve rotation'dan yeniden hesaplar.",
       "matrixAutoUpdate": "Host'un `matrix`'i yeniden inşa edip etmediği.",
-      "updateMatrix": "`matrix`'i offset, repeat ve rotation'dan yeniden inşa eder."
+      "updateMatrix": "`matrix`'i offset, repeat ve rotation'dan yeniden inşa eder.",
+      "offset": "`matrix`in neyden oluşturulduğu.",
+      "repeat": "Kaç kez sığdığı.",
+      "center": "Dönmenin ekseni.",
+      "rotation": "Dönme, radyan cinsinden.",
+      "addEventListener": "Ana makine dokuyu bıraktığında içe aktarıcıya haber verir."
     }
   },
   "HostTraversable": {
@@ -3454,6 +3459,8 @@
       "id": "İçe aktarılan sahnedeki dokunun kimliği: bir önbellek anahtarının ve bir mesajın onu adlandırdığı şey.",
       "name": "Kaynak dosyanın verdiği ad, hiçbiri vermediğinde boş; yalnızca mesajlar tarafından okunur.",
       "version": "Tekseller her değiştiğinde artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",
+      "sampling": "Adresleme, filtreler veya anizotropi değiştiğinde artar: örnekleyici yeniden ayarlanır.",
+      "placement": "`transform` değiştiğinde artar: yerleşim yeniden yazılır, hiçbir şey yüklenmez.",
       "image": "Çözülmüş görsel. Kabı `unknown` kalır: yalnızca onu yükleyen sınır bilir.",
       "channel": "Örnekleyicinin okuduğu UV seti, `KHR_texture_transform`'un `texCoord`'u; motor 0 ve 1'i örnekler.",
       "wrapS": "Yatayda tekrar.",
@@ -3486,8 +3493,9 @@
       "flipY": "Görselin okunurken baş aşağı çevrilip çevrilmediği.",
       "anisotropy": "Görselin eğik açıda ne kadar keskin kaldığı.",
       "channel": "Dokunun geometrinin hangi UV setini takip ettiği.",
-      "version": "Yerleşim dışındaki her yazmada artar: bir malzemenin resmi örneklemesiyle birlikte yeniden göndermek için karşılaştırdığı değer.",
-      "placement": "Yerleşim değiştiğinde artar — `repeat`, `offset`, `rotation` —: resmi kaydırır, piksellerini asla; bir malzemenin onu yeniden yerleştirmek için karşılaştırdığı değer.",
+      "version": "Resmin veya nasıl okunduğunun yazılmasıyla artar: bir malzemenin resmi yeniden göndermek için karşılaştırdığı şey.",
+      "sampling": "Adresleme, filtreler veya anizotropi yazıldığında artar: yeniden ayarlanır, hiçbir şey gönderilmez.",
+      "placement": "`repeat`, `offset` veya `rotation` yazıldığında artar: yeniden yerleştirilir, hiçbir şey gönderilmez.",
       "image": "Görselin kendisi: bir görsel, bir canvas, bir video ya da ham pikseller.",
       "layout": "Görselin pikselleri dışında ne tuttuğu: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Her pikselin nasıl saklandığı: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
