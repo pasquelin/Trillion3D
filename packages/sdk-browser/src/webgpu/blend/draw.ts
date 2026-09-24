@@ -84,7 +84,7 @@ export function drawBlendRuns(
   for (let index = 0; index < count; index++) {
     const at = index * RUN_WORDS,
       entry = order[runs[at]],
-      owner = runOwner(entry, runs[at + 1]);
+      owner = runOwner(order, runs[at], runs[at + 1]);
     // A run that names its item decides on the frustum bit: a draw that would set no pixel is not
     // encoded at all, as it was not per item. A run that merges several carries too many entries
     // to query one by one — the GPU zeros their instances, and a draw with no instance sets nothing.

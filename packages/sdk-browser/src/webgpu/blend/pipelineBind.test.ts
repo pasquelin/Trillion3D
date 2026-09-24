@@ -157,7 +157,7 @@ test('an unpaged item cuts the run of its paged neighbours', () => {
   assert.deepEqual(melange.pipelines, [BACK], 'one pipeline for the three');
 });
 
-test('a two-sided item does set its two pipelines, in blend order', () => {
+test('a two-sided unpaged item does set its two pipelines, in blend order', () => {
   const deux = joue([item(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE)]);
   assert.equal(deux.calls, 4, 'two draws per two-sided item');
   // The second item picks up where the first stopped: its first face changes, the second too.
@@ -168,4 +168,14 @@ test('a two-sided item does set its two pipelines, in blend order', () => {
   const renverse = joue([item(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE, true)]);
   assert.equal(renverse.calls, 4);
   assert.deepEqual(renverse.pipelines, [FRONT, BACK, FRONT]);
+});
+
+test('two-sided paged items draw back and face in ONE draw, on the pipeline that culls nothing', () => {
+  // The vertex stage culls for them (plan.ts, VERTEX CULL): a mirrored matrix swaps their cull
+  // modes, not their pipeline, and the whole row still fits in one draw.
+  const pages = joue([pagee(G.DOUBLE_SIDE), pagee(G.DOUBLE_SIDE), pagee(G.DOUBLE_SIDE)]);
+  assert.equal(pages.calls, 1, 'six entries, one draw');
+  assert.deepEqual(pages.pipelines, [TEXTURED]);
+  const renverse = joue([pagee(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE, true, true)]);
+  assert.equal(renverse.calls, 1);
 });
