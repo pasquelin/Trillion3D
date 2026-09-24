@@ -6343,7 +6343,7 @@
       "texturePool": "Byte di memoria GPU riservati alle pagine di texture, `null` su un motore senza serbatoio di texture (WebGL2); impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre e al serbatoio di geometria.",
       "physics": "I limiti della fisica (corpi, triangoli, corpi decorativi, memoria), letti una volta all’avvio; superarne uno solleva `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte di memoria CPU che `raycast` tiene per gli alberi di triangoli, condivisi da tutti i mondi della pagina; oltre, l’albero usato meno di recente viene scartato. Impostalo per cambiare l’involucro.",
-      "gpu": "Byte di memoria GPU che il mondo può occupare, tutti i serbatoi insieme; impostalo per ridisegnare ogni serbatoio secondo la regola di ripartizione (`split`). Mai letto dalla macchina.",
+      "gpu": "Byte di memoria GPU che il mondo può occupare, tutti i serbatoi insieme; impostalo per ridisegnare ogni serbatoio secondo la regola di ripartizione (`split`). Mai letto dalla macchina. Un totale inferiore al serbatoio delle ombre viene rifiutato: `GPU_BUDGET_UNDER_SHADOW_POOL`.",
       "cpu": "Byte di memoria CPU che le pagine decodificate del mondo possono occupare; applicato al prossimo caricamento di scena.",
       "split": "Come si dividono i due totali: il serbatoio delle ombre al suo massimo, poi metà ciascuno ai serbatoi di geometria e texture, limitati al loro tetto; la cache delle pagine decodificate prende il totale CPU. Ciò che dà la regola, prima di un serbatoio impostato da solo."
     }

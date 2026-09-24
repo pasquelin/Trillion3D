@@ -3849,7 +3849,7 @@
       "texturePool": "Bytes de memória GPU reservados para páginas de textura, `null` num motor sem reservatório de texturas (WebGL2); defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras e do reservatório de geometria.",
       "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
-      "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Nunca lido da máquina.",
+      "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Nunca lido da máquina. Um total abaixo do reservatório de sombras é recusado: `GPU_BUDGET_UNDER_SHADOW_POOL`.",
       "cpu": "Bytes de memória CPU que as páginas decodificadas do mundo podem ocupar; aplicado no próximo carregamento de cena.",
       "split": "Como os dois totais são divididos: o reservatório de sombras no máximo, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o cache de páginas decodificadas fica com o total de CPU. O que a regra dá, antes de um reservatório definido sozinho."
     }
