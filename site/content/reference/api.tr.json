@@ -1659,7 +1659,7 @@
       "scope": "`'full'` tüm önbelleği gerektirir, `'progressive'` onun akışlı kesitini; başka bir kapsamdaki bir model isimle reddedilir. Ayarlanmazsa, model göstericisinin bildirdiği kapsamda okunur.",
       "stream": "Sayfanın yapılandırdığı bir akıtıcı; dünyanın oturumu kendi akıtıcısıyla akıtır.",
       "position": "Modelin başlangıç noktasının sahnede nereye gittiği.",
-      "onProgress": "Yüklemenin ne kadar ilerlediğini duyar: manifest okunduğunda `manifest`, ardından sahnenin okuduğu her dosya geldikçe `resources` (o ana kadar bilinen `total` içinden `completed`). Olay bir `JobProgress`'tir: yüklemeyi saran bir `createJob` kendi `progress`'ini buraya verir."
+      "onProgress": "Yüklemenin ne kadar ilerlediğini duyar: okunan her dosyanın her parçasında `completed === total` olana kadar `bytes`; manifest okununca `manifest`, sahne tabloları okununca `tables`, ardından sahnenin okuduğu her dosya geldikçe `resources` (şimdiye kadar bilinen `total` içinden `completed`). Olay bir `JobProgress`'tir: yüklemeyi saran bir `createJob` kendi `progress`'ini buraya verir ve `world.awaitPages` ilk sayfaları aynı biçimde bildirir."
     }
   },
   "LoadedModel": {
@@ -3891,7 +3891,10 @@
     "summary": "Oturumun karelerinin aşama başına profili."
   },
   "world.awaitPages": {
-    "summary": "Mevcut görünümün okuduğu sayfalar yerleşik olur olmaz çözülür (`awaitViewPages`)."
+    "summary": "Mevcut görünümün okuduğu sayfalar yerleşik olur olmaz çözülür (`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress`, sayfalar geldikçe `pages` olayını, `total` içinden `completed` olarak duyar."
+    }
   },
   "world.dispose": {
     "summary": "Dünyayı durdurur ve aldığı her şeyi geri verir: GPU belleği, döngü, kontroller."

@@ -2901,7 +2901,7 @@
       "scope": "`'full'` fordert den ganzen Cache an, `'progressive'` seinen Ausschnitt als Stream; ein Modell mit anderem Umfang wird bei seinem Namen abgelehnt. Ohne Wert wird das Modell mit dem Umfang gelesen, den sein Zeiger deklariert.",
       "stream": "Ein von der Seite eingestellter Stream; die Sitzung der Welt lässt Seiten mit ihrem eigenen ankommen.",
       "position": "Wohin der Ursprung des Modells in der Szene geht.",
-      "onProgress": "Hört, wie weit das Laden ist: `manifest`, sobald das Manifest gelesen ist, dann `resources`, sobald jede Datei ankommt, die die Szene liest (`completed` von dem bisher bekannten `total`). Das Ereignis ist ein `JobProgress`: ein `createJob`, der das Laden umschließt, übergibt hier sein `progress`."
+      "onProgress": "Hört, wie weit das Laden ist: `bytes` bei jedem Stück jeder gelesenen Datei, bis `completed === total`; `manifest`, sobald das Manifest gelesen ist, `tables`, sobald die Szenentabellen gelesen sind, dann `resources`, sobald jede Datei eintrifft, die die Szene liest (`completed` von bisher bekanntem `total`). Das Ereignis ist ein `JobProgress`: Ein `createJob`, das das Laden umschließt, gibt hier sein `progress` weiter, und `world.awaitPages` meldet die ersten Seiten in derselben Form."
     }
   },
   "LOD_QUALITY": {
@@ -6397,7 +6397,10 @@
     "summary": "Öffnet ein neues `cpuSteps()`-Fenster."
   },
   "world.awaitPages": {
-    "summary": "Endet, wenn die Seiten, die die aktuelle Ansicht liest, resident sind (`awaitViewPages`)."
+    "summary": "Endet, wenn die Seiten, die die aktuelle Ansicht liest, resident sind (`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress` hört `pages`, `completed` von `total`, während sie eintreffen."
+    }
   },
   "world.dispose": {
     "summary": "Stoppt die Welt und gibt alles zurück, was sie genommen hat: GPU-Speicher, Schleife, Steuerungen."

@@ -1659,7 +1659,7 @@
       "scope": "`'full'` 要求整个缓存,`'progressive'` 要求它的流式加载分片;范围不同的模型会按名称被拒绝。未设置时,模型会按其指针所声明的范围读取。",
       "stream": "页面配置的一个流式加载器;世界的会话会用自己的流式加载器进行加载。",
       "position": "模型的原点放在场景中的哪个位置。",
-      "onProgress": "接收加载进行到哪一步:读完清单时为 `manifest`,之后场景读取的每个文件到达时为 `resources`(在当时已知的 `total` 中已完成 `completed`)。事件是一个 `JobProgress`:包裹加载的 `createJob` 在此传入它的 `progress`。"
+      "onProgress": "收听加载进行到哪一步：读取的每个文件的每个数据块都会报告 `bytes`，直到 `completed === total`；清单读完时报告 `manifest`，场景表读完时报告 `tables`，之后场景读取的每个文件到达时报告 `resources`（目前已知 `total` 中的 `completed`）。事件是一个 `JobProgress`：包裹加载的 `createJob` 在此传入它的 `progress`，`world.awaitPages` 也以同样的形式报告首批页面。"
     }
   },
   "LoadedModel": {
@@ -3891,7 +3891,10 @@
     "summary": "本次会话各帧按阶段划分的性能剖析。"
   },
   "world.awaitPages": {
-    "summary": "一旦当前视图读取的页面都已常驻,就会兑现(`awaitViewPages`)。"
+    "summary": "一旦当前视图读取的页面都已常驻,就会兑现(`awaitViewPages`)。",
+    "parameters": {
+      "options": "`onProgress` 在页面陆续到达时收到 `pages`，即 `total` 中的 `completed`。"
+    }
   },
   "world.dispose": {
     "summary": "停止这个世界,并归还它占用的一切:GPU 内存、循环、控制器。"
