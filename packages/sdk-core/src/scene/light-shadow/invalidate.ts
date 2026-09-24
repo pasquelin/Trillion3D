@@ -95,7 +95,7 @@ function sunPageMeets(level: number, ax: number, ay: number) {
  *   still describes the scene, since nothing else changed. An object already moving stales only
  *   their moving casters: the static layer under them holds. With per-page invalidation off,
  *   every page of each light the box touches, the rule from before per-page maps.
- * - **The representation changed** (the released union of `changes.ts`): the same pages, stale for
+ * - **The representation changed** (the released boxes of `changes.ts`): the same pages, stale for
  *   detail only — their depth is coarser than the cut, not wrong, and stays read until redrawn.
  *
  * Returns the pages staled.
