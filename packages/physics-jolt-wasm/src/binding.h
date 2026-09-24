@@ -134,7 +134,7 @@ void moveCharacter(float dt);
 /// Writes the character's state once the bodies have stepped.
 void writeCharacter();
 
-/// The joints' commands (`joints.cpp`, layout.ts JOINT_WORDS, MOTOR_WORDS).
+/// The joints' commands (`joints.cpp`, layout.ts JOINT_WORDS).
 constexpr uint32_t JOINT = 18, UNJOINT = 19, MOTOR = 20;
 constexpr uint32_t JOINT_WORDS = 31, UNJOINT_WORDS = 2, MOTOR_WORDS = 5;
 /// Runs one joint command; returns its word count.
