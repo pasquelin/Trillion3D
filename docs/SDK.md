@@ -913,14 +913,21 @@ crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, imp
   enabled; bodies set before then are queued.
 - **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
   `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
-  scale throws `RangeError`), `stats` and `error`.
+  scale throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
+linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in: each step, the
+  worker fits a plane of the waves to every piece under water and pushes it by the weight of the
+  water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
+  never where; setting or removing it wakes every dynamic body. A wave out of range throws
+  `RangeError`.
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
   its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
-  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named). A dynamic
+  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named).
+  `{ type: 'compound', parts }` makes one rigid body of primitives, each with its `position` and
+  `quaternion` in the object's frame; its scale must be the same on all axes. A dynamic
   body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
   teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
@@ -955,6 +962,8 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
   stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
+  Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
+  the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,

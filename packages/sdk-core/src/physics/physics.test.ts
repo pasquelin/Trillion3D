@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { box, plane, sphere } from '../world/geometry/basic.ts';
 import { capsule } from '../world/geometry/round.ts';
@@ -58,6 +59,25 @@ test('the shape is the exact primitive a geometry was built as, scaled', () => {
   assert.deepEqual(pill.size, [0.5, 0.3, 0]);
 });
 
+test('a compound places its primitives in the body, scaled; a stretched one is refused', () => {
+  const raft = resolveShape(box(), { x: 2, y: 2, z: 2 }, 'dynamic', {
+    type: 'compound',
+    parts: [
+      { type: 'box', halfExtents: [1, 0.1, 1], position: [0, 0.5, 0] },
+      { type: 'cylinder', halfHeight: 1, radius: 0.2, quaternion: [0, 0, 0.6, 0.8] },
+    ],
+  });
+  assert.equal(raft.shape, SHAPE.compound);
+  assert.deepEqual(raft.parts, [
+    { shape: SHAPE.box, size: [2, 0.2, 2], position: [0, 1, 0], quaternion: [0, 0, 0, 1] },
+    { shape: SHAPE.cylinder, size: [2, 0.4, 0], position: [0, 0, 0], quaternion: [0, 0, 0.6, 0.8] },
+  ]);
+  const stretched = { x: 1, y: 2, z: 1 };
+  assert.throws(() => resolveShape(box(), stretched, 'dynamic', { type: 'compound', parts: [] }), {
+    code: 'PHYSICS_FAILED',
+  });
+});
+
 test('any other mesh is triangles when static and a hull when it moves', () => {
   const ground = resolveShape(plane(4, 4, 2, 2), one, 'static');
   assert.equal(ground.shape, SHAPE.triangles);
@@ -91,4 +111,13 @@ test('physics.json of another format, or cooked by another Jolt, is refused by n
     { ...file, jolt: '0'.repeat(40) },
   ])
     assert.throws(() => readCookedPhysics(wrong), { code: 'PHYSICS_FORMAT' });
+});
+
+test('JOLT_COMMIT is the pin of the Jolt submodule the compiler cooks with', () => {
+  const root = new URL('../../../../', import.meta.url);
+  const entry = execFileSync('git', ['ls-files', '-s', 'packages/physics-jolt-wasm/JoltPhysics'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  assert.equal(JOLT_COMMIT, entry.split(/\s+/)[1], 'bump JOLT_COMMIT with the submodule');
 });

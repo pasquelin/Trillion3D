@@ -48,13 +48,13 @@ test('paged transparent commands disappear outside the view and return with both
         mock.writes.length = 0;
         backend.render(view);
         const blend = mock.draws.filter((d) => d.entryPoint === 'vs');
-        // The encode plan follows the scene, but an item entirely out of view is not encoded
-        // at all: two faces of different pipelines do not merge, so each slice names its
-        // item and decides on the frustum bit. Out of view, no call; in view, the
-        // four — two items, two faces — with the instance count the cut writes.
-        assert.equal(blend.length, x ? 0 : 4, 'encode only the current view, not the old readback');
+        // The encode plan follows the scene: the two items, both faces each, share ONE run —
+        // the vertex stage culls for them. In view, it draws the eight instances the cut writes
+        // (two clusters, two faces, two items); out of view, the run merges two items, so it is
+        // encoded and the expansion zeroes its instances, as the old readback never does.
+        assert.equal(blend.length, 1, 'one draw for both items and both faces');
         assert.equal(backend.metrics().transparentDrawCalls, blend.length);
-        if (!x) assert.ok(blend.every((d) => d.instanceCount === 2));
+        assert.equal(blend[0].instanceCount, x ? 0 : 8, 'encode only the current view');
         assert.equal(
           mock.writes.filter((w) => w.label === 'Trillion3D transparent cluster spans').length,
           0,
