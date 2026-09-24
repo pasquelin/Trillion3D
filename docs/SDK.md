@@ -884,10 +884,22 @@ device cannot hold even the root cover.
 allocated under an out-of-memory check at prepare, and probed before every rebalance. When the
 device refuses it, the pool
 is drawn again at half its bytes, down to its floor (the root cover, one layer per lane). The pool
-in place is only ever replaced by one the device grants. The frame goes on, coarser where the
-smaller pool no longer holds the view, and no exception reaches the page. The
+in place is only ever replaced by one the device grants. A rebalance throws nothing: the frame
+goes on, coarser where the smaller pool no longer holds the view. The
 `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
 granted (`grantedBytes`, `null` when even the floor was refused and the pool in place stays).
+
+At prepare there is no pool in place to keep, so a floor the device refuses is refused by name,
+never allocated at the full request outside the check:
+
+- `WEBGPU_GEOMETRY_POOL_REFUSED` — the root cover itself was refused. The WebGPU backend's
+  preparation fails (`backend-preparation-error`): the world goes on with its other backends (a
+  `fallback` event, `WEBGPU_UNAVAILABLE`), and a world drawing straight to a GPU canvas rejects
+  with the code.
+- `WEBGPU_TEXTURE_POOL_REFUSED` — one layer per lane was refused. The material pipeline drops
+  (`material-pipeline-failed`, the code in `context.error`) and the pages draw with the fallback
+  pass; on a GPU canvas, which needs that pipeline, preparation fails with
+  `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
