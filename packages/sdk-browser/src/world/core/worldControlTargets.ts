@@ -2,8 +2,15 @@ import { meshCollision } from '../../../../sdk-core/src/collision/meshTriangles.
 import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { VehicleDriver } from '../../../../sdk-core/src/physics/vehicle.ts';
-import type { CharacterPort } from '../../physics/physicsCharacter.ts';
+import type { CharacterBodyFactory } from '../../../../sdk-core/src/collision/characterBody.ts';
 import { isHelper } from '../helper/mark.ts';
+
+/** Where the character's body comes from while the world's physics runs: `body()` is `null`
+ *  when it is off, and `watch` is told each time that changes. */
+export interface CharacterSource {
+  body(): CharacterBodyFactory | null;
+  watch(listener: () => void): void;
+}
 
 /** What `world.controls.colliders` takes: meshes to build a triangle tree from, or a world. */
 type Colliders = Object3D | readonly Object3D[] | CharacterCollision | null;
@@ -19,7 +26,7 @@ const isCollision = (value: Colliders): value is CharacterCollision =>
  * vehicle controls drive. `bind` hands them to the controller in place, where it has them;
  * `changed` runs after a write, for the handle to bind and redraw.
  */
-export function controlTargets(physics: () => CharacterPort | null, changed: () => void) {
+export function controlTargets(physics: CharacterSource | null, changed: () => void) {
   let colliders: Colliders = null,
     collision: CharacterCollision | null = null,
     vehicle: VehicleDriver | null = null;
@@ -70,8 +77,8 @@ export function controlTargets(physics: () => CharacterPort | null, changed: () 
       if ('collision' in live && live.collision !== collision) live.collision = collision;
       if ('vehicle' in live && live.vehicle !== vehicle) live.vehicle = vehicle;
       if (!('physics' in live)) return;
-      const port = physics();
-      if (live.physics !== port) live.physics = port;
+      const body = physics?.body() ?? null;
+      if (live.physics !== body) live.physics = body;
     },
   };
 }
