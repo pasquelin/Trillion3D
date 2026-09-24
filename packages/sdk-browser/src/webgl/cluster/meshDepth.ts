@@ -1,5 +1,8 @@
 /** A drawn mesh as its depth reads it: its own sphere or its geometry's, and its world matrix. */
-type DepthNode = { readonly geometry?: unknown; readonly matrix?: { elements: ArrayLike<number> } };
+type DepthNode = {
+  readonly geometry?: unknown;
+  readonly matrixWorld: { elements: ArrayLike<number> };
+};
 type Centre = { readonly x: number; readonly y: number; readonly z: number };
 type Bounded = {
   boundingSphere?: { center: Centre; radius?: number } | null;
@@ -31,7 +34,7 @@ export function depthOf(mesh: DepthNode, screen: ArrayLike<number>) {
         : sphere?.center;
   }
   const c = centre ?? ORIGIN,
-    m = mesh.matrix!.elements;
+    m = mesh.matrixWorld.elements;
   const x = m[0] * c.x + m[4] * c.y + m[8] * c.z + m[12],
     y = m[1] * c.x + m[5] * c.y + m[9] * c.z + m[13],
     z = m[2] * c.x + m[6] * c.y + m[10] * c.z + m[14],
@@ -41,7 +44,11 @@ export function depthOf(mesh: DepthNode, screen: ArrayLike<number>) {
 }
 
 /** An instanced mesh's placement sphere, kept while its matrices and count are unchanged. */
-const placementSpheres = new WeakMap<object, { version: number; count: number; centre: Centre }>();
+type PlacementSphere = { readonly centre: Centre; readonly radius: number };
+const placementSpheres = new WeakMap<
+  object,
+  PlacementSphere & { version: number; count: number }
+>();
 
 /**
  * The centre of the union of an instanced mesh's placement spheres — the geometry's sphere carried
@@ -49,15 +56,20 @@ const placementSpheres = new WeakMap<object, { version: number; count: number; c
  * it, so the two orders sort on the same number. Recomputed only when the matrices or the count
  * change.
  */
-export function placementsCentre(
+export const placementsCentre = (mesh: Instanced, geometry: { center: Centre; radius?: number }) =>
+  placementsSphere(mesh, geometry).centre;
+
+/** The union of an instanced mesh's placement spheres, in its own space: what the depth sorts on
+ *  and what the frustum culls on. A radius below zero is an empty union (no placement). */
+export function placementsSphere(
   mesh: Instanced,
   geometry: { center: Centre; radius?: number },
-): Centre {
+): PlacementSphere {
   const matrices = mesh.instanceMatrix!,
     count = mesh.count ?? 0,
     version = matrices.version ?? 0;
   const kept = placementSpheres.get(mesh);
-  if (kept && kept.version === version && kept.count === count) return kept.centre;
+  if (kept && kept.version === version && kept.count === count) return kept;
   const g = geometry.center,
     gr = geometry.radius ?? 0,
     e = matrices.array;
@@ -116,8 +128,8 @@ export function placementsCentre(
       expandBy(sx - vx, sy - vy, sz - vz);
     }
   }
-  const centre = { x: cx, y: cy, z: cz };
-  placementSpheres.set(mesh, { version, count, centre });
-  return centre;
+  const sphere = { version, count, centre: { x: cx, y: cy, z: cz }, radius: r };
+  placementSpheres.set(mesh, sphere);
+  return sphere;
 }
 const ORIGIN: Centre = { x: 0, y: 0, z: 0 };
