@@ -925,7 +925,9 @@
       "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
       "PHYSICS_BUDGET": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
       "PHYSICS_NESTED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
-      "PHYSICS_FAILED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde."
+      "PHYSICS_FAILED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
+      "PHYSICS_FORMAT": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`)."
     }
   },
   "EngineProfiler": {
