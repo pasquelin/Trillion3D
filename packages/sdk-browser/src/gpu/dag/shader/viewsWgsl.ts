@@ -43,9 +43,12 @@ export const VIEW_WORD_ROWS = 3;
  * alone can fill them, and several can only by together keeping more than the catalogue.
  */
 export const WORK_DROPPED = 4;
-/** Bit of the same word set when a light view drew a primitive coarser than it wanted, its
- *  cluster not resident (`escalate`): the pages it drew wait for residency to change. */
-export const WORK_ESCALATED = 8;
+/** Bit `ESCALATED_VIEWS + view` of the same word is set when light view `view` drew a primitive
+ *  coarser than it wanted, its cluster not resident (`escalate`): the pages of that view, and
+ *  only those, wait for residency to change. */
+export const ESCALATED_VIEWS = 8;
+if (ESCALATED_VIEWS + DAG_MAX_VIEWS > 32)
+  throw new Error(`${DAG_MAX_VIEWS} views do not fit the flag word's escalation bits`);
 
 export const DAG_VIEWS_WGSL = `const MAX_VIEWS:u32=${DAG_MAX_VIEWS}u;
 const VIEW_SHIFT:u32=${VIEW_SHIFT}u;
@@ -64,7 +67,7 @@ fn viewWord(row:u32,v:u32)->u32{return extraBase()+slots()*2u+row*views[0u].view
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
 fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
 fn dropWork(){atomicOr(&out.overflow,${WORK_DROPPED}u);}
-fn noteEscalation(){if(isLightCut()){atomicOr(&out.overflow,${WORK_ESCALATED}u);}}
+fn noteEscalation(){if(isLightCut()){atomicOr(&out.overflow,1u<<(${ESCALATED_VIEWS}u+vi));}}
 fn isLightCut()->bool{return (views[0u].viewFlags&VIEW_LIGHT)!=0u;}
 /** A drawn cluster of the current view, appended at its view's own range of the drawn log — the
  *  candidate list's words, free once \`dagWanted\` has read them. Opening a sixty-four slice

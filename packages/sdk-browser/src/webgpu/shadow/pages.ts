@@ -51,6 +51,8 @@ export function writeShadowRecords(lights: WebgpuLightState) {
 
 /** How each page of the frame is drawn (`DRAW_*`), in admission order: what `commit` records. */
 export const pageModes = new Uint8Array(MAX_SHADOW_PAGES);
+/** The run — the light cut's view — each page of the frame is drawn in, in admission order. */
+export const pageViews = new Uint8Array(MAX_SHADOW_PAGES);
 
 /** Composes page `page`'s projection and cull volume into region `region`'s slots. */
 function composePage(lights: WebgpuLightState, slots: Int32Array, page: number, region: number) {
@@ -131,6 +133,7 @@ export function writeShadowPages(
       runs.open(region, near);
       open = i;
     }
+    pageViews[i] = runs.count - 1;
     runs.add(pool.x[page], pool.y[page], taken);
   }
   if (open >= 0) close(lights, slots, open, count, origin, pixelError);

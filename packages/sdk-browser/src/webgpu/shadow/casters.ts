@@ -6,6 +6,7 @@ import {
   SHADOW_CULL_FLOATS,
   SHADOW_CULL_VIEW,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
+import { pageViews } from './pages.ts';
 import { STALE_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
 /** Where the current face's list lies, rewritten face by face: a frame allocates no record. */
@@ -67,7 +68,7 @@ export function encodeShadowCasters(
     if (settle) timing.shadowRequests = settle;
     const { list, count } = lights.plan.admission;
     const redraw = runs.count
-      ? light.redraws.encode(encoder, list, count, settle !== undefined)
+      ? light.redraws.encode(encoder, list, pageViews, count, settle !== undefined)
       : undefined;
     if (redraw) timing.shadowRedraws = redraw;
     return true;
