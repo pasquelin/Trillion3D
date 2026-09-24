@@ -6,6 +6,7 @@
 // pixel, and the held image must STAY held — there is nothing left to recompute when the host
 // changes its mind.
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { cameraFace, libere, engine } from './sharedSceneProof.ts';
 import { difference, image, redCount } from './sceneImageProof.ts';
@@ -36,16 +37,16 @@ async function sequence(device: GPUDevice, pagine: boolean, evenements: unknown[
     await backend.prepare();
     // A tilt around Y takes the tile corners off the z = 0 plane: at near = 2.8, one of them
     // passes in front of the camera near plane rather than behind.
-    const incline = new Float32Array(new THREE.Matrix4().makeRotationY(0.9).elements);
+    const incline = new Float32Array(new G.Matrix4().makeRotationY(0.9).elements);
     if (!backend.setTransform) throw new Error('backend missing setTransform');
     backend.setTransform('vitre', incline);
     let webgl: Uint8Array | undefined;
     for (let i = 0; i < 6; i++) webgl = await etape('webgl-' + i);
-    camera.coordinateSystem = THREE.WebGPUCoordinateSystem;
+    Object.assign(camera, { coordinateSystem: THREE.WebGPUCoordinateSystem });
     camera.updateProjectionMatrix();
     let webgpu: Uint8Array | undefined;
     for (let i = 0; i < 6; i++) webgpu = await etape('webgpu-' + i);
-    camera.coordinateSystem = THREE.WebGLCoordinateSystem;
+    Object.assign(camera, { coordinateSystem: THREE.WebGLCoordinateSystem });
     camera.updateProjectionMatrix();
     let retour: Uint8Array | undefined;
     for (let i = 0; i < 6; i++) retour = await etape('retour-' + i);

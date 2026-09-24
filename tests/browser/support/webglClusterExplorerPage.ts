@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
 import {
   blendFixture,
@@ -19,7 +19,7 @@ export function execute() {
     mounted = mountExplorerProof(
       fixture,
       camera,
-      (object: THREE.Object3D) => object.userData.lodRole === 'exact',
+      (object: G.GraphNode) => object.userData.lodRole === 'exact',
     );
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
   const { backend, draw, target, calls } = mounted;
