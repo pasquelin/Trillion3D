@@ -888,8 +888,9 @@ world.scene.add(floor, crate);
 crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse));
 ```
 
-- **Loading.** A world without physics fetches no byte of Jolt. The worker and its WebAssembly
-  module are fetched the first time physics is enabled; bodies set before then are queued.
+- **Loading.** A world without physics fetches no byte of Jolt, nor the page's code that drives
+  it. That code, the worker and its WebAssembly module are fetched the first time physics is
+  enabled; bodies set before then are queued.
 - **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
   `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
   scale throws `RangeError`), `stats` and `error`.

@@ -16,15 +16,20 @@ export interface CharacterPort {
 }
 
 /**
- * The session's end of the character: what the body sends is held until the frame's commands
- * have gone (`flush`), so the worker never steps a body before the world it stands in.
+ * The session's end of the character: what the body sends before the world's first commands have
+ * gone is held until they have (`flush`), so the worker never steps a body before the world it
+ * stands in; from then on it is sent at once, the keys included, whenever the page reads them.
  */
 export function createCharacterPort(post: (message: ToPhysics) => void) {
   const held: ToPhysics[] = [];
+  let open = false;
   return {
-    send: (message: ToPhysics) => void held.push(message),
+    send: (message: ToPhysics) => (open ? post(message) : void held.push(message)),
     hear: null as CharacterPort['hear'],
-    flush: () => held.splice(0).forEach(post),
+    flush() {
+      open = true;
+      held.splice(0).forEach(post);
+    },
   };
 }
 
