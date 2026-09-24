@@ -918,7 +918,10 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   worker fits a plane of the waves to every piece under water and pushes it by the weight of the
   water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
   never where; setting or removing it wakes every dynamic body. A wave out of range throws
-  `RangeError`.
+  `RangeError`. `world.physics.waterSurface` reads those same waves at the simulation's time, to
+  draw them: `height(x, z)`, `point(x, z, out)` (where a rest point of a grid is carried),
+  `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
+  goes on from where it is. Live: [floating crates](../site/examples/floating-crates.html).
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
