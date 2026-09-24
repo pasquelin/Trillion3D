@@ -35,6 +35,7 @@ export {
   type PhysicsHost,
   Joint,
   joint,
+  type JointHost,
   type JointKind,
   type JointLimits,
   type JointMotor,
