@@ -59,6 +59,20 @@ test('hinge: a door turns about its pin, driven by its motor, stopped by its lim
   assert.ok(Math.abs(rig.yaw(door)) < 0.05, 'the motor drives it back shut');
 });
 
+test('between two bodies, a motor drives `a` from `b` the way it drives it from the world', async () => {
+  const rig = await jointRig([0, 0, 0]);
+  const frame = rig.cube(-2, 1, 0, 'static');
+  const door = rig.cube(0.5, 1, 0);
+  const rail = rig.cube(-2, 1, 5, 'static');
+  const drawer = rig.cube(0, 1, 5);
+  const velocity = { mode: 'velocity', target: 1, maxForce: 1e5 } as const;
+  rig.wanted.add(joint.hinge(door, frame, { anchor: [0, 1, 0], motor: velocity }));
+  rig.wanted.add(joint.slider(drawer, rail, { axis: [1, 0, 0], motor: velocity }));
+  rig.run(60);
+  assert.ok(Math.abs(rig.yaw(door) - 1) < 0.1, `turned +1 rad about +y: ${rig.yaw(door)}`);
+  assert.ok(Math.abs(rig.at(drawer)[0] - 1) < 0.05, `slid +1 m along +x: ${rig.at(drawer)[0]}`);
+});
+
 test('slider: a drawer slides on its rail by its motor, to its limit; past its force it breaks', async () => {
   const rig = await jointRig();
   const drawer = rig.cube(0, 1, 0);
