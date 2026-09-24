@@ -7003,7 +7003,7 @@
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`."
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
     }
   },
   "ContactEvent": {
@@ -7156,7 +7156,7 @@
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`."
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
     }
   },
   "WorldPhysicsOptions": {
