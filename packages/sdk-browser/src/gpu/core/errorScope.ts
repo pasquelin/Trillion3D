@@ -1,19 +1,33 @@
 /**
- * A device's validation scope, opened around a resource creation. Each creation path used to push
- * and pop it with its own compatibility guard; they share these three steps, and the guard is
- * written once. A device that cannot open a scope proves no error: nothing is refused on that
- * account, and the caller keeps the path it would have kept.
+ * A device's validation scope, opened around a resource creation. The device's scopes are one
+ * stack every session shares: a scope left open takes the errors of the next session, a scope
+ * closed twice takes another's. So `build` runs inside the scope, and the scope is closed once in
+ * every case, a throw included — the `AbortError` of a session released mid-build among them.
+ * A device that cannot open a scope proves no error: nothing is refused on that account, and the
+ * caller keeps the path it would have kept.
  */
-export function openValidation(device: GPUDevice) {
-  if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
+export async function validationScope<T>(
+  device: GPUDevice,
+  build: () => T | Promise<T>,
+): Promise<{ value: T; error: GPUError | null }> {
+  if (typeof device.pushErrorScope !== 'function' || typeof device.popErrorScope !== 'function')
+    return { value: await build(), error: null };
+  device.pushErrorScope('validation');
+  let value: T;
+  try {
+    value = await build();
+  } catch (error) {
+    await device.popErrorScope().catch(() => null);
+    throw error;
+  }
+  return { value, error: await device.popErrorScope() };
 }
 
-/** Closes the scope and returns what the device refused since it opened, or nothing. */
-export async function validationError(device: GPUDevice) {
-  return typeof device.popErrorScope === 'function' ? await device.popErrorScope() : null;
-}
-
-/** Closes the scope without reading it: the fallback path is already decided. */
-export async function dropValidation(device: GPUDevice) {
-  await validationError(device).catch(() => {});
+/** What `build` made, or `undefined` when it made nothing or the device refused part of it. */
+export async function validated<T>(
+  device: GPUDevice,
+  build: () => T | undefined | Promise<T | undefined>,
+): Promise<T | undefined> {
+  const { value, error } = await validationScope(device, build);
+  return error ? undefined : value;
 }

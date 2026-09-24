@@ -250,8 +250,22 @@ is created. A mixed session (measurement only) composes on a WebGL2 surface: the
 into a canvas of its own, publishes it as `presentedSurface`, and the host copies it with the
 engine's own full-screen program (`createBackendPresenter`). `presentedSurface` is withdrawn, and the
 canvas blanked, as soon as the device is lost; the loss is announced once by `gpu-device-lost`
-(`reason`: the device's own, `uncaptured-error` or `residency`). Neither path reads the image back
-for presentation.
+(`reason`: the device's own, `uncaptured-error`, `out-of-memory` or `residency`). Neither path reads
+the image back for presentation.
+
+A world keeps its device across sessions, and each session creates through its own handle on it
+(`gpu/core/sessionHandle.ts`, `gpu/core/deviceOwners.ts`), which tags every label. `dispose` releases
+the handle before anything else, and a released handle is inert: its `create*` throw an `AbortError`,
+so a preparation still running stops there (cancelled, torn down once after it stopped), and its
+queue writes and submits nothing. From `dispose` on, the backend reads as lost: its audits and
+digests answer `null`. The device's error scopes are one stack every session shares: each creation
+path closes the scope it opened in every case, an abort included (`gpu/core/errorScope.ts`), so no
+scope is left to swallow the next session's errors. What a closed session submitted before may still raise an error:
+one that names only closed sessions' objects is a console warning and a `gpu-closed-session-error`
+diagnostic (`kind: 'warning'`, `message`) for the live session, or for the next one to claim the
+device when none is live. An uncaptured error is otherwise a loss for the live session whose objects
+it names, or, naming none, for every live session; running out of memory is reported under
+`reason: 'out-of-memory'`.
 
 For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before anything
 else: attributes, drawing-buffer size from logical size and DPR, loss and restoration, one release.
@@ -341,7 +355,8 @@ modules in its configuration event; a direct source import has `hash: null`.
 Phases carry `pipelineVersion: 1`: `gpu-presentation`, `frame-allocation`, `material-textures`,
 `material-textures-ready`, `material-classes-ready`, `material-surfaces-ready`, `scene-lighting`,
 `render-capabilities`, `render-progress` (selected and resident pages, triangles, pending pages,
-transparent counters), surface-capture phases, `gpu-device-lost`. Observer exceptions cannot
+transparent counters), surface-capture phases, `gpu-device-lost`, `gpu-closed-session-error`
+(`kind: 'warning'`: an error of a session already closed on the same device, never a loss). Observer exceptions cannot
 interrupt a backend. These durations are not frame-performance measurements.
 
 **GPU timing.** `timestamp-query` is requested when the adapter advertises it (`gpu-timing-status`).

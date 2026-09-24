@@ -1,38 +1,27 @@
 import { HIZ_SHADER, hizBindEntries } from './shader.ts';
-import { dropValidation, openValidation, validationError } from '../core/errorScope.ts';
+import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 
 /** Compile the three Hi-Z kernels under one device validation scope. */
-export async function createHizPipelines(device: GPUDevice, uniformBytes: number) {
-  openValidation(device);
-  const layout = device.createBindGroupLayout({ entries: hizBindEntries(uniformBytes) });
-  const module = device.createShaderModule({ code: HIZ_SHADER });
-  if (await shaderFailed(device, module)) return undefined;
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-  const copyPipeline = device.createComputePipeline({
-    layout: pipelineLayout,
-    compute: { module, entryPoint: 'copyDepth' },
+export function createHizPipelines(device: GPUDevice, uniformBytes: number) {
+  return validated(device, async () => {
+    const layout = device.createBindGroupLayout({ entries: hizBindEntries(uniformBytes) });
+    const module = device.createShaderModule({ code: HIZ_SHADER });
+    if (await shaderFailed(module)) return undefined;
+    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+    const stage = (entryPoint: string) =>
+      device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
+    return {
+      layout,
+      copyPipeline: stage('copyDepth'),
+      reducePipeline: stage('reduceHiz'),
+      testPipeline: stage('testHiz'),
+    };
   });
-  const reducePipeline = device.createComputePipeline({
-    layout: pipelineLayout,
-    compute: { module, entryPoint: 'reduceHiz' },
-  });
-  const testPipeline = device.createComputePipeline({
-    layout: pipelineLayout,
-    compute: { module, entryPoint: 'testHiz' },
-  });
-  if (await validationError(device)) return undefined;
-  return { layout, copyPipeline, reducePipeline, testPipeline };
 }
 
 /** A partial GPU setup must release every resource it has acquired. */
-export async function cleanupFailedHiz(
-  device: GPUDevice,
-  buffers: GPUBuffer[],
-  level0?: GPUTexture,
-  pyramid?: GPUBuffer,
-) {
-  await dropValidation(device);
+export function cleanupFailedHiz(buffers: GPUBuffer[], level0?: GPUTexture, pyramid?: GPUBuffer) {
   for (const buffer of buffers)
     try {
       buffer.destroy();
