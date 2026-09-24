@@ -278,7 +278,7 @@ world.camera.set(pose.fromBounds(math.box3().setFromObject(set)));
 
 ```js
 // batch — a thousand matrices at once instead of a loop
-batch.multiplyMatrix4(outputs, parents, locals, 1000);
+batch.composeMatrix4(outputs, positions, quaternions, scales, 1000);
 ```
 
 | Family       | Members                                                                                       | What it does                                                                       |
@@ -290,7 +290,7 @@ batch.multiplyMatrix4(outputs, parents, locals, 1000);
 | `capability` | `detect`, `lighting`                                                                          | what the machine grants, before an image is promised                               |
 | `capture`    | `surface`, `buffer`                                                                           | an image taken aside, at another resolution, without touching the view             |
 | `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                                    | named poses, automatic framing, replaying a path                                   |
-| `batch`      | `multiplyMatrix4`, `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                     | a thousand matrices at once instead of a loop                                      |
+| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                                        | a thousand matrices at once instead of a loop                                      |
 
 The world is not a family: it is the object `createWorld` returns, carrying `scene`, `camera`,
 `budget`, `diagnostic`, `controls`, `onFrame`/`loop`, `render`, `invalidate` and `dispose`.
@@ -355,6 +355,12 @@ dimensions until visible. The host keeps the canvas element and its CSS layout.
 positive value selects coarser pages when the cache includes them). `pose.fromBounds(box)` frames a
 box; `pose.pointOfInterest(name, pose)` names one; `pose.runPath(world, poses, { images })` replays a
 path — an exact A/A image gate, then timed blocks, not a general performance verdict.
+
+`world.temporalAntialiasing` (`createWorld(target, { temporalAntialiasing })`, `true` by default)
+jitters each image by a fraction of a pixel and accumulates it over the previous ones; `false` draws
+each pixel at its centre with no history, what a pixel-exact capture asks. Written, it takes effect
+at the next frame, history dropped, no session reopened. Read, it is what the image carries: `false`
+on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsupported).
 
 Dispose in the actual component or page teardown, **not immediately after startup**:
 `world.dispose()` removes owned controls, observers, queued frames and abort listeners and closes
@@ -441,7 +447,11 @@ world units whatever its length. A canvas point is read on the CSS box and aimed
 frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
 subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
 the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
-ray through a point of the picture. Live example: [click to pick](../site/examples/click-to-pick.html).
+ray through a point of the picture. A mesh's triangle tree is kept for the next ray, within
+`world.budget.raycastTrees` bytes (64 MiB by default, settable, shared by every world on the
+page): past it the tree cast at least
+recently is dropped, and `geometry.dispose()` drops its own at once. Live example:
+[click to pick](../site/examples/click-to-pick.html).
 
 ```js
 world.canvas.addEventListener('click', (event) => {
@@ -903,14 +913,21 @@ crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, imp
   enabled; bodies set before then are queued.
 - **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
   `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
-  scale throws `RangeError`), `stats` and `error`.
+  scale throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
+linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in: each step, the
+  worker fits a plane of the waves to every piece under water and pushes it by the weight of the
+  water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
+  never where; setting or removing it wakes every dynamic body. A wave out of range throws
+  `RangeError`.
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
   its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
-  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named). A dynamic
+  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named).
+  `{ type: 'compound', parts }` makes one rigid body of primitives, each with its `position` and
+  `quaternion` in the object's frame; its scale must be the same on all axes. A dynamic
   body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
   teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
@@ -945,6 +962,8 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
   stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
+  Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
+  the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,

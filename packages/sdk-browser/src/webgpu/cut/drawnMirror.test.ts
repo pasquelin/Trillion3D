@@ -49,7 +49,6 @@ test('adoption announces the copy on a new shown list, never on the one it alrea
   let peeked: GpuCut | null = premier;
   const { adopter, shown, drawn } = mountCutAdopter({
     packedPages,
-    residentOffsetWords: new Int32Array(packedPages.length),
     uniforms: fixtureUniforms(),
     selection: () => peekOnly(() => peeked),
     onDrawnMirrored: () => annonces++,

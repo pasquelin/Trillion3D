@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "El caminante rodea la sala y empuja las pelotas. Pelotas añade veinte más.",
+    "banner": "Haz clic para mirar alrededor y camina entre las pelotas con W A S D para empujarlas. Pelotas añade veinte más.",
     "controls": {
-      "walking": "Caminar",
       "balls": "Pelotas"
     },
     "readouts": {

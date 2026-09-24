@@ -66,7 +66,8 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   const temporal = rt.gpu.temporal;
   if (!temporal) return;
   const state = temporal.frame;
-  state.active = !rt.capture.capturing && rt.run.diagnostic === 'beauty';
+  // Switched off, the pass is kept but nothing accumulates (`setWebgpuTemporalAntialiasing`).
+  state.active = rt.gpu.temporalWanted && !rt.capture.capturing && rt.run.diagnostic === 'beauty';
   if (!state.active) return;
   // A convergence image remakes the last ordinary image, it does not accumulate it further.
   if (rt.run.textureConverging) quiet = temporal.replay();
@@ -176,8 +177,8 @@ export function taaSampledRank(rt: WebgpuPagesRuntime) {
 }
 
 /** True when the image can be held without freezing an accumulation in progress: without
- *  temporal antialiasing, or after a full cycle of quiet images. */
+ *  temporal antialiasing, switched off, or after a full cycle of quiet images. */
 export function taaSettled(rt: WebgpuPagesRuntime) {
   const temporal = rt.gpu.temporal;
-  return !temporal || temporal.frame.stillFrames >= TAA_STILL_FRAMES;
+  return !temporal || !rt.gpu.temporalWanted || temporal.frame.stillFrames >= TAA_STILL_FRAMES;
 }

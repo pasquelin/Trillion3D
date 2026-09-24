@@ -6,7 +6,6 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { BOX_VALUES, boxTransform } from '../../../../sdk-core/src/index.ts';
 import { createWebgpuRunState } from '../pages/state/run.ts';
-import { createBoxCorners } from '../../hiz/hiz.ts';
 import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts';
 import { createShadowMobility } from '../shadow/mobility.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -62,11 +61,10 @@ export function runtime(
   worlds: HostWorldPlacements = hostWorldPlacements(source),
 ) {
   const mouvements: Array<{ min: number[]; max: number[] }> = [],
-    // Rows no page holds yet: a moved root rewrites none, and its corners are marked for later.
+    // Rows no page holds yet: a moved root rewrites none.
     layout = {
       selectionRoots: roots,
       rows: { tableEpoch: 0, rowOfPage: Int32Array.of(-1), packedCount: 0 },
-      boxCorners: createBoxCorners(1),
     },
     // Engine image state, as the runtime carries it: `setWebgpuTransform` increments the scene revision
     // there and aligns `worldsRevision`. A partial state would hide that contract.

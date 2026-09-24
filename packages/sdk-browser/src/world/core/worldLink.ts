@@ -1,5 +1,6 @@
 import type { Object3D, SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { isLight, lightsUnder, type createWorldLights } from './worldLights.ts';
 import type { createWorldContents } from './worldContents.ts';
 import type { WorldSceneLink } from './scene.ts';
@@ -67,9 +68,19 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
 }
 
 /** The link of a camera outside the scene: a move asks for a frame, nothing else. */
-export const cameraSceneLink = (invalidate: () => void): SceneLink => ({
+const cameraSceneLink = (invalidate: () => void): SceneLink => ({
   pose: invalidate,
   posed: invalidate,
   structure: () => {},
   content: () => {},
 });
+
+/** Gives a camera outside the scene the link that makes its moves redraw; one that already has
+ *  a link — a camera inside the scene — keeps its own. */
+export function cameraAdopter(invalidate: () => void) {
+  const link = cameraSceneLink(invalidate);
+  return (camera: Camera) => {
+    if (!camera._link) camera._link = link;
+    return camera;
+  };
+}

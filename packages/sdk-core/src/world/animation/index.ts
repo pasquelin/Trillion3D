@@ -1,5 +1,6 @@
 import type { Object3D } from '../object/object3d.ts';
 import { normalizeQuaternion } from '../../math/matrix/quaternion.ts';
+import { Blends } from './blend.ts';
 
 /** What a track animates: a number, a vector, a rotation or a colour. */
 export type TrackKind = 'number' | 'vector' | 'quaternion' | 'color';
@@ -118,6 +119,8 @@ export class Action {
 /** Plays clips on the nodes under `root`; a world's loop advances it while an action plays. */
 export class Mixer {
   private readonly actions = new Map<Clip, Action>();
+  /** The properties its actions write, blended each update; `#` keeps the type off the API. */
+  readonly #blends = new Blends();
   /** The node whose children it animates. */ readonly root: Object3D;
   constructor(root: Object3D) {
     this.root = root;
@@ -134,9 +137,11 @@ export class Mixer {
     for (const action of this.actions.values()) action.stop();
     playing.delete(this);
   }
-  /** Advances every playing action by `seconds` and writes the sampled values. */
+  /** Advances every playing action by `seconds`, then writes each property the weighted blend of
+   *  its actions' samples over its rest value. */
   update(seconds: number) {
     let active = false;
+    const blends = this.#blends;
     for (const action of this.actions.values()) {
       if (!action.playingNow) continue;
       action.time += seconds * action.timeScale;
@@ -145,19 +150,11 @@ export class Mixer {
       for (const tr of action.clip.tracks) {
         const target = action.bindingOf(tr);
         if (!target) continue;
-        const value = sample(tr, action.clipTime(), target);
-        const held = target.owner[target.field] as { set?: (...v: number[]) => void } | number;
-        if (typeof held === 'number')
-          target.owner[target.field] = held + (value[0] - held) * action.weight;
-        else if (tr.kind === 'color')
-          (held as { setRGB(r: number, g: number, b: number): void }).setRGB(
-            value[0],
-            value[1],
-            value[2],
-          );
-        else held?.set?.(...value);
+        const blend = blends.of(target, tr.kind === 'quaternion');
+        blends.add(blend, sample(tr, action.clipTime(), target), action.weight);
       }
     }
+    blends.write();
     if (!active) playing.delete(this);
     return active;
   }

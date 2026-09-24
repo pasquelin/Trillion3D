@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "The walker circles the hall and pushes the balls. Press Balls for twenty more.",
+    "banner": "Click to look around, then walk among the balls with W A S D and push them. Press Balls for twenty more.",
     "controls": {
-      "walking": "Walking",
       "balls": "Balls"
     },
     "readouts": {

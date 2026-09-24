@@ -1,6 +1,24 @@
 import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
+import { BLEND_EQUATIONS, blendingOf } from '../../scene/materialBlending.ts';
 
 type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
+
+/** The WebGL2 enum of each blend factor and operation `BLEND_EQUATIONS` writes. */
+const glBlendEnum = (gl: WebGL2RenderingContext, name: string): number =>
+  ({
+    zero: gl.ZERO,
+    one: gl.ONE,
+    src: gl.SRC_COLOR,
+    'src-alpha': gl.SRC_ALPHA,
+    'one-minus-src-alpha': gl.ONE_MINUS_SRC_ALPHA,
+    add: gl.FUNC_ADD,
+    'reverse-subtract': gl.FUNC_REVERSE_SUBTRACT,
+  })[name]!;
+
+/** The equation of a transparent surface's mode, or `undefined` when it replaces the target. The
+ *  gate (`../../host/surfaceGate.ts`) has refused a mode the engine has no name for. */
+const equationOf = (material: Material) =>
+  BLEND_EQUATIONS[blendingOf(material.blending as number | undefined)!];
 
 const depthFunction = (gl: WebGL2RenderingContext, value: number) => {
   switch (value) {
@@ -67,10 +85,18 @@ export class WebglClusterState {
    *  material's own offset; undefined, the material's applies. */
   apply(material: Material, doubleSided: boolean, backSide: boolean, polygonOffsetUnits?: number) {
     const gl = this.gl;
-    this.blend = this.capability(material.transparent, this.blend, gl.BLEND);
-    if (material.transparent) {
-      gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
-      gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    const equation = material.transparent ? equationOf(material) : undefined;
+    this.blend = this.capability(!!equation, this.blend, gl.BLEND);
+    if (equation) {
+      const { color, alpha } = equation,
+        e = (name: string | undefined) => glBlendEnum(gl, name!);
+      gl.blendEquationSeparate(e(color.operation), e(alpha.operation));
+      gl.blendFuncSeparate(
+        e(color.srcFactor),
+        e(color.dstFactor),
+        e(alpha.srcFactor),
+        e(alpha.dstFactor),
+      );
     }
     this.cull = this.capability(!doubleSided, this.cull, gl.CULL_FACE);
     const face = backSide ? gl.FRONT : gl.BACK;

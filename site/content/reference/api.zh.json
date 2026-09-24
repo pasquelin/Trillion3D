@@ -1007,6 +1007,7 @@
       "pitchSpeed": "满偏转时俯仰每秒转动的弧度数;`null`(默认)表示等同于 `rollSpeed`。",
       "yawSpeed": "满偏转时偏航每秒转动的弧度数;`null`(默认)表示等同于 `rollSpeed`。",
       "inputResponse": "一个转向键从按下到达到满偏转所需的秒数,以及松开后回到零所需的秒数:转动速率的变化就像用手操纵摇杆一样渐进。默认值 0 表示要么全开要么全关。仍在运动中的摇杆会持续移动摄像机,因此帧会一直持续到它回到中位。",
+      "lookSpeed": "指针每移动一个像素视图旋转的弧度;`null`(默认)为每个表面高度半圈,与其尺寸无关。",
       "dragToLook": "拖动是否会转动视角。",
       "pointerLook": "指针是否会转动视角,无论是拖动还是悬停;默认为 true。",
       "autoForward": "巡航模式,默认关闭:即使不按任何键,摄像机也会像飞机一样以 `movementSpeed` 向前飞行。此时按 W 会叠加 `movementSpeed`(变为两倍速),按 S 则会抵消它(摄像机悬停不动);它绝不会向后飞。在下一次 `update` 之前什么都不会移动,因此依赖 `change` 重绘的宿主,在开启巡航时会请求一帧。",
@@ -3765,7 +3766,7 @@
       "maxAzimuthAngle": "仅限环绕:该弧段的终点;它可以比 `minAzimuthAngle` 更小。",
       "autoRotate": "仅限轨道:绕 `target` 自动旋转的速度(弧度每秒),直到第一次按下或滚动滚轮;默认 0。",
       "movementSpeed": "飞行模式和第一人称:满操作时每秒移动的世界单位数;默认为 1。",
-      "lookSpeed": "第一人称与角色:指针每移动一像素,视角转动的弧度数。",
+      "lookSpeed": "飞行、第一人称和角色:指针每移动一个像素视图旋转的弧度;`null`(默认)保留各自的值 — 头部为 0.002,飞行为每个 canvas 高度半圈。",
       "minPitch": "第一人称与角色:头部能向下看的最低角度,弧度(0 为水平线,向下为负)。",
       "maxPitch": "第一人称与角色:头部能向上看的最高角度,水平线以上的弧度。",
       "pointerLook": "仅限飞行模式:指针是否会转动视角;为 false 时只能靠按键操纵。",
@@ -3828,6 +3829,10 @@
     "summary": "从表面反弹的光,针对常驻代理体进行追踪;默认关闭。",
     "description": "对于支持该功能的路径,变更会就地生效;对于不支持的路径,则要等到下一次开启时才会生效。"
   },
+  "world.temporalAntialiasing": {
+    "summary": "时间性抗锯齿：跨帧累积的亚像素抖动；默认开启。",
+    "description": "写入后从下一帧生效，丢弃历史，不重新打开会话。读取时是图像实际带有的：在 WebGL2 上为 false，开启后程序编译期间也为 false。"
+  },
   "world.budget": {
     "summary": "世界的内存池,以字节为单位读写。",
     "members": {
@@ -3835,7 +3840,8 @@
       "texturePoolCeiling": "一个世界可以请求的最大纹理池,单位字节。",
       "geometryPool": "为几何体页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
       "texturePool": "为纹理页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
-      "physics": "物理的上限（物体、三角形、装饰物体、内存），启动时读取一次；超出任一项会抛出 `PHYSICS_BUDGET`。"
+      "physics": "物理的上限（物体、三角形、装饰物体、内存），启动时读取一次；超出任一项会抛出 `PHYSICS_BUDGET`。",
+      "raycastTrees": "`raycast` 为三角形树保留的 CPU 内存字节数，由页面上的所有世界共享；超出后，最久未使用的树会被丢弃。设置它即可更改上限。"
     }
   },
   "world.diagnostic": {
@@ -3885,7 +3891,7 @@
   },
   "WorldControls": {
     "summary": "页面用鼠标和键盘操纵摄像机的各种方式,或者 `'none'`。",
-    "description": "`'firstPerson'` 移动摄像机;`'character'` 移动身体——具有质量、重力、跳跃能力,并与 `world.controls.colliders` 碰撞——然后透过其双眼观看。"
+    "description": "`'firstPerson'` 移动摄像机;`'character'` 移动身体——具有质量、重力、跳跃能力,并与 `world.controls.colliders` 碰撞——然后透过其双眼观看。`'fly'` 和 `'firstPerson'` 以 `world.controls.movementSpeed` 移动,以 `world.controls.lookSpeed` 旋转。"
   },
   "WorldFrameMetrics": {
     "summary": "主机从引擎复制的一帧图像的指标,以及页面由它们组合读取的两个值;路径不计数之处为 `null`。",
@@ -4005,7 +4011,8 @@
       "pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "signal": "当该信号被中止时停止世界的加载操作。",
-      "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
+      "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
+      "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。"
     }
   },
   "WorldPageSource": {
@@ -4191,15 +4198,6 @@
   },
   "batch": {
     "summary": "`batch` 系列:一次处理上千个矩阵,而不是用循环逐个处理,建立在核心模块的批处理内核之上(`packages/sdk-core/src/math/batch/batch.ts`、`packages/sdk-core/src/math/batch/points.ts`、`packages/sdk-core/src/math/matrix/matrix4Compose.ts`、`packages/sdk-core/src/math/batch/culling.ts`)。"
-  },
-  "batch.multiplyMatrix4": {
-    "summary": "对 `count` 个以扁平方式存储的列优先矩阵计算 `out[i] = a[i] · b[i]`。",
-    "parameters": {
-      "out": "乘积存放的位置。",
-      "a": "左侧的矩阵们。",
-      "b": "右侧的矩阵们。",
-      "count": "乘积的数量。"
-    }
   },
   "batch.transformPoints": {
     "summary": "对 `count` 个各占三个数字的点计算 `out[i] = m · points[i]`。",
@@ -4634,7 +4632,8 @@
       "options.pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "options.controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "options.signal": "当该信号被中止时停止世界的加载操作。",
-      "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
+      "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
+      "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。"
     }
   },
   "crossVector3": {
@@ -6647,7 +6646,7 @@
     "summary": "**被指针锁定的行人头部**:指针会转动它,地平线保持水平——绕世界上方向的偏航、被限制在 `[minPitch, maxPitch]` 内的俯仰,绝不横滚。",
     "description": "由所有透过人的双眼观看的控制器共享。**锁定应当由宿主自行请求。** 浏览器只会在手势内部授予指针锁定,因此头部会在 `pointerdown` 时请求锁定,并公开 `lock()`、`unlock()` 和 `locked()`,供想自行选择时机的宿主使用;当查看者脱离锁定时,只会停止环顾这一动作,即便在未锁定的拖拽下头部依然会转动。",
     "members": {
-      "lookSpeed": "指针每移动一个像素所转动的弧度数。",
+      "lookSpeed": "指针每移动一个像素旋转的弧度;`null`(默认)为 0.002。",
       "minPitch": "头部能向下看的最低角度,以水平线以下的弧度记为负值(0 为水平线)。默认值略高于正下方;如果不想让行走者看见自己的身体,可以调高这个值。",
       "maxPitch": "头部能向上看的最高角度,以水平线以上的弧度记。默认值略低于天顶。"
     }
@@ -6860,6 +6859,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
     }
@@ -6991,6 +6991,33 @@
     "summary": "碰撞形状，当由几何体推断的形状不合适时使用。",
     "description": "尺寸位于物体自身坐标系中，缩放之前。"
   },
+  "PhysicsPart": {
+    "summary": "复合形状的一个部件：在对象坐标系中放置并旋转的基本体。"
+  },
+  "PhysicsPrimitive": {
+    "summary": "精确的基本体：它在对象自身坐标系中的尺寸。"
+  },
+  "WaterSpec": {
+    "summary": "物体漂浮其中的水体，按 `world.physics.water` 接收的形式。",
+    "members": {
+      "waves": "水面的 Gerstner 波；静水则没有。",
+      "level": "静止时水面的高度，单位米。",
+      "density": "kg/m³；默认 1000，即淡水。",
+      "linearDrag": "二次阻力系数：物体稳定下来的快慢，而不是位置；默认 0.5。",
+      "angularDrag": "水对物体转动的阻尼程度；默认 0.05。",
+      "current": "水的速度（河流的水流），m/s。"
+    }
+  },
+  "WaveSpec": {
+    "summary": "场景声明的一个波。",
+    "members": {
+      "direction": "水平传播方向 `[x, z]`；在此归一化。",
+      "wavelength": "波峰到波峰的米数。",
+      "amplitude": "静止面到波峰的米数。",
+      "steepness": "从 0（正弦波）到 1（不卷曲的最尖波峰）；按总和归一化。",
+      "phase": "`t = 0` 时的相位，单位弧度。"
+    }
+  },
   "PhysicsStats": {
     "summary": "世界物理报告的内容：最近一次 tick 的计数，以及分开的两个时钟。",
     "members": {
@@ -7013,6 +7040,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
     }

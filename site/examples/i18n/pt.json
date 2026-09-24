@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "O caminhante contorna o salão e empurra as bolas. Bolas adiciona mais vinte.",
+    "banner": "Clique para olhar em volta e ande entre as bolas com W A S D para empurrá-las. Bolas adiciona mais vinte.",
     "controls": {
-      "walking": "Andar",
       "balls": "Bolas"
     },
     "readouts": {
