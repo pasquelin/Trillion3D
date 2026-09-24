@@ -75,10 +75,10 @@ export interface MeasuredWorldOptions {
    *  frame, shown meanwhile by their coarser resident level; the worst pass is published as
    *  `textureUploadPeakMs`. */
   maxTextureUploadMsPerFrame?: number;
-  /** Geometry-page pool bytes of the WebGPU engine — streamed geometry memory, regardless
-   *  of the scene, like the reference's 512 MB pool. 512 MiB by default. The root cover
-   *  always fits; what a view asks beyond that draws coarser, never refused. Set during
-   *  the session by `explorer.setMemoryBudgets`. */
+  /** Geometry-page pool bytes — streamed geometry memory, regardless of the scene, like the
+   *  reference's 512 MB pool; the WebGPU and WebGL2 engines both hold it. 512 MiB by default.
+   *  The root cover always fits; what a view asks beyond that draws coarser, never refused.
+   *  Set during the session by `explorer.setMemoryBudgets`. */
   geometryPoolBytes?: number;
   /** Largest geometry pool `explorer.setMemoryBudgets` may ask for during the session —
    *  the maximum of a settings slider. The starting budget without it. */

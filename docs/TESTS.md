@@ -9,7 +9,7 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 ```
 packages/
   sdk-core/src/       74 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    356 *.test.ts
+  sdk-browser/src/    364 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        20 *.test.ts — architecture, boundaries, public contracts
@@ -21,7 +21,7 @@ tests/
 bench/
   core/               14 modules: measure, report, diff, ulp, baseline
   perf/core/          15 *.perf.ts
-  perf/browser/       38 *.perf.ts + 32 support modules
+  perf/browser/       38 *.perf.ts + 33 support modules
   oracles/            46 reference implementations, copied verbatim
   runner/             83 modules: the measurement harness (README)
 scripts/docs/examples/openworld/

@@ -17,6 +17,7 @@ import {
   traceTransition,
 } from './steps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
 
 function selectCpuCut(
   rt: WebgpuPagesRuntime,
@@ -116,13 +117,13 @@ export function renderCpuCut(
   const wasLimited = run.coverageBudgetLimited;
   run.coverageBudgetLimited = requested.size > slots;
   if (wasLimited !== run.coverageBudgetLimited)
-    run.coverageBudgetEvent = {
-      version: 1,
-      limited: run.coverageBudgetLimited,
-      requiredSlots: requested.size,
+    run.coverageBudgetEvent = coverageBudgetEvent(
+      run.coverageBudgetLimited,
+      requested.size,
       slots,
-      fallbackRetained: services.bootstrapState.ready,
-    };
+      services.bootstrapState.ready,
+      pixelError,
+    );
   traceAdmission(rt, requested, wanted, admissionStarted);
   if (!services.bootstrapState.ready) {
     run.drawn.length = 0;

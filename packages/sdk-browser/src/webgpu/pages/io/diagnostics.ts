@@ -1,4 +1,5 @@
 import type { BackendDiagnostic } from '../../../backend/types.ts';
+import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts';
 
 export function createWebgpuDiagnostics(
   onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
@@ -71,13 +72,8 @@ export function createWebgpuDiagnostics(
     });
     flushTraceQueue();
   };
-  const engineDiagnostic = (phase: string, message: string, details: Record<string, unknown>) => {
-    try {
-      onDiagnostic?.({ phase, message, context: { pipelineVersion: 1, ...details } });
-    } catch {
-      /* Observers do not control rendering. */
-    }
-  };
+  const engineDiagnostic = (phase: string, message: string, details: Record<string, unknown>) =>
+    sendEngineDiagnostic(onDiagnostic, phase, message, details);
   const loggedFailures = new Set<string>(),
     failureOccurrences = new Map<string, number>();
   const diagnosticFailure = (phase: string, error: unknown) => {
