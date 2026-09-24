@@ -19,6 +19,7 @@ export type ClusterDrawScene = WebglClusterScene & { updateMatrixWorld(): void }
 
 /** A node of the display graph, read by shape: a mesh is drawn whole, anything else is walked. */
 type DisplayNode = Partial<SceneCopy> & {
+  readonly matrixWorld: SceneCopy['matrixWorld'];
   readonly kind?: string;
   readonly visible: boolean;
   readonly id: number;

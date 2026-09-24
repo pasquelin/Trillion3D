@@ -65,7 +65,7 @@ test('the sort depth is the normalised-device z, behind the camera as in front',
   for (const z of [-5, -50, 3, 40]) {
     const matrix = new Matrix4().makeTranslation(1, 2, z);
     const expected = new Vector3().setFromMatrixPosition(matrix).applyMatrix4(screen).z;
-    const mesh = { boundingSphere: { center: { x: 0, y: 0, z: 0 } }, matrix };
+    const mesh = { boundingSphere: { center: { x: 0, y: 0, z: 0 } }, matrixWorld: matrix };
     assert.equal(depthOf(mesh, screen.elements), expected, `a centre at z = ${z}`);
   }
 });
