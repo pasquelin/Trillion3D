@@ -69,3 +69,24 @@ test('a node hidden before the first frame is not drawn by it', async () => {
     material.dispose();
   }
 });
+
+test('the blended copy of a hidden node is not drawn, and is drawn again once shown', async () => {
+  const glass = G.physicalSurface({ transmission: 1, thickness: 0.02, roughness: 0 });
+  const { backend, camera, geometry, material, mesh, source } = triangleBackend({}, glass);
+  const copy = backend.scene!.children.find((node) => node.userData.sourceMesh === mesh)!;
+  try {
+    await backend.prepare();
+    backend.render(camera);
+    assert.equal(copy.visible, true);
+    source.visible = false;
+    backend.render(camera);
+    assert.equal(copy.visible, false, 'an ancestor hidden hides its copy');
+    source.visible = true;
+    backend.render(camera);
+    assert.equal(copy.visible, true, 'shown again, its copy is drawn again');
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
