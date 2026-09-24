@@ -6,6 +6,7 @@ import type { prepareExplorer } from '../session/prepare.ts';
 import { createExplorerRender } from './render.ts';
 import type { ExplorerSession } from '../session/session.ts';
 import { createExplorerStreaming } from '../scene/streaming.ts';
+import { createPartitionFrame } from '../scene/partitionFrame.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 type Inputs = {
@@ -17,7 +18,7 @@ type Inputs = {
 export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs) {
   const { options, metadata } = session;
   const { prepared, host, backends } = inputs;
-  const { camera, directGpu, pageSources } = prepared;
+  const { camera, directGpu, pageSources, partitions, context } = prepared;
   const { geometryUrls, pageIdByUrl, streamer } = pageSources;
   const {
     state,
@@ -54,8 +55,18 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     state,
     compose,
   });
+  const followCells = createPartitionFrame({
+    partitions,
+    streamer,
+    camera,
+    canvas: session.canvas,
+    pixelError: () => context.pixelError ?? 0,
+    active: () => state.active,
+    renew: options.onRowsOutgrown,
+  });
   const render = createExplorerRender(session, {
     check,
+    followCells,
     state,
     camera,
     lookAtTarget,

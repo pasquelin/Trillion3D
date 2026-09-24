@@ -51,7 +51,12 @@ export async function buildPreparedScene(inputs: Inputs) {
   const images = preparedImages({ document, documentUrl, binary, skipped, signal, track });
   const ranks: TextureRanks = new Map();
   const slot = preparedTextures(tables, document, images, ranks);
-  const { scene, ranks: meshes } = await preparedGraph({
+  const {
+    scene,
+    ranks: meshes,
+    nodes,
+    placed,
+  } = await preparedGraph({
     tables,
     meshes: document.meshes,
     geometryOf: preparedGeometries(document, binary),
@@ -61,5 +66,5 @@ export async function buildPreparedScene(inputs: Inputs) {
   const source: HostGraphNode = scene;
   const associations: BackendContext['associations'] = meshes;
   const textureIndices: Map<HostTexture, number> = ranks;
-  return { source, associations, textureIndices, bakedImages: skipped.size };
+  return { source, associations, textureIndices, bakedImages: skipped.size, nodes, placed };
 }
