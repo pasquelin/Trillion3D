@@ -193,15 +193,6 @@
   "batch": {
     "summary": "Die Familie `batch`: tausend Matrizen auf einmal statt einer Schleife, aufbauend auf den Batch-Kernen des Kerns (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
   },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` für `count` Matrizen, spaltenweise flach angeordnet.",
-    "parameters": {
-      "out": "Wohin die Produkte gehen.",
-      "a": "Die Matrizen links.",
-      "b": "Die Matrizen rechts.",
-      "count": "Wie viele Produkte."
-    }
-  },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` für `count` Punkte, drei Zahlen pro Punkt angeordnet.",
     "parameters": {
@@ -6335,7 +6326,8 @@
       "texturePoolCeiling": "Das größte Textur-Reservoir, das eine Welt anfordern kann, in Bytes.",
       "geometryPool": "GPU-Speicher-Bytes, die für Geometrieseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
       "texturePool": "GPU-Speicher-Bytes, die für Texturseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
-      "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus."
+      "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
+      "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern."
     }
   },
   "world.diagnostic": {
@@ -6860,6 +6852,7 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
       "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
     }
@@ -6991,6 +6984,33 @@
     "summary": "Eine Kollisionsform, wenn die aus der Geometrie abgeleitete nicht passt.",
     "description": "Die Größen gelten im eigenen Rahmen des Objekts, vor seiner Skalierung."
   },
+  "PhysicsPart": {
+    "summary": "Ein Teil einer zusammengesetzten Form: ein Grundkörper, im Bezugssystem des Objekts platziert und gedreht."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Ein exakter Grundkörper: seine Maße im eigenen Bezugssystem des Objekts."
+  },
+  "WaterSpec": {
+    "summary": "Ein Gewässer, in dem die Körper schwimmen, so wie `world.physics.water` es nimmt.",
+    "members": {
+      "waves": "Die Gerstner-Wellen der Oberfläche; keine für stilles Wasser.",
+      "level": "Höhe der ruhenden Oberfläche, in Metern.",
+      "density": "kg/m³; standardmäßig 1000, Süßwasser.",
+      "linearDrag": "Quadratischer Widerstandsbeiwert: wie schnell ein Körper zur Ruhe kommt, nie wo; standardmäßig 0.5.",
+      "angularDrag": "Wie stark das Wasser die Drehung eines Körpers dämpft; standardmäßig 0.05.",
+      "current": "Geschwindigkeit des Wassers (die Strömung eines Flusses), in m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Eine Welle, wie eine Szene sie deklariert.",
+    "members": {
+      "direction": "Horizontale Laufrichtung `[x, z]`; hier normalisiert.",
+      "wavelength": "Meter von Kamm zu Kamm.",
+      "amplitude": "Meter von der Ruhelage bis zum Kamm.",
+      "steepness": "0 (eine Sinuswelle) bis 1 (der schärfste Kamm, der sich nicht überschlägt); über die Summe normalisiert.",
+      "phase": "Phase bei `t = 0`, in Radiant."
+    }
+  },
   "PhysicsStats": {
     "summary": "Was die Physik der Welt meldet: Zählungen des letzten Ticks und beide Uhren getrennt.",
     "members": {
@@ -7013,6 +7033,7 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
       "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
     }

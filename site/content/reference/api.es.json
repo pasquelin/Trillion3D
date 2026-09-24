@@ -193,15 +193,6 @@
   "batch": {
     "summary": "La familia `batch`: mil matrices de una vez en lugar de un bucle, sobre los núcleos por lotes del core (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
   },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` para `count` matrices, columna por columna, dispuestas planas.",
-    "parameters": {
-      "out": "A dónde van los productos.",
-      "a": "Las matrices de la izquierda.",
-      "b": "Las matrices de la derecha.",
-      "count": "Cuántos productos."
-    }
-  },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` para `count` puntos, dispuestos tres números por punto.",
     "parameters": {
@@ -6335,7 +6326,8 @@
       "texturePoolCeiling": "La reserva de texturas más grande que un mundo puede pedir, en bytes.",
       "geometryPool": "Bytes de memoria de GPU reservados para las páginas de geometría; ajústalo para cambiar el límite.",
       "texturePool": "Bytes de memoria de GPU reservados para las páginas de textura; ajústalo para cambiar el límite.",
-      "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`."
+      "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
+      "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente."
     }
   },
   "world.diagnostic": {
@@ -6860,6 +6852,7 @@
       "gravity": "Gravedad en m/s², un vector vivo; pon un preajuste (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vector.",
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
+      "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`."
     }
@@ -6991,6 +6984,33 @@
     "summary": "Una forma de colisión, cuando la deducida de la geometría no sirve.",
     "description": "Los tamaños están en el marco propio del objeto, antes de su escala."
   },
+  "PhysicsPart": {
+    "summary": "Una parte de una forma compuesta: una primitiva, colocada y girada en el marco del objeto."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Una primitiva exacta: sus tamaños en el marco propio del objeto."
+  },
+  "WaterSpec": {
+    "summary": "Una masa de agua en la que flotan los cuerpos, tal como la recibe `world.physics.water`.",
+    "members": {
+      "waves": "Las olas de Gerstner de la superficie; ninguna para agua quieta.",
+      "level": "Altura de la superficie en reposo, en metros.",
+      "density": "kg/m³; 1000, agua dulce, por defecto.",
+      "linearDrag": "Coeficiente de arrastre cuadrático: lo rápido que un cuerpo se asienta, nunca dónde; 0.5 por defecto.",
+      "angularDrag": "Cuánto frena el agua el giro de un cuerpo; 0.05 por defecto.",
+      "current": "Velocidad del agua (la corriente de un río), en m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Una ola tal como la declara una escena.",
+    "members": {
+      "direction": "Dirección horizontal de avance `[x, z]`; normalizada aquí.",
+      "wavelength": "Metros de cresta a cresta.",
+      "amplitude": "Metros del reposo a la cresta.",
+      "steepness": "De 0 (una onda sinusoidal) a 1 (la cresta más aguda que no se enrosca); normalizada sobre la suma.",
+      "phase": "Fase en `t = 0`, en radianes."
+    }
+  },
   "PhysicsStats": {
     "summary": "Lo que informa la física del mundo: recuentos del último tick y los dos relojes por separado.",
     "members": {
@@ -7013,6 +7033,7 @@
       "gravity": "Gravedad en m/s², un vector vivo; pon un preajuste (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vector.",
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
+      "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`."
     }
