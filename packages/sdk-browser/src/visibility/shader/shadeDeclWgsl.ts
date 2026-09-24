@@ -22,7 +22,7 @@ import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
  */
 export const SHADE_DECL_WGSL = `${PAGE_INFO_STRUCT_WGSL}
 ${SHADE_SUN_WGSL}
-struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,sun:ShadeSun,}
+struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,}
 @group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${SHADE_BINDINGS.position}) var<storage, read> positions:array<f32>;
