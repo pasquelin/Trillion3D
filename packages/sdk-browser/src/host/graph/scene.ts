@@ -4,12 +4,15 @@
  * before and gives them back after (`../../lighting/unlitAlbedo.ts`).
  */
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
+import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { GraphNode } from './node.ts';
 
 export class GraphScene extends GraphNode {
   override readonly kind = 'scene' as const;
   /** What the frame is cleared with; `null` clears to black. */
   background: Color | null = null;
+  /** The contract's fog over every lit surface (`../../lighting/contractLights.ts`); `null`, none. */
+  fog: SceneFog | null = null;
   /** Called by the draw before it reads the graph. */
   onBeforeRender = () => {};
   /** Called by the draw once it is done. */
