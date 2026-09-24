@@ -1474,7 +1474,7 @@
   },
   "HostScene": {
     "summary": "엔진이 그려 넣는 대상인 호스트 디스플레이 그래프: 그것이 담고 있는 것, 어떻게 순회되는지, 그리고 합성이 읽는 클리어 색상.",
-    "description": "그것을 만드는 것은 호스트 경계의 몫; 거기에 쓰는 것은 `HostDrawScene`.",
+    "description": "엔진은 자신의 것을 `GraphScene`(`graph/scene.ts`)으로 쓴다.",
     "members": {
       "name": "그것에 대한 호스트의 이름.",
       "visible": "그려지는지 여부.",

@@ -5,7 +5,7 @@ import {
 import type { HostDrawOutput } from '../core/renderTarget.ts';
 import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
-import type { HostDrawScene } from '../../host/scene/graphNodes.ts';
+import type { GraphScene } from '../../host/graph/scene.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import type { ClusterDrawScene } from './batchDraw.ts';
 import type { SceneCopy } from './copyCulling.ts';
@@ -44,10 +44,10 @@ const NO_BATCHES: readonly never[] = [];
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
-  display: HostDrawScene,
+  display: GraphScene,
   copies: readonly object[] = [],
 ) {
-  const scene = display as unknown as DisplayScene;
+  const scene: DisplayScene = display;
   const copied = new Set(copies as readonly DisplayNode[]);
   // Reused from frame to frame: a draw allocates no list.
   const opaque: WholeMesh[] = [],

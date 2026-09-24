@@ -1474,7 +1474,7 @@
   },
   "HostScene": {
     "summary": "Bir motorun içine çizdiği host görüntü grafiği: neyi tuttuğu, nasıl dolaşıldığı, ve kompozisyonun okuduğu temizleme rengi.",
-    "description": "Onu inşa etmek bir host sınırının işidir; birine yazmak, `HostDrawScene`.",
+    "description": "Motor kendininkini bir `GraphScene` (`graph/scene.ts`) olarak yazar.",
     "members": {
       "name": "Host'un onun için adı.",
       "visible": "Çizilip çizilmediği.",

@@ -1474,7 +1474,7 @@
   },
   "HostScene": {
     "summary": "引擎绘制目标所在的宿主显示图:它持有什么、如何被遍历,以及合成阶段读取的清除颜色。",
-    "description": "构建它是宿主边界层的职责;向它写入的是 `HostDrawScene`。",
+    "description": "引擎将自己的写成 `GraphScene`（`graph/scene.ts`）。",
     "members": {
       "name": "宿主给它起的名字。",
       "visible": "是否被绘制。",

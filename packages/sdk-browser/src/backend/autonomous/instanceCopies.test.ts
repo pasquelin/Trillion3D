@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createAutonomousInstances } from './instances.ts';
 import { createAutonomousGeometry } from './geometry.ts';
-import type { HostDrawScene } from '../../host/scene/graphNodes.ts';
+import type { GraphScene } from '../../host/graph/scene.ts';
 import type { HostMaterial } from '../../host/resources.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 
@@ -40,7 +40,7 @@ test('an instance changed or removed leaves the model and the other instances as
       [rowed, {} as HostMaterial],
     ]);
   const geometryStore = createAutonomousGeometry({
-    scene: { add: () => {}, remove: () => {} } as unknown as HostDrawScene,
+    scene: { add: () => {}, remove: () => {} } as unknown as GraphScene,
     allPages,
     bootstrap: [],
     shown: [],

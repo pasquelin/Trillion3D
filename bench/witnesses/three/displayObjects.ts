@@ -19,7 +19,6 @@ import {
   type HostPlaced,
   type HostTraversable,
 } from '../../../packages/sdk-browser/src/host/resources.ts';
-import type { HostDrawScene } from '../../../packages/sdk-browser/src/host/scene/graphNodes.ts';
 import { threeLight } from './fromGraphNodes.ts';
 import * as THREE from 'three';
 
@@ -29,8 +28,8 @@ export const hostAimNode = () => new THREE.Object3D() as unknown as HostPlaced;
 
 /** The display graph a host-rendered engine publishes: its clear colour, then the source-graph
  *  lights placed on it. Building the host objects is the boundary's, the placement is not. */
-export function lighting(scene: HostDrawScene, clearColor: number, source: HostTraversable) {
-  asHostLibrary<THREE.Scene>(scene).background = new THREE.Color(clearColor);
+export function lighting(scene: THREE.Scene, clearColor: number, source: HostTraversable) {
+  scene.background = new THREE.Color(clearColor);
   return installSceneLighting(scene, source, hostAimNode, (light) =>
     asHostLibrary<HostLight>(threeLight(asHostLibrary<GraphLight>(light))),
   );

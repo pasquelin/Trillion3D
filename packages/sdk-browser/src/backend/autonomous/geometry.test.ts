@@ -1,6 +1,8 @@
 // G1: `geometry.ts` detaches by the set of pages actually attached (`attachees`,
 // a `Set` held by `attach`/`detach`) instead of scanning `allPages` — the whole DAG — at each frame.
 // Oracle: the version before batch G, copied as is in `../../../../../bench/oracles/browser/autonomous-backend.ts`.
+import type { GraphScene } from '../../host/graph/scene.ts';
+import type { GraphMesh } from '../../host/graph/mesh.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -15,12 +17,12 @@ function fakeScene() {
     scene: {
       add: (m: object) => meshes.add(m),
       remove: (m: object) => meshes.delete(m),
-    } as unknown as THREE.Scene,
+    } as unknown as GraphScene,
     meshes,
   };
 }
 
-function makeRec(id: number, triangles: number): PageRec & { mesh: THREE.Mesh } {
+function makeRec(id: number, triangles: number): PageRec & { mesh: GraphMesh } {
   return {
     id,
     url: `u${id}`,
@@ -38,13 +40,13 @@ function makeRec(id: number, triangles: number): PageRec & { mesh: THREE.Mesh } 
     renderOrder: 0,
     geometry: {} as THREE.BufferGeometry,
     // The oracle copies a host matrix; the engine reads the sixteen floats of the contract.
-    mesh: { matrix: { copy: () => {}, fromArray: () => {} } } as unknown as THREE.Mesh,
+    mesh: { matrix: { copy: () => {}, fromArray: () => {} } } as unknown as GraphMesh,
     attached: false,
   };
 }
 
 function environnement(
-  scene: THREE.Scene,
+  scene: GraphScene,
   allPages: PageRec[],
   shown: PageRec[],
 ): Parameters<typeof createAutonomousGeometry>[0] {
@@ -163,7 +165,7 @@ test('an attached page wears the host declaration, not the engine surface record
   };
   const shown = [rec];
   createAutonomousGeometry(environnement(scene, [rec], shown)).sync();
-  const [attached] = [...meshes] as THREE.Mesh[];
+  const [attached] = [...meshes] as GraphMesh[];
   assert.equal(attached.material, declaration);
   assert.equal((attached.material as THREE.Material).visible, true);
   declaration.dispose();

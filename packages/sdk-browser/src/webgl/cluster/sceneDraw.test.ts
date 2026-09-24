@@ -8,7 +8,6 @@ import { GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
 import { GraphAttribute } from '../../host/graph/attributes.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
-import type { HostDrawScene } from '../../host/scene/graphNodes.ts';
 
 const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 
@@ -25,7 +24,7 @@ function mesh(corners: number, renderOrder: number, surface = new GraphSurface('
 
 function drawn(scene: GraphScene) {
   const context = createTestContext();
-  const draw = createSceneDraw(context.gl, scene as unknown as HostDrawScene);
+  const draw = createSceneDraw(context.gl, scene);
   assert.equal(draw.counters(), null, 'no count before the first frame');
   assert.throws(() => draw.drawHostGeometry(createHostDrawCamera(), OUTPUT), /Draw before render/);
   draw.render({} as HostCamera);
@@ -65,7 +64,7 @@ test('an instanced mesh is one submission of every placement it counts', () => {
 });
 
 test('without a context the draw is refused by name', () => {
-  const draw = createSceneDraw(undefined, new GraphScene() as unknown as HostDrawScene);
+  const draw = createSceneDraw(undefined, new GraphScene());
   draw.render({} as HostCamera);
   assert.throws(
     () => draw.drawHostGeometry(createHostDrawCamera(), OUTPUT),

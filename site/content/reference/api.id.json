@@ -1482,7 +1482,7 @@
   },
   "HostScene": {
     "summary": "Graf tampilan host tempat sebuah mesin menggambar: apa yang disimpannya, bagaimana ia dijelajahi, dan warna bersih yang dibaca komposisi.",
-    "description": "Membangunnya milik sebuah batas host; menulis salah satunya, `HostDrawScene`.",
+    "description": "Mesin menulis miliknya sendiri sebagai `GraphScene` (`graph/scene.ts`).",
     "members": {
       "name": "Nama host untuknya.",
       "visible": "Apakah ia digambar.",

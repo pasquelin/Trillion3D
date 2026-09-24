@@ -1,5 +1,4 @@
 import type { SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
-import type { HostDrawScene } from '../host/scene/graphNodes.ts';
 import { GraphAmbientLight, GraphLight, GraphLightProbe } from '../host/graph/light.ts';
 import { GraphGroup } from '../host/graph/mesh.ts';
 import type { GraphScene } from '../host/graph/scene.ts';
@@ -35,8 +34,7 @@ const UNLIT_IRRADIANCE = Math.PI;
  * the one from before this batch, pixel for pixel. As soon as it has, the source graph
  * disappears: two stacked light sets would be nobody's lighting.
  */
-function createContractLights(display: HostDrawScene, store: SceneLightStore | undefined) {
-  const scene = display as unknown as GraphScene;
+function createContractLights(scene: GraphScene, store: SceneLightStore | undefined) {
   const group = new GraphGroup();
   group.visible = false;
   scene.add(group);
@@ -122,7 +120,7 @@ function createContractLights(display: HostDrawScene, store: SceneLightStore | u
  * the engine exists, so the first pass happens here, at construction.
  */
 export function attachContractLights(
-  scene: HostDrawScene,
+  scene: GraphScene,
   store: SceneLightStore | undefined,
   source: { setEnabled(enabled: boolean): void; readonly lit: boolean },
   sceneChanged: () => void,
