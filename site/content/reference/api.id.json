@@ -1344,7 +1344,9 @@
       "projection": "Proyeksinya.",
       "world": "Matriks dunia kamera itu.",
       "view": "Matriks view-nya.",
-      "eye": "Tempat matanya berada."
+      "eye": "Tempat matanya berada.",
+      "near": "Jarak terdekat.",
+      "far": "Jarak terjauh."
     }
   },
   "HostDrawOutput": {

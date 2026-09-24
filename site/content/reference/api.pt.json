@@ -1336,7 +1336,9 @@
       "projection": "A projeção.",
       "world": "A matriz de mundo da câmera.",
       "view": "A matriz de view.",
-      "eye": "Onde está o olho."
+      "eye": "Onde está o olho.",
+      "near": "Distância mais próxima.",
+      "far": "Distância mais distante."
     }
   },
   "HostDrawOutput": {

@@ -2360,7 +2360,9 @@
       "projection": "La proiezione.",
       "world": "La matrice della camera nel mondo.",
       "view": "La matrice di vista.",
-      "eye": "Dove si trova l'occhio."
+      "eye": "Dove si trova l'occhio.",
+      "near": "Distanza più vicina.",
+      "far": "Distanza più lontana."
     }
   },
   "HostDrawOutput": {

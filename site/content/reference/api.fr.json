@@ -2363,12 +2363,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Les matrices avec lesquelles un hôte dessine une image, telles que le moteur les donne.",
+    "summary": "Les matrices et la plage de profondeur avec lesquelles un hôte dessine une image, telles que le moteur les donne.",
     "members": {
       "projection": "La projection.",
       "world": "La matrice de la caméra dans le monde.",
       "view": "La matrice de vue.",
-      "eye": "Où est l’œil."
+      "eye": "Où est l’œil.",
+      "near": "Distance la plus proche.",
+      "far": "Distance la plus lointaine."
     }
   },
   "HostDrawOutput": {
@@ -3267,7 +3269,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Ombre chaque point selon sa distance à la caméra.",
+    "summary": "Ombre chaque point selon sa distance à la caméra : blanc à `camera.near`, noir à `camera.far`, une rampe droite entre les deux, la même sur WebGPU et WebGL2.",
     "parameters": {
       "parameters": "Ce qu’une page peut donner à un membre de matériau ; chaque champ est facultatif.",
       "parameters.color": "La couleur de base.",
