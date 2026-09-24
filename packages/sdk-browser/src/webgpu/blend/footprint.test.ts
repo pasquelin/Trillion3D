@@ -119,7 +119,7 @@ for (const [what, change] of changes)
 
 test('an item without a box ranks again when its world origin moves', () => {
   const { blendState, eye } = heldScene([item(-4), item(-8, { bounds: undefined })]);
-  blendState.blendGpu[1].matrix.elements[14] = -1;
+  (blendState.blendGpu[1].matrix.elements as number[])[14] = -1;
   assert.equal(rankAgainstFresh(blendState, eye), true);
 });
 
@@ -135,4 +135,13 @@ test('a frame without an eye voids the record', () => {
   const { blendState, eye } = heldScene();
   orderBlendPasses(blendState, undefined);
   assert.equal(rankAgainstFresh(blendState, eye), true);
+});
+
+test('the first frame with an eye after one without slices the runs again, its order unmoved', () => {
+  const { blendState, eye } = heldScene();
+  blendState.orderMoved = [false, false];
+  orderBlendPasses(blendState, undefined);
+  orderBlendPasses(blendState, eye);
+  assert.ok(blendState.runCount[0] > 0, 'the transparents are drawn again');
+  assert.equal(blendState.orderMoved[0], true, 'the new runs are uploaded');
 });
