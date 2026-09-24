@@ -1,0 +1,174 @@
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import {
+  BODY_INDEX,
+  LAYER,
+  MOTION,
+  SHAPE,
+  physicsBudgetError,
+  readCookedPhysics,
+  type CommandWriter,
+  type PhysicsBudget,
+} from '../../../sdk-core/src/physics/index.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { createPhysicsBodies } from './bodies.ts';
+import {
+  boxDistance,
+  isModel,
+  locate,
+  moversOf,
+  tilePose,
+  type Model,
+  type Placed,
+} from './tilePlace.ts';
+import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
+
+/** Tile fetches in flight at once. */
+const FETCHES = 8;
+
+/**
+ * The cooked collision of the compiled models in a scene (`physics.json`), streamed into the
+ * simulation within `budget.physics.triangles`: tiles load around the eye up to the active range
+ * — the camera's draw distance, the scene's own — and around every moving body, nearest first,
+ * and leave once no longer wanted. A tile is restored from Jolt's binary state, never rebuilt.
+ */
+export function createTileStreamer(
+  writer: CommandWriter,
+  budget: PhysicsBudget,
+  bodies: ReturnType<typeof createPhysicsBodies>,
+  invalidate: () => void,
+  failed: (error: EngineError) => void,
+) {
+  const models = new Map<Model, Placed[] | null>();
+  const byIndex = new Map<number, Placed>();
+  let fetching = 0,
+    refused = false;
+  async function open(model: Model) {
+    models.set(model, null);
+    const response = await fetch(new URL('physics.json', model.record.base).href);
+    // A model compiled before the cook has no file: it collides nowhere, as before.
+    if (!response.ok) return;
+    const cooked = readCookedPhysics(await response.json());
+    const placed: Placed[] = [];
+    for (const instance of cooked.instances)
+      for (const tile of cooked.colliders[instance.collider].tiles) {
+        const p = { model, instance, tile, box: new Box3(), id: -1, loading: false };
+        locate(p);
+        placed.push(p);
+      }
+    if (models.has(model)) models.set(model, placed);
+    invalidate();
+  }
+  const evict = (p: Placed) => {
+    if (p.id < 0) return;
+    byIndex.delete(p.id & BODY_INDEX);
+    bodies.release(p.id & BODY_INDEX);
+    p.id = -1;
+  };
+  async function load(p: Placed) {
+    p.loading = true;
+    fetching++;
+    try {
+      const response = await fetch(new URL(p.tile.url, p.model.record.base).href);
+      if (!response.ok)
+        throw new EngineError('PHYSICS_FAILED', `Physics tile ${p.tile.url}: ${response.status}.`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!models.get(p.model)) return;
+      p.id = bodies.claim(p.tile.triangles);
+      const handle = p.id & BODY_INDEX;
+      byIndex.set(handle, p);
+      const { position, quaternion, scale } = tilePose(p);
+      // Restored, built into one static body, and its handle dropped: the body keeps the shape.
+      writer.restore(handle, bytes);
+      writer.add({
+        id: p.id,
+        motion: MOTION.static,
+        layer: LAYER.static,
+        shape: SHAPE.cooked,
+        flags: 0,
+        position,
+        quaternion,
+        size: [scale.x, scale.y, scale.z],
+        mass: 0,
+        density: 0,
+        friction: 0.6,
+        restitution: 0,
+        gravityScale: 1,
+        indices: [handle],
+      });
+      writer.release(handle);
+      invalidate();
+    } catch (error) {
+      failed(error as EngineError);
+    } finally {
+      p.loading = false;
+      fetching--;
+    }
+  }
+  return {
+    /** Finds the compiled models under `root`, opening the new ones and forgetting the gone. */
+    scan(root: Object3D) {
+      const seen = new Set<Model>();
+      root.traverse((node) => {
+        if (!isModel(node)) return;
+        seen.add(node);
+        if (!models.has(node)) open(node).catch((error) => failed(error as EngineError));
+      });
+      for (const [model, placed] of models)
+        if (!seen.has(model)) {
+          placed?.forEach(evict);
+          models.delete(model);
+        }
+    },
+    /**
+     * Brings the resident tiles in line with what is wanted: within `range` of `eye`, or within
+     * reach of a moving body. Past the budget, the nearest are kept and the error is raised once,
+     * naming the triangles asked.
+     */
+    update(eye: ArrayLike<number>, range: number) {
+      if (!models.size) return;
+      const wanted: [number, Placed][] = [],
+        movers = moversOf(bodies.meshes);
+      for (const placed of models.values())
+        for (const p of placed ?? []) {
+          let near = boxDistance(p.box, eye[0], eye[1], eye[2]);
+          if (near > range) near = Infinity;
+          for (let m = 0; m < movers.length; m += 4)
+            if (boxDistance(p.box, movers[m], movers[m + 1], movers[m + 2]) <= movers[m + 3])
+              near = 0;
+          if (near < Infinity) wanted.push([near, p]);
+          else evict(p);
+        }
+      wanted.sort((a, b) => a[0] - b[0]);
+      let room = budget.triangles - bodies.count.triangles,
+        asked = bodies.count.triangles;
+      for (const [, p] of wanted) {
+        if (p.id >= 0 || p.loading) continue;
+        asked += p.tile.triangles;
+        if (p.tile.triangles > room) continue;
+        room -= p.tile.triangles;
+        if (fetching < FETCHES) void load(p);
+      }
+      if (asked > budget.triangles && !refused)
+        failed(physicsBudgetError('triangles', budget.triangles, asked));
+      refused = asked > budget.triangles;
+    },
+    /** The model a tile body's engine id belongs to, or `null`. */
+    modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? null,
+    /** A model moved: its resident tiles follow. */
+    moved(node: Object3D) {
+      node.traverse((child) => {
+        for (const p of (isModel(child) && models.get(child)) || []) {
+          locate(p);
+          if (p.id < 0) continue;
+          const { position, quaternion } = tilePose(p);
+          writer.teleport(p.id & BODY_INDEX, position, quaternion);
+        }
+      });
+    },
+    /** Every tile out (physics turned off). */
+    clear() {
+      for (const placed of models.values()) placed?.forEach(evict);
+      models.clear();
+    },
+  };
+}

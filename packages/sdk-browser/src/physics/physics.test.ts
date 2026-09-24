@@ -16,6 +16,8 @@ import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
 import { body, startModule, startThreaded, type Module } from './module.fixture.ts';
+/** The session's code, fetched on the first use (`worldPhysics.ts`), has been loaded. */
+const loaded = () => import('./session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
 /** Drops a box on a floor, `seen` or behind the view; returns the step at which it sleeps. */
 async function dropBox(jolt: Module, seen: boolean) {
   const writer = new CommandWriter();
@@ -77,7 +79,7 @@ test('a body past the bodies budget is refused with PHYSICS_BUDGET', () => {
   assert.ok(crates.some((crate) => crate.physics?._host === host));
 });
 
-test('a world without physics starts no worker; enabling it starts one', () => {
+test('a world without physics starts no worker; enabling it starts one', async () => {
   const started: unknown[] = [];
   const saved = globalThis.Worker;
   globalThis.Worker = class {
@@ -96,6 +98,7 @@ test('a world without physics starts no worker; enabling it starts one', () => {
     assert.equal(physics.frame(), false);
     assert.equal(started.length, 0);
     physics.handle.enabled = true;
+    await loaded();
     assert.equal(started.length, 1);
     // A time scale of 0 stands still: the worker is paused, never scheduled infinitely far.
     physics.handle.timeScale = 0;
@@ -107,7 +110,7 @@ test('a world without physics starts no worker; enabling it starts one', () => {
   }
 });
 
-test('a fatal worker error ends the session: physics off, the error kept, nothing more sent', () => {
+test('a fatal worker error ends the session: physics off, the error kept, nothing more sent', async () => {
   const workers: { onmessage(event: { data: unknown }): void; sent: number; ended: boolean }[] = [];
   const saved = globalThis.Worker,
     log = console.error;
@@ -129,6 +132,7 @@ test('a fatal worker error ends the session: physics off, the error kept, nothin
   try {
     const runtime = { invalidate() {}, explorer: null };
     const physics = createWorldPhysics(runtime, new Group(), () => new Camera('perspective'), true);
+    await loaded();
     const [worker] = workers;
     worker.onmessage({ data: { type: 'ready' } });
     const fatal = { type: 'error', code: 'PHYSICS_BUDGET', message: 'out of memory', fatal: true };
@@ -140,6 +144,37 @@ test('a fatal worker error ends the session: physics off, the error kept, nothin
     physics.handle.gravity = 'moon';
     assert.equal(physics.frame(), false);
     assert.equal(worker.sent, sent, 'no command reaches the failed worker');
+  } finally {
+    globalThis.Worker = saved;
+    console.error = log;
+  }
+});
+
+test('a budget raised while the physics runs waits for the next session', async () => {
+  const saved = globalThis.Worker,
+    log = console.error;
+  globalThis.Worker = class {
+    postMessage() {}
+    terminate() {}
+  } as unknown as typeof Worker;
+  console.error = () => {};
+  try {
+    const scene = new Group();
+    const runtime = { invalidate() {}, explorer: null };
+    const physics = createWorldPhysics(runtime, scene, () => new Camera('perspective'), {
+      budget: { bodies: 1 },
+    });
+    await loaded();
+    physics.budget.bodies = 4;
+    for (let i = 0; i < 2; i++) {
+      const crate = new Mesh(box(), new Material('meshStandard'));
+      crate.physics = 'dynamic';
+      scene.add(crate);
+    }
+    physics.frame();
+    assert.equal(physics.handle.stats.bodies, 1, 'the session keeps the budget it started with');
+    assert.equal(physics.handle.error?.code, 'PHYSICS_BUDGET');
+    physics.dispose();
   } finally {
     globalThis.Worker = saved;
     console.error = log;

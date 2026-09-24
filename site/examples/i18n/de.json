@@ -1907,5 +1907,51 @@
         "1000": "1.000"
       }
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "Klicke auf den Boden, um dort einen Ball fallen zu lassen. Regen lässt zwanzig weitere fallen.",
+    "controls": {
+      "matter": "Material",
+      "rain": "Regen"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "Gummi",
+        "stone": "Stein",
+        "ice": "Eis"
+      }
+    },
+    "words": {
+      "credit": "Tal für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "Der Läufer umrundet die Halle und schiebt die Bälle. Bälle fügt zwanzig hinzu.",
+    "controls": {
+      "walking": "Gehen",
+      "balls": "Bälle"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben.",
+    "controls": {
+      "pushStrength": "Schubkraft (N)",
+      "platformSpeed": "Plattformtempo",
+      "stackAgain": "Neu stapeln"
+    },
+    "readouts": {
+      "awake": "Wach",
+      "speed": "Tempo"
+    }
   }
 }

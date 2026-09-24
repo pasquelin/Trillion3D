@@ -1,6 +1,8 @@
 // The shapes an ADD command builds: primitives, shared by their dimensions, the hulls and
-// triangle meshes its data carries, and compounds of primitives (a hull-and-deck boat). Word layouts: `packages/sdk-core/src/physics/layout.ts`.
+// triangle meshes its data carries, the cooked shapes it names (`restore.cpp`) and compounds of
+// primitives (a hull-and-deck boat). Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
+#include "restore.h"
 #include "words.h"
 
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
@@ -17,7 +19,7 @@ namespace trillion {
 
 namespace {
 
-enum ShapeKind : uint32_t { BOX = 0, SPHERE, CAPSULE, CYLINDER, TRIANGLES, HULL, COMPOUND };
+enum ShapeKind : uint32_t { BOX = 0, SPHERE, CAPSULE, CYLINDER, TRIANGLES, HULL, COOKED, COMPOUND };
 /// Words of one compound part: `kind, a, b, c, px, py, pz, qx, qy, qz, qw` (layout.ts PART_WORDS).
 constexpr uint32_t PART_WORDS = 11;
 
@@ -75,6 +77,8 @@ RefConst<Shape> shapeOf(const uint32_t *w) {
   uint32_t motion = w[2], kind = w[4];
   // A mesh has no volume: only a body that never moves by force may be one (the page refuses it).
   if (kind <= CYLINDER) return primitive(kind, f32(w + 13), f32(w + 14), f32(w + 15));
+  // A cooked shape: its handle is the one data word, `a, b, c` its scale.
+  if (kind == COOKED) return w[22] == 1 ? cookedShape(w[ADD_WORDS], vec3(w + 13)) : nullptr;
   if (kind == TRIANGLES && motion == 2) return nullptr;
   // A compound's parts are its data words (indexCount counts them, vertexCount is 0).
   if (kind == COMPOUND) return compoundShape(w + ADD_WORDS, w[22]);

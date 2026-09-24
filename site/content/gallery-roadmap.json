@@ -1458,8 +1458,12 @@
     {
       "id": "rolling-on-terrain",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/rolling-on-terrain.html"
+    },
+    {
+      "id": "a-walker-among-balls",
+      "theme": "physics",
+      "file": "examples/a-walker-among-balls.html"
     },
     {
       "id": "hinges-and-joints",
@@ -1470,8 +1474,7 @@
     {
       "id": "walk-with-collisions",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/walk-with-collisions.html"
     },
     {
       "id": "drive-a-car",
