@@ -1811,6 +1811,26 @@
       "sound": "M 소리"
     }
   },
+  "watch-a-world-load": {
+    "banner": "세계가 도착하는 동안 막대가 차오르는 걸 봐. 첫 바이트부터 보려면 다시 로드를 눌러.",
+    "controls": {
+      "loadAgain": "다시 로드"
+    },
+    "readouts": {
+      "phase": "단계",
+      "bytes": "바이트",
+      "pages": "첫 페이지"
+    },
+    "words": {
+      "credit": "이 예제를 위해 코드로 만든 항아리 거리, CC0 — assets/examples/CREDITS.md 참고",
+      "bytes": "바이트 읽는 중",
+      "manifest": "매니페스트 읽음",
+      "tables": "씬 테이블 읽음",
+      "resources": "씬 파일",
+      "pages": "첫 페이지",
+      "ready": "준비됨"
+    }
+  },
   "waves-of-points": {
     "banner": "끌어서 들판 주위를 돌아 봐. 무늬를 골라 파도를 바꿔 봐.",
     "controls": {
