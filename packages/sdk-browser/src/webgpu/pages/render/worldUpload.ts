@@ -2,6 +2,7 @@ import { sameRenderOrigin } from '../../../camera/renderOrigin.ts';
 import { rootWorldsToRenderOrigin } from '../../../gpu/dag/pack.ts';
 import { invalidateOccluderHistory } from '../io/drops.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
+import { followHostVisibility } from '../../../placement/hidden.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -16,6 +17,11 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run } = rt,
     { selectionRoots, worldUpdates, rows } = rt.layout;
   const hostWalked = run.gate.updateWorlds(rt.setup.worlds);
+  // A node the host hid or showed parks its roots or takes them back, in every cut.
+  if (hostWalked)
+    followHostVisibility(selectionRoots, (rank, parked) =>
+      run.gpuSelection?.parkWorld(rank, parked),
+    );
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
   // What leaves toward the cut kernel is brought back to the eye (`../../../camera/renderOrigin.ts`):
   // a camera that moves therefore changes these sixteen numbers just as much as a moved node. Both
