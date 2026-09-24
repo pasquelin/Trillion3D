@@ -14,9 +14,6 @@ import {
   SAMPLE_TRANSFORMED,
 } from './sampling.ts';
 
-/** The most taps an anisotropic read takes: a cost ceiling chosen to bound the shader, below the
- *  16 WebGPU accepts as `maxAnisotropy`. */
-const MAX_TAPS = 8;
 /** Elongation a footprint may have and still be read once, at the isotropic level, like a
  *  texture granted no anisotropy: a surface seen face-on, up to rounding. */
 const ANISOTROPY_SLACK = 0.01;
@@ -29,7 +26,9 @@ const ANISOTROPY_SLACK = 0.01;
  * coordinate; the filter word then picks the level and whether a level is read at the centre of
  * its texel or mixed by the sampler. Anisotropy averages `taps` reads along the longer axis of
  * the footprint at the level of the shorter one — once when it is hardly elongated
- * (`ANISOTROPY_SLACK`), `MAX_TAPS` at most. `tapOffset` places tap `i` of `n` on that line, for
+ * (`ANISOTROPY_SLACK`), otherwise as many as the ratio, which the grant — 16 at most, the 4-bit
+ * field of the sampling word (`MAX_ANISOTROPY`) — bounds: no footprint within the grant is read
+ * with fewer taps than it is stretched. `tapOffset` places tap `i` of `n` on that line, for
  * the read and for the request alike.
  */
 export const SAMPLING_WGSL = `/** How one sample reads: the coordinate after the texture's transform, the line anisotropy spreads
@@ -43,7 +42,7 @@ fn tapOffset(i:u32,n:u32)->f32{return (f32(i)+0.5)/f32(n)-0.5;}
  * rounded (\`nearest\` mip) or pinned to 0 (no mip). Magnification — a level at or under GL's
  * threshold, 0.5 with \`SAMPLE_MAG_HALF\`, 0 otherwise — reads level 0 with the magnification
  * filter, anything else the minification one. The taps are the footprint's elongation, rounded
- * up, capped by the grant and by \`MAX_TAPS\`.
+ * up, the ratio already clamped to the grant.
  */
 fn tileRead(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
  let px=ddx*s.size;let py=ddy*s.size;
@@ -55,7 +54,7 @@ fn tileRead(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
   let ratio=min(sqrt(max(lx,ly)/max(min(lx,ly),1e-20)),f32(granted));
   if(ratio>${1 + ANISOTROPY_SLACK}){
    raw-=log2(ratio);
-   taps=min(u32(ceil(ratio-${ANISOTROPY_SLACK})),${MAX_TAPS}u);
+   taps=u32(ceil(ratio-${ANISOTROPY_SLACK}));
    axis=select(ddy,ddx,lx>=ly);
   }
  }
