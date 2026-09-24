@@ -1509,8 +1509,6 @@
       "a-capped-section": "क्लिपिंग तल: स्टेंसिल कैप",
       "decals-on-a-surface": "चयन (रेकास्ट)",
       "sculpt-a-sphere": "चयन (रेकास्ट)",
-      "a-texture-turned-and-tiled": "WebGPU पर texture दोहराव, ऑफ़सेट और घुमाव",
-      "texture-filters-compared": "WebGPU पर texture फ़िल्टर और एनिसोट्रोपी",
       "a-video-on-a-screen": "लाइव वीडियो textures",
       "the-webcam-as-a-texture": "लाइव वीडियो textures",
       "four-ways-to-blend": "हर ब्लेंडिंग मोड",

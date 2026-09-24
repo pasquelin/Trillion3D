@@ -2,7 +2,7 @@
 // limit. Cases live in `resume.test.ts`.
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
 import { renderGpuCut } from '../pages/render/gpuCut.ts';
-import { mountCutAdopter } from './adopter.fixture.ts';
+import { fixtureTotals, mountCutAdopter } from './adopter.fixture.ts';
 import { cameraSelectionUniforms, createSelectionUniforms } from '../../gpu/core/selection.ts';
 import { createEngineCamera, writeEngineCamera } from '../../camera/engineCamera.ts';
 import { createWebgpuBudgetState } from '../residency/budgetState.ts';
@@ -44,6 +44,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
       frustumRejected: 0,
       lodLevel: 0,
       complete: false,
+      ...fixtureTotals(),
     },
     worldRevision: 0,
   };
@@ -70,6 +71,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
           frustumRejected: 0,
           lodLevel: 0,
           complete: vueResidence === 1,
+          ...fixtureTotals(),
         },
         worldRevision: 0,
       };
@@ -77,9 +79,8 @@ export function banc(panne?: 'debordement' | 'envoi') {
     },
     peek: () => releve,
   } as unknown as GpuSelection;
-  const { adopter, counts, desired, shown } = mountCutAdopter({
+  const { adopter, desired, shown } = mountCutAdopter({
     packedPages: [page],
-    residentOffsetWords: new Int32Array([0]),
     uniforms,
     selection: () => selection,
   });
@@ -150,8 +151,6 @@ export function banc(panne?: 'debordement' | 'envoi') {
     image: () => renderGpuCut(rt, camera, 0, 0, 0),
     arrive: () => {
       page.array = new Uint32Array([0, 1, 2]);
-      // The bytes arrive: what the rank journal would do, the bench does by hand.
-      counts.touch(0);
     },
   };
 }

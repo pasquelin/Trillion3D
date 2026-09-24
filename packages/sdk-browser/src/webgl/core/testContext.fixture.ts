@@ -1,11 +1,15 @@
 /**
  * A WebGL2 context double for the unit tests of the engine's composition programs: every
  * constant answers itself by name, every call is recorded with its arguments, GPU objects are
- * numbered so a test can tell one from another, and the context can be declared lost.
+ * numbered so a test can tell one from another, and the context can be declared lost. `answers`
+ * replaces the recording of the calls it names by the given functions: a queried extension or
+ * parameter, say.
  */
 type RecordedCall = { name: string; args: unknown[] };
 
-export function createTestContext(options: { lost?: boolean } = {}) {
+export function createTestContext(
+  options: { lost?: boolean; answers?: Record<string, unknown> } = {},
+) {
   const calls: RecordedCall[] = [];
   const listeners = new Map<string, Set<EventListener>>();
   let objects = 0;
@@ -40,6 +44,7 @@ export function createTestContext(options: { lost?: boolean } = {}) {
     getUniformLocation: (_program: unknown, name: string) => ({ uniform: name }),
     getAttribLocation: () => 0,
     checkFramebufferStatus: () => 'FRAMEBUFFER_COMPLETE',
+    ...options.answers,
   };
   const gl = new Proxy(
     {},

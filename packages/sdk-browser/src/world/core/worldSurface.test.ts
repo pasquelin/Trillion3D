@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { followHostTexture, importHostTexture } from '../../host/textureImport.ts';
-import type { HostTexture } from '../../host/resources.ts';
+import type { HostAttributes, HostTexture } from '../../host/resources.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
+import { clusterMaterialReason } from '../../host/surfaceGate.ts';
+import { importHostSurface } from '../../host/surfaceImport.ts';
 
 // #335: a repainted entry writes its values into the surface the session already holds, and the
 // version bump is what the page rows reread it on (`page/surface.ts`).
@@ -102,4 +104,24 @@ test('a repaint that moves a map’s placement and its pixels together takes bot
   followHostTexture(record);
   assert.equal(record.version, sent + 1, 'the record refilled, its picture to send again');
   assert.equal(record.transform[6], 0.5, 'the offset reaches the record');
+});
+
+// #337: a world's glass reaches the WebGL2 program as the transmissive copy it draws over the
+// frozen backdrop (`page/selection/collect.ts` routes a surface that transmits there), its volume
+// intact, and is never admitted as a paged cluster, which cannot read the backdrop.
+test('a glass wears a physical surface the WebGL2 program draws as a transmissive copy', () => {
+  const glass = material.meshPhysical({ roughness: 0.02, transmission: 1, ior: 1.4, thickness: 1 });
+  const surface = hostSurface(glass, false, new Map());
+  assert.equal(surface.family, 'physical');
+  const attributes = {
+    position: new G.GraphAttribute(new Float32Array(9), 3),
+    normal: new G.GraphAttribute(new Float32Array(9), 3),
+  } as unknown as HostAttributes;
+  assert.equal(clusterMaterialReason(surface, attributes, true), undefined);
+  assert.match(String(clusterMaterialReason(surface, attributes)), /scene copy/);
+  const record = importHostSurface(surface)!;
+  assert.deepEqual(
+    [record.transmission, record.ior, record.thickness, record.lit],
+    [1, 1.4, 1, true],
+  );
 });

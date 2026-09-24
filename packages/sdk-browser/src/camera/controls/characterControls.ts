@@ -45,9 +45,9 @@ export interface CharacterCameraControls extends CameraControlBase, PersonHead, 
   /** Called when the body leaves the ground on a jump. */
   onJump: (() => void) | null;
   /**
-   * What the body collides with — the world's colliders, or a physics backend's world through
-   * the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls.
-   * Unused while the world's physics runs: the body is then the physics' own.
+   * What the body collides with — the world's colliders as a triangle tree, or any world that
+   * answers the same seam (`CharacterCollision`). `null` walks level where the body stands, never
+   * falls. Unused while the world's physics runs: physics replaces the body with its own.
    */
   collision: CharacterCollision | null;
   /** Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did. */
