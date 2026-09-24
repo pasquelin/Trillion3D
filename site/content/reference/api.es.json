@@ -2900,7 +2900,8 @@
       "signal": "Detiene la carga cuando se cancela la señal.",
       "scope": "`'full'` solicita toda la caché, `'progressive'` su fracción en flujo; un modelo de otro alcance se rechaza por su nombre. Sin valor, el modelo se lee con el alcance que declara su puntero.",
       "stream": "Un flujo que la página ha ajustado; la sesión del mundo hace llegar las páginas con el suyo.",
-      "position": "A dónde va el origen del modelo en la escena."
+      "position": "A dónde va el origen del modelo en la escena.",
+      "onProgress": "Escucha cuánto ha avanzado la carga: `manifest` una vez leído el manifiesto, luego `resources` a medida que llega cada archivo que lee la escena (`completed` de un `total` conocido hasta ese momento). El evento es un `JobProgress`: un `createJob` que envuelve la carga pasa aquí su `progress`."
     }
   },
   "LOD_QUALITY": {
@@ -5222,6 +5223,7 @@
       "counts": "Lo que hizo el último plan, en páginas.",
       "worldChanged": "Un nodo se movió: su caja invalida las páginas que cubre en el siguiente plan.",
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
+      "resting": "La cámara estaba en reposo en el último plan: su vista era la del plan anterior.",
       "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",
       "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
       "observeCost": "Temporizador del pase Sombras de una imagen, repartido entre las páginas que dibujó.",
@@ -6866,7 +6868,9 @@
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
-      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`."
+      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
+      "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
+      "remove": "Quita una unión: los cuerpos que sujetaba se separan libremente."
     }
   },
   "ContactEvent": {
@@ -7047,7 +7051,9 @@
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
-      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`."
+      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
+      "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
+      "remove": "Quita una unión: los cuerpos que sujetaba se separan libremente."
     }
   },
   "WorldPhysicsOptions": {
@@ -7311,6 +7317,77 @@
       "x": "De izquierda a derecha.",
       "y": "De abajo arriba.",
       "z": "De atrás hacia adelante."
+    }
+  },
+  "Joint": {
+    "summary": "Una unión entre dos cuerpos, o entre un cuerpo y el mundo (`b` null), creada con `joint.*` y añadida a la simulación con `world.physics.add`.",
+    "description": "Se mantiene mientras ambos cuerpos se simulan y hasta que se rompe.",
+    "parameters": {
+      "options": "Lo que acepta `joint.*`. Puntos y ejes están en el mundo y se leen cuando la unión se crea por primera vez.",
+      "options.anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia en `a`.",
+      "options.anchorB": "El extremo de una distancia en `b`.",
+      "options.axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono.",
+      "options.limits": "Bisagra, corredera, distancia y cono: cuánto se mueve. Una distancia conserva por defecto su longitud.",
+      "options.spring": "Bisagra, corredera y distancia: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
+      "options.motor": "Bisagra y corredera: un motor, modificable en cualquier momento con `joint.motor`.",
+      "options.breakForce": "Newtons de tirón a partir de los cuales la unión se rompe; si se omite, nunca."
+    },
+    "members": {
+      "kind": "Qué es la unión.",
+      "a": "El primer cuerpo.",
+      "b": "El segundo cuerpo, o `null` para el mundo.",
+      "options": "Con qué se creó.",
+      "motor": "El motor de una bisagra o una corredera; `null` la deja girar o deslizar libremente.",
+      "broken": "Si se rompió: tirada más allá de su `breakForce`. Una unión rota ya no sujeta nada.",
+      "on": "Llama a `handler` cuando la unión se rompe."
+    }
+  },
+  "JointKind": {
+    "summary": "Las uniones entre cuerpos, cada una una restricción propia de Jolt."
+  },
+  "JointLimits": {
+    "summary": "Cuánto puede moverse una unión: radianes para una bisagra, metros para una corredera o una distancia, el semiángulo del cono (`max`) para un cono.",
+    "members": {
+      "min": "El de una bisagra de −π a 0, el de una corredera 0 o menos.",
+      "max": "El de una bisagra de 0 a π, el de una corredera 0 o más."
+    }
+  },
+  "JointMotor": {
+    "summary": "El motor de una bisagra o una corredera: lleva la unión a una velocidad o a una posición.",
+    "members": {
+      "mode": "`'velocity'`: rad/s o m/s; `'position'`: radianes o metros desde donde se creó la unión.",
+      "target": "La velocidad o la posición que alcanzar.",
+      "maxForce": "N·m para una bisagra, N para una corredera; si se omite, sin límite."
+    }
+  },
+  "JointOptions": {
+    "summary": "Lo que acepta `joint.*`.",
+    "description": "Puntos y ejes están en el mundo y se leen cuando la unión se crea por primera vez.",
+    "members": {
+      "anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia en `a`.",
+      "anchorB": "El extremo de una distancia en `b`.",
+      "axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono.",
+      "limits": "Bisagra, corredera, distancia y cono: cuánto se mueve. Una distancia conserva por defecto su longitud.",
+      "spring": "Bisagra, corredera y distancia: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
+      "motor": "Bisagra y corredera: un motor, modificable en cualquier momento con `joint.motor`.",
+      "breakForce": "Newtons de tirón a partir de los cuales la unión se rompe; si se omite, nunca."
+    }
+  },
+  "joint": {
+    "summary": "La familia `joint`: dos cuerpos unidos, o un cuerpo y el mundo (`b` null).",
+    "members": {
+      "fixed": "Los suelda: se mueven como uno solo.",
+      "point": "Una rótula en `anchor`: giran libremente alrededor.",
+      "hinge": "Un eje en `anchor` a lo largo de `axis`: una puerta, una rueda. `limits` en radianes.",
+      "slider": "Un riel a lo largo de `axis`: un cajón, un pistón. `limits` en metros.",
+      "distance": "Mantiene `anchor` en `a` y `anchorB` en `b` a su distancia, o dentro de `limits`.",
+      "cone": "Una rótula cuyo `axis` oscila dentro de un cono de semiángulo `limits.max`."
+    }
+  },
+  "JointHost": {
+    "summary": "El lado del mundo de una unión: lo que una escritura en ella pide a la simulación.",
+    "members": {
+      "motor": "El motor cambió."
     }
   }
 }

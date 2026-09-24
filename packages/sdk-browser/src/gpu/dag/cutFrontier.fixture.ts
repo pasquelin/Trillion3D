@@ -19,7 +19,7 @@
  */
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
 import { dagNodeFloor, dagNodeVerdict, dagViewFrames, projectedError } from './oracle/math.ts';
-import { bandError, bandSphere, dagRecords, worldOf } from './layout.ts';
+import { bandError, bandSphere, dagRecords, worldOf } from './records.ts';
 import { NODE_FIRST_CHILD, NODE_FIRST_PAGE, NODE_PAGE_COUNT } from './packNodes.ts';
 import type { SelectionUniforms } from '../core/selection.ts';
 
