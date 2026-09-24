@@ -1383,6 +1383,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/diagnostic/colors.ts",
+        "packages/sdk-browser/src/host/graph/graph.fixture.ts",
+        "packages/sdk-browser/src/host/graph/graphLights.fixture.ts",
         "packages/sdk-browser/src/host/graph/light.ts",
         "packages/sdk-browser/src/host/graph/scene.ts",
         "packages/sdk-browser/src/host/graph/surface.ts",
@@ -1409,7 +1411,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/helper/index.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/graph.fixture.ts",
+        "packages/sdk-browser/src/host/graph/graphLights.fixture.ts",
+        "packages/sdk-browser/src/world/helper/index.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/color\".ColorInput"
     },
@@ -3043,6 +3049,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -4537,7 +4544,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/host/graph/camera.ts",
-        "packages/sdk-browser/src/host/graph/node.ts"
+        "packages/sdk-browser/src/host/graph/node.ts",
+        "packages/sdk-browser/src/webgpu/cut/publication.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/matrix4\".Matrix4"
@@ -8614,6 +8622,7 @@
         "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/host/graph/geometry.ts",
+        "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/scene/graphObjects.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
