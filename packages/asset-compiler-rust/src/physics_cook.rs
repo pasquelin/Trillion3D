@@ -14,7 +14,7 @@ use crate::{CompilerError, Result};
 mod cut;
 mod declared;
 mod decompose;
-mod hausdorff;
+pub(crate) mod hausdorff;
 mod height;
 mod stage;
 #[cfg(test)]

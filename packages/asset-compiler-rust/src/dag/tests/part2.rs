@@ -57,12 +57,8 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
         .iter()
         .flat_map(|c| c.indices.iter().copied())
         .collect();
-    let input = GroupReductionInput {
-        positions: &positions,
-        locks: &locks,
-        weld: &weld,
-        weld_seam: &weld,
-    };
+    let welds = attributes::Welds::of(&positions, DagAttributes::default(), &indices);
+    let input = welds.input(&positions, &locks);
     let reduction = reduce_group(&input, &group)
         .expect("reduce")
         .expect("group must simplify");
@@ -121,12 +117,8 @@ fn an_isolated_sheet_simplifies_its_whole_boundary() {
         })
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();
-    let input = GroupReductionInput {
-        positions: &positions,
-        locks: &locks,
-        weld: &weld,
-        weld_seam: &weld,
-    };
+    let welds = attributes::Welds::of(&positions, DagAttributes::default(), &indices);
+    let input = welds.input(&positions, &locks);
     let reduction = reduce_group(&input, &group)
         .expect("reduce")
         .expect("an unlocked sheet must simplify");

@@ -12,22 +12,21 @@ pub type DagBuild = (
 /// `ExactClusters` build yields level zero alone, without group or reduction, so
 /// published coverage is exactly source triangles.
 ///
-/// `uv_sets` — every texture set the primitive carries, two floats per vertex, empty when it
-/// carries none — says which position copies reduction is allowed to weld when stuck: those
-/// sharing every texture coordinate, never the opposite edge of a seam of any set.
+/// `attributes` — the normals and every texture set the pages carry — count in the reduction
+/// error; a position written under several texture coordinates is a seam no collapse crosses.
 ///
 /// Returns the clusters, the groups kept, one tally per level and every stalled group with its
 /// level, in level order.
 pub fn build_dag_tallied(
     positions: &[f32],
-    uv_sets: &[&[f32]],
+    attributes: DagAttributes,
     indices: &[u32],
     strategy: DagStrategy,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<DagBuild> {
     checkpoint()?;
     // The seam weld's key holds the two texture sets a page can carry, no more.
-    if uv_sets.len() > 2 {
+    if attributes.uv_sets().len() > 2 {
         return Err(invalid("a page carries at most two texture sets"));
     }
     // Rank of the source triangle each vertex first appears in, used to keep the draw order stable.
@@ -70,12 +69,9 @@ pub fn build_dag_tallied(
     if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
         return Ok((dag, reductions_kept, tallies, stalls));
     }
-    let (weld, weld_seam) = {
+    let welds = {
         let _t = Timer::new(Phase::Weld);
-        (
-            weld_positions(positions, indices),
-            (!uv_sets.is_empty()).then(|| weld_positions_and_uv(positions, uv_sets, indices)),
-        )
+        attributes::Welds::of(positions, attributes, indices)
     };
     let mut current: Vec<usize> = (0..dag.len()).collect();
     for level in 1..=DAG_MAX_LEVELS {
@@ -107,14 +103,9 @@ pub fn build_dag_tallied(
         }
         let locks = {
             let _t = Timer::new(Phase::Locks);
-            level_locks(&weld, &lists, &groups)
+            level_locks(&welds.weld, &lists, &groups)
         };
-        let input = GroupReductionInput {
-            positions,
-            locks: &locks,
-            weld: &weld,
-            weld_seam: weld_seam.as_deref().unwrap_or(&weld),
-        };
+        let input = welds.input(positions, &locks);
         let reductions: Vec<std::result::Result<GroupReduction, GroupOutcome>> = groups
             .par_iter()
             .map(
@@ -132,7 +123,6 @@ pub fn build_dag_tallied(
             let reduction = match reduction {
                 Ok(reduction) => {
                     tally.reduced += 1;
-                    tally.welded += usize::from(reduction.welded);
                     tally.relocked += usize::from(reduction.relocked);
                     reduction
                 }
