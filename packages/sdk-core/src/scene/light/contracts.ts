@@ -63,10 +63,9 @@ export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce';
  * constants: every runtime bound rereads them, and the diagnostic publishes them as-is.
  */
 export const LIGHT_SETTINGS = {
-  /** Lights the contract accepts in total; beyond that, `addLight` rejects. */
+  /** Lights the contract accepts in total; beyond that, `addLight` rejects. A screen tile keeps
+   *  every one of them that touches it: its list, and the pixel loop, are bounded by this (X2). */
   maxLights: 64,
-  /** Lights a screen tile keeps; the pixel loop is bounded by this number (X2). */
-  maxLightsPerTile: 32,
   /** Side in pixels of a screen tile of the light list. */
   tileSize: 16,
   /**
