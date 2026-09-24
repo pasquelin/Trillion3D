@@ -26,6 +26,15 @@ export function createExplorerCapture(inputs: Inputs) {
   let captureSlot = 0;
   const presentationDiagnostics = new Set<string>(),
     visiblePresentationDiagnostics = new Set<string>();
+  // A background set after the session opened is written in place on the active engine's own
+  // scene (`hostBackground`, `worldBackground.write`); `options.clearColor` is only what the
+  // session opened on, so a diagnostic must read the colour the engine applies now, not that
+  // stale one, or a background changed without a reopen reads as a false mismatch.
+  const currentClearColor = () => {
+    const background = state.active.scene?.background as
+      { getHex?: () => number } | null | undefined;
+    return background?.getHex?.() ?? options.clearColor ?? DEFAULT_CLEAR_COLOR;
+  };
   const sample = (
     gl: WebGL2RenderingContext,
     phase: string,
@@ -42,7 +51,7 @@ export function createExplorerCapture(inputs: Inputs) {
         pixels,
         width,
         height,
-        options.clearColor ?? DEFAULT_CLEAR_COLOR,
+        currentClearColor(),
         'default-webgl-framebuffer',
       ),
     });
