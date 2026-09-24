@@ -29,7 +29,7 @@ export type GpuPartition = {
   /** Reads back the words the kernel wrote for `rows` rows; `undefined` if the device does not
    *  map. This is not a frame pass: it allocates, copies, then returns its buffer. */
   readRowData(rows: number): Promise<Uint32Array | undefined>;
-  /** World corners per row, written by the caller on the table's dirty range. */
+  /** World corners per row, written by the caller on the rows the table declared dirty. */
   corners: GPUBuffer;
   /** Bounds of the tested half, already packed for the occlusion kernel. */
   tested: GPUBuffer;
