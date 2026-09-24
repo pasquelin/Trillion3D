@@ -5,6 +5,13 @@ import { raycast, type Intersection } from '../../../../sdk-core/src/world/objec
 import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { isHelper } from '../helper/mark.ts';
 import { drawnAspect } from './worldCamera.ts';
+import {
+  asksPhysics,
+  physicsRaycast,
+  type PhysicsIntersection,
+  type PhysicsRaycastOptions,
+} from '../../physics/raycast.ts';
+import type { PhysicsSession } from '../../physics/session.ts';
 
 /** A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`. */
 export type CanvasPoint = {
@@ -18,6 +25,12 @@ export type CanvasPoint = {
 export interface RaycastOptions {
   /** The objects tested, with their subtrees; unset, the whole scene. */
   objects?: readonly Object3D[];
+}
+
+/** `world.raycast`: at once from the scene's own geometry, or asked of the physics. */
+export interface WorldRaycast {
+  (at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null;
+  (at: CanvasPoint | Ray, options: PhysicsRaycastOptions): Promise<PhysicsIntersection | null>;
 }
 
 /** The world ray through a canvas point, as the world's camera draws it: the point is read on
@@ -38,14 +51,43 @@ export function canvasRay(camera: Camera, canvas: HTMLCanvasElement, at: CanvasP
  * The nearest object a canvas point or a world ray meets (`raycast`), on the CPU from the scene's
  * own geometry: the node the page added, the world point and normal, the distance. The `helper`
  * marks are never hit; a loaded model is hit on its box, its triangles living in GPU pages.
+ * Asked `{ exact: true }` or `{ shape }`, the physics answers instead, asynchronously: a compiled
+ * model is then hit on its cooked triangles (`physics.json`), a shape is swept (`physicsRaycast`).
  */
 export function worldRaycast(
   scene: Object3D,
   camera: Camera,
   canvas: HTMLCanvasElement,
   at: CanvasPoint | Ray,
-  options: RaycastOptions = {},
-): Intersection | null {
+  options?: RaycastOptions,
+): Intersection | null;
+export function worldRaycast(
+  scene: Object3D,
+  camera: Camera,
+  canvas: HTMLCanvasElement,
+  at: CanvasPoint | Ray,
+  options: PhysicsRaycastOptions,
+  physics: PhysicsSession | null,
+): Promise<PhysicsIntersection | null>;
+export function worldRaycast(
+  scene: Object3D,
+  camera: Camera,
+  canvas: HTMLCanvasElement,
+  at: CanvasPoint | Ray,
+  options: RaycastOptions | PhysicsRaycastOptions = {},
+  physics: PhysicsSession | null = null,
+): Intersection | null | Promise<PhysicsIntersection | null> {
   const ray = (at as Ray).isRay ? (at as Ray) : canvasRay(camera, canvas, at as CanvasPoint);
-  return raycast(options.objects ?? scene, ray, isHelper)[0] ?? null;
+  if (asksPhysics(options)) return physicsRaycast(physics, ray, options, camera.far);
+  return raycast((options as RaycastOptions).objects ?? scene, ray, isHelper)[0] ?? null;
 }
+
+/** `world.raycast` for one world: its scene, its camera as it stands, its physics when on. */
+export const createWorldRaycast = (
+  scene: Object3D,
+  camera: () => Camera,
+  canvas: HTMLCanvasElement,
+  physics: () => PhysicsSession | null,
+) =>
+  ((at: CanvasPoint | Ray, options?: RaycastOptions | PhysicsRaycastOptions) =>
+    worldRaycast(scene, camera(), canvas, at, options as never, physics())) as WorldRaycast;
