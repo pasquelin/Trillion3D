@@ -1,6 +1,7 @@
 import type { MeasuredWorldOptions } from '../session/options.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
 import type { WorldControls } from './worldCamera.ts';
+import type { WorldPhysicsOptions } from '../../physics/worldPhysics.ts';
 
 /** What a page may set when it creates a world; saying nothing is the normal case. */
 export interface WorldOptions {
@@ -23,6 +24,9 @@ export interface WorldOptions {
   controls?: WorldControls;
   /** Stops the world's loads when the signal is aborted. */
   signal?: AbortSignal;
+  /** Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only
+   *  then. @defaultValue false */
+  physics?: boolean | WorldPhysicsOptions;
 }
 
 /**

@@ -37,6 +37,7 @@ const RESOLVENT: Record<string, string> = {
   'camera/world.ts': 'the contract itself: the package’s only camera-pose resolution',
   'lighting/sceneLighting.ts': 'light target, not a camera',
   'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
+  'physics/bodies.ts': 'a body the page moved, not a camera',
 };
 
 /** Who is allowed to touch a LOCAL camera pose, or resolve it via a Three accessor. */
@@ -66,6 +67,7 @@ const POSE_LOCALE: Record<string, string> = {
 const LISENT_LA_POSE: Record<string, string> = {
   'camera/world.ts': 'the contract',
   'page/raster.ts': 'host-graph raster oracle — resolves (callable alone)',
+  'physics/view.ts': 'the eye, facing and range the physics worker is sent, once they change',
 };
 
 const RESOUT = /\.updateWorldMatrix\s*\(/;

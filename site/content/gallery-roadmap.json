@@ -1430,8 +1430,12 @@
     {
       "id": "falling-boxes",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/falling-boxes.html"
+    },
+    {
+      "id": "ten-thousand-bodies",
+      "theme": "physics",
+      "file": "examples/ten-thousand-bodies.html"
     },
     {
       "id": "breaking-things",

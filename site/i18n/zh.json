@@ -305,6 +305,7 @@
       "a-software-rasteriser": "软件光栅化器",
       "sound-from-the-gpu": "由GPU发出的声音",
       "falling-boxes": "掉落的箱子",
+      "ten-thousand-bodies": "一万个物体",
       "breaking-things": "打碎物体",
       "cloth-and-rope": "布料与绳索",
       "soft-bodies": "软体",
@@ -478,7 +479,6 @@
       "sort-and-reduce": "GPU计算API",
       "a-software-rasteriser": "GPU计算API",
       "sound-from-the-gpu": "GPU计算API",
-      "falling-boxes": "物理引擎集成",
       "breaking-things": "物理引擎集成",
       "cloth-and-rope": "物理引擎集成",
       "soft-bodies": "物理引擎集成",
@@ -1052,6 +1052,17 @@
           "用 <code>world.diagnostic.mode = 'clusters'</code> 看看这些碎片:每个簇都会有自己的颜色。"
         ],
         "tryIt": "把内存往下调,碎片会变大,但整栋建筑依然完整。切换到 <code>clusters</code> 视图就能看到它们。"
+      },
+      "make-things-fall": {
+        "title": "让东西落下",
+        "description": "打开物理，形状就有了重量：落下、碰撞、静止。",
+        "steps": [
+          "给世界传入 <code>physics: true</code>。模拟在绘制之外的 <em>worker</em> 中运行，从不拖慢画面。",
+          "把地面设为 <code>'static'</code>：它托住其他物体，永不移动。把箱子设为 <code>'dynamic'</code>：重力会拉它。",
+          "形状来自几何体，重量来自材质：<code>physics: 'wood'</code> 轻，<code>'metal'</code> 重，<code>'rubber'</code> 会弹。",
+          "用 <code>applyImpulse</code> 推动物体，或监听它的 <code>contact</code>。当所有物体都睡着，就什么也不计算、不绘制。"
+        ],
+        "tryIt": "多投放些箱子，把重力换成月球，再打开慢动作。"
       },
       "your-own-scene": {
         "title": "属于你自己的场景",
