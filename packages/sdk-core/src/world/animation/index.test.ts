@@ -93,3 +93,27 @@ test('the blend is the same at 30 and at 120 updates per second', () => {
   close(after(30), after(120));
   close(after(120), 0.75 * 1 + 0.25 * 4);
 });
+
+test('a rotation and its opposite sign blend to that rotation, not to zero', () => {
+  const { root, arm } = rig();
+  const q = [0, Math.SQRT1_2, 0, Math.SQRT1_2];
+  const turn = (name: string, v: number[]) =>
+    animation.clip(name, 1, [animation.quaternionTrack('arm.quaternion', [0, 1], [...v, ...v])]);
+  const mixer = animation.createMixer(root);
+  Object.assign(mixer.clipAction(turn('a', q)).play(), { weight: 0.5 });
+  Object.assign(
+    mixer
+      .clipAction(
+        turn(
+          'b',
+          q.map((c) => -c),
+        ),
+      )
+      .play(),
+    { weight: 0.5 },
+  );
+  mixer.update(0.1);
+  close(Math.abs(arm.quaternion.y), Math.SQRT1_2);
+  close(Math.abs(arm.quaternion.w), Math.SQRT1_2);
+  close(arm.quaternion.y * arm.quaternion.w, 0.5);
+});
