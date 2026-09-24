@@ -3035,6 +3035,7 @@
       "counts": "Những gì kế hoạch trước đã làm, tính theo trang.",
       "worldChanged": "Một nút đã di chuyển: hộp của nó làm cũ các trang nó phủ ở kế hoạch tiếp theo.",
       "representationChanged": "Cùng thế giới ở độ chính xác khác: hộp của nó chờ camera dừng.",
+      "resting": "Camera đứng yên ở lần lập kế hoạch cuối: góc nhìn của nó giống lần trước đó.",
       "deferredChanges": "Đúng khi một thay đổi biểu diễn đang chờ camera dừng.",
       "releaseDeferred": "Khung không lập kế hoạch bóng nào: phần hợp đang giữ vào danh sách ngay.",
       "observeCost": "Bộ đếm thời gian của lượt Bóng trong một khung, chia cho các trang nó đã vẽ.",
