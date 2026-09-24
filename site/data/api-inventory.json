@@ -320,7 +320,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/backend/common.ts",
+        "bench/witnesses/capabilities.ts",
         "packages/sdk-browser/src/backend/types.ts",
         "tests/kit/lighting/diagnostics.ts"
       ],
@@ -5206,7 +5206,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/camera/controls/flyControls.ts",
         "packages/sdk-browser/src/camera/controls/math.test.ts",
-        "packages/sdk-browser/src/camera/controls/trackballControls.ts"
+        "packages/sdk-browser/src/camera/controls/trackballControls.ts",
+        "packages/sdk-browser/src/host/graph/rotation.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/quaternion\".multiplyQuaternion"
@@ -6022,6 +6023,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/character.test.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "scripts/bench-physics.ts"
       ],
