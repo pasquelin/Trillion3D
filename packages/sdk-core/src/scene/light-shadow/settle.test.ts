@@ -76,11 +76,11 @@ test('8 lights with shadows off: nothing to drain', () => {
   assert.equal(setup.plan.counts.pendingPages, 0);
 });
 
-test('8 lights + sun, tight budget and a tile that invalidates everything: pages remain', () => {
+test('8 lights + sun, tight budget and a tile that invalidates everything: the floors drain', () => {
   const setup = scene(8, true, true);
   setup.plan.budget.observe(1, 1);
-  assert.equal(drain(setup, 8), null, 'one page per frame cannot catch up with 49 restaled ones');
-  assert.ok(setup.plan.counts.pendingPages > 0);
+  // One page a frame, but 49 of the 50 pages read are floors: drawn whatever the budget.
+  assert.notEqual(drain(setup, 8), null);
 });
 
 test('same scene, budget suspended: the queue drains despite invalidations', () => {
@@ -121,8 +121,8 @@ test('a read set larger than the pool maps what fits, then holds: the rest waits
   assert.equal(plan.pool.used, 16);
   assert.equal(
     plan.requests.counts.refused,
-    fine.length - 16,
-    'and publishes what it could not map',
+    fine.length - 15,
+    'and publishes what it could not map, the floor under them mapped first',
   );
 });
 
@@ -165,7 +165,7 @@ test('which pages a full pool maps does not depend on the order the report lists
     return fine.filter((entry) => plan.table.words[entry] & PAGE_MAPPED);
   };
   const forward = mapped((entries) => entries);
-  assert.equal(forward.length, 16);
+  assert.equal(forward.length, 15, 'the pool less the floor under them');
   assert.deepEqual(
     mapped((entries) => entries.slice().reverse()),
     forward,

@@ -213,13 +213,17 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
 - **Only stale pages the image reads are drawn**, coarse first, under the Shadows budget
   (`shadowBudgetMs`, 1.0 ms, measured on the timestamps of the pages' draws and of the light cuts
   that select their casters) and at most `shadowPagesPerFrame`
-  (24) a frame. A light that moves or changes, or a sun whose clipmap moves its projection, stales
-  every page it maps, and none is read until redrawn: its depth belongs to the old projection. An
-  object that moves stales only the mapped pages its projected box covers; a representation change
+  (24) a frame. One flag says whether a page is read, the table word's valid bit: a page whose
+  depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
+  next coarser level. A light that moves or changes, or a sun whose clipmap moves its projection,
+  stales every page it maps, and withdraws them: their depth belongs to the old projection. An
+  object that moves stales only the mapped pages its projected box covers: a static caster that
+  moves withdraws them, since their static layer is wrong; an object already moving leaves them
+  read, since their static layer still holds — a static shadow never vanishes while something near
+  it moves, only the moving caster's own shadow lags until the redraw. A representation change
   stales them once the camera rests, and a threshold change only the pages drawn at another
-  threshold than the one at rest. Such a page is still read until its redraw lands, while a
-  report names it; one no report names is withdrawn, since blend and water read without asking. A
-  page never drawn is not read. A report that names more pages than the pool holds — the pool never
+  threshold than the one at rest; both leave them read. A stale page no report names is withdrawn,
+  since blend and water read without asking. A page never drawn is not read. A report that names more pages than the pool holds — the pool never
   holds more than a report lists (`shadowRequestCap`) — maps the coarsest, then by table entry — never in the GPU's append order —, and the rest read
   coarser:
   that waits for nothing, and the diagnostic counts it (`shadowPagesOverflow`). A page is drawn
@@ -228,6 +232,17 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
+- **The floor is always current.** Every page a report names asks for its light's floor under it
+  too — a sun's last clipmap level, a lamp face's one-page mip —: mapped first, never evicted while
+  anything above it is read, and admitted first when not read — never drawn, or withdrawn —,
+  whatever the budget, which pays it before any finer page; a floor still read, stale for its
+  moving casters or for detail, waits its turn like any page, so an object that keeps moving never
+  starves the finer pages. A new light asks for its floor itself from its first frame, until a
+  report of it comes back — every face of a lamp, and the sun's floor pages within the view's far
+  distance —, as if the latest report named it. When the frame's unread floor pages span more views
+  than the light cut holds, they go oldest first by their wait, so each is drawn within as many
+  frames as there are floor views past the limit. So a pixel that falls back past a withdrawn page
+  reads a current floor, never the far ray of a sun or the unshadowed answer of a lamp.
 
 **Moving objects redraw their own casters, never the static set under them.** A placement turns
 moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —
