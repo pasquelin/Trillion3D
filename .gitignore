@@ -4,6 +4,9 @@ dist/
 benchmark-runs/
 .idea/
 .mesure/
+# Worktrees, agents' logs and throwaway files live inside the project, never beside it (#452):
+# `.worktrees/<branch>/` for each tree, `.worktrees/logs/` for logs and scratch files.
+/.worktrees
 # Personal files stay local. Shared checks read these patterns. No entry ends with a slash: a
 # pattern that does matches directories alone, and a linked worktree carries these as symbolic
 # links (scripts/local-files.ts), which git would then see as files to track.

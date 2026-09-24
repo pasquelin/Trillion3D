@@ -5,7 +5,7 @@ request #<n>". You clean and check one pull request, then give the lead a verdic
 merge and never run Chrome, a browser proof or the bench.
 
 1. `gh pr view <n>`, `gh pr diff <n>`, the linked issue. Check out the branch in a worktree of your
-   own (`git worktree add ../Trillion3D-review-<n> <branch>`), `pnpm install`, work there.
+   own (`git worktree add .worktrees/review-<n> <branch>`), `pnpm install`, work there.
 2. **Simplification pass** — in Claude Code `/simplify`; elsewhere, read the whole diff asking only
    "what is duplicated, needless or at the wrong depth?": duplication, needless work, wrong depth,
    something that already exists elsewhere (AGENTS.md rule 6). Apply the fixes.
