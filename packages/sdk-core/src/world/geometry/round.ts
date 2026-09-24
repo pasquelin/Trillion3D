@@ -1,5 +1,5 @@
 import { withRecipe } from './geometry.ts';
-import { crossVector3 } from '../../math/primitives/vector.ts';
+import { crossVector3, dotVector3 } from '../../math/primitives/vector.ts';
 import { GeometryBuilder, normalize, pieces } from './builder.ts';
 import type { Curve } from '../math/curves.ts';
 
@@ -168,13 +168,15 @@ function sweep(
   for (let i = 1; i <= count; i++) {
     const n = normals[i - 1],
       t = tangents[i];
-    const along = n[0] * t[0] + n[1] * t[1] + n[2] * t[2];
+    const along = dotVector3(n, t);
     normals.push(normalize(n[0] - along * t[0], n[1] - along * t[1], n[2] - along * t[2]));
   }
   // Carried round a closed curve, the frame comes back turned about the tangent: each ring takes
   // back its share of that turn, so the last ring lands on the first and the tube closes.
   const [first, last] = [normals[0], normals[count]];
-  const turn = closed ? Math.atan2(dot(t0, cross(first, last)), dot(first, last)) : 0;
+  const turn = closed
+    ? Math.atan2(dotVector3(t0, cross(first, last)), dotVector3(first, last))
+    : 0;
   const b = new GeometryBuilder();
   b.grid(count, pieces(radialSegments, 3), (u, v) => {
     const i = Math.round(u * count),
@@ -197,4 +199,3 @@ const sub = (a: ArrayLike<number>, b: ArrayLike<number>): V3 => [
   a[2] - b[2],
 ];
 const cross = (a: V3, b: V3): V3 => crossVector3([0, 0, 0] as V3, a, b);
-const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
