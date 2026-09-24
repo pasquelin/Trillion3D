@@ -4204,15 +4204,6 @@
       "count": "Berapa banyak kotak."
     }
   },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` untuk `count` matriks column-major disimpan datar.",
-    "parameters": {
-      "out": "Tempat hasil kalinya pergi.",
-      "a": "Matriks kiri.",
-      "b": "Matriks kanan.",
-      "count": "Berapa banyak hasil kali."
-    }
-  },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` untuk `count` titik disimpan masing-masing tiga angka.",
     "parameters": {
@@ -6595,7 +6586,8 @@
       "texturePoolCeiling": "Kolam tekstur terbesar yang boleh diminta sebuah dunia, dalam byte.",
       "geometryPool": "Byte memori GPU yang disimpan untuk halaman geometri; atur untuk mengubah amplopnya.",
       "texturePool": "Byte memori GPU yang disimpan untuk halaman tekstur; atur untuk mengubah amplopnya.",
-      "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`."
+      "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`.",
+      "raycastTrees": "Byte memori CPU yang disimpan `raycast` untuk pohon segitiga, dibagi oleh semua dunia di halaman; melewatinya, pohon yang paling lama tidak dipakai dibuang. Atur untuk mengubah batasnya."
     }
   },
   "world.camera": {

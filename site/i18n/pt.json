@@ -338,8 +338,6 @@
       "a-capped-section": "planos de corte: tampas por stencil",
       "decals-on-a-surface": "seleção por raio (raycast)",
       "sculpt-a-sphere": "seleção por raio (raycast)",
-      "a-texture-turned-and-tiled": "repetição, deslocamento e rotação de textura no WebGPU",
-      "texture-filters-compared": "filtros de textura e anisotropia no WebGPU",
       "a-video-on-a-screen": "texturas de vídeo ao vivo",
       "the-webcam-as-a-texture": "texturas de vídeo ao vivo",
       "four-ways-to-blend": "todos os modos de mistura",
