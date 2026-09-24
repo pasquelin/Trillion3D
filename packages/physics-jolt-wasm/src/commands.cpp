@@ -1,6 +1,7 @@
-// The command buffer: body creation with its shape, removal, teleport, kinematic moves, velocity,
+// The command buffer: body creation with its shape, cooked shapes restored and released, removal, teleport, kinematic moves, velocity,
 // impulses, wake/freeze, gravity. Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
+#include "restore.h"
 #include "words.h"
 
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
@@ -13,7 +14,7 @@ namespace {
 
 enum Op : uint32_t {
   ADD = 1, REMOVE, TELEPORT, MOVE_KINEMATIC, VELOCITY, IMPULSE, WAKE, GRAVITY, GRAVITY_SCALE,
-  VIEW, FLAGS, MATERIAL
+  VIEW, FLAGS, MATERIAL, RESTORE, RELEASE
 };
 /// Words of each fixed-size command, by opcode (layout.ts).
 constexpr uint32_t SIZES[] = {0, 0, 2, 9, 9, 5, 5, 2, 4, 3, 9, 3, 4};
@@ -80,6 +81,16 @@ bool runCommands(const uint32_t *w, uint32_t count) {
     if (op == GRAVITY) {
       world.system->SetGravity(vec3(w + 1));
       w += 4;
+      continue;
+    }
+    if (op == RESTORE) {
+      if (!restoreShape(w)) return false;
+      w += RESTORE_WORDS + (w[2] + 3) / 4;
+      continue;
+    }
+    if (op == RELEASE) {
+      releaseShape(w);
+      w += RELEASE_WORDS;
       continue;
     }
     if (op == VIEW) {
