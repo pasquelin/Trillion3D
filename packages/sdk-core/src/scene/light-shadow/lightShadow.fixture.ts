@@ -70,24 +70,8 @@ export function lampPages(plan: ShadowPlan, slice: number, face: number, mip: nu
   return entries;
 }
 
-/**
- * The engine's frame loop, reduced to the scheduler: plan, commit what was admitted, then report
- * what the shading read. Returns the pages drawn.
- */
-export function cycle(
-  plan: ShadowPlan,
-  store: SceneLightStore,
-  frame: number,
-  read: () => number[],
-  view: ShadowViewpoint = VIEW,
-) {
-  const drawn = planFrame(plan, store, frame, view);
-  plan.commit();
-  report(plan, store, frame, read());
-  return drawn;
-}
-
-/** `cycle`, returning the physical pages the frame drew. */
+/** The engine's frame loop, reduced to the scheduler: plan, commit what was admitted, then report
+ *  what the shading read. Returns the physical pages the frame drew. */
 export function cycleDrawn(
   plan: ShadowPlan,
   store: SceneLightStore,
@@ -101,6 +85,9 @@ export function cycleDrawn(
   report(plan, store, frame, read());
   return drawn;
 }
+
+/** `cycleDrawn`, returning how many pages the frame drew. */
+export const cycle = (...args: Parameters<typeof cycleDrawn>) => cycleDrawn(...args).size;
 
 /** The physical pages of the light in `slice` the shading reads now. */
 export function readPages(plan: ShadowPlan, slice: number) {
