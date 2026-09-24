@@ -1,13 +1,21 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { createGeometryBudget } from './pool.ts';
+import { createGeometryBudget, type PageCopies } from './pool.ts';
+import type { BackendDiagnostic } from '../types.ts';
 
 export const PAGE = 100;
 
-/** A catalogue of `count` pages of `PAGE` decoded bytes, and a store that holds what arrives. */
+/** A catalogue of `count` pages of `PAGE` decoded bytes, each held in `copies` copies until
+ *  `instances` changes them, and a store that holds what arrives. */
 export function fixture(
   count: number,
-  options: { budgetBytes?: number; rootPages?: number; maxResidentPages?: number } = {},
+  options: {
+    budgetBytes?: number;
+    ceilingBytes?: number;
+    rootPages?: number;
+    maxResidentPages?: number;
+    copies?: number;
+  } = {},
 ) {
   const descriptors = new Map<string, GeometryPageDescriptor>();
   for (let i = 0; i < count; i++)
@@ -20,14 +28,28 @@ export function fixture(
     dropped: string[] = [];
   let keptCalls = 0,
     rootBytes = 0,
-    rootReads = 0;
+    rootReads = 0,
+    each = options.copies ?? 1,
+    generation = 0;
+  const copies: PageCopies = {
+    get generation() {
+      return generation;
+    },
+    of: () => each,
+    root: () => rootUrls.size * each,
+    scene: () => count * each,
+    most: () => each,
+  };
+  const diagnostics: BackendDiagnostic[] = [];
   const pool = createGeometryBudget({
     budgetBytes: options.budgetBytes,
+    ceilingBytes: options.ceilingBytes,
     maxResidentPages: options.maxResidentPages,
     descriptors,
     rootUrls,
+    copies,
     state,
-    rootBytes: () => {
+    floorBytes: () => {
       rootReads++;
       return rootBytes;
     },
@@ -40,17 +62,23 @@ export function fixture(
       state.allocationBytes -= PAGE;
       dropped.push(url);
     },
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
   });
   const arrive = (url: string) => {
     if (!resident.has(url)) state.allocationBytes += PAGE;
     resident.add(url);
     pool.arrived(url);
   };
-  /** The root cover now holds `bytes`, outside the order — prepare, an instance added or removed. */
+  /** What nothing may evict now holds `bytes`, outside the order — prepare, an instance added or
+   *  removed, a page the host replaced. */
   const root = (bytes: number) => {
     state.allocationBytes += bytes - rootBytes;
     rootBytes = bytes;
-    pool.rootsChanged();
+  };
+  /** Instances now hold `copies` copies of every page. */
+  const instances = (copiesPerPage: number) => {
+    each = copiesPerPage;
+    generation++;
   };
   return {
     pool,
@@ -60,6 +88,8 @@ export function fixture(
     dropped,
     arrive,
     root,
+    instances,
+    diagnostics,
     keptCalls: () => keptCalls,
     rootReads: () => rootReads,
   };

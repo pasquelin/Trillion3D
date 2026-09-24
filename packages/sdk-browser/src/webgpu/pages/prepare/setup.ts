@@ -21,7 +21,7 @@ import {
   textureUploadMsFor,
   type TexturePools,
 } from '../../residency/memoryBudgets.ts';
-import { sessionGeometryPool } from '../../residency/sessionPool.ts';
+import { sessionGeometryPool } from '../../../residency/sessionPool.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;

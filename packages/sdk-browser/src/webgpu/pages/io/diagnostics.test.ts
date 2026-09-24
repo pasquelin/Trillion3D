@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebgpuDiagnostics, sendEngineDiagnostic } from './diagnostics.ts';
+import { createWebgpuDiagnostics } from './diagnostics.ts';
+import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts';
 
 test('a failed WebGPU path is said on the console once per kind, with no channel open', (t) => {
   const warned = t.mock.method(console, 'warn', () => {});
