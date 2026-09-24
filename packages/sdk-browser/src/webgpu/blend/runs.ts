@@ -30,7 +30,7 @@ export const EXPAND_GROUP = 64;
  * TWO words per run: its first entry and their count, and nothing more.
  *
  * Pipeline and owner item are read on the plan's first entry, which already carries them in its
- * low three bits. Writing them in the run as well doubled what the frame writes on a scene that
+ * low bits. Writing them in the run as well doubled what the frame writes on a scene that
  * merges nothing — a double-sided scene, where each run holds only one entry.
  */
 export const RUN_WORDS = 2;
@@ -73,7 +73,7 @@ export function buildBlendRuns(order: Uint32Array, out: Uint32Array) {
     const pipeline = planPipeline(order[first]);
     const shared = planShared(order[first]);
     // An entry extends the run when it carries the same pipeline AND the share bit: both fit in the
-    // low three bits, and the plan is walked without ever following a rank.
+    // low bits of the entry, and the plan is walked without ever following a rank.
     const suite = PLAN_SHARED_BIT | pipeline;
     let end = first + 1;
     if (shared) while (end < order.length && (order[end] & PLAN_LOW_MASK) === suite) end++;

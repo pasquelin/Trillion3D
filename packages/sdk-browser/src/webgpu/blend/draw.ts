@@ -4,7 +4,7 @@ import { blendBindEntries, type BlendLighting } from '../core/bindEntries.ts';
 import { createBlendOverdraw } from './overdraw.ts';
 import { countsBlendOverdraw } from '../../diagnostic/gpuVariant.ts';
 import type { BlendGpuItem } from './state.ts';
-import type { BlendPipelines } from './stagePipelines.ts';
+import type { BlendModePipelines } from './stagePipelines.ts';
 import { planPipeline } from './plan.ts';
 import { RUN_SHARED, RUN_WORDS, runOwner } from './runs.ts';
 import { itemKept } from './expandCpu.ts';
@@ -66,7 +66,7 @@ export function drawBlendRuns(
   device: GPUDevice,
   pass: GPURenderPassEncoder,
   slice: number,
-  pipelines: BlendPipelines,
+  pipelines: BlendModePipelines,
 ) {
   const { blendState } = rt,
     items = blendState.blendGpu,
@@ -92,7 +92,10 @@ export function drawBlendRuns(
     encoded++;
     if (boundPipeline !== planPipeline(entry)) {
       boundPipeline = planPipeline(entry);
-      pass.setPipeline(pipelines[boundPipeline]);
+      const pipeline = pipelines[boundPipeline];
+      // A mode declared after the pass was built has no pipeline: named, never drawn as another.
+      if (!pipeline) throw new Error(`blend pipeline ${boundPipeline} was not built for the scene`);
+      pass.setPipeline(pipeline);
     }
     const item = owner === RUN_SHARED ? undefined : items[owner];
     const group =

@@ -6,8 +6,8 @@ import { encodeWaterPass } from './pass.ts';
 import { device, mountDevice, prepared, replay, targets } from './pass.fixture.ts';
 import type { BlendGpuItem } from '../blend/state.ts';
 
-const items = (count: number, transmissive: boolean) =>
-  Array.from({ length: count }, () => ({ transmissive }) as BlendGpuItem);
+const items = (count: number, transmissive: boolean, blending = 'normal') =>
+  Array.from({ length: count }, () => ({ transmissive, surface: { blending } }) as BlendGpuItem);
 
 test('the water pass is mounted with the blend pipelines only for a scene that transmits', async () => {
   const opaque = mountDevice();
@@ -52,4 +52,13 @@ test('without the pass, the transmission slice draws as one more blend', () => {
     'the slice, as a blend',
   );
   assert.equal(rt.run.blendDrawCalls, 1);
+});
+
+// #346: a mode a blend item declares compiles its three pipelines, beside the normal ones.
+test('the blend pipelines are built for normal and for every mode a blend item declares', async () => {
+  const glow = mountDevice();
+  const built = await createWebgpuBlendPipelines(glow.device, items(2, false, 'additive'));
+  assert.equal(glow.pipelines.length, 6, 'normal and additive, three culls each');
+  assert.equal(built.blendPipelines.length, 6);
+  assert.ok(built.blendPipelines.every(Boolean), 'additive sits right after normal');
 });
