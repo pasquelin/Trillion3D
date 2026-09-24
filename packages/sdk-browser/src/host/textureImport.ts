@@ -51,9 +51,7 @@ type Imported = {
 let hostWrites = 0;
 /** Announces a write of a host texture — picture, sampler or placement. Every engine path that
  *  writes one calls it: the follows are driven by it, never by polling the hosts. */
-export function hostTextureWritten() {
-  hostWrites++;
-}
+export const hostTextureWritten = () => void hostWrites++;
 /** The count of announced host writes: a consumer that saw it unchanged has nothing to follow. */
 export const hostTextureWrites = () => hostWrites;
 /** One record per host texture, for as long as the host keeps it: an identity table, never
@@ -84,14 +82,10 @@ function fillPicture(entry: Imported) {
   entry.image = host.image;
 }
 
-/** Marks the record stale when its texture is given back (`graph/resource.ts`), a release being
- *  a host write: a release runs each hook once, so the hook is set again once the record has
- *  followed that release. */
+/** Marks the record stale when its texture is given back (`graph/resource.ts`), a host write: a
+ *  release runs each hook once, so the hook is set again once the record has followed it. */
 const followRelease = (entry: Imported) =>
-  entry.host.released.add(() => {
-    entry.stale = true;
-    hostWrites++;
-  });
+  entry.host.released.add(() => ((entry.stale = true), hostWrites++));
 
 /** Refills the record's picture when its host's version or image moved, or the host disposed of
  *  it since — `version` moves then. */
@@ -122,21 +116,16 @@ function fillSampling(record: Editable, host: HostTexture) {
   return 1;
 }
 
+/** The six affine entries of a 3×3 UV matrix, column-major. */
+const AFFINE = [0, 1, 3, 4, 6, 7];
+
 /** Recomposes the host's UV matrix, which the record aliases, when a source of it moved: the
  *  seven scalars the host composes it from, or its six affine entries when the page owns it
  *  (`matrixAutoUpdate` false). No trigonometry for a texture that stays put. 1 when it moved. */
 function fillPlacement(host: HostTexture, placed: Float64Array) {
   const e = host.matrix.elements;
   if (!host.matrixAutoUpdate)
-    return (
-      put(placed, 0, e[0]) |
-      put(placed, 1, e[1]) |
-      put(placed, 2, e[3]) |
-      put(placed, 3, e[4]) |
-      put(placed, 4, e[6]) |
-      put(placed, 5, e[7]) |
-      put(placed, 6, 0)
-    );
+    return AFFINE.reduce((moved, k, i) => moved | put(placed, i, e[k]), put(placed, 6, 0));
   const { offset, repeat, center } = host;
   const moved =
     put(placed, 0, offset.x) |
