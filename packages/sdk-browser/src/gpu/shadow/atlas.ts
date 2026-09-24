@@ -20,6 +20,12 @@ const FACE_STRIDE = 256;
 const FACE_BYTES = 96;
 /** Bytes of the records, before the page table in the same buffer. */
 const RECORD_BYTES = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
+/** Bytes of the records then the page table, one buffer; of the request buffer. */
+const DATA_BYTES = RECORD_BYTES + SHADOW_TABLE_ENTRIES * 4,
+  REQUEST_BYTES = SHADOW_REQUEST_WORDS * 4;
+/** Bytes of the buffers beside the pool — the faces, the records and page table, the requests:
+ *  fixed by the light contract, the same on every screen, so the memory budget counts them. */
+export const SHADOW_BUFFER_BYTES = MAX_SHADOW_REGIONS * FACE_STRIDE + DATA_BYTES + REQUEST_BYTES;
 /** Bytes of a pool of `poolSide` pages a side: one 32-bit depth texel each. */
 export const shadowAtlasBytes = (poolSide: number) => (poolSide * SHADOW_PAGE) ** 2 * 4;
 
@@ -45,12 +51,12 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
   });
   const dataBuffer = device.createBuffer({
     label: 'Trillion3D shadow records and page table v1',
-    size: RECORD_BYTES + SHADOW_TABLE_ENTRIES * 4,
+    size: DATA_BYTES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const requestBuffer = device.createBuffer({
     label: 'Trillion3D shadow requests v1',
-    size: SHADOW_REQUEST_WORDS * 4,
+    size: REQUEST_BYTES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
   const pack = createShadowRecordPack(FACE_STRIDE, 1),
@@ -116,7 +122,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       faceGroup,
       faceUniform,
       faceStride: FACE_STRIDE,
-      allocationBytes: faceUniform.size + dataBuffer.size + requestBuffer.size,
+      allocationBytes: SHADOW_BUFFER_BYTES,
       /**
        * Creates the pool's texture, `poolSide²` pages: once, before the first page is drawn.
        * `COPY_SRC` is there only for the proof: the host can reread the pool and compare its
