@@ -3,6 +3,7 @@ import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
 } from '../../../../sdk-core/src/scene/core/environment.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4.ts';
 import type { HostDrawOutput } from '../core/renderTarget.ts';
 import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
@@ -10,7 +11,6 @@ import { firstMaterial } from '../../scene/materialSide.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
-import { multiplyMatrix4 } from './matrices.ts';
 import { depthOf } from './meshDepth.ts';
 
 /** The scene the owner reads for its lights and background, its world matrices resolved
@@ -111,7 +111,7 @@ export function createSceneDraw(
         opaque.length = seeThrough.length = 0;
         depths.clear();
         followCopies();
-        multiplyMatrix4(screen, drawCamera.projection, drawCamera.view);
+        multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
         for (const child of scene.children) collect(child);
         (opaque as DisplayNode[]).sort(frontToBack);
         seeThrough.sort(backToFront);
