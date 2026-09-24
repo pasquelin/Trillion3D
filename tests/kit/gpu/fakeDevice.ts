@@ -2,9 +2,10 @@ import { installGpuGlobals } from './globals.ts';
 
 /**
  * The recording `GPUDevice` of unit tests that observe what one module asks of a device without a
- * GPU. Every creation succeeds and is recorded in call order; a test reads the list it observes
- * and ignores the others. The usage and stage constants are installed on each call. A test that
- * runs a whole pages backend uses `mockGpu()`, which encodes its passes and draws.
+ * GPU. Every creation, write, encoded copy and destroy succeeds and is recorded in call order; a
+ * test reads the list it observes and ignores the others. The usage and stage constants are installed on each call. A test that
+ * runs a whole pages backend, or reads back what a compute pass wrote, uses `mockGpu()`, which
+ * executes its encoders.
  */
 
 type Numbers = Float32Array | Float64Array | Int32Array | Uint32Array | Uint16Array | Uint8Array;
@@ -31,6 +32,14 @@ export type FakeWrite = {
   dataOffset: number;
   size?: number;
 };
+/** One `copyBufferToBuffer` an encoder recorded, in the order it was encoded. */
+type FakeCopy = {
+  from: GPUBuffer;
+  fromOffset: number;
+  to: GPUBuffer;
+  toOffset: number;
+  size: number;
+};
 type LostInfo = { reason: string; message: string };
 
 /** The window of `data` a write sent: `dataOffset` and `size` count elements of `data`. */
@@ -40,20 +49,24 @@ export const written = ({ data, dataOffset, size }: FakeWrite) =>
 const copyOf = (data: BufferSource): Numbers =>
   data instanceof ArrayBuffer ? new Uint8Array(data.slice(0)) : (data as Numbers).slice();
 
-export function fakeDevice() {
+/** `limits` is the device's `limits`, absent when not given. */
+export function fakeDevice({ limits }: { limits?: Record<string, number> } = {}) {
   installGpuGlobals();
   const buffers: FakeBuffer[] = [],
     textures: FakeTexture[] = [],
     bindGroupLayouts: GPUBindGroupLayoutDescriptor[] = [],
     bindGroups: GPUBindGroupDescriptor[] = [],
     writes: FakeWrite[] = [],
+    copies: FakeCopy[] = [],
     // Every `destroy` call in order, the device's own included: a resource destroyed twice is twice.
     destroyed: Array<{ label?: string }> = [];
   let lose!: (info: LostInfo) => void;
+  let fences = 0;
   const lost = new Promise<LostInfo>((resolve) => (lose = resolve));
   const device = {
     label: '',
     lost,
+    ...(limits && { limits }),
     destroy: () => void destroyed.push(device),
     createBuffer({ label, size, usage }: GPUBufferDescriptor) {
       let bytes: ArrayBuffer | undefined;
@@ -92,6 +105,16 @@ export function fakeDevice() {
     ),
     pushErrorScope() {},
     popErrorScope: async () => null,
+    createCommandEncoder: () => ({
+      copyBufferToBuffer: (
+        from: GPUBuffer,
+        fromOffset: number,
+        to: GPUBuffer,
+        toOffset: number,
+        size: number,
+      ) => void copies.push({ from, fromOffset, to, toOffset, size }),
+      finish: () => ({}),
+    }),
     queue: {
       writeBuffer(
         buffer: GPUBuffer,
@@ -102,6 +125,8 @@ export function fakeDevice() {
       ) {
         writes.push({ buffer, offset, data: copyOf(data), dataOffset, size });
       },
+      submit() {},
+      onSubmittedWorkDone: async () => void fences++,
     },
   };
   return {
@@ -111,7 +136,10 @@ export function fakeDevice() {
     bindGroupLayouts,
     bindGroups,
     writes,
+    copies,
     destroyed,
+    /** How many times a caller waited for the queue (`onSubmittedWorkDone`). */
+    fences: () => fences,
     /** Settles `device.lost` with `info`, as a driver reset or a `destroy` would. */
     lose,
   };
