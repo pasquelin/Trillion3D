@@ -3,7 +3,7 @@
 // so the table carries exactly the same floats as the pre-lot-C formula, reproduced here as-is as
 // an explicit oracle. The expected equality is bit-exact (`Object.is`), with no tolerance.
 import type { Texture } from '../../../sdk-core/src/index.ts';
-import { importHostTexture } from '../host/surfaceImport.ts';
+import { followHostTexture, importHostTexture } from '../host/surfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -183,6 +183,7 @@ test('a map is read through its UV transform, the raw coordinate when it is the 
   host.repeat.set(2, 1);
   host.needsUpdate = true;
   const repeated = importHostTexture(host);
+  followHostTexture(repeated);
   assert.deepEqual(sampleLinear(repeated, 0.3, 0.5), before);
   assert.deepEqual(sampleLinear(repeated, 0.8, 0.5), before, 'the second period');
 });

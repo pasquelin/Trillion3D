@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { importHostSurface, importHostTexture } from './surfaceImport.ts';
+import { followHostTexture, importHostSurface, importHostTexture } from './surfaceImport.ts';
 
 const texture = () => {
   const map = new THREE.DataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
@@ -49,16 +49,16 @@ test('The record aliases the composed UV transform, so a later recomposition is 
 });
 
 // #360: a host animates a placement the way Three lets it — repeat, offset or rotation written,
-// `needsUpdate` on the material alone, the texture's version untouched —: the matrix is recomposed
-// at the read, as the host's own renderer recomposes it at every draw.
-test('A placement written without a version is recomposed when the surface is read again', () => {
+// the texture's version untouched —: the matrix is recomposed once per image, as the host's own
+// renderer recomposes it at every draw, and the held record reads it.
+test('A placement written without a version is recomposed at the next image', () => {
   const host = texture();
   const material = new THREE.MeshStandardMaterial({ map: host });
   const record = importHostSurface(material)!.map!;
   const version = host.version;
   host.offset.set(0.25, 0.5);
   host.rotation = Math.PI / 2;
-  material.needsUpdate = true;
+  followHostTexture(record);
   assert.equal(importHostSurface(material)!.map, record, 'the same record');
   assert.equal(host.version, version, 'no texture version moved');
   assert.deepEqual([record.transform[6], record.transform[7]], [0.25, 0.5]);
@@ -71,4 +71,17 @@ test('A material is read in one place, and never cached: a replaced map is seen 
   const second = texture();
   material.map = second;
   assert.equal(importHostSurface(material)?.map, importHostTexture(second));
+});
+
+// #360, #361: Three's order as often as the other — `needsUpdate`, then the filter —: nothing is
+// read at `needsUpdate`, the record is brought up at the next image, the filter with it.
+test('A filter written after needsUpdate reaches the record at the next image', () => {
+  const host = texture();
+  const record = importHostTexture(host);
+  host.needsUpdate = true;
+  host.magFilter = THREE.LinearFilter;
+  assert.equal(record.magFilter, 'nearest', 'nothing read at needsUpdate');
+  followHostTexture(record);
+  assert.equal(record.magFilter, 'linear');
+  assert.equal(record.version, host.version);
 });
