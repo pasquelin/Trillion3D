@@ -1,12 +1,14 @@
 /**
- * A STATIC TRIANGLE TREE: a bounding-volume hierarchy over world-space triangles, built once
- * and asked for every triangle whose box meets a query box — the broad phase of a capsule.
+ * A STATIC TRIANGLE TREE: a bounding-volume hierarchy over triangles, built once and asked for
+ * every triangle whose box meets a query box — the broad phase of a capsule — or for the nearest
+ * one a ray crosses (`triangleQuery.ts`).
  *
  * BUILD. Top-down: a node's triangles are split near the median of their centres along the
  * longest axis of the centres' box — the left side rounded up to whole leaves — until a node
  * holds at most `LEAF_TRIANGLES`. The split keeps the tree balanced whatever the triangles, so
- * its depth is about `log2(T / LEAF)` and a query's stack is a fixed array. The median is selected in linear time (a partition, not a sort), so the build is `O(T log T)`.
- * Triangles are then copied in leaf order: a leaf reads a contiguous run, no index list survives.
+ * its depth is about `log2(T / LEAF)` and a query's stack is a fixed array. The median is
+ * selected in linear time (a partition, not a sort), so the build is `O(T log T)`. Triangles are
+ * then copied in leaf order: a leaf reads a contiguous run, no index list survives.
  *
  * MEMORY. Exactly `36 T` bytes of triangles (nine float32) plus `32` bytes per node (six
  * float32 bounds, two int32 links), exactly `2 ceil(T / LEAF) - 1` nodes: about 52 bytes per
@@ -35,8 +37,9 @@ export interface TriangleTree {
   readonly bytes: number;
 }
 
-/** Builds the tree over `source`, nine numbers per triangle; the source is left untouched. */
-export function buildTriangleTree(source: ArrayLike<number>): TriangleTree {
+/** Builds the tree over `source`, nine numbers per triangle; the source is left untouched.
+ *  `ranks`, when given, receives the rank in `source` of each triangle of the tree, in order. */
+export function buildTriangleTree(source: ArrayLike<number>, ranks?: Uint32Array): TriangleTree {
   const count = Math.floor(source.length / 9);
   const leaves = Math.max(1, Math.ceil(count / LEAF_TRIANGLES)),
     capacity = 2 * leaves - 1;
@@ -68,6 +71,7 @@ export function buildTriangleTree(source: ArrayLike<number>): TriangleTree {
     return node;
   };
   build(0, count);
+  ranks?.set(order);
   const triangles = new Float32Array(count * 9);
   for (let i = 0; i < count; i++)
     for (let k = 0; k < 9; k++) triangles[9 * i + k] = source[9 * order[i] + k];
@@ -141,60 +145,4 @@ function selectMedian(
     else if (middle >= i) low = i;
     else return;
   }
-}
-
-/** Depth bound of a balanced tree over 2^32 triangles: the traversal stack never grows. */
-const STACK_DEPTH = 64;
-const stack = new Int32Array(STACK_DEPTH);
-
-/**
- * Calls `visit(at)` — `at` the triangle's first number in `tree.triangles` — for every triangle
- * whose box meets `[min, max]`. The tree is only read; a visit may do anything but query again.
- */
-export function forEachTriangleInBox(
-  tree: TriangleTree,
-  min: ArrayLike<number>,
-  max: ArrayLike<number>,
-  visit: (at: number) => void,
-) {
-  if (tree.triangleCount === 0) return;
-  const { bounds, links, counts, triangles } = tree;
-  let top = 0;
-  stack[top++] = 0;
-  while (top > 0) {
-    const node = stack[--top],
-      at = node * 6;
-    if (!overlaps(bounds, at, min, max)) continue;
-    if (counts[node] === 0) {
-      stack[top++] = links[node];
-      stack[top++] = node + 1;
-      continue;
-    }
-    for (let t = links[node], end = t + counts[node]; t < end; t++) {
-      const first = 9 * t;
-      if (overlaps(triangles, first, min, max, 3)) visit(first);
-    }
-  }
-}
-
-/** Whether the box around `corners` points stored from `at` — a node's min and max, or a
- *  triangle's three corners — meets `[min, max]`. */
-function overlaps(
-  values: Float32Array,
-  at: number,
-  min: ArrayLike<number>,
-  max: ArrayLike<number>,
-  corners = 2,
-) {
-  for (let k = 0; k < 3; k++) {
-    let low = Infinity,
-      high = -Infinity;
-    for (let c = 0; c < corners; c++) {
-      const value = values[at + 3 * c + k];
-      if (value < low) low = value;
-      if (value > high) high = value;
-    }
-    if (low > max[k] || high < min[k]) return false;
-  }
-  return true;
 }

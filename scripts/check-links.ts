@@ -11,7 +11,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const sdkRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const excludedDirs = new Set(['.git', '.idea', 'node_modules', 'dist', 'target', 'test/assets']);
+const excludedDirs = new Set(['.git', '.idea', 'node_modules', 'dist', 'target', 'tests/assets']);
 
 type LinkError = [file: string, target: string, reason: 'missing file' | 'missing anchor'];
 type RuntimeRoute = [file: string, target: string];
@@ -36,7 +36,7 @@ function findMarkdownFiles(root: string): string[] {
     }
     for (const entry of entries) {
       const full = join(dir, entry.name);
-      // Name alone is not enough: an exclusion can carry a path (`test/assets`), and corpus
+      // Name alone is not enough: an exclusion can carry a path (`tests/assets`), and corpus
       // outside the repo must not be traversed under the pretext that it is named `assets`.
       if (excludedDirs.has(entry.name) || excludedDirs.has(relative(root, full))) continue;
       if (entry.isDirectory()) walk(full);

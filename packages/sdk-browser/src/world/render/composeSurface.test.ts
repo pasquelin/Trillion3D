@@ -69,3 +69,52 @@ test('the explicit capture binds the drawing buffer, samples it, composes, then 
     );
   }
 });
+
+/** A background changed after the session opened is written in place on the active engine's own
+ *  scene (`hostBackground`), never on `options.clearColor`: the presentation diagnostic must
+ *  read that live colour, or a background changed without a reopen reads as a false mismatch
+ *  (#342). */
+test('the presentation diagnostic follows a changed background, not the colour the session opened on', () => {
+  const found: Record<string, unknown>[] = [];
+  const capture = createExplorerCapture({
+    canvas: { width: 2, height: 2 } as HTMLCanvasElement,
+    camera: {} as never,
+    context: {
+      bindFramebuffer: () => {},
+      viewport: () => {},
+      // What the active engine actually cleared to, after the background changed in place.
+      readPixels: (
+        _x: number,
+        _y: number,
+        _w: number,
+        _h: number,
+        _f: number,
+        _t: number,
+        pixels: Uint8Array,
+      ) => pixels.set([0x22, 0x44, 0xff, 0xff]),
+      drawingBufferWidth: 2,
+      drawingBufferHeight: 2,
+    } as unknown as WebGL2RenderingContext,
+    // The colour the session opened on: stale the moment the background changes in place.
+    options: { clearColor: 0xff0000 } as never,
+    directGpu: false,
+    state: {
+      active: {
+        id: 'engine',
+        render: () => {},
+        scene: { background: { getHex: () => 0x2244ff } },
+      } as unknown as RenderBackend,
+      measuring: false,
+    },
+    check: () => {},
+    diagnose: (_phase, _message, context) => found.push((context ?? {}) as Record<string, unknown>),
+    compose: Object.assign(() => {}, { dispose() {} }),
+  });
+  capture();
+  const presentation = found.filter((entry) => entry.kind === 'presentation');
+  assert.ok(presentation.length > 0, 'no presentation diagnostic was raised');
+  for (const entry of presentation) {
+    assert.equal(entry.clearColor, '#2244ff', 'read the stale, opened-on colour');
+    assert.equal(entry.matchesClearAtTopLeft, true, 'a changed background read as a mismatch');
+  }
+});

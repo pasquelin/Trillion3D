@@ -23,7 +23,7 @@ export function thumbnailDelay(html: string): number {
 export const RENDER_ONLY = '[data-example-overlay], body > p { display: none }';
 
 /** The share of the page's canvas capture that differs from its top-left pixel: 0 while blank. */
-export async function drawnShare(page: Page): Promise<number> {
+async function drawnShare(page: Page): Promise<number> {
   const png = await page.locator('canvas#view').screenshot({ style: RENDER_ONLY });
   return page.evaluate(
     async (dataUrl: string) => {

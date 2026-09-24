@@ -7,7 +7,7 @@ import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs
 import { extname, relative, resolve } from 'node:path';
 import { gitPathsSync } from '../git-paths.ts';
 import { buildFlags } from './build-flags.ts';
-import { withMeasurement } from './measurement.ts';
+import { FRAMED_MEASUREMENT_TAG, withMeasurement } from './measurement.ts';
 import { buildPortal } from './build-portal.ts';
 import { buildRuntime } from './build-runtime.ts';
 import { buildStyles } from './build-styles.ts';
@@ -21,8 +21,11 @@ export const SITE_URL = 'https://www.trillion3d.com/';
 
 /** What the site serves as is: examples, scene assets, data records and the reports. */
 const STATIC_ENTRIES = ['examples', 'assets', 'data', 'reports'];
-/** What the build writes at the root from `SITE_URL`: the portal page and the crawler rules. */
-const METADATA_ENTRIES = ['index.html', 'robots.txt'];
+/** The pages the portal replaced, each moved to its route: an old link still lands on it. */
+const REDIRECTS: Record<string, string> = { 'report.html': '#/en/reports' };
+/** What the build writes at the root from `SITE_URL`: the portal page, the crawler rules and the
+ *  redirects. */
+const METADATA_ENTRIES = ['index.html', 'robots.txt', ...Object.keys(REDIRECTS)];
 /** Source modules living beside the reports' records are not served. */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 
@@ -42,27 +45,28 @@ async function prune(folder: string, keep: readonly string[]) {
 }
 
 /** Copies `source` into `target`, files only when missing or older, sources never; what the
- * sources no longer have, the copy loses. */
-async function copyTree(source: string, target: string) {
+ * sources no longer have, the copy loses. A `published` copy gives every page the measurement
+ * tag of a framed page: the statics' pages are the examples the portal frames. */
+async function copyTree(source: string, target: string, published: boolean) {
   const entry = await stat(source);
   if (entry.isDirectory()) {
     await mkdir(target, { recursive: true });
     const names = await readdir(source);
-    for (const name of names) await copyTree(resolve(source, name), resolve(target, name));
+    for (const name of names)
+      await copyTree(resolve(source, name), resolve(target, name), published);
     await prune(target, names);
     return;
   }
   if (SOURCE_EXTENSIONS.has(extname(source))) return;
-  /* Pages are written and not copied, every time: the measurement tag comes from this build
-     and not from the page, so a page whose own source has not moved must still pick up a
-     change made there. The freshness check above compares sizes, which the tag shifts. */
-  if (extname(source) === '.html') {
-    /* An example carries no tag: it is shown in the portal's frame, whose page asks for consent
-       once, or alone as a full-screen canvas, where a panel would cover the scene and every
-       thumbnail captured from it. */
-    const page = await readFile(source, 'utf8');
-    const example = source.split(/[\\/]/).includes('examples');
-    await writeFile(target, example ? page : withMeasurement(page));
+  /* A published page is written and not copied, every time: the measurement tag comes from this
+     build and not from the page, so a page whose own source has not moved must still pick up a
+     change made there. An unpublished one is copied as is; the size check below tells it apart
+     from a published copy left by an earlier build, which the tag makes longer. */
+  if (published && extname(source) === '.html') {
+    await writeFile(
+      target,
+      withMeasurement(await readFile(source, 'utf8'), FRAMED_MEASUREMENT_TAG),
+    );
     return;
   }
   if (await unchanged(source, target)) return;
@@ -85,7 +89,7 @@ export async function buildBundles(root: string, out: string) {
 
 /** Writes the portal page with its canonical link, and crawler rules that allow everything. The
  * portal routes by hash, so the root is the only address a crawler can list: no sitemap. */
-async function writeMetadata(source: string, out: string) {
+async function writeMetadata(source: string, out: string, published: boolean) {
   const page = await readFile(resolve(source, 'index.html'), 'utf8');
   const canonical = `    <link rel="canonical" href="${SITE_URL}" />\n  </head>`;
   const written = page.replace(/[ \t]*<\/head>/, canonical);
@@ -93,23 +97,33 @@ async function writeMetadata(source: string, out: string) {
   /* The measurement is applied here too: this function rewrites the page from its SOURCE, after
      `copyTree` has copied it, so the most visited page of the site would otherwise be the only
      one published without it. */
-  await writeFile(resolve(out, 'index.html'), withMeasurement(written));
+  await writeFile(resolve(out, 'index.html'), published ? withMeasurement(written) : written);
   await writeFile(resolve(out, 'robots.txt'), 'User-agent: *\nAllow: /\n');
+  for (const [page, route] of Object.entries(REDIRECTS))
+    await writeFile(
+      resolve(out, page),
+      `<!doctype html>\n<meta charset="utf-8" />\n<title>Trillion3D</title>\n` +
+        `<link rel="canonical" href="${SITE_URL}${route}" />\n` +
+        `<meta http-equiv="refresh" content="0; url=./${route}" />\n` +
+        `<a href="./${route}">${SITE_URL}${route}</a>\n`,
+    );
 }
 
 /** Copies the served statics of the site `source` tree into `out`, sources excluded, and writes
- * the root pages the site address shapes. */
-export async function copyStatics(source: string, out: string) {
+ * the root pages the site address shapes; `published`, with the audience measurement. */
+export async function copyStatics(source: string, out: string, published = false) {
   await mkdir(out, { recursive: true });
-  for (const name of STATIC_ENTRIES) await copyTree(resolve(source, name), resolve(out, name));
-  await writeMetadata(source, out);
+  for (const name of STATIC_ENTRIES)
+    await copyTree(resolve(source, name), resolve(out, name), published);
+  await writeMetadata(source, out, published);
   await prune(out, [...STATIC_ENTRIES, ...METADATA_ENTRIES, ...BUILT_FOLDERS]);
 }
 
-/** Builds the whole site from `root` into `out`. */
-export async function buildSite(root = ROOT, out = SITE_OUTPUT) {
+/** Builds the whole site from `root` into `out`; only the deployed build is `published`, and
+ * carries the audience measurement (`measurement.ts`). */
+export async function buildSite(root = ROOT, out = SITE_OUTPUT, published = false) {
   await buildBundles(root, out);
-  await copyStatics(resolve(root, 'site'), out);
+  await copyStatics(resolve(root, 'site'), out, published);
 }
 
 /** The files of the built site git tracks: always none, since CI builds it from the sources. */

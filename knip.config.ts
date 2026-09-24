@@ -15,10 +15,18 @@ const config: KnipConfig = {
     'packages/sdk-browser/src/physics/physicsWorker.ts',
     'packages/sdk-node/src/index.mts',
     'packages/sdk/{index,browser,node}.{ts,mts}',
-    'scripts/generate-sdk-facade.ts',
     'packages/page-codec/geometryPage.ts',
     'packages/**/*.test.ts',
-    'scripts/*.ts',
+    // The scripts `package.json` and the workflows run are found by knip itself; the tests and
+    // the browser proofs, run by `node --test`, are entries by rule. Any other script is dead.
+    'scripts/*.test.ts',
+    'scripts/*.browser.ts',
+    // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
+    // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`).
+    'scripts/docs-examples-assets.ts',
+    'scripts/docs-examples-thumbnails.ts',
+    'scripts/site-first-load.ts',
+    'scripts/ltc-fit.ts',
     'bench/runner/bench.ts',
     // Served to the harness page and imported by URL, never by local import.
     'bench/runner/cutPage.ts',
