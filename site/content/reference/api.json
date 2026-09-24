@@ -17897,12 +17897,12 @@
     "section": "world",
     "kind": "Function",
     "title": "world.awaitPages()",
-    "signature": "world.awaitPages(options?: PageProgress): Promise<void>",
+    "signature": "world.awaitPages(options?: { onProgress?: (event: JobProgress) => void; }): Promise<void>",
     "summary": "Resolves once the pages the current view reads are resident (`awaitViewPages`).",
     "parameters": [
       {
         "name": "options?",
-        "type": "PageProgress",
+        "type": "{ onProgress?: (event: JobProgress) => void; }",
         "desc": "`onProgress` hears `pages`, `completed` of `total`, as they land."
       }
     ],

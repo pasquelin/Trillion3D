@@ -1,5 +1,6 @@
 import type { MeasuredWorld } from '../session/explorer.ts';
 import type { FrameMetrics, JobProgress } from '../../../../sdk-core/src/index.ts';
+export type { JobProgress };
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
 type Access = { session: () => MeasuredWorld | null; last: () => FrameMetrics | null };
@@ -19,13 +20,6 @@ export function sessionOf(world: object): MeasuredWorld {
 
 /** The metrics of the last frame `world` drew, null before its first. */
 export const lastFrameOf = (world: object) => worlds.get(world)?.last() ?? null;
-
-/** What `world.awaitPages` may be told: who hears the pages of the view land. */
-export type PageProgress = {
-  /** Hears `{ phase: 'pages', completed, total }` as each page the view lacked lands, the last
-   *  event once they all have. The event is a `JobProgress`, as `scene.load` reports. */
-  onProgress?: (event: JobProgress) => void;
-};
 
 /**
  * `world.awaitPages`: resolves once the pages the current view reads are resident. It takes no
