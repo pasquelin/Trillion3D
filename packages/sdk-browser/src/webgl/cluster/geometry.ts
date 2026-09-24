@@ -1,68 +1,45 @@
 import type { GpuBuffer, VertexAttribute, WholeMesh } from '../../cluster/batchMesh.ts';
+import { glType, upload, type CachedAttribute } from './buffers.ts';
+import { WebglClusterPlacements } from './placements.ts';
 
 /** What the cache binds: a batch record's geometry, or that of a host mesh drawn whole. */
 type Geometry = WholeMesh['geometry'];
 
-type CachedAttribute = {
-  buffer: WebGLBuffer;
-  source: GpuBuffer;
-  version: number;
-  bytes: number;
-};
 type CachedGeometry = {
   vao: WebGLVertexArrayObject;
   index?: CachedAttribute;
   attributes: Map<string, CachedAttribute>;
+  /** The placements the vertex array reads, `null` for a mesh drawn once. */
+  instances: GpuBuffer | null;
+  /** Frees this entry when its geometry is given back; removed at the renderer's dispose. */
+  release?: () => void;
 };
-
-const glType = (gl: WebGL2RenderingContext, array: ArrayBufferView) => {
-  if (array instanceof Float32Array) return gl.FLOAT;
-  if (array instanceof Uint32Array) return gl.UNSIGNED_INT;
-  if (array instanceof Int32Array) return gl.INT;
-  if (array instanceof Uint16Array) return gl.UNSIGNED_SHORT;
-  if (array instanceof Int16Array) return gl.SHORT;
-  if (array instanceof Uint8Array || array instanceof Uint8ClampedArray) return gl.UNSIGNED_BYTE;
-  if (array instanceof Int8Array) return gl.BYTE;
-  throw new Error(`Unsupported cluster attribute ${array.constructor.name}`);
-};
-
-const upload = (
-  gl: WebGL2RenderingContext,
-  target: number,
-  attribute: GpuBuffer,
-  known?: CachedAttribute,
-) => {
-  const current = known ?? { buffer: gl.createBuffer()!, source: attribute, version: -1, bytes: 0 };
-  if (current.source !== attribute || current.version !== attribute.version) {
-    gl.bindBuffer(target, current.buffer);
-    if (current.bytes !== attribute.array.byteLength)
-      gl.bufferData(
-        target,
-        attribute.array,
-        target === gl.ELEMENT_ARRAY_BUFFER ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW,
-      );
-    else if (attribute.updateRanges.length) {
-      const bytes = attribute.array.BYTES_PER_ELEMENT;
-      for (const range of attribute.updateRanges)
-        gl.bufferSubData(target, range.start * bytes, attribute.array, range.start, range.count);
-    } else gl.bufferSubData(target, 0, attribute.array);
-    current.bytes = attribute.array.byteLength;
-    current.source = attribute;
-    current.version = attribute.version;
-    attribute.clearUpdateRanges();
-  }
-  return current;
+/** A geometry of the engine's own graph announces its release; a host one never does. */
+type Releasing = { released?: Set<() => void> };
+/** The attributes the program reads, by name. */
+const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color'] as const;
+/** An attribute the program can bind: one owning its buffer; an interleaved view reads as absent. */
+const drawnAttribute = (geometry: Geometry, name: string) => {
+  const attribute = geometry.attributes[name] as unknown as VertexAttribute | undefined;
+  return attribute && !('isInterleavedBufferAttribute' in attribute) ? attribute : undefined;
 };
 
 export class WebglClusterGeometry {
   private cache = new Map<Geometry, CachedGeometry>();
   private gl: WebGL2RenderingContext;
   private locations: Record<string, number>;
+  /** The placement matrices of the instanced meshes, one buffer each, freed with their mesh. */
+  private placements: WebglClusterPlacements;
   constructor(gl: WebGL2RenderingContext, locations: Record<string, number>) {
     this.gl = gl;
     this.locations = locations;
+    this.placements = new WebglClusterPlacements(gl, locations.instanceMatrix);
   }
-  bind(geometry: Geometry) {
+  /** Binds `geometry`, and the placement matrices of an instanced mesh when `mesh` is one. */
+  bind(
+    geometry: Geometry,
+    mesh?: Pick<WholeMesh, 'isInstancedMesh' | 'instanceMatrix' | 'released'>,
+  ) {
     const gl = this.gl;
     let cached = this.cache.get(geometry);
     if (!cached) {
@@ -73,23 +50,62 @@ export class WebglClusterGeometry {
         vao,
         index: index ? upload(gl, gl.ELEMENT_ARRAY_BUFFER, index) : undefined,
         attributes: new Map(),
+        instances: null,
       };
       if (cached.index) gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index.buffer);
       this.cache.set(geometry, cached);
+      const released = (geometry as Releasing).released;
+      if (released) {
+        const entry = cached;
+        entry.release = () => {
+          this.cache.delete(geometry);
+          this.free(entry);
+        };
+        released.add(entry.release);
+      }
     }
     gl.bindVertexArray(cached.vao);
+    // The vertex array holds its buffers and pointers: they are specified again only when an
+    // attribute was replaced or rewritten since. The constant of an absent attribute is context
+    // state, not the array's, and is set once per frame.
+    if (!this.current(cached, geometry)) this.specify(cached, geometry);
+    if (!this.generics) this.setGenerics();
+    cached.instances = this.placements.bind(
+      cached.instances,
+      mesh?.isInstancedMesh ? mesh : undefined,
+    );
+  }
+  /** Whether the vertex array still describes `geometry`: the same index and attributes, at the
+   *  versions it uploaded. */
+  private current(cached: CachedGeometry, geometry: Geometry) {
+    const index = geometry.index;
+    if (index && (cached.index?.source !== index || cached.index.version !== index.version))
+      return false;
+    for (const name of ATTRIBUTES) {
+      if (this.locations[name] < 0) continue;
+      const attribute = drawnAttribute(geometry, name),
+        entry = cached.attributes.get(name);
+      if (attribute ? entry?.source !== attribute || entry.version !== attribute.version : entry)
+        return false;
+    }
+    return true;
+  }
+  /** Uploads what changed and points the vertex array at it; an absent attribute is disabled. */
+  private specify(cached: CachedGeometry, geometry: Geometry) {
+    const gl = this.gl;
     if (geometry.index) {
       cached.index = upload(gl, gl.ELEMENT_ARRAY_BUFFER, geometry.index, cached.index);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index.buffer);
     }
-    for (const name of ['position', 'normal', 'uv', 'uv1', 'color']) {
-      const attribute = geometry.attributes[name] as unknown as VertexAttribute | undefined,
+    for (const name of ATTRIBUTES) {
+      const attribute = drawnAttribute(geometry, name),
         location = this.locations[name];
       if (location < 0) continue;
-      if (!attribute || 'isInterleavedBufferAttribute' in attribute) {
+      if (!attribute) {
         gl.disableVertexAttribArray(location);
-        if (name === 'color') gl.vertexAttrib4f(location, 1, 1, 1, 1);
-        else gl.vertexAttrib2f(location, 0, 0);
+        const stale = cached.attributes.get(name);
+        if (stale) gl.deleteBuffer(stale.buffer);
+        cached.attributes.delete(name);
         continue;
       }
       const entry = upload(gl, gl.ARRAY_BUFFER, attribute, cached.attributes.get(name));
@@ -106,12 +122,34 @@ export class WebglClusterGeometry {
       );
     }
   }
+  /** Whether the constants of absent attributes were set this frame. */
+  private generics = false;
+  /** A new frame: the context's constants may have been written by another program since. */
+  beginFrame() {
+    this.generics = false;
+  }
+  /** White for an absent colour, zero for any other absent attribute. */
+  private setGenerics() {
+    const gl = this.gl;
+    for (const name of ATTRIBUTES) {
+      const location = this.locations[name];
+      if (location < 0) continue;
+      if (name === 'color') gl.vertexAttrib4f(location, 1, 1, 1, 1);
+      else gl.vertexAttrib2f(location, 0, 0);
+    }
+    this.generics = true;
+  }
+  private free(entry: CachedGeometry) {
+    this.gl.deleteVertexArray(entry.vao);
+    if (entry.index) this.gl.deleteBuffer(entry.index.buffer);
+    for (const attribute of entry.attributes.values()) this.gl.deleteBuffer(attribute.buffer);
+  }
   dispose() {
-    for (const entry of this.cache.values()) {
-      this.gl.deleteVertexArray(entry.vao);
-      if (entry.index) this.gl.deleteBuffer(entry.index.buffer);
-      for (const attribute of entry.attributes.values()) this.gl.deleteBuffer(attribute.buffer);
+    for (const [geometry, entry] of this.cache) {
+      this.free(entry);
+      if (entry.release) (geometry as Releasing).released?.delete(entry.release);
     }
     this.cache.clear();
+    this.placements.dispose();
   }
 }

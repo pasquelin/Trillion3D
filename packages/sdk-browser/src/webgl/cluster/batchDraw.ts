@@ -1,6 +1,7 @@
 import type { HostDrawCamera } from '../../camera/world.ts';
 import {
   drawPasses,
+  recordTriangles,
   wholeMeshTriangles,
   type ClusterDrawMesh,
   type WholeMesh,
@@ -49,9 +50,7 @@ export function drawClusterBatches(
   for (const mesh of meshes) {
     const passes = passCount(mesh.material) * frames;
     stats.subDraws += mesh._multiDrawCount * passes;
-    let indices = 0;
-    for (let i = 0; i < mesh._multiDrawCount; i++) indices += mesh._multiDrawCounts[i];
-    stats.submittedTriangles += (indices / 3) * passes;
+    stats.submittedTriangles += recordTriangles(mesh) * passes;
   }
   for (const mesh of diagnosticMeshes) {
     const passes = passCount(mesh.material) * frames;
