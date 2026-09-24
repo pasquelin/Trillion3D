@@ -8,10 +8,11 @@ import { WITNESS_PAIR } from './materialFixtureShape.ts';
 // The map fixtures draw on a page canvas: only the fixtures WebGL2 reads are built here.
 const glass = fixtures.filter((fixture) => fixture.pair?.includes('webgl2'));
 
-test('the fixtures WebGL2 reads are world-built glass', () => {
+test('the fixtures WebGL2 reads are world-built glass under the sun', () => {
   assert.ok(glass.length > 0, 'no fixture is read on WebGL2');
   for (const fixture of glass) {
     const surface = fixture.material();
+    assert.equal(fixture.lit, true, `${fixture.name}: glass unlit, unlike #337's repro`);
     assert.equal(surface.transmission, 1);
     assert.equal(surface.ior, 1.5);
     assert.ok(surface.thickness > 0, `${fixture.name}: a glass with no thickness`);
