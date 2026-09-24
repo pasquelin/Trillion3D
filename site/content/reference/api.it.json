@@ -6855,7 +6855,9 @@
       "timeScale": "Secondi simulati per secondo reale: 0.25 è il rallentatore.",
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
-      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`."
+      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
+      "add": "Aggiunge un giunto (`joint.hinge(door, frame, …)` e simili): viene creato appena entrambi i corpi sono simulati e tiene finché non viene tolto o si rompe.",
+      "remove": "Toglie un giunto: i corpi che teneva si separano liberamente."
     }
   },
   "ContactEvent": {
@@ -7036,7 +7038,9 @@
       "timeScale": "Secondi simulati per secondo reale: 0.25 è il rallentatore.",
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
-      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`."
+      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
+      "add": "Aggiunge un giunto (`joint.hinge(door, frame, …)` e simili): viene creato appena entrambi i corpi sono simulati e tiene finché non viene tolto o si rompe.",
+      "remove": "Toglie un giunto: i corpi che teneva si separano liberamente."
     }
   },
   "WorldPhysicsOptions": {
@@ -7300,6 +7304,71 @@
       "x": "Da sinistra a destra.",
       "y": "Dal basso verso l'alto.",
       "z": "Da dietro in avanti."
+    }
+  },
+  "Joint": {
+    "summary": "Un giunto tra due corpi, o tra un corpo e il mondo (`b` null), creato con `joint.*` e aggiunto alla simulazione con `world.physics.add`.",
+    "description": "Tiene finché entrambi i corpi sono simulati, e finché non si rompe.",
+    "parameters": {
+      "options": "Ciò che accetta `joint.*`. Punti e assi sono nel mondo, letti quando il giunto viene creato la prima volta.",
+      "options.anchor": "Dove i corpi si collegano: il perno di un cardine, la sfera di un giunto sferico, l’estremo di una distanza su `a`.",
+      "options.anchorB": "L’estremo di una distanza su `b`.",
+      "options.axis": "Il perno di un cardine, la guida di un giunto prismatico, il centro di un cono.",
+      "options.limits": "Cardine, giunto prismatico, distanza e cono: quanto si muove. Una distanza mantiene per default la sua lunghezza.",
+      "options.spring": "Cardine, giunto prismatico e distanza: oltre i limiti una molla la riporta indietro al posto di un muro; `frequency` in Hz, `damping` da 0 (nessuno) a 1 (critico).",
+      "options.motor": "Cardine e giunto prismatico: un motore, modificabile in ogni momento tramite `joint.motor`.",
+      "options.breakForce": "Newton di trazione oltre i quali il giunto si rompe; se omesso, mai."
+    },
+    "members": {
+      "kind": "Che cosa è il giunto.",
+      "a": "Il primo corpo.",
+      "b": "Il secondo corpo, o `null` per il mondo.",
+      "options": "Con che cosa è stato creato.",
+      "motor": "Il motore di un cardine o di un giunto prismatico; `null` lo lascia ruotare o scorrere liberamente.",
+      "broken": "Se si è rotto: tirato oltre la sua `breakForce`. Un giunto rotto non tiene più nulla.",
+      "on": "Chiama `handler` quando il giunto si rompe."
+    }
+  },
+  "JointKind": {
+    "summary": "I giunti tra corpi, ciascuno uno dei vincoli di Jolt."
+  },
+  "JointLimits": {
+    "summary": "Quanto può muoversi un giunto: radianti per un cardine, metri per un giunto prismatico o una distanza, il semiangolo del cono (`max`) per un cono.",
+    "members": {
+      "min": "Per un cardine da −π a 0, per un giunto prismatico 0 o meno.",
+      "max": "Per un cardine da 0 a π, per un giunto prismatico 0 o più."
+    }
+  },
+  "JointMotor": {
+    "summary": "Il motore di un cardine o di un giunto prismatico: porta il giunto a una velocità o a una posizione.",
+    "members": {
+      "mode": "`'velocity'`: rad/s o m/s; `'position'`: radianti o metri da dove il giunto è stato creato.",
+      "target": "La velocità o la posizione da raggiungere.",
+      "maxForce": "N·m per un cardine, N per un giunto prismatico; se omesso, senza limite."
+    }
+  },
+  "JointOptions": {
+    "summary": "Ciò che accetta `joint.*`.",
+    "description": "Punti e assi sono nel mondo, letti quando il giunto viene creato la prima volta.",
+    "members": {
+      "anchor": "Dove i corpi si collegano: il perno di un cardine, la sfera di un giunto sferico, l’estremo di una distanza su `a`.",
+      "anchorB": "L’estremo di una distanza su `b`.",
+      "axis": "Il perno di un cardine, la guida di un giunto prismatico, il centro di un cono.",
+      "limits": "Cardine, giunto prismatico, distanza e cono: quanto si muove. Una distanza mantiene per default la sua lunghezza.",
+      "spring": "Cardine, giunto prismatico e distanza: oltre i limiti una molla la riporta indietro al posto di un muro; `frequency` in Hz, `damping` da 0 (nessuno) a 1 (critico).",
+      "motor": "Cardine e giunto prismatico: un motore, modificabile in ogni momento tramite `joint.motor`.",
+      "breakForce": "Newton di trazione oltre i quali il giunto si rompe; se omesso, mai."
+    }
+  },
+  "joint": {
+    "summary": "La famiglia `joint`: due corpi collegati, o un corpo e il mondo (`b` null).",
+    "members": {
+      "fixed": "Li salda: si muovono come uno solo.",
+      "point": "Un giunto sferico in `anchor`: ruotano liberamente attorno.",
+      "hinge": "Un perno in `anchor` lungo `axis`: una porta, una ruota. `limits` in radianti.",
+      "slider": "Una guida lungo `axis`: un cassetto, un pistone. `limits` in metri.",
+      "distance": "Mantiene `anchor` su `a` e `anchorB` su `b` alla loro distanza, o entro `limits`.",
+      "cone": "Un giunto sferico il cui `axis` oscilla in un cono di semiangolo `limits.max`."
     }
   }
 }
