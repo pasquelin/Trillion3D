@@ -340,7 +340,6 @@
       "sculpt-a-sphere": "выбор лучом (raycast)",
       "a-video-on-a-screen": "текстуры живого видео",
       "the-webcam-as-a-texture": "текстуры живого видео",
-      "four-ways-to-blend": "все режимы смешивания",
       "avif-textures": "другие импортёры: изображения AVIF",
       "object-space-normals": "карты нормалей в пространстве объекта",
       "a-bumpy-surface": "карты рельефа, смещения и параллакса",
