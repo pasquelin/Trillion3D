@@ -4,6 +4,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterMaterialReason } from './compatibility.ts';
 import { validateClusterMeshes } from './validation.ts';
 import { drawPasses } from '../../cluster/batchMesh.ts';
+import { hostBlending } from '../../scene/materialBlending.ts';
 
 const position = new G.GraphAttribute(new Float32Array(9), 3);
 const NO_COPIES = { plain: [], blended: [], transmissive: [] };
@@ -163,4 +164,24 @@ test('a compile hook the host installed is refused, the empty one it inherits is
   assert.equal(clusterMaterialReason(material, { position, normal }), undefined);
   material.onBeforeCompile = () => {};
   assert.match(clusterMaterialReason(material, { position, normal })!, /carries a shader hook/);
+});
+
+// #346: every named mode reaches the draw; a mode no path draws is refused by name.
+test('a named blending is admitted, an unnamed one and a transmissive non-normal one are refused', () => {
+  const normal = new G.GraphAttribute(new Float32Array(9), 3);
+  for (const mode of ['none', 'normal', 'additive', 'subtractive', 'multiply'] as const)
+    assert.equal(
+      clusterMaterialReason(G.basicSurface({ transparent: true, blending: hostBlending(mode) }), {
+        position,
+      }),
+      undefined,
+      mode,
+    );
+  const custom = G.basicSurface({ transparent: true, blending: 5 });
+  assert.match(clusterMaterialReason(custom, { position })!, /blending 5, which no path draws/);
+  const glass = G.physicalSurface({ transmission: 1, blending: hostBlending('additive') });
+  assert.match(
+    clusterMaterialReason(glass, { position, normal }, true)!,
+    /transmissive material cannot use additive blending/,
+  );
 });
