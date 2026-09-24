@@ -23,7 +23,7 @@ try {
   const sample = await page.evaluate(
     async ({ sdkUrl, posesUrl, worldUrl, manifestUrl, size, sun }) => {
       const [width, height] = size;
-      const { openBenchWorld, settleWorld } = await import(worldUrl);
+      const { openBenchWorld, settleWorld, png } = await import(worldUrl);
       const { poseAt, VIEWS, PATH_POSES } = await import(posesUrl);
       const scene: MeasuredWorld = await openBenchWorld('behind', sdkUrl, manifestUrl, size);
       scene.addLight({ ...sun, castsShadow: true });
@@ -51,15 +51,10 @@ try {
       // What the sun's shadow darkens on screen: every caster of it stands behind the eye.
       const luminance = (p: Uint8Array, i: number) =>
         0.2126 * p[i] + 0.7152 * p[i + 1] + 0.0722 * p[i + 2];
-      // The two captures as PNG, for the pull request: the frame is readable, not only counted.
-      const png = async (rgba: Uint8Array) => {
-        const image = new ImageData(new Uint8ClampedArray(rgba), width, height);
-        const surface = new OffscreenCanvas(width, height);
-        surface.getContext('2d')!.putImageData(image, 0, 0);
-        const blob = await surface.convertToBlob({ type: 'image/png' });
-        return Array.from(new Uint8Array(await blob.arrayBuffer()));
+      const images = {
+        shadowed: await png(shadowed, width, height),
+        open: await png(open, width, height),
       };
-      const images = { shadowed: await png(shadowed), open: await png(open) };
       let darkened = 0;
       for (let i = 0; i < open.length; i += 4)
         if (luminance(open, i) - luminance(shadowed, i) > 40) darkened++;
