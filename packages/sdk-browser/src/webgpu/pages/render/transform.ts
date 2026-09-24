@@ -20,6 +20,7 @@ import { transformRootBoxes } from '../../../math/batchBoxes.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 const local = new Float64Array(16),
+  current = new Float64Array(16),
   parentWorld = new Float64Array(16),
   parentInverse = new Float64Array(16),
   trs = new Float64Array(3),
@@ -28,6 +29,12 @@ const local = new Float64Array(16),
   movedMin = [0, 0, 0],
   movedMax = [0, 0, 0],
   moved = new Float64Array(BOX_VALUES);
+
+/** True when `world`, rounded to single precision, is `matrix`. */
+function standsAt(world: Float64Array, matrix: Float32Array) {
+  for (let i = 0; i < 16; i++) if (Math.fround(world[i]) !== matrix[i]) return false;
+  return true;
+}
 
 /** The named node of the prepared scene, or `undefined`: the search is a walk, not an index. */
 function findNode(source: HostGraphNode, nodeName: string) {
@@ -65,6 +72,9 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // A non-finite pose is refused here, before any inversion: further on it would become a NaN
   // world matrix, then a null normal, then a black surface with no readable cause.
   assertFiniteTransform(matrix, nodeName);
+  // The world the node already stands at, to the precision the request carries: moving it there
+  // moves nothing — a node's first write included, which the local comparison below cannot judge.
+  if (standsAt(hostWorldChainInto(current, node), matrix)) return;
   copyElements(local, matrix);
   if (node.parent) {
     // The requested pose is a WORLD pose: bringing it back into the parent's space needs the

@@ -7,7 +7,7 @@ import { createShadowResidence } from './residence.ts';
 
 test('the first move promotes a placement and opens the static layer; its later moves do not', () => {
   const mobility = createShadowMobility();
-  mobility.ensure(3, 5);
+  mobility.ensure(3, 5, () => new Float64Array(16));
   assert.equal(mobility.layered, false);
   mobility.move(1);
   assert.equal(mobility.takePromoted(), true);
@@ -21,6 +21,31 @@ test('the first move promotes a placement and opens the static layer; its later 
   assert.deepEqual([...mobility.rowWords], [0, 1, 1, 0, 0]);
   mobility.writeRows(placementOf, 5, 3, 4, (first, count) => pushed.push([first, count]));
   assert.deepEqual(pushed[1], [3, 2], 'then the rows the table rewrote');
+});
+
+// A write that leaves a placement where it stands — a pose copied again, a row inside a written
+// range — opens no static layer; a row taken or parked, or a new pose, does.
+test('a placement posed where it already stands does not move', () => {
+  const mobility = createShadowMobility();
+  const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  mobility.ensure(2, 2, () => identity);
+  mobility.move(0, identity);
+  assert.equal(mobility.layered, false, 'same pose: still');
+  mobility.move(0);
+  assert.equal(mobility.layered, true, 'taken or parked: moved');
+  const shifted = identity.slice();
+  shifted[12] = 1;
+  mobility.move(1, shifted);
+  assert.deepEqual([...mobility.rowWords], [0, 0]);
+  const pushed: number[] = [];
+  mobility.writeRows(
+    (row) => row,
+    2,
+    0,
+    1,
+    () => pushed.push(0),
+  );
+  assert.deepEqual([...mobility.rowWords], [1, 1], 'a new pose: moved');
 });
 
 test('a residency flag that drops and rises between two plans is no change for the shadows', () => {

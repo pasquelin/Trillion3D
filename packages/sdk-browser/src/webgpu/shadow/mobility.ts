@@ -1,3 +1,5 @@
+import { sameElements } from '../../math/matrixElements.ts';
+
 /**
  * WHICH PLACEMENTS MOVE, as the shadow pages see them. A placement — a root of the cut, the rank
  * a page-table row carries (`PageInfo.placement`) — becomes moving the first time it moves, and
@@ -12,6 +14,9 @@
  */
 export function createShadowMobility() {
   let moving = new Uint8Array(0),
+    /** The pose each placement had when the layout was made: a write that leaves it where it
+     *  stands — a sleeping body's pose copied again, a row inside a written range — is no move. */
+    poses = new Float64Array(0),
     rows = new Uint32Array(0),
     promoted = false,
     anyMoving = false,
@@ -25,17 +30,22 @@ export function createShadowMobility() {
     get rowWords() {
       return rows;
     },
-    /** Sizes the state for `placements` roots and `drawSlots` rows; a new layout starts still. */
-    ensure(placements: number, drawSlots: number) {
+    /** Sizes the state for `placements` roots and `drawSlots` rows; a new layout starts still, at
+     *  the poses `worldOf` gives. */
+    ensure(placements: number, drawSlots: number, worldOf: (rank: number) => ArrayLike<number>) {
       if (moving.length === placements && rows.length === drawSlots) return;
       moving = new Uint8Array(placements);
+      poses = new Float64Array(placements * 16);
+      for (let rank = 0; rank < placements; rank++) poses.set(worldOf(rank), rank * 16);
       rows = new Uint32Array(Math.max(1, drawSlots));
       anyMoving = false;
       wholeRows = true;
     },
-    /** Placement `rank` moved. */
-    move(rank: number) {
+    /** Placement `rank` was posed, at `world` when its pose is all that changed: it moved unless
+     *  `world` is the pose it stands at. */
+    move(rank: number, world?: ArrayLike<number>) {
       if (rank < 0 || rank >= moving.length || moving[rank]) return;
+      if (world && sameElements(poses, world, rank * 16)) return;
       moving[rank] = 1;
       promoted = true;
       anyMoving = true;
