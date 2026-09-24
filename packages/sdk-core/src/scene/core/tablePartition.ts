@@ -11,7 +11,7 @@ const PARTITION_VERSION = 1;
 
 /** One cell: where it is read, its fingerprint and size, the box around what it holds (scene
  *  frame, `[minX, minY, minZ, maxX, maxY, maxZ]`), the diagonal of its largest object, and how many
- *  nodes it places. */
+ *  nodes of each mesh it places. */
 export interface TableCell {
   /** Its file, relative to the tables. */
   url: string;
@@ -23,8 +23,8 @@ export interface TableCell {
   bounds: readonly number[];
   /** The world-box diagonal of its largest object. */
   size: number;
-  /** How many nodes it places. */
-  nodes: number;
+  /** `[mesh rank, nodes]` per mesh it places: what the runtime sizes its rows by at open. */
+  meshes: readonly (readonly [number, number])[];
 }
 
 /** The partition of a scene: its cells, the box around them all, and the meshes they place. */
@@ -67,7 +67,11 @@ export function assertTablePartition(value: unknown): TablePartition | null {
       `scene partition version ${String(partition.version)} is not the ${PARTITION_VERSION} this runtime reads`,
       { partitionVersion: partition.version ?? null },
     );
-  if (!Array.isArray(partition.cells) || !Array.isArray(partition.meshes))
+  if (
+    !Array.isArray(partition.cells) ||
+    !Array.isArray(partition.meshes) ||
+    !partition.cells.every((cell) => Array.isArray(cell?.meshes))
+  )
     throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its cells', {});
   return partition;
 }

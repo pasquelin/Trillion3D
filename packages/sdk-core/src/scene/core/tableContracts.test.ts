@@ -53,6 +53,12 @@ test('a partition of another version is refused, and a cell is read only at its 
     () => assertSceneTables({ ...tables(), partition: { ...partition, version: 2 } }),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'partition version 2'),
   );
+  // A cell that does not say what it places cannot size the rows before the first frame.
+  const silent = { ...partition, cells: [{ url: 'c.json', bounds: [], size: 0 }] };
+  assert.throws(
+    () => assertSceneTables({ ...tables(), partition: silent }),
+    hasCode('INVALID_SCENE_TABLES'),
+  );
   assert.deepEqual(assertCellNodes({ version: 1, nodes: [] }), []);
   assert.throws(() => assertCellNodes({ version: 2, nodes: [] }), hasCode('INVALID_SCENE_TABLES'));
 });
