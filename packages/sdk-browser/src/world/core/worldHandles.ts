@@ -144,7 +144,6 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
      *  session refuses falls back to `beauty`, so an opening never fails on it. */
     apply(opened: MeasuredWorld) {
       sessions++;
-      error = null;
       if (mode !== 'beauty' && !put(opened, mode)) mode = 'beauty';
     },
     /** A session that could not open: named on the handle and said on the console with the error

@@ -76,10 +76,9 @@ test('a session that fails to open is named on the handle until the next opening
   diagnostic.failed(named);
   assert.equal(error(), named, 'a documented engine error is the one thrown');
   assert.equal(error()?.details.cause, undefined, 'with no cause of its own');
-  diagnostic.apply(session().opened);
-  assert.equal(error(), null);
   // A new opening, tried or not (the scene emptied): the last failure no longer holds.
-  diagnostic.failed(thrown);
   diagnostic.opening();
+  assert.equal(error(), null);
+  diagnostic.apply(session().opened);
   assert.equal(error(), null);
 });

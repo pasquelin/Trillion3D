@@ -42,8 +42,8 @@ export function markWebgpuLost(
  * abandons the device: what follows would draw on a state no one knows, so it is reported once,
  * as the loss it is, with the error's text — reason `uncaptured-error`, or `out-of-memory` when
  * the device ran out of it. A closed session's first error is said under
- * `gpu-closed-session-error`, as a warning: it is not this session's. Its `errors` is the count
- * the device raises in place at each later error of that session.
+ * `gpu-closed-session-error`, as a warning: it is not this session's. Its `errors` is a frozen copy
+ * of the counts of the closed sessions it names, taken then.
  */
 export function claimWebgpuDevice(
   rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu' | 'diag'>,
@@ -61,8 +61,9 @@ export function claimWebgpuDevice(
   });
 }
 
-/** A backend disposed while it prepares stops at its next wait: cancelled, not failed. */
-export function stopIfClosed(run: Pick<WebgpuPagesRuntime['run'], 'closed'>) {
-  if (run.closed)
+/** A backend disposed, or a session aborted, while it prepares stops at its next wait: cancelled,
+ *  not failed. */
+export function stopIfClosed(rt: Pick<WebgpuPagesRuntime, 'run' | 'context'>) {
+  if (rt.run.closed || rt.context.signal?.aborted)
     throw new DOMException('The session closed while the backend prepared', 'AbortError');
 }
