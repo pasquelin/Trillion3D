@@ -50,8 +50,8 @@
   concurrently: two Chrome instances pollute each other's numbers and saturate the machine. They
   run one at a time, in one queue, on merged batches, and never block a pull request: the issue
   closes at merge labelled `to measure`, the queue measures it against the merge's first parent
-  and comments the numbers (`measure ok`); a regression becomes a new issue labelled `measure ko`
-  and linked to the measured one. A pull request carries the fast gates and names its proof.
+  and comments the numbers (`measure ok`); a regression reopens the measured issue, labelled
+  `measure ko`, with the numbers in a comment. A pull request carries the fast gates and names its proof.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
   `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
   the pull request body, and the folder is removed before the pull request is opened.
@@ -74,6 +74,28 @@
   measured and declared: it holds the default proof above, or the tolerance this section names, or
   it does not merge. Sole exception: fluids may lower their own quality automatically to hold their
   budget, and say so in their diagnostics.
+
+## Streaming, memory and shadows
+
+The rules of #483, binding on every change to geometry, streaming, memory, shadows or examples:
+
+1. **No hole, ever.** Every surface of every frame is drawn by a resident representation of
+   itself: the wanted cluster or its nearest resident ancestor.
+2. **No image loss.** A still image converges to full detail (A/A 0 px); coarsening is temporary,
+   one DAG level at a time.
+3. **Compiler first.** Errors, bounds, normal cones, page dependencies and order, world-scale roots
+   are computed at cook, and the cook refuses a result that breaks an invariant.
+4. **One mechanism per concern**: one cut rule, one residency cache, one request queue, one memory
+   budget. What a change replaces is deleted in the same pull request.
+5. **Fixed budgets, never read from the machine**, one global memory budget; out of memory is one
+   level coarser, never a crash; a lost device is rebuilt without reloading the page.
+6. **Bounded by the view**, not by the world's size.
+7. **Main thread bounded**: decoding, parsing and IO in workers.
+8. **WebGL2 is degraded, never broken**: same rules, declared missing features, no hole.
+9. **Proven by a test of the invariant**, on two scenes, one of them an open world.
+10. **Nothing is rebuilt every frame**: no recut, re-hash or session reopen for moving content;
+    it takes the dynamic or GPU-deformation path.
+11. **Examples use the engine**, never a per-frame workaround for a missing feature.
 
 ## Quality and evidence
 
@@ -158,7 +180,7 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 
 ## Contribution workflow
 
-1. Open one issue per batch. Create a branch named `<issue>-<short-name>` from `origin/develop`
+1. Work from one issue per batch; only the maintainer opens issues (AGENTS.md rule 5). Create a branch named `<issue>-<short-name>` from `origin/develop`
    in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then
    run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
@@ -168,7 +190,9 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
    measuring queue runs it after the merge.
 4. Commit with a descriptive English message. Open a pull request targeting `develop`, using
-   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`. Describe what both
+   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` when it delivers every
+   To-do item, `Part of #<issue>` otherwise (the remainder is a comment on the issue, which stays
+   open). Describe what both
    local review passes found under "Local review before push". Replace `in progress` with `in review`.
 5. Obtain an independent review and resolve its findings before integration. The maintainer, or
    whoever the maintainer entrusts with it, merges once the review holds and `validate` is green on
@@ -182,7 +206,7 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    only if work resumes.
 
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
-no separate release branch is needed. Use the same template and `Closes #<issue>` first line,
+no separate release branch is needed. Use the same template and `Closes #<issue>` first line (the release delivers its whole issue),
 name the already reviewed implementation pull requests in the local-review section, and wait
 for validation and maintainer approval. Nothing built is committed on any branch: the site
 workflow (`.github/workflows/pages.yml`) builds the site from `main` (`site/` sources,
