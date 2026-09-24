@@ -1685,6 +1685,7 @@
       "bounds": "Hộp mà mô hình lấp đầy, trong khung riêng của nó.",
       "lights": "Các nguồn sáng dưới mô hình — những nguồn mà tệp nguồn mang theo, dưới dạng node: một trang chỉnh sửa, di chuyển hoặc gỡ bỏ chúng như của riêng nó, và chúng di chuyển cùng mô hình.",
       "record": "Mọi thứ mà thế giới giữ về mô hình này: địa chỉ, tệp kê khai và đồ thị của nó.",
+      "getObjectByName": "Nút đầu tiên bên dưới mang tên này: mô hình, một nút của tệp nguồn, rồi mọi con khác — đèn tệp mang theo, nút một trang đặt vào.",
       "metadata": "Tệp kê khai đã biên dịch của mô hình — các nguyên thủy của nó, `sourceTriangles` — và `clusters`, các cụm mà các trang của nó chứa, mỗi mức của các DAG của nó được đếm.",
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
     }

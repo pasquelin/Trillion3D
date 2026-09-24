@@ -2851,6 +2851,7 @@
       "bounds": "La caja que llena el modelo, en su propio sistema.",
       "lights": "Las luces bajo el modelo — las que llevaba el archivo fuente, como nodos: una página las modifica, mueve o quita como las suyas, y se mueven con el modelo.",
       "record": "Todo lo que el mundo guarda sobre este modelo: sus direcciones, su manifiesto y su grafo.",
+      "getObjectByName": "El primer nodo debajo con este nombre: el modelo, un nodo de su archivo fuente y luego cualquier otro hijo — una luz que traía el archivo, un nodo que colocó una página.",
       "metadata": "El manifiesto compilado del modelo — sus primitivas, `sourceTriangles` — y `clusters`, los clústeres que contienen sus páginas, cada nivel de sus DAG contado.",
       "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna."
     }

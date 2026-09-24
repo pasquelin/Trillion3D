@@ -8108,6 +8108,11 @@
         "desc": "Everything the world keeps about this model: its addresses, manifest and graph."
       },
       {
+        "name": "getObjectByName(name: string)",
+        "type": "Object3D | undefined",
+        "desc": "The first node below with this name: the model, a node of its source file, then any other child — a light the file carried, a node a page placed."
+      },
+      {
         "name": "metadata",
         "type": "{ clusters: number; formatVersion?: number; compilerVersion?: string; errorModel?: string; geometryPages?: GeometryPageFormat; simplification?: boolean; sche...",
         "desc": "The model's compiled manifest — its primitives, `sourceTriangles` — and `clusters`, the clusters its pages hold, every level of its DAGs counted."
@@ -8118,7 +8123,7 @@
         "desc": "The box of this node's own content, local frame; a plain node holds none."
       }
     ],
-    "description": "The nodes of its source file are its children: a page finds one by name (`getObjectByName`) and moves it like any node. `bounds` is the box it spans in its own frame."
+    "description": "A node of its source file is found by name (`getObjectByName`) and moved like any node: it joins the model's children, under its ancestors, when first looked up. `bounds` is the box it spans in its own frame."
   },
   {
     "id": "LodQualityId",
