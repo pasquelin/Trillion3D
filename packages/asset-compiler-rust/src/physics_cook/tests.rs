@@ -6,23 +6,29 @@ use crate::dag::DagCluster;
 
 /// The golden tile: a 2 × 2 m quad tilted up along x, two triangles, cooked by native Jolt. The
 /// physics module's tests restore these very bytes (`packages/sdk-browser/src/physics`).
-const RAMP: [f32; 12] = [0., 0., -1., 2., 1., -1., 2., 1., 1., 0., 0., 1.];
-const RAMP_TRIANGLES: [u32; 6] = [0, 2, 1, 0, 3, 2];
+pub(super) const RAMP: [f32; 12] = [0., 0., -1., 2., 1., -1., 2., 1., 1., 0., 0., 1.];
+pub(super) const RAMP_TRIANGLES: [u32; 6] = [0, 2, 1, 0, 3, 2];
 const GOLDEN: &str = "../../tests/fixtures/physics/ramp-tile.bin";
+/// Cooks `pos` twice, the same bytes, and checks them against the golden file `golden`
+/// (`TRILLION3D_WRITE_GOLDEN` rewrites it).
+pub(super) fn golden_tile(pos: &[f32], golden: &str) -> Vec<u8> {
+    let first = mesh_shape(pos, &RAMP_TRIANGLES).unwrap();
+    assert_eq!(first, mesh_shape(pos, &RAMP_TRIANGLES).unwrap());
+    if std::env::var_os("TRILLION3D_WRITE_GOLDEN").is_some() {
+        std::fs::write(golden, &first).unwrap();
+    }
+    assert_eq!(
+        first,
+        std::fs::read(golden).unwrap(),
+        "golden tile moved: {golden}"
+    );
+    first
+}
 
 // Behaviour: the cook is deterministic and its bytes are the golden ones the runtime restores.
 #[test]
 fn a_tile_cooks_to_the_same_golden_bytes() {
-    let first = mesh_shape(&RAMP, &RAMP_TRIANGLES).unwrap();
-    assert_eq!(first, mesh_shape(&RAMP, &RAMP_TRIANGLES).unwrap());
-    if std::env::var_os("TRILLION3D_WRITE_GOLDEN").is_some() {
-        std::fs::write(GOLDEN, &first).unwrap();
-    }
-    assert_eq!(
-        first,
-        std::fs::read(GOLDEN).unwrap(),
-        "golden tile moved: {GOLDEN}"
-    );
+    golden_tile(&RAMP, GOLDEN);
 }
 
 // Behaviour: a regular grid is detected, sample for sample; one vertex off the lattice is not a grid.

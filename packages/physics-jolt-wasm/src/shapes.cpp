@@ -2,6 +2,7 @@
 // triangle meshes its data carries, the cooked shapes it names (`restore.cpp`) and compounds of
 // primitives (a hull-and-deck boat). Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
+#include "mesh.h"
 #include "restore.h"
 #include "words.h"
 
@@ -9,7 +10,6 @@
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
-#include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 
@@ -56,7 +56,7 @@ RefConst<Shape> meshShape(uint32_t kind, const uint32_t *data, uint32_t vertices
   IndexedTriangleList triangles;
   triangles.reserve(indices / 3);
   for (uint32_t i = 0; i + 2 < indices; i += 3) triangles.push_back(IndexedTriangle(index[i], index[i + 1], index[i + 2]));
-  ShapeSettings::ShapeResult result = MeshShapeSettings(list, triangles).Create();
+  ShapeSettings::ShapeResult result = trillion::wholeMesh(list, triangles);
   return result.HasError() ? nullptr : result.Get();
 }
 
