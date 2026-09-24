@@ -930,9 +930,9 @@
       "WEBGPU_LOST": "WebGPU đã mất thiết bị của nó, hoặc một lỗi trên thiết bị để lại trạng thái mà không gì có thể vẽ từ đó: được ném bởi `render`, `flush` và các lượt đọc cần thiết bị, được đặt tên bởi chẩn đoán `gpu-device-lost`, và xuất hiện trên `world.diagnostic.error` khi một phiên không thể mở vì lý do đó.",
       "UNSUPPORTED_SCENE_FORMAT": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
       "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
-      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      "PHYSICS_BUDGET": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
+      "PHYSICS_NESTED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
+      "PHYSICS_FAILED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1894,10 +1894,10 @@
       "surface": "Bản ghi bề mặt vật lý của bộ máy cho vật liệu này (`contracts/material.ts`). Một loại nằm ngoài họ vật lý được vẽ qua họ chủ có cùng tên, mà bộ máy ánh xạ vào mô hình chiếu sáng duy nhất của nó (`surfaceModel.ts`).",
       "clone": "Một vật liệu mới cùng loại, với các giá trị giống nhau.",
       "dispose": "Quên những người mang nó: một vật liệu đã bị hủy thì không tô lại cho ai cả.",
-      "physics": "Physics matter preset of the bodies wearing it.",
-      "density": "kg/m³, for a body's mass.",
-      "friction": "Physics friction.",
-      "restitution": "Physics restitution."
+      "physics": "Thiết lập sẵn chất liệu vật lý của các vật mang nó.",
+      "density": "kg/m³, cho khối lượng của vật.",
+      "friction": "Ma sát vật lý.",
+      "restitution": "Độ nảy vật lý."
     }
   },
   "Material-common": {
@@ -2082,7 +2082,7 @@
       "geometry": "Hình dạng của mesh; đặt một hình học khác để thay đổi nó.",
       "material": "Vật liệu của mesh, hoặc một cho mỗi nhóm; đặt một cái khác để thay đổi nó.",
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả.",
-      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
+      "physics": "Lưới như một vật của vật lý thế giới, `null` nếu không phải. Đặt `'static'`, `'dynamic'`, `'kinematic'` hoặc tùy chọn; hình được suy ra từ hình học."
     }
   },
   "Mixer": {
@@ -4123,7 +4123,7 @@
       "pixelRatio": "Bao nhiêu điểm ảnh hình ảnh cho mỗi điểm ảnh màn hình.",
       "controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
-      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải."
     }
   },
   "WorldPageSource": {
@@ -4770,7 +4770,7 @@
       "options.pixelRatio": "Có bao nhiêu pixel hình ảnh cho mỗi pixel màn hình.",
       "options.controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
-      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải."
     }
   },
   "crossVector3": {
@@ -6731,7 +6731,7 @@
       "texturePoolCeiling": "Bể kết cấu lớn nhất mà một thế giới có thể yêu cầu, tính bằng byte.",
       "geometryPool": "Số byte bộ nhớ GPU giữ cho các trang hình học; đặt nó để thay đổi phong bì.",
       "texturePool": "Số byte bộ nhớ GPU giữ cho các trang kết cấu; đặt nó để thay đổi phong bì.",
-      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`."
     }
   },
   "world.camera": {
@@ -6988,15 +6988,15 @@
     }
   },
   "world.physics": {
-    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "summary": "Vật thể, trọng lực và thời gian của vật lý (Jolt, trong một worker).",
     "members": {
-      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
-      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
-      "paused": "Whether time stands still; writes still reach the bodies.",
-      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
-      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
-      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
-      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      "enabled": "Các vật có được mô phỏng không. Bật lần đầu sẽ tải vật lý.",
+      "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt một thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
+      "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
+      "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "budget": "Các giới hạn cố định (`budget.physics`), đọc một lần khi vật lý bắt đầu.",
+      "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
+      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`."
     }
   }
 }

@@ -923,9 +923,9 @@
       "WEBGPU_LOST": "WebGPU потерял своё устройство, или ошибка на нём оставила состояние, из которого ничего нельзя нарисовать: выбрасывается `render`, `flush` и чтениями, которым нужно устройство, называется диагностикой `gpu-device-lost` и появляется в `world.diagnostic.error`, когда из-за этого не удалось открыть сессию.",
       "UNSUPPORTED_SCENE_FORMAT": "Сохранённая сцена другого формата или версии либо содержит то, что сохранённая сцена хранить не может.",
       "SCENE_NOT_SAVABLE": "Сохранённая сцена другого формата или версии либо содержит то, что сохранённая сцена хранить не может.",
-      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      "PHYSICS_BUDGET": "Физику попросили выйти за один из её пределов (`world.budget.physics`: тела, треугольники, декоративные тела, память), или динамическое тело не было прямым потомком сцены (`PHYSICS_NESTED`), или модуль физики упал (`PHYSICS_FAILED`): в `world.physics.error`.",
+      "PHYSICS_NESTED": "Физику попросили выйти за один из её пределов (`world.budget.physics`: тела, треугольники, декоративные тела, память), или динамическое тело не было прямым потомком сцены (`PHYSICS_NESTED`), или модуль физики упал (`PHYSICS_FAILED`): в `world.physics.error`.",
+      "PHYSICS_FAILED": "Физику попросили выйти за один из её пределов (`world.budget.physics`: тела, треугольники, декоративные тела, память), или динамическое тело не было прямым потомком сцены (`PHYSICS_NESTED`), или модуль физики упал (`PHYSICS_FAILED`): в `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1889,10 +1889,10 @@
       "surface": "Собственная физическая запись поверхности этого материала в движке (`contracts/material.ts`). Вид вне физического семейства рисуется через семейство хоста своего имени, которое движок отображает на свою единственную модель освещения (`surfaceModel.ts`).",
       "clone": "Новый материал того же вида, с теми же значениями.",
       "dispose": "Забывает носителей: удалённый материал никого не перекрашивает.",
-      "physics": "Physics matter preset of the bodies wearing it.",
-      "density": "kg/m³, for a body's mass.",
-      "friction": "Physics friction.",
-      "restitution": "Physics restitution."
+      "physics": "Готовый физический материал тел, которые его носят.",
+      "density": "кг/м³, для массы тела.",
+      "friction": "Физическое трение.",
+      "restitution": "Физическая упругость."
     }
   },
   "MaterialParameters": {
@@ -2064,7 +2064,7 @@
       "geometry": "Форма меша; задайте другую геометрию, чтобы изменить её.",
       "material": "Материал меша, или один на группу; задайте другой, чтобы изменить его.",
       "localBounds": "Коробка собственного содержимого этого узла, локальная система координат; простой узел ничего не содержит.",
-      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
+      "physics": "Меш как тело физики мира, `null`, если он им не является. Задай `'static'`, `'dynamic'`, `'kinematic'` или параметры; форма берётся из геометрии."
     }
   },
   "Mixer": {
@@ -3962,7 +3962,7 @@
       "texturePoolCeiling": "Наибольший пул текстур, который может запросить мир, в байтах.",
       "geometryPool": "Байты памяти GPU, удерживаемые для страниц геометрии; задайте, чтобы изменить объём.",
       "texturePool": "Байты памяти GPU, удерживаемые для страниц текстур; задайте, чтобы изменить объём.",
-      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      "physics": "Пределы физики (тела, треугольники, декоративные тела, память), читаются один раз при запуске; превышение вызывает `PHYSICS_BUDGET`."
     }
   },
   "world.diagnostic": {
@@ -4127,7 +4127,7 @@
       "pixelRatio": "Сколько пикселей изображения на пиксель экрана.",
       "controls": "Контроллер, который двигает камеру от canvas; `world.controls.kind` меняет его позже.",
       "signal": "Останавливает загрузки мира, когда сигнал прерван.",
-      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "physics": "Включает физику (`world.physics`): `true` или гравитация и бюджеты. Только тогда загружается Jolt."
     }
   },
   "WorldPageSource": {
@@ -4760,7 +4760,7 @@
       "options.pixelRatio": "Сколько пикселей изображения на пиксель экрана.",
       "options.controls": "Контроллер, который двигает камеру от canvas; `world.controls.kind` меняет его позже.",
       "options.signal": "Останавливает загрузки мира, когда сигнал прерван.",
-      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "options.physics": "Включает физику (`world.physics`): `true` или гравитация и бюджеты. Только тогда загружается Jolt."
     }
   },
   "crossVector3": {
@@ -6987,15 +6987,15 @@
     "description": "Направление на входе приводится к единичному вектору, поэтому каждое `distance` выражено в мировых единицах, какую бы длину ни дала страница. Скрытые поддеревья пропускаются — и корень под скрытым предком тоже, — как и узлы, названные в `skip`, вместе с их поддеревьями: метки, с которыми работает страница, но никогда не её содержимое."
   },
   "world.physics": {
-    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "summary": "Тела, гравитация и время физики (Jolt, в worker).",
     "members": {
-      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
-      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
-      "paused": "Whether time stands still; writes still reach the bodies.",
-      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
-      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
-      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
-      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      "enabled": "Моделируются ли тела. При первом включении загружается физика.",
+      "gravity": "Гравитация в м/с², живой вектор; задай готовое значение (`'earth'`, `'moon'`, `'mars'`, `'none'`) или вектор.",
+      "paused": "Остановлено ли время; записи всё равно доходят до тел.",
+      "timeScale": "Смоделированные секунды на реальную секунду: 0.25 — замедление.",
+      "budget": "Фиксированные пределы (`budget.physics`), читаются один раз при запуске физики.",
+      "stats": "Счётчики и оба таймера: миллисекунды worker на шаг, миллисекунды страницы на кадр.",
+      "error": "Последняя ошибка физики (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) или `null`."
     }
   }
 }
