@@ -51,6 +51,8 @@ export function createPhysicsBodies(
   const free: number[] = [];
   const triangles = new Map<number, number>();
   const count = { bodies: 0, decorative: 0, triangles: 0 };
+  /** Decorative bodies taken out once asleep: their mesh stays where it came to rest. */
+  const retired = new WeakSet<Bodied['physics']>();
   const check = (key: keyof typeof count, more: number) => {
     const limit = budget[key];
     if (count[key] + more > limit) throw physicsBudgetError(key, limit, count[key] + more);
@@ -124,6 +126,12 @@ export function createPhysicsBodies(
     count,
     add,
     removeAt,
+    /** A decorative body fell asleep: out of the simulation and of the budget, for good. */
+    retire(index: number) {
+      const p = held[index];
+      removeAt(index);
+      if (p) retired.add(p);
+    },
     /**
      * Brings the bodies in line with the scene, once per frame that changed it: a body whose mesh
      * left the scene, whose `physics` was replaced or whose shape or matter changed (`stale`) is
@@ -136,7 +144,7 @@ export function createPhysicsBodies(
         if (mesh && (!mesh._link || mesh.physics !== held[i] || stale.has(mesh))) removeAt(i);
       }
       root.traverse((node) => {
-        if (!hasBody(node) || node.physics._host) return;
+        if (!hasBody(node) || node.physics._host || retired.has(node.physics)) return;
         try {
           add(node);
         } catch (error) {
