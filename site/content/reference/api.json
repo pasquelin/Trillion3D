@@ -1942,7 +1942,7 @@
         "desc": "Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did."
       }
     ],
-    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
+    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, never faster than the friction of its floor lets a sole push, so a stop glides a little on stone and far on ice; it keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`, `characterDrive.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
   },
   {
     "id": "CharacterCollision",
@@ -18432,12 +18432,12 @@
       {
         "name": "responseTime",
         "type": "number",
-        "desc": "Character only: seconds to reach 95 % of the wished speed on the ground; 0.12 by default."
+        "desc": "Character only: seconds the legs take to reach 95 % of the wished speed on the ground; 0.12 by default. The floor's friction bounds the start first: a sole pushes at most `μ g`, `μ` a rubber sole's grip on the floor's `material.physics` (stone without physics), so a jog is reached in 0.45 s on stone and 2.2 s on ice."
       },
       {
         "name": "stopTime",
         "type": "number",
-        "desc": "Character only: seconds to lose 95 % of the speed once no key is held, on the ground; 0.08 by default."
+        "desc": "Character only: seconds the legs take to lose 95 % of the speed once no key is held, on the ground; 0.12 by default. The floor's friction bounds the stop first: a jog glides `v² / (2 μ g)`, 0.8 m on stone and 3.8 m on ice; a longer time brakes more gently."
       },
       {
         "name": "capsuleRadius",
