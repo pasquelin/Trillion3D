@@ -1313,6 +1313,7 @@
         "bench/perf/browser/support/scenesLoading.ts",
         "bench/runner/cacheManifest.ts",
         "bench/runner/cutAnalysis.ts",
+        "packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts",
         "packages/sdk-browser/src/backend/autonomous/manifest.test.ts",
         "packages/sdk-browser/src/backend/autonomous/manifest.ts",
         "packages/sdk-browser/src/backend/autonomous/pagesBundle.test.ts",
@@ -4734,7 +4735,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
-        "packages/sdk-browser/src/world/saved/saved.test.ts"
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "tests/browser/support/materialFixtures.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/material/index\".material"
@@ -7263,7 +7265,7 @@
         "packages/sdk-browser/src/world/core/worldRuntime.fixture.ts",
         "tests/browser/support/blendCacheScenes.ts",
         "tests/browser/support/defaultBackendCase.ts",
-        "tests/browser/support/materialFixtures.ts"
+        "tests/browser/support/materialFixtureShape.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light/contracts\".SceneLight"
