@@ -1,39 +1,29 @@
 // A light that moves every frame (#344): the frame draws the pages it reads at the light's new
-// pose, coarse first within the budget; the floor every reader falls back to is current wherever
-// the view can read it; and no page drawn at a past pose is read.
+// pose, floors first, then coarse first within the budget; no page drawn at a past pose is read, and
+// a face whose floor the frame cannot draw reads no shadow until its turn.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { LAMP_FLOOR_MIP, PAGE_INDEX_MASK, PAGE_VALID, SUN_LEVELS, sunEntry } from './virtual.ts';
+import { PAGE_INDEX_MASK, PAGE_VALID, SUN_LEVELS, sunEntry } from './virtual.ts';
 import {
   SUN,
   VIEW,
   cycle,
+  cycleDrawn,
   lampScene,
   lampFloor,
   lampPages,
   planFrame,
-  report,
+  readPages,
   sunPages,
 } from './lightShadow.fixture.ts';
 
 const valid = (plan: ReturnType<typeof createShadowPlan>, entry: number) =>
   (plan.table.words[entry] & PAGE_VALID) !== 0;
-
-test('a lamp that moves keeps the floor of every face current, not only the faces last read', () => {
-  const { store, plan, slice } = lampScene();
-  // The receivers the reports saw lie in face 0 only; as the lamp moves, others enter its faces.
-  const read = lampPages(plan, slice, 0, 3);
-  for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
-  plan.observeCost(plan.budget.budgetMs, 1);
-  for (let frame = 4; frame < 12; frame++) {
-    store.set('lamp', { position: [frame / 10, 3, 0] });
-    cycle(plan, store, frame, () => read);
-    for (let face = 0; face < 6; face++)
-      assert.ok(valid(plan, lampFloor(plan, slice, face)), `face ${face} at frame ${frame}`);
-  }
-});
+/** The physical page of lamp `face`'s floor. */
+const floorPage = (plan: ReturnType<typeof createShadowPlan>, slice: number, face: number) =>
+  plan.table.words[lampFloor(plan, slice, face)] & PAGE_INDEX_MASK;
 
 test('a sun that turns every frame keeps every floor page its view reaches current', () => {
   const store = createSceneLightStore();
@@ -92,22 +82,39 @@ test('a light moved every frame draws coarse first: no finer page overtakes by i
   );
 });
 
-test('guard: after a move, every finer page read was drawn in that frame, at the new pose', () => {
+test('after a move, no page drawn at a past pose is read, and each face floor takes its turn', () => {
   const { store, plan, slice } = lampScene();
   const read = [...lampPages(plan, slice, 0, 4), ...lampPages(plan, slice, 0, 3)];
   for (let frame = 1; frame < 6; frame++) cycle(plan, store, frame, () => read);
-  plan.observeCost(plan.budget.budgetMs / 4.5, 1);
-  for (let frame = 6; frame < 14; frame++) {
+  // One view a frame: six face floors, one drawn per frame, and the finer pages wait.
+  plan.admission.setViewLimit(1);
+  const floorDrawn = new Int32Array(6).fill(5);
+  for (let frame = 6; frame < 30; frame++) {
     store.set('lamp', { position: [0, 3 + frame / 10, 0] });
-    planFrame(plan, store, frame);
-    const drawn = new Set(plan.admission.list.subarray(0, plan.admission.count));
-    plan.commit();
-    report(plan, store, frame, read);
-    for (let page = 0; page < plan.pool.pages; page++)
-      if (plan.pool.owner[page] >= 0 && plan.pool.slice[page] === slice && plan.pool.valid[page])
-        // The floor alone stays read, stale, until redrawn: a reader never falls back to nothing.
-        if ((plan.pool.view[page] & 15) !== LAMP_FLOOR_MIP)
-          assert.ok(drawn.has(page), `page ${page} read at frame ${frame} was not drawn in it`);
+    const drawn = cycleDrawn(plan, store, frame, () => read);
+    for (const page of readPages(plan, slice))
+      assert.ok(drawn.has(page), `page ${page} read at frame ${frame} was drawn at a past pose`);
+    for (let face = 0; face < 6; face++) {
+      if (drawn.has(floorPage(plan, slice, face))) floorDrawn[face] = frame;
+      assert.ok(frame - floorDrawn[face] < 6, `face ${face} floor waits past frame ${frame}`);
+    }
+  }
+});
+
+test('one lamp moving under the page cap draws the floor of every face in the frame', () => {
+  const { store, plan, slice } = lampScene();
+  const read = [...lampPages(plan, slice, 0, 3), ...lampPages(plan, slice, 1, 3)];
+  for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
+  // One page a frame: the withdrawn finer pages would take it, were the floors not first.
+  plan.observeCost(plan.budget.budgetMs, 1);
+  for (let frame = 4; frame < 12; frame++) {
+    store.set('lamp', { position: [frame / 10, 3, 0] });
+    const drawn = cycleDrawn(plan, store, frame, () => read);
+    for (let face = 0; face < 6; face++) {
+      const entry = lampFloor(plan, slice, face);
+      assert.ok(valid(plan, entry), `face ${face} floor read at frame ${frame}`);
+      assert.ok(drawn.has(floorPage(plan, slice, face)), `face ${face} drawn at frame ${frame}`);
+    }
   }
 });
 
@@ -126,21 +133,5 @@ test('a light whose intensity or colour changes neither re-poses nor withdraws a
       read.every((entry) => valid(plan, entry)),
       `every page still read at frame ${frame}`,
     );
-  }
-});
-
-test('over budget, the stale floors of a moving lamp are redrawn first, at its new pose', () => {
-  const { store, plan, slice } = lampScene();
-  const read = lampPages(plan, slice, 0, 3);
-  for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
-  // One page a frame: the withdrawn finer pages would take it, were the floors not first.
-  plan.observeCost(plan.budget.budgetMs, 1);
-  for (let frame = 4; frame < 10; frame++) {
-    store.set('lamp', { position: [frame / 10, 3, 0] });
-    cycle(plan, store, frame, () => read);
-    for (let face = 0; face < 6; face++) {
-      const page = plan.table.words[lampFloor(plan, slice, face)] & PAGE_INDEX_MASK;
-      assert.equal(plan.pool.dirty[page], 0, `face ${face} floor redrawn at frame ${frame}`);
-    }
   }
 });
