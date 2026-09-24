@@ -17,7 +17,7 @@ export const poseOf = (object: Object3D): Pose => ({
 export const samePose = (a: Pose, b: Pose) =>
   a.position.equals(b.position) && a.quaternion.equals(b.quaternion) && a.scale.equals(b.scale);
 
-export function applyPose(object: Object3D, pose: Pose) {
+function applyPose(object: Object3D, pose: Pose) {
   object.position.copy(pose.position);
   object.quaternion.copy(pose.quaternion);
   object.scale.copy(pose.scale);

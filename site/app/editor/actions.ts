@@ -6,7 +6,7 @@ import {
   reparentCommand,
   valueCommand,
 } from './commands.ts';
-import { build, duplicate, type AddKind } from './objects.ts';
+import { build, type AddKind } from './objects.ts';
 import type { Session } from './session.ts';
 import { buildStarter, type StarterNames } from './starter.ts';
 import { clearAutosave, readAutosave } from './storage.ts';
@@ -37,9 +37,10 @@ export function sceneActions(
       const node = session.selected;
       if (node?.parent) session.run(removeCommand(node, session.select));
     },
+    /** A copy of the selection beside it, sharing nothing with it (`object.clone`). */
     duplicate() {
       const node = session.selected;
-      const copy = node?.parent && duplicate(engine, node);
+      const copy = node?.parent && engine.object.clone(node);
       if (!node?.parent || !copy) return;
       session.run(attachCommand(copy, node.parent));
       session.select(copy);
