@@ -1,7 +1,7 @@
 // Scene of the proof "a transparent follows `setTransform`": a full-frame opaque background, and a
 // transparent tile named `vitre` under a `pivot` node. The engine distinguishes it only by the
 // declared pass and by its material.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { batisseur, cameraFace, carre, engine, type ScenePreparee } from './sharedSceneProof.ts';
 
@@ -14,25 +14,22 @@ const DEMI = 0.35;
  */
 export function sceneTransparente(pagine: boolean): ScenePreparee {
   const bati = batisseur();
-  const fond = new THREE.Mesh(
-    carre(4),
-    new THREE.MeshBasicMaterial({ color: 0x1b3a5c, side: THREE.DoubleSide }),
-  );
+  const fond = G.mesh(carre(4), G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE }));
   fond.name = 'fond';
   fond.position.z = -2;
   bati.source.add(fond);
   bati.ajoute(fond, 'exact-clusters', 4);
-  const vitre = new THREE.Mesh(
+  const vitre = G.mesh(
     carre(DEMI),
-    new THREE.MeshBasicMaterial({
+    G.basicSurface({
       color: 0xff2020,
       transparent: true,
       opacity: 0.85,
-      side: THREE.DoubleSide,
+      side: G.DOUBLE_SIDE,
     }),
   );
   vitre.name = 'vitre';
-  const pivot = new THREE.Group();
+  const pivot = new G.GraphGroup();
   pivot.name = 'pivot';
   pivot.add(vitre);
   bati.source.add(pivot);

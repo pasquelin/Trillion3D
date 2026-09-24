@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import type { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
 import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
@@ -13,9 +13,9 @@ const canvasTexture = (width: number, paint: (context: CanvasRenderingContext2D)
   const context = canvas.getContext('2d');
   if (!context) throw new Error('2d context unavailable');
   paint(context);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.NoColorSpace;
-  texture.magFilter = texture.minFilter = THREE.NearestFilter;
+  const texture = G.canvasTexture(canvas);
+  texture.colorSpace = G.HOST_COLOUR_SPACE_NONE;
+  texture.magFilter = texture.minFilter = G.HOST_FILTER_NEAREST;
   return texture;
 };
 
@@ -25,7 +25,7 @@ const draw = (
   mesh: ClusterDrawMesh,
   scene: DrawParams[1],
   camera: HostDrawCamera,
-  material: THREE.Material,
+  material: G.GraphSurface,
   pixel: typeof pixelType,
 ) => {
   mesh.material = material;
@@ -47,11 +47,11 @@ export function textureFixtures(
       context.fillStyle = 'rgb(46,46,46)';
       context.fillRect(0, 0, 1, 1);
     }),
-    basic = new THREE.MeshBasicMaterial({ color: 0xffffff, map: linear }),
+    basic = G.basicSurface({ color: 0xffffff, map: linear }),
     linearMap = draw(renderer, gl, mesh, scene, camera, basic, pixel),
-    basicAoMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, aoMap: linear }),
+    basicAoMaterial = G.basicSurface({ color: 0xffffff, aoMap: linear }),
     basicAo = draw(renderer, gl, mesh, scene, camera, basicAoMaterial, pixel),
-    emissiveMaterial = new THREE.MeshStandardMaterial({ color: 0, emissive: 0xffffff });
+    emissiveMaterial = G.standardSurface({ color: 0, emissive: 0xffffff });
   emissiveMaterial.emissiveMap = linear;
   const linearEmissive = draw(renderer, gl, mesh, scene, camera, emissiveMaterial, pixel),
     indexed = canvasTexture(4, (context) => {
@@ -61,11 +61,11 @@ export function textureFixtures(
       }
     });
   indexed.channel = 1;
-  indexed.wrapS = THREE.RepeatWrapping;
+  indexed.wrapS = G.HOST_WRAP_REPEAT;
   indexed.offset.x = 0.5;
-  mesh.geometry.attributes.uv = new THREE.BufferAttribute(new Float32Array(6).fill(0.125), 2);
-  mesh.geometry.attributes.uv1 = new THREE.BufferAttribute(new Float32Array(6).fill(0.375), 2);
-  const uvMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: indexed }),
+  mesh.geometry.attributes.uv = new G.GraphAttribute(new Float32Array(6).fill(0.125), 2);
+  mesh.geometry.attributes.uv1 = new G.GraphAttribute(new Float32Array(6).fill(0.375), 2);
+  const uvMaterial = G.basicSurface({ color: 0xffffff, map: indexed }),
     uv1Transform = draw(renderer, gl, mesh, scene, camera, uvMaterial, pixel);
   mesh.material = previous;
   basic.dispose();
