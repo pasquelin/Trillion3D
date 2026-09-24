@@ -1,4 +1,5 @@
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
+import { followVideoFrames } from './liveVideo.ts';
 
 /** Pixels held in memory, with the size they span: what a data texture samples. */
 export type PixelImage = {
@@ -17,7 +18,9 @@ const of = (image: unknown, layout?: string, format?: string) => new Texture(ima
 
 /**
  * The `texture` family: an image and how it is sampled. Colour images are sRGB, data images are
- * linear; `needsUpdate` after writing the pixels makes the samplers read them again.
+ * linear; `needsUpdate` after writing the pixels makes the samplers read them again, copied in
+ * place into the texture already on the GPU — only a new size builds it again. A video is live:
+ * its frames arrive by themselves.
  */
 export const texture = {
   /**
@@ -44,15 +47,21 @@ export const texture = {
     return t;
   },
   /**
-   * A texture that shows what a canvas holds.
+   * A texture that shows what a canvas holds. After drawing on the canvas again, set
+   * `needsUpdate`: the new pixels are copied into the texture already on the GPU, nothing rebuilt.
    * @param c - The canvas to show.
    */
   canvas: (c: HTMLCanvasElement | OffscreenCanvas) => of(c),
   /**
-   * A texture that shows a playing video.
+   * A texture that shows a playing video, or a camera stream played in a video. Each new frame is
+   * copied into the texture already on the GPU by itself; a paused video costs nothing.
    * @param v - The video to show.
    */
-  video: (v: HTMLVideoElement) => of(v),
+  video(v: HTMLVideoElement) {
+    const t = of(v);
+    followVideoFrames(t, v);
+    return t;
+  },
   /**
    * A texture that keeps depth instead of colour.
    * @param width - Pixels in a row.

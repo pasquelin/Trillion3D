@@ -10,6 +10,9 @@ export function slotSampled({ words }: { readonly words: Uint32Array }, slot: nu
   return ((word >>> PAGE_FILTER_SHIFT) & SAMPLE_FILTER_MASK) !== 0;
 }
 
+/** Copies a moved picture into the places its slot holds; false when it could not. */
+type PictureCopy = (atlas: WebgpuTileAtlas, slot: number) => boolean;
+
 /** What a follow found: a header word moved, and a texture's filter rule switched on or off —
  *  the pages that wear it change resolve class (`FLAG_SAMPLED`). */
 export const HEADERS_WRITTEN = 1,
@@ -25,18 +28,30 @@ export const HEADERS_WRITTEN = 1,
  * announced since the last follow: a still scene costs one comparison. `force` writes every
  * header, the first time.
  * Colour slots whose header moved are added to `colorMoved`; the result is a mask of
- * `HEADERS_WRITTEN` and `HEADERS_SWITCHED`.
+ * `HEADERS_WRITTEN` and `HEADERS_SWITCHED`. The same walk hands `copy` each host-image slot
+ * whose picture moved since the last follow — a new version of its record —, for its places in
+ * the pool to be copied again (#362); one copied counts as a written header.
  */
 export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
-  const atlasHeaders = ({ pages, textures }: WebgpuTileAtlas) => {
+  const atlasHeaders = (atlas: WebgpuTileAtlas) => {
+    const { pages, textures } = atlas;
     /** `sampling + placement` of each slot's record when its header was written: both monotonic. */
     const seen = new Float64Array(textures.length).fill(-1);
-    return (force: boolean, moved?: Set<number>) => {
+    /** The record's `version` each host-image slot's pool places were last written at. */
+    const pictures = textures.map(({ texture }) => texture?.version ?? 0);
+    return (force: boolean, moved?: Set<number>, copy?: PictureCopy) => {
       let result = 0;
       for (let slot = 0; slot < textures.length; slot++) {
         const { texture, source } = textures[slot];
         if (!texture) continue;
         followHostTexture(texture);
+        if (source.kind === 'host' && pictures[slot] !== texture.version) {
+          pictures[slot] = texture.version;
+          if (copy?.(atlas, slot)) {
+            result |= HEADERS_WRITTEN;
+            moved?.add(slot);
+          }
+        }
         const revision = texture.sampling + texture.placement;
         if (!force && seen[slot] === revision) continue;
         seen[slot] = revision;
@@ -51,9 +66,9 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
   const colour = atlasHeaders(color),
     other = atlasHeaders(data);
   let followed = -1;
-  return (force: boolean, colorMoved?: Set<number>) => {
+  return (force: boolean, colorMoved?: Set<number>, copy?: PictureCopy) => {
     if (!force && followed === hostTextureWrites()) return 0;
     followed = hostTextureWrites();
-    return colour(force, colorMoved) | other(force);
+    return colour(force, colorMoved, copy) | other(force, undefined, copy);
   };
 }

@@ -11,6 +11,7 @@ import { pumpResidentTiles } from '../prepare/lightResources.ts';
 import { refreshBlendWorlds } from '../../blend/worlds.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { followLiveTextures } from '../io/memory.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
@@ -50,6 +51,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     rows.tableEpoch++;
     refreshBlendScene(rt, gpuDevice);
   }
+  followLiveTextures(rt);
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
   // previous image is this one. No CPU step is run below.
   if (holdWebgpuFrame(rt, gpuDevice)) return;
