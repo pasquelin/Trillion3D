@@ -150,7 +150,8 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 ## Contribution workflow
 
 1. Open one issue per batch. Create a branch named `<issue>-<short-name>` from `origin/develop`
-   in an isolated worktree, then run `pnpm install`. Mark the issue `in progress`.
+   in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then
+   run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
 3. Review the diff twice: first simplify duplicated or unnecessary work, then check correctness
    against the requirements above. Fix findings and run `pnpm run check:changed`,

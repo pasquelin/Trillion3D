@@ -7,7 +7,7 @@ run by the measurer after the merge.
 
 1. `gh issue view <n>`. Read only the files it names and their direct dependants.
 2. `git fetch origin`, then a worktree of its own:
-   `git worktree add ../Trillion3D-<n>-<short-name> -b <n>-<short-name> origin/develop`, then
+   `git worktree add .worktrees/<n>-<short-name> -b <n>-<short-name> origin/develop`, then
    `pnpm install` there — it links AGENTS.md and `docs/roles/` into the tree. Work only there.
 3. Code and test as CONTRIBUTING.md requires: one test per changed behaviour, no dead code, 200
    lines per file, English everywhere.
