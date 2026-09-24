@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { dagBindEntries } from './bindings.ts';
+import { DAG_SELECTION_SHADER } from './shader.ts';
+import { entryBufferBindings, wgslBufferBindings } from '../../core/wgslBindings.fixture.ts';
+
+test('the DAG layout entries are the bindings the selection shader declares', () => {
+  const declared = wgslBufferBindings(DAG_SELECTION_SHADER);
+  assert.equal(declared.length, 9);
+  assert.deepEqual(entryBufferBindings(dagBindEntries()), declared);
+});
+
+test('a binding whose access changes in the shader no longer matches the entries', () => {
+  const drifted = DAG_SELECTION_SHADER.replace(
+    '@binding(6) var<storage, read> worlds',
+    '@binding(6) var<storage, read_write> worlds',
+  );
+  assert.notEqual(drifted, DAG_SELECTION_SHADER);
+  assert.notDeepEqual(entryBufferBindings(dagBindEntries()), wgslBufferBindings(drifted));
+});
