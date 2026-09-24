@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded, words } from '../runtime/kit.js';
+      import { controls, readout, seeded, words, opening, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -38,10 +38,9 @@
         h = Math.imul(h ^ (h >>> 13), 1274126177);
         return ((h ^ (h >>> 16)) >>> 0) / 2147483648 - 1;
       };
-      const fade = (t) => t * t * (3 - 2 * t);
+      const { lerp } = math;
       function noise(x, y, z, seed) {
-        const i = Math.floor(x), j = Math.floor(y), k = Math.floor(z), u = fade(x - i), v = fade(y - j), w = fade(z - k);
-        const lerp = (a, b, t) => a + (b - a) * t;
+        const i = Math.floor(x), j = Math.floor(y), k = Math.floor(z), u = ease.smooth(x - i), v = ease.smooth(y - j), w = ease.smooth(z - k);
         const plane = (dk) => lerp(lerp(lattice(i, j, k + dk, seed), lattice(i + 1, j, k + dk, seed), u), lerp(lattice(i, j + 1, k + dk, seed), lattice(i + 1, j + 1, k + dk, seed), u), v);
         return lerp(plane(0), plane(1), w);
       }
@@ -288,15 +287,25 @@
 
       // A journey is a run of the distance on a log scale, eased at both ends; the opening goes
       // out from the grain to the planet, and the viewer's first press or wheel ends any journey.
-      let journey = { from: NEAR, to: FAR, time: -1.5, length: 26 };
+      let legs = [{ from: NEAR, to: FAR, wait: 1.5, length: 26 }, { from: FAR, to: NEAR * 2, wait: 3, length: 26 }], turned = 0;
+      const journey = opening(world, (time) => {
+        // The leg under way: `left` ends as the time still to run of it, negative.
+        let left = time;
+        if (time === 0) turned = 0;
+        const leg = legs.find((one) => (left -= one.wait + one.length) < 0) ?? legs.at(-1), t = (left + leg.length) / leg.length;
+        setDistance(leg.from * (leg.to / leg.from) ** ease.smooth(t));
+        // A slow turn round the focus while travelling keeps the ground alive under the eye.
+        const offset = world.camera.position.clone().sub(world.controls.target), turn = (time - turned) * 0.05;
+        turned = time;
+        world.camera.position.set(world.controls.target.x + offset.x * Math.cos(turn) - offset.z * Math.sin(turn), world.camera.position.y, world.controls.target.z + offset.x * Math.sin(turn) + offset.z * Math.cos(turn));
+        return t < 1;
+      });
       const fly = (to) => {
         const from = world.camera.position.distanceTo(world.controls.target);
-        journey = { from, to, time: 0, length: 4 + 2.2 * Math.abs(Math.log10(to / from)) };
-        world.invalidate();
+        legs = [{ from, to, wait: 0, length: 4 + 2.2 * Math.abs(Math.log10(to / from)) }];
+        journey.restart();
       };
-      for (const type of ['pointerdown', 'wheel']) world.canvas.addEventListener(type, () => (journey = null), { passive: true });
       controls({
-        mouse: 'Scroll to zoom anywhere from a grain of sand to the whole planet; drag to turn',
         toTheGrain: () => fly(NEAR * 1.5),
         toTheBeach: () => fly(12),
         toTheIsland: () => fly(5000),
@@ -307,18 +316,7 @@
       const SCALES = [[0.012, 'grains of sand'], [0.15, 'sand and shells'], [3, 'pebbles'], [60, 'the beach'], [900, 'the coast'], [9000, 'the island'], [Infinity, 'the planet']];
 
       let near = 0;
-      world.onFrame(({ delta }) => {
-        const step = Math.min(delta, 0.05);
-        if (journey) {
-          journey.time += step;
-          const t = Math.min(1, Math.max(0, journey.time / journey.length)), e = t * t * (3 - 2 * t);
-          setDistance(journey.from * (journey.to / journey.from) ** e);
-          // A slow turn round the focus while travelling keeps the ground alive under the eye.
-          const offset = world.camera.position.clone().sub(world.controls.target), turn = step * 0.05;
-          world.camera.position.set(world.controls.target.x + offset.x * Math.cos(turn) - offset.z * Math.sin(turn), world.camera.position.y, world.controls.target.z + offset.x * Math.sin(turn) + offset.z * Math.cos(turn));
-          world.controls.update();
-          if (t >= 1) journey = journey.to === FAR && journey.length === 26 ? { from: FAR, to: NEAR * 2, time: -3, length: 26 } : null;
-        }
+      world.onFrame(() => {
         const distance = world.camera.position.distanceTo(world.controls.target);
         if (Math.abs(distance / 100 - near) > near * 0.05) {
           near = distance / 100;
@@ -327,8 +325,6 @@
         const across = 2 * distance * Math.tan((world.camera.fov * Math.PI) / 360);
         shown(width(across));
         seen(say(SCALES.find(([limit]) => across < limit)[1]));
-        // Between journeys only the viewer's own moves ask for a frame.
-        if (journey) world.invalidate();
       });
     </script>
   </body>
