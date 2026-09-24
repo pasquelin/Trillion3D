@@ -9,6 +9,7 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
+import { extrapolate } from './extrapolate.ts';
 import { createPosePlacer } from './placer.ts';
 
 /** The bodies a tick's records name: meshes and generations by slot, and the way out of one. */
@@ -33,8 +34,7 @@ const LONGEST_MS = MAX_CATCH_UP_STEPS * PHYSICS_STEP * 1000;
  * and the world matrix straight into the row the renderer reads; no per-body listener runs.
  */
 export function createPhysicsPoses(maxBodies: number, root: Object3D) {
-  const from = new Float32Array(maxBodies * 7),
-    to = new Float32Array(maxBodies * 7);
+  const to = new Float32Array(maxBodies * 7);
   /** The bodies' last step (`PhysicsState`): what `physics.velocity` and `asleep` read. */
   const state = {
     asleep: new Uint8Array(maxBodies),
@@ -54,8 +54,10 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
     arrived = -1,
     /** Simulated seconds per page millisecond, for the extrapolation. */
     rate = 0,
+    /** How far toward the targets the last frame drew, from the pose drawn when they came. */
+    drawn = 0,
     awake = false;
-  const pose = new Float32Array(7);
+  const pose = new Float64Array(7);
   return {
     state,
     /** Every mesh keeps its own pose numbers again (the physics stops). */
@@ -95,7 +97,13 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
         sleeping[index] = asleep ? 1 : 0;
         stamp[index] = tick;
         // An asleep body is not extrapolated.
-        for (let k = 0; k < 6; k++) velocity[v + k] = asleep ? 0 : floats[at + 8 + k];
+        const moves = asleep ? 0 : 1;
+        velocity[v] = floats[at + 8] * moves;
+        velocity[v + 1] = floats[at + 9] * moves;
+        velocity[v + 2] = floats[at + 10] * moves;
+        velocity[v + 3] = floats[at + 11] * moves;
+        velocity[v + 4] = floats[at + 12] * moves;
+        velocity[v + 5] = floats[at + 13] * moves;
         if (asleep && decorative[index]) {
           place(index, floats, at + 1);
           // Off the moving list: the slot may hold another body before the list is drawn.
@@ -118,9 +126,13 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
           position[p + 2] === floats[at + 3];
         if (same && Math.abs(dot) >= 1 - 1e-6 && !listed[index]) continue;
         moved++;
-        for (let k = 0; k < 3; k++) from[o + k] = position[p + k];
-        for (let k = 0; k < 4; k++) from[o + 3 + k] = quaternion[q + k];
-        for (let k = 0; k < 7; k++) to[o + k] = floats[at + 1 + k];
+        to[o] = floats[at + 1];
+        to[o + 1] = floats[at + 2];
+        to[o + 2] = floats[at + 3];
+        to[o + 3] = floats[at + 4];
+        to[o + 4] = floats[at + 5];
+        to[o + 5] = floats[at + 6];
+        to[o + 6] = floats[at + 7];
         // The shorter way round: a quaternion and its opposite are one rotation.
         if (dot < 0) for (let k = 3; k < 7; k++) to[o + k] = -to[o + k];
         awake ||= !asleep;
@@ -129,6 +141,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
       }
       placer.end();
       start = now;
+      drawn = 0;
       return moved;
     },
     /** Draws every moving body at this frame's point; whether any is still on its way (and asks
@@ -139,6 +152,10 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
       const alpha = span > 0 ? Math.min(1, elapsed / span) : 1;
       // Past the target, a late tick is extrapolated, for one interval at most.
       const ahead = awake ? Math.min(Math.max(0, elapsed - span), span) * rate : 0;
+      // Short of the target, each frame goes the rest of the way in proportion from where the
+      // last one drew: the same line from the pose drawn when the tick came, read from the node.
+      const step = alpha < 1 ? (alpha - drawn) / (1 - drawn) : 1;
+      drawn = alpha;
       placer.begin();
       for (let i = 0; i < count; i++) {
         const index = moving[i];
@@ -151,26 +168,17 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
           place(index, to, o);
           continue;
         }
-        for (let k = 0; k < 7; k++) pose[k] = from[o + k] + (to[o + k] - from[o + k]) * alpha;
-        for (let k = 0; k < 3; k++) pose[k] += velocity[v + k] * ahead;
-        // The turn at angular velocity ω over `ahead`: q += ½ (ω, 0) ⊗ q · ahead.
-        const wx = velocity[v + 3],
-          wy = velocity[v + 4],
-          wz = velocity[v + 5];
-        const x = pose[3],
-          y = pose[4],
-          z = pose[5],
-          w = pose[6],
-          h = ahead / 2;
-        pose[3] += h * (wx * w + wy * z - wz * y);
-        pose[4] += h * (wy * w + wz * x - wx * z);
-        pose[5] += h * (wz * w + wx * y - wy * x);
-        pose[6] -= h * (wx * x + wy * y + wz * z);
+        if (alpha < 1) {
+          placer.lerp(index, to, o, step);
+          continue;
+        }
+        extrapolate(pose, to, o, velocity, v, ahead);
         const n =
-          Math.sqrt(
+          1 /
+          (Math.sqrt(
             pose[3] * pose[3] + pose[4] * pose[4] + pose[5] * pose[5] + pose[6] * pose[6],
-          ) || 1;
-        for (let k = 3; k < 7; k++) pose[k] /= n;
+          ) || 1);
+        for (let k = 3; k < 7; k++) pose[k] *= n;
         place(index, pose, 0);
       }
       placer.end();
