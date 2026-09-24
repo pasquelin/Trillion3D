@@ -29,14 +29,19 @@ test("the proof hears the engine's own failures on the console", async () => {
     assert.ok(said.length > 0, source);
     for (const line of said) assert.match(`${line} Error: refused`, ENGINE_FAILURE, source);
   }
+  const lost = await readFile(new URL('webgpu/pages/io/lost.ts', engine), 'utf8');
+  assert.ok(lost.includes('console.error(`[trillion3d] WebGPU device lost ('));
+  assert.match('[trillion3d] WebGPU device lost (destroyed): gone', ENGINE_FAILURE);
   assert.doesNotMatch('THREE.WebGLRenderer: context lost', ENGINE_FAILURE);
 });
 
-test('a sparse example is declared by name under the tenth; every other keeps the tenth', () => {
+test('a sparse example is declared by name and backend under the tenth; every other keeps the tenth', () => {
   const ids = new Set(ready.map(({ id }) => id));
-  for (const [id, share] of Object.entries(SPARSE)) {
+  for (const [id, { share, on }] of Object.entries(SPARSE)) {
     assert.ok(ids.has(id), id);
     assert.ok(share > 0 && share < 0.1, id);
+    assert.equal(leastDrawn(id, false), share, id);
+    assert.equal(leastDrawn(id, true), on === 'both' ? share : 0.1, id);
   }
-  assert.equal(leastDrawn('shapes-on-a-turntable'), 0.1);
+  assert.equal(leastDrawn('shapes-on-a-turntable', false), 0.1);
 });

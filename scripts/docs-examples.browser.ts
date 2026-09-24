@@ -70,7 +70,7 @@ test('every example file renders an image on its own, fetching Jolt only when it
       jolt: string[] = [];
     for (const gpu of [true, false])
       for (const example of ready) {
-        const share = leastDrawn(example.id);
+        const share = leastDrawn(example.id, gpu);
         const opened = await openExample(
           browser,
           port,
