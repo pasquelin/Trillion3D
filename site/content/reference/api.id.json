@@ -6856,7 +6856,9 @@
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
-      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`.",
+      "add": "Menambahkan sambungan (`joint.hinge(door, frame, …)` dan kerabatnya): dibuat begitu kedua bendanya disimulasikan, dan menahan sampai dilepas atau putus.",
+      "remove": "Melepas sambungan: benda-benda yang ditahannya berpisah dengan bebas."
     }
   },
   "ContactEvent": {
@@ -7037,7 +7039,9 @@
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
-      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`.",
+      "add": "Menambahkan sambungan (`joint.hinge(door, frame, …)` dan kerabatnya): dibuat begitu kedua bendanya disimulasikan, dan menahan sampai dilepas atau putus.",
+      "remove": "Melepas sambungan: benda-benda yang ditahannya berpisah dengan bebas."
     }
   },
   "WorldPhysicsOptions": {
@@ -7301,6 +7305,71 @@
       "x": "Kiri ke kanan.",
       "y": "Bawah ke atas.",
       "z": "Belakang ke depan."
+    }
+  },
+  "Joint": {
+    "summary": "Sambungan antara dua benda, atau antara benda dan dunia (`b` null), dibuat dengan `joint.*` dan ditambahkan ke simulasi dengan `world.physics.add`.",
+    "description": "Sambungan menahan selama kedua benda disimulasikan, dan sampai ia putus.",
+    "parameters": {
+      "options": "Apa yang diterima `joint.*`. Titik dan sumbu ada di dunia, dibaca saat sambungan pertama kali dibuat.",
+      "options.anchor": "Tempat benda-benda terhubung: pasak engsel, bola sambungan titik, ujung jarak pada `a`.",
+      "options.anchorB": "Ujung jarak pada `b`.",
+      "options.axis": "Pasak engsel, rel peluncur, tengah kerucut.",
+      "options.limits": "Engsel, peluncur, jarak, dan kerucut: seberapa jauh ia bergerak. Jarak secara bawaan mempertahankan panjangnya.",
+      "options.spring": "Engsel, peluncur, dan jarak: melewati batas, pegas menariknya kembali alih-alih dinding; `frequency` dalam Hz, `damping` dari 0 (tidak ada) sampai 1 (kritis).",
+      "options.motor": "Engsel dan peluncur: motor yang bisa diubah kapan saja lewat `joint.motor`.",
+      "options.breakForce": "Tarikan dalam newton yang membuat sambungan putus bila dilewati; bila tidak diisi, tidak pernah."
+    },
+    "members": {
+      "kind": "Jenis sambungannya.",
+      "a": "Benda pertama.",
+      "b": "Benda kedua, atau `null` untuk dunia.",
+      "options": "Isian yang dipakai saat membuatnya.",
+      "motor": "Motor engsel atau peluncur; `null` membiarkannya berputar atau meluncur bebas.",
+      "broken": "Apakah ia putus: ditarik melewati `breakForce`-nya. Sambungan yang putus tidak menahan apa pun lagi.",
+      "on": "Memanggil `handler` saat sambungan putus."
+    }
+  },
+  "JointKind": {
+    "summary": "Sambungan antarbenda, masing-masing salah satu batasan milik Jolt sendiri."
+  },
+  "JointLimits": {
+    "summary": "Seberapa jauh sambungan boleh bergerak: radian untuk engsel, meter untuk peluncur atau jarak, setengah sudut kerucut (`max`) untuk kerucut.",
+    "members": {
+      "min": "Engsel dari −π sampai 0, peluncur 0 atau kurang.",
+      "max": "Engsel dari 0 sampai π, peluncur 0 atau lebih."
+    }
+  },
+  "JointMotor": {
+    "summary": "Motor engsel atau peluncur: menggerakkan sambungan ke suatu kecepatan atau posisi.",
+    "members": {
+      "mode": "`'velocity'`: rad/s atau m/s; `'position'`: radian atau meter dari posisi saat sambungan dibuat.",
+      "target": "Kecepatan atau posisi yang dituju.",
+      "maxForce": "N·m untuk engsel, N untuk peluncur; bila tidak diisi, tanpa batas."
+    }
+  },
+  "JointOptions": {
+    "summary": "Apa yang diterima `joint.*`.",
+    "description": "Titik dan sumbu ada di dunia, dibaca saat sambungan pertama kali dibuat.",
+    "members": {
+      "anchor": "Tempat benda-benda terhubung: pasak engsel, bola sambungan titik, ujung jarak pada `a`.",
+      "anchorB": "Ujung jarak pada `b`.",
+      "axis": "Pasak engsel, rel peluncur, tengah kerucut.",
+      "limits": "Engsel, peluncur, jarak, dan kerucut: seberapa jauh ia bergerak. Jarak secara bawaan mempertahankan panjangnya.",
+      "spring": "Engsel, peluncur, dan jarak: melewati batas, pegas menariknya kembali alih-alih dinding; `frequency` dalam Hz, `damping` dari 0 (tidak ada) sampai 1 (kritis).",
+      "motor": "Engsel dan peluncur: motor yang bisa diubah kapan saja lewat `joint.motor`.",
+      "breakForce": "Tarikan dalam newton yang membuat sambungan putus bila dilewati; bila tidak diisi, tidak pernah."
+    }
+  },
+  "joint": {
+    "summary": "Keluarga `joint`: dua benda terhubung, atau benda dan dunia (`b` null).",
+    "members": {
+      "fixed": "Mengelas keduanya: bergerak sebagai satu.",
+      "point": "Sambungan bola di `anchor`: keduanya berputar bebas di sekitarnya.",
+      "hinge": "Pasak di `anchor` sepanjang `axis`: pintu, roda. `limits` dalam radian.",
+      "slider": "Rel sepanjang `axis`: laci, piston. `limits` dalam meter.",
+      "distance": "Menjaga `anchor` pada `a` dan `anchorB` pada `b` tetap sejauh panjangnya, atau dalam `limits`.",
+      "cone": "Sambungan bola yang `axis`-nya berayun di dalam kerucut dengan setengah sudut `limits.max`."
     }
   }
 }
