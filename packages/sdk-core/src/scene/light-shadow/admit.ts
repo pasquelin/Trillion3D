@@ -40,8 +40,8 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * floor still read, stale for its moving casters or for detail, waits its turn like any page:
  * redrawing it every frame something moves would starve the finer ones. Only the pool's ceiling
  * and the view limit can hold one back — when the frame's first floors exceed the one or span more
- * views than the light cut holds: they go oldest first by their wait, so the one held back leads
- * the next frame.
+ * views than the light cut holds: an unread floor goes before a stale one a reader still falls back
+ * to, then oldest first by their wait, so the one held back leads the next frame.
  *
  * **A moving light draws coarse first.** A finer page's wait counts from its light's pose (`posed`,
  * the frame the plan saw it claimed, moved or reshaped in), not from when it went stale: a page
@@ -51,6 +51,8 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * limits. All arrays are allocated once.
  */
 export function createShadowAdmission(capacity: number, poolPages: number) {
+  /** Ranks an unread floor above every read one, whatever their waits. */
+  const UNREAD_FLOOR = 2 ** 32;
   const candidates = new Int32Array(capacity),
     floors = new Int32Array(capacity),
     score = new Float64Array(poolPages),
@@ -132,9 +134,15 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
         found++;
         const since = pool.sinceFrame[page],
           pose = posed[pool.slice[page]];
-        // Only the best `capacity` can be drawn. A floor unread, or stale at a past pose, first.
+        // Only the best `capacity` can be drawn. A floor unread, or stale at a past pose, first:
+        // the unread before the stale, which a reader still falls back to — then by their wait.
         if ((!pool.valid[page] || since <= pose) && isFloor(records, sun, page, pool))
-          unread = rank(floors, unread, page, frame - since);
+          unread = rank(
+            floors,
+            unread,
+            page,
+            (pool.valid[page] ? 0 : UNREAD_FLOOR) + frame - since,
+          );
         else
           kept = rank(
             candidates,
