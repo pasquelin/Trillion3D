@@ -3525,7 +3525,8 @@
       "textureLevelReads": "Sumbernya. `textureLevelReads`: tingkat panggang yang sedang dibaca di cache. `textureLevelsDecoded`: tingkat panggang yang diurai sejak awal. `textureLevelCacheBytes`: byte host tingkat yang diurai disimpan untuk memotong lebih banyak ubin darinya, di bawah anggaran tetap. `textureScratchBuilds`: tekstur kerja dibangun untuk sebuah tekstur tanpa rantai panggang, seluruh sumber setiap kali.",
       "textureLevelsDecoded": "Tingkat yang diurai.",
       "textureLevelCacheBytes": "Byte tingkat yang diurai disimpan.",
-      "textureScratchBuilds": "Tekstur kerja yang dibangun."
+      "textureScratchBuilds": "Tekstur kerja yang dibangun.",
+      "textureLiveBytes": "Byte yang disimpan tekstur hidup: satu tekstur kerja masing-masing, seukuran dirinya. Dikurangkan dari `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -3985,6 +3986,7 @@
       "textureLevelsDecoded": "Tingkat yang diurai.",
       "textureLevelCacheBytes": "Byte tingkat yang diurai disimpan.",
       "textureScratchBuilds": "Tekstur kerja yang dibangun.",
+      "textureLiveBytes": "Byte yang disimpan tekstur hidup: satu tekstur kerja masing-masing, seukuran dirinya. Dikurangkan dari `texturePoolBytes`.",
       "gpuAllocatedBytes": "Byte teralokasi aktif pada perangkat di seluruh sumber daya.",
       "gpuAllocatedByLabel": "Byte teralokasi dikelompokkan menurut label sumber daya. Alokasi tanpa label dikelompokkan sebagai 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Jumlah tekstur dengan format yang tidak dikenal. Nilai yang diharapkan 0.",
@@ -6440,7 +6442,7 @@
   },
   "texture": {
     "summary": "Keluarga `texture`: sebuah gambar dan bagaimana ia disampel.",
-    "description": "Gambar warna adalah sRGB, gambar data adalah linear; `needsUpdate` setelah menulis piksel membuat sampler membacanya lagi."
+    "description": "Gambar warna adalah sRGB, gambar data adalah linear; `needsUpdate` setelah menulis piksel membuat sampler membacanya lagi, disalin di tempat ke tekstur yang sudah ada di GPU — hanya ukuran baru yang membangunnya lagi. Video bersifat hidup: bingkainya datang sendiri."
   },
   "texture.array": {
     "summary": "Sebuah tumpukan gambar berukuran sama dalam satu tekstur, satu layer masing-masing.",
@@ -6453,6 +6455,7 @@
   },
   "texture.canvas": {
     "summary": "Sebuah tekstur yang menampilkan apa yang dipegang sebuah canvas.",
+    "description": "Setelah menggambar ulang kanvas, setel `needsUpdate`: piksel baru disalin ke tekstur yang sudah ada di GPU, tidak ada yang dibangun ulang.",
     "parameters": {
       "c": "Canvas yang ditampilkan."
     }
@@ -6495,7 +6498,8 @@
     }
   },
   "texture.video": {
-    "summary": "Sebuah tekstur yang menampilkan sebuah video yang diputar.",
+    "summary": "Tekstur yang menampilkan video yang sedang diputar, atau aliran kamera yang diputar dalam video.",
+    "description": "Setiap bingkai baru disalin sendiri ke tekstur yang sudah ada di GPU; video yang dijeda tidak memakan biaya.",
     "parameters": {
       "v": "Video yang ditampilkan."
     }
