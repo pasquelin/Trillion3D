@@ -72,8 +72,7 @@ export const selectionListCap = (pageCount: number) =>
  * Readout header, in words, in front of each of its two halves.
  *
  * The first four are the usual — count, trunk reject, reached level, flags. The next
- * four carry the TRIANGLE TOTALS, which the CPU used to sum by walking the cut
- * difference (`../../webgpu/cut/counts.ts`). The kernels hold them where the verdict is
+ * four carry the TRIANGLE TOTALS, which only the GPU sums. The kernels hold them where the verdict is
  * spoken: `dagWanted` knows what the cut keeps, `dagMask` knows what goes to draw
  * and what is missing. Their relation stays `selected − drawn − uncovered = 0`.
  *
