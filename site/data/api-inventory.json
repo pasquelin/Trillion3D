@@ -5453,7 +5453,9 @@
         "packages/sdk-browser/src/page/decode/shared.test.ts",
         "packages/sdk-browser/src/page/decode/sharedPage.ts",
         "packages/sdk-browser/src/page/decode/task.test.ts",
-        "packages/sdk-browser/src/page/decode/task.ts"
+        "packages/sdk-browser/src/page/decode/task.ts",
+        "scripts/installed-package-workers.test.ts",
+        "scripts/installed-package-workers.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/page/decodeContracts\".PAGE_DECODE_PROTOCOL"
@@ -5480,7 +5482,9 @@
         "packages/sdk-browser/src/page/integration/host.ts",
         "packages/sdk-browser/src/page/integration/lane.ts",
         "packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts",
-        "packages/sdk-browser/src/page/integration/task.ts"
+        "packages/sdk-browser/src/page/integration/task.ts",
+        "scripts/installed-package-workers.test.ts",
+        "scripts/installed-package-workers.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/page/integrationContracts\".PAGE_INTEGRATION_PROTOCOL"
@@ -5668,7 +5672,8 @@
         "packages/sdk-browser/src/page/decode/pageDecodeWorker.ts",
         "packages/sdk-browser/src/page/decode/pool.ts",
         "packages/sdk-browser/src/page/decode/task.test.ts",
-        "packages/sdk-browser/src/page/decode/task.ts"
+        "packages/sdk-browser/src/page/decode/task.ts",
+        "scripts/installed-package-workers.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/page/decodeContracts\".PageDecodeRequest"
@@ -5767,7 +5772,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/page/integration/lane.ts",
         "packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts",
-        "packages/sdk-browser/src/page/integration/task.ts"
+        "packages/sdk-browser/src/page/integration/task.ts",
+        "scripts/installed-package-workers.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/page/integrationContracts\".PageIntegrationRequest"
