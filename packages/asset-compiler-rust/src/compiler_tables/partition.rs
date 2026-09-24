@@ -160,7 +160,8 @@ pub(super) fn partition(
 }
 
 /// Writes one file per cell and returns the descriptor the core carries: every cell's address,
-/// fingerprint, size, box and largest object, the union box, and the meshes the cells place.
+/// fingerprint, size, box, largest object and how many nodes of each mesh it places — what the
+/// runtime sizes its rows by before its first frame —, the union box, and the meshes the cells place.
 fn write_cells(cells: Vec<Vec<Placed>>, directory: &Path) -> Result<(Value, Vec<Product>)> {
     let mut products = Vec::with_capacity(cells.len());
     let mut descriptors = Vec::with_capacity(cells.len());
@@ -169,7 +170,11 @@ fn write_cells(cells: Vec<Vec<Placed>>, directory: &Path) -> Result<(Value, Vec<
     for (at, cell) in cells.iter().enumerate() {
         let bounds = split::union_of(cell);
         let size = cell.iter().map(Placed::size).fold(0.0, f64::max);
-        meshes.extend(cell.iter().filter_map(|p| p.entry["mesh"].as_u64()));
+        let mut counts = BTreeMap::<u64, usize>::new();
+        for mesh in cell.iter().filter_map(|p| p.entry["mesh"].as_u64()) {
+            *counts.entry(mesh).or_default() += 1;
+        }
+        meshes.extend(counts.keys().copied());
         grow(&mut union, &bounds);
         let body = json!({"version": PARTITION_VERSION, "nodes": cell.iter().map(|p| &p.entry).collect::<Vec<_>>()});
         let written = product(
@@ -177,7 +182,7 @@ fn write_cells(cells: Vec<Vec<Placed>>, directory: &Path) -> Result<(Value, Vec<
             &format!("scene-cell-{at}.json"),
             &serde_json::to_vec(&body)?,
         )?;
-        descriptors.push(json!({"url": written.name, "sha256": written.sha256, "bytes": written.bytes, "bounds": bounds, "size": size, "nodes": cell.len()}));
+        descriptors.push(json!({"url": written.name, "sha256": written.sha256, "bytes": written.bytes, "bounds": bounds, "size": size, "meshes": counts.into_iter().collect::<Vec<_>>()}));
         products.push(written);
     }
     let partition = json!({"version": PARTITION_VERSION, "bounds": union, "meshes": meshes, "cells": descriptors});
