@@ -30,8 +30,8 @@
  *  each kept entry's range following from its dimensions; a version-6 reader would not know
  *  them, so it refuses.
  *  Version 8 adds the page dependencies of the streaming bundles: a count per bundle, then the
- *  flat lists, each closed up to the pinned root cover (`docs/FORMAT.md` §Cluster DAG). A
- *  version-7 reader would install a bundle before the bundles holding its parents, so it refuses. */
+ *  flat lists, closed up to the root cover (`docs/FORMAT.md` §Cluster DAG), that WebGPU requests
+ *  and retains with a bundle. A version-7 reader cannot read the lists, so it refuses. */
 export const MANIFEST_BINARY_VERSION = 8;
 /** The geometry-page format a version-8 sidecar names, as the manifest's `geometryPages` declares
  *  it once and every page header opens with. */
