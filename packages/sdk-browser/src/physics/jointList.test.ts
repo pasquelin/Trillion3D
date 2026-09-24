@@ -67,12 +67,12 @@ test('a decorative body retired asleep takes its joints out on the page, as a re
     assert.ok(pin._id >= 0, 'made with its body');
     // The first body of a session: slot 0, generation 1; asleep, at the origin.
     const words = new Uint32Array(POSE_WORDS);
-    words[0] = debris.physics._index | (1 << GENERATION_SHIFT) | ASLEEP_BIT;
+    words[0] = debris.physics!._index | (1 << GENERATION_SHIFT) | ASLEEP_BIT;
     new Float32Array(words.buffer).set([0, 0, 0, 0, 0, 0, 1], 1);
     const tick = { poses: 1, events: 0, dropped: 0, steps: 1, seconds: 1 / 60, stepMs: 0 };
     const results = { type: 'results', buffer: words.buffer, active: 0, character: null };
     worker.onmessage({ data: { ...tick, ...results } });
-    assert.equal(debris.physics._index, -1, 'retired');
+    assert.equal(debris.physics!._index, -1, 'retired');
     const id = pin._id;
     physics.frame();
     assert.equal(pin._id, -1, 'the joint left with its body');
