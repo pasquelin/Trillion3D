@@ -21,9 +21,8 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      // Waits for #360: WebGPU applies a texture's `repeat`, `offset` and `rotation` before it
-      // samples; until then the floor shows its tile once, upright. The texture's placement is the
-      // subject: the "flow" toggle slides its offset every frame, on purpose.
+      // The texture's placement is the subject: `repeat`, `offset` and `rotation` apply before it
+      // samples, and the "flow" toggle slides its offset every frame, on purpose.
       import { createWorld, geometry, material, object, light, math, texture, wrap } from '../runtime/engine.js';
       import { controls, readout, words } from '../runtime/kit.js';
       const say = words();
