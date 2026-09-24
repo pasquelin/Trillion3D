@@ -5,9 +5,10 @@ import { execFileSync } from 'node:child_process';
 import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { openGalleryScene, sdkMounts } from '../support/renderHarness.ts';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 const root = resolve(import.meta.dirname, '../../..'),
-  output = resolve(root, 'benchmark-runs/mountain-terrain');
+  output = measureOutput('mountain-terrain');
 await mkdir(output, { recursive: true });
 const server = await startServer({
   port: 0,

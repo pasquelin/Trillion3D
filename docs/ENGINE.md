@@ -6,7 +6,7 @@ functions below are public, for a standalone host that drives pages or diagnosti
 `createGpuPageCache` and `createDiagnosticChannel`, exported by `trillion3d`. Every other internal
 name — `openMeasuredWorld`, backend ids, session options — is reachable only through the measurement
 entry point (`packages/sdk-browser/src/measurement/measurement.ts`), for the bench, the proofs and the
-comparison views ([SDK.md, "Entry points"](SDK.md#entry-points)).
+comparison views, which reach the witnesses through `bench/witnesses/measurement.ts` ([SDK.md, "Entry points"](SDK.md#entry-points)).
 
 ## The internal session
 
@@ -171,30 +171,112 @@ where lights of different colours overlap, while the camera moves
 (`tests/browser/renders/sampled-lighting.browser.ts`). What remains: a spatial denoise before the
 history.
 
-**Shadow maps are invalidated page by page, under a millisecond budget.** The atlas is cut into
-128-texel pages. A light that moves invalidates its whole map; an object that moves invalidates only
-the pages its projected box covers on each face, and only those are redrawn — with the face's own
-frame and a scissor, so a page carries exactly the depth a full redraw would write.
-`diagnostic.shadowAtlas(world)` returns the raw depth hash to check it. What a frame redraws is
-bounded by `shadowBudgetMs` (1.0 ms), measured on the shadow pass's timestamps; refused pages wait,
-ordered by the light's screen coverage and their age, and are never dropped (`shadowPagesDrawn`,
-`shadowPagesTotal`, `shadowPagesPending`, `shadowWaitMs`). Without GPU timestamps there is no budget,
-only the region ceiling.
+**Shadow maps are virtual, and only the pages the image reads exist.** Every shadow light has a
+virtual map cut into pages of 128 texels, and one page-table word per virtual page; the pages are
+drawn in a pool whose size is a budget fixed at the world's first frame, derived from its screen
+(`shadowPoolSide`) and allocated only once a light casts a shadow — a world without one pays neither
+its bytes nor its per-frame work. A pixel reads the sun level whose texel is at most its footprint and
+more than half of it, so a `64 × 64`-pixel tile on one surface reads at most the 2 × 2 pages it
+straddles, and a third more while coarser levels stand in for pages not drawn yet: a frame asks for
+at most `⁴⁄₃ · 4 · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages. The pool holds twice that — the report being read
+and the next one, which a turn of the camera may renew in full. At 1280 × 720 that is 1 280 pages a
+frame, 2 560 held: 51 × 51 = 2 601 pages, a 6 528² depth texture of 163 MiB, and as much again for
+the static layer once something moves. The atlas stops at the 8 192-texel side every WebGPU device
+offers (4 096 pages, 256 MiB), reached at 1920 × 1080; above it the pages past the pool wait,
+read at the coarser level meanwhile, and are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
+The table holds 2^20 words, 4 MiB (`shadowTableEntries`): sixteen suns or 128 point lights, and a
+light that finds no room is denied its shadow and counted (`shadowsDenied`).
 
-**The sun** has four cascades following the camera, stored like a point light's faces. A cascade's
-extent is a whole number of pages on the light plane, addressed modulo the face — a ring — so a
-camera moving less than a page changes nothing and one moving by whole pages redraws only the strip
-that entered. Each region rejects, before drawing, the clusters outside its box; alpha-masked
-materials keep their real cut-out. Cascades cover a fifth of the far plane, split in a geometric
-series of ratio 4. Beyond the last cascade, the sun's shadow is one ray per pixel against the
-resident proxy (`proxy.bin`), traced by the same bounded traversal the bounce uses, deterministic and
-unaccumulated; the `sun-far-shadow` diagnostic publishes its bounds. Without a proxy, far surfaces
-stay lit: the last cascade is never stretched.
+- **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
+  the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps
+  every page that stays inside. Sixteen levels (`sunLevels`) start at the near plane's pixel
+  footprint. The depth range is the scene's box along the sun, snapped outward to its own
+  power-of-two grid: every caster lies inside, and a small growth changes nothing.
+- **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, the pool's own side, down to one
+  page. Six faces for a point, one for a spot.
+- **The level is chosen per pixel, from its footprint** — the world distance between two adjacent
+  pixels at its depth: a sun reads the level whose texel is at most that footprint, a lamp the mip
+  whose texel at the point's distance is. A texel is never larger than a pixel where the map offers
+  one, near or far, and a caster's error counted in texels is counted in pixels. A page not readable
+  yet hands the point to the next coarser level; beyond a sun's last level, the far-shadow ray
+  against the resident proxy (`proxy.bin`) answers, deterministic and unaccumulated (the
+  `sun-far-shadow` diagnostic publishes its bounds). The PCF taps each find their own page: a tap
+  within a texel of a seam compares the four texels of its footprint in their own pages, weighted
+  by hand — no seam, no guard band.
+- **Receivers mark the pages.** The opaque resolve records each page it reads — a bit per table
+  word, tested before the atomic, and a list — and the list comes back in one readback per image,
+  as the texture feedback does (`webgpu/shadow/pageRequests.ts`). A page asked for and unmapped is
+  allocated from the free list, or from the page least recently asked for, the finest first among
+  equals; a page the latest report named is never evicted, and coarse levels are served first.
+  Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
+  pixels asked for, and keep their early depth reject.
+- **Only stale pages the image reads are drawn**, coarse first, under the Shadows budget
+  (`shadowBudgetMs`, 1.0 ms, measured on the timestamps of the pages' draws and of the light cuts
+  that select their casters) and at most `shadowPagesPerFrame`
+  (24) a frame. A light that moves or changes, or a sun whose clipmap moves its projection, stales
+  every page it maps, and none is read until redrawn: its depth belongs to the old projection. An
+  object that moves stales only the mapped pages its projected box covers; a representation change
+  stales them once the camera rests, and a threshold change only the pages drawn at another
+  threshold than the one at rest. Such a page is still read until its redraw lands, while a
+  report names it; one no report names is withdrawn, since blend and water read without asking. A
+  page never drawn is not read. A report that names more pages than the pool holds — the pool never
+  holds more than a report lists (`shadowRequestCap`) — maps the coarsest, then by table entry — never in the GPU's append order —, and the rest read
+  coarser:
+  that waits for nothing, and the diagnostic counts it (`shadowPagesOverflow`). A page is drawn
+  with its own projection into its physical page — viewport and scissor —, so no other page of the
+  pool is touched. `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`,
+  `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
+  `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
+  and asks for nothing; the image holds once a report proves it reads only pages drawn.
+
+**Moving objects redraw their own casters, never the static set under them.** A placement turns
+moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —
+a pose written again where it stands, or a row inside a written range, is no move — and stays so; from then on the pool
+keeps a static layer, a second depth texture the pool's size, allocated at that first move — a scene where
+nothing moves pays neither its bytes nor its pass. A page drawn in full writes its static casters
+into the layer, then restores itself from it and draws its moving casters over; a page that only
+a moving object crossed is restored and gets its moving casters alone, split by one word per row
+in the page cull. A still moving object stales nothing; it is never demoted, since a rule that
+did would redraw the layer each time a pausing object moved again. A residency flag that drops
+and rises within a frame — every row follows the table epoch when a pose moves — is no change
+for the shadows: only a flag that differs from the last plan's restales its cluster's pages
+(`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over a static ground,
+1280×720, the virtual pages redraw 4.4 pages a frame (6 at most) with one light cut, against 224
+pages a frame on `develop`, and the frame after the motion is 0 px from a fresh render of the
+same pose.
+
+**Shadow casters are selected from the light.** The pages of one light view a frame draws — a sun
+level, a lamp face at one mip — form a run, and every run of the frame is selected by ONE traversal
+of the cluster cut: the camera's kernels, pipelines, clusters and residency bits, with flags,
+counters and output of its own (`gpu/dag/lightCut.ts`). Each work item — a queued node, a candidate
+page, a live cluster — carries its view's index; each view reads its own uniform block and owns its
+own per-primitive threshold, fallback and planes, in a row it keeps from one frame to the next
+whatever its rank in the cut (`gpu/dag/lightCutRows.ts`); the frame pays the
+waits between the cut's dispatches once, not once per view. Each view's drawn clusters land in their
+own range of one log, which the light compaction walks view by view. Its budget is fixed: the lists
+and queues are the camera cut's size whatever the view count (at most `shadowPagesPerFrame`, since a
+view holds at least one drawn page, and at most what the device's dispatch and binding limits hold,
+`gpu/dag/lightCutCapacity.ts`); work several views together push past them is dropped. The
+pages a frame drew while its cut dropped work are drawn again, and the pages a frame may draw are
+bisected between the most a frame drew whole and the fewest one dropped with. A view that drew a
+placement coarser than it wanted, a cluster of it not resident, drew every page of that view with
+it: those pages, and only that view's, are drawn again once residency changes, not only the pages
+over the missing cluster; a frame whose requests found no readback free draws them again at once
+(`gpu/dag/lightCutRedraws.ts`, `light-cut-redraw`). A run's window is the square that bounds its pages, cut in eight by eight cells
+of whole pages; a node or cluster that covers no cell a drawn page lies in is dropped. Its error is
+counted in the view's texels against the camera's pixel threshold — a texel of the level a pixel
+reads is at most that pixel —, and the normal cone is off, since the shadow raster culls no face. The
+light's mask is compacted over the same draw items as the camera's, and each page culls that list
+against its own box or cone. The camera's cut, its escalation and its pinned fallback are untouched:
+a caster the light wants and the pool lacks raises the light's own threshold. What the light cuts
+request is a second residency tier, loaded after the camera's pages into slots no one holds and never
+pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
+its casters take rows behind its own (#10, #26).
 
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's
 footprint selects, in the visibility raster and in the shadow pass alike, and the material
-resolution requests the tiles each sun cascade will read. Known limit: a caster the camera never sees
+resolution requests the tiles of the sun level each masked pixel's own footprint reads. Known limit: a caster the camera never sees
 has no one to request its tiles; the shadow pass then reads the finest tile resident.
 
 `setLightingView(view)` selects what the opaque path outputs: `'lit'` (a world's view), `'unlit'`
@@ -250,8 +332,22 @@ is created. A mixed session (measurement only) composes on a WebGL2 surface: the
 into a canvas of its own, publishes it as `presentedSurface`, and the host copies it with the
 engine's own full-screen program (`createBackendPresenter`). `presentedSurface` is withdrawn, and the
 canvas blanked, as soon as the device is lost; the loss is announced once by `gpu-device-lost`
-(`reason`: the device's own, `uncaptured-error` or `residency`). Neither path reads the image back
-for presentation.
+(`reason`: the device's own, `uncaptured-error`, `out-of-memory` or `residency`). Neither path reads
+the image back for presentation.
+
+A world keeps its device across sessions, and each session creates through its own handle on it
+(`gpu/core/sessionHandle.ts`, `gpu/core/deviceOwners.ts`), which tags every label. `dispose` releases
+the handle before anything else, and a released handle is inert: its `create*` throw an `AbortError`,
+so a preparation still running stops there (cancelled, torn down once after it stopped), and its
+queue writes and submits nothing. From `dispose` on, the backend reads as lost: its audits and
+digests answer `null`. The device's error scopes are one stack every session shares: each creation
+path closes the scope it opened in every case, an abort included (`gpu/core/errorScope.ts`), so no
+scope is left to swallow the next session's errors. What a closed session submitted before may still raise an error:
+one that names only closed sessions' objects is a console warning and a `gpu-closed-session-error`
+diagnostic (`kind: 'warning'`, `message`) for the live session, or for the next one to claim the
+device when none is live. An uncaptured error is otherwise a loss for the live session whose objects
+it names, or, naming none, for every live session; running out of memory is reported under
+`reason: 'out-of-memory'`.
 
 For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before anything
 else: attributes, drawing-buffer size from logical size and DPR, loss and restoration, one release.
@@ -271,8 +367,46 @@ so a still camera settles instead of alternating between two cuts.
 A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU into the new pool —
 root cover first, then pinned pages, then the most recent — evicts only what no longer fits, and
 rebuilds every bind group that named the old pool on the next image. The geometry pool can grow up to
-`geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. Backends
-without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+`geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
+engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
+page, page cap and session ceiling). A slot holds one geometry copy: a classic instance
+(`addInstance`) holds its own copy of every page, so a page three instances draw fills three slots,
+while the records rows place share one. Its cut is drawn on the CPU in the image that shows it, so
+it fits the slots in that image: every page it asks for charges its copies once (`slotsOf`), the
+root cover held beforehand, and the cut draws coarser until they fit (`selectVisiblePages`'s
+`search`, `poolSearch.ts`). A resident ancestor drawn in place of a missing page charges nothing
+more: each place on screen counts once, for the page that will be resident. The threshold is
+searched from one image to the next, and an image mostly costs one pass: an image the budget did
+not limit, or a host threshold lowered, passes at the host's `pixelError`; otherwise each image
+passes one step of √2 finer than the threshold the last one kept, unless that step overflowed since
+and the kept cut charges no less than it did then (the kept threshold again, the one image that
+costs two passes), and climbs by √2 in the same image when the cut no longer fits (a camera move).
+The climb stops as soon as the cut fits, or where no coarser threshold changes the cut: a pass whose
+overflow comes from root pages, and from pages whose parent reaches the near plane (an infinite
+screen error, refined at every threshold), overflows at every coarser threshold too. It never climbs
+past a ceiling either: the largest error the DAG roots carry as parents, seen at the near plane on
+the view axis. A budget not even that coarsest cut fits holds the threshold there, draws that cut
+without the budget in one pass, probes it again only when the slots, the copies, the view or the
+host's threshold change, and publishes the pool's `geometryPoolClamp` as `root-cover`, as on WebGPU.
+A smaller budget holds in the image that follows it, and the detail converges on the finest
+threshold that fits, to √2, in a number of images logarithmic in the ratio of the kept threshold to
+the host's; only while a finer step is left to try does `pendingFrame` ask for another image, and an
+image whose view moved forces none. `flush` runs those images itself, at most 32, so `awaitPages`
+loads the pages of the fixed cut. A threshold kept coarser than the host's is `budgetPixelError`,
+`0` otherwise. A verdict change is queued and published as `coverage-budget` by `flush`, as on
+WebGPU, in the image whose pass tried the host's threshold, whether the search has settled or not.
+Its `requiredSlots` is the slots the cut at the host's threshold charges, known only when that cut
+fit, and `null` when the cut is drawn coarser, since a pass past the budget stops at its first
+overflowing page. When its pages hold more than the slots, those the image no longer keeps leave
+oldest first (`evictOldest`, the page streamer's order). A refinement may hold more for a while: a
+resident ancestor drawn in place of a missing page is kept while the pages that replace it arrive,
+so the pool goes past its slots by at most the ancestors standing in, and comes back under them in
+the cut that follows the last arrival, which no longer keeps them (`poolSearch.test.ts` measures 11
+slots over 150 for 60 ancestors replaced by 100 pages, and `geometryAllocationBytes` shows it). Only
+the root cover and the pages the host replaced (`replaceGeometryPage`) stay above it; they are
+counted as the pages' bytes are, every geometry copy included. No pool is reserved:
+`geometryPoolAllocatedBytes` is `null`, and what the pages hold is `geometryAllocationBytes`.
+Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 A region keeps a complete resident representation until every replacement page is uploaded; if old
 and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.
@@ -313,7 +447,7 @@ diagnostic).
 **The engine reads the levels the compiler baked.** As soon as the cache declares texture chains,
 each baked level is read on demand (decoded by the browser, held in a 192 MiB host cache) and tiles
 are cut from it. A chain is generated at run time only for a texture the cache carries none for.
-`textureSource` (`'cache'` by default) says whether the loader opens the source images: under
+`textureSource` (`'cache'` by default) says whether the prepared scene reads the source images: under
 `'cache'` an image whose chain the cache carries is never fetched; `'cache'` is honoured only where
 every mounted backend reads the baked levels, and `backend-choice` publishes what was settled.
 
@@ -328,6 +462,70 @@ with textures gets one layer, the rest of the budget by the bytes its tiles woul
 `texturePoolFormat`, `texturePoolLayers` and `texturePoolBytes` publish the result, and the
 `material-textures-ready` diagnostic lists each pool.
 
+## Physics
+
+Jolt Physics (MIT, pinned submodule `packages/physics-jolt-wasm/JoltPhysics`) is compiled with
+emscripten and SIMD into one standalone module, `joltPhysics.wasm`, behind this repository's own
+flat C API (`packages/physics-jolt-wasm/src/`): one `jolt_step` call reads a command buffer and
+writes a pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
+(`physics/joltModule.ts`) gives the module its memory, whose maximum is the memory budget.
+
+- **Cooked shapes.** `RESTORE` carries a shape's Jolt binary state (`src/blob.h`, the stream the
+  compiler's cook writes) under a handle, an `ADD` of kind `cooked` names the handle, and `RELEASE`
+  drops it: the body keeps the shape. `physics/tiles.ts` streams a compiled model's tiles this way,
+  `physics/raycast.ts` asks `jolt_cast` (a batch of rays and shape sweeps, between two ticks) for
+  `world.raycast(at, { exact: true })`.
+- **Worker.** `physics/physicsWorker.ts` steps at a fixed 60 Hz, at most four catch-up steps a
+  tick (beyond, time is dropped: slow motion, never a spiral). Two result buffers go back and forth
+  as transferables and a tick writes straight into a free one (`tickResults.ts`); when the page
+  holds both, its results wait in a staging copy. It steps only while one more step's events fit,
+  so no event is cut. With every body asleep and no command queued, the worker stops ticking.
+- **Layouts.** `sdk-core/src/physics/layout.ts` (`PHYSICS_LAYOUT_VERSION`) holds the command,
+  pose and event word layouts the module mirrors; the page and the worker check the protocol.
+  Every record names its body by an engine id, the slot and the slot's generation (moved on at
+  each add and removal), so a late record of a body that left is never read as the one in its
+  place, on the page or in the module's pair map.
+- **Contacts and failures.** The module counts sub-shape contacts per pair: an `enter` is sent on
+  the first, a `leave` on the last, and only for a pair whose `enter` was sent; a `leave` the
+  event buffer cannot take waits for the next step, and a removed body's pairs are closed as it
+  leaves. A shape Jolt cannot build fails its body alone (the page retires it and names it);
+  `PhysicsSystem::Update`'s errors (body pairs, contact constraints, manifold cache) are sent as
+  `PHYSICS_BUDGET`, their capacities being `budget.physics.bodyPairs` and `contactConstraints`.
+- **Page.** `physics/session.ts` reconciles bodies with the scene once per frame that changed it,
+  draws each moving body between its last drawn pose and the tick's pose (`poses.ts`), sends the
+  view, and posts the frame's commands in one message. A tick is drawn over the interval at which
+  ticks arrive, not the time it simulates, and a late one is extrapolated from the linear and
+  angular velocities of its records, one interval at most: a slow worker shows slow motion, never
+  a held frame. Receive and draw are typed-array loops: a body's node keeps its position,
+  quaternion and scale in the placer's flat arrays (`ObservedComponents._share`), its velocity and
+  sleep are read from the session's arrays when asked (`ObjectPhysics._state`), each frame lerps from the
+  pose drawn toward the tick's, and the pose is written into the transform tree, the angles
+  derived when read (`placer.ts`); each body's world matrix is composed straight into the row of
+  the instance buffer the renderer draws it from (`SceneLink.seat`), and the world hears the
+  written span of each buffer once (`SceneLink.placed`), so no per-node world update runs. A body
+  with no row, with children, or under a moved scene root goes through `SceneLink.posed`, which
+  recomposes it like any moved node. A pose sent again unchanged asks for no frame, so a
+  sleeping world draws nothing.
+- **Distance and view.** The page sends its eye, facing, view cone and range (`camera.far`) only
+  when they change. In the module, a dynamic body beyond the range is deactivated with its
+  velocities kept; a body out of the cone or hidden sends no pose until it is seen again.
+- **Budgets.** Bodies, static triangles and decorative bodies are counted on the page; memory is
+  enforced by the module's memory maximum; body pairs, contact constraints and events size the
+  module's own buffers.
+- **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is the
+  page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`
+  (the module's step alone, the clock `scripts/bench-physics.ts` reads in Node).
+- **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
+  bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
+  through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that
+  instantiates the same module on the same memory, sets its stack and thread-local storage, and
+  runs the entry point. `budget.physics.threads` fixes the count, capped at the logical cores
+  minus the page's own; elsewhere the single-threaded module runs. `docs:serve` answers with COOP
+  `same-origin` and COEP `credentialless`; the production server's headers are set outside this
+  repository. `scripts/bench-physics.ts` steps the example's scene in Node on both modules and on
+  the same C API compiled natively (`packages/physics-jolt-wasm/bench/`), with a per-phase profile
+  from Jolt's own scopes in a profiled build.
+
 ## Diagnostics and timing
 
 `diagnosticDetail: 'trace' | 'summary'` controls event detail; an `onDiagnostic` observer defaults to
@@ -341,7 +539,8 @@ modules in its configuration event; a direct source import has `hash: null`.
 Phases carry `pipelineVersion: 1`: `gpu-presentation`, `frame-allocation`, `material-textures`,
 `material-textures-ready`, `material-classes-ready`, `material-surfaces-ready`, `scene-lighting`,
 `render-capabilities`, `render-progress` (selected and resident pages, triangles, pending pages,
-transparent counters), surface-capture phases, `gpu-device-lost`. Observer exceptions cannot
+transparent counters), surface-capture phases, `gpu-device-lost`, `gpu-closed-session-error`
+(`kind: 'warning'`: an error of a session already closed on the same device, never a loss). Observer exceptions cannot
 interrupt a backend. These durations are not frame-performance measurements.
 
 **GPU timing.** `timestamp-query` is requested when the adapter advertises it (`gpu-timing-status`).
@@ -387,16 +586,16 @@ performance, on the web.
 
 What the reference is made of, and our counterpart:
 
-| Reference piece                                   | Role                                                         | What we have today                                           | What is missing |
-| ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | --------------- |
-| Temporal antialiasing                             | denoises everything stochastic                               | shipped, 0 px A/A                                            | —               |
-| Screen traces                                     | first shot of every ray: image depth and normal, almost free | nothing                                                      | L1              |
-| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                 | certified-error resident proxy, walked triangle by triangle  | L4              |
-| Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget | L4              |
-| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                   | L5              |
-| Reflections                                       | screen traces, then distance fields reading the cache        | none                                                         | L1, L6          |
-| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, page-cached sliding cascades, 1 ms budget        | L3              |
-| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest    | L2 (denoise)    |
+| Reference piece                                   | Role                                                         | What we have today                                                                          | What is missing |
+| ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | --------------- |
+| Temporal antialiasing                             | denoises everything stochastic                               | shipped, 0 px A/A                                                                           | —               |
+| Screen traces                                     | first shot of every ray: image depth and normal, almost free | nothing                                                                                     | L1              |
+| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                 | certified-error resident proxy, walked triangle by triangle                                 | L4              |
+| Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget                                | L4              |
+| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                                                  | L5              |
+| Reflections                                       | screen traces, then distance fields reading the cache        | none                                                                                        | L1, L6          |
+| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | page table, screen-sized pool (2 601 pages at 720p), per-pixel level, receiver-marked pages | L3              |
+| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest                                   | L2 (denoise)    |
 
 What the web imposes, and the answer:
 

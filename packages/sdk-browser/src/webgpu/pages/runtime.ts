@@ -1,4 +1,5 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MOTION_CAPABILITY, TAA_CAPABILITY } from '../../taa/prepare.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
@@ -45,6 +46,9 @@ export const VIS_FEATURES = [
  *  part of it. `setup` and `layout` never change after construction; the other groups do. */
 export interface WebgpuPagesRuntime {
   context: BackendContext;
+  /** Aborted by `dispose`; `signal` is aborted by it or by the session's. */
+  closer: AbortController;
+  signal: AbortSignal;
   diag: WebgpuDiagnostics;
   setup: WebgpuPagesSetup;
   layout: WebgpuPagesLayout;
@@ -54,7 +58,7 @@ export interface WebgpuPagesRuntime {
   lights: WebgpuLightState;
   /** Resident proxy and probe grid of bouncing light. */
   bounce: WebgpuBounceState;
-  /** The sun's shadow beyond the last cascade, traced against the resident proxy. */
+  /** The sun's shadow beyond the last clipmap level, traced against the resident proxy. */
   sunFar: WebgpuSunFarState;
   run: WebgpuRunState;
   capture: WebgpuCaptureState;
@@ -71,9 +75,11 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const setup = createWebgpuPagesSetup(context, diag);
   const layout = createWebgpuPagesLayout(setup);
   const vis = createWebgpuVisState();
-  const run = createWebgpuRunState();
+  const run = createWebgpuRunState(context.clearColor);
   const blendState = createWebgpuBlendState();
-  const lights = createWebgpuLightState(context.sceneLights);
+  // The shadow pool's side, from the screen the world opens on: the first frame on the canvas
+  // confirms or replaces it, before any page exists (`../shadow/poolSize.ts`).
+  const lights = createWebgpuLightState(shadowPoolSide(...setup.viewport), context.sceneLights);
   const capabilities: BackendCapabilities = {
     renderer: 'WebGPU page raster',
     materials: UNTEXTURED_MATERIALS,
@@ -94,14 +100,17 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       BOUNCE_CAPABILITY,
       MOTION_CAPABILITY,
       TAA_CAPABILITY,
-      'sun shadows beyond the last cascade',
+      'sun shadows beyond the last clipmap level',
       'textured PBR maps',
       'visibility buffer',
       'direct WebGPU present',
     ],
   };
+  const closer = new AbortController();
   const core: WebgpuPagesCore = {
     context,
+    closer,
+    signal: context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal,
     diag,
     setup,
     layout,

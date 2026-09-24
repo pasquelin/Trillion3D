@@ -17,13 +17,17 @@ export function streamCutResidency(
   const { run, services } = rt,
     { rows } = rt.layout,
     marks = rt.timing.marks;
+  // What the light cuts asked for last time they reported: the lower tier, served after this cut.
+  const lightCut = rt.lights.lightCut,
+    asked = lightCut?.reports.takeRequests();
+  if (asked) services.shadowTier.offerIds(asked);
   // Never throttled: this cut meets the budget by growing its screen error.
   services.queueCutResidency(false);
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
   marks.queueEnd = performance.now();
   ensurePageTable(rt, gpuDevice);
-  services.syncRows();
+  services.syncRows(!run.textureConverging);
   run.rowsSyncedFrame = run.frame;
   marks.rowsEnd = performance.now();
   if (rows.candidateOverflow) return false;

@@ -1,25 +1,26 @@
+import type { GraphScene } from '../host/graph/scene.ts';
 import {
   hostPageInstances,
   releaseHostInstances,
   setHostInstance,
   setHostInstanceCount,
 } from '../host/pageObjects.ts';
-import type { HostDrawScene } from '../host/scene/graphNodes.ts';
-import type { HostGeometry, HostMaterials, HostMesh } from '../host/resources.ts';
+import type { HostGeometry, HostMaterials } from '../host/resources.ts';
+import type { GraphInstancedMesh } from '../host/graph/mesh.ts';
 import type { PageRec } from '../page/selection/types.ts';
 import { grownCapacity } from './rows.ts';
 
-type Group = { mesh: HostMesh | null; capacity: number; count: number; first: PageRec };
+type Group = { mesh: GraphInstancedMesh | null; capacity: number; count: number; first: PageRec };
 
 /**
- * The pages the WebGL2 path draws at the rows of an instance buffer: one instanced host mesh per
+ * The pages the WebGL2 path draws at the rows of an instance buffer: one instanced mesh per
  * page geometry and surface, whatever number of placements show it, its matrices the rows'. A
  * frame counts what each mesh shows, remakes a mesh too small for it at twice its size at least
  * — its size follows what frames show, never a number picked here —, then writes one matrix per
  * shown record and one count per mesh. A mesh whose page no placement shows leaves the graph. A
  * frame that shows the same records, on rows nobody wrote since, writes nothing.
  */
-export function createWebglPageBatches(scene: HostDrawScene) {
+export function createWebglPageBatches(scene: GraphScene) {
   const groups = new Map<HostGeometry, Map<HostMaterials, Group>>();
   const drop = (group: Group) => {
     if (!group.mesh) return;

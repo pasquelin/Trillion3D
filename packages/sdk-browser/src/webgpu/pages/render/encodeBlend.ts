@@ -13,6 +13,7 @@ import { viewProj } from '../helpers.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts';
 import { encodeDirectLights } from './encodeLights.ts';
+import { encodeShadowReadback } from './encodeShadows.ts';
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts';
 import { directLightResources, wantsContractLighting } from '../prepare/lightResources.ts';
@@ -129,7 +130,7 @@ export function encodeSurfaceLighting(
   uniformBase: number,
 ) {
   const { gpu, run, capture } = rt,
-    { clearColor } = rt.setup;
+    { clearColor } = run;
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.colorView)
     throw new Error('DEFERRED_UNAVAILABLE');
   const [width, height] = gpu.targetSize;
@@ -159,6 +160,7 @@ export function encodeSurfaceLighting(
   );
   gpu.deferred.light(encoder, gpu.hdrView);
   run.gpuDrawCalls++;
+  encodeShadowReadback(rt, encoder);
   encodeBlend(rt, device, encoder, uniformBase);
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
   // image as-is when this image does not accumulate.

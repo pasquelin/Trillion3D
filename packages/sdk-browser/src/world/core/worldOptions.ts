@@ -1,6 +1,7 @@
 import type { MeasuredWorldOptions } from '../session/options.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
 import type { WorldControls } from './worldCamera.ts';
+import type { WorldPhysicsOptions } from '../../physics/worldPhysics.ts';
 
 /** What a page may set when it creates a world; saying nothing is the normal case. */
 export interface WorldOptions {
@@ -19,10 +20,14 @@ export interface WorldOptions {
   /** How many image pixels per screen pixel. @defaultValue the screen's own density */
   pixelRatio?: number;
   /** The controller that moves the camera from the canvas; `world.controls.kind` changes it later.
-   *  @defaultValue 'none' */
+   *  `'vehicle'` throws `NO_VEHICLE` here: no vehicle is set before the world exists — set
+   *  `world.controls.vehicle`, then `kind`. @defaultValue 'none' */
   controls?: WorldControls;
   /** Stops the world's loads when the signal is aborted. */
   signal?: AbortSignal;
+  /** Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only
+   *  then. @defaultValue false */
+  physics?: boolean | WorldPhysicsOptions;
 }
 
 /**

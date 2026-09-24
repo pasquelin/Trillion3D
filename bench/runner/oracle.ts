@@ -25,6 +25,7 @@ import { machineLoad } from './summary.ts';
 import { runView } from './oracleView.ts';
 import type { OracleSettings, VueOracle } from './oracleView.ts';
 import { sdkEntryUrl } from './dists.ts';
+import { measureOutput } from '../core/paths.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const args = process.argv.slice(2);
@@ -53,7 +54,7 @@ async function main() {
   const source = resolve(flag('source', ''));
   if (!existsSync(source)) throw new Error(`--source not found: ${source}`);
   if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`');
-  const out = resolve(flag('out', join(ROOT, `.mesure/out/oracle-${Date.now()}`)));
+  const out = resolve(flag('out', measureOutput(`oracle-${Date.now()}`)));
   await mkdir(out, { recursive: true });
   const settings: OracleSettings = {
     width: number('largeur', 160),

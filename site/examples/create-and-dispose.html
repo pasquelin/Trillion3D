@@ -22,10 +22,11 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
-      import { controls, readout, seeded, words, language } from '../runtime/kit.js';
+      import { controls, readout, seeded, words, language, circling } from '../runtime/kit.js';
       const say = words();
 
-      const world = createWorld('view', { controls: 'orbit' });
+      // The pieces fly, bounce and roll in the world's physics: Jolt, in a worker.
+      const world = createWorld('view', { controls: 'orbit', physics: true });
       world.scene.background = math.color('#26324a');
 
       // A stone fountain in a round court: a basin, a pillar in its middle, a nozzle on top.
@@ -46,6 +47,8 @@
         part.position.set(x, y, z);
         part.rotation.set(rx, ry, rz);
         part.castShadow = part.receiveShadow = true;
+        // The court is static: the pieces bounce off its triangles and never move it.
+        part.physics = 'static';
         world.scene.add(part);
       }
 
@@ -93,10 +96,13 @@
         [[cube, material.meshLambert({ color: '#e9e4d4' })]],
         [[ring, material.meshPhong({ color: '#2f9e8f', shininess: 90 })]],
         [[cone, material.meshToon({ color: '#ff8a3d' })]],
-        // A little planet with its ring, and a dumbbell: two groups of three meshes.
+        // A little planet with its ring, and a dumbbell: the first mesh carries the others.
         [[ball, PAINTS[3]], [band, PAINTS[1], [0.35, 0, 0]]],
-        [[rod, PAINTS[4], [0, 0, Math.PI / 2]], [bead, PAINTS[0], null, [-0.38, 0, 0]], [bead, PAINTS[0], null, [0.38, 0, 0]]],
+        [[rod, PAINTS[4]], [bead, PAINTS[0], null, [0, -0.38, 0]], [bead, PAINTS[0], null, [0, 0.38, 0]]],
       ];
+      // The dumbbell's body is the capsule around its rod and beads; any other piece's is read
+      // from its first mesh (a sphere, a box, or the hull of its vertices).
+      const DUMBBELL = { type: 'capsule', halfHeight: 0.38, radius: 0.18 };
 
       // One piece of a kind. Shared, it wears the kind's own shapes and materials; made new, it
       // gets copies of both, which the fountain disposes when the piece leaves. The world folds
@@ -109,9 +115,8 @@
           mesh.castShadow = true;
           return mesh;
         });
-        if (meshes.length === 1) return { node: meshes[0], meshes };
-        const node = object.group();
-        node.add(...meshes);
+        const [node, ...riders] = meshes;
+        node.add(...riders);
         return { node, meshes };
       }
 
@@ -143,40 +148,23 @@
       const PER_KIND = 6, live = [], flying = KINDS.map(() => 0);
       let created = 0, disposed = 0, rota = 0;
       const random = seeded(1);
-      const GRAVITY = 9.8;
-      // One step of a piece's flight: gravity, a bounce on the basin floor and off its rim.
-      function fly(item, step) {
-        const { node, velocity, spin } = item, at = node.position;
-        item.age += step;
-        velocity[1] -= GRAVITY * step;
-        let x = at.x + velocity[0] * step, y = at.y + velocity[1] * step, z = at.z + velocity[2] * step;
-        if (y < FLOOR + 0.35 && velocity[1] < 0) {
-          y = FLOOR + 0.35;
-          velocity[1] *= -0.45;
-          velocity[0] *= 0.8;
-          velocity[2] *= 0.8;
-        }
-        const reach = Math.hypot(x, z);
-        if (reach > BASIN - 0.4) {
-          const nx = x / reach, nz = z / reach, along = velocity[0] * nx + velocity[2] * nz;
-          if (along > 0) (velocity[0] -= 1.6 * along * nx), (velocity[2] -= 1.6 * along * nz);
-        }
-        at.set(x, y, z);
-        node.rotation.set(node.rotation.x + spin[0] * step, node.rotation.y + spin[1] * step, node.rotation.z + spin[2] * step);
-        const fade = Math.min(1, Math.max(0, (item.life + 0.6 - item.age) / 0.6), item.age / 0.15);
-        node.scale.setScalar(Math.max(0.001, fade));
-      }
+      // The world's own gravity: the opening crowd's arcs are the ones the physics flies.
+      const GRAVITY = -world.physics.gravity.y, SHRINK = 0.6;
       function launch(fresh, age = 0) {
         let kind = -1;
         for (let tries = 0; tries < KINDS.length && kind < 0; tries++, rota = (rota + 1) % KINDS.length)
           if (flying[rota] < PER_KIND) kind = rota;
         if (kind < 0) return;
         const { node, meshes } = make(KINDS[kind], fresh);
-        const heading = random() * Math.PI * 2, out = 2.4 + random() * 2.2;
-        node.position.set(0, NOZZLE + 0.3, 0);
-        const item = { node, meshes, kind, fresh, age: 0, life: 3.5 + random() * 2, velocity: [Math.cos(heading) * out, 7 + random() * 2.5, Math.sin(heading) * out], spin: [random() * 4 - 2, random() * 4 - 2, random() * 4 - 2] };
-        // A piece of the opening crowd is flown ahead to its age, so the first frame is mid-show.
-        for (let t = 0; t < Math.min(age, item.life); t += 1 / 60) fly(item, 1 / 60);
+        const heading = random() * Math.PI * 2, out = 2.4 + random() * 2.2, up = 7 + random() * 2.5;
+        // A piece of the opening crowd starts where its arc has taken it by its age, still in the
+        // air, so the first frame is mid-show; the physics flies it from there.
+        const vx = Math.cos(heading) * out, vz = Math.sin(heading) * out;
+        node.position.set(vx * age, NOZZLE + 0.3 + up * age - (GRAVITY * age * age) / 2, vz * age);
+        node.rotation.set(random() * 6, random() * 6, random() * 6);
+        node.physics = { type: 'dynamic', restitution: 0.45, ...(meshes.length === 3 && { shape: DUMBBELL }) };
+        node.physics.velocity.set(vx, up - GRAVITY * age, vz);
+        const item = { node, meshes, kind, fresh, age, life: 3.5 + random() * 2 };
         world.scene.add(node);
         live.push(item);
         flying[kind]++;
@@ -189,10 +177,9 @@
         flying[kind]--;
         disposed++;
       }
-      for (let k = 0; k < KINDS.length * PER_KIND; k++) launch(false, random() * 5);
+      for (let k = 0; k < KINDS.length * PER_KIND; k++) launch(false, random() * 1.4);
 
       const ui = controls({
-        mouse: 'Drag to walk around the fountain · scroll to come closer',
         perSecond: [0, 60, 30, 1],
         copies: ['share', 'fresh'],
         burst: () => {
@@ -208,9 +195,7 @@
       const memory = readout('gpuMemory');
 
       // The camera circles slowly until the first press or wheel on the canvas.
-      let circling = true;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
+      circling(world, 0.12);
 
       // A steady stream at the chosen rate, for as long as the page is open.
       let owed = 0, clock = 0, shown = 0;
@@ -219,15 +204,14 @@
         const fresh = ui.copies === 'fresh';
         owed += step * ui.perSecond;
         for (; owed >= 1; owed--) launch(fresh);
+        // A piece past its life leaves the physics and shrinks away, then it is disposed.
         for (let i = live.length - 1; i >= 0; i--) {
-          fly(live[i], step);
-          if (live[i].age > live[i].life + 0.6) retire(i);
-        }
-        if (circling) {
-          const { position } = world.camera, { target } = world.controls, turn = step * 0.12;
-          const x = position.x - target.x, z = position.z - target.z;
-          position.set(target.x + x * Math.cos(turn) + z * Math.sin(turn), position.y, target.z + z * Math.cos(turn) - x * Math.sin(turn));
-          world.controls.update();
+          const item = live[i];
+          item.age += step;
+          if (item.age <= item.life) continue;
+          item.node.physics = null;
+          item.node.scale.setScalar(Math.max(0.001, (item.life + SHRINK - item.age) / SHRINK));
+          if (item.age > item.life + SHRINK) retire(i);
         }
         // The counters, four times a second; a value the engine did not measure says so.
         clock += delta;

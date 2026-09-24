@@ -13,7 +13,7 @@ interface ChapterText {
   tryIt: string;
 }
 
-/** The nine chapters, in order, as Learn entries in `locale`: the words are the language's
+/** The eleven chapters, in order, as Learn entries in `locale`: the words are the language's
  *  `course`, the example and the code are the chapter's own. */
 export function courseEntries(locale: Locale): PortalEntry[] {
   const { words, chapters } = dictionaryOf(locale).course;

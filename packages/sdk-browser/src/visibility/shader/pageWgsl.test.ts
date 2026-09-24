@@ -1,11 +1,11 @@
 // Common-formulas lot: each WGSL fragment factored out of `pageWgsl.ts` must stay the
 // unique write of its identifier, and each shader that assembles it must carry it only once —
 // two copies in the same text would be two chances of seeing it drift, as before this lot.
-import { importWrapMode } from '../../host/surfaceImport.ts';
+import { importWrapMode } from '../../host/textureImport.ts';
 import test from 'node:test';
 import { TAA_SHADER } from '../../taa/shaderWgsl.ts';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import {
   PAGE_INFO_STRUCT_WGSL,
   EDGE_WGSL,
@@ -84,7 +84,7 @@ test('BARY_WEIGHTS_WGSL declares fn baryWeights only once in shading, never in t
 const regle = lineaireThree as (
   t: number,
   taille: number,
-  wrap: THREE.Wrapping,
+  wrap: number,
 ) => [number, number, number];
 /** The value the two mixed texels yield: tap order is not imposed, colour is. */
 const valeur = ([i0, i1, poids]: [number, number, number]) => i0 * (1 - poids) + i1 * poids;
@@ -96,14 +96,10 @@ test('wrapLinear mixes the two texels of the rule, a period seam included', () =
       coordonnees.push(Math.fround(entier + reste));
   let couture = 0;
   for (const taille of [1, 2, 3, 4, 5, 8])
-    for (const wrap of [
-      THREE.ClampToEdgeWrapping,
-      THREE.RepeatWrapping,
-      THREE.MirroredRepeatWrapping,
-    ])
+    for (const wrap of [G.HOST_WRAP_CLAMP_TO_EDGE, G.HOST_WRAP_REPEAT, G.HOST_WRAP_MIRRORED_REPEAT])
       for (const t of coordonnees) {
         const attendu = regle(t, taille, wrap);
-        if (attendu[1] !== attendu[0] + 1 && wrap === THREE.RepeatWrapping) couture++;
+        if (attendu[1] !== attendu[0] + 1 && wrap === G.HOST_WRAP_REPEAT) couture++;
         assert.ok(
           Math.abs(valeur(wrapLinear(t, taille, importWrapMode(wrap))) - valeur(attendu)) <= 1e-9,
           `${taille} texels, t=${t}: rule ${attendu}, read ${wrapLinear(t, taille, importWrapMode(wrap))}`,
@@ -115,7 +111,7 @@ test('wrapLinear mixes the two texels of the rule, a period seam included', () =
 // Folding a coordinate cannot wrap a period: both taps and their weight are therefore carried
 // through to the atlas reads, which mix four reads on the seam and a single one elsewhere. A
 // read that took the folded coordinate alone would reopen the defect.
-test('atlas reads receive their map nibble and mix four taps', () => {
+test("atlas reads fold by their texture's nibble and mix four taps", () => {
   assert.match(
     WRAP_COORD_WGSL,
     /struct WrapTaps\{proche:vec2f,loin:vec2f,poids:vec2f,couture:bool,\}/,
@@ -125,8 +121,21 @@ test('atlas reads receive their map nibble and mix four taps', () => {
     MASK_ALPHA_WGSL: maskAlphaWgsl(true),
     DATA_SAMPLE_WGSL,
   })) {
-    assert.match(bloc, /,uv:vec2f,wrap:u32/, `${nom} must receive its map nibble`);
-    assert.match(bloc, /if\(!t\.couture\)\{return /, `${nom} must keep the unique read`);
+    assert.match(bloc, /wrapUv\(uv,s\.wrap,s\.size\)/, `${nom} must fold by its texture's nibble`);
+    // #360, #361: the header is read once, then the default read — the footprint's level, no
+    // other test — unless the page's maps take their filter rule (`sampled`), blended and
+    // shadow alike.
+    assert.match(
+      bloc,
+      /let s=(color|data)Slot\(slot\);\n if\(sampled\)\{return \w+Sampled\(slot,s,uv,ddx,ddy\);\}\n return \w+Tap\(s,uv,slotLod\(s,ddx,ddy\),false\);/,
+      `${nom} must read its header once, then the default read`,
+    );
+    assert.match(
+      bloc,
+      /let r=(color|data)Footprint\(slot,s,uv,ddx,ddy,(true|false)\);/,
+      `${nom} must read its footprint once when sampled`,
+    );
+    assert.match(bloc, /if\(!t\.couture\|\|nearest\)\{return /, `${nom} must keep the unique read`);
     assert.match(
       bloc,
       /mix\(mix\(s00,s10,t\.poids\.x\),mix\(s01,s11,t\.poids\.x\),t\.poids\.y\)/,

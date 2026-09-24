@@ -1,7 +1,8 @@
 // sRGB to linear in texture sampling.
 import type { Texture } from '../../../packages/sdk-core/src/index.ts';
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import {
   sampleLinear,
   sampleMap,
@@ -53,15 +54,15 @@ function texture(
     data = new Uint8Array(width * height * 4);
   for (let i = 0; i < data.length; i++)
     data[i] = i < 1024 ? i & 255 : Math.floor(alea() * 256) & 255;
-  const map = new THREE.Texture();
+  const map = new G.GraphTexture();
   map.image = { data, width, height };
   map.wrapS = wrapS;
   map.wrapT = wrapT;
   return importHostTexture(map);
 }
 
-const sansImage = importHostTexture(new THREE.Texture());
-const atlas = texture(256, 256, 17, THREE.RepeatWrapping, THREE.RepeatWrapping);
+const sansImage = importHostTexture(new G.GraphTexture());
+const atlas = texture(256, 256, 17, G.HOST_WRAP_REPEAT, G.HOST_WRAP_REPEAT);
 
 type EchantillonneurTexel = (map: Texture, u: number, v: number) => readonly number[];
 

@@ -919,8 +919,16 @@
       "UNSUPPORTED_SCENE_UPDATE": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "BATCHED_WORLD_VIEW": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "RAYCAST_NO_VIEW": "Boyutu olmayan bir canvas'tan resim noktası istendi: içinden nişan alınacak bir resim yok.",
+      "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
+      "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
       "UNSUPPORTED_SCENE_FORMAT": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
-      "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor."
+      "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
+      "PHYSICS_BUDGET": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
+      "PHYSICS_NESTED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
+      "PHYSICS_FAILED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
+      "PHYSICS_FORMAT": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
+      "NO_VEHICLE": "`world.controls.vehicle` `null` iken `world.controls.kind` `'vehicle'` yapıldı: sürülecek bir şey yok."
     }
   },
   "EngineProfiler": {
@@ -1023,7 +1031,6 @@
       "rafIntervalMs": "İki kare arasındaki süre.",
       "cpuFrameMs": "Karenin CPU süresi.",
       "cpuSubmitMs": "İşi göndermek için CPU süresi.",
-      "gpuMs": "Karenin GPU süresi.",
       "drawCalls": "Motorun saydığı şekliyle bu karenin çizim çağrıları. Onları saymadığında `null`: bir sıfır, çizimsiz bir kare olarak okunurdu.",
       "autonomousClusterDrawsTotal": "Bu oturumda motora ait WebGL2 programı tarafından yayımlanan sayfalanmış cluster çizimleri.",
       "autonomousCopyDraws": "Motora ait WebGL2 programının bu karede çizdiği sahne kopyaları — geçirgen yüzeyler.",
@@ -1056,7 +1063,7 @@
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
-      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez.",
+      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti, eksi `uncoveredTriangles`'ın saydığı, yerleşik sayfası olmayan cluster'lar. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). `uncoveredTriangles` ile aynı geçişte, kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir. Bu örnekte beklenen kapsama ilişkisi: `selected − drawn − uncovered = 0`.",
@@ -1245,18 +1252,7 @@
     }
   },
   "HostAttribute": {
-    "summary": "Bir host geometrisinin bir köşe özniteliği, iç içe geçmiş ya da değil: düzeni ve depolaması.",
-    "members": {
-      "isBufferAttribute": "Öznitelik, paylaşılan, iç içe geçmiş birine bakmak yerine kendi tamponuna sahip olduğunda host tarafından yükseltilir. Yalnızca kabul kapısı onu okur: motorun kendi çözümü her iki durumda da aynıdır, otonom WebGL2 programının bağlaması değil.",
-      "itemSize": "Köşe başına sayı.",
-      "count": "Kaç köşe.",
-      "normalized": "Tam sayıların 0'dan 1'e okunup okunmadığı.",
-      "array": "Depolama.",
-      "getX": "Host tarafından iç içelikten çıkarılmış ve denormalize edilmiş bir elemanın bileşeni.",
-      "getY": "Bir elemanın ikinci bileşeni.",
-      "getZ": "Bir elemanın üçüncü bileşeni.",
-      "getW": "Bir elemanın dördüncü bileşeni."
-    }
+    "summary": "Bir host geometrisinin bir köşe özniteliği, iç içe geçmiş ya da değil: düzeni ve depolaması."
   },
   "HostAttributes": {
     "summary": "Bir host geometrisinin adlandırılmış öznitelikleri.",
@@ -1315,32 +1311,17 @@
     "summary": "Bir tanı görünümünün serbest bırakabileceği bir host geometrisi.",
     "members": {
       "attributes": "Köşe öznitelikleri.",
-      "boundingBox": "Host'un hesapladığı yerel kutu.",
       "dispose": "Onu serbest bırakır."
     }
   },
   "HostDiagnosticMaterial": {
     "summary": "Bir tanı görünümünün bir mesh üzerine değiştirdiği, sonra serbest bıraktığı bir host yüzeyi: astığı şey `HostDiagnosticFactory` aracılığıyla gelir, asla bir içe aktarma yoluyla değil, bu yüzden hiçbir görünüm bir render kütüphanesi adlandırmaz.",
     "members": {
-      "version": "Her değişiklikte host tarafından artırılır: önbelleğe alınmış bir satırın alanlarını yeniden inşa etmek için karşılaştırdığı şey.",
-      "visible": "Çizilip çizilmediği.",
       "side": "Host'un sabiti olarak, hangi yüzler.",
-      "forceSinglePass": "Host, çift taraflı şeffaf bir yüzeyi arka sonra ön yerine tek bir geçişte çizer.",
-      "vertexColors": "Köşe renklerinin onu tonlayıp tonlamadığı.",
-      "toneMapped": "Ekran eğrisinin uygulanıp uygulanmadığı.",
-      "depthTest": "Host'un yüzeyle birlikte bildirdiği ve motorun pipeline'larının uyduğu raster durumu.",
-      "depthWrite": "Derinlik yazıp yazmadığı.",
-      "depthFunc": "Derinlik testinin karşılaştırması.",
-      "colorWrite": "Renk yazıp yazmadığı.",
-      "polygonOffset": "Derinliğin ötelenip ötelenmediği.",
-      "polygonOffsetFactor": "Ötelemenin eğim kısmı.",
-      "polygonOffsetUnits": "Ötelemenin sabit kısmı.",
-      "transparent": "Karışıp karışmadığı.",
-      "opacity": "Ne kadar opak olduğu.",
-      "alphaTest": "Piksellerin altında düştüğü alfa.",
       "dispose": "Onu serbest bırakır.",
       "clone": "Yüzeyin bir kopyası."
-    }
+    },
+    "description": "Tanılama görünümleri, ağları kendi kütüphanelerine ait olan tanıklara da hizmet eder: astıkları şey `HostDiagnosticFactory` üzerinden gelir ve yalnızca bu biçimle okunurlar."
   },
   "HostDisposable": {
     "summary": "Geldiği grafik serbest bırakıldığında motorun serbest bıraktığı bir host kaynağı: bir geometri, bir yüzey, bir doku.",
@@ -1369,67 +1350,23 @@
     }
   },
   "HostGeometry": {
-    "summary": "Bir host geometrisi: öznitelikleri, ve host'un onlar üzerinden hesapladığı yerel kutu.",
-    "members": {
-      "attributes": "Köşe öznitelikleri.",
-      "boundingBox": "Host'un hesapladığı yerel kutu."
-    }
+    "summary": "Bir host geometrisi: öznitelikleri, ve host'un onlar üzerinden hesapladığı yerel kutu."
   },
   "HostGraphNode": {
     "summary": "Bir dolaşımın gördüğü şekliyle host grafiğinin bir düğümü: kimliği, yerel pozu, host'un onun için çözdüğü dünya matrisi, ve zinciri.",
-    "description": "Motor, yerel pozlardan KENDİ dünya matrislerini hesaplar (`../world/tree.ts`); `matrixWorld`, HOST'un kendi çözümünün bir sınırın ona geri verdiği şey olduğu yerde okunur. `HostPlaced`'IN (`../resources.ts`) POZLANMIŞ BİR DÜĞÜMÜ DE NEDEN TANIMLADIĞI. İkisi bir kopya değildir: bir host'un sunduğu iki farklı çözüme göre anahtarlanmışlardır. `HostPlaced`, `updateWorldMatrix(ancestors, descendants)` ister — TEK bir düğümün zinciri, bir yerleştirme ve görünürlük dolaşımının çıktığı şey; bu ise `updateMatrixWorld(force)` ister — bir düğümün altındaki ALT AĞAÇ, bir tarama, bir sınır birleşimi ve bir replikasyonun tek bir çağrıda çözdüğü şey. İkisinden yalnızca birini sunan bir host, yalnızca yanıt verdiği sözleşmeyi karşılar, bu yüzden ikisi de diğerinin yerini tutamaz.",
-    "members": {
-      "parent": "Ebeveyni.",
-      "position": "Nerede durduğu.",
-      "quaternion": "Bir düğümün dönüşünün iki yüzü — motorun karşılaştırdığı kuaterniyon, ve içine kopyalanan Euler açıları — her biri kendi yazımlarını DUYURARAK: host'un zaten zincirlediği, bir hook'un değiştirmek yerine genişlettiği bir geri çağırma (`hooks.ts`). Alt çizgili iki üye, host kütüphanesinin özelidir, bu yüzden hook'un onlara ihtiyaç duyduğu yerde burada yazılırlar, ve kendi adlarını almazlar. Bu, özeli SDK'nın yayımlanmış sözleşmeler listesinin dışında tutar; onu yayımlanmış yüzeyin dışında TUTMAZ, çünkü `HostGraphNode` onu taşır. Taramanın zaten yaptığı gibi pozu kare başına karşılaştırmak, bağlantıyı kaldıracak olan şeydir — bu bu lotun işi değildir.",
-      "rotation": "Açı olarak nasıl döndürüldüğü.",
-      "scale": "Nasıl gerildiği.",
-      "matrixAutoUpdate": "Host'un kendisi `matrix`'i ayarladığında yanlış: matris pozun KENDİSİDİR ve hiçbir şey onu yeniden oluşturmaz.",
-      "matrix": "Yerel matrisi.",
-      "matrixWorld": "Dünya matrisi.",
-      "userData": "Motorun, host'un hiç görmediği ve yazamayacağı kendi kopyasını işaretlediği yer.",
-      "traverse": "Düğümün altındaki alt ağaç, önce kendisi, host'un kendi sırasında.",
-      "updateMatrixWorld": "Host'un kendi okuyucuları için, alt ağacın dünya matrislerini HOST GRAFİĞİNDE çözer."
-    }
+    "description": "Motor, yerel pozlardan KENDİ dünya matrislerini hesaplar (`../world/tree.ts`); `matrixWorld`, HOST'un kendi çözümünün bir sınırın ona geri verdiği şey olduğu yerde okunur. `HostPlaced`'IN (`../resources.ts`) POZLANMIŞ BİR DÜĞÜMÜ DE NEDEN TANIMLADIĞI. İkisi bir kopya değildir: bir host'un sunduğu iki farklı çözüme göre anahtarlanmışlardır. `HostPlaced`, `updateWorldMatrix(ancestors, descendants)` ister — TEK bir düğümün zinciri, bir yerleştirme ve görünürlük dolaşımının çıktığı şey; bu ise `updateMatrixWorld(force)` ister — bir düğümün altındaki ALT AĞAÇ, bir tarama, bir sınır birleşimi ve bir replikasyonun tek bir çağrıda çözdüğü şey. İkisinden yalnızca birini sunan bir host, yalnızca yanıt verdiği sözleşmeyi karşılar, bu yüzden ikisi de diğerinin yerini tutamaz."
   },
   "HostMaterial": {
-    "summary": "Motorun okuduğu şekliyle bir host malzemesi: her host malzemesinin paylaştığı, sınırda bir kez motorun `VisMaterial`'ına okunan yüzey parametreleri; yalnızca `sideOf` `side`'ı okur.",
-    "members": {
-      "version": "Her değişiklikte host tarafından artırılır: önbelleğe alınmış bir satırın alanlarını yeniden inşa etmek için karşılaştırdığı şey.",
-      "visible": "Çizilip çizilmediği.",
-      "side": "Host'un sabiti olarak, hangi yüzler.",
-      "forceSinglePass": "Host, çift taraflı şeffaf bir yüzeyi arka sonra ön yerine tek bir geçişte çizer.",
-      "vertexColors": "Köşe renklerinin onu tonlayıp tonlamadığı.",
-      "toneMapped": "Ekran eğrisinin uygulanıp uygulanmadığı.",
-      "depthTest": "Host'un yüzeyle birlikte bildirdiği ve motorun pipeline'larının uyduğu raster durumu.",
-      "depthWrite": "Derinlik yazıp yazmadığı.",
-      "depthFunc": "Derinlik testinin karşılaştırması.",
-      "colorWrite": "Renk yazıp yazmadığı.",
-      "polygonOffset": "Derinliğin ötelenip ötelenmediği.",
-      "polygonOffsetFactor": "Ötelemenin eğim kısmı.",
-      "polygonOffsetUnits": "Ötelemenin sabit kısmı.",
-      "transparent": "Karışıp karışmadığı.",
-      "opacity": "Ne kadar opak olduğu.",
-      "alphaTest": "Piksellerin altında düştüğü alfa."
-    }
+    "summary": "Motorun okuduğu şekliyle bir host malzemesi: her host malzemesinin paylaştığı, sınırda bir kez motorun `VisMaterial`'ına okunan yüzey parametreleri; yalnızca `sideOf` `side`'ı okur."
   },
   "HostMaterials": {
     "summary": "Bir yüzeyin bildirdiği şey: bir malzeme, ya da geometri grubu başına bir tane."
   },
   "HostMesh": {
-    "summary": "Kimliğe göre tutulan bir host mesh'i: çizim kaydı, şeffaflık tablosu ve seçim setleri, host'un yerleştirdiği yüzeyi adlandırır.",
-    "description": "Adı, ve taşınan bir alt ağacın geri kalanından ayırt edilmesi gerektiğinde ata zinciri okunur (`../webgpu/pages/render/transform.ts`); başka hiçbir şey değil.",
-    "members": {
-      "name": "Host'un onun için adı.",
-      "parent": "Bir dolaşım çıktığında, ebeveyni."
-    }
+    "summary": "Kimliğe göre tutulan bir host mesh'i: çizim kaydı, şeffaflık tablosu ve seçim setleri, host'un yerleştirdiği yüzeyi adlandırır."
   },
   "HostNode": {
-    "summary": "Kimliğe ve bir dolaşımın ihtiyaç duyduğu iki alana göre tutulan, host sahne grafiğinin bir düğümü.",
-    "members": {
-      "name": "Host'un onun için adı.",
-      "visible": "Çizilip çizilmediği."
-    }
+    "summary": "Kimliğe ve bir dolaşımın ihtiyaç duyduğu iki alana göre tutulan, host sahne grafiğinin bir düğümü."
   },
   "HostNodeMatrix": {
     "summary": "Aynı on altı float, terim terim YAZILABİLİR: bir sınırın bir host düğümüne ya da geri yüklediği bir host kamerasına geri koyduğu poz.",
@@ -1474,44 +1411,16 @@
     "summary": "Bir motorun içine çizdiği host görüntü grafiği: neyi tuttuğu, nasıl dolaşıldığı, ve kompozisyonun okuduğu temizleme rengi.",
     "description": "Onu inşa etmek bir host sınırının işidir; birine yazmak, `HostDrawScene`.",
     "members": {
-      "name": "Host'un onun için adı.",
-      "visible": "Çizilip çizilmediği.",
       "traverse": "Kendini, sonra alt ağacı ziyaret eder.",
       "background": "Görselin arkasını neyin doldurduğu.",
       "children": "Tepesindeki düğümler."
     }
   },
   "HostTexture": {
-    "summary": "Bir host dokusu: host'un çözdüğü görsel ve bildirdiği örnekleyici durumu, o da kimliğe göre tutulur.",
-    "description": "Pikselleri `unknown` kalır: yalnızca onları yükleyen sınır kabını bilir.",
-    "members": {
-      "isTexture": "Host tarafından, örnekleyicisinin okuduğu nesnelerde yükseltilir: bir dokuyu, motorun numaralandırmadığı slotlarına sahip başka herhangi bir malzeme alanından ayıran şey.",
-      "uuid": "Dokuya özgü bir ad.",
-      "name": "Host'un onun için adı.",
-      "version": "Her içerik değişikliğinde host tarafından artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",
-      "image": "Çözülmüş resim, host'un kendi kabında.",
-      "channel": "Örnekleyicinin okuduğu UV seti, `KHR_texture_transform`'un `texCoord`'u.",
-      "wrapS": "Host'un sabiti olarak, yatayda nasıl tekrarlandığı.",
-      "wrapT": "Host'un sabiti olarak, dikeyde nasıl tekrarlandığı.",
-      "magFilter": "Daha büyük gösterildiğinde filtre.",
-      "minFilter": "Daha küçük gösterildiğinde filtre.",
-      "anisotropy": "Eğik açıda keskinlik.",
-      "flipY": "Yüklemede satırların çevrilip çevrilmediği.",
-      "premultiplyAlpha": "Rengin alfa ile önceden çarpılıp çarpılmadığı.",
-      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
-      "colorSpace": "Sayılarının nasıl okunduğu.",
-      "matrix": "Örnekleyicinin UV dönüşümü, üç satıra bileşik `KHR_texture_transform`; host, güncellemeye sahip olduğunda onu offset, repeat ve rotation'dan yeniden hesaplar.",
-      "matrixAutoUpdate": "Host'un `matrix`'i yeniden inşa edip etmediği.",
-      "updateMatrix": "`matrix`'i offset, repeat ve rotation'dan yeniden inşa eder."
-    }
+    "summary": "Bir host dokusu: host'un çözdüğü görsel ve bildirdiği örnekleyici durumu, o da kimliğe göre tutulur."
   },
   "HostTraversable": {
-    "summary": "Motorun dolaştığı bir host düğümü: altındaki alt ağaç, önce kendisi, host'un kendi sırasında.",
-    "members": {
-      "name": "Host'un onun için adı.",
-      "visible": "Çizilip çizilmediği.",
-      "traverse": "Kendini, sonra alt ağacı ziyaret eder."
-    }
+    "summary": "Motorun dolaştığı bir host düğümü: altındaki alt ağaç, önce kendisi, host'un kendi sırasında."
   },
   "HostVector": {
     "summary": "Host'un sakladığı ve bir sınırın geri koyduğu şekliyle bir pozun üç sayısı.",
@@ -1617,28 +1526,26 @@
       "maxLightsPerTile": "Bir ekran karosunun tuttuğu ışıklar; piksel döngüsü bu sayıyla sınırlıdır (X2).",
       "tileSize": "Işık listesinin bir ekran karosunun piksel cinsinden kenarı.",
       "samplesPerPixel": "HAREKETLİ bir görselin pikseli başına tamamen gölgelendirilen — gölge okuması dahil — ışıklar (X2): diğerleri gölgeleri olmadan tartılır, ve gölgelendirilenler orantılı olarak çizilir, bu yüzden tahmin yansız kalır ve zamansal kenar yumuşatma onu ortalar. Sabit bir görsel, karosunun her ışığını gölgelendirir ve tam toplama yakınsar; orada bu sayının hiçbir rolü yoktur.",
-      "shadowUpdatesPerFrame": "Kare başına en fazla gölge bölgesi: tampon tavanı, asla bir kalite ayarı değil. Milisaniye bütçesi neredeyse her zaman önce durur; bu tavan yalnızca nihai bir sınırdır, ve GPU saati olmayan bir cihazdaki tek sınırdır.",
-      "shadowPage": "Gölge atlası sayfasının teksel cinsinden kenarı: bir yüzün geçersiz kılma hücresi. Hareketli bir nesne yalnızca izdüşürülmüş kutusunun kapladığı sayfaları eskitir, asla tüm yüzü değil.",
+      "shadowPage": "Bir gölge sayfasının kenarı, texel olarak: fiziksel havuzun, sanal haritaların ve geçersiz kılmanın birimi. Hareket eden bir nesne yalnızca izdüşen kutusunun kapladığı sayfaları eskitir.",
       "shadowBudgetMs": "Gölge aşaması bütçesi, kare başına GPU milisaniyesi cinsinden (X4, RX3). Bunun ötesinde geçersiz kılınan sayfalar sırasını bekler; asla kaybolmazlar, ve gecikmeleri yayımlanır.",
       "shadowAgingPerFrame": "Sırada geçirilen kare başına, bir sayfanın önceliğinde beklemenin ağırlığı: açlığa karşı.",
       "shadowCostBlend": "Bir sayfanın ortalama maliyetinde bir karenin örneğinin payı: zamanlayıcının üstel yumuşatması.",
-      "shadowAtlasSize": "Derinlik gölge atlasının teksel cinsinden kenarı.",
-      "shadowSliceMax": "Bir gölge kesitinin maksimum kenarı; bir nokta ışığın yüzü alanının altıda birini kaplar.",
-      "shadowSliceMin": "Bir gölge kesitinin minimum kenarı: bunun altında, ışık kesitini inceltmeden korur.",
       "pcfTaps": "Piksel ve gölgeli ışık başına PCF örneği (X2).",
       "spotEdgeSoftness": "Bir spot koninin yumuşatılmış kenarının kosinüs birimindeki genişliği: merdivenlenmeye karşı.",
-      "sunCascades": "Bir yönlü ışığın kademeleri: en az üç, asla bir kesitin yüzlerinden fazla değil.",
-      "sunShadowFarFraction": "Kademelerin, yakın düzlemden uzağa doğru kapladığı kamera frustum'unun payı. Ötesinde, bir yüzey, düşen bir gölge olmadan aydınlatılmış kalır: tanı içinde yayımlanan, adlandırılmış bir yaklaşıklık.",
-      "sunCascadeRatioMax": "İki ardışık kademe bölme sınırı arasındaki oran: bir dikişte, teksel yoğunluğu tam olarak bu oranla değişir, ve kademeler arasındaki keskinlik sıçramasına başka hiçbir şey karar vermez. Yakın düzlem tabanı ondan çıkarılır — `gölge mesafesi / oran^kademeler`.",
       "sunFarShadowOffsetMetres": "Uzak gölge ışını başlangıcının normal boyunca ötelemesi, metre cinsinden. Yalnızca aydınlatılan yüzeyin düzlemini terk etmeye yarar; kendi kendini gölgelemeye karşı gerçek çare, aşağıdaki, ışın boyunca başlangıçtır.",
-      "sunFarShadowStartCells": "Uzak gölge ışınının kendi yönü boyunca başlangıcı, proxy hücrelerinde. Aydınlatılan nokta ince geometriden gelir, gizleyen kaba proxy'den: proxy'nin gerçek yüzeyin üzerinde oturduğu yerde, sıfırdan başlayan bir ışın, aydınlattığı yüzeyin kendisine çarpardı. Bir proxy hücresi, proxy'nin hiçbir şey söylemediği ölçektir; oradan başlamak, bir gölge uydurmadan bu sahte teması atlar. Sonuç adlandırılmıştır: ışın boyunca bir hücreden daha yakın bir gizleyen hiçbir uzak gölge taşımaz, ve o, kademelerle kalır.",
-      "sunCascadeDepthScale": "Bir kademenin yakın düzleminin, küresinin yarıçapları cinsinden geri çekilmesi: kademenin üzerinde, onunla güneş arasında olan şey, orada gölgesini düşürmek için haritaya girmelidir. Genişlik her iki tarafa iki yarıçap ekler, derinlik çapasının küreye bıraktığı boşluk (`../light-shadow/sunFaces.ts`).",
+      "sunFarShadowStartCells": "Uzak gölge ışınının kendi yönü boyunca başlangıcı, proxy hücrelerinde. Aydınlatılan nokta ince geometriden gelir, gizleyen kaba proxy'den: proxy'nin gerçek yüzeyin üzerinde oturduğu yerde, sıfırdan başlayan bir ışın, aydınlattığı yüzeyin kendisine çarpardı. Bir proxy hücresi, proxy'nin hiçbir şey söylemediği ölçektir; oradan başlamak, bir gölge uydurmadan bu sahte teması atlar. Sonuç adlandırılmıştır: ışın boyunca bir hücreden daha yakın bir gizleyen hiçbir uzak gölge taşımaz, ve o, clipmap düzeyleriyle kalır.",
       "shadowDepthBias": "Metre cinsinden gölge sapması, asla derinlik biriminde değil: bir kesitin izdüşürülmüş derinliği son derece doğrusal değildir, normalize edilmiş derinlikte bir sabit, ışığa yakın metreler ve uzakta milimetreler olurdu. Shader bu metreleri, ele alınan noktada derinliğe geri getirir.",
       "shadowSlopeBias": "`shadowSlopeBiasMax` ile sınırlanan, `tan(acos(N·L))` birimi başına metre cinsinden eğim sapması.",
       "shadowSlopeBiasMax": "En büyük eğim sapması.",
       "shadowNearFraction": "Bir kesitin yakın düzlemi: menzilin bir payı, asla bu tabandan az değil.",
       "shadowNearMin": "En yakın gölge mesafesi.",
-      "shadowNormalOffsetTexels": "Örnek noktasının normal boyunca ötelemesi, kesit tekselleri cinsinden. Bir nokta ışığın iki yüzü arasındaki dikişi kapatan ve sıyırma sivilcelerini kaldıran şey budur; metre değil teksel cinsindedir, böylece ışığın elde ettiği çözünürlükle orantılı kalır."
+      "shadowNormalOffsetTexels": "Örnek noktasının normal boyunca ötelemesi, kesit tekselleri cinsinden. Bir nokta ışığın iki yüzü arasındaki dikişi kapatan ve sıyırma sivilcelerini kaldıran şey budur; metre değil teksel cinsindedir, böylece ışığın elde ettiği çözünürlükle orantılı kalır.",
+      "shadowPagesPerFrame": "Kare başına en fazla çizilen gölge sayfaları: tampon tavanı, asla bir kalite ayarı değil. Milisaniye bütçesi neredeyse her zaman önce durur; bu tavan yalnızca son bir sınırdır ve GPU saati olmayan bir aygıtta tek sınırdır.",
+      "lampFaceSize": "Bir lamba yüzünün en ince mip düzeyinin kenarı, texel olarak: 128’lik 32 × 32 sayfa (havuz: `shadowPoolSide`).",
+      "shadowTableEntries": "Gölge sayfa tablosunun girdileri, sanal sayfa başına bir sözcük: sabit 4 MiB’lık bir tampon. On altı güneş ya da 128 noktasal ışık alır; yer bulamayan bir ışık gölgesiz kalır ve sayılır.",
+      "shadowRequestCap": "Gölgelendirmenin kare başına isteyebileceği sanal sayfalar; kalanlar sonraki karede yeniden ister.",
+      "sunLevels": "Yönlü bir ışığın clipmap düzeyleri. `L` düzeyinin texelleri `2^L` metredir ve bir piksel, texeli kendi izinden büyük olmayan düzeyi okur: on altı düzey 2^15’lik bir uzak/yakın oranını kapsar. Son düzeyin ötesinde uzak gölge devralır.",
+      "sunLevelPages": "Kamera çevresindeki bir clipmap düzeyi alanının kenar başına sayfaları. Bir kapasitedir, ayar değil: `height / tan(halfFovY)` değeri `sunLevelPages · shadowPage / 2` = 4096’yı aşmadıkça her piksel kendi yoğunluğunu okur (55° dikey alanlı 4K bir tuval); ötesinde dış pikseller sonraki düzeyi yarı yoğunlukta okur."
     }
   },
   "LOD_QUALITY": {
@@ -1774,9 +1681,6 @@
     "summary": "Sürüm 4, sabit 16×16 önizleme girdilerini değişken ilerlemeli seviyelere dönüştürür: piksel sütununun artık bir adımı yoktur, her girdi kendi bayt aralığını adlandırır.",
     "description": "Başka bir sürümdeki bir dosya tamamen reddedilir: yanlış aralığı dilimleyen bir okuyucu, bir dokunun seviyelerini başka birinde gösterirdi. Sürüm 5, bir önizleme girdisini ondan on iki kelimeye genişletir — hizmet ettiği atlas ve `textures/` altında kaç seviyenin dosya olarak pişirildiği — ve pikselleri grafik kartının mip kuralını takip eder; sürüm 4 bir okuyucu girdiler arasında yanlış adımlardı, bu yüzden bu dosyayı reddeder. Sürüm 6, her sütunu korur ve geometri tanımlayıcısında başka bir geometri sayfasını adlandırır: `WGP2` float sayfası yerine kuantalanmış `WGP3` sayfası (`geometryPage.ts`), sürüm 6 bir okuyucunun çözmede baytlarını teker teker reddedeceği; dosyayı reddetmek bunu bir kerede söyler. Sürüm 7, bir önizleme girdisini on dört kelimeye genişletir — her blok ailesinin zinciri tuttuğu düzen, ya da hiçbiri — ve iki sütun ekler: blok sıkıştırılmış kuyruklar, BC ailesi sonra ASTC, tutulan her girdinin aralığı boyutlarından çıkarılarak; sürüm 6 bir okuyucu bunları bilmezdi, bu yüzden reddeder."
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Bu çalışma zamanının okuduğu malzeme tablosunun sürümü."
-  },
   "MATH_PATH_CONTRACT": {
     "summary": "Bu raporun sözleşmesinin sürümü.",
     "description": "Onu bilmeyen bir host alanları okumaz."
@@ -1852,7 +1756,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     },
     "members": {
       "isMaterial": "Her zaman `true`: bir malzemeyi başka her şeyden ayırır.",
@@ -1874,7 +1782,11 @@
       "needsUpdate": "`material.needsUpdate = true`: onu giyen meshler yeniden boyanır.",
       "surface": "Bu malzemenin motordaki kendi fiziksel yüzey kaydı (`contracts/material.ts`). Fiziksel aile dışındaki bir tür, motorun tek aydınlatma modeline (`surfaceModel.ts`) eşlediği, adının host ailesi üzerinden çizilir.",
       "clone": "Aynı değerlere sahip, aynı türde yeni bir malzeme.",
-      "dispose": "Giyenleri unutur: silinen bir malzeme kimseyi yeniden boyamaz."
+      "dispose": "Giyenleri unutur: silinen bir malzeme kimseyi yeniden boyamaz.",
+      "physics": "Onu giyen cisimlerin fizik madde ön ayarı.",
+      "density": "kg/m³, bir cismin kütlesi için.",
+      "friction": "Fizik sürtünmesi.",
+      "restitution": "Fizik sekmesi."
     }
   },
   "MaterialParameters": {
@@ -1907,7 +1819,11 @@
       "gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "MathPath": {
@@ -2041,7 +1957,8 @@
       "primitive": "Geometrinin köşelerinin nasıl okunduğu: üçgenler, noktalar ya da çizgiler.",
       "geometry": "Mesh'in şekli; değiştirmek için başka bir geometri ayarlayın.",
       "material": "Mesh'in malzemesi, ya da grup başına bir tane; değiştirmek için başka bir tane ayarlayın.",
-      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
+      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz.",
+      "physics": "Dünya fiziğinin bir cismi olarak mesh; değilse `null`. `'static'`, `'dynamic'`, `'kinematic'` ya da seçenekler ver; şekil geometriden çıkarılır."
     }
   },
   "Mixer": {
@@ -2075,9 +1992,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: yerel matris position, rotation, scale'den yeniden oluşturulur."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Bu çalışma zamanının okuduğu düğüm tablosunun sürümü."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Bir 3×3 normal matris."
@@ -2200,7 +2114,7 @@
     "summary": "Geçmeden önce o üstünlükte ardışık çalıştırmalar: bir kaza değil, bir seri."
   },
   "POINT_FACES": {
-    "summary": "Bir kesitin yüzleri: bir nokta için altı, bir spot için bir, güneşin kademeleri."
+    "summary": "Noktasal bir ışığın diliminin yüzleri: altı."
   },
   "POINT_FACE_AXES": {
     "summary": "Shader'ın onları ana ışık ekseninden → nokta yönünden kurtardığı sırada, bir nokta ışığın altı ekseni: +X, −X, +Y, −Y, +Z, −Z.",
@@ -2586,17 +2500,6 @@
       "onProgress": "Her olayda çağrılır."
     }
   },
-  "PreparedSceneTables": {
-    "summary": "Derlenmiş bir modelin taşıdığı düğüm ve malzeme tabloları.",
-    "members": {
-      "version": "Ürün sürümü.",
-      "nodeTableVersion": "Düğüm tablosu sürümü.",
-      "materialTableVersion": "Malzeme tablosu sürümü.",
-      "nodes": "Düğümler.",
-      "materials": "Malzemeler.",
-      "textures": "Dokular."
-    }
-  },
   "Primitive-common": {
     "summary": "Derlenmiş bir modelin, sayfaları ve hiyerarşisiyle birlikte bir mesh parçası.",
     "members": {
@@ -2702,9 +2605,6 @@
       "toArray": "Dört sayı, bir liste olarak."
     }
   },
-  "RECTS_PER_SLICE": {
-    "summary": "Bir kesitin dikdörtgenleri: yüz başına `(x, y, side)`, her kesit için ayrılmış altı yüz."
-  },
   "Ray": {
     "summary": "Bir yarı doğru: başlangıç ve birim yön.",
     "members": {
@@ -2770,33 +2670,14 @@
     "summary": "\"Proxy\" önbellek ürününün sürümü.",
     "description": "Başka bir sürümün proxy'si reddedilir, asla tahmin edilmez."
   },
-  "SCENE_TABLES_FILE": {
-    "summary": "Düğüm ve malzeme tablolarını tutan dosyanın adı."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Bir bütün olarak ürünün sürümü; taşıdığı her tablo kendi sırasında sürümlenir."
-  },
   "SDK_VERSION": {
     "summary": "Bu motorun paketinin sürümü."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Bir bölge hacminin float'ları: merkez ve uzak düzlem, yüz ekseni ve yarı açı, sonra — negatif bir yarı açıyla işaretlenen bir kutu için — yarı genişlikleriyle diğer iki eksen."
-  },
-  "SHADOW_FACE_FLOATS": {
-    "summary": "Kesit tamponunda bir yüzün float'ları: matris, atlas dikdörtgeni — bir kez çizildiğinde dördüncü float'ı 1, asla 0 —, sonra dört kelime: tutulan sayfa maskesi, mevcut genişliğin bir derinliğini tutan fiziksel sayfa başına bir bit, iki kelimede sekizli satırlar, ve genişlik başlangıcının fiziksel sayfası, okumanın genişlik koordinatlarını sardığı, önce `x` sonra `y`.",
-    "description": "Girmiş ama henüz çizilmemiş bir genişlik sayfası, hâlâ uzak tarafın orada bıraktığını tutar: okumanın bunu bilmesi ve bir sonraki kademeye geri dönmesi gerekir, onu asla örneklememesi. Yalnızca bir yeniden çizimi bekleyen bir sayfa hâlâ tutulur, ve okunur."
-  },
-  "SHADOW_FACE_MASK_WORD": {
-    "summary": "Bir ışığın GPU kaydındaki gölge yüzlerinin kelimesi."
-  },
-  "SHADOW_FACE_SIDES": {
-    "summary": "Atlasın yerleştirmeyi bildiği yüz kenarları, en büyükten en küçüğe."
+    "summary": "Bir ayıklama hacminin float değerleri: merkez ve uzak düzlem, yüz ekseni ve yarım açı, sonra — negatif yarım açıyla işaretlenen bir kutu için — diğer iki eksen ve yarı uzunlukları, sonra bölgenin hangi gölge düşürücüleri çizdiğini söyleyen sözcük, onları seçen ışık kesiti görünümü ve iki dolgu."
   },
   "SHADOW_PAGE": {
-    "summary": "Teksel cinsinden, bir atlas sayfasının kenarı: bir yüzün geçersiz kılma hücresi."
-  },
-  "SHADOW_SLICE_FLOATS": {
-    "summary": "Bir kesitin float'ları: altı yüz artı bir başlık `vec4f` (yüzler, tür, kenar, dolgu)."
+    "summary": "Bir gölge sayfasının kenarı, texel olarak: havuzun, sanal haritaların ve geçersiz kılmanın birimi."
   },
   "SINGULAR_DETERMINANT": {
     "summary": "NORMALİZE EDİLMİŞ determinant üzerindeki eşik.",
@@ -2866,7 +2747,7 @@
       "isScene": "Her zaman `true`: sahne kökünü başka herhangi bir nesneden ayırır.",
       "environment": "Parlak yüzeylerin yansıttığı çevrenin bir resmi; hiçbiri için `null`.",
       "fog": "Nesneleri `near` ve `far` arasında `color`'a soldurup karıştıran sis; hiçbiri için `null`.",
-      "background": "Her nesnenin arkasındaki görseli dolduran şey: bir renk, bir resim, ya da varsayılan için `null`.",
+      "background": "Her nesnenin arkasındaki görüntüyü dolduran şey: bir renk ya da varsayılan için `null`. Bir değişiklik oturum korunarak sonraki karede görünür: burada atanan yeni bir renk ya da mevcut rengin yöntemleriyle (`set`, `setRGB`, `setHex`, `setHSL`...) yazılması. `.r`, `.g` veya `.b` alanına doğrudan yazma algılanmaz: ardından `background` değerini yeniden atayın. Bir resim ya da `getHex` içermeyen herhangi bir değer reddedilir (`UNSUPPORTED_SCENE_UPDATE`): hiçbir yol onu çizmez.",
       "load": "Derlenmiş bir modeli — manifesto URL'sini — yükler ve bu sahneye ekler.",
       "toJSON": "Sahne, sürümlü düz JSON olarak: nesneleri, şekiller onları yapan çağrıyla, malzemeler, ışıklar ve yüklenen modeller adresle; bir `camera` verilirse onun duruşu da.",
       "fromJSON": "Sahnenin içeriğini `toJSON` ile kaydedilmiş bir sahneyle değiştirir, `helper` işaretleri korunur; modelleri yüklenince tamamlanır. Başka bir biçim ya da sürüm reddedilir (`UNSUPPORTED_SCENE_FORMAT`). Biri okunurken yapılan çağrılar sırayla, birbiri ardına çalışır, her biri öncekinin bıraktığı üzerinde: iki kaydedilmiş sahne asla karışmaz."
@@ -2882,7 +2763,7 @@
   },
   "SceneLight": {
     "summary": "Bir sahne ışığı, sürüm 2.",
-    "description": "Birimler radyometrik ve doğrusaldır (P1): `color` doğrusal bir renktir ve `intensity` kesinlikle pozitif bir radyometrik yoğunluktur — bir `rect` için bir radyans. Dört tür, ve bu motorda başka hiçbir şey ışık yapmaz (P6): - `point`: bir pozisyon ve ötesinde hiçbir şeyi aydınlatmadığı metre cinsinden bir menzil; - `spot`: aynısı artı bir yön ve radyan cinsinden bir koni yarı açısı; - `directional`: güneş ya da kapalı bir gökyüzü — bir yayılma yönü, pozisyon yok ve menzil yok, her yerde aynı ışınım, ve kamerayı takip eden kademe gölgeleri; - `rect`: `position`'da ortalanmış, `direction` boyunca yayan, genişliği `right` boyunca olan, `size` metrelik tek taraflı bir dikdörtgen; gölge düşürmez (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Bir türün kullanmadığı alanlar doğrulamada reddedilir: pozisyonlu bir yönlü ışık, motorun tutmayacağı bir vaat olurdu.",
+    "description": "Birimler radyometrik ve doğrusaldır (P1): `color` doğrusal bir renktir ve `intensity` kesinlikle pozitif bir radyometrik yoğunluktur — bir `rect` için bir radyans. Dört tür, ve bu motorda başka hiçbir şey ışık yapmaz (P6): - `point`: bir pozisyon ve ötesinde hiçbir şeyi aydınlatmadığı metre cinsinden bir menzil; - `spot`: aynısı artı bir yön ve radyan cinsinden bir koni yarı açısı; - `directional`: güneş ya da kapalı bir gökyüzü — bir yayılma yönü, pozisyon yok ve menzil yok, her yerde aynı ışınım, ve kamerayı takip eden clipmap gölgeleri; - `rect`: `position`'da ortalanmış, `direction` boyunca yayan, genişliği `right` boyunca olan, `size` metrelik tek taraflı bir dikdörtgen; gölge düşürmez (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Bir türün kullanmadığı alanlar doğrulamada reddedilir: pozisyonlu bir yönlü ışık, motorun tutmayacağı bir vaat olurdu.",
     "members": {
       "id": "Işığın adı.",
       "kind": "Nokta, spot, güneş ya da dikdörtgen.",
@@ -2933,7 +2814,11 @@
     "members": {
       "pose": "Bir düğüm hareket etti.",
       "structure": "Bir düğüm çocuk kazandı ya da kaybetti.",
-      "content": "Bir düğümün şekli ya da malzemesi değişti."
+      "content": "Bir düğümün şekli ya da malzemesi değişti.",
+      "posed": "Birçok düğüm aynı anda hareket etti, doğrudan ağaçlarına yazıldı (fiziğin cisimleri): bir kez bildirilir.",
+      "seat": "Düğümün çizildiği satır ya da `null`: `batch.rows.matrices` içinde `row * 16` konumundan başlayan, sütun sıralı on altı sayı; çizici bunları yerinde okur. Düğümleri binlerce yerleştiren (fizik) dünya matrislerini oraya kendisi yazar, `seatEpoch` değişmediği sürece geçerlidir, yazdığı satırları `placed` ile bildirir.",
+      "seatEpoch": "Bir satır alındığında, bırakıldığında ya da yeniden ayrıldığında değişir: `seat`in önceki her yanıtı eskir.",
+      "placed": "`batch` içindeki `from`–`to` satırları `seat` üzerinden yazıldı: bir sonraki karede çizilir."
     }
   },
   "SceneNode": {
@@ -3043,8 +2928,8 @@
     "members": {
       "lightsActive": "Karenin aydınlattığı `SceneLight` sözleşme ışıkları. Onları yok sayan bir motorda null.",
       "lightsSampled": "Bu karenin aydınlatmasının örneklenen modunda çalıştığında doğru — bir geçmişin üzerinde biriken hareketli bir görsel, `samplesPerPixel`'den fazla ışığı olan bir pikselin çizilen bir alt kümeyi gölgelendirdiği —, sabit bir görselin yaptığı gibi her pikselin her ışığı gölgelendirdiğinde yanlış. Işıkları yok sayan bir motorda null.",
-      "shadowsUpdated": "Bu kare tarafından yeniden çizilen, en fazla zamanlayıcının yayımlanmış tavanı kadar gölge kesitleri. Sıfır, sabit bir sahnenin normal değeridir: sabit bir ışık kesitini korur.",
-      "shadowFacesDrawn": "Gölge geçişinin yeniden çizdiği şey: yüzler (görünümler) ve gerçekte kodlanan çizim çağrıları. Bu, geri kalanından ayrılmış, gölgeli ışık başına maliyettir. Hiçbir gölge çizmeyen bir motorda null.",
+      "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
+      "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
       "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
@@ -3052,28 +2937,43 @@
       "shadowWaitMs": "Ne kadar süre bekledikleri.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
-      "gpuLightingMs": "Aydınlatmanın GPU süresi."
+      "gpuLightingMs": "Aydınlatmanın GPU süresi.",
+      "shadowLightCuts": "Işıklardan yürütülen küme kesitleri: çizilen ışık görünümü başına bir, durağan bir karede sıfır.",
+      "shadowPagesRequested": "Görüntünün okuduğu sanal gölge sayfaları, son istek raporunun adlandırdığı biçimde: kameranın alıcılarının işaretledikleri.",
+      "shadowPagesCached": "Bunlardan doğrudan havuzdan okunan sayfalar: güncel, çizim yok.",
+      "shadowPoolPages": "Sabit havuzun sanal bir sayfa tutan fiziksel sayfaları.",
+      "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
+      "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
+      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
     }
   },
   "ShadowPlan": {
-    "summary": "Bu karede hangi gölge bölgelerinin çizildiği, ve hangilerinin beklediği.",
+    "summary": "Karenin gölge işi: hangi sanal sayfaların çizildiği ve hangilerinin beklediği.",
     "members": {
-      "slices": "Gölge kesitleri.",
-      "regions": "Gölge bölgeleri.",
-      "budget": "Zaman bütçesi.",
-      "coverage": "Her ışığın neyi kapladığı.",
-      "counts": "Tanı için sayımlar.",
-      "worldChanged": "Bir düğüm hareket etti: kutusu, zamanlayıcının bir sonraki karede tüketeceği listeye girer.",
-      "representationChanged": "Başka bir hassasiyette aynı dünya — ayrıntı seviyesi, yerleşiklik, renk karosu —: kutusu kameranın durmasını bekler, sonra listeye girer (`changes.ts`).",
-      "deferredChanges": "Bir temsil değişikliği kameranın durmasını beklerken doğru: bir plan onu tüketmeden önce kare tutulmamalıdır.",
-      "releaseDeferred": "Kare hiçbir gölge planlamaz — atlas yok, ışık yok, ışıksız görünüm —: tutulan birleşim, kareyi tutmaktan alıkoymak yerine, bir sonraki planın onu okuduğu listeye hemen girer.",
-      "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, yeniden çizdiği sayfalara bildirilir.",
-      "setBudgetMs": "Host tarafından yayımlanan bütçe; sonlu olmayan ya da negatif bir değer, yuvarlanmadan reddedilir.",
-      "setPageInvalidation": "Sayfa başına geçersiz kılmayı kapatır: dokunulan her yüz tamamen yeniden başlar. Varsayılan olarak açık.",
-      "pageInvalidation": "Yeniden çizilecek sayfalar.",
-      "plan": "Bu karenin bölgelerini seçer. Sayılarını döndürür; `plan.regions` onları teker teker betimler, ve kapladıkları sayfalar kuyruktan zaten kaldırılmıştır.",
-      "reissue": "Bu karenin bölgeleri kodlanamadı: sayfaları kuyruğa geri döner. Zamanlayıcı ve geçiş yalnızca bu liste üzerinden konuştuğu için kabulde onu terk etmişlerdi; geçiş hiçbir şey çizmezse, kuyruğun onları yeniden bulması gerekir.",
-      "reset": "Yeniden başlar."
+      "budget": "Gölgeler aşamasının milisaniye bütçesi ve bir sayfanın ölçülen maliyeti.",
+      "counts": "Son planın yaptığı, sayfa olarak.",
+      "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
+      "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
+      "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
+      "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan birleşim hemen listeye girer.",
+      "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, çizdiği sayfalara bölünmüş.",
+      "setBudgetMs": "Ana makinenin yayımladığı bütçe, kare başına GPU milisaniyesi.",
+      "setPageInvalidation": "Sayfa başına geçersiz kılmayı kapatır: hareket eden bir nesne dokunduğu ışıkların her sayfasını eskitir. Varsayılan olarak açık.",
+      "pageInvalidation": "Hareket eden bir nesnenin yalnızca kutusunun kapladığı sayfaları eskitip eskitmediği.",
+      "plan": "Bir kare planlar: hareket edeni eskitir, son raporu okur, çizilecek sayfaları kabul eder.",
+      "reissue": "Karenin sayfaları kodlanamadı: eski kalırlar ve sonraki kareyi beklerler.",
+      "reset": "Yeniden başlar.",
+      "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik (`thresholds.ts`).",
+      "table": "Sayfa tablosu: sanal sayfa başına bir sözcük ve her ışığın içinde tuttuğu aralık.",
+      "pool": "Havuzun fiziksel sayfaları ve her birinin tuttuğu sanal sayfa.",
+      "sun": "Her güneşin clipmap’i: çerçevesi, derinlik aralığı, en ince düzeyi ve alanları.",
+      "records": "Gölge dilimleri, gölge düşüren her ışık için bir tane.",
+      "requests": "Geri okunan istek raporları: sonuncusunun adlandırdığı, ayırdığı ya da reddettiği.",
+      "admission": "Bu karenin sayfaları, kabul sırasına göre.",
+      "stamp": "Gölgelendirme, ışıklar ve görünümün sonraki görüntüye verdiği: bununla damgalanmış ve yeni hiçbir şey adlandırmayan bir rapor, görüntünün yalnızca çizileni okuduğunu kanıtlar.",
+      "settled": "Bir rapor mevcut durumun hiçbir şey istemediğini kanıtladığında doğru: görüntü tutulabilir.",
+      "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
+      "commit": "Karenin sayfaları kodlandı, her biri kendi `modes` girdisinde: çizimleri, onları bir şey okumadan önce tamamlanır."
     }
   },
   "ShadowViewpoint": {
@@ -3084,7 +2984,8 @@
       "halfFovY": "Dikey açıklığının yarısı.",
       "aspect": "Genişliğin yüksekliğe oranı.",
       "near": "En yakın mesafe.",
-      "far": "En uzak mesafe."
+      "far": "En uzak mesafe.",
+      "pixelNear": "Yakın düzlemde bir pikselin dünya boyutu: görünümün bir pikselinin sahip olduğu en ince iz."
     }
   },
   "Shape": {
@@ -3374,22 +3275,11 @@
       "roughnessMap": "Pürüzlülük görseli.",
       "normalMap": "Normal görseli.",
       "aoMap": "Ortam gizlenme görseli.",
-      "emissiveMap": "Parlama görseli."
-    }
-  },
-  "TableNode": {
-    "summary": "Çizilen bir primitif: onu taşıyan düğüm, dünya pozu, giydiği yüzey ve aynı primitifin kopyaları arasındaki sırası — burada instancing budur, birkaç düğüm tarafından adlandırılan bir geometri.",
-    "description": "`bounds`, kaynak geometrinin dünya kutusudur; otonom sahne onun yerine yozlaşmış üçgenler yayımlar, bu yüzden bu, önbelleğin yanıtıdır, yükleyicinin değil.",
-    "members": {
-      "name": "Düğümün adı.",
-      "node": "Düğümün numarası.",
-      "parent": "Ebeveyninin numarası.",
-      "mesh": "Mesh'inin numarası.",
-      "primitive": "Primitifinin numarası.",
-      "material": "Malzemesinin sırası.",
-      "instance": "Hangi kopya olduğu.",
-      "matrix": "Dünya matrisi.",
-      "bounds": "Dünya kutusu."
+      "emissiveMap": "Parlama görseli.",
+      "kind": "Ana makinenin kurduğu yüzey: ışıksız, standart ya da fiziksel bir uzantı bildirildiğinde fiziksel.",
+      "alphaMode": "Alfanın nasıl okunduğu: yok sayılır, `alphaTest` değerinde kesilir ya da karıştırılır.",
+      "opacity": "Temel renk çarpanının alfası.",
+      "extensions": "Fiziksel uzantıların eklediği, ana makinenin parametre adlarıyla: bir çarpan, bir renk ya da bir aralık sayılar olarak, bir harita yuva olarak."
     }
   },
   "TableTexture": {
@@ -3399,7 +3289,9 @@
       "wrapS": "Yatayda tekrar.",
       "wrapT": "Dikeyde tekrar.",
       "magFilter": "Daha büyükken filtre.",
-      "minFilter": "Daha küçükken filtre."
+      "minFilter": "Daha küçükken filtre.",
+      "name": "Adı.",
+      "sampler": "Bildirdiği glTF örnekleyicisinin sırası, yoksa `null`."
     }
   },
   "TableTextureSlot": {
@@ -3407,7 +3299,8 @@
     "members": {
       "texture": "Hangi doku.",
       "texCoord": "Hangi UV seti.",
-      "transform": "UV dönüşümü, 3×3."
+      "transform": "UV dönüşümü, 3×3.",
+      "slotTexCoord": "Yuvanın herhangi bir dönüşümden önce kendisinin adlandırdığı UV kümesi: ilkinden başka birini adlandıran bir yuva, dokusunun hiçbir sıraya karşılık gelmeyen bir kopyasından çizilir."
     }
   },
   "TelemetryReport": {
@@ -3454,6 +3347,8 @@
       "id": "İçe aktarılan sahnedeki dokunun kimliği: bir önbellek anahtarının ve bir mesajın onu adlandırdığı şey.",
       "name": "Kaynak dosyanın verdiği ad, hiçbiri vermediğinde boş; yalnızca mesajlar tarafından okunur.",
       "version": "Tekseller her değiştiğinde artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",
+      "sampling": "Adresleme, filtreler veya anizotropi değiştiğinde artar: örnekleyici yeniden ayarlanır.",
+      "placement": "`transform` değiştiğinde artar: yerleşim yeniden yazılır, hiçbir şey yüklenmez.",
       "image": "Çözülmüş görsel. Kabı `unknown` kalır: yalnızca onu yükleyen sınır bilir.",
       "channel": "Örnekleyicinin okuduğu UV seti, `KHR_texture_transform`'un `texCoord`'u; motor 0 ve 1'i örnekler.",
       "wrapS": "Yatayda tekrar.",
@@ -3486,7 +3381,9 @@
       "flipY": "Görselin okunurken baş aşağı çevrilip çevrilmediği.",
       "anisotropy": "Görselin eğik açıda ne kadar keskin kaldığı.",
       "channel": "Dokunun geometrinin hangi UV setini takip ettiği.",
-      "version": "Her yazmada artırılır: bir malzemenin yeniden örneklemek için karşılaştırdığı şey.",
+      "version": "Resmin veya nasıl okunduğunun yazılmasıyla artar: bir malzemenin resmi yeniden göndermek için karşılaştırdığı şey.",
+      "sampling": "Adresleme, filtreler veya anizotropi yazıldığında artar: yeniden ayarlanır, hiçbir şey gönderilmez.",
+      "placement": "`repeat`, `offset` veya `rotation` yazıldığında artar: yeniden yerleştirilir, hiçbir şey gönderilmez.",
       "image": "Görselin kendisi: bir görsel, bir canvas, bir video ya da ham pikseller.",
       "layout": "Görselin pikselleri dışında ne tuttuğu: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Her pikselin nasıl saklandığı: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -3906,7 +3803,10 @@
       "headBob": "Yalnızca karakter: tempolu bir koşuda her adımda gözün yükselip alçaldığı metre; varsayılan olarak 0,035, 0 düz tutar.",
       "landingDip": "Yalnızca karakter: yere değmeden gözün iniş dalışının en düşük noktasına kadar geçen, çarpma ne kadar hızlıysa o kadar derin olan saniye; varsayılan olarak 0,06, 0 kapatır.",
       "onLand": "Yalnızca karakter: m/s cinsinden aşağı hızla, inişte çağrılır; varsayılan olarak `null`.",
-      "onJump": "Yalnızca karakter: gövde bir zıplamada yerden ayrıldığında çağrılır; varsayılan olarak `null`."
+      "onJump": "Yalnızca karakter: gövde bir zıplamada yerden ayrıldığında çağrılır; varsayılan olarak `null`.",
+      "mass": "Yalnız karakter, fizikle: gövdenin üstünde durduğu yere bastırdığı kilogram; varsayılan 80.",
+      "pushStrength": "Yalnız karakter, fizikle: gövdenin cisimleri ittiği newton; varsayılan 250, bir yetişkinin sürekli itişi.",
+      "vehicle": "Yalnız araç: `'vehicle'` kontrollerinin sürdüğü şey — `drive(input)` sahibi her şey; tuşlar her değiştiğinde gaz, fren, direksiyon ve el frenini alır. Varsayılan `null`; öyle kaldıkça `kind = 'vehicle'` `NO_VEHICLE` fırlatır."
     }
   },
   "world.renderer": {
@@ -3934,14 +3834,16 @@
       "geometryPoolCeiling": "Bir dünyanın isteyebileceği en büyük havuzlar: motorun başlangıç bütçeleri.",
       "texturePoolCeiling": "Bir dünyanın isteyebileceği en büyük doku havuzu, bayt cinsinden.",
       "geometryPool": "Geometri sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
-      "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın."
+      "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
+      "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır."
     }
   },
   "world.diagnostic": {
-    "summary": "Sayfanın tuttuğu şey: mod, okunur ve yazılır.",
+    "summary": "Sayfanın tuttuğu şey: görünüm modu, okunur ve yazılır; açılan oturumlar ve sonuncusunun neden başarısız olduğu, yalnızca okunur.",
     "members": {
       "mode": "Görünüm modu: normal görsel için `'beauty'`, ya da motorun nasıl çalıştığını gösteren bir mod.",
       "sessions": "Dünyanın şimdiye kadar açtığı oturumlar: birini yeniden açan bir değişiklik burada görünür.",
+      "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU aygıtını kaybettiğinde `WEBGPU_LOST`) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`. Belgelenmiş kodlu bir `EngineError` fırlatılanın kendisidir; diğer her hata dönüştürülür ve fırlatılan hata o zaman `details.cause` içindedir. Her açılışın başından itibaren ve hiçbir şey denenmediğinde `null`.",
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
   },
@@ -3986,12 +3888,11 @@
     "description": "`'firstPerson'` bir kamerayı hareket ettirir; `'character'` bir gövdeyi — kütle, yer çekimi, zıplamalar, `world.controls.colliders` ile çarpışmalar — hareket ettirir ve gözlerinden bakar."
   },
   "WorldFrameMetrics": {
-    "summary": "Bir sayfanın okuduğu adlarla bir karenin metrikleri; yolun saymadığı yerde `null`.",
+    "summary": "Ana makinenin motordan kopyaladığı biçimiyle bir görselin ölçümleri ve bir sayfanın bunlardan birleştirerek okuduğu iki değer; yolun saymadığı yerde `null`.",
     "members": {
       "rafIntervalMs": "İki kare arasındaki süre.",
       "cpuFrameMs": "Karenin CPU süresi.",
       "cpuSubmitMs": "İşi göndermek için CPU süresi.",
-      "gpuMs": "Karenin GPU süresi.",
       "drawCalls": "Motorun saydığı şekliyle bu karenin çizim çağrıları. Onları saymadığında `null`: bir sıfır, çizimsiz bir kare olarak okunurdu.",
       "autonomousClusterDrawsTotal": "Bu oturumda motora ait WebGL2 programı tarafından yayımlanan sayfalanmış cluster çizimleri.",
       "autonomousCopyDraws": "Motora ait WebGL2 programının bu karede çizdiği sahne kopyaları — geçirgen yüzeyler.",
@@ -4024,7 +3925,7 @@
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
-      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez.",
+      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti, eksi `uncoveredTriangles`'ın saydığı, yerleşik sayfası olmayan cluster'lar. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). `uncoveredTriangles` ile aynı geçişte, kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir. Bu örnekte beklenen kapsama ilişkisi: `selected − drawn − uncovered = 0`.",
@@ -4039,8 +3940,8 @@
       "pagePlanMs": "Varışları planlamaya harcanan süre.",
       "lightsActive": "Karenin aydınlattığı `SceneLight` sözleşme ışıkları. Onları yok sayan bir motorda null.",
       "lightsSampled": "Bu karenin aydınlatmasının örneklenen modunda çalıştığında doğru — bir geçmişin üzerinde biriken hareketli bir görsel, `samplesPerPixel`'den fazla ışığı olan bir pikselin çizilen bir alt kümeyi gölgelendirdiği —, sabit bir görselin yaptığı gibi her pikselin her ışığı gölgelendirdiğinde yanlış. Işıkları yok sayan bir motorda null.",
-      "shadowsUpdated": "Bu kare tarafından yeniden çizilen, en fazla zamanlayıcının yayımlanmış tavanı kadar gölge kesitleri. Sıfır, sabit bir sahnenin normal değeridir: sabit bir ışık kesitini korur.",
-      "shadowFacesDrawn": "Gölge geçişinin yeniden çizdiği şey: yüzler (görünümler) ve gerçekte kodlanan çizim çağrıları. Bu, geri kalanından ayrılmış, gölgeli ışık başına maliyettir. Hiçbir gölge çizmeyen bir motorda null.",
+      "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
+      "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
       "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
@@ -4087,7 +3988,13 @@
       "geometryPoolSaturated": "Mevcut karenin havuz slot kapasitesinin ötesinde gerektirdiği sayfalar.",
       "texturePoolClamp": "Doku havuzu sınırlamasının nedeni: `minimum`, `device-limit`.",
       "hizCulled": "Gizlenme testinin bu karede gizli bulduğu cluster'lar; yolun onları saymadığı yerde `null`.",
-      "shadowPagesResident": "Bu karede bellekte tutulan gölge sayfaları; yolun hiçbiri olmadığı yerde `null`."
+      "shadowLightCuts": "Işıklardan yürütülen küme kesitleri: çizilen ışık görünümü başına bir, durağan bir karede sıfır.",
+      "shadowPagesRequested": "Görüntünün okuduğu sanal gölge sayfaları, son istek raporunun adlandırdığı biçimde: kameranın alıcılarının işaretledikleri.",
+      "shadowPagesCached": "Bunlardan doğrudan havuzdan okunan sayfalar: güncel, çizim yok.",
+      "shadowPoolPages": "Sabit havuzun sanal bir sayfa tutan fiziksel sayfaları.",
+      "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
+      "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
+      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
     }
   },
   "WorldOptions": {
@@ -4097,7 +4004,8 @@
       "interactive": "Dünyanın kendi döngüsünü çalıştırıp çalıştırmadığı: bir şey değiştiğinde çizer ve yeni bir şey olmadan 120 kareden sonra dinlenir. `false`, sayfanın `world.render()`'ı kendisinin çağırmasına izin verir.",
       "pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
-      "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur."
+      "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
+      "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir."
     }
   },
   "WorldPageSource": {
@@ -4271,10 +4179,6 @@
   "assertSceneProxy": {
     "summary": "Tek bir bayt istenmeden önce, bu motorun okuyamadığı bir proxy açıklayıcısını reddeder.",
     "description": "Açıklayıcısı olmayan bir manifesto bir hata değildir: bu, yansımadan önceki bir önbellektir, ve motor, sahip olmadığı bir geometriyi tahmin etmek yerine bunu söyler."
-  },
-  "assertSceneTables": {
-    "summary": "Tablolar, ya da adlandırılmış bir ret.",
-    "description": "Bilinmeyen bir sürüm asla tahmin edilmez: başka bir derleyici tarafından yazılmış, ya da bir tablo şekil değiştirmeden önceki bir ürün, bu okuyucunun bir sahneyi karşı karşılaştırabileceği hiçbir şey söylemez, ve onu yarı yarıya okumak bir format değişikliğini yanlış bir karşılaştırmaya dönüştürürdü."
   },
   "axisAngleQuaternion": {
     "summary": "Birim bir eksen etrafında `angle` radyanlık bir dönüşün kuaterniyonu."
@@ -4687,8 +4591,8 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Gölge zamanlayıcısı.",
-    "description": "Bir karenin işi artık \"dört ışık\" değil, **milisaniye bütçesine kadar en yüksek öncelikli bayat sayfalardır** (RX3, X4): hareket eden bir ışık ya da kademe tüm haritasını bayatlatır, hareket eden bir nesne yalnızca izdüşürülmüş kutusunun kapladığı sayfaları bayatlatır, ve bu karede reddedilen sayfalar bir sonrakini bekler — asla kaybolmazlar, gecikmeleri yayımlanır. Sabit bir sahnedeki sabit bir ışık yine de hiçbir şeye mal olmaz (X5). Tüm diziler bir kez tahsis edilir; `plan()` asla tahsis etmeyecektir."
+    "summary": "Sanal haritaların gölge zamanlayıcısı.",
+    "description": "Gölgelendirme okuduğu sayfaları kaydeder; birkaç kare sonra geri okunan raporu, eksik olanı sabit havuzdan ayırır. Hareket eden, kapladığı eşlenmiş sayfaları eskitir. Ardından bir kare, görüntünün okuduğu eski sayfaları çizer — önce kaba olanları, bir milisaniye bütçesine kadar —, kalanı bekler, asla kaybolmaz, gecikmesi yayımlanır. Gölgelendirmesi artık çalışmayan durağan bir sahne hiçbir şey istemez ve hiçbir şey çizmez. Tüm diziler bir kez ayrılır; `plan()` hiçbir şey ayırmaz."
   },
   "createTerminalProgress": {
     "summary": "Derleyicinin olaylarını takip eden, terminalde bir ilerleme çubuğu.",
@@ -4729,7 +4633,8 @@
       "options.interactive": "Dünyanın kendi döngüsünü çalıştırıp çalıştırmadığı: bir şey değiştiğinde çizer ve yeni bir şey olmadan 120 kareden sonra dinlenir. `false`, sayfanın `world.render()`'ı kendisinin çağırmasına izin verir.",
       "options.pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "options.controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
-      "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur."
+      "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
+      "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir."
     }
   },
   "crossVector3": {
@@ -4761,10 +4666,6 @@
   "depthLayerUnits": {
     "summary": "Bir katmanın bir cluster'ı kameraya DOĞRU taşıdığı donanım birimi sayısı, bir büyüklük olarak: sıfır ya da daha fazla, asla işaretli değil.",
     "description": "Her yol bu tek fonksiyonu okur ve kendi derinlik testi için ona işaret verir."
-  },
-  "desiredFaceSide": {
-    "summary": "Bir ışığın hak ettiği yüz kenarı: ekrana izdüşürülmüş menzili, atlastaki payıyla sınırlı.",
-    "description": "Tüm ekranı kaplayan ve yalnız olan bir ışık `shadowSliceMax`'i alır; otuz gölge ışığında, her biri sonuncuları kesitsiz bırakmak yerine kendi kendine küçülür. Taban `shadowSliceMin`'dir: bir şey kaldığı sürece hiçbir ışık yer darlığından kaybolmaz."
   },
   "detectCapabilities": {
     "summary": "Bu makinenin neyle çizebildiğini kontrol eder, ve çizemediğinde nedenini söyler."
@@ -4837,9 +4738,6 @@
   "exportLightingGltf": {
     "summary": "glTF ve ayrı, little-endian bir ikili tampon; adaptörler kalıcılığa sahiptir."
   },
-  "faceCountOf": {
-    "summary": "Bir ışık için gerçekten çizilen yüzler: bir nokta için altı, bir spot için bir, ve yönlü bir ışık için kademeler — asla kesit başına ayrılan altı yüzden fazla değil."
-  },
   "filter": {
     "summary": "Doku örnekleme kuralları."
   },
@@ -4860,10 +4758,6 @@
   },
   "filter.linearMipLinear": {
     "summary": "Pürüzsüz piksel, iki küçük kopya arasında karıştırılmış: en pürüzsüzü."
-  },
-  "forEachShadowFace": {
-    "summary": "Bir gölge bildiren ve bir kesit tutan her ışığın her yüzünü ziyaret eder: sayaçların, tutulan maske yayınının ve yüz başına diğer her okuyucunun paylaştığı tek tarama.",
-    "description": "Yüz sayısı ışığın türününkidir; `fn`, yayımlanmış kesitler ve yüzlerle sınırlıdır."
   },
   "frameStatistics": {
     "summary": "Kareler arasındaki sürelerden kare hızı ve pürüzsüzlük."
@@ -5473,7 +5367,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshPhysical": {
@@ -5507,7 +5405,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshBasic": {
@@ -5541,7 +5443,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshPhong": {
@@ -5575,7 +5481,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshLambert": {
@@ -5609,7 +5519,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshToon": {
@@ -5643,7 +5557,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshNormal": {
@@ -5677,7 +5595,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshMatcap": {
@@ -5711,7 +5633,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshDepth": {
@@ -5745,7 +5671,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.points": {
@@ -5779,7 +5709,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.line": {
@@ -5813,7 +5747,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.lineDashed": {
@@ -5847,7 +5785,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.sprite": {
@@ -5881,7 +5823,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.shadow": {
@@ -5915,7 +5861,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.createShader": {
@@ -6172,6 +6122,13 @@
   "object.group": {
     "summary": "Diğer nesneleri tutan, böylece birlikte hareket etmelerini sağlayan boş bir düğüm."
   },
+  "object.clone": {
+    "summary": "Bir nesnenin ve altındaki her şeyin, onunla hiçbir şey paylaşmayan bir kopyası: biçimi, malzemeleri, ışıkları ve alanları kopyalanır.",
+    "description": "Yüklenmiş bir model kopyalanmaz: onun için `null` döner ve kopyalanan bir gruba alınmaz.",
+    "parameters": {
+      "source": "Kopyalanacak nesne."
+    }
+  },
   "object.points": {
     "summary": "Bir geometrinin her köşesini bir nokta olarak çizer.",
     "parameters": {
@@ -6253,9 +6210,6 @@
   "pageDecodeWorkerCount": {
     "summary": "Çözme havuzunun boyutu: asla makinenin bildirdiği çekirdeklerden fazla değil, asla paket tavanından fazla değil, asla aktarımlarda zaten yürürlükte olan kabul sınırından fazla değil, ve en az bir.",
     "description": "Eksik ya da tam sayı olmayan bir değer, tek bir yürütücüye eşittir: hiçbir şey bildirmeyen bir platformda, paralellik uydurmayız."
-  },
-  "pageRowsOf": {
-    "summary": "Maskenin taşıyabileceğiyle sınırlı, `side` tekselli bir yüzün kenarı başına sayfalar."
   },
   "perspectiveProjection": {
     "summary": "Derece cinsinden dikey `fov`, `aspect` oranı, yakın düzlem `near`, zoom `zoom` olan bir kameranın perspektif izdüşümü."
@@ -6635,8 +6589,8 @@
     "summary": "Bir karenin okuduğu her şeyi, zaten ayarlanmış `into.world`'den ve bildirilen optikten türetir: motorun derinlik kuralındaki izdüşüm, sonra view, view-projection ve altı frustum düzlemi (`updateCameraFrame`), render karesi (`renderOrigin.ts`) ve göz."
   },
   "writeFace": {
-    "summary": "Bir yüzün view-projection matrisini `matrices`'teki slotuna, ve reject etkinse, o yüzün `rect` bölgesine karşı koyduğu hacmi yazar.",
-    "description": "İkisi de aynı eksenden ve aynı alandan başlar — tek bir hesaplama, bu yüzden farklı yönlere işaret etme riski yoktur. Bir nokta `POINT_FACE_AXES` eksenini ve 90°'yi alır; bir spot kendi yönünü ve genişletilmiş konisini alır; yönlü bir ışık, kamerayı takip eden `face` kademesini alır. Yayıcı yarıçapı, kendi payına, ne izdüşüme ne de reject'e dokunur: dışlanması tam olarak bir küredir, gölge derinliğinin yazıldığı yere yazılır, ve yükseltilmiş bir yakın düzlem ondan bir küp çıkarırdı. `rect`, normalize edilmiş koordinatlarda, yüzün yeniden çizilecek kısmıdır; varsayılan olarak `FULL_FACE`, ve hacim o zaman tam olarak sayfa başına geçersiz kılmadan öncekiyle aynıdır. Dünya küresi ne menzile ne de bu hacme dokunan bir cluster, bölgeye hiçbir şey yazamaz: izdüşüm ve makas onu zaten reddederdi. Bu yüzden reject tamdır, asla bir kalite yaklaşıklığı değildir — bölge bir teksel bile değişmez."
+    "summary": "Bir lamba yüzünün görünüm-izdüşüm matrisini `matrices` içindeki yerine yazar ve ayıklama etkinse, o yüzün `rect` dikdörtgenine karşı koyduğu hacmi.",
+    "description": "İkisi de aynı eksenden ve aynı alandan başlar — tek bir hesap, bu yüzden farklı yönlere nişan alma riski yoktur. Bir nokta `POINT_FACE_AXES` eksenini ve 90°’yi alır; bir spot kendi yönünü ve genişletilmiş konisini alır. Yayıcının yarıçapı ne izdüşüme ne ayıklamaya dokunur: dışlaması tam olarak bir küredir, gölge derinliğinin yazıldığı yere yazılır. `rect`, yüzün çizilecek kısmıdır, normalleştirilmiş koordinatlarda; varsayılan `FULL_FACE`. Dünya küresi ne menzile ne bu hacme dokunan bir küme buraya hiçbir şey yazamaz: izdüşüm ve viewport onu zaten reddederdi, bu yüzden ayıklama kesindir."
   },
   "BeforeFrameInfo": {
     "summary": "Bir kare-öncesi kancasının aldığı şey: kontrolcülerin az önce entegre ettiği saniyeler, ve dünyanın başlangıcından bu yana geçenler.",
@@ -6898,5 +6852,432 @@
   "raycast": {
     "summary": "`roots` altında `ray`'in karşılaştığı her nesne, en yakını önce, nesne başına bir isabet: kendisinin en yakını.",
     "description": "Yön girişte birim vektöre çevrilir, bu yüzden sayfa hangi uzunluğu vermiş olursa olsun her `distance` dünya birimindedir. Gizli alt ağaçlar atlanır — gizli bir atanın altındaki kök de — ve `skip`'in adlandırdığı düğümler de alt ağaçlarıyla birlikte: bir sayfanın çalıştığı işaretler, asla içeriği."
+  },
+  "world.physics": {
+    "summary": "Fiziğin cisimleri, yerçekimi ve zamanı (Jolt, bir worker içinde).",
+    "members": {
+      "enabled": "Cisimlerin benzetilip benzetilmediği. İlk açılışta fizik yüklenir.",
+      "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
+      "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
+      "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
+    }
+  },
+  "ContactEvent": {
+    "summary": "Bir temasın dinleyicilerine verdiği: diğer nesne, itme ve dokunduğu yer.",
+    "members": {
+      "other": "Dokunulan nesne; sahneden çıkınca `null`.",
+      "impulse": "N·s: normal boyunca yaklaşma hızı çarpı çiftin indirgenmiş kütlesi, çözücüden önce tahmin edilir; `leave` üzerinde 0.",
+      "point": "Temas noktası, dünya çerçevesinde; `leave` üzerinde başlangıç noktası."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Bir cismin olayları: itmeyle ilk dokunuş (`contact`) ve başlayan ya da biten dokunuş."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Motorun varsayılan fizik bütçeleri.",
+    "members": {
+      "bodies": "Aynı anda her türden cisim.",
+      "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
+      "decorative": "Aynı anda dekoratif cisimler.",
+      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez.",
+      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz.",
+      "bodyPairs": "Bir adımda sınırları örtüşen cisim çiftleri. Yoğun bir yığında cisim başına yaklaşık dört tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactConstraints": "Bir adımda çözülen temas eden çiftler. Oturmuş bir yığında cisim başına yaklaşık iki tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Adlandırılmış yerçekimleri, −y boyunca m/s².",
+    "members": {
+      "earth": "Dünya’nınki.",
+      "moon": "Ay’ınki.",
+      "mars": "Mars’ınki.",
+      "none": "Yerçekimi yok."
+    }
+  },
+  "GravityInput": {
+    "summary": "Bir yerçekimi: bir ön ayarın adı ya da m/s² cinsinden bir vektör."
+  },
+  "GravityPreset": {
+    "summary": "Bir yerçekimi ön ayarının adı."
+  },
+  "ObjectPhysics": {
+    "summary": "Bir nesnenin fiziği, `obj.physics` tuttuğu gibi: cismin ne olduğunun ve ne yaptığının canlı kaydı.",
+    "description": "Yazmalar simülasyona bir sonraki adımda ulaşır; `velocity` son adımın bıraktığını okur.",
+    "members": {
+      "type": "Cisim nasıl hareket eder; değiştirmek için `obj.physics` değerini yeniden ata.",
+      "shape": "Bildirilen şekil, varsa.",
+      "sensor": "Cismin yalnızca temas bildirip bildirmediği.",
+      "ccd": "Sürekli çarpışmanın açık olup olmadığı.",
+      "decorative": "Cismin dekoratif enkaz olup olmadığı.",
+      "velocity": "Doğrusal hız, m/s, son adımın bıraktığı gibi; cismi fırlatmak için yaz.",
+      "asleep": "Cismin uyuyup uyumadığı: durgun, bir şey uyandırana dek benzetilmez.",
+      "mass": "Kilogram cinsinden kütle; `undefined` malzemenin yoğunluğu çarpı hacmi alır.",
+      "gravityScale": "Bu cisim için dünyanın yerçekimini çarpar.",
+      "friction": "Zorlanan sürtünme; `undefined` malzemeninkini alır.",
+      "restitution": "Zorlanan sekme; `undefined` malzemeninkini alır.",
+      "applyImpulse": "Cismi hemen iter, kütle merkezinden N·s cinsinden bir itme; onu uyandırır.",
+      "wake": "Cismi uyandırır, uyuyor olsun ya da olmasın.",
+      "on": "Bu cismin bir temas olayında `handler` çağırır.",
+      "listens": "Bir temas işleyicisi var mı."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "`material.physics` için adlandırılmış maddeler, yuvarlanmış el kitabı değerlerinden.",
+    "members": {
+      "wood": "Ahşap.",
+      "metal": "Çelik.",
+      "rubber": "Kauçuk.",
+      "ice": "Buz.",
+      "stone": "Taş.",
+      "glass": "Cam."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "`obj.physics` değerinin üç sözcüğü dışında kabul ettiği.",
+    "members": {
+      "type": "Cisim nasıl hareket eder.",
+      "mass": "Kilogram cinsinden kütle; verilmezse malzemenin yoğunluğu çarpı şeklin hacmi.",
+      "shape": "Çarpışma şekli; verilmezse geometriden çıkarılır.",
+      "gravityScale": "Bu cisim için dünyanın yerçekimini çarpar; 0 süzülür.",
+      "sensor": "Çarpışmadan temasları bildirir: bir tetik hacmi.",
+      "ccd": "Sürekli çarpışma, ince duvarlardan geçecek küçük hızlı cisimler için.",
+      "decorative": "Enkaz: yalnızca statik dünyayla karşılaşır ve yalnızca menzilde ve görüşteyken benzetilir. `budget.physics.decorative` ile sınırlı.",
+      "friction": "Malzemenin sürtünmesini değiştirir, 0 ve üstü.",
+      "restitution": "Malzemenin sekmesini değiştirir, 0 ile 1 arası."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Bir dünyanın fiziğinin sabit sınırları; makineden asla okunmaz.",
+    "members": {
+      "bodies": "Aynı anda her türden cisim.",
+      "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
+      "decorative": "Aynı anda dekoratif cisimler.",
+      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez.",
+      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz.",
+      "bodyPairs": "Bir adımda sınırları örtüşen cisim çiftleri. Yoğun bir yığında cisim başına yaklaşık dört tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactConstraints": "Bir adımda çözülen temas eden çiftler. Oturmuş bir yığında cisim başına yaklaşık iki tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Bir cismin dünya tarafı: `obj.physics` üzerine bir yazmanın simülasyondan istediği.",
+    "members": {
+      "rebuild": "Cismin oluşturulduğu bir ayar değişti: yeniden oluşturulur.",
+      "tune": "Sürtünme, sekme ya da yerçekimi ölçeği değişti.",
+      "listened": "Temas olayı isteğinin değişip değişmediği.",
+      "velocity": "Hız yazıldı.",
+      "impulse": "Bir itme uygulandı.",
+      "wake": "Cisim uyandırıldı."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Bir madde ön ayarının adı."
+  },
+  "PhysicsMatter": {
+    "summary": "Bir cismin maddesi: yoğunluk (kg/m³), sürtünme ve sekme.",
+    "members": {
+      "density": "kg/m³, bir cismin kütlesi için.",
+      "friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "`obj.physics` değerine verilebilecek olan."
+  },
+  "PhysicsShape": {
+    "summary": "Geometriden çıkarılan uygun değilse bir çarpışma şekli.",
+    "description": "Boyutlar nesnenin kendi çerçevesindedir, ölçeğinden önce."
+  },
+  "PhysicsStats": {
+    "summary": "Dünya fiziğinin bildirdiği: son tikin sayımları ve ayrı tutulan iki saat.",
+    "members": {
+      "bodies": "Simülasyonun tuttuğu cisimler.",
+      "active": "Son tikten sonra uyanık cisimler.",
+      "stepMs": "Sabit adım başına worker milisaniyesi, son tik: worker’ın saati, sayfanınkine asla eklenmez.",
+      "mainMs": "Son karede fiziğin aldığı sayfa milisaniyesi (`physics` CPU aşaması).",
+      "poses": "Son tikin geri gönderdiği pozlar.",
+      "events": "Son tikin geri gönderdiği temas olayları.",
+      "droppedEvents": "Fizik başladığından beri, bir adımda `budget.physics.contactEvents` sınırını aştığı için atılan `enter` olayları (`leave`leri hiç gönderilmez)."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Bir cisim nasıl hareket eder: hiç, sayfa ile (`kinematic`, karşılaştığını iterek) ya da simülasyonla."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, dünyanın fiziği.",
+    "members": {
+      "enabled": "Cisimlerin benzetilip benzetilmediği. İlk açılışta fizik yüklenir.",
+      "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
+      "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
+      "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "`createWorld(canvas, { physics })` işlevinin `true` dışında kabul ettiği.",
+    "members": {
+      "budget": "Sabit sınırlar, fizik başlarken bir kez okunur.",
+      "gravity": "Dünyanın yerçekimi: bir ön ayar ya da vektör."
+    }
+  },
+  "SHADOW_RECORD_FLOATS": {
+    "summary": "Bir ışığın gölgelendirmesinin okuduğu gölge kaydının float değerleri: altı lamba yüzü matrisi, sonra güneş düzleminin çerçevesi — `right, zNear`, `up, zFar`, `axis, 0` —, sonra her clipmap düzeyinin alan kökeni iki tamsayı olarak, sonra bir `vec4f` başlığı: yüzler (lamba) ya da düzeyler (güneş), lambanın yarım alan tanjantı ya da güneşin en ince düzeyi, lambanın yakın düzlemi ve kaydın sayfa tablosundaki ilk girdisi."
+  },
+  "ShadowRequestReport": {
+    "summary": "Gölgelendirmenin bir karede okuduğu: istediği tablo girdileri, sırasız.",
+    "members": {
+      "frame": "Raporu gölgelendirmesi yazan kare.",
+      "layoutEpoch": "O karenin okuduğu tablo düzeni (`ShadowTable.layoutEpoch`).",
+      "stamp": "O kare kodlandığında planın damgası (`ShadowPlan.stamp`).",
+      "count": "İstenen girdiler, belki `entries`’in tuttuğundan fazla: kalanlar sonraki karede yeniden ister.",
+      "entries": "İstenen girdiler, en fazla ilk `count` tanesi."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle`’ın sürebileceği her şey: girdi her değiştiğinde onu alır.",
+    "members": {
+      "drive": "Bir tuş değiştirdiğinde pedalları ve direksiyonu alır."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Sürücünün araçtan istediği: `world.controls` `'vehicle'` tuşlarının ayarladığı pedallar ve direksiyon.",
+    "description": "Aracın kendi fiziği — motor, tekerlekler, süspansiyon — bunlara yanıt verir; kontrollerin bildiği yalnızca bu sözleşmedir.",
+    "members": {
+      "throttle": "Gaz pedalı, 0 ile 1 arası.",
+      "brake": "Fren pedalı, 0 ile 1 arası.",
+      "steer": "Direksiyon, −1 tam sol ile 1 tam sağ arası.",
+      "handbrake": "El freninin çekili olup olmadığı."
+    }
+  },
+  "GraphAngles": {
+    "summary": "Aynı yönelim üç açı ve sıraları olarak; yazımlarını aynı şekilde duyurur.",
+    "members": {
+      "x": "Birinci açı, radyan cinsinden.",
+      "set": "Üç açıyı ve verildiyse sırayı yazar; bir kez duyurulur.",
+      "setFromRotation": "`q`'nun bu sıradaki açıları (çekirdeğin `Euler`'i); `quiet` değilse duyurulur.",
+      "y": "İkinci açı, radyan cinsinden.",
+      "z": "Üçüncü açı, radyan cinsinden.",
+      "order": "Üç açının döndüğü sıra; ayarlanmadıkça `'XYZ'`."
+    }
+  },
+  "GraphArray": {
+    "summary": "Bir özniteliğin tuttuğu tipli diziler."
+  },
+  "GraphAttribute": {
+    "summary": "Kendi deposuna sahip bir öznitelik: köşe başına ardışık `itemSize` sayı.",
+    "members": {
+      "kind": "Öznitelik kendi tamponuna sahiptir.",
+      "count": "Kaç köşe.",
+      "version": "`needsUpdate` ile artırılır.",
+      "array": "Depolama.",
+      "updateRanges": "Son yüklemeden beri yazılan `array` aralıkları, tek başına gönderilir.",
+      "addUpdateRange": "`start`'tan itibaren `count` sayıyı yazılmış olarak işaretler.",
+      "clearUpdateRanges": "Yüklendikten sonra yazılan aralıkları unutur.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
+    }
+  },
+  "GraphElements": {
+    "summary": "İki öznitelik türünden biri."
+  },
+  "GraphGeometry": {
+    "summary": "Bir ağın çizdiği öznitelikler, onları indeksleyen üçgen listesi, onları hareket ettiren morf hedefleri ve üzerlerinde hesaplanan yerel kutu ile küre.",
+    "members": {
+      "kind": "Kaynağın ne olduğu.",
+      "name": "Adı.",
+      "index": "Üçgen listesi ya da köşeleri sırayla çizmek için `null`.",
+      "attributes": "Köşe öznitelikleri.",
+      "morphAttributes": "Her biçim değiştiren öznitelik için, morf hedefi başına bir öznitelik.",
+      "morphTargetsRelative": "Bir morf hedefi konum değil yer değiştirme tuttuğunda doğru.",
+      "groups": "Her biri tek bir yüzeyle çizilen indeks aralıkları.",
+      "drawRange": "İndeksin çizilen aralığı.",
+      "boundingBox": "Host'un hesapladığı yerel kutu.",
+      "boundingSphere": "Hesaplandıktan ya da bildirildikten sonra yerel küre.",
+      "userData": "Geometriyi kuranın verileri için serbest alan.",
+      "getIndex": "Üçgen listesi.",
+      "setIndex": "Üçgen listesini ayarlar.",
+      "getAttribute": "Bu adı taşıyan öznitelik.",
+      "setAttribute": "Bir özniteliğe ad verir.",
+      "deleteAttribute": "Bir özniteliği unutur.",
+      "hasAttribute": "Bu adda bir özniteliği olup olmadığı.",
+      "clone": "Her tamponun, gruplarının, aralığının ve sınırlarının kopyalarını tutan bir geometri.",
+      "toNonIndexed": "Aynı üçgenleri indekssiz çizen bir geometri: her köşe kendi başına bir tepe noktası.",
+      "computeBoundingBox": "Tüm köşeler üzerinde yerel kutuyu hesaplar.",
+      "computeBoundingSphere": "Yerel küreyi hesaplar: kutunun merkezinde, en uzak köşeye kadar."
+    }
+  },
+  "GraphInterleavedAttribute": {
+    "summary": "Serpiştirilmiş bir tamponun her köşesinin `offset` konumundaki `itemSize` sayıya bakan bir öznitelik.",
+    "members": {
+      "kind": "Öznitelik paylaşılan bir tampona bakar.",
+      "data": "Baktığı tampon.",
+      "offset": "Sayılarının her köşede nerede başladığı.",
+      "array": "Öğelerin bulunduğu depo.",
+      "count": "Kaç köşe.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
+    }
+  },
+  "GraphInterleavedBuffer": {
+    "summary": "Birkaç özniteliğin baktığı tek bir depo, her `stride` sayıda bir köşe.",
+    "members": {
+      "kind": "Birkaç özniteliğin baktığı tek bir depo.",
+      "count": "Kaç köşe.",
+      "version": "`needsUpdate` ile artırılır.",
+      "array": "Depo.",
+      "stride": "Köşe başına sayı.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
+    }
+  },
+  "GraphMesh": {
+    "summary": "Çizilen bir düğüm: bir geometri ve yüzeyi ya da geometri grubu başına bir yüzey.",
+    "members": {
+      "kind": "Tek bir yerleşimde ya da birkaçında çizilir (`GraphInstancedMesh`).",
+      "morphTargetInfluences": "Geometri bildirdiğinde her morf hedefinin ağırlığı.",
+      "morphTargetDictionary": "Her morf hedefinin adına göre sırası.",
+      "geometry": "Şekli.",
+      "material": "Yüzeyi ya da geometri grubu başına bir yüzey.",
+      "updateMorphTargets": "İlk biçim değiştiren özniteliğin morf hedefi başına sıfır ağırlık, sırasıyla adlandırılmış.",
+      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
+    }
+  },
+  "GraphNode": {
+    "summary": "Grafın bir düğümü: adı, pozu, dünya matrisi, ebeveyni ve çocukları.",
+    "members": {
+      "id": "Düğümün oturumda benzersiz numarası.",
+      "kind": "Düğümün ne olduğu: grafın her okuyucusunun daralttığı şey.",
+      "name": "Host'un onun için adı.",
+      "parent": "Ebeveyni.",
+      "children": "Bu düğümün tuttuğu düğümler, sırayla.",
+      "up": "`lookAt` için hangi yönün yukarı olduğu.",
+      "position": "Nerede durduğu.",
+      "rotation": "Açı olarak nasıl döndürüldüğü.",
+      "quaternion": "Bir düğümün dönüşünün iki yüzü — motorun karşılaştırdığı kuaterniyon, ve içine kopyalanan Euler açıları — her biri kendi yazımlarını DUYURARAK: host'un zaten zincirlediği, bir hook'un değiştirmek yerine genişlettiği bir geri çağırma (`hooks.ts`). Alt çizgili iki üye, host kütüphanesinin özelidir, bu yüzden hook'un onlara ihtiyaç duyduğu yerde burada yazılırlar, ve kendi adlarını almazlar. Bu, özeli SDK'nın yayımlanmış sözleşmeler listesinin dışında tutar; onu yayımlanmış yüzeyin dışında TUTMAZ, çünkü `HostGraphNode` onu taşır. Taramanın zaten yaptığı gibi pozu kare başına karşılaştırmak, bağlantıyı kaldıracak olan şeydir — bu bu lotun işi değildir.",
+      "scale": "Nasıl gerildiği.",
+      "matrix": "Yerel matrisi.",
+      "matrixWorld": "Dünya matrisi.",
+      "matrixAutoUpdate": "Host'un kendisi `matrix`'i ayarladığında yanlış: matris pozun KENDİSİDİR ve hiçbir şey onu yeniden oluşturmaz.",
+      "matrixWorldAutoUpdate": "Hiçbir şey `matrixWorld` yazmadığında yanlış.",
+      "matrixWorldNeedsUpdate": "Yerel matris değiştiğinde ve dünya matrisi onu izlemediğinde ayarlanır.",
+      "visible": "Çizilip çizilmediği.",
+      "castShadow": "Gölge düşürüp düşürmediği.",
+      "receiveShadow": "Üzerine gölge düşüp düşmediği.",
+      "frustumCulled": "Bir işleyicinin onu görüş dışında atlayıp atlayamayacağı.",
+      "renderOrder": "Saydam şeyler arasında çizim sırası.",
+      "userData": "Motorun, host'un hiç görmediği ve yazamayacağı kendi kopyasını işaretlediği yer.",
+      "add": "`nodes`'u bu düğümün çocukları yapar; her biri önce önceki ebeveyninden alınır.",
+      "remove": "`nodes`'u bu düğümden alır.",
+      "removeFromParent": "Bu düğümü ebeveyninden alır.",
+      "clear": "Bu düğümden tüm çocukları alır.",
+      "traverse": "Düğümün altındaki alt ağaç, önce kendisi, host'un kendi sırasında.",
+      "updateMatrix": "Yerel matrisi pozdan oluşturur.",
+      "updateMatrixWorld": "Host'un kendi okuyucuları için, alt ağacın dünya matrislerini HOST GRAFİĞİNDE çözer.",
+      "updateWorldMatrix": "Bu düğümün dünya matrisini çözer; istenirse önce atalarınınkini, ardından alt ağacını.",
+      "applyMatrix4": "`m`'yi düğümün pozunun üzerine uygular, ardından pozu çarpımdan geri okur.",
+      "lookAt": "Düğümü, nokta ya da üç sayı olarak verilen bir dünya noktasına çevirir.",
+      "clone": "Aynı türde, aynı değerlerde bir düğüm; aksi söylenmedikçe çocukları da kopyalanır.",
+      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
+    }
+  },
+  "GraphNodeKind": {
+    "summary": "Grafın bir düğümünün ne olduğu: yalın bir düğüm, kök, bir grup, çizilen bir ağ (tek yerleşimde ya da birkaçında), bir göz ya da bir sahnenin bildirdiği ışıklardan biri."
+  },
+  "GraphRotation": {
+    "summary": "Yazımları `_onChangeCallback`'i çağıran bir `(x, y, z, w)` yönelimi.",
+    "members": {
+      "x": "İlk sayı.",
+      "set": "Dört sayıyı yazar; bir kez duyurulur.",
+      "copy": "Başka bir dönüşün sayılarını alır.",
+      "fromArray": "Bir listeden dört sayı okur.",
+      "setFromAngles": "`angles`'ın kendi sırasındaki dönüşü (`localTurnQuaternion`); `quiet` değilse duyurulur.",
+      "setFromRotationMatrix": "Sütunları birim uzunlukta olan sütun öncelikli bir matrisin üst 3×3'ünün dönüşü.",
+      "premultiply": "`q` ardından bu dönüş olur, `q · this`.",
+      "invert": "Ters dönüş olur.",
+      "y": "İkinci sayı.",
+      "z": "Üçüncü sayı.",
+      "w": "Dördüncü sayı."
+    }
+  },
+  "GraphSurface": {
+    "summary": "Bir yüzey: bir ailenin parametreleri, sahne aksini söylemedikçe referansın değerlerinde.",
+    "description": "Sürümü, her okuyucunun karşılaştırdığı `needsUpdate` ile artırılır.",
+    "members": {
+      "uuid": "Yüzeye özgü bir ad.",
+      "name": "Adı.",
+      "version": "Her değişiklikte host tarafından artırılır: önbelleğe alınmış bir satırın alanlarını yeniden inşa etmek için karşılaştırdığı şey.",
+      "userData": "Yüzeyi kuranın verileri için serbest alan.",
+      "kind": "Kaynağın ne olduğu; `family` hangi yüzey olduğunu söyler.",
+      "family": "Ait olduğu aile.",
+      "needsUpdate": "Bir değişiklikten sonra `needsUpdate = true`: her okuyucu alanları yeniden alır.",
+      "copy": "`source`'un her parametresini alır; renkler ve vektörler kopyalanır, dokular paylaşılır.",
+      "clone": "Aynı aileden, aynı parametrelere sahip bir yüzey.",
+      "visible": "Çizilip çizilmediği.",
+      "side": "Host'un sabiti olarak, hangi yüzler.",
+      "forceSinglePass": "Host, çift taraflı şeffaf bir yüzeyi arka sonra ön yerine tek bir geçişte çizer.",
+      "vertexColors": "Köşe renklerinin onu tonlayıp tonlamadığı.",
+      "toneMapped": "Ekran eğrisinin uygulanıp uygulanmadığı.",
+      "depthWrite": "Derinlik yazıp yazmadığı.",
+      "depthFunc": "Derinlik testinin karşılaştırması.",
+      "colorWrite": "Renk yazıp yazmadığı.",
+      "polygonOffset": "Derinliğin ötelenip ötelenmediği.",
+      "polygonOffsetFactor": "Ötelemenin eğim kısmı.",
+      "polygonOffsetUnits": "Ötelemenin sabit kısmı.",
+      "transparent": "Karışıp karışmadığı.",
+      "opacity": "Ne kadar opak olduğu.",
+      "alphaTest": "Piksellerin altında düştüğü alfa.",
+      "depthTest": "Derinlik testi yapıp yapmadığı."
+    }
+  },
+  "GraphTexture": {
+    "summary": "Bir görüntü, okunduğu örnekleyici durumu ve koordinatlarının dönüşümü.",
+    "members": {
+      "kind": "Bir dokuyu yüzeyin diğer alanlarından ayırır: çözülmüş bir resim ya da ham teksel (`image`, `{ data, width, height }` tutar).",
+      "uuid": "Dokuya özgü bir ad.",
+      "name": "Host'un onun için adı.",
+      "mapping": "Nasıl adreslendiği: bir UV kümesiyle.",
+      "channel": "Örnekleyicinin okuduğu UV seti, `KHR_texture_transform`'un `texCoord`'u.",
+      "wrapS": "Host'un sabiti olarak, yatayda nasıl tekrarlandığı.",
+      "wrapT": "Host'un sabiti olarak, dikeyde nasıl tekrarlandığı.",
+      "magFilter": "Daha büyük gösterildiğinde filtre.",
+      "minFilter": "Daha küçük gösterildiğinde filtre.",
+      "anisotropy": "Eğik açıda keskinlik.",
+      "colorSpace": "Sayılarının nasıl okunduğu.",
+      "offset": "`matrix`in neyden oluşturulduğu.",
+      "matrixAutoUpdate": "Host'un `matrix`'i yeniden inşa edip etmediği.",
+      "matrix": "Örnekleyicinin UV dönüşümü, üç satıra bileşik `KHR_texture_transform`; host, güncellemeye sahip olduğunda onu offset, repeat ve rotation'dan yeniden hesaplar.",
+      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
+      "premultiplyAlpha": "Rengin alfa ile önceden çarpılıp çarpılmadığı.",
+      "flipY": "Yüklemede satırların çevrilip çevrilmediği.",
+      "version": "Her içerik değişikliğinde host tarafından artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",
+      "userData": "Dokuyu kuranın verileri için serbest alan.",
+      "format": "Ham bir dokunun teksellerinin kanalları (`HOST_FORMAT_*`).",
+      "image": "Çözülmüş resim, host'un kendi kabında.",
+      "needsUpdate": "Bir değişiklikten sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler.",
+      "updateMatrix": "`matrix`'i offset, repeat ve rotation'dan yeniden inşa eder.",
+      "clone": "Aynı görüntü ve durumda, değişmiş olarak duyurulan bir doku.",
+      "repeat": "Kaç kez sığdığı.",
+      "center": "Dönmenin ekseni.",
+      "rotation": "Dönme, radyan cinsinden."
+    }
+  },
+  "GraphVector": {
+    "summary": "Bir pozun ya da noktanın üç sayısı: düz veri alanları ve bir denetleyicinin kullandığı işlemler.",
+    "members": {
+      "set": "Üç sayıyı yazar.",
+      "copy": "Başka bir noktanın sayılarını alır.",
+      "clone": "Bir kopya.",
+      "add": "Başka bir vektör ekler.",
+      "sub": "Başka bir vektörü çıkarır.",
+      "multiplyScalar": "Üç sayıyı ölçekler.",
+      "length": "Uzunluğu.",
+      "setLength": "Yönü korur, uzunluğu ayarlar.",
+      "distanceTo": "Bir noktaya uzaklık.",
+      "fromArray": "Bir listeden üç sayı okur.",
+      "x": "Soldan sağa.",
+      "y": "Alttan üste.",
+      "z": "Arkadan öne."
+    }
   }
 }

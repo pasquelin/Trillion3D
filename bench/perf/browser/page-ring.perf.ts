@@ -48,7 +48,7 @@ function scene({
   };
 }
 
-/** `packages/sdk-browser/src/backend/exact/requests.ts`: the ring is a second cut, at half the threshold. */
+/** `bench/witnesses/exact/requests.ts`: the ring is a second cut, at half the threshold. */
 function anneauParSeconde(input: Scene) {
   const ring = selectVisiblePages(
     input.roots,
@@ -98,7 +98,7 @@ const rare = scene({ feuilles: 2000, seed: 83, pixelError: 32 });
 
 const resC3 = await mesure({
   name: 'ring via a second cut',
-  fichier: 'packages/sdk-browser/src/backend/exact/requests.ts',
+  fichier: 'bench/witnesses/exact/requests.ts',
   cas: [
     { name: '20 000 pages, threshold 8 against 4', input: dense, size: 20000 },
     { name: '4 000 pages, threshold 32 against 16', input: rare, size: 4000 },

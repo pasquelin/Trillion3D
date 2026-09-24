@@ -125,7 +125,7 @@ pub fn mesh_scales(g: &Value, chosen: &BTreeSet<usize>) -> Result<BTreeMap<usize
 
 /// Compiled primitives of each mesh, in original order: without table, each
 /// retained node would sweep all scene primitives to find own.
-fn primitives_by_mesh(primitives: &[Value]) -> BTreeMap<u64, Vec<usize>> {
+pub(crate) fn primitives_by_mesh(primitives: &[Value]) -> BTreeMap<u64, Vec<usize>> {
     let mut by_mesh: BTreeMap<u64, Vec<usize>> = BTreeMap::new();
     for (index, primitive) in primitives.iter().enumerate() {
         if let Some(mesh) = primitive.get("mesh").and_then(Value::as_u64) {

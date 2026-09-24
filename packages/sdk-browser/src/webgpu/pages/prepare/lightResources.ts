@@ -56,6 +56,21 @@ export function shadowsFollowTextures(
 }
 
 /**
+ * The threshold the light cuts select casters at: the camera's, budget included. The plan keeps
+ * the one each page was drawn at, and redraws, once the camera rests, only the pages drawn at
+ * another (`thresholds.ts`). Returns the threshold.
+ */
+export function followLightThreshold(
+  lights: WebgpuLightState,
+  pixelError: number,
+  budgetPixelError: number,
+) {
+  const threshold = Math.max(pixelError, budgetPixelError);
+  lights.plan.setThreshold(threshold);
+  return threshold;
+}
+
+/**
  * Serves tiles requested by the previous image, except during a pose barrier: the shadow
  * drain replays the image without admitting new ones. An arriving tile invalidates every
  * map (`shadowsFollowTextures`) and the queue would never empty (#25).
@@ -93,7 +108,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
     active = wantsContractLighting(rt);
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
-  contractResources.slices = active ? lights.shadows?.sliceBuffer : undefined;
+  contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
+  contractResources.requests = active ? lights.shadows?.requestBuffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the
   // contract program alone, exactly the one from before the bounce lot.

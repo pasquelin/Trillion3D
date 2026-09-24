@@ -1,4 +1,7 @@
-import * as THREE from 'three';
+import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
+import type { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
+import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 
@@ -12,7 +15,7 @@ export function referenceAutonomousSync({
   allPages,
   shown,
 }: {
-  scene: THREE.Scene;
+  scene: GraphScene;
   allPages: PageRec[];
   shown: PageRec[];
 }) {
@@ -20,23 +23,23 @@ export function referenceAutonomousSync({
   const affichees = new Set<PageRec>();
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
-      scene.remove(asHostLibrary<THREE.Object3D>(rec.mesh));
+      scene.remove(rec.mesh);
       rec.attached = false;
     }
   };
   const attach = (rec: PageRec) => {
     if (!rec.geometry) return;
     if (!rec.mesh) {
-      const mesh = new THREE.Mesh(
-        asHostLibrary<THREE.BufferGeometry>(rec.geometry),
-        asHostLibrary<THREE.Material>(rec.material),
+      const mesh = new GraphMesh(
+        asHostLibrary<GraphGeometry>(rec.geometry),
+        asHostLibrary<GraphSurface>(rec.material),
       );
       mesh.matrixAutoUpdate = false;
       mesh.frustumCulled = false;
       mesh.renderOrder = rec.renderOrder;
       rec.mesh = mesh;
     }
-    const placed = asHostLibrary<THREE.Mesh>(rec.mesh);
+    const placed = rec.mesh;
     placed.matrix.fromArray(rec.matrix.elements);
     if (!rec.attached) {
       scene.add(placed);

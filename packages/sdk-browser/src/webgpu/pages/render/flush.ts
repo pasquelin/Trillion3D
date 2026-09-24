@@ -9,6 +9,7 @@ import { sunFarState } from '../prepare/sunFar.ts';
 import { renderWebgpuPages } from './render.ts';
 import { settlePose } from '../../tile/converge.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { sendCoverageBudget } from '../../../diagnostic/engineDiagnostic.ts';
 
 function reportProgress(rt: WebgpuPagesRuntime) {
   const { run, gpu, blendState, diag, services, context } = rt;
@@ -51,7 +52,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
 /** Reads the settled image back once per submission, logging the first readback's colours. */
 async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { run, gpu, capture, diag, context } = rt,
-    { clearColor } = rt.setup;
+    { clearColor } = run;
   if (!capture.capturePending) {
     const revision = run.imageRevision,
       [width, height] = gpu.targetSize,
@@ -105,7 +106,7 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  *  selection readback and the explicit image readback. */
 export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture, timing, diag, services } = rt,
-    { gpuDevice } = rt.setup;
+    gpuDevice = gpu.device;
   // The held-image witness is NOT removed by default: a host that drains every image would then
   // never have a held image. Every drain that actually changes the image announces it itself — a
   // texture that arrives and a page that enters or leaves residency increment the resource
@@ -128,11 +129,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   await services.bootstrapState.ensure();
   await services.residency.pending;
   if (run.coverageBudgetEvent) {
-    diag.engineDiagnostic(
-      'coverage-budget',
-      'Admission of the requested cut',
-      run.coverageBudgetEvent,
-    );
+    sendCoverageBudget(rt.context.onDiagnostic, run.coverageBudgetEvent);
     run.coverageBudgetEvent = undefined;
   }
   await timing.gpuTiming?.flush();

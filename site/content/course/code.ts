@@ -22,10 +22,12 @@ export const CHAPTERS: ChapterCode[] = [
 
 const world = createWorld('view', { controls: 'orbit' });
 const cube = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ color: '#3c8ce0' }));
+cube.position.set(0, 0.5, 0);
 world.scene.add(cube);
-world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4] }));
-world.camera.position.set(1.5, 1.2, 2.2);
-world.camera.lookAt(0, 0, 0);`,
+world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4], castShadow: true }));
+world.scene.add(light.hemisphere({ color: '#bcd4ff', groundColor: '#5a4a3c', intensity: 1 }));
+world.camera.position.set(2.2, 1.8, 3.2);
+world.camera.lookAt(0, 0.4, 0);`,
     ],
   },
   {
@@ -112,6 +114,44 @@ world.budget.texturePool = 256 * MiB; // memory for surface images
 console.log(world.budget.geometryPool); // what the engine really holds
 
 world.diagnostic.mode = 'clusters'; // paint each piece in its own colour`,
+    ],
+  },
+  {
+    id: 'make-things-fall',
+    example: 'falling-boxes',
+    code: [
+      `const world = createWorld('view', { controls: 'orbit', physics: true });
+
+const floor = object.mesh(geometry.box(40, 1, 40), material.meshStandard({ physics: 'stone' }));
+floor.physics = 'static'; // holds the others, never moves
+world.scene.add(floor);
+
+const wood = material.meshStandard({ color: '#c08a4d', physics: 'wood' });
+const box = object.mesh(geometry.box(1, 1, 1), wood);
+box.position.y = 6;
+box.physics = 'dynamic'; // gravity pulls it; its shape is the box, its mass the wood's
+world.scene.add(box);
+
+box.physics.on('contact', ({ impulse }) => console.log('bump', impulse));
+world.physics.gravity = 'moon'; // or 'earth', 'mars', 'none'`,
+    ],
+  },
+  {
+    id: 'touch-and-react',
+    example: 'walk-with-collisions',
+    code: [
+      `const world = createWorld('view', { controls: 'character', physics: true });
+
+floor.physics = 'static'; // the ground, the stairs, the walls: they never move
+platform.physics = 'kinematic'; // moved by your code, it carries what stands on it
+box.physics = { type: 'dynamic', mass: 12 }; // light enough to push
+
+let phase = 0;
+world.beforeFrame(({ delta }) => {
+  platform.position.x = Math.sin((phase += delta * 0.5)) * 4;
+  world.invalidate();
+});
+world.controls.pushStrength = 400; // newtons: push harder`,
     ],
   },
   {

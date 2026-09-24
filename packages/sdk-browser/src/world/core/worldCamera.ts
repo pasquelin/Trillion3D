@@ -3,10 +3,12 @@ import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { OrthographicBox } from '../../camera/engineCamera.ts';
+import { orthographicView } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts';
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
 import { createCharacterCameraControls } from '../../camera/controls/characterControls.ts';
+import { createVehicleCameraControls } from '../../camera/controls/vehicleControls.ts';
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts';
 import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts';
 
@@ -16,7 +18,7 @@ import { createPanZoomCameraControls } from '../../camera/controls/panZoomContro
  * `world.controls.colliders` — and looks through its eyes.
  */
 export type WorldControls =
-  'orbit' | 'fly' | 'firstPerson' | 'character' | 'trackball' | 'panZoom' | 'none';
+  'orbit' | 'fly' | 'firstPerson' | 'character' | 'vehicle' | 'trackball' | 'panZoom' | 'none';
 
 const position = new Vector3(),
   rotation = new Quaternion(),
@@ -60,6 +62,7 @@ export function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number
   into.updateMatrixWorld();
 }
 
+const view = new Float64Array(4);
 /** The host renderer's orthographic matrix — forward depth, `near` to −1 and `far` to 1 — of
  *  the box a camera sees, scaled by its zoom about the box centre, and its inverse. */
 function hostOrthographic(
@@ -68,10 +71,7 @@ function hostOrthographic(
   box: OrthographicBox,
   camera: Camera,
 ) {
-  const x = (box.right + box.left) / 2,
-    y = (box.top + box.bottom) / 2,
-    w = (box.right - box.left) / 2 / camera.zoom,
-    h = (box.top - box.bottom) / 2 / camera.zoom,
+  const [x, y, w, h] = orthographicView(box, camera.zoom, view),
     depth = camera.far - camera.near;
   out.fill(0);
   out[0] = 1 / w;
@@ -128,6 +128,8 @@ export function worldControls(kind: WorldControls, camera: Camera, surface: HTML
       return createFirstPersonCameraControls(camera, surface);
     case 'character':
       return createCharacterCameraControls(camera, surface);
+    case 'vehicle':
+      return createVehicleCameraControls(camera, surface);
     case 'trackball':
       return createTrackballCameraControls(camera, surface);
     case 'panZoom':

@@ -9,14 +9,14 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { shadingNormal } from './shadingNormal.ts';
 import { referenceShadingNormal } from '../../../../../bench/oracles/browser/shading-normals.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
 import { litMaterial } from './material.fixture.ts';
 
 const attribut = (valeurs: number[], taille: number) =>
-  new THREE.BufferAttribute(Float32Array.from(valeurs), taille);
+  new G.GraphAttribute(Float32Array.from(valeurs), taille);
 
 const materiau = (overrides: Partial<VisMaterial> = {}) =>
   litMaterial({ baseColor: [0.8, 0.6, 0.4], metalness: 0.3, roughness: 0.4, ...overrides });
@@ -28,6 +28,7 @@ function carteNormales(): Texture {
     image: { data, width: 2, height: 2 },
     wrapS: 'repeat',
     wrapT: 'clamp',
+    transform: [1, 0, 0, 0, 1, 0, 0, 0, 1],
   } as unknown as Texture;
 }
 
@@ -58,9 +59,7 @@ function assertSameNormal(page: VisPage, mat: VisMaterial, screenFace: number, l
 }
 
 test('pose whose row (1e16, −1e16, 3) is crossed by an all-ones tangent', () => {
-  const matrix = new THREE.Matrix4().fromArray([
-    1e16, 1, 1, 0, -1e16, 1, 1, 0, 3, 1, 1, 0, 0, 0, 0, 1,
-  ]);
+  const matrix = new G.Matrix4().fromArray([1e16, 1, 1, 0, -1e16, 1, 1, 0, 3, 1, 1, 0, 0, 0, 0, 1]);
   const normal = attribut([0, 0, 1, 0, 0, 1, 0, 0, 1], 3);
   const tangent = attribut([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], 4);
   const uv = attribut([0, 0, 1, 0, 0, 1], 2);
@@ -77,9 +76,7 @@ test('pose whose row (1e16, −1e16, 3) is crossed by an all-ones tangent', () =
 test('pose whose normal matrix is [[1,1,1],[0,1,0],[0,0,1]], normals (1e16,1,1)', () => {
   // 3×3 block such that transpose(inverse(block)) === [[1,1,1],[0,1,0],[0,0,1]]: checked
   // directly against `normalMatrix3` before writing this test.
-  const matrix = new THREE.Matrix4().fromArray([
-    1, -1, -1, 0, -0, 1, -0, 0, 0, -0, 1, 0, 5, -3, 2, 1,
-  ]);
+  const matrix = new G.Matrix4().fromArray([1, -1, -1, 0, -0, 1, -0, 0, 0, -0, 1, 0, 5, -3, 2, 1]);
   const normal = attribut([1e16, 1, 1, 1e16, 1, 1, 1e16, 1, 1], 3);
   const uv = attribut([0, 0, 1, 0, 0, 1], 2);
   const page = {
@@ -96,7 +93,7 @@ test('pose whose normal matrix is [[1,1,1],[0,1,0],[0,0,1]], normals (1e16,1,1)'
 });
 
 test('negative scale and shear, with no vertex normal or map: the geometric normal alone', () => {
-  const matrix = new THREE.Matrix4().fromArray([
+  const matrix = new G.Matrix4().fromArray([
     2, 0.5, 0, 0, 0, -3, 0, 0, 0.25, 0, 0.5, 0, 1, 2, 3, 1,
   ]);
   const uv = attribut([0, 0, 1, 0, 0, 1], 2);
@@ -118,7 +115,7 @@ test('negative scale and shear, with no vertex normal or map: the geometric norm
 // `packages/sdk-core/src/math/transform-tree/update.test.ts`: the identity of the returned buffer, not an allocation
 // count, attests that no buffer is built along the way.
 test('normal-mapped surface: a thousand shaded pixels in a row always return the same buffer', () => {
-  const matrix = new THREE.Matrix4().fromArray([
+  const matrix = new G.Matrix4().fromArray([
     1, 0.2, 0, 0, -0.1, 1, 0.3, 0, 0, -0.2, 1, 0, 1, 2, 3, 1,
   ]);
   const normal = attribut([0, 0, 1, 0.1, 0, 1, 0, 0.1, 1], 3);
@@ -142,7 +139,7 @@ test('normal-mapped surface: a thousand shaded pixels in a row always return the
 });
 
 test('NaN and infinities in barycentric weights and tangents, map with no vertex normal', () => {
-  const matrix = new THREE.Matrix4();
+  const matrix = new G.Matrix4();
   const uv = attribut([0, 0, 1, 0, 0.5, 1], 2);
   const page = {
     array: new Uint32Array([0, 1, 2]),

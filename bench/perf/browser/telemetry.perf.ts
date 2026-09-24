@@ -21,7 +21,6 @@ const METRIQUES_VIDES: FrameMetrics = {
   rafIntervalMs: null,
   cpuFrameMs: 0,
   cpuSubmitMs: null,
-  gpuMs: null,
   drawCalls: null,
   triangles: null,
   clusters: null,

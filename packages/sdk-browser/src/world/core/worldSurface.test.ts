@@ -1,6 +1,10 @@
 import test from 'node:test';
+import * as G from '../../host/graph/graph.fixture.ts';
 import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
+import { followHostTexture, importHostTexture } from '../../host/textureImport.ts';
+import type { HostTexture } from '../../host/resources.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 
 // #335: a repainted entry writes its values into the surface the session already holds, and the
@@ -23,4 +27,79 @@ test('a repaint writes the values hostSurface writes, and bumps the surface vers
       );
     assert.ok((surface.version as number) > version, `${kind}: the version moved`);
   }
+});
+
+// #360, #361: each counter of a map writes its own part of the host texture the surface already
+// holds, in place: a sampling or a placement its fields, read by the import at the next image, a
+// version the picture, sent again.
+const repainted = (map: Texture) => {
+  const paint = material.meshStandard({ color: 0x808080, map });
+  const surface = hostSurface(paint, false, new Map()) as unknown as Record<string, unknown>;
+  const host = surface.map as HostTexture & { version: number };
+  return { paint, surface, host, record: importHostTexture(host), version: host.version };
+};
+
+test('a repaint writes a map’s sampling and placement in place, nothing sent again', () => {
+  const map = new Texture({ width: 2, height: 2 });
+  const { paint, surface, host, record, version } = repainted(map);
+  const { sampling, placement } = record;
+  map.wrap = 'repeat';
+  map.repeat.set(4, 4);
+  map.rotation = Math.PI / 6;
+  map.magFilter = 'nearest';
+  map.minFilter = 'nearestMipNearest';
+  map.anisotropy = 8;
+  repaintHostSurface(surface as never, paint);
+  assert.equal(host.version, version, 'no picture sent again');
+  assert.equal(surface.map, host, 'the same host texture, written in place');
+  followHostTexture(record);
+  assert.equal(importHostTexture(host), record, 'the same engine record');
+  assert.deepEqual(
+    [record.wrapS, record.magFilter, record.minFilter, record.anisotropy],
+    ['repeat', 'nearest', 'nearest-mip-nearest', 8],
+  );
+  assert.deepEqual([record.sampling, record.placement], [sampling + 1, placement + 1]);
+  const [a, b, , c] = Array.from(record.transform);
+  assert.ok(Math.abs(a - 4 * Math.cos(Math.PI / 6)) < 1e-9, 'repeat and rotation composed');
+  assert.ok(Math.abs(b + 4 * Math.sin(Math.PI / 6)) < 1e-9);
+  assert.ok(Math.abs(c - 4 * Math.sin(Math.PI / 6)) < 1e-9);
+});
+
+test('a repaint sends a map’s picture again at every version, with its values', () => {
+  for (const change of [
+    (map: Texture) => (map.image = { width: 4, height: 4 }),
+    (map: Texture) => (map.flipY = false),
+    (map: Texture) => (map.colorSpace = 'linear'),
+    (map: Texture) => (
+      ((map.image as { data: Uint8Array }).data[0] = 255),
+      (map.needsUpdate = true)
+    ),
+  ]) {
+    const map = new Texture({ data: new Uint8Array(16), width: 2, height: 2 });
+    const { paint, surface, host, version } = repainted(map);
+    const surfaceVersion = surface.version as number;
+    change(map);
+    paint.color.set(0xff0000);
+    repaintHostSurface(surface as never, paint);
+    assert.ok(host.version > version, `${change}: sent again`);
+    assert.equal(host.image, map.image, 'the picture the texture shows');
+    assert.ok((surface.version as number) > surfaceVersion, 'the values written');
+    assert.equal((surface.color as G.Color).getHex(), 0xff0000);
+  }
+});
+
+// #360, #361: a placement and the pixels moved together — an atlas frame drawn and slid in the
+// same tick — take both writes: the picture sent again, and the placement composed.
+test('a repaint that moves a map’s placement and its pixels together takes both', () => {
+  const map = new Texture({ data: new Uint8Array(16), width: 2, height: 2 });
+  const { paint, surface, host, record, version } = repainted(map);
+  const sent = record.version;
+  (map.image as { data: Uint8Array }).data[0] = 255;
+  map.needsUpdate = true;
+  map.offset.set(0.5, 0);
+  repaintHostSurface(surface as never, paint);
+  assert.ok(host.version > version, 'the pixels sent again');
+  followHostTexture(record);
+  assert.equal(record.version, sent + 1, 'the record refilled, its picture to send again');
+  assert.equal(record.transform[6], 0.5, 'the offset reaches the record');
 });

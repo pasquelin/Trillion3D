@@ -1,6 +1,6 @@
 // preparing normal cones and the page catalogue.
-import * as THREE from 'three';
-import { prepareCones } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import { prepareCones } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/cones.ts';
 import {
   compteMateriauxEtTangentes,
   indexSourceBytes,
@@ -30,13 +30,13 @@ const hostiles = catalogueDePages({ pages: 400, materiaux: 8, seed: 23 }).map((r
   if (i % 11 === 0) {
     const brut = new Float32Array(192 * 4);
     for (let k = 0; k < brut.length; k++) brut[k] = alea() * 4 - 2;
-    const tampon = new THREE.InterleavedBuffer(brut, 4);
-    return { ...rec, attributes: { position: new THREE.InterleavedBufferAttribute(tampon, 3, 0) } };
+    const tampon = new G.GraphInterleavedBuffer(brut, 4);
+    return { ...rec, attributes: { position: new G.GraphInterleavedAttribute(tampon, 3, 0) } };
   }
   if (i % 13 === 0) {
     const brut = new Int16Array(192 * 3);
     for (let k = 0; k < brut.length; k++) brut[k] = Math.floor(alea() * 65536) - 32768;
-    return { ...rec, attributes: { position: new THREE.BufferAttribute(brut, 3, true) } };
+    return { ...rec, attributes: { position: new G.GraphAttribute(brut, 3, true) } };
   }
   return rec;
 });
@@ -60,7 +60,7 @@ const casPages = [
 
 const resCones = await mesure({
   name: 'page normal cones',
-  fichier: 'packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/pages/prepare/cones.ts',
   cas: casPages,
   calcul: passeCones(prepareCones),
   attendu: passeCones(referencePrepareCones),

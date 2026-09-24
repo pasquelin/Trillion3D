@@ -20,7 +20,6 @@ const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
 const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
 const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
-const SUN_CASCADES:u32=${LIGHT_SETTINGS.sunCascades}u;
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,}
 /** Every light slot, then the environment's irradiance: nine spherical-harmonic coefficients
  *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; then the fitted specular lobe

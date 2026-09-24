@@ -82,7 +82,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       type: 'boolean',
       default: true,
       description:
-        'Invalidation of shadow map pages per 128x128 page. false triggers redraw of entire cube/cascade faces.',
+        'Invalidation of shadow map pages per 128x128 page. false stales every page of each light a moving object touches.',
     },
     bounce: {
       type: 'boolean',
@@ -123,7 +123,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       enum: ['host', 'cache'],
       default: 'cache',
       description:
-        "Whether the glTF loader opens the source images: 'cache' (skipped, the engine reads the baked levels) or 'host' (decoded too, for a backend that draws the host scene). The engine reads the baked levels either way, and falls back to 'host' by itself where a mounted backend samples the host images.",
+        "Whether the prepared scene reads the source images: 'cache' (skipped, the engine reads the baked levels) or 'host' (decoded too, for a backend that draws the host scene). The engine reads the baked levels either way, and falls back to 'host' by itself where a mounted backend samples the host images.",
     },
     preload: {
       type: 'string',

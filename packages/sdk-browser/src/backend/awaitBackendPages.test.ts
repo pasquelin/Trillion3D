@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { awaitBackendPages } from './awaitBackendPages.ts';
 
 test('awaiting GPU pages resolves wanted readback, uploads pages and renders the resident cut', async () => {
@@ -23,7 +23,7 @@ test('awaiting GPU pages resolves wanted readback, uploads pages and renders the
     },
   };
   const loads: string[][] = [];
-  await awaitBackendPages(backend, new THREE.PerspectiveCamera(), async (urls) => {
+  await awaitBackendPages(backend, G.perspectiveCamera(), async (urls) => {
     loads.push(urls);
     bytes = true;
   });
@@ -50,7 +50,7 @@ test('awaiting already cached GPU bytes still settles GPU upload before the fina
       return [];
     },
   };
-  await awaitBackendPages(backend, new THREE.PerspectiveCamera(), async () => {
+  await awaitBackendPages(backend, G.perspectiveCamera(), async () => {
     assert.fail('cached bytes must not be fetched again');
   });
   assert.equal(drawn, true);
@@ -67,7 +67,7 @@ test('synchronous backends keep one selection when their pages are already avail
         return [];
       },
     },
-    new THREE.PerspectiveCamera(),
+    G.perspectiveCamera(),
     async () => assert.fail('unexpected request'),
   );
   assert.equal(renders, 1);
@@ -87,10 +87,34 @@ test('synchronous backends accept missing pages before syncing residency', async
         synced = true;
       },
     },
-    new THREE.PerspectiveCamera(),
+    G.perspectiveCamera(),
     async () => {
       loaded = true;
     },
   );
   assert.equal(synced, true);
+});
+
+test('awaitPages returns on a fixed search, its pages resident', async () => {
+  // The WebGL2 backend fixes its threshold search in `flush`, one cut a rung, before the wait
+  // asks for the pages: those of the fixed cut are then the ones loaded.
+  let rung = 0;
+  const resident = new Set<number>();
+  await awaitBackendPages(
+    {
+      render() {},
+      async flush() {
+        while (rung < 4) rung++;
+      },
+      pendingUrls() {
+        return resident.has(rung) ? [] : [`rung-${rung}`];
+      },
+    },
+    G.perspectiveCamera(),
+    async (urls) => {
+      for (const url of urls) resident.add(Number(url.slice(5)));
+    },
+  );
+  assert.equal(rung, 4, 'the search is fixed');
+  assert.deepEqual([...resident], [4], 'only the pages of the fixed cut were loaded');
 });

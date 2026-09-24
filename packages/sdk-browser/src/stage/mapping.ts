@@ -6,6 +6,8 @@ import { TAA_PASS } from '../taa/shaderWgsl.ts';
 import { LIGHT_TILES_PASS } from '../lighting/tiles/tiles.ts';
 import { REST_COMPACT_PASS } from '../gpu/raster/restCompact.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
+import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
+import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
 import type { StageAdd } from './profiler.ts';
 
@@ -58,7 +60,11 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     'Trillion3D water composite': ['transparents', 'other'],
     'Trillion3D transparent compaction': ['transparents', 'other'],
     [SHADOW_PASS]: ['shadows', 'other'],
+    [SHADOW_LAYER_PASS]: ['shadows', 'other'],
+    [LIGHT_CUT_PASS]: ['shadowCasters', 'other'],
     'Trillion3D shadow cull': ['shadows', 'other'],
+    'Trillion3D shadow page pyramids': ['shadows', 'other'],
+    'Trillion3D shadow occlusion': ['shadows', 'other'],
     [LIGHT_TILES_PASS]: ['lightLists', 'other'],
     [BOUNCE_SURFACE_PASS]: ['bounce', 'other'],
     [BOUNCE_PROBE_PASS]: ['bounce', 'other'],
@@ -77,6 +83,7 @@ export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] 
 
 /** Stages the WebGPU engine can name, in the order they occur. */
 export const WEBGPU_STAGES = [
+  'physics',
   'animations',
   'lights',
   'cutAdoption',
@@ -93,6 +100,7 @@ export const WEBGPU_STAGES = [
   'geometry',
   'coplanar',
   'shadows',
+  'shadowCasters',
   'sunFarShadows',
   'lightLists',
   'bounce',
@@ -103,6 +111,7 @@ export const WEBGPU_STAGES = [
 
 /** Stages the WebGL2 engine can name. */
 export const WEBGL_STAGES = [
+  'physics',
   'animations',
   'lights',
   'hierarchyCut',
@@ -159,4 +168,19 @@ export function directLightTimings(sample: GpuPassTimings | null | undefined) {
     gpuShadowsMs: totals.get('shadows') ?? null,
     gpuLightingMs: totals.get('lighting') ?? null,
   };
+}
+
+/**
+ * GPU duration of drawing a frame's shadow pages, or `null`: the Shadows stage and the light cuts
+ * that select the pages' casters, which run only for the pages a frame draws and grow with them.
+ * That is what the shadow budget spends its milliseconds on.
+ */
+export function shadowPagesGpuMs(sample: GpuPassTimings | null | undefined) {
+  const totals = gpuStageTotals(sample),
+    pages = totals.get('shadows'),
+    casters = totals.get('shadowCasters');
+  // An unmeasured pass voids the sum, never a partial one; a stage the frame did not run is zero.
+  if (pages === null || casters === null || (pages === undefined && casters === undefined))
+    return null;
+  return (pages ?? 0) + (casters ?? 0);
 }

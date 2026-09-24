@@ -46,6 +46,12 @@
   and compiles them), on the scene that exercises the change, in seconds to a minute. The full
   campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
   release pull request from `develop` to `main`, and its numbers are the ones published.
+- **One measuring queue per machine.** Browser proofs, GPU probes and benchmarks never run
+  concurrently: two Chrome instances pollute each other's numbers and saturate the machine. They
+  run one at a time, in one queue, on merged batches, and never block a pull request: the issue
+  closes at merge labelled `to measure`, the queue measures it against the merge's first parent
+  and comments the numbers (`measure ok`); a regression becomes a new issue labelled `measure ko`
+  and linked to the measured one. A pull request carries the fast gates and names its proof.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
   `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
   the pull request body, and the folder is removed before the pull request is opened.
@@ -64,9 +70,10 @@
   the alpha cutoff, below human discrimination at the capture resolution, and declared in the batch.
   That is GPU keep/discard on the same foliage pixel, not a residency, shadow-page or TAA bug.
   Replacing the cutoff with a hash that explodes A/A is refused (#25).
-- **A pixel cost is not a veto.** When the reference's solution costs image quality — masked foliage
-  with a hard silhouette, lossy texture compression — take it, then declare the cost, measure it, and
-  publish before/after captures in the batch. What is forbidden is an undeclared loss, not a loss.
+- **No image loss, declared or not.** An optimisation that degrades the image is refused, even
+  measured and declared: it holds the default proof above, or the tolerance this section names, or
+  it does not merge. Sole exception: fluids may lower their own quality automatically to hold their
+  budget, and say so in their diagnostics.
 
 ## Quality and evidence
 
@@ -78,7 +85,8 @@
   duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
   inspect dependants after deletions, public-export or configuration changes.
 - Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
-  TS/native builds, structure, declarations, links, JS/TS/Rust tests), then browser proof.
+  TS/native builds, structure, declarations, links, JS/TS/Rust tests). The browser proof follows
+  the merge, in the measuring queue.
 - **All wording in the repository must be in English.** Comments, docstrings, documentation,
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
@@ -108,8 +116,8 @@
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.
 - All generic Rust library/CLI code belongs in `packages/`, never numbered benchmarks.
-  `tests/integration/engine-structure.test.ts` checks core/adapter boundaries; `pnpm run check:structure` also
-  type-checks sdk-core without DOM.
+  `tests/integration/engine-structure.test.ts` checks core/adapter boundaries in the unit suite;
+  `pnpm run check:structure` type-checks sdk-core without DOM.
 - Separate `formatVersion` from `compilerVersion`; reject unknown formats and incompatible caches.
   Compiler/cache-identity changes require correctness fixtures and source provenance. Never overwrite
   source assets.
@@ -126,6 +134,7 @@
 
 ## Personal tools stay local
 
+The agent rules (`AGENTS.md`) and the agent roles (`docs/roles/`) are tool-neutral and tracked.
 Personal assistant instructions, prompts, generated knowledge indexes and local tool settings
 must remain untracked. The shared setup, validation and contribution workflow must work without
 any personal assistant or indexing tool. Do not introduce such requirements in documentation,
@@ -141,20 +150,25 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 ## Contribution workflow
 
 1. Open one issue per batch. Create a branch named `<issue>-<short-name>` from `origin/develop`
-   in an isolated worktree, then run `pnpm install`. Mark the issue `in progress`.
+   in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then
+   run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
 3. Review the diff twice: first simplify duplicated or unnecessary work, then check correctness
    against the requirements above. Fix findings and run `pnpm run check:changed`,
-   `pnpm run test:changed` and `pnpm run validate`, followed by relevant browser proof.
+   `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
+   measuring queue runs it after the merge.
 4. Commit with a descriptive English message. Open a pull request targeting `develop`, using
    `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`. Describe what both
    local review passes found under "Local review before push". Replace `in progress` with `in review`.
-5. Obtain an independent review and resolve its findings before integration. The maintainer
-   decides when to merge. Protected-branch checks and CI validation remain required; never push
-   directly to `develop` or `main`, or rewrite published history.
-6. After merge, remove the worktree and merged branch, remove `in review`, and close the issue
-   if the merge into `develop` did not close it. If a pull request is closed without merging,
-   remove both lifecycle labels; add `in progress` only if work resumes.
+5. Obtain an independent review and resolve its findings before integration. The maintainer, or
+   whoever the maintainer entrusts with it, merges once the review holds and `validate` is green on
+   a head up to date with `develop`. Never push directly to `develop` or `main`, or rewrite
+   published history.
+6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
+   an engine batch is labelled `to measure` first. Every merge into `develop` is then re-read
+   against this file; a finding becomes a new issue labelled `audit ko`, linked to the merged one.
+   If a pull request is closed without merging, remove both lifecycle labels; add `in progress`
+   only if work resumes.
 
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
 no separate release branch is needed. Use the same template and `Closes #<issue>` first line,

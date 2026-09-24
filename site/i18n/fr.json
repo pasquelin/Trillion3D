@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Un rastériseur logiciel",
       "sound-from-the-gpu": "Du son par le GPU",
       "falling-boxes": "Des boîtes qui tombent",
+      "ten-thousand-bodies": "Dix mille corps",
       "breaking-things": "Casser des objets",
       "cloth-and-rope": "Tissu et corde",
       "soft-bodies": "Corps mous",
@@ -318,7 +319,9 @@
       "hands-in-vr": "Les mains en VR",
       "teleport-in-vr": "Se téléporter en VR",
       "controllers-in-vr": "Manettes en VR",
-      "ar-on-the-table": "AR sur la table"
+      "ar-on-the-table": "AR sur la table",
+      "shadows-case-by-case": "Les ombres, cas par cas",
+      "a-walker-among-balls": "Un marcheur parmi les balles"
     },
     "missing": {
       "colours-on-the-vertices": "couleurs par sommet sous WebGPU",
@@ -478,13 +481,10 @@
       "sort-and-reduce": "API de calcul GPU",
       "a-software-rasteriser": "API de calcul GPU",
       "sound-from-the-gpu": "API de calcul GPU",
-      "falling-boxes": "intégration d’un moteur physique",
       "breaking-things": "intégration d’un moteur physique",
       "cloth-and-rope": "intégration d’un moteur physique",
       "soft-bodies": "intégration d’un moteur physique",
-      "rolling-on-terrain": "intégration d’un moteur physique",
       "hinges-and-joints": "intégration d’un moteur physique",
-      "walk-with-collisions": "intégration d’un moteur physique",
       "drive-a-car": "intégration d’un moteur physique",
       "a-room-in-vr": "session WebXR",
       "a-360-photo-in-vr": "session WebXR",
@@ -1052,6 +1052,29 @@
           "Voyez les morceaux avec <code>world.diagnostic.mode = 'clusters'</code> : chaque cluster a sa couleur."
         ],
         "tryIt": "Baissez la mémoire : les morceaux grossissent, le bâtiment reste entier. Passez la vue sur <code>clusters</code> pour les voir."
+      },
+      "make-things-fall": {
+        "title": "Faire tomber les choses",
+        "description": "Allume la physique et tes formes prennent du poids : elles tombent, se cognent et s’arrêtent.",
+        "steps": [
+          "Donne au monde <code>physics: true</code>. La simulation tourne à part du dessin, dans un <em>worker</em> : elle ne ralentit jamais l’image.",
+          "Marque le sol <code>'static'</code> : il porte les autres et ne bouge jamais. Marque une boîte <code>'dynamic'</code> : la gravité l’attire.",
+          "La forme vient de la géométrie, le poids du matériau : <code>physics: 'wood'</code> est léger, <code>'metal'</code> est lourd, <code>'rubber'</code> rebondit.",
+          "Pousse un corps avec <code>applyImpulse</code>, ou écoute son <code>contact</code>. Quand tous les corps dorment, rien n’est calculé ni dessiné.",
+          "Un modèle chargé avec <code>scene.load</code> entre en collision avec ses propres triangles, préparés à sa compilation. <code>await world.raycast(point, { exact: true })</code> trouve le triangle exact sous le curseur."
+        ],
+        "tryIt": "Lâche plus de boîtes, passe la gravité sur la Lune et active le ralenti."
+      },
+      "touch-and-react": {
+        "title": "Toucher et réagir",
+        "description": "Entrez dans votre monde : avec la physique, le personnage grimpe, se laisse porter et pousse ce qu’il rencontre, qui le repousse à son tour.",
+        "steps": [
+          "Créez le monde avec <code>controls: 'character'</code> et <code>physics: true</code>. Le personnage devient un corps de la physique, comme les caisses.",
+          "Marquez <code>'static'</code> ce qui ne bouge jamais : le sol, l’escalier, les murs. Le personnage monte les marches jusqu’à son genou et les pentes jusqu’à 45°.",
+          "Marquez une plateforme <code>'kinematic'</code> et déplacez-la depuis votre code à chaque image : ce qui se tient dessus est emporté.",
+          "Rendez des caisses <code>'dynamic'</code> et légères : le personnage les pousse avec <code>pushStrength</code> newtons, elles tombent, roulent et le repoussent."
+        ],
+        "tryIt": "Cliquez sur l’image, marchez avec Z Q S D, sautez avec Espace. Montez l’escalier, montez sur la plateforme, poussez la pile de caisses."
       },
       "your-own-scene": {
         "title": "Votre propre scène",

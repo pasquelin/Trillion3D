@@ -29,7 +29,9 @@ export function writeUni(
 /**
  * Every level's source and destination are a function of the target size alone, so the whole uniform
  * array is written once per allocation and no image uploads a byte to build the pyramid. Slot 0 holds
- * the level-0 size; slot i+1 the offsets and sizes the reduction of level i reads and writes.
+ * the level-0 size; slot i+1 the offsets and sizes the reduction of level i reads and writes. Every
+ * slot's seventh word is `stride`, the words between two pyramids built in one dispatch — zero for
+ * the camera's single pyramid (`shader.ts`).
  */
 export function writeHizLevelUniforms(
   device: GPUDevice,
@@ -41,11 +43,12 @@ export function writeHizLevelUniforms(
   height: number,
   maxLevels: number,
   uniformBytes: number,
+  stride = 0,
 ) {
   levelWords.fill(0);
   levelWords[0] = width;
   levelWords[1] = height;
-  levelWords[2] = 0;
+  levelWords[6] = stride;
   for (let i = 0; i < sizes.length - 1 && i + 1 < maxLevels; i++) {
     const [srcW, srcH] = sizes[i],
       [dstW, dstH] = sizes[i + 1],
@@ -56,6 +59,7 @@ export function writeHizLevelUniforms(
     levelWords[base + 3] = offsets[i + 1];
     levelWords[base + 4] = dstW;
     levelWords[base + 5] = dstH;
+    levelWords[base + 6] = stride;
   }
   device.queue.writeBuffer(uniforms, 0, levelWords);
 }

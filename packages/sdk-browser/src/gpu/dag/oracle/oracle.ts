@@ -9,7 +9,8 @@ import {
   worldOf,
   bandError,
 } from '../layout.ts';
-import type { SelectionUniforms, SelectionResult } from '../../core/selection.ts';
+import type { SelectionResult } from '../../core/selection.ts';
+import type { DagViewUniforms } from '../types.ts';
 import { dagViewFrames } from './math.ts';
 import { dagOracleDescent } from './descent.ts';
 import { quantizeRequestPriority } from '../request.ts';
@@ -27,7 +28,7 @@ import { ESCALATION_ROUNDS, ESCALATION_SLACK } from '../../../page/selection/typ
  */
 export function evaluateDagSelectionKernel(
   packed: PackedDag,
-  uniforms: SelectionUniforms,
+  uniforms: DagViewUniforms,
   resident?: Uint32Array,
   cacheCone = false,
 ) {
@@ -54,6 +55,7 @@ export function evaluateDagSelectionKernel(
     near,
     perspective: frames.perspective,
     viewPoint: frames.viewPoint,
+    light: uniforms.light,
   });
   const coneCache = cacheCone ? new Map<number, boolean>() : undefined;
   const cone = (i: number, w: number): boolean => {

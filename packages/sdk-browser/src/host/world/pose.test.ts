@@ -5,7 +5,7 @@
 // `matrixWorldNeedsUpdate`, without which an update rule starting above would walk past it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../graph/graph.fixture.ts';
 import {
   NODE_AUTO_UPDATE,
   addTransformNode,
@@ -19,8 +19,8 @@ function mirror() {
   const tree = createTransformTree(2);
   addTransformNode(tree);
   addTransformNode(tree, 0);
-  const root = new THREE.Group(),
-    child = new THREE.Group();
+  const root = new G.GraphGroup(),
+    child = new G.GraphGroup();
   root.add(child);
   return { tree, root, child };
 }
@@ -40,9 +40,9 @@ test('each of the ten numbers is compared on its own: one moved is one written',
   pushHostPose(tree, 0, root);
   updateNodeMatrixWorld(tree, 0);
   for (const move of [
-    () => root.position.setX(4),
+    () => (root.position.x = 4),
     () => root.quaternion.set(0, 0.5, 0, Math.sqrt(0.75)),
-    () => root.scale.setZ(-1),
+    () => (root.scale.z = -1),
   ]) {
     move();
     assert.equal(pushHostPose(tree, 0, root), true);
@@ -86,7 +86,7 @@ test('the sign of a zero is a change: `-0` and `0` do not compose the same trans
   const { tree, root } = mirror();
   pushHostPose(tree, 0, root);
   updateNodeMatrixWorld(tree, 0);
-  root.position.setX(-0);
+  root.position.x = -0;
   assert.equal(pushHostPose(tree, 0, root), true, 'the sign of the zero entered');
   updateNodeMatrixWorld(tree, 0);
   root.updateMatrixWorld(true);
@@ -95,7 +95,7 @@ test('the sign of a zero is a change: `-0` and `0` do not compose the same trans
 
 test('a pose left at NaN is not rewritten on every pass', () => {
   const { tree, root } = mirror();
-  root.position.setY(Number.NaN);
+  root.position.y = Number.NaN;
   assert.equal(pushHostPose(tree, 0, root), true);
   updateNodeMatrixWorld(tree, 0);
   assert.equal(pushHostPose(tree, 0, root), false, 'NaN compares equal to itself');

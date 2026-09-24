@@ -53,10 +53,13 @@ worker, DOM object, GPU object or compiler process.
 A fourth branch exists beside these three, and it is not a `trillion3d` resolver condition: the
 measurement entry point, `packages/sdk-browser/src/measurement/measurement.ts`. It re-exports everything the
 browser branch does, plus `openMeasuredWorld`/`createMeasuredWorldJob` (the internal session a
-world opens on itself), the witness backend factories, `chooseBackends`/`autonomousCacheReady` and
-`replicateInstances`. `package.json`'s `exports` map has no subpath for it — the bench, the proofs
-and the comparison views import it by its source path inside this repository, never through the
-published `trillion3d` specifier, so none of it reaches a consumer of the package.
+world opens on itself), the engine's own backend factories, `chooseBackends`/`autonomousCacheReady`
+and `replicateInstances`. `package.json`'s `exports` map has no subpath for it — the bench, the
+proofs and the comparison views import it by its source path inside this repository, never through
+the published `trillion3d` specifier, so none of it reaches a consumer of the package. The witness
+backend factories are not in it: they live beside the bench, and `bench/witnesses/measurement.ts`
+re-exports the measurement entry point with them added (built into `dist/witnesses/`, which the
+package leaves out).
 
 The package maps these built files with conditional JavaScript and matching conditional
 declarations. The `browser` condition precedes the Node and generic import/default paths; the Node
@@ -374,21 +377,55 @@ world.controls.target.set(0, 1, 0); // orbit pivot
 Controls live on the world because they read input on the canvas it owns — a second listener would
 double the gestures — and they follow `world.camera` when it is replaced. Setting `kind` releases the
 previous controller and builds the next; `.enabled` turns the current one off without losing it.
-Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [character](../site/examples/walk-through-a-temple.html); `firstPerson` is the same head without a body.
+Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [character](../site/examples/walk-through-a-temple.html) and [character with physics](../site/examples/walk-with-collisions.html); `firstPerson` is the same head without a body.
 
 | `world.controls.kind` | Motion                                         | Gestures                                                            |
 | --------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
 | `'orbit'`             | orbit around `target`, world up kept           | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
 | `'fly'`               | six degrees of freedom                         | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look       |
 | `'firstPerson'`       | pointer-locked walk, horizon level             | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift`            |
+| `'character'`         | a body that walks, runs, jumps and falls       | pointer turns the head, `W`/`S`/`A`/`D`, `Shift` sprints, `Space`   |
+| `'vehicle'`           | none: drives `world.controls.vehicle`          | `W` throttle, `S` brake, `A`/`D` steer, `Space` handbrake           |
 | `'trackball'`         | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms                        |
 | `'panZoom'`           | planar view, no rotation                       | drag slides, wheel and pinch zoom, arrow keys pan                   |
 | `'none'` (default)    | camera posed by the host                       | none                                                                |
 
-All five publish `object.position`, `addEventListener('change')`, `removeEventListener` and
+All of them publish `object.position`, `addEventListener('change')`, `removeEventListener` and
 `dispose()`; the three that keep a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
 `enablePan` and `update()`, which reads back a pose the host wrote and clamps it. A controller emits
 `change` only when the pose moved, so a still scene schedules nothing.
+
+**The character's body.** `'character'` moves an upright capsule with the values of an adult human
+(`HUMAN_BODY`: 1.75 m, a 3.5 m/s jog, a 0.5 m jump, 45° slopes, 0.5 m steps, 80 kg, a 250 N push),
+each one a setting of `world.controls`. What it collides with depends on the world:
+
+- **Without physics**, the static triangles of `world.controls.colliders` (meshes, built into a
+  triangle tree once), or nothing: the body then walks level where it stands.
+- **With physics on** (`world.physics`), the body is the physics' own character, Jolt's virtual
+  character in the physics worker: it meets every body of the simulation, climbs steps and slopes,
+  rides a moving platform, pushes dynamic bodies with at most `pushStrength` newtons and is pushed
+  back. `colliders` is unused; give the level `mesh.physics = 'static'` instead. The keys reach the
+  worker's next fixed step, and the page draws the feet the worker last reported moved on by their
+  velocity, at most one step ahead.
+
+Both bodies read the same drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
+`stopTime`, jumps with a coyote time and a jump buffer. The triangle body catches up every tick
+of a frame, however slow the page; only a stall past 0.25 s is dropped (`MAX_CHARACTER_DELTA`), and
+the body resumes where it stopped. Jolt's body steps on the physics worker's own clock, never on the
+page's frames: a slow page draws it late, never slower; a stalled worker drops what its catch-up
+ceiling cannot hold (`MAX_CATCH_UP_STEPS`), as every body of the simulation does.
+
+```js
+const world = createWorld('view', { controls: 'character', physics: true });
+floor.physics = 'static';
+crate.physics = { type: 'dynamic', mass: 12 };
+world.controls.pushStrength = 400; // a stronger push
+```
+
+**Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` — `throttle`, `brake`, `steer`,
+`handbrake` — and hands it to `world.controls.vehicle.drive(input)` each time it changes. Any object
+with `drive` can be driven; the physics' own vehicles arrive with #398. Setting `kind = 'vehicle'`
+while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move the camera.
 
 ### Picking, moving and saving
 
@@ -432,7 +469,7 @@ draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-sca
 hand, stores its vertices), each material by its parameters, lights, background, fog and the
 camera's pose; shapes and materials worn by several meshes are stored once; a loaded model is
 stored by its manifest address, never inlined; `helper` marks are left out. A texture, a picture
-background or a shader material cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
+environment or a shader material cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
 `await scene.fromJSON(json, camera)` replaces the content — the `helper` marks stay — loads the
 models again, and refuses another format or version (`UNSUPPORTED_SCENE_FORMAT`) before removing
 anything. Calls made while one is reading wait for it and run in order, each replacing what the one
@@ -494,15 +531,19 @@ beside every emitted chunk that keeps its relative URL, and serve that output di
 with the compiled scene cache. `pnpm run proof:package -- --browser` is the repository's executable
 esbuild configuration and verifies both worker tasks and WASM selection.
 
-### Install requirement during the migration: the `three` peer dependency
+### Install requirements: the package alone, the witnesses beside the bench
 
-Until the witnesses leave the published package (#275), `sdk-browser` still declares `three` as a
-peer dependency, so a browser host installs `three` and `@types/three` beside `@webgpu/types`. No
-public API takes or returns a Three.js object, and none of the batch maths needs it.
+A browser host installs `trillion3d` and, for its types, `@webgpu/types`; nothing else. The package
+declares no rendering library, ships none and pulls none: a clean install of the packed archive has
+no `three` in its tree (`tests/integration/installed-package.test.ts`), and the runtime build refuses
+an `engine.js` that folds one in (`scripts/docs/build-runtime.ts`). No public API takes or returns a
+Three.js object. The witnesses the bench compares the engine against live beside the bench
+(`bench/witnesses/`) and plug into the measurement seam through its backend list; `three` is a
+development dependency of this repository alone (#275).
 
 ## Compiling from Node
 
-`prepare(source, cache, scope, triangles, options)` and `prepareMany(jobs, options)` relay to the
+`prepare(input, output, scope, budget, options)` and `prepareMany(jobs, options)` relay to the
 native executable; the `trillion3d-compile` CLI is the same relay on the command line. Arguments,
 events, the pointer, batch mode, cancellation, exit codes and the executable's selection
 (`options.executable`, then `TRILLION3D_COMPILER_BIN`, then the development build) are in
@@ -636,63 +677,24 @@ Every row names the witness call it is measured against, and its proof. The proo
 seeded inputs, compares bit for bit and refuses an engine slower than the witness. The ratios are
 the engine's speed-up over the witness, best of three runs on one machine (19 and 20 Sept. 2026,
 Apple M2 Max, Node 26.8.2); they say where, not how much a frame gains. The declared exceptions are
-named on their line. A host arriving from Three.js reads the "Witness call" column as its migration
+named on their line. A host arriving from Three.js reads the witness calls as its migration
 table.
 
 ### Unit functions
 
-#### Matrices — `packages/sdk-core/src/math/matrix/matrix4.ts`, `packages/sdk-core/src/math/matrix/matrix4Inverse.ts`, `packages/sdk-core/src/math/matrix/matrix4Trs.ts`
-
-| Function                                            | Computes                                                                            | Witness call                           | Proof                                               |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------- | --------------------------------------------------- |
-| `multiplyMatrix4(out, a, b)`                        | `out = a · b`, each term in double then rounded once                                | `Matrix4.multiplyMatrices`             | bench `Matrix4.multiplyMatrices` (×1.2)             |
-| `invertMatrix4(out, m)`                             | the inverse by cofactors; a singular `m` gives sixteen zeros, like the witness      | `Matrix4.invert`                       | bench `Matrix4.invert` (×1.3)                       |
-| `copyMatrix4(out, m, outAt = 0, mAt = 0)`           | sixteen numbers copied at offsets, a loop rather than `set` so untyped outputs work | `Matrix4.copy`, `fromArray`, `toArray` | pure copy, bit equality in every bench line         |
-| `IDENTITY_MATRIX4`                                  | the identity, read and never written                                                | `Matrix4.identity`                     | —                                                   |
-| `composeMatrix4(out, position, quaternion, scale)`  | `out = T · R · S`, quaternion `(x, y, z, w)`                                        | `Matrix4.compose`                      | bench `Matrix4.compose` (×1.4)                      |
-| `decomposeMatrix4(m, position, quaternion, scale)`  | the reverse, the sign of the determinant carried by the x scale, nothing returned   | `Matrix4.decompose`                    | bench `Matrix4.decompose` (×1.1)                    |
-| `basisMatrix4(out, u, v, n, origin, outAt = 0)`     | columns `u`, `v`, `n`, then the origin, last row `(0, 0, 0, 1)`                     | `Matrix4.makeBasis` + `setPosition`    | bench `Matrix4.makeBasis` (×1.7)                    |
-| `uniformScaleMatrix4(out, s, center, outAt = 0)`    | uniform scale `s` placed at `center`                                                | `Matrix4.makeScale` + `setPosition`    | bench `Matrix4.makeScale` (×2.3)                    |
-| `determinantMatrix4(m)`, `linearPartDeterminant(m)` | the 4×4 determinant, and that of the upper 3×3 (sign of a reflection)               | `Matrix4.determinant`                  | `packages/sdk-core/src/math/matrix/matrix4.test.ts` |
-
-#### Vectors — `packages/sdk-core/src/math/primitives/vector.ts`
-
-| Function                                               | Computes                                                                  | Witness call                    | Proof                                                  |
-| ------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------ |
-| `dotVector3(a, b, aAt = 0, bAt = 0)`                   | `a · b` on three components read at offsets                               | `Vector3.dot`                   | bench `Vector3.dot` (×3.9)                             |
-| `crossVector3(out, a, b, outAt = 0, aAt = 0, bAt = 0)` | `out = a × b`; operands read before the first write, so `out` may alias   | `Vector3.crossVectors`          | bench `Vector3.crossVectors` (×5.0)                    |
-| `lengthSqVector3(v, at = 0)`                           | `x² + y² + z²`; `Math.sqrt` of it is the witness's `length()` bit for bit | `Vector3.lengthSq`, `length`    | bench `Vector3.length` (×1.7)                          |
-| `scaleVector3(out, s)`                                 | the three components multiplied in place                                  | `Vector3.multiplyScalar`        | bench `Vector3.multiplyScalar` (×4.3)                  |
-| `copyScaledVector3(out, a, s, outAt = 0, aAt = 0)`     | `out = a · s`                                                             | `Vector3.copy().multiplyScalar` | same line                                              |
-| `transformAffinePoint(out, m, x, y, z, outAt = 0)`     | `M · (x, y, z, 1)` for an affine `M`, three components                    | `Vector3.applyMatrix4`          | bench `Vector3.applyMatrix4` (×2.4)                    |
-| `normalizeVector3(v)`                                  | `v / ‖v‖` in place, a zero vector left unchanged, nothing returned        | `Vector3.normalize`             | `packages/sdk-core/src/math/primitives/vector.test.ts` |
-
-#### Colours — `packages/sdk-core/src/math/primitives/color.ts`
-
-| Function                           | Computes                                                                           | Witness call                                  | Proof                                                                                                                                                                                     |
-| ---------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `srgbToLinear(c)`                  | the exact sRGB curve, `c / 12.92` below 0.04045, `((c + 0.055) / 1.055)^2.4` above | `Color.convertSRGBToLinear`, `new Color(hex)` | bench `Color.convertSRGBToLinear` (×1.0) — **declared exception**: the witness multiplies by rounded constants, the engine writes the curve; gap ≤ 1e-11 per channel, invisible at 8 bits |
-| `linearToSrgb(c)`                  | the inverse curve                                                                  | `Color.convertLinearToSRGB`                   | `packages/sdk-core/src/math/primitives/color.test.ts`                                                                                                                                     |
-| `hslToLinearRgb(out, at, h, s, l)` | HSL to linear RGB, three stores at `at`                                            | `Color.setHSL`                                | bench `Color.setHSL` (×1.3)                                                                                                                                                               |
-
-#### Camera — `packages/sdk-core/src/math/primitives/camera.ts`, `packages/sdk-browser/src/camera/engineCamera.ts`, `packages/sdk-browser/src/camera/world.ts`
+Each unit function has its page in the portal's
+[API reference](https://www.trillion3d.com/#/en/api): what it computes, the witness call it
+replaces and its proof, with the measured ratio. Those rows are written once, in
+`site/content/entries/` (`matrix.ts`, `vector.ts`, `camera.ts`), and never copied here. The
+functions live in `packages/sdk-core/src/math/matrix/` (matrices),
+`packages/sdk-core/src/math/primitives/` (vectors, colours, camera frame) and
+`packages/sdk-browser/src/camera/` (the engine camera).
 
 The engine composes its own projection from the declared optics — **reversed depth, infinite
-far plane**: `near` projects to 1, infinity to 0 (`depthConvention.ts`). This is the second
+far plane**: `near` projects to 1, infinity to 0 (`depthConvention.ts`). This is a
 declared exception: the bench compares the x/y terms of the projection to the witness's,
 the depth terms are the engine's by design. `far` is still read for the frustum far plane,
 the adaptive threshold and the shadow range.
-
-| Function                                                                   | Computes                                                                                                                                          | Witness call                                            | Proof                                                                                                                 |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `perspectiveProjection(out, fov, aspect, near, zoom)`                      | the projection above; `fov` vertical, in degrees                                                                                                  | `PerspectiveCamera.updateProjectionMatrix`              | bench `Matrix4.makePerspective` (×1.1, x/y terms)                                                                     |
-| `createCameraFrame()` / `updateCameraFrame(frame, projection, world, far)` | view = `world⁻¹`, view-projection, six frustum planes, once per frame                                                                             | `matrixWorldInverse`, `Frustum.setFromProjectionMatrix` | bench `Frustum.setFromProjectionMatrix` (×1.6, side planes)                                                           |
-| `createEngineCamera()`                                                     | an `EngineCamera`: the frame above plus `world`, `projection`, `eye`, `near`, `far`, `fov`, `aspect`, allocated once                              | `new PerspectiveCamera()`                               | `engineCamera.test.ts`                                                                                                |
-| `writeEngineCamera(into, { fov, aspect, near, far, zoom })`                | everything a frame reads, derived from `into.world` already set and the optics                                                                    | `updateProjectionMatrix` + `updateMatrixWorld`          | `engineCamera.test.ts`: same bits as a host camera read through `readCameraWorld`                                     |
-| `defaultEngineCamera()`                                                    | the camera at the origin with fov 50, aspect 1, near 0.1, far 2000, zoom 1 — the fallback of oracles called before the first frame                | `new PerspectiveCamera()`                               | `engineCamera.test.ts`                                                                                                |
-| `holdCameraWorld(into, from)`                                              | bit-for-bit copy of an engine camera, nothing recomputed                                                                                          | `PerspectiveCamera.copy`                                | `packages/sdk-browser/src/camera/world.test.ts`                                                                       |
-| `readCameraWorld(into, hostCamera)`                                        | resolves the host camera's ancestors, copies its world matrix, then `writeEngineCamera` — the only translation from a host camera, once per frame | `updateWorldMatrix` + the reads above                   | `packages/sdk-browser/src/camera/world.test.ts` under a hostile rig; `tests/integration/engine-without-three.test.ts` |
-| `enginePose(cam)`                                                          | `{ position, quaternion }` of the drawn frame, from the engine camera                                                                             | `getWorldPosition`, `getWorldQuaternion`                | `packages/sdk-browser/src/camera/world.test.ts`                                                                       |
 
 #### Sides — `packages/sdk-browser/src/scene/materialSide.ts`
 
@@ -740,7 +742,12 @@ Nothing lights an opaque surface except a light the host declared. There is no f
 no constant sky and no authored scene lighting: a surface no declared light reaches is exactly zero,
 so a windowless corridor stays black at noon. Emission is a material property and is always added.
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
-a light and cannot brighten a surface no light reaches.
+a light and cannot brighten a surface no light reaches. `scene.background` is the colour behind every
+object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
+`set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
+write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
+background, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws
+one yet.
 
 A world declares lights like any other object: `scene.add(light.point({ intensity: 2, position:
 [0, 3, 0] }))`, `light.intensity = 2` afterwards, `scene.remove(light)` to drop it. Underneath, every
@@ -809,7 +816,13 @@ changed with `light.visible = false`, `model.remove(light)` or `light.intensity 
 second — another application, another tab —, so a budget measured at start-up would be wrong five
 minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both 512 MiB by
 default: the geometry pool (cluster page slots, the root cover always resident) and the texture pool
-(virtual-texture tiles, every texture's tail always resident).
+(virtual-texture tiles, every texture's tail always resident). The WebGL2 engine holds the same
+geometry budget, drawn by the same rule: its cut draws coarser beyond it, and the pages no frame
+keeps leave oldest first. While a view refines, the pool can go past its budget by at most the
+ancestors still drawn in place of the pages replacing them, and is back under it at the next cut
+once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
+`geometryPoolAllocatedBytes` is `null`). It has no texture pool:
+`texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
 ```js
 world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes
@@ -865,8 +878,81 @@ shapes with this engine's [families](#families) instead. The portal's
 [migration page](https://www.trillion3d.com/#/en/learn/three-migration) sets one
 complete Three.js program beside the engine program that draws the same scene
 ([`site/examples/migrating-from-three.html`](../site/examples/migrating-from-three.html)); the
-maths map through the "Witness call" column of the [maths reference](#measured-against-the-witness-library).
+maths map through the witness call each function's page of the
+[API reference](https://www.trillion3d.com/#/en/api) names.
 Three.js stays a comparison witness of the bench, never mixed with a published world (#79).
+
+## Physics
+
+Physics is an option of the world, not a second world: [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
+runs in a worker, and every body is an ordinary mesh with `physics` set.
+
+```js
+const world = createWorld('view', { physics: true }); // or world.physics.enabled = true
+const floor = object.mesh(geometry.box(20, 1, 20), material.meshStandard({ physics: 'stone' }));
+floor.physics = 'static';
+const crate = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ physics: 'wood' }));
+crate.physics = 'dynamic';
+crate.position.y = 5;
+world.scene.add(floor, crate);
+crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse));
+```
+
+- **Loading.** A world without physics fetches no byte of Jolt, nor the page's code that drives
+  it. That code, the worker and its WebAssembly module are fetched the first time physics is
+  enabled; bodies set before then are queued.
+- **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
+  `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
+  scale throws `RangeError`), `stats` and `error`.
+  `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
+- **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
+gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
+  geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
+  its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
+  body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
+  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named). A dynamic
+  body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
+  teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
+- **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
+  A material carries `physics: 'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'` and its own
+  `density`, `friction` and `restitution` over the preset; a body's `friction` and `restitution`
+  override both.
+- **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
+  the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
+  the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
+  point.
+- **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
+  ticking and the world draws no frame.
+- **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
+  velocities kept, and thaws when it returns. Out of view, or hidden, it sends no pose and keeps
+  falling; the pose it has when it falls asleep is sent all the same. `decorative` bodies meet the
+  static world only, are simulated only in range and in view, and leave the simulation once asleep:
+  their mesh stays where it came to rest (set `physics` again to simulate it anew).
+- **Budgets.** `world.budget.physics`, read when the physics starts: bodies, static triangles,
+  decorative bodies, memory (a hard ceiling: the module's memory cannot grow past it), body pairs
+  and contacts per step, contact events per step, and threads (Jolt's thread pool, the worker's
+  included, when the page is cross-origin isolated; never more than the logical cores minus the
+  page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`. A request past one is
+  refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
+  than its budget says so the same way, and an `enter` past the events budget is counted in
+  `stats.droppedEvents` (its `leave` is then never sent). The soft-body budget arrives with soft
+  bodies.
+- **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
+  `stats.stepMs`, on its own clock: the two are never added.
+- **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
+  physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
+  streams its tiles in, restored from Jolt's binary state, around the eye up to `camera.far` and
+  around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
+  stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
+  another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
+- **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
+  is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
+  any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
+  `capsule` with `halfHeight` and `radius`) sweeps that shape instead; `maxDistance` defaults to
+  `camera.far`. Without these options `world.raycast` answers at once, from the scene's own
+  geometry, a model on its box. With the physics off, an exact raycast throws `PHYSICS_OFF`.
+- **Character.** With physics on, `world.controls` `'character'` is the physics' own character
+  (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
 
 ## Current limits
 
@@ -878,3 +964,10 @@ Three.js stays a comparison witness of the bench, never mixed with a published w
   by the declared-light rule above.
 - A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
   implemented.
+- Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
+  cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
+  commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
+  landing, which then runs in slow motion for a short moment; the page's `physics` stage is
+  0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
+  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints, vehicles, soft bodies, cooked colliders and
+  loaded models as bodies arrive with the next physics issues (#396, #398–#400).

@@ -22,14 +22,14 @@ rerun benchmarks.
 - `--ressources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
 - `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
 - `--rebond on|off` (default `off`): enables bounce lighting.
-- `--textures cache|host` (default `host`): whether the glTF loader opens the source images. `cache` skips every image whose chain the cache carries; `host` decodes them all, which the Three witnesses need. The engine reads the baked levels either way (#289), so the two sides render the same image and differ only in what the loader fetches — the harness keeps `host` by default because a side may be a witness, and a witness side reads its images whatever the flag says (the engine resolves `cache` back to `host` for a backend that draws the host scene).
+- `--textures cache|host` (default `host`): whether the prepared scene reads the source images. `cache` skips every image whose chain the cache carries; `host` decodes them all, which the Three witnesses need. The engine reads the baked levels either way (#289), so the two sides render the same image and differ only in what the scene fetches — the harness keeps `host` by default because a side may be a witness, and a witness side reads its images whatever the flag says (the engine resolves `cache` back to `host` for a backend that draws the host scene).
 - `--budget-textures <ms>`: CPU milliseconds a frame may spend copying texture tiles into the pools (`maxTextureUploadMsPerFrame`). Without the option, the engine keeps its default (1.0 ms). Tiles beyond the budget wait for the next frame and show their coarser resident level meanwhile; the profile's "Textures" stage gives the pass's p50/p95 and the metrics its worst pass (`textureUploadPeakMs`) and what it deferred (`textureTilesDeferred`). A cold traversal (`--chauffe 0 --camera-mobile --textures cache`) is where it is read: on a still pose the barrier lifts it.
 - `--compression auto|bc7|astc|none` (default `auto`), or per side `--compression-avant` / `--compression-apres`: block family of the WebGPU texture pools, under `--textures cache`. `auto` takes the first family the device samples — the BC family before ASTC 4×4 — that the cache holds kept chains in, `none` keeps every pool RGBA8 (the lossless "before" of a texture comparison), `bc7` or `astc` insist on one and fall back to RGBA8, by name, when the device lacks it. A chain the cook's quality gate left lossless stays in the RGBA8 lane whatever the choice. Two sides on one `dist/` and one cache with `--compression-avant none --compression-apres bc7` measure the family alone; the summary's texture line names the family actually held (`texturePoolFormat`).
 - `--antialiasing on|off` (default `on`): toggles TAA jitter and accumulation.
 - `--profil on|off` (default `on`): requests per-step timing breakdown.
 - `--lampes N`: enables N point lights in the scene. `--ombres on|off` toggles shadow casting; `--lampe-mobile` animates the first light in a circle. `--intensite N` sets light intensity. `--portee F` sets each light's range to `F` grid cells (0.75 by default): above one, several lights reach the same pixel.
-- `--soleil`: adds directional sun light with shadow cascades. Combines with `--lampes`.
-- `--camera-mobile`: the pose advances by one step along the benchmark trajectory at each measured frame, instead of replaying the same one. This is what distinguishes a still scene from a moving camera — and thus, for the sun, a cached cascade from a re-rendered cascade at each frame. It is also the only way to observe selection cost: with a fixed pose, everything retained frame-to-frame is free and appears nowhere. On a ten-million-triangle interior, general view, GPU transparent selection drops `cpuFrameMs` p50 from 17.6 to 12.1 ms at threshold 0 and from 7.2 to 4.5 ms at threshold 1 — an invisible difference with a static camera. The recorded cut hash may differ between sides under this option without the image moving: it comes from asynchronous readback, one frame behind the cut it describes.
+- `--soleil`: adds directional sun light with its virtual shadow maps. Combines with `--lampes`.
+- `--camera-mobile`: the pose advances by one step along the benchmark trajectory at each measured frame, instead of replaying the same one. This is what distinguishes a still scene from a moving camera — and thus, for the sun, cached shadow pages from pages redrawn at each frame. It is also the only way to observe selection cost: with a fixed pose, everything retained frame-to-frame is free and appears nowhere. On a ten-million-triangle interior, general view, GPU transparent selection drops `cpuFrameMs` p50 from 17.6 to 12.1 ms at threshold 0 and from 7.2 to 4.5 ms at threshold 1 — an invisible difference with a static camera. The recorded cut hash may differ between sides under this option without the image moving: it comes from asynchronous readback, one frame behind the cut it describes.
 - Without `--lampes` or `--soleil`, no lights are declared: the engine renders unlit material albedo. This is its default behavior, not a harness option.
 
 - `--budget-ombres <ms>`: Shadow stage budget in GPU milliseconds per frame. Without the option, engine keeps its default (1.0 ms). Invalidated pages beyond the budget wait their turn; profile reports `pagesEnAttente` and `retardMaxMs`, and `occludeursGardes`, the clusters the region culls kept on the sampled frame `imageRelevee` (one frame in fifteen, read back after submission). Under `--camera-mobile`, sun cascades slide by whole pages and only the entering strips are redrawn; changes of representation (level of detail, residency, colour tiles) stale pages only once the camera rests, so the moving loop's `pagesInvalidees` counts strips and moving objects alone.
@@ -44,9 +44,9 @@ rerun benchmarks.
 
 A witness is a comparison backend the harness pits against the engine on one side
 (`--moteur-avant three-nu|three-lod|webgl`). The SDK never mounts one on its own: they are reached
-through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) as
-`referenceBackend`, `threeLodBackend` and `exactPagesBackend`, opt-in through the session's
-`backends` option.
+through the witness entry point (`bench/witnesses/measurement.ts`, bundled by `pnpm run build` into
+`dist/witnesses/measurement.js`, which the package leaves out) as `referenceBackend`,
+`threeLodBackend` and `exactPagesBackend`, opt-in through the session's `backends` option.
 
 - `three-nu` (`reference`): Three.js alone, every mesh drawn every frame.
 - `three-lod` (`three-lod`): Three.js with a three-level `THREE.LOD` per mesh, simplified by
@@ -67,7 +67,7 @@ scene graph. The harness is an ordinary host — it creates in Three the lights 
 via the `sceneLighting` option of `openMeasuredWorld` (`witnessPage.ts`, served under `/runner/` and
 imported by URL). Nothing is hardcoded: everything comes from the measured world's `lights()`, thus
 from the compiled cache and the contract, and no scene is named. `exact-cluster-pages` translates
-the store itself on every store revision (`packages/sdk-browser/src/backend/exact/contractLights.ts`).
+the store itself on every store revision (`packages/sdk-browser/src/lighting/contractLights.ts`).
 
 The mapping is exact in Three units: linear colour, unscaled radiometric intensity (W/sr for a point
 or a spot, irradiance for a directional), `distance` = range and `decay` = 2 — term for term the
@@ -118,6 +118,8 @@ Finer than the stages, `series[].sides[].bornesCpu` holds the engine's CPU bound
 "GPU Memory" section reports allocated and un-freed VRAM per side and view — textures and buffers tracked via device wrapper register, WebGPU having no native VRAM query —, split into three named categories (computed texture atlas, allocated geometry pool, resolution-dependent render targets), remaining by difference, with top labeled allocations; full breakdown in `series[].sides[].metrics.gpuAllocatedByLabel`. The nineteen virtual texture counters appear under each stage ("Textures", "Image Feedback", "Broadcaster"): pool is fixed, "resident" is active view usage.
 
 Capture is taken on a **still pose**: after warmup, pose renders until held — temporal accumulation converged, no pending work —, max 64 frames (`poseCalme`, `measurePage.ts`). Mid-accumulation captures reflect trajectory history with non-deterministic tile streaming across runs. `series[].sides[].imagesCalme` records required frame count, `null` if engine does not hold frames (Three witness).
+
+What the shadow pass did on each measured frame is in `series[].sides[].ombresParImage`: for `shadowPagesRequested`, `shadowPagesCached`, `shadowPagesDrawn`, `shadowLightCuts`, `shadowPoolPages`, `shadowPagesRefetched` (cumulative: its max is the pages the pool evicted then drew again since the explorer opened) and `shadowFacesDrawn`, the mean, p95 and max over the frames that published it (`shadowCountersPerFrame`, `measurePage.ts`); a counter the dist does not publish is `null`, never zero.
 
 Each series runs in a fresh page, closed immediately after. A large scene leaves hundreds of MBs active; reusing pages causes `new THREE.WebGLRenderer` to fail context creation ("Error creating WebGL context", observed Sept 14, 2026). Closing page restores WebGL context and heap to browser.
 
@@ -194,6 +196,16 @@ by corner and prints the largest and mean position gap and the angle between the
 input difference behind an image difference between that path and a witness, measured rather than
 supposed. On `site/assets/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
 6.10 × 10⁻⁵, `maxNormalGapDegrees` 0.613, mean 0.284°.
+
+## What Anisotropy Costs
+
+    pnpm run build
+    node bench/runner/anisotropyCost.ts [--anisotropy 1,16] [--images 240] [--width 1920] [--height 1080]
+
+One floor whose picture has detail at every texel, seen at a grazing angle, drawn by the WebGPU
+engine of `dist/` at each anisotropy asked, and the p50 GPU time of its images printed side by side:
+the whole image (`gpuFrameMs`), and the sum of its timed passes where the device has timestamp
+queries. The camera slides by a hair at every image, so none is held.
 
 ## Published reports
 

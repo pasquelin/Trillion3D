@@ -82,6 +82,9 @@ interface MeasureViewSuccess {
   // held-pose loop, no compiler warnings and no per-step CPU profile of their own.
   imagesCalme?: number | null;
   reglageVivant?: ReglageVivant | null;
+  /** Mean, p95 and max of each shadow counter over the measured frames; `null` per counter the
+   *  dist does not publish. */
+  shadowCounters?: Record<string, { mean: number; p95: number; max: number } | null>;
   mathBatch: FrameMetrics['mathBatch'] | null;
   size: { width: number; height: number; dpr?: number };
   lost: string[];

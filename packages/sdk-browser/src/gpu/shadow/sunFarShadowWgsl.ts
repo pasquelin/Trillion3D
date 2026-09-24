@@ -1,11 +1,11 @@
 import { BOUNCE_TRACE_WGSL } from '../../bounce/traceWgsl.ts';
 
 /**
- * Sun shadow beyond the last cascade, traced against the scene's resident proxy.
+ * Sun shadow beyond the last clipmap level, traced against the scene's resident proxy.
  *
- * Cascades cover a published fraction of the camera far plane; farther out, a surface
+ * Clipmap levels cover a published fraction of the camera far plane; farther out, a surface
  * stayed lit with no shadow test — an interior seen from afar looked like full daylight, then
- * went black when the camera approached and a cascade took it over. One shadow ray per
+ * went black when the camera approached and a clipmap level took it over. One shadow ray per
  * affected pixel removes that step: the same ray the probes fire, against the same
  * traversal of the same proxy, without a line of geometry in duplicate.
  *
@@ -26,13 +26,13 @@ import { BOUNCE_TRACE_WGSL } from '../../bounce/traceWgsl.ts';
 export const SUN_FAR_PROXY_BINDING = 13;
 
 /**
- * Fraction of sun that reaches a point no cascade covers: zero if the proxy cuts the
+ * Fraction of sun that reaches a point no clipmap level covers: zero if the proxy cuts the
  * ray, one otherwise. The ray starts from a proxy cell farther along, or the coarse surface
  * would shadow the true surface it approaches.
  *
  * With no proxy in the cache, present is zero and the far surface stays lit without shadow,
  * exactly as before this batch: unavailability is stated in the diagnostic, never filled by
- * an invented shadow nor by a stretched cascade that would divide near-shadow density by five.
+ * an invented shadow nor by a stretched level that would lower the density of the near shadows.
  *
  * `counting` only adds the two report counters, never a line of physics: the ray, its
  * origin, its bounds and its answer are the same on both sides, character for character. One

@@ -16,6 +16,8 @@ type EnsureOptions = {
   isLost: () => boolean;
   traceEnabled: boolean;
   traceDiagnostic: Trace;
+  /** The lower tier: casters the light cuts asked for, highest priority first (`shadowTier.ts`). */
+  shadowPages: () => readonly PageRec[];
 };
 
 /**
@@ -47,8 +49,65 @@ export function createWebgpuResidentEnsurer({
   isLost,
   traceEnabled,
   traceDiagnostic,
+  shadowPages,
 }: EnsureOptions) {
-  return async (wanted: readonly PageRec[], jobFrame: number, jobId: number) => {
+  /**
+   * What the camera left: the casters the light cuts want, loaded only into slots nobody holds —
+   * free, or taken by a page no tier wants. They are never pinned: a camera page evicts them,
+   * they never evict a camera page, and an object on screen is never coarsened for a shadow.
+   * The ones already resident are moved to the far end of the eviction order first, so an
+   * arrival of this tier never takes the slot of another page of it.
+   */
+  const loadShadowTier = async (
+    lower: readonly PageRec[],
+    cache: Cache,
+    signal: AbortSignal | undefined,
+    cameraWaiting: () => boolean,
+  ) => {
+    const skip = (rec: PageRec) => {
+      const key = tracking.keyOf(rec);
+      return tracking.wanted.has(key) || bootstrapKey[key] || !hasBytes(rec);
+    };
+    let held = 0;
+    for (let i = 0; i < lower.length; i++)
+      if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]))) held++;
+    let spare = cache.unpinnedSlots() - held;
+    // Upload slices, as the camera's burst: each yields to the event loop and the job resumes
+    // after it — unless a camera cut asked for pages meanwhile: the tier then leaves, the queue
+    // serves the camera first and runs the tier again. A job only ends on a tier pass nobody
+    // interrupted, so every wait on it finds the tier posted (#281).
+    let sliceStart = performance.now();
+    for (let i = 0; i < lower.length && spare > 0; i++) {
+      if (performance.now() - sliceStart >= UPLOAD_SLICE_MS) {
+        await yieldToEventLoop();
+        if (cameraWaiting()) return;
+        sliceStart = performance.now();
+      }
+      const rec = lower[i],
+        address = pageAddress(rec);
+      if (skip(rec) || cache.get(address)) continue;
+      signal?.throwIfAborted();
+      if (isLost() || getCache() !== cache) return;
+      try {
+        await cache.load(address, signal);
+      } catch (error) {
+        // The camera's own burst took the last slot meanwhile: the tier waits, as it does.
+        if (String(error).includes('ALL_PAGES_PINNED')) return;
+        throw error;
+      }
+      spare--;
+    }
+  };
+  /**
+   * `cameraWaiting` says a camera cut is queued behind this job: the queue passes it, so the
+   * caster tier gives way to the camera. A barrier passes none and loads the whole tier.
+   */
+  return async (
+    wanted: readonly PageRec[],
+    jobFrame: number,
+    jobId: number,
+    cameraWaiting: () => boolean = () => false,
+  ) => {
     let cache = getCache();
     if (!cache) return;
     const started = performance.now(),
@@ -75,7 +134,8 @@ export function createWebgpuResidentEnsurer({
         elapsedMs: null,
       }),
     );
-    let sliceStart = performance.now();
+    let sliceStart = performance.now(),
+      full = false;
     for (let i = 0; i < wanted.length; i++) {
       const rec = wanted[i],
         key = tracking.keyOf(rec),
@@ -101,6 +161,7 @@ export function createWebgpuResidentEnsurer({
         // without dropping anything. What stays wanted displays through its resident ancestor, and
         // cut admission, which reads the same state, grows the screen error until everything fits
         // (`admitGpuCut`).
+        full = true;
         break;
       }
       cache = getCache();
@@ -110,6 +171,10 @@ export function createWebgpuResidentEnsurer({
         tracking.markPinned(key);
       }
     }
+    // A copy: the tier's list is rewritten in place by every report taken while this one loads,
+    // and a loop resumed on another list keeps neither its order nor its count of free slots.
+    const lower = full ? [] : shadowPages();
+    if (lower.length) await loadShadowTier(lower.slice(), cache, signal, cameraWaiting);
     traceDiagnostic('residency-ensure-end', 'GPU residency checked', () => ({
       ...payload({
         loaded: loaded(),

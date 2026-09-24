@@ -18,7 +18,7 @@ const M4A = [
   'backend/awaitBackendPages',
   'backend/common',
   'backend/types',
-  'backend/exact/bounds',
+  'world/scene/pagesBounds',
   'world/session/backends',
   'world/camera/camera',
   'world/api/cameraApi',
@@ -88,14 +88,6 @@ const FRONTIERE: Record<string, Record<string, string>> = {
   'world/camera/camera.ts': {
     'camera.updateMatrixWorld();': 'the host SETS its camera; the written pose is resolved once',
   },
-  'host/scene/graphObjects.ts': {
-    'new THREE.Box3(':
-      '`explorer.bounds` is returned to the host: the bench computes its trajectory from it',
-    'new THREE.Vector3(flat[0], flat[1], flat[2]),': 'low bound of this box returned to the host',
-    'new THREE.Vector3(flat[3], flat[4], flat[5]),': 'high bound of this box returned to the host',
-    'new THREE.Vector3(x, y, z);':
-      '`explorer.center` and the home offset, returned to the host whose controls aim at them',
-  },
   'world/api/cameraApi.ts': {
     'camera.updateMatrixWorld();': 'return to the home pose: the host camera, reset',
   },
@@ -149,9 +141,12 @@ test('each file in M4a batch still exists under its name', async () => {
 const CALCULE_UNE_MATRICE =
   /\.(?:matrix|matrixWorld|world|transform|normalMatrix)\??\.(?:clone|copy|multiply|premultiply|multiplyMatrices|invert|decompose|compose|applyMatrix4|transformDirection|setFromMatrixPosition|extractRotation|transpose|setPosition|makeRotationFromQuaternion)\s*\(/;
 
-/** Witness files are written with host library: rule does not target them. */
+/** Witness files are written with host library: rule does not target them. Nor does the
+ *  engine's own graph (`host/graph/`): its nodes ARE host objects of the engine's making, whose
+ *  matrices the core's `Matrix4` composes as the reference does — a host resolution the engine
+ *  path still only reads. */
 const TEMOINS =
-  /^(?:backend\/(?:referenceBackend|exact\/|autonomous\/)|host\/three\/(?:lod|bounds)|cluster\/(?:batch|blendCopyMesh)|measurement\/comparison|lighting\/observation\/(?!experimentBackend))/;
+  /^(?:backend\/(?:referenceBackend|exact\/|autonomous\/)|host\/three\/lod|host\/graph\/|cluster\/(?:batch|blendCopyMesh)|measurement\/comparison|lighting\/observation\/(?!experimentBackend))/;
 
 /** File -> exact line -> why it SETS a host matrix instead of computing one. Empty since the
  *  second capture view became the host camera itself, read at the aspect ratio of the surface

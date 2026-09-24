@@ -30,14 +30,21 @@
       "geometry pool": "réserve de géométrie",
       "lights": "lumières",
       "GPU frame": "image GPU",
+      "GPU frame (last)": "image GPU (dernière)",
       "CPU frame": "image CPU",
       "page hooks": "code de la page",
       "engine CPU": "moteur CPU"
+    },
+    "failure": {
+      "title": "Cet exemple s'est arrêté sur une erreur"
+    },
+    "banner": {
+      "close": "Fermer"
     }
   },
   "a-city-from-rules": {
+    "banner": "Glisse pour voler autour. Bouge un curseur et la ville se reconstruit.",
     "controls": {
-      "mouse": "Fais glisser pour voler autour ; chaque réglage reconstruit la ville avec ses règles",
       "blocks": "Pâtés de maisons",
       "maxHeight": "Hauteur max",
       "density": "Densité",
@@ -52,8 +59,8 @@
     }
   },
   "a-cloud-of-points": {
+    "banner": "Glisse pour tourner autour du nuage. Choisis une autre forme et regarde-la changer.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour du nuage ; choisis une autre forme : l’ancienne s’enroule et disparaît pendant que la nouvelle se déploie",
       "shape": "Forme",
       "spin": "Rotation"
     },
@@ -71,6 +78,7 @@
     }
   },
   "a-colour-ramp-in-linear-light": {
+    "banner": "Choisis une couleur et regarde la lumière la faire passer du sombre au clair.",
     "controls": {
       "colour": "Couleur",
       "glow": "Lueur",
@@ -78,6 +86,7 @@
     }
   },
   "a-field-of-pebbles": {
+    "banner": "Glisse pour regarder autour. Bouge le soleil et regarde les ombres des galets.",
     "controls": {
       "sunTurn": "Tour du soleil",
       "sunHeight": "Hauteur du soleil",
@@ -86,13 +95,14 @@
     }
   },
   "a-first-world": {
+    "banner": "Glisse pour tourner autour du cube. Choisis-lui une nouvelle couleur.",
     "controls": {
       "colour": "Couleur"
     }
   },
   "a-game-board-seen-from-above": {
+    "banner": "Glisse pour déplacer le plateau. Fais défiler ou pince pour zoomer. Flèches pour te déplacer.",
     "controls": {
-      "mouse": "Fais glisser pour déplacer le plateau · molette ou pincement pour zoomer · flèches pour te déplacer",
       "play": "Jouer",
       "speed": "Vitesse",
       "follow": "Suivre",
@@ -106,6 +116,7 @@
     }
   },
   "a-lamp-in-its-glass": {
+    "banner": "Glisse pour regarder autour. Balance la lanterne et regarde la lumière bouger.",
     "controls": {
       "swing": "Balancement",
       "lamp": "Lampe",
@@ -114,6 +125,7 @@
     }
   },
   "a-lighthouse-beam": {
+    "banner": "Glisse pour regarder autour. Fais tourner le faisceau plus vite ou plus large.",
     "controls": {
       "turnsPerMinute": "Tours par minute",
       "beamWidth": "Largeur du faisceau",
@@ -121,8 +133,8 @@
     }
   },
   "a-long-shadowed-street": {
+    "banner": "Glisse pour regarder la rue. Change l'heure pour étirer les ombres. Molette pour avancer.",
     "controls": {
-      "mouse": "Fais glisser pour regarder l’avenue, molette pour avancer ; bouge l’heure et les ombres s’étirent sur la rue et grimpent sur les façades",
       "hour": "Heure",
       "traffic": "Circulation",
       "flyAgain": "Voler encore"
@@ -133,8 +145,8 @@
     }
   },
   "a-matcap-sculpture": {
+    "banner": "Glisse pour tourner autour de la sculpture. Sa lumière tourne avec toi.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de la sculpture : sa lumière tourne avec toi, car elle vit dans l’image",
       "matcap": "Matcap",
       "sculpture": "Sculpture",
       "gallery": "Galerie",
@@ -157,8 +169,8 @@
     }
   },
   "a-mesh-built-by-hand": {
+    "banner": "Glisse pour tourner autour des gemmes. Chacune est construite point par point. Décoche les facettes nettes pour partager les coins.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour des gemmes ; décoche les facettes nettes pour partager les coins",
       "points": "Points",
       "waist": "Taille",
       "height": "Hauteur",
@@ -172,8 +184,8 @@
     }
   },
   "a-model-from-obj": {
+    "banner": "Glisse pour tourner autour du plateau. Fais défiler pour t'approcher.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour du plateau, molette pour te pencher : regarde ce qu’est devenu l’OBJ",
       "view": "Vue",
       "sunAngle": "Angle du soleil",
       "sunHeight": "Hauteur du soleil",
@@ -192,8 +204,8 @@
     }
   },
   "a-model-from-usdz": {
+    "banner": "Glisse pour tourner autour du jeu d'échecs. Fais défiler jusqu'aux pièces.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour du plateau ; molette pour descendre vers les pièces",
       "view": "Vue",
       "turn": "Tourner"
     },
@@ -216,8 +228,8 @@
     }
   },
   "a-molecule": {
+    "banner": "Glisse pour tourner autour de la molécule. Choisis-en une autre et regarde les atomes voler.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de la molécule ; choisis-en une autre et ses atomes s’envolent vers leur nouvelle place",
       "molecule": "Molécule",
       "style": "Style",
       "spin": "Rotation"
@@ -241,6 +253,7 @@
     }
   },
   "a-neon-sign": {
+    "banner": "Glisse pour regarder autour. Fais briller et clignoter le néon.",
     "controls": {
       "star": "Étoile",
       "wave": "Vague",
@@ -261,6 +274,7 @@
     }
   },
   "a-ring-of-lamps": {
+    "banner": "Glisse pour regarder autour. Ajoute des lampes et fais-les tourner.",
     "controls": {
       "lamps": "Lampes",
       "speed": "Vitesse",
@@ -269,15 +283,18 @@
     }
   },
   "a-robot-that-walks-and-waves": {
+    "banner": "Glisse pour regarder autour. Mélange la marche, le salut et la danse.",
     "controls": {
       "walk": "Marcher",
       "wave": "Vague",
       "dance": "Danser",
       "speed": "Vitesse",
-      "colour": "Couleur"
+      "colour": "Couleur",
+      "shadow": "Ombre"
     }
   },
   "a-scene-of-your-own": {
+    "banner": "Glisse pour regarder autour. Change l'heure, le vent et le toit.",
     "controls": {
       "hour": "Heure",
       "wind": "Vent",
@@ -285,8 +302,8 @@
     }
   },
   "a-softbox-panel": {
+    "banner": "Glisse pour tourner autour. Agrandis le panneau pour adoucir les reflets.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour du décor ; agrandis le panneau et regarde les reflets s’adoucir",
       "panelWidth": "Largeur du panneau",
       "power": "Puissance",
       "colour": "Couleur",
@@ -298,6 +315,7 @@
     }
   },
   "a-staircase-from-one-step": {
+    "banner": "Glisse pour regarder autour. Change les marches et l'escalier se reconstruit.",
     "controls": {
       "climb": "Montée",
       "turnPerStep": "Rotation par marche",
@@ -305,6 +323,7 @@
     }
   },
   "a-terrain-from-a-height-map": {
+    "banner": "Glisse pour survoler les montagnes. Change l'heure de la journée.",
     "controls": {
       "hour": "Heure",
       "sunColour": "Couleur du soleil",
@@ -312,8 +331,8 @@
     }
   },
   "a-texture-turned-and-tiled": {
+    "banner": "Glisse pour regarder autour. Tourne et répète l'image sur les murs. Le panneau du fond montre le carreau tel qu’il est peint.",
     "controls": {
-      "mouse": "Fais glisser pour regarder autour ; le panneau du fond montre le carreau tel qu’il est peint",
       "tile": "Carreau",
       "wrap": "Bord",
       "tilesAcross": "Carreaux en largeur",
@@ -342,8 +361,8 @@
     }
   },
   "a-tube-along-a-spline": {
+    "banner": "Glisse pour regarder autour. Les perles glissent le long du tube.",
     "controls": {
-      "mouse": "Fais glisser pour regarder autour ; les perles suivent la courbe que suit le tube",
       "path": "Chemin",
       "radius": "Rayon",
       "sides": "Côtés",
@@ -364,6 +383,7 @@
     }
   },
   "a-vase-turned-on-the-lathe": {
+    "banner": "Glisse pour regarder autour. Change la largeur et la hauteur d'un vase.",
     "controls": {
       "width": "Largeur",
       "height": "Hauteur",
@@ -372,8 +392,8 @@
     }
   },
   "a-video-on-a-screen": {
+    "banner": "Glisse pour regarder la pièce. L'écran joue une vraie vidéo.",
     "controls": {
-      "mouse": "Fais glisser pour regarder la pièce ; l’écran joue un vrai élément vidéo",
       "playing": "Lecture",
       "openVideo": "Ouvrir une vidéo"
     },
@@ -387,8 +407,8 @@
     }
   },
   "a-video-panorama": {
+    "banner": "Glisse pour regarder tout autour de toi. Ouvre ta propre vidéo si tu veux. La vue tourne toute seule jusqu’à ce que tu appuies.",
     "controls": {
-      "mouse": "Fais glisser pour regarder autour ; la vue tourne toute seule jusqu’à ce que tu appuies",
       "playing": "Lecture",
       "fieldOfView": "Champ de vision",
       "openVideo": "Ouvrir une vidéo"
@@ -402,8 +422,8 @@
     }
   },
   "a-wall-of-cameras": {
+    "banner": "Clique sur un petit écran pour l'afficher en grand. Choisis ce que filme chaque caméra.",
     "controls": {
-      "mouse": "Clique sur une caméra pour la mettre sur le grand écran ; dis aux caméras quoi surveiller",
       "watch": "Surveiller"
     },
     "choices": {
@@ -431,6 +451,7 @@
     }
   },
   "a-wave-across-a-grid": {
+    "banner": "Glisse pour regarder autour. Rends la vague de cubes plus haute ou plus rapide.",
     "controls": {
       "height": "Hauteur",
       "speed": "Vitesse",
@@ -440,8 +461,8 @@
     }
   },
   "a-world-of-blocks": {
+    "banner": "Glisse pour voler autour de l'île. Monte la mer pour inonder les vallées.",
     "controls": {
-      "mouse": "Fais glisser pour voler autour de l’île ; monte la mer et regarde les vallées se remplir",
       "seed": "Graine",
       "seaLevel": "Niveau de la mer",
       "hour": "Heure",
@@ -452,8 +473,8 @@
     }
   },
   "before-and-after-slider": {
+    "banner": "Glisse le bouton rond pour comparer. Glisse l'image pour tourner autour.",
     "controls": {
-      "mouse": "Fais glisser la poignée ronde pour déplacer la séparation ; fais glisser l’image pour tourner autour de la place",
       "before": "Avant"
     },
     "choices": {
@@ -473,8 +494,8 @@
     }
   },
   "blobs-that-merge": {
+    "banner": "Glisse pour tourner autour de la lampe. Chauffe-la et les bulles fondent ensemble.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de la lampe ; monte le collant et les gouttes fondent les unes dans les autres",
       "stickiness": "Collant",
       "heat": "Chaleur",
       "wax": "Cire"
@@ -484,6 +505,7 @@
     }
   },
   "bricks-with-a-normal-map": {
+    "banner": "Glisse pour regarder autour. Bouge la lampe et regarde le relief des briques.",
     "controls": {
       "sweep": "Balayage",
       "lamp": "Lampe",
@@ -492,9 +514,7 @@
     }
   },
   "click-to-pick": {
-    "controls": {
-      "help": "Clique sur une forme : elle s’allume, et le panneau dit où le rayon l’a touchée."
-    },
+    "banner": "Clique sur une forme. Elle s'allume et le panneau dit où tu l'as touchée.",
     "readouts": {
       "picked": "Choisi",
       "point": "Point",
@@ -511,8 +531,8 @@
     }
   },
   "colours-on-the-vertices": {
+    "banner": "Glisse pour tourner la planète. Chaque coin porte sa propre couleur.",
     "controls": {
-      "mouse": "Fais glisser pour tourner la planète ; chaque sommet porte sa propre couleur",
       "palette": "Palette",
       "seaLevel": "Niveau de la mer",
       "relief": "Relief",
@@ -528,8 +548,8 @@
     }
   },
   "compressed-textures": {
+    "banner": "Glisse pour tourner autour de la fontaine. Approche-toi pour voir les détails arriver.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour de la fontaine ; descends vers un carreau et regarde ses détails arriver",
       "sunTurn": "Tour du soleil",
       "sunHeight": "Hauteur du soleil"
     },
@@ -548,8 +568,8 @@
     }
   },
   "copies-along-a-path": {
+    "banner": "Glisse pour regarder le parc. Ajoute des copies jusqu'à former un tunnel.",
     "controls": {
-      "mouse": "Fais glisser pour regarder le parc ; ajoute des copies jusqu’à ce que les arches forment un tunnel",
       "copies": "Copies",
       "twist": "Torsion",
       "speed": "Vitesse",
@@ -560,6 +580,7 @@
     }
   },
   "crates-under-a-spotlight": {
+    "banner": "Glisse pour regarder autour. Change l'angle et la couleur du projecteur.",
     "controls": {
       "angle": "Angle",
       "softness": "Douceur",
@@ -571,8 +592,8 @@
     }
   },
   "create-and-dispose": {
+    "banner": "Glisse pour tourner autour. Regarde des pièces apparaître et disparaître sans arrêt. Molette pour t’approcher.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de la fontaine · molette pour t’approcher",
       "perSecond": "Par seconde",
       "copies": "Copies",
       "burst": "Rafale",
@@ -595,8 +616,8 @@
     }
   },
   "curved-surfaces": {
+    "banner": "Glisse pour tourner autour. Baisse la grille pour voir les triangles de chaque courbe.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour de la galerie ; baisse la grille pour voir les triangles qui forment chaque courbe",
       "grid": "Grille",
       "facets": "Facettes",
       "turntable": "Plateau tournant"
@@ -614,8 +635,8 @@
     }
   },
   "dashed-lines": {
+    "banner": "Glisse pour tourner autour du soleil. Change les tirets et les espaces.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour du soleil ; change le tiret et l’espace, et chaque orbite suit",
       "lines": "Lignes",
       "dash": "Tiret",
       "gap": "Espace",
@@ -632,8 +653,8 @@
     }
   },
   "detail-by-pixel-error": {
+    "banner": "Glisse pour descendre l'avenue. Approche-toi d'une urne, puis éloigne-toi.",
     "controls": {
-      "mouse": "Fais glisser pour parcourir l’avenue ; approche-toi d’une urne, puis éloigne-toi loin",
       "pixelError": "Erreur en pixels",
       "view": "Vue"
     },
@@ -656,8 +677,8 @@
     }
   },
   "edges-and-wireframe": {
+    "banner": "Glisse pour regarder autour. Monte le seuil pour garder seulement les arêtes vives.",
     "controls": {
-      "mouse": "Fais glisser pour regarder autour ; monte le seuil pour ne garder que les plis nets",
       "view": "Vue",
       "threshold": "Seuil",
       "lines": "Lignes",
@@ -678,8 +699,8 @@
     }
   },
   "every-image-format": {
+    "banner": "Glisse pour longer les chevalets. Baisse la qualité et regarde de près.",
     "controls": {
-      "mouse": "Fais glisser pour longer les chevalets ; baisse la qualité et regarde de près le JPEG et le WebP",
       "quality": "Qualité",
       "lookAt": "Regarder"
     },
@@ -720,8 +741,8 @@
     }
   },
   "flat-shadows-on-the-floor": {
+    "banner": "Glisse pour tourner autour du cadran solaire. Change l'heure pour faire tourner les ombres.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour du cadran solaire ; bouge l’heure et chaque ombre tourne avec le soleil",
       "hour": "Heure",
       "darkness": "Obscurité",
       "timeLapse": "Accéléré",
@@ -735,6 +756,7 @@
     }
   },
   "fly-over-a-model-town": {
+    "banner": "Pilote le jet à travers les anneaux. Pousse les gaz pour décoller.",
     "choices": {
       "view": {
         "cockpit": "Cockpit",
@@ -800,8 +822,8 @@
     }
   },
   "four-ways-to-blend": {
+    "banner": "Glisse pour regarder de côté. Chaque panneau mélange les couleurs à sa façon. De gauche à droite : normal, additif, soustractif, multiplié.",
     "controls": {
-      "mouse": "De gauche à droite : normal, additif, soustractif, multiplié ; fais glisser pour les voir de côté",
       "inks": "Encres",
       "opacity": "Opacité",
       "circle": "Tourner autour"
@@ -815,8 +837,8 @@
     }
   },
   "frame-the-model": {
+    "banner": "Double-clique sur un objet pour zoomer dessus. Glisse pour tourner. Molette pour zoomer.",
     "controls": {
-      "mouse": "Double-clique sur un objet pour le cadrer ; fais glisser pour tourner, molette pour zoomer",
       "model": "Objet",
       "margin": "Marge",
       "drift": "Dérive"
@@ -845,8 +867,8 @@
     }
   },
   "from-a-grain-to-a-planet": {
+    "banner": "Fais défiler pour zoomer d'un grain de sable à la planète entière. Glisse pour tourner.",
     "controls": {
-      "mouse": "Utilise la molette pour zoomer d’un grain de sable jusqu’à la planète entière ; fais glisser pour tourner",
       "toTheGrain": "Vers le grain",
       "toTheBeach": "Vers la plage",
       "toTheIsland": "Vers l’île",
@@ -867,6 +889,7 @@
     }
   },
   "from-clay-to-chrome": {
+    "banner": "Glisse pour regarder autour. Vois la même couleur en argile, en métal et en chrome.",
     "controls": {
       "colour": "Couleur",
       "lamps": "Lampes",
@@ -874,6 +897,7 @@
     }
   },
   "from-noon-to-dusk": {
+    "banner": "Glisse pour regarder autour. Change l'heure de midi jusqu'à la nuit.",
     "controls": {
       "speed": "Vitesse",
       "hour": "Heure",
@@ -881,6 +905,7 @@
     }
   },
   "glass-on-the-table": {
+    "banner": "Glisse pour regarder autour. Change la façon dont le verre courbe la lumière.",
     "controls": {
       "refraction": "Réfraction",
       "thickness": "Épaisseur",
@@ -889,8 +914,8 @@
     }
   },
   "helpers-to-see-the-scene": {
+    "banner": "Glisse pour tourner autour. Éteins les aides pour voir l'image seule.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour du plateau ; éteins les aides pour voir la prise de vue telle qu’elle est",
       "helpers": "Aides",
       "dolly": "Travelling",
       "bulb": "Ampoule"
@@ -908,8 +933,8 @@
     }
   },
   "inside-a-panorama": {
+    "banner": "Glisse pour tourner. Fais défiler pour t'approcher. Choisis un autre ciel.",
     "controls": {
-      "mouse": "Fais glisser pour tourner · molette pour t’approcher",
       "sky": "Ciel",
       "fieldOfView": "Champ de vision"
     },
@@ -925,8 +950,8 @@
     }
   },
   "inside-the-g-buffer": {
+    "banner": "Glisse pour tourner autour. Choisis un tampon pour regarder dans l'image.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour du terrain · choisis un tampon pour regarder dans l’image",
       "buffer": "Tampon",
       "turning": "Rotation"
     },
@@ -954,8 +979,8 @@
     }
   },
   "instances-in-colour": {
+    "banner": "Glisse pour pencher la galaxie. Fais défiler pour plonger dedans.",
     "controls": {
-      "mouse": "Fais glisser pour pencher la galaxie ; molette pour plonger dedans",
       "count": "Nombre",
       "arms": "Bras",
       "twist": "Torsion",
@@ -969,8 +994,8 @@
     }
   },
   "keyframes-by-hand": {
+    "banner": "Glisse pour tourner autour du bureau. Regarde la lampe sauter d'une clé à l'autre. Montre les clés d’un saut en copies pâles de la lampe.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour du bureau ; montre les clés d’un saut en copies pâles de la lampe",
       "timing": "Rythme",
       "onionSkin": "Pelure d’oignon",
       "speed": "Vitesse"
@@ -997,8 +1022,8 @@
     }
   },
   "labels-that-follow": {
+    "banner": "Glisse pour tourner autour du Soleil. Les étiquettes suivent les planètes. Molette pour t’approcher.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour du Soleil, molette pour t’approcher ; les étiquettes suivent les planètes",
       "show": "Afficher",
       "speed": "Vitesse",
       "lineThemUp": "Les aligner"
@@ -1034,6 +1059,7 @@
     }
   },
   "leaves-cut-by-alpha": {
+    "banner": "Glisse pour regarder autour. Change le seuil et regarde les bords des feuilles.",
     "controls": {
       "branches": "Branches",
       "leaves": "Feuilles",
@@ -1042,6 +1068,7 @@
     }
   },
   "letters-carved-in-relief": {
+    "banner": "Glisse pour regarder autour. Passe la lumière sur les lettres gravées.",
     "controls": {
       "rake": "Inclinaison",
       "warm": "Chaud",
@@ -1050,8 +1077,8 @@
     }
   },
   "light-from-a-probe": {
+    "banner": "Glisse pour tourner autour du jardin. Choisis un lieu et vois sa lumière.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour du jardin ; choisis un lieu et les sculptures prennent sa lumière",
       "place": "Lieu",
       "turn": "Tourner",
       "strength": "Force",
@@ -1071,8 +1098,8 @@
     }
   },
   "light-in-real-units": {
+    "banner": "Glisse pour tourner autour de la place. Choisis un moment, de midi au clair de lune.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour de la place ; choisis un moment et regarde la caméra s’adapter, de 100 000 lux jusqu’à une nuit au clair de lune",
       "moment": "Moment",
       "lampLumens": "Lumens des lampes",
       "autoExposure": "Exposition auto",
@@ -1100,6 +1127,7 @@
     }
   },
   "lights-from-the-scene-file": {
+    "banner": "Glisse pour regarder autour. Ces lampes sont venues dans le fichier du modèle.",
     "controls": {
       "lamp": "Lampe",
       "power": "Puissance",
@@ -1107,8 +1135,8 @@
     }
   },
   "lines-in-colour": {
+    "banner": "Glisse pour tourner autour. Choisis une autre règle et regarde le stylo la dessiner.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de la figure ; choisis une autre règle et le crayon la redessine depuis le début",
       "figure": "Figure",
       "palette": "Palette",
       "pace": "Allure",
@@ -1134,6 +1162,7 @@
     }
   },
   "marble-bust-on-its-pedestal": {
+    "banner": "Glisse pour tourner autour du buste. Déplace la lampe autour de sa tête.",
     "controls": {
       "lampTurn": "Tour de la lampe",
       "lampHeight": "Hauteur de la lampe",
@@ -1146,6 +1175,7 @@
     }
   },
   "memory-on-a-budget": {
+    "banner": "Glisse pour regarder autour. Donne moins de mémoire et vois ce qui reste net.",
     "controls": {
       "memory": "Mémoire",
       "view": "Vue"
@@ -1164,8 +1194,8 @@
     }
   },
   "move-rotate-scale-gizmo": {
+    "banner": "Glisse une poignée pour déplacer, tourner ou agrandir l'objet. Glisse à côté pour regarder autour.",
     "controls": {
-      "help": "Fais glisser une poignée. Fais glisser à côté pour tourner la caméra.",
       "mode": "Mode",
       "axes": "Axes",
       "snap": "Aimanter"
@@ -1187,8 +1217,8 @@
     }
   },
   "no-hitch-on-first-draw": {
+    "banner": "Glisse pour regarder autour. Le graphique montre le temps entre deux images.",
     "controls": {
-      "mouse": "Fais glisser pour regarder la galerie · le graphique montre le temps entre les images",
       "turning": "Rotation",
       "revealAgain": "Montrer encore"
     },
@@ -1203,8 +1233,8 @@
     }
   },
   "normals-and-depth-seen": {
+    "banner": "Glisse pour tourner autour. Change la vue pour voir ce que garde le moteur de rendu.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour du terrain ; change la vue pour voir les surfaces comme le moteur de rendu les garde",
       "see": "Voir",
       "spin": "Rotation"
     },
@@ -1225,6 +1255,7 @@
     }
   },
   "observatory-streamed": {
+    "banner": "Glisse pour regarder autour. Change la vue pour voir comment le modèle est découpé.",
     "controls": {
       "view": "Vue",
       "pixelError": "Erreur en pixels"
@@ -1240,8 +1271,8 @@
     }
   },
   "one-clip-many-objects": {
+    "banner": "Glisse pour tourner autour du stade. Choisis comment la vague passe dans le public.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de l’arène ; choisis comment la même animation est répartie sur les fans",
       "pattern": "Motif",
       "speed": "Vitesse"
     },
@@ -1258,8 +1289,8 @@
     }
   },
   "orbit-around-a-clockwork": {
+    "banner": "Glisse pour tourner. Clic droit pour déplacer. Fais défiler pour zoomer sur les engrenages.",
     "controls": {
-      "mouse": "Une vitrine de produit : fais glisser pour tourner · clic droit pour glisser · molette pour zoomer sur les dents",
       "view": "Vue",
       "speed": "Vitesse",
       "brass": "Laiton"
@@ -1274,6 +1305,7 @@
     }
   },
   "painted-and-textured": {
+    "banner": "Glisse pour regarder autour. Change la peinture et les carreaux des formes.",
     "controls": {
       "checks": "Damier",
       "paint": "Peinture",
@@ -1282,8 +1314,8 @@
     }
   },
   "reading-pixels-back": {
+    "banner": "Glisse pour regarder autour. La petite image est la vue relue en nombres.",
     "controls": {
-      "mouse": "Fais glisser pour regarder autour · l’image en bas à droite est la vue relue en nombres",
       "sunHeight": "Hauteur du soleil",
       "live": "En direct",
       "turning": "Rotation",
@@ -1300,8 +1332,8 @@
     }
   },
   "ride-a-roller-coaster": {
+    "banner": "Glisse pour tourner la tête dans le manège. Arrête-le pour regarder le parc.",
     "controls": {
-      "mouse": "Sur le manège, fais glisser pour tourner la tête. Arrête le manège pour faire le tour du parc",
       "ride": "Monter à bord",
       "loops": "Loopings"
     },
@@ -1311,8 +1343,8 @@
     }
   },
   "save-the-scene": {
+    "banner": "Fais tomber la tour, puis rouvre la scène enregistrée.",
     "controls": {
-      "help": "Fais tomber la tour, puis rouvre la scène enregistrée.",
       "knockDown": "Faire tomber",
       "save": "Enregistrer",
       "open": "Ouvrir"
@@ -1325,8 +1357,8 @@
     }
   },
   "scattered-on-a-surface": {
+    "banner": "Glisse pour tourner la planète. Laisse la forêt grimper sur les montagnes.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de la planète ; monte la pente maximale et la forêt grimpe sur les montagnes",
       "trees": "Arbres",
       "rocks": "Rochers",
       "steepest": "Pente max",
@@ -1339,8 +1371,8 @@
     }
   },
   "see-the-triangles": {
+    "banner": "Fais défiler en arrière et en avant. De loin, le buste a besoin de moins de triangles, plus grands.",
     "controls": {
-      "mouse": "Molette vers l’arrière puis l’avant : de loin, le buste a besoin de moins de triangles, plus grands",
       "view": "Vue",
       "pixelError": "Erreur en pixels",
       "sideBySide": "Côte à côte"
@@ -1363,8 +1395,8 @@
     }
   },
   "select-with-a-box": {
+    "banner": "Trace un cadre pour sélectionner. Maj ajoute, Alt retire. Passe en rotation pour regarder autour.",
     "controls": {
-      "help": "Sélectionner : trace un cadre ; Maj ajoute, Alt retire. Tourner : fais glisser pour survoler le jardin",
       "mouse": "Souris",
       "selectAll": "Tout sélectionner",
       "clear": "Effacer"
@@ -1380,8 +1412,8 @@
     }
   },
   "several-views-one-page": {
+    "banner": "Glisse la grande vue pour la tourner. Fais défiler et glisse les petites. Elles zooment et glissent ; double-clic pour revenir.",
     "controls": {
-      "mouse": "Fais glisser la grande vue pour la tourner ; molette et glisser sur les petites pour zoomer et déplacer, double-clic pour revenir",
       "explode": "Éclater",
       "windFrom": "Vent venant de",
       "windSpeed": "Vitesse du vent"
@@ -1397,8 +1429,8 @@
     }
   },
   "shadows-from-the-sun": {
+    "banner": "Glisse pour tourner autour du jardin. Change l'heure pour faire tourner les ombres.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour du jardin ; bouge l’heure et chaque ombre tourne, la pointe de l’obélisque marchant sur ses pierres des heures",
       "hour": "Heure",
       "day": "Jour",
       "latitude": "Latitude",
@@ -1430,8 +1462,8 @@
     }
   },
   "shapes-cut-and-extruded": {
+    "banner": "Glisse pour regarder autour. Mets la profondeur à zéro pour voir la forme plate.",
     "controls": {
-      "mouse": "Fais glisser pour regarder autour ; une profondeur de zéro laisse la forme plate découpée",
       "depth": "Profondeur",
       "bevel": "Biseau",
       "bevelSize": "Taille du biseau",
@@ -1444,6 +1476,7 @@
     }
   },
   "shapes-on-a-turntable": {
+    "banner": "Glisse pour regarder autour. Change la couleur et la rotation.",
     "controls": {
       "colour": "Couleur",
       "speed": "Vitesse",
@@ -1451,8 +1484,8 @@
     }
   },
   "side-by-side-stereo": {
+    "banner": "Glisse l'image de gauche pour tourner. Louche jusqu'à ce que les deux points se rejoignent.",
     "controls": {
-      "mouse": "Fais glisser sur l’image de gauche pour tourner ; louche jusqu’à ce que les deux points n’en fassent plus qu’un",
       "viewing": "Façon de regarder",
       "separation": "Écart",
       "speed": "Vitesse"
@@ -1469,8 +1502,8 @@
     }
   },
   "sky-and-ground-light": {
+    "banner": "Glisse pour regarder d'en bas et d'en haut. Choisis un lieu pour changer son ciel.",
     "controls": {
-      "mouse": "Fais glisser pour regarder par en dessous et par au-dessus ; chaque lieu peint les dessus avec son ciel et les dessous avec son sol",
       "place": "Lieu",
       "skyStrength": "Force du ciel",
       "sun": "Soleil",
@@ -1492,8 +1525,8 @@
     }
   },
   "smooth-edges-over-time": {
+    "banner": "Glisse pour regarder les fils. Coupe le lissage et vois les marches.",
     "controls": {
-      "mouse": "Fais glisser pour regarder les fils ; coupe le lissage et regarde-les se casser en marches",
       "smoothing": "Lissage",
       "circle": "Tourner autour"
     },
@@ -1506,8 +1539,8 @@
     }
   },
   "snow-of-sprites": {
+    "banner": "Glisse pour tourner autour du chalet. Transforme la neige en tempête.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour du chalet ; transforme-la en tempête et les flocons s’épaississent et volent de côté",
       "weather": "Météo",
       "wind": "Vent"
     },
@@ -1523,8 +1556,8 @@
     }
   },
   "sound-made-visible": {
+    "banner": "Clique sur la scène pour entendre une mélodie. Glisse pour faire le tour de la scène : les barres sont les notes, les perles l’onde elle-même.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour de la scène ; les barres sont les notes, les perles l’onde elle-même",
       "layout": "Disposition",
       "height": "Hauteur",
       "playMelody": "Jouer la mélodie",
@@ -1539,20 +1572,20 @@
       }
     },
     "words": {
-      "hint": "Clique sur la scène pour entendre une mélodie",
       "listening": "J’écoute le micro : chante, siffle, tape dans tes mains",
       "refused": "Le micro a été refusé : la mélodie joue à la place",
       "silence": "Silence. Clique sur la scène pour réentendre la mélodie"
     }
   },
   "spin-an-astrolabe": {
+    "banner": "Glisse pour le faire tourner dans tous les sens, même à l'envers. Fais défiler pour zoomer.",
     "controls": {
-      "mouse": "Fais glisser pour le faire tourner dans tous les sens, même à l’envers · molette pour zoomer",
       "turning": "Rotation",
       "sun": "Soleil"
     }
   },
   "street-lamp-at-night": {
+    "banner": "Glisse pour regarder autour. Fais venir la nuit et allume le lampadaire.",
     "controls": {
       "night": "Nuit",
       "bounce": "Rebond",
@@ -1564,8 +1597,8 @@
     }
   },
   "ten-thousand-objects": {
+    "banner": "Glisse pour tourner autour de la planète. Fais défiler dans l'anneau de rochers.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de la planète ; entre dans l’anneau avec la molette jusqu’à ce qu’un rocher remplisse la vue",
       "view": "Vue",
       "pixelError": "Erreur en pixels",
       "drift": "Dérive"
@@ -1589,8 +1622,8 @@
     }
   },
   "texture-filters-compared": {
+    "banner": "Glisse pour regarder le long des allées. Chaque allée lisse l'image à sa façon. De gauche à droite : plus proche, linéaire, trilinéaire, anisotrope.",
     "controls": {
-      "mouse": "Fais glisser pour regarder le long des pistes ; de gauche à droite : plus proche, linéaire, trilinéaire, anisotrope",
       "picture": "Image",
       "anisotropy": "Anisotropie"
     },
@@ -1605,8 +1638,8 @@
     }
   },
   "the-material-family": {
+    "banner": "Glisse pour tourner autour. Passe à la nuit et vois ce qui brille encore.",
     "controls": {
-      "mouse": "Fais glisser pour faire le tour de la famille ; passe la lumière en nuit et regarde quels types brillent encore",
       "light": "Lumière",
       "shape": "Forme",
       "lookAt": "Regarder",
@@ -1657,8 +1690,8 @@
     }
   },
   "the-webcam-as-a-texture": {
+    "banner": "Appuie sur le bouton pour utiliser ta caméra. Glisse pour longer le mur.",
     "controls": {
-      "mouse": "Fais glisser pour longer le mur ; ta caméra n’est demandée que quand tu appuies sur le bouton",
       "useMyCamera": "Utiliser ma caméra",
       "layout": "Disposition",
       "mirror": "Miroir"
@@ -1680,8 +1713,8 @@
     }
   },
   "toon-shading": {
+    "banner": "Glisse pour tourner autour de l'île. Passe l'ombrage en bandes de dessin animé.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de l’île ; change l’ombrage et regarde la lumière tomber en bandes",
       "shading": "Ombrage",
       "outlines": "Contours",
       "sun": "Soleil",
@@ -1696,8 +1729,8 @@
     }
   },
   "turn-toward-a-target": {
+    "banner": "Glisse pour regarder autour. Active le pointeur pour guider le drone.",
     "controls": {
-      "mouse": "Fais glisser pour regarder autour ; active le pointeur et dirige le drone : chaque antenne suit",
       "turn": "Tourner",
       "turnSpeed": "Vitesse de rotation",
       "followPointer": "Suivre le pointeur"
@@ -1714,8 +1747,8 @@
     }
   },
   "two-lenses-one-scene": {
+    "banner": "Glisse pour tourner autour de la ville. Change d'objectif et regarde les rues.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour de la ville ; change d’objectif et regarde les rues se redresser",
       "lens": "Objectif",
       "fieldOfView": "Champ de vision",
       "isometric": "Isométrique",
@@ -1736,8 +1769,8 @@
     }
   },
   "uvs-of-every-shape": {
+    "banner": "Glisse pour regarder autour. Une lettre et un chiffre nomment chaque case.",
     "controls": {
-      "mouse": "Fais glisser pour regarder autour ; une lettre et un chiffre nomment chaque case de l’image",
       "pattern": "Motif",
       "repeat": "Répéter",
       "slide": "Glisser",
@@ -1752,6 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
+    "banner": "Appuie sur Jouer, puis cours avec W A S D et saute avec Espace.",
     "controls": {
       "keys": "Le contrôle de personnage du moteur : le Jouer du menu capture la souris pour regarder, W A S D pour courir (Z Q S D en AZERTY), Maj pour sprinter, Espace pour sauter, Échap libère la souris. La page ajoute R pour recommencer la course, M pour couper le son.",
       "look": "Regard",
@@ -1778,8 +1812,8 @@
     }
   },
   "waves-of-points": {
+    "banner": "Glisse pour tourner autour du champ. Choisis un motif pour changer les vagues.",
     "controls": {
-      "mouse": "Fais glisser pour tourner autour du champ ; choisis un motif et les vagues changent de forme sous les bouées",
       "pattern": "Motif",
       "height": "Hauteur",
       "speed": "Vitesse"
@@ -1798,8 +1832,8 @@
     }
   },
   "what-hides-what": {
+    "banner": "Glisse pour regarder autour. Les haies cachent les nœuds dorés.",
     "controls": {
-      "mouse": "Fais glisser pour regarder autour ; les haies cachent les nœuds dorés au fond des impasses",
       "hedgeHeight": "Hauteur des haies",
       "view": "Vue",
       "aboveOrInside": "Au-dessus ou dedans"
@@ -1821,9 +1855,114 @@
     }
   },
   "zoom-down-the-colonnade": {
+    "banner": "Appuie sur Travelling compensé et regarde les colonnes s'étirer.",
     "controls": {
       "fieldOfView": "Champ de vision",
       "dollyZoom": "Travelling compensé"
+    }
+  },
+  "falling-boxes": {
+    "banner": "Appuie sur Lâcher pour cinquante boîtes de plus. Change la gravité et regarde-les tomber.",
+    "controls": {
+      "matter": "Matière",
+      "gravity": "Gravité",
+      "drop": "Lâcher",
+      "jump": "Sauter",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas"
+    },
+    "choices": {
+      "matter": {
+        "wood": "bois",
+        "rubber": "caoutchouc",
+        "ice": "glace"
+      },
+      "gravity": {
+        "earth": "Terre",
+        "moon": "Lune",
+        "mars": "Mars",
+        "none": "aucune"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Dix mille boîtes tombent d’un coup. Le panneau montre en direct ce que coûte la physique.",
+    "controls": {
+      "count": "Nombre",
+      "again": "Encore"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas",
+      "page": "Page"
+    },
+    "choices": {
+      "count": {
+        "1000": "1 000",
+        "5000": "5 000",
+        "10000": "10 000"
+      }
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "Choisis un cas dans le panneau ; dans « free », fais glisser pour regarder autour.",
+    "controls": {
+      "case": "Cas",
+      "caster": "Projeteur d’ombre"
+    },
+    "readouts": {
+      "Look for": "À observer"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses.",
+    "controls": {
+      "pushStrength": "Force de poussée (N)",
+      "platformSpeed": "Vitesse de la plateforme",
+      "stackAgain": "Réempiler"
+    },
+    "readouts": {
+      "awake": "Éveillés",
+      "speed": "Vitesse"
+    }
+  },
+  "rolling-on-terrain": {
+    "banner": "Cliquez sur le sol pour y lâcher une balle. Pluie en lâche vingt de plus.",
+    "controls": {
+      "matter": "Matière",
+      "rain": "Pluie"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "caoutchouc",
+        "stone": "pierre",
+        "ice": "glace"
+      }
+    },
+    "words": {
+      "credit": "Vallée modélisée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "Le marcheur fait le tour de la salle et pousse les balles. Balles en ajoute vingt.",
+    "controls": {
+      "walking": "Marche",
+      "balls": "Balles"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas"
     }
   }
 }

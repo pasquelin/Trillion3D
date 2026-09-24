@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Bir yazılım tarayıcısı (rasterizer)",
       "sound-from-the-gpu": "GPU'dan gelen ses",
       "falling-boxes": "Düşen kutular",
+      "ten-thousand-bodies": "On bin cisim",
       "breaking-things": "Nesneleri kırmak",
       "cloth-and-rope": "Kumaş ve halat",
       "soft-bodies": "Yumuşak cisimler",
@@ -318,7 +319,9 @@
       "hands-in-vr": "VR'da eller",
       "teleport-in-vr": "VR'da ışınlanmak",
       "controllers-in-vr": "VR'da kumandalar",
-      "ar-on-the-table": "Masada AR"
+      "ar-on-the-table": "Masada AR",
+      "shadows-case-by-case": "Gölgeler, durum durum",
+      "a-walker-among-balls": "Toplar arasında bir yürüyüşçü"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU'da köşe başına renkler",
@@ -478,13 +481,10 @@
       "sort-and-reduce": "GPU hesaplama API'si",
       "a-software-rasteriser": "GPU hesaplama API'si",
       "sound-from-the-gpu": "GPU hesaplama API'si",
-      "falling-boxes": "bir fizik motoru entegrasyonu",
       "breaking-things": "bir fizik motoru entegrasyonu",
       "cloth-and-rope": "bir fizik motoru entegrasyonu",
       "soft-bodies": "bir fizik motoru entegrasyonu",
-      "rolling-on-terrain": "bir fizik motoru entegrasyonu",
       "hinges-and-joints": "bir fizik motoru entegrasyonu",
-      "walk-with-collisions": "bir fizik motoru entegrasyonu",
       "drive-a-car": "bir fizik motoru entegrasyonu",
       "a-room-in-vr": "WebXR oturumu",
       "a-360-photo-in-vr": "WebXR oturumu",
@@ -1052,6 +1052,29 @@
           "Parçaları <code>world.diagnostic.mode = 'clusters'</code> ile görün: her cluster kendi rengini alır."
         ],
         "tryIt": "Belleği azaltın: parçalar büyür, bina bütün kalır. Onları görmek için görünümü <code>clusters</code>'a değiştirin."
+      },
+      "make-things-fall": {
+        "title": "Nesneleri düşür",
+        "description": "Fiziği aç, şekillerin ağırlık kazansın: düşer, çarpışır ve durur.",
+        "steps": [
+          "Dünyaya <code>physics: true</code> ver. Simülasyon çizimden ayrı, bir <em>worker</em> içinde çalışır; görüntüyü asla yavaşlatmaz.",
+          "Zemini <code>'static'</code> işaretle: diğerlerini taşır, hiç kıpırdamaz. Bir kutuyu <code>'dynamic'</code> işaretle: yerçekimi onu çeker.",
+          "Şekil geometriden, ağırlık malzemeden gelir: <code>physics: 'wood'</code> hafif, <code>'metal'</code> ağır, <code>'rubber'</code> zıplar.",
+          "Bir cismi <code>applyImpulse</code> ile it ya da <code>contact</code> olayını dinle. Tüm cisimler uyuyunca hiçbir şey hesaplanmaz ve çizilmez.",
+          "<code>scene.load</code> ile yüklenen bir model, derlenirken hazırlanan kendi üçgenleriyle çarpışır. <code>await world.raycast(point, { exact: true })</code> imlecin altındaki üçgenin tam kendisini bulur."
+        ],
+        "tryIt": "Daha fazla kutu bırak, yerçekimini Ay’a çevir ve ağır çekimi aç."
+      },
+      "touch-and-react": {
+        "title": "Dokun ve tepki ver",
+        "description": "Dünyana adım at: fizik açıkken karakter tırmanır, taşınır ve karşılaştığını iter; karşılaştığı da onu geri iter.",
+        "steps": [
+          "Dünyayı <code>controls: 'character'</code> ve <code>physics: true</code> ile oluştur. Karakter artık kutular gibi fiziğin bir cismi.",
+          "Hiç kıpırdamayanları <code>'static'</code> olarak işaretle: zemin, merdiven, duvarlar. Karakter diz yüksekliğine kadar basamakları ve 45°’ye kadar yokuşları çıkar.",
+          "Bir platformu <code>'kinematic'</code> olarak işaretle ve her karede kodunla hareket ettir: üstünde duran her şey onunla gider.",
+          "Hafif kutuları <code>'dynamic'</code> yap: karakter onları <code>pushStrength</code> newton ile iter, kutular düşer, yuvarlanır ve geri iter."
+        ],
+        "tryIt": "Resme tıkla, W A S D ile yürü, Boşluk ile zıpla. Merdiveni çık, platforma bin, kutu yığınını it."
       },
       "your-own-scene": {
         "title": "Kendi sahneniz",

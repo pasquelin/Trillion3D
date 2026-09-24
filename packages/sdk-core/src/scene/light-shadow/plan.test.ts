@@ -1,168 +1,182 @@
-// A light removed from the store must return its shadow slice and its atlas cells at the next
-// `plan()` — never before, never after. `createShadowRelease` (release.ts) is
-// the only release path: these tests go through it by the only public path, `plan()`, without
-// ever calling it directly, exactly as the engine does.
+// The virtual shadow scheduler end to end: what the shading reads is mapped and drawn, what nobody
+// reads costs nothing, what moves stales only the pages it covers, and a light that leaves gives
+// its pages back.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { RECTS_PER_SLICE } from './slices.ts';
-import { MAX_SHADOW_SLICES, type SceneLight, type ShadowViewpoint } from '../light/contracts.ts';
+import { PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
+import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
+import { SUN, VIEW, cycle, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
 
-const VIEW: ShadowViewpoint = {
-  position: [0, 0, 0],
-  forward: [0, 0, -1],
-  halfFovY: 0.9,
-  aspect: 1,
-  near: 0.1,
-  far: 100,
-};
-
-/** A shadowed point light, all identical: same screen coverage, same requested slice. */
-function pointLight(id: string): SceneLight {
-  return {
-    id,
-    kind: 'point',
-    position: [0, 0, -5],
-    color: [1, 1, 1],
-    intensity: 1,
-    range: 5,
-    castsShadow: true,
-  };
+/** A sun, planned once so its slice and clipmap exist; returns what the tests read it by. */
+function sunScene() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add(SUN);
+  planFrame(plan, store, 0);
+  const slice = store.sliceOf(0),
+    level = plan.sun.finest[slice] + 4;
+  const pages = sunPages(plan, slice, level, [
+    [0, 0],
+    [1, 0],
+    [0, 1],
+  ]);
+  return { store, plan, slice, level, pages };
 }
 
-function freeSlices(plan: ReturnType<typeof createShadowPlan>) {
-  let free = 0;
-  for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++) if (!plan.slices.taken[slice]) free++;
-  return free;
-}
-
-test('removing a shadowed light returns its slice and atlas cells at the next plan()', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(64);
-  store.add(pointLight('l0'));
-  plan.plan(store, VIEW, 0, 0);
-
-  const slice = store.sliceOf(store.slotOf('l0'));
-  assert.ok(slice >= 0, 'the light did get a slice on the first frame');
-  assert.equal(plan.slices.taken[slice], 1);
-  assert.ok(plan.slices.atlas.occupancy().used > 0, 'atlas cells are taken');
-
-  store.remove('l0');
-  plan.plan(store, VIEW, 1, 16);
-
-  assert.equal(plan.slices.taken[slice], 0, 'the slice is released');
-  assert.equal(plan.slices.atlas.occupancy().used, 0, 'the atlas cells are released');
-  assert.equal(freeSlices(plan), MAX_SHADOW_SLICES, 'the 64 slices are free again');
+test('the pages the shading reads are mapped and drawn the frame their report comes back', () => {
+  const { store, plan, pages } = sunScene();
+  report(plan, store, 0, pages);
+  assert.equal(planFrame(plan, store, 1), 3, 'three pages admitted');
+  for (const entry of pages) assert.equal(plan.table.words[entry] & PAGE_VALID, 0, 'not before');
+  plan.commit();
+  for (const entry of pages) assert.ok(plan.table.words[entry] & PAGE_VALID, 'readable once drawn');
+  assert.equal(plan.counts.poolPages, 3);
 });
 
-test('a removal in the middle of the list leaves the moved light its own slice and atlas rectangle', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(64);
-  for (const id of ['a', 'b', 'c']) store.add(pointLight(id));
-  plan.plan(store, VIEW, 0, 0);
-
-  const sliceA = store.sliceOf(store.slotOf('a'));
-  const sliceB = store.sliceOf(store.slotOf('b'));
-  const sliceC = store.sliceOf(store.slotOf('c'));
-  const rectCBefore = Array.from(
-    plan.slices.rects.subarray(sliceC * RECTS_PER_SLICE, (sliceC + 1) * RECTS_PER_SLICE),
-  );
-
-  // The store removes by swap: 'c', last in the list, takes the slot of 'a'.
-  store.remove('a');
-  assert.equal(store.slotOf('c'), 0, 'the store moved c to the slot freed by a');
-  assert.equal(store.sliceOf(0), sliceC, 'c kept its own slice during the move');
-
-  plan.plan(store, VIEW, 1, 16);
-
-  assert.equal(plan.slices.taken[sliceA], 0, "the removed light's slice is released");
-  assert.equal(plan.slices.taken[sliceC], 1, 'c still keeps its slice, the same as before');
-  assert.equal(plan.slices.taken[sliceB], 1, 'b, never moved, is not affected');
-  const rectCAfter = Array.from(
-    plan.slices.rects.subarray(sliceC * RECTS_PER_SLICE, (sliceC + 1) * RECTS_PER_SLICE),
-  );
-  assert.deepEqual(rectCAfter, rectCBefore, "c's atlas rectangle has not moved");
+test('a frame admits no more pages than its limit, the rest wait for the next', () => {
+  const { store, plan, pages } = sunScene();
+  report(plan, store, 0, pages);
+  plan.admission.setLimit(1);
+  assert.equal(planFrame(plan, store, 1), 1, 'one page under a limit of one');
+  plan.commit();
+  plan.admission.setLimit(24);
+  assert.equal(planFrame(plan, store, 2), 2, 'the two that waited');
 });
 
-test('removing every light brings atlas occupancy to zero and the 64 slices to free', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(64);
-  const ids = Array.from({ length: 5 }, (_, i) => `l${i}`);
-  for (const id of ids) store.add(pointLight(id));
-  plan.plan(store, VIEW, 0, 0);
-  assert.ok(plan.slices.atlas.occupancy().used > 0, 'the atlas does carry the five lights');
-
-  for (const id of ids) store.remove(id);
-  plan.plan(store, VIEW, 1, 16);
-
-  assert.equal(plan.slices.atlas.occupancy().used, 0, 'not a single occupied cell left');
-  assert.equal(freeSlices(plan), MAX_SHADOW_SLICES, 'the 64 slices are free');
-});
-
-test('removing a light while regions are queued leaves neither a waiting page nor an occupied cell for it', () => {
-  const store = createSceneLightStore();
-  // Capacity of six regions: exactly one point light (six faces). The second light does not
-  // make it this frame and its six faces stay waiting, as with a too-tight budget.
-  const plan = createShadowPlan(6);
-  store.add(pointLight('l0'));
-  store.add(pointLight('l1'));
-  plan.plan(store, VIEW, 0, 0);
-
-  const slice1 = store.sliceOf(store.slotOf('l1'));
-  assert.ok(slice1 >= 0, 'l1 still got a slice, just not its pages drawn');
-  let pending = false;
-  for (let face = 0; face < 6; face++) if (plan.slices.dirty.isDirty(slice1, face)) pending = true;
-  assert.ok(pending, "l1 has waiting pages, for lack of room in this frame's regions");
-
-  store.remove('l1');
-  plan.plan(store, VIEW, 1, 16);
-
-  for (let face = 0; face < 6; face++)
-    assert.equal(
-      plan.slices.dirty.isDirty(slice1, face),
-      false,
-      'no waiting page on a released slice',
-    );
-  assert.equal(plan.slices.taken[slice1], 0, 'and the slice itself is released');
-});
-
-test('three remove/re-add cycles of 21 shadowed lights give occupancy identical to the first cycle and zero denials', () => {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(256);
-  const ids = Array.from({ length: 21 }, (_, i) => `l${i}`);
-  for (const id of ids) store.add(pointLight(id));
-  plan.plan(store, VIEW, 0, 0);
-
-  const baselineUsed = plan.slices.atlas.occupancy().used;
-  const baselineFree = freeSlices(plan);
-  // Figures from commit e99326a2 for this same scene (21 point lights, same settings): 43 slices
-  // free out of 64, 504 atlas cells taken.
-  assert.equal(baselineFree, MAX_SHADOW_SLICES - 21);
-  assert.equal(baselineUsed, 504);
-  assert.equal(plan.counts.denied, 0, 'all 21 lights fit in the 64 slices');
-
+test('a page nobody reads is never drawn, and a still scene draws nothing', () => {
+  const { store, plan, pages } = sunScene();
   let frame = 1;
-  for (let cycle = 0; cycle < 3; cycle++) {
-    for (const id of ids) store.remove(id);
-    plan.plan(store, VIEW, frame++, frame * 16);
-    assert.equal(plan.slices.atlas.occupancy().used, 0, `cycle ${cycle}: atlas emptied on removal`);
-    assert.equal(freeSlices(plan), MAX_SHADOW_SLICES, `cycle ${cycle}: the 64 slices are free`);
+  cycle(plan, store, frame++, () => pages);
+  for (let i = 0; i < 3; i++)
+    assert.equal(
+      cycle(plan, store, frame++, () => pages),
+      i ? 0 : 3,
+    );
+  assert.equal(plan.counts.pendingPages, 0);
+  assert.equal(plan.counts.cachedPages, 3, 'read straight from the pool');
+  assert.equal(plan.settled(store), true, 'a report proves the image reads only drawn pages');
+  // The image now reads one page: a moving object stales all three, only that one is drawn.
+  cycle(plan, store, frame++, () => pages.slice(0, 1));
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
+  assert.equal(
+    cycle(plan, store, frame, () => pages.slice(0, 1)),
+    1,
+  );
+  assert.equal(plan.counts.invalidatedPages, 3);
+});
 
-    for (const id of ids) store.add(pointLight(id));
-    plan.plan(store, VIEW, frame++, frame * 16);
-    assert.equal(
-      plan.slices.atlas.occupancy().used,
-      baselineUsed,
-      `cycle ${cycle}: atlas occupancy identical to the first cycle`,
-    );
-    assert.equal(
-      freeSlices(plan),
-      baselineFree,
-      `cycle ${cycle}: free slices identical to the first cycle`,
-    );
-    // The original defect: without the release, removed slices stayed taken and, after
-    // three cycles, the 64 were saturated — 21 denials instead of 21 slices released.
-    assert.equal(plan.counts.denied, 0, `cycle ${cycle}: zero denials, unlike the original defect`);
-  }
+test('an object that moves stales only the mapped pages its box covers', () => {
+  const { store, plan, slice, level, pages } = sunScene();
+  let frame = 1;
+  for (; frame < 4; frame++) cycle(plan, store, frame, () => pages);
+  // The first page's square, shrunk inside it: its neighbours stay current.
+  const metres = 128 * 2 ** level,
+    f = slice * 9;
+  const right = plan.sun.frame.subarray(f, f + 3),
+    up = plan.sun.frame.subarray(f + 3, f + 6);
+  const at = (u: number, v: number, h: number) =>
+    [0, 1, 2].map((a) => right[a] * u + up[a] * v + h * (a === 1 ? 1 : 0));
+  plan.worldChanged(at(0.25 * metres, -0.75 * metres, 0), at(0.75 * metres, -0.25 * metres, 1));
+  planFrame(plan, store, frame);
+  assert.equal(plan.counts.invalidatedPages, 1);
+});
+
+test('a light removed gives its pages back to the pool and its range back to the table', () => {
+  const { store, plan, slice, pages } = sunScene();
+  cycle(plan, store, 1, () => pages);
+  cycle(plan, store, 2, () => pages);
+  store.remove(SUN.id);
+  planFrame(plan, store, 3);
+  assert.equal(plan.pool.used, 0);
+  assert.equal(plan.table.baseOf(slice), -1);
+  for (const entry of pages) assert.equal(plan.table.words[entry], 0);
+});
+
+test('coarse pages are served first, and a full pool evicts only pages no report still names', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add({ ...SUN, kind: 'point', position: [0, 3, 0], range: 20, direction: undefined });
+  planFrame(plan, store, 0);
+  const slice = store.sliceOf(0);
+  // Face 0 at mip 0 is 1024 pages, face 1 at mip 1 is 256: together more than the pool.
+  const fine = lampPages(plan, slice, 0, 0),
+    coarse = lampPages(plan, slice, 1, 1);
+  report(plan, store, 0, [...fine, ...coarse]);
+  planFrame(plan, store, 1);
+  const mapped = (entries: number[]) =>
+    entries.filter((e) => plan.table.words[e] & PAGE_MAPPED).length;
+  assert.equal(mapped(coarse), coarse.length, 'every coarse page');
+  const pages = plan.pool.pages;
+  assert.equal(mapped(fine), pages - coarse.length, 'the fine ones, as far as the pool goes');
+  assert.equal(plan.requests.counts.refused, fine.length + coarse.length - pages);
+  // A report names a third face: among pages of the same age, the fine ones are evicted first.
+  report(plan, store, 1, lampPages(plan, slice, 2, 1));
+  planFrame(plan, store, 2);
+  assert.equal(mapped(coarse), coarse.length, 'the coarse pages the fine ones fall back to stay');
+  assert.equal(mapped(lampPages(plan, slice, 2, 1)), 256);
+  // The fine face asked again takes the pool back from the third face, which no later report named.
+  report(plan, store, 2, fine);
+  planFrame(plan, store, 3);
+  assert.equal(mapped(lampPages(plan, slice, 2, 1)), 0);
+});
+
+test('a camera that moves by whole pages unmaps the sun pages that leave the clipmap', () => {
+  const { store, plan, slice, level, pages } = sunScene();
+  cycle(plan, store, 1, () => pages);
+  const far: typeof VIEW = {
+    ...VIEW,
+    position: [VIEW.position[0] + 1e5, VIEW.position[1], VIEW.position[2]],
+  };
+  planFrame(plan, store, 2, far);
+  assert.equal(plan.pool.used, 0, `level ${level} of slice ${slice} no longer holds them`);
+});
+
+test('an object already moving stales only the moving casters of the pages it crosses', () => {
+  const { store, plan, pages } = sunScene();
+  cycle(plan, store, 1, () => pages);
+  cycle(plan, store, 2, () => pages);
+  const page = plan.table.words[pages[0]] & 0xffff;
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6], true);
+  planFrame(plan, store, 3);
+  assert.equal(plan.pool.dirty[page], STALE_DYNAMIC);
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
+  planFrame(plan, store, 4);
+  assert.equal(plan.pool.dirty[page], STALE_FULL, 'a static change raises it to full');
+});
+
+test('a light that moves reads none of its pages until each is drawn again', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0);
+  const pages = lampPages(plan, store.sliceOf(0), 0, 4),
+    word = (entry: number) => plan.table.words[entry] & (PAGE_MAPPED | PAGE_VALID);
+  cycle(plan, store, 1, () => pages);
+  cycle(plan, store, 2, () => pages);
+  assert.ok(pages.every((entry) => word(entry) === (PAGE_MAPPED | PAGE_VALID)));
+  // Its depth was drawn from the old position: the record the shading reads is the new one.
+  store.set('lamp', { position: [0, 4, 0] });
+  plan.admission.setLimit(1);
+  planFrame(plan, store, 3);
+  assert.ok(
+    pages.every((entry) => word(entry) === PAGE_MAPPED),
+    'mapped, not readable',
+  );
+  plan.commit();
+  assert.equal(pages.filter((entry) => word(entry) & PAGE_VALID).length, 1, 'the one redrawn');
+});
+
+test('a stale page no report names is not left readable to a pass that reads without asking', () => {
+  const { store, plan, pages } = sunScene();
+  cycle(plan, store, 1, () => pages);
+  cycle(plan, store, 2, () => pages);
+  // The opaque shading now reads one page; a blend surface may still read the other two.
+  cycle(plan, store, 3, () => pages.slice(0, 1));
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
+  planFrame(plan, store, 4);
+  assert.ok(plan.table.words[pages[0]] & PAGE_VALID, 'read, and drawn this frame: readable');
+  for (const entry of pages.slice(1))
+    assert.equal(plan.table.words[entry] & PAGE_VALID, 0, 'read by no report: withdrawn');
 });

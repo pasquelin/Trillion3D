@@ -1,4 +1,4 @@
-import { exactPagesBounds } from '../../backend/exact/bounds.ts';
+import { pagesBounds } from '../scene/pagesBounds.ts';
 import type { BoxTransformLot } from '../../math/batchRuntime.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import { framingFromBounds } from '../../camera/framing.ts';
@@ -23,7 +23,7 @@ export function createExplorerCamera(
 ) {
   const flat = emptyWorldBox();
   // A mesh without a prepared primitive simply does not frame the camera.
-  if (autonomous) exactPagesBounds(source, associations, metadata, () => {}, flat, lot);
+  if (autonomous) pagesBounds(source, associations, metadata, () => {}, flat, lot);
   else hostWorldBounds(source, flat, lot);
   sphereFromBounds(framingSphere, 0, flat[0], flat[1], flat[2], flat[3], flat[4], flat[5]);
   const radius = framingSphere[3];

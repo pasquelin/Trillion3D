@@ -14,6 +14,10 @@ import {
   worldOf,
 } from '../layout.ts';
 import { copyMatrix4, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
+import {
+  boxMissesLightPages,
+  type LightPages,
+} from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { dagScratch, projectedError } from './math.ts';
 import type { MatrixElements } from '../../../math/matrixElements.ts';
 
@@ -30,6 +34,9 @@ type PredicateContext = {
   perspective: number;
   /** The camera of the render frame, homogeneous (`DagViewFrames.viewPoint`). */
   viewPoint: Float64Array;
+  /** A light's cut: casters write both faces, no cone rejects them, and a box must reach one
+   *  of the face's redrawn pages (`DagViewUniforms.light`). */
+  light?: LightPages;
 };
 
 /** The scratch world under the host-matrix shape the cone test reads. */
@@ -37,10 +44,10 @@ const SCRATCH_WORLD: MatrixElements = { elements: dagScratch.world };
 
 export function createDagOraclePredicates(context: PredicateContext) {
   const { packed, records, nodeFlags, planes, views, stretches, focal, near } = context;
-  const { perspective, viewPoint } = context;
+  const { perspective, viewPoint, light } = context;
   const { worlds } = packed;
   const coneRejects = (index: number, w: number) => {
-    if (!hasBoxOf(records, index)) return false;
+    if (light || !hasBoxOf(records, index)) return false;
     const { cone, min, max } = dagScratch;
     coneInto(records, index, cone);
     boxInto(records, index, min, max);
@@ -58,15 +65,9 @@ export function createDagOraclePredicates(context: PredicateContext) {
     if (node !== NONE && nodeFlags[node]) return false;
     const { min, max } = dagScratch;
     boxInto(records, index, min, max);
-    return !frustumExcludesBox(
-      planes[worldOf(records, index)],
-      min[0],
-      min[1],
-      min[2],
-      max[0],
-      max[1],
-      max[2],
-    );
+    const w = worldOf(records, index);
+    if (frustumExcludesBox(planes[w], min[0], min[1], min[2], max[0], max[1], max[2])) return false;
+    return !light || !boxMissesLightPages(light, min, max, views[w], perspective);
   };
   const bandPixels = (index: number, at: number) => {
     const w = worldOf(records, index),
