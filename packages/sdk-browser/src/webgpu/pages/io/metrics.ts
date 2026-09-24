@@ -6,8 +6,6 @@ import { directLightTimings } from '../../../stage/mapping.ts';
 import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
-import { abandonFrameEncoder } from '../render/encoder.ts';
-import type { GpuDeviceClaim } from '../../../gpu/core/deviceOwners.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -107,17 +105,11 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
 }
 
 /** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
-export function disposeWebgpuPages(rt: WebgpuPagesRuntime, claim?: GpuDeviceClaim) {
+export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   const { gpu, vis, capture, timing, blendState, services } = rt,
     { scene, pagedBlendCopies } = rt.setup;
-  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included; a
-  // preparation still running stops at its next wait.
-  rt.run.closed = true;
+  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
-  // Let go before its objects are destroyed: from here, an error naming them is a closed session's.
-  claim?.release();
-  // A command buffer left open is never submitted: nothing encoded in it reaches what goes below.
-  abandonFrameEncoder(rt);
   rt.run.gate.release();
   services.residency.quietPending();
   timing.gpuTiming?.dispose();

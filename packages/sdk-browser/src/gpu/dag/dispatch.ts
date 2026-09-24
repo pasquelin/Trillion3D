@@ -96,13 +96,10 @@ export function createDagDispatch(
       state.pending = state.pending
         .catch(() => {})
         .then(async () => {
-          // `dispose` destroyed the buffers: a read queued behind the other slot's maps nothing,
-          // since mapping a destroyed buffer is a validation error on the device (#334).
-          if (state.disposed) {
-            state.mapped[i] = false;
-            return;
-          }
           try {
+            // `dispose` destroyed the buffers: a read queued behind the other slot's maps nothing,
+            // since mapping a destroyed buffer is a validation error on the device (#334).
+            if (state.disposed) return;
             await readback[i].mapAsync(GPUMapMode.READ);
             const bytes = readback[i].getMappedRange();
             const parsed = parseDagOutput(
@@ -113,7 +110,6 @@ export function createDagDispatch(
               scratch[i],
             );
             readback[i].unmap();
-            state.mapped[i] = false;
             if (!parsed) {
               fail();
               return;
@@ -124,7 +120,6 @@ export function createDagDispatch(
             )
               state.last = { uniforms: captured, result: parsed };
           } catch {
-            state.mapped[i] = false;
             // A mapping cut short by `dispose` failed nothing, and its buffer is gone.
             if (state.disposed) return;
             try {
@@ -133,6 +128,8 @@ export function createDagDispatch(
               /* Mapping may already be closed. */
             }
             fail();
+          } finally {
+            state.mapped[i] = false;
           }
         });
     };
