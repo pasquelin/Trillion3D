@@ -1667,6 +1667,7 @@
       "bounds": "A caixa que o modelo preenche, em seu próprio referencial.",
       "lights": "Luzes sob o modelo — aquelas que o arquivo de origem carregava, como nós: uma página as edita, move ou remove como se fossem suas, e elas se movem com o modelo.",
       "record": "Tudo que o mundo guarda sobre esse modelo: seus endereços, manifesto e grafo.",
+      "getObjectByName": "O primeiro nó abaixo com este nome: o modelo, um nó do seu arquivo de origem e depois qualquer outro filho — uma luz trazida pelo arquivo, um nó colocado por uma página.",
       "metadata": "O manifesto compilado do modelo — suas primitivas, `sourceTriangles` — e `clusters`, os clusters que suas páginas contêm, cada nível de seus DAGs contado.",
       "localBounds": "A caixa do próprio conteúdo desse nó, referencial local; um nó simples não contém nenhum."
     }
