@@ -54,6 +54,17 @@ test('a posed chain resolves to the reference world matrices, aim and decomposit
   assert.equal(n.quaternion.w, tn.quaternion.w);
 });
 
+test('a rotation premultiplied by another turns as the reference product', () => {
+  const [q, p] = [new GraphNode().quaternion, new GraphNode().quaternion];
+  const tq = new THREE.Quaternion(0.1, 0.7, -0.2, 0.6).normalize();
+  const tp = new THREE.Quaternion(-0.4, 0.3, 0.8, 0.2).normalize();
+  q.copy(tq);
+  p.copy(tp);
+  q.premultiply(p);
+  tq.premultiply(tp);
+  assert.deepEqual([q.x, q.y, q.z, q.w], tq.toArray());
+});
+
 test('angles and quaternion follow each other, and a watch hears either face', () => {
   const node = new GraphNode(),
     reference = new THREE.Object3D();
