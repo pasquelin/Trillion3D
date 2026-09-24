@@ -134,3 +134,19 @@ test('visible rejects non-boolean values without changing node state', () => {
     assert.equal(node.visible, false);
   }
 });
+
+test('adding children copies nothing: the frozen list is made once, when it is read', () => {
+  const root = createSceneRoot();
+  const parent = root.createNode();
+  const freeze = Object.freeze;
+  let frozen = 0;
+  Object.freeze = ((value: unknown) => (frozen++, freeze(value))) as typeof Object.freeze;
+  try {
+    for (let i = 0; i < 1000; i++) parent.add(root.createNode());
+  } finally {
+    Object.freeze = freeze;
+  }
+  assert.equal(frozen, 0);
+  assert.equal(parent.children.length, 1000);
+  assert.equal(parent.children, parent.children, 'the list is kept until the next change');
+});
