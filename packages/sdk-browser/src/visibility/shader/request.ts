@@ -26,7 +26,10 @@ import type { WebgpuLightState } from '../../webgpu/pages/state/lights.ts';
  * `TILE_REQUEST_WGSL` and the class overrides — `HAS_UV`, `HAS_MASK`, `HAS_SAMPLING` and one
  * per map (`materialClass.ts`) — before this block.
  */
-const HEADER_WORDS = 24;
+/** Words before the sun: the view-projection, the viewport, four scalars, then the depth ramp
+ *  (`writeDepthRamp`, `../../camera/depthConvention.ts`) at `DEPTH_RAMP_WORD`. */
+const HEADER_WORDS = 28;
+export const DEPTH_RAMP_WORD = 24;
 /** Floats of the sun the uniform carries: the three frame rows, then the header. */
 const SUN_WORDS = 16;
 /** Words of the resolve uniform: the header, then the sun. */

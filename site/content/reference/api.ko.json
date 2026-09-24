@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "엔진이 넘겨주는, 호스트가 한 프레임을 그리는 데 쓰는 행렬들.",
+    "summary": "엔진이 넘겨주는, 호스트가 한 프레임을 그리는 데 쓰는 행렬들과 깊이 범위.",
     "members": {
       "projection": "투영.",
       "world": "카메라의 월드 행렬.",
       "view": "뷰 행렬.",
-      "eye": "눈이 있는 위치."
+      "eye": "눈이 있는 위치.",
+      "near": "가장 가까운 거리.",
+      "far": "가장 먼 거리."
     }
   },
   "HostDrawOutput": {
@@ -5811,7 +5813,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "카메라로부터의 거리에 따라 각 점에 음영을 준다.",
+    "summary": "카메라로부터의 거리에 따라 각 점에 음영을 준다: `camera.near`에서 흰색, `camera.far`에서 검은색, 그 사이는 직선 램프이며 WebGPU와 WebGL2에서 같다.",
     "parameters": {
       "parameters": "페이지가 재질 멤버에 넘길 수 있는 것; 모든 필드는 선택 사항.",
       "parameters.color": "기본 색상.",

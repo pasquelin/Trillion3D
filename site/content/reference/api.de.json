@@ -2357,12 +2357,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Die Matrizen, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
+    "summary": "Die Matrizen und der Tiefenbereich, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
     "members": {
       "projection": "Die Projektion.",
       "world": "Die Matrix der Kamera in der Welt.",
       "view": "Die Sichtmatrix.",
-      "eye": "Wo das Auge ist."
+      "eye": "Wo das Auge ist.",
+      "near": "Nächste Entfernung.",
+      "far": "Fernste Entfernung."
     }
   },
   "HostDrawOutput": {
@@ -3261,7 +3263,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera.",
+    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera: weiß bei `camera.near`, schwarz bei `camera.far`, dazwischen ein gerader Verlauf, gleich auf WebGPU und WebGL2.",
     "parameters": {
       "parameters": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
       "parameters.color": "Die Grundfarbe.",
