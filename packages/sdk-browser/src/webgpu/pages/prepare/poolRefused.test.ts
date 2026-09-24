@@ -91,7 +91,14 @@ test('the texture budget recorded mid-session is the one the device granted, not
   const rt = {
     setup,
     gpu: { device: gpu.device },
-    vis: { textures: { color: { pools: [] }, data: { pools: [] }, resize: () => 0 } },
+    vis: {
+      textures: {
+        color: { pools: [] },
+        data: { pools: [] },
+        resize: () => 0,
+        sources: { liveBytes: 0 },
+      },
+    },
     run: { lost: false, gate: { resourcesChanged() {} } },
     diag: { engineDiagnostic() {} },
   };
