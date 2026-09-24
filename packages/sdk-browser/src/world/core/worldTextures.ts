@@ -20,6 +20,7 @@ import {
   HOST_WRAP_MIRRORED_REPEAT,
   HOST_WRAP_REPEAT,
 } from '../../host/surfaceConstants.ts';
+import { hostTextureWritten } from '../../host/textureImport.ts';
 
 const WRAP = {
   repeat: HOST_WRAP_REPEAT,
@@ -45,8 +46,8 @@ export const HOST_MAPS = [...TABLE_SLOTS, 'alphaMap', 'matcap', 'gradientMap'];
  *  a direction, a roughness, an occlusion — read as stored whatever the image declares, as the
  *  WebGPU path reads them. */
 export const COLOUR_MAPS = new Set(['map', 'emissiveMap', 'matcap']);
-/** Host textures already built, by engine texture and whether it is read as colour: a texture
- *  worn by several surfaces is uploaded once. */
+/** Host textures already built, by engine texture, its layout and format, and whether it is read
+ *  as colour: a texture worn by several surfaces is uploaded once. */
 export type HostTextures = Map<string, THREE.Texture>;
 
 const colourSpace = (texture: Texture, colour: boolean) =>
@@ -59,6 +60,13 @@ type Written = { version?: number; sampling?: number; placement?: number };
  *  version sends the picture again (`needsUpdate`); sampling and placement are fields only. */
 function writeHostTexture(host: THREE.Texture, texture: Texture, colour: boolean) {
   const written = host.userData as Written;
+  if (
+    written.placement === texture.placement &&
+    written.sampling === texture.sampling &&
+    written.version === texture.version
+  )
+    return;
+  hostTextureWritten();
   if (written.placement !== texture.placement) {
     written.placement = texture.placement;
     host.repeat.set(texture.repeat.x, texture.repeat.y);
@@ -81,10 +89,11 @@ function writeHostTexture(host: THREE.Texture, texture: Texture, colour: boolean
   host.needsUpdate = true;
 }
 
-/** The host texture of an engine texture, read as colour or as data; built once per table and
- *  written in place afterwards. */
+/** The host texture of an engine texture, read as colour or as data; built once per table and per
+ *  layout and format — what kind of host texture it is and how its pixels are sent —, then
+ *  written in place. */
 export function hostTexture(texture: Texture, colour: boolean, built: HostTextures) {
-  const key = `${texture.id}:${colour}`;
+  const key = `${texture.id}:${texture.layout}:${texture.format}:${colour}`;
   let host = built.get(key);
   if (!host) {
     const pixels = texture.image as { data: ArrayBufferView; width: number; height: number };
