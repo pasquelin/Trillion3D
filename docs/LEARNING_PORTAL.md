@@ -150,10 +150,10 @@ bundle answer, each with `Cross-Origin-Opener-Policy: same-origin` and
 `Cross-Origin-Embedder-Policy: credentialless`. Those two headers make the page cross-origin
 isolated, which the physics needs for its threads (`SharedArrayBuffer`); `credentialless` rather
 than `require-corp` keeps the consent panel and its audience measurement loading from their own
-origins. `scripts/docs-serve.ts` answers the same headers locally. It reads four repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`,
-`DEPLOY_TARGET` and `DEPLOY_SSH_PORT`. The server side — web server, HTTPS, the redirect of the
-bare domain to `www`, the isolation headers above, and the deploy key restricted to the web root —
-is set up by the maintainer.
+origins. `scripts/docs-serve.ts` answers the same headers locally. The deploy job reads four
+repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_TARGET` and `DEPLOY_SSH_PORT`.
+The server side — web server, HTTPS, the redirect of the bare domain to `www`, the isolation
+headers above, and the deploy key restricted to the web root — is set up by the maintainer.
 GitHub Pages is no longer deployed: its last deployment is removed by turning Pages off in the
 repository settings, which leaves https://www.trillion3d.com the one public address.
 
