@@ -6,7 +6,7 @@ use crate::dag::DagCluster;
 /// The golden tile: a 2 × 2 m quad tilted up along x, two triangles, cooked by native Jolt. The
 /// physics module's tests restore these very bytes (`packages/sdk-browser/src/physics`).
 const RAMP: [f32; 12] = [0., 0., -1., 2., 1., -1., 2., 1., 1., 0., 0., 1.];
-const RAMP_TRIANGLES: [u32; 6] = [0, 1, 2, 0, 2, 3];
+const RAMP_TRIANGLES: [u32; 6] = [0, 2, 1, 0, 3, 2];
 const GOLDEN: &str = "../../tests/fixtures/physics/ramp-tile.bin";
 
 // Behaviour: the cook is deterministic and its bytes are the golden ones the runtime restores.

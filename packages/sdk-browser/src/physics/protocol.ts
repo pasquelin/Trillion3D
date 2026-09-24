@@ -27,6 +27,8 @@ export type ToPhysics =
   | { type: 'commands'; words: Uint32Array }
   /** The clock: `timeScale` is above 0 unless `paused` (the page sends a scale of 0 as a pause). */
   | { type: 'clock'; paused: boolean; timeScale: number }
+  /** Scene queries (`CAST_WORDS` each), answered against the last step by a `cast` reply. */
+  | { type: 'cast'; id: number; queries: Uint32Array }
   /** A result buffer the page has read, handed back. */
   | { type: 'buffer'; buffer: ArrayBuffer }
   /** Sent by the worker to a worker of its own: run one of the module's threads. */
@@ -58,6 +60,8 @@ export interface PhysicsResults {
 export type FromPhysics =
   | { type: 'ready' }
   | PhysicsResults
+  /** The hits of a `cast` request (`HIT_WORDS` each), in its order. */
+  | { type: 'cast'; id: number; hits: Uint32Array }
   | { type: 'error'; code: string; message: string; fatal: boolean; bodies?: number[] };
 
 /** Word where a result buffer's events start: after one pose per body. */

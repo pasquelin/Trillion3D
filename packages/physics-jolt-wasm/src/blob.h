@@ -36,7 +36,9 @@ public:
     std::memcpy(out, data + at, wanted);
     at += wanted;
   }
-  bool IsEOF() const override { return at >= count; }
+  /// As a standard stream's: set by a read past the end, not by reaching it (Jolt checks it after
+  /// the last read of a well-formed state).
+  bool IsEOF() const override { return failed; }
   bool IsFailed() const override { return failed; }
 
 private:
