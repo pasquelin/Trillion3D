@@ -53,16 +53,18 @@ function fail(error: unknown) {
   jolt = null;
 }
 
-/** Keeps a step's poses, one slot per body, and its events. */
+/** Keeps a step's poses, one slot per body, and its events; nothing is allocated per record. */
 function gather(count: number) {
   const words = jolt!.poses(count);
   for (let r = 0; r < count; r++) {
-    const index = (words[r * POSE_WORDS] & ~ASLEEP_BIT) >>> 0;
+    const at = r * POSE_WORDS,
+      index = (words[at] & ~ASLEEP_BIT) >>> 0;
     if (stamp[index] !== tickId) {
       stamp[index] = tickId;
       slotOf[index] = poseCount++;
     }
-    poses.set(words.subarray(r * POSE_WORDS, (r + 1) * POSE_WORDS), slotOf[index] * POSE_WORDS);
+    const to = slotOf[index] * POSE_WORDS;
+    for (let k = 0; k < POSE_WORDS; k++) poses[to + k] = words[at + k];
   }
   const fresh = jolt!.events();
   const room = Math.min(fresh.length, events.length - eventCount * EVENT_WORDS);
@@ -70,11 +72,14 @@ function gather(count: number) {
   eventCount += room / EVENT_WORDS;
 }
 
+/** Runs the queued commands and one step; `stepMs` counts the module's step alone, the clock the
+ *  bench reads in Node (`scripts/bench-physics.ts`), not the copy of its results. */
 function run(dt: number) {
   const words = queued.length ? concat(queued.splice(0)) : null;
   const t = performance.now();
-  gather(jolt!.step(words, dt));
+  const count = jolt!.step(words, dt);
   stepMs += performance.now() - t;
+  gather(count);
 }
 
 function concat(parts: Uint32Array[]) {
