@@ -1,5 +1,7 @@
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { Object3D, type SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
+import { listen } from '../../../../sdk-core/src/world/math/observed.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import type { LoadedModel } from './loadedModel.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
@@ -20,6 +22,9 @@ export interface LoadOptions {
   position?: readonly [number, number, number] | { x: number; y: number; z: number };
 }
 
+/** What a world hears from its scene: a node's changes, and its background set or written. */
+export type WorldSceneLink = SceneLink & { background(): void };
+
 /**
  * The root of a world's scene: objects are added to it, a compiled model is loaded into it, and
  * what fills the image behind them is `background`.
@@ -27,7 +32,9 @@ export interface LoadOptions {
 export class Scene extends Object3D {
   /** Always `true`: tells the scene root apart from any other object. */
   readonly isScene = true as const;
-  private _background: Color | Texture | null = null;
+  private _background: Color | null = null;
+  /** Tells the world the background changed, chained on the colour to hear writes in place. */
+  private readonly recoloured = () => (this._link as WorldSceneLink | null)?.background();
   /** A picture of the surroundings that shiny surfaces reflect; `null` for none. */
   environment: Texture | null = null;
   /** Fog that fades objects into `color` between `near` and `far`; `null` for none. */
@@ -39,13 +46,23 @@ export class Scene extends Object3D {
     this.loader = loader;
     this.type = 'Scene';
   }
-  /** What fills the image behind every object: a colour, a picture, or `null` for the default. */
+  /** What fills the image behind every object: a colour, or `null` for the default. A change —
+   *  set, or written in place (`background.setHSL(...)`) — shows at the next frame, the session
+   *  kept. A picture is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one. */
   get background() {
     return this._background;
   }
-  set background(value: Color | Texture | null) {
+  set background(value: Color | null) {
+    if (value !== null && (value as { isColor?: boolean }).isColor !== true)
+      throw new EngineError(
+        'UNSUPPORTED_SCENE_UPDATE',
+        'scene.background takes a colour or null: a picture background is not drawn',
+      );
+    const previous = this._background;
+    if (previous?._onChange === this.recoloured) previous._onChange = null;
     this._background = value;
-    this._link?.structure(this);
+    if (value && value._onChange !== this.recoloured) listen(value, this.recoloured);
+    this.recoloured();
   }
   /** Loads a compiled model — its manifest URL — and adds it to this scene. */
   async load(manifestUrl: string, options: LoadOptions = {}) {
