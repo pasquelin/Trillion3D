@@ -106,9 +106,10 @@ export class GraphCamera extends GraphNode {
     super.updateMatrixWorld(force);
     this.matrixWorldInverse.copy(this.matrixWorld).invert();
   }
-  override updateWorldMatrix(ancestors: boolean, descendants: boolean) {
+  override updateWorldMatrix(ancestors = true, descendants = true) {
     super.updateWorldMatrix(ancestors, descendants);
     this.matrixWorldInverse.copy(this.matrixWorld).invert();
+    return this;
   }
   protected override blank(): this {
     return new GraphCamera({}, this.frame) as this;

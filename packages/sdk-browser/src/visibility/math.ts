@@ -95,7 +95,7 @@ export { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
  * table. The coordinate goes through the map's UV transform first — its affine part, as both GPU
  * paths apply it —, untouched when it is the identity (`transformed`, which a caller reading many
  * texels of one map computes once). No footprint here: the texel the coordinate falls in, the
- * `nearest` rule.
+ * `nearest` rule. A `flipY` map reads its rows from the last, as both GPU paths upload them.
  */
 export function mapTexel(
   image: { width: number; height: number },
@@ -112,28 +112,32 @@ export function mapTexel(
     v2 = m[1] * u + m[4] * v + m[7];
   }
   const x = wrapTexel(u2, image.width, map.wrapS),
-    y = wrapTexel(v2, image.height, map.wrapT);
+    row = wrapTexel(v2, image.height, map.wrapT),
+    y = map.flipY ? image.height - 1 - row : row;
   return (y * image.width + x) * 4;
 }
 
-export function sampleMap(map: Texture, u: number, v: number): [number, number, number] {
+/** A colour byte times its alpha byte, as an 8-bit `premultiplyAlpha` upload stores it. */
+export const premultipliedByte = (byte: number, alpha: number) => Math.round((byte * alpha) / 255);
+
+/** The colour of the texel a map reads, bytes as both GPU paths upload them — times their alpha
+ *  under `premultiplyAlpha` (an alpha of 255 leaves them as they are) —, each read through `of`. */
+function sampled(map: Texture, u: number, v: number, of: (byte: number) => number) {
   const image = textureRgba(map);
-  if (!image) return [1, 1, 1];
+  if (!image) return [1, 1, 1] as [number, number, number];
   const d = image.data,
-    i = mapTexel(image, map, u, v);
+    i = mapTexel(image, map, u, v),
+    a = map.premultiplyAlpha ? d[i + 3] : 255;
   return [
-    SRGB8_LINEAIRE[d[i]] ?? NaN,
-    SRGB8_LINEAIRE[d[i + 1]] ?? NaN,
-    SRGB8_LINEAIRE[d[i + 2]] ?? NaN,
-  ];
+    of(premultipliedByte(d[i], a)),
+    of(premultipliedByte(d[i + 1], a)),
+    of(premultipliedByte(d[i + 2], a)),
+  ] as [number, number, number];
 }
-export function sampleLinear(map: Texture, u: number, v: number): [number, number, number] {
-  const image = textureRgba(map);
-  if (!image) return [1, 1, 1];
-  const d = image.data,
-    i = mapTexel(image, map, u, v);
-  return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255];
-}
+const srgbByte = (byte: number) => SRGB8_LINEAIRE[byte] ?? NaN,
+  linearByte = (byte: number) => byte / 255;
+export const sampleMap = (map: Texture, u: number, v: number) => sampled(map, u, v, srgbByte);
+export const sampleLinear = (map: Texture, u: number, v: number) => sampled(map, u, v, linearByte);
 
 /** ×31 polynomial by code points. `hashId` (../diagnostic/colors.ts) walks UTF-16 units: same
  *  polynomial, two walks, two results outside the BMP — not two copies of one. */
