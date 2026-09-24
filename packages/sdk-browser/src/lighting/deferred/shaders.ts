@@ -11,7 +11,8 @@ fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(
  *  size, the raw-output flag of diagnostic views and the rank of a sampled image
  *  (`../direct/lightSamplingWgsl.ts`); `lightParams` the contract light count, tiles in X and Y, and
  *  exposure, applied before the display curve (P4); `display.x` the rank of that curve
- *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from. The environment's irradiance travels with the lights. */
+ *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from. The environment's
+ *  irradiance and fog travel with the lights. */
 export const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,display:vec4f,}`;
 /** World position of a pixel at a depth, reconstructed through that view: the one reading of
  *  the depth buffer every fullscreen pass shares. */
@@ -76,9 +77,8 @@ ${WORLD_AT_WGSL}
 /**
  * Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
- * added (P6). Surfaces
- * marked unlit or in display space come out as-is, as before: they are materials with no
- * response to light, not lit surfaces.
+ * added (P6). Surfaces marked unlit or in display space come out as-is, as before: they are
+ * materials with no response to light, not lit surfaces.
  */
 export const DIRECT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
