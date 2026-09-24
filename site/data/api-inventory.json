@@ -2656,7 +2656,7 @@
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/capability/worldReady.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
-        "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
+        "packages/sdk-browser/src/world/core/worldControlTargets.ts",
         "packages/sdk-browser/src/world/core/worldDevice.ts",
         "packages/sdk-browser/src/world/core/worldDiagnostic.test.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts",
@@ -5090,6 +5090,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/contacts.ts",
         "packages/sdk-browser/src/physics/placer.ts",
         "packages/sdk-browser/src/physics/poses.ts",
         "packages/sdk-browser/src/physics/session.ts",
