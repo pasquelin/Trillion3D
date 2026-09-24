@@ -43,6 +43,7 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
     outputs: 0,
     roots: 0,
     bundles: 0,
+    bundleDependencies: 0,
     previews: slim.binary.texturePreviews,
     previewBytes: slim.binary.texturePreviewBytes,
     previewBlockBytes: {
@@ -104,6 +105,12 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
     counts.children += groupChildCount[g];
     counts.outputs += groupOutputCount[g];
   }
+  expect('bundleDependencyCount', counts.bundles);
+  const bundleDependencyCount = column(
+    'bundleDependencyCount',
+    (b, o, n) => new Uint32Array(b, o, n),
+  );
+  for (let b = 0; b < counts.bundles; b++) counts.bundleDependencies += bundleDependencyCount[b];
   for (const name of COLUMN_NAMES) expect(name, columnElements(name, counts));
   const bounds = column('pageBounds', (b, o, n) => new Float64Array(b, o, n)),
     sphere = column('pageSphere', (b, o, n) => new Float64Array(b, o, n));
@@ -120,6 +127,7 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
   const groupOutput = column('groupOutput', (b, o, n) => new Int32Array(b, o, n));
   const structureRoot = column('structureRoot', (b, o, n) => new Int32Array(b, o, n));
   const bundleWords = column('bundleU32', (b, o, n) => new Uint32Array(b, o, n));
+  const bundleDependency = column('bundleDependency', (b, o, n) => new Uint32Array(b, o, n));
   const pageDepthLayer = column('pageDepthLayer', (b, o, n) => new Uint32Array(b, o, n));
   const decoder = new TextDecoder('latin1');
   const pageShaText = decoder.decode(column('pageSha', (b, o, n) => new Uint8Array(b, o, n)));
@@ -160,7 +168,7 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
       groupOutput,
       structureRoot,
     },
-    bundles: { bundleWords, bundleShaText },
+    bundles: { bundleWords, bundleShaText, bundleDependencyCount, bundleDependency },
     previews: {
       count: counts.previews,
       previewWords,

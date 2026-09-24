@@ -309,7 +309,9 @@
       "texturePreviewSha": "Dấu vân tay của mỗi bản xem trước kết cấu.",
       "texturePreviewPixels": "Các điểm ảnh của các bản xem trước đó.",
       "texturePreviewBc7": "Các khối BC7 của các bản xem trước đó.",
-      "texturePreviewAstc": "Các khối ASTC của các bản xem trước đó."
+      "texturePreviewAstc": "Các khối ASTC của các bản xem trước đó.",
+      "bundleDependencyCount": "Mỗi gói cần bao nhiêu gói khác.",
+      "bundleDependency": "Các gói mà mỗi gói cần, cho đến tận gốc."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -659,7 +661,8 @@
       "bundles": "Gói.",
       "previews": "Bản xem trước kết cấu.",
       "previewBytes": "Byte của cột điểm ảnh, mỗi mức của mỗi mục được nối lại.",
-      "previewBlockBytes": "Byte của mỗi cột khối: đuôi các chuỗi được giữ lại đã nén, các khối nguyên vẹn, các mục liền kề, không có gì cho một chuỗi mà nhóm đó để nguyên không mất mát."
+      "previewBlockBytes": "Byte của mỗi cột khối: đuôi các chuỗi được giữ lại đã nén, các khối nguyên vẹn, các mục liền kề, không có gì cho một chuỗi mà nhóm đó để nguyên không mất mát.",
+      "bundleDependencies": "Phụ thuộc của các gói, danh sách của mọi gói nối liền nhau."
     }
   },
   "CpuStepSummary": {
@@ -2034,20 +2037,21 @@
       "castShadow": "Node có đổ bóng hay không.",
       "receiveShadow": "Bóng đổ có rơi lên node hay không.",
       "renderOrder": "Thứ tự vẽ giữa các vật thể trong suốt.",
+      "frustumCulled": "Trình kết xuất có được bỏ qua nó khi ngoài tầm nhìn hay không.",
       "userData": "Không gian tự do cho dữ liệu riêng của trang.",
       "visible": "Node và các con của nó có được vẽ hay không.",
       "parent": "Cha trong cảnh, hoặc null khi bị tách rời.",
       "children": "Các con đã gắn theo thứ tự chèn vào. Danh sách trả về không thể bị thay đổi.",
-      "matrix": "Ma trận cục bộ, một view vào vị trí của node này trong cây biến đổi.",
-      "matrixWorld": "Ma trận thế giới như lần dựng gần nhất (`updateMatrixWorld`), một view vào cây đó.",
       "add": "Biến các đối tượng thành con của node này.",
       "remove": "Gỡ các con khỏi node này.",
+      "destroy": "Giải phóng nút và mọi thứ bên dưới ngay bây giờ, thay vì khi chúng bị thu gom.",
       "removeFromParent": "Gỡ node khỏi cha của nó.",
       "clear": "Gỡ mọi con khỏi node này.",
       "traverse": "Gọi `fn` trên node này và mọi thứ bên dưới nó.",
       "traverseVisible": "Gọi `fn` trên mỗi node khả kiến từ đây trở xuống.",
       "getObjectByName": "Node đầu tiên bên dưới có tên này.",
-      "updateMatrixWorld": "Dựng ma trận thế giới của node này và của các hậu duệ của nó, lấy ma trận của cha nguyên trạng.",
+      "updateMatrix": "Tạo ma trận cục bộ từ tư thế.",
+      "applyMatrix4": "Áp `m` lên tư thế của nút, rồi đọc lại tư thế từ tích.",
       "lookAt": "Xoay node về phía một điểm trong thế giới (`lookAtNode`): `+z` hướng vào đó, `-z` cho một người quan sát.",
       "rotateOnAxis": "Xoay node quanh `axis` theo góc `angle` radian.",
       "rotateX": "Xoay node quanh trục x riêng của nó.",
@@ -2060,6 +2064,16 @@
       "localToWorld": "Một điểm trong khung của node, trong thế giới.",
       "worldToLocal": "Một điểm của thế giới, trong khung của node.",
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
+    }
+  },
+  "TransformNode": {
+    "summary": "Một nút cảnh được đọc qua các ma trận của bản tham chiếu, lưu trong cây biến đổi của engine.",
+    "members": {
+      "matrix": "Ma trận cục bộ, một view vào vị trí của node này trong cây biến đổi.",
+      "matrixWorld": "Ma trận thế giới như lần dựng gần nhất (`updateMatrixWorld`), một view vào cây đó.",
+      "matrixAutoUpdate": "Sai (false) khi `matrix` CHÍNH LÀ tư thế và không gì dựng lại nó.",
+      "matrixWorldNeedsUpdate": "Được đặt khi ma trận cục bộ đã đổi mà ma trận thế giới chưa theo kịp.",
+      "updateMatrixWorld": "Dựng ma trận thế giới của node này và của các hậu duệ của nó, lấy ma trận của cha nguyên trạng."
     }
   },
   "OcclusionFrameMetrics": {
@@ -2914,8 +2928,8 @@
       "visible": "Nó có được vẽ hay không.",
       "parent": "Cha trong cảnh, hoặc null khi bị tách rời.",
       "children": "Các con đã gắn theo thứ tự chèn vào. Danh sách trả về không thể bị thay đổi.",
-      "localMatrix": "Chỉ đọc theo hợp đồng; dùng setLocalMatrix để đánh dấu phép biến đổi là bẩn (cần cập nhật).",
-      "worldMatrix": "Ma trận thế giới hiện tại; gọi updateWorldMatrix sau khi thay đổi một tư thế.",
+      "localMatrix": "Chỉ đọc theo hợp đồng, có hiệu lực khi nút còn sống; setLocalMatrix đánh dấu phép biến đổi là bẩn (cần cập nhật).",
+      "worldMatrix": "Ma trận thế giới hiện tại, có hiệu lực khi nút còn sống; gọi updateWorldMatrix sau khi thay đổi một tư thế.",
       "add": "Thêm một con.",
       "remove": "Gỡ một con.",
       "clear": "Gỡ mọi con.",
@@ -2985,7 +2999,6 @@
     "summary": "Những gì mọi node của một cảnh chia sẻ: cây biến đổi và các chỉ số của nó.",
     "members": {
       "tree": "Cây biến đổi.",
-      "nodes": "Các node theo khe.",
       "ids": "Các node theo tên.",
       "nextId": "Số tên tự do tiếp theo.",
       "root": "Gốc của cảnh."
@@ -3154,7 +3167,8 @@
       "version": "Phiên bản định dạng.",
       "pinned": "Các gói luôn được giữ lại.",
       "bundleBytes": "Kích thước gói mục tiêu.",
-      "pages": "Có bao nhiêu gói."
+      "pages": "Có bao nhiêu gói.",
+      "maxDependencies": "Số phụ thuộc lớn nhất của một gói: giới hạn mà trình biên dịch công bố."
     }
   },
   "SlimStructure": {
@@ -3247,7 +3261,8 @@
       "url": "Nơi nó được đọc.",
       "sha256": "Dấu vân tay của các byte của nó.",
       "bytes": "Kích thước của nó.",
-      "count": "Số cụm nó chứa."
+      "count": "Số cụm nó chứa.",
+      "dependencies": "Các gói chứa cha của các cụm của nó, cho đến các gốc luôn được nạp, theo thứ tự tăng dần: nó được cài sau từng gói đó."
     }
   },
   "StreamCatalogue": {
@@ -3257,7 +3272,8 @@
       "version": "Phiên bản định dạng.",
       "pinned": "Các gói luôn được giữ lại.",
       "bundleBytes": "Kích thước gói mục tiêu.",
-      "pages": "Mọi gói."
+      "pages": "Mọi gói.",
+      "maxDependencies": "Số phụ thuộc lớn nhất của một gói, như trình biên dịch đã công bố."
     }
   },
   "StreamPage": {
@@ -3659,7 +3675,7 @@
   },
   "TransformTree": {
     "summary": "Phân cấp biến đổi của bộ máy, theo hướng dữ liệu: một node là một chỉ số vào các mảng phẳng — cha, cờ, vị trí, quaternion `(x, y, z, w)`, tỉ lệ, ma trận cục bộ và ma trận thế giới dạng column-major.",
-    "description": "`localViews[i]` và `worldViews[i]` là các view mười sáu con số trên `local` và `world`, được tạo ra khi tăng trưởng và không bao giờ trong lúc cập nhật: GPU đọc toàn bộ bộ đệm, các công thức nhân đọc view của một node. Các lần ghi đi qua các hàm thiết lập, thứ đánh dấu những gì chúng thay đổi. Một lần tăng trưởng thay thế mọi mảng: một bên gọi đọc lại `tree.world` hoặc `tree.worldViews` sau một lần thêm vào.",
+    "description": "`localViews[i]` và `worldViews[i]` là các view mười sáu con số trên `local` và `world`, được tạo ra khi tăng trưởng và không bao giờ trong lúc cập nhật: GPU đọc toàn bộ bộ đệm, các công thức nhân đọc view của một node. Các lần ghi đi qua các hàm thiết lập, thứ đánh dấu những gì chúng thay đổi. Một lần tăng trưởng thay thế mọi mảng: một bên gọi đọc lại `tree.world` hoặc `tree.worldViews` sau một lần thêm vào. Mỗi nút liệt kê các con của nó: một lần duyệt cây con không bao giờ đọc ra ngoài cây con (`links.ts`).",
     "members": {
       "capacity": "Có bao nhiêu node vừa được trước khi nó tăng trưởng.",
       "end": "Các chỉ số được phục vụ: mọi node còn sống nằm dưới giới hạn này.",
@@ -3676,14 +3692,12 @@
       "seen": "Phiên bản của cha mà mỗi node thấy lần cuối.",
       "free": "Các chỉ số đã giải phóng, được dùng lại trước khi mở rộng `end`.",
       "freeCount": "Có bao nhiêu chỉ số tự do đang chờ.",
-      "order": "Thứ tự cập nhật, cha trước con, và thứ hạng của mỗi node trong thứ tự đó.",
-      "orderAt": "Thứ hạng của mỗi node trong `order`.",
-      "orderCount": "Các node trong `order`.",
-      "orderDirty": "`order` có cần được dựng lại hay không.",
-      "depth": "Các bộ đệm làm việc cho việc duyệt: độ sâu, chuỗi tổ tiên, các nhóm, các dấu.",
+      "firstChild": "Các con của mỗi nút dưới dạng danh sách liên kết, −1 nếu không có: một lần duyệt cây con tốn đúng cây con.",
+      "lastChild": "Con cuối, nơi một lần gắn được nối vào.",
+      "nextSibling": "Con kế tiếp của cùng cha.",
+      "previousSibling": "Con trước đó của cùng cha.",
       "chain": "Bộ đệm chuỗi tổ tiên.",
-      "buckets": "Bộ đệm nhóm.",
-      "stamp": "Bộ đệm dấu.",
+      "stamp": "Bộ đệm dấu: những gì một lần duyệt truyền từ cha xuống các con.",
       "call": "Số hiệu lượt duyệt hiện tại."
     }
   },
@@ -7200,37 +7214,11 @@
   "GraphNode": {
     "summary": "Một nút của đồ thị: tên, tư thế, ma trận thế giới, cha và các con của nó.",
     "members": {
-      "id": "Số của nút, duy nhất trong phiên.",
+      "serial": "Số của nút, duy nhất trong phiên.",
       "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu.",
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
       "parent": "Cha của nó.",
       "children": "Các nút mà nút này giữ, theo thứ tự.",
-      "up": "Hướng nào là phía trên cho `lookAt`.",
-      "position": "Nơi nó đứng.",
-      "rotation": "Nó được xoay như thế nào, dưới dạng góc.",
-      "quaternion": "Hai mặt của phép xoay một node — quaternion mà bộ máy so sánh, và các góc Euler được sao chép vào đó — mỗi bên TỰ THÔNG BÁO các lần ghi của chính nó: một callback mà ứng dụng chủ đã xâu chuỗi sẵn, mà một hook mở rộng thêm thay vì thay thế (`hooks.ts`). Hai thành viên có gạch dưới đó là riêng tư của thư viện chủ, nên chúng được ghi ở đây, nơi hook cần đến chúng, và không được đặt tên riêng. Điều đó giữ cái riêng tư đó ngoài danh sách các hợp đồng công bố của SDK; nhưng nó KHÔNG giữ nó ngoài bề mặt công bố, vì `HostGraphNode` mang theo nó. Việc so sánh tư thế theo từng khung hình, như lượt quét đã làm, mới là thứ sẽ gỡ bỏ sự ràng buộc đó — điều đó không thuộc về lô này.",
-      "scale": "Nó được kéo giãn như thế nào.",
-      "matrix": "Ma trận cục bộ của nó.",
-      "matrixWorld": "Ma trận thế giới của nó.",
-      "matrixAutoUpdate": "Sai khi chính ứng dụng chủ đặt `matrix`: ma trận đó CHÍNH LÀ tư thế và không có gì dựng lại nó.",
-      "matrixWorldAutoUpdate": "Sai khi không có gì ghi `matrixWorld`.",
-      "matrixWorldNeedsUpdate": "Được đặt khi ma trận cục bộ đã đổi mà ma trận thế giới chưa theo kịp.",
-      "visible": "Nó có được vẽ hay không.",
-      "castShadow": "Có đổ bóng hay không.",
-      "receiveShadow": "Bóng có đổ lên nó hay không.",
-      "frustumCulled": "Trình kết xuất có được bỏ qua nó khi ngoài tầm nhìn hay không.",
-      "renderOrder": "Thứ tự vẽ giữa các vật trong suốt.",
-      "userData": "Nơi bộ máy đánh dấu một bản sao của riêng nó, thứ mà ứng dụng chủ chưa bao giờ thấy và không thể ghi vào.",
-      "add": "Biến `nodes` thành con của nút này, mỗi nút trước đó được gỡ khỏi cha cũ.",
-      "remove": "Gỡ `nodes` khỏi nút này.",
-      "removeFromParent": "Gỡ nút này khỏi cha của nó.",
-      "clear": "Gỡ mọi con khỏi nút này.",
       "traverse": "Cây con dưới node đó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ.",
-      "updateMatrix": "Tạo ma trận cục bộ từ tư thế.",
-      "updateMatrixWorld": "Giải quyết các ma trận thế giới của cây con NGAY TRONG ĐỒ THỊ CHỦ, cho các trình đọc riêng của ứng dụng chủ.",
-      "updateWorldMatrix": "Giải ma trận thế giới của nút này, của tổ tiên trước nếu được yêu cầu, rồi đến cây con.",
-      "applyMatrix4": "Áp `m` lên tư thế của nút, rồi đọc lại tư thế từ tích.",
-      "lookAt": "Xoay nút về phía một điểm thế giới, cho dưới dạng điểm hoặc ba số.",
       "clone": "Một nút cùng loại với cùng giá trị; các con của nó cũng được sao chép trừ khi được bảo không.",
       "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
     }
