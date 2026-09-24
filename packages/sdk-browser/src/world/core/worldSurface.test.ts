@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
-import { importHostTexture } from '../../host/surfaceImport.ts';
+import { followHostTexture, importHostTexture } from '../../host/surfaceImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 
@@ -51,6 +51,7 @@ test('a repaint writes a map’s sampling into the host texture it already holds
   repaintHostSurface(surface as never, paint);
   assert.ok(host.version > version, 'the texture version moved');
   assert.equal(surface.map, host, 'the same host texture, written in place');
+  followHostTexture(record);
   assert.equal(importHostTexture(host), record, 'the same engine record, refilled');
   assert.deepEqual(
     [record.wrapS, record.magFilter, record.minFilter, record.anisotropy],
@@ -62,9 +63,10 @@ test('a repaint writes a map’s sampling into the host texture it already holds
   assert.ok(Math.abs(c - 4 * Math.sin(Math.PI / 6)) < 1e-9);
 });
 
-// #360: a placement alone — repeat, offset, rotation — is the host texture's UV matrix, read at
-// every draw and aliased by its engine record: recomposed in place, it uploads nothing again,
-// where a bumped version would reload the whole image on WebGL2 at every frame of an animated UV.
+// #360: a placement alone — repeat, offset, rotation — moves the texture's placement counter, not
+// its version: it is the host texture's UV matrix, recomposed once per image and aliased by its
+// engine record, and it uploads nothing again, where a bumped version would reload the whole
+// image on WebGL2 at every frame of an animated UV.
 test('a repaint that moves a map’s placement alone recomposes its matrix, no upload', () => {
   const map = new Texture({ width: 2, height: 2 });
   const paint = material.meshStandard({ map });
@@ -72,10 +74,15 @@ test('a repaint that moves a map’s placement alone recomposes its matrix, no u
   const host = surface.map as HostTexture & { version: number };
   const record = importHostTexture(host);
   const version = host.version;
+  const textureVersion = map.version,
+    placement = map.placement;
   map.offset.set(0.25, 0.5);
   map.rotation = Math.PI / 2;
+  assert.equal(map.version, textureVersion, 'the placement counts apart from the version');
+  assert.equal(map.placement, placement + 2, 'the offset, then the rotation');
   repaintHostSurface(surface as never, paint);
   assert.equal(host.version, version, 'no new upload');
+  followHostTexture(record);
   assert.equal(importHostTexture(host), record);
   const [a, , , , , , tx, ty] = record.transform;
   assert.ok(Math.abs(a) < 1e-9, 'the quarter turn reaches the record');
@@ -115,4 +122,24 @@ test('a repaint sends a map’s picture again at every version but a placement',
     assert.ok((surface.version as number) > surfaceVersion, 'the values written');
     assert.equal((surface.color as THREE.Color).getHex(), 0xff0000);
   }
+});
+
+// #360, #361: a placement and the pixels moved together — an atlas frame drawn and slid in the
+// same tick — take both writes: the picture sent again, and the placement composed.
+test('a repaint that moves a map’s placement and its pixels together takes both', () => {
+  const map = new Texture({ data: new Uint8Array(16), width: 2, height: 2 });
+  const paint = material.meshStandard({ map });
+  const surface = hostSurface(paint, false, new Map()) as unknown as Record<string, unknown>;
+  const host = surface.map as HostTexture & { version: number };
+  const record = importHostTexture(host);
+  const version = host.version;
+  (map.image as { data: Uint8Array }).data[0] = 255;
+  map.needsUpdate = true;
+  map.offset.set(0.5, 0);
+  repaintHostSurface(surface as never, paint);
+  assert.ok(host.version > version, 'the pixels sent again');
+  followHostTexture(record);
+  assert.equal(importHostTexture(host), record);
+  assert.equal(record.version, host.version, 'the record refilled at the new version');
+  assert.equal(record.transform[6], 0.5, 'the offset reaches the record');
 });
