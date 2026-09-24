@@ -5,9 +5,9 @@ import { advanceMixers } from '../../../../sdk-core/src/world/animation/index.ts
 /** What the loop steps ahead of a frame: `world.controls`. */
 type Stepped = { autoUpdate: boolean; update(delta: number): void };
 
-/** A frame's metrics, with the names a page reads them by; `null` where the path does not count. */
+/** A frame's metrics as the host copied them from the engine, and two a page reads composed from
+ *  them; `null` where the path does not count. */
 export type WorldFrameMetrics = FrameMetrics & {
-  gpuFrameMs: number | null;
   /** Clusters the occlusion test found hidden this frame; `null` where the path does not count them. */
   hizCulled: number | null;
   /** Shadow pages held in memory this frame; `null` where the path has none. */
@@ -31,13 +31,12 @@ export interface FrameInfo {
  *  world began. The world's one object, rewritten each frame: a hook that keeps a value copies it. */
 export type BeforeFrameInfo = Pick<FrameInfo, 'delta' | 'time'>;
 
-/** The engine's metrics under a page's names: the GPU frame, the clusters the occlusion test
- *  rejected, the shadow pages held (all of them less those still waiting). */
+/** The engine's metrics with what a page reads composed from them: the clusters the occlusion
+ *  test rejected, the shadow pages held (all of them less those still waiting). */
 function named(m: FrameMetrics): WorldFrameMetrics {
   const total = m.shadowPagesTotal,
     pending = m.shadowPagesPending;
   return Object.assign(m, {
-    gpuFrameMs: m.gpuMs,
     hizCulled: m.hizRejectedClusters ?? null,
     shadowPagesResident: total != null && pending != null ? total - pending : null,
   });
@@ -52,7 +51,6 @@ export const NOT_DRAWN: Readonly<WorldFrameMetrics> = Object.freeze({
   rafIntervalMs: null,
   cpuFrameMs: 0,
   cpuSubmitMs: null,
-  gpuMs: null,
   drawCalls: null,
   triangles: null,
   clusters: null,
@@ -156,16 +154,17 @@ export function createWorldFrames() {
     prepare,
     /**
      * The loop's work ahead of a frame, in this order: the controller steps the camera unless the
-     * page took the step, the scene's clips advance, the early hooks run. What they move is
-     * written to the renderer after them, so it is drawn in this frame.
-     * @returns Whether a clip still plays, and asks for the next frame.
+     * page took the step, the scene's clips advance, the physics draws its bodies, the early
+     * hooks run. What they move is written to the renderer after them, so it is drawn in this frame.
+     * @returns Whether a clip still plays or a body still moves, and asks for the next frame.
      */
-    step(controls: Stepped, scene: Object3D) {
+    step(controls: Stepped, scene: Object3D, physics: () => boolean = () => false) {
       const seconds = advance();
       if (controls.autoUpdate) controls.update(seconds);
       const playing = advanceMixers(scene, seconds);
+      const moving = physics();
       prepare(seconds);
-      return playing;
+      return playing || moving;
     },
     dispatch(metrics: FrameMetrics) {
       const now = performance.now();

@@ -4,7 +4,7 @@
 // samples — not the material flags, which carried only one for all of them.
 // Proof on a real GPU is the `tests/browser/probes/addressing-maps-gpu.ts` bench.
 import type { Texture } from '../../../sdk-core/src/index.ts';
-import { importWrapMode } from '../host/surfaceImport.ts';
+import { importWrapMode } from '../host/textureImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';

@@ -1,7 +1,12 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './selection.ts';
 import { bytesOf, compactDrawnPages } from '../../../../../tests/kit/gpu/globals.ts';
 import { readDagUniforms } from '../../../../../tests/kit/gpu/mockCompute.ts';
-import { SELECTION_HEADER_WORDS, residentBase, residentBit } from './layout.ts';
+import {
+  SELECTION_HEADER_WORDS,
+  residentBase,
+  residentBit,
+  writeTriangleTotals,
+} from './layout.ts';
 
 export function mockDagDevice(
   packed: PackedDag,
@@ -101,6 +106,8 @@ export function mockDagDevice(
           ints[1] = result.frustumRejected;
           ints[2] = result.lodLevel;
           ints[3] = result.complete === false ? 2 : 0;
+          // The totals `dagMask` writes: without them adoption reads an image with no triangles.
+          writeTriangleTotals(ints, result);
           ints.set(result.pageIds, SELECTION_HEADER_WORDS);
           const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
           flags.fill(0, packed.nodeCount);

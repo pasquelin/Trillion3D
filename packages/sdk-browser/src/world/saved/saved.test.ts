@@ -11,16 +11,40 @@ import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { helper } from '../helper/index.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/index.ts';
 
-/** A scene whose `load` stands a plain node in for the compiled model at `url`. */
+/** A scene whose `load` stands a plain node in for the compiled model at `url`, carrying one
+ *  light from its file as a compiled model does. */
 function sceneWithLoads(loaded: string[]) {
   return new Scene(async (url) => {
     loaded.push(url);
-    return Object.assign(new Object3D(), {
+    const lamp = light.point({ intensity: 2 });
+    const model = Object.assign(new Object3D(), {
       isLoadedModel: true,
       record: { manifestUrl: url },
-    }) as unknown as LoadedModel;
+      _fromFile: (node: Object3D) => node === lamp,
+    });
+    model.add(lamp);
+    return model as unknown as LoadedModel;
   });
 }
+
+test('what a page placed under a loaded model is saved, what its file carried is not', async () => {
+  const scene = sceneWithLoads([]);
+  const model = await scene.load('https://example.test/model/manifest.json');
+  const sign = object.mesh(geometry.box(1, 1, 1));
+  sign.name = 'sign';
+  model.add(sign);
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()));
+  assert.deepEqual(
+    saved.children[0].children.map((child: { name: string }) => child.name),
+    ['sign'],
+  );
+  const again = sceneWithLoads([]);
+  await again.fromJSON(saved);
+  const [lamp, placed] = again.children[0].children;
+  assert.equal((lamp as { isLight?: boolean }).isLight, true, 'the file light comes back once');
+  assert.equal(placed.name, 'sign');
+  assert.equal(again.children[0].children.length, 2);
+});
 
 test('a saved scene is read back into the same scene, models by address', async () => {
   const loads: string[] = [];
@@ -117,6 +141,16 @@ test('a parameter cleared to null is read back null, not an empty object', async
   const again = sceneWithLoads([]);
   await again.fromJSON(saved);
   assert.equal((again.children[0] as typeof box).material.map, null);
+});
+
+test('a saved file with no background key is read back with no background, not refused', async () => {
+  const scene = sceneWithLoads([]);
+  scene.add(object.group());
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()));
+  delete saved.background;
+  scene.background = new Color(0xff0000);
+  await scene.fromJSON(saved);
+  assert.equal(scene.background, null);
 });
 
 test('two scenes read at once are read one after the other, never merged', async () => {

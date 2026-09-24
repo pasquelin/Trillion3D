@@ -1,5 +1,6 @@
 import { closestSegmentTriangle, triangleNormal } from './closest.ts';
-import { forEachTriangleInBox, type TriangleTree } from './triangleTree.ts';
+import { forEachTriangleInBox } from './triangleQuery.ts';
+import type { TriangleTree } from './triangleTree.ts';
 
 /**
  * AN UPRIGHT CAPSULE against a triangle tree: the narrow phase of the character body. The

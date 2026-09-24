@@ -922,7 +922,10 @@
       "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
       "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
       "UNSUPPORTED_SCENE_FORMAT": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
-      "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor."
+      "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
+      "PHYSICS_BUDGET": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
+      "PHYSICS_NESTED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
+      "PHYSICS_FAILED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde."
     }
   },
   "EngineProfiler": {
@@ -1025,7 +1028,6 @@
       "rafIntervalMs": "İki kare arasındaki süre.",
       "cpuFrameMs": "Karenin CPU süresi.",
       "cpuSubmitMs": "İşi göndermek için CPU süresi.",
-      "gpuMs": "Karenin GPU süresi.",
       "drawCalls": "Motorun saydığı şekliyle bu karenin çizim çağrıları. Onları saymadığında `null`: bir sıfır, çizimsiz bir kare olarak okunurdu.",
       "autonomousClusterDrawsTotal": "Bu oturumda motora ait WebGL2 programı tarafından yayımlanan sayfalanmış cluster çizimleri.",
       "autonomousCopyDraws": "Motora ait WebGL2 programının bu karede çizdiği sahne kopyaları — geçirgen yüzeyler.",
@@ -1058,7 +1060,7 @@
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
-      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez.",
+      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti, eksi `uncoveredTriangles`'ın saydığı, yerleşik sayfası olmayan cluster'lar. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). `uncoveredTriangles` ile aynı geçişte, kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir. Bu örnekte beklenen kapsama ilişkisi: `selected − drawn − uncovered = 0`.",
@@ -1753,7 +1755,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     },
     "members": {
       "isMaterial": "Her zaman `true`: bir malzemeyi başka her şeyden ayırır.",
@@ -1775,7 +1781,11 @@
       "needsUpdate": "`material.needsUpdate = true`: onu giyen meshler yeniden boyanır.",
       "surface": "Bu malzemenin motordaki kendi fiziksel yüzey kaydı (`contracts/material.ts`). Fiziksel aile dışındaki bir tür, motorun tek aydınlatma modeline (`surfaceModel.ts`) eşlediği, adının host ailesi üzerinden çizilir.",
       "clone": "Aynı değerlere sahip, aynı türde yeni bir malzeme.",
-      "dispose": "Giyenleri unutur: silinen bir malzeme kimseyi yeniden boyamaz."
+      "dispose": "Giyenleri unutur: silinen bir malzeme kimseyi yeniden boyamaz.",
+      "physics": "Onu giyen cisimlerin fizik madde ön ayarı.",
+      "density": "kg/m³, bir cismin kütlesi için.",
+      "friction": "Fizik sürtünmesi.",
+      "restitution": "Fizik sekmesi."
     }
   },
   "MaterialParameters": {
@@ -1808,7 +1818,11 @@
       "gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "MathPath": {
@@ -1942,7 +1956,8 @@
       "primitive": "Geometrinin köşelerinin nasıl okunduğu: üçgenler, noktalar ya da çizgiler.",
       "geometry": "Mesh'in şekli; değiştirmek için başka bir geometri ayarlayın.",
       "material": "Mesh'in malzemesi, ya da grup başına bir tane; değiştirmek için başka bir tane ayarlayın.",
-      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
+      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz.",
+      "physics": "Dünya fiziğinin bir cismi olarak mesh; değilse `null`. `'static'`, `'dynamic'`, `'kinematic'` ya da seçenekler ver; şekil geometriden çıkarılır."
     }
   },
   "Mixer": {
@@ -2747,7 +2762,7 @@
       "isScene": "Her zaman `true`: sahne kökünü başka herhangi bir nesneden ayırır.",
       "environment": "Parlak yüzeylerin yansıttığı çevrenin bir resmi; hiçbiri için `null`.",
       "fog": "Nesneleri `near` ve `far` arasında `color`'a soldurup karıştıran sis; hiçbiri için `null`.",
-      "background": "Her nesnenin arkasındaki görseli dolduran şey: bir renk, bir resim, ya da varsayılan için `null`.",
+      "background": "Her nesnenin arkasındaki görüntüyü dolduran şey: bir renk ya da varsayılan için `null`. Bir değişiklik oturum korunarak sonraki karede görünür: burada atanan yeni bir renk ya da mevcut rengin yöntemleriyle (`set`, `setRGB`, `setHex`, `setHSL`...) yazılması. `.r`, `.g` veya `.b` alanına doğrudan yazma algılanmaz: ardından `background` değerini yeniden atayın. Bir resim ya da `getHex` içermeyen herhangi bir değer reddedilir (`UNSUPPORTED_SCENE_UPDATE`): hiçbir yol onu çizmez.",
       "load": "Derlenmiş bir modeli — manifesto URL'sini — yükler ve bu sahneye ekler.",
       "toJSON": "Sahne, sürümlü düz JSON olarak: nesneleri, şekiller onları yapan çağrıyla, malzemeler, ışıklar ve yüklenen modeller adresle; bir `camera` verilirse onun duruşu da.",
       "fromJSON": "Sahnenin içeriğini `toJSON` ile kaydedilmiş bir sahneyle değiştirir, `helper` işaretleri korunur; modelleri yüklenince tamamlanır. Başka bir biçim ya da sürüm reddedilir (`UNSUPPORTED_SCENE_FORMAT`). Biri okunurken yapılan çağrılar sırayla, birbiri ardına çalışır, her biri öncekinin bıraktığı üzerinde: iki kaydedilmiş sahne asla karışmaz."
@@ -2814,7 +2829,11 @@
     "members": {
       "pose": "Bir düğüm hareket etti.",
       "structure": "Bir düğüm çocuk kazandı ya da kaybetti.",
-      "content": "Bir düğümün şekli ya da malzemesi değişti."
+      "content": "Bir düğümün şekli ya da malzemesi değişti.",
+      "posed": "Birçok düğüm aynı anda hareket etti, doğrudan ağaçlarına yazıldı (fiziğin cisimleri): bir kez bildirilir.",
+      "seat": "Düğümün çizildiği satır ya da `null`: `batch.rows.matrices` içinde `row * 16` konumundan başlayan, sütun sıralı on altı sayı; çizici bunları yerinde okur. Düğümleri binlerce yerleştiren (fizik) dünya matrislerini oraya kendisi yazar, `seatEpoch` değişmediği sürece geçerlidir, yazdığı satırları `placed` ile bildirir.",
+      "seatEpoch": "Bir satır alındığında, bırakıldığında ya da yeniden ayrıldığında değişir: `seat`in önceki her yanıtı eskir.",
+      "placed": "`batch` içindeki `from`–`to` satırları `seat` üzerinden yazıldı: bir sonraki karede çizilir."
     }
   },
   "SceneNode": {
@@ -3811,7 +3830,8 @@
       "geometryPoolCeiling": "Bir dünyanın isteyebileceği en büyük havuzlar: motorun başlangıç bütçeleri.",
       "texturePoolCeiling": "Bir dünyanın isteyebileceği en büyük doku havuzu, bayt cinsinden.",
       "geometryPool": "Geometri sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
-      "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın."
+      "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
+      "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır."
     }
   },
   "world.diagnostic": {
@@ -3864,12 +3884,11 @@
     "description": "`'firstPerson'` bir kamerayı hareket ettirir; `'character'` bir gövdeyi — kütle, yer çekimi, zıplamalar, `world.controls.colliders` ile çarpışmalar — hareket ettirir ve gözlerinden bakar."
   },
   "WorldFrameMetrics": {
-    "summary": "Bir sayfanın okuduğu adlarla bir karenin metrikleri; yolun saymadığı yerde `null`.",
+    "summary": "Ana makinenin motordan kopyaladığı biçimiyle bir görselin ölçümleri ve bir sayfanın bunlardan birleştirerek okuduğu iki değer; yolun saymadığı yerde `null`.",
     "members": {
       "rafIntervalMs": "İki kare arasındaki süre.",
       "cpuFrameMs": "Karenin CPU süresi.",
       "cpuSubmitMs": "İşi göndermek için CPU süresi.",
-      "gpuMs": "Karenin GPU süresi.",
       "drawCalls": "Motorun saydığı şekliyle bu karenin çizim çağrıları. Onları saymadığında `null`: bir sıfır, çizimsiz bir kare olarak okunurdu.",
       "autonomousClusterDrawsTotal": "Bu oturumda motora ait WebGL2 programı tarafından yayımlanan sayfalanmış cluster çizimleri.",
       "autonomousCopyDraws": "Motora ait WebGL2 programının bu karede çizdiği sahne kopyaları — geçirgen yüzeyler.",
@@ -3902,7 +3921,7 @@
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
-      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez.",
+      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti, eksi `uncoveredTriangles`'ın saydığı, yerleşik sayfası olmayan cluster'lar. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). `uncoveredTriangles` ile aynı geçişte, kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir. Bu örnekte beklenen kapsama ilişkisi: `selected − drawn − uncovered = 0`.",
@@ -3975,7 +3994,8 @@
       "interactive": "Dünyanın kendi döngüsünü çalıştırıp çalıştırmadığı: bir şey değiştiğinde çizer ve yeni bir şey olmadan 120 kareden sonra dinlenir. `false`, sayfanın `world.render()`'ı kendisinin çağırmasına izin verir.",
       "pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
-      "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur."
+      "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
+      "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir."
     }
   },
   "WorldPageSource": {
@@ -4603,7 +4623,8 @@
       "options.interactive": "Dünyanın kendi döngüsünü çalıştırıp çalıştırmadığı: bir şey değiştiğinde çizer ve yeni bir şey olmadan 120 kareden sonra dinlenir. `false`, sayfanın `world.render()`'ı kendisinin çağırmasına izin verir.",
       "options.pixelRatio": "Ekran pikseli başına kaç görsel pikseli.",
       "options.controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
-      "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur."
+      "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
+      "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir."
     }
   },
   "crossVector3": {
@@ -5347,7 +5368,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshPhysical": {
@@ -5381,7 +5406,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshBasic": {
@@ -5415,7 +5444,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshPhong": {
@@ -5449,7 +5482,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshLambert": {
@@ -5483,7 +5520,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshToon": {
@@ -5517,7 +5558,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshNormal": {
@@ -5551,7 +5596,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshMatcap": {
@@ -5585,7 +5634,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.meshDepth": {
@@ -5619,7 +5672,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.points": {
@@ -5653,7 +5710,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.line": {
@@ -5687,7 +5748,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.lineDashed": {
@@ -5721,7 +5786,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.sprite": {
@@ -5755,7 +5824,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.shadow": {
@@ -5789,7 +5862,11 @@
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
-      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği."
+      "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
+      "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
+      "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
     }
   },
   "material.createShader": {
@@ -6045,6 +6122,13 @@
   },
   "object.group": {
     "summary": "Diğer nesneleri tutan, böylece birlikte hareket etmelerini sağlayan boş bir düğüm."
+  },
+  "object.clone": {
+    "summary": "Bir nesnenin ve altındaki her şeyin, onunla hiçbir şey paylaşmayan bir kopyası: biçimi, malzemeleri, ışıkları ve alanları kopyalanır.",
+    "description": "Yüklenmiş bir model kopyalanmaz: onun için `null` döner ve kopyalanan bir gruba alınmaz.",
+    "parameters": {
+      "source": "Kopyalanacak nesne."
+    }
   },
   "object.points": {
     "summary": "Bir geometrinin her köşesini bir nokta olarak çizer.",
@@ -6772,6 +6856,177 @@
   "raycast": {
     "summary": "`roots` altında `ray`'in karşılaştığı her nesne, en yakını önce, nesne başına bir isabet: kendisinin en yakını.",
     "description": "Yön girişte birim vektöre çevrilir, bu yüzden sayfa hangi uzunluğu vermiş olursa olsun her `distance` dünya birimindedir. Gizli alt ağaçlar atlanır — gizli bir atanın altındaki kök de — ve `skip`'in adlandırdığı düğümler de alt ağaçlarıyla birlikte: bir sayfanın çalıştığı işaretler, asla içeriği."
+  },
+  "world.physics": {
+    "summary": "Fiziğin cisimleri, yerçekimi ve zamanı (Jolt, bir worker içinde).",
+    "members": {
+      "enabled": "Cisimlerin benzetilip benzetilmediği. İlk açılışta fizik yüklenir.",
+      "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
+      "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
+      "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
+    }
+  },
+  "ContactEvent": {
+    "summary": "Bir temasın dinleyicilerine verdiği: diğer nesne, itme ve dokunduğu yer.",
+    "members": {
+      "other": "Dokunulan nesne; sahneden çıkınca `null`.",
+      "impulse": "N·s: normal boyunca yaklaşma hızı çarpı çiftin indirgenmiş kütlesi, çözücüden önce tahmin edilir; `leave` üzerinde 0.",
+      "point": "Temas noktası, dünya çerçevesinde; `leave` üzerinde başlangıç noktası."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Bir cismin olayları: itmeyle ilk dokunuş (`contact`) ve başlayan ya da biten dokunuş."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Motorun varsayılan fizik bütçeleri.",
+    "members": {
+      "bodies": "Aynı anda her türden cisim.",
+      "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
+      "decorative": "Aynı anda dekoratif cisimler.",
+      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez.",
+      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz.",
+      "bodyPairs": "Bir adımda sınırları örtüşen cisim çiftleri. Yoğun bir yığında cisim başına yaklaşık dört tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactConstraints": "Bir adımda çözülen temas eden çiftler. Oturmuş bir yığında cisim başına yaklaşık iki tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Adlandırılmış yerçekimleri, −y boyunca m/s².",
+    "members": {
+      "earth": "Dünya’nınki.",
+      "moon": "Ay’ınki.",
+      "mars": "Mars’ınki.",
+      "none": "Yerçekimi yok."
+    }
+  },
+  "GravityInput": {
+    "summary": "Bir yerçekimi: bir ön ayarın adı ya da m/s² cinsinden bir vektör."
+  },
+  "GravityPreset": {
+    "summary": "Bir yerçekimi ön ayarının adı."
+  },
+  "ObjectPhysics": {
+    "summary": "Bir nesnenin fiziği, `obj.physics` tuttuğu gibi: cismin ne olduğunun ve ne yaptığının canlı kaydı.",
+    "description": "Yazmalar simülasyona bir sonraki adımda ulaşır; `velocity` son adımın bıraktığını okur.",
+    "members": {
+      "type": "Cisim nasıl hareket eder; değiştirmek için `obj.physics` değerini yeniden ata.",
+      "shape": "Bildirilen şekil, varsa.",
+      "sensor": "Cismin yalnızca temas bildirip bildirmediği.",
+      "ccd": "Sürekli çarpışmanın açık olup olmadığı.",
+      "decorative": "Cismin dekoratif enkaz olup olmadığı.",
+      "velocity": "Doğrusal hız, m/s, son adımın bıraktığı gibi; cismi fırlatmak için yaz.",
+      "asleep": "Cismin uyuyup uyumadığı: durgun, bir şey uyandırana dek benzetilmez.",
+      "mass": "Kilogram cinsinden kütle; `undefined` malzemenin yoğunluğu çarpı hacmi alır.",
+      "gravityScale": "Bu cisim için dünyanın yerçekimini çarpar.",
+      "friction": "Zorlanan sürtünme; `undefined` malzemeninkini alır.",
+      "restitution": "Zorlanan sekme; `undefined` malzemeninkini alır.",
+      "applyImpulse": "Cismi hemen iter, kütle merkezinden N·s cinsinden bir itme; onu uyandırır.",
+      "wake": "Cismi uyandırır, uyuyor olsun ya da olmasın.",
+      "on": "Bu cismin bir temas olayında `handler` çağırır.",
+      "listens": "Bir temas işleyicisi var mı."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "`material.physics` için adlandırılmış maddeler, yuvarlanmış el kitabı değerlerinden.",
+    "members": {
+      "wood": "Ahşap.",
+      "metal": "Çelik.",
+      "rubber": "Kauçuk.",
+      "ice": "Buz.",
+      "stone": "Taş.",
+      "glass": "Cam."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "`obj.physics` değerinin üç sözcüğü dışında kabul ettiği.",
+    "members": {
+      "type": "Cisim nasıl hareket eder.",
+      "mass": "Kilogram cinsinden kütle; verilmezse malzemenin yoğunluğu çarpı şeklin hacmi.",
+      "shape": "Çarpışma şekli; verilmezse geometriden çıkarılır.",
+      "gravityScale": "Bu cisim için dünyanın yerçekimini çarpar; 0 süzülür.",
+      "sensor": "Çarpışmadan temasları bildirir: bir tetik hacmi.",
+      "ccd": "Sürekli çarpışma, ince duvarlardan geçecek küçük hızlı cisimler için.",
+      "decorative": "Enkaz: yalnızca statik dünyayla karşılaşır ve yalnızca menzilde ve görüşteyken benzetilir. `budget.physics.decorative` ile sınırlı.",
+      "friction": "Malzemenin sürtünmesini değiştirir, 0 ve üstü.",
+      "restitution": "Malzemenin sekmesini değiştirir, 0 ile 1 arası."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Bir dünyanın fiziğinin sabit sınırları; makineden asla okunmaz.",
+    "members": {
+      "bodies": "Aynı anda her türden cisim.",
+      "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
+      "decorative": "Aynı anda dekoratif cisimler.",
+      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez.",
+      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz.",
+      "bodyPairs": "Bir adımda sınırları örtüşen cisim çiftleri. Yoğun bir yığında cisim başına yaklaşık dört tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactConstraints": "Bir adımda çözülen temas eden çiftler. Oturmuş bir yığında cisim başına yaklaşık iki tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Bir cismin dünya tarafı: `obj.physics` üzerine bir yazmanın simülasyondan istediği.",
+    "members": {
+      "rebuild": "Cismin oluşturulduğu bir ayar değişti: yeniden oluşturulur.",
+      "tune": "Sürtünme, sekme ya da yerçekimi ölçeği değişti.",
+      "listened": "Temas olayı isteğinin değişip değişmediği.",
+      "velocity": "Hız yazıldı.",
+      "impulse": "Bir itme uygulandı.",
+      "wake": "Cisim uyandırıldı."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Bir madde ön ayarının adı."
+  },
+  "PhysicsMatter": {
+    "summary": "Bir cismin maddesi: yoğunluk (kg/m³), sürtünme ve sekme.",
+    "members": {
+      "density": "kg/m³, bir cismin kütlesi için.",
+      "friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "`obj.physics` değerine verilebilecek olan."
+  },
+  "PhysicsShape": {
+    "summary": "Geometriden çıkarılan uygun değilse bir çarpışma şekli.",
+    "description": "Boyutlar nesnenin kendi çerçevesindedir, ölçeğinden önce."
+  },
+  "PhysicsStats": {
+    "summary": "Dünya fiziğinin bildirdiği: son tikin sayımları ve ayrı tutulan iki saat.",
+    "members": {
+      "bodies": "Simülasyonun tuttuğu cisimler.",
+      "active": "Son tikten sonra uyanık cisimler.",
+      "stepMs": "Sabit adım başına worker milisaniyesi, son tik: worker’ın saati, sayfanınkine asla eklenmez.",
+      "mainMs": "Son karede fiziğin aldığı sayfa milisaniyesi (`physics` CPU aşaması).",
+      "poses": "Son tikin geri gönderdiği pozlar.",
+      "events": "Son tikin geri gönderdiği temas olayları.",
+      "droppedEvents": "Fizik başladığından beri, bir adımda `budget.physics.contactEvents` sınırını aştığı için atılan `enter` olayları (`leave`leri hiç gönderilmez)."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Bir cisim nasıl hareket eder: hiç, sayfa ile (`kinematic`, karşılaştığını iterek) ya da simülasyonla."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, dünyanın fiziği.",
+    "members": {
+      "enabled": "Cisimlerin benzetilip benzetilmediği. İlk açılışta fizik yüklenir.",
+      "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
+      "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
+      "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "`createWorld(canvas, { physics })` işlevinin `true` dışında kabul ettiği.",
+    "members": {
+      "budget": "Sabit sınırlar, fizik başlarken bir kez okunur.",
+      "gravity": "Dünyanın yerçekimi: bir ön ayar ya da vektör."
+    }
   },
   "GraphAngles": {
     "summary": "Aynı yönelim üç açı ve sıraları olarak; yazımlarını aynı şekilde duyurur.",

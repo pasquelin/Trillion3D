@@ -11,7 +11,7 @@ import {
   triangleCone,
 } from './cone.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { leafCone } from '../../gpu/core/selection.ts';
+import { leafCone } from './cone.ts';
 import { coneSkipsPage } from '../selection/helpers.ts';
 
 test('a single front-facing triangle has a narrow cone along +z', () => {

@@ -10,7 +10,7 @@
 import {
   importHostTexture,
   importWrapMode,
-} from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+} from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';

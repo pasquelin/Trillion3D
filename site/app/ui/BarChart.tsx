@@ -58,7 +58,7 @@ export function BarChart({ title, note, rows, format, missingLabel }: BarChartPr
               />
             }
             {row.value !== null && row.status && (
-              <Badge size="sm" tone={row.tone}>
+              <Badge size="sm" tone={row.tone ?? 'neutral'}>
                 {row.status}
               </Badge>
             )}

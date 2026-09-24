@@ -17,6 +17,8 @@ export interface ControlPose {
   vector(): ControlVector;
   /** Vertical field of view, in degrees. */
   fov(): number;
+  /** Magnification, 1 when the camera has none. */
+  zoom(): number;
   readPosition(out: Float64Array): Float64Array;
   readOrientation(out: Float64Array): Float64Array;
   /** Writes position and orientation back, then makes the camera's matrices current. */
@@ -28,6 +30,7 @@ export function controlPose(camera: ControlCamera): ControlPose {
     object: camera,
     vector: () => camera.position.clone().set(0, 0, 0),
     fov: () => camera.fov,
+    zoom: () => camera.zoom ?? 1,
     readPosition(out) {
       out[0] = camera.position.x;
       out[1] = camera.position.y;

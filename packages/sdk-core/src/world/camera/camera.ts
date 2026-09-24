@@ -1,6 +1,9 @@
 import { Object3D } from '../object/object3d.ts';
 import { readVec3, type Vec3Input } from '../math/vector3.ts';
 import { Ray } from '../math/volumes.ts';
+import { orthographicView, perspectiveSlope } from '../../math/primitives/camera.ts';
+
+const view = new Float64Array(4);
 
 /** A named view: where the eye is, what it looks at, and optionally its field. */
 export interface CameraPose {
@@ -102,15 +105,12 @@ export class Camera extends Object3D {
     this.updateWorldMatrix(true, false);
     const m = this.matrixWorld;
     if (this.projection === 'perspective') {
-      const t = Math.tan((this.fov * Math.PI) / 360) / this.zoom;
+      const t = perspectiveSlope(this.fov, this.zoom);
       out.origin.setFromMatrixPosition(m);
       out.direction.set(x * t * aspect, y * t, -1);
     } else {
-      const w = (this.right - this.left) / 2 / this.zoom,
-        h = (this.top - this.bottom) / 2 / this.zoom;
-      out.origin
-        .set((this.right + this.left) / 2 + x * w, (this.top + this.bottom) / 2 + y * h, 0)
-        .applyMatrix4(m);
+      const [cx, cy, w, h] = orthographicView(this, this.zoom, view);
+      out.origin.set(cx + x * w, cy + y * h, 0).applyMatrix4(m);
       out.direction.set(0, 0, -1);
     }
     out.direction.transformDirection(m);

@@ -30,6 +30,7 @@
       "geometry pool": "مخزن الأشكال",
       "lights": "أضواء",
       "GPU frame": "إطار GPU",
+      "GPU frame (last)": "إطار GPU (الأخير)",
       "CPU frame": "إطار CPU",
       "page hooks": "شيفرة الصفحة",
       "engine CPU": "CPU المحرك"
@@ -1859,26 +1860,52 @@
       "dollyZoom": "تكبير دولي"
     }
   },
-  "openworld": {
-    "banner": "امشِ بالمفاتيح W A S D. اضغط E قرب سيارة أو طائرة لتركبها.",
+  "falling-boxes": {
+    "banner": "انقر «إسقاط» لرمي خمسين صندوقًا آخر. غيّر الجاذبية وشاهدها تسقط.",
     "controls": {
-      "keys": "WASD للمشي · Shift للركض · مسافة للقفز · C للانحناء · E لركوب سيارة أو طائرة أو النزول منها",
-      "teleport": "انتقال",
-      "timeOfDay": "الوقت من اليوم",
-      "daySpeed": "سرعة اليوم",
-      "pause": "إيقاف مؤقت",
-      "rain": "مطر",
-      "geometryMB": "الهندسة ميغابايت",
-      "textureMB": "الخامات ميغابايت",
-      "view": "العرض"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "المادة",
+      "gravity": "الجاذبية",
+      "drop": "إسقاط",
+      "jump": "قفزة",
+      "slowMotion": "حركة بطيئة"
     },
     "readouts": {
-      "streaming": "البث"
+      "bodies": "الأجسام",
+      "awake": "المستيقظة",
+      "step": "الخطوة"
+    },
+    "choices": {
+      "matter": {
+        "wood": "خشب",
+        "rubber": "مطاط",
+        "ice": "جليد"
+      },
+      "gravity": {
+        "earth": "الأرض",
+        "moon": "القمر",
+        "mars": "المريخ",
+        "none": "بلا"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "عشرة آلاف صندوق تسقط معًا. تعرض اللوحة كلفة الفيزياء مباشرة.",
+    "controls": {
+      "count": "العدد",
+      "again": "مرة أخرى"
+    },
+    "readouts": {
+      "bodies": "الأجسام",
+      "awake": "المستيقظة",
+      "step": "الخطوة",
+      "page": "الصفحة"
+    },
+    "choices": {
+      "count": {
+        "10000": "10٬000",
+        "5000": "5٬000",
+        "1000": "1٬000"
+      }
     }
   }
 }

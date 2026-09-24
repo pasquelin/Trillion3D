@@ -30,6 +30,7 @@
       "geometry pool": "reserva de geometria",
       "lights": "luzes",
       "GPU frame": "quadro GPU",
+      "GPU frame (last)": "quadro GPU (último)",
       "CPU frame": "quadro CPU",
       "page hooks": "código da página",
       "engine CPU": "CPU do motor"
@@ -1859,26 +1860,52 @@
       "dollyZoom": "Dolly zoom"
     }
   },
-  "openworld": {
-    "banner": "Ande com W A S D. Aperte E perto de um carro ou avião para entrar.",
+  "falling-boxes": {
+    "banner": "Carregue em Largar para mais cinquenta caixas. Muda a gravidade e vê-as cair.",
     "controls": {
-      "keys": "WASD andar · Shift correr · Espaço saltar · C agachar · E entrar ou sair de um carro ou avião",
-      "teleport": "Teletransporte",
-      "timeOfDay": "Hora do dia",
-      "daySpeed": "Velocidade do dia",
-      "pause": "Pausa",
-      "rain": "Chuva",
-      "geometryMB": "Geometria MB",
-      "textureMB": "Texturas MB",
-      "view": "Vista"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "Matéria",
+      "gravity": "Gravidade",
+      "drop": "Largar",
+      "jump": "Saltar",
+      "slowMotion": "Câmara lenta"
     },
     "readouts": {
-      "streaming": "Streaming"
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo"
+    },
+    "choices": {
+      "matter": {
+        "wood": "madeira",
+        "rubber": "borracha",
+        "ice": "gelo"
+      },
+      "gravity": {
+        "earth": "Terra",
+        "moon": "Lua",
+        "mars": "Marte",
+        "none": "nenhuma"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Dez mil caixas caem de uma vez. O painel mostra em direto quanto custa a física.",
+    "controls": {
+      "count": "Quantidade",
+      "again": "De novo"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo",
+      "page": "Página"
+    },
+    "choices": {
+      "count": {
+        "10000": "10.000",
+        "5000": "5.000",
+        "1000": "1.000"
+      }
     }
   }
 }

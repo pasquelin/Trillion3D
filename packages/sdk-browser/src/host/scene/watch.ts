@@ -91,6 +91,9 @@ export function createHostSceneWatch() {
       }
       return verdict;
     },
+    /** True when the host wrote a hooked pose this watch has not taken or settled yet. Nothing
+     *  is hooked before the first observation: no host write can be pending there. */
+    pending: () => watched.length > 0 && seen !== mark.revision,
     /** The engine wrote the graph itself, under a scene revision it already incremented: the
      *  poses it bumped are taken as seen, and that scene revision has the list observed anew. */
     settle() {

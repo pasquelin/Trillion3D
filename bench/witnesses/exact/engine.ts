@@ -14,6 +14,7 @@ export {
 export { CONTRACT_LIGHTS_UNSUPPORTED } from '../../../packages/sdk-browser/src/lighting/contractLights.ts';
 export {
   contractLightingApi,
+  graphBackground,
   installLighting,
 } from '../../../packages/sdk-browser/src/lighting/contractLightingApi.ts';
 export { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';

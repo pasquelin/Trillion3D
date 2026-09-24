@@ -1,3 +1,4 @@
+import { Section } from '../ui/Text.tsx';
 import { useState } from 'react';
 import { useWords } from '../i18n.ts';
 import { Select } from '../ui/Input.tsx';
@@ -77,8 +78,7 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
                 );
                 if (!rows.length) return null;
                 return (
-                  <section className="grid min-w-0 grid-cols-1 gap-4" key={group}>
-                    <h3 className="text-lg font-semibold">{t(`experiments.${group}`)}</h3>
+                  <Section level={3} spacious key={group} title={t(`experiments.${group}`)}>
                     <MetricCharts
                       columns={1}
                       {...{ report, locale, metrics }}
@@ -87,7 +87,7 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
                         `${runName(runOf(report, r), locale)} · ${r.variant === 'raster-calcul' ? t('report.computeDrawing') : engineName(r.engine)}`
                       }
                     />
-                  </section>
+                  </Section>
                 );
               })}
             </>

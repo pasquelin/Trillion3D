@@ -1,0 +1,35 @@
+import { readFile } from 'node:fs/promises';
+import { DEFAULT_PHYSICS_BUDGET, type PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
+import { openJolt, startJolt } from './joltModule.ts';
+import type { SpawnJoltThread } from './joltThreads.ts';
+
+/** A committed module started for the tests: 64 bodies and 64 MB unless told otherwise. */
+export async function startModule(
+  budget: Partial<PhysicsBudget> = {},
+  pool: { count: number; spawn: SpawnJoltThread } | null = null,
+) {
+  const file = pool ? './joltPhysicsThreads.wasm' : './joltPhysics.wasm';
+  const bytes = await readFile(new URL(file, import.meta.url));
+  const full = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, ...budget };
+  return startJolt(await openJolt(bytes, full.memoryBytes, pool), full, pool?.count ?? 1);
+}
+
+/** A started test module. */
+export type Module = Awaited<ReturnType<typeof startModule>>;
+
+/** A box body for the ADD command: engine id `id`, a motion, its height and half size. */
+export const body = (id: number, motion: number, y: number, half: number, flags = 0) => ({
+  id,
+  motion,
+  layer: motion === 0 ? 0 : 1,
+  shape: 0 as const,
+  flags,
+  position: [0, y, 0],
+  quaternion: [0, 0, 0, 1],
+  size: [half, half, half] as const,
+  mass: 0,
+  density: 600,
+  friction: 0.5,
+  restitution: 0,
+  gravityScale: 1,
+});

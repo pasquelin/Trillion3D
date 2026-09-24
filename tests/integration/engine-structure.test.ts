@@ -39,6 +39,7 @@ const RESOLVENT: Record<string, string> = {
   'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
   'host/graph/node.ts': 'the engine’s own node: the resolution `resolveCameraWorld` calls on it',
   'host/graph/camera.ts': 'the engine’s own camera: its resolution keeps the inverse beside it',
+  'physics/bodies.ts': 'a body the page moved, not a camera',
 };
 
 /** Who is allowed to touch a LOCAL camera pose, or resolve it via a Three accessor. */
@@ -69,6 +70,7 @@ const LISENT_LA_POSE: Record<string, string> = {
   'camera/world.ts': 'the contract',
   'page/raster.ts': 'host-graph raster oracle — resolves (callable alone)',
   'host/graph/camera.ts': 'the engine’s own camera: a copy keeps the world pose it was given',
+  'physics/view.ts': 'the eye, facing and range the physics worker is sent, once they change',
 };
 
 const RESOUT = /\.updateWorldMatrix\s*\(/;

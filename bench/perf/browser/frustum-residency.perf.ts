@@ -83,8 +83,6 @@ function hote(nombre: number) {
     modifiedPages: new Set(pages.slice(200, 260).map((r) => r.url)),
     shown: pages.slice(0, Math.floor(nombre * 0.4)),
     desired: pages,
-    pending: [],
-    retained: [],
     geometryStore: createAutonomousGeometry({
       scene: new GraphScene(),
       allPages: [],

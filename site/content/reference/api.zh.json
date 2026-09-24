@@ -922,7 +922,10 @@
       "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
-      "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。"
+      "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
+      "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。"
     }
   },
   "EngineProfiler": {
@@ -1025,7 +1028,6 @@
       "rafIntervalMs": "两帧之间的时间间隔。",
       "cpuFrameMs": "该帧的 CPU 耗时。",
       "cpuSubmitMs": "提交工作所耗费的 CPU 时间。",
-      "gpuMs": "该帧的 GPU 耗时。",
       "drawCalls": "引擎统计出的本帧绘制调用数。未统计时为 `null`:若为 0 会被误读为“没有绘制的一帧”。",
       "autonomousClusterDrawsTotal": "本会话中,引擎自有的 WebGL2 程序发出的按页绘制的簇数量。",
       "autonomousCopyDraws": "引擎自有的 WebGL2 程序在本帧绘制的场景副本数——即透射表面。",
@@ -1058,7 +1060,7 @@
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
-      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。",
+      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合,减去 `uncoveredTriangles` 所统计的、没有常驻页面的簇。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时与 `uncoveredTriangles` 于同一遍计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。本次采样预期满足的覆盖关系:`selected − drawn − uncovered = 0`。",
@@ -1753,7 +1755,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     },
     "members": {
       "isMaterial": "始终为 `true`:用来把材质和其他对象区分开来。",
@@ -1775,7 +1781,11 @@
       "needsUpdate": "`material.needsUpdate = true`:穿着它的网格会被重绘。",
       "surface": "该材质对应的、引擎自身的物理表面记录(`contracts/material.ts`)。不属于物理材质家族的类型,会通过与其同名的宿主材质家族来绘制,引擎会把它映射到自己唯一的光照模型上(`surfaceModel.ts`)。",
       "clone": "一个类型相同、数值也相同的新材质。",
-      "dispose": "忘记所有使用者:一个已释放的材质不会再为任何东西重绘。"
+      "dispose": "忘记所有使用者:一个已释放的材质不会再为任何东西重绘。",
+      "physics": "穿戴它的物体的物理材质预设。",
+      "density": "kg/m³，用于物体的质量。",
+      "friction": "物理摩擦。",
+      "restitution": "物理回弹。"
     }
   },
   "MaterialParameters": {
@@ -1808,7 +1818,11 @@
       "gapSize": "两段虚线之间空隙的长度。",
       "vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "depthTest": "表面是否会被已经更近的物体遮挡。"
+      "depthTest": "表面是否会被已经更近的物体遮挡。",
+      "physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "density": "kg/m³，乘以体积得到质量。",
+      "friction": "物体的抓地程度，0 及以上。",
+      "restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "MathPath": {
@@ -1942,7 +1956,8 @@
       "primitive": "几何体的顶点如何被解读:三角形、点,还是线。",
       "geometry": "该网格的形状;设置另一个几何体即可改变它。",
       "material": "该网格的材质,或每个分组各一个;设置另一个即可改变它。",
-      "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。"
+      "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。",
+      "physics": "网格作为世界物理中的物体，不是时为 `null`。设为 `'static'`、`'dynamic'`、`'kinematic'` 或选项；形状由几何体推断。"
     }
   },
   "Mixer": {
@@ -2747,7 +2762,7 @@
       "isScene": "始终为 `true`:用来把场景根节点和其他任何对象区分开来。",
       "environment": "光滑表面所反射的周围环境图像;没有时为 `null`。",
       "fog": "在 `near` 和 `far` 之间把物体渐渐淡化成 `color` 的雾效;没有时为 `null`。",
-      "background": "填充每个物体背后画面的内容:一种颜色、一张图片,或者留空使用默认值 `null`。",
+      "background": "填充每个对象背后画面的内容：一种颜色，或表示默认值的 `null`。更改会在下一帧显示，会话保持不变：在这里设置的新颜色，或通过其方法（`set`、`setRGB`、`setHex`、`setHSL`...）写入的当前颜色。直接写入 `.r`、`.g` 或 `.b` 不会被察觉：之后请重新设置 `background`。图片或任何没有 `getHex` 的值都会被拒绝（`UNSUPPORTED_SCENE_UPDATE`）：没有路径会绘制它。",
       "load": "加载一个已编译模型——通过它的清单 URL——并把它添加到这个场景中。",
       "toJSON": "场景的纯 JSON 表示，带版本号：它的物体、按构建它们的调用记录的形状、材质、光源，以及按地址记录的已加载模型；给出 `camera` 时，也包括它的位姿。",
       "fromJSON": "用 `toJSON` 保存的场景替换场景当前的内容，保留其 `helper` 标记；模型加载完后完成。其他格式或版本会被拒绝（`UNSUPPORTED_SCENE_FORMAT`）。读取期间发起的调用会按顺序一个接一个执行，每个都基于前一个留下的结果：两个保存的场景绝不会混在一起。"
@@ -2814,7 +2829,11 @@
     "members": {
       "pose": "某个节点移动了。",
       "structure": "某个节点获得或失去了子节点。",
-      "content": "某个节点的形状或材质发生了变化。"
+      "content": "某个节点的形状或材质发生了变化。",
+      "posed": "许多节点同时移动，直接写入其变换树（物理刚体）：只通知一次。",
+      "seat": "绘制该节点所用的行，没有则为 `null`：`batch.rows.matrices` 中从 `row * 16` 起按列存放的 16 个浮点数，渲染器就地读取。成千上万地放置节点的所有者（物理）自己把世界矩阵写到那里，在 `seatEpoch` 不变时有效，并通过 `placed` 告知写过的行。",
+      "seatEpoch": "每当一行被占用、释放或重新分配时都会变化：之前 `seat` 的所有回答都已过时。",
+      "placed": "`batch` 中 `from` 到 `to` 的行已通过 `seat` 写入：在下一帧绘制。"
     }
   },
   "SceneNode": {
@@ -3811,7 +3830,8 @@
       "geometryPoolCeiling": "一个世界可以请求的最大池:引擎的初始预算。",
       "texturePoolCeiling": "一个世界可以请求的最大纹理池,单位字节。",
       "geometryPool": "为几何体页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
-      "texturePool": "为纹理页面保留的 GPU 内存字节数;设置它可以改变这个范围。"
+      "texturePool": "为纹理页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
+      "physics": "物理的上限（物体、三角形、装饰物体、内存），启动时读取一次；超出任一项会抛出 `PHYSICS_BUDGET`。"
     }
   },
   "world.diagnostic": {
@@ -3864,12 +3884,11 @@
     "description": "`'firstPerson'` 移动摄像机;`'character'` 移动身体——具有质量、重力、跳跃能力,并与 `world.controls.colliders` 碰撞——然后透过其双眼观看。"
   },
   "WorldFrameMetrics": {
-    "summary": "一帧的各项指标,以页面读取它们时所用的名称给出;某条路径不统计的地方为 `null`。",
+    "summary": "主机从引擎复制的一帧图像的指标,以及页面由它们组合读取的两个值;路径不计数之处为 `null`。",
     "members": {
       "rafIntervalMs": "两帧之间的时间间隔。",
       "cpuFrameMs": "该帧的 CPU 耗时。",
       "cpuSubmitMs": "提交工作所耗费的 CPU 时间。",
-      "gpuMs": "该帧的 GPU 耗时。",
       "drawCalls": "引擎统计出的本帧绘制调用数。未统计时为 `null`:若为 0 会被误读为“没有绘制的一帧”。",
       "autonomousClusterDrawsTotal": "本会话中,引擎自有的 WebGL2 程序发出的按页绘制的簇数量。",
       "autonomousCopyDraws": "引擎自有的 WebGL2 程序在本帧绘制的场景副本数——即透射表面。",
@@ -3902,7 +3921,7 @@
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
-      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。",
+      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合,减去 `uncoveredTriangles` 所统计的、没有常驻页面的簇。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时与 `uncoveredTriangles` 于同一遍计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。本次采样预期满足的覆盖关系:`selected − drawn − uncovered = 0`。",
@@ -3975,7 +3994,8 @@
       "interactive": "世界是否运行自己的循环:有变化时就绘制,连续 120 帧没有新内容后就休息。设为 `false` 则由页面自己调用 `world.render()`。",
       "pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
-      "signal": "当该信号被中止时停止世界的加载操作。"
+      "signal": "当该信号被中止时停止世界的加载操作。",
+      "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
     }
   },
   "WorldPageSource": {
@@ -4603,7 +4623,8 @@
       "options.interactive": "世界是否运行自己的循环:有变化时就绘制,连续 120 帧没有新内容后就休息。设为 `false` 则由页面自己调用 `world.render()`。",
       "options.pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "options.controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
-      "options.signal": "当该信号被中止时停止世界的加载操作。"
+      "options.signal": "当该信号被中止时停止世界的加载操作。",
+      "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
     }
   },
   "crossVector3": {
@@ -5518,7 +5539,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshPhysical": {
@@ -5552,7 +5577,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshBasic": {
@@ -5586,7 +5615,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshPhong": {
@@ -5620,7 +5653,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshLambert": {
@@ -5654,7 +5691,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshToon": {
@@ -5688,7 +5729,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshNormal": {
@@ -5722,7 +5767,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshMatcap": {
@@ -5756,7 +5805,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.meshDepth": {
@@ -5790,7 +5843,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.points": {
@@ -5824,7 +5881,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.line": {
@@ -5858,7 +5919,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.lineDashed": {
@@ -5892,7 +5957,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.sprite": {
@@ -5926,7 +5995,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "material.shadow": {
@@ -5960,7 +6033,11 @@
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
-      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。"
+      "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
+      "parameters.density": "kg/m³，乘以体积得到质量。",
+      "parameters.friction": "物体的抓地程度，0 及以上。",
+      "parameters.restitution": "物体的弹跳程度，0 到 1。"
     }
   },
   "metric": {
@@ -6045,6 +6122,13 @@
   },
   "object.group": {
     "summary": "一个持有其他对象的空节点,使它们能够一起移动。"
+  },
+  "object.clone": {
+    "summary": "一个对象及其下所有内容的副本，与原对象不共享任何东西：它的形状、材质、灯光和字段都会被复制。",
+    "description": "已加载的模型不会被复制：对它返回 `null`，并且它会被排除在复制的组之外。",
+    "parameters": {
+      "source": "要复制的对象。"
+    }
   },
   "object.points": {
     "summary": "把一个几何体的每个顶点都绘制成一个点。",
@@ -6772,6 +6856,177 @@
   "raycast": {
     "summary": "`roots` 之下被 `ray` 遇到的每个对象,最近的在前,每个对象一个交点:它自身最近的那个。",
     "description": "方向在入口处被归一化为单位向量,因此无论页面给出的长度如何,每个 `distance` 都以世界单位计。隐藏的子树会被跳过 —— 位于隐藏祖先之下的根也一样 —— `skip` 指定的节点及其子树也会被跳过:它们是页面工作时用的标记,从不是页面的内容。"
+  },
+  "world.physics": {
+    "summary": "物理的物体、重力与时间（Jolt，在 worker 中）。",
+    "members": {
+      "enabled": "物体是否被模拟。首次打开时加载物理。",
+      "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
+      "paused": "时间是否静止；写入仍会到达物体。",
+      "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
+    }
+  },
+  "ContactEvent": {
+    "summary": "接触交给监听者的内容：另一个对象、冲量和接触点。",
+    "members": {
+      "other": "被接触的物体；离开场景后为 `null`。",
+      "impulse": "N·s：沿法线的接近速度乘以这对物体的约化质量，在求解器运行前估算；`leave` 时为 0。",
+      "point": "接触点，世界坐标系；`leave` 时为原点。"
+    }
+  },
+  "ContactEventName": {
+    "summary": "物体报告的事件：带冲量的首次接触（`contact`），以及接触开始或结束。"
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "引擎默认的物理预算。",
+    "members": {
+      "bodies": "同时存在的各类物体。",
+      "triangles": "所有静态三角形形状的三角形总数。",
+      "decorative": "同时存在的装饰物体。",
+      "memoryBytes": "物理模块的内存字节数：硬上限，模块无法超出。",
+      "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。",
+      "bodyPairs": "一步中包围盒重叠的物体对。密集的堆约为每个物体四对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
+      "contactConstraints": "一步中求解的接触对。静止的堆约为每个物体两对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
+      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。"
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "命名重力，沿 −y，单位 m/s²。",
+    "members": {
+      "earth": "地球的。",
+      "moon": "月球的。",
+      "mars": "火星的。",
+      "none": "无重力。"
+    }
+  },
+  "GravityInput": {
+    "summary": "重力：预设名称，或以 m/s² 表示的向量。"
+  },
+  "GravityPreset": {
+    "summary": "重力预设的名称。"
+  },
+  "ObjectPhysics": {
+    "summary": "一个对象的物理，即 `obj.physics` 所持有的：物体是什么、做什么的实时记录。",
+    "description": "写入在下一步到达模拟；`velocity` 读取上一步留下的值。",
+    "members": {
+      "type": "物体如何运动；重新赋值 `obj.physics` 来改变。",
+      "shape": "声明的形状（若有）。",
+      "sensor": "物体是否只报告接触。",
+      "ccd": "连续碰撞是否开启。",
+      "decorative": "物体是否为装饰碎片。",
+      "velocity": "线速度，m/s，即上一步留下的值；写入它可抛出物体。",
+      "asleep": "物体是否在睡眠：静止，直到被唤醒前不再模拟。",
+      "mass": "质量，单位千克；`undefined` 取材质密度乘以体积。",
+      "gravityScale": "为此物体乘以世界重力。",
+      "friction": "指定的摩擦；`undefined` 取材质的摩擦。",
+      "restitution": "指定的回弹；`undefined` 取材质的回弹。",
+      "applyImpulse": "立即推动物体，经质心施加以 N·s 计的冲量；并唤醒它。",
+      "wake": "唤醒物体，无论是否在睡眠。",
+      "on": "在此物体发生接触事件时调用 `handler`。",
+      "listens": "是否设置了接触处理器。"
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "用于 `material.physics` 的命名材质，取自手册的取整数值。",
+    "members": {
+      "wood": "木头。",
+      "metal": "钢。",
+      "rubber": "橡胶。",
+      "ice": "冰。",
+      "stone": "石头。",
+      "glass": "玻璃。"
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "`obj.physics` 除三个词外接受的内容。",
+    "members": {
+      "type": "物体如何运动。",
+      "mass": "质量，单位千克；省略时为材质密度乘以形状体积。",
+      "shape": "碰撞形状；省略时由几何体推断。",
+      "gravityScale": "为此物体乘以世界重力；0 表示悬浮。",
+      "sensor": "只报告接触而不碰撞：一个触发体积。",
+      "ccd": "连续碰撞，用于可能穿过薄墙的小而快的物体。",
+      "decorative": "碎片：只与静态世界碰撞，且只在范围内并可见时模拟。受 `budget.physics.decorative` 限制。",
+      "friction": "覆盖材质的摩擦，0 及以上。",
+      "restitution": "覆盖材质的回弹，0 到 1。"
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "一个世界物理的固定上限；从不从机器读取。",
+    "members": {
+      "bodies": "同时存在的各类物体。",
+      "triangles": "所有静态三角形形状的三角形总数。",
+      "decorative": "同时存在的装饰物体。",
+      "memoryBytes": "物理模块的内存字节数：硬上限，模块无法超出。",
+      "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。",
+      "bodyPairs": "一步中包围盒重叠的物体对。密集的堆约为每个物体四对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
+      "contactConstraints": "一步中求解的接触对。静止的堆约为每个物体两对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
+      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。"
+    }
+  },
+  "PhysicsHost": {
+    "summary": "物体在世界一侧的接口：对 `obj.physics` 的写入向模拟提出的请求。",
+    "members": {
+      "rebuild": "物体创建时的某项设置改变了：它会被重新创建。",
+      "tune": "摩擦、回弹或重力系数改变了。",
+      "listened": "是否需要接触事件的设置改变了。",
+      "velocity": "速度已写入。",
+      "impulse": "施加了冲量。",
+      "wake": "物体被唤醒。"
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "材质预设的名称。"
+  },
+  "PhysicsMatter": {
+    "summary": "物体的材质：密度（kg/m³）、摩擦与回弹。",
+    "members": {
+      "density": "kg/m³，用于物体的质量。",
+      "friction": "物体的抓地程度，0 及以上。",
+      "restitution": "物体的弹跳程度，0 到 1。"
+    }
+  },
+  "PhysicsOption": {
+    "summary": "可赋给 `obj.physics` 的值。"
+  },
+  "PhysicsShape": {
+    "summary": "碰撞形状，当由几何体推断的形状不合适时使用。",
+    "description": "尺寸位于物体自身坐标系中，缩放之前。"
+  },
+  "PhysicsStats": {
+    "summary": "世界物理报告的内容：最近一次 tick 的计数，以及分开的两个时钟。",
+    "members": {
+      "bodies": "模拟持有的物体。",
+      "active": "最近一次 tick 后仍活动的物体。",
+      "stepMs": "worker 每个固定步的毫秒数，最近一次 tick：worker 自己的时钟，从不与页面时钟相加。",
+      "mainMs": "物理在最近一帧占用的页面毫秒数（CPU 阶段 `physics`）。",
+      "poses": "最近一次 tick 返回的姿态。",
+      "events": "最近一次 tick 返回的接触事件。",
+      "droppedEvents": "物理启动以来，一步中超出 `budget.physics.contactEvents` 而被丢弃的 `enter` 事件（其 `leave` 永不发送）。"
+    }
+  },
+  "PhysicsType": {
+    "summary": "物体如何运动：从不、由页面（`kinematic`，推开所遇之物）或由模拟。"
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`，世界的物理。",
+    "members": {
+      "enabled": "物体是否被模拟。首次打开时加载物理。",
+      "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
+      "paused": "时间是否静止；写入仍会到达物体。",
+      "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "`createWorld(canvas, { physics })` 除 `true` 外接受的内容。",
+    "members": {
+      "budget": "固定上限，物理启动时读取一次。",
+      "gravity": "世界的重力：预设或向量。"
+    }
   },
   "GraphAngles": {
     "summary": "以三个角度及其顺序表示的同一朝向，以同样方式通知其写入。",

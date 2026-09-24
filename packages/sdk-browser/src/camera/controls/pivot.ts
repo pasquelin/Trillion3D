@@ -85,7 +85,13 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
       if (!api.enablePan) return;
       sample();
       const distance = Math.hypot(offset[0], offset[1], offset[2]);
-      panOffset(pan, orientation, dx, dy, pixelWorldScale(distance, pose.fov(), height()));
+      panOffset(
+        pan,
+        orientation,
+        dx,
+        dy,
+        pixelWorldScale(distance, pose.fov(), height(), pose.zoom()),
+      );
       for (let i = 0; i < 3; i++) center[i] += pan[i];
       apply();
     },

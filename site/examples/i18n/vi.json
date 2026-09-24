@@ -30,6 +30,7 @@
       "geometry pool": "kho hình học",
       "lights": "đèn",
       "GPU frame": "khung GPU",
+      "GPU frame (last)": "khung GPU (cuối)",
       "CPU frame": "khung CPU",
       "page hooks": "mã của trang",
       "engine CPU": "CPU của engine"
@@ -1859,26 +1860,52 @@
       "dollyZoom": "Zoom dolly"
     }
   },
-  "openworld": {
-    "banner": "Đi bằng W A S D. Nhấn E gần ô tô hoặc máy bay để lên.",
+  "falling-boxes": {
+    "banner": "Nhấn Thả để thêm năm mươi hộp. Đổi trọng lực và xem chúng rơi.",
     "controls": {
-      "keys": "WASD đi bộ · Shift chạy · Space nhảy · C cúi · E lên hoặc xuống ô tô hay máy bay",
-      "teleport": "Dịch chuyển",
-      "timeOfDay": "Giờ trong ngày",
-      "daySpeed": "Tốc độ ngày",
-      "pause": "Tạm dừng",
-      "rain": "Mưa",
-      "geometryMB": "Hình học MB",
-      "textureMB": "Kết cấu MB",
-      "view": "Chế độ xem"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "Chất liệu",
+      "gravity": "Trọng lực",
+      "drop": "Thả",
+      "jump": "Nhảy",
+      "slowMotion": "Chậm"
     },
     "readouts": {
-      "streaming": "Truyền phát"
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước"
+    },
+    "choices": {
+      "matter": {
+        "wood": "gỗ",
+        "rubber": "cao su",
+        "ice": "băng"
+      },
+      "gravity": {
+        "earth": "Trái Đất",
+        "moon": "Mặt Trăng",
+        "mars": "Sao Hỏa",
+        "none": "không"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Mười nghìn hộp rơi cùng lúc. Bảng hiển thị chi phí vật lý theo thời gian thực.",
+    "controls": {
+      "count": "Số lượng",
+      "again": "Lại"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước",
+      "page": "Trang"
+    },
+    "choices": {
+      "count": {
+        "10000": "10.000",
+        "5000": "5.000",
+        "1000": "1.000"
+      }
     }
   }
 }

@@ -30,6 +30,7 @@
       "geometry pool": "reserva de geometría",
       "lights": "luces",
       "GPU frame": "imagen GPU",
+      "GPU frame (last)": "imagen GPU (última)",
       "CPU frame": "imagen CPU",
       "page hooks": "código de la página",
       "engine CPU": "CPU del motor"
@@ -1859,26 +1860,52 @@
       "dollyZoom": "Zoom de travelling"
     }
   },
-  "openworld": {
-    "banner": "Camina con W A S D. Pulsa E junto a un coche o un avión para subir.",
+  "falling-boxes": {
+    "banner": "Pulsa Soltar para cincuenta cajas más. Cambia la gravedad y míralas caer.",
     "controls": {
-      "keys": "WASD caminar · Mayús correr · Espacio saltar · C agacharse · E subir o bajar de un coche o un avión",
-      "teleport": "Teletransporte",
-      "timeOfDay": "Hora del día",
-      "daySpeed": "Velocidad del día",
-      "pause": "Pausa",
-      "rain": "Lluvia",
-      "geometryMB": "Geometría MB",
-      "textureMB": "Texturas MB",
-      "view": "Vista"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "Materia",
+      "gravity": "Gravedad",
+      "drop": "Soltar",
+      "jump": "Saltar",
+      "slowMotion": "Cámara lenta"
     },
     "readouts": {
-      "streaming": "Streaming"
+      "bodies": "Cuerpos",
+      "awake": "Despiertos",
+      "step": "Paso"
+    },
+    "choices": {
+      "matter": {
+        "wood": "madera",
+        "rubber": "goma",
+        "ice": "hielo"
+      },
+      "gravity": {
+        "earth": "Tierra",
+        "moon": "Luna",
+        "mars": "Marte",
+        "none": "ninguna"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Diez mil cajas caen a la vez. El panel muestra en directo lo que cuesta la física.",
+    "controls": {
+      "count": "Cantidad",
+      "again": "Otra vez"
+    },
+    "readouts": {
+      "bodies": "Cuerpos",
+      "awake": "Despiertos",
+      "step": "Paso",
+      "page": "Página"
+    },
+    "choices": {
+      "count": {
+        "10000": "10.000",
+        "5000": "5.000",
+        "1000": "1.000"
+      }
     }
   }
 }

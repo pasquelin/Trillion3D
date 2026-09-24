@@ -11,6 +11,7 @@ import {
   CONTRACT_LIGHTS_UNSUPPORTED,
   contractLightingApi,
   installLighting,
+  graphBackground,
   GraphScene,
   collectClusterPages,
   createBlendCopy,
@@ -181,6 +182,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
       return renderState.frameHeld;
     },
     ...contract,
+    setClearColor: graphBackground(scene, gate.resourcesChanged),
     render(camera) {
       renderFrame(camera);
     },

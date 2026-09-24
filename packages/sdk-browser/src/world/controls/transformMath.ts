@@ -115,9 +115,11 @@ export function dragTransform(
     pose.quaternion.premultiply(turn);
     return pose;
   }
+  // A drag through the centre never turns the object inside out: a size that would reach zero
+  // or change sign keeps the one the drag started from.
   const scaled = (factor: number, name: 'x' | 'y' | 'z') => {
     const s = round(start.scale[name] * factor, snap.scale);
-    pose.scale[name] = s === 0 ? start.scale[name] : s;
+    pose.scale[name] = s * start.scale[name] > 0 ? s : start.scale[name];
   };
   if (handle === 'xyz') {
     // Read on the screen's up, whatever point of the centre was pressed: a drag up by the

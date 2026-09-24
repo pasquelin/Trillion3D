@@ -8,7 +8,7 @@ import { createWebgpuTileStreamer } from './streamer.ts';
 import { poolEncoding } from '../../texture/blockFormats.ts';
 import { tileLayout } from '../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { importHostTexture } from '../../host/textureImport.ts';
+import { hostTextureWritten, importHostTexture } from '../../host/textureImport.ts';
 import type { HostMaterials, HostTexture } from '../../host/resources.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
@@ -74,8 +74,10 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
   return { textures, writes: () => tableWrites, signalled };
 }
 
-/** One image's follow, as `../pages/render/render.ts` runs it before the hold verdict. */
-const follow = async (textures: { followSampling(): boolean }) => {
+/** One image's follow, as `../pages/render/render.ts` runs it before the hold verdict; the
+ *  host writes before it are announced, as the engine's writers do (`hostTextureWritten`). */
+const follow = async (textures: { followSampling(): boolean }, announced = true) => {
+  if (announced) hostTextureWritten();
   await Promise.resolve();
   return textures.followSampling();
 };
@@ -120,8 +122,7 @@ test('two engines over the same texture both write the change', async () => {
     second = streamer([shared], record(host()));
   const opened = [first.writes(), second.writes()];
   colour.magFilter = G.HOST_FILTER_NEAREST;
-  await Promise.resolve();
-  assert.equal(first.textures.followSampling(), true, 'a filter rule switched on');
+  assert.equal(await follow(first.textures), true, 'a filter rule switched on');
   assert.equal(second.textures.followSampling(), true, 'the second engine learns it too');
   assert.deepEqual([first.writes(), second.writes()], [opened[0] + 1, opened[1] + 1]);
   assert.deepEqual([first.signalled, second.signalled], [[[1]], [[1]]]);
@@ -165,24 +166,22 @@ test('a filter changed on a held image releases it, and the image draws it', asy
   textures.destroy();
 });
 
-// The cost paid at every image, held or not, by 1 000 host textures: nothing moved — the import
-// compares each record with its host, no trigonometry —, then one texture sliding — its matrix
-// recomposed, every header's words compared. Printed, bounded loosely so a slow machine passes.
-test('following 1 000 textures costs microseconds per image', async (t) => {
-  const hosts = Array.from({ length: 1000 }, host);
-  const { textures } = streamer(hosts.map(record), record(host()));
-  const perImage = async (step: (image: number) => Promise<boolean>) => {
-    for (let i = 0; i < 200; i++) await step(i);
-    const images = 2000,
-      started = performance.now();
-    for (let i = 0; i < images; i++) await step(i);
-    return ((performance.now() - started) / images) * 1000;
-  };
-  const still = await perImage(() => follow(textures)),
-    sliding = await perImage((image) => ((hosts[0].offset.x = image / 1000), follow(textures)));
-  t.diagnostic(
-    `1 000 textures, µs per image: ${still.toFixed(1)} still, ${sliding.toFixed(1)} one sliding`,
-  );
-  assert.ok(still < 2000 && sliding < 2000);
+// #402: the follow walked every slot and read every host at every image, held or not.
+test('a still image reads no host and walks no slot', async () => {
+  const colour = host();
+  const { textures, writes } = streamer([record(colour)], record(host()));
+  await follow(textures);
+  const opened = writes();
+  let reads = 0;
+  const { magFilter } = colour;
+  Object.defineProperty(colour, 'magFilter', {
+    get: () => (reads++, magFilter),
+    configurable: true,
+  });
+  for (let image = 0; image < 3; image++) await follow(textures, false);
+  assert.equal(reads, 0, 'nothing announced: nothing read');
+  await follow(textures);
+  assert.ok(reads > 0, 'an announced write is read at the next image');
+  assert.equal(writes(), opened, 'and nothing moved: nothing written');
   textures.destroy();
 });

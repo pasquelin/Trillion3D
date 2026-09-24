@@ -22,6 +22,12 @@ export type {
   TriangleCollision,
 } from '../../sdk-core/src/collision/characterCollision.ts';
 export type { ComparisonLayout } from '../../sdk-browser/src/measurement/comparison.ts';
+export { ObjectPhysics } from '../../sdk-core/src/physics/objectPhysics.ts';
+export type {
+  ContactEvent,
+  ContactEventName,
+  PhysicsHost,
+} from '../../sdk-core/src/physics/objectPhysics.ts';
 export type { CpuStepSummary } from '../../sdk-browser/src/stage/cpuProfile.ts';
 export { createDiagnosticChannel } from '../../sdk-browser/src/diagnostic/channel.ts';
 export type {
@@ -32,6 +38,21 @@ export type {
 export { createGpuPageCache, httpPageSource } from '../../sdk-browser/src/gpu/page/pages.ts';
 export { createPageStreamer } from '../../sdk-browser/src/streaming/pages.ts';
 export type { DecodedGeometryPage } from '../../sdk-browser/src/page/decode/geometryPage.ts';
+export {
+  DEFAULT_PHYSICS_BUDGET,
+  GRAVITY_PRESETS,
+  PHYSICS_MATERIALS,
+} from '../../sdk-core/src/physics/options.ts';
+export type {
+  GravityPreset,
+  PhysicsBodyOptions,
+  PhysicsBudget,
+  PhysicsMaterialPreset,
+  PhysicsMatter,
+  PhysicsOption,
+  PhysicsShape,
+  PhysicsType,
+} from '../../sdk-core/src/physics/options.ts';
 export { detectCapabilities } from '../../sdk-browser/src/measurement/capabilities.ts';
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts';
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts';
@@ -61,6 +82,11 @@ export type { GraphNodeKind } from '../../sdk-browser/src/host/graph/nodeKind.ts
 export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts';
 export { GraphTexture } from '../../sdk-browser/src/host/graph/texture.ts';
 export { GraphVector } from '../../sdk-browser/src/host/graph/vector.ts';
+export type {
+  GravityInput,
+  WorldPhysics,
+  WorldPhysicsOptions,
+} from '../../sdk-browser/src/physics/worldPhysics.ts';
 export type { HeadSettings, PersonHead } from '../../sdk-browser/src/camera/controls/look.ts';
 export type {
   HostAttribute,
@@ -94,6 +120,7 @@ export type { HostRetentionDelta, StreamPage } from '../../sdk-browser/src/strea
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
+export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts';
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts';
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts';
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts';

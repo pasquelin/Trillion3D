@@ -11,7 +11,7 @@
 // two copies would be two chances for the probed read to drift from production.
 //
 //   node --experimental-strip-types tests/browser/renders/texture-winding-gpu.browser.ts
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';

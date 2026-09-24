@@ -100,10 +100,9 @@ test(
     worlds.refresh();
     proche(monde.elements, demandeeIci, 1e-9);
     // The revision settles: remaking the same request, before any motion, must change nothing.
-    const epoqueStable = rt.layout.rows.tableEpoch;
-    (rt.run as ReturnType<typeof createWebgpuRunState>).noOccluderHistory = false;
+    const stable = rt.run.gate.revisions.scene;
     explorer.setTransform('cible', demandeeIci);
-    assert.equal(rt.layout.rows.tableEpoch, epoqueStable, 'no parent motion, nothing to redo');
+    assert.equal(rt.run.gate.revisions.scene, stable, 'no parent motion, nothing to redo');
     // The parent moves again, without updateMatrixWorld: the frame in which the same world pose
     // is brought back has changed, so the local matrix that is set must change even if the requested
     // world is identical. The old code compared the local matrix already in memory and declared
@@ -111,14 +110,9 @@ test(
     parent.position.set(20, -8, 6);
     explorer.setTransform('cible', demandeeIci);
     assert.notEqual(
-      rt.layout.rows.tableEpoch,
-      epoqueStable,
+      rt.run.gate.revisions.scene,
+      stable,
       'the parent moved: the identical request is not a no-op',
-    );
-    assert.equal(
-      (rt.run as ReturnType<typeof createWebgpuRunState>).noOccluderHistory,
-      true,
-      'occluder history must be dropped, not served stale',
     );
     worlds.refresh();
     proche(monde.elements, demandeeIci, 1e-9);

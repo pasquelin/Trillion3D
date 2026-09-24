@@ -4,7 +4,8 @@ import { copyElements } from '../../../packages/sdk-browser/src/math/matrixEleme
 import { threeCamera, threeMeshCopy } from './fromGraphNodes.ts';
 import { collectCover, buildIndex } from './lodHelpers.ts';
 import { sceneLightingApi } from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts';
-import { lighting } from './displayObjects.ts';
+import { hostBackground, lighting } from './displayObjects.ts';
+import { DEFAULT_CLEAR_COLOR } from '../../../packages/sdk-browser/src/backend/common.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from '../../../packages/sdk-browser/src/backend/types.ts';
 import {
@@ -32,7 +33,7 @@ export const threeLodBackend: BackendFactory = (context) => {
   // reference's (`displayObjects.ts`).
   const sceneLights = lighting(
     scene,
-    context.clearColor ?? 0x171d28,
+    context.clearColor ?? DEFAULT_CLEAR_COLOR,
     context.sceneLighting ?? context.source,
   );
   const hostDraw = createThreeSceneDraw(context.webglContext, scene);
@@ -135,6 +136,7 @@ export const threeLodBackend: BackendFactory = (context) => {
     async prepare() {},
     // This engine rewalks the scene every frame: no revision has to teach it.
     ...sceneLightingApi(sceneLights, () => {}),
+    setClearColor: hostBackground(scene, () => {}),
     render(camera) {
       hostDraw.render(camera);
       context.source.updateMatrixWorld(true);
