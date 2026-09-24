@@ -446,7 +446,6 @@
       "drag-objects": "выбор лучом (raycast)",
       "edit-a-spline": "выбор лучом (raycast)",
       "sound-in-space": "позиционный звук",
-      "smooth-edges-over-time": "настройка временного сглаживания",
       "tone-mapping-compared": "выбор оператора тональной компрессии",
       "a-first-post-effect": "цепочка постобработки",
       "a-glow-around-lights": "постобработка: свечение (bloom)",

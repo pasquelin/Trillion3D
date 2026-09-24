@@ -2,9 +2,9 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { LIGHT_TILES_SHADER } from './shader.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 
-/** Words per tile: kept and requested of the opaque list, then those of the blend list,
- *  then the two rank lists — they cover two depth slices of the same tile. */
-const TILE_STRIDE_WORDS = LIGHT_SETTINGS.maxLightsPerTile * 2 + 4;
+/** Words per tile: the counts of the opaque and blend lists, then the two lists, each with room
+ *  for every light the contract accepts — they cover two depth slices of the same tile. */
+const TILE_STRIDE_WORDS = LIGHT_SETTINGS.maxLights * 2 + 2;
 /** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
 export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 /** Tiles on one axis: the list always covers the whole target, never one tile short. */
@@ -93,7 +93,7 @@ export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) 
       packed[18] = tilesX;
       packed[19] = tilesY;
       packed[20] = count;
-      packed[21] = LIGHT_SETTINGS.maxLightsPerTile;
+      packed[21] = LIGHT_SETTINGS.maxLights;
       device.queue.writeBuffer(uniform, 0, packed);
     },
     encode(encoder: GPUCommandEncoder) {

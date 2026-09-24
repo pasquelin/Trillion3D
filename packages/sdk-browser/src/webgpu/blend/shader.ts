@@ -15,6 +15,8 @@ import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
 import { FLAG_PAGED, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
+import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
+import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
 
 /**
  * Shader of transparent surfaces.
@@ -25,7 +27,7 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
  */
 /** The view uniform of the pass (`uniforms.ts`), declared once for every stage that
  *  reads it: the two forward stages here, and the water composite that reads the same buffer. */
-export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,pad1:u32,pad2:u32,}`;
+export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,}`;
 
 export const BLEND_SHADER = `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}
@@ -60,7 +62,8 @@ ${NORMAL_TRANSFORM_WGSL}
 // What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
 // maps, their factors and the flags. They are constant over the call, therefore FLAT — the
 // fragment reads the same bits it used to read in the per-item uniform, with no per-call binding.
-// \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend.
+// \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend;
+// above it, the cull mode a doubtful triangle leaves to the fragment stage (facing.ts).
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec3u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec2f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}
 ${TRIANGLE_PALETTE_WGSL}
 // An instance draws a paged cluster that compaction kept, or a piece of indices of a primitive
@@ -72,11 +75,12 @@ ${TRIANGLE_PALETTE_WGSL}
 // base << vertexShift. That is what lets a whole slice fit in ONE call, with nothing to bind
 // between two plan entries — firstInstance would say the same, but WebGPU only opens it to an
 // indirect call under an extension.
+${FACING_WGSL}
 @vertex fn vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->VSOut{
  var out:VSOut;
  let slot=planInstances[(vertexIndex>>uni.vertexShift)+instance];
- let it=items[slot.x];
- out.water=it.flags>>${WATER_RANK_SHIFT}u;
+ let it=items[slot.x&${INSTANCE_ITEM_MASK}u];
+ let cull=slot.x>>${INSTANCE_CULL_SHIFT}u;
  let local=vertexIndex&((1u<<uni.vertexShift)-1u);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
  out.color=it.color;
@@ -94,7 +98,10 @@ ${TRIANGLE_PALETTE_WGSL}
   count=span.y;
   clusterId=clusterDiagnostic[slot.y];
  }
- if(local>=count){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
+ var facing=0u;
+ if(cull!=0u&&local<count){facing=vertexFacing(cull,it.world,it.vertexBase,base+(local/3u)*3u);}
+ out.water=(it.flags>>${WATER_RANK_SHIFT}u)|(facing<<${FACING_SHIFT}u);
+ if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let id=it.vertexBase+indices[base+local];
  let world=it.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;
