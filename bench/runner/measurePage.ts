@@ -1,10 +1,10 @@
 // What both measurement pages (`lightingPage.ts`, `threeBarePage.ts`) do the same: the moving
 // light on its small circle, the capture sent to Node, the bytes transferred on the network.
 // Served to the page under `/runner/` and imported by URL, with nothing from the SDK.
-import type { MeasuredWorld } from '../../packages/sdk-browser/src/measurement/measurement.ts';
+import type { MeasuredWorld } from '../witnesses/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/src/backend/types.ts';
-import type { MemoryBudgets } from '../../packages/sdk-browser/src/measurement/measurement.ts';
+import type { MemoryBudgets } from '../witnesses/measurement.ts';
 import type { ReglageVivant, Reseau } from './report/types.ts';
 import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 

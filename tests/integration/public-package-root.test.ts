@@ -36,7 +36,18 @@ test('package metadata exposes one environment-aware root', async () => {
     'default',
   ]);
   assert.equal(packageJson.exports['.'].default, './dist/sdk/index.js');
-  assert.equal(packageJson.peerDependencies.three, '^0.174.0');
+  // Issue #275: the host library is a development tool of the bench and its witnesses, never a
+  // requirement of the package — neither declared for the consumer nor shipped to them.
+  for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies'])
+    assert.equal(packageJson[field]?.three, undefined, `${field} names three`);
+  assert.equal(packageJson.devDependencies.three, '^0.174.0');
+  assert.equal(packageJson.devDependencies['@types/three'], '^0.174.0');
+  assert.ok(packageJson.files.includes('!dist/witnesses'), 'the witness entry stays unpublished');
+  const browserPackage = JSON.parse(
+    await readFile(resolve(ROOT, 'packages/sdk-browser/package.json'), 'utf8'),
+  );
+  assert.equal(browserPackage.peerDependencies?.three, undefined);
+  assert.equal(browserPackage.dependencies?.three, undefined);
   assert.equal(packageJson.scripts.preinstall, undefined);
 });
 

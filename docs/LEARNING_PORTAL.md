@@ -285,8 +285,8 @@ The examples execute the streaming pipeline; they do not prove a speedup over an
 the repository measurement harness described in `bench/runner/README.md`, identical input, camera,
 quality and resource budgets, plus resolution, DPR, commit, display cap and run-to-run spread.
 A bench witness is never imported by a portal example or demo: it is
-named only through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) the bench
-and the report pipeline use.
+named only through the witness entry point (`bench/witnesses/measurement.ts`) the bench
+and the report pipeline use, and never ships in the package.
 
 API pages may show a related concept beside their original snippet. The panel labels this
 relationship explicitly and links to the interactive example with its own inputs and matching code.

@@ -1,13 +1,19 @@
 import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
-} from '../../../../sdk-core/src/scene/core/environment.ts';
-import type { BackendContext, HostDrawOutput } from '../types.ts';
-import type { HostDrawCamera } from '../../camera/world.ts';
-import { ClusterBatches, type BatchPage } from '../../cluster/batches.ts';
-import { clusterWebglCompatibility } from '../../webgl/cluster/compatibility.ts';
-import { clusterRefusal } from '../../webgl/cluster/refusal.ts';
-import { WebglClusterOwner } from '../../webgl/cluster/owner.ts';
+} from '../../../packages/sdk-core/src/scene/core/environment.ts';
+import type {
+  BackendContext,
+  HostDrawOutput,
+} from '../../../packages/sdk-browser/src/backend/types.ts';
+import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
+import {
+  ClusterBatches,
+  type BatchPage,
+} from '../../../packages/sdk-browser/src/cluster/batches.ts';
+import { clusterWebglCompatibility } from '../../../packages/sdk-browser/src/webgl/cluster/compatibility.ts';
+import { clusterRefusal } from '../../../packages/sdk-browser/src/webgl/cluster/refusal.ts';
+import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
 
 type HostScene = ConstructorParameters<typeof ClusterBatches>[0];
 type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[number] & {

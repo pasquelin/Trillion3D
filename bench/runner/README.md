@@ -44,9 +44,9 @@ rerun benchmarks.
 
 A witness is a comparison backend the harness pits against the engine on one side
 (`--moteur-avant three-nu|three-lod|webgl`). The SDK never mounts one on its own: they are reached
-through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) as
-`referenceBackend`, `threeLodBackend` and `exactPagesBackend`, opt-in through the session's
-`backends` option.
+through the witness entry point (`bench/witnesses/measurement.ts`, bundled by `pnpm run build` into
+`dist/witnesses/measurement.js`, which the package leaves out) as `referenceBackend`,
+`threeLodBackend` and `exactPagesBackend`, opt-in through the session's `backends` option.
 
 - `three-nu` (`reference`): Three.js alone, every mesh drawn every frame.
 - `three-lod` (`three-lod`): Three.js with a three-level `THREE.LOD` per mesh, simplified by

@@ -1,9 +1,29 @@
 import * as THREE from 'three';
-import { asHostLibrary, type HostMaterials } from '../../host/resources.ts';
-import { setGeometryBounds } from '../../host/geometryBounds.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import { hashId } from '../../diagnostic/colors.ts';
-import { threeAttributes, threeMaterials } from '../../host/three/fromGraph.ts';
+import {
+  asHostLibrary,
+  type HostMaterials,
+} from '../../../packages/sdk-browser/src/host/resources.ts';
+import { setGeometryBounds } from '../../../packages/sdk-browser/src/host/geometryBounds.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import { hashId } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
+import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
+import { threeAttributes, threeMaterials } from '../three/fromGraph.ts';
+
+/** One resident index buffer per page source, shared by every page read from it. */
+export function pageIndexBuffers(pages: readonly PageRec[]) {
+  const indexByUrl = new Map<string, THREE.BufferAttribute>();
+  for (const rec of pages)
+    if (rec.array && !indexByUrl.has(rec.url))
+      indexByUrl.set(rec.url, new THREE.BufferAttribute(rec.array, 1));
+  return indexByUrl;
+}
+
+/** Gives a page's geometry back: its diagnostic triangles, its attributes, then itself. */
+export function disposePageGeometry(geometry: THREE.BufferGeometry) {
+  disposeTriangleGeometry(geometry);
+  for (const name of Object.keys(geometry.attributes)) geometry.deleteAttribute(name);
+  geometry.dispose();
+}
 
 /** The whole-page mesh record of a diagnostic mode: built once per resident page, painted on
  *  every sync, handed to the draw owner — never to the host scene. */

@@ -25,8 +25,9 @@ const config: KnipConfig = {
     'bench/runner/threeBarePage.ts',
     'bench/runner/threeLodPage.ts',
     'bench/runner/measurePage.ts',
-    // The measurement entry: served as `measurement.js` and imported by URL by those pages.
-    'packages/sdk-browser/src/measurement/measurement.ts',
+    // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
+    // pages; it re-exports the engine's measurement seam.
+    'bench/witnesses/measurement.ts',
     // Full campaign and its report, launched manually.
     'bench/runner/campaign.ts',
     'bench/runner/summaryGlobal.ts',

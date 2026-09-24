@@ -4,7 +4,7 @@
 // must never appear.
 import type * as THREE from 'three';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
-import { exactPagesBackend } from '../../../packages/sdk-browser/src/backend/exact/backend.ts';
+import { exactPagesBackend } from '../../../bench/witnesses/exact/backend.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
 import {
   bindWebglTarget,

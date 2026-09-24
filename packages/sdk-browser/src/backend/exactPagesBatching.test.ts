@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { exactPagesBackend } from '../measurement/measurement.ts';
+import { exactPagesBackend } from '../../../../bench/witnesses/measurement.ts';
 import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackend.fixture.ts';
 import { submittedDraws } from '../cluster/batchMesh.ts';
 

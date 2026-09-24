@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { applyMeshDiagnostic, triangleGeometry } from './triangleDiagnostic.ts';
-import { hostDiagnostics } from '../host/three/sceneAdapter.ts';
+import { hostDiagnostics } from '../../../../bench/witnesses/three/sceneAdapter.ts';
 import { asHostLibrary } from '../host/resources.ts';
-import { exactPagesBackend, referenceBackend } from '../measurement/measurement.ts';
+import { exactPagesBackend, referenceBackend } from '../../../../bench/witnesses/measurement.ts';
 import { quadScene, frontCamera, quadRootsContext } from '../backend/pagesBackendScenes.fixture.ts';
 import { submittedDraws } from '../cluster/batchMesh.ts';
 

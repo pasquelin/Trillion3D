@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Metafile } from 'esbuild';
@@ -14,6 +14,10 @@ import {
   type PackageJson,
   type PackResult,
 } from './installed-package-fixture.ts';
+
+/** Whether the fixture's virtual store holds any version of the host library. */
+const installedThree = (fixture: string) =>
+  readdirSync(join(fixture, 'node_modules/.pnpm')).some((name) => /^three@|_three@/.test(name));
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
@@ -30,12 +34,11 @@ try {
   const archive = packed.filename;
   if (!archive) throw new Error('pnpm pack did not report an archive');
   const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson;
-  const dependencies: Record<string, string> = {
-    [source.name]: `file:${archive}`,
-    three: installedVersion('three'),
-  };
+  // The consumer installs the package alone: since #275 it neither declares nor needs the host
+  // library, and the proof reads the installed tree to say so.
+  const dependencies: Record<string, string> = { [source.name]: `file:${archive}` };
   const devDependencies = Object.fromEntries(
-    ['@types/node', '@types/three', '@webgpu/types', 'typescript'].map((name): [string, string] => [
+    ['@types/node', '@webgpu/types', 'typescript'].map((name): [string, string] => [
       name,
       installedVersion(name),
     ]),
@@ -56,6 +59,7 @@ try {
     )}\n`,
   );
   run(pnpm, ['install', '--frozen-lockfile=false'], fixture);
+  if (installedThree(fixture)) throw new Error('a clean install of the package pulls three');
   const packageName = source.name;
   write(
     'runtime.mjs',

@@ -1,17 +1,18 @@
 /**
- * THE ENGINE'S GRAPH, HANDED TO THE REFERENCE RENDERER — its resources: the geometries, surfaces
- * and textures the witnesses, and the WebGL2 page path until it draws on its own, draw with. The
- * engine builds its graph with objects of its own (`../graph/`); a renderer of the library accepts
- * only the library's. Each engine resource has one copy, made on first request and kept in step
- * with the version the engine bumps, so what the engine shares stays shared; a library object
- * crosses as it is. Nothing is computed here: every number is the engine's.
+ * THE ENGINE'S GRAPH, HANDED TO THE WITNESS RENDERER: the geometries, surfaces and textures of
+ * `packages/sdk-browser/src/host/graph/`, copied into the library the witnesses draw with. Each has
+ * one copy, made on first request and kept in step with the version the engine bumps; a library
+ * object crosses as it is. Every number is the engine's.
  */
 import * as THREE from 'three';
-import type { GraphElements } from '../graph/attributes.ts';
-import type { GraphGeometry } from '../graph/geometry.ts';
-import type { GraphSurface, GraphSurfaceFamily } from '../graph/surface.ts';
-import type { GraphTexture } from '../graph/texture.ts';
-import type { HostMaterials } from '../resources.ts';
+import type { GraphElements } from '../../../packages/sdk-browser/src/host/graph/attributes.ts';
+import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
+import type {
+  GraphSurface,
+  GraphSurfaceFamily,
+} from '../../../packages/sdk-browser/src/host/graph/surface.ts';
+import type { GraphTexture } from '../../../packages/sdk-browser/src/host/graph/texture.ts';
+import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
 
 type Held<T> = { made: T; version: number };
 const textures = new WeakMap<GraphTexture, Held<THREE.Texture>>();

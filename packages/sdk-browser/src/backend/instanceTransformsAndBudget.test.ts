@@ -2,8 +2,8 @@ import test from 'node:test';
 import { asHostLibrary } from '../host/resources.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { exactPagesBackend, referenceBackend } from '../measurement/measurement.ts';
-import { threeLodBackend } from '../host/three/lod.ts';
+import { exactPagesBackend, referenceBackend } from '../../../../bench/witnesses/measurement.ts';
+import { threeLodBackend } from '../../../../bench/witnesses/three/lod.ts';
 import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackend.fixture.ts';
 import {
   quadScene,

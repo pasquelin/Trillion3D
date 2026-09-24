@@ -2,8 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { threeLodBackend } from './lod.ts';
-import { dagLevel } from '../../backend/pagesBackend.fixture.ts';
-import { quadCluster, fanScene, QUAD_MANIFEST } from '../../backend/pagesBackendScenes.fixture.ts';
+import { dagLevel } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
+import {
+  quadCluster,
+  fanScene,
+  QUAD_MANIFEST,
+} from '../../../packages/sdk-browser/src/backend/pagesBackendScenes.fixture.ts';
 
 test('THREE.LOD includes transparent simplification and merges its mixed cover in source order', () => {
   const { geometry, material, mesh, source, indices } = fanScene();

@@ -6,7 +6,7 @@ import type {
   BackendFactory,
   MeasuredWorld,
   MeasuredWorldOptions,
-} from '../../packages/sdk-browser/src/measurement/measurement.ts';
+} from '../witnesses/measurement.ts';
 import type { MeasureViewOptions } from './measureOptions.ts';
 
 /** The witness light group a Three engine renders through, and its store-tracking function. */

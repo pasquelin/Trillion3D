@@ -618,7 +618,7 @@
       "affectedConsumers": [
         "bench/oracles/core/batch-duel.ts",
         "bench/perf/browser/support/dagCut.ts",
-        "packages/sdk-browser/src/host/three/lod.ts",
+        "bench/witnesses/three/lod.ts",
         "packages/sdk-browser/src/host/world/bounds.ts",
         "packages/sdk-browser/src/math/batchBoxes.ts",
         "packages/sdk-browser/src/math/batchRuntime.ts",
@@ -698,7 +698,7 @@
         "bench/perf/browser/volumes.perf.ts",
         "bench/perf/core/three-vs-core-batch-instances.perf.ts",
         "bench/perf/core/three-vs-core-scene.perf.ts",
-        "packages/sdk-browser/src/host/three/lod.ts",
+        "bench/witnesses/three/lod.ts",
         "packages/sdk-browser/src/host/world/bounds.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/placement/update.ts",
@@ -721,7 +721,7 @@
         "bench/perf/browser/support/dagCut.ts",
         "bench/perf/browser/support/volumeBoxCases.ts",
         "bench/perf/core/three-vs-core-scene.perf.ts",
-        "packages/sdk-browser/src/host/three/lod.ts",
+        "bench/witnesses/three/lod.ts",
         "packages/sdk-browser/src/world/page/runtimeCut.ts"
       ],
       "disposition": "retained",
@@ -2445,12 +2445,12 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/backend/exact/backend.ts",
-        "packages/sdk-browser/src/backend/exact/materials.test.ts",
-        "packages/sdk-browser/src/backend/exact/materials.ts",
+        "bench/witnesses/exact/backend.ts",
+        "bench/witnesses/exact/materials.test.ts",
+        "bench/witnesses/exact/materials.ts",
+        "bench/witnesses/referenceBackend.ts",
         "packages/sdk-browser/src/backend/exact/metrics.ts",
         "packages/sdk-browser/src/backend/exact/residency.ts",
-        "packages/sdk-browser/src/backend/referenceBackend.ts",
         "packages/sdk-browser/src/backend/types.ts",
         "packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts",
         "packages/sdk-browser/src/host/scene/graphDiagnostic.ts",
@@ -3534,7 +3534,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/witnesses/three/sceneAdapter.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostDiagnosticFactory"
     },
@@ -3545,7 +3545,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/witnesses/three/sceneAdapter.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostDiagnosticGeometry"
     },
@@ -3556,7 +3556,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/witnesses/three/sceneAdapter.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostDiagnosticMaterial"
     },
@@ -3579,6 +3579,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/witnesses/three/sceneAdapter.ts",
         "tests/browser/support/webglClusterCoplanarBlend.ts",
         "tests/browser/support/webglClusterNormalMapPage.ts",
         "tests/browser/support/webglClusterRestorePage.ts",
@@ -3595,7 +3596,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["tests/kit/lighting/draw.ts"],
+      "affectedConsumers": ["bench/witnesses/three/sceneAdapter.ts", "tests/kit/lighting/draw.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/webgl/core/renderTarget\".HostDrawOutput"
     },
@@ -3639,7 +3640,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "bench/witnesses/exact/attachment.ts",
+        "bench/witnesses/three/fromGraph.ts",
+        "bench/witnesses/three/fromGraphNodes.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostMaterials"
     },
@@ -3738,7 +3743,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/witnesses/three/displayObjects.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostTraversable"
     },
@@ -4638,7 +4643,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["bench/runner/measurePage.ts", "tests/fixtures/publicBrowser.ts"],
+      "affectedConsumers": ["tests/fixtures/publicBrowser.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/webgpu/pages/io/memory\".MemoryBudgets"
     },
@@ -5070,7 +5075,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/browser/bounds-and-index.ts",
-        "packages/sdk-browser/src/host/three/lodHelpers.ts",
+        "bench/witnesses/three/lodHelpers.ts",
         "packages/sdk-browser/src/page/selection/helpers.ts",
         "packages/sdk-browser/src/scene/manifestPageIndex.ts",
         "packages/sdk-browser/src/world/page/runtimePrimitive.ts",
@@ -6793,8 +6798,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "bench/witnesses/three/sceneAdapter.ts",
         "packages/sdk-browser/src/backend/types.ts",
-        "packages/sdk-browser/src/host/three/sceneAdapter.ts",
         "packages/sdk-browser/src/webgl/core/renderTarget.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts"
       ],
@@ -8841,6 +8846,8 @@
         "bench/oracles/browser/image-shading.ts",
         "bench/perf/browser/pages-webgpu.perf.ts",
         "bench/perf/browser/raster-buffer.perf.ts",
+        "bench/witnesses/exact/materials.test.ts",
+        "bench/witnesses/exact/materials.ts",
         "site/content/entries/camera.ts",
         "tests/fixtures/hiz.ts"
       ],
@@ -8855,6 +8862,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/witnesses/three/sceneAdapter.ts",
         "site/content/entries/camera.ts",
         "tests/browser/probes/cameraSites.ts",
         "tests/browser/probes/cameraSitesEngines.ts",
@@ -8995,7 +9003,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
+      "affectedConsumers": [
+        "bench/witnesses/exact/materials.ts",
+        "site/content/entries/enumsRuntime.ts"
+      ],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/src/scene/materialSide.ts:materialSide"
     },

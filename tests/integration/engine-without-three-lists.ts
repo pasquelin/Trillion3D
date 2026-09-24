@@ -19,53 +19,36 @@ export const PUBLIC_FAMILIES =
 // The rule is inverted: it is no longer a watch list of files, it is the list of EVERYTHING
 // that can still name `three`. A file outside the list does not import it — `import type` included,
 // because a calculation type in a signature is enough to put the host library back in the
-// middle of a number that the engine calculates. Only three families are allowed.
+// middle of a number that the engine calculates. Since #275 only TEST MOUNTS are left: fixtures,
+// which the package's `files` never ship. Every other source under `packages/*/` names no host
+// library at all, and `engine-without-three.test.ts` refuses one that does.
 //
-//  1. WITNESS ENGINES. Written with the host library, and that is their function: they
-//     are the reference against which the engine is compared, frame by frame. Rewriting them
-//     would eliminate the comparison.
-//  2. HOST BOUNDARIES. Scene, camera, renderer, lights belong to the host: something must
-//     create, read, and set them. These files do it once, returning flat buffers or owned structures.
-//     The autonomous WebGL2 path — what `chooseBackends` picks on a machine that grants no WebGPU
-//     device — is no longer one of them: since #275 its pages, copies and lights are objects of the
-//     engine's own graph (`packages/sdk-browser/src/host/pageObjects.ts`, `packages/sdk-browser/src/host/graph/`),
-//     drawn by the engine's program (`packages/sdk-browser/src/webgl/cluster/sceneDraw.ts`), and
-//     bundling `packages/sdk-browser/src/index.ts` pulls no module of the library.
+//  1. WITNESS ENGINES left the package. Written with the host library, and that is their function:
+//     they are the reference against which the engine is compared, frame by frame. They live
+//     beside the bench (`bench/witnesses/`), are bundled for it by `scripts/build-witnesses.ts`
+//     into `dist/witnesses/`, which the package leaves out, and plug into the engine through the
+//     `BackendFactory` list its measurement seam takes (`packages/sdk-browser/src/measurement/measurement.ts`).
+//  2. HOST BOUNDARIES — the family is empty. The autonomous WebGL2 path's pages, copies and
+//     lights are objects of the engine's own graph (`packages/sdk-browser/src/host/pageObjects.ts`,
+//     `packages/sdk-browser/src/host/graph/`), drawn by the engine's program
+//     (`packages/sdk-browser/src/webgl/cluster/sceneDraw.ts`).
 //  3. HOST RESOURCES — the family is empty. Materials, textures, geometries and the constants
 //     they declare are read through the shapes of `packages/sdk-browser/src/host/resources.ts` and `packages/sdk-browser/src/host/shadedMaterial.ts`
-//     and the named constants of `packages/sdk-browser/src/host/surfaceConstants.ts`: since this lot the import, the
-//     admission gate and the transparent display graph name no library either, and bundling
-//     `packages/sdk-browser/src/webgpu/pages/pages.ts` pulls no module of one.
+//     and the named constants of `packages/sdk-browser/src/host/surfaceConstants.ts`.
 //
-// THE HOST SCENE GRAPH AND ITS CAMERA left the list in their turn: the walk, the bounds, the
-// poses, the watch and the camera-pose contract are written against the shapes of
+// THE HOST SCENE GRAPH AND ITS CAMERA are written against the shapes of
 // `packages/sdk-browser/src/host/scene/graphNodes.ts` and the `HostCamera` of `packages/sdk-browser/src/camera/world.ts`. The graphs the engine
 // BUILDS — the prepared scene, a world's mirror, the explorer's camera — are its own objects of
-// those shapes (`packages/sdk-browser/src/host/graph/`); a renderer of the library receives a copy made on its
-// side of the line (`packages/sdk-browser/src/host/three/fromGraph.ts`).
+// those shapes (`packages/sdk-browser/src/host/graph/`); a witness renderer receives a copy made on its
+// side of the line (`bench/witnesses/three/fromGraph.ts`).
 //
 // Adding a line is a decision, not an oversight; removing an unused line as well — the
 // second test fails on a dead line. The camera pose contract lives in `packages/sdk-browser/src/camera/world.ts`
 // and `tests/integration/engine-structure.test.ts`; the loading computation boundary, in
 // `tests/integration/engine-without-three-math.test.ts`.
 export const AUTORISES: Record<string, string> = {
-  // 1. Witness engines.
+  // Test-scene mounts that walk the host graph.
   'cluster/batches.fixture': 'batch-witness mount',
-  'backend/exact/attachment': 'exact witness: it attaches its pages to the host graph',
-  'backend/exact/backend': 'exact witness: engine written with the host library',
-  'backend/exact/materials': 'exact witness: its materials are the host’s',
-  'backend/referenceBackend': 'reference witness: the host engine, as-is',
-  'host/three/lod': 'witness: the host level-of-detail selection, `LOD.update` included',
-  'host/three/fromGraph':
-    'witness: the engine graph’s resources copied into the library the reference renderer draws',
-  'host/three/fromGraphNodes':
-    'witness: the engine graph’s nodes, lights and camera copied into that library',
-  'host/three/displayObjects':
-    'witness: the background, lights and nodes hung on the display graph the reference renderer draws',
-  'host/three/sceneAdapter':
-    'witness: the host renderer the witnesses share, and the materials and geometry copies their diagnostic views hang on a host mesh',
-
-  // 2 bis. Test-scene mounts that walk the host graph.
   'page/selection/blend.fixture': 'test-scene mount: it sets the camera and materials',
   'page/selection/dag.fixture': 'test-scene mount: it sets the camera and materials',
   'webgpu/pages/pagedQuad.fixture': 'test-scene mount: the quad clustered into quantized pages',
@@ -102,7 +85,7 @@ export const DECLARATION: Record<string, string> = {
   'host/pageObjects': 'boundary: the declaration it gives back to the library that draws it',
   'cluster/batchUpdate': 'the WebGL2 draw record hands the declaration to the host renderer',
   'cluster/batches.fixture': 'batch-witness mount',
-  'backend/exact/materials': 'exact witness: the host material each page is drawn with',
+  'bench/witnesses/exact/materials': 'exact witness: the host material each page is drawn with',
   'webgl/cluster/compatibility': 'the admission gate reads the declaration it refuses',
 
   // Benches and oracles: they mount the page records the engine path is measured on, and a record

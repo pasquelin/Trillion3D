@@ -1,12 +1,15 @@
-import type { HostDiagnosticGeometry, HostGeometry } from '../../host/resources.ts';
-import type { HostGraphGeometry } from '../../host/scene/graphResources.ts';
-import { geometryBytes } from '../../scene/meshes.ts';
-import { disposeTriangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { ExactPagesRenderState } from './render.ts';
-import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
-import { ClusterBatches } from '../../cluster/batches.ts';
+import type {
+  HostDiagnosticGeometry,
+  HostGeometry,
+} from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { HostGraphGeometry } from '../../../packages/sdk-browser/src/host/scene/graphResources.ts';
+import { geometryBytes } from '../../../packages/sdk-browser/src/scene/meshes.ts';
+import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { ExactPagesRenderState } from '../../../packages/sdk-browser/src/backend/exact/render.ts';
+import type { WebglFrameGate } from '../../../packages/sdk-browser/src/webgl/core/frameGate.ts';
+import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
+import { ClusterBatches } from '../../../packages/sdk-browser/src/cluster/batches.ts';
 
 /** A transparent copy the host renderer draws whole, as its triangles are counted. */
 type CountedCopy = {

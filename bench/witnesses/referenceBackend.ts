@@ -1,13 +1,19 @@
-import { meshes as objects, geometryBytes } from '../scene/meshes.ts';
-import { copyElements } from '../math/matrixElements.ts';
-import { threeMeshCopy } from '../host/three/fromGraphNodes.ts';
-import { baseCapabilities, DEFAULT_CLEAR_COLOR } from './common.ts';
-import { lighting } from '../host/three/displayObjects.ts';
-import { sceneLightingApi } from '../lighting/sceneLighting.ts';
-import { createThreeSceneDraw, hostDiagnostics } from '../host/three/sceneAdapter.ts';
-import { applyMeshDiagnostic, disposeTriangleGeometry } from '../diagnostic/triangleDiagnostic.ts';
-import type { BackendFactory } from './types.ts';
-import type { DiagnosticMode } from '../../../sdk-core/src/index.ts';
+import { meshes as objects, geometryBytes } from '../../packages/sdk-browser/src/scene/meshes.ts';
+import { copyElements } from '../../packages/sdk-browser/src/math/matrixElements.ts';
+import { threeMeshCopy } from './three/fromGraphNodes.ts';
+import {
+  baseCapabilities,
+  DEFAULT_CLEAR_COLOR,
+} from '../../packages/sdk-browser/src/backend/common.ts';
+import { lighting } from './three/displayObjects.ts';
+import { sceneLightingApi } from '../../packages/sdk-browser/src/lighting/sceneLighting.ts';
+import { createThreeSceneDraw, hostDiagnostics } from './three/sceneAdapter.ts';
+import {
+  applyMeshDiagnostic,
+  disposeTriangleGeometry,
+} from '../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
+import type { BackendFactory } from '../../packages/sdk-browser/src/backend/types.ts';
+import type { DiagnosticMode } from '../../packages/sdk-core/src/index.ts';
 import * as THREE from 'three';
 
 export const referenceBackend: BackendFactory = ({

@@ -1,20 +1,20 @@
-import { meshes, geometryBytes } from '../../scene/meshes.ts';
-import { asHostLibrary } from '../resources.ts';
-import { copyElements } from '../../math/matrixElements.ts';
+import { meshes, geometryBytes } from '../../../packages/sdk-browser/src/scene/meshes.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
+import { copyElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts';
 import { threeCamera, threeMeshCopy } from './fromGraphNodes.ts';
 import { collectCover, buildIndex } from './lodHelpers.ts';
-import { sceneLightingApi } from '../../lighting/sceneLighting.ts';
+import { sceneLightingApi } from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts';
 import { lighting } from './displayObjects.ts';
 import * as THREE from 'three';
-import type { BackendFactory } from '../../backend/types.ts';
+import type { BackendFactory } from '../../../packages/sdk-browser/src/backend/types.ts';
 import {
   applyMeshDiagnostic,
   disposeTriangleGeometry,
-} from '../../diagnostic/triangleDiagnostic.ts';
-import { isTransmissive } from '../../visibility/buffer.ts';
-import { setGeometryBounds } from '../geometryBounds.ts';
-import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/index.ts';
-import { resolveCameraWorld } from '../../camera/world.ts';
+} from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
+import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/buffer.ts';
+import { setGeometryBounds } from '../../../packages/sdk-browser/src/host/geometryBounds.ts';
+import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../packages/sdk-core/src/index.ts';
+import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './sceneAdapter.ts';
 
 /** What this engine does not claim to do, with or without levels of detail. */
@@ -139,7 +139,7 @@ export const threeLodBackend: BackendFactory = (context) => {
       hostDraw.render(camera);
       context.source.updateMatrixWorld(true);
       sceneLights.update();
-      // Frame entry: the world pose, ancestors included, before any read (`../../camera/world.ts`).
+      // Frame entry: the world pose, ancestors included, before any read (`packages/sdk-browser/src/camera/world.ts`).
       resolveCameraWorld(camera);
       selectedTriangles = 0;
       lodLevel = 0;

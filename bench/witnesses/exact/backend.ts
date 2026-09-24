@@ -1,23 +1,29 @@
-import { createExactPagesRender, createExactPagesRenderState } from './render.ts';
-import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
-import { createExactPagesCpu } from './cpu.ts';
+import {
+  createExactPagesRender,
+  createExactPagesRenderState,
+  createWebglFrameGate,
+  createExactPagesCpu,
+  createExactPagesRequests,
+  createExactPagesRequestData,
+  createExactPagesResidency,
+  DEFAULT_CLEAR_COLOR,
+  baseCapabilities,
+  CONTRACT_LIGHTS_UNSUPPORTED,
+  contractLightingApi,
+  installLighting,
+  GraphScene,
+  collectClusterPages,
+  createBlendCopy,
+  asHostLibrary,
+  type PageRec,
+  type DiagnosticMode,
+  type BackendFactory,
+  type CameraMotion,
+} from './engine.ts';
 import { createExactPagesMetrics } from './metrics.ts';
-import { createExactPagesRequests, createExactPagesRequestData } from './requests.ts';
-import { createExactPagesAttachment } from './attachment.ts';
-import { createExactPagesResidency } from './residency.ts';
+import { createExactPagesAttachment, disposePageGeometry, pageIndexBuffers } from './attachment.ts';
 import { createExactPagesMaterials } from './materials.ts';
-import { DEFAULT_CLEAR_COLOR, baseCapabilities } from '../common.ts';
-import { CONTRACT_LIGHTS_UNSUPPORTED } from './contractLights.ts';
-import { contractLightingApi, installLighting } from '../../lighting/contractLightingApi.ts';
-import { GraphScene } from '../../host/graph/scene.ts';
-import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
-import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
-import { disposeTriangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
-import type { BackendFactory } from '../types.ts';
 import * as THREE from 'three';
-import { asHostLibrary } from '../../host/resources.ts';
-import type { CameraMotion } from '../../camera/world.ts';
 import { createExactPagesClusterBatches } from './clusterBatches.ts';
 
 export const exactPagesBackend: BackendFactory = (context) => {
@@ -53,10 +59,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     blendCopies,
     context,
   );
-  const indexByUrl = new Map<string, THREE.BufferAttribute>();
-  for (const rec of allPages)
-    if (rec.array && !indexByUrl.has(rec.url))
-      indexByUrl.set(rec.url, new THREE.BufferAttribute(rec.array, 1));
+  const indexByUrl = pageIndexBuffers(allPages);
   let diagnostic: DiagnosticMode = 'beauty';
   const renderState = createExactPagesRenderState();
   const gate = createWebglFrameGate();
@@ -88,11 +91,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
   const { materialFor, paint, paintBlend } = materials;
   const attach = createExactPagesAttachment(indexByUrl, materialFor, paint);
   const metricsSeen = new Set<ArrayBufferView>();
-  const disposeGeometry = (geometry: THREE.BufferGeometry) => {
-    disposeTriangleGeometry(geometry);
-    for (const name of Object.keys(geometry.attributes)) geometry.deleteAttribute(name);
-    geometry.dispose();
-  };
+  const disposeGeometry = disposePageGeometry;
   const counters = { pagesDetached: 0 };
   const syncResident = createExactPagesResidency(
     shown,

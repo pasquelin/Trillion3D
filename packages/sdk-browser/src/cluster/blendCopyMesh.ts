@@ -17,7 +17,7 @@ import { GraphMesh } from '../host/graph/mesh.ts';
  * geometry and surface, drawn by the cluster program's transmission and blend passes
  * (`../webgl/cluster/sceneDraw.ts`). The WebGPU path holds the record of `blendCopyRecord.ts`
  * instead. `collectClusterPages` takes this builder as an option, which
- * `../backend/exact/backend.ts` and `../backend/autonomous/pages.ts` pass.
+ * `bench/witnesses/exact/backend.ts` and `../backend/autonomous/pages.ts` pass.
  *
  * The placement is the ONLY thing that still ties a copy to the scene, and that is where the
  * defect lived: copying a world matrix at prepare time made it a snapshot that no later move —

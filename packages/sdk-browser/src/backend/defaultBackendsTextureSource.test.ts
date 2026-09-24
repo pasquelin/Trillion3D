@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chooseBackends, resolveTextureSource } from './defaultBackends.ts';
 import { autonomousPagesBackend } from './autonomous/pages.ts';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
-import { exactPagesBackend } from './exact/backend.ts';
+import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
 
 /**

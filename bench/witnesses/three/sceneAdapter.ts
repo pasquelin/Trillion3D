@@ -1,24 +1,24 @@
 import * as THREE from 'three';
-import type { HostDrawOutput } from '../../backend/types.ts';
+import type { HostDrawOutput } from '../../../packages/sdk-browser/src/backend/types.ts';
 import {
   DEFAULT_TONE_MAPPING,
   type SceneToneMapping,
-} from '../../../../sdk-core/src/scene/core/environment.ts';
-import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
-import { clusterColor } from '../../diagnostic/colors.ts';
+} from '../../../packages/sdk-core/src/scene/core/environment.ts';
+import type { HostCamera, HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
+import { clusterColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import { threeCamera } from './fromGraphNodes.ts';
-import type { HostDrawScene } from '../scene/graphNodes.ts';
+import type { HostDrawScene } from '../../../packages/sdk-browser/src/host/scene/graphNodes.ts';
 import {
   asHostLibrary,
   type HostDiagnosticFactory,
   type HostDiagnosticGeometry,
   type HostDiagnosticMaterial,
-} from '../resources.ts';
+} from '../../../packages/sdk-browser/src/host/resources.ts';
 
 /**
  * The host-renderer adapter: the one renderer every witness drawn by the host library shares
  * over the engine's context, to draw the display graph it holds. The shipping WebGL2 path draws
- * with the engine's own program (`../../webgl/cluster/sceneDraw.ts`). The host never holds a
+ * with the engine's own program (`packages/sdk-browser/src/webgl/cluster/sceneDraw.ts`). The host never holds a
  * renderer; a user acquires this one at its first draw and releases it at its dispose, and the
  * renderer leaves with the last of them. One per context, so that a texture or a program is
  * uploaded once for the whole session, as the host's own adapter did.

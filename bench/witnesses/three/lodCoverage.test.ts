@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { threeLodBackend } from './lod.ts';
-import { dagLevel } from '../../backend/pagesBackend.fixture.ts';
+import { dagLevel } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
 import {
   quadScene,
   quadCluster,
   quadIndices,
   frontCamera,
   QUAD_MANIFEST,
-} from '../../backend/pagesBackendScenes.fixture.ts';
+} from '../../../packages/sdk-browser/src/backend/pagesBackendScenes.fixture.ts';
 
 test('THREE.LOD backend exposes one level without coarse pages and two with them', () => {
   const { geometry, material, mesh, source } = quadScene();

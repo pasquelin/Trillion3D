@@ -10,7 +10,7 @@
 // alpha, where a copy into an RGBA texture through `copyTexSubImage2D` was refused.
 import * as THREE from 'three';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
-import { createThreeSceneDraw } from '../../../packages/sdk-browser/src/host/three/sceneAdapter.ts';
+import { createThreeSceneDraw } from '../../../bench/witnesses/three/sceneAdapter.ts';
 import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/src/webgl/core/surface.ts';
 import { baseCapabilities } from '../../../packages/sdk-browser/src/backend/common.ts';
 

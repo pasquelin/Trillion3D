@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createExactPagesMaterials } from './materials.ts';
-import { clusterColor } from '../../diagnostic/colors.ts';
-import { hashId, screenErrorColor } from '../../diagnostic/colors.ts';
-import { triangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
-import { hostDiagnostics } from '../../host/three/sceneAdapter.ts';
-import type { EngineCamera } from '../../camera/world.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
+import { clusterColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
+import { hashId, screenErrorColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
+import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
+import { hostDiagnostics } from '../three/sceneAdapter.ts';
+import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
 
 /** A cluster page as this file reads it: the host declaration, the identity, and the two
  *  facts the pages and the level-of-detail views colour by. */

@@ -3,8 +3,8 @@
 // light and shadow uniforms included), with no GPU.
 import { createHash } from 'node:crypto';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import { exactPagesBackend } from '../../../packages/sdk-browser/src/backend/exact/backend.ts';
-import { threeLodBackend } from '../../../packages/sdk-browser/src/host/three/lod.ts';
+import { exactPagesBackend } from '../../../bench/witnesses/exact/backend.ts';
+import { threeLodBackend } from '../../../bench/witnesses/three/lod.ts';
 import { installGpuGlobals } from '../../kit/gpu/globals.ts';
 import { mockGpu } from '../../kit/gpu/mockGpu.ts';
 import {
