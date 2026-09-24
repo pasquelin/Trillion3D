@@ -289,9 +289,7 @@
     {
       "id": "four-ways-to-blend",
       "theme": "materials",
-      "file": "examples/four-ways-to-blend.html",
-      "status": "waiting-engine",
-      "issue": 346
+      "file": "examples/four-ways-to-blend.html"
     },
     {
       "id": "toon-shading",
