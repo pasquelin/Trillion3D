@@ -44,6 +44,10 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     geometryBlocks: rt.vis.geometryBlocks,
     mapLayer: rt.vis.mapLayer,
     dataLayer: rt.vis.dataLayer,
+    // Read at each row: the atlases exist from the textures' preparation on.
+    get textures() {
+      return rt.vis.textures;
+    },
     markRowDirty: rows.markRowDirty,
   });
   // The residency mirror is the only incremental state of this path: its journal is checked against
