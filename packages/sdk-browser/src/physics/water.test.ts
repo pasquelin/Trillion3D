@@ -1,9 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
-import { CommandWriter, SHAPE, WATER_PIECE_WORDS } from '../../../sdk-core/src/physics/index.ts';
+import {
+  CommandWriter,
+  OP,
+  SHAPE,
+  WATER_PIECE_WORDS,
+} from '../../../sdk-core/src/physics/index.ts';
+import { box } from '../../../sdk-core/src/world/geometry/basic.ts';
+import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
+import { Material } from '../../../sdk-core/src/world/material/material.ts';
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { startModule, startThreaded } from './module.fixture.ts';
 import { cube, floater, floatingScene, raft, runWater } from './water.fixture.ts';
+import { createWorldPhysics } from './worldPhysics.ts';
 
 const CALM: WaterSpec = { waves: [], level: 0 };
 const CHOP: WaterSpec = {
@@ -84,5 +95,51 @@ test('trajectories are bit-identical on one thread and on eight', async () => {
     assert.deepEqual(eight, one);
   } finally {
     await pool.close();
+  }
+});
+
+/** The session's code, fetched on the first use (`worldPhysics.ts`), has been loaded. */
+const loaded = () => import('./session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
+
+test('water set or removed wakes every dynamic body, so one asleep floats or falls', async () => {
+  const workers: { onmessage(event: { data: unknown }): void; words: Uint32Array[] }[] = [];
+  const saved = globalThis.Worker;
+  globalThis.Worker = class {
+    words: Uint32Array[] = [];
+    onmessage = (_: { data: unknown }) => {};
+    constructor() {
+      workers.push(this);
+    }
+    postMessage(message: { type: string; words?: Uint32Array }) {
+      if (message.words) this.words.push(message.words);
+    }
+    terminate() {}
+  } as unknown as typeof Worker;
+  try {
+    const scene = new Group();
+    const runtime = { invalidate() {}, explorer: null };
+    const physics = createWorldPhysics(runtime, scene, () => new Camera('perspective'), true);
+    await loaded();
+    const [worker] = workers;
+    worker.onmessage({ data: { type: 'ready' } });
+    const floor = new Mesh(box(), new Material('meshStandard'));
+    floor.physics = 'static';
+    const crate = new Mesh(box(), new Material('meshStandard'));
+    crate.physics = 'dynamic';
+    scene.add(floor, crate);
+    physics.frame();
+    const woken = () => {
+      worker.words.length = 0;
+      physics.frame();
+      // The frame's first command, before its view.
+      return Array.from(worker.words[0].subarray(0, 2));
+    };
+    physics.handle.water = { waves: [], level: 2 };
+    assert.deepEqual(woken(), [OP.wake, crate.physics._index]);
+    physics.handle.water = null;
+    assert.deepEqual(woken(), [OP.wake, crate.physics._index]);
+    physics.dispose();
+  } finally {
+    globalThis.Worker = saved;
   }
 });
