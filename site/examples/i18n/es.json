@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Pulsa Jugar, luego corre con W A S D y salta con Espacio.",
+    "banner": "Pulsa Jugar, luego corre con W A S D y salta con Espacio. Suelta pronto: sobre la piedra te deslizas un poco antes de parar.",
     "controls": {
       "keys": "El control de personaje del motor: Jugar en el menú captura el ratón para mirar, W A S D para correr (Z Q S D en AZERTY), Mayús para esprintar, Espacio para saltar, Esc libera el ratón. La página añade R para correr otra vez, M para silenciar.",
       "look": "Mirar",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Cambia el nivel, las olas, la densidad y la corriente del agua: las cajas flotan, derivan, se hunden y se asientan.",
+    "controls": {
+      "level": "Nivel",
+      "waves": "Olas",
+      "density": "Densidad del agua",
+      "current": "Corriente",
+      "drop": "Soltar",
+      "again": "Otra vez",
+      "slowMotion": "Cámara lenta"
+    },
+    "readouts": {
+      "bodies": "Cuerpos",
+      "awake": "Despiertos",
+      "step": "Paso"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Diez mil cajas caen a la vez. El panel muestra en directo lo que cuesta la física.",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas.",
+    "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas y suelta las teclas sobre el hielo para deslizarte.",
     "controls": {
       "pushStrength": "Fuerza de empuje (N)",
       "platformSpeed": "Velocidad de la plataforma",
@@ -1962,6 +1979,21 @@
       "bodies": "Cuerpos",
       "awake": "Despiertos",
       "step": "Paso"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Abre la puerta y el cajón, balancea la cadena y luego deja caer la piedra sobre el puente y mira cómo se rompe.",
+    "controls": {
+      "openDoor": "Abrir la puerta",
+      "openDrawer": "Abrir el cajón",
+      "strength": "Resistencia del puente (N)",
+      "swingChain": "Balancear la cadena",
+      "dropStone": "Soltar la piedra",
+      "rebuild": "Reconstruir el puente"
+    },
+    "readouts": {
+      "joints": "Uniones",
+      "broken": "Rotas"
     }
   }
 }

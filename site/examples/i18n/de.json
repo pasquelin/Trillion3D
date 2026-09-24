@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Drücke Spielen, dann lauf mit W A S D und spring mit der Leertaste.",
+    "banner": "Drücke Spielen, dann lauf mit W A S D und spring mit der Leertaste. Lass früh los: Auf Stein gleitest du ein wenig, bevor du stehst.",
     "controls": {
       "keys": "Die Figurensteuerung der Engine: Spielen im Menü fängt die Maus zum Umsehen, W A S D zum Laufen (Z Q S D auf AZERTY), Umschalt zum Sprinten, Leertaste zum Springen, Esc gibt die Maus frei. Die Seite fügt R für einen neuen Lauf und M zum Stummschalten hinzu.",
       "look": "Umsehen",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Ändere Pegel, Wellen, Dichte und Strömung des Wassers: Die Kisten schwimmen, treiben, sinken und kommen zur Ruhe.",
+    "controls": {
+      "level": "Pegel",
+      "waves": "Wellen",
+      "density": "Wasserdichte",
+      "current": "Strömung",
+      "drop": "Fallen lassen",
+      "again": "Nochmal",
+      "slowMotion": "Zeitlupe"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Zehntausend Kisten fallen zugleich. Das Feld zeigt live, was die Physik kostet.",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben.",
+    "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben, und auf dem Eis die Tasten loslassen, um zu rutschen.",
     "controls": {
       "pushStrength": "Schubkraft (N)",
       "platformSpeed": "Plattformtempo",
@@ -1962,6 +1979,21 @@
       "bodies": "Körper",
       "awake": "Wach",
       "step": "Schritt"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Öffne die Tür und die Schublade, lass die Kette schwingen, dann lass den Stein auf die Brücke fallen und sieh zu, wie sie bricht.",
+    "controls": {
+      "openDoor": "Tür öffnen",
+      "openDrawer": "Schublade öffnen",
+      "strength": "Brückenfestigkeit (N)",
+      "swingChain": "Kette schwingen",
+      "dropStone": "Stein fallen lassen",
+      "rebuild": "Brücke neu bauen"
+    },
+    "readouts": {
+      "joints": "Gelenke",
+      "broken": "Gebrochen"
     }
   }
 }

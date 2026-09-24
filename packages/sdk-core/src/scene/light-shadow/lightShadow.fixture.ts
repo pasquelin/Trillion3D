@@ -2,9 +2,9 @@
 // sun straight overhead that casts —, and what stands in for the shading: a request report that
 // names the pages a frame read, stamped as the engine stamps it.
 import type { SceneLight, ShadowViewpoint } from '../light/contracts.ts';
-import type { SceneLightStore } from '../light/store.ts';
-import type { ShadowPlan } from './plan.ts';
-import { lampEntry, sunEntry } from './virtual.ts';
+import { createSceneLightStore, type SceneLightStore } from '../light/store.ts';
+import { createShadowPlan, type ShadowPlan } from './plan.ts';
+import { LAMP_MIPS, SUN_LEVELS, lampEntry, sunEntry } from './virtual.ts';
 
 export const VIEW: ShadowViewpoint = {
   position: [0, 5, 0],
@@ -51,6 +51,15 @@ export function report(plan: ShadowPlan, store: SceneLightStore, frame: number, 
 export const sunPages = (plan: ShadowPlan, slice: number, level: number, pages: number[][]) =>
   pages.map(([ax, ay]) => plan.table.baseOf(slice) + sunEntry(level, ax, ay));
 
+/** Table entry of the sun's floor page over the camera of the fixture: the one page of its last
+ *  level every fixture page lies under. Counted here, not read from the scheduler it tests. */
+export const sunFloor = (plan: ShadowPlan, slice: number) =>
+  sunPages(plan, slice, plan.sun.finest[slice] + SUN_LEVELS - 1, [[0, 0]])[0];
+
+/** Table entry of lamp `face`'s floor page, its one-page mip. */
+export const lampFloor = (plan: ShadowPlan, slice: number, face: number) =>
+  plan.table.baseOf(slice) + lampEntry(face, LAMP_MIPS - 1, 0, 0);
+
 /** Table entries of every page of lamp `face` at `mip`, for the light in `slice`. */
 export function lampPages(plan: ShadowPlan, slice: number, face: number, mip: number) {
   const side = 32 >> mip,
@@ -76,4 +85,13 @@ export function cycle(
   plan.commit();
   report(plan, store, frame, read());
   return drawn;
+}
+
+/** A point lamp three units up that casts, planned once: its store, its plan and its slice. */
+export function lampScene() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0);
+  return { store, plan, slice: store.sliceOf(0) };
 }

@@ -7,14 +7,26 @@ import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
 import { PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
 import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
-import { SUN, VIEW, cycle, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
+import {
+  SUN,
+  VIEW,
+  cycle,
+  lampFloor,
+  lampPages,
+  planFrame,
+  report,
+  sunFloor,
+  sunPages,
+} from './lightShadow.fixture.ts';
 
-/** A sun, planned once so its slice and clipmap exist; returns what the tests read it by. */
+/** A sun, planned once so its slice and clipmap exist, and its floor drawn — the four floor pages
+ *  its view reaches, the camera on their corner; returns what the tests read it by. */
 function sunScene() {
   const store = createSceneLightStore();
   const plan = createShadowPlan(24, 32);
   store.add(SUN);
   planFrame(plan, store, 0);
+  plan.commit();
   const slice = store.sliceOf(0),
     level = plan.sun.finest[slice] + 4;
   const pages = sunPages(plan, slice, level, [
@@ -28,24 +40,26 @@ function sunScene() {
 test('the pages the shading reads are mapped and drawn the frame their report comes back', () => {
   const { store, plan, pages } = sunScene();
   report(plan, store, 0, pages);
-  assert.equal(planFrame(plan, store, 1), 3, 'three pages admitted');
+  const floor = sunFloor(plan, store.sliceOf(0));
+  assert.ok(plan.table.words[floor] & PAGE_VALID, 'the floor under them, from the first frame');
+  assert.equal(planFrame(plan, store, 1), 3, 'the three pages admitted');
   for (const entry of pages) assert.equal(plan.table.words[entry] & PAGE_VALID, 0, 'not before');
   plan.commit();
   for (const entry of pages) assert.ok(plan.table.words[entry] & PAGE_VALID, 'readable once drawn');
-  assert.equal(plan.counts.poolPages, 3);
+  assert.equal(plan.counts.poolPages, 3 + 4);
 });
 
-test('a frame admits no more pages than its limit, the rest wait for the next', () => {
-  const { store, plan, pages } = sunScene();
-  report(plan, store, 0, pages);
-  plan.admission.setLimit(1);
-  assert.equal(planFrame(plan, store, 1), 1, 'one page under a limit of one');
+test('a frame admits the pages of no more views than its limit, the rest wait for the next', () => {
+  const { store, plan, slice, level, pages } = sunScene();
+  const coarser = sunPages(plan, slice, level + 1, [[0, 0]]);
+  report(plan, store, 0, [...pages, ...coarser]);
+  plan.admission.setViewLimit(1);
+  assert.equal(planFrame(plan, store, 1), 1, 'the coarser view first: its one page');
   plan.commit();
-  plan.admission.setLimit(24);
-  assert.equal(planFrame(plan, store, 2), 2, 'the two that waited');
+  assert.equal(planFrame(plan, store, 2), 3, 'every page of the view that waited');
 });
 
-test('a page nobody reads is never drawn, and a still scene draws nothing', () => {
+test('past its first frame, a page nobody reads is never drawn, and a still scene draws nothing', () => {
   const { store, plan, pages } = sunScene();
   let frame = 1;
   cycle(plan, store, frame++, () => pages);
@@ -55,16 +69,18 @@ test('a page nobody reads is never drawn, and a still scene draws nothing', () =
       i ? 0 : 3,
     );
   assert.equal(plan.counts.pendingPages, 0);
-  assert.equal(plan.counts.cachedPages, 3, 'read straight from the pool');
+  // The three pages, the floor under them, and the three floor pages more the view reaches.
+  assert.equal(plan.counts.cachedPages, 3 + 4, 'read straight from the pool');
   assert.equal(plan.settled(store), true, 'a report proves the image reads only drawn pages');
-  // The image now reads one page: a moving object stales all three, only that one is drawn.
+  // The image now reads one page: a moving object stales all seven — three pages, four floor
+  // pages —, it and the floor pages the view reaches are drawn.
   cycle(plan, store, frame++, () => pages.slice(0, 1));
   plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
   assert.equal(
     cycle(plan, store, frame, () => pages.slice(0, 1)),
-    1,
+    1 + 4,
   );
-  assert.equal(plan.counts.invalidatedPages, 3);
+  assert.equal(plan.counts.invalidatedPages, 3 + 4);
 });
 
 test('an object that moves stales only the mapped pages its box covers', () => {
@@ -80,7 +96,7 @@ test('an object that moves stales only the mapped pages its box covers', () => {
     [0, 1, 2].map((a) => right[a] * u + up[a] * v + h * (a === 1 ? 1 : 0));
   plan.worldChanged(at(0.25 * metres, -0.75 * metres, 0), at(0.75 * metres, -0.25 * metres, 1));
   planFrame(plan, store, frame);
-  assert.equal(plan.counts.invalidatedPages, 1);
+  assert.equal(plan.counts.invalidatedPages, 2, 'that page, and the floor page over all three');
 });
 
 test('a light removed gives its pages back to the pool and its range back to the table', () => {
@@ -107,8 +123,10 @@ test('coarse pages are served first, and a full pool evicts only pages no report
   planFrame(plan, store, 1);
   const mapped = (entries: number[]) =>
     entries.filter((e) => plan.table.words[e] & PAGE_MAPPED).length;
+  const floors = [lampFloor(plan, slice, 0), lampFloor(plan, slice, 1)];
+  assert.equal(mapped(floors), 2, 'the floor of each face read, first');
   assert.equal(mapped(coarse), coarse.length, 'every coarse page');
-  const pages = plan.pool.pages;
+  const pages = plan.pool.pages - floors.length;
   assert.equal(mapped(fine), pages - coarse.length, 'the fine ones, as far as the pool goes');
   assert.equal(plan.requests.counts.refused, fine.length + coarse.length - pages);
   // A report names a third face: among pages of the same age, the fine ones are evicted first.
@@ -125,12 +143,9 @@ test('coarse pages are served first, and a full pool evicts only pages no report
 test('a camera that moves by whole pages unmaps the sun pages that leave the clipmap', () => {
   const { store, plan, slice, level, pages } = sunScene();
   cycle(plan, store, 1, () => pages);
-  const far: typeof VIEW = {
-    ...VIEW,
-    position: [VIEW.position[0] + 1e5, VIEW.position[1], VIEW.position[2]],
-  };
-  planFrame(plan, store, 2, far);
-  assert.equal(plan.pool.used, 0, `level ${level} of slice ${slice} no longer holds them`);
+  planFrame(plan, store, 2, { ...VIEW, position: [1e5, 5, 0] });
+  const gone = [...pages, sunFloor(plan, slice)].every((entry) => plan.table.words[entry] === 0);
+  assert.ok(gone, `level ${level} of slice ${slice} no longer holds them`);
 });
 
 test('an object already moving stales only the moving casters of the pages it crosses', () => {
@@ -158,14 +173,15 @@ test('a light that moves reads none of its pages until each is drawn again', () 
   assert.ok(pages.every((entry) => word(entry) === (PAGE_MAPPED | PAGE_VALID)));
   // Its depth was drawn from the old position: the record the shading reads is the new one.
   store.set('lamp', { position: [0, 4, 0] });
-  plan.admission.setLimit(1);
+  // A page costs the whole budget: one a frame.
+  plan.observeCost(plan.budget.budgetMs, 1);
   planFrame(plan, store, 3);
   assert.ok(
     pages.every((entry) => word(entry) === PAGE_MAPPED),
     'mapped, not readable',
   );
   plan.commit();
-  assert.equal(pages.filter((entry) => word(entry) & PAGE_VALID).length, 1, 'the one redrawn');
+  assert.ok(word(lampFloor(plan, store.sliceOf(0), 0)) & PAGE_VALID, 'its floor first, always');
 });
 
 test('a stale page no report names is not left readable to a pass that reads without asking', () => {
@@ -176,6 +192,7 @@ test('a stale page no report names is not left readable to a pass that reads wit
   cycle(plan, store, 3, () => pages.slice(0, 1));
   plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
   planFrame(plan, store, 4);
+  plan.commit();
   assert.ok(plan.table.words[pages[0]] & PAGE_VALID, 'read, and drawn this frame: readable');
   for (const entry of pages.slice(1))
     assert.equal(plan.table.words[entry] & PAGE_VALID, 0, 'read by no report: withdrawn');

@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "As matrizes com que um host desenha um quadro, como o motor as entrega.",
+    "summary": "As matrizes e o intervalo de profundidade com que um host desenha um quadro, como o motor os entrega.",
     "members": {
       "projection": "A projeção.",
       "world": "A matriz de mundo da câmera.",
       "view": "A matriz de view.",
-      "eye": "Onde está o olho."
+      "eye": "Onde está o olho.",
+      "near": "Distância mais próxima.",
+      "far": "Distância mais distante."
     }
   },
   "HostDrawOutput": {
@@ -1656,7 +1658,8 @@
       "signal": "Para o carregamento quando o sinal é abortado.",
       "scope": "`'full'` exige o cache inteiro, `'progressive'` seu recorte transmitido; um modelo de outro escopo é recusado pelo nome. Se não definido, o modelo é lido no escopo que seu ponteiro declara.",
       "stream": "Um streamer que a página configurou; a sessão do mundo transmite com o seu próprio.",
-      "position": "Para onde vai a origem do modelo na cena."
+      "position": "Para onde vai a origem do modelo na cena.",
+      "onProgress": "Ouve até onde o carregamento chegou: `manifest` quando o manifesto é lido, depois `resources` à medida que chega cada arquivo que a cena lê (`completed` de um `total` conhecido até então). O evento é um `JobProgress`: um `createJob` que envolve o carregamento passa aqui o seu `progress`."
     }
   },
   "LoadedModel": {
@@ -2938,6 +2941,8 @@
       "shadowWaitMs": "Quanto tempo esperaram.",
       "gpuLightListsMs": "Tempo de GPU das listas de luz.",
       "gpuShadowsMs": "Tempo de GPU das sombras.",
+      "gpuShadowCullMs": "Tempo de GPU para escolher os projetores das páginas de sombra que um quadro desenha: o corte da luz, o descarte por página e o teste de oclusão dos projetores em movimento com as pirâmides que ele lê.",
+      "gpuShadowRasterMs": "Tempo de GPU para desenhar esses projetores nas páginas: a camada estática, depois o pool.",
       "gpuLightingMs": "Tempo de GPU da iluminação.",
       "shadowLightCuts": "Cortes de clusters feitos a partir das luzes: um por vista de luz desenhada, zero num quadro parado.",
       "shadowPagesRequested": "Páginas de sombra virtuais que a imagem leu, como o seu último relatório de pedidos as nomeou: o que os receptores da câmera marcam.",
@@ -2955,8 +2960,9 @@
       "counts": "O que o último plano fez, em páginas.",
       "worldChanged": "Um nó moveu-se: a sua caixa invalida as páginas que cobre no plano seguinte.",
       "representationChanged": "O mesmo mundo com outra precisão: a sua caixa espera que a câmera pare.",
+      "resting": "A câmera estava em repouso no último plano: sua vista era a do plano anterior.",
       "deferredChanges": "Verdadeiro enquanto uma mudança de representação espera que a câmera pare.",
-      "releaseDeferred": "O quadro não planeja nenhuma sombra: a união retida entra na lista de imediato.",
+      "releaseDeferred": "O quadro não planeja nenhuma sombra: as caixas retidas entram na lista de imediato.",
       "observeCost": "Temporizador do passe Sombras de um quadro, repartido pelas páginas que desenhou.",
       "setBudgetMs": "Orçamento publicado pelo anfitrião, em milissegundos de GPU por quadro.",
       "setPageInvalidation": "Desliga a invalidação por página: um objeto em movimento invalida todas as páginas das luzes que toca. Ligada por padrão.",
@@ -3432,7 +3438,8 @@
       "textureLevelReads": "As origens. `textureLevelReads`: níveis pré-processados sendo lidos no cache. `textureLevelsDecoded`: níveis pré-processados decodificados desde o início. `textureLevelCacheBytes`: bytes de host de níveis decodificados mantidos para cortar mais blocos deles, sob um orçamento fixo. `textureScratchBuilds`: texturas de rascunho construídas para uma textura sem cadeia pré-processada, a origem inteira a cada vez.",
       "textureLevelsDecoded": "Níveis decodificados.",
       "textureLevelCacheBytes": "Bytes de níveis decodificados mantidos.",
-      "textureScratchBuilds": "Texturas de rascunho construídas."
+      "textureScratchBuilds": "Texturas de rascunho construídas.",
+      "textureLiveBytes": "Bytes que as texturas vivas mantêm: uma textura de trabalho cada, do próprio tamanho. Descontados de `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -3792,8 +3799,8 @@
       "gravity": "Apenas personagem: aceleração descendente enquanto sobe, m/s²; 9,80665 por padrão.",
       "fallGravity": "Apenas personagem: aceleração descendente enquanto cai, m/s²; 1,6 g por padrão, para que um pulo não flutue.",
       "airControl": "Apenas personagem: quão rápido as teclas guiam no ar, como fração do início no chão; 0,05 por padrão, 0 é balístico.",
-      "responseTime": "Apenas personagem: segundos para alcançar 95% da velocidade desejada no chão; 0,12 por padrão.",
-      "stopTime": "Apenas personagem: segundos para perder 95% da velocidade quando nenhuma tecla é mantida, no chão; 0,08 por padrão.",
+      "responseTime": "Apenas personagem: segundos que as pernas levam para atingir 95% da velocidade desejada, no chão; 0,12 por padrão. O atrito do piso limita primeiro a partida: uma sola empurra no máximo `μ g`, `μ` a aderência de uma sola de borracha sobre o `material.physics` do piso (pedra sem física), então um trote é atingido em 0,45 s na pedra e 2,2 s no gelo.",
+      "stopTime": "Apenas personagem: segundos que as pernas levam para perder 95% da velocidade quando nenhuma tecla é mantida, no chão; 0,12 por padrão. O atrito do piso limita primeiro a parada: um trote desliza `v² / (2 μ g)`, 0,8 m na pedra e 3,8 m no gelo; um tempo maior freia mais suavemente.",
       "capsuleRadius": "Apenas personagem: raio do corpo, em metros; metade de uma largura de ombro (0,23 m) por padrão.",
       "capsuleHeight": "Apenas personagem: altura do corpo, em metros; 1,75 por padrão.",
       "eyeHeight": "Apenas personagem: altura da câmera acima dos pés, em metros; 1,64 por padrão.",
@@ -3838,10 +3845,13 @@
     "members": {
       "geometryPoolCeiling": "Os maiores pools que um mundo pode pedir: os orçamentos iniciais do motor.",
       "texturePoolCeiling": "O maior pool de textura que um mundo pode pedir, em bytes.",
-      "geometryPool": "Bytes de memória de GPU mantidos para páginas de geometria; defina para mudar o envelope.",
-      "texturePool": "Bytes de memória de GPU mantidos para páginas de textura; defina para mudar o envelope.",
+      "geometryPool": "Bytes de memória GPU reservados para páginas de geometria; defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras e do reservatório de texturas.",
+      "texturePool": "Bytes de memória GPU reservados para páginas de textura, `null` num motor sem reservatório de texturas (WebGL2); defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras e do reservatório de geometria.",
       "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
-      "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope."
+      "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
+      "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Nunca lido da máquina.",
+      "cpu": "Bytes de memória CPU que as páginas decodificadas do mundo podem ocupar; aplicado no próximo carregamento de cena.",
+      "split": "Como os dois totais são divididos: o reservatório de sombras no máximo, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o cache de páginas decodificadas fica com o total de CPU. O que a regra dá, antes de um reservatório definido sozinho."
     }
   },
   "world.diagnostic": {
@@ -3955,6 +3965,8 @@
       "shadowWaitMs": "Quanto tempo esperaram.",
       "gpuLightListsMs": "Tempo de GPU das listas de luz.",
       "gpuShadowsMs": "Tempo de GPU das sombras.",
+      "gpuShadowCullMs": "Tempo de GPU para escolher os projetores das páginas de sombra que um quadro desenha: o corte da luz, o descarte por página e o teste de oclusão dos projetores em movimento com as pirâmides que ele lê.",
+      "gpuShadowRasterMs": "Tempo de GPU para desenhar esses projetores nas páginas: a camada estática, depois o pool.",
       "gpuLightingMs": "Tempo de GPU da iluminação.",
       "hizTestedClusters": "O que o teste de oclusão fez em um quadro: os clusters entregues a ele, os que ele eliminou, e aqueles cuja pegada de tela de nível 0 excede o kernel de dezesseis texels e portanto respondem a partir de um mip mais grosseiro. `hiz*Triangles` são os triângulos desses mesmos clusters. No caminho de GPU eles descrevem um quadro ANTERIOR ao que os renderiza — `hizCountedFrame` nomeia qual — como `gpuPassMs`, e dois quadros vizinhos frequentemente carregam a mesma amostra. Nenhum é estimado: `null` em um motor que não testa oclusão, em um dispositivo cujos veredictos não podem ser relidos, e enquanto nenhum quadro foi contado.",
       "hizRejectedClusters": "Clusters escondidos.",
@@ -3983,6 +3995,7 @@
       "textureLevelsDecoded": "Níveis decodificados.",
       "textureLevelCacheBytes": "Bytes de níveis decodificados mantidos.",
       "textureScratchBuilds": "Texturas de rascunho construídas.",
+      "textureLiveBytes": "Bytes que as texturas vivas mantêm: uma textura de trabalho cada, do próprio tamanho. Descontados de `texturePoolBytes`.",
       "gpuAllocatedBytes": "Bytes ativos alocados no dispositivo, somando todos os recursos.",
       "gpuAllocatedByLabel": "Bytes alocados agrupados por rótulo de recurso. Alocações sem rótulo são agrupadas como 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Contagem de texturas com formatos não reconhecidos. O valor esperado é 0.",
@@ -4293,7 +4306,7 @@
     "description": "`memory(world)` é o que o mundo guarda agora (`world.budget`); os dois pools constroem a configuração que um mundo recebe."
   },
   "budget.memory": {
-    "summary": "Os orçamentos de memória que um mundo guarda agora: ambos os pools e o maior a que cada um pode crescer."
+    "summary": "Os orçamentos de memória que um mundo tem agora: os totais de GPU e CPU, a sua divisão pela regra, os dois reservatórios e o máximo de cada um."
   },
   "budget.geometryPool": {
     "summary": "Uma configuração de pool de geometria de `bytes`, pronta para entregar a um mundo.",
@@ -5640,7 +5653,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Sombreia cada ponto por quão longe está da câmera.",
+    "summary": "Sombreia cada ponto por quão longe está da câmera: branco em `camera.near`, preto em `camera.far`, uma rampa reta entre eles, a mesma no WebGPU e no WebGL2.",
     "parameters": {
       "parameters": "O que uma página pode passar a um membro de material; todo campo é opcional.",
       "parameters.color": "A cor base.",
@@ -6420,7 +6433,7 @@
   },
   "texture": {
     "summary": "A família `texture`: uma imagem e como ela é amostrada.",
-    "description": "Imagens de cor são sRGB, imagens de dados são lineares; `needsUpdate` depois de escrever os pixels faz os amostradores relê-los."
+    "description": "Imagens de cor são sRGB, imagens de dados são lineares; `needsUpdate` depois de escrever os pixels faz os amostradores lê-los de novo, copiados no lugar na textura que já está na GPU — só um tamanho novo a reconstrói. Um vídeo é vivo: seus quadros chegam sozinhos."
   },
   "texture.image": {
     "summary": "Uma textura de cor a partir de uma imagem já na página: uma imagem, um bitmap ou um quadro de vídeo.",
@@ -6439,12 +6452,14 @@
   },
   "texture.canvas": {
     "summary": "Uma textura que mostra o que um canvas contém.",
+    "description": "Depois de desenhar de novo no canvas, defina `needsUpdate`: os pixels novos são copiados na textura que já está na GPU, nada é reconstruído.",
     "parameters": {
       "c": "O canvas a mostrar."
     }
   },
   "texture.video": {
-    "summary": "Uma textura que mostra um vídeo em reprodução.",
+    "summary": "Uma textura que mostra um vídeo em reprodução, ou o fluxo de uma câmera reproduzido em um vídeo.",
+    "description": "Cada quadro novo é copiado sozinho na textura que já está na GPU; um vídeo pausado não custa nada.",
     "parameters": {
       "v": "O vídeo a mostrar."
     }
@@ -6623,7 +6638,7 @@
   },
   "CharacterCameraControls": {
     "summary": "UM PERSONAGEM, visto através de seus olhos: um corpo com massa que anda, corre, pula e cai, e colide com os triângulos do mundo como uma cápsula em pé.",
-    "description": "O ponteiro vira a cabeça como em primeira pessoa (`look.ts`). As teclas, por `KeyboardEvent.code` para que todo layout de teclado use as mesmas teclas: W/S ou as setas para cima e para baixo andam para frente e para trás, A/D ou as setas laterais deslocam de lado, Shift corre, Espaço pula. O corpo não começa nem para de uma vez: ganha velocidade ao longo de `responseTime` e freia ao longo de `stopTime`, mantém seu momento no ar, sobe sob `gravity` e cai sob `fallGravity`, sobe saliências até `stepHeight`, desliza ao longo de paredes e fica de pé em rampas até `maxSlope` (`sdk-core/src/collision/characterBody.ts`). A câmera é o olho, `eyeHeight` acima dos pés, balançando com o passo por `headBob` e mergulhando em um pouso por `landingDip` (`sdk-core/src/collision/characterEye.ts`); ambos são aplicados sobre o olho depois do passo do corpo e nunca movem o corpo. Um host que move a câmera ele mesmo teleporta o corpo até lá, em repouso. Um personagem parado — no chão, sem velocidade, sem tecla, sem mergulho restante — não emite nada, então a cena permanece parada.",
+    "description": "O ponteiro vira a cabeça como em primeira pessoa (`look.ts`). As teclas, por `KeyboardEvent.code` para que todo layout de teclado use as mesmas teclas: W/S ou as setas para cima e para baixo andam para frente e para trás, A/D ou as setas laterais deslocam de lado, Shift corre, Espaço pula. O corpo não começa nem para de uma vez: ganha velocidade ao longo de `responseTime` e freia ao longo de `stopTime`, nunca mais rápido do que o atrito do seu piso deixa uma sola empurrar, de modo que uma parada desliza um pouco na pedra e muito no gelo, mantém seu momento no ar, sobe sob `gravity` e cai sob `fallGravity`, sobe saliências até `stepHeight`, desliza ao longo de paredes e fica de pé em rampas até `maxSlope` (`sdk-core/src/collision/characterBody.ts`). A câmera é o olho, `eyeHeight` acima dos pés, balançando com o passo por `headBob` e mergulhando em um pouso por `landingDip` (`sdk-core/src/collision/characterEye.ts`); ambos são aplicados sobre o olho depois do passo do corpo e nunca movem o corpo. Um host que move a câmera ele mesmo teleporta o corpo até lá, em repouso. Um personagem parado — no chão, sem velocidade, sem tecla, sem mergulho restante — não emite nada, então a cena permanece parada.",
     "members": {
       "velocity": "A velocidade do corpo em metros por segundo, ao vivo: `[x, y, z]`, y para cima.",
       "onGround": "Se os pés estão em um chão.",
@@ -6860,8 +6875,11 @@
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
+      "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
-      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`."
+      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
+      "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",
+      "remove": "Remove uma junta: os corpos que ela segurava se afastam livremente."
     }
   },
   "ContactEvent": {
@@ -7008,6 +7026,19 @@
       "current": "Velocidade da água (a corrente de um rio), em m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "A superfície da água tal como a página a lê para a desenhar (`world.physics.waterSurface`): o modelo de ondas que a flutuação lê no worker de física, os mesmos números, à hora da simulação.",
+    "members": {
+      "level": "Altura da superfície em repouso, em metros.",
+      "crest": "Ponto mais alto que uma crista atinge acima de `level`, em metros.",
+      "time": "Segundos simulados desde que a água foi definida: o relógio das ondas.",
+      "setTime": "Acerta as ondas em `t` segundos simulados.",
+      "height": "Altura da superfície acima do ponto do mundo `(x, z)`, em metros.",
+      "point": "O ponto do mundo `[x, y, z]` para onde o ponto em repouso `(x, level, z)` é levado, em `out`: uma grelha movida ponto a ponto é a superfície, com cristas tão vivas como as ondas.",
+      "wavesNow": "As ondas declaradas, cada fase levada a este instante: definidas de novo em `world.physics.water` (cujas ondas recomeçam em 0 s), a superfície continua de onde está em vez de saltar.",
+      "normal": "Normal unitária `[x, y, z]` da superfície no ponto em repouso `(x, z)`, em `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Uma onda tal como uma cena a declara.",
     "members": {
@@ -7041,8 +7072,11 @@
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
+      "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
-      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`."
+      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
+      "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",
+      "remove": "Remove uma junta: os corpos que ela segurava se afastam livremente."
     }
   },
   "WorldPhysicsOptions": {
@@ -7220,17 +7254,6 @@
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
   },
-  "GraphAngles": {
-    "summary": "A mesma orientação como três ângulos e a sua ordem, anunciando as suas escritas da mesma forma.",
-    "members": {
-      "x": "O primeiro ângulo, em radianos.",
-      "set": "Escreve os três ângulos, e a ordem quando dada; anunciado uma vez.",
-      "setFromRotation": "Os ângulos de `q` nesta ordem (o `Euler` do núcleo); anunciado exceto com `quiet`.",
-      "y": "O segundo ângulo, em radianos.",
-      "z": "O terceiro ângulo, em radianos.",
-      "order": "A ordem em que os três ângulos rodam, `'XYZ'` salvo definição."
-    }
-  },
   "GraphArray": {
     "summary": "Os arrays tipados que um atributo guarda."
   },
@@ -7274,38 +7297,69 @@
   "GraphNodeKind": {
     "summary": "O que um nó do grafo é: um nó simples, a raiz, um grupo, uma malha desenhada (numa colocação ou em várias), um olho, ou uma das luzes que uma cena declara."
   },
-  "GraphRotation": {
-    "summary": "Uma orientação `(x, y, z, w)` cujas escritas chamam `_onChangeCallback`.",
+  "Joint": {
+    "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",
+    "description": "Ela segura enquanto os dois corpos são simulados, e até se romper.",
+    "parameters": {
+      "options": "O que `joint.*` aceita. Pontos e eixos ficam no mundo, lidos quando a junta é criada pela primeira vez.",
+      "options.anchor": "Onde os corpos se ligam: o pino de uma dobradiça, a esfera de uma junta de ponto, a ponta de uma distância em `a`.",
+      "options.anchorB": "A ponta de uma distância em `b`.",
+      "options.axis": "O pino de uma dobradiça, o trilho de uma corrediça, o meio de um cone.",
+      "options.limits": "Dobradiça, corrediça, distância e cone: quanto se move. Uma distância mantém por padrão seu comprimento.",
+      "options.spring": "Dobradiça, corrediça e distância: além dos limites, uma mola puxa de volta em vez de uma parede; `frequency` em Hz, `damping` de 0 (nenhum) a 1 (crítico).",
+      "options.motor": "Dobradiça e corrediça: um motor, alterável a qualquer momento por `joint.motor`.",
+      "options.breakForce": "Newtons de tração a partir dos quais a junta se rompe; omitido, nunca."
+    },
     "members": {
-      "x": "O primeiro número.",
-      "set": "Escreve os quatro números, anunciado uma vez.",
-      "copy": "Toma os números de outra rotação.",
-      "fromArray": "Lê quatro números de uma lista.",
-      "setFromAngles": "A rotação de `angles`, na sua ordem (`localTurnQuaternion`); anunciado exceto com `quiet`.",
-      "setFromRotationMatrix": "A rotação do 3×3 superior de uma matriz por colunas cujas colunas têm comprimento unitário.",
-      "premultiply": "Torna-se `q` seguido desta rotação, `q · this`.",
-      "invert": "Torna-se a rotação oposta.",
-      "y": "O segundo número.",
-      "z": "O terceiro número.",
-      "w": "O quarto número."
+      "kind": "O que a junta é.",
+      "a": "O primeiro corpo.",
+      "b": "O segundo corpo, ou `null` para o mundo.",
+      "options": "Com o que foi criada.",
+      "motor": "O motor de uma dobradiça ou de uma corrediça; `null` a deixa girar ou deslizar livremente.",
+      "broken": "Se ela se rompeu: puxada além de sua `breakForce`. Uma junta rompida não segura mais nada.",
+      "on": "Chama `handler` quando a junta se rompe."
     }
   },
-  "GraphVector": {
-    "summary": "Três números de uma pose ou de um ponto: campos de dados simples, e as operações que um controlador usa.",
+  "JointKind": {
+    "summary": "As juntas entre corpos, cada uma uma restrição do próprio Jolt."
+  },
+  "JointLimits": {
+    "summary": "Quanto uma junta pode se mover: radianos para uma dobradiça, metros para uma corrediça ou uma distância, o semiângulo do cone (`max`) para um cone.",
     "members": {
-      "set": "Escreve os três números.",
-      "copy": "Toma os números de outro ponto.",
-      "clone": "Uma cópia.",
-      "add": "Soma outro vetor.",
-      "sub": "Subtrai outro vetor.",
-      "multiplyScalar": "Escala os três números.",
-      "length": "O seu comprimento.",
-      "setLength": "Mantém a direção, define o comprimento.",
-      "distanceTo": "Distância a um ponto.",
-      "fromArray": "Lê três números de uma lista.",
-      "x": "Da esquerda para a direita.",
-      "y": "De baixo para cima.",
-      "z": "De trás para frente."
+      "min": "O de uma dobradiça de −π a 0, o de uma corrediça 0 ou menos.",
+      "max": "O de uma dobradiça de 0 a π, o de uma corrediça 0 ou mais."
+    }
+  },
+  "JointMotor": {
+    "summary": "O motor de uma dobradiça ou de uma corrediça: leva a junta a uma velocidade ou a uma posição.",
+    "members": {
+      "mode": "`'velocity'`: rad/s ou m/s; `'position'`: radianos ou metros a partir de onde a junta foi criada.",
+      "target": "A velocidade ou a posição a alcançar.",
+      "maxForce": "N·m para uma dobradiça, N para uma corrediça; omitido, sem limite."
+    }
+  },
+  "JointOptions": {
+    "summary": "O que `joint.*` aceita.",
+    "description": "Pontos e eixos ficam no mundo, lidos quando a junta é criada pela primeira vez.",
+    "members": {
+      "anchor": "Onde os corpos se ligam: o pino de uma dobradiça, a esfera de uma junta de ponto, a ponta de uma distância em `a`.",
+      "anchorB": "A ponta de uma distância em `b`.",
+      "axis": "O pino de uma dobradiça, o trilho de uma corrediça, o meio de um cone.",
+      "limits": "Dobradiça, corrediça, distância e cone: quanto se move. Uma distância mantém por padrão seu comprimento.",
+      "spring": "Dobradiça, corrediça e distância: além dos limites, uma mola puxa de volta em vez de uma parede; `frequency` em Hz, `damping` de 0 (nenhum) a 1 (crítico).",
+      "motor": "Dobradiça e corrediça: um motor, alterável a qualquer momento por `joint.motor`.",
+      "breakForce": "Newtons de tração a partir dos quais a junta se rompe; omitido, nunca."
+    }
+  },
+  "joint": {
+    "summary": "A família `joint`: dois corpos ligados, ou um corpo e o mundo (`b` null).",
+    "members": {
+      "fixed": "Solda-os: movem-se como um só.",
+      "point": "Uma junta esférica em `anchor`: giram livremente em torno dela.",
+      "hinge": "Um pino em `anchor` ao longo de `axis`: uma porta, uma roda. `limits` em radianos.",
+      "slider": "Um trilho ao longo de `axis`: uma gaveta, um pistão. `limits` em metros.",
+      "distance": "Mantém `anchor` em `a` e `anchorB` em `b` à sua distância, ou dentro de `limits`.",
+      "cone": "Uma junta esférica cujo `axis` oscila dentro de um cone de semiângulo `limits.max`."
     }
   }
 }

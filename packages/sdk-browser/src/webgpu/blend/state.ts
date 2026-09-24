@@ -16,6 +16,7 @@ import type { TransparentTable } from '../transparent/table.ts';
 import type { BlendExpand } from './expand.ts';
 import type { WaterPass } from '../water/pass.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
+import { createBlendFootprint } from './footprint.ts';
 
 export type BlendGpuItem = {
   /** The material transmits: the item is drawn in the transmission pass, not in the blend. */
@@ -30,6 +31,9 @@ export type BlendGpuItem = {
   matrix: MatrixElements;
   /** The row posing the item when its mesh is placed by rows: skipped while it is parked. */
   placement?: PlacementOf;
+  /** True while the host hides the source mesh or one of its ancestors: skipped as a parked
+   *  row's item is (`placement/hidden.ts`). */
+  hidden?: boolean;
   sourceMesh?: HostMesh;
   sourceGeometry: HostGeometry;
   /** World box of the item, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`); absent, the item is not rejected. */
@@ -152,6 +156,8 @@ export function createWebgpuBlendState() {
     runCount: [0, 0],
     /** Has the order moved since the last write? A still pose writes nothing. */
     orderMoved: [true, true],
+    /** Inputs of the last ranking: equal ones keep its order, mask and runs (`footprint.ts`). */
+    footprint: createBlendFootprint(),
     /** Triangles unpaged items submit in each pass, twice for a double-sided item: a scene count,
      *  built with the plan, not a frame count. */
     blendTriangles: 0,

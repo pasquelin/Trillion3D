@@ -33,8 +33,9 @@ export type ToPhysics =
   | { type: 'commands'; words: Uint32Array }
   /** The clock: `timeScale` is above 0 unless `paused` (the page sends a scale of 0 as a pause). */
   | { type: 'clock'; paused: boolean; timeScale: number }
-  /** The body of water the bodies float in (`fluids/buoyancy.ts`), or none. */
-  | { type: 'water'; water: WaterSpec | null }
+  /** The body of water the bodies float in (`fluids/buoyancy.ts`), or none; `epoch` counts the
+   *  waters the page set, and every tick on this one carries it back. */
+  | { type: 'water'; water: WaterSpec | null; epoch: number }
   /** Scene queries (`CAST_WORDS` each), answered against the last step by a `cast` reply. */
   | { type: 'cast'; id: number; queries: Uint32Array }
   /** The world's character: its settings (`null` removes it), and its feet when it is put there. */
@@ -58,6 +59,11 @@ export interface PhysicsResults {
   /** Fixed steps taken, and the simulated seconds they cover. */
   steps: number;
   seconds: number;
+  /** Simulated seconds the water's waves have run since it was set, after the tick (0 without
+   *  water): the clock buoyancy used, read by the page to draw the same waves. */
+  water: number;
+  /** The epoch of the water that clock belongs to (`type: 'water'`). */
+  waterEpoch: number;
   /** Worker milliseconds spent in the module during this tick: its own clock, never the page's. */
   stepMs: number;
   /** Bodies awake after the tick. */
@@ -76,6 +82,8 @@ export type FromPhysics =
   | PhysicsResults
   /** The hits of a `cast` request (`HIT_WORDS` each), in its order. */
   | { type: 'cast'; id: number; hits: Uint32Array }
+  /** The joints a step broke, by id (`JOINT_WORDS`): the module took them out. */
+  | { type: 'broken'; joints: number[] }
   | { type: 'error'; code: string; message: string; fatal: boolean; bodies?: number[] };
 
 /** Word where a result buffer's events start: after one pose per body. */
