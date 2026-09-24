@@ -49,7 +49,7 @@ export interface PartitionAudit {
  */
 export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<PartitionAudit | null> {
   const partition = rt.vis.gpuPartition,
-    device = rt.setup.gpuDevice,
+    device = rt.gpu.device,
     frame = partition?.lastFrame;
   if (!partition || !device || !frame) return null;
   const { rows } = frame;
