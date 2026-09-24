@@ -1,3 +1,4 @@
+import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
 import {
   DIAGNOSTICS,
@@ -25,6 +26,7 @@ export function worldBudget(
   session: { readonly explorer: MeasuredWorld | null },
   frames: { readonly last: FrameMetrics | null },
   renderer: () => WorldRenderer | null,
+  physics: PhysicsBudget,
 ) {
   let pending = false;
   const rebalance = () => {
@@ -41,6 +43,9 @@ export function worldBudget(
   // What the last frame published, `null` or `undefined` when it held no such pool.
   const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key];
   return {
+    /** The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the
+     *  physics starts; exceeding one raises `PHYSICS_BUDGET`. */
+    physics,
     /** The largest pools a world may ask for: the engine's starting budgets. */
     get geometryPoolCeiling() {
       return DEFAULT_GEOMETRY_POOL_BUDGET;

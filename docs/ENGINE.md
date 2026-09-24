@@ -380,6 +380,65 @@ with textures gets one layer, the rest of the budget by the bytes its tiles woul
 `texturePoolFormat`, `texturePoolLayers` and `texturePoolBytes` publish the result, and the
 `material-textures-ready` diagnostic lists each pool.
 
+## Physics
+
+Jolt Physics (MIT, pinned submodule `packages/physics-jolt-wasm/JoltPhysics`) is compiled with
+emscripten and SIMD into one standalone module, `joltPhysics.wasm`, behind this repository's own
+flat C API (`packages/physics-jolt-wasm/src/`): one `jolt_step` call reads a command buffer and
+writes a pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
+(`physics/joltModule.ts`) gives the module its memory, whose maximum is the memory budget.
+
+- **Worker.** `physics/physicsWorker.ts` steps at a fixed 60 Hz, at most four catch-up steps a
+  tick (beyond, time is dropped: slow motion, never a spiral). Two result buffers go back and forth
+  as transferables and a tick writes straight into a free one (`tickResults.ts`); when the page
+  holds both, its results wait in a staging copy. It steps only while one more step's events fit,
+  so no event is cut. With every body asleep and no command queued, the worker stops ticking.
+- **Layouts.** `sdk-core/src/physics/layout.ts` (`PHYSICS_LAYOUT_VERSION`) holds the command,
+  pose and event word layouts the module mirrors; the page and the worker check the protocol.
+  Every record names its body by an engine id, the slot and the slot's generation (moved on at
+  each add and removal), so a late record of a body that left is never read as the one in its
+  place, on the page or in the module's pair map.
+- **Contacts and failures.** The module counts sub-shape contacts per pair: an `enter` is sent on
+  the first, a `leave` on the last, and only for a pair whose `enter` was sent; a `leave` the
+  event buffer cannot take waits for the next step, and a removed body's pairs are closed as it
+  leaves. A shape Jolt cannot build fails its body alone (the page retires it and names it);
+  `PhysicsSystem::Update`'s errors (body pairs, contact constraints, manifold cache) are sent as
+  `PHYSICS_BUDGET`, their capacities being `budget.physics.bodyPairs` and `contactConstraints`.
+- **Page.** `physics/session.ts` reconciles bodies with the scene once per frame that changed it,
+  draws each moving body between its last drawn pose and the tick's pose (`poses.ts`), sends the
+  view, and posts the frame's commands in one message. A tick is drawn over the interval at which
+  ticks arrive, not the time it simulates, and a late one is extrapolated from the linear and
+  angular velocities of its records, one interval at most: a slow worker shows slow motion, never
+  a held frame. Receive and draw are typed-array loops: a body's node keeps its position,
+  quaternion and scale in the placer's flat arrays (`ObservedComponents._share`), its velocity and
+  sleep are read from the session's arrays when asked (`ObjectPhysics._state`), each frame lerps from the
+  pose drawn toward the tick's, and the pose is written into the transform tree, the angles
+  derived when read (`placer.ts`); each body's world matrix is composed straight into the row of
+  the instance buffer the renderer draws it from (`SceneLink.seat`), and the world hears the
+  written span of each buffer once (`SceneLink.placed`), so no per-node world update runs. A body
+  with no row, with children, or under a moved scene root goes through `SceneLink.posed`, which
+  recomposes it like any moved node. A pose sent again unchanged asks for no frame, so a
+  sleeping world draws nothing.
+- **Distance and view.** The page sends its eye, facing, view cone and range (`camera.far`) only
+  when they change. In the module, a dynamic body beyond the range is deactivated with its
+  velocities kept; a body out of the cone or hidden sends no pose until it is seen again.
+- **Budgets.** Bodies, static triangles and decorative bodies are counted on the page; memory is
+  enforced by the module's memory maximum; body pairs, contact constraints and events size the
+  module's own buffers.
+- **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is the
+  page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`
+  (the module's step alone, the clock `scripts/bench-physics.ts` reads in Node).
+- **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
+  bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
+  through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that
+  instantiates the same module on the same memory, sets its stack and thread-local storage, and
+  runs the entry point. `budget.physics.threads` fixes the count, capped at the logical cores
+  minus the page's own; elsewhere the single-threaded module runs. `docs:serve` answers with COOP
+  `same-origin` and COEP `credentialless`; the production server's headers are set outside this
+  repository. `scripts/bench-physics.ts` steps the example's scene in Node on both modules and on
+  the same C API compiled natively (`packages/physics-jolt-wasm/bench/`), with a per-phase profile
+  from Jolt's own scopes in a profiled build.
+
 ## Diagnostics and timing
 
 `diagnosticDetail: 'trace' | 'summary'` controls event detail; an `onDiagnostic` observer defaults to

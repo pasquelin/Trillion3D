@@ -1,6 +1,6 @@
 // The SDK's source entries are public; browser probes are launched by the host, outside pnpm test.
 // `pageDecodeWorker.ts` and `pageIntegrationWorker.ts` are worker entry points: the pool and the
-// integration lane load them by URL, never by import.
+// integration lane load them by URL, never by import; so does `physicsWorker.ts`, the physics session.
 import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
@@ -9,6 +9,7 @@ const config: KnipConfig = {
     'site/examples/kit/index.ts',
     'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
     'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
+    'packages/sdk-browser/src/physics/physicsWorker.ts',
     'packages/sdk-node/src/index.mts',
     'packages/sdk/{index,browser,node}.{ts,mts}',
     'packages/page-codec/geometryPage.ts',
@@ -69,7 +70,7 @@ const config: KnipConfig = {
   // Rust is a platform tool; DaisyUI is loaded by Tailwind; the site build copies SVG files of
   // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
   ignoreDependencies: ['daisyui', 'flag-icons'],
-  ignoreBinaries: ['rustc'],
+  ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
   ignoreUnresolved: ['/runner/witnessPage.ts'],
 };

@@ -922,7 +922,10 @@
       "SESSION_OPEN_FAILED": "ワールドのセッションを開けませんでした。専用のコードを持たない理由によるものです（`world.diagnostic.error`）。スローされたエラーは `details.cause` にあります。",
       "WEBGPU_LOST": "WebGPU がデバイスを失ったか、デバイス上のエラーによって何も描画できない状態になりました。`render`、`flush`、およびデバイスを必要とする読み取りがスローし、診断 `gpu-device-lost` がこの名前で報告し、そのためにセッションを開けなかったときは `world.diagnostic.error` に現れます。",
       "UNSUPPORTED_SCENE_FORMAT": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
-      "SCENE_NOT_SAVABLE": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。"
+      "SCENE_NOT_SAVABLE": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
+      "PHYSICS_BUDGET": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
+      "PHYSICS_NESTED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
+      "PHYSICS_FAILED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。"
     }
   },
   "EngineProfiler": {
@@ -1858,7 +1861,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     },
     "members": {
       "isMaterial": "常に`true`: 他の何かとマテリアルを区別する。",
@@ -1880,7 +1887,11 @@
       "needsUpdate": "`material.needsUpdate = true`: それをまとうメッシュが再描画される。",
       "surface": "このマテリアルの、エンジン独自の物理表面レコード(`contracts/material.ts`)。物理系ファミリーの外にある種別は、その名前を持つホストファミリーを通じて描かれ、エンジンはそれを自身の唯一のライティングモデルにマッピングする(`surfaceModel.ts`)。",
       "clone": "同じ種別・同じ値を持つ新しいマテリアル。",
-      "dispose": "まとっているものを忘れる: dispose済みのマテリアルは誰も再描画しない。"
+      "dispose": "まとっているものを忘れる: dispose済みのマテリアルは誰も再描画しない。",
+      "physics": "これをまとう物体の物理素材プリセット。",
+      "density": "kg/m³。物体の質量に使う。",
+      "friction": "物理の摩擦。",
+      "restitution": "物理の反発。"
     }
   },
   "MaterialParameters": {
@@ -1913,7 +1924,11 @@
       "gapSize": "2つの破線の間の隙間の長さ。",
       "vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "density": "kg/m³。体積を掛けると質量になる。",
+      "friction": "物体のすべりにくさ。0 以上。",
+      "restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "MathPath": {
@@ -2047,7 +2062,8 @@
       "primitive": "ジオメトリの頂点がどう読まれるか: 三角形、点、あるいは線。",
       "geometry": "メッシュの形; 別のジオメトリを設定すると変わる。",
       "material": "メッシュのマテリアル、またはグループごとに1つ; 別のものを設定すると変わる。",
-      "localBounds": "このノード自身の内容が占めるボックス、ローカルフレームで; 普通のノードは何も持たない。"
+      "localBounds": "このノード自身の内容が占めるボックス、ローカルフレームで; 普通のノードは何も持たない。",
+      "physics": "ワールドの物理における物体としてのメッシュ。物体でなければ `null`。`'static'`、`'dynamic'`、`'kinematic'` かオプションを設定。形はジオメトリから推定される。"
     }
   },
   "Mixer": {
@@ -2939,7 +2955,11 @@
     "members": {
       "pose": "あるノードが動いた。",
       "structure": "あるノードが子を得たか失った。",
-      "content": "あるノードの形やマテリアルが変わった。"
+      "content": "あるノードの形やマテリアルが変わった。",
+      "posed": "多数のノードが一度に動き、ツリーに直接書き込まれた（物理の剛体）：一度だけ通知されます。",
+      "seat": "ノードを描画する行、なければ `null`。`batch.rows.matrices` の `row * 16` から列優先の 16 個の浮動小数で、レンダラーがその場で読みます。ノードを数千単位で配置する所有者（物理）はワールド行列を自らそこに書き、`seatEpoch` が変わらない間有効で、書いた行を `placed` で知らせます。",
+      "seatEpoch": "行が確保・解放・再割り当てされるたびに変わります。それ以前の `seat` の答えはすべて古くなります。",
+      "placed": "`batch` の `from` から `to` までの行が `seat` 経由で書かれました。次のフレームで描画されます。"
     }
   },
   "SceneNode": {
@@ -3944,7 +3964,8 @@
       "geometryPoolCeiling": "世界が要求できる最大のプール: エンジンの初期予算。",
       "texturePoolCeiling": "世界が要求できる最大のテクスチャプール、バイト単位。",
       "geometryPool": "ジオメトリページ用に保持されるGPUメモリのバイト数; 設定するとその範囲が変わる。",
-      "texturePool": "テクスチャページ用に保持されるGPUメモリのバイト数; 設定するとその範囲が変わる。"
+      "texturePool": "テクスチャページ用に保持されるGPUメモリのバイト数; 設定するとその範囲が変わる。",
+      "physics": "物理の上限（物体、三角形、装飾物体、メモリ）。開始時に一度読まれ、超えると `PHYSICS_BUDGET` になる。"
     }
   },
   "world.diagnostic": {
@@ -4107,7 +4128,8 @@
       "interactive": "世界が自身のループを実行するかどうか: 何かが変わったときに描画し、新しいものが何もない120フレームの後に休む。`false`にすると、ページ自身が`world.render()`を呼べる。",
       "pixelRatio": "画面の1ピクセルあたりの画像ピクセル数。",
       "controls": "canvasからカメラを動かすコントローラー; 後から`world.controls.kind`で変更できる。",
-      "signal": "そのシグナルが中止されると世界の読み込みを止める。"
+      "signal": "そのシグナルが中止されると世界の読み込みを止める。",
+      "physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。"
     }
   },
   "WorldPageSource": {
@@ -4739,7 +4761,8 @@
       "options.interactive": "世界が自身のループを実行するかどうか: 何かが変わったときに描画し、新しいものが何もない120フレームの後に休む。`false`にすると、ページ自身が`world.render()`を呼べる。",
       "options.pixelRatio": "画面の1ピクセルあたりの画像ピクセル数。",
       "options.controls": "canvasからカメラを動かすコントローラー; 後から`world.controls.kind`で変更できる。",
-      "options.signal": "そのシグナルが中止されると世界の読み込みを止める。"
+      "options.signal": "そのシグナルが中止されると世界の読み込みを止める。",
+      "options.physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。"
     }
   },
   "crossVector3": {
@@ -5654,7 +5677,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.meshPhysical": {
@@ -5688,7 +5715,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.meshBasic": {
@@ -5722,7 +5753,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.meshPhong": {
@@ -5756,7 +5791,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.meshLambert": {
@@ -5790,7 +5829,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.meshToon": {
@@ -5824,7 +5867,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.meshNormal": {
@@ -5858,7 +5905,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.meshMatcap": {
@@ -5892,7 +5943,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.meshDepth": {
@@ -5926,7 +5981,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.points": {
@@ -5960,7 +6019,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.line": {
@@ -5994,7 +6057,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.lineDashed": {
@@ -6028,7 +6095,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.sprite": {
@@ -6062,7 +6133,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "material.shadow": {
@@ -6096,7 +6171,11 @@
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
-      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。"
+      "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
+      "parameters.density": "kg/m³。体積を掛けると質量になる。",
+      "parameters.friction": "物体のすべりにくさ。0 以上。",
+      "parameters.restitution": "物体の弾み具合。0 から 1。"
     }
   },
   "metric": {
@@ -6915,5 +6994,176 @@
   "raycast": {
     "summary": "`ray` が出会う `roots` 以下のすべてのオブジェクト。近い順で、オブジェクトごとに 1 つの交差: そのうち最も近いもの。",
     "description": "方向は入口で単位ベクトルにされるため、ページが与えた長さにかかわらず、すべての `distance` はワールド単位です。非表示のサブツリーは飛ばされ(非表示の祖先の下にあるルートも)、`skip` が指定するノードもそのサブツリーごと飛ばされます: ページが作業に使う目印であり、決してその内容ではありません。"
+  },
+  "world.physics": {
+    "summary": "物理の物体、重力、時間（Jolt、worker 内）。",
+    "members": {
+      "enabled": "物体をシミュレートするか。初めてオンにすると物理が読み込まれる。",
+      "gravity": "重力（m/s²）、生きたベクトル。プリセット（`'earth'`、`'moon'`、`'mars'`、`'none'`）かベクトルを設定。",
+      "paused": "時間が止まっているか。書き込みは物体に届く。",
+      "timeScale": "実時間 1 秒あたりのシミュレーション秒数：0.25 はスロー。",
+      "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。"
+    }
+  },
+  "ContactEvent": {
+    "summary": "接触がリスナーに渡すもの：相手の物体、力積、接触点。",
+    "members": {
+      "other": "触れた物体。シーンを離れると `null`。",
+      "impulse": "N·s：法線方向の接近速度×ペアの換算質量。ソルバーの前に見積もる。`leave` では 0。",
+      "point": "接触点、ワールド座標。`leave` では原点。"
+    }
+  },
+  "ContactEventName": {
+    "summary": "物体が知らせるイベント：力積つきの最初の接触（`contact`）、接触の開始と終了。"
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "エンジン既定の物理予算。",
+    "members": {
+      "bodies": "あらゆる種類の物体の同時数。",
+      "triangles": "すべての静的な三角形形状の三角形の同時数。",
+      "decorative": "装飾物体の同時数。",
+      "memoryBytes": "物理モジュールのメモリのバイト数：固い上限で、モジュールはそれを超えて増えられない。",
+      "threads": "シミュレーションを進めるスレッド数（物理ワーカーのものを含む）。1 を超えるにはクロスオリジン分離されたページ（共有メモリ）が必要で、それ以外では 1 つで進みます。マシンの論理コア数からページの分を引いた数を超えません。",
+      "bodyPairs": "1 ステップで境界が重なる物体の組。密な山では 1 物体あたり約 4 組。それより多いステップは接触を取りこぼし、`PHYSICS_BUDGET` を出します。",
+      "contactConstraints": "1 ステップで解かれる接触中の組。落ち着いた山では 1 物体あたり約 2 組。それより多いステップは接触を取りこぼし、`PHYSICS_BUDGET` を出します。",
+      "contactEvents": "1 ステップが報告する接触イベント（`enter`、`leave`）。上限を超えた `enter` は捨てられて数えられ（`world.physics.stats.droppedEvents`）、その `leave` は送られません。`leave` は遅れるだけです。"
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "名前つきの重力。−y 方向の m/s²。",
+    "members": {
+      "earth": "地球の重力。",
+      "moon": "月の重力。",
+      "mars": "火星の重力。",
+      "none": "重力なし。"
+    }
+  },
+  "GravityInput": {
+    "summary": "重力：プリセット名、または m/s² のベクトル。"
+  },
+  "GravityPreset": {
+    "summary": "重力プリセットの名前。"
+  },
+  "ObjectPhysics": {
+    "summary": "一つの物体の物理。`obj.physics` が持つ、物体が何でありどう動くかの生きた記録。",
+    "description": "書き込みは次のステップでシミュレーションに届く。`velocity` は最後のステップが残した値を読む。",
+    "members": {
+      "type": "物体の動き方。変えるには `obj.physics` を設定し直す。",
+      "shape": "宣言された形（あれば）。",
+      "sensor": "物体が接触を知らせるだけか。",
+      "ccd": "連続衝突がオンか。",
+      "decorative": "物体が装飾の破片か。",
+      "velocity": "直線速度（m/s）。最後のステップが残した値。書き込むと物体を投げられる。",
+      "asleep": "物体が眠っているか：静止し、何かが起こすまでシミュレートされない。",
+      "mass": "質量（kg）。`undefined` なら素材の密度×体積。",
+      "gravityScale": "この物体に対して世界の重力を掛ける。",
+      "friction": "摩擦の上書き。`undefined` なら素材の値。",
+      "restitution": "反発の上書き。`undefined` なら素材の値。",
+      "applyImpulse": "物体を即座に押す。重心を通る N·s の力積。物体を起こす。",
+      "wake": "物体を起こす。眠っていてもいなくても。",
+      "on": "この物体の接触イベントで `handler` を呼ぶ。",
+      "listens": "接触ハンドラーが設定されているか。"
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "`material.physics` 用の名前つき素材。便覧の値を丸めたもの。",
+    "members": {
+      "wood": "木。",
+      "metal": "鋼。",
+      "rubber": "ゴム。",
+      "ice": "氷。",
+      "stone": "石。",
+      "glass": "ガラス。"
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "`obj.physics` が三つの語以外に受け取るもの。",
+    "members": {
+      "type": "物体の動き方。",
+      "mass": "質量（kg）。省略すると素材の密度×形の体積。",
+      "shape": "衝突形状。省略するとジオメトリから推定。",
+      "gravityScale": "この物体に対して世界の重力を掛ける。0 で浮く。",
+      "sensor": "ぶつからずに接触だけを知らせる：トリガー領域。",
+      "ccd": "連続衝突。薄い壁をすり抜けそうな小さく速い物体向け。",
+      "decorative": "破片：静的な世界とだけぶつかり、範囲内で見えているときだけシミュレートされる。`budget.physics.decorative` で上限。",
+      "friction": "素材の摩擦を上書きする。0 以上。",
+      "restitution": "素材の反発を上書きする。0 から 1。"
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "ワールドの物理の固定の上限。マシンから読むことはない。",
+    "members": {
+      "bodies": "あらゆる種類の物体の同時数。",
+      "triangles": "すべての静的な三角形形状の三角形の同時数。",
+      "decorative": "装飾物体の同時数。",
+      "memoryBytes": "物理モジュールのメモリのバイト数：固い上限で、モジュールはそれを超えて増えられない。",
+      "threads": "シミュレーションを進めるスレッド数（物理ワーカーのものを含む）。1 を超えるにはクロスオリジン分離されたページ（共有メモリ）が必要で、それ以外では 1 つで進みます。マシンの論理コア数からページの分を引いた数を超えません。",
+      "bodyPairs": "1 ステップで境界が重なる物体の組。密な山では 1 物体あたり約 4 組。それより多いステップは接触を取りこぼし、`PHYSICS_BUDGET` を出します。",
+      "contactConstraints": "1 ステップで解かれる接触中の組。落ち着いた山では 1 物体あたり約 2 組。それより多いステップは接触を取りこぼし、`PHYSICS_BUDGET` を出します。",
+      "contactEvents": "1 ステップが報告する接触イベント（`enter`、`leave`）。上限を超えた `enter` は捨てられて数えられ（`world.physics.stats.droppedEvents`）、その `leave` は送られません。`leave` は遅れるだけです。"
+    }
+  },
+  "PhysicsHost": {
+    "summary": "物体のワールド側：`obj.physics` への書き込みがシミュレーションに求めること。",
+    "members": {
+      "rebuild": "物体を作ったときの設定が変わった：作り直される。",
+      "tune": "摩擦、反発、重力倍率のどれかが変わった。",
+      "listened": "接触イベントを求めるかどうかが変わった。",
+      "velocity": "速度が書き込まれた。",
+      "impulse": "力積が加えられた。",
+      "wake": "物体が起こされた。"
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "素材プリセットの名前。"
+  },
+  "PhysicsMatter": {
+    "summary": "物体の素材：密度（kg/m³）、摩擦、反発。",
+    "members": {
+      "density": "kg/m³。物体の質量に使う。",
+      "friction": "物体のすべりにくさ。0 以上。",
+      "restitution": "物体の弾み具合。0 から 1。"
+    }
+  },
+  "PhysicsOption": {
+    "summary": "`obj.physics` に設定できるもの。"
+  },
+  "PhysicsShape": {
+    "summary": "ジオメトリから推定した形が合わないときの衝突形状。",
+    "description": "サイズは物体自身の座標系で、スケールの前。"
+  },
+  "PhysicsStats": {
+    "summary": "ワールドの物理が知らせるもの：最後の tick のカウントと、別々の二つの時計。",
+    "members": {
+      "bodies": "シミュレーションが持つ物体。",
+      "active": "最後の tick のあとに動いている物体。",
+      "stepMs": "固定ステップあたりの worker のミリ秒、最後の tick：worker 自身の時計で、ページの時計に足されることはない。",
+      "mainMs": "最後のフレームで物理が使ったページのミリ秒（CPU ステージ `physics`）。",
+      "poses": "最後の tick が返した姿勢。",
+      "events": "最後の tick が返した接触イベント。",
+      "droppedEvents": "物理の開始以来、1 ステップで `budget.physics.contactEvents` を超えて捨てられた `enter` イベント（その `leave` は送られません）。"
+    }
+  },
+  "PhysicsType": {
+    "summary": "物体の動き方：動かない、ページが動かす（`kinematic`、ぶつかったものを押す）、シミュレーションが動かす。"
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`、ワールドの物理。",
+    "members": {
+      "enabled": "物体をシミュレートするか。初めてオンにすると物理が読み込まれる。",
+      "gravity": "重力（m/s²）、生きたベクトル。プリセット（`'earth'`、`'moon'`、`'mars'`、`'none'`）かベクトルを設定。",
+      "paused": "時間が止まっているか。書き込みは物体に届く。",
+      "timeScale": "実時間 1 秒あたりのシミュレーション秒数：0.25 はスロー。",
+      "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。"
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "`createWorld(canvas, { physics })` が `true` 以外に受け取るもの。",
+    "members": {
+      "budget": "固定の上限。物理の開始時に一度読まれる。",
+      "gravity": "ワールドの重力：プリセットかベクトル。"
+    }
   }
 }

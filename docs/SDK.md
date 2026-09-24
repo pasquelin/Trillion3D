@@ -841,6 +841,63 @@ maths map through the witness call each function's page of the
 [API reference](https://www.trillion3d.com/#/en/api) names.
 Three.js stays a comparison witness of the bench, never mixed with a published world (#79).
 
+## Physics
+
+Physics is an option of the world, not a second world: [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
+runs in a worker, and every body is an ordinary mesh with `physics` set.
+
+```js
+const world = createWorld('view', { physics: true }); // or world.physics.enabled = true
+const floor = object.mesh(geometry.box(20, 1, 20), material.meshStandard({ physics: 'stone' }));
+floor.physics = 'static';
+const crate = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ physics: 'wood' }));
+crate.physics = 'dynamic';
+crate.position.y = 5;
+world.scene.add(floor, crate);
+crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse));
+```
+
+- **Loading.** A world without physics fetches no byte of Jolt. The worker and its WebAssembly
+  module are fetched the first time physics is enabled; bodies set before then are queued.
+- **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
+  `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
+  scale throws `RangeError`), `stats` and `error`.
+  `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
+- **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
+gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
+  geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
+  its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
+  body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
+  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named). A dynamic
+  body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
+  teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
+- **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
+  A material carries `physics: 'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'` and its own
+  `density`, `friction` and `restitution` over the preset; a body's `friction` and `restitution`
+  override both.
+- **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
+  the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
+  the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
+  point.
+- **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
+  ticking and the world draws no frame.
+- **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
+  velocities kept, and thaws when it returns. Out of view, or hidden, it sends no pose and keeps
+  falling; the pose it has when it falls asleep is sent all the same. `decorative` bodies meet the
+  static world only, are simulated only in range and in view, and leave the simulation once asleep:
+  their mesh stays where it came to rest (set `physics` again to simulate it anew).
+- **Budgets.** `world.budget.physics`, read when the physics starts: bodies, static triangles,
+  decorative bodies, memory (a hard ceiling: the module's memory cannot grow past it), body pairs
+  and contacts per step, contact events per step, and threads (Jolt's thread pool, the worker's
+  included, when the page is cross-origin isolated; never more than the logical cores minus the
+  page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`. A request past one is
+  refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
+  than its budget says so the same way, and an `enter` past the events budget is counted in
+  `stats.droppedEvents` (its `leave` is then never sent). The soft-body budget arrives with soft
+  bodies.
+- **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
+  `stats.stepMs`, on its own clock: the two are never added.
+
 ## Current limits
 
 - `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
@@ -851,3 +908,10 @@ Three.js stays a comparison witness of the bench, never mixed with a published w
   by the declared-light rule above.
 - A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
   implemented.
+- Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
+  cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
+  commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
+  landing, which then runs in slow motion for a short moment; the page's `physics` stage is
+  0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
+  The renderer's own work for 10,000 moved instances is measured apart (#432). Characters, joints, vehicles, soft bodies, cooked colliders and
+  loaded models as bodies arrive with the next physics issues (#396–#400).

@@ -1859,5 +1859,53 @@
       "fieldOfView": "Trường nhìn",
       "dollyZoom": "Zoom dolly"
     }
+  },
+  "falling-boxes": {
+    "banner": "Nhấn Thả để thêm năm mươi hộp. Đổi trọng lực và xem chúng rơi.",
+    "controls": {
+      "matter": "Chất liệu",
+      "gravity": "Trọng lực",
+      "drop": "Thả",
+      "jump": "Nhảy",
+      "slowMotion": "Chậm"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước"
+    },
+    "choices": {
+      "matter": {
+        "wood": "gỗ",
+        "rubber": "cao su",
+        "ice": "băng"
+      },
+      "gravity": {
+        "earth": "Trái Đất",
+        "moon": "Mặt Trăng",
+        "mars": "Sao Hỏa",
+        "none": "không"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Mười nghìn hộp rơi cùng lúc. Bảng hiển thị chi phí vật lý theo thời gian thực.",
+    "controls": {
+      "count": "Số lượng",
+      "again": "Lại"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước",
+      "page": "Trang"
+    },
+    "choices": {
+      "count": {
+        "10000": "10.000",
+        "5000": "5.000",
+        "1000": "1.000"
+      }
+    }
   }
 }

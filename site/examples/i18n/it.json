@@ -1859,5 +1859,53 @@
       "fieldOfView": "Campo visivo",
       "dollyZoom": "Dolly zoom"
     }
+  },
+  "falling-boxes": {
+    "banner": "Premi Lascia per altre cinquanta scatole. Cambia la gravità e guardale cadere.",
+    "controls": {
+      "matter": "Materia",
+      "gravity": "Gravità",
+      "drop": "Lascia",
+      "jump": "Salta",
+      "slowMotion": "Rallentatore"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "awake": "Svegli",
+      "step": "Passo"
+    },
+    "choices": {
+      "matter": {
+        "wood": "legno",
+        "rubber": "gomma",
+        "ice": "ghiaccio"
+      },
+      "gravity": {
+        "earth": "Terra",
+        "moon": "Luna",
+        "mars": "Marte",
+        "none": "nessuna"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Diecimila scatole cadono insieme. Il pannello mostra dal vivo quanto costa la fisica.",
+    "controls": {
+      "count": "Numero",
+      "again": "Ancora"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "awake": "Svegli",
+      "step": "Passo",
+      "page": "Pagina"
+    },
+    "choices": {
+      "count": {
+        "10000": "10.000",
+        "5000": "5.000",
+        "1000": "1.000"
+      }
+    }
   }
 }
