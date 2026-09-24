@@ -48,9 +48,8 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
         source, partition,
         "{label}: level 0 is the source partition"
     );
-    let quality =
-        crate::dag::quality::level_quality(&built.dag, &case.positions, case.normals.as_deref());
-    if let Err(refusal) = crate::dag::quality::check(&built.dag, &quality) {
+    let quality = crate::dag::quality::check(&built.dag, &case.positions, case.normals.as_deref());
+    if let Err(refusal) = quality {
         panic!("{label}: the cook refuses the DAG: {refusal}");
     }
     let used: HashSet<u32> = indices.iter().copied().collect();

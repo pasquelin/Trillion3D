@@ -73,6 +73,9 @@ pub fn build_dag_tallied(
         let _t = Timer::new(Phase::Weld);
         attributes::Welds::of(positions, attributes, indices)
     };
+    // Per cluster, the worst normal deviation of the source triangles it descends from: a group's
+    // reduction is held to the bound of its own descendants (`quality::deviation_bound`).
+    let mut descent = quality::cluster_deviations(&dag, positions, attributes.normals());
     let mut current: Vec<usize> = (0..dag.len()).collect();
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;
@@ -105,21 +108,26 @@ pub fn build_dag_tallied(
             let _t = Timer::new(Phase::Locks);
             level_locks(&welds.weld, &lists, &groups)
         };
-        let input = welds.input(positions, &locks);
+        let worst: Vec<f64> = groups
+            .iter()
+            .map(|g| g.iter().map(|&s| descent[current[s]]).fold(0.0, f64::max))
+            .collect();
         let reductions: Vec<std::result::Result<GroupReduction, GroupOutcome>> = groups
             .par_iter()
+            .zip(&worst)
             .map(
-                |group| -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
+                |(group, &worst)| -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
                     checkpoint()?;
                     let children: Vec<&DagCluster> =
                         group.iter().map(|&slot| &dag[current[slot]]).collect();
-                    reduce_group(&input, &children)
+                    let bound = quality::deviation_bound(worst);
+                    reduce_group(&welds.input(positions, &locks, bound), &children)
                 },
             )
             .collect::<Result<Vec<_>>>()?;
         let mut next = Vec::new();
         let mut tally = GroupTally::default();
-        for (group, reduction) in groups.iter().zip(reductions) {
+        for ((group, reduction), &worst) in groups.iter().zip(reductions).zip(&worst) {
             let reduction = match reduction {
                 Ok(reduction) => {
                     tally.reduced += 1;
@@ -147,6 +155,7 @@ pub fn build_dag_tallied(
             for cluster in reduction.clusters {
                 outputs.push(dag.len());
                 next.push(dag.len());
+                descent.push(worst);
                 dag.push(DagCluster {
                     indices: cluster,
                     level,

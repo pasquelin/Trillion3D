@@ -64,7 +64,6 @@ pub(super) struct Welds<'a> {
     seams: Vec<bool>,
     weighted: Vec<Attribute<'a>>,
     normals: Option<&'a [f32]>,
-    normal_bound: f64,
 }
 impl<'a> Welds<'a> {
     pub fn of(positions: &[f32], attributes: DagAttributes<'a>, indices: &[u32]) -> Self {
@@ -75,9 +74,6 @@ impl<'a> Welds<'a> {
         let seams = weld_seam.as_deref().map_or_else(Vec::new, |weld_seam| {
             seam_vertices(&weld, weld_seam, indices)
         });
-        let source = attributes.normals().map_or(0.0, |normals| {
-            super::quality::normal_deviation(indices, positions, normals, 0.0)
-        });
         Self {
             exact: weld_exact(positions, attributes.carried, indices),
             weld,
@@ -85,15 +81,20 @@ impl<'a> Welds<'a> {
             seams,
             weighted: attributes.weighted(),
             normals: attributes.normals(),
-            normal_bound: super::quality::deviation_bound(source),
         }
     }
-    pub fn input<'b>(&'b self, positions: &'b [f32], locks: &'b [bool]) -> GroupReductionInput<'b> {
+    /// The input of one reduction; `normal_bound` is its group's (`quality::deviation_bound`).
+    pub fn input<'b>(
+        &'b self,
+        positions: &'b [f32],
+        locks: &'b [bool],
+        normal_bound: f64,
+    ) -> GroupReductionInput<'b> {
         GroupReductionInput {
             positions,
             attributes: &self.weighted,
             normals: self.normals,
-            normal_bound: self.normal_bound,
+            normal_bound,
             locks,
             seams: &self.seams,
             weld: &self.weld,
