@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
-import { CPU_STEP, CPU_STEP_NAMES } from '../pages/render/cpuSteps.ts';
+import { CPU_STEP, CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import { holdWebgpuFrame } from './hold.ts';
 import { metricsOf } from '../pages/io/metrics.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';

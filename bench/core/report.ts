@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { chargeBaseline, cleDeLigne, ecartRelatif } from './baseline.ts';
 import { FRAGMENTS, RACINE, cheminFragment } from './paths.ts';
 import { ligneMd } from './table.ts';
-import type { Mesure } from './measure.ts';
+import type { Mesure } from './measureTypes.ts';
 
 /** A domain fragment deposited under `.mesure/perf/`, for the report's two readers. */
 export interface Fragment {

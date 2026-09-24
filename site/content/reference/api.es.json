@@ -7402,11 +7402,5 @@
       "distance": "Mantiene `anchor` en `a` y `anchorB` en `b` a su distancia, o dentro de `limits`.",
       "cone": "Una rótula cuyo `axis` oscila dentro de un cono de semiángulo `limits.max`."
     }
-  },
-  "JointHost": {
-    "summary": "El lado del mundo de una unión: lo que una escritura en ella pide a la simulación.",
-    "members": {
-      "motor": "El motor cambió."
-    }
   }
 }
