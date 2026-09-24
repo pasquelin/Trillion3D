@@ -187,9 +187,8 @@ onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb
    credit line and waits for the example's most telling moment, the seconds it declares in
    `<meta name="thumbnail" content="3">` (1.5 when it declares none).
    A scene too heavy to cook here lives in its own repository and is published beside the
-   portal: its entry keeps no `file` and carries `href`, the address the gallery card opens. The
-   open world (#332) is one: https://github.com/pasquelin/Trillion3D-openworld, served at
-   `/openworld/` (#426).
+   portal, outside this gallery. The open world (#332) is one:
+   https://github.com/pasquelin/Trillion3D-openworld, served at `/openworld/` (#426).
 4. Run `node --test scripts/docs-examples.test.ts`, then the browser proofs
    `node --test scripts/docs-examples.browser.ts` and `node --test scripts/docs-shell.browser.ts`.
 

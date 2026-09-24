@@ -24,13 +24,12 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
-const apart = roadmapEntries.filter(({ href }) => href);
 await loadDictionary('fr');
 
 test('every example is one standalone HTML file that imports the built engine', async () => {
   assert.equal(new Set(roadmapEntries.map(({ id }) => id)).size, roadmapEntries.length);
   const themes = new Set(roadmap.themes);
-  for (const { id, theme, file, href, status, issue } of roadmapEntries) {
+  for (const { id, theme, file, status, issue } of roadmapEntries) {
     assert.ok(themes.has(theme), id);
     // Its words are each language's `gallery`: a title always, the feature it waits for if any.
     const [title, titleFr] = [exampleTitle(id, 'en'), exampleTitle(id, 'fr')];
@@ -40,10 +39,8 @@ test('every example is one standalone HTML file that imports the built engine', 
     // written and parked until the engine draws it also names the issue that delivers it.
     const waits = status === 'needs-engine' || status === 'waiting-engine';
     if (status === 'waiting-engine') assert.ok(file && Number.isInteger(issue), id);
-    else if (file || href) assert.equal(status, undefined, id);
+    else if (file) assert.equal(status, undefined, id);
     else assert.ok(status === 'buildable' || status === 'needs-engine', id);
-    // One published apart, from its own repository, is served beside the portal: a site path.
-    if (href) assert.ok(!file && /^\/[a-z0-9-]+\/$/.test(href), id);
     assert.equal(Boolean(exampleMissing(id, 'en') && exampleMissing(id, 'fr')), waits, id);
     assert.equal(issue !== undefined, status === 'waiting-engine', id);
   }
@@ -124,23 +121,20 @@ test('an example is its file, live, on the demo page; the index shows what is re
   assert.equal(filtered[0].key, entry.id);
   assert.deepEqual(examplesMenu(route, 'no example is called this'), []);
   const index = renderToStaticMarkup(createElement(Examples, { locale: 'en' }));
-  // The index shows every entry: a ready one as a card that opens it, one published apart as a
-  // card that opens its address, one still to come as an "in progress" card that opens nothing,
-  // with the engine feature it waits for; one written and waiting for the engine opens nothing
-  // either, and links its issue.
+  // The index shows every entry: a ready one as a card that opens it, one still to come as an
+  // "in progress" card that opens nothing, with the engine feature it waits for; one written and
+  // waiting for the engine opens nothing either, and links its issue.
   for (const entry of roadmapEntries) {
     assert.ok(index.includes(`>${exampleTitle(entry.id, 'en')}</h2>`), entry.id);
     assert.equal(index.includes(`href="#/en/examples/${entry.id}"`), isReady(entry), entry.id);
-    if (entry.href) assert.ok(index.includes(`href="${entry.href}"`), entry.id);
-    const opens = isReady(entry) || Boolean(entry.href);
-    assert.equal(index.includes(`thumbnails/${entry.id}.png`), opens, entry.id);
+    assert.equal(index.includes(`thumbnails/${entry.id}.png`), isReady(entry), entry.id);
     const missing = exampleMissing(entry.id, 'en');
     if (missing) assert.ok(index.includes(`Waits for the engine: ${missing}`), entry.id);
     if (entry.issue)
       assert.ok(index.includes(`/issues/${entry.issue}">#${entry.issue}</a>`), entry.id);
   }
   const count = (pattern: RegExp) => (index.match(pattern) ?? []).length;
-  assert.equal(count(/aria-disabled="true"/g), roadmapEntries.length - ready.length - apart.length);
-  assert.equal(count(/>In progress</g), roadmapEntries.length - written.length - apart.length);
+  assert.equal(count(/aria-disabled="true"/g), roadmapEntries.length - ready.length);
+  assert.equal(count(/>In progress</g), roadmapEntries.length - written.length);
   assert.equal(count(/>Waiting for the engine</g), written.length - ready.length);
 });
