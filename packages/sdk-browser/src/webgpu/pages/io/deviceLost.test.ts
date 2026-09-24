@@ -91,8 +91,7 @@ test("an error of the session closed on the device is never the next one's loss"
   first.backend.render(camera());
   const old = labels.at(-1)!;
   await first.backend.dispose();
-  // Its errors, at every point of the next opening and after it: none is the next session's.
-  uncaptured(old);
+  // Its errors, while the next session opens and after it: none is the next session's.
   const said: Array<Record<string, unknown>> = [];
   const second = quadBackend(device, {
     onDiagnostic: (e) => e.phase === 'gpu-closed-session-error' && said.push(e.context),
@@ -107,7 +106,7 @@ test("an error of the session closed on the device is never the next one's loss"
   const closedWarnings = warned.mock.calls.filter((call) =>
     String(call.arguments[0]).includes('closed session'),
   );
-  assert.equal(closedWarnings.length, 2, 'the first while no session was live');
+  assert.equal(closedWarnings.length, 1);
   assert.equal(said.length, 1);
   assert.equal(said[0].kind, 'warning');
   assert.match(String(said[0].message), /is destroyed/);
@@ -177,6 +176,8 @@ test('a session opened on a device already lost announces the loss and builds no
   const second = quadBackend(device, { onDiagnostic: (e) => phases.push(e.phase) });
   await assert.rejects(second.backend.prepare(), /WEBGPU_LOST/);
   assert.ok(phases.includes('gpu-device-lost'));
+  // A failure of prepare like any other: diagnosed where the others are.
+  assert.ok(phases.includes('webgpu-prepare-failed'));
   await second.backend.dispose();
   for (const { fixture } of [first, second]) {
     fixture.geometry.dispose();

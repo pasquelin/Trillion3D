@@ -1,4 +1,4 @@
-import { sharedGpuDevice } from './deviceOwners.ts';
+import { sessionLabel, sharedGpuDevice } from './sessionHandle.ts';
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts';
 import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
 
@@ -35,10 +35,13 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
       primitive: { topology: 'triangle-list' },
     });
     let texture: GPUTexture | undefined, group: GPUBindGroup | undefined;
+    // The canvas's texture is not the session's creation: its views take the session's tag here,
+    // one descriptor for every frame.
+    const canvasView = { label: sessionLabel(device, 'Trillion3D canvas') };
     const targetView = (width: number, height: number) => {
       if (canvas.width !== width) canvas.width = width;
       if (canvas.height !== height) canvas.height = height;
-      return context.getCurrentTexture().createView();
+      return context.getCurrentTexture().createView(canvasView);
     };
     return {
       canvas,
