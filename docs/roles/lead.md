@@ -14,8 +14,8 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), with a brief that
    names the issue, the files to read and, when the batch needs one, the live example below;
    nothing else. It returns a pull request. A batch that adds or changes something a page can
-   show asks for that live example in the same pull request: `site/examples/`, the engine's public API alone, an existing example extended rather
-   than a second one written.
+   show asks for that live example in the same pull request: `site/examples/`, the engine's
+   public API alone, an existing example extended rather than a second one written.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
 3. **Review.** Launch one `reviewer` subagent with a fresh context on the pull request
    (`docs/roles/reviewer.md`). `KO`: send its findings to a new coder with a short brief, then
