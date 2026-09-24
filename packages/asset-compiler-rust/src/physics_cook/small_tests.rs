@@ -3,6 +3,7 @@
 use super::stage::gathered;
 use super::tests::{cluster, golden_tile, RAMP, RAMP_TRIANGLES};
 use super::*;
+use crate::shared_math::{cross, dot, sub};
 
 /// The same ramp 2^-12 as large, under half a millimetre: Jolt drops both its triangles, so it is
 /// cooked scaled up inside a `ScaledShape` (#562). The module's tests restore it under an instance
@@ -21,33 +22,38 @@ fn a_small_tile_cooks_to_the_same_golden_bytes() {
     assert!(cooked.windows(body.len()).any(|w| w == body));
 }
 
-/// A 1 cm patch of 0.5 mm cells, bumped so no cell is flat: a chess piece's surface in metres,
-/// every triangle under the 1e-6 doubled area Jolt keeps (`abeautiful-game`, #562).
-fn fine_patch(scale: f32) -> (Vec<f32>, Vec<u32>) {
-    let (n, step) = (20u32, 0.0005f32);
-    let (mut pos, mut triangles) = (Vec::new(), Vec::new());
-    for z in 0..=n {
-        for x in 0..=n {
-            let bump = ((x * 7 + z * 3) % 5) as f32 * step * 0.2;
-            pos.extend([x as f32 * step, bump, z as f32 * step].map(|v| v * scale));
-        }
-    }
-    for z in 0..n {
-        for x in 0..n {
-            let i = z * (n + 1) + x;
-            triangles.extend([i, i + n + 1, i + 1, i + 1, i + n + 1, i + n + 2]);
-        }
-    }
-    (pos, triangles)
+/// 200 triangles of `abeautiful-game`'s pawn body, in metres (`tests/fixtures/physics/README.md`).
+const PAWN_PATCH: &str = "../../tests/fixtures/physics/pawn-body-patch.bin";
+
+/// The pawn patch's positions and triangle indices.
+fn pawn_patch() -> (Vec<f32>, Vec<u32>) {
+    let bytes = std::fs::read(PAWN_PATCH).unwrap();
+    let words: Vec<u32> = bytes
+        .as_chunks()
+        .0
+        .iter()
+        .map(|&w| u32::from_le_bytes(w))
+        .collect();
+    let floats = 3 * words[0] as usize + 1;
+    let pos = words[1..floats].iter().map(|&w| f32::from_bits(w));
+    (pos.collect(), words[floats..].to_vec())
 }
 
-// Behaviour: a tile of small triangles keeps its whole surface — cooked scaled up by a power of
-// two, exact, the very shape of the patch drawn that much larger, wrapped back down.
+// Behaviour: the offending primitive of `abeautiful-game`, reduced, keeps its whole surface —
+// cooked scaled up by a power of two, exact, the very shape of the patch drawn that much larger,
+// wrapped back down. Unscaled, Jolt drops every one of its triangles and refuses the mesh.
 #[test]
 fn a_tile_of_small_triangles_keeps_its_surface() {
-    let (pos, triangles) = fine_patch(1.0);
+    let (pos, triangles) = pawn_patch();
+    let at = |i: u32| std::array::from_fn(|k| pos[3 * i as usize + k] as f64);
+    let dropped = triangles.as_chunks().0.iter().filter(|&&[a, b, c]| {
+        let (a, b, c) = (at(a), at(b), at(c));
+        let doubled = cross(sub(b, a), sub(c, a));
+        dot(doubled, doubled) <= 1e-12 // `IndexedTriangle::IsDegenerate`
+    });
+    assert_eq!(dropped.count(), triangles.len() / 3);
     let cooked = mesh_shape(&pos, &triangles).expect("Jolt keeps the patch");
-    let (large, _) = fine_patch(262_144.0); // 2^18: the 1 cm box brought past 2^11
+    let large: Vec<f32> = pos.iter().map(|v| v * 262_144.0).collect(); // 2^18: 1.35 cm past 2^11
     let whole = mesh_shape(&large, &triangles).unwrap();
     let body = &whole[whole.len() / 2..];
     assert!(cooked.windows(body.len()).any(|w| w == body));
