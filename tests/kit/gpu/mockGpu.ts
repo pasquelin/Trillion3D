@@ -36,7 +36,7 @@ export function mockGpu({
   const draws: MockDraw[] = [],
     writes: Array<{ offset: number; bytes: Uint8Array; label?: string; seq: number }> = [];
   // One counter over writes and submits: a row has to reach the GPU before the image that reads it.
-  const buffers: Array<{ label?: string; size: number; data: Uint8Array }> = [],
+  const buffers: Array<{ label?: string; size: number; usage: number; data: Uint8Array }> = [],
     submits: number[] = [];
   let seq = 0;
   const textures: Array<{
