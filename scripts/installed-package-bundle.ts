@@ -24,13 +24,13 @@ function filesAt(root: string, directory = root): BundleAsset[] {
   });
 }
 
-/** The chunk that starts the physics finds its worker and both Jolt modules beside it. */
+/** The chunk that starts the physics (it names Jolt's module) finds its worker and both modules
+ *  beside it. */
 function checkPhysicsBeside(outputRoot: string, assets: BundleAsset[]) {
   const starts = assets.filter(
     ({ path }) =>
       path.endsWith('.js') &&
-      path !== 'physicsWorker.js' &&
-      readFileSync(join(outputRoot, path), 'utf8').includes('physicsWorker'),
+      readFileSync(join(outputRoot, path), 'utf8').includes('joltPhysics.wasm'),
   );
   if (!starts.length) throw new Error('browser bundle has no chunk that starts the physics');
   for (const { path } of starts)
