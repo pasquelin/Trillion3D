@@ -2743,7 +2743,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/host/graph/node.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/euler\".Euler"
     },
@@ -3099,6 +3099,7 @@
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs-examples-water.test.ts",
         "scripts/docs/examples/chess-pieces.ts",
         "scripts/docs/examples/mesh.ts",
         "scripts/docs/examples/models.ts",
@@ -4367,7 +4368,8 @@
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntimeLights.test.ts",
-        "packages/sdk-browser/src/world/saved/saved.test.ts"
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs-examples-water.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/light/light\".light"
@@ -4710,6 +4712,7 @@
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs-examples-water.test.ts",
         "tests/browser/support/materialFixtures.ts"
       ],
       "disposition": "retained",
@@ -4803,7 +4806,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["scripts/docs-examples-water.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/index\".math"
     },
@@ -4912,7 +4915,6 @@
       "affectedConsumers": [
         "bench/oracles/browser/view-frame.ts",
         "packages/sdk-browser/src/host/graph/camera.ts",
-        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/webgpu/cut/publication.test.ts"
       ],
@@ -5371,6 +5373,7 @@
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs-examples-water.test.ts",
         "scripts/docs-scene-editor.test.ts"
       ],
       "disposition": "retained",
@@ -5384,6 +5387,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/contacts.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
@@ -5420,6 +5424,7 @@
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
+        "scripts/docs-examples-water.test.ts",
         "site/app/editor/GeometryFields.tsx",
         "site/app/editor/Inspector.tsx",
         "site/app/editor/Outliner.tsx",
@@ -6576,6 +6581,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/page/selection/bundleDependencies.test.ts",
+        "packages/sdk-browser/src/page/selection/bundleDependencies.ts",
         "packages/sdk-browser/src/page/selection/helpers.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/scene/primitiveLookup.test.ts",
@@ -6600,6 +6607,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/page/selection/bundleDependencies.test.ts",
+        "packages/sdk-browser/src/page/selection/bundleDependencies.ts",
         "packages/sdk-browser/src/page/selection/helpers.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/scene/primitiveLookup.test.ts",
@@ -6790,7 +6799,6 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
@@ -8327,6 +8335,7 @@
         "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.ts",
+        "packages/sdk-browser/src/webgpu/tile/scratch.test.ts",
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
         "packages/sdk-browser/src/webgpu/tile/streamerSampling.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
@@ -8378,6 +8387,7 @@
         "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.ts",
+        "packages/sdk-browser/src/webgpu/tile/scratch.test.ts",
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
         "packages/sdk-browser/src/webgpu/tile/streamerSampling.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
@@ -8824,6 +8834,17 @@
       "bindingIdentity": "\"packages/sdk-browser/src/world/controls/transformMath\".TransformMode"
     },
     {
+      "name": "TransformNode",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/object/transformNode.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/object/transformNode\".TransformNode"
+    },
+    {
       "name": "transformPointsBatch",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/batch/points.ts",
@@ -9177,7 +9198,6 @@
         "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/graph/light.ts",
-        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/scene/graphObjects.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
@@ -9267,7 +9287,8 @@
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/physics/water.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
-        "scripts/bench-fluids.ts"
+        "scripts/bench-fluids.ts",
+        "scripts/docs-examples-water.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/fluids/buoyancy\".WaterSpec"
@@ -9279,7 +9300,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/worldPhysics.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
+        "scripts/docs-examples-water.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/fluids/waterSurface\".WaterSurface"
     },

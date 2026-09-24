@@ -309,7 +309,9 @@
       "texturePreviewSha": "Her doku önizlemesinin parmak izi.",
       "texturePreviewPixels": "Önizlemelerin pikselleri.",
       "texturePreviewBc7": "Önizlemelerin BC7 blokları.",
-      "texturePreviewAstc": "Önizlemelerin ASTC blokları."
+      "texturePreviewAstc": "Önizlemelerin ASTC blokları.",
+      "bundleDependencyCount": "Her paketin kaç pakete ihtiyaç duyduğu.",
+      "bundleDependency": "Her paketin ihtiyaç duyduğu paketler, köklere kadar."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -652,7 +654,8 @@
       "bundles": "Paketler.",
       "previews": "Doku önizlemeleri.",
       "previewBytes": "Piksel sütununun baytları, her girdinin her seviyesi birleştirilmiş.",
-      "previewBlockBytes": "Her blok sütununun baytları: tutulan zincirlerin sıkıştırılmış kuyrukları, bütün bloklar, bitişik girdiler, ailenin kayıpsız bıraktığı bir zincir için hiçbir şey."
+      "previewBlockBytes": "Her blok sütununun baytları: tutulan zincirlerin sıkıştırılmış kuyrukları, bütün bloklar, bitişik girdiler, ailenin kayıpsız bıraktığı bir zincir için hiçbir şey.",
+      "bundleDependencies": "Paket bağımlılıkları, tüm paketlerin listeleri art arda."
     }
   },
   "CpuStepSummary": {
@@ -2017,20 +2020,21 @@
       "castShadow": "Düğümün gölge düşürüp düşürmediği.",
       "receiveShadow": "Gölgelerin düğümün üzerine düşüp düşmediği.",
       "renderOrder": "Şeffaf şeyler arasında çizim sırası.",
+      "frustumCulled": "Bir işleyicinin onu görüş dışında atlayıp atlayamayacağı.",
       "userData": "Sayfanın kendi verisi için boş alan.",
       "visible": "Düğümün ve çocuklarının çizilip çizilmediği.",
       "parent": "Sahnedeki ebeveyn, ya da ayrıldığında null.",
       "children": "Ekleme sırasına göre eklenmiş çocuklar. Döndürülen liste değiştirilemez.",
-      "matrix": "Yerel matris, bu düğümün dönüşüm ağacındaki yuvasının bir görünümü.",
-      "matrixWorld": "En son bileşik hâliyle (`updateMatrixWorld`) dünya matrisi, ağacın bir görünümü.",
       "add": "Nesneleri bu düğümün çocukları yapar.",
       "remove": "Çocukları bu düğümden çıkarır.",
+      "destroy": "Düğümü ve altındaki her şeyi toplanmalarını beklemeden hemen serbest bırakır.",
       "removeFromParent": "Düğümü ebeveyninden çıkarır.",
       "clear": "Her çocuğu bu düğümden çıkarır.",
       "traverse": "`fn`'i bu düğümde ve altındaki her şeyde çağırır.",
       "traverseVisible": "`fn`'i buradan aşağı her görünür düğümde çağırır.",
       "getObjectByName": "Bu adla aşağıdaki ilk düğüm.",
-      "updateMatrixWorld": "Bu düğümün dünya matrisini ve torunlarınınkini, ebeveyninkini olduğu gibi alarak oluşturur.",
+      "updateMatrix": "Yerel matrisi pozdan oluşturur.",
+      "applyMatrix4": "`m`'yi düğümün pozunun üzerine uygular, ardından pozu çarpımdan geri okur.",
       "lookAt": "Düğümü bir dünya noktasına doğru çevirir (`lookAtNode`): ona `+z`, bir izleyici için `-z`.",
       "rotateOnAxis": "Düğümü `axis` etrafında `angle` radyan döndürür.",
       "rotateX": "Düğümü kendi x ekseni etrafında döndürür.",
@@ -2043,6 +2047,16 @@
       "localToWorld": "Düğümün çerçevesinin bir noktası, dünyada.",
       "worldToLocal": "Dünyanın bir noktası, düğümün çerçevesinde.",
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
+    }
+  },
+  "TransformNode": {
+    "summary": "Referansın matrisleriyle okunan, motorun dönüşüm ağacında tutulan bir sahne düğümü.",
+    "members": {
+      "matrix": "Yerel matris, bu düğümün dönüşüm ağacındaki yuvasının bir görünümü.",
+      "matrixWorld": "En son bileşik hâliyle (`updateMatrixWorld`) dünya matrisi, ağacın bir görünümü.",
+      "matrixAutoUpdate": "`matrix` pozun KENDİSİ olduğunda ve hiçbir şey onu yeniden oluşturmadığında yanlış.",
+      "matrixWorldNeedsUpdate": "Yerel matris değiştiğinde ve dünya matrisi onu izlemediğinde ayarlanır.",
+      "updateMatrixWorld": "Bu düğümün dünya matrisini ve torunlarınınkini, ebeveyninkini olduğu gibi alarak oluşturur."
     }
   },
   "OcclusionFrameMetrics": {
@@ -2834,8 +2848,8 @@
       "visible": "Çizilip çizilmediği.",
       "parent": "Sahnedeki ebeveyn, ya da ayrıldığında null.",
       "children": "Ekleme sırasına göre eklenmiş çocuklar. Döndürülen liste değiştirilemez.",
-      "localMatrix": "Sözleşme gereği yalnızca okunur; dönüşümü kirli olarak işaretlemek için setLocalMatrix kullanın.",
-      "worldMatrix": "Mevcut dünya matrisi; bir pozu değiştirdikten sonra updateWorldMatrix'i çağırın.",
+      "localMatrix": "Sözleşme gereği yalnızca okunur, düğüm yaşadıkça geçerlidir; setLocalMatrix dönüşümü kirli olarak işaretler.",
+      "worldMatrix": "Mevcut dünya matrisi, düğüm yaşadıkça geçerlidir; bir pozu değiştirdikten sonra updateWorldMatrix'i çağırın.",
       "add": "Bir çocuk ekler.",
       "remove": "Bir çocuğu kaldırır.",
       "clear": "Her çocuğu kaldırır.",
@@ -2905,7 +2919,6 @@
     "summary": "Bir sahnenin her düğümünün paylaştığı şey: dönüşüm ağacı ve indeksleri.",
     "members": {
       "tree": "Dönüşüm ağacı.",
-      "nodes": "Slota göre düğümler.",
       "ids": "Ada göre düğümler.",
       "nextId": "Bir sonraki boş ad numarası.",
       "root": "Sahne kökü."
@@ -3074,7 +3087,8 @@
       "version": "Format sürümü.",
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
-      "pages": "Kaç paket."
+      "pages": "Kaç paket.",
+      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı: derleyicinin yayımladığı sınır."
     }
   },
   "SlimStructure": {
@@ -3167,7 +3181,8 @@
       "url": "Nereden okunduğu.",
       "sha256": "Baytlarının parmak izi.",
       "bytes": "Boyutu.",
-      "count": "Tuttuğu cluster'lar."
+      "count": "Tuttuğu cluster'lar.",
+      "dependencies": "Kümelerinin ebeveynlerini tutan paketler, her zaman yüklü köklere kadar, artan sırada: her birinden sonra kurulur."
     }
   },
   "StreamCatalogue": {
@@ -3177,7 +3192,8 @@
       "version": "Format sürümü.",
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
-      "pages": "Her paket."
+      "pages": "Her paket.",
+      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı, derleyicinin yayımladığı gibi."
     }
   },
   "StreamPage": {
@@ -3523,7 +3539,7 @@
   },
   "TransformTree": {
     "summary": "Motorun veri odaklı dönüşüm hiyerarşisi: bir düğüm doğrusal dizilerdeki bir indekstir — ebeveyn, bayraklar, pozisyon, kuaterniyon `(x, y, z, w)`, ölçek, yerel matris ve column-major dünya matrisi.",
-    "description": "`localViews[i]` ve `worldViews[i]`, `local` ve `world` üzerinde büyümede oluşturulan ve asla bir güncelleme sırasında oluşturulmayan on altı sayılık görünümlerdir: GPU tüm tamponu okur, çekirdek formülleri bir düğümün görünümünü okur. Yazmalar, neyi değiştirdiklerini işaretleyen setter'lardan geçer. Bir büyüme her diziyi değiştirir: bir çağıran, bir ekleme sonrasında `tree.world` ya da `tree.worldViews`'i yeniden okur.",
+    "description": "`localViews[i]` ve `worldViews[i]`, `local` ve `world` üzerinde büyümede oluşturulan ve asla bir güncelleme sırasında oluşturulmayan on altı sayılık görünümlerdir: GPU tüm tamponu okur, çekirdek formülleri bir düğümün görünümünü okur. Yazmalar, neyi değiştirdiklerini işaretleyen setter'lardan geçer. Bir büyüme her diziyi değiştirir: bir çağıran, bir ekleme sonrasında `tree.world` ya da `tree.worldViews`'i yeniden okur. Her düğüm çocuklarını listeler: bir alt ağaç gezintisi alt ağacın dışını hiç okumaz (`links.ts`).",
     "members": {
       "capacity": "Büyümeden önce kaç düğümün sığdığı.",
       "end": "Hizmet verilen indeksler: her canlı düğüm bu sınırın altındadır.",
@@ -3540,14 +3556,12 @@
       "seen": "Her düğümün son gördüğü ebeveyn sürümü.",
       "free": "`end`'i genişletmeden önce yeniden kullanılan, serbest bırakılmış indeksler.",
       "freeCount": "Kaç serbest indeksin beklediği.",
-      "order": "Güncelleme sırası, ebeveynler çocuklardan önce, ve her düğümün o sıradaki sırası.",
-      "orderAt": "Her düğümün `order`'daki sırası.",
-      "orderCount": "`order`'daki düğümler.",
-      "orderDirty": "`order`'ın yeniden inşa edilmesi gerekip gerekmediği.",
-      "depth": "Dolaşım çalışma tamponları: derinlik, ata zinciri, kovalar, damgalar.",
+      "firstChild": "Her düğümün çocukları bağlı liste olarak, yoksa −1: bir alt ağaç gezintisi alt ağaç kadar tutar.",
+      "lastChild": "Son çocuk, bir eklemenin bağlandığı yer.",
+      "nextSibling": "Aynı ebeveynin sonraki çocuğu.",
+      "previousSibling": "Aynı ebeveynin önceki çocuğu.",
       "chain": "Ata zinciri tamponu.",
-      "buckets": "Kova tamponu.",
-      "stamp": "Damga tamponu.",
+      "stamp": "Damga tamponu: bir gezintinin ebeveynden çocuklarına aktardığı.",
       "call": "Mevcut dolaşım numarası."
     }
   },
@@ -3849,7 +3863,7 @@
       "texturePool": "Doku sayfaları için ayrılan GPU belleği baytı, doku havuzu olmayan bir motorda (WebGL2) `null`; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin ve geometri havuzunun yanında bıraktığı kadarıyla.",
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
       "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
-      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Asla makineden okunmaz.",
+      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Gölge havuzunun altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
       "cpu": "Dünyanın çözülmüş sayfalarının tutabileceği CPU belleği baytı; bir sonraki sahne yüklemesinde uygulanır.",
       "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; çözülmüş sayfa önbelleği CPU toplamını alır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
@@ -4594,7 +4608,7 @@
   },
   "createSceneLightStore": {
     "summary": "Sabit kapasitede sahne ışıkları.",
-    "description": "Tampon, `maxLights` ışık için bir kez tahsis edilir ve asla yeniden tahsis edilmez; bir ışığı eklemek, ayarlamak ya da kaldırmak yalnızca on altı float'ını yazar ve revizyonunu artırır. Işık başına `revision`, gölge zamanlayıcısının bir ışığın değiştiğini bilmek için okuduğu şeydir: hiçbir yapı kare başına yeniden inşa edilmez."
+    "description": "Tampon, `maxLights` ışık için bir kez tahsis edilir ve asla yeniden tahsis edilmez; bir ışığı eklemek, ayarlamak ya da kaldırmak yalnızca on altı float'ını yazar ve revizyonunu artırır. Işık başına `revision`, bir okuyucuya bir ışığın değiştiğini bildirir: hiçbir yapı kare başına yeniden inşa edilmez. Gölge zamanlayıcısı ışığın biçimini kendisi okur, bu yüzden yoğunluk ya da renk değişikliği hiçbir gölge sayfasını eskitmez."
   },
   "createSceneRoot": {
     "summary": "Boş, sürümlenmiş bir sahne hiyerarşisi oluşturur.",
@@ -7200,37 +7214,11 @@
   "GraphNode": {
     "summary": "Grafın bir düğümü: adı, pozu, dünya matrisi, ebeveyni ve çocukları.",
     "members": {
-      "id": "Düğümün oturumda benzersiz numarası.",
+      "serial": "Düğümün oturumda benzersiz numarası.",
       "kind": "Düğümün ne olduğu: grafın her okuyucusunun daralttığı şey.",
-      "name": "Host'un onun için adı.",
       "parent": "Ebeveyni.",
       "children": "Bu düğümün tuttuğu düğümler, sırayla.",
-      "up": "`lookAt` için hangi yönün yukarı olduğu.",
-      "position": "Nerede durduğu.",
-      "rotation": "Açı olarak nasıl döndürüldüğü.",
-      "quaternion": "Bir düğümün dönüşünün iki yüzü — motorun karşılaştırdığı kuaterniyon, ve içine kopyalanan Euler açıları — her biri kendi yazımlarını DUYURARAK: host'un zaten zincirlediği, bir hook'un değiştirmek yerine genişlettiği bir geri çağırma (`hooks.ts`). Alt çizgili iki üye, host kütüphanesinin özelidir, bu yüzden hook'un onlara ihtiyaç duyduğu yerde burada yazılırlar, ve kendi adlarını almazlar. Bu, özeli SDK'nın yayımlanmış sözleşmeler listesinin dışında tutar; onu yayımlanmış yüzeyin dışında TUTMAZ, çünkü `HostGraphNode` onu taşır. Taramanın zaten yaptığı gibi pozu kare başına karşılaştırmak, bağlantıyı kaldıracak olan şeydir — bu bu lotun işi değildir.",
-      "scale": "Nasıl gerildiği.",
-      "matrix": "Yerel matrisi.",
-      "matrixWorld": "Dünya matrisi.",
-      "matrixAutoUpdate": "Host'un kendisi `matrix`'i ayarladığında yanlış: matris pozun KENDİSİDİR ve hiçbir şey onu yeniden oluşturmaz.",
-      "matrixWorldAutoUpdate": "Hiçbir şey `matrixWorld` yazmadığında yanlış.",
-      "matrixWorldNeedsUpdate": "Yerel matris değiştiğinde ve dünya matrisi onu izlemediğinde ayarlanır.",
-      "visible": "Çizilip çizilmediği.",
-      "castShadow": "Gölge düşürüp düşürmediği.",
-      "receiveShadow": "Üzerine gölge düşüp düşmediği.",
-      "frustumCulled": "Bir işleyicinin onu görüş dışında atlayıp atlayamayacağı.",
-      "renderOrder": "Saydam şeyler arasında çizim sırası.",
-      "userData": "Motorun, host'un hiç görmediği ve yazamayacağı kendi kopyasını işaretlediği yer.",
-      "add": "`nodes`'u bu düğümün çocukları yapar; her biri önce önceki ebeveyninden alınır.",
-      "remove": "`nodes`'u bu düğümden alır.",
-      "removeFromParent": "Bu düğümü ebeveyninden alır.",
-      "clear": "Bu düğümden tüm çocukları alır.",
       "traverse": "Düğümün altındaki alt ağaç, önce kendisi, host'un kendi sırasında.",
-      "updateMatrix": "Yerel matrisi pozdan oluşturur.",
-      "updateMatrixWorld": "Host'un kendi okuyucuları için, alt ağacın dünya matrislerini HOST GRAFİĞİNDE çözer.",
-      "updateWorldMatrix": "Bu düğümün dünya matrisini çözer; istenirse önce atalarınınkini, ardından alt ağacını.",
-      "applyMatrix4": "`m`'yi düğümün pozunun üzerine uygular, ardından pozu çarpımdan geri okur.",
-      "lookAt": "Düğümü, nokta ya da üç sayı olarak verilen bir dünya noktasına çevirir.",
       "clone": "Aynı türde, aynı değerlerde bir düğüm; aksi söylenmedikçe çocukları da kopyalanır.",
       "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
     }

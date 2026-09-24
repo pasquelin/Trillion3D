@@ -46,7 +46,6 @@ function place<T extends THREE.Object3D>(into: T, node: GraphNode): T {
   into.matrix.fromArray(node.matrix.elements);
   into.matrixWorld.fromArray(node.matrixWorld.elements);
   into.matrixAutoUpdate = node.matrixAutoUpdate;
-  into.matrixWorldAutoUpdate = node.matrixWorldAutoUpdate;
   into.visible = node.visible;
   into.castShadow = node.castShadow;
   into.receiveShadow = node.receiveShadow;

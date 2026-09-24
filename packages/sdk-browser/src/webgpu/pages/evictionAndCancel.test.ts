@@ -129,7 +129,7 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
     fixture.associations,
   );
   const packed = packDagSelection(collected.roots);
-  const { device, draws, buffers } = mockGpu(undefined, packed);
+  const { device, draws, buffers } = mockGpu({ packed });
   const events: Array<{ phase: string; context?: Record<string, unknown> }> = [];
   const backend = webgpuPagesBackend({
     ...fixture,
