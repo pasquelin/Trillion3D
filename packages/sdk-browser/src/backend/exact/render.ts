@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 import {
   createSelectionResult,
@@ -7,7 +6,7 @@ import {
   type ClusterRoot,
 } from '../../page/selection/selection.ts';
 import type { BackendContext } from '../types.ts';
-import { lighting } from '../../host/scene/objects.ts';
+import type { installSceneLighting } from '../../lighting/sceneLighting.ts';
 import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
 import { EXACT_CPU_STEP } from './cpu.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
@@ -59,8 +58,9 @@ export function createExactPagesRender(options: {
   state: ExactPagesRenderState;
   context: BackendContext;
   source: HostGraphNode;
-  blendCopies: THREE.Mesh[];
-  sceneLights: ReturnType<typeof lighting>;
+  /** The transparent copies the host renderer draws whole: what each names is its source. */
+  blendCopies: readonly { readonly userData: Record<string, unknown> }[];
+  sceneLights: ReturnType<typeof installSceneLighting>;
   motion: CameraMotion;
   roots: ReadonlyArray<ClusterRoot<PageRec>>;
   /** Engine world-matrix index, rebuilt once per scene revision. */

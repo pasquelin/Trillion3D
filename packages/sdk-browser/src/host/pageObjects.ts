@@ -6,13 +6,12 @@
  * renderer — the shared adapter of `three/sceneAdapter.ts`, with the host lights the contract
  * installs — so a resident page has to exist as a host mesh, holding a host geometry and the
  * host declaration it was collected with. Making those objects is a boundary, exactly as making
- * the explorer's camera is (`scene/graphObjects.ts`, which builds what the EXPLORER publishes to
- * its host; this file builds what a BACKEND draws). Since #78 lot 3 the path itself —
- * `../backend/autonomous/pages.ts`, `../backend/autonomous/geometry.ts`, `../backend/autonomous/instances.ts` — names no library:
+ * the explorer's camera once was. The path itself (`../backend/autonomous/`) names no library:
  * it holds these objects through the shapes of `resources.ts` and hands them back here.
  *
  * Nothing is decided here: the pose, the component counts, the box and the surface parameters
- * all arrive computed. And every value handed to a host method below is an object THIS file
+ * all arrive computed; a surface of the engine's own graph is drawn through the library's copy
+ * of it (`three/fromGraph.ts`). Every value handed to a host method below is an object THIS file
  * built: `Object3D.add` drops any node that does not carry the host's own `isObject3D` brand,
  * silently, so `hostPageMesh` is the single writer of the mesh a page is drawn as.
  */
@@ -29,9 +28,10 @@ import {
 import type { HostGraphGeometry } from './scene/graphResources.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
-import { hostSide } from '../scene/materialSide.ts';
 import { geometryBytes } from '../scene/meshes.ts';
-import { setGeometryBounds } from './three/bounds.ts';
+import { hostSide } from '../scene/materialSide.ts';
+import { setGeometryBounds } from './geometryBounds.ts';
+import { threeMaterial, threeMaterials } from './three/fromGraph.ts';
 
 /** The display graph a backend drawn by the host renderer hangs its pages on, holding from the
  *  start the transparent copies it draws whole (`../cluster/blendCopyMesh.ts`). */
@@ -55,7 +55,7 @@ export function hostPageMesh(
 ): HostMesh {
   const mesh = new THREE.Mesh(
     asHostLibrary<THREE.BufferGeometry>(geometry),
-    asHostLibrary<THREE.Material | THREE.Material[]>(declaration),
+    threeMaterials(declaration),
   );
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
@@ -76,7 +76,7 @@ export function hostPageInstances(
 ): HostMesh {
   const mesh = new THREE.InstancedMesh(
     asHostLibrary<THREE.BufferGeometry>(geometry),
-    asHostLibrary<THREE.Material | THREE.Material[]>(declaration),
+    threeMaterials(declaration),
     capacity,
   );
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -110,7 +110,7 @@ export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
 
 /** The surface a drawn page wears once its primitive has been repainted. */
 export const setHostSurface = (mesh: HostMesh, declaration: HostMaterials) => {
-  asHostLibrary<THREE.Mesh>(mesh).material = asHostLibrary<THREE.Material>(declaration);
+  asHostLibrary<THREE.Mesh>(mesh).material = threeMaterials(declaration);
 };
 
 /**
@@ -187,7 +187,7 @@ export function colouredTwin(
 /** The same surface, reading the colour attribute a decoded page carries: a new clone, or `into`
  *  taking the original's values again once it was repainted in place. */
 export function colouredHostSurface(original: HostMaterial, into?: HostMaterial): HostMaterial {
-  const source = asHostLibrary<THREE.Material>(original);
+  const source = threeMaterial(asHostLibrary<THREE.Material>(original));
   const twin = into ? asHostLibrary<THREE.Material>(into).copy(source) : source.clone();
   (twin as THREE.MeshStandardMaterial).vertexColors = true;
   twin.needsUpdate = true;

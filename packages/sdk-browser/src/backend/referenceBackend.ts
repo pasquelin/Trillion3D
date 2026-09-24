@@ -1,9 +1,8 @@
 import { meshes as objects, geometryBytes } from '../scene/meshes.ts';
-import { asHostLibrary } from '../host/resources.ts';
 import { copyElements } from '../math/matrixElements.ts';
-import { hostMeshCopy } from '../host/scene/graphObjects.ts';
+import { threeMeshCopy } from '../host/three/fromGraphNodes.ts';
 import { baseCapabilities, DEFAULT_CLEAR_COLOR } from './common.ts';
-import { lighting } from '../host/scene/objects.ts';
+import { lighting } from '../host/three/displayObjects.ts';
 import { sceneLightingApi } from '../lighting/sceneLighting.ts';
 import { createThreeSceneDraw, hostDiagnostics } from '../host/three/sceneAdapter.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from '../diagnostic/triangleDiagnostic.ts';
@@ -28,13 +27,13 @@ export const referenceBackend: BackendFactory = ({
   const copies: THREE.Mesh[] = [];
   const overlays: THREE.Material[] = [];
   for (const mesh of objects(source)) {
-    const copy = asHostLibrary<THREE.Mesh>(hostMeshCopy(mesh));
+    const copy = threeMeshCopy(mesh);
     copy.matrixAutoUpdate = false;
     copyElements(copy.matrix.elements, mesh.matrixWorld.elements);
     copy.renderOrder = order++;
     copy.userData.sourceMesh = mesh;
-    copy.userData.sourceGeometry = mesh.geometry;
-    copy.userData.sourceMaterial = mesh.material;
+    copy.userData.sourceGeometry = copy.geometry;
+    copy.userData.sourceMaterial = copy.material;
     scene.add(copy);
     copies.push(copy);
     allocationBytes += geometryBytes(mesh.geometry, seen);
@@ -54,7 +53,7 @@ export const referenceBackend: BackendFactory = ({
     ...sceneLightingApi(sceneLights, () => {}),
     render(camera) {
       hostDraw.render(camera);
-      asHostLibrary<THREE.Object3D>(source).updateMatrixWorld(true);
+      source.updateMatrixWorld(true);
       sceneLights.update();
       selectedTriangles = 0;
       for (const mesh of copies) {
