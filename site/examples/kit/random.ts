@@ -1,9 +1,9 @@
 /**
  * The repository's seeded numbers, one module for the kit, the pages, the scenes modelled in code,
  * the bench and the correctness campaigns: the same seed gives the same scene on every run and
- * every machine. Each generator keeps the exact sequence its scenes
- * were laid out with, so gathering them here moved nothing on screen. Plenty for placing pebbles
- * and stones, never for anything that must be unpredictable.
+ * every machine. Each generator keeps the exact sequence its scenes were laid out with, so
+ * gathering them here moved nothing on screen. Plenty for placing pebbles and stones, never for
+ * anything that must be unpredictable.
  */
 
 import { ease } from './opening.ts';

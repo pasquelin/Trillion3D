@@ -14,8 +14,8 @@ export const snap = (value: number) => Math.round(value * 2 ** 20) / 2 ** 20;
 
 /**
  * A seeded random stream for the scenes modelled in code: the same seed gives the same uniform
- * draws on every machine, since they rest on integer arithmetic alone (a 32-bit mulberry
- * generator, the kit's `mulberry32`); what `normal` and `direction` derive through `Math` is snapped where it is written.
+ * draws on every machine, since they rest on integer arithmetic alone (the kit's `mulberry32`);
+ * what `normal` and `direction` derive through `Math` is snapped where it is written.
  */
 export function randomStream(seed: number) {
   const next = mulberry32(seed);

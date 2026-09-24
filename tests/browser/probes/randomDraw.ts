@@ -1,7 +1,7 @@
 // Pseudo-random draws of the correctness campaigns: the xorshift generator one campaign published
-// its figures with, and the two distributions every campaign draws from. The other campaign draws
-// from the repository's `mulberry32` (site/examples/kit/random.ts); the generators stay distinct —
-// changing one would move its cases — but `entre` and `log` have only one writing.
+// its figures with, and the two distributions every campaign draws from. The other campaign
+// draws from the repository's `mulberry32` (site/examples/kit/random.ts); the generators stay
+// distinct — changing one would move its cases — but `entre` and `log` have only one writing.
 
 /** Xorshift32: three exclusive shifts, the state never passing through zero. */
 export function xorshift32(graine: number): () => number {
