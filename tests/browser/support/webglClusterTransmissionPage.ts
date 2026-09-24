@@ -93,6 +93,7 @@ export function execute() {
   // A glass outside the view costs nothing: no copy submitted, no backdrop pass.
   const away = glassMesh();
   away.matrix.makeTranslation(100, 0, 0);
+  away.updateWorldMatrix(false, false);
   away.geometry.computeBoundingBox();
   clear(gl);
   const offscreen = { clusters: draw([red], [away]), ...passes(), pixel: pixel(gl) };
