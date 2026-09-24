@@ -1811,6 +1811,26 @@
       "sound": "M 有声"
     }
   },
+  "watch-a-world-load": {
+    "banner": "看着进度条随世界到达而填满。按“重新加载”从第一个字节再看一遍。",
+    "controls": {
+      "loadAgain": "重新加载"
+    },
+    "readouts": {
+      "phase": "步骤",
+      "bytes": "字节",
+      "pages": "首批页面"
+    },
+    "words": {
+      "credit": "为这个示例用代码制作的花瓶大道，CC0 — 见 assets/examples/CREDITS.md",
+      "bytes": "正在读取字节",
+      "manifest": "清单已读",
+      "tables": "场景表已读",
+      "resources": "场景文件",
+      "pages": "首批页面",
+      "ready": "就绪"
+    }
+  },
   "waves-of-points": {
     "banner": "拖动绕着田野转。选一个图案来改变波浪。",
     "controls": {
