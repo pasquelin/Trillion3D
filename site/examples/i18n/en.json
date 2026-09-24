@@ -289,7 +289,8 @@
       "wave": "Wave",
       "dance": "Dance",
       "speed": "Speed",
-      "colour": "Colour"
+      "colour": "Colour",
+      "shadow": "Shadow"
     }
   },
   "a-scene-of-your-own": {
@@ -1902,10 +1903,32 @@
     },
     "choices": {
       "count": {
-        "10000": "10,000",
+        "1000": "1,000",
         "5000": "5,000",
-        "1000": "1,000"
+        "10000": "10,000"
       }
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "Pick a case in the panel; in “free”, drag to look around.",
+    "controls": {
+      "case": "Case",
+      "caster": "Caster"
+    },
+    "readouts": {
+      "Look for": "Look for"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Click to look around, then walk with W A S D and jump with Space: climb the stairs and the ramp, ride the platform, push the boxes.",
+    "controls": {
+      "pushStrength": "Push strength (N)",
+      "platformSpeed": "Platform speed",
+      "stackAgain": "Stack again"
+    },
+    "readouts": {
+      "awake": "Awake",
+      "speed": "Speed"
     }
   },
   "rolling-on-terrain": {
@@ -1940,18 +1963,6 @@
       "bodies": "Bodies",
       "awake": "Awake",
       "step": "Step"
-    }
-  },
-  "walk-with-collisions": {
-    "banner": "Click to look around, then walk with W A S D and jump with Space: climb the stairs and the ramp, ride the platform, push the boxes.",
-    "controls": {
-      "pushStrength": "Push strength (N)",
-      "platformSpeed": "Platform speed",
-      "stackAgain": "Stack again"
-    },
-    "readouts": {
-      "awake": "Awake",
-      "speed": "Speed"
     }
   }
 }

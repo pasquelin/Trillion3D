@@ -74,7 +74,7 @@ export async function createWaterFrame(device: GPUDevice) {
       next[6] = deferred.uniform;
       next[7] = lighting.directLights;
       next[8] = lighting.tileLights;
-      next[9] = lighting.shadowSlices;
+      next[9] = lighting.shadowData;
       next[10] = lighting.shadowAtlas;
       next[11] = lighting.shadowSampler;
       next[12] = lighting.bounceGrid;
@@ -98,7 +98,7 @@ export async function createWaterFrame(device: GPUDevice) {
           { binding: b.view, resource: { buffer: deferred.uniform } },
           { binding: b.directLights, resource: { buffer: lighting.directLights } },
           { binding: b.tileLights, resource: { buffer: lighting.tileLights } },
-          { binding: b.shadowSlices, resource: { buffer: lighting.shadowSlices } },
+          { binding: b.shadowData, resource: { buffer: lighting.shadowData } },
           { binding: b.shadowAtlas, resource: lighting.shadowAtlas },
           { binding: b.shadowSampler, resource: lighting.shadowSampler },
           { binding: b.bounceGrid, resource: { buffer: lighting.bounceGrid } },

@@ -5,6 +5,10 @@ import {
   multiplyMatrix4,
   screenErrorBound,
 } from '../../../../../sdk-core/src/index.ts';
+import {
+  boxMissesLightPages,
+  type LightPages,
+} from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { errorFloorAt, viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts';
 import { DAG_NODE_FLOATS } from '../types.ts';
 import {
@@ -19,7 +23,7 @@ import {
   NODE_SPHERE,
   NODE_WORLD,
 } from '../packNodes.ts';
-import type { SelectionUniforms } from '../../core/selection.ts';
+import type { DagViewUniforms } from '../types.ts';
 
 /** Column-major 4×4 buffers rewritten per world, never reallocated. */
 export const dagScratch = {
@@ -75,10 +79,12 @@ export type DagViewFrames = {
   perspective: number;
   viewPoint: Float64Array;
   pixelError: number;
+  /** The light cut's redrawn pages, absent for a camera (`DagViewUniforms.light`). */
+  light?: LightPages;
 };
 export function dagViewFrames(
   packed: { worlds: Float32Array; worldStretch: Float32Array; worldCount: number },
-  uniforms: SelectionUniforms,
+  uniforms: DagViewUniforms,
 ): DagViewFrames {
   const cameraStretch = uniforms.cameraStretch ?? 1,
     perspective = uniforms.perspective ?? 1;
@@ -110,6 +116,7 @@ export function dagViewFrames(
       perspective,
     ),
     pixelError: uniforms.pixelError,
+    light: uniforms.light,
   };
 }
 
@@ -136,6 +143,11 @@ export function dagNodeVerdict(
     )
   )
     return -1;
+  const { light } = f,
+    { min, max } = dagScratch;
+  for (let a = 0; light && a < 3; a++) min[a] = nodes[base + NODE_MIN + a];
+  for (let a = 0; light && a < 3; a++) max[a] = nodes[base + NODE_MAX + a];
+  if (light && boxMissesLightPages(light, min, max, f.views[w], f.perspective)) return -1;
   const ceil = nodes[base + NODE_CEIL];
   if (
     ceil >= 0 &&

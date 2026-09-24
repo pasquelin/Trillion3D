@@ -47,23 +47,26 @@ export function createWebgpuRowSync(
     rows.rowsEpoch = rows.tableEpoch;
     slots.apply(bounded);
   };
-  /** The CPU cut names its own pages, so its rows are its order; the cut is rebuilt every frame. */
-  const syncRowsFromCut = () => {
-    if (!cacheReady() || !rows.pageTableFloats) return;
+  /**
+   * The CPU cut names its own pages, so its rows are its order; the cut is rebuilt every frame.
+   * `casters` are pages the light cuts selected and the camera does not draw: they take rows
+   * behind the camera's, which only the shadow pass reads. Returns the camera's row count.
+   */
+  const syncRowsFromCut = (casters: readonly PageRec[] = []) => {
+    if (!cacheReady() || !rows.pageTableFloats) return 0;
     mirror.sync();
     // The CPU cut names its own rows, so this path never skips: `mirror.dirty` belongs to the ranks.
     mirror.dirty = true;
     let count = 0,
       lastSource = -1,
       monotone = true;
-    for (let i = 0; i < drawn.length && count < drawSlots; i++) {
-      const rec = drawn[i];
-      if (rec.transparent) continue;
+    const place = (rec: PageRec) => {
+      if (rec.transparent || count >= drawSlots) return;
       const pageIndex = rows.pageIndexOf(rec);
-      if (pageIndex === undefined) continue;
+      if (pageIndex === undefined) return;
       const offsetWords = rows.residentOffsetWords[pageIndex],
         position = rows.pagePositions[pageIndex];
-      if (offsetWords < 0 || awaitsPageBytes(rec) || !rowHasGeometry(rec, position)) continue;
+      if (offsetWords < 0 || awaitsPageBytes(rec) || !rowHasGeometry(rec, position)) return;
       const row = count++;
       const source = sourceRowOf(pageIndex, offsetWords);
       if (source >= 0) {
@@ -75,8 +78,12 @@ export function createWebgpuRowSync(
       rows.packedRecs[row] = rec;
       rows.packedPositions[row] = position;
       rows.packedPageIndex[row] = pageIndex;
-    }
+    };
+    for (let i = 0; i < drawn.length && count < drawSlots; i++) place(drawn[i]);
+    const cameraRows = count;
+    for (let i = 0; i < casters.length && count < drawSlots; i++) place(casters[i]);
     commitRows(count, monotone);
+    return cameraRows;
   };
   /** Rows the time budget deferred to a later image. */
   const rowsOwed = () => slots.pending;

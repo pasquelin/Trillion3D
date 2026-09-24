@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { openGalleryScene, sdkMounts } from '../support/renderHarness.ts';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 // `firstPixels`/`lastPixels` only exist in the page this harness evaluates code in, never in Node;
 // declared here so the `page.evaluate` callbacks below (type-checked, though they run in the
@@ -17,7 +18,7 @@ declare global {
 }
 
 const root = resolve(import.meta.dirname, '../../..');
-const output = resolve(root, 'benchmark-runs/observatory');
+const output = measureOutput('observatory');
 await mkdir(output, { recursive: true });
 const server = await startServer({
   port: 0,

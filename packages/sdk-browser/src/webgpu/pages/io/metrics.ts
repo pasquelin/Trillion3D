@@ -96,6 +96,13 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowsUpdated: lights.shadowsUpdated,
     shadowFacesDrawn: lights.shadowFaces,
     shadowDrawCalls: lights.shadowDrawCalls,
+    shadowLightCuts: lights.lightRuns,
+    shadowPagesRequested: lights.plan.requests.counts.requested,
+    shadowPagesCached: lights.plan.counts.cachedPages,
+    shadowPoolPages: lights.plan.counts.poolPages,
+    shadowPagesRefetched: lights.plan.pool.refetched,
+    shadowCastersKept: lights.cull?.counts.counts()?.kept ?? null,
+    shadowCastersHidden: lights.occlusion?.counts.counts()?.kept ?? null,
     shadowPagesDrawn: lights.shadowPages,
     shadowPagesTotal: lights.shadowPagesTotal,
     shadowPagesPending: lights.plan.counts.pendingPages,
@@ -150,11 +157,25 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   gpu.temporal = undefined;
   rt.lights.tiles?.dispose();
   rt.lights.shadows?.dispose();
+  rt.lights.pageRequests?.dispose();
+  rt.lights.pageRequests = undefined;
+  rt.lights.staticLayer?.dispose();
+  rt.lights.staticLayer = undefined;
+  rt.lights.pageHiz?.dispose();
+  rt.lights.pageHiz = undefined;
+  rt.lights.occlusion?.dispose();
+  rt.lights.occlusion = undefined;
+  rt.lights.mobilityRows?.destroy();
+  rt.lights.mobilityRows = undefined;
   rt.bounce.probes?.dispose();
   rt.bounce.probes = undefined;
   rt.sunFar.gpu?.dispose();
   rt.sunFar.gpu = undefined;
   rt.lights.cull?.dispose();
+  rt.lights.cpuCasters?.source.destroy();
+  rt.lights.cpuCasters?.indirect.destroy();
+  rt.lights.cpuCasters = undefined;
+  rt.lights.lightCut = undefined;
   rt.lights.spheres?.buffer.destroy();
   rt.lights.spheres = undefined;
   rt.lights.shadowGroups.fill(undefined);

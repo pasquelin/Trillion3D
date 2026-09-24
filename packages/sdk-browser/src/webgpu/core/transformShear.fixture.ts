@@ -8,6 +8,7 @@ import { BOX_VALUES, boxTransform } from '../../../../sdk-core/src/index.ts';
 import { createWebgpuRunState } from '../pages/state/run.ts';
 import { createBoxCorners } from '../../hiz/hiz.ts';
 import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts';
+import { createShadowMobility } from '../shadow/mobility.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 
@@ -82,6 +83,7 @@ export function runtime(
         worldChanged: (min: number[], max: number[]) =>
           mouvements.push({ min: [...min], max: [...max] }),
       },
+      mobility: createShadowMobility(),
     },
   } as unknown as WebgpuPagesRuntime;
   return { rt, layout, run, mouvements, worlds };

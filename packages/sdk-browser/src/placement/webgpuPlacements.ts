@@ -8,8 +8,9 @@ import { placedBy, type PlacementRows } from './rows.ts';
  * their worlds from the rows, so nothing is copied: their boxes are reprojected, a parked row
  * leaves the GPU cut's first queue and a taken one enters it (`parkWorld`), the page rows of the
  * roots that read them are rewritten, and them alone (`moveRootRows`), and the frame learns that
- * poses moved — the worlds go up in one write at the next image, and the shadow slices the change
- * touched are drawn again. No table is resized and nothing is prepared again.
+ * poses moved — the worlds go up in one write at the next image, and the shadow pages the change
+ * touched are drawn again: their moving casters only, once the placements are known to move
+ * (`../webgpu/shadow/mobility.ts`). No table is resized and nothing is prepared again.
  */
 export function updateWebgpuPlacements(
   rt: WebgpuPagesRuntime,
@@ -24,6 +25,7 @@ export function updateWebgpuPlacements(
     from,
     to,
     (rank, parked) => run.gpuSelection?.parkWorld(rank, parked),
+    lights.mobility.move,
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
   );
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
@@ -34,5 +36,6 @@ export function updateWebgpuPlacements(
   run.gate.engineWriting();
   run.gate.sceneMoved();
   run.gate.noteWorldsUpdated();
-  if (touched) lights.plan.worldChanged(touched.min, touched.max);
+  // Placements already moving leave the static casters under them unchanged.
+  if (touched) lights.plan.worldChanged(touched.min, touched.max, !lights.mobility.takePromoted());
 }

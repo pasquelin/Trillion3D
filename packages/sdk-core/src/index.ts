@@ -166,17 +166,13 @@ export type { SceneLightStore } from './scene/light/store.ts';
 export {
   POINT_FACE_AXES,
   SHADOW_CULL_FLOATS,
-  SHADOW_FACE_FLOATS,
-  SHADOW_FACE_MASK_WORD,
-  SHADOW_SLICE_FLOATS,
-  faceCountOf,
+  SHADOW_RECORD_FLOATS,
   writeFace,
 } from './scene/light-shadow/faces.ts';
-export { SHADOW_FACE_SIDES, desiredFaceSide } from './scene/light-shadow/atlas.ts';
-export { RECTS_PER_SLICE, createShadowPlan } from './scene/light-shadow/plan.ts';
+export { createShadowPlan } from './scene/light-shadow/plan.ts';
 export type { ShadowPlan } from './scene/light-shadow/plan.ts';
-export { SHADOW_PAGE, pageRowsOf } from './scene/light-shadow/pages.ts';
-export { forEachShadowFace } from './scene/light-shadow/casters.ts';
+export type { ShadowRequestReport } from './scene/light-shadow/requests.ts';
+export { SHADOW_PAGE } from './scene/light-shadow/virtual.ts';
 export { regionRect } from './scene/light-shadow/volume.ts';
 export type { NumberSink } from './math/matrix/matrix4.ts';
 export type { Counts } from './manifest/binaryLayout.ts';

@@ -9,14 +9,14 @@ import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** What the capability declares while no far shadow is fitted on this scene. */
-const SUN_FAR_CAPABILITY = 'sun shadows beyond the last cascade';
+const SUN_FAR_CAPABILITY = 'sun shadows beyond the last clipmap level';
 /** Named approximations of the far shadow, published in the diagnostic (P5). */
 const SUN_FAR_APPROXIMATIONS = [
   'the shadow ray hits the resident proxy, whose certified geometric error moves the shadow edge',
   'a shadow ray that exhausts the published traversal bound reports no blocker, which lights',
   'the ray starts one proxy cell along its own direction, so a blocker nearer than that is missed',
   'the proxy carries no alpha cutout, so a masked foliage casts the shadow of its full triangle',
-  'one ray per pixel gives a hard shadow: the far sun has no penumbra, unlike the PCSS cascades',
+  'one ray per pixel gives a hard shadow: the far sun has no penumbra, unlike the filtered clipmap levels',
 ];
 
 /**
@@ -26,8 +26,8 @@ const SUN_FAR_APPROXIMATIONS = [
  * never held twice. Off, this module loads its own — the sun's shadow does not depend on a bounce
  * setting; it is the fidelity of the direct that is at stake.
  *
- * With no proxy in the cache, nothing is fitted: the surface beyond the last cascade stays lit with
- * no cast shadow, exactly as before this lot, and the diagnostic says so. Stretching the last cascade
+ * With no proxy in the cache, nothing is fitted: the surface beyond the last clipmap level stays lit with
+ * no cast shadow, exactly as before this lot, and the diagnostic says so. Stretching the last level
  * to the far field would have divided the texel density of every near shadow by five, on each axis: a
  * quality drop to hide an absence, refused.
  */
@@ -76,8 +76,7 @@ function publish(rt: WebgpuPagesRuntime) {
   sunFar.published = true;
   diag.engineDiagnostic('sun-far-shadow', 'Sun far shadows against proxy', {
     version: 1,
-    beyondFraction: LIGHT_SETTINGS.sunShadowFarFraction,
-    cascadeRatioMax: LIGHT_SETTINGS.sunCascadeRatioMax,
+    clipmapLevels: LIGHT_SETTINGS.sunLevels,
     traversalSteps: BOUNCE_SETTINGS.traversalSteps,
     borrowedFromBounce: proxy ? sunFar.borrowed : null,
     proxyTriangles: proxy?.triangleCount ?? null,

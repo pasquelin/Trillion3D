@@ -289,7 +289,8 @@
       "wave": "Dalga",
       "dance": "Dans et",
       "speed": "Hız",
-      "colour": "Renk"
+      "colour": "Renk",
+      "shadow": "Gölge"
     }
   },
   "a-scene-of-your-own": {
@@ -1902,10 +1903,32 @@
     },
     "choices": {
       "count": {
-        "10000": "10.000",
+        "1000": "1.000",
         "5000": "5.000",
-        "1000": "1.000"
+        "10000": "10.000"
       }
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "Panelden bir durum seç; «free» durumunda etrafa bakmak için sürükle.",
+    "controls": {
+      "case": "Durum",
+      "caster": "Gölge düşüren"
+    },
+    "readouts": {
+      "Look for": "Şuna bak"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Etrafa bakmak için tıklayın, sonra W A S D ile yürüyün ve Boşluk ile zıplayın: merdiveni ve rampayı çıkın, platforma binin, kutuları itin.",
+    "controls": {
+      "pushStrength": "İtme kuvveti (N)",
+      "platformSpeed": "Platform hızı",
+      "stackAgain": "Yeniden yığ"
+    },
+    "readouts": {
+      "awake": "Uyanık",
+      "speed": "Hız"
     }
   },
   "rolling-on-terrain": {
@@ -1940,18 +1963,6 @@
       "bodies": "Cisimler",
       "awake": "Uyanık",
       "step": "Adım"
-    }
-  },
-  "walk-with-collisions": {
-    "banner": "Etrafa bakmak için tıklayın, sonra W A S D ile yürüyün ve Boşluk ile zıplayın: merdiveni ve rampayı çıkın, platforma binin, kutuları itin.",
-    "controls": {
-      "pushStrength": "İtme kuvveti (N)",
-      "platformSpeed": "Platform hızı",
-      "stackAgain": "Yeniden yığ"
-    },
-    "readouts": {
-      "awake": "Uyanık",
-      "speed": "Hız"
     }
   }
 }

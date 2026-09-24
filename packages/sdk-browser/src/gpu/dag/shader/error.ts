@@ -18,23 +18,23 @@ export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}
 /** Upper bound of the screen displacement of any point of the sphere moved by at most \`error\`:
  *  minimum depth m, distance to the axis l, radius and error stretched rho and delta, written on
- *  the clip weight w = p*depth+(1-p) of the projection (\`uni.perspective\`, p):
+ *  the clip weight w = p*depth+(1-p) of the projection (\`views[vi].perspective\`, p):
  *  E = (delta*f/w(m))*(sqrt(w(m)^2+(p*(l+rho))^2)/w(m-delta)) ; near plane reached: INF.
  *  Under \`REFERENCE_ERROR\`, the external reference's simple projection: delta*f/w(depth). */
 fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)){return INF;}
  let v=(e*vec4f(sphere.xyz,1.0)).xyz;
- let p=uni.perspective;let flat=1.0-p;
+ let p=views[vi].perspective;let flat=1.0-p;
  if(REFERENCE_ERROR){
   let depth=p*-v.z+flat;
-  if(!(depth>p*uni.near)){return INF;}
+  if(!(depth>p*views[vi].near)){return INF;}
   let delta=error*stretch;
   return (delta*focal)/depth;
  }
  let reach=sphere.w*stretch;let shift=error*stretch;
  let nearest=p*(-v.z-reach)+flat;let closest=nearest-p*shift;let side=p*(sqrt(v.x*v.x+v.y*v.y)+reach);
- if(!(closest>p*uni.near)){return INF;}
+ if(!(closest>p*views[vi].near)){return INF;}
  let slant=sqrt(nearest*nearest+side*side);
  if(!(slant>=nearest&&slant<INF)){return INF;}
  return ((shift*focal)/nearest)*(slant/closest);
@@ -43,7 +43,7 @@ fn selects(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32,threshold:f32)->bool{
  if(projected(cluster.lodError,cluster.sphere,e,stretch,focal)>threshold){return false;}
  return projected(cluster.parentError,cluster.parentSphere,e,stretch,focal)>threshold;
 }
-fn focalPixels()->f32{return max(uni.pixelScale.x,uni.pixelScale.y);}
+fn focalPixels()->f32{return max(views[vi].pixelScale.x,views[vi].pixelScale.y);}
 `;
 
 /**

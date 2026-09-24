@@ -33,7 +33,7 @@ test('noteResidenceChange: matrices and boxes hostile to signed zeros — the bo
       sphereAttendue[2] + sphereAttendue[3],
     ];
     let recu: number[] | undefined;
-    const lumieres = createWebgpuLightState();
+    const lumieres = createWebgpuLightState(32);
     lumieres.store.add({
       id: 'l0',
       kind: 'point',

@@ -111,6 +111,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     gpuFrameMs: number[] = [],
     rafIntervalMs: number[] = [];
   const gpuPassSamples: GpuPassTimings[] = [];
+  const shadowCounters = mesure.shadowCountersPerFrame();
   const profileStart = Math.max(0, options.frames - options.profileFrames);
   let last: ReturnType<typeof explorer.render> | null = null,
     previousRaf: number | null = null,
@@ -123,6 +124,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     moveLight(i);
     moveNode(i);
     last = explorer.render(poseAt(i));
+    shadowCounters.push(last);
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs);
     if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs);
     const sample = last.gpuPassMs;
@@ -181,6 +183,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     network,
     imagesCalme,
     reglageVivant,
+    shadowCounters: shadowCounters.summary(),
     mathBatch: last?.mathBatch ?? null,
     size,
     lost,

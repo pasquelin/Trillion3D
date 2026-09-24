@@ -88,16 +88,21 @@
         'triangle ids': [(m) => m.lit, 'triangles'],
         'material ids': [(m) => m.lit, 'materials'],
       };
-      const holds = readout('eachPixelHolds');
+      // The readout sits under the panel, so it opens once the panel exists: until then the
+      // first choice's words wait in `held`.
+      let holds = null, held = '';
       const ui = controls({ buffer: Object.keys(VIEWS), turning: true }, (values, key) => {
         if (key === 'turning') return world.invalidate();
         const [wear, mode] = VIEWS[values.buffer];
         for (const entry of meshes) entry.piece.material = wear(entry);
         const offered = mode === 'beauty' || world.diagnostic.modes.includes(mode);
         world.diagnostic.mode = offered ? mode : 'beauty';
-        holds(say(offered ? values.buffer : 'notOffered'));
+        held = say(offered ? values.buffer : 'notOffered');
+        holds?.(held);
         world.invalidate();
       });
+      holds = readout('eachPixelHolds');
+      holds(held);
 
       // The opening: the camera glides in from afar, 31 degrees above the court, then circles
       // until the first press or wheel on the canvas.

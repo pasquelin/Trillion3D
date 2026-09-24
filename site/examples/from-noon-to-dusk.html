@@ -60,7 +60,8 @@
       // reddens and its light thins; `exposure` then rises like an eye adapting to the dusk.
       let hour = ui.hour, from = null, adapted = null;
       world.onFrame(({ delta }) => {
-        // Stopped, the sun moves only when the hour or the eyes are changed.
+        // Stopped, the sun moves only when the hour or the eyes are changed; the world rests,
+        // and the shadow counters in the corner fall to zero: a still light redraws nothing.
         if (ui.hour !== from) hour = from = ui.hour;
         else if (!ui.speed && ui.adaptEyes === adapted) return;
         adapted = ui.adaptEyes;

@@ -1,7 +1,6 @@
-// Lamp-shadow oracles, rewritten from the contracts: the world-space sphere of a cluster —
+// Lamp-shadow oracle, rewritten from the contracts: the world-space sphere of a cluster —
 // transformed box centre, radius inflated term by term, written in f32 at its place as the
-// pass does — and a lamp's screen coverage, square of its apparent angle over the half-field.
-import type { ShadowViewpoint } from '../../../packages/sdk-core/src/index.ts';
+// pass does.
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 export function referenceClusterSphere(
@@ -23,21 +22,4 @@ export function referenceClusterSphere(
     Math.abs(e[1]) * hx + Math.abs(e[5]) * hy + Math.abs(e[9]) * hz,
     Math.abs(e[2]) * hx + Math.abs(e[6]) * hy + Math.abs(e[10]) * hz,
   );
-}
-
-export function referenceScreenCoverage(
-  view: ShadowViewpoint,
-  x: number,
-  y: number,
-  z: number,
-  range: number,
-) {
-  const dx = x - view.position[0],
-    dy = y - view.position[1],
-    dz = z - view.position[2];
-  const distance = Math.hypot(dx, dy, dz);
-  const ahead = dx * view.forward[0] + dy * view.forward[1] + dz * view.forward[2];
-  if (ahead + range < 0 || distance - range > view.far) return 0;
-  const ratio = Math.atan(range / Math.max(distance, 1e-3)) / view.halfFovY;
-  return Math.min(1, ratio * ratio);
 }

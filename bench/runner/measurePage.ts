@@ -142,3 +142,43 @@ export async function drainShadowAtlas(explorer: MeasuredWorld, capturePose: Cam
   const digest = await explorer.shadowAtlasDigest();
   return digest ? { ...digest, pagesEnAttente: pending, images: drains } : null;
 }
+
+/** The per-frame shadow counters the series reads: what the shadow pass did on each frame. */
+const SHADOW_COUNTERS = [
+  'shadowPagesRequested',
+  'shadowPagesCached',
+  'shadowPagesDrawn',
+  'shadowLightCuts',
+  'shadowPoolPages',
+  'shadowPagesRefetched',
+  'shadowFacesDrawn',
+] as const;
+
+/**
+ * Collects the shadow counters of every measured frame; `summary()` gives each its mean, p95 and
+ * max over the frames that published it, `null` for a counter no frame published (an older dist).
+ */
+export function shadowCountersPerFrame() {
+  const values = new Map(SHADOW_COUNTERS.map((key) => [key, [] as number[]]));
+  return {
+    push(frame: Partial<FrameMetrics>) {
+      for (const [key, list] of values) {
+        const value = frame[key];
+        if (typeof value === 'number') list.push(value);
+      }
+    },
+    summary() {
+      return Object.fromEntries(
+        [...values].map(([key, list]) => {
+          if (list.length === 0) return [key, null];
+          const sorted = [...list].sort((a, b) => a - b);
+          const mean = list.reduce((sum, value) => sum + value, 0) / list.length;
+          return [
+            key,
+            { mean, p95: sorted[Math.ceil(0.95 * sorted.length) - 1], max: sorted.at(-1)! },
+          ];
+        }),
+      );
+    },
+  };
+}
