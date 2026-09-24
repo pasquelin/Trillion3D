@@ -7381,11 +7381,5 @@
       "distance": "Menjaga `anchor` pada `a` dan `anchorB` pada `b` tetap sejauh panjangnya, atau dalam `limits`.",
       "cone": "Sambungan bola yang `axis`-nya berayun di dalam kerucut dengan setengah sudut `limits.max`."
     }
-  },
-  "JointHost": {
-    "summary": "Sisi dunia dari sebuah sambungan: apa yang diminta dari simulasi saat ia ditulis.",
-    "members": {
-      "motor": "Motornya berubah."
-    }
   }
 }

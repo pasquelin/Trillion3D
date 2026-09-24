@@ -7381,11 +7381,5 @@
       "distance": "Giữ `anchor` trên `a` và `anchorB` trên `b` cách nhau đúng độ dài, hoặc trong `limits`.",
       "cone": "Một khớp cầu có `axis` đung đưa trong hình nón nửa góc `limits.max`."
     }
-  },
-  "JointHost": {
-    "summary": "Phía thế giới của một khớp: điều mà một lần ghi vào nó yêu cầu mô phỏng.",
-    "members": {
-      "motor": "Động cơ đã thay đổi."
-    }
   }
 }

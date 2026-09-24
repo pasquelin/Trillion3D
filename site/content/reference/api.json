@@ -7414,24 +7414,6 @@
     "description": "It holds while both bodies are simulated, and until it breaks."
   },
   {
-    "id": "JointHost",
-    "module": "packages/sdk-core/src/physics/joint.ts",
-    "exports": ["JointHost"],
-    "section": "types",
-    "kind": "Type",
-    "title": "JointHost",
-    "signature": "interface JointHost",
-    "summary": "The world's side of a joint: what a write on it asks of the simulation.",
-    "members": [
-      {
-        "name": "motor(joint: Joint)",
-        "type": "void",
-        "desc": "The motor changed."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "JointKind",
     "module": "packages/sdk-core/src/physics/joint.ts",
     "exports": ["JointKind"],
