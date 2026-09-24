@@ -1934,7 +1934,7 @@
       {
         "name": "collision",
         "type": "CharacterCollision | null",
-        "desc": "What the body collides with — the world's colliders, or a physics backend's world through the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls. Unused while the world's physics runs: the body is then the physics' own."
+        "desc": "What the body collides with — the world's colliders as a triangle tree, or any world that answers the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls. Unused while the world's physics runs: physics replaces the body with its own."
       },
       {
         "name": "update(delta?: number)",
@@ -1965,7 +1965,7 @@
         "desc": "Lowers the capsule's bottom sphere straight down, by at most `depth`, and returns how far it goes before it first rests on a surface `accepts` takes — the highest such support; negative when the capsule already sinks into it and must rise. `null` when there is none. `capsule.feet` is left where it was. `accepts` sees each candidate touch as a contact: `point`, `normal` from the point to the sphere's centre, `surface` the face turned up."
       }
     ],
-    "description": "The character body (`characterBody.ts`) never reads triangles: it moves its capsule in parts shorter than its radius and, after each, asks what the capsule overlaps and which way out; and a walker asks where the floor under its feet is. Everything else — speed, gravity, steps, slopes, jumps — is the body's own. A physics backend implements this interface to put a character in its world: it answers the overlap from its own shapes and broad phase, and the body walks on them unchanged. The default implementation is the static triangle tree of `triangleCollision`."
+    "description": "The character body (`characterBody.ts`) never reads triangles: it moves its capsule in parts shorter than its radius and, after each, asks what the capsule overlaps and which way out; and a walker asks where the floor under its feet is. Everything else — speed, gravity, steps, slopes, jumps — is the body's own. The static triangle tree of `triangleCollision` implements it, and so may any world that answers the two questions. A physics backend does not: it replaces the whole body through `CharacterBodyFactory`, and its character meets the simulation's own bodies."
   },
   {
     "id": "Clip",
@@ -4896,7 +4896,7 @@
       {
         "name": "dispose()",
         "type": "void",
-        "desc": "Forgets the holders: a disposed geometry is drawn by nobody."
+        "desc": "Forgets the holders and the raycast tree: a disposed geometry is drawn and cast at by nobody."
       }
     ],
     "description": ""
@@ -11484,6 +11484,28 @@
     "description": ""
   },
   {
+    "id": "PhysicsPart",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsPart"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsPart",
+    "signature": "type PhysicsPart = PhysicsPrimitive & {\n  /** @defaultValue [0, 0, 0] */ position?: readonly [number, number, number];\n  /** A unit quaternion `[x, y, z, w]`. @defaultValue [0, 0, 0, 1] */\n  quaternion?: readonly [number, number, number, number];\n}",
+    "summary": "One part of a compound shape: a primitive, placed and turned in the object's frame.",
+    "description": ""
+  },
+  {
+    "id": "PhysicsPrimitive",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsPrimitive"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsPrimitive",
+    "signature": "type PhysicsPrimitive = | { type: 'box'; halfExtents: readonly [number, number, number] }\n  | { type: 'sphere'; radius: number }\n  | { type: 'capsule'; halfHeight: number; radius: number }\n  | { type: 'cylinder'; halfHeight: number; radius: number }",
+    "summary": "An exact primitive: its sizes in the object's own frame.",
+    "description": ""
+  },
+  {
     "id": "PhysicsShape",
     "module": "packages/sdk-core/src/physics/options.ts",
     "exports": ["PhysicsShape"],
@@ -17698,6 +17720,87 @@
     "description": "The vehicle's own physics — engine, wheels, suspension — answers them; this contract is all the controls know."
   },
   {
+    "id": "WaterSpec",
+    "module": "packages/sdk-core/src/fluids/buoyancy.ts",
+    "exports": ["WaterSpec"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WaterSpec",
+    "signature": "interface WaterSpec",
+    "summary": "A body of water the bodies float in, as `world.physics.water` takes it.",
+    "members": [
+      {
+        "name": "waves",
+        "type": "WaveSpec[]",
+        "desc": "The Gerstner waves of the surface; none for still water."
+      },
+      {
+        "name": "level",
+        "type": "number",
+        "desc": "Height of the surface at rest, metres."
+      },
+      {
+        "name": "density?",
+        "type": "number | undefined",
+        "desc": "kg/m³; fresh water's 1000 by default."
+      },
+      {
+        "name": "linearDrag?",
+        "type": "number | undefined",
+        "desc": "Quadratic drag coefficient: how fast a body settles, never where; 0.5 by default."
+      },
+      {
+        "name": "angularDrag?",
+        "type": "number | undefined",
+        "desc": "How much the water damps a body's turning; 0.05 by default."
+      },
+      {
+        "name": "current?",
+        "type": "readonly [number, number, number] | undefined",
+        "desc": "Velocity of the water (a river's current), m/s."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "WaveSpec",
+    "module": "packages/sdk-core/src/fluids/waves.ts",
+    "exports": ["WaveSpec"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WaveSpec",
+    "signature": "interface WaveSpec",
+    "summary": "One wave as a scene declares it.",
+    "members": [
+      {
+        "name": "direction",
+        "type": "readonly [number, number]",
+        "desc": "Horizontal direction of travel `[x, z]`; normalised here."
+      },
+      {
+        "name": "wavelength",
+        "type": "number",
+        "desc": "Metres from crest to crest."
+      },
+      {
+        "name": "amplitude",
+        "type": "number",
+        "desc": "Metres from rest to crest."
+      },
+      {
+        "name": "steepness",
+        "type": "number",
+        "desc": "0 (a sine wave) to 1 (the sharpest crest that does not loop); normalised over the sum."
+      },
+      {
+        "name": "phase?",
+        "type": "number | undefined",
+        "desc": "Phase at `t = 0`, radians."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "World",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["World"],
@@ -18202,6 +18305,11 @@
         "desc": "Simulated seconds per real second: 0.25 is slow motion, 0 stands still like `paused`."
       },
       {
+        "name": "water",
+        "type": "WaterSpec | null",
+        "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
+      },
+      {
         "name": "stats",
         "type": "Readonly<PhysicsStats>",
         "desc": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame."
@@ -18248,6 +18356,11 @@
         "name": "texturePool",
         "type": "number | null",
         "desc": "Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool (WebGL2); set it to change the envelope."
+      },
+      {
+        "name": "raycastTrees",
+        "type": "number",
+        "desc": "Bytes of CPU memory `raycast` keeps for triangle trees, shared by every world on the page; past it the tree cast at least recently is dropped. Set it to change the envelope."
       }
     ],
     "description": ""
@@ -19078,6 +19191,11 @@
         "name": "timeScale",
         "type": "number",
         "desc": "Simulated seconds per real second: 0.25 is slow motion, 0 stands still like `paused`."
+      },
+      {
+        "name": "water",
+        "type": "WaterSpec | null",
+        "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
       },
       {
         "name": "stats",
@@ -20064,40 +20182,7 @@
     "kind": "Constant",
     "title": "batch",
     "signature": "const batch",
-    "summary": "The `batch` family: a thousand matrices at once instead of a loop, over the core's batched kernels (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`).",
-    "description": ""
-  },
-  {
-    "id": "batch.multiplyMatrix4",
-    "module": "packages/sdk-browser/src/world/batch/index.ts",
-    "exports": ["batch"],
-    "section": "batch",
-    "kind": "Function",
-    "title": "batch.multiplyMatrix4()",
-    "signature": "batch.multiplyMatrix4(out: FloatBatch, a: FloatBatch, b: FloatBatch, count: number): void",
-    "summary": "`out[i] = a[i] · b[i]` for `count` column-major matrices stored flat.",
-    "parameters": [
-      {
-        "name": "out",
-        "type": "FloatBatch",
-        "desc": "Where the products go."
-      },
-      {
-        "name": "a",
-        "type": "FloatBatch",
-        "desc": "The left matrices."
-      },
-      {
-        "name": "b",
-        "type": "FloatBatch",
-        "desc": "The right matrices."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many products."
-      }
-    ],
+    "summary": "The `batch` family: a thousand matrices at once instead of a loop, over the core's batched kernels (`packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`).",
     "description": ""
   },
   {

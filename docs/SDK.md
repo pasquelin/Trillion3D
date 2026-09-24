@@ -278,7 +278,7 @@ world.camera.set(pose.fromBounds(math.box3().setFromObject(set)));
 
 ```js
 // batch — a thousand matrices at once instead of a loop
-batch.multiplyMatrix4(outputs, parents, locals, 1000);
+batch.composeMatrix4(outputs, positions, quaternions, scales, 1000);
 ```
 
 | Family       | Members                                                                                       | What it does                                                                       |
@@ -290,7 +290,7 @@ batch.multiplyMatrix4(outputs, parents, locals, 1000);
 | `capability` | `detect`, `lighting`                                                                          | what the machine grants, before an image is promised                               |
 | `capture`    | `surface`, `buffer`                                                                           | an image taken aside, at another resolution, without touching the view             |
 | `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                                    | named poses, automatic framing, replaying a path                                   |
-| `batch`      | `multiplyMatrix4`, `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                     | a thousand matrices at once instead of a loop                                      |
+| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                                        | a thousand matrices at once instead of a loop                                      |
 
 The world is not a family: it is the object `createWorld` returns, carrying `scene`, `camera`,
 `budget`, `diagnostic`, `controls`, `onFrame`/`loop`, `render`, `invalidate` and `dispose`.
@@ -441,7 +441,11 @@ world units whatever its length. A canvas point is read on the CSS box and aimed
 frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
 subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
 the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
-ray through a point of the picture. Live example: [click to pick](../site/examples/click-to-pick.html).
+ray through a point of the picture. A mesh's triangle tree is kept for the next ray, within
+`world.budget.raycastTrees` bytes (64 MiB by default, settable, shared by every world on the
+page): past it the tree cast at least
+recently is dropped, and `geometry.dispose()` drops its own at once. Live example:
+[click to pick](../site/examples/click-to-pick.html).
 
 ```js
 world.canvas.addEventListener('click', (event) => {
@@ -903,14 +907,21 @@ crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, imp
   enabled; bodies set before then are queued.
 - **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
   `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
-  scale throws `RangeError`), `stats` and `error`.
+  scale throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
+linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in: each step, the
+  worker fits a plane of the waves to every piece under water and pushes it by the weight of the
+  water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
+  never where; setting or removing it wakes every dynamic body. A wave out of range throws
+  `RangeError`.
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
   its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
-  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named). A dynamic
+  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named).
+  `{ type: 'compound', parts }` makes one rigid body of primitives, each with its `position` and
+  `quaternion` in the object's frame; its scale must be the same on all axes. A dynamic
   body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
   teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.

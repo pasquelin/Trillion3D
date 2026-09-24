@@ -3835,7 +3835,8 @@
       "texturePoolCeiling": "世界が要求できる最大のテクスチャプール、バイト単位。",
       "geometryPool": "ジオメトリページ用に保持されるGPUメモリのバイト数; 設定するとその範囲が変わる。",
       "texturePool": "テクスチャページ用に保持されるGPUメモリのバイト数; 設定するとその範囲が変わる。",
-      "physics": "物理の上限（物体、三角形、装飾物体、メモリ）。開始時に一度読まれ、超えると `PHYSICS_BUDGET` になる。"
+      "physics": "物理の上限（物体、三角形、装飾物体、メモリ）。開始時に一度読まれ、超えると `PHYSICS_BUDGET` になる。",
+      "raycastTrees": "`raycast` が三角形ツリーのために保持する CPU メモリのバイト数。ページ上のすべてのワールドで共有されます。超えると最も長く使われていないツリーが破棄されます。設定すると上限が変わります。"
     }
   },
   "world.diagnostic": {
@@ -4191,15 +4192,6 @@
   },
   "batch": {
     "summary": "`batch`ファミリー: ループの代わりに一度に千個の行列を扱う。コアのバッチ化されたカーネル群(`packages/sdk-core/src/math/batch/batch.ts`、`packages/sdk-core/src/math/batch/points.ts`、`packages/sdk-core/src/math/matrix/matrix4Compose.ts`、`packages/sdk-core/src/math/batch/culling.ts`)にもとづく。"
-  },
-  "batch.multiplyMatrix4": {
-    "summary": "平坦に保存された`count`個の列優先行列に対する`out[i] = a[i] · b[i]`。",
-    "parameters": {
-      "out": "積が書き込まれる場所。",
-      "a": "左側の行列群。",
-      "b": "右側の行列群。",
-      "count": "積の個数。"
-    }
   },
   "batch.transformPoints": {
     "summary": "それぞれ3つの数値で保存された`count`個の点に対する`out[i] = m · points[i]`。",
@@ -6860,6 +6852,7 @@
       "gravity": "重力（m/s²）、生きたベクトル。プリセット（`'earth'`、`'moon'`、`'mars'`、`'none'`）かベクトルを設定。",
       "paused": "時間が止まっているか。書き込みは物体に届く。",
       "timeScale": "実時間 1 秒あたりのシミュレーション秒数：0.25 はスロー。",
+      "water": "物体が浮かぶ水：水位、波、密度、抗力。水より軽い物体は、押しのけた水の重さに押されて浮かぶ。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
       "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。"
     }
@@ -6991,6 +6984,33 @@
     "summary": "ジオメトリから推定した形が合わないときの衝突形状。",
     "description": "サイズは物体自身の座標系で、スケールの前。"
   },
+  "PhysicsPart": {
+    "summary": "複合形状の一部品：オブジェクトの座標系に配置・回転されたプリミティブ。"
+  },
+  "PhysicsPrimitive": {
+    "summary": "厳密なプリミティブ：オブジェクト自身の座標系でのサイズ。"
+  },
+  "WaterSpec": {
+    "summary": "物体が浮かぶ水域。`world.physics.water` が受け取る形。",
+    "members": {
+      "waves": "水面のゲルストナー波。静かな水ならなし。",
+      "level": "静止時の水面の高さ（メートル）。",
+      "density": "kg/m³。既定は淡水の 1000。",
+      "linearDrag": "二次抗力係数：物体がどれだけ速く落ち着くか（どこにではない）。既定は 0.5。",
+      "angularDrag": "水が物体の回転をどれだけ減衰させるか。既定は 0.05。",
+      "current": "水の速度（川の流れ）、m/s。"
+    }
+  },
+  "WaveSpec": {
+    "summary": "シーンが宣言する一つの波。",
+    "members": {
+      "direction": "水平の進行方向 `[x, z]`。ここで正規化される。",
+      "wavelength": "波頭から波頭までのメートル。",
+      "amplitude": "静止面から波頭までのメートル。",
+      "steepness": "0（正弦波）から 1（巻き込まない最も鋭い波頭）まで。合計に対して正規化される。",
+      "phase": "`t = 0` での位相（ラジアン）。"
+    }
+  },
   "PhysicsStats": {
     "summary": "ワールドの物理が知らせるもの：最後の tick のカウントと、別々の二つの時計。",
     "members": {
@@ -7013,6 +7033,7 @@
       "gravity": "重力（m/s²）、生きたベクトル。プリセット（`'earth'`、`'moon'`、`'mars'`、`'none'`）かベクトルを設定。",
       "paused": "時間が止まっているか。書き込みは物体に届く。",
       "timeScale": "実時間 1 秒あたりのシミュレーション秒数：0.25 はスロー。",
+      "water": "物体が浮かぶ水：水位、波、密度、抗力。水より軽い物体は、押しのけた水の重さに押されて浮かぶ。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
       "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。"
     }

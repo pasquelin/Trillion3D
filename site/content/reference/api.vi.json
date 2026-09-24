@@ -4204,15 +4204,6 @@
       "count": "Có bao nhiêu hộp."
     }
   },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` cho `count` ma trận dạng column-major lưu phẳng.",
-    "parameters": {
-      "out": "Nơi các tích số đi vào.",
-      "a": "Các ma trận bên trái.",
-      "b": "Các ma trận bên phải.",
-      "count": "Có bao nhiêu tích số."
-    }
-  },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` cho `count` điểm lưu mỗi điểm ba con số.",
     "parameters": {
@@ -6595,7 +6586,8 @@
       "texturePoolCeiling": "Bể kết cấu lớn nhất mà một thế giới có thể yêu cầu, tính bằng byte.",
       "geometryPool": "Số byte bộ nhớ GPU giữ cho các trang hình học; đặt nó để thay đổi phong bì.",
       "texturePool": "Số byte bộ nhớ GPU giữ cho các trang kết cấu; đặt nó để thay đổi phong bì.",
-      "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`."
+      "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
+      "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn."
     }
   },
   "world.camera": {
@@ -6861,6 +6853,7 @@
       "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt một thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`."
     }
@@ -6992,6 +6985,33 @@
     "summary": "Một hình va chạm, khi hình suy ra từ hình học không phù hợp.",
     "description": "Kích thước tính trong hệ riêng của vật, trước tỉ lệ."
   },
+  "PhysicsPart": {
+    "summary": "Một phần của hình phức hợp: một hình nguyên thủy, đặt và xoay trong hệ quy chiếu của đối tượng."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Một hình nguyên thủy chính xác: kích thước của nó trong hệ quy chiếu riêng của đối tượng."
+  },
+  "WaterSpec": {
+    "summary": "Một vùng nước nơi các vật nổi, như `world.physics.water` nhận nó.",
+    "members": {
+      "waves": "Các sóng Gerstner của mặt nước; không có sóng nào với nước lặng.",
+      "level": "Độ cao của mặt nước khi yên, tính bằng mét.",
+      "density": "kg/m³; mặc định 1000, nước ngọt.",
+      "linearDrag": "Hệ số cản bậc hai: vật ổn định nhanh đến đâu, không bao giờ là ở đâu; mặc định 0.5.",
+      "angularDrag": "Nước hãm chuyển động xoay của vật đến mức nào; mặc định 0.05.",
+      "current": "Vận tốc của nước (dòng chảy của một con sông), m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Một con sóng như một cảnh khai báo.",
+    "members": {
+      "direction": "Hướng di chuyển ngang `[x, z]`; được chuẩn hóa ở đây.",
+      "wavelength": "Số mét từ đỉnh sóng này đến đỉnh sóng kia.",
+      "amplitude": "Số mét từ mặt yên đến đỉnh sóng.",
+      "steepness": "Từ 0 (sóng hình sin) đến 1 (đỉnh nhọn nhất mà không cuộn lại); chuẩn hóa trên tổng.",
+      "phase": "Pha tại `t = 0`, tính bằng radian."
+    }
+  },
   "PhysicsStats": {
     "summary": "Những gì vật lý thế giới báo: số đếm của tick cuối, và hai đồng hồ tách riêng.",
     "members": {
@@ -7014,6 +7034,7 @@
       "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`."
     }

@@ -4,7 +4,7 @@ import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { playPickedVideo } from '../site/examples/kit/media.ts';
 import { perFrame } from '../site/examples/kit/perFrame.ts';
 import { pointerOnPlane } from '../site/examples/kit/pointer.ts';
-import { seeded } from '../site/examples/kit/random.ts';
+import { mulberry32, seeded } from '../site/examples/kit/random.ts';
 
 test('the pointer meets the ground under the ray through it, and never behind the eye', () => {
   const box = { left: 0, top: 0, width: 200, height: 100 };
@@ -67,4 +67,13 @@ test('a seeded sequence repeats itself and stays in [0, 1)', () => {
   );
   assert.ok(drawn.every((value) => value >= 0 && value < 1));
   assert.notEqual(seeded(8)(), drawn[0]);
+});
+
+test('mulberry32 draws the sequence the scenes, the bench and the campaigns were laid out with', () => {
+  // The seed of the screen-error campaign, above 2^31: its signed and unsigned states agree.
+  const draw = mulberry32(0x9e3779b9);
+  assert.deepEqual(
+    [draw(), draw(), draw()],
+    [0.3588899802416563, 0.10590326134115458, 0.675290479324758],
+  );
 });

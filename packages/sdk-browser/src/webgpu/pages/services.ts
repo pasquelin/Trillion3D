@@ -10,6 +10,7 @@ import { createWebgpuBootstrap } from '../frame/bootstrap.ts';
 import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
 import { createShadowTier } from '../residency/shadowTier.ts';
+import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
 import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts';
@@ -134,6 +135,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     keyOf: tracking.keyOf,
     room,
   });
+  /** Whether an arrival can change the image; the held frame survives one that cannot. */
+  const affectsImage = createImageRelevance({
+    tracking,
+    bootstrapKey,
+    requests: residencySets.requests,
+    casts: shadowTier.has,
+  });
   const ensureResident = createWebgpuResidentEnsurer({
     getCache: () => gpu.cache,
     tracking,
@@ -171,6 +179,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     ensureResident,
     residency,
     shadowTier,
+    affectsImage,
     queueCutResidency: residency.queueCutResidency,
     ...publication,
   };

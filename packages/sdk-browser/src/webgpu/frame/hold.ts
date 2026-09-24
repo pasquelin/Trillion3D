@@ -52,7 +52,10 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   if (!run.cutHeld) mask |= BIT.cutMoving;
   if (run.overBudget || run.coverageBudgetLimited) mask |= BIT.overBudget;
   if (run.uncoveredTriangles !== 0) mask |= BIT.uncoveredTriangles;
-  if (run.noOccluderHistory) mask |= BIT.noOccluderHistory;
+  // Only the partition establishes that history, and it runs only on opaque rows: a view without
+  // any — blend clusters alone, the sky — has no occluder to remember. The bit stays set, so the
+  // first frame that packs a row still frees the rows the partition kept.
+  if (run.noOccluderHistory && rows.packedCount) mask |= BIT.noOccluderHistory;
   if (run.deferredDrops.size) mask |= BIT.deferredDrops;
   if (!services.bootstrapState.ready) mask |= BIT.bootstrap;
   if (services.residency.busy) mask |= BIT.residencyBusy;

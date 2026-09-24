@@ -1,35 +1,10 @@
-// Oracles of the "cut by delta" batch: the previous code, copied as-is. The four cut
+// Oracles of the "cut by delta" batch: the previous code, copied as-is. The cut
 // readers rewalked the list published by the sample every frame; the bench compares them
 // to those that now read only a delta. The copies are wanted duplicates: that is the oracle.
 import type {
   PageRec,
   RequestStamps,
 } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
-
-/** `packages/sdk-browser/src/webgpu/pages/helpers.ts:shownFromGpu` before the batch: four totals of one pass over the whole cut. */
-export function referenceCutCounts(
-  pages: readonly (PageRec | undefined)[],
-  ids: readonly number[],
-  residentOffsetWords: Int32Array,
-) {
-  let selected = 0,
-    uncovered = 0,
-    transparent = 0;
-  for (let i = 0; i < ids.length; i++) {
-    const id = ids[i],
-      rec = pages[id];
-    if (!rec) continue;
-    selected += rec.triangles;
-    if (rec.transparent) transparent += rec.triangles;
-    if (residentOffsetWords[id] < 0 || !rec.array) uncovered += rec.triangles;
-  }
-  return {
-    selectedTriangles: selected,
-    drawnTriangles: selected - uncovered,
-    uncoveredTriangles: uncovered,
-    transparentTriangles: transparent,
-  };
-}
 
 /** `packages/sdk-browser/src/webgpu/frame/hold.ts:cutComplete` before the batch: the whole cut reread for a single verdict. */
 export function referenceCutComplete(desired: readonly PageRec[]) {

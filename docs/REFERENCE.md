@@ -30,11 +30,10 @@ here — only published figures.
 | Streaming bundle / page     | 128 KiB (2) | 128 KiB    | `lib.rs:STREAM_BUNDLE_BYTES`    |
 | Bootstrap object            | —           | 1 MiB      | `lib.rs:BOOTSTRAP_BUNDLE_BYTES` |
 
-Three nuances not visible in the table:
+Two nuances not visible in the table:
 
 - **Group floor is not enforced.** `dag/groups.rs` splits when a group exceeds `DAG_GROUP_MAX` but
   does not enforce `DAG_GROUP_MIN`: a group of 2 clusters is accepted where the reference requires 8.
-- **`CLUSTER_TRIANGLES = 256` remains in `lib.rs`**, dead, alongside the active 128.
 - **Residency budget is counted in bytes, matching the reference.** The reference allocates a fixed
   size in megabytes — 512 MB by default, excluding root pages **(2)** — and root pages are always
   resident. Our engine matches: `geometryPoolBytes`, 512 MiB default, converted to slots sized to the
