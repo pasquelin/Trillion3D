@@ -134,9 +134,10 @@ hash, so its root is the only address to list and no sitemap is written.
 
 ### Deploy
 
-`.github/workflows/pages.yml` builds the site on every pull request that touches it, and
-publishes it to https://www.trillion3d.com on every push to `main`. A manual run publishes only
-when asked, and only from `main`:
+`.github/workflows/pages.yml` builds the site on every pull request that touches it, without
+the open world's cook (about thirty-five minutes, run only before a publication), and publishes
+it to https://www.trillion3d.com on every push to `main`. A manual run publishes only when asked,
+and only from `main`:
 
 ```sh
 gh workflow run pages.yml -f deploy=true --ref main
@@ -190,9 +191,10 @@ onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb
    one seed — the plan and terrain (`scripts/docs/examples/openworld/plan/`), six regions
    (`regions/`), shared props and vehicles (`props/`) — writes one glTF with its ground textures,
    then compiles it into `site/assets/examples/openworld/cache` (git-ignored), with the physics
-   heights, the collision meshes and `world.json` beside it. The Pages workflow runs it before
-   `build:docs`. Its play layer (Jolt in a worker) and sky are kit modules,
-   `site/examples/kit/openworld/`, served as `runtime/openworld.js`.
+   heights, the collision meshes and `world.json` beside it. The site workflow runs it before
+   the build only in a run that publishes; a pull request builds the site without it. Its play
+   layer (Jolt in a worker) and sky are kit modules, `site/examples/kit/openworld/`, served as
+   `runtime/openworld.js`.
 4. Run `node --test scripts/docs-examples.test.ts`, then the browser proofs
    `node --test scripts/docs-examples.browser.ts` and `node --test scripts/docs-shell.browser.ts`.
 
