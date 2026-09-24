@@ -126,7 +126,8 @@ export function createWorldPhysics(
       if (!session) return false;
       const start = performance.now();
       const moving = session.frame(camera());
-      session.stats.mainMs = performance.now() - start;
+      // The frame's own work, plus the ticks received since the last one (`session.frame`).
+      session.stats.mainMs += performance.now() - start;
       (runtime.explorer as HostCpuProfile | null)?.cpuStep?.('physicsMs', session.stats.mainMs);
       return moving;
     },
@@ -138,11 +139,15 @@ export function createWorldPhysics(
 export type WorldPhysics = ReturnType<typeof createWorldPhysics>['handle'];
 
 /** The scene link a world's runtime set, with the physics told of every change too. */
-function physicsLink(link: SceneLink | null, physics: SceneLink): SceneLink {
+function physicsLink(link: SceneLink | null, physics: Omit<SceneLink, 'posed'>): SceneLink {
   return {
     pose(node) {
       link?.pose(node);
       physics.pose(node);
+    },
+    // Only the physics places nodes by the batch: nothing to tell it of its own writes.
+    posed(nodes) {
+      link?.posed(nodes);
     },
     structure(node) {
       link?.structure(node);
