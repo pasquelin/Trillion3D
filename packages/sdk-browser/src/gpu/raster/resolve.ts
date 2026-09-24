@@ -1,5 +1,6 @@
 import type { GpuRasterInput } from './types.ts';
 import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts';
+import { VIS_UNIFORM_BYTES } from '../../webgpu/core/bindLayout.ts';
 
 const RESOLVE_DEPTH = {
   format: 'depth32float' as const,
@@ -64,7 +65,7 @@ export function createRasterResolves(
       layout,
       entries: [
         { binding: 0, resource: { buffer: work, offset: 0, size: targetBytes } },
-        { binding: 1, resource: { buffer: uniform, offset: 0, size: 96 } },
+        { binding: 1, resource: { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES } },
       ],
     }));
   /** A colour attachment kept as the hardware raster left it. */

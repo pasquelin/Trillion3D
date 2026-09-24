@@ -4,6 +4,7 @@ import {
   SHADE_BINDINGS,
   SMALL_BINDINGS,
   VIS_BINDINGS,
+  VIS_UNIFORM_BYTES,
   type AtlasBindings,
 } from './bindLayout.ts';
 
@@ -82,8 +83,8 @@ export type SmallBindResources = AtlasResources & {
   positions: GPUBuffer;
   pages: GPUBuffer;
   hizFlags: GPUBuffer;
+  /** The visibility-buffer uniform (`VIS_UNIFORM_BYTES`), read from its first slot. */
   uniform: GPUBuffer;
-  uniformSize: number;
   uvs: GPUBuffer;
   /** The raster image then, right after it, the list of small triangles. */
   work: GPUBuffer;
@@ -109,7 +110,10 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
     { binding: b.position, resource: { buffer: r.position } },
     { binding: b.pageTable, resource: { buffer: r.pageTable } },
     { binding: b.flags, resource: { buffer: r.flags } },
-    { binding: b.uniform, resource: { buffer: r.uniform, offset: r.uniformOffset, size: 96 } },
+    {
+      binding: b.uniform,
+      resource: { buffer: r.uniform, offset: r.uniformOffset, size: VIS_UNIFORM_BYTES },
+    },
     { binding: b.uv, resource: { buffer: r.uv } },
     ...atlasEntries(b.color, r.textures.color),
     { binding: b.sampler, resource: r.sampler },
@@ -171,7 +175,7 @@ export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
     { binding: b.positions, resource: { buffer: r.positions } },
     { binding: b.pages, resource: { buffer: r.pages } },
     { binding: b.hizFlags, resource: { buffer: r.hizFlags } },
-    { binding: b.uniform, resource: { buffer: r.uniform, offset: 0, size: r.uniformSize } },
+    { binding: b.uniform, resource: { buffer: r.uniform, offset: 0, size: VIS_UNIFORM_BYTES } },
     { binding: b.uvs, resource: { buffer: r.uvs } },
     ...atlasEntries(b.color, r.textures.color),
     { binding: b.sampler, resource: r.sampler },

@@ -105,6 +105,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     gate,
     lighting,
     roots,
+    blendCopies,
     worlds,
     shown,
     desired,

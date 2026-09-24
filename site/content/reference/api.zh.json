@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "引擎交出的、宿主用来绘制一帧所需的矩阵。",
+    "summary": "引擎交出的、宿主用来绘制一帧所需的矩阵和深度范围。",
     "members": {
       "projection": "投影矩阵。",
       "world": "摄像机的世界矩阵。",
       "view": "视图矩阵。",
-      "eye": "眼睛所在的位置。"
+      "eye": "眼睛所在的位置。",
+      "near": "最近距离。",
+      "far": "最远距离。"
     }
   },
   "HostDrawOutput": {
@@ -1523,8 +1525,7 @@
     "summary": "直接光照的公开设置。",
     "description": "这些是命名清楚的产品级选择,而不是隐藏起来的常量:每一处运行时的边界都会重新读取它们,诊断信息也会原样公开它们。",
     "members": {
-      "maxLights": "契约总共接受的光源数量;超过这个数,`addLight` 会拒绝。",
-      "maxLightsPerTile": "一个屏幕图块所保留的光源数;像素循环的上限就是这个数字(乘以 2)。",
+      "maxLights": "契约总共接受的光源数量;超过这个数,`addLight` 会拒绝。 屏幕图块保留每一个触及它的光源;其列表和像素循环的上限就是这个数字(X2)。",
       "tileSize": "光源列表所用屏幕图块一条边的长度,单位像素。",
       "samplesPerPixel": "一张**运动**图像中,每个像素完整着色(包含阴影读取)的光源数(乘以 2):其余的光源只按权重计算而不读取阴影,被完整着色的光源则按相应比例绘制,因此这个估计值是无偏的,时间性抗锯齿会对其求平均。静止图像会为其所在图块的每一个光源着色,并收敛到精确的总和;在那种情况下,这个数字不起任何作用。",
       "shadowPage": "阴影页的边长（纹素）：物理池、虚拟贴图与失效的单位。移动的物体只使其投影包围盒覆盖的页失效。",
@@ -1657,7 +1658,8 @@
       "signal": "当该信号被中止时停止加载。",
       "scope": "`'full'` 要求整个缓存,`'progressive'` 要求它的流式加载分片;范围不同的模型会按名称被拒绝。未设置时,模型会按其指针所声明的范围读取。",
       "stream": "页面配置的一个流式加载器;世界的会话会用自己的流式加载器进行加载。",
-      "position": "模型的原点放在场景中的哪个位置。"
+      "position": "模型的原点放在场景中的哪个位置。",
+      "onProgress": "接收加载进行到哪一步:读完清单时为 `manifest`,之后场景读取的每个文件到达时为 `resources`(在当时已知的 `total` 中已完成 `completed`)。事件是一个 `JobProgress`:包裹加载的 `createJob` 在此传入它的 `progress`。"
     }
   },
   "LoadedModel": {
@@ -1668,6 +1670,7 @@
       "bounds": "该模型所占据的包围盒,以它自身的坐标系表示。",
       "lights": "该模型之下的光源——即源文件以节点形式携带的那些:页面可以像对待自己的节点一样编辑、移动或移除它们,它们会随模型一起移动。",
       "record": "世界为这个模型保存的一切:它的地址、清单和图结构。",
+      "getObjectByName": "下方第一个带此名称的节点：模型、其源文件的节点，然后是其他任何子节点——文件携带的灯光、页面放置的节点。",
       "metadata": "该模型已编译的清单——它的图元、`sourceTriangles`——以及 `clusters`(它的页面所持有的簇,统计了其 DAG 的每一个层级)。",
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。"
     }
@@ -2955,6 +2958,7 @@
       "counts": "上一个计划做了什么，以页计。",
       "worldChanged": "某个节点移动了：其包围盒在下一个计划中使其覆盖的页失效。",
       "representationChanged": "同一世界的另一精度：其包围盒等待相机停下。",
+      "resting": "上一次规划时相机静止：其视图与再前一次规划相同。",
       "deferredChanges": "当表示变化在等待相机停下时为真。",
       "releaseDeferred": "本帧不规划任何阴影：保留的并集立即进入列表。",
       "observeCost": "一帧阴影通道的计时器，分摊到它绘制的页上。",
@@ -3829,6 +3833,10 @@
     "summary": "从表面反弹的光,针对常驻代理体进行追踪;默认关闭。",
     "description": "对于支持该功能的路径,变更会就地生效;对于不支持的路径,则要等到下一次开启时才会生效。"
   },
+  "world.temporalAntialiasing": {
+    "summary": "时间性抗锯齿：跨帧累积的亚像素抖动；默认开启。",
+    "description": "写入后从下一帧生效，丢弃历史，不重新打开会话。读取时是图像实际带有的：在 WebGL2 上为 false，开启后程序编译期间也为 false。"
+  },
   "world.budget": {
     "summary": "世界的内存池,以字节为单位读写。",
     "members": {
@@ -4007,7 +4015,8 @@
       "pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "signal": "当该信号被中止时停止世界的加载操作。",
-      "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
+      "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
+      "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。"
     }
   },
   "WorldPageSource": {
@@ -4627,7 +4636,8 @@
       "options.pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "options.controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "options.signal": "当该信号被中止时停止世界的加载操作。",
-      "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
+      "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
+      "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。"
     }
   },
   "crossVector3": {
@@ -5805,7 +5815,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "根据每个点到摄像机的距离来上明暗。",
+    "summary": "根据每个点到摄像机的距离来上明暗：在 `camera.near` 处为白色，在 `camera.far` 处为黑色，中间为直线渐变，在 WebGPU 和 WebGL2 上相同。",
     "parameters": {
       "parameters": "页面可以传给材质成员的内容;每个字段都是可选的。",
       "parameters.color": "基础颜色。",
@@ -6855,7 +6865,9 @@
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
-      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
+      "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",
+      "remove": "移除一个关节：它连接的物体自由分开。"
     }
   },
   "ContactEvent": {
@@ -7036,7 +7048,9 @@
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
-      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。"
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
+      "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",
+      "remove": "移除一个关节：它连接的物体自由分开。"
     }
   },
   "WorldPhysicsOptions": {
@@ -7300,6 +7314,77 @@
       "x": "从左到右。",
       "y": "从下到上。",
       "z": "从后到前。"
+    }
+  },
+  "Joint": {
+    "summary": "两个物体之间、或物体与世界（`b` 为 null）之间的关节，由 `joint.*` 创建，用 `world.physics.add` 加入模拟。",
+    "description": "只要两个物体都在模拟中，它就一直保持，直到断开。",
+    "parameters": {
+      "options": "`joint.*` 接受的选项。点和轴都在世界坐标中，在关节首次创建时读取。",
+      "options.anchor": "物体相连的位置：铰链的销轴、点关节的球心、距离关节在 `a` 上的端点。",
+      "options.anchorB": "距离关节在 `b` 上的端点。",
+      "options.axis": "铰链的销轴、滑动关节的滑轨、锥形关节的中心轴。",
+      "options.limits": "铰链、滑动、距离和锥形关节：能移动多远。距离关节默认保持其长度。",
+      "options.spring": "铰链、滑动和距离关节：超出限位时由弹簧拉回，而不是撞墙；`frequency` 单位为 Hz，`damping` 从 0（无）到 1（临界）。",
+      "options.motor": "铰链和滑动关节：马达，可随时通过 `joint.motor` 修改。",
+      "options.breakForce": "关节断开所需的拉力（牛顿）；省略则永不断开。"
+    },
+    "members": {
+      "kind": "关节的种类。",
+      "a": "第一个物体。",
+      "b": "第二个物体，或表示世界的 `null`。",
+      "options": "创建时使用的选项。",
+      "motor": "铰链或滑动关节的马达；`null` 让它自由转动或滑动。",
+      "broken": "是否已断开：被拉力超过其 `breakForce`。断开的关节不再连接任何东西。",
+      "on": "关节断开时调用 `handler`。"
+    }
+  },
+  "JointKind": {
+    "summary": "物体之间的关节，每种都是 Jolt 自己的约束。"
+  },
+  "JointLimits": {
+    "summary": "关节能移动多远：铰链用弧度，滑动或距离关节用米，锥形关节为锥体半角（`max`）。",
+    "members": {
+      "min": "铰链为 −π 到 0，滑动关节为 0 或更小。",
+      "max": "铰链为 0 到 π，滑动关节为 0 或更大。"
+    }
+  },
+  "JointMotor": {
+    "summary": "铰链或滑动关节的马达：把关节驱动到某个速度或位置。",
+    "members": {
+      "mode": "`'velocity'`：rad/s 或 m/s；`'position'`：从关节创建时的位置算起的弧度或米。",
+      "target": "要达到的速度或位置。",
+      "maxForce": "铰链为 N·m，滑动关节为 N；省略则不限。"
+    }
+  },
+  "JointOptions": {
+    "summary": "`joint.*` 接受的选项。",
+    "description": "点和轴都在世界坐标中，在关节首次创建时读取。",
+    "members": {
+      "anchor": "物体相连的位置：铰链的销轴、点关节的球心、距离关节在 `a` 上的端点。",
+      "anchorB": "距离关节在 `b` 上的端点。",
+      "axis": "铰链的销轴、滑动关节的滑轨、锥形关节的中心轴。",
+      "limits": "铰链、滑动、距离和锥形关节：能移动多远。距离关节默认保持其长度。",
+      "spring": "铰链、滑动和距离关节：超出限位时由弹簧拉回，而不是撞墙；`frequency` 单位为 Hz，`damping` 从 0（无）到 1（临界）。",
+      "motor": "铰链和滑动关节：马达，可随时通过 `joint.motor` 修改。",
+      "breakForce": "关节断开所需的拉力（牛顿）；省略则永不断开。"
+    }
+  },
+  "joint": {
+    "summary": "`joint` 家族：两个相连的物体，或物体与世界（`b` 为 null）。",
+    "members": {
+      "fixed": "把它们焊在一起：像一个物体一样移动。",
+      "point": "位于 `anchor` 的球关节：它们绕其自由转动。",
+      "hinge": "位于 `anchor`、沿 `axis` 的销轴：门、车轮。`limits` 单位为弧度。",
+      "slider": "沿 `axis` 的滑轨：抽屉、活塞。`limits` 单位为米。",
+      "distance": "让 `a` 上的 `anchor` 与 `b` 上的 `anchorB` 保持其长度，或在 `limits` 之内。",
+      "cone": "`axis` 在半角为 `limits.max` 的锥体内摆动的球关节。"
+    }
+  },
+  "JointHost": {
+    "summary": "关节的世界一侧：对它的写入向模拟提出的要求。",
+    "members": {
+      "motor": "马达已更改。"
     }
   }
 }
