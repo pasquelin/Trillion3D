@@ -128,10 +128,11 @@ export const joint = {
   path: make('path'),
   /** A rope from `a` over two wheels (`over`) down to `b`: one rises as the other falls. */
   pulley: make('pulley'),
-  /** Two wheels turning together by `ratio`, each about its own pin (`axis`, `axisB`); each
-   *  needs its own hinge to hold it in place. */
+  /** Two wheels turning together by `ratio`, each about its own pin (`axis`, `axisB`) and held
+   *  by its own hinge (the wheel as its `a`); when `ratio` or 1 / `ratio` is whole, their teeth
+   *  also keep the phase they were made in. */
   gear: make('gear'),
-  /** A pinion `a` turning about `axis` drives a rack `b` along `axisB`; each needs its own
-   *  hinge or slider to hold it in place. */
+  /** A pinion `a` turning about `axis` drives a rack `b` along `axisB`, each held by its own
+   *  hinge or slider (the body as its `a`), their teeth kept in the phase they were made in. */
   rackAndPinion: make('rackAndPinion'),
 };

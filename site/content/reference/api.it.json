@@ -7387,8 +7387,8 @@
       "sixDof": "Sei assi, ciascuno bloccato, libero o limitato (`axes`): qualsiasi giunto tra gli altri.",
       "path": "`a` corre lungo un tracciato morbido che passa per `path`, fissato a `b` o al mondo: le montagne russe.",
       "pulley": "Una fune da `a` su due ruote (`over`) fino a `b`: uno sale mentre l’altro scende.",
-      "gear": "Due ruote che girano insieme secondo `ratio`, ciascuna attorno al proprio perno (`axis`, `axisB`); ciascuna ha bisogno del suo cardine per restare al suo posto.",
-      "rackAndPinion": "Un pignone `a` che ruota attorno ad `axis` muove una cremagliera `b` lungo `axisB`; ciascuno ha bisogno del suo cardine o giunto prismatico per restare al suo posto."
+      "gear": "Due ruote che girano insieme secondo `ratio`, ciascuna attorno al proprio perno (`axis`, `axisB`) e tenuta dal suo cardine (la ruota come suo `a`); quando `ratio` o 1 / `ratio` è intero, i loro denti mantengono anche la fase in cui sono stati creati.",
+      "rackAndPinion": "Un pignone `a` che ruota attorno ad `axis` muove una cremagliera `b` lungo `axisB`, ciascuno tenuto dal suo cardine o giunto prismatico (il corpo come suo `a`), i denti mantenuti nella fase in cui sono stati creati."
     }
   }
 }

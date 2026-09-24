@@ -7387,8 +7387,8 @@
       "sixDof": "Seis eixos, cada um travado, livre ou limitado (`axes`): qualquer junta entre as outras.",
       "path": "`a` corre por um trilho suave que passa por `path`, preso a `b` ou ao mundo: uma montanha-russa.",
       "pulley": "Uma corda de `a` sobre duas rodas (`over`) até `b`: um sobe quando o outro desce.",
-      "gear": "Duas rodas que giram juntas segundo `ratio`, cada uma em torno do próprio pino (`axis`, `axisB`); cada uma precisa da sua dobradiça para ficar no lugar.",
-      "rackAndPinion": "Um pinhão `a` girando em torno de `axis` move uma cremalheira `b` ao longo de `axisB`; cada um precisa da sua dobradiça ou corrediça para ficar no lugar."
+      "gear": "Duas rodas que giram juntas segundo `ratio`, cada uma em torno do próprio pino (`axis`, `axisB`) e presa pela sua dobradiça (a roda como seu `a`); quando `ratio` ou 1 / `ratio` é inteiro, os dentes também mantêm a fase em que foram feitos.",
+      "rackAndPinion": "Um pinhão `a` girando em torno de `axis` move uma cremalheira `b` ao longo de `axisB`, cada um preso pela sua dobradiça ou corrediça (o corpo como seu `a`), os dentes mantidos na fase em que foram feitos."
     }
   }
 }

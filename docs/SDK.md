@@ -1015,8 +1015,11 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   `a` (the teeth of `a` over those of `b`), the other way round; `joint.rackAndPinion(pinion,
 rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metres per radian
   of the pinion (`ratio` is 1 / its radius). A gear, a pinion and a rack each still need their own
-  hinge or slider to hold them in place; the gear and the rack-and-pinion tie the velocities
-  only, as Jolt does without their hinges. Live example:
+  hinge or slider to hold them in place, the body as its `a`, about the same axis. Jolt reads
+  those to keep the teeth in the phase they were made in over any run: always for a rack and
+  pinion, and for a gear when one wheel has a whole multiple of the other's teeth (`ratio` or
+  `1 / ratio` whole — it wraps each hinge's angle to one turn); any other gear ties the speeds
+  only, and may slip by a fraction of a tooth under load. Live example:
   [gears and pulleys](../site/examples/gears-and-pulleys.html).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.

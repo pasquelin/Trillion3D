@@ -7387,8 +7387,8 @@
       "sixDof": "Six axes, chacun bloqué, libre ou limité (`axes`) : toute liaison entre les autres.",
       "path": "`a` court le long d’une voie lisse passant par `path`, fixée à `b` ou au monde : des montagnes russes.",
       "pulley": "Une corde de `a` passant sur deux roues (`over`) jusqu’à `b` : l’un monte quand l’autre descend.",
-      "gear": "Deux roues qui tournent ensemble selon `ratio`, chacune autour de son axe (`axis`, `axisB`) ; chacune a besoin de sa charnière pour tenir en place.",
-      "rackAndPinion": "Un pignon `a` qui tourne autour d’`axis` entraîne une crémaillère `b` le long d’`axisB` ; chacun a besoin de sa charnière ou de sa glissière pour tenir en place."
+      "gear": "Deux roues qui tournent ensemble selon `ratio`, chacune autour de son axe (`axis`, `axisB`) et tenue par sa charnière (la roue en est le `a`) ; quand `ratio` ou 1 / `ratio` est entier, leurs dents gardent aussi la phase où elles ont été faites.",
+      "rackAndPinion": "Un pignon `a` qui tourne autour d’`axis` entraîne une crémaillère `b` le long d’`axisB`, chacun tenu par sa charnière ou sa glissière (le corps en est le `a`), leurs dents gardées dans la phase où elles ont été faites."
     }
   }
 }

@@ -7387,8 +7387,8 @@
       "sixDof": "Sechs Achsen, jede gesperrt, frei oder begrenzt (`axes`): jedes Gelenk zwischen den anderen.",
       "path": "`a` läuft auf einer glatten Bahn durch `path`, fest an `b` oder der Welt: eine Achterbahn.",
       "pulley": "Ein Seil von `a` über zwei Rollen (`over`) hinunter zu `b`: Das eine steigt, wenn das andere sinkt.",
-      "gear": "Zwei Räder, die sich im Verhältnis `ratio` zusammen drehen, jedes um seinen eigenen Stift (`axis`, `axisB`); jedes braucht sein eigenes Scharnier, das es an Ort und Stelle hält.",
-      "rackAndPinion": "Ein Ritzel `a`, das sich um `axis` dreht, treibt eine Zahnstange `b` entlang `axisB`; jedes braucht sein eigenes Scharnier oder Schiebegelenk, das es an Ort und Stelle hält."
+      "gear": "Zwei Räder, die sich im Verhältnis `ratio` zusammen drehen, jedes um seinen eigenen Stift (`axis`, `axisB`) und von seinem eigenen Scharnier gehalten (das Rad als dessen `a`); ist `ratio` oder 1 / `ratio` ganzzahlig, behalten ihre Zähne auch die Phase, in der sie gemacht wurden.",
+      "rackAndPinion": "Ein Ritzel `a`, das sich um `axis` dreht, treibt eine Zahnstange `b` entlang `axisB`, jedes von seinem eigenen Scharnier oder Schiebegelenk gehalten (der Körper als dessen `a`), ihre Zähne in der Phase gehalten, in der sie gemacht wurden."
     }
   }
 }

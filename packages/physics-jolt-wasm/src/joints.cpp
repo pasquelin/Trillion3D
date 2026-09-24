@@ -30,6 +30,10 @@ struct Joint {
   uint32_t id = 0, a = WORLD_BODY, b = WORLD_BODY, kind = 0;
   /** Newtons of pull past which it breaks; 0 never. */
   float breakForce = 0;
+  /** Its axis on `a` and on `b`, in each body's frame: what matches a gear to its wheels' hinges. */
+  Vec3 axisA = Vec3::sZero(), axisB = Vec3::sZero();
+  /** A gear's or a rack and pinion's body order and phase correction. */
+  GearOrder order;
 };
 
 std::vector<Joint> joints;
@@ -160,20 +164,45 @@ void add(const uint32_t *w) {
   if (kind > RACK_AND_PINION || !bodyOf(w[3], a) || !bodyOf(w[4], b) || a == b) return;
   // `b` is Jolt's first body, `a` its second: a motor, a limit and a slide measure `a` from `b`
   // (from the world when `b` names none), and Jolt solves the turn from the steadier side. A rack
-  // and pinion is the one Jolt makes pinion (`a`) first.
+  // and pinion, and some gears, Jolt makes `a` first (`gearOrder`).
   Frame f1 = frameOf(w + 17, w[4]), f2 = frameOf(w + 8, w[3]);
   Ref<TwoBodyConstraintSettings> settings = kind <= CONE ? settingsOf(kind, f1, f2, w + 26)
                                                          : advancedSettings(kind, f1, f2, w + 26, w + JOINT_WORDS, w[7], vec3(w + 17));
   if (!settings) return;
   BodyInterface &bodies = world().system->GetBodyInterfaceNoLock();
   Joint &joint = joints[index];
-  joint.constraint = kind == RACK_AND_PINION ? bodies.CreateConstraint(settings, a, b) : bodies.CreateConstraint(settings, b, a);
+  joint.order = gearOrder(kind, w + JOINT_WORDS, w[7]);
+  joint.constraint = joint.order.aFirst ? bodies.CreateConstraint(settings, a, b) : bodies.CreateConstraint(settings, b, a);
   joint.id = id, joint.kind = kind, joint.breakForce = f32(w + 32);
+  joint.axisA = f2.axis, joint.axisB = f1.axis;
   joint.a = w[3] == WORLD_BODY ? WORLD_BODY : w[3] & INDEX_MASK;
   joint.b = w[4] == WORLD_BODY ? WORLD_BODY : w[4] & INDEX_MASK;
   world().system->AddConstraint(joint.constraint);
   bodies.ActivateConstraint(joint.constraint);
   drive(joint, w[5], f32(w + 30), f32(w + 31), w[6]);
+}
+
+/// The hinge or slider (`kind`) that holds the body in `slot` as its `a`, about `axis` in that
+/// body's frame; null when none does.
+const Constraint *holder(uint32_t kind, uint32_t slot, Vec3 axis) {
+  for (const Joint &joint : joints)
+    if (joint.constraint && joint.kind == kind && joint.a == slot && joint.axisA.Dot(axis) > 0.999f)
+      return joint.constraint.GetPtr();
+  return nullptr;
+}
+
+/// Hands each gear its wheels' hinges and each rack and pinion its pinion's hinge and its rack's
+/// slider, those that hold the body as their `a` about the same axis, so Jolt keeps the teeth in
+/// the phase they were made in. Run whenever a joint is made or taken out: none keeps one gone.
+void link() {
+  for (Joint &joint : joints) {
+    if (!joint.constraint || !joint.order.inPhase) continue;
+    const Constraint *onA = holder(HINGE, joint.a, joint.axisA);
+    const Constraint *onB = holder(joint.kind == GEAR ? HINGE : SLIDER, joint.b, joint.axisB);
+    if (!onA || !onB) onA = onB = nullptr;
+    bool aFirst = joint.order.aFirst;
+    linkGear(joint.constraint, joint.kind, aFirst ? onA : onB, aFirst ? onB : onA);
+  }
 }
 
 }  // namespace
@@ -184,10 +213,14 @@ uint32_t jointCommand(const uint32_t *w) {
   Joint *joint = index < joints.size() && joints[index].constraint && joints[index].id == w[1] ? &joints[index] : nullptr;
   if (w[0] == JOINT) {
     add(w);
+    link();
     return JOINT_WORDS + w[7];
   }
   if (w[0] == UNJOINT) {
-    if (joint) remove(*joint);
+    if (joint) {
+      remove(*joint);
+      link();
+    }
     return UNJOINT_WORDS;
   }
   if (joint) drive(*joint, w[2], f32(w + 4), f32(w + 5), w[3]);
@@ -197,6 +230,7 @@ uint32_t jointCommand(const uint32_t *w) {
 void dropJoints(uint32_t index) {
   for (Joint &joint : joints)
     if (joint.constraint && (joint.a == index || joint.b == index)) remove(joint);
+  link();
 }
 
 void breakJoints(float dt) {
@@ -207,6 +241,7 @@ void breakJoints(float dt) {
       broken.push_back(joint.id);
       remove(joint);
     }
+  if (!broken.empty()) link();
 }
 
 }  // namespace trillion

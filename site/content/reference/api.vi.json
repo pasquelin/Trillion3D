@@ -7388,8 +7388,8 @@
       "sixDof": "Sáu trục, mỗi trục bị khóa, tự do hoặc có giới hạn (`axes`): mọi khớp nằm giữa các khớp khác.",
       "path": "`a` chạy dọc một đường ray trơn đi qua `path`, gắn với `b` hoặc thế giới: một tàu lượn siêu tốc.",
       "pulley": "Một sợi dây từ `a` vắt qua hai bánh xe (`over`) xuống `b`: vật này lên khi vật kia xuống.",
-      "gear": "Hai bánh xe quay cùng nhau theo `ratio`, mỗi bánh quanh chốt riêng (`axis`, `axisB`); mỗi bánh cần bản lề riêng để giữ tại chỗ.",
-      "rackAndPinion": "Bánh răng nhỏ `a` quay quanh `axis` đẩy thanh răng `b` dọc `axisB`; mỗi cái cần bản lề hoặc khớp trượt riêng để giữ tại chỗ."
+      "gear": "Hai bánh xe quay cùng nhau theo `ratio`, mỗi bánh quanh chốt riêng (`axis`, `axisB`) và được giữ bởi bản lề riêng (bánh xe là `a` của nó); khi `ratio` hoặc 1 / `ratio` là số nguyên, răng của chúng cũng giữ pha lúc được tạo.",
+      "rackAndPinion": "Bánh răng nhỏ `a` quay quanh `axis` đẩy thanh răng `b` dọc `axisB`, mỗi cái được giữ bởi bản lề hoặc khớp trượt riêng (vật là `a` của nó), răng giữ đúng pha lúc được tạo."
     }
   }
 }
