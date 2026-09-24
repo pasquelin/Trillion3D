@@ -2851,6 +2851,7 @@
       "bounds": "Die Box, die das Modell füllt, in seinem eigenen Bezugssystem.",
       "lights": "Die Lichter unter dem Modell — die, die die Quelldatei trug, als Knoten: eine Seite ändert, verschiebt oder entfernt sie wie ihre eigenen, und sie bewegen sich mit dem Modell.",
       "record": "Alles, was die Welt über dieses Modell hält: seine Adressen, sein Manifest und seinen Graphen.",
+      "getObjectByName": "Der erste Knoten darunter mit diesem Namen: das Modell, ein Knoten seiner Quelldatei, dann jedes andere Kind — ein Licht aus der Datei, ein von einer Seite platzierter Knoten.",
       "metadata": "Das kompilierte Manifest des Modells — seine Primitive, `sourceTriangles` — und `clusters`, die Cluster, die seine Seiten enthalten, jede Stufe seiner DAGs gezählt.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
     }
