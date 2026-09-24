@@ -2,7 +2,11 @@ import { createChangeGate, createControlBase } from './base.ts';
 import { axisOf, trackKeys, type KeyAxis } from './input.ts';
 import { controlPose } from './pose.ts';
 import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts';
-import { createCharacterBody } from '../../../../sdk-core/src/collision/characterBody.ts';
+import {
+  createCharacterBody,
+  type CharacterBody,
+  type CharacterBodyFactory,
+} from '../../../../sdk-core/src/collision/characterBody.ts';
 import { createCharacterEye } from '../../../../sdk-core/src/collision/characterEye.ts';
 import {
   HUMAN_BODY,
@@ -43,6 +47,7 @@ export interface CharacterCameraControls extends CameraControlBase, PersonHead, 
   /**
    * What the body collides with — the world's colliders, or a physics backend's world through
    * the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls.
+   * Unused while the world's physics runs: the body is then the physics' own.
    */
   collision: CharacterCollision | null;
   /** Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did. */
@@ -72,7 +77,8 @@ export function createCharacterCameraControls(
     moved = new Float64Array(7);
   const gate = createChangeGate(base, 7);
   const input = { wishX: 0, wishZ: 0, sprint: false };
-  let world: CharacterCollision | null = null;
+  let world: CharacterCollision | null = null,
+    physics: CharacterBodyFactory | null = null;
   const api: CharacterCameraControls = {
     ...base.api,
     ...HUMAN_BODY,
@@ -94,7 +100,7 @@ export function createCharacterCameraControls(
     },
     set collision(next) {
       world = next;
-      body.setWorld(next);
+      triangles.setWorld(next);
     },
     locked: () => head.locked(),
     lock: () => head.lock(),
@@ -121,8 +127,29 @@ export function createCharacterCameraControls(
       return gate(moved);
     },
   };
-  const body = createCharacterBody(api),
-    eye = createCharacterEye(api);
+  /**
+   * `physics`, kept off the public type: what makes the body of the world's physics, when it
+   * runs (`world.controls` hands it over) — Jolt's virtual character in the physics worker, which
+   * meets every body of the simulation; `null` goes back to `collision`. The body keeps its place
+   * across the switch.
+   */
+  Object.defineProperty(api, 'physics', {
+    get: () => physics,
+    set(next: CharacterBodyFactory | null) {
+      if (next === physics) return;
+      const [x, y, z] = body.feet;
+      body.dispose?.();
+      physics = next;
+      body = next ? next(api) : triangles;
+      body.place(x, y, z);
+    },
+  });
+  const triangles = createCharacterBody(api);
+  let body: CharacterBody = triangles;
+  base.undo(() => body.dispose?.());
+  // A paused controller lets go of its keys: a body elsewhere must hear it.
+  base.onPause(() => body.advance(0, { wishX: 0, wishZ: 0, sprint: false }));
+  const eye = createCharacterEye(api);
   const events = {
     onLand: (impact: number) => (eye.land(impact), api.onLand?.(impact)),
     onJump: () => api.onJump?.(),

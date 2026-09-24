@@ -484,7 +484,6 @@
       "soft-bodies": "physics integration",
       "rolling-on-terrain": "physics integration",
       "hinges-and-joints": "physics integration",
-      "walk-with-collisions": "physics integration",
       "drive-a-car": "physics integration",
       "a-room-in-vr": "WebXR session",
       "a-360-photo-in-vr": "WebXR session",
@@ -1063,6 +1062,17 @@
           "Push a body with <code>applyImpulse</code>, or listen to its <code>contact</code>. Once every body sleeps, nothing is computed and nothing is drawn."
         ],
         "tryIt": "Drop more boxes, switch the gravity to the Moon, and turn on slow motion."
+      },
+      "touch-and-react": {
+        "title": "Touch and react",
+        "description": "Walk into your world: with the physics on, the character climbs, rides and pushes what it meets, and what it meets pushes back.",
+        "steps": [
+          "Create the world with <code>controls: 'character'</code> and <code>physics: true</code>. The character is now a body of the physics, like the boxes.",
+          "Mark what never moves <code>'static'</code>: the floor, the stairs, the walls. The character climbs steps up to its knee and slopes up to 45°.",
+          "Mark a platform <code>'kinematic'</code> and move it from your code each frame: whatever stands on it rides along.",
+          "Make boxes <code>'dynamic'</code> and light: the character pushes them with <code>pushStrength</code> newtons, and they fall, tumble and push back."
+        ],
+        "tryIt": "Click the picture, walk with W A S D, jump with Space. Climb the stairs, ride the platform, push the stack of boxes."
       },
       "your-own-scene": {
         "title": "Your own scene",
