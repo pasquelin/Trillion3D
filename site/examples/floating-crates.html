@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Floating crates</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
+
+      // Water is an option of the physics: every step, the worker weighs the water each body
+      // displaces and pushes it up by that much, so what is lighter than water floats.
+      const world = createWorld('view', { controls: 'orbit', physics: true });
+      world.scene.background = math.color('#cfe2ee');
+      world.camera.far = 400;
+
+      // A stone basin, static bodies: a floor and four walls the water fills.
+      const WIDE = 28, DEEP = 20, WALL = 4.5;
+      const stone = material.meshStandard({ color: '#b8b0a2', roughness: 0.92, physics: 'stone' });
+      const slab = (w, h, d, x, y, z) => {
+        const mesh = object.mesh(geometry.box(w, h, d), stone);
+        mesh.position.set(x, y, z);
+        mesh.physics = 'static';
+        mesh.receiveShadow = mesh.castShadow = true;
+        world.scene.add(mesh);
+      };
+      slab(WIDE + 2, 1, DEEP + 2, 0, -0.5, 0);
+      for (const side of [-1, 1]) {
+        slab(1, WALL, DEEP + 2, side * (WIDE / 2 + 0.5), WALL / 2, 0);
+        slab(WIDE, WALL, 1, 0, WALL / 2, side * (DEEP / 2 + 0.5));
+      }
+
+      // Four waves of the engine's own model: the physics floats the bodies on them, and the
+      // drawn surface below is moved by the very same numbers.
+      const SWELL = [
+        { direction: [1, 0.35], wavelength: 11, amplitude: 0.42, steepness: 0.3 },
+        { direction: [0.5, 1], wavelength: 6.5, amplitude: 0.2, steepness: 0.25 },
+        { direction: [-0.6, 1], wavelength: 3.7, amplitude: 0.09, steepness: 0.15 },
+        { direction: [1, -0.8], wavelength: 2.3, amplitude: 0.04, steepness: 0.1 },
+      ];
+
+      // The surface: a plain grid, each point carried where the waves put it, every frame.
+      const sheet = geometry.plane(WIDE, DEEP, 112, 80);
+      const rest = Float32Array.from(sheet.attributes.position.array);
+      const sea = object.mesh(sheet, material.meshStandard({ color: '#1d6d8c', roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.8, depthWrite: false, side: 'double' }));
+      world.scene.add(sea);
+      const point = new Float64Array(3), normal = new Float64Array(3);
+      const drawSurface = (surface) => {
+        const position = sheet.attributes.position, normals = sheet.attributes.normal;
+        for (let v = 0; v < rest.length / 3; v++) {
+          // The plane stands in x and y: its y is the world's −z once laid flat.
+          const x = rest[v * 3], z = -rest[v * 3 + 1];
+          surface.point(x, z, point);
+          surface.normal(x, z, normal);
+          position.setXYZ(v, point[0], point[1], point[2]);
+          normals.setXYZ(v, normal[0], normal[1], normal[2]);
+        }
+        position.needsUpdate = normals.needsUpdate = true;
+      };
+
+      // What floats and what does not is the matter's density against the water's (kg/m³).
+      const matters = {
+        crate: material.meshStandard({ color: '#b7793f', roughness: 0.8, physics: 'wood' }),
+        barrel: material.meshStandard({ color: '#8e3b2b', roughness: 0.55, physics: 'wood', density: 350 }),
+        ball: material.meshStandard({ color: '#ffc93a', roughness: 0.4, physics: 'rubber', density: 120 }),
+        ice: material.meshStandard({ color: '#e4f5ff', roughness: 0.12, physics: 'ice' }),
+        rock: material.meshStandard({ color: '#6b6660', roughness: 0.95, physics: 'stone' }),
+      };
+      const shapes = {
+        crate: geometry.box(1, 1, 1),
+        barrel: geometry.cylinder(0.45, 0.45, 1.3, 24),
+        ball: geometry.sphere(0.45, 24, 16),
+        ice: geometry.box(1.6, 1, 1.4),
+        rock: geometry.box(0.8, 0.7, 0.8),
+      };
+      const MIX = ['crate', 'crate', 'crate', 'barrel', 'barrel', 'ball', 'ice', 'rock'];
+
+      // The raft is one rigid body of three primitives: a deck and two pontoons under it. The
+      // drawn pontoons and mast are plain children of the deck; only the deck holds the body.
+      const makeRaft = () => {
+        const wood = material.meshStandard({ color: '#d2a86b', roughness: 0.85, physics: 'wood', density: 300 });
+        const raft = object.mesh(geometry.box(3.2, 0.18, 2.2), wood);
+        const side = [0, 0, Math.SQRT1_2, Math.SQRT1_2];
+        raft.physics = {
+          type: 'dynamic',
+          shape: {
+            type: 'compound',
+            parts: [
+              { type: 'box', halfExtents: [1.6, 0.09, 1.1] },
+              { type: 'cylinder', halfHeight: 1.6, radius: 0.32, position: [0, -0.32, 0.75], quaternion: side },
+              { type: 'cylinder', halfHeight: 1.6, radius: 0.32, position: [0, -0.32, -0.75], quaternion: side },
+            ],
+          },
+        };
+        const tube = geometry.cylinder(0.32, 0.32, 3.2, 24), float = material.meshStandard({ color: '#e0572e', roughness: 0.5 });
+        for (const z of [0.75, -0.75]) {
+          const pontoon = object.mesh(tube, float);
+          pontoon.position.set(0, -0.32, z);
+          pontoon.rotation.set(0, 0, Math.PI / 2);
+          raft.add(pontoon);
+        }
+        const mast = object.mesh(geometry.cylinder(0.05, 0.05, 2.2, 12), wood);
+        mast.position.set(-0.8, 1.1, 0);
+        const flag = object.mesh(geometry.box(0.9, 0.55, 0.03), material.meshStandard({ color: '#2f86c9', roughness: 0.6 }));
+        flag.position.set(-0.33, 1.9, 0);
+        raft.add(mast, flag);
+        return raft;
+      };
+
+      let bodies = [];
+      const place = (mesh, x, y, z) => {
+        mesh.position.set(x, y, z);
+        mesh.castShadow = mesh.receiveShadow = true;
+        world.scene.add(mesh);
+        bodies.push(mesh);
+      };
+      const next = seeded(7);
+      const drop = (count) => {
+        for (let i = 0; i < count; i++) {
+          const kind = MIX[Math.floor(next() * MIX.length)];
+          const mesh = object.mesh(shapes[kind], matters[kind]);
+          mesh.rotation.set(next() * 3, next() * 3, next() * 3);
+          mesh.physics = 'dynamic';
+          place(mesh, (next() - 0.5) * (WIDE - 4), 5 + next() * 5, (next() - 0.5) * (DEEP - 4));
+        }
+      };
+      const fill = () => {
+        for (const mesh of bodies) world.scene.remove(mesh);
+        bodies = [];
+        place(makeRaft(), -3, 4.5, 1);
+        drop(40);
+        // Three crates ride on the raft.
+        for (const [x, z] of [[-3.6, 1.4], [-2.4, 1.4], [-3, 0.4]]) {
+          const crate = object.mesh(shapes.crate, matters.crate);
+          crate.physics = 'dynamic';
+          place(crate, x, 5.6, z);
+        }
+      };
+
+      const sun = light.directional({ intensity: 3, color: '#fff4e2', castShadow: true });
+      sun.position.set(14, 22, 9);
+      world.scene.add(sun, light.hemisphere({ intensity: 1.3, color: '#dcefff', groundColor: '#6d7a80' }));
+      world.camera.position.set(20, 15, 24);
+      world.controls.target.set(0, 1.5, 0);
+
+      // Set again, the water's waves would start over: they go on from where they are.
+      const pour = ({ level, waves, density, current }) => {
+        const now = world.physics.waterSurface?.wavesNow();
+        world.physics.water = {
+          level,
+          density,
+          current: [current, 0, current * 0.3],
+          waves: SWELL.map((wave, i) => ({ ...wave, amplitude: wave.amplitude * waves, steepness: wave.steepness * Math.min(1, waves), phase: now?.[i].phase ?? 0 })),
+        };
+      };
+      const settings = controls(
+        {
+          level: [0.2, 3.8, 2.4, 0.1],
+          waves: [0, 2, 1, 0.05],
+          density: [200, 1400, 1000, 10],
+          current: [-2, 2, 0.4, 0.1],
+          drop: () => drop(12),
+          again: fill,
+          slowMotion: false,
+        },
+        (values) => {
+          pour(values);
+          world.physics.timeScale = values.slowMotion ? 0.25 : 1;
+        },
+        world,
+      );
+      fill();
+
+      const count = readout('bodies'), awake = readout('awake'), step = readout('step');
+      world.onFrame(() => {
+        const surface = world.physics.waterSurface;
+        if (surface) drawSurface(surface);
+        // Moving water asks for the next frame; still water is drawn once and rests.
+        if (settings.waves > 0) world.invalidate();
+        const s = world.physics.stats;
+        count(String(s.bodies));
+        awake(String(s.active));
+        step(`${s.stepMs.toFixed(2)} ms`);
+      });
+    </script>
+  </body>
+</html>

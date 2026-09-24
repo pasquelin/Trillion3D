@@ -160,12 +160,26 @@ export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {
   return gpuStageTotals(sample).get('bounce') ?? null;
 }
 
-/** The three direct-lighting durations of the frame, read from the same sample by label. */
+/** The two parts of a shadow page's GPU cost by label: choosing its casters, then drawing them.
+ *  Sampling and filtering happen in the deferred resolve, timed whole under `lighting`. */
+const SHADOW_PARTS: Readonly<Record<string, 'cull' | 'raster'>> = Object.freeze({
+  [LIGHT_CUT_PASS]: 'cull',
+  'Trillion3D shadow cull': 'cull',
+  'Trillion3D shadow page pyramids': 'cull',
+  'Trillion3D shadow occlusion': 'cull',
+  [SHADOW_LAYER_PASS]: 'raster',
+  [SHADOW_PASS]: 'raster',
+});
+
+/** The direct-lighting durations of the frame, read from the same sample by label. */
 export function directLightTimings(sample: GpuPassTimings | null | undefined) {
-  const totals = gpuStageTotals(sample);
+  const totals = gpuStageTotals(sample),
+    parts = gpuTotalsBy(sample, (name) => SHADOW_PARTS[name] ?? 'other');
   return {
     gpuLightListsMs: totals.get('lightLists') ?? null,
     gpuShadowsMs: totals.get('shadows') ?? null,
+    gpuShadowCullMs: parts.get('cull') ?? null,
+    gpuShadowRasterMs: parts.get('raster') ?? null,
     gpuLightingMs: totals.get('lighting') ?? null,
   };
 }

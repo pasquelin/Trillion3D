@@ -24,7 +24,7 @@ export async function image(
 }
 
 /** Maximum images rendered before giving up waiting for frame hold. */
-const PLAFOND = 64;
+export const PLAFOND = 64;
 
 /** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
 export async function jusquaTenue(
