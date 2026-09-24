@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "按开始，然后用 W A S D 跑，用空格跳。",
+    "banner": "按开始，然后用 W A S D 跑，用空格跳。早点松手：在石头上停下之前会滑一小段。",
     "controls": {
       "keys": "引擎的角色控制：菜单里的“开始”会锁定鼠标用来看，W A S D 跑（AZERTY 键盘上是 Z Q S D），Shift 冲刺，空格跳，Esc 放开鼠标。这个页面还加了 R 重新跑，M 静音。",
       "look": "视角",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "改变水位、波浪、密度和水流：木箱会漂浮、漂移、下沉，然后静止。",
+    "controls": {
+      "level": "水位",
+      "waves": "波浪",
+      "density": "水的密度",
+      "current": "水流",
+      "drop": "投放",
+      "again": "再来",
+      "slowMotion": "慢动作"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "活动",
+      "step": "步长"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "一万个箱子同时落下，面板实时显示物理的开销。",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "点击以环顾四周，然后用 W A S D 行走、空格键跳跃：登上台阶和坡道，乘上平台，推动箱子。",
+    "banner": "点击以环顾四周，然后用 W A S D 行走、空格键跳跃：登上台阶和坡道，乘上平台，推动箱子，在冰面上松开按键就会滑行。",
     "controls": {
       "pushStrength": "推力（牛）",
       "platformSpeed": "平台速度",

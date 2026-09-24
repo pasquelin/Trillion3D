@@ -289,9 +289,7 @@
     {
       "id": "four-ways-to-blend",
       "theme": "materials",
-      "file": "examples/four-ways-to-blend.html",
-      "status": "waiting-engine",
-      "issue": 346
+      "file": "examples/four-ways-to-blend.html"
     },
     {
       "id": "toon-shading",
@@ -1430,6 +1428,11 @@
       "id": "falling-boxes",
       "theme": "physics",
       "file": "examples/falling-boxes.html"
+    },
+    {
+      "id": "floating-crates",
+      "theme": "physics",
+      "file": "examples/floating-crates.html"
     },
     {
       "id": "ten-thousand-bodies",

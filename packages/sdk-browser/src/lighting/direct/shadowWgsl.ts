@@ -2,7 +2,6 @@ import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../../../../sdk-
 import {
   LAMP_MIPS,
   PAGE_INDEX_MASK,
-  PAGE_STALE,
   PAGE_VALID,
   SHADOW_PAGE,
   SUN_LEVELS,
@@ -84,7 +83,6 @@ const SHADOW_SLOPE_MAX:f32=${LIGHT_SETTINGS.shadowSlopeBiasMax};
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PAGE:f32=${SHADOW_PAGE}.0;
 const PAGE_VALID:u32=${PAGE_VALID}u;
-const PAGE_STALE:u32=${PAGE_STALE}u;
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
 const LAMP_MIP_OFFSET:array<u32,${LAMP_MIPS}>=array<u32,${LAMP_MIPS}>(${Array.from({ length: LAMP_MIPS }, (_, mip) => `${lampMipOffset(mip)}u`).join(',')});
 const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTINGS.pcfTaps}>(${POISSON_16.map(
@@ -99,8 +97,8 @@ fn shadowBiasMetres(cosine:f32)->f32{
 }
 struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
 fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
-/** Word of page \`p\` of the map — asked for —, or zero when it holds nothing current: unmapped,
- *  not drawn yet, or stale — a stale page is asked for again, never read. */
+/** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable: unmapped,
+ *  not drawn yet, or withdrawn while its depth is wrong — asked for again, never read. */
 fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
  var e=0;
  if(m.ring!=0u){
@@ -112,7 +110,7 @@ fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
  }
  requestShadowPage(u32(e));
  let word=shadows.table[u32(e)];
- return select(0u,word,(word&(PAGE_VALID|PAGE_STALE))==PAGE_VALID);
+ return select(0u,word,(word&PAGE_VALID)!=0u);
 }
 /** Atlas texel offset of page \`p\`, held by physical page \`word\`: added to a texel coordinate
  *  of the map, it gives that texel's place in the atlas. */

@@ -2941,6 +2941,8 @@
       "shadowWaitMs": "它们等待了多久。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
       "gpuShadowsMs": "阴影的 GPU 耗时。",
+      "gpuShadowCullMs": "选择本帧所绘阴影页的投影体的 GPU 时间：光源剪切、逐页剔除，以及运动投影体的遮挡测试及其读取的金字塔。",
+      "gpuShadowRasterMs": "把这些投影体绘入页面的 GPU 时间：先静态层，再池。",
       "gpuLightingMs": "光照的 GPU 耗时。",
       "shadowLightCuts": "从光源运行的簇切割：每个绘制的光视图一个，静止帧为零。",
       "shadowPagesRequested": "图像读取的虚拟阴影页，即其最新请求报告所列：相机接收面标记的内容。",
@@ -2960,7 +2962,7 @@
       "representationChanged": "同一世界的另一精度：其包围盒等待相机停下。",
       "resting": "上一次规划时相机静止：其视图与再前一次规划相同。",
       "deferredChanges": "当表示变化在等待相机停下时为真。",
-      "releaseDeferred": "本帧不规划任何阴影：保留的并集立即进入列表。",
+      "releaseDeferred": "本帧不规划任何阴影：保留的包围盒立即进入列表。",
       "observeCost": "一帧阴影通道的计时器，分摊到它绘制的页上。",
       "setBudgetMs": "宿主发布的预算，单位为每帧 GPU 毫秒。",
       "setPageInvalidation": "关闭逐页失效：移动的物体使其触及的光源的每一页失效。默认开启。",
@@ -3796,8 +3798,8 @@
       "gravity": "仅角色模式:上升阶段向下的加速度,单位 m/s²;默认值为 9.80665。",
       "fallGravity": "仅角色模式:下落阶段向下的加速度,单位 m/s²;默认值为 1.6g,这样跳跃就不会显得飘。",
       "airControl": "仅角色模式:在空中按键能操纵身体的程度,相对于地面起步的比例;默认值为 0.05,为 0 时则呈抛物线弹道。",
-      "responseTime": "仅角色模式:在地面上达到目标速度 95% 所需的秒数;默认值为 0.12。",
-      "stopTime": "仅角色模式:松开按键后,在地面上失去 95% 速度所需的秒数;默认值为 0.08。",
+      "responseTime": "仅角色模式:脚在地面上达到期望速度 95% 所需的秒数;默认值为 0.12。地面摩擦先限制起步:鞋底最多以 `μ g` 推动,`μ` 是橡胶鞋底在地面 `material.physics` 上的抓地力(无物理时为石头),因此在石头上 0.45 秒、在冰上 2.2 秒达到慢跑速度。",
+      "stopTime": "仅角色模式:松开按键后,脚在地面上失去 95% 速度所需的秒数;默认值为 0.12。地面摩擦先限制停止:慢跑会滑行 `v² / (2 μ g)`,石头上 0.8 m,冰上 3.8 m;时间越长,刹车越柔和。",
       "capsuleRadius": "仅角色模式:身体的半径,单位为米;默认值为肩宽的一半(0.23 米)。",
       "capsuleHeight": "仅角色模式:身体的高度,单位为米;默认值为 1.75。",
       "eyeHeight": "仅角色模式:摄像机距双脚的高度,单位为米;默认值为 1.64。",
@@ -3842,10 +3844,13 @@
     "members": {
       "geometryPoolCeiling": "一个世界可以请求的最大池:引擎的初始预算。",
       "texturePoolCeiling": "一个世界可以请求的最大纹理池,单位字节。",
-      "geometryPool": "为几何体页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
-      "texturePool": "为纹理页面保留的 GPU 内存字节数;设置它可以改变这个范围。",
+      "geometryPool": "为几何页面保留的 GPU 内存字节数；设置它以改变范围，限于 `gpu` 在阴影和纹理池之外剩下的部分。",
+      "texturePool": "为纹理页面保留的 GPU 内存字节数，在没有纹理池的引擎（WebGL2）上为 `null`；设置它以改变范围，限于 `gpu` 在阴影和几何池之外剩下的部分。",
       "physics": "物理的上限（物体、三角形、装饰物体、内存），启动时读取一次；超出任一项会抛出 `PHYSICS_BUDGET`。",
-      "raycastTrees": "`raycast` 为三角形树保留的 CPU 内存字节数，由页面上的所有世界共享；超出后，最久未使用的树会被丢弃。设置它即可更改上限。"
+      "raycastTrees": "`raycast` 为三角形树保留的 CPU 内存字节数，由页面上的所有世界共享；超出后，最久未使用的树会被丢弃。设置它即可更改上限。",
+      "gpu": "世界可占用的 GPU 内存字节数（所有池合计）；设置后按分配规则（`split`）重新划分每个池。从不从机器读取。",
+      "cpu": "世界已解码页面可占用的 CPU 内存字节数；在下一次加载场景时生效。",
+      "split": "两个总量的分配方式：阴影池取其最大值，其余一半给几何池、一半给纹理池，各自不超过上限；已解码页面缓存占用 CPU 总量。这是单独设置某个池之前规则给出的值。"
     }
   },
   "world.diagnostic": {
@@ -3959,6 +3964,8 @@
       "shadowWaitMs": "它们等待了多久。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
       "gpuShadowsMs": "阴影的 GPU 耗时。",
+      "gpuShadowCullMs": "选择本帧所绘阴影页的投影体的 GPU 时间：光源剪切、逐页剔除，以及运动投影体的遮挡测试及其读取的金字塔。",
+      "gpuShadowRasterMs": "把这些投影体绘入页面的 GPU 时间：先静态层，再池。",
       "gpuLightingMs": "光照的 GPU 耗时。",
       "hizTestedClusters": "一帧中遮挡测试所做的事情:交给它测试的簇、被它剔除的簇,以及那些 0 级屏幕投影面积超过十六个纹素核大小、因而从更粗糙的 mip 得到答案的簇。`hiz*Triangles` 是同一批簇所对应的三角形数。在 GPU 路径上,这些数据描述的是比正在渲染的这一帧**更早**的一帧——`hizCountedFrame` 说明具体是哪一帧——就像 `gpuPassMs` 一样,相邻两帧经常携带相同的样本。这里没有任何估算值:在不进行遮挡测试的引擎上、在判定结果无法被重新读取的设备上,以及在还没有任何一帧被统计过之前,均为 `null`。",
       "hizRejectedClusters": "被判定为隐藏的簇。",
@@ -4297,7 +4304,7 @@
     "description": "`memory(world)` 是某个世界当前所持有的内容(`world.budget`);这两个池共同构成了一个世界所接受的设置。"
   },
   "budget.memory": {
-    "summary": "一个世界当前持有的内存预算:两个池各自的当前值,以及各自能增长到的最大值。"
+    "summary": "世界当前持有的内存预算：GPU 和 CPU 总量、按规则的分配、两个池以及各自的上限。"
   },
   "budget.geometryPool": {
     "summary": "一份以 `bytes` 表示的几何体池设置,可以直接交给一个世界使用。",
@@ -6627,7 +6634,7 @@
   },
   "CharacterCameraControls": {
     "summary": "**透过其双眼看到的角色**:一个具有质量的身体,会行走、奔跑、跳跃、下落,并以一个直立胶囊体的形式与世界的三角形碰撞。",
-    "description": "指针像第一人称视角那样转动头部(`look.ts`)。按键以 `KeyboardEvent.code` 为准,因此任何键盘布局下都是同一批按键:W/S 或上下方向键前后行走,A/D 或左右方向键横向移动,Shift 冲刺,空格跳跃。身体不会瞬间启动或停止:它会在 `responseTime` 内积累速度,在 `stopTime` 内刹车,在空中保持动量,在 `gravity` 下上升、在 `fallGravity` 下下落,能爬上不超过 `stepHeight` 的台阶,沿墙滑动,并能站在坡度不超过 `maxSlope` 的地面上(`sdk-core/src/collision/characterBody.ts`)。摄像机就是眼睛,位于脚部之上 `eyeHeight` 处,会随脚步以 `headBob` 上下晃动,并在着地时以 `landingDip` 下沉(`sdk-core/src/collision/characterEye.ts`);这两者都只是叠加在身体每一步之后的眼睛位置上,绝不会去移动身体本身。若某个宿主自行移动摄像机,则应把身体静止地传送到那里。一个静止的角色——落地、没有速度、没有按键、也没有残留的下沉——不会发出任何事件,因此场景会保持静止。",
+    "description": "指针像第一人称视角那样转动头部(`look.ts`)。按键以 `KeyboardEvent.code` 为准,因此任何键盘布局下都是同一批按键:W/S 或上下方向键前后行走,A/D 或左右方向键横向移动,Shift 冲刺,空格跳跃。身体不会瞬间启动或停止:它会在 `responseTime` 内积累速度,在 `stopTime` 内刹车,但不会快过地面摩擦允许鞋底施加的推力,所以停下时在石头上会滑一小段,在冰上会滑很远,在空中保持动量,在 `gravity` 下上升、在 `fallGravity` 下下落,能爬上不超过 `stepHeight` 的台阶,沿墙滑动,并能站在坡度不超过 `maxSlope` 的地面上(`sdk-core/src/collision/characterBody.ts`)。摄像机就是眼睛,位于脚部之上 `eyeHeight` 处,会随脚步以 `headBob` 上下晃动,并在着地时以 `landingDip` 下沉(`sdk-core/src/collision/characterEye.ts`);这两者都只是叠加在身体每一步之后的眼睛位置上,绝不会去移动身体本身。若某个宿主自行移动摄像机,则应把身体静止地传送到那里。一个静止的角色——落地、没有速度、没有按键、也没有残留的下沉——不会发出任何事件,因此场景会保持静止。",
     "members": {
       "velocity": "身体的速度,单位为米每秒。实时值:`[x, y, z]`,y 朝上。",
       "onGround": "双脚是否在地面上。",
@@ -6864,6 +6871,7 @@
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
+      "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
       "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",
@@ -7014,6 +7022,19 @@
       "current": "水的速度（河流的水流），m/s。"
     }
   },
+  "WaterSurface": {
+    "summary": "页面为绘制而读取的水面(`world.physics.waterSurface`):与物理 worker 中浮力读取的波浪模型相同的数值,取模拟时刻。",
+    "members": {
+      "level": "静止时水面的高度,单位米。",
+      "crest": "波峰在 `level` 之上能达到的最高点,单位米。",
+      "time": "设置水以来经过的模拟秒数:波浪的时钟。",
+      "setTime": "把波浪设到 `t` 模拟秒。",
+      "height": "世界点 `(x, z)` 上方水面的高度,单位米。",
+      "point": "静止点 `(x, level, z)` 被带到的世界点 `[x, y, z]`,写入 `out`:逐点移动的网格就是水面,波峰与波浪一样锐利。",
+      "wavesNow": "声明的波浪,每个相位推进到此刻:重新设置到 `world.physics.water`(其波浪从 0 秒重新开始)时,水面从当前位置继续而不会跳变。",
+      "normal": "静止点 `(x, z)` 处水面的单位法线 `[x, y, z]`,写入 `out`。"
+    }
+  },
   "WaveSpec": {
     "summary": "场景声明的一个波。",
     "members": {
@@ -7047,6 +7068,7 @@
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
+      "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
       "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",
@@ -7087,17 +7109,6 @@
       "brake": "刹车踏板，0 到 1。",
       "steer": "方向盘，−1 左打到底到 1 右打到底。",
       "handbrake": "手刹是否拉起。"
-    }
-  },
-  "GraphAngles": {
-    "summary": "以三个角度及其顺序表示的同一朝向，以同样方式通知其写入。",
-    "members": {
-      "x": "第一个角度，单位为弧度。",
-      "set": "写入三个角度，给定时也写入顺序；只通知一次。",
-      "setFromRotation": "按此顺序的 `q` 的角度（核心的 `Euler`）；除非 `quiet`，否则通知。",
-      "y": "第二个角度，单位为弧度。",
-      "z": "第三个角度，单位为弧度。",
-      "order": "三个角度的旋转顺序，未设置时为 `'XYZ'`。"
     }
   },
   "GraphArray": {
@@ -7220,22 +7231,6 @@
   "GraphNodeKind": {
     "summary": "图的节点是什么：普通节点、根、分组、被绘制的网格（一个或多个放置处）、眼睛，或场景声明的某种光源。"
   },
-  "GraphRotation": {
-    "summary": "写入时调用 `_onChangeCallback` 的朝向 `(x, y, z, w)`。",
-    "members": {
-      "x": "第一个数字。",
-      "set": "写入四个数，只通知一次。",
-      "copy": "取用另一个旋转的数值。",
-      "fromArray": "从列表读取四个数。",
-      "setFromAngles": "按其顺序的 `angles` 的旋转（`localTurnQuaternion`）；除非 `quiet`，否则通知。",
-      "setFromRotationMatrix": "列主序且各列为单位长度的矩阵左上 3×3 部分的旋转。",
-      "premultiply": "变为 `q` 之后接本旋转，即 `q · this`。",
-      "invert": "变为相反的旋转。",
-      "y": "第二个数字。",
-      "z": "第三个数字。",
-      "w": "第四个数字。"
-    }
-  },
   "GraphSurface": {
     "summary": "表面：一个族的参数，除非场景另有说明，取参考实现的值。",
     "description": "其版本由 `needsUpdate` 递增，每个读取方都会比较。",
@@ -7296,24 +7291,6 @@
       "repeat": "它能容纳几次。",
       "center": "旋转的中心。",
       "rotation": "旋转，单位为弧度。"
-    }
-  },
-  "GraphVector": {
-    "summary": "姿态或点的三个数：普通的数据字段，以及控制器使用的运算。",
-    "members": {
-      "set": "写入三个数。",
-      "copy": "取用另一个点的数值。",
-      "clone": "一个副本。",
-      "add": "加上另一个向量。",
-      "sub": "减去另一个向量。",
-      "multiplyScalar": "缩放这三个数。",
-      "length": "它的长度。",
-      "setLength": "保持方向，设定长度。",
-      "distanceTo": "到一个点的距离。",
-      "fromArray": "从列表读取三个数。",
-      "x": "从左到右。",
-      "y": "从下到上。",
-      "z": "从后到前。"
     }
   },
   "Joint": {
@@ -7379,12 +7356,6 @@
       "slider": "沿 `axis` 的滑轨：抽屉、活塞。`limits` 单位为米。",
       "distance": "让 `a` 上的 `anchor` 与 `b` 上的 `anchorB` 保持其长度，或在 `limits` 之内。",
       "cone": "`axis` 在半角为 `limits.max` 的锥体内摆动的球关节。"
-    }
-  },
-  "JointHost": {
-    "summary": "关节的世界一侧：对它的写入向模拟提出的要求。",
-    "members": {
-      "motor": "马达已更改。"
     }
   }
 }

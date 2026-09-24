@@ -1,9 +1,6 @@
-import {
-  BLEND_EXPAND_ENTRIES,
-  BLEND_EXPAND_SHADER,
-  blendExpandDispatch,
-  STORAGE_TYPES,
-} from './expandWgsl.ts';
+import { BLEND_EXPAND_ENTRIES, BLEND_EXPAND_SHADER, blendExpandDispatch } from './expandWgsl.ts';
+import { blendExpandBindEntries, EXPAND_BINDING } from './expandBindings.ts';
+import { namedBufferEntries } from '../../gpu/core/computeBindings.ts';
 import { shaderFailed } from '../../gpu/core/shaderModule.ts';
 import { validated } from '../../gpu/core/errorScope.ts';
 import { cleanupFailedHiz } from '../../gpu/hiz/pipelines.ts';
@@ -134,20 +131,7 @@ export async function createBlendExpand(
     const built = await validated(device, async () => {
       const module = device.createShaderModule({ code: BLEND_EXPAND_SHADER });
       if (await shaderFailed(module)) return undefined;
-      const layout = device.createBindGroupLayout({
-        entries: [
-          {
-            binding: 0,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: UNI_WORDS * 4 },
-          },
-          ...STORAGE_TYPES.map((type, index) => ({
-            binding: index + 1,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type },
-          })),
-        ],
-      });
+      const layout = device.createBindGroupLayout({ entries: blendExpandBindEntries() });
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
       const pipelines = BLEND_EXPAND_ENTRIES.map((entryPoint) =>
         device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } }),
@@ -156,19 +140,17 @@ export async function createBlendExpand(
       // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.
       const bindGroup = device.createBindGroup({
         layout,
-        entries: [
-          { binding: 0, resource: { buffer: uniforms, size: UNI_WORDS * 4 } },
-          ...[
-            plan,
-            keep,
-            draws,
-            shared.counts ?? draws,
-            shared.clusters ?? draws,
-            scratch,
-            outputs.expanded,
-            outputs.args,
-          ].map((buffer, index) => ({ binding: index + 1, resource: { buffer } })),
-        ],
+        entries: namedBufferEntries(EXPAND_BINDING, {
+          uni: { buffer: uniforms, size: UNI_WORDS * 4 },
+          plan: { buffer: plan },
+          keep: { buffer: keep },
+          draws: { buffer: draws },
+          counts: { buffer: shared.counts ?? draws },
+          clusters: { buffer: shared.clusters ?? draws },
+          scratch: { buffer: scratch },
+          expanded: { buffer: outputs.expanded },
+          args: { buffer: outputs.args },
+        }),
       });
       return { bindGroup, pipelines };
     });

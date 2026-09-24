@@ -320,7 +320,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/backend/common.ts",
+        "bench/witnesses/capabilities.ts",
         "packages/sdk-browser/src/backend/types.ts",
         "tests/kit/lighting/diagnostics.ts"
       ],
@@ -1313,6 +1313,7 @@
         "bench/perf/browser/support/scenesLoading.ts",
         "bench/runner/cacheManifest.ts",
         "bench/runner/cutAnalysis.ts",
+        "packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts",
         "packages/sdk-browser/src/backend/autonomous/manifest.test.ts",
         "packages/sdk-browser/src/backend/autonomous/manifest.ts",
         "packages/sdk-browser/src/backend/autonomous/pagesBundle.test.ts",
@@ -2732,7 +2733,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/host/graph/rotation.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/host/graph/node.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/euler\".Euler"
     },
@@ -2896,8 +2897,8 @@
         "packages/sdk-browser/src/frame/costAudit.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.ts",
         "packages/sdk-browser/src/world/core/worldFrames.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/core/worldSession.ts",
         "packages/sdk-browser/src/world/diagnostic/frameDiagnostic.test.ts",
@@ -3349,17 +3350,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/runtime/stageProfile\".GpuTimingMethod"
     },
     {
-      "name": "GraphAngles",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/rotation.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/rotation\".GraphAngles"
-    },
-    {
       "name": "GraphArray",
       "kind": "type",
       "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
@@ -3461,6 +3451,7 @@
       "affectedConsumers": [
         "bench/oracles/browser/bounds-and-index.ts",
         "bench/oracles/browser/page-collection.ts",
+        "bench/witnesses/exact/batches/batchDraw.ts",
         "bench/witnesses/three/fromGraphNodes.ts"
       ],
       "disposition": "retained",
@@ -3476,17 +3467,6 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/graph/nodeKind\".GraphNodeKind"
-    },
-    {
-      "name": "GraphRotation",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/rotation.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/rotation\".GraphRotation"
     },
     {
       "name": "GraphSurface",
@@ -3513,17 +3493,6 @@
       "affectedConsumers": ["bench/witnesses/three/fromGraph.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/graph/texture\".GraphTexture"
-    },
-    {
-      "name": "GraphVector",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/vector.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/vector\".GraphVector"
     },
     {
       "name": "GRAVITY_PRESETS",
@@ -4243,6 +4212,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.test.ts"
       ],
       "disposition": "retained",
@@ -4263,17 +4233,6 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".Joint"
-    },
-    {
-      "name": "JointHost",
-      "kind": "type",
-      "definingModule": "packages/sdk-core/src/physics/joint.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/joints.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointHost"
     },
     {
       "name": "JointKind",
@@ -4452,7 +4411,6 @@
       "affectedConsumers": [
         "bench/oracles/browser/core-math-shadows.ts",
         "bench/oracles/browser/gpuLightTileColumnOracle.ts",
-        "packages/sdk-browser/src/gpu/dag/lightCutRedraws.ts",
         "packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts",
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
@@ -4734,7 +4692,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
-        "packages/sdk-browser/src/world/saved/saved.test.ts"
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "tests/browser/support/materialFixtures.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/material/index\".material"
@@ -5098,6 +5057,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
@@ -5323,6 +5283,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/joints.ts",
         "packages/sdk-browser/src/visibility/shader/shadingNormal.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts",
         "scripts/ltc-fit.ts"
@@ -5417,6 +5378,7 @@
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/modelNodes.test.ts",
         "packages/sdk-browser/src/world/core/modelNodes.ts",
+        "packages/sdk-browser/src/world/core/modelNodesCompiled.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
         "packages/sdk-browser/src/world/core/worldControlTargets.ts",
@@ -6029,6 +5991,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/character.test.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "scripts/bench-physics.ts"
       ],
@@ -6063,7 +6026,7 @@
         "packages/sdk-browser/src/physics/tickResults.ts",
         "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts"
+        "packages/sdk-browser/src/world/core/worldBudget.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsBudget"
@@ -6802,6 +6765,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
@@ -6811,6 +6775,7 @@
         "packages/sdk-browser/src/world/core/worldCamera.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "scripts/bench-physics.ts",
+        "scripts/docs-examples-flight.test.ts",
         "site/app/editor/commands.ts"
       ],
       "disposition": "retained",
@@ -7261,7 +7226,7 @@
         "packages/sdk-browser/src/world/core/worldRuntime.fixture.ts",
         "tests/browser/support/blendCacheScenes.ts",
         "tests/browser/support/defaultBackendCase.ts",
-        "tests/browser/support/materialFixtures.ts"
+        "tests/browser/support/materialFixtureShape.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light/contracts\".SceneLight"
@@ -9178,6 +9143,8 @@
         "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
+        "packages/sdk-browser/src/host/graph/light.ts",
+        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/scene/graphObjects.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
@@ -9271,6 +9238,17 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/fluids/buoyancy\".WaterSpec"
+    },
+    {
+      "name": "WaterSurface",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/fluids/waterSurface.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/worldPhysics.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/fluids/waterSurface\".WaterSurface"
     },
     {
       "name": "WaveSpec",

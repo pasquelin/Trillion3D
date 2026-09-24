@@ -15,10 +15,12 @@ import {
  * adjacent pixels at its depth, `shadowFootprint`: a sun reads the clipmap level whose texel,
  * `2^L` metres, is at most that footprint; a lamp reads the mip whose texel at the point's
  * distance is. A texel is thus never larger than a pixel where the map can offer it, near or
- * far, and a caster's error counted in texels is counted in pixels. A page not current — not
- * drawn yet, or stale and waiting to be drawn again — hands the point to the next coarser level,
- * as the texture streamer falls back to a coarser tile; beyond a sun's last level, the far-shadow
- * ray answers.
+ * far, and a caster's error counted in texels is counted in pixels. A page not readable — not
+ * drawn yet, or withdrawn while its depth is wrong — hands the point to the next coarser level,
+ * as the texture streamer falls back to a coarser tile. The scheduler keeps the last level under
+ * every page a receiver reads mapped and drawn in the frame (`admit.ts`), so the far-shadow ray
+ * of a sun and the unshadowed answer of a lamp past their last level only answer before a light's
+ * first request report.
  *
  * The read point moves along the normal by a texel of the level read, divided by the incidence
  * cosine: that closes the seam between two faces of a point light and removes grazing acne.

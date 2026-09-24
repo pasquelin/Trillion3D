@@ -1,29 +1,26 @@
 //! Group reduction: the simplifier, then what happens when it stalls.
 //!
-//! Two retries, each measured on a real scene before they existed:
-//! - **Position welding.** meshoptimizer only slides a copied position — UV seam,
-//!   hard edge — along its seam, and locks any position present in more than two
-//!   copies. On disjoint slabs that meet only at corners it reduces nothing; on
-//!   a trunk full of seams it consumes ordinary vertices then stalls at ÷2
-//!   (measured: 15 825 → 7 869 → 5 967 → 5 680 → 5 647 triangles, 881 ordinary
-//!   vertices for 1 582 seams and 259 complex ones at the top of the DAG, and
-//!   nothing below 5 635 even with zero locks). When reduction yields no fewer
-//!   clusters than it received, it is retried on indices welded by position and
-//!   every texture set the primitive carries: copies that differ only by normal
-//!   or colour become one, copies on a seam of any set stay apart, coarse levels
-//!   point at the welded survivor — its normal stands for the others, that is
-//!   the declared cost — and level zero is unchanged. Welding texture seams too
-//!   was tried and measured: Emerald facades at the 2 px threshold drew with the
-//!   texture from the other side of the seam. Refused.
-//! - **Added locks.** On foliage, a chart whose edge is shared with another group
-//!   disappears when its free vertices collapse onto locked vertices, and the
-//!   other group keeps its half (measured: 92 groups of 123 lost that way, 339
-//!   locks lost, all on a locked edge). The retry locks all three corners of
-//!   every triangle that touched a lost lock and restarts: some charts remain,
-//!   the rest of the group reduces.
+//! The group's corners first point at their exact copy (`attributes::weld_exact`): an unindexed
+//! mesh reduces as the indexed one it draws the same as. The simplifier weighs normals and texture
+//! sets and, in permissive mode, collapses across a hard edge rather than stall on it (`qem.rs`):
+//! meshoptimizer otherwise slides a copied position only along its seam and locks any position
+//! present in more than two copies, which on disjoint slabs reduced nothing. Texture seams stay
+//! protected — welding them was measured on Emerald facades, drawn with the texture from the
+//! other side of the seam — and every coarse corner points back at the copy of its position whose
+//! normal matches its own face (`attributes::own_normals`).
+//!
+//! **Added locks.** On foliage, a chart whose edge is shared with another group disappears when
+//! its free vertices collapse onto locked vertices, and the other group keeps its half (measured:
+//! 92 groups of 123 lost that way, 339 locks lost, all on a locked edge). The retry locks all
+//! three corners of every triangle that touched a lost lock and restarts: some charts remain, the
+//! rest of the group reduces. Pruning ignores locks, so a retry no longer prunes. A face the
+//! reduction lit from behind (`quality::backlit_corners`) is retried the same way, as long as the
+//! retry locks something new: collapses accumulated over levels flip small faces on spheres and
+//! facades (measured: 13 of 49 levels of MetalRoughSpheres, 13 of 38 of facade-7).
 use super::*;
-use crate::qem::SimplifiedMesh;
+use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
 use border::{live_triangles, lock_triangles_touching, lost_locks, required_locks};
+use quality::backlit_corners;
 
 /// Times group restarted with extra locks before declared lost.
 const BORDER_RETRIES: usize = 3;
@@ -53,23 +50,23 @@ pub(super) fn reduce_group(
     input: &GroupReductionInput,
     children: &[&DagCluster],
 ) -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
-    let mut merged = Vec::with_capacity(children.iter().map(|c| c.indices.len()).sum());
     let mut spheres = Vec::with_capacity(children.len());
     let mut child_error = 0.0_f64;
     let mut source_rank = u32::MAX;
     for child in children {
-        merged.extend_from_slice(&child.indices);
         spheres.push(child.sphere);
         child_error = child_error.max(child.lod_error);
         source_rank = source_rank.min(child.source_rank);
     }
     let sphere = enclosing_sphere(&spheres);
-    let live = live_triangles(merged.iter().copied());
-    let (chosen, welded) = match choose(input, &merged, &live, children.len())? {
-        Ok(chosen) => chosen,
-        Err((stop, last)) => {
-            return diagnosis::stalled(input, &live, &last, children.len(), stop).map(Err)
-        }
+    let corners = children.iter().flat_map(|c| c.indices.iter());
+    let live = live_triangles(corners.map(|&v| input.exact[v as usize]));
+    let chosen = match attempt(input, &live, true, child_error)? {
+        // Reduction yielding no fewer clusters does not advance DAG: refused,
+        // even if removing triangles, rather than adding unreplaced level.
+        Ok(chosen) if chosen.progresses(children.len()) => chosen,
+        Ok(_) => return stall(input, &live, children.len(), Stop::NoCollapse),
+        Err(stop) => return stall(input, &live, children.len(), stop),
     };
     let error = chosen.simplified.error_object.max(child_error);
     if !error.is_finite() {
@@ -84,50 +81,28 @@ pub(super) fn reduce_group(
         sphere,
         clusters: chosen.clusters,
         source_rank,
-        welded,
         relocked: chosen.relocked,
     }))
 }
 
-/// The reduction that advances the DAG, and whether it needed the weld; otherwise why it
-/// stopped and the indices of the last attempt, which the diagnosis reruns without locks.
-type Choice = std::result::Result<(Attempt, bool), (Stop, Vec<u32>)>;
-
-fn choose(
+fn stall(
     input: &GroupReductionInput,
-    merged: &[u32],
     live: &[u32],
     children: usize,
-) -> Result<Choice> {
-    let raw = attempt(input, live, true)?;
-    // Reduction yielding no fewer clusters does not advance DAG: refused,
-    // even if removing triangles, rather than adding unreplaced level.
-    let raw = match raw {
-        Ok(raw) if raw.progresses(children) => return Ok(Ok((raw, false))),
-        raw => raw.err(),
-    };
-    let welded_indices = live_triangles(merged.iter().map(|&i| input.weld_seam[i as usize]));
-    // Already indexed mesh, with no copy to weld, does not restart for same result.
-    let welded = if welded_indices == live {
-        Err(Stop::NoCollapse)
-    } else {
-        attempt(input, &welded_indices, true)?
-    };
-    let stop = match welded {
-        Ok(welded) if welded.progresses(children) => return Ok(Ok((welded, true))),
-        Ok(_) => Stop::NoCollapse,
-        Err(stop) => raw.unwrap_or(stop),
-    };
-    Ok(Err((stop, welded_indices)))
+    stop: Stop,
+) -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
+    diagnosis::stalled(input, live, children, stop).map(Err)
 }
 
-/// Simplifies `source` to half triangles, restarting with extra locks as long
-/// as shared vertex disappears, then re-clusters result. `locked` false drops every lock,
-/// the level's and the retries': the diagnosis of a stalled group asks what they cost.
+/// Simplifies `source` to half triangles, restarting with extra locks as long as a shared vertex
+/// disappears or a face wider than the error — `error_floor`, the children's, or the reduction's
+/// own — turns its back on its normals, then re-clusters the result. `locked` false drops every
+/// lock, the level's and the retries': the diagnosis of a stalled group asks what they cost.
 pub(super) fn attempt(
     input: &GroupReductionInput,
     source: &[u32],
     locked: bool,
+    error_floor: f64,
 ) -> Result<std::result::Result<Attempt, Stop>> {
     let (locks, weld) = (input.locks, input.weld);
     let triangles = source.len() / 3;
@@ -140,19 +115,22 @@ pub(super) fn attempt(
         Vec::new()
     };
     let mut extra: Vec<u32> = Vec::new();
-    let mut retries = 0usize;
+    let mut border_retries = 0usize;
     loop {
-        let simplified = {
+        let mut simplified = {
             let _t = Timer::new(Phase::Simplify);
             simplify_with_locked_vertices(
                 input.positions,
+                input.attributes,
                 source,
                 triangles / 2,
-                SIMPLIFY_ERROR_CEILING,
+                extra.is_empty(),
                 &|vertex| {
-                    locked
+                    let lock = locked
                         && (locks.get(vertex as usize).copied().unwrap_or(true)
-                            || extra.binary_search(&weld[vertex as usize]).is_ok())
+                            || extra.binary_search(&weld[vertex as usize]).is_ok());
+                    let seam = input.seams.get(vertex as usize).copied().unwrap_or(false);
+                    (u8::from(lock) * VERTEX_LOCK) | (u8::from(seam) * VERTEX_PROTECT)
                 },
             )?
         };
@@ -160,7 +138,37 @@ pub(super) fn attempt(
             return Ok(Err(Stop::NoCollapse));
         }
         let lost = lost_locks(&required, &simplified.indices, weld);
-        if lost.is_empty() {
+        let retry = if !lost.is_empty() {
+            if border_retries == BORDER_RETRIES {
+                return Ok(Err(Stop::BorderLost));
+            }
+            border_retries += 1;
+            lost
+        } else if let Some(normals) = input.normals {
+            attributes::own_normals(
+                &mut simplified.indices,
+                source,
+                input.weld_seam,
+                input.positions,
+                normals,
+            );
+            let error = simplified.error_object.max(error_floor);
+            let backlit = (error, input.normal_bound);
+            match locked {
+                true => {
+                    backlit_corners(&simplified.indices, input.positions, normals, weld, backlit)
+                }
+                false => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        };
+        let before = extra.len();
+        if !retry.is_empty() {
+            lock_triangles_touching(source, &retry, weld, &mut extra);
+        }
+        // A backlit face whose surroundings are all locked already cannot be helped by a retry.
+        if retry.is_empty() || extra.len() == before {
             let clusters = {
                 let _t = Timer::new(Phase::Resplit);
                 cluster_triangles(input.positions, &simplified.indices, DAG_CLUSTER_TRIANGLES)?
@@ -168,13 +176,8 @@ pub(super) fn attempt(
             return Ok(Ok(Attempt {
                 simplified,
                 clusters,
-                relocked: retries > 0,
+                relocked: !extra.is_empty(),
             }));
         }
-        if retries == BORDER_RETRIES {
-            return Ok(Err(Stop::BorderLost));
-        }
-        retries += 1;
-        lock_triangles_touching(source, &lost, weld, &mut extra);
     }
 }

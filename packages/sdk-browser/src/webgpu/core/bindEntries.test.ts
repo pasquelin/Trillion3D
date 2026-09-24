@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts';
 import { createWebgpuShadePipelines } from '../visibility/pipelines.ts';
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
@@ -18,23 +17,13 @@ import { BASE_SLOTS } from '../../gpu/draw/draw.ts';
 import { createGpuRaster } from '../../gpu/raster/raster.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { layoutCreators } from './layoutDevice.fixture.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 // Defect this test catches: a layout gains a binding and only one of its two constructors
 // binds it. The real device answers “Number of entries (10) did not match the expected number
 // of entries (12)”, then loses it; no test saw it.
 
 type Recorded = { layout: { entries: unknown[] }; entries: unknown[] };
-
-function recordingDevice(groups: Recorded[]) {
-  return {
-    ...layoutCreators(),
-    createBindGroup: (desc: Recorded) => {
-      groups.push(desc);
-      return desc;
-    },
-  } as unknown as GPUDevice;
-}
 
 /** Streamer in the shape constructors read: three lane views and one table per atlas, plus feedback. */
 function stubTextures() {
@@ -71,9 +60,8 @@ function stubVis(layouts: Record<string, unknown>) {
 }
 
 test('each bind-group constructor binds exactly the entries of its layout', async () => {
-  installGpuGlobals();
-  const groups: Recorded[] = [];
-  const device = recordingDevice(groups);
+  const { device, bindGroups } = fakeDevice();
+  const groups = bindGroups as unknown as Recorded[];
   const { visBindGroupLayout, visModule } = await createWebgpuVisibilityShaders(device, 8);
   void visModule;
   const { shadeBindGroupLayout } = await createWebgpuShadePipelines(
