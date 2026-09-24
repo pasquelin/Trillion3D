@@ -6155,7 +6155,7 @@
       },
       {
         "name": "matrix",
-        "type": "{ readonly elements: number[]; }",
+        "type": "{ readonly elements: ArrayLike<number>; }",
         "desc": "UV transform of the sampler, `KHR_texture_transform` composed into three rows; the host recomputes it from offset, repeat and rotation when it owns the update."
       },
       {
@@ -14311,7 +14311,7 @@
       },
       {
         "name": "transform",
-        "type": "readonly number[]",
+        "type": "ArrayLike<number>",
         "desc": "UV transform of the sampler, `KHR_texture_transform` composed into three rows of three."
       }
     ],

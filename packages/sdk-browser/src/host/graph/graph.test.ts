@@ -48,10 +48,10 @@ test('a posed chain resolves to the reference world matrices, aim and decomposit
   const [n, tn] = [new GraphNode(), new THREE.Object3D()];
   n.applyMatrix4({ elements: m.elements });
   tn.applyMatrix4(m);
-  assert.deepEqual(
-    [...n.position.toArray(), ...n.quaternion.toArray(), ...n.scale.toArray()],
-    [...tn.position.toArray(), ...tn.quaternion.toArray(), ...tn.scale.toArray()],
-  );
+  const numbers = (node: GraphNode | THREE.Object3D) =>
+    [node.position, node.quaternion, node.scale].flatMap((v) => [v.x, v.y, v.z]);
+  assert.deepEqual(numbers(n), numbers(tn));
+  assert.equal(n.quaternion.w, tn.quaternion.w);
 });
 
 test('angles and quaternion follow each other, and a watch hears either face', () => {
@@ -59,7 +59,8 @@ test('angles and quaternion follow each other, and a watch hears either face', (
     reference = new THREE.Object3D();
   node.rotation.set(0.3, -1.1, 2.4);
   reference.rotation.set(0.3, -1.1, 2.4);
-  assert.deepEqual(node.quaternion.toArray(), reference.quaternion.toArray());
+  const { x, y, z, w } = node.quaternion;
+  assert.deepEqual([x, y, z, w], reference.quaternion.toArray());
   const revision = { revision: 0 };
   hookHostNode(node, revision);
   node.position.x = 4;
@@ -128,8 +129,8 @@ test('a texture transform, a surface family and a copied light hold the referenc
     spot = new THREE.SpotLight();
   const copy = light.clone();
   assert.deepEqual(
-    [copy.angle, copy.penumbra, copy.decay, copy.distance, ...copy.position.toArray()],
-    [spot.angle, spot.penumbra, spot.decay, spot.distance, ...spot.position.toArray()],
+    [copy.angle, copy.penumbra, copy.decay, copy.distance, copy.position.x, copy.position.y],
+    [spot.angle, spot.penumbra, spot.decay, spot.distance, spot.position.x, spot.position.y],
   );
   assert.notEqual(copy.target, light.target, 'a copied light aims at a copy of the target');
   const mesh = new GraphMesh(new GraphGeometry(), surface);

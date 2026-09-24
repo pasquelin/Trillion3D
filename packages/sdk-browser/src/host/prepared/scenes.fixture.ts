@@ -31,8 +31,7 @@ export function serveFiles(t: TestContext) {
     return new Response(await readFile(fileURLToPath(url)));
   });
   const decode = async (blob: Blob) => ({ width: 1, height: 1, bytes: blob.size });
-  // The loader reports its download progress with the browser's event and reaches the page's
-  // global as `self`, which Node lacks.
+  // The loader reports progress with the browser's event and reads `self`: Node lacks both.
   class ProgressEvent extends Event {}
   const scope = globalThis as Record<string, unknown>;
   const stubs = { createImageBitmap: decode, ProgressEvent, self: globalThis };
@@ -122,7 +121,7 @@ export function describe(root: THREE.Object3D, ranks: Ranks) {
   return out;
 }
 
-/** The numbers of a light, after its colour. */
+const numbers = (v: { x: number; y: number; z: number; w?: number }) => [v.x, v.y, v.z, v.w];
 const LIGHT = ['intensity', 'distance', 'decay', 'angle', 'penumbra'] as const;
 /** The fields of a surface the engine reads (`../shadedMaterial.ts`, the physical gate). */
 const SURFACE_FIELDS = (
@@ -146,7 +145,7 @@ const TEXTURE_FIELDS = (
   'isDataArrayTexture image'
 ).split(' ');
 
-/** A value as the engine reads it: a colour by its components, a vector by its two numbers. */
+/** A value as the engine reads it: a colour, a vector, a node by their numbers. */
 function read(value: unknown, ranks: Ranks): unknown {
   const v = value as Record<string, unknown> | null | undefined;
   if (v?.isTexture) {
@@ -177,13 +176,16 @@ export function describeShape(root: GraphNode | THREE.Object3D, ranks: Ranks) {
           .map((key) => [key, o[key]]),
       ),
       userName: o.userData.name as unknown,
-      pose: [o.position, o.quaternion, o.scale].flatMap((v) => v.toArray()),
+      pose: [o.position, o.quaternion, o.scale].flatMap(numbers),
       ranks: o.isMesh ? { meshes, primitives } : undefined,
       geometry: o.isMesh ? geometry(o.geometry) : undefined,
       morph: o.isMesh ? o.morphTargetInfluences : undefined,
       materials: materials.map((m) =>
         Object.fromEntries(
-          SURFACE_FIELDS.map((key) => [key, read((m as Record<string, unknown>)[key], ranks)]),
+          SURFACE_FIELDS.map((key) => [
+            key,
+            read((m as unknown as Record<string, unknown>)[key], ranks),
+          ]),
         ),
       ),
       light: o.isLight

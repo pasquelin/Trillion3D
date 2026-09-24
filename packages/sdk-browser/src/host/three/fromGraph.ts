@@ -35,7 +35,7 @@ function sourceOf(image: unknown) {
 }
 
 /** The library's texture of an engine texture, its sampler state and transform kept in step. */
-export function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Texture {
+function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Texture {
   if (texture instanceof THREE.Texture) return texture;
   let held = textures.get(texture);
   if (held && held.version === texture.version) return held.made;
