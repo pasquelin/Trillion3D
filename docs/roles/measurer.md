@@ -22,11 +22,11 @@ merge; your one commit is an example's thumbnail (step 6).
 5. **Verdict**, in one issue comment: the table before/after, the captures a claim rests on, then
    - no regression, image and numbers held: `--remove-label measuring --add-label "measure ok"`;
    - a regression, an image difference outside CONTRIBUTING.md's tolerance, or a failing proof:
-     `--remove-label measuring`, then **a new issue** written as `docs/roles/writer.md` shows —
-     title `Regression after #<n>: <what>`, the numbers, the captures, `Links: #<n>` — labelled
-     `measure ko` plus the domain label of #<n>. Its lead fixes it; #<n> stays closed.
+     `--remove-label measuring`, then **reopen #<n>** (`gh issue reopen <n>`), comment
+     `Regression after #<pr>:` with the numbers and the captures, and add `measure ko`. Never open
+     a new issue (AGENTS.md rule 5): its lead takes #<n> again and closes it once fixed.
      A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,
-     never estimated, and becomes a new issue the same way.
+     never estimated, and reopens #<n> the same way.
 6. **Thumbnails.** When the merge adds an example, or takes one out of parking, and
    `site/assets/examples/thumbnails/<id>.png` is missing: capture it on the merge commit
    (`node scripts/docs-examples-thumbnails.ts <id>`), commit it alone on a branch

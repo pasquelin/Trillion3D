@@ -19,6 +19,11 @@ rule 2).
    - examples: an example added or taken out of parking has its thumbnail
      (`site/assets/examples/thumbnails/<id>.png`), or its issue carries `to measure` for the
      measurer's capture; an example whose issue is closed is out of parking;
+   - CONTRIBUTING.md §Streaming, memory and shadows (the rules of #483): no hole, one mechanism
+     per concern, nothing rebuilt every frame, bounded by the view, WebGL2 degraded but never
+     broken;
+   - examples use the engine: a per-frame page loop over vertices, tracks or controls standing in
+     for a missing engine feature is a finding;
    - CONTRIBUTING.md §Quality and evidence and §Engine and package boundaries;
    - the path: issue, reviewer's passes filled in, `validate` green, the right lifecycle label.
 4. **Verdict.**
