@@ -75,3 +75,12 @@ test('a planned body shorter than declared gives its shortfall back, never lower
   assert.deepEqual(heard.at(-1), [7, 7]);
   assert.ok(rising());
 });
+
+test('a manifest that declares no file is heard once, whole, when the load settles', async () => {
+  const { heard, meter } = listened();
+  meter.plan(new Map());
+  await meter.read(answer([4, 4]), 'http://cache/clusters.json').arrayBuffer();
+  assert.deepEqual(heard, [], 'no share is reported against an empty plan');
+  meter.settle();
+  assert.deepEqual(heard, [[8, 8]]);
+});

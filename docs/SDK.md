@@ -115,7 +115,7 @@ for a full cache); a pointer or manifest of another scope is rejected with `SCOP
 `total` is then every file the manifest declares, at once, and each chunk of every file the load
 reads adds to `completed`, whatever the server says of its length or compression. The share
 `completed / total` never goes down, and the last event, once the files the load did not need are
-dropped, has `completed === total`. Between them come `{ phase: 'manifest' }` once the manifest is read,
+dropped, has `completed === total`; a manifest that declares no file is heard once, whole, at the end. Between them come `{ phase: 'manifest' }` once the manifest is read,
 `{ phase: 'tables' }` once the scene tables are, then `{ phase: 'resources', completed, total }`
 as each file the scene reads lands. The first pages follow the load:
 `await world.awaitPages({ onProgress })` settles once the pages the view reads are resident, and
