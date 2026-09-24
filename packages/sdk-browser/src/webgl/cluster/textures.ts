@@ -1,14 +1,16 @@
 import type { Texture, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts';
+import { followHostTexture } from '../../host/surfaceImport.ts';
 
 /**
  * A texture as uploaded, at its version. Any version the texture moved to uploads it again, its
  * sampler state with it: nothing tells pixels written in place under the same image from a
  * sampler change (#360, #361). The UV placement is not in the version — the material binding
- * uploads it at every draw (`materialBinding.ts`) — so moving it uploads nothing.
+ * uploads it at every draw (`materialBinding.ts`) — so moving it uploads nothing. `followed` is
+ * the image its record was last brought up to its host at (`followHostTexture`).
  */
-type TextureRecord = { texture: WebGLTexture; version: number };
+type TextureRecord = { texture: WebGLTexture; version: number; followed: number };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
 
 const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
@@ -31,6 +33,8 @@ export class WebglClusterTextures {
   private anisotropy: Anisotropy | null;
   /** The device's anisotropy ceiling, read once. */
   private maxAnisotropy = 1;
+  /** Images drawn so far: a texture is followed once per image, not per draw. */
+  private frame = 0;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -72,6 +76,9 @@ export class WebglClusterTextures {
     }
     const key = `${texture.id}:${color ? 'srgb' : 'linear'}`;
     let record = this.records.get(key);
+    // Once per image, as the WebGPU path does before its hold verdict: the UV matrix the host
+    // composes lazily, and a version or an image the host moved since the last draw.
+    if (record?.followed !== this.frame) followHostTexture(texture);
     if (!record || record.version !== texture.version) {
       if (record) gl.deleteTexture(record.texture);
       const target = gl.createTexture()!;
@@ -100,12 +107,13 @@ export class WebglClusterTextures {
       else throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
       if (texture.generateMipmaps) gl.generateMipmap(gl.TEXTURE_2D);
       this.setSampler(texture);
-      record = { texture: target, version: texture.version };
+      record = { texture: target, version: texture.version, followed: this.frame };
       this.records.set(key, record);
     } else if (this.bound[unit] !== record.texture) {
       gl.activeTexture(gl.TEXTURE0 + unit);
       gl.bindTexture(gl.TEXTURE_2D, record.texture);
     }
+    record.followed = this.frame;
     this.bound[unit] = record.texture;
   }
   /** Addressing, filters and anisotropy of the texture bound on TEXTURE_2D. Anisotropy follows
@@ -120,7 +128,9 @@ export class WebglClusterTextures {
     if (this.anisotropy && anisotropy > 1)
       gl.texParameterf(gl.TEXTURE_2D, this.anisotropy.TEXTURE_MAX_ANISOTROPY_EXT, anisotropy);
   }
+  /** Called at every image's start: the host's texture units are unknown there. */
   invalidateBindings() {
+    this.frame++;
     this.bound.length = 0;
   }
   dispose() {
