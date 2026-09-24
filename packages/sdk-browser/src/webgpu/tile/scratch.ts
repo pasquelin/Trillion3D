@@ -1,5 +1,6 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
+import { premultipliedByte } from '../../visibility/math.ts';
 import { generateMaterialMips, mipLevelCountFor } from '../../texture/mips.ts';
 import { writeRgba } from './write.ts';
 import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
@@ -49,23 +50,25 @@ export function createTileScratch(
       GPUTextureUsage.RENDER_ATTACHMENT,
   };
   const texture = device.createTexture(descriptor);
-  /** Sends the picture as it is now and builds its mips again, in the same texture. `flipY`, as
-   *  the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`): the picture's last row lands at v = 0 (#362). */
+  /** Sends the picture as it is now and builds its mips again, in the same texture. `flipY` and
+   *  `premultiplyAlpha` as the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`,
+   *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0 (#362). */
   const fill = () => {
     const { map } = options;
     const rgba = textureRgba(map);
     if (rgba) {
       if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE');
-      const rows = map.flipY ? rowsFlipped(rgba.data, width, height) : rgba.data;
-      writeRgba(device.queue, texture, [0, 0, 0], rows, width, height);
+      const texels = uploadedRgba(map, rgba.data, width, height);
+      writeRgba(device.queue, texture, [0, 0, 0], texels, width, height);
     } else {
       const image = map.image as GPUCopyExternalImageSource | undefined;
       if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
         throw new Error(options.errorCode);
-      device.queue.copyExternalImageToTexture({ source: image, flipY: map.flipY }, { texture }, [
-        width,
-        height,
-      ]);
+      device.queue.copyExternalImageToTexture(
+        { source: image, flipY: map.flipY },
+        { texture, premultipliedAlpha: map.premultiplyAlpha },
+        [width, height],
+      );
     }
     generateMaterialMips(device, texture, format, width, height);
   };
@@ -78,11 +81,20 @@ export function createTileScratch(
   };
 }
 
-/** RGBA8 rows in reverse order: the texels `flipY` uploads. */
-function rowsFlipped(data: Uint8Array, width: number, height: number) {
+/** RGBA8 texels as the WebGL2 upload stores them: rows in reverse order under `flipY`, colour
+ *  times alpha under `premultiplyAlpha` (`premultipliedByte`, the CPU twin's rule). The source
+ *  itself when neither is asked. */
+function uploadedRgba(map: Texture, data: Uint8Array, width: number, height: number) {
+  if (!map.flipY && !map.premultiplyAlpha) return data;
   const row = width * 4,
     out = new Uint8Array(row * height);
-  for (let y = 0; y < height; y++)
-    out.set(data.subarray(y * row, (y + 1) * row), (height - 1 - y) * row);
+  for (let y = 0; y < height; y++) {
+    const from = y * row,
+      to = (map.flipY ? height - 1 - y : y) * row;
+    out.set(data.subarray(from, from + row), to);
+    if (map.premultiplyAlpha)
+      for (let x = to; x < to + row; x += 4)
+        for (let c = 0; c < 3; c++) out[x + c] = premultipliedByte(out[x + c], out[x + 3]);
+  }
   return out;
 }
