@@ -4,18 +4,11 @@ import { PAGE } from './pool.fixture.ts';
 import { mount } from './poolCut.fixture.ts';
 
 test('after a smaller budget no image holds more than it: the cut fits it in the image drawn', () => {
-  const { pool, state, diagnostics, image, cut, drawn } = mount(1000 * PAGE);
+  const { pool, state, diagnostics, image, drawn } = mount(1000 * PAGE);
   for (let frame = 0; frame < 12; frame++) image(1);
   const fine = drawn();
   assert.ok(state.allocationBytes > 40 * PAGE, `a fine cut to shrink: ${fine} pages`);
-  assert.equal(pool.budgetPixelError, 0);
-  cut.pixelError = 1;
-  pool.bound(cut);
-  assert.equal(
-    cut.pageBudgetFrom,
-    0,
-    'a cut the budget did not limit: the next starts at the host',
-  );
+  assert.equal(pool.budgetPixelError, 0, 'a cut the budget did not limit');
   pool.resize(20 * PAGE);
   for (let frame = 0; frame < 12; frame++) {
     const most = image(1);

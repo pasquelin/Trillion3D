@@ -10,10 +10,10 @@ import {
   fallbackScratch,
   residentUnder,
   selectionScratch,
+  truncateShown,
   type PageRecord,
   type SelectionState,
 } from './state.ts';
-import { truncateShown } from './tally.ts';
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 
@@ -58,7 +58,6 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     startShown = s.shownCount,
     startRejected = s.frustumRejected,
     startNodes = s.nodesTested;
-  s.flatStartDrawn = s.budgetDrawn;
   s.flatUseForcing = false;
   s.flatMissing = false;
   traverse(s, pages, root.culling);

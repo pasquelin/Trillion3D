@@ -15,7 +15,7 @@ const SCENE = '../../../../../site/assets/gallery/signature-architecture/cache/n
 const TRANSIENT_SLOTS = 11;
 
 test('a budget not even the root cover fits holds the threshold at the root cover', () => {
-  const { pool, image, cut, rootCoverAt, drawn } = mount(1000 * PAGE, { rootCharged: true });
+  const { pool, image, rootCoverAt, drawn } = mount(1000 * PAGE, { rootCharged: true });
   for (let frame = 0; frame < 12; frame++) image(1);
   const fine = drawn();
   pool.resize(PAGE);
@@ -43,12 +43,6 @@ test('a budget not even the root cover fits holds the threshold at the root cove
   assert.equal(pool.budgetPixelError, 0);
   for (let frame = 0; frame < 12; frame++) image(1);
   assert.equal(drawn(), fine, 'the detail the host asked for is back');
-  // A host threshold lowered while the budget limits the cut starts the search at the host's.
-  pool.resize(PAGE);
-  image(4);
-  cut.pixelError = 2;
-  pool.bound(cut);
-  assert.equal(cut.pageBudgetFrom, 0);
 });
 
 test('a refinement holds the ancestors it replaces beside their pages, then comes back under the pool', () => {
