@@ -81,8 +81,7 @@ for (const fixture of result.results) {
     ),
     `${fixture.name}: real visibility buffer required`,
   );
-  if (fixture.holds !== false)
-    assert.equal(fixture.held, true, `${fixture.name}: the engine image never settled`);
+  assert.equal(fixture.held, true, `${fixture.name}: the engine image never settled`);
   if (fixture.holes !== undefined)
     assert.equal(fixture.holes, 0, `${fixture.name}: ${fixture.holes} pixels show the background`);
   const [least, most] = fixture.difference;
