@@ -232,29 +232,29 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
-- **The floor is always read.** Every page a report names asks for its light's floor under it
+- **The floor is drawn first.** Every page a report names asks for its light's floor under it
   too — a sun's last clipmap level, a lamp face's one-page mip —: mapped first, never evicted while
-  anything above it is read, and admitted first when not read — never drawn, or withdrawn — or
-  stale at a past pose of its light, whatever the budget, which pays it before any finer page; a
-  floor still read, stale for its moving casters or for detail, waits its turn like any page, so an
-  object that keeps moving never starves the finer pages. The floor covers all the light reaches,
-  so it needs no report to know what the view will read: a sun asks every frame for the floor
-  pages its view reaches — the camera brings new ones in without any pose —, and a new, moved or
-  reshaped lamp for the floor of each face until a report written at its current pose comes back,
-  as if the latest report named them: a report from a past pose names only the faces that pose's
-  receivers read. A move never withdraws a floor: it stays read, stale — a coarse shadow a few
-  frames behind at most —, until it is redrawn. When the frame's first floors exceed the page cap
-  or span more views than the light cut holds, they go oldest first by their wait. So a pixel that
-  falls back past a withdrawn page reads a floor, never the far ray of a sun or the unshadowed
-  answer of a lamp.
+  anything above it is read, and admitted first when not read — never drawn, or withdrawn —,
+  oldest first, whatever the budget, which pays it before any finer page; a floor still read,
+  stale for its moving casters or for detail, waits its turn like any page, so an object that
+  keeps moving never starves the finer pages. The floor covers all the light reaches, so it needs
+  no report to know what the view will read: a sun asks every frame for the floor pages its view
+  reaches — the camera brings new ones in without any pose —, and a new, moved or reshaped lamp for
+  the floor of each face until a report written at its current pose comes back, as if the latest
+  report named them: a report from a past pose names only the faces that pose's receivers read.
+  So a pixel that falls back past a withdrawn page reads a current floor. When the frame's floors
+  exceed the page cap or span more views than the light cut holds, those held back go first the
+  next frame, and meanwhile their face reads no shadow — never one at a past pose. A new light
+  likewise has no floor until its first draw.
 - **A moving light follows within the frame.** A move is a change of what shapes its depth —
   kind, position, direction, range, cone, a rect's frame and size, the emitter radius, whether it
   casts —; an intensity, colour or penumbra change re-poses nothing and withdraws no page. A move
-  withdraws every page of its past pose finer than the floor, so none is read again before it is
-  drawn at the new one. The frame draws its floor, then the pages the latest report named,
-  coarsest first within the budget: a finer page's wait counts from the light's pose, not from when
-  it went stale, so no finer page overtakes a coarser one while the light keeps moving. Its finer
-  pages come as the budget allows, and once it stops.
+  withdraws every page of its past pose, the floor too, so none is read again before it is drawn
+  at the new one: the shading samples every page with the light's current matrices. The frame
+  draws its floors, then the pages the latest report named, coarsest first within the budget: a
+  finer page's wait counts from the light's pose, not from when it went stale, so no finer page
+  overtakes a coarser one while the light keeps moving. Its finer pages come as the budget allows,
+  and once it stops.
 
 **Moving objects redraw their own casters, never the static set under them.** A placement turns
 moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —
@@ -442,6 +442,15 @@ Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 A region keeps a complete resident representation until every replacement page is uploaded; if old
 and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.
+On WebGPU a page enters the pool only after the pages it depends on, the clusters of the group
+that replaces it, read from the compiled group links (`webgpu/residency/admission.ts`): loading a
+wanted page or a shadow caster brings its missing dependencies first, each after its own, up to
+the pinned root cover. The bytes come first: the host's request for a page lists the missing
+bundles its bundle depends on (`streams.pages[].dependencies`, [FORMAT.md](FORMAT.md#cluster-dag))
+and keeps them retained with the cut, even when the parent is outside it. The compiler refuses a
+list that misses a parent's bundle or is not closed, so every page the pool walks has its bytes
+requested. Until they arrive, or when a dependency does not fit, the page is not loaded and stays
+drawn through its resident ancestor. Both tiers of the residency queue share this one path.
 Shared URLs occupy one slot across instances. Two counters say different things:
 
 | Field            | Meaning                                                                                         | Reported by          |

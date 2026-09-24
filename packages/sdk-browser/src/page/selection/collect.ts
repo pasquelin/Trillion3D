@@ -8,6 +8,7 @@ import { objects, quantizationErrorOf } from './helpers.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 import { createPrimitiveTemplates } from './template.ts';
 import { indexPageRequests } from './requests.ts';
+import { linkBundleDependencies } from './bundleDependencies.ts';
 import { hostWorldPlacements } from '../../host/world/placements.ts';
 import type { PageRec, ClusterRoot } from './types.ts';
 import { placementsOf } from '../../placement/roots.ts';
@@ -113,6 +114,7 @@ export function collectClusterPages(
         allPages.push(rec);
         return rec;
       });
+      linkBundleDependencies(primitive, pages);
       const worldBox = new Float64Array(BOX_VALUES);
       boxTransform(worldBox, 0, shape.local, 0, world.elements);
       roots.push({

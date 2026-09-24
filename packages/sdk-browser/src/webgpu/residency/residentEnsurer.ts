@@ -1,5 +1,6 @@
 import { UPLOAD_SLICE_MS } from '../../backend/common.ts';
 import { pageAddress } from '../row/pageSlots.ts';
+import { createPageAdmission } from './admission.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { createGpuPageCache } from '../../gpu/page/pages.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
@@ -13,6 +14,8 @@ type EnsureOptions = {
   bootstrapKey: Uint8Array;
   signal?: AbortSignal;
   hasBytes: (page: PageRec) => boolean;
+  /** The pages a page depends on (`./admission.ts`): each is resident before the page is loaded. */
+  parentsOf: (page: PageRec) => readonly PageRec[];
   isLost: () => boolean;
   traceEnabled: boolean;
   traceDiagnostic: Trace;
@@ -46,11 +49,22 @@ export function createWebgpuResidentEnsurer({
   bootstrapKey,
   signal,
   hasBytes,
+  parentsOf,
   isLost,
   traceEnabled,
   traceDiagnostic,
   shadowPages,
 }: EnsureOptions) {
+  /** Every load of both tiers goes through the install order; what the image holds is pinned. */
+  const admit = createPageAdmission({
+    getCache,
+    tracking,
+    bootstrapKey,
+    signal,
+    isLost,
+    hasBytes,
+    parentsOf,
+  });
   /**
    * What the camera left: the casters the light cuts want, loaded only into slots nobody holds —
    * free, or taken by a page no tier wants. They are never pinned: a camera page evicts them,
@@ -89,13 +103,12 @@ export function createWebgpuResidentEnsurer({
       signal?.throwIfAborted();
       if (isLost() || getCache() !== cache) return;
       try {
-        await cache.load(address, signal);
+        spare -= Math.max(0, await admit(rec));
       } catch (error) {
         // The camera's own burst took the last slot meanwhile: the tier waits, as it does.
         if (String(error).includes('ALL_PAGES_PINNED')) return;
         throw error;
       }
-      spare--;
     }
   };
   /**
@@ -154,7 +167,7 @@ export function createWebgpuResidentEnsurer({
         sliceStart = performance.now();
       }
       try {
-        await cache.load(address, signal);
+        await admit(rec);
       } catch (error) {
         if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
         // Pool full of pages the image holds: like the reference streamer, the burst stops there,
@@ -166,10 +179,6 @@ export function createWebgpuResidentEnsurer({
       }
       cache = getCache();
       if (isLost() || !cache) throw new Error('WEBGPU_LOST');
-      if (tracking.wanted.has(key) || bootstrapKey[key]) {
-        cache.pin(address);
-        tracking.markPinned(key);
-      }
     }
     // A copy: the tier's list is rewritten in place by every report taken while this one loads,
     // and a loop resumed on another list keeps neither its order nor its count of free slots.
