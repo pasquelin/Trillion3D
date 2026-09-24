@@ -1,6 +1,6 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
-import { hostDiagnostics } from '../../../bench/witnesses/three/sceneAdapter.ts';
+import { pageDiagnostics } from '../../../packages/sdk-browser/src/host/pageDiagnostics.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { drawCoplanarBlend } from './webglClusterCoplanarBlend.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.ts';
@@ -108,7 +108,7 @@ export function execute() {
   const coplanarBlendPixel = pixel(gl);
 
   const diagnosticGeometry = asHostLibrary<G.GraphGeometry>(
-      triangleGeometry(geometry(), hostDiagnostics),
+      triangleGeometry(geometry(), pageDiagnostics),
     ),
     diagnosticMaterial = G.basicSurface({ vertexColors: true }),
     diagnostic = G.mesh(diagnosticGeometry, diagnosticMaterial);
