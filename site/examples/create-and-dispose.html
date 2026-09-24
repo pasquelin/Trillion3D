@@ -148,7 +148,8 @@
       const PER_KIND = 6, live = [], flying = KINDS.map(() => 0);
       let created = 0, disposed = 0, rota = 0;
       const random = seeded(1);
-      const GRAVITY = 9.81, SHRINK = 0.6;
+      // The world's own gravity: the opening crowd's arcs are the ones the physics flies.
+      const GRAVITY = -world.physics.gravity.y, SHRINK = 0.6;
       function launch(fresh, age = 0) {
         let kind = -1;
         for (let tries = 0; tries < KINDS.length && kind < 0; tries++, rota = (rota + 1) % KINDS.length)

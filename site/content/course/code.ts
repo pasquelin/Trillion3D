@@ -146,8 +146,9 @@ floor.physics = 'static'; // the ground, the stairs, the walls: they never move
 platform.physics = 'kinematic'; // moved by your code, it carries what stands on it
 box.physics = { type: 'dynamic', mass: 12 }; // light enough to push
 
+let phase = 0;
 world.beforeFrame(({ delta }) => {
-  platform.position.x = Math.sin((time += delta)) * 4;
+  platform.position.x = Math.sin((phase += delta * 0.5)) * 4;
   world.invalidate();
 });
 world.controls.pushStrength = 400; // newtons: push harder`,
