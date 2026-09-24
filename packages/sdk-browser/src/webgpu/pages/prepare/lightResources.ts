@@ -96,6 +96,13 @@ export function wantsContractLighting(rt: WebgpuPagesRuntime) {
   return !rt.lights.store.unlit;
 }
 
+/** The deferred lighting while the image wants the contract but still resolves unlit — its
+ *  program compiles, and its arrival changes the image —, else nothing. */
+export function compilingContract(rt: WebgpuPagesRuntime) {
+  const { deferred } = rt.gpu;
+  return deferred && wantsContractLighting(rt) && !deferred.usesContract ? deferred : undefined;
+}
+
 const contractResources: DirectLightResources = {};
 
 /**

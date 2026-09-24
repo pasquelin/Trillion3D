@@ -34,7 +34,7 @@ test('a device that refuses the water pipelines keeps the blends, and the refusa
   const built = await createWebgpuBlendPipelines(mount.device, items(2, true));
   assert.equal(built.water, undefined, 'no water pass');
   assert.match(String(built.waterRefused), /DEVICE_SAYS_NO/, 'the device error is what is named');
-  assert.equal(built.blendPipelines.built.length, 3, 'the three blends are kept');
+  assert.equal(built.blendPipelines.byMode.length, 1, 'the three normal blends are kept');
 });
 
 test('without the pass, the transmission slice draws as one more blend', () => {
@@ -59,8 +59,8 @@ test('the blend pipelines are built for normal and for every mode a blend item d
   const glow = mountDevice();
   const built = await createWebgpuBlendPipelines(glow.device, items(2, false, 'additive'));
   assert.equal(glow.pipelines.length, 6, 'normal and additive, three culls each');
-  assert.equal(built.blendPipelines.built.length, 6);
-  assert.ok(built.blendPipelines.built.every(Boolean), 'additive sits right after normal');
+  assert.equal(built.blendPipelines.byMode.length, 2);
+  assert.ok(built.blendPipelines.byMode.every(Boolean), 'additive sits right after normal');
 });
 
 // #346: a blending written on a surface after the pass was built is compiled by the first draw
