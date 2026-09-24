@@ -33,6 +33,14 @@ void rest() {
 }
 
 void create(const uint32_t *w) {
+  World &world = trillion::world();
+  // The inner body's engine id names the slot past the page's: no command or pose reaches it, and
+  // its contacts are reported under that id (the page names it by the character's camera).
+  uint32_t engine = uint32_t(world.slots.size() - 1);
+  Slot &slot = world.slots[engine];
+  // The character replaced or removed ends every touch its inner capsule began.
+  if (slot.used) leaveAll(engine);
+  slot = Slot();
   character = nullptr;
   float radius = f32(w + 1), height = f32(w + 2);
   if (radius <= 0) return;
@@ -53,10 +61,12 @@ void create(const uint32_t *w) {
   settings->mMass = f32(w + 5);
   settings->mMaxStrength = f32(w + 6);
   stepHeight = f32(w + 4);
-  World &world = trillion::world();
-  // The inner body's engine id names the slot past the page's: no command, pose or event reaches it.
-  uint32_t engine = uint32_t(world.slots.size() - 1);
   character = new CharacterVirtual(settings, RVec3(vec3(w + 7)), Quat::sIdentity(), engine, world.system);
+  // A slot of its own: a contact's enter and leave both name the capsule, as any body's do.
+  slot.id = character->GetInnerBodyID();
+  slot.engine = engine;
+  slot.used = true;
+  world.engineOf[slot.id.GetIndex()] = engine;
   due = grounded = false;
   rest();
 }

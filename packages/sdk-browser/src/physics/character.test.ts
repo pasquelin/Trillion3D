@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CommandWriter, PHYSICS_STEP, POSE_WORDS } from '../../../sdk-core/src/physics/index.ts';
+import {
+  CommandWriter,
+  EVENT_WORDS,
+  PHYSICS_STEP,
+  POSE_WORDS,
+} from '../../../sdk-core/src/physics/index.ts';
 import {
   HUMAN_BODY,
   type CharacterInput,
@@ -48,6 +53,8 @@ function live(
   driver.press(input, 0);
   let top = -Infinity;
   const xs = new Map<number, number>();
+  /** Each contact record of the run: `enter` or `leave` and the two engine ids. */
+  const events: string[] = [];
   for (let t = 0; t < seconds; t += PHYSICS_STEP) {
     const move = driver.command(PHYSICS_STEP, jolt.active() > 0);
     const extra = each(jolt, t);
@@ -59,11 +66,14 @@ function live(
       floats = new Float32Array(poses.buffer, poses.byteOffset, poses.length);
     for (let r = 0; r < count; r++)
       xs.set(poses[r * POSE_WORDS] & 0xffffff, floats[r * POSE_WORDS + 1]);
+    const records = jolt.events();
+    for (let at = 0; at < records.length; at += EVENT_WORDS)
+      events.push(`${records[at] === 1 ? 'enter' : 'leave'} ${records[at + 1]} ${records[at + 2]}`);
     driver.read(jolt.character(), PHYSICS_STEP);
     top = Math.max(top, jolt.character()[2]);
   }
   const state = jolt.character();
-  return { x: state[1], y: state[2], z: state[3], top, xs };
+  return { x: state[1], y: state[2], z: state[3], top, xs, events };
 }
 
 test('the Jolt character climbs a step up to its step height and is stopped by a higher one', async () => {
@@ -120,4 +130,27 @@ test('a still character in a world at rest asks for no step: nothing is awake', 
   live(scene, 1, STILL);
   assert.equal(scene.jolt.active(), 0, 'its inner capsule does not count as awake');
   assert.equal(scene.driver.moving(), false);
+});
+
+test('a body thrown at the character twice hears enter and leave each time, named by it', async () => {
+  // A weightless crate listening for contacts, bouncing off the capsule it is thrown at.
+  const crate = { ...block(1, 2, [2, 0.9, 0], [0.2, 0.2, 0.2]), flags: 4 };
+  const scene = await world([{ ...crate, restitution: 1, gravityScale: 0 }]);
+  const writer = new CommandWriter();
+  const thrown = (_: Module, t: number) =>
+    t > 0 ? null : (writer.velocity(1, [-4, 0, 0]), writer.take());
+  const seen = [
+    ...live(scene, 1.5, STILL, thrown).events,
+    ...live(scene, 1.5, STILL, thrown).events,
+  ];
+  assert.deepEqual(
+    seen.map((e) => e.split(' ')[0]),
+    ['enter', 'leave', 'enter', 'leave'],
+    seen.join(', '),
+  );
+  // 64 page bodies: the character's inner capsule is engine id 64, the crate 1.
+  assert.ok(
+    seen.every((e) => e.endsWith(' 1 64') || e.endsWith(' 64 1')),
+    seen.join(', '),
+  );
 });
