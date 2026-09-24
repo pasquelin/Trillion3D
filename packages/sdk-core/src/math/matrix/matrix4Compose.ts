@@ -9,9 +9,10 @@ import { MATRIX_VALUES, POSITION_VALUES, QUATERNION_VALUES } from '../batch/stri
  * THE FORMULA LIVES HERE, once: `composeMatrix4` reads it at offset zero and
  * `composeMatrix4Batch` walks it, so the batch cannot drift from the unit function it repeats.
  * A composition runs once per node, not by the thousand like the product, so the computed index
- * `../batch/batch.ts` refuses for `multiplyMatrix4` costs nothing worth measuring here.
+ * `../batch/batch.ts` refuses for `multiplyMatrix4` costs nothing worth measuring here. Exported
+ * for a writer that composes straight into a flat buffer of rows (the physics' drawn poses).
  */
-function composeAt(
+export function composeMatrix4At(
   out: NumberSink,
   at: number,
   position: ArrayLike<number>,
@@ -65,7 +66,7 @@ export function composeMatrix4<T extends NumberSink>(
   quaternion: ArrayLike<number>,
   scale: ArrayLike<number>,
 ): T {
-  composeAt(out, 0, position, 0, quaternion, 0, scale, 0);
+  composeMatrix4At(out, 0, position, 0, quaternion, 0, scale, 0);
   return out;
 }
 
@@ -103,7 +104,7 @@ export function composeMatrix4Batch(
       p = positions as readonly ArrayLike<number>[],
       q = quaternions as readonly ArrayLike<number>[],
       s = scales as readonly ArrayLike<number>[];
-    for (let i = 0; i < n; i++) composeAt(o[i], 0, p[i], 0, q[i], 0, s[i], 0);
+    for (let i = 0; i < n; i++) composeMatrix4At(o[i], 0, p[i], 0, q[i], 0, s[i], 0);
     return;
   }
   const dst = out as NumberSink,
@@ -112,6 +113,6 @@ export function composeMatrix4Batch(
     sf = scales as ArrayLike<number>;
   for (let i = 0; i < n; i++) {
     const pi = i * POSITION_VALUES;
-    composeAt(dst, i * MATRIX_VALUES, pf, pi, qf, i * QUATERNION_VALUES, sf, pi);
+    composeMatrix4At(dst, i * MATRIX_VALUES, pf, pi, qf, i * QUATERNION_VALUES, sf, pi);
   }
 }

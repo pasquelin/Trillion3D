@@ -305,6 +305,7 @@
       "a-software-rasteriser": "소프트웨어 래스터라이저",
       "sound-from-the-gpu": "GPU에서 나오는 소리",
       "falling-boxes": "떨어지는 상자",
+      "ten-thousand-bodies": "만 개의 물체",
       "breaking-things": "물체 부수기",
       "cloth-and-rope": "천과 밧줄",
       "soft-bodies": "부드러운 물체",
@@ -319,7 +320,6 @@
       "teleport-in-vr": "VR에서 순간이동",
       "controllers-in-vr": "VR 컨트롤러",
       "ar-on-the-table": "탁자 위의 AR",
-      "openworld": "오픈 월드",
       "shadows-case-by-case": "그림자, 사례별로"
     },
     "missing": {
@@ -480,7 +480,6 @@
       "sort-and-reduce": "GPU 연산 API",
       "a-software-rasteriser": "GPU 연산 API",
       "sound-from-the-gpu": "GPU 연산 API",
-      "falling-boxes": "물리 엔진 연동",
       "breaking-things": "물리 엔진 연동",
       "cloth-and-rope": "물리 엔진 연동",
       "soft-bodies": "물리 엔진 연동",
@@ -1054,6 +1053,17 @@
           "<code>world.diagnostic.mode = 'clusters'</code>로 조각들을 살펴보세요: 클러스터마다 고유한 색이 표시됩니다."
         ],
         "tryIt": "메모리를 줄여 보세요: 조각들은 커지지만 건물 전체는 그대로 남습니다. <code>clusters</code> 보기로 전환하면 그 모습이 보입니다."
+      },
+      "make-things-fall": {
+        "title": "물체 떨어뜨리기",
+        "description": "물리를 켜면 도형에 무게가 생깁니다. 떨어지고 부딪치고 멈춥니다.",
+        "steps": [
+          "월드에 <code>physics: true</code>를 주세요. 시뮬레이션은 그리기와 따로 <em>worker</em>에서 돌아 화면을 느리게 하지 않습니다.",
+          "바닥을 <code>'static'</code>으로: 다른 것을 받치고 움직이지 않습니다. 상자를 <code>'dynamic'</code>으로: 중력이 끌어당깁니다.",
+          "모양은 지오메트리에서, 무게는 재질에서 옵니다: <code>physics: 'wood'</code>는 가볍고 <code>'metal'</code>은 무겁고 <code>'rubber'</code>는 튑니다.",
+          "<code>applyImpulse</code>로 밀거나 <code>contact</code>를 들으세요. 모든 물체가 잠들면 아무것도 계산하거나 그리지 않습니다."
+        ],
+        "tryIt": "상자를 더 떨어뜨리고, 중력을 달로 바꾸고, 슬로 모션을 켜 보세요."
       },
       "your-own-scene": {
         "title": "나만의 장면",

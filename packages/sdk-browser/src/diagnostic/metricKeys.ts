@@ -34,7 +34,6 @@ export const BACKEND_METRIC_KEYS = [
   'gpuSelectionFallback',
   'cpuSelectNodesTested',
   'cpuSubmitMs',
-  'gpuMs',
   'gpuPassMs',
   'gpuFrameMs',
   'gpuHostGapMs',

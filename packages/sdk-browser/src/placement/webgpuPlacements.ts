@@ -1,4 +1,4 @@
-import { invalidateOccluderHistory } from '../webgpu/pages/io/drops.ts';
+import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { followPlacementRows } from './update.ts';
 import { placedBy, type PlacementRows } from './rows.ts';
@@ -6,11 +6,11 @@ import { placedBy, type PlacementRows } from './rows.ts';
 /**
  * Rows of an instance buffer the WebGPU page raster was opened with were written. The roots read
  * their worlds from the rows, so nothing is copied: their boxes are reprojected, a parked row
- * leaves the GPU cut's first queue and a taken one enters it (`parkWorld`), and the frame learns
- * that poses moved — the worlds go up in one write at the next image, the rows are rewritten
- * under a new table epoch, the occluder history no longer holds, and the shadow pages the
- * change touched are drawn again: their moving casters only, once the placements are known to
- * move (`../webgpu/shadow/mobility.ts`). No table is resized and nothing is prepared again.
+ * leaves the GPU cut's first queue and a taken one enters it (`parkWorld`), the page rows of the
+ * roots that read them are rewritten, and them alone (`moveRootRows`), and the frame learns that
+ * poses moved — the worlds go up in one write at the next image, and the shadow pages the change
+ * touched are drawn again: their moving casters only, once the placements are known to move
+ * (`../webgpu/shadow/mobility.ts`). No table is resized and nothing is prepared again.
  */
 export function updateWebgpuPlacements(
   rt: WebgpuPagesRuntime,
@@ -26,17 +26,16 @@ export function updateWebgpuPlacements(
     to,
     (rank, parked) => run.gpuSelection?.parkWorld(rank, parked),
     lights.mobility.move,
+    (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
   );
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
   // and their boxes follow at its world refresh (`refreshBlendWorlds`).
   if (!touched && !placedBy(rt.blendState.blendGpu, rows)) return;
   // Poses moved and rows were parked or taken: no node entered or left the source graph, so
   // the watched set stands (`frame/gateCore.ts`), and the host index already holds its worlds.
+  run.gate.engineWriting();
   run.gate.sceneMoved();
   run.gate.noteWorldsUpdated();
-  if (!touched) return;
-  layout.rows.tableEpoch++;
-  invalidateOccluderHistory(run);
   // Placements already moving leave the static casters under them unchanged.
-  lights.plan.worldChanged(touched.min, touched.max, !lights.mobility.takePromoted());
+  if (touched) lights.plan.worldChanged(touched.min, touched.max, !lights.mobility.takePromoted());
 }

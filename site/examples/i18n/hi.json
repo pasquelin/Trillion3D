@@ -30,6 +30,7 @@
       "geometry pool": "ज्यामिति भंडार",
       "lights": "रोशनियाँ",
       "GPU frame": "GPU फ़्रेम",
+      "GPU frame (last)": "GPU फ़्रेम (अंतिम)",
       "CPU frame": "CPU फ़्रेम",
       "page hooks": "पेज का कोड",
       "engine CPU": "इंजन CPU"
@@ -1860,26 +1861,52 @@
       "dollyZoom": "डॉली ज़ूम"
     }
   },
-  "openworld": {
-    "banner": "W A S D से चलो। अंदर बैठने के लिए कार या हवाई जहाज़ के पास E दबाओ।",
+  "falling-boxes": {
+    "banner": "पचास और डिब्बों के लिए गिराएँ दबाएँ। गुरुत्व बदलें और उन्हें गिरते देखें।",
     "controls": {
-      "keys": "WASD चलें · Shift दौड़ें · Space कूदें · C झुकें · E कार या विमान में चढ़ें या उतरें",
-      "teleport": "टेलीपोर्ट",
-      "timeOfDay": "दिन का समय",
-      "daySpeed": "दिन की गति",
-      "pause": "रोकें",
-      "rain": "बारिश",
-      "geometryMB": "ज्यामिति MB",
-      "textureMB": "टेक्सचर MB",
-      "view": "दृश्य"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "पदार्थ",
+      "gravity": "गुरुत्व",
+      "drop": "गिराएँ",
+      "jump": "उछालें",
+      "slowMotion": "धीमी गति"
     },
     "readouts": {
-      "streaming": "स्ट्रीमिंग"
+      "bodies": "पिंड",
+      "awake": "सक्रिय",
+      "step": "चरण"
+    },
+    "choices": {
+      "matter": {
+        "wood": "लकड़ी",
+        "rubber": "रबर",
+        "ice": "बर्फ़"
+      },
+      "gravity": {
+        "earth": "पृथ्वी",
+        "moon": "चंद्रमा",
+        "mars": "मंगल",
+        "none": "कोई नहीं"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "दस हज़ार डिब्बे एक साथ गिरते हैं। पैनल भौतिकी की लागत सीधे दिखाता है।",
+    "controls": {
+      "count": "संख्या",
+      "again": "फिर से"
+    },
+    "readouts": {
+      "bodies": "पिंड",
+      "awake": "सक्रिय",
+      "step": "चरण",
+      "page": "पेज"
+    },
+    "choices": {
+      "count": {
+        "10000": "10,000",
+        "5000": "5,000",
+        "1000": "1,000"
+      }
     }
   },
   "shadows-case-by-case": {

@@ -16,6 +16,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
  * tile writes `NaN` there, which the profiler drops, so the stage stays unmeasured rather than zero.
  */
 const CPU = cpuStepTable([
+  ['physicsMs', 'physics'],
   ['gateMs', 'animations'],
   ['tilesPumpMs', 'textures'],
   ['worldMs', 'animations'],

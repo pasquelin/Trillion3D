@@ -30,6 +30,7 @@
       "geometry pool": "ジオメトリ置き場",
       "lights": "ライト",
       "GPU frame": "GPUフレーム",
+      "GPU frame (last)": "GPUフレーム（直近）",
       "CPU frame": "CPUフレーム",
       "page hooks": "ページのコード",
       "engine CPU": "エンジンCPU"
@@ -1860,26 +1861,52 @@
       "dollyZoom": "ドリーズーム"
     }
   },
-  "openworld": {
-    "banner": "W A S Dで歩こう。車か飛行機の近くでEをおすと乗れるよ。",
+  "falling-boxes": {
+    "banner": "「落とす」で箱をあと50個。重力を変えて落ちる様子を見よう。",
     "controls": {
-      "keys": "WASD 歩く · Shift 走る · Space ジャンプ · C しゃがむ · E 車や飛行機に乗り降り",
-      "teleport": "テレポート",
-      "timeOfDay": "時刻",
-      "daySpeed": "一日の速さ",
-      "pause": "一時停止",
-      "rain": "雨",
-      "geometryMB": "ジオメトリ MB",
-      "textureMB": "テクスチャ MB",
-      "view": "表示"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "素材",
+      "gravity": "重力",
+      "drop": "落とす",
+      "jump": "跳ねる",
+      "slowMotion": "スロー"
     },
     "readouts": {
-      "streaming": "ストリーミング"
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ"
+    },
+    "choices": {
+      "matter": {
+        "wood": "木",
+        "rubber": "ゴム",
+        "ice": "氷"
+      },
+      "gravity": {
+        "earth": "地球",
+        "moon": "月",
+        "mars": "火星",
+        "none": "なし"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "一万個の箱が一斉に落ちる。パネルに物理の負荷がリアルタイムで出る。",
+    "controls": {
+      "count": "個数",
+      "again": "もう一度"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ",
+      "page": "ページ"
+    },
+    "choices": {
+      "count": {
+        "10000": "10,000",
+        "5000": "5,000",
+        "1000": "1,000"
+      }
     }
   },
   "shadows-case-by-case": {

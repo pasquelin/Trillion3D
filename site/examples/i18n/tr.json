@@ -30,6 +30,7 @@
       "geometry pool": "geometri deposu",
       "lights": "ışık",
       "GPU frame": "GPU karesi",
+      "GPU frame (last)": "GPU karesi (son)",
       "CPU frame": "CPU karesi",
       "page hooks": "sayfa kodu",
       "engine CPU": "motor CPU"
@@ -1860,26 +1861,52 @@
       "dollyZoom": "Dolly zoom"
     }
   },
-  "openworld": {
-    "banner": "W A S D ile yürü. Binmek için bir arabanın ya da uçağın yanında E'ye bas.",
+  "falling-boxes": {
+    "banner": "Elli kutu daha için Bırak’a bas. Yerçekimini değiştir ve düşüşlerini izle.",
     "controls": {
-      "keys": "WASD yürü · Shift koş · Boşluk zıpla · C çömel · E arabaya veya uçağa bin ya da in",
-      "teleport": "Işınlan",
-      "timeOfDay": "Günün saati",
-      "daySpeed": "Gün hızı",
-      "pause": "Duraklat",
-      "rain": "Yağmur",
-      "geometryMB": "Geometri MB",
-      "textureMB": "Doku MB",
-      "view": "Görünüm"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "Madde",
+      "gravity": "Yerçekimi",
+      "drop": "Bırak",
+      "jump": "Zıpla",
+      "slowMotion": "Ağır çekim"
     },
     "readouts": {
-      "streaming": "Akış"
+      "bodies": "Cisimler",
+      "awake": "Uyanık",
+      "step": "Adım"
+    },
+    "choices": {
+      "matter": {
+        "wood": "ahşap",
+        "rubber": "kauçuk",
+        "ice": "buz"
+      },
+      "gravity": {
+        "earth": "Dünya",
+        "moon": "Ay",
+        "mars": "Mars",
+        "none": "yok"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "On bin kutu aynı anda düşer. Panel fiziğin maliyetini canlı gösterir.",
+    "controls": {
+      "count": "Sayı",
+      "again": "Yeniden"
+    },
+    "readouts": {
+      "bodies": "Cisimler",
+      "awake": "Uyanık",
+      "step": "Adım",
+      "page": "Sayfa"
+    },
+    "choices": {
+      "count": {
+        "10000": "10.000",
+        "5000": "5.000",
+        "1000": "1.000"
+      }
     }
   },
   "shadows-case-by-case": {

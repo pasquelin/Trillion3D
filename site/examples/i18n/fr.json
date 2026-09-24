@@ -30,6 +30,7 @@
       "geometry pool": "réserve de géométrie",
       "lights": "lumières",
       "GPU frame": "image GPU",
+      "GPU frame (last)": "image GPU (dernière)",
       "CPU frame": "image CPU",
       "page hooks": "code de la page",
       "engine CPU": "moteur CPU"
@@ -1287,28 +1288,6 @@
       "fansPlayingIt": "Fans qui la jouent"
     }
   },
-  "openworld": {
-    "banner": "Marche avec W A S D. Appuie sur E près d'une voiture ou d'un avion pour monter.",
-    "controls": {
-      "keys": "ZQSD marcher · Maj courir · Espace sauter · C s'accroupir · E monter ou descendre d'une voiture ou d'un avion",
-      "teleport": "Téléport",
-      "timeOfDay": "Heure",
-      "daySpeed": "Vitesse du jour",
-      "pause": "Pause",
-      "rain": "Pluie",
-      "geometryMB": "Géométrie Mo",
-      "textureMB": "Textures Mo",
-      "view": "Vue"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "Streaming"
-    }
-  },
   "orbit-around-a-clockwork": {
     "banner": "Glisse pour tourner. Clic droit pour déplacer. Fais défiler pour zoomer sur les engrenages.",
     "controls": {
@@ -1880,6 +1859,54 @@
     "controls": {
       "fieldOfView": "Champ de vision",
       "dollyZoom": "Travelling compensé"
+    }
+  },
+  "falling-boxes": {
+    "banner": "Appuie sur Lâcher pour cinquante boîtes de plus. Change la gravité et regarde-les tomber.",
+    "controls": {
+      "matter": "Matière",
+      "gravity": "Gravité",
+      "drop": "Lâcher",
+      "jump": "Sauter",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas"
+    },
+    "choices": {
+      "matter": {
+        "wood": "bois",
+        "rubber": "caoutchouc",
+        "ice": "glace"
+      },
+      "gravity": {
+        "earth": "Terre",
+        "moon": "Lune",
+        "mars": "Mars",
+        "none": "aucune"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Dix mille boîtes tombent d’un coup. Le panneau montre en direct ce que coûte la physique.",
+    "controls": {
+      "count": "Nombre",
+      "again": "Encore"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas",
+      "page": "Page"
+    },
+    "choices": {
+      "count": {
+        "10000": "10 000",
+        "5000": "5 000",
+        "1000": "1 000"
+      }
     }
   },
   "shadows-case-by-case": {

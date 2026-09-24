@@ -64,23 +64,21 @@ export async function createGpuDraw(
     const uniData = new Uint32Array(UNIFORM_BYTES / 4);
     let rowMap: LightRowMap | undefined;
     return {
-      encode(encoder, items, count, itemsFrom, itemsTo, maxVertexCount, selection) {
+      uploadItems(items, from, to) {
+        const last = Math.min(to, slotCap - 1);
+        if (disposed || last < from) return;
+        device.queue.writeBuffer(
+          itemsBuf,
+          from * DRAW_ITEM_U32 * 4,
+          items.buffer as ArrayBuffer,
+          items.byteOffset + from * DRAW_ITEM_U32 * 4,
+          (last - from + 1) * DRAW_ITEM_U32 * 4,
+        );
+        rowMap?.markRows(from, last);
+      },
+      encode(encoder, count, maxVertexCount, selection) {
         if (disposed) return;
         const n = Math.min(count, slotCap);
-        // The range the row table just rewrote, and it alone: a frame that sees neither a page
-        // arrival nor an eviction sends not one byte of record. Rows past the drawn count go too —
-        // the CPU cut's light casters, which only the shadow pass reads —: the range is closed here.
-        const last = Math.min(itemsTo, slotCap - 1);
-        if (last >= itemsFrom) {
-          device.queue.writeBuffer(
-            itemsBuf,
-            itemsFrom * DRAW_ITEM_U32 * 4,
-            items.buffer as ArrayBuffer,
-            items.byteOffset + itemsFrom * DRAW_ITEM_U32 * 4,
-            (last - itemsFrom + 1) * DRAW_ITEM_U32 * 4,
-          );
-          rowMap?.markRows(itemsFrom, last);
-        }
         // Only the groups the frame's items reach are counted and prefixed. The groups past them hold zero
         // by construction and nothing reads them, so bounding the serial prefix by the live count is exact.
         const liveGroups = Math.max(1, Math.ceil(n / WORKGROUP));

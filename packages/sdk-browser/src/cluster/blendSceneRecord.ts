@@ -27,6 +27,11 @@ const linearBackground = (clearColor: number) => {
   return { isColor: true, r: srgbToLinear(r), g: srgbToLinear(g), b: srgbToLinear(b) };
 };
 
+/** Writes a new clear colour on a published scene's background, in place: the record is kept. */
+export function recolourBlendScene(scene: HostScene, clearColor: number) {
+  Object.assign(scene.background as object, linearBackground(clearColor));
+}
+
 export function createBlendScene(clearColor: number, copies: readonly BlendCopy[]): BlendHostScene {
   const children = [...copies] as unknown as HostNode[];
   const scene: BlendHostScene = {

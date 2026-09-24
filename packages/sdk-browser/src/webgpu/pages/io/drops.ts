@@ -95,7 +95,7 @@ function dropGpuDraw(rt: WebgpuPagesRuntime) {
 
 export function dropVis(rt: WebgpuPagesRuntime) {
   const { vis, capabilities } = rt,
-    { rows, drawSlots } = rt.layout;
+    { rows } = rt.layout;
   // Origin of the resource change: the visibility buffer is no longer a capability.
   rt.run.gate.resourcesChanged();
   vis.visEnabled = false;
@@ -146,8 +146,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   rows.rowEpoch.fill(0);
   rows.rowCount = 0;
   rows.rowsRevision++;
-  rows.dirtyFrom = drawSlots;
-  rows.dirtyTo = -1;
+  rows.clearDirty();
   rows.candidateCount = 0;
   rows.packedCount = 0;
   rows.rowsChanged = true;

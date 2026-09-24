@@ -9,10 +9,13 @@ import { unmirroredDrawn } from '../helpers.ts';
 import { createFrameGateCore, type FrameGateCore } from '../../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from '../../frame/signature.ts';
 import { createWebgpuBudgetState, type WebgpuBudgetState } from '../../residency/budgetState.ts';
+import { RASTER_BACKGROUND } from '../../../page/raster.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
 export interface WebgpuRunState extends WebgpuBudgetState {
+  /** The clear colour every pass reads, `0xrrggbb`; set in place by `io/clearColor.ts`. */
+  clearColor: number;
   lost: boolean;
   overBudget: boolean;
   visible: number;
@@ -28,8 +31,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   lastCamera: HostCamera | undefined;
   gpuSelection: GpuSelection | undefined;
   gpuFrameActive: boolean;
-  /** True when the Hi-Z pyramid was built in the current submission: the transparent occlusion test
-   *  never strips a pyramid of another image. */
+  /** Hi-Z pyramid built this submission: the transparent test never strips another image's. */
   hizPyramidFresh: boolean;
   gpuMetricsReady: boolean;
   deferredDrops: Set<string>;
@@ -50,8 +52,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   renderPathLogged: boolean;
   outputDiagnosticLogged: boolean;
   noOccluderHistory: boolean;
-  /** True on an image whose view differs from the previous one's: the GPU partition then lets
-   *  every row be withdrawn from the occluders again. */
+  /** The view moved since the last image: every row may leave the occluders again. */
   hizViewMoved: boolean;
   previousHizView: EngineCamera | undefined;
   temporalHizState: TemporalHizState;
@@ -59,8 +60,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   cpuHizCounts: HizCounts;
   cpuHizCounted: boolean;
   rowsSyncedFrame: number;
-  /** Rows the CPU cut draws on screen; the light casters it adds sit behind them. */
-  cameraRows: number;
+  cameraRows: number; // rows the CPU cut draws on screen; its light casters sit behind them
   motion: CameraMotion;
   selectionUniforms: SelectionUniforms;
   /** Result of the CPU cut, reused image after image so the cut allocates nothing. */
@@ -121,8 +121,9 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   occluderSignature: number;
 }
 
-export function createWebgpuRunState(): WebgpuRunState {
+export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunState {
   return {
+    clearColor,
     lost: false,
     overBudget: false,
     visible: 0,

@@ -30,6 +30,7 @@
       "geometry pool": "几何体存储",
       "lights": "灯光",
       "GPU frame": "GPU 帧",
+      "GPU frame (last)": "GPU 帧（上次）",
       "CPU frame": "CPU 帧",
       "page hooks": "页面代码",
       "engine CPU": "引擎 CPU"
@@ -1860,26 +1861,52 @@
       "dollyZoom": "滑动变焦"
     }
   },
-  "openworld": {
-    "banner": "用 W A S D 走路。在汽车或飞机旁按 E 上去。",
+  "falling-boxes": {
+    "banner": "按“投放”再落下五十个箱子。改变重力，看它们落下。",
     "controls": {
-      "keys": "WASD 行走 · Shift 奔跑 · 空格 跳跃 · C 蹲下 · E 上下汽车或飞机",
-      "teleport": "传送",
-      "timeOfDay": "时间",
-      "daySpeed": "昼夜速度",
-      "pause": "暂停",
-      "rain": "雨",
-      "geometryMB": "几何 MB",
-      "textureMB": "纹理 MB",
-      "view": "视图"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "材质",
+      "gravity": "重力",
+      "drop": "投放",
+      "jump": "跳起",
+      "slowMotion": "慢动作"
     },
     "readouts": {
-      "streaming": "流式加载"
+      "bodies": "物体",
+      "awake": "活动",
+      "step": "步长"
+    },
+    "choices": {
+      "matter": {
+        "wood": "木头",
+        "rubber": "橡胶",
+        "ice": "冰"
+      },
+      "gravity": {
+        "earth": "地球",
+        "moon": "月球",
+        "mars": "火星",
+        "none": "无"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "一万个箱子同时落下，面板实时显示物理的开销。",
+    "controls": {
+      "count": "数量",
+      "again": "再来"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "活动",
+      "step": "步长",
+      "page": "页面"
+    },
+    "choices": {
+      "count": {
+        "10000": "10,000",
+        "5000": "5,000",
+        "1000": "1,000"
+      }
     }
   },
   "shadows-case-by-case": {

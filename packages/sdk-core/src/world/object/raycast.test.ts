@@ -82,3 +82,50 @@ test('a box-only node is hit where the ray enters it, or at the origin from insi
   assert.ok(near(inside.distance, 0) && near(inside.point.y, 0.5), 'the origin, not the far side');
   assert.ok(near(inside.normal.y, 1), 'the normal faces back along the ray');
 });
+
+/** The walk #368 shipped, frozen as the oracle: Möller–Trumbore over every triangle, in order. */
+function bruteForce(p: ArrayLike<number>, index: ArrayLike<number>, o: Vector3, d: Vector3) {
+  let best = -1,
+    face = -1;
+  for (let f = 0; f < index.length / 3; f++) {
+    const [a, b, c] = [0, 1, 2].map((k) => index[f * 3 + k] * 3);
+    const e1 = new Vector3(p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]);
+    const e2 = new Vector3(p[c] - p[a], p[c + 1] - p[a + 1], p[c + 2] - p[a + 2]);
+    const q = d.clone().cross(e2),
+      det = e1.dot(q);
+    if (det === 0) continue;
+    const s = o.clone().sub(new Vector3(p[a], p[a + 1], p[a + 2]));
+    const u = s.dot(q) / det,
+      r = s.clone().cross(e1),
+      v = d.dot(r) / det,
+      t = e2.dot(r) / det;
+    if (u < 0 || u > 1 || v < 0 || u + v > 1 || t < 0) continue;
+    if (best < 0 || t < best) [best, face] = [t, f];
+  }
+  return { distance: best, face };
+}
+
+test('the triangle tree finds the hits the brute-force walk found, face for face', () => {
+  const knot = object.mesh(geometry.torusKnot(1, 0.3, 64, 12));
+  knot.position.set(0.3, -0.2, 0.1);
+  knot.rotation.set(0.4, 0.2, 0);
+  knot.updateWorldMatrix(true, false);
+  const shape = knot.geometry;
+  const p = shape.attributes.position.array,
+    index = shape.index!.array;
+  const inverse = knot.matrixWorld.clone().invert();
+  let hits = 0;
+  for (let i = 0; i < 400; i++) {
+    const origin = new Vector3(Math.sin(i) * 4, Math.cos(i * 1.3) * 4, 5);
+    const aim = new Vector3(Math.sin(i * 0.7), Math.cos(i * 0.9), 0).multiplyScalar(1.2);
+    const ray = new Ray(origin, aim.sub(origin).normalize());
+    const [hit] = raycast(knot, ray);
+    const o = origin.clone().applyMatrix4(inverse),
+      d = origin.clone().add(ray.direction).applyMatrix4(inverse).sub(o);
+    const expected = bruteForce(p, index, o, d);
+    assert.equal(hit?.face ?? -1, expected.face, `ray ${i}`);
+    if (hit) assert.ok(Math.abs(hit.distance - expected.distance) < 1e-5, `ray ${i}`);
+    if (hit) hits++;
+  }
+  assert.ok(hits > 100, `enough rays hit (${hits})`);
+});

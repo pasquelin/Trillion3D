@@ -35,14 +35,16 @@ export const shownUnder = (node: Object3D, scene: Object3D) => rootedUnder(node,
 export function createWorldPoses() {
   const moved = new Set<Object3D>();
   const ranges = new Map<Batch, { rows: PlacementRows; from: number; to: number }>();
-  const touch = (batch: Batch, row: number) => {
+  /** Rows `from`..`to` of a batch were written: the range sent before the next frame grows. */
+  const touchRange = (batch: Batch, from: number, to: number) => {
     if (!batch.rows) return;
     const range = ranges.get(batch);
     if (range && range.rows === batch.rows) {
-      range.from = Math.min(range.from, row);
-      range.to = Math.max(range.to, row);
-    } else ranges.set(batch, { rows: batch.rows, from: row, to: row });
+      range.from = Math.min(range.from, from);
+      range.to = Math.max(range.to, to);
+    } else ranges.set(batch, { rows: batch.rows, from, to });
   };
+  const touch = (batch: Batch, row: number) => touchRange(batch, row, row);
   /** Writes one seated mesh's world matrix and flag into its row. */
   const writeSeat = (mesh: Mesh, seat: Seat, shown: boolean) => {
     const rows = seat.batch.rows;
@@ -58,6 +60,7 @@ export function createWorldPoses() {
   };
   return {
     touch,
+    touchRange,
     writeSeat,
     writeTwin,
     /** A node's pose or visibility moved: it and its subtree are written before the next frame. */
@@ -76,8 +79,9 @@ export function createWorldPoses() {
     ) {
       if (moved.size) {
         for (const node of moved) {
-          // Its chain, then its subtree: the tree recomputes only what a write left dirty.
-          node.updateWorldMatrix(true, true);
+          // Its chain, then its subtree: the tree recomputes only what a write left dirty. A leaf
+          // has no subtree to walk, and the walk scans the whole update order (O(n) per node).
+          node.updateWorldMatrix(true, node.children.length > 0);
           const visit = (child: Object3D, shown: boolean) => {
             const drawn = shown && child.visible;
             const seat = seats.get(child as Mesh);

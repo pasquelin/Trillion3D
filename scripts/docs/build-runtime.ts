@@ -15,11 +15,10 @@ export async function buildRuntime(root: string, outdir: string) {
       engine: 'packages/sdk-browser/src/index.ts',
       pageDecodeWorker: 'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
       pageIntegrationWorker: 'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
+      // The physics worker, spawned only by a world that turns physics on.
+      physicsWorker: 'packages/sdk-browser/src/physics/physicsWorker.ts',
       // The examples' own panels, imported beside the engine; they touch nothing of it.
       kit: 'site/examples/kit/index.ts',
-      // The open world's play layer, and the worker that runs its physics.
-      openworld: 'site/examples/kit/openworld/index.ts',
-      openworldSim: 'site/examples/kit/openworld/play/sim.worker.ts',
     },
     outdir,
     bundle: true,
@@ -33,13 +32,13 @@ export async function buildRuntime(root: string, outdir: string) {
     },
     logLevel: 'warning',
   });
-  await copyFile(
-    resolve(root, 'packages/sdk-browser/src/page/decode/pageCodec.wasm'),
-    resolve(outdir, 'pageCodec.wasm'),
-  );
-  // Jolt as its package ships it: the module finds its WebAssembly beside itself. The open
-  // world's worker imports it on demand, so no other page pays for it.
-  const jolt = resolve(root, 'node_modules/jolt-physics/dist');
-  for (const file of ['jolt-physics.wasm.js', 'jolt-physics.wasm.wasm'])
-    await copyFile(resolve(jolt, file), resolve(outdir, file));
+  for (const wasm of [
+    'page/decode/pageCodec.wasm',
+    'physics/joltPhysics.wasm',
+    'physics/joltPhysicsThreads.wasm',
+  ])
+    await copyFile(
+      resolve(root, 'packages/sdk-browser/src', wasm),
+      resolve(outdir, wasm.slice(wasm.lastIndexOf('/') + 1)),
+    );
 }

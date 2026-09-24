@@ -1,4 +1,5 @@
 import { useWords } from '../i18n.ts';
+import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { Cut } from './Cut.tsx';
@@ -23,8 +24,7 @@ interface TimingsProps {
 function Timings({ title, rows, locale }: TimingsProps) {
   if (!rows?.length) return null;
   return (
-    <section className="grid min-w-0 grid-cols-1 gap-3">
-      <h3 className="text-lg font-semibold">{title}</h3>
+    <Section level={3} title={title}>
       <Table>
         <thead>
           <tr>
@@ -43,7 +43,7 @@ function Timings({ title, rows, locale }: TimingsProps) {
           ))}
         </tbody>
       </Table>
-    </section>
+    </Section>
   );
 }
 

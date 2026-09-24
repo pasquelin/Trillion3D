@@ -1,9 +1,9 @@
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import type { SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { cameraSceneLink } from './worldLink.ts';
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
-import { probeWorldRenderer, type WorldRenderer } from '../capability/worldReady.ts';
+import type { WorldRenderer } from '../capability/worldReady.ts';
+import { holdWorldDevice } from './worldDevice.ts';
 import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
 import { Scene, type LoadOptions } from './scene.ts';
@@ -14,6 +14,7 @@ import { awaitViewPages, registerWorld } from './worldSession.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
 import { worldTelemetry } from './worldTelemetry.ts';
+import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
@@ -24,40 +25,36 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const canvas = resolveWorldTarget(target);
   const frames = createWorldFrames();
   const pools: Pools = {};
-  let renderer: WorldRenderer | null = null,
-    gpuDevice: GPUDevice | undefined,
-    camera = new Camera('perspective'),
+  let camera = new Camera('perspective'),
     toneMapping: ToneMapping = 'aces',
     exposure = 1,
     pixelError: number | undefined,
     bounce = false,
     animating = false,
     disposed = false;
-  const ready = probeWorldRenderer(canvas, options.renderer).then((granted) => {
-    // A world disposed while its renderer was asked for keeps nothing it was granted.
-    if (disposed) return granted.gpuDevice?.destroy();
-    renderer = granted.renderer;
-    gpuDevice = granted.gpuDevice;
-  });
+  // A lost device is asked for again, and the session reopened on it.
+  const device = holdWorldDevice(canvas, options.renderer, () => runtime.renew());
+  const ready = device.ready;
   ready.catch(() => {});
-  const scene = new Scene(worldModelLoader(ready, options.signal, () => renderer));
+  const scene = new Scene(worldModelLoader(ready, options.signal, () => device.renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
   const runtime = createWorldRuntime({
     canvas,
-    ready,
+    ready: () => device.pending,
     scene,
     camera: () => camera,
     options: () =>
       sessionOptions(options, {
-        gpuDevice, // the world's one device: a new session never asks for another
+        gpuDevice: device.gpuDevice, // the world's one device: a session never asks another
         bounce,
         geometryPoolBytes: pools.geometryPool,
         texturePoolBytes: pools.texturePool,
         pixelError,
-        clearColor: scene.background instanceof Color ? scene.background.getHex() : undefined,
+        clearColor: scene.background?.getHex(), // read at opening; a change is written in place
+        currentClearColor: () => scene.background?.getHex(),
         beforeFrame: () => {
-          animating = frames.step(controls, scene);
+          animating = frames.step(controls, scene, physics.frame);
           runtime.beforeFrame();
         },
         onFrame: (metrics) => {
@@ -67,7 +64,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         },
       }),
     opened(explorer) {
-      renderer = explorer.backend === 'webgpu-page-raster' ? 'webgpu' : 'webgl2';
+      device.renderer = explorer.backend === 'webgpu-page-raster' ? 'webgpu' : 'webgl2';
       diagnostic.apply(explorer);
     },
     frame: frames.dispatch,
@@ -75,8 +72,9 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     display: () => ({ exposure, toneMapping }),
     diagnostic,
   });
+  const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
   /** The camera outside the scene still redraws when it moves. */
-  const cameraLink: SceneLink = { pose: invalidate, structure: () => {}, content: () => {} };
+  const cameraLink = cameraSceneLink(invalidate);
   const adopt = (next: Camera) => {
     if (!next._link) next._link = cameraLink;
     return next;
@@ -98,7 +96,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** The scene: everything added to it is drawn. */ scene,
     /** The mouse and keyboard controller that moves the camera. */ controls,
     /** `'webgpu'` or `'webgl2'`: how the world draws; `null` before `ready`. */ get renderer() {
-      return renderer;
+      return device.renderer;
     },
     /** The camera the image is seen through; set another to switch. */ get camera() {
       return camera;
@@ -146,8 +144,10 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       if (session && !session.setBounce(on)) runtime.renew();
       invalidate();
     },
-    /** The world's memory pools, read and set in bytes. */
-    budget: worldBudget(pools, runtime, frames, () => renderer),
+    /** Bodies, gravity and time of the physics (Jolt, in a worker). */
+    physics: physics.handle,
+    /** The world's memory pools, read and set in bytes, and the physics envelopes. */
+    budget: worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
     diagnostic: diagnostic.handle,
     /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
      *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
@@ -182,10 +182,11 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       if (disposed) return;
       disposed = true;
       controls.dispose();
+      physics.dispose();
       runtime.dispose();
       diagnostic.notices.close();
       frames.clear();
-      gpuDevice?.destroy();
+      device.dispose();
     },
   };
   registerWorld(world, { session: () => runtime.explorer, last: () => frames.last });

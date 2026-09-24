@@ -1224,7 +1224,8 @@
       "options.interactive": "Ob die Welt ihre eigene Schleife laufen lässt: sie zeichnet, wenn sich etwas ändert, und ruht sich nach 120 Bildern ohne Neuerung aus. `false` lässt die Seite `world.render()` selbst aufrufen.",
       "options.pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "options.controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
-      "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird."
+      "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
+      "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
     }
   },
   "crossVector3": {
@@ -1577,7 +1578,10 @@
       "SESSION_OPEN_FAILED": "Die Sitzung der Welt konnte nicht geöffnet werden, aus einem Grund ohne eigenen Code (`world.diagnostic.error`): Der geworfene Fehler steht in `details.cause`.",
       "WEBGPU_LOST": "WebGPU hat sein Gerät verloren, oder ein Fehler darauf hat einen Zustand hinterlassen, aus dem nichts zeichnen kann: geworfen von `render`, `flush` und den Lesevorgängen, die das Gerät brauchen, benannt durch die Diagnose `gpu-device-lost`, und in `world.diagnostic.error`, wenn sich deshalb eine Sitzung nicht öffnen ließ.",
       "UNSUPPORTED_SCENE_FORMAT": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
-      "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann."
+      "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
+      "PHYSICS_BUDGET": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
+      "PHYSICS_NESTED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
+      "PHYSICS_FAILED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`."
     }
   },
   "enginePose": {
@@ -1714,7 +1718,6 @@
       "rafIntervalMs": "Zeit zwischen zwei Bildern.",
       "cpuFrameMs": "CPU-Zeit des Bildes.",
       "cpuSubmitMs": "CPU-Zeit, um die Arbeit zu senden.",
-      "gpuMs": "GPU-Zeit des Bildes.",
       "drawCalls": "Zeichenaufrufe dieses Bildes, so wie die Engine sie gezählt hat. `null`, wenn sie sie nicht gezählt hat: eine Null würde sich wie ein Bild ohne Zeichnung lesen.",
       "autonomousClusterDrawsTotal": "Cluster-Zeichnungen nach Seiten, gestartet vom WebGL2-Programm der Engine während dieser Sitzung.",
       "autonomousCopyDraws": "Szenenkopien — die durchlässigen Oberflächen —, die das WebGL2-Programm der Engine bei diesem Bild gezeichnet hat.",
@@ -1747,7 +1750,7 @@
       "frameHeld": "Wahr, wenn das Bild gehalten wurde: weder die Szene, noch die Ansicht, noch die Ressourcen haben sich bewegt, keine asynchrone Arbeit stand aus, und keine CPU-Phase lief. Die angezeigten Pixel sind die des Ursprungsbildes, bitgenau. Was das gehaltene Bild GETAN hat, wird so veröffentlicht, wie es ist, nie vom letzten vollständigen Rendering kopiert: `drawCalls`, `triangles`, `submittedTriangles` und `totalSubmittedTriangles` zählen nur die Präsentation, und die CPU- und GPU-Dauern pro Phase sind null, wenn die Phase nicht lief, `null`, wenn nichts sie stoppte. Eine Engine, deren Bild eine vom Vergleichs-Adapter gezeichnete Szene ist, zählt, was dieser Adapter in diesem Bild gesendet hat — nichts, für ein gehaltenes Bild. Was das gehaltene Bild ZEIGT, wird weiterhin durch den Schnitt beschrieben, den es erneut anzeigt: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` und `residentPages` sind die des Ursprungsbildes, da es derselbe Schnitt ist. Fehlt bei einer Engine, die ihre Bilder nicht hält.",
       "streamingError": "Anhaltender Ladefehler; fehlgeschlagene URLs verlangen nach drei Versuchen ein Neuladen des Explorers.",
       "gpuPassMs": "Letzte GPU-Pass-Messung dieser Engine; null, wenn das Gerät keine Zeitstempel kann.",
-      "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert.",
+      "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
       "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
@@ -3095,7 +3098,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshPhysical": {
@@ -3129,7 +3136,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshBasic": {
@@ -3163,7 +3174,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshPhong": {
@@ -3197,7 +3212,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshLambert": {
@@ -3231,7 +3250,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshToon": {
@@ -3265,7 +3288,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshNormal": {
@@ -3299,7 +3326,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshMatcap": {
@@ -3333,7 +3364,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshDepth": {
@@ -3367,7 +3402,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.points": {
@@ -3401,7 +3440,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.line": {
@@ -3435,7 +3478,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.lineDashed": {
@@ -3469,7 +3516,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.sprite": {
@@ -3503,7 +3554,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.shadow": {
@@ -3537,7 +3592,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.createShader": {
@@ -3591,7 +3650,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     },
     "members": {
       "isMaterial": "Immer `true`: unterscheidet ein Material von allem anderen.",
@@ -3613,7 +3676,11 @@
       "needsUpdate": "`material.needsUpdate = true`: die Meshes, die es tragen, werden neu bemalt.",
       "surface": "Der physische Oberflächendatensatz der Engine für dieses Material (`contracts/material.ts`). Eine Art außerhalb der physischen Familie wird von der Familie des Hosts gezeichnet, die ihren Namen trägt, den die Engine auf ihr einziges Beleuchtungsmodell zurückführt (`surfaceModel.ts`).",
       "clone": "Ein neues Material derselben Art, mit denselben Werten.",
-      "dispose": "Vergisst diejenigen, die es tragen: ein freigegebenes Material bemalt niemanden mehr."
+      "dispose": "Vergisst diejenigen, die es tragen: ein freigegebenes Material bemalt niemanden mehr.",
+      "physics": "Physik-Materievorgabe der Körper, die es tragen.",
+      "density": "kg/m³, für die Masse eines Körpers.",
+      "friction": "Physikalische Reibung.",
+      "restitution": "Physikalischer Rückprall."
     }
   },
   "MATERIAL_TABLE_VERSION": {
@@ -3649,7 +3716,11 @@
       "gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "friction": "Wie stark ein Körper haftet, ab 0.",
+      "restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "materialSide": {
@@ -3962,7 +4033,8 @@
       "primitive": "Wie die Scheitelpunkte der Geometrie gelesen werden: Dreiecke, Punkte oder Linien.",
       "geometry": "Die Form des Meshes; gib eine andere Geometrie an, um sie zu ändern.",
       "material": "Das Material des Meshes, oder eines pro Gruppe; gib ein anderes an, um es zu ändern.",
-      "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
+      "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine.",
+      "physics": "Das Mesh als Körper der Weltphysik, `null`, wenn es keiner ist. Setze `'static'`, `'dynamic'`, `'kinematic'` oder Optionen; die Form wird aus der Geometrie abgeleitet."
     }
   },
   "metric": {
@@ -4088,6 +4160,13 @@
   },
   "object.group": {
     "summary": "Ein leerer Knoten, der andere Objekte hält, damit sie sich zusammen bewegen."
+  },
+  "object.clone": {
+    "summary": "Eine Kopie eines Objekts und von allem darunter, die nichts mit ihm teilt: seine Form, Materialien, Lichter und Felder werden kopiert.",
+    "description": "Ein geladenes Modell wird nicht kopiert: `null` dafür, und es bleibt aus einer kopierten Gruppe heraus.",
+    "parameters": {
+      "source": "Das zu kopierende Objekt."
+    }
   },
   "object.points": {
     "summary": "Zeichnet jeden Scheitelpunkt einer Geometrie als Punkt.",
@@ -4997,7 +5076,7 @@
       "isScene": "Immer `true`: unterscheidet die Szenenwurzel von jedem anderen Objekt.",
       "environment": "Ein Umgebungsbild, das glänzende Oberflächen spiegeln; `null` für keines.",
       "fog": "Ein Nebel, der Objekte in `color` zwischen `near` und `far` verschmelzen lässt; `null` für keinen.",
-      "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe, ein Bild, oder `null` für den Standardhintergrund.",
+      "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
       "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
       "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."
@@ -5098,7 +5177,11 @@
     "members": {
       "pose": "Ein Knoten hat sich bewegt.",
       "structure": "Ein Knoten hat Kinder gewonnen oder verloren.",
-      "content": "Die Form oder das Material eines Knotens hat sich geändert."
+      "content": "Die Form oder das Material eines Knotens hat sich geändert.",
+      "posed": "Viele Knoten haben sich auf einmal bewegt, direkt in ihren Baum geschrieben (die Körper der Physik): einmal gemeldet.",
+      "seat": "Die Zeile, aus der der Knoten gezeichnet wird, oder `null`: sechzehn spaltenweise Gleitkommazahlen ab `row * 16` in `batch.rows.matrices`, vom Renderer an Ort und Stelle gelesen. Wer Knoten zu Tausenden platziert (die Physik), schreibt ihre Weltmatrizen selbst dorthin, gültig solange `seatEpoch` gleich bleibt, und meldet die geschriebenen Zeilen über `placed`.",
+      "seatEpoch": "Ändert sich, sobald eine Zeile belegt, freigegeben oder neu angelegt wird: jede frühere Antwort von `seat` ist veraltet.",
+      "placed": "Die Zeilen `from` bis `to` von `batch` wurden über `seat` geschrieben: im nächsten Bild gezeichnet."
     }
   },
   "SceneNode": {
@@ -5271,7 +5354,6 @@
       "counts": "Was der letzte Plan getan hat, in Seiten.",
       "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
-      "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen (`thresholds.ts`).",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
       "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltene Vereinigung kommt sofort in die Liste.",
       "observeCost": "Zeitmesser des Schattendurchgangs eines Bildes, auf die gezeichneten Seiten umgelegt.",
@@ -5281,6 +5363,7 @@
       "plan": "Plant ein Bild: macht Bewegtes ungültig, liest den letzten Bericht, lässt die zu zeichnenden Seiten zu.",
       "reissue": "Die Seiten des Bildes konnten nicht kodiert werden: sie bleiben ungültig und warten auf das nächste Bild.",
       "reset": "Beginnt neu.",
+      "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen (`thresholds.ts`).",
       "table": "Die Seitentabelle: ein Wort pro virtueller Seite und der Bereich, den jedes Licht darin hält.",
       "pool": "Die physischen Seiten des Pools und die virtuelle Seite, die jede hält.",
       "sun": "Die Clipmap jeder Sonne: ihr Bezugssystem, Tiefenbereich, feinste Stufe und Ausschnitte.",
@@ -6383,7 +6466,8 @@
       "geometryPoolCeiling": "Die größten Reservoirs, die eine Welt anfordern kann: die Startbudgets der Engine.",
       "texturePoolCeiling": "Das größte Textur-Reservoir, das eine Welt anfordern kann, in Bytes.",
       "geometryPool": "GPU-Speicher-Bytes, die für Geometrieseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
-      "texturePool": "GPU-Speicher-Bytes, die für Texturseiten gehalten werden; stelle es ein, um die Grenze zu ändern."
+      "texturePool": "GPU-Speicher-Bytes, die für Texturseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
+      "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus."
     }
   },
   "world.diagnostic": {
@@ -6450,12 +6534,11 @@
     "description": "`'firstPerson'` bewegt eine Kamera; `'character'` bewegt einen Körper — Masse, Schwerkraft, Sprünge, Kollisionen mit `world.controls.colliders` — und blickt durch seine Augen."
   },
   "WorldFrameMetrics": {
-    "summary": "Die Messwerte eines Bildes, mit den Namen, unter denen eine Seite sie liest; `null`, wo der Pfad nicht zählt.",
+    "summary": "Die Messwerte eines Bildes, wie der Host sie von der Engine kopiert hat, und zwei daraus zusammengesetzte, die eine Seite liest; `null`, wo der Pfad nicht zählt.",
     "members": {
       "rafIntervalMs": "Zeit zwischen zwei Bildern.",
       "cpuFrameMs": "CPU-Zeit des Bildes.",
       "cpuSubmitMs": "CPU-Zeit, um die Arbeit zu senden.",
-      "gpuMs": "GPU-Zeit des Bildes.",
       "drawCalls": "Zeichenaufrufe dieses Bildes, so wie die Engine sie gezählt hat. `null`, wenn sie sie nicht gezählt hat: eine Null würde sich wie ein Bild ohne Zeichnung lesen.",
       "autonomousClusterDrawsTotal": "Cluster-Zeichnungen nach Seiten, gestartet vom WebGL2-Programm der Engine während dieser Sitzung.",
       "autonomousCopyDraws": "Szenenkopien — die durchlässigen Oberflächen —, die das WebGL2-Programm der Engine bei diesem Bild gezeichnet hat.",
@@ -6488,7 +6571,7 @@
       "frameHeld": "Wahr, wenn das Bild gehalten wurde: weder die Szene, noch die Ansicht, noch die Ressourcen haben sich bewegt, keine asynchrone Arbeit stand aus, und keine CPU-Phase lief. Die angezeigten Pixel sind die des Ursprungsbildes, bitgenau. Was das gehaltene Bild GETAN hat, wird so veröffentlicht, wie es ist, nie vom letzten vollständigen Rendering kopiert: `drawCalls`, `triangles`, `submittedTriangles` und `totalSubmittedTriangles` zählen nur die Präsentation, und die CPU- und GPU-Dauern pro Phase sind null, wenn die Phase nicht lief, `null`, wenn nichts sie stoppte. Eine Engine, deren Bild eine vom Vergleichs-Adapter gezeichnete Szene ist, zählt, was dieser Adapter in diesem Bild gesendet hat — nichts, für ein gehaltenes Bild. Was das gehaltene Bild ZEIGT, wird weiterhin durch den Schnitt beschrieben, den es erneut anzeigt: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` und `residentPages` sind die des Ursprungsbildes, da es derselbe Schnitt ist. Fehlt bei einer Engine, die ihre Bilder nicht hält.",
       "streamingError": "Anhaltender Ladefehler; fehlgeschlagene URLs verlangen nach drei Versuchen ein Neuladen des Explorers.",
       "gpuPassMs": "Letzte GPU-Pass-Messung dieser Engine; null, wenn das Gerät keine Zeitstempel kann.",
-      "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert.",
+      "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
       "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
@@ -6567,7 +6650,8 @@
       "interactive": "Ob die Welt ihre eigene Schleife laufen lässt: sie zeichnet, wenn sich etwas ändert, und ruht sich nach 120 Bildern ohne Neuerung aus. `false` lässt die Seite `world.render()` selbst aufrufen.",
       "pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
-      "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird."
+      "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
+      "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
     }
   },
   "WorldPageSource": {
@@ -6900,6 +6984,177 @@
   "raycast": {
     "summary": "Jedes Objekt unter `roots`, das `ray` trifft, das nächste zuerst, ein Treffer pro Objekt: sein nächster.",
     "description": "Die Richtung wird am Eingang zu einem Einheitsvektor gemacht, sodass jede `distance` in Welteinheiten angegeben ist, welche Länge die Seite auch gab. Verborgene Teilbäume werden übersprungen — auch eine Wurzel unter einem verborgenen Vorfahren — ebenso die Knoten, die `skip` nennt, samt ihren Teilbäumen: die Markierungen, mit denen eine Seite arbeitet, nie ihr Inhalt."
+  },
+  "world.physics": {
+    "summary": "Körper, Schwerkraft und Zeit der Physik (Jolt, in einem Worker).",
+    "members": {
+      "enabled": "Ob Körper simuliert werden. Beim ersten Einschalten wird die Physik geladen.",
+      "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
+      "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
+      "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+    }
+  },
+  "ContactEvent": {
+    "summary": "Was ein Kontakt seinen Zuhörern gibt: das andere Objekt, den Impuls und den Berührungspunkt.",
+    "members": {
+      "other": "Das berührte Objekt; `null`, sobald es die Szene verlassen hat.",
+      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt; 0 bei `leave`.",
+      "point": "Der Kontaktpunkt im Weltrahmen; der Ursprung bei `leave`."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Die Ereignisse eines Körpers: erste Berührung mit Impuls (`contact`) und Berührung begonnen oder beendet."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Die Standard-Physikbudgets der Engine.",
+    "members": {
+      "bodies": "Körper jeder Art gleichzeitig.",
+      "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
+      "decorative": "Dekorative Körper gleichzeitig.",
+      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen.",
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
+      "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Benannte Schwerkräfte, in m/s² entlang −y.",
+    "members": {
+      "earth": "Die der Erde.",
+      "moon": "Die des Mondes.",
+      "mars": "Die des Mars.",
+      "none": "Keine Schwerkraft."
+    }
+  },
+  "GravityInput": {
+    "summary": "Eine Schwerkraft: der Name einer Vorgabe oder ein Vektor in m/s²."
+  },
+  "GravityPreset": {
+    "summary": "Der Name einer Schwerkraftvorgabe."
+  },
+  "ObjectPhysics": {
+    "summary": "Die Physik eines Objekts, wie `obj.physics` sie hält: ein lebender Datensatz dessen, was der Körper ist und tut.",
+    "description": "Schreibvorgänge erreichen die Simulation beim nächsten Schritt; `velocity` liest, was der letzte Schritt ließ.",
+    "members": {
+      "type": "Wie sich der Körper bewegt; setze `obj.physics` neu, um es zu ändern.",
+      "shape": "Die angegebene Form, falls es eine gab.",
+      "sensor": "Ob der Körper nur Kontakte meldet.",
+      "ccd": "Ob kontinuierliche Kollision an ist.",
+      "decorative": "Ob der Körper dekorativer Trümmer ist.",
+      "velocity": "Lineare Geschwindigkeit, m/s, wie der letzte Schritt sie ließ; schreibe sie, um den Körper zu werfen.",
+      "asleep": "Ob der Körper schläft: in Ruhe und nicht mehr simuliert, bis ihn etwas weckt.",
+      "mass": "Masse in Kilogramm; `undefined` nimmt die Dichte des Materials mal das Volumen.",
+      "gravityScale": "Multipliziert die Schwerkraft der Welt für diesen Körper.",
+      "friction": "Reibung überschrieben; `undefined` nimmt die des Materials.",
+      "restitution": "Rückprall überschrieben; `undefined` nimmt den des Materials.",
+      "applyImpulse": "Stößt den Körper sofort an, ein Impuls in N·s durch seinen Schwerpunkt; weckt ihn.",
+      "wake": "Weckt den Körper, ob schlafend oder nicht.",
+      "on": "Ruft `handler` bei einem Kontaktereignis dieses Körpers auf.",
+      "listens": "Ob ein Kontakt-Handler gesetzt ist."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "Benannte Materien für `material.physics`, gerundete Tabellenwerte.",
+    "members": {
+      "wood": "Holz.",
+      "metal": "Stahl.",
+      "rubber": "Gummi.",
+      "ice": "Eis.",
+      "stone": "Stein.",
+      "glass": "Glas."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "Was `obj.physics` über seine drei Wörter hinaus annimmt.",
+    "members": {
+      "type": "Wie sich der Körper bewegt.",
+      "mass": "Masse in Kilogramm; weggelassen, die Dichte des Materials mal das Volumen der Form.",
+      "shape": "Die Kollisionsform; weggelassen, aus der Geometrie abgeleitet.",
+      "gravityScale": "Multipliziert die Schwerkraft der Welt für diesen Körper; 0 schwebt.",
+      "sensor": "Meldet Kontakte ohne Kollision: ein Auslösevolumen.",
+      "ccd": "Kontinuierliche Kollision, für schnelle kleine Körper, die sonst dünne Wände durchdringen.",
+      "decorative": "Trümmer: trifft nur die statische Welt und wird nur in Reichweite und im Blick simuliert. Begrenzt durch `budget.physics.decorative`.",
+      "friction": "Überschreibt die Reibung des Materials, ab 0.",
+      "restitution": "Überschreibt den Rückprall des Materials, 0 bis 1."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Die festen Grenzen der Physik einer Welt; nie vom Gerät gelesen.",
+    "members": {
+      "bodies": "Körper jeder Art gleichzeitig.",
+      "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
+      "decorative": "Dekorative Körper gleichzeitig.",
+      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen.",
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
+      "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Die Weltseite eines Körpers: was ein Schreiben auf `obj.physics` von der Simulation verlangt.",
+    "members": {
+      "rebuild": "Eine Einstellung, mit der der Körper erzeugt wurde, hat sich geändert: Er wird neu erzeugt.",
+      "tune": "Reibung, Rückprall oder Schwerkraftfaktor hat sich geändert.",
+      "listened": "Ob sich der Wunsch nach Kontaktereignissen geändert hat.",
+      "velocity": "Die Geschwindigkeit wurde geschrieben.",
+      "impulse": "Ein Impuls wurde angewandt.",
+      "wake": "Der Körper wurde geweckt."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Der Name einer Materievorgabe."
+  },
+  "PhysicsMatter": {
+    "summary": "Die Materie eines Körpers: Dichte (kg/m³), Reibung und Rückprall.",
+    "members": {
+      "density": "kg/m³, für die Masse eines Körpers.",
+      "friction": "Wie stark ein Körper haftet, ab 0.",
+      "restitution": "Wie stark ein Körper springt, 0 bis 1."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "Was `obj.physics` erhalten kann."
+  },
+  "PhysicsShape": {
+    "summary": "Eine Kollisionsform, wenn die aus der Geometrie abgeleitete nicht passt.",
+    "description": "Die Größen gelten im eigenen Rahmen des Objekts, vor seiner Skalierung."
+  },
+  "PhysicsStats": {
+    "summary": "Was die Physik der Welt meldet: Zählungen des letzten Ticks und beide Uhren getrennt.",
+    "members": {
+      "bodies": "Körper, die die Simulation hält.",
+      "active": "Wache Körper nach dem letzten Tick.",
+      "stepMs": "Worker-Millisekunden pro festem Schritt, letzter Tick: die Uhr des Workers, nie zu der der Seite addiert.",
+      "mainMs": "Seiten-Millisekunden der Physik im letzten Bild (die CPU-Stufe `physics`).",
+      "poses": "Posen, die der letzte Tick zurückgab.",
+      "events": "Kontaktereignisse, die der letzte Tick zurückgab.",
+      "droppedEvents": "Seit dem Start der Physik verworfene `enter`-Ereignisse, über `budget.physics.contactEvents` in einem Schritt hinaus (ihr `leave` wird nie gesendet)."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Wie sich ein Körper bewegt: nie, durch die Seite (`kinematic`, schiebt, was er trifft) oder durch die Simulation."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, die Physik der Welt.",
+    "members": {
+      "enabled": "Ob Körper simuliert werden. Beim ersten Einschalten wird die Physik geladen.",
+      "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
+      "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
+      "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "Was `createWorld(canvas, { physics })` über `true` hinaus annimmt.",
+    "members": {
+      "budget": "Feste Grenzen, einmal beim Start der Physik gelesen.",
+      "gravity": "Die Schwerkraft der Welt: eine Vorgabe oder ein Vektor."
+    }
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Gleitkommazahlen eines Schattendatensatzes, den die Schattierung eines Lichts liest: sechs Matrizen der Lampenflächen, dann das Bezugssystem der Sonnenebene — `right, zNear`, `up, zFar`, `axis, 0` —, dann der Ursprung des Ausschnitts jeder Clipmap-Stufe als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der Tangens des halben Felds der Lampe oder die feinste Stufe der Sonne, die nahe Ebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."

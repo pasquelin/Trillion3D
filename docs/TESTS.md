@@ -8,8 +8,8 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 <!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/src/       79 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    378 *.test.ts
+  sdk-core/src/       81 *.test.ts — unit tests, next to their source
+  sdk-browser/src/    388 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        20 *.test.ts — architecture, boundaries, public contracts
@@ -24,15 +24,6 @@ bench/
   perf/browser/       38 *.perf.ts + 33 support modules
   oracles/            45 reference implementations, copied verbatim
   runner/             84 modules: the measurement harness (README)
-scripts/docs/examples/openworld/
-  plan/               4 *.test.ts — relief, roads, tunnels, tiles, places
-  build/              3 *.test.ts — the placed world: collision meshes, where markers stand, which way props face
-  props/              4 *.test.ts — shared meshes and their soundness
-  regions/            6 *.test.ts — one per region, its helpers in testing.ts
-  play/               6 *.test.ts — flight, simulation, solids, streaming, view, world
-  gltf/               1 *.test.ts — the glTF writer
-site/examples/kit/openworld/
-  sky/                4 *.test.ts — sun, atmosphere, clouds, particles
 ```
 <!-- tests-inventory:end -->
 
@@ -224,7 +215,7 @@ identical budgets, scenes, and poses.
 | `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                |
 | `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                           |
 | `pnpm run check:helpers`      | No small helper copied into a second module of the same package          |
-| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                   |
+| `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite     |
 | `pnpm run check:unused`       | Dead exports and files (`knip`)                                          |
 | `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript               |
 | `pnpm run check:docs-three`   | Three.js named only in witness, benchmark, measurement or migration sections |

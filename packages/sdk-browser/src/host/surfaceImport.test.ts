@@ -1,13 +1,13 @@
-// The import boundary's own contract: what a texture record keeps between two reads, and when it
-// is refilled. Everything downstream — atlas layers, preview ranks, lane pools, the WebGL2 binder
-// — addresses a texture by the identity of its record and reads the UV transform it holds, so the
-// identity, the refill at the next image and the aliased transform are the boundary's promises.
+// The import boundary's contract: what a texture record keeps between two reads, and when it is
+// refilled. Everything downstream addresses a texture by its record and reads the UV transform it
+// holds: the identity, the refill at the next image and the aliased transform are its promises.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { importHostSurface } from './surfaceImport.ts';
-import { followHostTexture, importHostTexture } from './textureImport.ts';
+import { importHostTexture } from './textureImport.ts';
+import { followWritten as follow } from './textureImport.fixture.ts';
 
 const texture = () => {
   const map = new THREE.DataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
@@ -31,14 +31,14 @@ test('A version bump refills the held record at the next follow, its counters wi
   host.wrapS = THREE.RepeatWrapping;
   host.anisotropy = 4;
   host.needsUpdate = true;
-  followHostTexture(record);
+  follow(record);
   assert.equal(importHostTexture(host), record, 'the record the pools address keeps its identity');
   assert.equal(record.wrapS, 'repeat');
   assert.equal(record.anisotropy, 4);
   assert.equal(record.version, version + 1, 'the picture is sent again');
   assert.equal(record.sampling, sampling + 1, 'the sampler is set again');
   assert.equal(record.placement, placement, 'nothing placed again');
-  followHostTexture(record);
+  follow(record);
   assert.deepEqual(
     [record.version, record.sampling, record.placement],
     [version + 1, sampling + 1, placement],
@@ -54,16 +54,16 @@ test('Every render follows its records, and every consumer reads what moved', ()
   const record = importHostTexture(host);
   const seenBy = [record.sampling, record.sampling];
   host.magFilter = THREE.LinearFilter;
-  followHostTexture(record);
+  follow(record);
   assert.ok(record.sampling > seenBy[0], 'the first engine sees it');
   seenBy[0] = record.sampling;
-  followHostTexture(record);
+  follow(record);
   assert.ok(record.sampling > seenBy[1], 'the second engine too');
   assert.equal(record.sampling, seenBy[0], 'nothing moved since: counted once');
   host.wrapS = THREE.RepeatWrapping;
   host.image = { data: new Uint8Array(4), width: 1, height: 1 };
   const { version } = record;
-  followHostTexture(record);
+  follow(record);
   assert.equal(record.wrapS, 'repeat', 'a second render in the same task reads it');
   assert.equal(record.version, version + 1, 'and the new image');
 });
@@ -94,10 +94,10 @@ test('A disposed texture keeps its record, followed, its picture sent again', ()
   const { version } = record;
   host.dispose();
   assert.equal(importHostTexture(host), record, 'no second record at the reimport');
-  followHostTexture(record);
+  follow(record);
   assert.equal(record.version, version + 1, 'the picture is sent again');
   host.wrapT = THREE.MirroredRepeatWrapping;
-  followHostTexture(record);
+  follow(record);
   assert.equal(record.wrapT, 'mirror', 'still followed');
   assert.equal(record.version, version + 1, 'sent once');
 });
@@ -126,11 +126,11 @@ test('A placement written without a version is recomposed at the next follow, on
   let composed = 0;
   const updateMatrix = host.updateMatrix.bind(host);
   host.updateMatrix = () => (composed++, updateMatrix());
-  followHostTexture(record);
+  follow(record);
   assert.equal(composed, 0, 'nothing moved, nothing recomposed');
   host.offset.set(0.25, 0.5);
   host.rotation = Math.PI / 2;
-  followHostTexture(record);
+  follow(record);
   assert.equal(composed, 1);
   assert.deepEqual([record.version, record.sampling], [version, sampling], 'nothing sent again');
   assert.equal(record.placement, placement + 1);
@@ -138,9 +138,9 @@ test('A placement written without a version is recomposed at the next follow, on
   assert.ok(Math.abs(record.transform[0]) < 1e-9, 'the quarter turn read');
   host.matrixAutoUpdate = false;
   host.matrix.elements[6] = 0.75;
-  followHostTexture(record);
+  follow(record);
   assert.equal(record.placement, placement + 2, 'a matrix the page owns, read as it stands');
-  followHostTexture(record);
+  follow(record);
   assert.equal(record.placement, placement + 2, 'and only when it moved');
 });
 
@@ -194,7 +194,7 @@ test('A filter written after needsUpdate reaches the record at the next image', 
   host.magFilter = THREE.LinearFilter;
   assert.equal(record.magFilter, 'nearest', 'nothing read at needsUpdate');
   const { version } = record;
-  followHostTexture(record);
+  follow(record);
   assert.equal(record.magFilter, 'linear');
   assert.equal(record.version, version + 1);
 });

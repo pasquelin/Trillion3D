@@ -112,7 +112,8 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const shadowCounters = mesure.shadowCountersPerFrame();
   const profileStart = Math.max(0, options.frames - options.profileFrames);
   let last: ReturnType<typeof explorer.render> | null = null,
-    previousRaf: number | null = null;
+    previousRaf: number | null = null,
+    gpuFrameOf: number | null = null;
   for (let i = 0; i < options.frames; i++) {
     if (options.stageProfile && i === profileStart) explorer.resetStageProfile();
     const now = await new Promise<number>((done) => requestAnimationFrame(done));
@@ -124,8 +125,12 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     shadowCounters.push(last);
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs);
     if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs);
-    if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
     const sample = last.gpuPassMs;
+    // The device is sampled every few images: one GPU frame time per sampled image, not per render.
+    if (typeof last.gpuFrameMs === 'number' && sample && sample.frame !== gpuFrameOf) {
+      gpuFrameMs.push(last.gpuFrameMs);
+      gpuFrameOf = sample.frame;
+    }
     if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
       gpuPassSamples.push(sample);
   }

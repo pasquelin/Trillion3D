@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { BOX_VALUES, boxTransform } from '../../../../sdk-core/src/index.ts';
 import { createWebgpuRunState } from '../pages/state/run.ts';
+import { createBoxCorners } from '../../hiz/hiz.ts';
 import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts';
 import { createShadowMobility } from '../shadow/mobility.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -49,7 +50,7 @@ export function racine(mesh: THREE.Object3D, local: number[], worlds: HostWorldP
   boxTransform(worldBox, 0, localBox, 0, world.elements);
   return {
     world,
-    pages: [{ sourceMesh: mesh } as unknown as PageRec],
+    pages: [{ sourceMesh: mesh, packedIndex: 0 } as unknown as PageRec],
     worldBox,
     localBox,
   } as ClusterRoot<PageRec>;
@@ -61,7 +62,12 @@ export function runtime(
   worlds: HostWorldPlacements = hostWorldPlacements(source),
 ) {
   const mouvements: Array<{ min: number[]; max: number[] }> = [],
-    layout = { selectionRoots: roots, rows: { tableEpoch: 0 } },
+    // Rows no page holds yet: a moved root rewrites none, and its corners are marked for later.
+    layout = {
+      selectionRoots: roots,
+      rows: { tableEpoch: 0, rowOfPage: Int32Array.of(-1), packedCount: 0 },
+      boxCorners: createBoxCorners(1),
+    },
     // Engine image state, as the runtime carries it: `setWebgpuTransform` increments the scene revision
     // there and aligns `worldsRevision`. A partial state would hide that contract.
     run = createWebgpuRunState();
@@ -71,6 +77,7 @@ export function runtime(
     setup: { source, worlds },
     layout,
     run,
+    blendState: { occlusionEpoch: 0 },
     lights: {
       plan: {
         worldChanged: (min: number[], max: number[]) =>

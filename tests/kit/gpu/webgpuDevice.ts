@@ -65,3 +65,6 @@ export function deviceOwner() {
     lost: (info: { reason: string }) => losses.push(info.reason),
   };
 }
+
+/** A label as the engine wrote it, without the session tag `sessionHandle.ts` joins to it. */
+export const untag = (label: string | undefined) => label?.replace(/ ?@t3d:\d+$/, '') || undefined;

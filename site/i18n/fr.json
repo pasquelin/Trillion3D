@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Un rastériseur logiciel",
       "sound-from-the-gpu": "Du son par le GPU",
       "falling-boxes": "Des boîtes qui tombent",
+      "ten-thousand-bodies": "Dix mille corps",
       "breaking-things": "Casser des objets",
       "cloth-and-rope": "Tissu et corde",
       "soft-bodies": "Corps mous",
@@ -319,7 +320,6 @@
       "teleport-in-vr": "Se téléporter en VR",
       "controllers-in-vr": "Manettes en VR",
       "ar-on-the-table": "AR sur la table",
-      "openworld": "Monde ouvert",
       "shadows-case-by-case": "Les ombres, cas par cas"
     },
     "missing": {
@@ -480,7 +480,6 @@
       "sort-and-reduce": "API de calcul GPU",
       "a-software-rasteriser": "API de calcul GPU",
       "sound-from-the-gpu": "API de calcul GPU",
-      "falling-boxes": "intégration d’un moteur physique",
       "breaking-things": "intégration d’un moteur physique",
       "cloth-and-rope": "intégration d’un moteur physique",
       "soft-bodies": "intégration d’un moteur physique",
@@ -1054,6 +1053,17 @@
           "Voyez les morceaux avec <code>world.diagnostic.mode = 'clusters'</code> : chaque cluster a sa couleur."
         ],
         "tryIt": "Baissez la mémoire : les morceaux grossissent, le bâtiment reste entier. Passez la vue sur <code>clusters</code> pour les voir."
+      },
+      "make-things-fall": {
+        "title": "Faire tomber les choses",
+        "description": "Allume la physique et tes formes prennent du poids : elles tombent, se cognent et s’arrêtent.",
+        "steps": [
+          "Donne au monde <code>physics: true</code>. La simulation tourne à part du dessin, dans un <em>worker</em> : elle ne ralentit jamais l’image.",
+          "Marque le sol <code>'static'</code> : il porte les autres et ne bouge jamais. Marque une boîte <code>'dynamic'</code> : la gravité l’attire.",
+          "La forme vient de la géométrie, le poids du matériau : <code>physics: 'wood'</code> est léger, <code>'metal'</code> est lourd, <code>'rubber'</code> rebondit.",
+          "Pousse un corps avec <code>applyImpulse</code>, ou écoute son <code>contact</code>. Quand tous les corps dorment, rien n’est calculé ni dessiné."
+        ],
+        "tryIt": "Lâche plus de boîtes, passe la gravité sur la Lune et active le ralenti."
       },
       "your-own-scene": {
         "title": "Votre propre scène",

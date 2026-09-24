@@ -208,7 +208,11 @@ Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/Trillion3
 - Specular environment-map IBL, full device-loss recovery and cross-API fallback are not
   implemented; a missing visbuffer format falls back to the untextured page raster with Hi-Z off.
 - No N-API binding of the compiler, published packages, signed native distributions or
-  cross-platform performance CI yet; WebAssembly serves only the page decoder and three math kernels.
+  cross-platform performance CI yet; WebAssembly serves the page decoder, three math kernels and
+  the physics.
+- Physics ([docs/SDK.md](docs/SDK.md#physics)) steps Jolt on its thread pool when the page is
+  cross-origin isolated, on one worker elsewhere; what 10,000 boxes landing at once cost is
+  measured there.
 
 ## Licence
 
@@ -217,3 +221,6 @@ noncommercial use, study, research and personal projects. **Commercial use requi
 licence** from the copyright holder — open an issue or contact the author.
 
 Copyright © 2026 Alban Pasquelin.
+
+The physics is [Jolt Physics](https://github.com/jrouwe/JoltPhysics) (MIT), built from its
+official sources: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

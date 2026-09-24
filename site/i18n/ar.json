@@ -595,6 +595,17 @@
         ],
         "tryIt": "خفّض الذاكرة: تكبر القطع، ويبقى المبنى كاملًا. بدّل العرض إلى <code>clusters</code> لرؤيتها."
       },
+      "make-things-fall": {
+        "title": "أسقِط الأشياء",
+        "description": "شغّل الفيزياء فتكتسب أشكالك وزنًا: تسقط وتتصادم ثم تستقر.",
+        "steps": [
+          "أعطِ العالم <code>physics: true</code>. تعمل المحاكاة بعيدًا عن الرسم، في <em>worker</em>، فلا تبطئ الصورة.",
+          "علّم الأرضية <code>'static'</code>: تحمل الباقي ولا تتحرك. علّم صندوقًا <code>'dynamic'</code>: تجذبه الجاذبية.",
+          "الشكل من الهندسة والوزن من المادة: <code>physics: 'wood'</code> خفيف و<code>'metal'</code> ثقيل و<code>'rubber'</code> يرتد.",
+          "ادفع جسمًا بـ<code>applyImpulse</code> أو استمع إلى <code>contact</code>. حين تنام كل الأجسام لا يُحسب شيء ولا يُرسم شيء."
+        ],
+        "tryIt": "أسقط مزيدًا من الصناديق، واجعل الجاذبية جاذبية القمر، وشغّل الحركة البطيئة."
+      },
       "your-own-scene": {
         "title": "مشهدك الخاص",
         "description": "أصبحت الآن تعرف كل قطعة. يجمع هذا الفصل بينها في مشهد صغير واحد يمكنك نسخه وجعله ملكك.",
@@ -1453,6 +1464,7 @@
       "a-software-rasteriser": "أداة رسترة برمجية",
       "sound-from-the-gpu": "صوت من GPU",
       "falling-boxes": "صناديق تسقط",
+      "ten-thousand-bodies": "عشرة آلاف جسم",
       "breaking-things": "تحطيم الأشياء",
       "cloth-and-rope": "قماش وحبل",
       "soft-bodies": "أجسام لينة",
@@ -1467,7 +1479,6 @@
       "teleport-in-vr": "الانتقال الآني في الواقع الافتراضي",
       "controllers-in-vr": "وحدات التحكم في الواقع الافتراضي",
       "ar-on-the-table": "الواقع المعزز على الطاولة",
-      "openworld": "عالم مفتوح",
       "shadows-case-by-case": "الظلال، حالةً بحالة"
     },
     "missing": {
@@ -1628,7 +1639,6 @@
       "sort-and-reduce": "واجهة حوسبة GPU",
       "a-software-rasteriser": "واجهة حوسبة GPU",
       "sound-from-the-gpu": "واجهة حوسبة GPU",
-      "falling-boxes": "تكامل الفيزياء",
       "breaking-things": "تكامل الفيزياء",
       "cloth-and-rope": "تكامل الفيزياء",
       "soft-bodies": "تكامل الفيزياء",

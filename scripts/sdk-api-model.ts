@@ -18,7 +18,7 @@ export const PUBLIC_ENTRIES: Record<ExportEntry, string> = {
   browser: 'packages/sdk/browser.ts',
   node: 'packages/sdk/node.mts',
 };
-export type ExportKind = 'value' | 'type' | 'both';
+type ExportKind = 'value' | 'type' | 'both';
 
 export interface ExportRow {
   name: string;

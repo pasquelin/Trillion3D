@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Un rasterizador por software",
       "sound-from-the-gpu": "Sonido desde la GPU",
       "falling-boxes": "Cajas que caen",
+      "ten-thousand-bodies": "Diez mil cuerpos",
       "breaking-things": "Romper objetos",
       "cloth-and-rope": "Tela y cuerda",
       "soft-bodies": "Cuerpos blandos",
@@ -319,7 +320,6 @@
       "teleport-in-vr": "Teletransportarse en RV",
       "controllers-in-vr": "Mandos en RV",
       "ar-on-the-table": "RA sobre la mesa",
-      "openworld": "Mundo abierto",
       "shadows-case-by-case": "Las sombras, caso por caso"
     },
     "missing": {
@@ -480,7 +480,6 @@
       "sort-and-reduce": "API de cómputo en la GPU",
       "a-software-rasteriser": "API de cómputo en la GPU",
       "sound-from-the-gpu": "API de cómputo en la GPU",
-      "falling-boxes": "integración de un motor de física",
       "breaking-things": "integración de un motor de física",
       "cloth-and-rope": "integración de un motor de física",
       "soft-bodies": "integración de un motor de física",
@@ -1054,6 +1053,17 @@
           "Ve las piezas con <code>world.diagnostic.mode = 'clusters'</code>: cada clúster obtiene su propio color."
         ],
         "tryIt": "Baja la memoria con el control: las piezas se hacen más grandes, el edificio se mantiene entero. Cambia la vista a <code>clusters</code> para verlas."
+      },
+      "make-things-fall": {
+        "title": "Hacer caer las cosas",
+        "description": "Activa la física y tus formas ganan peso: caen, chocan y se detienen.",
+        "steps": [
+          "Da al mundo <code>physics: true</code>. La simulación corre aparte del dibujo, en un <em>worker</em>, y nunca frena la imagen.",
+          "Marca el suelo <code>'static'</code>: sostiene a los demás y nunca se mueve. Marca una caja <code>'dynamic'</code>: la gravedad la atrae.",
+          "La forma sale de la geometría y el peso del material: <code>physics: 'wood'</code> es ligera, <code>'metal'</code> pesada, <code>'rubber'</code> rebota.",
+          "Empuja un cuerpo con <code>applyImpulse</code> o escucha su <code>contact</code>. Cuando todos duermen, no se calcula ni se dibuja nada."
+        ],
+        "tryIt": "Suelta más cajas, pon la gravedad de la Luna y activa la cámara lenta."
       },
       "your-own-scene": {
         "title": "Tu propia escena",

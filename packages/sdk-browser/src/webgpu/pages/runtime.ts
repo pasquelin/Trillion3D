@@ -75,7 +75,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const setup = createWebgpuPagesSetup(context, diag);
   const layout = createWebgpuPagesLayout(setup);
   const vis = createWebgpuVisState();
-  const run = createWebgpuRunState();
+  const run = createWebgpuRunState(context.clearColor);
   const blendState = createWebgpuBlendState();
   // The shadow pool's side, from the screen the world opens on: the first frame on the canvas
   // confirms or replaces it, before any page exists (`../shadow/poolSize.ts`).

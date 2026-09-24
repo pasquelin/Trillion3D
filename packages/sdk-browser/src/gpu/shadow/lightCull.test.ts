@@ -70,7 +70,8 @@ test('the light cull is one pass for every region, sized by the widest drawn log
     [1, ['shadowCullLight', 'indirect']],
     'forty regions, one dispatch; a still table maps no row again',
   );
-  draw.encode(encoder, new Uint32Array(5 * 3), 3, 0, 2, 768);
+  draw.uploadItems(new Uint32Array(5 * 3), 0, 2);
+  draw.encode(encoder, 3, 768);
   frame(1);
   assert.deepEqual(calls.slice(0, 2), ['mapRows', 'direct 1'], 'three rewritten rows, one group');
 });

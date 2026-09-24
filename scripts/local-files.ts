@@ -37,15 +37,28 @@ function present(path: string): boolean {
 /**
  * Links into `root` every local path the primary worktree `main` actually has, and reports what it
  * linked. A path already in `root` is left untouched, a path absent from `main` creates nothing:
- * the tree gains the rules it is told to obey, and nothing else changes.
+ * the tree gains the rules it is told to obey, and nothing else changes. A path of `main` that is
+ * a link leading nowhere — dangling, or pointing at itself (AGENTS.md on 22 Sept. 2026) — is
+ * refused and said to `refuse`, never linked on into every new tree.
  */
-export function linkLocalFiles(root: string, main: string): string[] {
+export function linkLocalFiles(
+  root: string,
+  main: string,
+  refuse = (path: string) =>
+    console.warn(
+      `Local file ${join(main, path)} leads nowhere (a dangling or looping link): not linked`,
+    ),
+): string[] {
   if (resolve(root) === resolve(main)) return [];
   const linked: string[] = [];
   for (const path of localPaths(main)) {
     const source = join(main, path);
     const target = join(root, path);
     if (!present(source) || present(target)) continue;
+    if (!existsSync(source)) {
+      refuse(path);
+      continue;
+    }
     mkdirSync(dirname(target), { recursive: true });
     symlinkSync(source, target);
     linked.push(path);

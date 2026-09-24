@@ -83,6 +83,7 @@ export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] 
 
 /** Stages the WebGPU engine can name, in the order they occur. */
 export const WEBGPU_STAGES = [
+  'physics',
   'animations',
   'lights',
   'cutAdoption',
@@ -110,6 +111,7 @@ export const WEBGPU_STAGES = [
 
 /** Stages the WebGL2 engine can name. */
 export const WEBGL_STAGES = [
+  'physics',
   'animations',
   'lights',
   'hierarchyCut',
