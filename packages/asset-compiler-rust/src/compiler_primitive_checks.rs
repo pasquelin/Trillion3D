@@ -26,9 +26,7 @@ pub(super) fn check_dag(
             "Level 0 clusters are not the source triangles",
         ));
     }
-    let quality = crate::dag::quality::level_quality(dag, pos, normals);
-    crate::dag::quality::check(dag, &quality)?;
-    Ok(quality)
+    crate::dag::quality::check(dag, pos, normals)
 }
 
 fn triangles(indices: &[u32]) -> impl Iterator<Item = &[u32]> {
@@ -41,8 +39,9 @@ mod tests {
     use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
     use crate::geometry_page::{Attribute, FLAG_NORMAL};
 
-    /// A gently waved sheet facing up with its up normals, and the DAG the compiler builds of it.
-    fn sheet() -> (Vec<f32>, Vec<f32>, Vec<u32>, Vec<DagCluster>) {
+    /// A gently waved sheet facing up with its up normals, and the DAG the compiler builds of it;
+    /// the source triangle `inverted`, if any, winds the other way.
+    fn sheet(inverted: Option<usize>) -> (Vec<f32>, Vec<f32>, Vec<u32>, Vec<DagCluster>) {
         let n = 48usize;
         let mut positions = Vec::new();
         for y in 0..=n {
@@ -51,7 +50,11 @@ mod tests {
                 positions.extend([fx, fy, (fx * 0.31).sin() * (fy * 0.27).cos() * 0.5]);
             }
         }
-        let indices = crate::tests::fixtures::grid_indices(n, n, |x, y| (y * (n + 1) + x) as u32);
+        let mut indices =
+            crate::tests::fixtures::grid_indices(n, n, |x, y| (y * (n + 1) + x) as u32);
+        if let Some(t) = inverted {
+            indices.swap(t * 3 + 1, t * 3 + 2);
+        }
         let normals = [0.0, 0.0, 1.0].repeat(positions.len() / 3);
         let attribute = Attribute {
             flag: FLAG_NORMAL,
@@ -73,7 +76,7 @@ mod tests {
     // Behaviour: the cook publishes one quality row per level of a sound DAG.
     #[test]
     fn a_sound_dag_is_published_with_its_quality_per_level() {
-        let (positions, normals, indices, dag) = sheet();
+        let (positions, normals, indices, dag) = sheet(None);
         let quality = check_dag(&dag, &positions, Some(&normals), &indices).expect("sound");
         let depth = dag.iter().map(|c| c.level).max().unwrap_or(0);
         assert!(depth > 1);
@@ -93,7 +96,7 @@ mod tests {
     // Behaviour: a cook whose parent error drops below its child's is refused.
     #[test]
     fn a_cook_with_a_non_monotone_error_is_refused() {
-        let (positions, normals, indices, mut dag) = sheet();
+        let (positions, normals, indices, mut dag) = sheet(None);
         let child = dag
             .iter()
             .position(|c| !c.is_root())
@@ -106,12 +109,58 @@ mod tests {
     // Behaviour: a cook whose coarse level shades its faces from behind is refused.
     #[test]
     fn a_cook_with_a_backlit_level_is_refused() {
-        let (positions, normals, indices, mut dag) = sheet();
+        let (positions, normals, indices, mut dag) = sheet(None);
         for cluster in dag.iter_mut().filter(|c| c.level > 0) {
             for tri in cluster.indices.as_chunks_mut::<3>().0 {
                 tri.swap(1, 2);
             }
         }
+        let refusal = check_dag(&dag, &positions, Some(&normals), &indices).expect_err("refused");
+        assert_eq!(refusal.code, "DAG_NORMAL_DEVIATION");
+    }
+
+    // Behaviour: one inverted source triangle raises the bound of its own group only, so a
+    // coarse cluster elsewhere shaded from behind is still refused. The inverted triangle keeps
+    // up normals (over 170°); every other vertex leans 30°, so the backlit cluster stays under it
+    // and a primitive-wide bound would let it through.
+    #[test]
+    fn an_inverted_source_triangle_does_not_excuse_a_backlit_group_elsewhere() {
+        let (positions, _, indices, mut dag) = sheet(Some(0));
+        let inverted = &indices[..3];
+        let normals: Vec<f32> = (0..positions.len() as u32 / 3)
+            .flat_map(|v| match inverted.contains(&v) {
+                true => [0.0, 0.0, 1.0],
+                false => [0.5, 0.0, 0.866],
+            })
+            .collect();
+        let holder = dag
+            .iter()
+            .find(|c| c.level == 0 && c.indices.chunks(3).any(|tri| tri == inverted))
+            .expect("the inverted triangle is at level 0");
+        let source =
+            crate::dag::quality::normal_deviation(&holder.indices, &positions, &normals, 0.0);
+        let its_group = holder.group;
+        let elsewhere = dag
+            .iter_mut()
+            .find(|c| {
+                c.level == 1
+                    && c.source != its_group
+                    && !c.indices.iter().any(|v| inverted.contains(v))
+            })
+            .expect("a level 1 cluster of another group");
+        for tri in elsewhere.indices.as_chunks_mut::<3>().0 {
+            tri.swap(1, 2);
+        }
+        let backlit = crate::dag::quality::normal_deviation(
+            &elsewhere.indices,
+            &positions,
+            &normals,
+            elsewhere.lod_error,
+        );
+        assert!(
+            90.0 < backlit && backlit < source,
+            "{backlit} under {source}"
+        );
         let refusal = check_dag(&dag, &positions, Some(&normals), &indices).expect_err("refused");
         assert_eq!(refusal.code, "DAG_NORMAL_DEVIATION");
     }

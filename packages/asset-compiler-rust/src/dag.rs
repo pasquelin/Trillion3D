@@ -111,7 +111,7 @@ struct GroupReductionInput<'a> {
     /// Normals and texture sets, as the simplifier weighs them.
     attributes: &'a [crate::qem::Attribute<'a>],
     normals: Option<&'a [f32]>,
-    /// Normal deviation no reduction may exceed (`quality::deviation_bound`).
+    /// Normal deviation this group's reduction may not exceed (`quality::deviation_bound`).
     normal_bound: f64,
     locks: &'a [bool],
     /// Per source vertex, on a texture seam: protected from permissive collapses. Empty without
