@@ -1859,5 +1859,53 @@
       "fieldOfView": "視野",
       "dollyZoom": "ドリーズーム"
     }
+  },
+  "falling-boxes": {
+    "banner": "「落とす」で箱をあと50個。重力を変えて落ちる様子を見よう。",
+    "controls": {
+      "matter": "素材",
+      "gravity": "重力",
+      "drop": "落とす",
+      "jump": "跳ねる",
+      "slowMotion": "スロー"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ"
+    },
+    "choices": {
+      "matter": {
+        "wood": "木",
+        "rubber": "ゴム",
+        "ice": "氷"
+      },
+      "gravity": {
+        "earth": "地球",
+        "moon": "月",
+        "mars": "火星",
+        "none": "なし"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "一万個の箱が一斉に落ちる。パネルに物理の負荷がリアルタイムで出る。",
+    "controls": {
+      "count": "個数",
+      "again": "もう一度"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ",
+      "page": "ページ"
+    },
+    "choices": {
+      "count": {
+        "10000": "10,000",
+        "5000": "5,000",
+        "1000": "1,000"
+      }
+    }
   }
 }

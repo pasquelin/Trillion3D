@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Um rasterizador por software",
       "sound-from-the-gpu": "Som pela GPU",
       "falling-boxes": "Caixas caindo",
+      "ten-thousand-bodies": "Dez mil corpos",
       "breaking-things": "Quebrar objetos",
       "cloth-and-rope": "Tecido e corda",
       "soft-bodies": "Corpos moles",
@@ -478,7 +479,6 @@
       "sort-and-reduce": "API de computação na GPU",
       "a-software-rasteriser": "API de computação na GPU",
       "sound-from-the-gpu": "API de computação na GPU",
-      "falling-boxes": "integração de um motor de física",
       "breaking-things": "integração de um motor de física",
       "cloth-and-rope": "integração de um motor de física",
       "soft-bodies": "integração de um motor de física",
@@ -1052,6 +1052,17 @@
           "Veja as peças com <code>world.diagnostic.mode = 'clusters'</code>: cada cluster ganha sua própria cor."
         ],
         "tryIt": "Diminua a memória: as peças ficam maiores, o prédio continua inteiro. Mude a visão para <code>clusters</code> para vê-las."
+      },
+      "make-things-fall": {
+        "title": "Fazer as coisas cair",
+        "description": "Liga a física e as tuas formas ganham peso: caem, chocam e param.",
+        "steps": [
+          "Dá ao mundo <code>physics: true</code>. A simulação corre à parte do desenho, num <em>worker</em>, e nunca abranda a imagem.",
+          "Marca o chão <code>'static'</code>: segura os outros e nunca se mexe. Marca uma caixa <code>'dynamic'</code>: a gravidade puxa-a.",
+          "A forma vem da geometria, o peso do material: <code>physics: 'wood'</code> é leve, <code>'metal'</code> pesado, <code>'rubber'</code> salta.",
+          "Empurra um corpo com <code>applyImpulse</code> ou ouve o seu <code>contact</code>. Quando todos dormem, nada é calculado nem desenhado."
+        ],
+        "tryIt": "Larga mais caixas, muda a gravidade para a Lua e liga a câmara lenta."
       },
       "your-own-scene": {
         "title": "A sua própria cena",

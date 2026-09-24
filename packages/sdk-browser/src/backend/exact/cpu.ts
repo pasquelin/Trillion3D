@@ -14,6 +14,7 @@ import type { HostCpuStep } from '../../host/cpuProfile.ts';
  * profile row never leaves this engine.
  */
 const CPU = cpuStepTable([
+  ['physicsMs', 'physics'],
   ['worldMs', 'animations'],
   ['lightsMs', 'lights'],
   ['selectMs', 'selection'],

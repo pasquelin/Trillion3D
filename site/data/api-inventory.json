@@ -921,6 +921,10 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/view.ts",
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
         "packages/sdk-browser/src/world/controls/transformView.ts",
@@ -1682,6 +1686,28 @@
       "bindingIdentity": "\"packages/sdk-core/src/math/projectionOracles\".coneRejects"
     },
     {
+      "name": "ContactEvent",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/objectPhysics.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".ContactEvent"
+    },
+    {
+      "name": "ContactEventName",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/objectPhysics.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/contacts.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".ContactEventName"
+    },
+    {
       "name": "controls",
       "kind": "value",
       "definingModule": "packages/sdk-browser/src/world/controls/index.ts",
@@ -2281,6 +2307,25 @@
       "bindingIdentity": "\"packages/sdk-core/src/math/batch/transforms\".decomposeMatrix4Batch"
     },
     {
+      "name": "DEFAULT_PHYSICS_BUDGET",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/module.fixture.ts",
+        "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/tickResults.test.ts",
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.test.ts",
+        "scripts/bench-physics.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".DEFAULT_PHYSICS_BUDGET"
+    },
+    {
       "name": "DEFAULT_SCOPE",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/contracts/base.ts",
@@ -2594,6 +2639,11 @@
         "packages/sdk-browser/src/measurement/cacheFormat.test.ts",
         "packages/sdk-browser/src/page/selection/budgetPressure.test.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
+        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/joltModule.ts",
+        "packages/sdk-browser/src/physics/physicsWorker.ts",
+        "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/scene/manifestLoad.ts",
         "packages/sdk-browser/src/scene/proxyLoad.ts",
         "packages/sdk-browser/src/scene/tables.test.ts",
@@ -3285,6 +3335,39 @@
       "bindingIdentity": "\"packages/sdk-core/src/runtime/stageProfile\".GpuTimingMethod"
     },
     {
+      "name": "GRAVITY_PRESETS",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/worldPhysics.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".GRAVITY_PRESETS"
+    },
+    {
+      "name": "GravityInput",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/physics/worldPhysics.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/physics/worldPhysics\".GravityInput"
+    },
+    {
+      "name": "GravityPreset",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/worldPhysics.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".GravityPreset"
+    },
+    {
       "name": "Group",
       "kind": "both",
       "definingModule": "packages/sdk-core/src/world/object/object3d.ts",
@@ -3292,6 +3375,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -4349,6 +4434,8 @@
         "packages/sdk-browser/src/backend/autonomous/pages.test.ts",
         "packages/sdk-browser/src/host/pageObjects.test.ts",
         "packages/sdk-browser/src/host/pageObjects.ts",
+        "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
@@ -4379,6 +4466,8 @@
         "packages/sdk-browser/src/backend/autonomous/pages.test.ts",
         "packages/sdk-browser/src/host/pageObjects.test.ts",
         "packages/sdk-browser/src/host/pageObjects.ts",
+        "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
@@ -4685,6 +4774,9 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldBatches.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
@@ -4995,6 +5087,11 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/placer.ts",
+        "packages/sdk-browser/src/physics/poses.ts",
+        "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
         "packages/sdk-browser/src/world/controls/transformDrag.ts",
@@ -5028,6 +5125,20 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/object/object3d\".Object3D"
+    },
+    {
+      "name": "ObjectPhysics",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/physics/objectPhysics.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".ObjectPhysics"
     },
     {
       "name": "OcclusionFrameMetrics",
@@ -5589,6 +5700,130 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/camera\".perspectiveProjection"
+    },
+    {
+      "name": "PHYSICS_MATERIALS",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["scripts/bench-physics.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PHYSICS_MATERIALS"
+    },
+    {
+      "name": "PhysicsBodyOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsBodyOptions"
+    },
+    {
+      "name": "PhysicsBudget",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/joltModule.ts",
+        "packages/sdk-browser/src/physics/module.fixture.ts",
+        "packages/sdk-browser/src/physics/protocol.ts",
+        "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/tickResults.ts",
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
+        "packages/sdk-browser/src/world/core/worldHandles.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsBudget"
+    },
+    {
+      "name": "PhysicsHost",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/objectPhysics.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/session.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".PhysicsHost"
+    },
+    {
+      "name": "PhysicsMaterialPreset",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsMaterialPreset"
+    },
+    {
+      "name": "PhysicsMatter",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsMatter"
+    },
+    {
+      "name": "PhysicsOption",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsOption"
+    },
+    {
+      "name": "PhysicsShape",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsShape"
+    },
+    {
+      "name": "PhysicsStats",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/physics/protocol.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/physics/protocol\".PhysicsStats"
+    },
+    {
+      "name": "PhysicsType",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsType"
     },
     {
       "name": "PivotCameraControls",
@@ -6232,12 +6467,14 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
         "packages/sdk-browser/src/world/controls/transformDrag.ts",
         "packages/sdk-browser/src/world/controls/transformMath.test.ts",
         "packages/sdk-browser/src/world/controls/transformMath.ts",
         "packages/sdk-browser/src/world/core/worldCamera.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
+        "scripts/bench-physics.ts",
         "site/app/editor/commands.ts"
       ],
       "disposition": "retained",
@@ -6761,16 +6998,18 @@
     {
       "name": "SceneLink",
       "kind": "type",
-      "definingModule": "packages/sdk-core/src/world/object/object3d.ts",
+      "definingModule": "packages/sdk-core/src/world/object/sceneLink.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/placer.ts",
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
-        "packages/sdk-browser/src/world/core/world.ts"
+        "packages/sdk-browser/src/world/core/worldLink.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/world/object/object3d\".SceneLink"
+      "bindingIdentity": "\"packages/sdk-core/src/world/object/sceneLink\".SceneLink"
     },
     {
       "name": "SceneNode",
@@ -8666,6 +8905,8 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/support/publicScene.ts",
+        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
         "packages/sdk-browser/src/world/controls/transformMath.test.ts",
@@ -8760,6 +9001,28 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/world/page/index\".WorldPageSource"
+    },
+    {
+      "name": "WorldPhysics",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/physics/worldPhysics.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/physics/worldPhysics\".WorldPhysics"
+    },
+    {
+      "name": "WorldPhysicsOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/physics/worldPhysics.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/physics/worldPhysics\".WorldPhysicsOptions"
     },
     {
       "name": "WorldRenderer",

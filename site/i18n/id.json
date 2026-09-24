@@ -595,6 +595,17 @@
         ],
         "tryIt": "Geser memorinya ke bawah: bagian-bagiannya membesar, gedungnya tetap utuh. Alihkan tampilan ke <code>clusters</code> untuk melihatnya."
       },
+      "make-things-fall": {
+        "title": "Jatuhkan benda",
+        "description": "Nyalakan fisika dan bentukmu punya berat: jatuh, bertabrakan, lalu diam.",
+        "steps": [
+          "Beri dunia <code>physics: true</code>. Simulasi berjalan terpisah dari gambar, di <em>worker</em>, jadi tak pernah memperlambat gambar.",
+          "Tandai lantai <code>'static'</code>: menahan yang lain dan tak pernah bergerak. Tandai kotak <code>'dynamic'</code>: gravitasi menariknya.",
+          "Bentuk dari geometri, berat dari material: <code>physics: 'wood'</code> ringan, <code>'metal'</code> berat, <code>'rubber'</code> memantul.",
+          "Dorong benda dengan <code>applyImpulse</code>, atau dengarkan <code>contact</code>-nya. Saat semua benda tidur, tak ada yang dihitung atau digambar."
+        ],
+        "tryIt": "Jatuhkan lebih banyak kotak, ganti gravitasi ke Bulan, dan nyalakan gerak lambat."
+      },
       "your-own-scene": {
         "title": "Adegan buatanmu sendiri",
         "description": "Kamu sekarang sudah tahu setiap bagiannya. Bab ini menyatukan semuanya dalam satu adegan kecil yang bisa kamu salin dan jadikan milikmu.",
@@ -1453,6 +1464,7 @@
       "a-software-rasteriser": "Rasterizer software",
       "sound-from-the-gpu": "Suara dari GPU",
       "falling-boxes": "Kotak berjatuhan",
+      "ten-thousand-bodies": "Sepuluh ribu benda",
       "breaking-things": "Menghancurkan sesuatu",
       "cloth-and-rope": "Kain dan tali",
       "soft-bodies": "Benda lunak",
@@ -1626,7 +1638,6 @@
       "sort-and-reduce": "API compute GPU",
       "a-software-rasteriser": "API compute GPU",
       "sound-from-the-gpu": "API compute GPU",
-      "falling-boxes": "integrasi fisika",
       "breaking-things": "integrasi fisika",
       "cloth-and-rope": "integrasi fisika",
       "soft-bodies": "integrasi fisika",

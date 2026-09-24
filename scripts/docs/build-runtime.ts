@@ -15,6 +15,8 @@ export async function buildRuntime(root: string, outdir: string) {
       engine: 'packages/sdk-browser/src/index.ts',
       pageDecodeWorker: 'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
       pageIntegrationWorker: 'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
+      // The physics worker, spawned only by a world that turns physics on.
+      physicsWorker: 'packages/sdk-browser/src/physics/physicsWorker.ts',
       // The examples' own panels, imported beside the engine; they touch nothing of it.
       kit: 'site/examples/kit/index.ts',
     },
@@ -30,8 +32,13 @@ export async function buildRuntime(root: string, outdir: string) {
     },
     logLevel: 'warning',
   });
-  await copyFile(
-    resolve(root, 'packages/sdk-browser/src/page/decode/pageCodec.wasm'),
-    resolve(outdir, 'pageCodec.wasm'),
-  );
+  for (const wasm of [
+    'page/decode/pageCodec.wasm',
+    'physics/joltPhysics.wasm',
+    'physics/joltPhysicsThreads.wasm',
+  ])
+    await copyFile(
+      resolve(root, 'packages/sdk-browser/src', wasm),
+      resolve(outdir, wasm.slice(wasm.lastIndexOf('/') + 1)),
+    );
 }

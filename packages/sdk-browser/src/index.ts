@@ -15,6 +15,25 @@ export * from './world/helper/index.ts';
 export * from './world/controls/index.ts';
 export * from './world/page/index.ts';
 export * from './world/budget/index.ts';
+export {
+  ObjectPhysics,
+  GRAVITY_PRESETS,
+  PHYSICS_MATERIALS,
+  DEFAULT_PHYSICS_BUDGET,
+  type PhysicsType,
+  type PhysicsShape,
+  type PhysicsBodyOptions,
+  type PhysicsOption,
+  type GravityPreset,
+  type PhysicsMaterialPreset,
+  type PhysicsMatter,
+  type PhysicsBudget,
+  type ContactEvent,
+  type ContactEventName,
+  type PhysicsHost,
+} from '../../sdk-core/src/physics/index.ts';
+export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
+export type { PhysicsStats } from './physics/protocol.ts';
 export * from './world/metric/index.ts';
 export * from './world/diagnostic/index.ts';
 export * from './world/capability/index.ts';

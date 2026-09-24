@@ -1,8 +1,9 @@
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import type { Object3D, SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isLight, lightsUnder, type createWorldLights } from './worldLights.ts';
 import type { createWorldContents } from './worldContents.ts';
 import type { WorldSceneLink } from './scene.ts';
+import type { Batch } from './worldBatches.ts';
 
 type Parts = {
   contents: ReturnType<typeof createWorldContents>;
@@ -30,6 +31,16 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
       if (lights.held && lightsUnder(node)) parts.relight();
       else parts.invalidate();
     },
+    posed(nodes: readonly Object3D[]) {
+      let relight = false;
+      for (const node of nodes) {
+        contents.poses.moved(node);
+        relight ||= !!lights.held && lightsUnder(node);
+      }
+      lights.boundsMoved();
+      if (relight) parts.relight();
+      else parts.invalidate();
+    },
     structure(parent: Object3D) {
       contents.changed(parent);
       lights.boundsMoved();
@@ -41,6 +52,24 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
       lights.boundsMoved();
       schedule();
     },
+    seat: (node) => {
+      const seat = contents.seats.get(node as Mesh);
+      return seat && seat.batch.rows && seat.row >= 0 ? seat : null;
+    },
+    seatEpoch: () => contents.seatEpoch,
+    placed(batch, from, to) {
+      contents.poses.touchRange(batch as Batch, from, to);
+      lights.boundsMoved();
+      parts.invalidate();
+    },
     background: parts.invalidate,
   };
 }
+
+/** The link of a camera outside the scene: a move asks for a frame, nothing else. */
+export const cameraSceneLink = (invalidate: () => void): SceneLink => ({
+  pose: invalidate,
+  posed: invalidate,
+  structure: () => {},
+  content: () => {},
+});

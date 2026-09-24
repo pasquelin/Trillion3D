@@ -1859,5 +1859,53 @@
       "fieldOfView": "Campo de visão",
       "dollyZoom": "Dolly zoom"
     }
+  },
+  "falling-boxes": {
+    "banner": "Carregue em Largar para mais cinquenta caixas. Muda a gravidade e vê-as cair.",
+    "controls": {
+      "matter": "Matéria",
+      "gravity": "Gravidade",
+      "drop": "Largar",
+      "jump": "Saltar",
+      "slowMotion": "Câmara lenta"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo"
+    },
+    "choices": {
+      "matter": {
+        "wood": "madeira",
+        "rubber": "borracha",
+        "ice": "gelo"
+      },
+      "gravity": {
+        "earth": "Terra",
+        "moon": "Lua",
+        "mars": "Marte",
+        "none": "nenhuma"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Dez mil caixas caem de uma vez. O painel mostra em direto quanto custa a física.",
+    "controls": {
+      "count": "Quantidade",
+      "again": "De novo"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo",
+      "page": "Página"
+    },
+    "choices": {
+      "count": {
+        "10000": "10.000",
+        "5000": "5.000",
+        "1000": "1.000"
+      }
+    }
   }
 }
