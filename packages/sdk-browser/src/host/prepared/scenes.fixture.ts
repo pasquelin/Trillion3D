@@ -9,6 +9,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import type { GraphNode } from '../graph/node.ts';
+import * as K from './sceneKinds.fixture.ts';
 
 const site = new URL('../../../../../site/assets/', import.meta.url);
 
@@ -125,10 +126,9 @@ const numbers = (v: { x: number; y: number; z: number; w?: number }) => [v.x, v.
 const LIGHT = ['intensity', 'distance', 'decay', 'angle', 'penumbra'] as const;
 /** The fields of a surface the engine reads (`../shadedMaterial.ts`, the physical gate). */
 const SURFACE_FIELDS = (
-  'type name visible side forceSinglePass vertexColors toneMapped depthTest depthWrite ' +
+  'name visible side forceSinglePass vertexColors toneMapped depthTest depthWrite ' +
   'depthFunc colorWrite polygonOffset polygonOffsetFactor polygonOffsetUnits transparent ' +
-  'opacity alphaTest isMeshBasicMaterial isMeshStandardMaterial isMeshPhysicalMaterial ' +
-  'isMeshPhongMaterial shininess matcap color map metalness roughness metalnessMap ' +
+  'opacity alphaTest shininess matcap color map metalness roughness metalnessMap ' +
   'roughnessMap normalMap normalMapType normalScale aoMap aoMapIntensity emissive ' +
   'emissiveIntensity emissiveMap transmission ior thickness attenuationDistance ' +
   'attenuationColor alphaHash blending premultipliedAlpha alphaToCoverage stencilWrite ' +
@@ -138,27 +138,31 @@ const SURFACE_FIELDS = (
   'iridescenceMap iridescenceThicknessMap anisotropy anisotropyMap dispersion ' +
   'specularIntensity specularIntensityMap specularColor specularColorMap'
 ).split(' ');
+/** The fields of a node the engine reads, beside its kind and its pose. */
+const NODE_FIELDS =
+  'name visible frustumCulled renderOrder castShadow receiveShadow matrixAutoUpdate';
 /** The fields of a texture the engine reads (`../resources.ts`, the admission gate). */
 const TEXTURE_FIELDS = (
-  'isTexture name channel wrapS wrapT magFilter minFilter anisotropy flipY premultiplyAlpha ' +
-  'generateMipmaps colorSpace matrixAutoUpdate mapping isCompressedTexture isDataTexture ' +
-  'isDataArrayTexture image'
+  'name channel wrapS wrapT magFilter minFilter anisotropy flipY premultiplyAlpha ' +
+  'generateMipmaps colorSpace matrixAutoUpdate mapping image'
 ).split(' ');
 
 /** A value as the engine reads it: a colour, a vector, a node by their numbers. */
 function read(value: unknown, ranks: Ranks): unknown {
   const v = value as Record<string, unknown> | null | undefined;
-  if (v?.isTexture) {
+  const kind = K.textureKind(v);
+  if (v && kind) {
     const t = v as unknown as { updateMatrix(): void; matrix: { elements: ArrayLike<number> } };
     t.updateMatrix();
     const fields = Object.fromEntries(TEXTURE_FIELDS.map((key) => [key, v[key]]));
-    return { ...fields, matrix: Array.from(t.matrix.elements), rank: ranks(v)?.textures };
+    return { kind, ...fields, matrix: Array.from(t.matrix.elements), rank: ranks(v)?.textures };
   }
   if (v?.isColor) return [v.r, v.g, v.b];
   if (v?.isVector2) return [v.x, v.y];
-  if (v?.isVector3) return [v.x, v.y, v.z];
-  if (v?.isObject3D) return read(v.position, ranks);
-  if (v?.isInterleavedBufferAttribute || v?.isBufferAttribute) return attribute(v as never);
+  if (typeof v !== 'object' || v === null) return value;
+  if (typeof v.z === 'number' && !('w' in v)) return [v.x, v.y, v.z];
+  if ('matrixWorld' in v) return read(v.position, ranks);
+  if (K.isAttribute(v)) return attribute(v as never);
   return Array.isArray(value) ? [...(value as unknown[])] : value;
 }
 
@@ -168,32 +172,33 @@ export function describeShape(root: GraphNode | THREE.Object3D, ranks: Ranks) {
   (root as GraphNode).traverse((node) => {
     const o = node as unknown as Record<string, unknown> & THREE.Mesh & THREE.SpotLight;
     const { meshes, primitives } = ranks(o) ?? {};
-    const materials = o.isMesh ? [o.material].flat() : [];
+    const kind = K.nodeKind(o),
+      drawn = K.isDrawnKind(kind);
+    const materials = drawn ? [o.material].flat() : [];
     out.push({
-      ...Object.fromEntries(
-        ['type', 'name', 'visible', 'frustumCulled', 'renderOrder', 'castShadow', 'receiveShadow']
-          .concat(['matrixAutoUpdate', 'isMesh', 'isLight', 'isCamera', 'isGroup'])
-          .map((key) => [key, o[key]]),
-      ),
+      kind,
+      ...Object.fromEntries(NODE_FIELDS.split(' ').map((key) => [key, o[key]])),
       userName: o.userData.name as unknown,
       pose: [o.position, o.quaternion, o.scale].flatMap(numbers),
-      ranks: o.isMesh ? { meshes, primitives } : undefined,
-      geometry: o.isMesh ? geometry(o.geometry) : undefined,
-      morph: o.isMesh ? o.morphTargetInfluences : undefined,
-      materials: materials.map((m) =>
-        Object.fromEntries(
+      ranks: drawn ? { meshes, primitives } : undefined,
+      geometry: drawn ? geometry(o.geometry) : undefined,
+      morph: drawn ? o.morphTargetInfluences : undefined,
+      materials: materials.map((m) => ({
+        family: K.surfaceFamily(m as unknown as Record<string, unknown>),
+        ...Object.fromEntries(
           SURFACE_FIELDS.map((key) => [
             key,
             read((m as unknown as Record<string, unknown>)[key], ranks),
           ]),
         ),
-      ),
-      light: o.isLight
+      })),
+      light: K.isLightKind(kind)
         ? ['color', ...LIGHT, 'target'].map((key) => read(o[key], ranks))
         : undefined,
-      camera: o.isCamera
-        ? ['fov', 'aspect', 'near', 'far', 'zoom'].map((key) => o[key])
-        : undefined,
+      camera:
+        kind === 'camera'
+          ? ['fov', 'aspect', 'near', 'far', 'zoom'].map((key) => o[key])
+          : undefined,
     });
   });
   return out;

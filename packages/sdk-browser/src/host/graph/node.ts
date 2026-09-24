@@ -16,6 +16,22 @@ import { lookAtQuaternion } from '../../../../sdk-core/src/math/transform-tree/l
 import { GraphAngles, GraphRotation } from './rotation.ts';
 import { GraphVector } from './vector.ts';
 
+/** What a node of the graph is: a bare node, the root, a group, a drawn mesh (at one placement
+ *  or several), an eye, or one of the lights a scene declares. */
+export type GraphNodeKind =
+  | 'node'
+  | 'scene'
+  | 'group'
+  | 'mesh'
+  | 'instancedMesh'
+  | 'camera'
+  | GraphLightKind
+  | 'ambient'
+  | 'rect'
+  | 'probe';
+/** The kinds of light that aim or reach, named as the core's light declaration names them. */
+export type GraphLightKind = 'directional' | 'point' | 'spot';
+
 /** Numbered from one, like every node of a session: a diagnostic seeds a colour with it. */
 let nextId = 1;
 /** Scratch of `lookAt`. */
@@ -23,12 +39,10 @@ const aim = new Float64Array(4);
 
 /** A node of the graph: its name, its pose, its world matrix, its parent and its children. */
 export class GraphNode {
-  /** Always `true`: tells a node of a scene graph apart. */
-  readonly isObject3D = true as const;
   /** The node's number, unique in the session. */
   readonly id = nextId++;
-  /** The kind of node: `'Mesh'`, `'Group'`… */
-  type = 'Object3D';
+  /** What the node is: what every reader of the graph narrows on. */
+  readonly kind: GraphNodeKind = 'node';
   /** A name to find the node by. */
   name = '';
   /** The node holding this one. */

@@ -6,6 +6,7 @@ import { installLighting } from './contractLightingApi.ts';
 import { unsupportedClusterLight } from '../webgl/cluster/lights.ts';
 import { GraphScene } from '../host/graph/scene.ts';
 import { GraphNode } from '../host/graph/node.ts';
+import { isLightNode, type GraphAnyLight } from '../host/graph/kinds.ts';
 import { GraphLight, GraphLightProbe, type GraphLightKind } from '../host/graph/light.ts';
 
 /** Coordinates of a vector, negative zero brought back to zero: `−0` is not a position. */
@@ -25,10 +26,10 @@ function harness(sourceLights: GraphNode[] = []) {
     contract,
     /** Lights the render would see: those a scene walk collects, visible ones only. */
     visibleLights() {
-      const found: GraphLight[] = [];
+      const found: GraphAnyLight[] = [];
       const walk = (node: GraphNode) => {
         if (!node.visible) return;
-        if ((node as GraphLight).isLight) found.push(node as GraphLight);
+        if (isLightNode(node)) found.push(node);
         node.children.forEach(walk);
       };
       walk(scene);
@@ -67,7 +68,7 @@ test('a contract point light lights, and removing it makes the lit view black', 
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
   const point = lights[0];
-  assert.ok(point.isPointLight);
+  assert.equal(point.kind, 'point');
   // Radiometric intensity and linear colour taken as-is: no adjustment factor.
   assert.equal(point.intensity, 7);
   assert.deepEqual([point.color.r, point.color.g, point.color.b], [1, 0.5, 0.25]);
@@ -101,7 +102,7 @@ test('the `unlit` view yields albedo by an irradiance of π, with no contract li
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
   const ambient = lights[0];
-  assert.ok((ambient as { isAmbientLight?: boolean }).isAmbientLight);
+  assert.equal(ambient.kind, 'ambient');
   assert.equal(ambient.intensity, Math.PI);
   assert.equal(bench.contract.lit, false);
 });
@@ -122,7 +123,7 @@ test('a spotlight takes back its cone, and its penumbra equals the contract soft
   });
   bench.contract.apply();
   const spot = bench.visibleLights()[0];
-  assert.ok(spot.isSpotLight);
+  assert.equal(spot.kind, 'spot');
   assert.equal(spot.angle, coneAngle);
   assert.deepEqual(coords(spot.target!.position), [0, 3, 0]);
   const inner = coneAngle * (1 - spot.penumbra!);
@@ -143,7 +144,7 @@ test('a directional takes its propagation direction, never an invented position'
   });
   bench.contract.apply();
   const sun = bench.visibleLights()[0];
-  assert.ok(sun.isDirectionalLight);
+  assert.equal(sun.kind, 'directional');
   // The program takes the incidence direction as `position − target`: the opposite of the contract.
   assert.deepEqual(coords(sun.position), [0, 1, 0]);
   assert.deepEqual(coords(sun.target!.position), [0, 0, 0]);
@@ -164,12 +165,12 @@ test('the contract hides the source-graph lights as soon as it governs, and rest
   bench.contract.apply();
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
-  assert.ok(lights[0].isPointLight);
+  assert.equal(lights[0].kind, 'point');
   bench.store.remove('lampe');
   bench.contract.apply();
   const back = bench.visibleLights();
   assert.equal(back.length, 1);
-  assert.ok(back[0].isDirectionalLight);
+  assert.equal(back[0].kind, 'directional');
 });
 
 test('changing a light type replaces its light object, leaving no second one', () => {
@@ -188,7 +189,7 @@ test('changing a light type replaces its light object, leaving no second one', (
   bench.contract.apply();
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
-  assert.ok(lights[0].isSpotLight);
+  assert.equal(lights[0].kind, 'spot');
 });
 
 test('a visible light probe is read by the cluster renderer, never refused', () => {

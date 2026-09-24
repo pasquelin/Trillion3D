@@ -13,7 +13,10 @@ import { pageRecFixture } from './support/pageRecFixture.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 const cam = camera(6, 0.1, 16 / 9);
-const clip = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+const clip = new THREE.Matrix4().multiplyMatrices(
+  new THREE.Matrix4().fromArray(cam.projectionMatrix.elements),
+  new THREE.Matrix4().fromArray(cam.matrixWorldInverse.elements),
+);
 const planes = new Float64Array(24);
 clipPlanesFromMatrix(planes, clip.elements);
 

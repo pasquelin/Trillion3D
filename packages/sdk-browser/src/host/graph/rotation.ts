@@ -31,8 +31,6 @@ function announced(prototype: object, keys: readonly string[]) {
 
 /** An orientation `(x, y, z, w)` whose writes call `_onChangeCallback`. */
 export class GraphRotation {
-  /** Always `true`: tells a quaternion apart. */
-  declare readonly isQuaternion: true;
   _x: number;
   _y: number;
   _z: number;
@@ -112,8 +110,6 @@ const turn = new Float64Array(4),
 
 /** The same orientation as three angles and their order, announcing its writes the same way. */
 export class GraphAngles {
-  /** Always `true`: tells a set of angles apart. */
-  declare readonly isEuler: true;
   _x = 0;
   _y = 0;
   _z = 0;
@@ -150,8 +146,6 @@ export class GraphAngles {
   }
 }
 
-Object.defineProperty(GraphRotation.prototype, 'isQuaternion', { value: true });
-Object.defineProperty(GraphAngles.prototype, 'isEuler', { value: true });
 
 announced(GraphRotation.prototype, ['x', 'y', 'z', 'w']);
 announced(GraphAngles.prototype, ['x', 'y', 'z', 'order']);

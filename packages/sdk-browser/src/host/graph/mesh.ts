@@ -9,9 +9,7 @@ import { GraphNode } from './node.ts';
 
 /** A node that only holds others. */
 export class GraphGroup extends GraphNode {
-  /** Always `true`: tells a group apart. */
-  readonly isGroup = true as const;
-  override type = 'Group';
+  override readonly kind = 'group' as const;
   protected override blank(): this {
     return new GraphGroup() as this;
   }
@@ -19,9 +17,8 @@ export class GraphGroup extends GraphNode {
 
 /** A drawn node: a geometry and its surface, or one surface per geometry group. */
 export class GraphMesh extends GraphNode {
-  /** Always `true`: tells a drawn node apart. */
-  readonly isMesh = true as const;
-  override type = 'Mesh';
+  /** Drawn at one placement, or at several (`GraphInstancedMesh`). */
+  override readonly kind: 'mesh' | 'instancedMesh' = 'mesh';
   /** The weight of each morph target, when the geometry declares any. */
   declare morphTargetInfluences?: number[];
   /** The rank of each morph target by its name. */
@@ -67,9 +64,7 @@ export class GraphMesh extends GraphNode {
  * `instanceMatrix`, sixteen numbers each, and `count` of them drawn.
  */
 export class GraphInstancedMesh extends GraphMesh {
-  /** Always `true`: tells an instanced mesh apart. */
-  readonly isInstancedMesh = true as const;
-  override type = 'InstancedMesh';
+  override readonly kind = 'instancedMesh' as const;
   /** One matrix per placement, column after column. */
   readonly instanceMatrix: GraphAttribute;
   /** How many placements are drawn. */

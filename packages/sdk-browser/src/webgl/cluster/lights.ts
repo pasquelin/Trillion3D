@@ -1,33 +1,16 @@
 import { LTC_UNIT, WEBGL_RECT_KIND, createLtcTexture } from './rectGlsl.ts';
 import { inReferenceOrder } from './lightOrder.ts';
-import { WebglClusterProbe, type ProbeLight } from './probe.ts';
+import { WebglClusterProbe } from './probe.ts';
+import { isLightNode } from '../../host/graph/kinds.ts';
+import type { GraphLight, GraphRectLight } from '../../host/graph/light.ts';
 
 type MatrixNode = {
   visible: boolean;
   parent: MatrixNode | null;
   matrixWorld: { elements: ArrayLike<number> };
 };
-type ClusterLight = MatrixNode &
-  Partial<ProbeLight> & {
-    isLight?: boolean;
-    isAmbientLight?: boolean;
-    isDirectionalLight?: boolean;
-    isPointLight?: boolean;
-    isSpotLight?: boolean;
-    isRectAreaLight?: boolean;
-    /** A rectangle's size along its local x and y. */
-    width?: number;
-    height?: number;
-    type: string;
-    color: { r: number; g: number; b: number };
-    intensity: number;
-    castShadow?: boolean;
-    distance?: number;
-    decay?: number;
-    angle?: number;
-    penumbra?: number;
-    target?: MatrixNode;
-  };
+/** A light that takes a slot of the program: one that aims or reaches, or a rectangle. */
+type DirectLight = GraphLight | GraphRectLight;
 
 /** The ambient irradiance a frame sums (r, g, b, and whether any ambient light counted), reused. */
 const AMBIENT = new Float64Array(4);
@@ -49,21 +32,12 @@ const visibleThroughParents = (object: MatrixNode) => {
 export const unsupportedClusterLight = (scene: WebglClusterScene) => {
   let reason: string | undefined;
   let count = 0;
-  scene.traverse((entry) => {
-    const light = entry as ClusterLight;
+  scene.traverse((light) => {
     // A probe takes no light slot: its coefficients add into the program's irradiance.
-    if (!light.isLight || light.isLightProbe || !visibleThroughParents(light)) return;
+    if (!isLightNode(light) || light.kind === 'probe' || !visibleThroughParents(light)) return;
     count++;
-    if (
-      !light.isAmbientLight &&
-      !light.isDirectionalLight &&
-      !light.isPointLight &&
-      !light.isSpotLight &&
-      !light.isRectAreaLight
-    )
-      reason = `${light.type} is unsupported`;
-    else if ((light.isPointLight || light.isSpotLight) && light.decay !== 2)
-      reason = `${light.type} decay ${light.decay} is unsupported; inverse-square decay 2 is required`;
+    if ((light.kind === 'point' || light.kind === 'spot') && light.decay !== 2)
+      reason = `${light.kind} light decay ${light.decay} is unsupported; inverse-square decay 2 is required`;
   });
   return (
     reason ?? (count > 64 ? `${count} visible lights exceed the 64-light contract` : undefined)
@@ -73,7 +47,7 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
 export class WebglClusterLights {
   private data = new Float32Array(4 * 4 * 64);
   /** The direct lights of the frame, in the graph's order; reused from frame to frame. */
-  private lights: ClusterLight[] = [];
+  private lights: DirectLight[] = [];
   private buffer: WebGLBuffer;
   private ltc: WebGLTexture;
   private probe: WebglClusterProbe;
@@ -113,11 +87,10 @@ export class WebglClusterLights {
     const lights = this.lights;
     lights.length = 0;
     const ambient = AMBIENT.fill(0);
-    scene.traverse((entry) => {
-      const light = entry as ClusterLight;
-      if (!light.isLight || !visibleThroughParents(light)) return;
-      if (light.isLightProbe) return this.probe.add(light as ClusterLight & ProbeLight);
-      if (!light.isAmbientLight) return void lights.push(light);
+    scene.traverse((light) => {
+      if (!isLightNode(light) || !visibleThroughParents(light)) return;
+      if (light.kind === 'probe') return this.probe.add(light);
+      if (light.kind !== 'ambient') return void lights.push(light);
       ambient[0] += light.color.r * light.intensity;
       ambient[1] += light.color.g * light.intensity;
       ambient[2] += light.color.b * light.intensity;
@@ -130,7 +103,8 @@ export class WebglClusterLights {
       write(count * 16 + 4, 0, 0, -1, 3);
       write(count++ * 16 + 8, ambient[0], ambient[1], ambient[2], 1);
     }
-    function writeLight(light: ClusterLight, kind: number) {
+    function writeLight(light: DirectLight, kind: number) {
+      const lamp = light.kind === 'rect' ? undefined : light;
       let range = 0,
         inner = 1,
         outer = 1;
@@ -143,13 +117,13 @@ export class WebglClusterLights {
         dz = 0;
       if (kind !== 0) range = light.distance ?? 0;
       if (kind === 2) {
-        outer = Math.cos(light.angle ?? 0);
-        inner = Math.cos((light.angle ?? 0) * (1 - (light.penumbra ?? 0)));
+        outer = Math.cos(lamp!.angle ?? 0);
+        inner = Math.cos((lamp!.angle ?? 0) * (1 - (lamp!.penumbra ?? 0)));
       }
       if (kind === 0 || kind === 2) {
         // Toward the light, in view space, unit: the reference's direction, normalised once here
         // and read as is by the program.
-        const target = light.target!.matrixWorld.elements;
+        const target = lamp!.target!.matrixWorld.elements;
         const x = px - target[12],
           y = py - target[13],
           z = pz - target[14];
@@ -169,18 +143,18 @@ export class WebglClusterLights {
         view[2] * px + view[6] * py + view[10] * pz + view[14],
         range,
       );
-      if (kind === WEBGL_RECT_KIND) {
+      if (light.kind === 'rect') {
         write(base + 8, light.color.r, light.color.g, light.color.b, light.intensity);
         // It emits down its local -z; its width runs along its local x.
         axis(base + 4, matrix, 8, -1, kind);
-        axis(base + 12, matrix, 0, light.width! / 2, light.height! / 2);
+        axis(base + 12, matrix, 0, light.width / 2, light.height / 2);
         return;
       }
       // The colour scaled by the intensity here, in double precision, as the reference uploads it.
       const i = light.intensity;
       write(base + 8, light.color.r * i, light.color.g * i, light.color.b * i, 1);
       write(base + 4, dx, dy, dz, kind);
-      write(base + 12, inner, outer, light.decay ?? 2, 0);
+      write(base + 12, inner, outer, lamp!.decay ?? 2, 0);
     }
     this.probe.upload(view);
     const gl = this.gl;

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 import { ClusterBatches, type BatchPage } from './batches.ts';
 import {
@@ -7,16 +7,16 @@ import {
 } from '../../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 
 /** The surface a page wears: the engine's record, and the host declaration behind it. */
-export const wears = (material: THREE.Material) => ({
+export const wears = (material: G.GraphSurface) => ({
   material: surfaceOf(material),
   declaration: material,
 });
 
 export function attributes(count: number) {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(new Float32Array(count * 3), 3),
+    G.floatAttribute(new Float32Array(count * 3), 3),
   );
   return geometry.attributes;
 }
@@ -29,14 +29,14 @@ type Fixture = {
 
 /** Two primitives; the first is instanced twice (renderOrder 0 and 1), the second once (2). */
 export function fixture(): Fixture {
-  const material = new THREE.MeshBasicMaterial();
+  const material = G.basicSurface();
   const shared = attributes(64),
     other = attributes(16);
   const pages: BatchPage[] = [];
   const arrays = new Map<string, Uint32Array>();
   const add = (
     renderOrder: number,
-    attrs: THREE.BufferGeometry['attributes'],
+    attrs: G.GraphGeometry['attributes'],
     id: number,
     url: string,
     triangles: number,
@@ -51,7 +51,7 @@ export function fixture(): Fixture {
       attributes: attrs,
       material: surfaceOf(material),
       declaration: material,
-      matrix: new THREE.Matrix4(),
+      matrix: new G.Matrix4(),
       renderOrder,
       ...extra,
     });

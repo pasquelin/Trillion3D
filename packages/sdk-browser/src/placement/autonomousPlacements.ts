@@ -1,3 +1,4 @@
+import type { GraphScene } from '../host/graph/scene.ts';
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts';
 import type { WebglFrameGate } from '../webgl/core/frameGate.ts';
 import { followPlacementRows } from './update.ts';
@@ -7,7 +8,6 @@ import type { BlendCopy } from '../cluster/blendCopyContract.ts';
 import { followBlendCopies, growBlendCopies } from '../cluster/blendCopyMesh.ts';
 import { autonomousBootstrap } from '../backend/autonomous/manifest.ts';
 import type { HostMaterials } from '../host/resources.ts';
-import type { GraphScene } from '../host/graph/scene.ts';
 
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
 const counted = new Set<string>();

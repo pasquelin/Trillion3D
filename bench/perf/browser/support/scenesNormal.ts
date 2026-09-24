@@ -12,7 +12,7 @@
 //
 // Attributes are in single precision, like imported geometry: both sides therefore
 // read the same rounded values, and any delta can only come from the algebra.
-import * as THREE from 'three';
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts';
 import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts';
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
@@ -85,10 +85,10 @@ const GARNITURES: [number, number, number][] = [
 ];
 
 const attribut = (valeurs: number[], size: number) =>
-  new THREE.BufferAttribute(Float32Array.from(valeurs), size);
+  new G.GraphAttribute(Float32Array.from(valeurs), size);
 
 /** The four attribute sets of a fitting: with tangents, without, without normals, without UV. */
-function attributs([n, t, u]: [number, number, number]): THREE.BufferGeometry['attributes'][] {
+function attributs([n, t, u]: [number, number, number]): G.GraphGeometry['attributes'][] {
   const normal = () => attribut(NORMALES[n], 3),
     tangent = () => attribut(TANGENTES[t], 4),
     uv = () => attribut(UVS[u], 2);
@@ -125,7 +125,7 @@ export interface Repere {
 export function reperes(): Repere[] {
   const lot: Repere[] = [];
   for (const pose of POSES) {
-    const matrix = new THREE.Matrix4().fromArray(pose);
+    const matrix = new G.Matrix4().fromArray(pose);
     for (const garniture of GARNITURES)
       for (const attributes of attributs(garniture))
         for (let v = 0; v < TRIANGLES.length; v++) {
