@@ -2,10 +2,10 @@ name: Site
 
 # The documentation portal, built from the sources into dist/site and deployed to the site's own
 # server (docs/LEARNING_PORTAL.md, "Deploy"). A pull request that touches anything the build reads
-# only builds it — the engine packages, the native compiler that cooks the open world, the build
-# scripts and the dependencies; a push to main, or a manual run asked to deploy, also publishes it.
-# The required `validate` check builds the site too (`build:docs`, `scripts/validate-steps.ts`),
-# without the open world's cook, which only this workflow runs.
+# only builds it — the engine packages, the build scripts and the dependencies; a push to main, or a
+# manual run asked to deploy, also publishes it. The required `validate` check builds the site too
+# (`build:docs`, `scripts/validate-steps.ts`). The open world is cooked and published by its own
+# repository, pasquelin/Trillion3D-openworld, under `openworld/`, which this deploy leaves alone.
 on:
   pull_request:
     paths:
@@ -13,8 +13,6 @@ on:
       - 'packages/**'
       - 'scripts/docs/**'
       - 'scripts/docs-build.ts'
-      - 'scripts/docs-openworld.ts'
-      - 'scripts/native-compiler.ts'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/actions/node/**'
@@ -34,19 +32,13 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    # The open world's generation and cook take about twenty minutes of the build.
-    timeout-minutes: 60
+    timeout-minutes: 20
     outputs:
       deploy: ${{ steps.plan.outputs.deploy }}
       floor: ${{ steps.plan.outputs.floor }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/node
-      # The open world (#332) is generated from its seed and compiled at build time: its cache is
-      # never committed. The native compiler builds first, then the generator writes the world.
-      - uses: dtolnay/rust-toolchain@stable
-      - run: pnpm run build:native
-      - run: node scripts/docs-openworld.ts
       # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone;
       # `--published` adds the audience measurement, which no local or proof build carries.
       - run: node scripts/docs-build.ts --published
@@ -111,12 +103,14 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/deploy ~/.ssh/known_hosts
       # The key is restricted to the web root on the server, so the target path is that root.
+      # `openworld/` belongs to pasquelin/Trillion3D-openworld's deploy: never deleted from here.
       - name: Transfer
         env:
           TARGET: ${{ secrets.DEPLOY_TARGET }}
           PORT: ${{ secrets.DEPLOY_SSH_PORT }}
         run: >-
           rsync -rltz --delete-delay --delay-updates --stats --exclude '.well-known/'
+          --exclude 'openworld/'
           -e "ssh -p $PORT -i $HOME/.ssh/deploy -o StrictHostKeyChecking=yes"
           dist/site/ "$TARGET:/"
       # The address checked is the one the built page declares canonical (scripts/docs/site.ts).
