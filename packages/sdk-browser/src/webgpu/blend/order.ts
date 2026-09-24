@@ -1,4 +1,5 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
+import { blendFootprintHeld, holdBlendRanking } from './footprint.ts';
 import { planItem } from './plan.ts';
 import { buildBlendRuns } from './runs.ts';
 import { rowParked } from '../../placement/rows.ts';
@@ -155,17 +156,22 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
     blendState.runCount[0] = 0;
     blendState.runCount[1] = 0;
     blendState.transmissiveInView = 0;
+    blendState.footprint.held = false;
     return 0;
   }
+  // Inputs bit-identical to the last ranking: it stands, mask and runs included (`footprint.ts`).
+  if (blendFootprintHeld(blendState, eye)) return blendState.footprint.rejected;
   refreshEyeKeys(blendState, eye);
   const rejected = rejectByFrustum(blendState);
-  const items = blendState.blendGpu,
-    orders = blendState.orders;
+  const { blendGpu: items, orders, orderMoved } = blendState;
   for (let pass = 0; pass < orders.length; pass++) {
-    if (!sortPlanFarToNear(orders[pass], items) && !blendState.orderMoved[pass]) continue;
-    blendState.orderMoved[pass] = true;
+    // Runs a frame without an eye emptied are sliced again, even when the order held still.
+    const voided = !blendState.runCount[pass] && orders[pass].length;
+    if (!sortPlanFarToNear(orders[pass], items) && !voided && !orderMoved[pass]) continue;
+    orderMoved[pass] = true;
     blendState.runCount[pass] = buildBlendRuns(orders[pass], blendState.runs[pass]);
   }
+  holdBlendRanking(blendState.footprint, rejected);
   return rejected;
 }
 
