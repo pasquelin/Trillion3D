@@ -70,8 +70,8 @@ export const BLEND_BINDINGS = {
    *  and what it draws (`../blend/expandWgsl.ts`). */
   planInstances: 16,
   clusterSpans: 17,
-  /** Shadow slices, their atlas and the comparison sampler that reads them. */
-  shadowSlices: 18,
+  /** Shadow records and page table, the pool and the comparison sampler that reads it. */
+  shadowData: 18,
   shadowAtlas: 19,
   shadowSampler: 20,
   /** Probe grid and their coefficients: the opaque irradiance, with no extra pass. */
@@ -81,7 +81,7 @@ export const BLEND_BINDINGS = {
    *  depth slice there, from the near plane to the opaque background. */
   tileLights: 23,
   /** Resident proxy, the very one the opaque resolve traces: the sun shadow beyond the last
-   *  cascade is taken here by the same ray, on a single binding. */
+   *  clipmap level is taken here by the same ray, on a single binding. */
   proxy: 24,
   /** Parameters of each transparent item, indexed by its rank in the scene: world matrix, colour,
    *  the six maps and their factors. They do not depend on the frame, so a draw no longer has a

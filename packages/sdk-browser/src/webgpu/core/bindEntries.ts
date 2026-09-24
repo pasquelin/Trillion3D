@@ -45,7 +45,7 @@ export type ShadeBindResources = AtlasResources & {
  */
 export type BlendLighting = {
   directLights: GPUBuffer;
-  shadowSlices: GPUBuffer;
+  shadowData: GPUBuffer;
   shadowAtlas: GPUTextureView;
   shadowSampler: GPUSampler;
   bounceGrid: GPUBuffer;
@@ -153,7 +153,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.clusterDiagnostic, resource: { buffer: r.clusterDiagnostic } },
     { binding: b.planInstances, resource: { buffer: r.planInstances } },
     { binding: b.clusterSpans, resource: { buffer: r.clusterSpans } },
-    { binding: b.shadowSlices, resource: { buffer: r.shadowSlices } },
+    { binding: b.shadowData, resource: { buffer: r.shadowData } },
     { binding: b.shadowAtlas, resource: r.shadowAtlas },
     { binding: b.shadowSampler, resource: r.shadowSampler },
     { binding: b.bounceGrid, resource: { buffer: r.bounceGrid } },

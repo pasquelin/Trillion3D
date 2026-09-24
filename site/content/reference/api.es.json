@@ -1178,8 +1178,8 @@
     }
   },
   "createShadowPlan": {
-    "summary": "El planificador de sombras.",
-    "description": "El trabajo de un fotograma ya no es «cuatro luces» sino **las páginas obsoletas más prioritarias, hasta un presupuesto en milisegundos** (RX3, X4): una luz o una cascada que se mueve vuelve obsoleto todo su mapa, un objeto que se mueve solo vuelve obsoletas las páginas que cubre su caja proyectada, y las páginas rechazadas en este fotograma esperan al siguiente — nunca perdidas, su retraso publicado. Una luz fija en una escena inmóvil sigue sin costar nada (X5). Todos los arrays se asignan una vez; `plan()` nunca asignará."
+    "summary": "El planificador de sombras de los mapas virtuales.",
+    "description": "El sombreado anota las páginas que lee; su informe, leído de vuelta imágenes después, asigna del pool fijo lo que falta. Lo que se movió invalida las páginas asignadas que cubre. Una imagen dibuja entonces las páginas invalidadas que lee la imagen — primero las gruesas, hasta un presupuesto en milisegundos —, y el resto espera, nunca perdido, con su retraso publicado. Una escena quieta, cuyo sombreado ya no corre, no pide nada ni dibuja nada. Todos los arrays se asignan una vez; `plan()` no asigna nada."
   },
   "createTerminalProgress": {
     "summary": "Una barra de progreso en la terminal que sigue los eventos del compilador.",
@@ -1365,10 +1365,6 @@
   "depthLayerUnits": {
     "summary": "En cuántas unidades de hardware una capa acerca un clúster a la cámara, en magnitud: cero o más, nunca con signo.",
     "description": "Cada camino lee esta única función y le da signo para su propia prueba de profundidad."
-  },
-  "desiredFaceSide": {
-    "summary": "El lado de cara que merece una luz: su alcance proyectado en la pantalla, limitado por su parte del atlas.",
-    "description": "Una luz que cubre toda la pantalla y está sola toma `shadowSliceMax`; con treinta luces con sombra, cada una se reduce por sí misma en lugar de dejar a las últimas sin tesela. El suelo es `shadowSliceMin`: ninguna luz desaparece por falta de espacio mientras quede alguno."
   },
   "detectCapabilities": {
     "summary": "Comprueba con qué puede dibujar esta máquina, y dice por qué cuando no puede."
@@ -1654,9 +1650,6 @@
       "curveSegments": "En cuántos trozos rectos se convierte cada curva del contorno."
     }
   },
-  "faceCountOf": {
-    "summary": "Caras realmente dibujadas para una luz: seis para una luz puntual, una para un foco, y las cascadas para una direccional — nunca más que las seis caras reservadas por tesela."
-  },
   "filter": {
     "summary": "Reglas de muestreo de las texturas."
   },
@@ -1703,10 +1696,6 @@
       "pointerLook": "Si el puntero gira la vista, ya sea arrastrando o pasando por encima; true por defecto.",
       "autoForward": "CRUCERO, desactivado por defecto: la cámara vuela hacia adelante a `movementSpeed` sin ninguna tecla pulsada, como un avión. W añade entonces `movementSpeed` (el doble de rápido) y S lo retira (la cámara se queda quieta); nunca retrocede. Nada se mueve antes del siguiente `update`, así que un host que redibuja en `change` pide un fotograma cuando activa el crucero."
     }
-  },
-  "forEachShadowFace": {
-    "summary": "Visita cada cara de cada luz que declara sombra y mantiene una tesela: el único recorrido que comparten los contadores, la publicación de la máscara mantenida, y cualquier otro lector por cara.",
-    "description": "El número de caras es el del tipo de luz; `fn` está acotado por las teselas y las caras publicadas."
   },
   "FORMAT_VERSION": {
     "summary": "Formato de caché que lee este motor.",
@@ -2453,7 +2442,7 @@
   },
   "HostScene": {
     "summary": "El grafo de visualización del host en el que dibuja un motor: lo que contiene, cómo se recorre, y el color de fondo que lee la composición.",
-    "description": "El motor escribe el suyo como un `GraphScene` (`graph/scene.ts`).",
+    "description": "Construirlo corresponde a una frontera del host; escribir uno, a `HostDrawScene`.",
     "members": {
       "traverse": "Se visita, luego el subárbol.",
       "background": "Lo que llena la imagen detrás.",
@@ -2781,28 +2770,26 @@
       "maxLightsPerTile": "Luces que mantiene una tesela de pantalla; el bucle por píxel está acotado por este número (X2).",
       "tileSize": "Lado en píxeles de una tesela de pantalla de la lista de luces.",
       "samplesPerPixel": "Luces iluminadas por completo — lectura de sombra incluida — por píxel de una imagen EN MOVIMIENTO (X2): las demás se ponderan sin su sombra, y las que se iluminan se sortean en proporción, así que la estimación no tiene sesgo y el antialiasing temporal las promedia. Una imagen inmóvil ilumina cada luz de su tesela y converge hacia la suma exacta; ahí, este número no juega ningún papel.",
-      "shadowUpdatesPerFrame": "Regiones de sombra como máximo por fotograma: el límite del búfer, nunca un ajuste de calidad. El presupuesto en milisegundos casi siempre detiene antes; este límite es solo un tope final, y el único límite en un dispositivo sin reloj de GPU.",
-      "shadowPage": "Lado de una página del atlas de sombras, en texels: la celda de invalidación de una cara. Un objeto que se mueve solo vuelve obsoletas las páginas que cubre su caja proyectada, nunca toda la cara.",
+      "shadowPage": "Lado de una página de sombra, en téxeles: la unidad del pool físico, de los mapas virtuales y de la invalidación. Un objeto en movimiento solo invalida las páginas que cubre su caja proyectada.",
       "shadowBudgetMs": "Presupuesto de la etapa de sombras, en milisegundos de GPU por fotograma (X4, RX3). Las páginas invalidadas más allá esperan su turno; nunca se pierden, y su retraso se publica.",
       "shadowAgingPerFrame": "Peso de la espera en la prioridad de una página, por fotograma pasado en cola: contra el abandono.",
       "shadowCostBlend": "Parte de la medida de un fotograma en el coste medio de una página: un suavizado exponencial del cronómetro.",
-      "shadowAtlasSize": "Lado del atlas de sombras de profundidad, en texels.",
-      "shadowSliceMax": "Lado máximo de una porción de sombra; una cara de luz puntual ocupa una sexta parte.",
-      "shadowSliceMin": "Lado mínimo de una porción de sombra: por debajo, la luz conserva su porción sin refinarla.",
       "pcfTaps": "Muestras PCF por píxel y por luz con sombra (X2).",
       "spotEdgeSoftness": "Anchura del borde suavizado del cono de un foco, en unidades de coseno: contra el efecto escalera.",
-      "sunCascades": "Cascadas de una luz direccional: al menos tres, nunca más que las caras de una porción.",
-      "sunShadowFarFraction": "Parte del frustum de la cámara que cubren las cascadas, del plano cercano hacia el lejano. Más allá, una superficie permanece iluminada sin sombra proyectada: una aproximación nombrada, publicada en el diagnóstico.",
-      "sunCascadeRatioMax": "Relación entre dos límites sucesivos del recorte de las cascadas: en una costura, la densidad de texels cambia exactamente en esta relación, y nada más decide el salto de nitidez entre cascadas. El suelo del plano cercano se deduce de ahí — `distancia de sombra / relación^cascadas`.",
       "sunFarShadowOffsetMetres": "Desplazamiento del origen del rayo de sombra lejana a lo largo de la normal, en metros. Solo sirve para salir del plano de la superficie iluminada; el verdadero remedio contra el autosombreado es el inicio a lo largo del rayo, más abajo.",
-      "sunFarShadowStartCells": "Inicio del rayo de sombra lejana a lo largo de su propia dirección, en celdas del proxy. El punto iluminado viene de la geometría fina, el obstáculo del proxy grueso: donde el proxy está por encima de la superficie real, un rayo iniciado desde cero tocaría la superficie que ilumina. Una celda del proxy es la escala por debajo de la cual el proxy no dice nada; partir de ahí evita este falso contacto sin inventar una sombra. La consecuencia está nombrada: un obstáculo a menos de una celda a lo largo del rayo no lleva sombra lejana, y esta permanece en las cascadas.",
-      "sunCascadeDepthScale": "Retroceso del plano cercano de una cascada, en radios de su esfera: lo que está por encima de la cascada, entre ella y el sol, debe entrar en el mapa para proyectar ahí su sombra. La extensión añade dos radios a cada lado, el margen que deja a la esfera su ancla de profundidad (`../light-shadow/sunFaces.ts`).",
+      "sunFarShadowStartCells": "Inicio del rayo de sombra lejana a lo largo de su propia dirección, en celdas del proxy. El punto iluminado viene de la geometría fina, el obstáculo del proxy grueso: donde el proxy está por encima de la superficie real, un rayo iniciado desde cero tocaría la superficie que ilumina. Una celda del proxy es la escala por debajo de la cual el proxy no dice nada; partir de ahí evita este falso contacto sin inventar una sombra. La consecuencia está nombrada: un obstáculo a menos de una celda a lo largo del rayo no lleva sombra lejana, y esta permanece en los niveles de clipmap.",
       "shadowDepthBias": "Sesgo de sombra en metros, nunca en unidades de profundidad: la profundidad proyectada de una porción es muy no lineal, una constante en profundidad normalizada daría metros cerca de la luz y milímetros a lo lejos. El shader convierte esos metros en profundidad en el punto considerado.",
       "shadowSlopeBias": "Sesgo de pendiente, en metros por unidad de `tan(acos(N·L))`, limitado por `shadowSlopeBiasMax`.",
       "shadowSlopeBiasMax": "Mayor sesgo de pendiente.",
       "shadowNearFraction": "Plano cercano de una porción: una parte del alcance, nunca menos que este suelo.",
       "shadowNearMin": "Distancia de sombra más cercana.",
-      "shadowNormalOffsetTexels": "Desplazamiento del punto de muestreo a lo largo de la normal, en texels de porción. Esto cierra la costura entre dos caras de una luz puntual y quita el acné rasante; está en texels y no en metros para permanecer proporcional a la resolución que ha obtenido la luz."
+      "shadowNormalOffsetTexels": "Desplazamiento del punto de muestreo a lo largo de la normal, en texels de porción. Esto cierra la costura entre dos caras de una luz puntual y quita el acné rasante; está en texels y no en metros para permanecer proporcional a la resolución que ha obtenido la luz.",
+      "shadowPagesPerFrame": "Páginas de sombra dibujadas como máximo por imagen: el tope del búfer, nunca un ajuste de calidad. El presupuesto en milisegundos casi siempre se detiene antes; este tope es solo un límite último, y el único en un dispositivo sin reloj de GPU.",
+      "lampFaceSize": "Lado del mip más fino de una cara de lámpara, en téxeles: 32 × 32 páginas de 128 (el pool: `shadowPoolSide`).",
+      "shadowTableEntries": "Entradas de la tabla de páginas de sombra, una palabra por página virtual: un búfer fijo de 4 MiB. Cabe en él dieciséis soles o 128 luces puntuales; una luz que no encuentra sitio se queda sin sombra, y se cuenta.",
+      "shadowRequestCap": "Páginas virtuales que el sombreado puede pedir por imagen; el resto vuelve a pedirlas en la siguiente.",
+      "sunLevels": "Niveles de clipmap de una luz direccional. El nivel `L` tiene téxeles de `2^L` metros, y un píxel lee el nivel cuyo téxel no supera su propia huella: dieciséis niveles cubren una razón lejos/cerca de 2^15. Más allá del último nivel, toma el relevo la sombra lejana.",
+      "sunLevelPages": "Páginas por lado de la extensión de un nivel de clipmap alrededor de la cámara. Es una capacidad, no un ajuste: cada píxel lee su propia densidad mientras `height / tan(halfFovY)` no pase de `sunLevelPages · shadowPage / 2` = 4096 (un lienzo 4K con un campo vertical de 55°); más allá, los píxeles exteriores leen el nivel siguiente, a la mitad de densidad."
     }
   },
   "LightingCapabilities": {
@@ -4435,9 +4422,6 @@
       "specs": "La hoja de solicitudes, transferida en la primera llegada de esa dirección y `null` después: solo depende del catálogo, que no cambia, y el ejecutor la conserva."
     }
   },
-  "pageRowsOf": {
-    "summary": "Páginas por lado de una cara de `side` texels, acotadas por lo que puede llevar la máscara."
-  },
   "PageSource": {
     "summary": "De dónde se leen las páginas de un modelo, por clave.",
     "members": {
@@ -4571,7 +4555,7 @@
     "description": "El orden forma parte del contrato, no es un detalle."
   },
   "POINT_FACES": {
-    "summary": "Caras de una porción: seis para una luz puntual, una para un foco, las cascadas del sol."
+    "summary": "Caras de la porción de una luz puntual: seis."
   },
   "PointOfInterest": {
     "summary": "Una vista con nombre de una escena a la que una página puede saltar.",
@@ -4878,9 +4862,6 @@
   "readCameraWorld": {
     "summary": "Copia la cámara del host en la cámara del motor, ancestros resueltos."
   },
-  "RECTS_PER_SLICE": {
-    "summary": "Rectángulos de una porción: `(x, y, side)` por cara, seis caras reservadas para cada porción."
-  },
   "referenceScreenError": {
     "summary": "Error en pantalla de la referencia externa: `(error × stretch) × focal / w`, infinito cuando el centro no alcanza el plano cercano; `w` es el peso de recorte de la profundidad del centro, la propia profundidad bajo una proyección en perspectiva (`perspective` = 1) y 1 bajo una proyección ortográfica (0, `screenErrorBound.ts`).",
     "description": "Reflejo WGSL en `packages/sdk-browser/src/gpu/dag/shader/error.ts`, mismos operandos y mismo orden, en f32. El llamador ya ha tratado un error nulo o infinito."
@@ -5018,7 +4999,7 @@
   },
   "SceneLight": {
     "summary": "Una luz de escena, versión 2.",
-    "description": "Las unidades son radiométricas y lineales (P1): `color` es un color lineal e `intensity` una intensidad radiométrica estrictamente positiva — una radiancia para un `rect`. Cuatro tipos, y nada más produce luz en este motor (P6): - `point`: una posición y un alcance en metros más allá del cual no ilumina nada; - `spot`: lo mismo más una dirección y un semiángulo de cono en radianes; - `directional`: el sol o un cielo cubierto — una dirección de propagación, sin posición ni alcance, la misma irradiancia en todas partes, y sombras en cascadas que siguen a la cámara; - `rect`: un rectángulo de una cara de `size` metros centrado en `position`, que emite según `direction`, su anchura según `right`; sin sombra proyectada (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Los campos que un tipo no usa se rechazan en la verificación: una luz direccional con una posición sería una promesa que el motor no cumpliría.",
+    "description": "Las unidades son radiométricas y lineales (P1): `color` es un color lineal e `intensity` una intensidad radiométrica estrictamente positiva — una radiancia para un `rect`. Cuatro tipos, y nada más produce luz en este motor (P6): - `point`: una posición y un alcance en metros más allá del cual no ilumina nada; - `spot`: lo mismo más una dirección y un semiángulo de cono en radianes; - `directional`: el sol o un cielo cubierto — una dirección de propagación, sin posición ni alcance, la misma irradiancia en todas partes, y sombras de clipmap que siguen a la cámara; - `rect`: un rectángulo de una cara de `size` metros centrado en `position`, que emite según `direction`, su anchura según `right`; sin sombra proyectada (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Los campos que un tipo no usa se rechazan en la verificación: una luz direccional con una posición sería una promesa que el motor no cumpliría.",
     "members": {
       "id": "El nombre de la luz.",
       "kind": "Puntual, foco, sol o rectángulo.",
@@ -5200,23 +5181,10 @@
     "description": "`null`/`undefined` restablece la nuestra: ninguna sesión la hereda."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Flotantes del volumen de una región: centro y plano lejano, eje de la cara y semiángulo, luego — para una caja, señalada por un semiángulo negativo — los otros dos ejes con sus semiextensiones."
-  },
-  "SHADOW_FACE_FLOATS": {
-    "summary": "Flotantes de una cara en el búfer de porciones: la matriz, el rectángulo del atlas — su cuarto flotante a 1 una vez dibujado, 0 nunca —, luego cuatro palabras: la máscara de las páginas conservadas, un bit por página física que mantiene una profundidad de la extensión actual, filas de ocho en dos palabras, y la página física del origen de la extensión, `x` luego `y`, con la que la lectura repliega las coordenadas de la extensión.",
-    "description": "Una página de extensión entrada pero aún no dibujada contiene todavía lo que dejó ahí el lado lejano: la lectura debe saberlo y pasar a la siguiente cascada, nunca muestrearla. Una página que solo espera ser redibujada sigue conservándose, y se lee."
-  },
-  "SHADOW_FACE_MASK_WORD": {
-    "summary": "Palabra de las caras de sombra de una luz en su registro de GPU."
-  },
-  "SHADOW_FACE_SIDES": {
-    "summary": "Lados de caras que el atlas sabe colocar, del más grande al más pequeño."
+    "summary": "Flotantes de un volumen de descarte: centro y plano lejano, eje de la cara y medio ángulo, luego — para una caja, marcada por un medio ángulo negativo — los otros dos ejes con sus semiextensiones, luego la palabra que dice qué proyectores dibuja la región, la vista del corte de luz que los eligió, y dos de relleno."
   },
   "SHADOW_PAGE": {
-    "summary": "Lado de una página del atlas, en texels: la celda de invalidación de una cara."
-  },
-  "SHADOW_SLICE_FLOATS": {
-    "summary": "Flotantes de una porción: seis caras más un `vec4f` de encabezado (caras, tipo, lado, relleno)."
+    "summary": "Lado de una página de sombra, en téxeles: la unidad del pool, de los mapas virtuales y de la invalidación."
   },
   "ShadowAtlasDigest": {
     "summary": "Lo que publica una lectura del atlas de sombras: su tamaño, lo que hay escrito en él, su huella.",
@@ -5233,8 +5201,8 @@
     "members": {
       "lightsActive": "Luces del contrato `SceneLight` que ha iluminado la imagen. Nulo para un motor que las ignora.",
       "lightsSampled": "Verdadero cuando la iluminación de este fotograma corrió en modo muestreado — un fotograma en movimiento acumulado sobre un historial, donde un píxel con más luces que `samplesPerPixel` ilumina una parte sorteada de ellas —, falso cuando cada píxel ha iluminado cada luz, como hace un fotograma inmóvil. Nulo para un motor que ignora las luces.",
-      "shadowsUpdated": "Porciones de sombra redibujadas por este fotograma, como máximo el límite publicado del planificador. Cero es el valor normal de una escena inmóvil: una luz fija conserva su porción.",
-      "shadowFacesDrawn": "Lo que el paso de sombra ha redibujado: caras (vistas) y llamadas de dibujo realmente codificadas. Es el coste por luz con sombra, separado del resto. Nulo para un motor que no dibuja sombra.",
+      "shadowsUpdated": "Luces de sombra con una página dibujada por esta imagen. Cero es el valor normal de una escena quieta: una luz fija conserva sus páginas.",
+      "shadowFacesDrawn": "Vistas de luz en las que dibujó el pase de sombras — un nivel de clipmap del sol, una cara de lámpara en un mip —, y las llamadas de dibujo realmente codificadas. Null en un motor que no dibuja sombras.",
       "shadowDrawCalls": "Llamadas de dibujo de sombra.",
       "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y el retraso en milisegundos de la más antigua. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
@@ -5242,28 +5210,43 @@
       "shadowWaitMs": "Cuánto tiempo han esperado.",
       "gpuLightListsMs": "Tiempo de GPU de las listas de luces.",
       "gpuShadowsMs": "Tiempo de GPU de las sombras.",
-      "gpuLightingMs": "Tiempo de GPU de la iluminación."
+      "gpuLightingMs": "Tiempo de GPU de la iluminación.",
+      "shadowLightCuts": "Cortes de clústeres lanzados desde las luces: uno por vista de luz dibujada, cero en una imagen quieta.",
+      "shadowPagesRequested": "Páginas de sombra virtuales que leyó la imagen, tal como las nombró su último informe de peticiones: lo que marcan los receptores de la cámara.",
+      "shadowPagesCached": "De ellas, páginas leídas directamente del pool: al día, sin dibujo.",
+      "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
+      "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
+      "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
+      "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra."
     }
   },
   "ShadowPlan": {
-    "summary": "Qué regiones de sombra se dibujan en este fotograma, y cuáles esperan.",
+    "summary": "El trabajo de sombras de la imagen: qué páginas virtuales se dibujan y cuáles esperan.",
     "members": {
-      "slices": "Porciones de sombra.",
-      "regions": "Regiones de sombra.",
-      "budget": "Presupuesto de tiempo.",
-      "coverage": "Lo que cubre cada luz.",
-      "counts": "Números para el diagnóstico.",
-      "worldChanged": "Un nodo se ha movido: su caja entra en la lista que el planificador tratará en el próximo fotograma.",
-      "representationChanged": "El mismo mundo con otra precisión — nivel de detalle, residencia, tesela de color —: su caja espera a que la cámara se detenga, luego entra en la lista (`changes.ts`).",
-      "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga: el fotograma no debe conservarse antes de que un plan lo consuma.",
-      "releaseDeferred": "El fotograma no planifica ninguna sombra — sin atlas, sin luz, vista sin luz —: la unión conservada entra de inmediato en la lista, donde la lee el siguiente plan, en lugar de impedir que el fotograma se conserve.",
-      "observeCost": "Cronómetro del paso de sombras de un fotograma, referido a las páginas que ha redibujado.",
-      "setBudgetMs": "Presupuesto publicado por el host; un valor no finito o negativo se rechaza, no se redondea.",
-      "setPageInvalidation": "Corta la invalidación por página: cada cara tocada vuelve a empezar entera. Activo por defecto.",
-      "pageInvalidation": "Páginas a redibujar.",
-      "plan": "Elige las regiones de este fotograma. Devuelve su número; `plan.regions` las describe una por una, y las páginas que cubren ya se han retirado de la cola.",
-      "reissue": "Las regiones de este fotograma no pudieron codificarse: sus páginas vuelven a la cola. La habían dejado en la admisión, porque el planificador y el paso solo se comunican mediante esta lista; si el paso no dibuja nada, la cola debe volver a encontrarlas.",
-      "reset": "Vuelve a empezar."
+      "budget": "El presupuesto en milisegundos de la etapa Sombras y el coste medido de una página.",
+      "counts": "Lo que hizo el último plan, en páginas.",
+      "worldChanged": "Un nodo se movió: su caja invalida las páginas que cubre en el siguiente plan.",
+      "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
+      "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",
+      "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
+      "observeCost": "Temporizador del pase Sombras de una imagen, repartido entre las páginas que dibujó.",
+      "setBudgetMs": "Presupuesto publicado por el anfitrión, en milisegundos de GPU por imagen.",
+      "setPageInvalidation": "Desactiva la invalidación por página: un objeto en movimiento invalida todas las páginas de las luces que toca. Activa por defecto.",
+      "pageInvalidation": "Si un objeto en movimiento invalida solo las páginas que cubre su caja.",
+      "plan": "Planifica una imagen: invalida lo que se movió, lee el último informe, admite las páginas que dibujar.",
+      "reissue": "Las páginas de la imagen no pudieron codificarse: siguen invalidadas y esperan a la siguiente imagen.",
+      "reset": "Vuelve a empezar.",
+      "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra (`thresholds.ts`).",
+      "table": "La tabla de páginas: una palabra por página virtual, y el rango que ocupa cada luz en ella.",
+      "pool": "Las páginas físicas del pool y la página virtual que contiene cada una.",
+      "sun": "El clipmap de cada sol: su marco, rango de profundidad, nivel más fino y extensiones.",
+      "records": "Las porciones de sombra, una por luz que proyecta sombra.",
+      "requests": "Los informes de peticiones leídos de vuelta: lo que nombró el último, asignó o rechazó.",
+      "admission": "Las páginas de esta imagen, en orden de admisión.",
+      "stamp": "Lo que el sombreado, las luces y la vista entregan a la siguiente imagen: un informe sellado con él que no nombra nada nuevo prueba que la imagen solo lee lo dibujado.",
+      "settled": "Verdadero cuando un informe prueba que el estado actual no pide nada: la imagen puede mantenerse.",
+      "receive": "Volvió un informe de peticiones; el siguiente plan lo lee. Uno más reciente sustituye a uno no leído.",
+      "commit": "Las páginas de la imagen se codificaron, cada una en su entrada `modes`: sus dibujos llegan antes de que nada los lea."
     }
   },
   "ShadowViewpoint": {
@@ -5274,7 +5257,8 @@
       "halfFovY": "La mitad de su apertura vertical.",
       "aspect": "Ancho dividido entre el alto.",
       "near": "Distancia más cercana.",
-      "far": "Distancia más lejana."
+      "far": "Distancia más lejana.",
+      "pixelNear": "Tamaño en el mundo de un píxel en el plano cercano: la huella más fina que tiene un píxel de la vista."
     }
   },
   "Shape": {
@@ -5634,22 +5618,22 @@
   "TableTexture": {
     "summary": "Estado de muestreo de una textura glTF, en las palabras del motor.",
     "members": {
-      "name": "Su nombre.",
-      "sampler": "El rango del muestreador glTF que declara, `null` si no hay ninguno.",
       "image": "Qué imagen.",
       "wrapS": "Repetición en anchura.",
       "wrapT": "Repetición hacia arriba.",
       "magFilter": "Filtro cuando es más grande.",
-      "minFilter": "Filtro cuando es más pequeño."
+      "minFilter": "Filtro cuando es más pequeño.",
+      "name": "Su nombre.",
+      "sampler": "El rango del muestreador glTF que declara, `null` si no hay ninguno."
     }
   },
   "TableTextureSlot": {
-    "summary": "Una ranura de mapa ocupada: qué textura, qué conjunto de coordenadas y la transformación que declara.",
+    "summary": "Un emplazamiento de imagen ocupado: qué textura, qué conjunto de coordenadas, y el 3×3 compuesto para él.",
     "members": {
       "texture": "Qué textura.",
-      "texCoord": "Qué conjunto de UV se muestrea: el de su transformación cuando nombra uno, el suyo en otro caso.",
-      "slotTexCoord": "El conjunto de UV que nombra la propia ranura, antes de toda transformación: una ranura que nombra otro distinto del primero se dibuja desde una copia de su textura, que no responde a ningún rango.",
-      "transform": "El `KHR_texture_transform` que declara la ranura — desplazamiento, giro en radianes, estiramiento, cada uno `null` cuando se omite — o `null` si no declara ninguno."
+      "texCoord": "Qué conjunto de UV.",
+      "transform": "La transformación de las UV, 3×3.",
+      "slotTexCoord": "El conjunto de UV que nombra la propia ranura, antes de toda transformación: una ranura que nombra otro distinto del primero se dibuja desde una copia de su textura, que no responde a ningún rango."
     }
   },
   "TelemetryReport": {
@@ -6470,8 +6454,8 @@
       "pagePlanMs": "Tiempo empleado en planificar las llegadas.",
       "lightsActive": "Luces del contrato `SceneLight` que ha iluminado la imagen. Nulo para un motor que las ignora.",
       "lightsSampled": "Verdadero cuando la iluminación de este fotograma corrió en modo muestreado — un fotograma en movimiento acumulado sobre un historial, donde un píxel con más luces que `samplesPerPixel` ilumina una parte sorteada de ellas —, falso cuando cada píxel ha iluminado cada luz, como hace un fotograma inmóvil. Nulo para un motor que ignora las luces.",
-      "shadowsUpdated": "Porciones de sombra redibujadas por este fotograma, como máximo el límite publicado del planificador. Cero es el valor normal de una escena inmóvil: una luz fija conserva su porción.",
-      "shadowFacesDrawn": "Lo que el paso de sombra ha redibujado: caras (vistas) y llamadas de dibujo realmente codificadas. Es el coste por luz con sombra, separado del resto. Nulo para un motor que no dibuja sombra.",
+      "shadowsUpdated": "Luces de sombra con una página dibujada por esta imagen. Cero es el valor normal de una escena quieta: una luz fija conserva sus páginas.",
+      "shadowFacesDrawn": "Vistas de luz en las que dibujó el pase de sombras — un nivel de clipmap del sol, una cara de lámpara en un mip —, y las llamadas de dibujo realmente codificadas. Null en un motor que no dibuja sombras.",
       "shadowDrawCalls": "Llamadas de dibujo de sombra.",
       "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y el retraso en milisegundos de la más antigua. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
@@ -6518,7 +6502,13 @@
       "geometryPoolSaturated": "Páginas solicitadas por el fotograma actual más allá del número de emplazamientos de la reserva.",
       "texturePoolClamp": "Razón del límite de la reserva de texturas: `minimum`, `device-limit`.",
       "hizCulled": "Clústeres que la prueba de oclusión encontró ocultos en este fotograma; `null` donde el camino no los cuenta.",
-      "shadowPagesResident": "Páginas de sombra mantenidas en memoria en este fotograma; `null` donde el camino no tiene ninguna."
+      "shadowLightCuts": "Cortes de clústeres lanzados desde las luces: uno por vista de luz dibujada, cero en una imagen quieta.",
+      "shadowPagesRequested": "Páginas de sombra virtuales que leyó la imagen, tal como las nombró su último informe de peticiones: lo que marcan los receptores de la cámara.",
+      "shadowPagesCached": "De ellas, páginas leídas directamente del pool: al día, sin dibujo.",
+      "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
+      "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
+      "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
+      "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra."
     }
   },
   "WorldOptions": {
@@ -6570,8 +6560,8 @@
     "summary": "Deduce todo lo que lee una imagen a partir de `into.world`, ya ajustada, y de la óptica declarada: la proyección en la convención de profundidad del motor, luego la vista, la vista-proyección y los seis planos del frustum (`updateCameraFrame`), el sistema de renderizado (`renderOrigin.ts`) y el ojo."
   },
   "writeFace": {
-    "summary": "Escribe la matriz vista-proyección de una cara en su lugar en `matrices`, y, si el rechazo está activado, el volumen que opone a la región `rect` de esa cara.",
-    "description": "Ambos parten del mismo eje y del mismo campo — un único cálculo, así que ningún riesgo de que apunten a direcciones diferentes. Una luz puntual toma el eje de `POINT_FACE_AXES` y 90°; un foco toma su dirección y su cono ampliado; una direccional toma la cascada `face`, que sigue a la cámara. El radio del emisor, por su parte, no toca ni la proyección ni el rechazo: su exclusión es exactamente una esfera, escrita donde se escribe la profundidad de sombra, y un plano cercano elevado convertiría eso en un cubo. `rect` es la parte de la cara a redibujar, en coordenadas normalizadas; `FULL_FACE` por defecto, y el volumen es entonces exactamente el de antes de la invalidación por página. Un clúster cuya esfera en el mundo no toca ni el alcance ni ese volumen no puede escribir nada en la región: la proyección y el recorte lo rechazarían de todos modos. El rechazo es, por tanto, exacto, nunca una aproximación de calidad — la región no cambia ni un texel."
+    "summary": "Escribe la matriz de vista-proyección de una cara de lámpara en su lugar de `matrices` y, si el descarte está armado, el volumen que opone al rectángulo `rect` de esa cara.",
+    "description": "Ambos parten del mismo eje y el mismo campo — un solo cálculo, así que no hay riesgo de que apunten a direcciones distintas. Un punto toma el eje `POINT_FACE_AXES` y 90°; un foco toma su dirección y su cono ensanchado. El radio del emisor no toca ni la proyección ni el descarte: su exclusión es exactamente una esfera, escrita donde se escribe la profundidad de sombra. `rect` es la parte de la cara que dibujar, en coordenadas normalizadas; `FULL_FACE` por defecto. Un clúster cuya esfera del mundo no toca ni el alcance ni este volumen no puede escribir nada en él: la proyección y el viewport lo rechazarían de todos modos, así que el descarte es exacto."
   },
   "XYLike": {
     "summary": "Cualquier cosa que tenga un `x` y un `y`: un punto 2D leído por sus campos.",
@@ -7034,6 +7024,35 @@
       "gravity": "La gravedad del mundo: un preajuste o un vector."
     }
   },
+  "SHADOW_RECORD_FLOATS": {
+    "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara, luego el marco del plano del sol — `right, zNear`, `up, zFar`, `axis, 0` —, luego el origen de la extensión de cada nivel de clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), la tangente del medio campo de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
+  },
+  "ShadowRequestReport": {
+    "summary": "Lo que el sombreado leyó en una imagen: las entradas de la tabla que pidió, sin orden.",
+    "members": {
+      "frame": "Imagen cuyo sombreado escribió el informe.",
+      "layoutEpoch": "Disposición de la tabla con la que leyó esa imagen (`ShadowTable.layoutEpoch`).",
+      "stamp": "El sello del plan cuando se codificó esa imagen (`ShadowPlan.stamp`).",
+      "count": "Entradas pedidas, quizá más de las que caben en `entries`: el resto vuelve a pedirse en la siguiente imagen.",
+      "entries": "Las entradas pedidas, como mucho las primeras `count`."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Cualquier cosa que `world.controls.vehicle` pueda conducir: recibe la entrada cada vez que cambia.",
+    "members": {
+      "drive": "Recibe los pedales y el volante cada vez que una tecla los cambia."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Lo que un conductor pide a un vehículo: los pedales y el volante, tal como los fijan las teclas de `world.controls` `'vehicle'`.",
+    "description": "La física del vehículo — motor, ruedas, suspensión — les responde; este contrato es todo lo que saben los controles.",
+    "members": {
+      "throttle": "Acelerador, de 0 a 1.",
+      "brake": "Pedal de freno, de 0 a 1.",
+      "steer": "Volante, de −1 todo a la izquierda a 1 todo a la derecha.",
+      "handbrake": "Si el freno de mano está echado."
+    }
+  },
   "GraphAttribute": {
     "members": {
       "count": "Cuántos vértices.",
@@ -7259,22 +7278,6 @@
       "x": "De izquierda a derecha.",
       "y": "De abajo arriba.",
       "z": "De atrás hacia adelante."
-    }
-  },
-  "VehicleDriver": {
-    "summary": "Cualquier cosa que `world.controls.vehicle` pueda conducir: recibe la entrada cada vez que cambia.",
-    "members": {
-      "drive": "Recibe los pedales y el volante cada vez que una tecla los cambia."
-    }
-  },
-  "VehicleInput": {
-    "summary": "Lo que un conductor pide a un vehículo: los pedales y el volante, tal como los fijan las teclas de `world.controls` `'vehicle'`.",
-    "description": "La física del vehículo — motor, ruedas, suspensión — les responde; este contrato es todo lo que saben los controles.",
-    "members": {
-      "throttle": "Acelerador, de 0 a 1.",
-      "brake": "Pedal de freno, de 0 a 1.",
-      "steer": "Volante, de −1 todo a la izquierda a 1 todo a la derecha.",
-      "handbrake": "Si el freno de mano está echado."
     }
   }
 }

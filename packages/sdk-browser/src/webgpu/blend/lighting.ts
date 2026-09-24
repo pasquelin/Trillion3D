@@ -12,7 +12,7 @@ export function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
     contract = directLightResources(rt);
   return {
     directLights: rt.lights.buffer!,
-    shadowSlices: contract.slices ?? placeholders.slices,
+    shadowData: contract.slices ?? placeholders.slices,
     shadowAtlas: contract.atlas ?? placeholders.atlasView,
     shadowSampler: placeholders.sampler,
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,

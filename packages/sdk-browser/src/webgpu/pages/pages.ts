@@ -182,9 +182,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       return readTransparentOcclusionAudit(rt);
     },
     shadowAtlasDigest() {
-      const device = rt.gpu.device;
-      if (rt.run.lost || !device || !rt.lights.shadows) return Promise.resolve(null);
-      return readShadowAtlasDigest(device, rt.lights.shadows);
+      const atlas = rt.lights.shadows;
+      if (rt.run.lost || !rt.gpu.device || !atlas?.texture) return Promise.resolve(null);
+      return readShadowAtlasDigest(rt.gpu.device, atlas.texture, atlas.size);
     },
     dispose() {
       // Inert and read as lost at once; torn down once, after the preparation stopped.

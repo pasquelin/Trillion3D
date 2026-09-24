@@ -32,7 +32,7 @@ const POSES: Array<[string, number, number, number]> = [
 ];
 /** The kernel from before the batch: same text, top-down pruning disarmed by its sole guard. */
 const GARDE =
-  'fn floorPrunes(w:u32,flags:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{\n';
+  'fn floorPrunes(slot:u32,flags:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{\n';
 const SANS_PLANCHER = DAG_SELECTION_SHADER.replace(GARDE, `${GARDE} return false;\n`);
 assert.notEqual(SANS_PLANCHER, DAG_SELECTION_SHADER, 'the `floorPrunes` guard has changed shape');
 

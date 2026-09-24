@@ -10,7 +10,7 @@ const point = new Float64Array(3);
 /** The read box, allocated once: the scheduler projects it face by face without creating anything. */
 const readMin = new Float64Array(3),
   readMax = new Float64Array(3),
-  readBox = { min: readMin, max: readMax };
+  readBox = { min: readMin, max: readMax, moving: false };
 
 /**
  * What has moved in the world since the last frame, as world boxes. They are kept
@@ -27,13 +27,15 @@ const readMin = new Float64Array(3),
  * that enters or leaves residency, a colour tile that arrives — describes the same world at
  * another precision: it is held in one union box while the camera moves, and enters the list
  * at the first frame the camera rests. Under a moving camera the cut churns every frame, and
- * staling the far cascades for a sub-texel change of detail cost a whole scene draw per frame;
+ * staling the far pages for a sub-texel change of detail cost a whole scene draw per frame;
  * at rest the union restales exactly what changed, so a settled map is that of the current
  * cut, whatever the history (#159).
  */
 export function createShadowChanges() {
   const min = new Float64Array(MOVED_BOXES * 3),
-    max = new Float64Array(MOVED_BOXES * 3);
+    max = new Float64Array(MOVED_BOXES * 3),
+    /** The box holds only objects already moving: the static casters under it are unchanged. */
+    moving = new Uint8Array(MOVED_BOXES);
   let count = 0;
   /** The union of representation changes held until the camera rests: empty when none waits. */
   const defer = new Float64Array(6),
@@ -57,9 +59,10 @@ export function createShadowChanges() {
       max[base + axis] = merge ? Math.max(max[base + axis], hi[axis]) : hi[axis];
     }
   };
-  const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>) => {
+  const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) => {
     if (count < MOVED_BOXES) {
       write(count * 3, lo, hi, false);
+      moving[count] = movingOnly ? 1 : 0;
       count++;
       return;
     }
@@ -73,6 +76,7 @@ export function createShadowChanges() {
       }
     }
     write(best * 3, lo, hi, true);
+    if (!movingOnly) moving[best] = 0;
   };
   /** The held union enters the list as one box, when one waits. */
   const release = () => {
@@ -88,7 +92,10 @@ export function createShadowChanges() {
     get deferred() {
       return defer[0] !== Infinity;
     },
-    /** A node has moved: its box enters the list, or joins a neighbour. */
+    /**
+     * A node has moved: its box enters the list, or joins a neighbour. `movingOnly` says it holds
+     * objects that were already moving — the static casters under it did not change.
+     */
     worldChanged,
     /** The same world at another precision: its box joins the union held until the camera rests. */
     representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>) {
@@ -121,9 +128,10 @@ export function createShadowChanges() {
       }
       return squared <= range * range;
     },
-    /** Box `box` in two reused arrays: `[0]` its minima, `[1]` its maxima. */
+    /** Box `box` in two reused arrays — its minima, its maxima — and whether it moves alone. */
     read(box: number) {
       const base = box * 3;
+      readBox.moving = moving[box] === 1;
       for (let axis = 0; axis < 3; axis++) {
         readMin[axis] = min[base + axis];
         readMax[axis] = max[base + axis];

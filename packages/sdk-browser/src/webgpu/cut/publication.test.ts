@@ -78,26 +78,13 @@ test('a CPU-cut image only ages the lists once', () => {
   );
 });
 
-test('resident cut changes invalidate old and new caster bounds and wake the held frame', () => {
+test('the camera cut moving stales no shadow page: the maps draw what the light cuts select', () => {
   const { publication, packedPages, shadowChanges, resourceChanges } = banc();
   publication.adoptCpuCut(packedPages, [packedPages[0]]);
-  assert.deepEqual(shadowChanges, [0]);
   publication.adoptCpuCut(packedPages, [packedPages[1]]);
-  assert.deepEqual(
-    shadowChanges,
-    [0, 0, 10],
-    'both departing and arriving casters are invalidated',
-  );
   publication.adoptCpuCut(packedPages, [packedPages[0]]);
-  assert.deepEqual(
-    shadowChanges,
-    [0, 0, 10, 10, 0],
-    'returning to a resident cut also invalidates',
-  );
-  assert.equal(resourceChanges(), 3);
-  publication.adoptCpuCut(packedPages, [packedPages[0]]);
-  assert.equal(shadowChanges.length, 5, 'an unchanged cut produces no shadow work');
-  assert.equal(resourceChanges(), 3, 'an unchanged cut does not wake the frame');
+  assert.deepEqual(shadowChanges, [], 'no caster bound is declared for a camera cut change');
+  assert.equal(resourceChanges(), 0, 'nor is the held frame woken for the shadows');
 });
 
 test('republishing the same cut stirs no set', () => {

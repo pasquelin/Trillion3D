@@ -289,7 +289,8 @@
       "wave": "Onda",
       "dance": "Bailar",
       "speed": "Velocidad",
-      "colour": "Color"
+      "colour": "Color",
+      "shadow": "Sombra"
     }
   },
   "a-scene-of-your-own": {
@@ -1902,10 +1903,32 @@
     },
     "choices": {
       "count": {
-        "10000": "10.000",
+        "1000": "1.000",
         "5000": "5.000",
-        "1000": "1.000"
+        "10000": "10.000"
       }
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "Elige un caso en el panel; en «free», arrastra para mirar alrededor.",
+    "controls": {
+      "case": "Caso",
+      "caster": "Proyector de sombra"
+    },
+    "readouts": {
+      "Look for": "Fíjate en"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas.",
+    "controls": {
+      "pushStrength": "Fuerza de empuje (N)",
+      "platformSpeed": "Velocidad de la plataforma",
+      "stackAgain": "Apilar de nuevo"
+    },
+    "readouts": {
+      "awake": "Despiertos",
+      "speed": "Velocidad"
     }
   },
   "rolling-on-terrain": {
@@ -1940,18 +1963,6 @@
       "bodies": "Cuerpos",
       "awake": "Despiertos",
       "step": "Paso"
-    }
-  },
-  "walk-with-collisions": {
-    "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas.",
-    "controls": {
-      "pushStrength": "Fuerza de empuje (N)",
-      "platformSpeed": "Velocidad de la plataforma",
-      "stackAgain": "Apilar de nuevo"
-    },
-    "readouts": {
-      "awake": "Despiertos",
-      "speed": "Velocidad"
     }
   }
 }

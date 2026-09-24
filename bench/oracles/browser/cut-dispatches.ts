@@ -13,10 +13,11 @@
  * Its offsets in `work` are those from before: each queue carries a counter AND a group
  * count, since it was read indirectly, and everything that follows is shifted by that.
  */
+import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
-  SELECTION_UNIFORM_BYTES,
-  SELECTION_WORKGROUP,
-} from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+  DAG_UNIFORM_BYTES,
+  VIEW_WORD_ROWS,
+} from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { FRAME_VEC4 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import { ESCALATION_ROUNDS } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 export { DAG_LEVEL_WGSL_AVANT } from './cut-dispatches-wgsl.ts';
@@ -74,10 +75,12 @@ export function ressourcesAvant(
   const buffers = [
     tampon(64, packed.clusters),
     tampon(64, packed.nodes),
-    tampon(SELECTION_UNIFORM_BYTES, null, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
+    // The uniform array, and the per-view words and widest-view word the shipped prepare resets,
+    // around the frozen descent.
+    tampon(DAG_UNIFORM_BYTES, null, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
     tampon(Math.max(16, (packed.nodeCount * 2 + pageCount * 4) * 4)),
     tampon(readbackBytes),
-    tampon(Math.max(8, (base + 10) * 4)),
+    tampon(Math.max(8, (base + 10 + worldCount * 2 + VIEW_WORD_ROWS + 1) * 4)),
     tampon(64, packed.worlds),
     tampon(16, frameData),
     tampon(48, packed.pageCones),

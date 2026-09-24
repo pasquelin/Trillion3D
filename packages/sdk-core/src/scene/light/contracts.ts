@@ -5,7 +5,7 @@
  * - `point`: a position and a range in metres beyond which it lights nothing;
  * - `spot`: the same plus a direction and a cone half-angle in radians;
  * - `directional`: the sun or an overcast sky — a propagation direction, no position and
- *   no range, the same irradiance everywhere, and cascade shadows that follow the camera;
+ *   no range, the same irradiance everywhere, and clipmap shadows that follow the camera;
  * - `rect`: a one-sided rectangle of `size` metres centred on `position`, emitting along
  *   `direction`, its width along `right`; no cast shadow (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`).
  *
@@ -77,14 +77,14 @@ export const LIGHT_SETTINGS = {
    */
   samplesPerPixel: 4,
   /**
-   * Shadow regions at most per frame: the buffer ceiling, never a quality setting. The
+   * Shadow pages drawn at most per frame: the buffer ceiling, never a quality setting. The
    * millisecond budget almost always stops first; this ceiling is only an ultimate bound,
    * and the only limit on a device without a GPU clock.
    */
-  shadowUpdatesPerFrame: 4,
+  shadowPagesPerFrame: 24,
   /**
-   * Side of a shadow-atlas page, in texels: the invalidation cell of a face. A moving
-   * object only stales the pages its projected box covers, never the whole face.
+   * Side of a shadow page, in texels: the unit of the physical pool, of the virtual maps and of
+   * invalidation. A moving object only stales the pages its projected box covers.
    */
   shadowPage: 128,
   /**
@@ -96,27 +96,32 @@ export const LIGHT_SETTINGS = {
   shadowAgingPerFrame: 0.05,
   /** Share of a frame's sample in the average cost of a page: exponential smoothing of the timer. */
   shadowCostBlend: 0.25,
-  /** Side of the depth shadow atlas, in texels. */
-  shadowAtlasSize: 4096,
-  /** Maximum side of a shadow slice; a point-light face occupies one sixth of its area. */
-  shadowSliceMax: 1024,
-  /** Minimum side of a shadow slice: below that, the light keeps its slice without refining it. */
-  shadowSliceMin: 128,
+  /** Side of a lamp face's finest mip, in texels: 32 × 32 pages of 128 (the pool: `shadowPoolSide`). */
+  lampFaceSize: 4096,
+  /**
+   * Entries of the shadow page table, one word per virtual page: a fixed 4 MiB buffer. It holds
+   * sixteen suns or 128 point lights; a light that finds no room is denied its shadow, and counted.
+   */
+  shadowTableEntries: 1 << 20,
+  /** Virtual pages the shading may request per frame; the rest ask again the next frame. */
+  shadowRequestCap: 4096,
   /** PCF taps per pixel and per shadow light (X2). */
   pcfTaps: 16,
   /** Width of the softened edge of a spot cone, in cosine units: against staircasing. */
   spotEdgeSoftness: 0.02,
-  /** Cascades of a directional light: at least three, never more than the faces of a slice. */
-  sunCascades: 4,
   /**
-   * Share of the camera frustum the cascades cover, from the near plane toward the far. Beyond,
-   * a surface stays lit without a cast shadow: named approximation, published in the diagnostic.
+   * Clipmap levels of a directional light. Level `L` has texels of `2^L` metres, and a pixel
+   * reads the level whose texel is at most its own footprint: sixteen levels cover a far/near
+   * ratio of 2^15. Beyond the last level, the far shadow takes over.
    */
-  sunShadowFarFraction: 0.2,
-  /** Ratio between two consecutive cascade-split bounds: at a seam, texel density changes by
-   *  exactly this ratio, and nothing else decides the sharpness jump between cascades. The
-   *  near-plane floor is deduced from it — `shadow distance / ratio^cascades`. */
-  sunCascadeRatioMax: 4,
+  sunLevels: 16,
+  /**
+   * Pages per side of a clipmap level's extent around the camera. It is a capacity, not a
+   * tuning: every pixel reads its own density while `height / tan(halfFovY)` stays within
+   * `sunLevelPages · shadowPage / 2` = 4096 (a 4K canvas at a 55° vertical field); beyond, the
+   * outer pixels read the next level, at half the density.
+   */
+  sunLevelPages: 64,
   /**
    * Offset of the far-shadow ray origin along the normal, in metres. It only
    * serves to leave the lit surface's plane; the real remedy against self-shadowing is the
@@ -129,16 +134,9 @@ export const LIGHT_SETTINGS = {
    * sits above the real surface, a ray started at zero would hit the surface it lights.
    * A proxy cell is the scale below which the proxy says nothing; starting from there
    * skips that false contact without inventing a shadow. The consequence is named: an occluder
-   * closer than one cell along the ray carries no far shadow, and that one stays with the cascades.
+   * closer than one cell along the ray carries no far shadow, and that one stays with the clipmap levels.
    */
   sunFarShadowStartCells: 1,
-  /**
-   * Pull-back of a cascade's near plane, in radii of its sphere: what sits above the
-   * cascade, between it and the sun, must enter the map to cast its shadow there. The extent
-   * adds two radii on either side, the play its depth anchor leaves the sphere
-   * (`../light-shadow/sunFaces.ts`).
-   */
-  sunCascadeDepthScale: 4,
   /**
    * Shadow bias in metres, never in depth units: a slice's projected depth
    * is highly non-linear, a constant in normalised depth would be metres near the
@@ -160,7 +158,7 @@ export const LIGHT_SETTINGS = {
 } as const;
 /** Lights a shadow slice can address in the atlas: one per declared shadow light. */
 export const MAX_SHADOW_SLICES = LIGHT_SETTINGS.maxLights;
-/** Faces of a slice: six for a point, one for a spot, the sun's cascades. */
+/** Faces of a point light's slice: six. */
 export const POINT_FACES = 6;
 /** Floats of a light in the GPU buffer: five `vec4f`, never reallocated. */
 export const SCENE_LIGHT_FLOATS = 20;
@@ -184,9 +182,12 @@ export interface ShadowViewpoint {
   /** Width over height. */ aspect: number;
   /** Nearest distance. */ near: number;
   /** Farthest distance. */ far: number;
+  /** World size of one pixel at the near plane: the finest footprint any pixel of the view has. */
+  pixelNear: number;
 }
-/** The ten numbers of a view, in order: position, axis, half-field, aspect, near, far. */
-export const VIEW_NUMBERS = 10;
+/** The eleven numbers of a view, in order: position, axis, half-field, aspect, near, far, and
+ *  the pixel's footprint at the near plane. */
+export const VIEW_NUMBERS = 11;
 export function writeView(view: ShadowViewpoint, out: Float64Array) {
   out.set(view.position);
   out.set(view.forward, 3);
@@ -194,5 +195,6 @@ export function writeView(view: ShadowViewpoint, out: Float64Array) {
   out[7] = view.aspect;
   out[8] = view.near;
   out[9] = view.far;
+  out[10] = view.pixelNear;
   return out;
 }

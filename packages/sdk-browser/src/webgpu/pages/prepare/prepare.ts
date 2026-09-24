@@ -163,7 +163,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     surfaceVersion: gpu.surfaces?.version ?? null,
     deferredLighting: !!gpu.deferred,
     directLightTiles: !!rt.lights.tiles,
-    shadowAtlas: rt.lights.shadows ? rt.lights.shadows.size : null,
+    shadowAtlas: !!rt.lights.shadows,
     shadowUnavailable: rt.lights.shadowReason,
     bounceProxy: !!context.readSceneProxy,
     bounceWanted: rt.bounce.wanted,

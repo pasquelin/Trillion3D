@@ -56,7 +56,16 @@ export function settledRt() {
     run,
     layout: { rows },
     vis: { visEnabled: true, gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
-    lights: { plan: { counts: { pendingPages: 0 } }, shadowsUpdated: 0, shadowFaces: 0 },
+    lights: {
+      plan: {
+        counts: { pendingPages: 0, cachedPages: 0, poolPages: 0 },
+        pool: { refetched: 0 },
+        requests: { counts: { requested: 0 } },
+      },
+      store: { count: 0 },
+      shadowsUpdated: 0,
+      shadowFaces: 0,
+    },
     bounce: { probes: undefined as unknown },
     capture: { capturing: false, capturePending: false },
     services: {
