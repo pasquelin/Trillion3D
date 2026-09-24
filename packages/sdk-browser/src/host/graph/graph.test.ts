@@ -1,0 +1,137 @@
+/**
+ * The engine's own graph holds the reference's numbers: the same poses composed into the same
+ * world matrices, the same aim, the same projection, the same element read out of a normalised or
+ * interleaved attribute and the same bounds. Each rule is checked against the reference library,
+ * which a test may name, on values away from the trivial ones.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { GraphNode } from './node.ts';
+import { GraphGroup, GraphMesh } from './mesh.ts';
+import { GraphCamera } from './camera.ts';
+import { GraphLight } from './light.ts';
+import { GraphAttribute, GraphInterleavedAttribute, GraphInterleavedBuffer } from './attributes.ts';
+import { GraphGeometry } from './geometry.ts';
+import { GraphSurface } from './surface.ts';
+import { GraphTexture } from './texture.ts';
+import { hookHostNode } from '../scene/hooks.ts';
+
+test('a posed chain resolves to the reference world matrices, aim and decomposition included', () => {
+  const [a, b, c] = [new GraphGroup(), new GraphNode(), new GraphCamera({ fov: 47, aspect: 1.6 })];
+  const [ta, tb, tc] = [
+    new THREE.Group(),
+    new THREE.Object3D(),
+    new THREE.PerspectiveCamera(47, 1.6),
+  ];
+  a.add(b.add(c));
+  ta.add(tb.add(tc));
+  [a, b, c].forEach((node, k) => node.position.set(1.5 * k, -2.25, 0.125 + k));
+  [ta, tb, tc].forEach((node, k) => node.position.set(1.5 * k, -2.25, 0.125 + k));
+  const q = new THREE.Quaternion(0.1, 0.7, -0.2, 0.6).normalize();
+  b.quaternion.set(q.x, q.y, q.z, q.w);
+  tb.quaternion.copy(q);
+  a.scale.set(1, 3, 0.5);
+  ta.scale.set(1, 3, 0.5);
+  c.lookAt({ x: 4, y: -1, z: 9 });
+  tc.lookAt(4, -1, 9);
+  a.updateMatrixWorld(true);
+  ta.updateMatrixWorld(true);
+  assert.deepEqual([...c.matrixWorld.elements], tc.matrixWorld.elements);
+  assert.deepEqual([...c.projectionMatrix.elements], tc.projectionMatrix.elements);
+  assert.deepEqual([c.rotation.x, c.rotation.y, c.rotation.z], tc.rotation.toArray().slice(0, 3));
+  const m = new THREE.Matrix4().compose(
+    new THREE.Vector3(3, -1, 2),
+    q,
+    new THREE.Vector3(-2, 1.5, 0.25),
+  );
+  const [n, tn] = [new GraphNode(), new THREE.Object3D()];
+  n.applyMatrix4({ elements: m.elements });
+  tn.applyMatrix4(m);
+  assert.deepEqual(
+    [...n.position.toArray(), ...n.quaternion.toArray(), ...n.scale.toArray()],
+    [...tn.position.toArray(), ...tn.quaternion.toArray(), ...tn.scale.toArray()],
+  );
+});
+
+test('angles and quaternion follow each other, and a watch hears either face', () => {
+  const node = new GraphNode(),
+    reference = new THREE.Object3D();
+  node.rotation.set(0.3, -1.1, 2.4);
+  reference.rotation.set(0.3, -1.1, 2.4);
+  assert.deepEqual(node.quaternion.toArray(), reference.quaternion.toArray());
+  const revision = { revision: 0 };
+  hookHostNode(node, revision);
+  node.position.x = 4;
+  node.rotation.y = 0.5;
+  node.quaternion.set(0, 0, 0, 1);
+  assert.equal(revision.revision, 3);
+});
+
+test('a normalised or interleaved element reads as the reference reads it', () => {
+  const bytes = new Int16Array([32767, -32768, 12, 7, -5, 3000]);
+  const [own, reference] = [
+    new GraphAttribute(bytes, 3, true),
+    new THREE.BufferAttribute(bytes, 3, true),
+  ];
+  const data = new Float32Array([1, 2, 3, 9, 4, 5, 6, 9]);
+  const view = new GraphInterleavedAttribute(new GraphInterleavedBuffer(data, 4), 3, 0);
+  const tview = new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(data, 4), 3, 0);
+  for (let i = 0; i < 2; i++)
+    for (const get of ['getX', 'getY', 'getZ'] as const) {
+      assert.equal(own[get](i), reference[get](i));
+      assert.equal(view[get](i), tview[get](i));
+    }
+  assert.equal(view.count, tview.count);
+});
+
+test('a geometry bounds itself as the reference does, morph targets included', () => {
+  const positions = new Float32Array([0, 0, 0, 1, 2, 3, -4, 0.5, 2]);
+  const morph = new Float32Array([0.5, -1, 0, 0, 0, 2, 1, 1, 1]);
+  const geometry = new GraphGeometry().setAttribute('position', new GraphAttribute(positions, 3));
+  geometry.morphAttributes.position = [new GraphAttribute(morph, 3)];
+  geometry.morphTargetsRelative = true;
+  const reference = new THREE.BufferGeometry();
+  reference.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  reference.morphAttributes.position = [new THREE.BufferAttribute(morph, 3)];
+  reference.morphTargetsRelative = true;
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  reference.computeBoundingBox();
+  reference.computeBoundingSphere();
+  assert.deepEqual(
+    [...geometry.boundingBox!.min.toArray(), ...geometry.boundingBox!.max.toArray()],
+    [...reference.boundingBox!.min.toArray(), ...reference.boundingBox!.max.toArray()],
+  );
+  assert.deepEqual(
+    [...geometry.boundingSphere!.center.toArray(), geometry.boundingSphere!.radius],
+    [...reference.boundingSphere!.center.toArray(), reference.boundingSphere!.radius],
+  );
+});
+
+test('a texture transform, a surface family and a copied light hold the reference values', () => {
+  const texture = new GraphTexture(null),
+    reference = new THREE.Texture();
+  for (const t of [texture, reference]) {
+    t.offset.set(0.25, -0.5);
+    t.repeat.set(2, 3);
+    t.center.set(0.5, 0.5);
+    t.rotation = 0.7;
+    t.updateMatrix();
+  }
+  assert.deepEqual([...texture.matrix.elements], reference.matrix.elements);
+  const surface = new GraphSurface('physical'),
+    physical = new THREE.MeshPhysicalMaterial() as unknown as Record<string, unknown>;
+  for (const key of ['ior', 'blending', 'depthFunc', 'side', 'normalMapType', 'alphaTest'])
+    assert.equal(surface[key], physical[key], key);
+  const light = new GraphLight('spot'),
+    spot = new THREE.SpotLight();
+  const copy = light.clone();
+  assert.deepEqual(
+    [copy.angle, copy.penumbra, copy.decay, copy.distance, ...copy.position.toArray()],
+    [spot.angle, spot.penumbra, spot.decay, spot.distance, ...spot.position.toArray()],
+  );
+  assert.notEqual(copy.target, light.target, 'a copied light aims at a copy of the target');
+  const mesh = new GraphMesh(new GraphGeometry(), surface);
+  assert.equal(mesh.clone().material, surface, 'a copied mesh shares its surface');
+});
