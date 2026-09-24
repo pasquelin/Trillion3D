@@ -1,37 +1,47 @@
 //! The world partition of the node table (#404): a scene whose placed nodes outgrow one stream
-//! unit keeps them out of `scene-tables.json`, in cells of one size class each, every cell under
-//! the unit's budget and boxed around what it holds — and the core the runtime reads before its
-//! first frame does not grow with the world.
+//! unit keeps them out of `scene-tables.json`, in cells under the unit's budget, each boxed around
+//! what it holds in the frame of the core parent it hangs it under — and the core the runtime reads
+//! before its first frame does not grow with the world.
 //!
 //! Provenance: synthetic worlds built here on the fixture triangle (`tests/base.rs`), one node per
 //! placement laid on a grid, as the open world lays its instances (flat scene roots, one mesh and a
 //! translation each).
 use super::*;
 
-/// A full-scope compilation of the fixture with `nodes` as the scene: its tables and its folder.
-fn compiled(nodes: Vec<Value>, lamps: bool) -> (PathBuf, Value, PathBuf) {
+/// A full-scope compilation of the fixture with `nodes` as the scene, `roots` its roots and `edit`
+/// any other change to the document: its tables and its folder.
+fn compiled_with(
+    nodes: Vec<Value>,
+    roots: Vec<usize>,
+    edit: impl FnOnce(&mut Value),
+) -> (PathBuf, Value, PathBuf) {
     let (root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
     gltf["accessors"][0]["min"] = json!([0.0, 0.0, 0.0]);
     gltf["accessors"][0]["max"] = json!([1.0, 1.0, 0.0]);
-    let count = nodes.len();
     gltf["nodes"] = json!(nodes);
-    if lamps {
-        gltf["extensionsUsed"] = json!(["KHR_lights_punctual"]);
-        gltf["extensions"] = json!({"KHR_lights_punctual":{"lights":[{"type":"point"}]}});
-        gltf["nodes"]
-            .as_array_mut()
-            .expect("nodes")
-            .push(json!({"name":"lamp","extensions":{"KHR_lights_punctual":{"light":0}}}));
-    }
-    let roots: Vec<usize> = (0..count + usize::from(lamps)).collect();
     gltf["scenes"] = json!([{"nodes": roots}]);
+    edit(&mut gltf);
     write_gltf(&options, &gltf, None);
     options.scope = "full".into();
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options.key_directory(result["key"].as_str().expect("key"));
     let tables = read_json(&directory.join("scene-tables.json"));
     (root, tables, directory)
+}
+
+/// The same with `nodes` as the scene's roots, and a lamp beside them when `lamps`.
+fn compiled(mut nodes: Vec<Value>, lamps: bool) -> (PathBuf, Value, PathBuf) {
+    if lamps {
+        nodes.push(json!({"name":"lamp","extensions":{"KHR_lights_punctual":{"light":0}}}));
+    }
+    let roots = (0..nodes.len()).collect();
+    compiled_with(nodes, roots, |gltf| {
+        if lamps {
+            gltf["extensionsUsed"] = json!(["KHR_lights_punctual"]);
+            gltf["extensions"] = json!({"KHR_lights_punctual":{"lights":[{"type":"point"}]}});
+        }
+    })
 }
 
 /// `side`² placements of the triangle, `spacing` apart, each at its own depth so no two share a
@@ -85,7 +95,10 @@ fn placed_nodes_leave_the_core_for_cells_boxed_around_them() {
             "a cell fits one unit"
         );
         let body: Value = serde_json::from_slice(&bytes).expect("json");
-        let bounds: Vec<f64> = serde_json::from_value(cell["bounds"].clone()).expect("bounds");
+        // Scene roots: one box, in the scene's frame.
+        assert_eq!(cell["parents"].as_array().expect("parents").len(), 1);
+        assert_eq!(cell["parents"][0][0], Value::Null);
+        let bounds: Vec<f64> = serde_json::from_value(cell["parents"][0][1].clone()).expect("box");
         for node in body["nodes"].as_array().expect("nodes") {
             assert_eq!(node["parent"], Value::Null, "a scene root");
             assert_eq!(node["mesh"], json!(0));
@@ -103,30 +116,30 @@ fn placed_nodes_leave_the_core_for_cells_boxed_around_them() {
             json!([[0, body["nodes"].as_array().expect("nodes").len()]]),
             "how many nodes of each mesh it places"
         );
-        assert_eq!(
-            cell["size"].as_f64().expect("size"),
-            2f64.sqrt(),
-            "the triangle's diagonal"
-        );
     }
     assert_eq!(seen, 48 * 48, "every placement in exactly one cell");
 }
 
 #[test]
-fn a_cell_holds_objects_of_one_size_class() {
-    let mut nodes = grid(40, 4.0, 1.0);
-    nodes.extend(grid(40, 400.0, 100.0));
-    let (_root, tables, directory) = compiled(nodes, false);
+fn a_cell_boxes_its_nodes_in_the_frame_of_their_core_parent() {
+    // Placements under a still group node: a page may move that node, and the runtime moves the
+    // box with it, so the box is written in its frame, not at the pose the file gives the group.
+    let side = 48;
+    let mut nodes = grid(side, 4.0, 1.0);
+    let children: Vec<usize> = (0..side * side).collect();
+    nodes
+        .push(json!({"name": "district", "translation": [1000.0, 0.0, 0.0], "children": children}));
+    let (_root, tables, _dir) = compiled_with(nodes, vec![side * side], |_| {});
+    assert_eq!(tables["nodes"][0]["name"], json!("district"));
+    let mut low = f64::INFINITY;
     for cell in cells(&tables) {
-        let body = read_json(&directory.join(cell["url"].as_str().expect("url")));
-        let scales: BTreeSet<String> = body["nodes"]
-            .as_array()
-            .expect("nodes")
-            .iter()
-            .map(|n| n["scale"][0].to_string())
-            .collect();
-        assert_eq!(scales.len(), 1, "one class per cell: {scales:?}");
+        assert_eq!(cell["parents"].as_array().expect("parents").len(), 1);
+        assert_eq!(cell["parents"][0][0], json!(0), "the district's core rank");
+        low = low.min(cell["parents"][0][1][0].as_f64().expect("min x"));
     }
+    assert_eq!(low, 0.0, "in the district's frame, not 1000 m away");
+    let union = tables["partition"]["bounds"][0].as_f64().expect("union");
+    assert_eq!(union, 1000.0, "the union box is at the declared poses");
 }
 
 #[test]
@@ -156,23 +169,10 @@ fn a_placement_under_an_animated_node_stays_in_the_core() {
     let side = 48;
     let mut nodes = grid(side, 4.0, 1.0);
     nodes.push(json!({"name": "carrier", "children": (0..side * side).collect::<Vec<_>>()}));
-    let (root, mut options) = fixture();
-    let mut gltf = read_gltf(&options);
-    gltf["accessors"][0]["min"] = json!([0.0, 0.0, 0.0]);
-    gltf["accessors"][0]["max"] = json!([1.0, 1.0, 0.0]);
-    gltf["nodes"] = json!(nodes);
-    gltf["scenes"] = json!([{"nodes": [side * side]}]);
-    gltf["animations"] = json!([{"channels": [{"sampler": 0, "target": {"node": side * side, "path": "translation"}}],
-        "samplers": [{"input": 0, "output": 0}]}]);
-    write_gltf(&options, &gltf, None);
-    options.scope = "full".into();
-    let result = compile(&options, |_| {}).expect("compile");
-    let tables = read_json(
-        &options
-            .key_directory(result["key"].as_str().expect("key"))
-            .join("scene-tables.json"),
-    );
-    drop(root);
+    let (_root, tables, _dir) = compiled_with(nodes, vec![side * side], |gltf| {
+        gltf["animations"] = json!([{"channels": [{"sampler": 0, "target": {"node": side * side, "path": "translation"}}],
+            "samplers": [{"input": 0, "output": 0}]}]);
+    });
     assert_eq!(tables["partition"], Value::Null, "nothing leaves the core");
     assert_eq!(
         tables["nodes"].as_array().expect("nodes").len(),

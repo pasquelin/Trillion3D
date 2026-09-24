@@ -1,17 +1,17 @@
 /**
  * THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE (#404).
  *
- * Before each frame (`frame`), the cells the camera needs (`plan.ts`) are asked of the session's
- * page streamer — one request queue, verified like any page — nearest first, then those ahead at
- * the prefetch priority; those it holds are placed within the arrival budget, each node on a row of
- * its mesh (`rows.ts`) at the world matrix the engine composes for a child of its core parent, the
- * same bits a host node would have. A cell past its reach parks its rows; a moved parent rewrites
- * the rows under it. Before the first frame, `prime` sizes the rows for every node the camera's
- * reach can hold at once (`residentRows`) — every node when no owner can reopen the session — and
- * reads the cells that camera needs. A reach that later outgrows the rows asks the owner to reopen:
- * nothing grows under an engine.
+ * Before each frame (`frame`), the cells the camera needs (`plan.ts`, boxed where their parents
+ * stand now: `boxes.ts`) are asked of the session's page streamer, nearest first, then those ahead
+ * at the prefetch priority; those it holds are placed within the arrival budget, each node on a
+ * row of its mesh (`rows.ts`) at the world matrix the engine composes for a child of its core
+ * parent. A cell past its reach parks its rows; a moved parent rewrites the rows under it.
+ * `prime`, before the first frame, sizes the rows for every node the reach can hold at once
+ * (`residentRows`; every node when no owner can reopen the session) and reads the cells it needs.
+ * A reach past the rows, or parents moved so close a cell is short of them, asks the owner to
+ * reopen: nothing grows under an engine.
  */
-import { MATRIX_VALUES, multiplyMatrix4, EngineError } from '../../../../sdk-core/src/index.ts';
+import { MATRIX_VALUES, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import {
   assertCellNodes,
   type TablePartition,
@@ -19,8 +19,9 @@ import {
 import type { PlacementRows } from '../../placement/rows.ts';
 import type { GraphNode } from '../../host/graph/node.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
-import { inCellFrame, KEEP, planCells, residentRows } from './plan.ts';
-import { capacityOf, releaseRow, rowLocal, sizeRows, takeRow } from './rows.ts';
+import { createCellBoxes } from './boxes.ts';
+import { holdsEvery, inCellFrame, planCells, residentRows } from './plan.ts';
+import { capacityOf, releaseRow, rowLocal, rowsFree, sizeRows, takeRow } from './rows.ts';
 import type { PlacedMesh, RowLink } from './rows.ts';
 
 type Read = (url: string) => Promise<Uint8Array>;
@@ -43,12 +44,13 @@ const rootWorld = new Float64Array(MATRIX_VALUES);
 export function createPartitionCells(inputs: Inputs) {
   const { partition, base, root, parents, meshes } = inputs;
   const cells = partition.cells.map((cell) => ({ ...cell, url: new URL(cell.url, base).href }));
-  const whole = Math.hypot(...[0, 1, 2].map((a) => partition.bounds[a + 3] - partition.bounds[a]));
+  const boxes = createCellBoxes(partition.cells, root, parents);
   const held = new Map<number, Placement[]>();
   /** The world matrix each parent in use had when its rows were written. */
   const worlds = new Map<GraphNode, Float64Array>();
   const touched = new Map<RowLink, { from: number; to: number }>();
-  let waiting = 0;
+  let waiting = 0,
+    short = false;
   /** The reach, in the cells' frame, the rows are sized for (∞: all); the largest a frame asked. */
   let sized = 0,
     wanted = 0;
@@ -77,16 +79,7 @@ export function createPartitionCells(inputs: Inputs) {
   /** Places `cell` from its bytes; false when a mesh is short of rows (a reach past `sized`). */
   const place = (cell: number, bytes: Uint8Array) => {
     const nodes = assertCellNodes(JSON.parse(new TextDecoder().decode(bytes)));
-    const needed = new Map<PlacedMesh, number>();
-    for (const node of nodes) {
-      const mesh = meshes.get(node.mesh);
-      if (!mesh)
-        throw new EngineError('PREPARED_SCENE_MISMATCH', `a scene cell places mesh ${node.mesh}`, {
-          cell: cells[cell].url,
-        });
-      needed.set(mesh, (needed.get(mesh) ?? 0) + 1);
-    }
-    for (const [mesh, count] of needed) if (mesh.free.length < count) return false;
+    if (!rowsFree(meshes, nodes, cells[cell].url)) return false;
     const placements = nodes.map((node) => {
       const parent = node.parent === null ? root : parents[node.parent];
       const mesh = meshes.get(node.mesh)!;
@@ -150,7 +143,7 @@ export function createPartitionCells(inputs: Inputs) {
         wanted = local.reach;
         io.outgrown?.();
       }
-      const plan = planCells(cells, local.eye, local.reach, new Set(held.keys()));
+      const plan = planCells(boxes(), local.eye, local.reach, new Set(held.keys()));
       plan.leave.forEach(leave);
       const started = performance.now();
       let placed = 0;
@@ -174,6 +167,10 @@ export function createPartitionCells(inputs: Inputs) {
         }
         if (ask.length) io.request(ask, ahead);
       }
+      if (waiting && !short && sized < Infinity) {
+        short = true; // parents moved together: the rows sized at open no longer hold them
+        io.outgrown?.();
+      }
       flush(io.update);
       return later;
     },
@@ -181,12 +178,15 @@ export function createPartitionCells(inputs: Inputs) {
      *  frame asked (every cell unless `owned`), then places the cells within reach; bytes read. */
     async prime(eye: ArrayLike<number>, reach: number, read: Read, owned: boolean) {
       const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
-      const plan = planCells(cells, local.eye, local.reach, new Set(held.keys()));
+      const plan = planCells(boxes(), local.eye, local.reach, new Set(held.keys()));
       plan.leave.forEach(leave);
       const bound = owned ? Math.max(local.reach, wanted) : Infinity;
-      if (bound > sized) {
-        sizeRows(meshes, residentRows(cells, bound));
-        sized = 2 * bound * (1 + KEEP) >= whole ? Infinity : bound; // spans all: never short
+      if (sized < Infinity) {
+        // Sized on where the cells stand now; rows that hold every node are never short.
+        const rows = residentRows(boxes(), bound);
+        sizeRows(meshes, rows);
+        sized = holdsEvery(rows, cells) ? Infinity : bound;
+        short = false;
       }
       const { visible } = plan;
       const bodies = await Promise.all(visible.map((cell) => read(cells[cell].url)));

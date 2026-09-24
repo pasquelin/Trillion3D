@@ -22,6 +22,10 @@
 import { invertMatrix4, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 
+/** A cell as the plan reads it: its box in the scene root's frame now (`boxes.ts`), and how many
+ *  nodes of each mesh it places. */
+export type BoxedCell = { bounds: ArrayLike<number>; meshes: TableCell['meshes'] };
+
 const inverse = new Float64Array(MATRIX_VALUES);
 
 /** How far past the reach, as a fraction of it, a cell is read ahead at the prefetch priority. */
@@ -61,7 +65,7 @@ export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, re
 }
 
 /** Distance from `eye` to the box `[minX, minY, minZ, maxX, maxY, maxZ]`, 0 inside it. */
-export function boxDistance(bounds: readonly number[], eye: ArrayLike<number>) {
+export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
   let sum = 0;
   for (let axis = 0; axis < 3; axis++) {
     const gap = Math.max(bounds[axis] - eye[axis], 0, eye[axis] - bounds[axis + 3]);
@@ -76,7 +80,7 @@ export function boxDistance(bounds: readonly number[], eye: ArrayLike<number>) {
  * past `reach·(1 + KEEP)`, which leave. `reach` is the frame camera's (`cellReach`).
  */
 export function planCells(
-  cells: readonly TableCell[],
+  cells: readonly BoxedCell[],
   eye: ArrayLike<number>,
   reach: number,
   held: ReadonlySet<number>,
@@ -97,7 +101,7 @@ export function planCells(
 }
 
 /** Distance between two boxes, 0 when they meet. */
-function boxGap(a: readonly number[], b: readonly number[]) {
+function boxGap(a: ArrayLike<number>, b: ArrayLike<number>) {
   let sum = 0;
   for (let axis = 0; axis < 3; axis++) {
     const gap = Math.max(a[axis] - b[axis + 3], 0, b[axis] - a[axis + 3]);
@@ -113,7 +117,7 @@ function boxGap(a: readonly number[], b: readonly number[]) {
  * is held is among the cells that close to any one of them. The largest such sum, mesh by mesh,
  * bounds the rows: it follows the reach and the cells' size, not the size of the world.
  */
-export function residentRows(cells: readonly TableCell[], reach: number) {
+export function residentRows(cells: readonly BoxedCell[], reach: number) {
   const span = 2 * reach * (1 + KEEP);
   const rows = new Map<number, number>();
   for (let a = 0; a < cells.length; a++) {
@@ -124,4 +128,15 @@ export function residentRows(cells: readonly TableCell[], reach: number) {
     for (const [mesh, nodes] of near) rows.set(mesh, Math.max(rows.get(mesh) ?? 0, nodes));
   }
   return rows;
+}
+
+/** Whether `rows` hold every node `cells` place: rows that many are never short. */
+export function holdsEvery(
+  rows: ReadonlyMap<number, number>,
+  cells: readonly Pick<BoxedCell, 'meshes'>[],
+) {
+  const totals = new Map<number, number>();
+  for (const cell of cells)
+    for (const [mesh, nodes] of cell.meshes) totals.set(mesh, (totals.get(mesh) ?? 0) + nodes);
+  return [...totals].every(([mesh, nodes]) => (rows.get(mesh) ?? 0) >= nodes);
 }

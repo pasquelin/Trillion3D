@@ -10,7 +10,7 @@ import {
   growPlacementRows,
   type PlacementRows,
 } from '../../placement/rows.ts';
-import { MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
+import { EngineError, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
 import type { CellNode } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { GraphNode } from '../../host/graph/node.ts';
 import { pose } from '../../host/prepared/nodes.ts';
@@ -53,6 +53,26 @@ export function sizeRows(meshes: ReadonlyMap<number, PlacedMesh>, needed: Map<nu
     for (const link of mesh.links) link.placements = growPlacementRows(link.placements!, rows);
     for (let row = capacityOf(mesh) - 1; row >= held; row--) mesh.free.push(row);
   }
+}
+
+/** Whether each mesh `nodes` place has a free row for every one of them; a mesh the partition
+ *  does not place is refused by name. */
+export function rowsFree(
+  meshes: ReadonlyMap<number, PlacedMesh>,
+  nodes: readonly CellNode[],
+  cell: string,
+) {
+  const needed = new Map<PlacedMesh, number>();
+  for (const node of nodes) {
+    const mesh = meshes.get(node.mesh);
+    if (!mesh)
+      throw new EngineError('PREPARED_SCENE_MISMATCH', `a scene cell places mesh ${node.mesh}`, {
+        cell,
+      });
+    needed.set(mesh, (needed.get(mesh) ?? 0) + 1);
+  }
+  for (const [mesh, count] of needed) if (mesh.free.length < count) return false;
+  return true;
 }
 
 /** Takes a free row of `mesh`. */
