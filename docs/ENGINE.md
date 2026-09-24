@@ -273,15 +273,16 @@ root cover first, then pinned pages, then the most recent — evicts only what n
 rebuilds every bind group that named the old pool on the next image. The geometry pool can grow up to
 `geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
-page, page cap and session ceiling) and bounds its cut by the same ladder (`stepPageBudgetLadder`).
-A slot holds one geometry copy: a classic instance (`addInstance`) holds its own copy of every page,
-so a page three instances draw fills three slots, while the records rows place share one. The cut is
-weighed on those copies, and while its floor moves the engine asks for another image, so a raised
-budget brings the detail back on a still camera; a verdict change is published as `coverage-budget`,
-as on WebGPU. When its pages hold more than the slots, those no cut keeps leave oldest first
-(`evictOldest`, the page streamer's order); a drawn page never leaves, nor a page before the next
-cut has weighed it, so a smaller budget takes effect as the coarser cut arrives. Only the root cover
-and the pages the host replaced (`replaceGeometryPage`) stay above it. Its
+page, page cap and session ceiling). A slot holds one geometry copy: a classic instance
+(`addInstance`) holds its own copy of every page, so a page three instances draw fills three slots,
+while the records rows place share one. Its cut is drawn on the CPU in the image that shows it, so
+it fits the slots in that image: every page it asks for or draws charges its copies once, the root
+cover held beforehand, and the cut draws coarser until they fit (`selectVisiblePages`'s
+`pageBudget`). A smaller budget therefore takes effect in the next image and a larger one brings the
+detail back in it; the threshold it coarsened to is `budgetPixelError`, and a verdict change is
+published as `coverage-budget`, as on WebGPU. When its pages hold more than the slots, those the
+image no longer keeps leave oldest first (`evictOldest`, the page streamer's order). Only the root
+cover and the pages the host replaced (`replaceGeometryPage`) stay above it. Its
 `geometryPoolAllocatedBytes` is what the pages hold, no pool being reserved. Backends without pools
 throw `UNSUPPORTED_MEMORY_BUDGETS`.
 

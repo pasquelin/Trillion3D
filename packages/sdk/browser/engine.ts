@@ -37,7 +37,12 @@ export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts';
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts';
 export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/flyControls.ts';
 export { framingFromBounds } from '../../sdk-browser/src/camera/framing.ts';
-export type { GeometryPool, PoolClamp } from '../../sdk-browser/src/residency/pools.ts';
+export type {
+  GeometryPool,
+  MemoryBudgets,
+  MemoryBudgetsReport,
+  PoolClamp,
+} from '../../sdk-browser/src/residency/pools.ts';
 export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapping.ts';
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
@@ -72,10 +77,6 @@ export type {
 } from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts';
 export type { HostRetentionDelta, StreamPage } from '../../sdk-browser/src/streaming/types.ts';
-export type {
-  MemoryBudgets,
-  MemoryBudgetsReport,
-} from '../../sdk-browser/src/webgpu/pages/io/memory.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';

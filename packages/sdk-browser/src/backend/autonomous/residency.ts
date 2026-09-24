@@ -12,14 +12,6 @@ type ResidencyEnvironment = {
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
 };
 
-/** How many pages carry their indices. A count, not an intermediate array of tens of
- *  thousands of entries allocated then thrown away on every metrics sample, i.e. every frame. */
-export function comptePagesResidentes(pages: readonly PageRec[]) {
-  let residentes = 0;
-  for (let i = 0; i < pages.length; i++) if (pages[i].array) residentes++;
-  return residentes;
-}
-
 export function createAutonomousResidency(env: ResidencyEnvironment) {
   const { bootstrapUrls, modifiedPages, shown, desired, pending, retained, byUrl, geometryStore } =
     env;
@@ -27,7 +19,17 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
   const state = { cacheEvictions: 0 };
   // Two sets for the life of the host: a frame fills and clears them, it does not allocate them.
   const seen = new Set<string>(),
-    uniques = new Set<string>();
+    kept = new Set<string>();
+  /** The pages the image keeps — the root cover, the host's own, the cut drawn and the cut
+   *  wanted —, gathered once per image: the pool's eviction and the streamer's pins read it. */
+  const collectKept = () => {
+    kept.clear();
+    for (const url of bootstrapUrls) kept.add(url);
+    for (const url of modifiedPages) kept.add(url);
+    for (const rec of shown) kept.add(rec.url);
+    for (const rec of desired) kept.add(rec.url);
+  };
+  collectKept();
   return {
     get cacheEvictions() {
       return state.cacheEvictions;
@@ -42,14 +44,12 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
         }
       return pending;
     },
+    collectKept,
+    keptUrls: (): ReadonlySet<string> => kept,
+    /** The streamer's pins: the set the image gathered, not gathered again. */
     pageUrls() {
       retained.length = 0;
-      uniques.clear();
-      for (const url of bootstrapUrls) uniques.add(url);
-      for (const url of modifiedPages) uniques.add(url);
-      for (const rec of shown) uniques.add(rec.url);
-      for (const rec of desired) uniques.add(rec.url);
-      for (const url of uniques) retained.push(url);
+      for (const url of kept) retained.push(url);
       return retained;
     },
     /** Gives a page's geometry back, in every record that draws it: one eviction per page, as the
@@ -67,7 +67,9 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
         rec.mesh = undefined;
         rec.array = undefined;
       }
-      if (held) state.cacheEvictions++;
+      if (!held) return;
+      state.cacheEvictions++;
+      geometryStore.state.residentPages--;
     },
   };
 }
