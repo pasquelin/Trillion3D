@@ -38,7 +38,7 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
     let carried: Vec<&crate::geometry_page::Attribute> = carried.iter().collect();
     let welds = attributes::Welds::of(positions, DagAttributes { carried: &carried }, indices);
     let locks = vec![locked; positions.len() / 3];
-    let input = welds.input(positions, &locks);
+    let input = welds.input(positions, &locks, quality::NORMAL_DEVIATION_BOUND);
     match reduce_group(&input, &group).expect("reduce") {
         Ok(_) => panic!("the group reduced"),
         Err(outcome) => outcome.cause,

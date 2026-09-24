@@ -124,6 +124,5 @@ fn a_slab_keeps_its_face_normals_at_every_level() {
             }
         }
     }
-    let quality = quality::level_quality(&dag, &slab.positions, Some(&slab.normals));
-    quality::check(&dag, &quality).expect("the cook accepts the slab");
+    quality::check(&dag, &slab.positions, Some(&slab.normals)).expect("the cook accepts the slab");
 }
