@@ -6853,6 +6853,7 @@
       "gravity": "Gravité en m/s², un vecteur vivant ; mets un préréglage (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou un vecteur.",
       "paused": "Si le temps est figé ; les écritures atteignent quand même les corps.",
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
+      "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
       "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`."
     }
@@ -6984,6 +6985,33 @@
     "summary": "Une forme de collision, quand celle déduite de la géométrie ne convient pas.",
     "description": "Les tailles sont dans le repère propre de l’objet, avant son échelle."
   },
+  "PhysicsPart": {
+    "summary": "Une partie d’une forme composée : une primitive, placée et tournée dans le repère de l’objet."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Une primitive exacte : ses tailles dans le repère propre de l’objet."
+  },
+  "WaterSpec": {
+    "summary": "Une étendue d’eau où flottent les corps, telle que `world.physics.water` la reçoit.",
+    "members": {
+      "waves": "Les vagues de Gerstner de la surface ; aucune pour une eau calme.",
+      "level": "Hauteur de la surface au repos, en mètres.",
+      "density": "kg/m³ ; 1000, l’eau douce, par défaut.",
+      "linearDrag": "Coefficient de traînée quadratique : la vitesse à laquelle un corps se pose, jamais où ; 0.5 par défaut.",
+      "angularDrag": "Combien l’eau freine la rotation d’un corps ; 0.05 par défaut.",
+      "current": "Vitesse de l’eau (le courant d’une rivière), en m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Une vague telle qu’une scène la déclare.",
+    "members": {
+      "direction": "Direction horizontale de déplacement `[x, z]` ; normalisée ici.",
+      "wavelength": "Mètres d’une crête à l’autre.",
+      "amplitude": "Mètres du repos à la crête.",
+      "steepness": "De 0 (une sinusoïde) à 1 (la crête la plus aiguë qui ne se replie pas) ; normalisée sur la somme.",
+      "phase": "Phase à `t = 0`, en radians."
+    }
+  },
   "PhysicsStats": {
     "summary": "Ce que rapporte la physique du monde : comptes du dernier tick, et les deux horloges à part.",
     "members": {
@@ -7006,6 +7034,7 @@
       "gravity": "Gravité en m/s², un vecteur vivant ; mets un préréglage (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou un vecteur.",
       "paused": "Si le temps est figé ; les écritures atteignent quand même les corps.",
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
+      "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
       "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`."
     }

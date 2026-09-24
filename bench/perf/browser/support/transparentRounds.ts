@@ -9,6 +9,7 @@ import {
   itemKept,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts';
 import {
+  instanceItem,
   RUN_SHARED,
   RUN_WORDS,
   runOwner,
@@ -41,7 +42,7 @@ function compteAppels(blendState: BenchSide['blendState']) {
   let encodes = 0;
   for (let run = 0; run < count; run++) {
     const at = run * RUN_WORDS,
-      owner = runOwner(order[runs[at]], runs[at + 1]);
+      owner = runOwner(order, runs[at], runs[at + 1]);
     if (owner === RUN_SHARED || itemKept(keep, owner)) encodes++;
   }
   return encodes;
@@ -72,7 +73,7 @@ function etale(
   });
   let at = 0;
   for (let i = 0; i < instances; i++) {
-    const item = miroir.expanded[i * 2],
+    const item = instanceItem(miroir.expanded[i * 2]),
       cle = miroir.expanded[i * 2 + 1];
     output[at++] = item;
     output[at++] = items[item].paged ? spans[cle * 2] : cle;

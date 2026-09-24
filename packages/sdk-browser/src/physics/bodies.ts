@@ -112,6 +112,7 @@ export function createPhysicsBodies(
       gravityScale: p.gravityScale,
       vertices: shape.vertices,
       indices: shape.indices,
+      parts: shape.parts,
     });
     meshes[index] = mesh;
     held[index] = p;
