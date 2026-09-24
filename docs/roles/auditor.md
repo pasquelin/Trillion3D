@@ -20,7 +20,7 @@ rule 2).
    - the path: issue, reviewer's passes filled in, `validate` green, the right lifecycle label.
 4. **Verdict.**
    - Clean: `gh pr edit <pr> --add-label audited`.
-   - A defect: **a new issue** on `.github/ISSUE_TEMPLATE/task.md` — title `Audit of #<pr>:
+   - A defect: **a new issue** written as `docs/roles/writer.md` shows — title `Audit of #<pr>:
 <what>`, one line per finding (file:line, what is wrong, which rule), `Links: #<n>, #<pr>` —
      labelled `audit ko` plus the domain label of #<n>; one line on #<n> pointing to it; then
      `gh pr edit <pr> --add-label audited`. The domain's chef takes it; #<n> stays closed.
