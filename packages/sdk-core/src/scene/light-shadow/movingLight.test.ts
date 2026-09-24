@@ -128,7 +128,11 @@ test('a light whose intensity or colour changes neither re-poses nor withdraws a
   for (let frame = 1; frame < 6; frame++) cycle(plan, store, frame, () => read);
   for (let frame = 6; frame < 12; frame++) {
     store.set('lamp', { intensity: frame, color: [1, frame / 12, 1] });
-    assert.equal(cycle(plan, store, frame, () => read), 0, `nothing drawn at frame ${frame}`);
+    assert.equal(
+      cycle(plan, store, frame, () => read),
+      0,
+      `nothing drawn at frame ${frame}`,
+    );
     assert.ok(
       read.every((entry) => valid(plan, entry)),
       `every page still read at frame ${frame}`,
