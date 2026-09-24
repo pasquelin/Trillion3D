@@ -98,6 +98,7 @@ const changes: [string, (scene: ReturnType<typeof heldScene>) => void][] = [
     'a row is parked',
     ({ blendState }) => ((blendState.blendGpu[2].placement as PlacementOf).rows.live[0] = 0),
   ],
+  ['its node is hidden', ({ blendState }) => (blendState.blendGpu[1].hidden = true)],
   ['the plan is rebuilt', ({ blendState }) => refreshBlendPlan(blendState)],
   [
     'an item joins',
