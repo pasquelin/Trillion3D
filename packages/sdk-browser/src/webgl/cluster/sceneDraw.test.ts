@@ -80,8 +80,8 @@ test('a mesh under a translated and rotated group draws where the reference draw
   const three = await import('three');
   const pose = (
     node: {
-      position: { set(...v: number[]): unknown };
-      rotation: { set(...v: number[]): unknown };
+      position: { set(x: number, y: number, z: number): unknown };
+      rotation: { set(x: number, y: number, z: number): unknown };
     },
     p: number[],
     r: number[],
