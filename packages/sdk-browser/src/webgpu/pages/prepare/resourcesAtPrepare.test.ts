@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../pages.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
@@ -42,17 +42,17 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
   installGpuGlobals();
   const { device } = mockGpu();
   const fixture = quadScene();
-  const color = new THREE.DataTexture(new Uint8Array(16).fill(255), 2, 2),
-    normal = new THREE.DataTexture(new Uint8Array(16).fill(128), 2, 2);
-  const rough = new THREE.DataTexture(new Uint8Array(16).fill(64), 2, 2),
-    emissive = new THREE.DataTexture(new Uint8Array(16).fill(32), 2, 2);
-  const material = new THREE.MeshStandardMaterial({
+  const color = G.dataTexture(new Uint8Array(16).fill(255), 2, 2),
+    normal = G.dataTexture(new Uint8Array(16).fill(128), 2, 2);
+  const rough = G.dataTexture(new Uint8Array(16).fill(64), 2, 2),
+    emissive = G.dataTexture(new Uint8Array(16).fill(32), 2, 2);
+  const material = G.standardSurface({
     map: color,
     normalMap: normal,
     roughnessMap: rough,
     emissiveMap: emissive,
   });
-  (fixture.source.children[0] as THREE.Mesh).material = material;
+  (fixture.source.children[0] as G.GraphMesh).material = material;
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,

@@ -1,13 +1,13 @@
 // Standalone proof of the autonomous transmission pass: what a transmissive scene copy lets
 // through is the engine's own cluster image, opaque and blended, depth-tested both ways.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel, quad } from './webglClusterPixels.ts';
 
-const glassMesh = (options: Partial<THREE.MeshPhysicalMaterialParameters> = {}) => {
-  const mesh = new THREE.Mesh(
+const glassMesh = (options: Partial<G.SurfaceParameters> = {}) => {
+  const mesh = G.mesh(
     quad(-1),
-    new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, roughness: 1, ...options }),
+    G.physicalSurface({ color: 0xffffff, transmission: 1, roughness: 1, ...options }),
   );
   mesh.matrixAutoUpdate = false;
   return mesh;
@@ -17,10 +17,10 @@ export function execute() {
   const mounted = mountClusterRenderer();
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
   const { gl, renderer, scene, drawCamera } = mounted;
-  const red = clusterRecord(quad(-3), new THREE.MeshBasicMaterial({ color: 0xff0000 })),
+  const red = clusterRecord(quad(-3), G.basicSurface({ color: 0xff0000 })),
     glass = glassMesh();
-  scene.background = new THREE.Color(0x0000ff);
-  const draw = (clusters: ClusterDrawMesh[], copies: THREE.Mesh[], srgb = false) =>
+  scene.background = new G.Color(0x0000ff);
+  const draw = (clusters: ClusterDrawMesh[], copies: G.GraphMesh[], srgb = false) =>
     renderer.draw(clusters, scene, drawCamera, false, srgb, [], copies);
   const passes = () => ({
     backdrop: renderer.backdropSubmissions,
@@ -48,7 +48,7 @@ export function execute() {
   const backgroundThrough = pixel(gl);
 
   // A cluster in front of the glass hides it: shared depth, tested the usual way.
-  const yellow = clusterRecord(quad(-0.5), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+  const yellow = clusterRecord(quad(-0.5), G.basicSurface({ color: 0xffff00 }));
   clear(gl);
   draw([red, yellow], [glass]);
   const occluded = pixel(gl);
@@ -56,7 +56,7 @@ export function execute() {
   // A blended cluster behind the glass is part of what it lets through.
   const blue = clusterRecord(
     quad(-2),
-    new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.5 }),
+    G.basicSurface({ color: 0x0000ff, transparent: true, opacity: 0.5 }),
   );
   clear(gl);
   draw([red, blue], [glass]);
@@ -66,16 +66,16 @@ export function execute() {
   const tinted = glassMesh({
     thickness: 1,
     attenuationDistance: 1,
-    attenuationColor: new THREE.Color(0.5, 0.5, 0.5),
+    attenuationColor: new G.Color().setRGB(0.5, 0.5, 0.5),
   });
   clear(gl);
   draw([red], [tinted]);
   const attenuated = pixel(gl);
 
   // A declared light reflects on the glass; its diffuse lobe cancels, its specular stays.
-  const sun = new THREE.DirectionalLight(0xffffff, 1);
+  const sun = G.directionalLight(0xffffff, 1);
   sun.position.set(0, 0, 1);
-  scene.add(sun, sun.target);
+  scene.add(sun, sun.target!);
   scene.updateMatrixWorld(true);
   const shiny = glassMesh({ roughness: 0.5 });
   clear(gl);

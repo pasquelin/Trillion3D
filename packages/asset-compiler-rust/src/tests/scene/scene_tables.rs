@@ -1,5 +1,5 @@
-//! Correctness of `scene-tables.json`, the node table: which primitive is drawn where, by which
-//! node, with which surface (#287). Its material table is proven by `surface_tables.rs`.
+//! Correctness of `scene-tables.json`, the node table and the geometry layout of each published
+//! document (#287, #272). Its material table is proven by `surface_tables.rs`.
 //!
 //! Provenance of every case: the glTF the compilation itself publishes as `source.gltf`, built
 //! here from the repository's own triangle fixture (`tests/base.rs`) — no asset is read from
@@ -32,58 +32,90 @@ pub(in crate::tests) fn published(alter: impl FnOnce(&mut Value)) -> (PathBuf, V
 }
 
 #[test]
-fn the_node_table_places_every_drawn_primitive() {
-    // A parent that moves its two children: the pose written is the world pose, not the local one.
+fn the_node_table_carries_every_node_and_its_local_pose() {
+    // A parent that moves its two children: the pose written is the one each node declares, which
+    // the runtime composes itself — the same bits the document gives.
     let (_root, tables) = published(|gltf| {
+        gltf["scenes"] = json!([{"name":"stage","nodes":[0]}]);
         gltf["nodes"] = json!([
             {"name":"root","translation":[10.0,0.0,0.0],"children":[1,2]},
             {"name":"left","mesh":0},
-            {"name":"right","mesh":0,"translation":[0.0,2.0,0.0]},
+            {"name":"right","mesh":0,"matrix":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,2.0,0.0,1.0]},
         ]);
     });
+    assert_eq!(tables["scene"], json!({"name":"stage","nodes":[0]}));
     let nodes = tables["nodes"].as_array().expect("nodes");
-    assert_eq!(nodes.len(), 2, "one entry per drawn primitive: {tables}");
-    assert_eq!(nodes[0]["name"], json!("left"));
+    assert_eq!(nodes.len(), 3, "every node, drawn or not: {tables}");
     assert_eq!(
-        nodes[0]["parent"],
-        json!(0),
+        nodes[0]["children"],
+        json!([1, 2]),
         "the hierarchy is in the table"
     );
-    assert_eq!(nodes[0]["mesh"], json!(0));
-    assert_eq!(nodes[0]["primitive"], json!(0));
+    assert_eq!(nodes[0]["translation"], json!([10.0, 0.0, 0.0]));
+    assert_eq!(nodes[0]["mesh"], Value::Null);
     assert_eq!(
-        nodes[0]["matrix"][12],
-        json!(10.0),
-        "world pose of the child"
+        nodes[1]["mesh"],
+        json!(0),
+        "two nodes naming one mesh: instancing"
     );
-    assert_eq!(nodes[1]["matrix"][13], json!(2.0));
-    // Instancing is the rank among the copies of one primitive, and nothing else repeats.
-    assert_eq!(nodes[0]["instance"], json!(0));
-    assert_eq!(nodes[1]["instance"], json!(1));
-    // The box is the accessor's corners through that same pose.
+    assert_eq!(nodes[2]["mesh"], json!(0));
     assert_eq!(
-        nodes[0]["bounds"],
-        json!({"min":[10.0,0.0,0.0],"max":[11.0,1.0,0.0]})
+        nodes[2]["matrix"][13],
+        json!(2.0),
+        "a matrix pose is kept as a matrix"
     );
     assert_eq!(
-        nodes[1]["bounds"],
-        json!({"min":[10.0,2.0,0.0],"max":[11.0,3.0,0.0]})
+        nodes[1]["matrix"],
+        Value::Null,
+        "no pose declared, none invented"
     );
-    // A primitive that declares no material wears the glTF default one, which is an entry like
-    // any other: the node table names a rank, never an absence.
-    assert_eq!(nodes[0]["material"], json!(0));
-    assert_eq!(
-        tables["materials"][0]["metalness"],
-        json!(1.0),
-        "the glTF default: {tables}"
-    );
-    assert_eq!(tables["materials"][0]["roughness"], json!(1.0));
 }
 
 #[test]
-fn the_node_table_describes_the_published_scene_and_not_the_input() {
-    // The slice keeps one node of the two and renumbers what it keeps: the table follows the
-    // document the runtime loads, so a node left out of the slice is absent from it.
+fn the_documents_lay_out_every_primitive_in_its_binary() {
+    let (_root, tables) = published(|_| {});
+    let source = &tables["documents"]["source.gltf"];
+    assert_eq!(source["buffer"], json!("source.bin"));
+    let primitive = &source["meshes"][0]["primitives"][0];
+    let position = &source["accessors"][primitive["attributes"]["POSITION"]
+        .as_u64()
+        .expect("position") as usize];
+    assert_eq!(position["componentType"], json!(5126));
+    assert_eq!(position["type"], json!("VEC3"));
+    assert_eq!(position["count"], json!(3));
+    assert_eq!(
+        (position["min"].clone(), position["max"].clone()),
+        (json!([0.0, 0.0, 0.0]), json!([1.0, 1.0, 0.0])),
+        "the box the positions declare, which the host bounds its geometry by"
+    );
+    let view = &source["views"][position["view"].as_u64().expect("view") as usize];
+    assert_eq!(view["length"], json!(36), "three positions of twelve bytes");
+    assert!(
+        primitive["indices"].is_u64(),
+        "the index list is laid out too"
+    );
+    // A primitive that declares no material wears the glTF default one, which is an entry like
+    // any other: the document names a rank, never an absence.
+    assert_eq!(primitive["material"], json!(0));
+    assert_eq!(
+        tables["materials"][0]["metalness"],
+        json!(1.0),
+        "the glTF default"
+    );
+    // The autonomous copy is laid out beside it, one degenerate triangle per primitive, and wears
+    // the variant without tangents it publishes.
+    let autonomous = &tables["documents"]["scene.gltf"];
+    assert_eq!(autonomous["buffer"], json!("scene.bin"));
+    assert_eq!(
+        autonomous["meshes"][0]["primitives"][0]["attributes"],
+        json!({"POSITION":0})
+    );
+}
+
+#[test]
+fn the_tables_describe_the_published_scene_and_not_the_input() {
+    // The slice keeps one node of the two and renumbers what it keeps: the tables follow the
+    // document the runtime draws, so a node left out of the slice is absent from them.
     let (_root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
     with_bounds(&mut gltf);
@@ -92,12 +124,19 @@ fn the_node_table_describes_the_published_scene_and_not_the_input() {
     write_gltf(&options, &gltf, None);
     options.triangle_budget = 1;
     let tables = tables_of(&options);
-    let nodes = tables["nodes"].as_array().expect("nodes");
-    assert_eq!(nodes.len(), 1, "one node fits the slice: {tables}");
+    // The node left out keeps its place in the graph and draws nothing.
     assert_eq!(
-        nodes[0]["mesh"],
+        tables["nodes"][0]["mesh"],
         json!(0),
         "the rank the published scene uses"
+    );
+    assert_eq!(tables["nodes"][1]["mesh"], Value::Null, "{tables}");
+    assert_eq!(
+        tables["documents"]["source.gltf"]["meshes"]
+            .as_array()
+            .map(Vec::len),
+        Some(1),
+        "one mesh fits the slice"
     );
 }
 

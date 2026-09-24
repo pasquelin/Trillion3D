@@ -50,6 +50,7 @@ export function renderInventory(files: string[]): string {
     `  perf/browser/       ${count(files, 'bench/perf/browser', /\.perf\.ts$/)} *.perf.ts + ${count(files, 'bench/perf/browser/support', TS)} support modules`,
     `  oracles/            ${countDeep(files, 'bench/oracles', TS)} reference implementations, copied verbatim`,
     `  runner/             ${countDeep(files, 'bench/runner', TS)} modules: the measurement harness (README)`,
+    `  witnesses/          ${countDeep(files, 'bench/witnesses', TS)} modules: the host-library witnesses, never published`,
   ];
   return ['```', ...lines, '```'].join('\n');
 }

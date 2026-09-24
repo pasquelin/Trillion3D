@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { dagFixture } from '../page/selection/dag.fixture.ts';
 import { collectClusterPages } from '../page/selection/selection.ts';
 import { createPrimitiveTemplates } from '../page/selection/template.ts';
@@ -33,14 +33,11 @@ function fakeDevice() {
 }
 
 function blendGeometry(withUv: boolean) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3),
-  );
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
-  if (withUv) geometry.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1], 2));
-  geometry.setIndex([0, 1, 2]);
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+  geometry.setAttribute('normal', G.floatAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
+  if (withUv) geometry.setAttribute('uv', G.floatAttribute([0, 0, 1, 0, 0, 1], 2));
+  geometry.setIndex(G.indices([0, 1, 2]));
   return geometry;
 }
 
@@ -140,7 +137,7 @@ test('a primitive’s template is computed once and returned as-is to the next p
 test('two instances share the DAG shape, never what places them', () => {
   const fixture = dagFixture();
   primitiveWithCulling(fixture.metadata);
-  const second = new THREE.Mesh(fixture.mesh.geometry, fixture.mesh.material);
+  const second = G.mesh(fixture.mesh.geometry, fixture.mesh.material);
   second.position.set(50, 0, 0);
   fixture.source.add(second);
   fixture.associations.set(second, { meshes: 0, primitives: 0 });

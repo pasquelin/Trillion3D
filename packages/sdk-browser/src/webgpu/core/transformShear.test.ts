@@ -9,7 +9,7 @@
 // apart to keep both files under 200 lines; the fixtures are shared by both.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { BOX_VALUES, boxTransform, determinantMatrix4 } from '../../../../sdk-core/src/index.ts';
 import { setWebgpuTransform } from '../pages/render/transform.ts';
 import { cisaillee, proche, racine, runtime, scene, versGpu } from './transformShear.fixture.ts';
@@ -33,12 +33,12 @@ test('a following image does not recompose the set matrix from position, rotatio
 });
 
 test('under a rotated and scaled parent, the obtained world stays the requested world', () => {
-  const source = new THREE.Object3D(),
-    parent = new THREE.Object3D(),
-    mesh = new THREE.Mesh();
+  const source = new G.GraphNode(),
+    parent = new G.GraphNode(),
+    mesh = G.mesh();
   mesh.name = 'cible';
   parent.position.set(2, -1, 3);
-  parent.quaternion.setFromEuler(new THREE.Euler(0.3, -0.5, 0.2));
+  parent.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.3, -0.5, 0.2)));
   parent.scale.set(2, 0.5, 4);
   parent.add(mesh);
   source.add(parent);
@@ -49,9 +49,9 @@ test('under a rotated and scaled parent, the obtained world stays the requested 
 });
 
 test('a parent itself sheared does not skew the requested world for its child', () => {
-  const source = new THREE.Object3D(),
-    parent = new THREE.Object3D(),
-    mesh = new THREE.Mesh();
+  const source = new G.GraphNode(),
+    parent = new G.GraphNode(),
+    mesh = G.mesh();
   mesh.name = 'cible';
   parent.add(mesh);
   source.add(parent);
@@ -94,10 +94,10 @@ test('the reprojected world box is the image of the local box by the sheared mat
 test('a conformal translation-rotation-scale matrix stays exact, fields included', () => {
   const { source, mesh, worlds } = scene(),
     { rt } = runtime(source, [], worlds),
-    conforme = new THREE.Matrix4().compose(
-      new THREE.Vector3(2, -1, 3),
-      new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, -0.5, 0.2)),
-      new THREE.Vector3(1.5, 1.5, 1.5),
+    conforme = new G.Matrix4().compose(
+      new G.Vector3(2, -1, 3),
+      new G.Quaternion().setFromEuler(new G.Euler(0.3, -0.5, 0.2)),
+      new G.Vector3(1.5, 1.5, 1.5),
     ),
     demandee = versGpu(conforme);
   setWebgpuTransform(rt, 'cible', demandee);
@@ -109,7 +109,7 @@ test('a conformal translation-rotation-scale matrix stays exact, fields included
 test('a negative scale keeps its negative determinant, therefore its face winding', () => {
   const { source, mesh, worlds } = scene(),
     { rt } = runtime(source, [], worlds),
-    demandee = versGpu(new THREE.Matrix4().makeScale(1, -2, 3));
+    demandee = versGpu(new G.Matrix4().makeScale(1, -2, 3));
   setWebgpuTransform(rt, 'cible', demandee);
   const monde = worlds.of(mesh);
   assert.deepEqual(Array.from(monde.elements), Array.from(demandee));

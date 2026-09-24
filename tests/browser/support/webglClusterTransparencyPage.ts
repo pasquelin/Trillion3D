@@ -1,28 +1,28 @@
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
-import { hostDiagnostics } from '../../../packages/sdk-browser/src/host/three/sceneAdapter.ts';
+import { pageDiagnostics } from '../../../packages/sdk-browser/src/host/pageDiagnostics.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { drawCoplanarBlend } from './webglClusterCoplanarBlend.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.ts';
 
 const geometry = (reverseFirst = false) => {
-  const result = new THREE.BufferGeometry();
+  const result = new G.GraphGeometry();
   result.setAttribute(
     'position',
-    new THREE.BufferAttribute(
+    new G.GraphAttribute(
       new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2, -1, -1, -2, 1, -1, -2, 0, 1, -2]),
       3,
     ),
   );
   result.setAttribute(
     'color',
-    new THREE.BufferAttribute(
+    new G.GraphAttribute(
       new Float32Array([1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]),
       3,
     ),
   );
   result.setIndex(
-    new THREE.BufferAttribute(
+    new G.GraphAttribute(
       new Uint32Array(reverseFirst ? [0, 2, 1, 3, 4, 5] : [0, 1, 2, 3, 4, 5]),
       1,
     ),
@@ -34,7 +34,7 @@ export function execute() {
   const mounted = mountClusterRenderer();
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
   const { gl, renderer, scene, drawCamera } = mounted;
-  const blend = new THREE.MeshBasicMaterial({
+  const blend = G.basicSurface({
       transparent: true,
       opacity: 0.5,
       vertexColors: true,
@@ -49,11 +49,11 @@ export function execute() {
   renderer.draw([ordered], scene, drawCamera, false, false);
   const reversedOrder = pixel(gl);
 
-  const double = new THREE.MeshBasicMaterial({
+  const double = G.basicSurface({
     transparent: true,
     opacity: 0.5,
     vertexColors: true,
-    side: THREE.DoubleSide,
+    side: G.DOUBLE_SIDE,
   });
   // The record carries the source material: its two passes are read at the draw.
   const split = clusterRecord(geometry(true), double);
@@ -64,7 +64,7 @@ export function execute() {
   clear(gl);
   const singleSubmissions = renderer.draw([split], scene, drawCamera, false, false);
 
-  const mask = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.5, alphaTest: 0.4 });
+  const mask = G.basicSurface({ color: 0xff0000, opacity: 0.5, alphaTest: 0.4 });
   const single = clusterRecord(geometry(), mask, [0], [3]);
   clear(gl);
   renderer.draw([single], scene, drawCamera, false, false);
@@ -74,10 +74,10 @@ export function execute() {
   renderer.draw([single], scene, drawCamera, false, false);
   const blendPixel = pixel(gl);
 
-  const lower = new THREE.MeshBasicMaterial({ color: 0xff0000, depthFunc: THREE.LessDepth }),
-    raised = new THREE.MeshBasicMaterial({
+  const lower = G.basicSurface({ color: 0xff0000, depthFunc: G.DEPTH_LESS }),
+    raised = G.basicSurface({
       color: 0x00ff00,
-      depthFunc: THREE.LessDepth,
+      depthFunc: G.DEPTH_LESS,
       polygonOffset: true,
       polygonOffsetFactor: 0,
       polygonOffsetUnits: -8,
@@ -107,11 +107,11 @@ export function execute() {
   drawCoplanarBlend(renderer, scene, drawCamera, geometry, clusterRecord, lower, true);
   const coplanarBlendPixel = pixel(gl);
 
-  const diagnosticGeometry = asHostLibrary<THREE.BufferGeometry>(
-      triangleGeometry(geometry(), hostDiagnostics),
+  const diagnosticGeometry = asHostLibrary<G.GraphGeometry>(
+      triangleGeometry(geometry(), pageDiagnostics),
     ),
-    diagnosticMaterial = new THREE.MeshBasicMaterial({ vertexColors: true }),
-    diagnostic = new THREE.Mesh(diagnosticGeometry, diagnosticMaterial);
+    diagnosticMaterial = G.basicSurface({ vertexColors: true }),
+    diagnostic = G.mesh(diagnosticGeometry, diagnosticMaterial);
   diagnostic.matrixAutoUpdate = false;
   clear(gl);
   const diagnosticSubmissions = renderer.draw([], scene, drawCamera, false, false, [diagnostic]);

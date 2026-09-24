@@ -1,5 +1,5 @@
 // CPU visbuffer shading, pixel by pixel.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { shadeVisibility } from '../../../packages/sdk-browser/src/visibility/shader/shade.ts';
 import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
@@ -11,7 +11,7 @@ import type { ScenePage } from './support/scenes.ts';
 const image = (
   largeur: number,
   hauteur: number,
-  material: THREE.Material,
+  material: G.GraphSurface,
   pages_?: ScenePage[],
 ) => {
   const cam = camera(6, 0.1, largeur / hauteur),
@@ -19,8 +19,8 @@ const image = (
   const pages = pages_ ?? coupe({ pages: 900, triangles: 48, material });
   return { ids: rasterVisibility(pages, cameraMoteur(cam), viewport).ids, pages, cam, viewport };
 };
-const basique = new THREE.MeshBasicMaterial({ color: 0x88aa44 });
-const standard = new THREE.MeshStandardMaterial({
+const basique = G.basicSurface({ color: 0x88aa44 });
+const standard = G.standardSurface({
   color: 0x8844aa,
   roughness: 0.4,
   metalness: 0.2,

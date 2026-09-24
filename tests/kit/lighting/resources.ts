@@ -1,4 +1,4 @@
-import type { HostNode, HostScene } from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { HostScene } from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   MAX_SURFACES,
   MAX_CACHE_DIMENSION,
@@ -29,11 +29,9 @@ const floatTexture = (data: Float32Array, width: number, height: number): Observ
  * scene, not a host library's: there is nothing in it for a host to draw.
  */
 const emptyScene = (): HostScene => ({
-  name: 'lighting-experiment',
-  visible: true,
   background: { isColor: true, r: 0, g: 0, b: 0 },
   children: [],
-  traverse(visit: (node: HostNode) => void) {
+  traverse(visit: (node: object) => void) {
     visit(this);
   },
 });

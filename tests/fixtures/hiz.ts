@@ -1,5 +1,5 @@
 import { surfaceOf } from '../../packages/sdk-browser/src/page/surface.ts';
-import * as THREE from 'three';
+import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { VisPage } from '../../packages/sdk-browser/src/visibility/buffer.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts';
@@ -11,7 +11,7 @@ import {
 } from '../../packages/sdk-browser/src/hiz/hiz.ts';
 
 export function cameraAt(z = 5, near = 0.1) {
-  const cam = new THREE.PerspectiveCamera(55, 1, near, 100);
+  const cam = G.perspectiveCamera(55, 1, near, 100);
   cam.position.z = z;
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
@@ -19,25 +19,25 @@ export function cameraAt(z = 5, near = 0.1) {
 }
 
 export function quad(
-  material: THREE.Material,
+  material: G.GraphSurface,
   min: number[],
   max: number[],
   clusterId: string,
-): { page: VisPage & HizPage; geometry: THREE.BufferGeometry } {
+): { page: VisPage & HizPage; geometry: G.GraphGeometry } {
   const z = (min[2] + max[2]) * 0.5;
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
+    G.floatAttribute(
       [min[0], min[1], z, max[0], min[1], z, max[0], max[1], z, min[0], max[1], z],
       3,
     ),
   );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   const page: VisPage & HizPage = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     material: surfaceOf(material),
     clusterId,
     min,
@@ -56,8 +56,8 @@ const boxScratch = new Float64Array(HIZ_BOUNDS_VALUES);
 export function projectBoxToScreen(
   min: number[],
   max: number[],
-  matrix: THREE.Matrix4,
-  camera: THREE.PerspectiveCamera | EngineCamera,
+  matrix: G.Matrix4,
+  camera: G.GraphCamera | EngineCamera,
   viewport: [number, number],
 ): HizBounds {
   projectBoxesFlat([{ min, max, matrix }], 1, cameraMoteur(camera), viewport, boxScratch);

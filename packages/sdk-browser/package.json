@@ -13,8 +13,5 @@
   ],
   "engines": {
     "node": ">=22.18"
-  },
-  "peerDependencies": {
-    "three": "^0.174.0"
   }
 }

@@ -5,6 +5,8 @@ use super::*;
 /// not have recognised; the whole mode is refused for those scenes, and that
 /// refusal is counted under this name.
 pub(super) const ANIMATED: &str = "autonomous-scene-animated";
+/// The name the autonomous document is published under, and the one its tables are keyed by.
+pub(super) const AUTONOMOUS_SCENE_FILE: &str = "scene.gltf";
 
 /// Does the source scene declare motion or deformation? An empty animation or
 /// skinning declares nothing: what the file carries decides, not the presence of
@@ -28,24 +30,28 @@ fn deformed(source: &Value) -> bool {
             })
 }
 
+/// What writing the autonomous scene yields: its name for the manifest (or `null`), the named reason
+/// it was refused, the document itself, and the products written.
+type AutonomousScene = (Value, Option<&'static str>, Option<Value>, Vec<Product>);
+
 /// The self-contained glTF a host loads when it draws the cache without the source: same nodes,
 /// same materials, same images, but every primitive reduced to a single degenerate triangle. The
 /// geometry itself comes from the cluster pages. `Value::Null` when the cache is not eligible, with
 /// the named reason when it is the source's own movement that puts it out of reach.
-/// The products written, `scene.bin` then `scene.gltf`, come with it.
+/// The document itself and the products written, `scene.bin` then `scene.gltf`, come with it.
 pub(super) fn write_autonomous_scene(
     directory: &Path,
     source: &Value,
     primitives: &[Value],
     output_views: &[Value],
-) -> Result<(Value, Option<&'static str>, Vec<Product>)> {
+) -> Result<AutonomousScene> {
     if !primitives.is_empty()
         && primitives
             .iter()
             .all(|primitive| primitive["pass"] == "exact-clusters")
     {
         if deformed(source) {
-            return Ok((Value::Null, Some(ANIMATED), Vec::new()));
+            return Ok((Value::Null, Some(ANIMATED), None, Vec::new()));
         }
         let mut scene = source.clone();
         let mut scene_bytes = vec![0u8; 44];
@@ -98,9 +104,13 @@ pub(super) fn write_autonomous_scene(
         }
         let products = vec![
             product(directory, "scene.bin", &scene_bytes)?,
-            product(directory, "scene.gltf", &serde_json::to_vec(&scene)?)?,
+            product(
+                directory,
+                AUTONOMOUS_SCENE_FILE,
+                &serde_json::to_vec(&scene)?,
+            )?,
         ];
-        return Ok((json!("scene.gltf"), None, products));
+        return Ok((json!(AUTONOMOUS_SCENE_FILE), None, Some(scene), products));
     }
-    Ok((Value::Null, None, Vec::new()))
+    Ok((Value::Null, None, None, Vec::new()))
 }
