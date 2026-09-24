@@ -12,6 +12,7 @@ import {
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
 import { pixelScaleOf } from '../../camera/pixelFootprint.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
+import { taaStippleWord } from '../../taa/frame.ts';
 
 /** `uni.mode` of the resolve, per diagnostic view (`../../visibility/shader/shadeWgsl.ts`); beauty is zero. */
 const SHADE_MODE: Partial<Record<DiagnosticMode, number>> = {
@@ -46,7 +47,8 @@ export function writeWebgpuVisibilityUniforms(
   const { visUniPacked, shadeUniPacked } = vis,
     [width, height] = rt.gpu.targetSize,
     { gpuFrameActive, diagnostic } = run,
-    maskOffset = run.gpuSelection?.maskOffset ?? 0;
+    maskOffset = run.gpuSelection?.maskOffset ?? 0,
+    stipple = taaStippleWord(rt);
   const visUniform = (vis.visUniform ??= device.createBuffer({
     size: slots * 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -67,6 +69,8 @@ export function writeWebgpuVisibilityUniforms(
     visInts[base + 21] = slot === 0 ? 0 : 1;
     visInts[base + 22] = gpuFrameActive ? maskOffset : 0;
     visInts[base + 23] = gpuFrameActive ? 1 : 0;
+    // Cutout stipple rank (`STIPPLE_WGSL`): zero when the image does not accumulate.
+    visInts[base + 24] = stipple;
   }
   device.queue.writeBuffer(visUniform, 0, visUniPacked);
   const shadeUniform = (vis.shadeUniform ??= device.createBuffer({
