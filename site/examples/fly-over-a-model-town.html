@@ -163,15 +163,6 @@
         return [Math.round(x), [60, 62, 65, 68, 70, 70, 68, 68, 72, 85][index], Math.round(z)];
       });
       const HOOP = 30;
-      // The ground under a point: a roof, the runway, the water or the terrain, and whether a
-      // jet may touch down there. Off the map there is none.
-      function groundAt(x, z, roofs = []) {
-        for (const [bx, bz, hx, hz, top] of roofs) if (Math.abs(x - bx) < hx && Math.abs(z - bz) < hz) return [top, false];
-        if (Math.abs(x) < 17 && Math.abs(z) < 550) return [0.15, true];
-        if (Math.max(Math.abs(x), Math.abs(z)) > SIZE / 2) return [-Infinity, false];
-        const [, height, , , up] = sample(x, z);
-        return height < WATER ? [WATER, false] : [height, up > 0.97];
-      }
       const G = 9.81, GEAR = 1.95;
       // Speeds in metres per second: the slowest a flying jet goes, where the wing stalls, where
       // it lifts off, what idle holds in the air, full military power, full afterburner, Mach 1.
@@ -195,21 +186,11 @@
       // never a stall; in Expert the airframe's limit, the wing stalling past what it gives.
       const loadCap = (S, expert) => (expert ? MAX_G : math.clamp(liftG(S.v), 1, PILOT_G));
       const pitchLimit = (S, expert) => (S.onGround ? 10 * deg : Math.min(PITCH_RATE * authority(S.v), (loadCap(S, expert) * G) / Math.max(S.v, 1)) * (expert ? S.soft : 1));
-      // Quaternions as [x, y, z, w], the engine's order; a turn `b` after `a` is `qmul(a, b)`.
-      const qmul = (a, b) => [
-        a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
-        a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
-        a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
-        a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
-      ];
-      const qaxis = (x, y, z, angle) => [x * Math.sin(angle / 2), y * Math.sin(angle / 2), z * Math.sin(angle / 2), Math.cos(angle / 2)];
-      const qconj = ([x, y, z, w]) => [-x, -y, -z, w];
-      const qnorm = (q) => q.map((v) => v / Math.hypot(...q));
-      const qblend = (a, b, t) => qnorm(a.map((v, i) => v + ((a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3] < 0 ? -b[i] : b[i]) - v) * t));
-      function rotate([x, y, z, w], [vx, vy, vz]) {
-        const tx = 2 * (y * vz - z * vy), ty = 2 * (z * vx - x * vz), tz = 2 * (x * vy - y * vx);
-        return [vx + w * tx + y * tz - z * ty, vy + w * ty + z * tx - x * tz, vz + w * tz + x * ty - y * tx];
-      }
+      // Turns are the engine's quaternions (`math.quaternion`): a turn `b` after `a` is
+      // `a.multiply(b)`, `b` before it `a.premultiply(b)`, the turn undone `a.invert()` — each in
+      // place, so a turn still needed is cloned first. Vectors stay [x, y, z].
+      const axisTurn = (x, y, z, angle) => math.quaternion().setFromAxisAngle(math.vector3(x, y, z), angle);
+      const rotate = (q, [x, y, z]) => math.vector3(x, y, z).applyQuaternion(q).toArray();
       const wrap = (angle) => angle - 2 * Math.PI * Math.round(angle / (2 * Math.PI));
       const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
       // The attitude read off the axes, in radians: no angle is integrated, so it holds upside
@@ -223,10 +204,10 @@
           heading: (Math.atan2(forward[0], -forward[2]) + 2 * Math.PI) % (2 * Math.PI),
         };
       }
-      const level = (heading, pitch = 0) => qmul(qaxis(0, 1, 0, -heading), qaxis(1, 0, 0, pitch));
+      const level = (heading, pitch = 0) => axisTurn(0, 1, 0, -heading).multiply(axisTurn(1, 0, 0, pitch));
       function createFlight() {
         return {
-          pos: [0, 0, 0], q: [0, 0, 0, 1], aim: [0, 0, 0, 1], v: 0, throttle: 0, burner: false, braking: false,
+          pos: [0, 0, 0], q: math.quaternion(), aim: math.quaternion(), v: 0, throttle: 0, burner: false, braking: false,
           onGround: true, gearDown: true, stalling: false, crashed: false, load: 1, vel: [0, 0, 0], rates: [0, 0, 0],
           stick: [0, 0, 0], rest: 0, lookYaw: 0, lookPitch: 0, mouseX: 0, mouseY: 0,
           virtual: [0, 0], soft: 1, dropSide: 1, ownThrottle: false, pullUp: false, climb: 0,
@@ -237,7 +218,7 @@
       // In the air at `at`, level towards `toward`, cruising: where a crash sends the jet back to.
       function launch(S, at, toward, speed) {
         const q = level(Math.atan2(toward[0] - at[0], at[2] - toward[2]));
-        Object.assign(S, createFlight(), { pos: at.slice(), q, aim: q, v: speed, throttle: 0.6, onGround: false, gearDown: false });
+        Object.assign(S, createFlight(), { pos: at.slice(), q, aim: q.clone(), v: speed, throttle: 0.6, onGround: false, gearDown: false });
         S.vel = rotate(q, [0, 0, -speed]);
       }
       // The mouse moves the aim: sideways about the vertical while the aim is upright, about its
@@ -247,21 +228,21 @@
       // impossible one. At rest it drifts gently back onto the nose, and rolls upright.
       function aimBy(S, dx, dy, dt) {
         const upright = rotate(S.aim, [0, 1, 0])[1] > 0.2;
-        S.aim = upright ? qmul(qaxis(0, 1, 0, -dx), S.aim) : qmul(S.aim, qaxis(0, 1, 0, -dx));
-        S.aim = qnorm(qmul(S.aim, qaxis(1, 0, 0, -dy)));
+        const sideways = axisTurn(0, 1, 0, -dx);
+        (upright ? S.aim.premultiply(sideways) : S.aim.multiply(sideways)).multiply(axisTurn(1, 0, 0, -dy)).normalize();
         const nose = rotate(S.q, [0, 0, -1]), aim = rotate(S.aim, [0, 0, -1]), off = Math.acos(math.clamp(dot(nose, aim), -1, 1));
         const back = off > ARCADE.cone ? off - ARCADE.cone : S.rest > 0.5 ? off * (1 - Math.exp(-dt / 2)) : 0;
         const axis = [aim[1] * nose[2] - aim[2] * nose[1], aim[2] * nose[0] - aim[0] * nose[2], aim[0] * nose[1] - aim[1] * nose[0]], length = Math.hypot(...axis);
-        if (back > 0 && length > 1e-9) S.aim = qnorm(qmul(qaxis(...axis.map((v) => v / length), back), S.aim));
+        if (back > 0 && length > 1e-9) S.aim.premultiply(axisTurn(...axis.map((v) => v / length), back)).normalize();
         const { pitch, bank } = attitude(S.aim);
-        if (Math.abs(pitch) < 60 * deg && (upright || S.rest > 0.5)) S.aim = qnorm(qmul(S.aim, qaxis(0, 0, 1, bank * (1 - Math.exp(-dt * 3)))));
+        if (Math.abs(pitch) < 60 * deg && (upright || S.rest > 0.5)) S.aim.multiply(axisTurn(0, 0, 1, bank * (1 - Math.exp(-dt * 3)))).normalize();
       }
       // THE INSTRUCTOR (Arcade): the stick that brings the nose onto the aim. The nose turns about
       // the axis from it to the aim at a rate proportional to the angle, split into pitch and yaw;
       // the wings bank to what that turn needs — the bank whose lift turns the path at the rate
       // the heading error asks, within the wing's load and 70° — and level within 2° of the aim.
       function instructor(S) {
-        const [x, y, z] = rotate(qconj(S.q), rotate(S.aim, [0, 0, -1]));
+        const [x, y, z] = rotate(S.q.clone().invert(), rotate(S.aim, [0, 0, -1]));
         const off = Math.acos(math.clamp(-z, -1, 1)), { bank, pitch: climb, heading } = attitude(S.q), a = authority(S.v);
         const across = Math.hypot(x, y) || 1, rate = off / ARCADE.nose, aimed = attitude(S.aim);
         const pitch = math.clamp((rate * y) / across / pitchLimit(S, false), -0.5, 1);
@@ -292,7 +273,7 @@
           // The mouse's speed is the pitch rate, three times it the roll rate.
           const fade = Math.exp(-dt / STICK_CENTRE), reach = [pitchLimit(S, true), ROLL_RATE * authority(S.v)];
           S.virtual = [math.clamp(S.virtual[0] * fade - my / STICK_CENTRE / reach[0], -1, 1), math.clamp(S.virtual[1] * fade - (3 * mx) / STICK_CENTRE / reach[1], -1, 1)];
-          S.aim = S.q.slice();
+          S.aim = S.q.clone();
           stick = [S.virtual[0], 0, math.clamp(S.virtual[1] + key('KeyA') - key('KeyD'), -1, 1)];
         } else {
           aimBy(S, mx, my, dt);
@@ -314,8 +295,8 @@
       // What the controller does not know: engine and gravity along the path, the stall, the
       // ground, the gear, and the load the turn puts on the pilot.
       function physics(S, input, dt, ground, from, before) {
-        const keys = input.keys, expert = input.mode === 'expert', turn = qmul(qconj(before), S.q), s = (turn[3] < 0 ? -2 : 2) / dt;
-        S.rates = [turn[0] * s, turn[1] * s, turn[2] * s];
+        const keys = input.keys, expert = input.mode === 'expert', turn = before.clone().invert().multiply(S.q), s = (turn.w < 0 ? -2 : 2) / dt;
+        S.rates = [turn.x * s, turn.y * s, turn.z * s];
         const pushed = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
         S.ownThrottle ||= Boolean(pushed) && !S.onGround;
         S.throttle = math.clamp(S.throttle + pushed * 0.6 * dt, 0, 1);
@@ -335,9 +316,10 @@
         S.stalling = lost > 0;
         const nose = attitude(S.q).forward, across = Math.hypot(nose[0], nose[2]);
         if (S.stalling) {
-          if (across > 1e-3 && nose[1] > -0.8) S.q = qnorm(qmul(qaxis(nose[2] / across, 0, -nose[0] / across, 1.2 * (0.35 + lost) * dt), S.q));
-          S.q = qnorm(qmul(S.q, qaxis(0, 0, 1, S.dropSide * 1.5 * lost * dt)));
-          if (Math.abs(S.stick[1]) > 0.5 && lost > 0.5) S.q = qnorm(qmul(qaxis(0, 1, 0, Math.sign(S.stick[1]) * 2 * lost * dt), qmul(S.q, qaxis(0, 0, 1, Math.sign(S.stick[1]) * 2 * lost * dt))));
+          if (across > 1e-3 && nose[1] > -0.8) S.q.premultiply(axisTurn(nose[2] / across, 0, -nose[0] / across, 1.2 * (0.35 + lost) * dt)).normalize();
+          S.q.multiply(axisTurn(0, 0, 1, S.dropSide * 1.5 * lost * dt)).normalize();
+          const spin = Math.sign(S.stick[1]) * 2 * lost * dt;
+          if (Math.abs(S.stick[1]) > 0.5 && lost > 0.5) S.q.multiply(axisTurn(0, 0, 1, spin)).premultiply(axisTurn(0, 1, 0, spin)).normalize();
           S.pos[1] -= 16 * lost * dt;
         }
         // Past the pilot's limit the stick softens in the ratio he is over it.
@@ -394,17 +376,17 @@
       // integration of the jet's pose (`integrate`), then the physics. Returns where it came from.
       function advance(S, integrate, controls, camera, input, dt, ground) {
         if (!(dt > 0)) return null;
-        const from = S.pos.slice(), before = S.q.slice(), a = authority(S.v), stick = steer(S, input, dt), expert = input.mode === 'expert';
+        const from = S.pos.slice(), before = S.q.clone(), a = authority(S.v), stick = steer(S, input, dt), expert = input.mode === 'expert';
         const settings = {
           movementSpeed: S.v, pitchSpeed: pitchLimit(S, expert), yawSpeed: S.onGround ? GROUND_YAW : YAW_RATE * a, rollSpeed: expert ? ROLL_RATE * a : Math.min(ROLL_RATE * a, ARCADE.roll),
           pitchInput: stick[0], yawInput: stick[1], rollInput: stick[2],
         };
         for (const [name, value] of Object.entries(settings)) if (controls[name] !== value) controls[name] = value;
         camera.position.set(...S.pos);
-        camera.quaternion.set(...S.q);
+        camera.quaternion.copy(S.q);
         integrate(dt);
         S.pos = [camera.position.x, camera.position.y, camera.position.z];
-        S.q = qnorm([camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w]);
+        S.q = camera.quaternion.clone().normalize();
         physics(S, input, dt, ground, from, before);
         return from;
       }
@@ -437,7 +419,7 @@
       const STICK_PIVOT = [0, -0.69, -0.3], GRIP = [[0, 0.34, -0.04], [0, 0.45, -0.022]], GRIP_RADIUS = 0.03;
       const stickTilt = ([pitchInput, , rollInput]) => [(pitchInput > 0 ? 0.12 : 0.06) * pitchInput, 0.15 * rollInput];
       function gripPoints([tiltX, tiltZ]) {
-        const turn = qmul(qaxis(1, 0, 0, tiltX), qaxis(0, 0, 1, tiltZ)), ways = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+        const turn = axisTurn(1, 0, 0, tiltX).multiply(axisTurn(0, 0, 1, tiltZ)), ways = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
         return GRIP.flatMap((end) => ways.map((way) => rotate(turn, end.map((v, i) => v + way[i] * GRIP_RADIUS)).map((v, i) => v + STICK_PIVOT[i])));
       }
       // The perspective map of the unit square onto a quad (top-left, clockwise) — eight
@@ -463,7 +445,6 @@
       }
       // A screen's corners, top-left first, clockwise: where its picture is laid each frame.
       const screenCorners = ({ at: [x, y], size: [w, h] }) => [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([sx, sy]) => [x + (sx * w) / 2, y + (sy * h) / 2, PANEL_Z + 0.0135]);
-      const qFromTo = (a, b) => qnorm([a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0], 1 + a[0] * b[0] + a[1] * b[1] + a[2] * b[2]]);
       // THE COCKPIT, built from the engine's shapes: `matter(kind)` gives each kind its material.
       // Returns the group and the parts that move: the stick, the throttle, the gauges' needles.
       function buildCockpit({ geometry, object, math }, matter) {
@@ -501,7 +482,7 @@
         const rod = (a, b, radius, kind, parent = root) => {
           const d = b.map((v, i) => v - a[i]), length = Math.hypot(...d);
           const mesh = put(geometry.capsule(radius, length, 3, 10), kind, a.map((v, i) => (v + b[i]) / 2), [0, 0, 0], parent);
-          mesh.quaternion.set(...qFromTo([0, 1, 0], d.map((v) => v / length)));
+          mesh.quaternion.setFromUnitVectors(math.vector3(0, 1, 0), math.vector3(...d).normalize());
           return mesh;
         };
         const lathe = (profile, kind, [x, y, z], [width, height], from = 0, arc = 2 * Math.PI) => {
@@ -596,7 +577,7 @@
       }
       // A world point on the screen, in pixels from its centre (y down); null behind the eye.
       function project(point, eye, turn, f) {
-        const [x, y, z] = rotate(qconj(turn), point.map((v, i) => v - eye[i]));
+        const [x, y, z] = rotate(turn.clone().invert(), point.map((v, i) => v - eye[i]));
         return z < -1e-6 ? [(f * x) / -z, (-f * y) / -z] : null;
       }
       // The pitch ladder is conformal: the rung for elevation `e` lies on the vertical through
@@ -621,7 +602,7 @@
       const CELLS = 150, STEP = SIZE / CELLS;
       const grid = [];
       for (let i = 0; i <= CELLS; i++) for (let j = 0; j <= CELLS; j++) grid.push(sample(i * STEP - SIZE / 2, j * STEP - SIZE / 2));
-      const bands = [[], [], [], []];
+      const bands = [[], [], [], []], land = [];
       const bandOf = (height, up, x, z) => {
         const ragged = 45 * Math.sin(x / 61) * Math.sin(z / 47);
         if (height > 430 + ragged && up > 0.6) return 3;
@@ -641,13 +622,14 @@
         const position = new Float32Array(count * 3), normal = new Float32Array(count * 3);
         for (let v = 0; v < count; v++) position.set(flat.subarray(v * 6, v * 6 + 3), v * 3), normal.set(flat.subarray(v * 6 + 3, v * 6 + 6), v * 3);
         const shape = geometry.createBuffer({ position: buffer.float32(position, 3), normal: buffer.float32(normal, 3), index: buffer.uint32(Array.from({ length: count }, (_, v) => v)) });
-        world.scene.add(object.mesh(shape, matte(colour, index === 3 ? 0.6 : 0.92)));
+        land.push(place(shape, matte(colour, index === 3 ? 0.6 : 0.92), [0, 0, 0]));
       });
-      place(geometry.plane(SIZE, SIZE), material.meshStandard({ color: '#3f7394', metalness: 0.1, roughness: 0.18 }), [0, WATER, 0]).rotation.set(-Math.PI / 2, 0, 0);
+      const water = place(geometry.plane(SIZE, SIZE), material.meshStandard({ color: '#3f7394', metalness: 0.1, roughness: 0.18 }), [0, WATER, 0]);
+      water.rotation.set(-Math.PI / 2, 0, 0);
 
       // The airfield: a runway with its centre line and thresholds, a hangar beside it.
       const paint = matte('#f1efe8', 0.6);
-      place(geometry.box(34, 0.3, 1100), matte('#3b3d42', 0.9), [0, 0, 0]);
+      const runway = place(geometry.box(34, 0.3, 1100), matte('#3b3d42', 0.9), [0, 0, 0]);
       for (let z = -500; z <= 500; z += 52) place(geometry.box(1.2, 0.05, 24), paint, [0, 0.17, z]);
       for (const end of [-530, 530]) for (let k = -3; k <= 3; k++) if (k) place(geometry.box(2.2, 0.05, 30), paint, [k * 4, 0.17, end]);
       place(geometry.box(30, 14, 24), matte('#b9b2a4', 0.7), [-70, 7, 380]);
@@ -656,19 +638,30 @@
       // The town: blocks of five colours with dark roofs, a church tower in the middle. Each
       // block is kept as ground for the jet: a roof it cannot land on.
       const walls = ['#e6dac4', '#c9785a', '#8fa3b8', '#d9b86a', '#b9c7a3'].map((colour) => matte(colour, 0.7));
-      const roofs = matte('#4a3d3a', 0.55), block = geometry.box(1, 1, 1), buildings = [];
+      const roofs = matte('#4a3d3a', 0.55), block = geometry.box(1, 1, 1), town = object.group();
+      world.scene.add(town);
       for (let x = 330; x <= 690; x += 34)
         for (let z = -650; z <= -150; z += 34) {
           if (next() < 0.3 || Math.hypot(x - 510, z + 400) < 30) continue;
           const [width, depth, height] = [14 + next() * 10, 14 + next() * 10, 8 + next() ** 2 * 38];
           place(block, walls[Math.floor(next() * 5)], [x, height / 2, z]).scale.set(width, height, depth);
-          place(block, roofs, [x, height + 0.6, z]).scale.set(width + 1, 1.2, depth + 1);
-          buildings.push([x, z, width / 2 + 0.5, depth / 2 + 0.5, height + 1.2]);
+          place(block, roofs, [x, height + 0.6, z], town).scale.set(width + 1, 1.2, depth + 1);
         }
-      place(geometry.box(12, 46, 12), walls[0], [510, 23, -400]);
-      place(geometry.cone(8.5, 26, 4), roofs, [510, 59, -400]).rotation.y = Math.PI / 4;
-      buildings.push([510, -400, 6, 6, 72]);
-      const ground = (x, z) => groundAt(x, z, buildings);
+      place(geometry.box(12, 46, 12), walls[0], [510, 23, -400], town);
+      place(geometry.cone(8.5, 26, 4), roofs, [510, 59, -400], town).rotation.y = Math.PI / 4;
+      // THE GROUND under a point, found by the engine's raycast straight down on what the valley
+      // is built of — the terrain, the water, the runway, the roofs — at once, on the triangles
+      // drawn: its height, and whether a jet may touch down there, the runway or a flat stretch
+      // of land. Off the map there is none. The town's roofs and tower are tested only by a ray
+      // that enters their box.
+      const open = [...land, water, runway], built = [...open, town], townBox = math.box3().setFromObject(town);
+      const down = math.ray(math.vector3(), math.vector3(0, -1, 0)), entry = math.vector3();
+      function ground(x, z) {
+        down.origin.set(x, 10000, z);
+        const hit = world.raycast(down, { objects: down.intersectBox(townBox, entry) ? built : open });
+        if (!hit) return [-Infinity, false];
+        return [hit.point.y, hit.object === runway || (land.includes(hit.object) && hit.normal.y > 0.97)];
+      }
 
       // Forests on the lower slopes, none on the canyon floor, and round trees along the river.
       const pines = [matte('#2f5a33', 0.9), matte('#3b6a38', 0.9)], pine = geometry.cone(4, 14, 7);
@@ -852,7 +845,7 @@
       // made or dropped in flight.
       const TRAIL = 22, streak = geometry.box(0.25, 0.06, 3.2), mist = sheer('#ffffff', 0.45);
       const trails = TIPS.map(() => Array.from({ length: TRAIL }, () => place(streak, mist, [0, -500, 0])));
-      const history = Array.from({ length: TRAIL }, () => ({ at: TIPS.map(() => [0, -500, 0]), turn: [0, 0, 0, 1] }));
+      const history = Array.from({ length: TRAIL }, () => ({ at: TIPS.map(() => [0, -500, 0]), turn: math.quaternion() }));
 
       // THE COCKPIT, the seat the pilot's eye sits in, riding the jet: from inside, the jet's own
       // hull is hidden and the cockpit draws the hull beside the seat and the nose. Its matter
@@ -1337,12 +1330,12 @@
       const SENSITIVITY = { Low: 0.6, Medium: 1, High: 1.6 };
       let view = 'cockpit', chosenView = 'cockpit', phase = 'flying', crashTime = 0, passedCount = 0, lastRing = null, fuel = FUEL;
       let airborne = false, elapsed = 0, finished = null, time = 0, zoom = 22, prevMach = 0, coneAge = Infinity, lastTrail = 0, headYaw = 0;
-      let chaseTurn = [0, 0, 0, 1];
+      let chaseTurn = math.quaternion();
       function restart() {
         for (const ring of rings) [ring.done, ring.todo.visible, ring.passed.visible] = [false, true, false];
         [passedCount, lastRing, airborne, elapsed, finished, phase, fuel] = [0, null, false, 0, null, 'flying', FUEL];
         park(S);
-        chaseTurn = S.aim.slice();
+        chaseTurn = S.aim.clone();
         banner('');
         world.invalidate();
       }
@@ -1350,7 +1343,7 @@
         const ahead = rings.findIndex((ring) => !ring.done);
         if (lastRing === null) park(S);
         else launch(S, COURSE[lastRing], COURSE[ahead < 0 ? (lastRing + 1) % COURSE.length : ahead], 170);
-        chaseTurn = S.aim.slice();
+        chaseTurn = S.aim.clone();
         phase = 'flying';
         banner('');
       }
@@ -1379,9 +1372,9 @@
         cockpit.visible = fill.visible = true;
         const eye = S.pos.map((p, i) => p + rotate(S.q, EYE)[i]);
         cockpit.position.set(...eye);
-        cockpit.quaternion.set(...S.q);
+        cockpit.quaternion.copy(S.q);
         camera.position.set(...eye);
-        camera.quaternion.set(...qmul(S.q, qaxis(1, 0, 0, -LOOK_DOWN)));
+        camera.quaternion.copy(S.q).multiply(axisTurn(1, 0, 0, -LOOK_DOWN));
         [camera.near, camera.fov] = [COCKPIT_NEAR, COCKPIT_FOV];
       }
       restart();
@@ -1416,7 +1409,7 @@
       addEventListener('contextmenu', (event) => game.running && event.preventDefault());
       function setView(next) {
         view = next;
-        chaseTurn = S.aim.slice();
+        chaseTurn = S.aim.clone();
       }
 
       // TEST MODE, `?input=free`, served from this machine only — a loopback address or a name
@@ -1520,10 +1513,10 @@
         cockpit.visible = cockpitView && phase === 'flying';
         if (fill.visible !== cockpit.visible) fill.visible = cockpit.visible;
         jet.position.set(...S.pos);
-        jet.quaternion.set(...S.q);
+        jet.quaternion.copy(S.q);
         const eye = S.pos.map((p, i) => p + rotate(S.q, EYE)[i]);
         cockpit.position.set(...eye);
-        cockpit.quaternion.set(...S.q);
+        cockpit.quaternion.copy(S.q);
         gear.visible = S.gearDown;
         const [pitchStick, yawStick, rollStick] = S.stick;
         ailerons.forEach((pivot, side) => (pivot.rotation.x = (side ? 0.35 : -0.35) * rollStick));
@@ -1544,7 +1537,7 @@
           lastTrail = time;
           const oldest = history.pop();
           TIPS.forEach((tip, side) => (oldest.at[side] = S.pos.map((p, i) => p + rotate(S.q, tip)[i])));
-          oldest.turn = S.q.slice();
+          oldest.turn.copy(S.q);
           history.unshift(oldest);
         }
         const streaming = phase === 'flying' && S.load > 5;
@@ -1553,7 +1546,7 @@
             if (strip.visible !== streaming) strip.visible = streaming;
             if (!streaming) return;
             strip.position.set(...history[k].at[side]);
-            strip.quaternion.set(...history[k].turn);
+            strip.quaternion.copy(history[k].turn);
             strip.scale.setScalar(1 - k / TRAIL);
           }),
         );
@@ -1572,25 +1565,25 @@
         // load, the afterburner, the runway and the stall. Exterior: behind and above the jet
         // along the aim, following it on a quarter-second spring, pulled back with speed and
         // the wheel.
-        const [aimX, , aimZ] = rotate(qconj(S.q), rotate(S.aim, [0, 0, -1]));
+        const [aimX, , aimZ] = rotate(S.q.clone().invert(), rotate(S.aim, [0, 0, -1]));
         headYaw += (math.clamp(-Math.atan2(aimX, -aimZ) * 0.3, -10 * deg, 10 * deg) - headYaw) * (1 - Math.exp(-dt * 4));
-        const look = qmul(qaxis(0, 1, 0, S.lookYaw), qaxis(1, 0, 0, S.lookPitch));
+        const look = axisTurn(0, 1, 0, S.lookYaw).multiply(axisTurn(1, 0, 0, S.lookPitch));
         const rough = 0.0025 * Math.max(0, S.load - 3) + (S.burner ? 0.002 : 0) + (S.onGround ? 0.003 * Math.min(1, S.v / 80) : 0) + (S.stalling ? 0.004 : 0);
         const shake = rotate(S.q, [Math.sin(time * 41) * rough, Math.sin(time * 37 + 1) * rough, 0]);
         let eyeAt, turn;
         if (cockpitView) {
-          turn = qmul(S.q, qmul(qaxis(0, 1, 0, headYaw), qmul(qaxis(1, 0, 0, -LOOK_DOWN), look)));
+          turn = S.q.clone().multiply(axisTurn(0, 1, 0, headYaw)).multiply(axisTurn(1, 0, 0, -LOOK_DOWN)).multiply(look);
           eyeAt = eye.map((p, i) => p + shake[i]);
           [camera.near, camera.fov] = [COCKPIT_NEAR, COCKPIT_FOV + 4 * smooth(100, 400, S.v)];
         } else {
-          chaseTurn = qblend(chaseTurn, qmul(S.aim, look), 1 - Math.exp(-dt / 0.25));
+          chaseTurn.slerp(S.aim.clone().multiply(look), 1 - Math.exp(-dt / 0.25));
           turn = chaseTurn;
           const back = rotate(turn, [0, 3.4, zoom * (1 + 0.3 * smooth(100, 400, S.v))]);
           eyeAt = S.pos.map((p, i) => p + back[i] + shake[i] * 4);
           [camera.near, camera.fov] = [0.5, 60 + 10 * smooth(100, 400, S.v) + (S.burner ? 5 : 0)];
         }
         camera.position.set(...eyeAt);
-        camera.quaternion.set(...turn);
+        camera.quaternion.copy(turn);
         const W = innerWidth, H = innerHeight, f = H / 2 / Math.tan((camera.fov * deg) / 2);
         pilot.perPx = (2 * Math.atan((W / 2 / f))) / W;
         // Past the pilot's 9 g the view reddens from its edges.
