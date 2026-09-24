@@ -7,7 +7,6 @@ import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
   TILE_POOL_WGSL,
-  maskAlphaWgsl,
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts';
@@ -45,7 +44,6 @@ ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}
 ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
-${maskAlphaWgsl(false)}
 ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
 ${SHADE_REQUEST_WGSL}
@@ -55,10 +53,9 @@ ${SURFACE_MODEL_SHADE_WGSL}
 // The fifth output is the tile rank this pixel asks of virtual textures, placed in the
 // feedback target that transparents complete and that a compute pass reduces into counters.
 struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) request:u32,}
-/** A surface with nothing to light — background, or a cutout that drops it —: its tile request
- *  stays, the raster that kept the pixel reads the same map, and it is this pixel that names it. */
-fn cutSurface(request:u32)->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,request);}
-fn emptySurface()->SurfaceOut{return cutSurface(0u);}
+/** A surface with nothing to light and nothing to ask: a triangle index past its page. The
+ *  cutout is the raster's alone (maskKeep), never tested again here. */
+fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,0u);}
 /** A diagnostic keeps the request: its textures converge like those of the image. */
 fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
 fn framebuffer(clip:vec4f)->vec3f{

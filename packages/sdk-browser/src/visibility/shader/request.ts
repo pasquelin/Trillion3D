@@ -13,7 +13,7 @@ import type { WebgpuLightState } from '../../webgpu/pages/state/lights.ts';
  * cascades: the triangle is projected into the cascade, the coordinate derivative per shadow
  * texel comes out — the affine `dpdx` of the shadow pass — and the requested rank is that of
  * this level — the isotropic one, as the shadow pass's cutout reads it (`maskAlpha`); the camera
- * cutout of a masked material shares the base map's pixels with its shading (`mapRequest`).
+ * cutout reads the base map as the shading does, and asks what the shading asks (`mapRequest`).
  * Cascades are the sun slice as lighting reads it
  * (`../../lighting/direct/shadowWgsl.ts`), copied into the pass uniform: binding the slice buffer would give
  * it one more lifetime on the bind group — rebuilt when a shadow is born or dies —
@@ -55,7 +55,7 @@ fn shadeRequest(page:PageInfo,h:ClusterHeader,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:v
   let g=cascadeGradient(p.sel-MAP_CHOICES,w0,w1,w2,pageUv(page,h,i1)-uva,pageUv(page,h,i2)-uva,wp);
   if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,g.xy,g.zw,p.next,1u,false,HAS_SAMPLING);}
  }
- return mapRequest(p,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,ddx,ddy,HAS_MASK,HAS_SAMPLING);
+ return mapRequest(p,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,ddx,ddy,HAS_SAMPLING);
 }`;
 
 /**
