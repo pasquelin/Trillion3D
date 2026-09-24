@@ -21,11 +21,11 @@ export function createWaterStep() {
     time = 0;
   const words = new StepWords();
   return {
-    /** Declares the water (null removes it); its waves start at `time` seconds. */
-    set(spec: WaterSpec | null, start = 0) {
+    /** Declares the water (null removes it); its waves start at 0 s. */
+    set(spec: WaterSpec | null) {
       water = spec ? createWater(spec) : null;
       cut = water ? sliceLength(water) : 0;
-      time = start;
+      time = 0;
     },
     /** One step of `jolt` by `dt` seconds, `queued` being the page's commands: the pose count. */
     step(jolt: JoltModule, queued: Uint32Array | null, dt: number) {

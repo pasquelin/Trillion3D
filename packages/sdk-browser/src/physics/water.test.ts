@@ -27,7 +27,7 @@ test('a body above the water falls as without water', async () => {
   assert.deepEqual(await alone(high, CALM, 30), dry);
 });
 
-test('a wooden cube rests at the draft its density gives, a cork ball higher', async () => {
+test('a wooden cube rests at the draft its density gives, a lighter ball rises from it', async () => {
   // 600 kg/m³: 0.6 m of a 1 m cube under water, its centre 0.1 m below the surface.
   const wood = await alone(floater(0, [0, -0.1, 0], 600, cube(0.5)), CALM, 30);
   assert.ok(Math.abs(wood.y + 0.1) < 0.002 && Math.abs(wood.vy) < 0.01, `wood at ${wood.y}`);

@@ -92,9 +92,9 @@ uint32_t runBuoyancy(const uint32_t *w) {
       if (!body || !body->IsDynamic()) continue;
       const Shape *shape = body->GetShape();
       uint32_t index = plane[1] & 0xFFFFu, pieces = plane[1] >> 16;
-      bool compound = shape->GetType() == EShapeType::Compound;
-      if (index >= pieces || pieces != (compound ? countOf(shape, 0) : std::min(pieces, MAX_SLICES)))
-        continue;
+      // A stale record (the body's shape changed since the query) names no piece of it.
+      uint32_t limit = shape->GetType() == EShapeType::Compound ? countOf(shape, 0) : MAX_SLICES;
+      if (index >= pieces || pieces > limit) continue;
       Piece piece = pieceOf(shape, index, pieces);
       Plane surface = Plane::sFromPointAndNormal(Vec3(vec3(plane + 2) - body->GetCenterOfMassPosition()),
                                                  vec3(plane + 5).NormalizedOr(Vec3::sAxisY()));
