@@ -3439,7 +3439,7 @@
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
       "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
-      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나."
+      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나. `texturePoolBytes`에서 차감됩니다."
     }
   },
   "TextureLayout": {
@@ -3995,7 +3995,7 @@
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
       "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
-      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나.",
+      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나. `texturePoolBytes`에서 차감됩니다.",
       "gpuAllocatedBytes": "기기상의, 모든 리소스에 걸친 현재 활성 할당 바이트 수.",
       "gpuAllocatedByLabel": "리소스 라벨별로 묶은 할당 바이트 수. 라벨이 없는 할당은 'unlabeled'로 묶인다.",
       "gpuAllocationsUnknownFormat": "인식되지 않는 포맷을 가진 텍스처 수. 기대값은 0.",

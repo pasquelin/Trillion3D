@@ -3439,7 +3439,7 @@
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
       "textureScratchBuilds": "構築された作業用テクスチャ数。",
-      "textureLiveBytes": "ライブテクスチャが保持するバイト数。それぞれ自身のサイズの作業用テクスチャを1つ持ちます。"
+      "textureLiveBytes": "ライブテクスチャが保持するバイト数。それぞれ自身のサイズの作業用テクスチャを1つ持ちます。`texturePoolBytes` から差し引かれます。"
     }
   },
   "TextureLayout": {
@@ -3995,7 +3995,7 @@
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
       "textureScratchBuilds": "構築された作業用テクスチャ数。",
-      "textureLiveBytes": "ライブテクスチャが保持するバイト数。それぞれ自身のサイズの作業用テクスチャを1つ持ちます。",
+      "textureLiveBytes": "ライブテクスチャが保持するバイト数。それぞれ自身のサイズの作業用テクスチャを1つ持ちます。`texturePoolBytes` から差し引かれます。",
       "gpuAllocatedBytes": "デバイス上の、すべてのリソースにわたる現在の割り当てバイト数。",
       "gpuAllocatedByLabel": "リソースラベルごとにまとめた割り当てバイト数。ラベルのない割り当ては'unlabeled'にまとめられる。",
       "gpuAllocationsUnknownFormat": "認識できないフォーマットを持つテクスチャの数。期待値は0。",

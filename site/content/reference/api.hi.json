@@ -3520,7 +3520,7 @@
       "textureLevelsDecoded": "डीकोड किए स्तर।",
       "textureLevelCacheBytes": "रखे गए डीकोड किए स्तरों के बाइट।",
       "textureScratchBuilds": "बनाए वर्किंग टेक्स्चर।",
-      "textureLiveBytes": "जीवंत टेक्सचर जितने बाइट रखते हैं: हर एक का अपने आकार का एक कार्य-टेक्सचर।"
+      "textureLiveBytes": "जीवंत टेक्सचर जितने बाइट रखते हैं: हर एक का अपने आकार का एक कार्य-टेक्सचर। `texturePoolBytes` से घटाए जाते हैं।"
     }
   },
   "TextureLayout": {
@@ -3980,7 +3980,7 @@
       "textureLevelsDecoded": "डीकोड किए स्तर।",
       "textureLevelCacheBytes": "रखे गए डीकोड किए स्तरों के बाइट।",
       "textureScratchBuilds": "बनाए वर्किंग टेक्स्चर।",
-      "textureLiveBytes": "जीवंत टेक्सचर जितने बाइट रखते हैं: हर एक का अपने आकार का एक कार्य-टेक्सचर।",
+      "textureLiveBytes": "जीवंत टेक्सचर जितने बाइट रखते हैं: हर एक का अपने आकार का एक कार्य-टेक्सचर। `texturePoolBytes` से घटाए जाते हैं।",
       "gpuAllocatedBytes": "डिवाइस पर सभी संसाधनों में सक्रिय आवंटित बाइट।",
       "gpuAllocatedByLabel": "संसाधन लेबल के हिसाब से समूहित आवंटित बाइट। बिना लेबल आवंटन 'unlabeled' में समूहित हैं।",
       "gpuAllocationsUnknownFormat": "अनजान फ़ॉर्मैट वाले टेक्स्चर की गिनती। उम्मीद का मान 0 है।",
