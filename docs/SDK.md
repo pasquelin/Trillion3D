@@ -111,10 +111,18 @@ resolves is queued and drawn once it does. The SDK has no asset URL default: a h
 for a full cache); a pointer or manifest of another scope is rejected with `SCOPE_MISMATCH`.
 
 `scene.load(url, { onProgress })` reports how far a load has got, with the `JobProgress` shape
-`createJob` uses: `{ phase: 'manifest' }` once the manifest is read, then
-`{ phase: 'resources', completed, total, message }` as each file the scene reads lands — `total`
-grows as the scene finds files to read, and the last event has `completed === total`. The first
-pages follow the load: `await world.awaitPages()` settles once they are resident.
+`createJob` uses. `{ phase: 'bytes', completed, total }` is heard from the moment the manifest is read:
+`total` is then every file the manifest declares, at once, and each chunk of every file the load
+reads adds to `completed`, whatever the server says of its length or compression. The share
+`completed / total` never goes down, and the last event, once the files the load did not need are
+dropped, has `completed === total`; a manifest that declares no file is heard once, whole, at the end. Between them come `{ phase: 'manifest' }` once the manifest is read,
+`{ phase: 'tables' }` once the scene tables are, then `{ phase: 'resources', completed, total }`
+as each file the scene reads lands. The first pages follow the load:
+`await world.awaitPages({ onProgress })` settles once the pages the view reads are resident, and
+reports `{ phase: 'pages', completed, total }` as each one it lacked lands (`total` counts each
+page once), the last event with
+`completed === total`. One callback given to both drives a progress bar from the first byte to
+the first pages (example `watch-a-world-load`).
 
 A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
 calls `assertCachePointer(pointer, scope)` and `assertCacheReady(metadata, scope)` on the two JSON
@@ -443,7 +451,7 @@ world.controls.pushStrength = 400; // a stronger push
 
 **Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` — `throttle`, `brake`, `steer`,
 `handbrake` — and hands it to `world.controls.vehicle.drive(input)` each time it changes. Any object
-with `drive` can be driven; the physics' own vehicles arrive with #398. Setting `kind = 'vehicle'`
+with `drive` can be driven; the physics' own vehicles arrive with #501. Setting `kind = 'vehicle'`
 while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move the camera.
 
 ### Picking, moving and saving
@@ -1042,5 +1050,6 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
   landing, which then runs in slow motion for a short moment; the page's `physics` stage is
   0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
-  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints, vehicles, soft bodies, cooked colliders and
-  loaded models as bodies arrive with the next physics issues (#396, #398–#400).
+  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints and cooked
+  colliders are here (above), not measured at this scale; advanced joints arrive with #500, the
+  physics' own vehicles with #501, soft bodies with #399.

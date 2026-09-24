@@ -1811,6 +1811,26 @@
       "sound": "M Ton"
     }
   },
+  "watch-a-world-load": {
+    "banner": "Sieh zu, wie sich der Balken füllt, während die Welt ankommt. Drücke Neu laden, um es ab dem ersten Byte zu sehen.",
+    "controls": {
+      "loadAgain": "Neu laden"
+    },
+    "readouts": {
+      "phase": "Schritt",
+      "bytes": "Bytes",
+      "pages": "Erste Seiten"
+    },
+    "words": {
+      "credit": "Urnenallee für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md",
+      "bytes": "Bytes werden gelesen",
+      "manifest": "Manifest gelesen",
+      "tables": "Szenentabellen gelesen",
+      "resources": "Dateien der Szene",
+      "pages": "erste Seiten",
+      "ready": "bereit"
+    }
+  },
   "waves-of-points": {
     "banner": "Ziehe, um das Feld zu umkreisen. Wähle ein Muster, um die Wellen zu ändern.",
     "controls": {

@@ -11,25 +11,29 @@ import { composesWithBackground } from '../../scene/materialBlending.ts';
  *  resolve class or which pass draws the surface. */
 const VALUES = new Set(['color', 'emissive', 'emissiveIntensity', 'metalness', 'roughness']);
 
-/** One parameter value as a key: a texture by identity and its three counters, a colour or a
- *  vector by its numbers, anything else by its own value. */
-function valueKey(value: unknown): string {
+/** One parameter value as a key: a texture by identity and its three counters — its picture's
+ *  `version` left out when `pictures` is false —, a colour or a vector by its numbers, anything
+ *  else by its own value. */
+function valueKey(value: unknown, pictures = true): string {
   if (value === null || typeof value !== 'object') return String(value);
   const shaped = value as Partial<Texture> & { isTexture?: boolean };
-  if (shaped.isTexture)
-    return `texture:${shaped.id}@${shaped.version}.${shaped.sampling}.${shaped.placement}`;
-  if (Array.isArray(value)) return `[${value.map(valueKey).join(',')}]`;
+  if (shaped.isTexture) {
+    const version = pictures ? shaped.version : '';
+    return `texture:${shaped.id}@${version}.${shaped.sampling}.${shaped.placement}`;
+  }
+  if (Array.isArray(value)) return `[${value.map((each) => valueKey(each, pictures)).join(',')}]`;
   const numbers = Object.entries(value).filter(([, field]) => typeof field === 'number');
   return `{${numbers.map(([name, field]) => `${name}:${field}`).join(',')}}`;
 }
 
 /** The material's parameters as one string, by name; `values` false leaves the value fields out,
- *  which is what two materials must share for one to be repainted into the other's entry. */
-function materialKey(material: Material, values = true) {
+ *  which is what two materials must share for one to be repainted into the other's entry;
+ *  `pictures` false leaves out what its textures' pictures are at. */
+function materialKey(material: Material, values = true, pictures = true) {
   const fields = Object.keys(material)
     .filter((name) => !MATERIAL_BOOKKEEPING.has(name) && (values || !VALUES.has(name)))
     .sort()
-    .map((name) => `${name}=${valueKey(material[name])}`);
+    .map((name) => `${name}=${valueKey(material[name], pictures)}`);
   return fields.join(';');
 }
 
@@ -48,10 +52,10 @@ export type MaterialEntry = { readonly id: number; key: string; readonly materia
  * The material table of a world. Materials of identical parameters are one entry, however many
  * objects the page made; an entry is a copy taken when it was made, so a material written after
  * it was placed moves its wearers to the entry of its new parameters and leaves the old one as it
- * was — copy on write. One exception keeps a live edit off the session's reopening (#335): an
- * opaque entry that only one material object resolves to, written on its value fields alone, is
- * REPAINTED — its copy takes the new values in place and `takeRepainted` names it, for the
- * session to rewrite what reads it. `counts.duplicates` says how often the table folded one
+ * was — copy on write. Two exceptions keep a live edit off the session's reopening: an opaque
+ * entry that only one material object resolves to, written on its value fields alone (#335), and
+ * any entry whose textures' pictures alone moved (#362), are REPAINTED — the entry keeps its
+ * place under its new key and `takeRepainted` names it, for the session to rewrite what reads it. `counts.duplicates` says how often the table folded one
  * material onto an entry another material had made.
  */
 export function createWorldMaterials() {
@@ -65,9 +69,9 @@ export function createWorldMaterials() {
   const counts = { duplicates: 0 };
   let ids = 0;
   /** Writes `material`'s values into its sole entry, when nothing but values changed. */
-  const repaint = (material: Material, entry: MaterialEntry, key: string) => {
+  const repaintValues = (material: Material, entry: MaterialEntry) => {
     const only = sources.get(entry);
-    if (only?.size !== 1 || !only.has(material) || entries.has(key)) return false;
+    if (only?.size !== 1 || !only.has(material)) return false;
     if (!opaque(material) || !opaque(entry.material)) return false;
     if (materialKey(material, false) !== materialKey(entry.material, false)) return false;
     for (const field of VALUES) {
@@ -75,6 +79,16 @@ export function createWorldMaterials() {
       if (value instanceof Color) (entry.material[field] as Color).copy(value);
       else entry.material[field] = value;
     }
+    return true;
+  };
+  /** Keeps `material` on its entry under its new key, when only values changed, or only the
+   *  pictures of its textures — which the entry's copy shares, so every wearer sees them, blended
+   *  or shared: a video's frame, a canvas redrawn (#362). */
+  const repaint = (material: Material, entry: MaterialEntry, key: string) => {
+    if (entries.has(key)) return false;
+    const pictures =
+      materialKey(material, true, false) === materialKey(entry.material, true, false);
+    if (!pictures && !repaintValues(material, entry)) return false;
     entries.delete(entry.key);
     entries.set((entry.key = key), entry);
     repainted.add(entry);

@@ -1659,7 +1659,7 @@
       "scope": "`'full'`はキャッシュ全体を要求し、`'progressive'`はそのストリーミングされた断片を要求する; 別の範囲のモデルは名前によって拒否される。指定がなければ、モデルはそのポインターが宣言する範囲で読まれる。",
       "stream": "ページが設定したストリーマー; 世界のセッションは自分自身のもので配信する。",
       "position": "モデルの原点がシーンのどこに置かれるか。",
-      "onProgress": "読み込みの進み具合を受け取る: マニフェストを読んだ時点で `manifest`、その後シーンが読む各ファイルが届くたびに `resources`(その時点で分かっている `total` のうちの `completed`)。イベントは `JobProgress` で、読み込みを包む `createJob` は自分の `progress` をここに渡す。"
+      "onProgress": "読み込みの進み具合を受け取ります。読む各ファイルのチャンクごとに `bytes`（`completed === total` まで）、マニフェストを読んだら `manifest`、シーンのテーブルを読んだら `tables`、続いてシーンが読む各ファイルが届くたびに `resources`（それまでに分かっている `total` のうち `completed`）。イベントは `JobProgress` です。読み込みを包む `createJob` はここに自分の `progress` を渡し、`world.awaitPages` は最初のページを同じ形で報告します。"
     }
   },
   "LoadedModel": {
@@ -3448,7 +3448,8 @@
       "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。固定予算のもとで。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
-      "textureScratchBuilds": "構築された作業用テクスチャ数。"
+      "textureScratchBuilds": "構築された作業用テクスチャ数。",
+      "textureLiveBytes": "ライブテクスチャが保持するバイト数。それぞれ自身のサイズの作業用テクスチャを1つ持ちます。`texturePoolBytes` から差し引かれます。"
     }
   },
   "TextureLayout": {
@@ -3903,7 +3904,10 @@
     "summary": "セッションのフレームの、段階ごとのプロファイル。"
   },
   "world.awaitPages": {
-    "summary": "現在のビューが読むページが常駐した時点で解決される(`awaitViewPages`)。"
+    "summary": "現在のビューが読むページが常駐した時点で解決される(`awaitViewPages`)。",
+    "parameters": {
+      "options": "`onProgress` は、ページが届くたびに `pages`（`total` のうち `completed`）を受け取ります。"
+    }
   },
   "world.dispose": {
     "summary": "世界を止め、それが取得したすべて(GPUメモリ、ループ、コントロール)を返す。"
@@ -4004,6 +4008,7 @@
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
       "textureScratchBuilds": "構築された作業用テクスチャ数。",
+      "textureLiveBytes": "ライブテクスチャが保持するバイト数。それぞれ自身のサイズの作業用テクスチャを1つ持ちます。`texturePoolBytes` から差し引かれます。",
       "gpuAllocatedBytes": "デバイス上の、すべてのリソースにわたる現在の割り当てバイト数。",
       "gpuAllocatedByLabel": "リソースラベルごとにまとめた割り当てバイト数。ラベルのない割り当ては'unlabeled'にまとめられる。",
       "gpuAllocationsUnknownFormat": "認識できないフォーマットを持つテクスチャの数。期待値は0。",
@@ -6441,7 +6446,7 @@
   },
   "texture": {
     "summary": "`texture`ファミリー: 画像と、それがどうサンプリングされるか。",
-    "description": "カラー画像はsRGB、データ画像は線形; ピクセルを書き込んだ後の`needsUpdate`により、サンプラーがそれらを読み直す。"
+    "description": "カラー画像はsRGB、データ画像は線形です。ピクセルを書き込んだ後の`needsUpdate`によりサンプラーがそれらを読み直し、GPU上にすでにあるテクスチャへその場でコピーされます。作り直すのはサイズが変わったときだけです。動画はライブで、フレームは自動で届きます。"
   },
   "texture.image": {
     "summary": "すでにページ内にある画像からのカラーテクスチャ: 画像、ビットマップ、あるいはビデオフレーム。",
@@ -6460,12 +6465,14 @@
   },
   "texture.canvas": {
     "summary": "canvasが保持しているものを表示するテクスチャ。",
+    "description": "キャンバスに描き直した後に`needsUpdate`を設定します。新しいピクセルはGPU上にすでにあるテクスチャへコピーされ、何も作り直されません。",
     "parameters": {
       "c": "表示するcanvas。"
     }
   },
   "texture.video": {
-    "summary": "再生中の動画を表示するテクスチャ。",
+    "summary": "再生中の動画、または動画で再生したカメラ映像を表示するテクスチャ。",
+    "description": "新しいフレームはそれぞれGPU上にすでにあるテクスチャへ自動でコピーされます。一時停止中の動画には何のコストもかかりません。",
     "parameters": {
       "v": "表示する動画。"
     }

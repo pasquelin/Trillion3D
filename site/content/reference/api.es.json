@@ -2901,7 +2901,7 @@
       "scope": "`'full'` solicita toda la caché, `'progressive'` su fracción en flujo; un modelo de otro alcance se rechaza por su nombre. Sin valor, el modelo se lee con el alcance que declara su puntero.",
       "stream": "Un flujo que la página ha ajustado; la sesión del mundo hace llegar las páginas con el suyo.",
       "position": "A dónde va el origen del modelo en la escena.",
-      "onProgress": "Escucha cuánto ha avanzado la carga: `manifest` una vez leído el manifiesto, luego `resources` a medida que llega cada archivo que lee la escena (`completed` de un `total` conocido hasta ese momento). El evento es un `JobProgress`: un `createJob` que envuelve la carga pasa aquí su `progress`."
+      "onProgress": "Escucha cuánto ha avanzado la carga: `bytes` en cada trozo de cada archivo leído, hasta `completed === total`; `manifest` una vez leído el manifiesto, `tables` una vez leídas las tablas de la escena, y luego `resources` al llegar cada archivo que lee la escena (`completed` de `total` conocido hasta ahora). El evento es un `JobProgress`: un `createJob` que envuelve la carga pasa aquí su `progress`, y `world.awaitPages` informa de las primeras páginas con la misma forma."
     }
   },
   "LOD_QUALITY": {
@@ -5685,7 +5685,7 @@
   },
   "texture": {
     "summary": "La familia `texture`: una imagen y la forma de muestrearla.",
-    "description": "Las imágenes de color están en sRGB, las imágenes de datos en lineal; `needsUpdate` después de escribir los píxeles hace que se vuelvan a leer."
+    "description": "Las imágenes de color están en sRGB, las de datos en lineal; `needsUpdate` tras escribir los píxeles hace que los muestreadores los vuelvan a leer, copiados en su sitio en la textura que ya está en la GPU — solo un tamaño nuevo la reconstruye. Un vídeo está vivo: sus fotogramas llegan solos."
   },
   "texture.image": {
     "summary": "Una textura de color a partir de una imagen ya en la página: una imagen, un bitmap o una imagen de vídeo.",
@@ -5704,12 +5704,14 @@
   },
   "texture.canvas": {
     "summary": "Una textura que muestra lo que contiene un lienzo.",
+    "description": "Después de volver a dibujar en el lienzo, pon `needsUpdate`: los píxeles nuevos se copian en la textura que ya está en la GPU, sin reconstruir nada.",
     "parameters": {
       "c": "El lienzo a mostrar."
     }
   },
   "texture.video": {
-    "summary": "Una textura que muestra un vídeo en reproducción.",
+    "summary": "Una textura que muestra un vídeo en reproducción, o el flujo de una cámara reproducido en un vídeo.",
+    "description": "Cada fotograma nuevo se copia solo en la textura que ya está en la GPU; un vídeo en pausa no cuesta nada.",
     "parameters": {
       "v": "El vídeo a mostrar."
     }
@@ -5839,7 +5841,8 @@
       "textureLevelReads": "Las fuentes. `textureLevelReads`: niveles horneados en curso de lectura en la caché. `textureLevelsDecoded`: niveles horneados decodificados desde el inicio. `textureLevelCacheBytes`: bytes del host de los niveles decodificados conservados para recortar de ahí otras teselas, bajo un presupuesto fijo. `textureScratchBuilds`: texturas de trabajo construidas para una textura sin cadena horneada, toda la fuente cada vez.",
       "textureLevelsDecoded": "Niveles decodificados.",
       "textureLevelCacheBytes": "Bytes de los niveles decodificados conservados.",
-      "textureScratchBuilds": "Texturas temporales construidas."
+      "textureScratchBuilds": "Texturas temporales construidas.",
+      "textureLiveBytes": "Bytes que guardan las texturas vivas: una textura de trabajo cada una, de su propio tamaño. Se descuentan de `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -6409,7 +6412,10 @@
     "summary": "Abre una nueva ventana de `cpuSteps()`."
   },
   "world.awaitPages": {
-    "summary": "Termina cuando las páginas que lee la vista actual son residentes (`awaitViewPages`)."
+    "summary": "Termina cuando las páginas que lee la vista actual son residentes (`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress` escucha `pages`, `completed` de `total`, a medida que llegan."
+    }
   },
   "world.dispose": {
     "summary": "Detiene el mundo y devuelve todo lo que tomó: memoria de GPU, bucle, controles."
@@ -6510,6 +6516,7 @@
       "textureLevelsDecoded": "Niveles decodificados.",
       "textureLevelCacheBytes": "Bytes de los niveles decodificados conservados.",
       "textureScratchBuilds": "Texturas temporales construidas.",
+      "textureLiveBytes": "Bytes que guardan las texturas vivas: una textura de trabajo cada una, de su propio tamaño. Se descuentan de `texturePoolBytes`.",
       "gpuAllocatedBytes": "Bytes asignados activos en el dispositivo, todos los recursos juntos.",
       "gpuAllocatedByLabel": "Bytes asignados agrupados por etiqueta de recurso. Las asignaciones sin etiqueta se agrupan bajo 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Número de texturas con formatos no reconocidos. El valor esperado es 0.",

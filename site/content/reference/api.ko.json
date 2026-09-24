@@ -1659,7 +1659,7 @@
       "scope": "`'full'`은 캐시 전체를 요구하고, `'progressive'`는 그 스트리밍된 조각을 요구한다; 다른 범위의 모델은 이름으로 거부된다. 설정되지 않으면 모델은 그 포인터가 선언하는 범위로 읽힌다.",
       "stream": "페이지가 구성한 스트리머; 월드의 세션은 자신만의 것으로 스트리밍한다.",
       "position": "모델의 원점이 씬 안 어디에 놓이는가.",
-      "onProgress": "로딩이 얼마나 진행됐는지 듣는다: 매니페스트를 읽으면 `manifest`, 이어서 씬이 읽는 각 파일이 도착할 때마다 `resources`(그때까지 알려진 `total` 중 `completed`). 이벤트는 `JobProgress`이며, 로딩을 감싼 `createJob`은 자신의 `progress`를 여기에 넘긴다."
+      "onProgress": "로드가 어디까지 왔는지 듣습니다. 읽는 모든 파일의 조각마다 `bytes`(`completed === total`까지), 매니페스트를 읽으면 `manifest`, 씬 테이블을 읽으면 `tables`, 그다음 씬이 읽는 파일이 도착할 때마다 `resources`(지금까지 알려진 `total` 중 `completed`). 이벤트는 `JobProgress`입니다. 로드를 감싸는 `createJob`은 여기에 자신의 `progress`를 넘기고, `world.awaitPages`는 첫 페이지들을 같은 형태로 알립니다."
     }
   },
   "LoadedModel": {
@@ -3448,7 +3448,8 @@
       "textureLevelReads": "출처들. `textureLevelReads`: 캐시에서 읽히고 있는 베이크된 레벨. `textureLevelsDecoded`: 시작 이후 디코딩된 베이크된 레벨. `textureLevelCacheBytes`: 고정된 예산 아래, 추가 타일을 잘라내기 위해 보관되는 디코딩된 레벨의 호스트 바이트 수. `textureScratchBuilds`: 베이크된 체인이 없는 텍스처를 위해 매번 원본 전체로부터 만들어지는 작업용 텍스처 수.",
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
-      "textureScratchBuilds": "만들어진 작업용 텍스처 수."
+      "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
+      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나. `texturePoolBytes`에서 차감됩니다."
     }
   },
   "TextureLayout": {
@@ -3903,7 +3904,10 @@
     "summary": "세션 프레임들의 단계별 프로파일."
   },
   "world.awaitPages": {
-    "summary": "현재 뷰가 읽는 페이지들이 상주하게 되면 이행된다(`awaitViewPages`)."
+    "summary": "현재 뷰가 읽는 페이지들이 상주하게 되면 이행된다(`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress`는 페이지가 도착할 때마다 `pages`(`total` 중 `completed`)를 듣습니다."
+    }
   },
   "world.dispose": {
     "summary": "월드를 멈추고 그것이 가져간 모든 것(GPU 메모리, 루프, 컨트롤)을 돌려준다."
@@ -4004,6 +4008,7 @@
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
       "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
+      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나. `texturePoolBytes`에서 차감됩니다.",
       "gpuAllocatedBytes": "기기상의, 모든 리소스에 걸친 현재 활성 할당 바이트 수.",
       "gpuAllocatedByLabel": "리소스 라벨별로 묶은 할당 바이트 수. 라벨이 없는 할당은 'unlabeled'로 묶인다.",
       "gpuAllocationsUnknownFormat": "인식되지 않는 포맷을 가진 텍스처 수. 기대값은 0.",
@@ -6441,7 +6446,7 @@
   },
   "texture": {
     "summary": "`texture` 계열: 이미지와 그것이 샘플링되는 방식.",
-    "description": "색상 이미지는 sRGB, 데이터 이미지는 선형; 픽셀을 쓴 뒤의 `needsUpdate`는 샘플러가 그것들을 다시 읽게 한다."
+    "description": "색상 이미지는 sRGB, 데이터 이미지는 선형입니다. 픽셀을 쓴 뒤의 `needsUpdate`는 샘플러가 그것들을 다시 읽게 하며, GPU에 이미 있는 텍스처에 제자리에서 복사됩니다. 크기가 바뀔 때만 다시 만듭니다. 동영상은 라이브이며, 프레임이 저절로 도착합니다."
   },
   "texture.image": {
     "summary": "이미 페이지 안에 있는 그림으로 만든 색상 텍스처: 이미지, 비트맵, 또는 비디오 프레임.",
@@ -6460,12 +6465,14 @@
   },
   "texture.canvas": {
     "summary": "캔버스가 담고 있는 것을 보여주는 텍스처.",
+    "description": "캔버스에 다시 그린 뒤 `needsUpdate`를 설정하세요. 새 픽셀은 GPU에 이미 있는 텍스처에 복사되며, 아무것도 다시 만들지 않습니다.",
     "parameters": {
       "c": "보여줄 캔버스."
     }
   },
   "texture.video": {
-    "summary": "재생 중인 비디오를 보여주는 텍스처.",
+    "summary": "재생 중인 동영상, 또는 동영상으로 재생한 카메라 스트림을 보여 주는 텍스처.",
+    "description": "새 프레임마다 GPU에 이미 있는 텍스처에 저절로 복사됩니다. 일시 정지된 동영상은 비용이 들지 않습니다.",
     "parameters": {
       "v": "보여줄 비디오."
     }

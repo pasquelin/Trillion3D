@@ -1811,6 +1811,26 @@
       "sound": "M có tiếng"
     }
   },
+  "watch-a-world-load": {
+    "banner": "Xem thanh đầy dần khi thế giới đến. Bấm Tải lại để xem từ byte đầu tiên.",
+    "controls": {
+      "loadAgain": "Tải lại"
+    },
+    "readouts": {
+      "phase": "Bước",
+      "bytes": "Byte",
+      "pages": "Trang đầu tiên"
+    },
+    "words": {
+      "credit": "Đại lộ bình được làm bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md",
+      "bytes": "đang đọc byte",
+      "manifest": "đã đọc manifest",
+      "tables": "đã đọc bảng cảnh",
+      "resources": "tệp của cảnh",
+      "pages": "trang đầu tiên",
+      "ready": "sẵn sàng"
+    }
+  },
   "waves-of-points": {
     "banner": "Kéo để xoay quanh cánh đồng. Chọn một mẫu để đổi các con sóng.",
     "controls": {
