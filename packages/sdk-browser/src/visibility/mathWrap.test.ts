@@ -5,7 +5,7 @@
 // independently; it is the oracle already checked against real WebGL2 and WebGPU samplers by
 // `tests/browser/probes/addressing-gpu.ts`, reused here to sweep cases that the frozen values
 // do not write explicitly.
-import { importWrapMode } from '../host/surfaceImport.ts';
+import { importWrapMode } from '../host/textureImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
