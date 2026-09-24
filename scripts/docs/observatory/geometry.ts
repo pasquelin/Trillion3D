@@ -71,10 +71,19 @@ export function createWorkshop() {
     flutes = 0,
     segments = 64,
   ) {
+    const profile = (v: number) => radius * (1 - 0.12 * v + 0.035 * Math.sin(v * Math.PI));
+    if (!flutes) {
+      const points = Array.from(
+        { length: 25 },
+        (_, j) => [profile(j / 24), (j / 24) * height] as const,
+      );
+      add(material, geometry.lathe(points, segments).translate(center[0], center[1], center[2]));
+      return;
+    }
+    // Flutes ripple the radius round the shaft, which a lathe profile cannot carry.
     patch(material, segments, 24, (u, v) => {
       const angle = u * Math.PI * 2;
-      const profile = radius * (1 - 0.12 * v + 0.035 * Math.sin(v * Math.PI));
-      const r = profile * (1 + (flutes ? 0.06 * Math.cos(angle * flutes) : 0));
+      const r = profile(v) * (1 + 0.06 * Math.cos(angle * flutes));
       return [
         center[0] + r * Math.cos(angle),
         center[1] + v * height,
