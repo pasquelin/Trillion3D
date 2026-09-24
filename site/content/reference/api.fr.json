@@ -2298,18 +2298,7 @@
     "summary": "Copie une caméra du moteur dans une autre, qui garde alors la vue au bit près."
   },
   "HostAttribute": {
-    "summary": "Un attribut de sommets d’une géométrie de l’hôte, entrelacé ou non : sa disposition et son stockage.",
-    "members": {
-      "isBufferAttribute": "Levé par l’hôte quand l’attribut possède son tampon au lieu de regarder dans un tampon partagé et entrelacé. Seul le contrôle d’admission le lit : le décodage propre au moteur est le même dans les deux cas, pas la liaison du programme WebGL2 autonome.",
-      "itemSize": "Nombres par sommet.",
-      "count": "Combien de sommets.",
-      "normalized": "Si les entiers se lisent de 0 à 1.",
-      "array": "Le stockage.",
-      "getX": "Composante d’un élément, désentrelacée et dénormalisée par l’hôte.",
-      "getY": "Deuxième composante d’un élément.",
-      "getZ": "Troisième composante d’un élément.",
-      "getW": "Quatrième composante d’un élément."
-    }
+    "summary": "Un attribut de sommets d’une géométrie de l’hôte, entrelacé ou non : sa disposition et son stockage."
   },
   "HostAttributes": {
     "summary": "Les attributs nommés d’une géométrie de l’hôte.",
@@ -2368,32 +2357,17 @@
     "summary": "Une géométrie de l’hôte qu’une vue de diagnostic peut libérer.",
     "members": {
       "attributes": "Ses attributs de sommets.",
-      "boundingBox": "La boîte locale calculée par l’hôte.",
       "dispose": "Le libère."
     }
   },
   "HostDiagnosticMaterial": {
     "summary": "Une surface de l’hôte qu’une vue de diagnostic échange sur un maillage, puis libère : ce qu’elle accroche arrive par `HostDiagnosticFactory`, jamais par un import, donc aucune vue ne nomme une bibliothèque de rendu.",
     "members": {
-      "version": "Augmenté par l’hôte à chaque changement : ce qu’une rangée en cache compare pour refaire ses champs.",
-      "visible": "S’il est dessiné.",
       "side": "Quelles faces, selon la constante de l’hôte.",
-      "forceSinglePass": "L’hôte dessine une surface transparente à deux faces en une passe au lieu de l’arrière puis l’avant.",
-      "vertexColors": "Si les couleurs des sommets le teintent.",
-      "toneMapped": "Si la courbe d’affichage s’applique.",
-      "depthTest": "L’état de rastérisation que l’hôte déclare avec la surface, et que suivent les pipelines du moteur.",
-      "depthWrite": "S’il écrit la profondeur.",
-      "depthFunc": "La comparaison du test de profondeur.",
-      "colorWrite": "S’il écrit la couleur.",
-      "polygonOffset": "Si la profondeur est décalée.",
-      "polygonOffsetFactor": "Partie pente du décalage.",
-      "polygonOffsetUnits": "Partie constante du décalage.",
-      "transparent": "S’il se mélange.",
-      "opacity": "À quel point il est opaque.",
-      "alphaTest": "Alpha en dessous duquel les pixels disparaissent.",
       "dispose": "Le libère.",
       "clone": "Une copie de la surface."
-    }
+    },
+    "description": "Les vues de diagnostic servent aussi les témoins, dont les maillages sont ceux de leur bibliothèque : ce qu’ils accrochent arrive par `HostDiagnosticFactory`, et ils ne sont lus que par cette forme."
   },
   "HostDisposable": {
     "summary": "Une ressource de l’hôte que le moteur libère quand le graphe d’où elle vient est relâché : une géométrie, une surface, une texture.",
@@ -2422,67 +2396,23 @@
     }
   },
   "HostGeometry": {
-    "summary": "Une géométrie de l’hôte : ses attributs, et la boîte locale que l’hôte a calculée dessus.",
-    "members": {
-      "attributes": "Ses attributs de sommets.",
-      "boundingBox": "La boîte locale calculée par l’hôte."
-    }
+    "summary": "Une géométrie de l’hôte : ses attributs, et la boîte locale que l’hôte a calculée dessus."
   },
   "HostGraphNode": {
     "summary": "Un nœud du graphe de l’hôte tel que le voit un parcours : son identité, sa pose locale, la matrice du monde que l’hôte a résolue pour lui, et sa chaîne.",
-    "description": "Le moteur calcule ses PROPRES matrices du monde à partir des poses locales (`../world/tree.ts`) ; `matrixWorld` est lue là où c’est la résolution propre à l’HÔTE qu’une frontière lui rend. POURQUOI `HostPlaced` (`../resources.ts`) DÉCRIT AUSSI UN NŒUD PLACÉ. Les deux ne sont pas une copie : ils s’appuient sur les deux résolutions différentes qu’offre un hôte. `HostPlaced` demande `updateWorldMatrix(ancestors, descendants)` — la chaîne d’UN nœud, ce que remontent un placement et un parcours de visibilité ; celui-ci demande `updateMatrixWorld(force)` — le SOUS-ARBRE sous un nœud, ce que résolvent en un appel un parcours, une union de limites et une réplication. Un hôte qui n’offre que l’une des deux ne satisfait que le contrat auquel il répond, donc aucun ne peut remplacer l’autre.",
-    "members": {
-      "parent": "Son parent.",
-      "position": "Où il se tient.",
-      "quaternion": "Les deux faces de la rotation d’un nœud — le quaternion que compare le moteur, et les angles d’Euler qui s’y recopient — chacune ANNONÇANT ses propres écritures : un rappel que l’hôte enchaîne déjà, qu’un crochet prolonge au lieu de le remplacer (`hooks.ts`). Les deux membres soulignés sont un privé de la bibliothèque de l’hôte, donc ils sont écrits ici, là où le crochet en a besoin, sans recevoir de nom à eux. Cela garde le privé hors de la liste des contrats publiés du SDK ; cela ne le garde PAS hors de la surface publiée, puisque `HostGraphNode` le porte. Comparer la pose à chaque image, comme le fait déjà le parcours, est ce qui supprimerait ce couplage — ce n’est pas le travail de ce lot.",
-      "rotation": "Comment il est tourné, en angles.",
-      "scale": "Comment il est étiré.",
-      "matrixAutoUpdate": "Faux quand l’hôte a réglé `matrix` lui-même : la matrice EST la pose et rien ne la recompose.",
-      "matrix": "Sa matrice locale.",
-      "matrixWorld": "Sa matrice dans le monde.",
-      "userData": "Là où le moteur marque une copie à lui, que l’hôte n’a jamais vue et ne peut pas écrire.",
-      "traverse": "Le sous-arbre sous le nœud, lui d’abord, dans l’ordre propre à l’hôte.",
-      "updateMatrixWorld": "Résout les matrices dans le monde du sous-arbre DANS LE GRAPHE DE L’HÔTE, pour les propres lecteurs de l’hôte."
-    }
+    "description": "Le moteur calcule ses PROPRES matrices du monde à partir des poses locales (`../world/tree.ts`) ; `matrixWorld` est lue là où c’est la résolution propre à l’HÔTE qu’une frontière lui rend. POURQUOI `HostPlaced` (`../resources.ts`) DÉCRIT AUSSI UN NŒUD PLACÉ. Les deux ne sont pas une copie : ils s’appuient sur les deux résolutions différentes qu’offre un hôte. `HostPlaced` demande `updateWorldMatrix(ancestors, descendants)` — la chaîne d’UN nœud, ce que remontent un placement et un parcours de visibilité ; celui-ci demande `updateMatrixWorld(force)` — le SOUS-ARBRE sous un nœud, ce que résolvent en un appel un parcours, une union de limites et une réplication. Un hôte qui n’offre que l’une des deux ne satisfait que le contrat auquel il répond, donc aucun ne peut remplacer l’autre."
   },
   "HostMaterial": {
-    "summary": "Un matériau de l’hôte tel que le lit le moteur : les paramètres de surface que partage tout matériau de l’hôte, lus une fois à la frontière dans le `VisMaterial` du moteur ; seul `sideOf` lit `side`.",
-    "members": {
-      "version": "Augmenté par l’hôte à chaque changement : ce qu’une rangée en cache compare pour refaire ses champs.",
-      "visible": "S’il est dessiné.",
-      "side": "Quelles faces, selon la constante de l’hôte.",
-      "forceSinglePass": "L’hôte dessine une surface transparente à deux faces en une passe au lieu de l’arrière puis l’avant.",
-      "vertexColors": "Si les couleurs des sommets le teintent.",
-      "toneMapped": "Si la courbe d’affichage s’applique.",
-      "depthTest": "L’état de rastérisation que l’hôte déclare avec la surface, et que suivent les pipelines du moteur.",
-      "depthWrite": "S’il écrit la profondeur.",
-      "depthFunc": "La comparaison du test de profondeur.",
-      "colorWrite": "S’il écrit la couleur.",
-      "polygonOffset": "Si la profondeur est décalée.",
-      "polygonOffsetFactor": "Partie pente du décalage.",
-      "polygonOffsetUnits": "Partie constante du décalage.",
-      "transparent": "S’il se mélange.",
-      "opacity": "À quel point il est opaque.",
-      "alphaTest": "Alpha en dessous duquel les pixels disparaissent."
-    }
+    "summary": "Un matériau de l’hôte tel que le lit le moteur : les paramètres de surface que partage tout matériau de l’hôte, lus une fois à la frontière dans le `VisMaterial` du moteur ; seul `sideOf` lit `side`."
   },
   "HostMaterials": {
     "summary": "Ce que déclare une surface : un matériau, ou un par groupe de la géométrie."
   },
   "HostMesh": {
-    "summary": "Un maillage de l’hôte, tenu par son identité : l’enregistrement de dessin, la table transparente et les ensembles de sélection nomment la surface qu’a placée l’hôte.",
-    "description": "Son nom est lu, et sa chaîne d’ancêtres quand il faut distinguer un sous-arbre déplacé du reste (`../webgpu/pages/render/transform.ts`) ; rien d’autre.",
-    "members": {
-      "name": "Le nom que l’hôte lui donne.",
-      "parent": "Son parent, quand on remonte l’arbre."
-    }
+    "summary": "Un maillage de l’hôte, tenu par son identité : l’enregistrement de dessin, la table transparente et les ensembles de sélection nomment la surface qu’a placée l’hôte."
   },
   "HostNode": {
-    "summary": "Un nœud du graphe de scène de l’hôte, tenu par son identité et par les deux champs dont un parcours a besoin.",
-    "members": {
-      "name": "Le nom que l’hôte lui donne.",
-      "visible": "S’il est dessiné."
-    }
+    "summary": "Un nœud du graphe de scène de l’hôte, tenu par son identité et par les deux champs dont un parcours a besoin."
   },
   "HostNodeMatrix": {
     "summary": "Les mêmes seize flottants, MODIFIABLES terme à terme : la pose qu’une frontière remet sur un nœud de l’hôte ou sur une caméra de l’hôte qu’elle restaure.",
@@ -2527,49 +2457,16 @@
     "summary": "Le graphe d’affichage de l’hôte dans lequel dessine un moteur : ce qu’il contient, comment on le parcourt, et la couleur de fond que lit la composition.",
     "description": "Le moteur écrit le sien comme un `GraphScene` (`graph/scene.ts`).",
     "members": {
-      "name": "Le nom que l’hôte lui donne.",
-      "visible": "S’il est dessiné.",
       "traverse": "Se visite, puis le sous-arbre.",
       "background": "Ce qui remplit l’image derrière.",
       "children": "Les nœuds à son sommet."
     }
   },
   "HostTexture": {
-    "summary": "Une texture de l’hôte : l’image que l’hôte a décodée et l’état d’échantillonnage qu’il a déclaré, tenue aussi par son identité.",
-    "description": "Ses pixels restent `unknown` : seule la frontière qui les envoie connaît leur contenant.",
-    "members": {
-      "isTexture": "Levé par l’hôte sur les objets que lit son échantillonneur : ce qui distingue une texture de tout autre champ d’un matériau, dont le moteur n’énumère pas les emplacements.",
-      "uuid": "Un nom propre à la texture.",
-      "name": "Le nom que l’hôte lui donne.",
-      "version": "Augmenté par l’hôte à chaque changement de contenu : ce qu’un envoi compare pour éviter une recopie.",
-      "image": "L’image décodée, dans le contenant propre à l’hôte.",
-      "channel": "Jeu d’UV que lit l’échantillonneur, le `texCoord` de `KHR_texture_transform`.",
-      "wrapS": "Comment elle se répète en largeur, selon la constante de l’hôte.",
-      "wrapT": "Comment elle se répète vers le haut, selon la constante de l’hôte.",
-      "magFilter": "Filtre quand elle est montrée plus grande.",
-      "minFilter": "Filtre quand elle est montrée plus petite.",
-      "anisotropy": "Netteté vue de biais.",
-      "flipY": "Si les rangées sont retournées à l’envoi.",
-      "premultiplyAlpha": "Si la couleur est pré-multipliée par l’alpha.",
-      "generateMipmaps": "Si des copies plus petites sont faites.",
-      "colorSpace": "Comment ses nombres sont lus.",
-      "matrix": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées ; l’hôte la recalcule à partir du décalage, de la répétition et de la rotation quand il fait la mise à jour.",
-      "matrixAutoUpdate": "Si l’hôte reconstruit `matrix`.",
-      "updateMatrix": "Reconstruit `matrix` à partir du décalage, de la répétition et de la rotation.",
-      "offset": "Ce dont `matrix` est composée.",
-      "repeat": "Combien de fois elle tient.",
-      "center": "Le pivot de la rotation.",
-      "rotation": "La rotation, en radians.",
-      "addEventListener": "Prévient l’importateur quand l’hôte lâche la texture."
-    }
+    "summary": "Une texture de l’hôte : l’image que l’hôte a décodée et l’état d’échantillonnage qu’il a déclaré, tenue aussi par son identité."
   },
   "HostTraversable": {
-    "summary": "Un nœud de l’hôte que le moteur parcourt : le sous-arbre en dessous, lui d’abord, dans l’ordre propre à l’hôte.",
-    "members": {
-      "name": "Le nom que l’hôte lui donne.",
-      "visible": "S’il est dessiné.",
-      "traverse": "Se visite, puis le sous-arbre."
-    }
+    "summary": "Un nœud de l’hôte que le moteur parcourt : le sous-arbre en dessous, lui d’abord, dans l’ordre propre à l’hôte."
   },
   "HostVector": {
     "summary": "Trois nombres d’une pose, tels que l’hôte les range et qu’une frontière les remet.",
@@ -6875,5 +6772,203 @@
   "raycast": {
     "summary": "Chaque objet sous `roots` que `ray` rencontre — sa direction est un vecteur unitaire — le plus proche d’abord, un impact par objet : le plus proche des siens.",
     "description": "Les sous-arbres cachés sont sautés, ainsi que les nœuds que `skip` désigne, avec leurs sous-arbres : les repères avec lesquels une page travaille, jamais son contenu."
+  },
+  "GraphAttribute": {
+    "members": {
+      "count": "Combien de sommets.",
+      "array": "Le stockage.",
+      "kind": "L’attribut possède son tampon.",
+      "version": "Incrémenté par `needsUpdate`.",
+      "updateRanges": "Plages de `array` écrites depuis le dernier envoi, envoyées seules.",
+      "addUpdateRange": "Marque `count` nombres écrits à partir de `start`.",
+      "clearUpdateRanges": "Oublie les plages écrites, une fois envoyées.",
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
+    },
+    "summary": "Un attribut qui possède son stockage : `itemSize` nombres par sommet, l’un après l’autre."
+  },
+  "GraphGeometry": {
+    "members": {
+      "attributes": "Ses attributs de sommets.",
+      "boundingBox": "La boîte locale calculée par l’hôte.",
+      "kind": "Ce qu’est la ressource.",
+      "name": "Son nom.",
+      "index": "La liste des triangles, ou `null` pour dessiner les sommets dans l’ordre.",
+      "morphAttributes": "Pour chaque attribut déformé, un attribut par cible de morphose.",
+      "morphTargetsRelative": "Vrai quand une cible de morphose tient des déplacements, pas des positions.",
+      "groups": "Plages de l’index dessinées chacune avec une surface.",
+      "drawRange": "La plage de l’index dessinée.",
+      "boundingSphere": "La sphère locale, une fois calculée ou déclarée.",
+      "userData": "Place libre pour les données de celui qui a construit la géométrie.",
+      "getIndex": "La liste des triangles.",
+      "setIndex": "Fixe la liste des triangles.",
+      "getAttribute": "L’attribut de ce nom.",
+      "setAttribute": "Nomme un attribut.",
+      "deleteAttribute": "Oublie un attribut.",
+      "hasAttribute": "Si elle a un attribut de ce nom.",
+      "clone": "Une géométrie qui tient une copie de chaque tampon, ses groupes, sa plage et ses bornes.",
+      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui.",
+      "computeBoundingBox": "Calcule la boîte locale sur tous les sommets.",
+      "computeBoundingSphere": "Calcule la sphère locale : centrée sur la boîte, jusqu’au sommet le plus lointain."
+    },
+    "summary": "Les attributs qu’un maillage dessine, la liste de triangles qui les indexe, les cibles de morphose qui les déplacent, et la boîte et la sphère locales calculées dessus."
+  },
+  "GraphNode": {
+    "members": {
+      "name": "Le nom que l’hôte lui donne.",
+      "parent": "Son parent.",
+      "position": "Où il se tient.",
+      "rotation": "Comment il est tourné, en angles.",
+      "quaternion": "Les deux faces de la rotation d’un nœud — le quaternion que compare le moteur, et les angles d’Euler qui s’y recopient — chacune ANNONÇANT ses propres écritures : un rappel que l’hôte enchaîne déjà, qu’un crochet prolonge au lieu de le remplacer (`hooks.ts`). Les deux membres soulignés sont un privé de la bibliothèque de l’hôte, donc ils sont écrits ici, là où le crochet en a besoin, sans recevoir de nom à eux. Cela garde le privé hors de la liste des contrats publiés du SDK ; cela ne le garde PAS hors de la surface publiée, puisque `HostGraphNode` le porte. Comparer la pose à chaque image, comme le fait déjà le parcours, est ce qui supprimerait ce couplage — ce n’est pas le travail de ce lot.",
+      "scale": "Comment il est étiré.",
+      "matrix": "Sa matrice locale.",
+      "matrixWorld": "Sa matrice dans le monde.",
+      "matrixAutoUpdate": "Faux quand l’hôte a réglé `matrix` lui-même : la matrice EST la pose et rien ne la recompose.",
+      "visible": "S’il est dessiné.",
+      "userData": "Là où le moteur marque une copie à lui, que l’hôte n’a jamais vue et ne peut pas écrire.",
+      "traverse": "Le sous-arbre sous le nœud, lui d’abord, dans l’ordre propre à l’hôte.",
+      "updateMatrixWorld": "Résout les matrices dans le monde du sous-arbre DANS LE GRAPHE DE L’HÔTE, pour les propres lecteurs de l’hôte.",
+      "id": "Le numéro du nœud, unique dans la session.",
+      "kind": "Ce qu’est le nœud : ce sur quoi chaque lecteur du graphe se restreint.",
+      "children": "Les nœuds que celui-ci tient, dans l’ordre.",
+      "up": "Quel sens est le haut pour `lookAt`.",
+      "matrixWorldAutoUpdate": "Faux quand rien n’écrit `matrixWorld`.",
+      "matrixWorldNeedsUpdate": "Levé quand la matrice locale a changé et que la matrice du monde n’a pas suivi.",
+      "castShadow": "S’il projette des ombres.",
+      "receiveShadow": "Si des ombres tombent dessus.",
+      "frustumCulled": "Si un moteur de rendu peut l’omettre hors de la vue.",
+      "renderOrder": "Ordre de dessin parmi les choses transparentes.",
+      "add": "Fait de `nodes` des enfants de celui-ci, chacun d’abord retiré de son parent précédent.",
+      "remove": "Retire `nodes` de celui-ci.",
+      "removeFromParent": "Retire ce nœud de son parent.",
+      "clear": "Retire tous les enfants de ce nœud.",
+      "updateMatrix": "Compose la matrice locale à partir de la pose.",
+      "updateWorldMatrix": "Résout la matrice du monde de ce nœud, celle de ses ancêtres d’abord si demandé, son sous-arbre ensuite.",
+      "applyMatrix4": "Applique `m` par-dessus la pose du nœud, puis relit la pose dans le produit.",
+      "lookAt": "Tourne le nœud vers un point du monde, donné en point ou en trois nombres.",
+      "clone": "Un nœud du même genre avec les mêmes valeurs ; ses enfants copiés aussi sauf avis contraire.",
+      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
+    },
+    "summary": "Un nœud du graphe : son nom, sa pose, sa matrice du monde, son parent et ses enfants."
+  },
+  "GraphSurface": {
+    "members": {
+      "version": "Augmenté par l’hôte à chaque changement : ce qu’une rangée en cache compare pour refaire ses champs.",
+      "uuid": "Un nom propre à la surface.",
+      "name": "Son nom.",
+      "userData": "Place libre pour les données de celui qui a construit la surface.",
+      "kind": "Ce qu’est la ressource ; `family` dit quelle surface.",
+      "family": "La famille à laquelle elle appartient.",
+      "needsUpdate": "`needsUpdate = true` après un changement : chaque lecteur reprend les champs.",
+      "copy": "Prend chaque paramètre de `source`, couleurs et vecteurs copiés, textures partagées.",
+      "clone": "Une surface de la même famille avec les mêmes paramètres."
+    },
+    "summary": "Une surface : les paramètres d’une famille, aux valeurs de la référence sauf si la scène a dit autrement.",
+    "description": "Sa version est incrémentée par `needsUpdate`, que chaque lecteur compare."
+  },
+  "GraphTexture": {
+    "members": {
+      "uuid": "Un nom propre à la texture.",
+      "name": "Le nom que l’hôte lui donne.",
+      "channel": "Jeu d’UV que lit l’échantillonneur, le `texCoord` de `KHR_texture_transform`.",
+      "wrapS": "Comment elle se répète en largeur, selon la constante de l’hôte.",
+      "wrapT": "Comment elle se répète vers le haut, selon la constante de l’hôte.",
+      "magFilter": "Filtre quand elle est montrée plus grande.",
+      "minFilter": "Filtre quand elle est montrée plus petite.",
+      "anisotropy": "Netteté vue de biais.",
+      "colorSpace": "Comment ses nombres sont lus.",
+      "offset": "Ce dont `matrix` est composée.",
+      "matrixAutoUpdate": "Si l’hôte reconstruit `matrix`.",
+      "matrix": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées ; l’hôte la recalcule à partir du décalage, de la répétition et de la rotation quand il fait la mise à jour.",
+      "generateMipmaps": "Si des copies plus petites sont faites.",
+      "premultiplyAlpha": "Si la couleur est pré-multipliée par l’alpha.",
+      "flipY": "Si les rangées sont retournées à l’envoi.",
+      "version": "Augmenté par l’hôte à chaque changement de contenu : ce qu’un envoi compare pour éviter une recopie.",
+      "image": "L’image décodée, dans le contenant propre à l’hôte.",
+      "updateMatrix": "Reconstruit `matrix` à partir du décalage, de la répétition et de la rotation.",
+      "kind": "Distingue une texture de tout autre champ d’une surface : une image décodée, ou des texels bruts (`image` tenant `{ data, width, height }`).",
+      "mapping": "Comment elle est adressée : par un jeu d’UV.",
+      "userData": "Place libre pour les données de celui qui a construit la texture.",
+      "format": "Les canaux des texels d’une texture brute (`HOST_FORMAT_*`).",
+      "needsUpdate": "`needsUpdate = true` après un changement : un lecteur l’envoie de nouveau.",
+      "clone": "Une texture de la même image et du même état, annoncée comme changée."
+    },
+    "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
+  },
+  "GraphAngles": {
+    "summary": "La même orientation en trois angles et leur ordre, qui annonce ses écritures de la même façon.",
+    "members": {
+      "x": "Les trois angles et leur ordre, chaque écriture annoncée.",
+      "set": "Écrit les trois angles, et l’ordre s’il est donné ; annoncé une fois.",
+      "setFromRotation": "Les angles de `q` dans cet ordre (l’`Euler` du cœur) ; annoncé sauf si `quiet`."
+    }
+  },
+  "GraphArray": {
+    "summary": "Les tableaux typés que tient un attribut."
+  },
+  "GraphElements": {
+    "summary": "L’un ou l’autre genre d’attribut."
+  },
+  "GraphInterleavedAttribute": {
+    "summary": "Un attribut qui regarde `itemSize` nombres à `offset` de chaque sommet d’un tampon entrelacé.",
+    "members": {
+      "kind": "L’attribut regarde un tampon partagé.",
+      "data": "Le tampon qu’il regarde.",
+      "offset": "Où ses nombres commencent dans chaque sommet.",
+      "array": "Le stockage où vivent les éléments.",
+      "count": "Combien de sommets."
+    }
+  },
+  "GraphInterleavedBuffer": {
+    "summary": "Un stockage que regardent plusieurs attributs, un sommet tous les `stride` nombres.",
+    "members": {
+      "kind": "Un stockage que regardent plusieurs attributs.",
+      "count": "Combien de sommets.",
+      "version": "Incrémenté par `needsUpdate`.",
+      "array": "Le stockage.",
+      "stride": "Nombres par sommet."
+    }
+  },
+  "GraphMesh": {
+    "summary": "Un nœud dessiné : une géométrie et sa surface, ou une surface par groupe de la géométrie.",
+    "members": {
+      "kind": "Dessiné à un emplacement, ou à plusieurs (`GraphInstancedMesh`).",
+      "morphTargetInfluences": "Le poids de chaque cible de morphose, quand la géométrie en déclare.",
+      "morphTargetDictionary": "Le rang de chaque cible de morphose, par son nom.",
+      "geometry": "Sa forme.",
+      "material": "Sa surface, ou une par groupe de la géométrie.",
+      "updateMorphTargets": "Un poids nul par cible de morphose du premier attribut déformé, nommée par son rang.",
+      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
+    }
+  },
+  "GraphNodeKind": {
+    "summary": "Ce qu’est un nœud du graphe : un nœud nu, la racine, un groupe, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
+  },
+  "GraphRotation": {
+    "summary": "Une orientation `(x, y, z, w)` dont les écritures appellent `_onChangeCallback`.",
+    "members": {
+      "x": "Les quatre nombres, chaque écriture annoncée.",
+      "set": "Écrit les quatre nombres, annoncé une fois.",
+      "copy": "Prend les nombres d’une autre rotation.",
+      "fromArray": "Lit quatre nombres dans une liste.",
+      "setFromAngles": "La rotation de `angles`, dans leur ordre (`localTurnQuaternion`) ; annoncé sauf si `quiet`.",
+      "setFromRotationMatrix": "La rotation du 3×3 supérieur d’une matrice rangée par colonnes dont les colonnes sont unitaires.",
+      "premultiply": "Devient `q` suivi de cette rotation, `q · this`.",
+      "invert": "Devient la rotation inverse."
+    }
+  },
+  "GraphVector": {
+    "summary": "Trois nombres d’une pose ou d’un point : des champs de données simples, et les opérations qu’utilise un contrôleur.",
+    "members": {
+      "set": "Écrit les trois nombres.",
+      "copy": "Prend les nombres d’un autre point.",
+      "clone": "Une copie.",
+      "add": "Ajoute un autre vecteur.",
+      "sub": "Retranche un autre vecteur.",
+      "multiplyScalar": "Multiplie les trois nombres.",
+      "length": "Sa longueur.",
+      "setLength": "Garde la direction, fixe la longueur.",
+      "distanceTo": "Distance à un point.",
+      "fromArray": "Lit trois nombres dans une liste."
+    }
   }
 }

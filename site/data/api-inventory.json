@@ -1382,6 +1382,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/witnesses/exact/materials.ts",
         "packages/sdk-browser/src/diagnostic/colors.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/graph/graphLights.fixture.ts",
@@ -3290,6 +3291,183 @@
       "bindingIdentity": "\"packages/sdk-core/src/runtime/stageProfile\".GpuTimingMethod"
     },
     {
+      "name": "GraphAngles",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/rotation.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/rotation\".GraphAngles"
+    },
+    {
+      "name": "GraphArray",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphArray"
+    },
+    {
+      "name": "GraphAttribute",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["bench/witnesses/exact/attachment.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphAttribute"
+    },
+    {
+      "name": "GraphElements",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["bench/witnesses/three/fromGraph.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphElements"
+    },
+    {
+      "name": "GraphGeometry",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/geometry.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "bench/oracles/browser/autonomous-backend.ts",
+        "bench/perf/browser/view-frame.perf.ts",
+        "bench/witnesses/exact/attachment.ts",
+        "bench/witnesses/exact/materials.ts",
+        "bench/witnesses/three/fromGraph.ts",
+        "bench/witnesses/three/fromGraphNodes.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/geometry\".GraphGeometry"
+    },
+    {
+      "name": "GraphInterleavedAttribute",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphInterleavedAttribute"
+    },
+    {
+      "name": "GraphInterleavedBuffer",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphInterleavedBuffer"
+    },
+    {
+      "name": "GraphMesh",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/mesh.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "bench/oracles/browser/autonomous-backend.ts",
+        "bench/oracles/browser/bounds-and-index.ts",
+        "bench/oracles/browser/page-collection.ts",
+        "bench/perf/browser/view-frame.perf.ts",
+        "bench/witnesses/exact/attachment.ts",
+        "bench/witnesses/exact/materials.ts",
+        "bench/witnesses/three/fromGraphNodes.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/mesh\".GraphMesh"
+    },
+    {
+      "name": "GraphNode",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/node.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "bench/oracles/browser/bounds-and-index.ts",
+        "bench/oracles/browser/page-collection.ts",
+        "bench/witnesses/three/fromGraphNodes.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/node\".GraphNode"
+    },
+    {
+      "name": "GraphNodeKind",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/host/graph/nodeKind.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/nodeKind\".GraphNodeKind"
+    },
+    {
+      "name": "GraphRotation",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/rotation.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/rotation\".GraphRotation"
+    },
+    {
+      "name": "GraphSurface",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/surface.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "bench/oracles/browser/autonomous-backend.ts",
+        "bench/witnesses/exact/materials.ts",
+        "bench/witnesses/three/fromGraph.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/surface\".GraphSurface"
+    },
+    {
+      "name": "GraphTexture",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/texture.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["bench/witnesses/three/fromGraph.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/texture\".GraphTexture"
+    },
+    {
+      "name": "GraphVector",
+      "kind": "both",
+      "definingModule": "packages/sdk-browser/src/host/graph/vector.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/vector\".GraphVector"
+    },
+    {
       "name": "Group",
       "kind": "both",
       "definingModule": "packages/sdk-core/src/world/object/object3d.ts",
@@ -3580,7 +3758,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["bench/witnesses/three/sceneAdapter.ts"],
+      "affectedConsumers": [
+        "bench/witnesses/exact/materials.ts",
+        "bench/witnesses/three/sceneAdapter.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostDiagnosticMaterial"
     },
@@ -3676,6 +3857,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/witnesses/exact/attachment.ts",
+        "bench/witnesses/exact/materials.ts",
         "bench/witnesses/three/fromGraph.ts",
         "bench/witnesses/three/fromGraphNodes.ts"
       ],
@@ -3700,7 +3882,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["tests/kit/lighting/resources.ts", "tests/kit/lighting/scene.test.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostNode"
     },
@@ -4543,6 +4725,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/oracles/browser/view-frame.ts",
         "packages/sdk-browser/src/host/graph/camera.ts",
         "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/webgpu/cut/publication.test.ts"

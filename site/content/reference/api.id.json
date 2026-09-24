@@ -1255,18 +1255,7 @@
     }
   },
   "HostAttribute": {
-    "summary": "Satu atribut vertex geometri host, saling diselang-seling atau tidak: tata letak dan penyimpanannya.",
-    "members": {
-      "isBufferAttribute": "Diaktifkan host saat atribut memiliki buffernya sendiri alih-alih melihat ke dalam yang bersama, diselang-seling. Hanya gerbang penerimaan yang membacanya: uraian mesin sendiri sama saja bagaimanapun, pengikatan program WebGL2 mandiri tidak.",
-      "itemSize": "Angka per vertex.",
-      "count": "Berapa banyak vertex.",
-      "normalized": "Apakah bilangan bulat dibaca sebagai 0 sampai 1.",
-      "array": "Penyimpanannya.",
-      "getX": "Komponen satu elemen, diurai dan dinormalisasi ulang oleh host.",
-      "getY": "Komponen kedua satu elemen.",
-      "getZ": "Komponen ketiga satu elemen.",
-      "getW": "Komponen keempat satu elemen."
-    }
+    "summary": "Satu atribut vertex geometri host, saling diselang-seling atau tidak: tata letak dan penyimpanannya."
   },
   "HostAttributes": {
     "summary": "Atribut bernama satu geometri host.",
@@ -1325,32 +1314,17 @@
     "summary": "Sebuah geometri host yang boleh dibebaskan sebuah tampilan diagnostik.",
     "members": {
       "attributes": "Atribut vertex-nya.",
-      "boundingBox": "Kotak lokal yang dihitung host.",
       "dispose": "Membebaskannya."
     }
   },
   "HostDiagnosticMaterial": {
     "summary": "Sebuah permukaan host yang ditukar sebuah tampilan diagnostik ke sebuah mesh, lalu dibebaskan: apa yang digantungkannya tiba lewat `HostDiagnosticFactory`, tidak pernah lewat sebuah import, jadi tidak ada tampilan yang menyebut nama pustaka rendering.",
     "members": {
-      "version": "Dinaikkan host setiap perubahan: yang dibandingkan sebuah baris yang di-cache untuk membangun ulang bidangnya.",
-      "visible": "Apakah ia digambar.",
       "side": "Sisi mana, sebagai konstanta host.",
-      "forceSinglePass": "Host menggambar sebuah permukaan transparan dua sisi dalam satu tahap, bukan belakang lalu depan.",
-      "vertexColors": "Apakah warna vertex mewarnainya.",
-      "toneMapped": "Apakah kurva tampilan diterapkan.",
-      "depthTest": "Status raster yang dideklarasikan host dengan permukaan itu, dan dihormati pipeline mesin.",
-      "depthWrite": "Apakah ia menulis kedalaman.",
-      "depthFunc": "Perbandingan uji kedalamannya.",
-      "colorWrite": "Apakah ia menulis warna.",
-      "polygonOffset": "Apakah kedalaman digeser.",
-      "polygonOffsetFactor": "Bagian kemiringan dari pergeseran.",
-      "polygonOffsetUnits": "Bagian konstan dari pergeseran.",
-      "transparent": "Apakah ia mencampur.",
-      "opacity": "Seberapa opaque ia.",
-      "alphaTest": "Alpha di bawahnya piksel dijatuhkan.",
       "dispose": "Membebaskannya.",
       "clone": "Sebuah salinan permukaan itu."
-    }
+    },
+    "description": "Tampilan diagnostik juga melayani para saksi, yang mesh-nya milik pustaka mereka: apa yang mereka gantungkan datang melalui `HostDiagnosticFactory`, dan mereka dibaca hanya melalui bentuk ini."
   },
   "HostDisposable": {
     "summary": "Sebuah sumber daya host yang dibebaskan mesin saat graf asalnya dilepas: sebuah geometri, sebuah permukaan, sebuah tekstur.",
@@ -1379,67 +1353,23 @@
     }
   },
   "HostGeometry": {
-    "summary": "Sebuah geometri host: atributnya, dan kotak lokal yang dihitung host atasnya.",
-    "members": {
-      "attributes": "Atribut vertex-nya.",
-      "boundingBox": "Kotak lokal yang dihitung host."
-    }
+    "summary": "Sebuah geometri host: atributnya, dan kotak lokal yang dihitung host atasnya."
   },
   "HostGraphNode": {
     "summary": "Sebuah node graf host seperti dilihat sebuah penjelajahan: identitasnya, pose lokalnya, matriks dunia yang diselesaikan host untuknya, dan rantainya.",
-    "description": "Mesin menghitung matriks dunia MILIKNYA SENDIRI dari pose lokal (`../world/tree.ts`); `matrixWorld` dibaca di tempat penyelesaian milik HOST sendiri adalah yang diserahkan sebuah batas kembali kepadanya. KENAPA `HostPlaced` (`../resources.ts`) JUGA MENJELASKAN SEBUAH NODE BERPOSE. Keduanya bukan salinan: mereka dikunci pada dua penyelesaian berbeda yang ditawarkan sebuah host. `HostPlaced` meminta `updateWorldMatrix(ancestors, descendants)` — rantai SATU node, yang didaki sebuah penempatan dan penjelajahan visibilitas; ini meminta `updateMatrixWorld(force)` — SUBTREE di bawah sebuah node, yang diselesaikan sebuah pemindaian, gabungan batas, dan replikasi dalam satu panggilan. Sebuah host yang hanya menawarkan satu dari keduanya hanya memenuhi kontrak yang dijawabnya, jadi tidak ada yang boleh menggantikan yang lain.",
-    "members": {
-      "parent": "Induknya.",
-      "position": "Tempat ia berdiri.",
-      "quaternion": "Dua sisi rotasi sebuah node — quaternion yang dibandingkan mesin, dan sudut Euler yang disalin ke dalamnya — masing-masing MENGUMUMKAN penulisannya sendiri: sebuah callback yang sudah dirangkai host, yang diperluas sebuah hook alih-alih digantikan (`hooks.ts`). Kedua anggota bergaris bawah itu privat milik pustaka host, jadi ditulis di sini, tempat hook membutuhkannya, dan tidak diberi nama sendiri. Itu menjaga privat itu di luar daftar kontrak yang dipublikasikan SDK; itu TIDAK menjaganya di luar permukaan yang dipublikasikan, karena `HostGraphNode` membawanya. Membandingkan pose per bingkai, seperti sudah dilakukan pemindaian, adalah yang akan menghapus keterikatan itu — bukan milik lot ini.",
-      "rotation": "Bagaimana ia diputar, sebagai sudut.",
-      "scale": "Bagaimana ia direntangkan.",
-      "matrixAutoUpdate": "Salah saat host mengatur `matrix` sendiri: matriks itu ADALAH pose-nya dan tidak ada yang menyusunnya ulang.",
-      "matrix": "Matriks lokalnya.",
-      "matrixWorld": "Matriks dunianya.",
-      "userData": "Tempat mesin menandai salinan miliknya sendiri, yang tidak pernah dilihat host dan tidak bisa ditulisnya.",
-      "traverse": "Subtree di bawah node itu, dirinya sendiri lebih dulu, dalam urutan host sendiri.",
-      "updateMatrixWorld": "Menyelesaikan matriks dunia subtree itu DI DALAM GRAF HOST, untuk pembaca host sendiri."
-    }
+    "description": "Mesin menghitung matriks dunia MILIKNYA SENDIRI dari pose lokal (`../world/tree.ts`); `matrixWorld` dibaca di tempat penyelesaian milik HOST sendiri adalah yang diserahkan sebuah batas kembali kepadanya. KENAPA `HostPlaced` (`../resources.ts`) JUGA MENJELASKAN SEBUAH NODE BERPOSE. Keduanya bukan salinan: mereka dikunci pada dua penyelesaian berbeda yang ditawarkan sebuah host. `HostPlaced` meminta `updateWorldMatrix(ancestors, descendants)` — rantai SATU node, yang didaki sebuah penempatan dan penjelajahan visibilitas; ini meminta `updateMatrixWorld(force)` — SUBTREE di bawah sebuah node, yang diselesaikan sebuah pemindaian, gabungan batas, dan replikasi dalam satu panggilan. Sebuah host yang hanya menawarkan satu dari keduanya hanya memenuhi kontrak yang dijawabnya, jadi tidak ada yang boleh menggantikan yang lain."
   },
   "HostMaterial": {
-    "summary": "Sebuah material host seperti dibaca mesin: parameter permukaan yang dibagi setiap material host, dibaca sekali di batas ke dalam `VisMaterial` mesin; hanya `sideOf` yang membaca `side`.",
-    "members": {
-      "version": "Dinaikkan host setiap perubahan: yang dibandingkan sebuah baris yang di-cache untuk membangun ulang bidangnya.",
-      "visible": "Apakah ia digambar.",
-      "side": "Sisi mana, sebagai konstanta host.",
-      "forceSinglePass": "Host menggambar sebuah permukaan transparan dua sisi dalam satu tahap, bukan belakang lalu depan.",
-      "vertexColors": "Apakah warna vertex mewarnainya.",
-      "toneMapped": "Apakah kurva tampilan diterapkan.",
-      "depthTest": "Status raster yang dideklarasikan host dengan permukaan itu, dan dihormati pipeline mesin.",
-      "depthWrite": "Apakah ia menulis kedalaman.",
-      "depthFunc": "Perbandingan uji kedalamannya.",
-      "colorWrite": "Apakah ia menulis warna.",
-      "polygonOffset": "Apakah kedalaman digeser.",
-      "polygonOffsetFactor": "Bagian kemiringan dari pergeseran.",
-      "polygonOffsetUnits": "Bagian konstan dari pergeseran.",
-      "transparent": "Apakah ia mencampur.",
-      "opacity": "Seberapa opaque ia.",
-      "alphaTest": "Alpha di bawahnya piksel dijatuhkan."
-    }
+    "summary": "Sebuah material host seperti dibaca mesin: parameter permukaan yang dibagi setiap material host, dibaca sekali di batas ke dalam `VisMaterial` mesin; hanya `sideOf` yang membaca `side`."
   },
   "HostMaterials": {
     "summary": "Apa yang dideklarasikan sebuah permukaan: satu material, atau satu per grup geometri."
   },
   "HostMesh": {
-    "summary": "Sebuah mesh host, dipegang lewat identitas: catatan gambar, tabel transparan dan set seleksi menyebut nama permukaan yang ditempatkan host.",
-    "description": "Namanya dibaca, dan rantai leluhurnya saat sebuah subtree yang dipindah harus dibedakan dari yang lain (`../webgpu/pages/render/transform.ts`); tidak ada yang lain.",
-    "members": {
-      "name": "Nama host untuknya.",
-      "parent": "Induknya, saat sebuah penjelajahan mendaki."
-    }
+    "summary": "Sebuah mesh host, dipegang lewat identitas: catatan gambar, tabel transparan dan set seleksi menyebut nama permukaan yang ditempatkan host."
   },
   "HostNode": {
-    "summary": "Sebuah node graf scene host, dipegang lewat identitas dan dua bidang yang dibutuhkan sebuah penjelajahan.",
-    "members": {
-      "name": "Nama host untuknya.",
-      "visible": "Apakah ia digambar."
-    }
+    "summary": "Sebuah node graf scene host, dipegang lewat identitas dan dua bidang yang dibutuhkan sebuah penjelajahan."
   },
   "HostNodeMatrix": {
     "summary": "Enam belas float yang sama, BISA DITULIS suku demi suku: pose yang dikembalikan sebuah batas ke sebuah node host atau sebuah kamera host yang dipulihkannya.",
@@ -1484,49 +1414,16 @@
     "summary": "Graf tampilan host tempat sebuah mesin menggambar: apa yang disimpannya, bagaimana ia dijelajahi, dan warna bersih yang dibaca komposisi.",
     "description": "Mesin menulis miliknya sendiri sebagai `GraphScene` (`graph/scene.ts`).",
     "members": {
-      "name": "Nama host untuknya.",
-      "visible": "Apakah ia digambar.",
       "traverse": "Mengunjungi dirinya sendiri, lalu subtree-nya.",
       "background": "Yang mengisi gambar di belakang.",
       "children": "Node di puncaknya."
     }
   },
   "HostTexture": {
-    "summary": "Sebuah tekstur host: gambar yang diurai host dan status sampler yang dideklarasikannya, juga dipegang lewat identitas.",
-    "description": "Pikselnya tetap `unknown`: hanya batas yang mengunggahnya yang tahu wadahnya.",
-    "members": {
-      "isTexture": "Diaktifkan host pada objek yang dibaca sampler-nya: yang membedakan sebuah tekstur dari bidang lain sebuah material, yang slot-nya tidak dienumerasi mesin.",
-      "uuid": "Sebuah nama unik untuk tekstur itu.",
-      "name": "Nama host untuknya.",
-      "version": "Dinaikkan host setiap perubahan konten: yang dibandingkan sebuah unggahan untuk melewati penyalinan ulang.",
-      "image": "Gambar yang diurai, dalam wadah host sendiri.",
-      "channel": "Set UV yang dibaca sampler, `texCoord` milik `KHR_texture_transform`.",
-      "wrapS": "Bagaimana ia berulang melintang, sebagai konstanta host.",
-      "wrapT": "Bagaimana ia berulang menaik, sebagai konstanta host.",
-      "magFilter": "Filter saat ditampilkan lebih besar.",
-      "minFilter": "Filter saat ditampilkan lebih kecil.",
-      "anisotropy": "Ketajaman pada kemiringan.",
-      "flipY": "Apakah baris dibalik saat diunggah.",
-      "premultiplyAlpha": "Apakah warna dikalikan awal dengan alpha.",
-      "generateMipmaps": "Apakah salinan lebih kecil dibuat.",
-      "colorSpace": "Bagaimana angka-angkanya dibaca.",
-      "matrix": "Transform UV sampler, `KHR_texture_transform` disusun jadi tiga baris; host menghitungnya ulang dari offset, repeat dan rotation saat memiliki pembaruannya.",
-      "matrixAutoUpdate": "Apakah host membangun ulang `matrix`.",
-      "updateMatrix": "Membangun ulang `matrix` dari offset, repeat dan rotation.",
-      "offset": "Dari apa `matrix` disusun.",
-      "repeat": "Berapa kali ia muat.",
-      "center": "Poros rotasi.",
-      "rotation": "Rotasi, dalam radian.",
-      "addEventListener": "Memberi tahu pengimpor saat host melepaskan tekstur."
-    }
+    "summary": "Sebuah tekstur host: gambar yang diurai host dan status sampler yang dideklarasikannya, juga dipegang lewat identitas."
   },
   "HostTraversable": {
-    "summary": "Sebuah node host yang dijelajahi mesin: subtree di bawahnya, dirinya sendiri lebih dulu, dalam urutan host sendiri.",
-    "members": {
-      "name": "Nama host untuknya.",
-      "visible": "Apakah ia digambar.",
-      "traverse": "Mengunjungi dirinya sendiri, lalu subtree-nya."
-    }
+    "summary": "Sebuah node host yang dijelajahi mesin: subtree di bawahnya, dirinya sendiri lebih dulu, dalam urutan host sendiri."
   },
   "HostVector": {
     "summary": "Tiga angka sebuah pose, seperti disimpan host dan dikembalikan sebuah batas.",
@@ -6875,6 +6772,204 @@
       "counts": "Untuk setiap node: jumlah segitiga sebuah daun, 0 untuk node internal.",
       "bytes": "Byte yang disimpan pohon.",
       "triangleCount": "Segitiga yang disimpan pohon."
+    }
+  },
+  "GraphAttribute": {
+    "members": {
+      "count": "Berapa banyak vertex.",
+      "array": "Penyimpanannya.",
+      "kind": "Atribut ini memiliki buffernya sendiri.",
+      "version": "Dinaikkan oleh `needsUpdate`.",
+      "updateRanges": "Rentang `array` yang ditulis sejak unggahan terakhir, dikirim tersendiri.",
+      "addUpdateRange": "Menandai `count` angka mulai dari `start` sebagai tertulis.",
+      "clearUpdateRanges": "Melupakan rentang tertulis setelah diunggah.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
+    },
+    "summary": "Atribut yang memiliki penyimpanannya: `itemSize` angka per verteks, berurutan."
+  },
+  "GraphGeometry": {
+    "members": {
+      "attributes": "Atribut vertex-nya.",
+      "boundingBox": "Kotak lokal yang dihitung host.",
+      "kind": "Apa sumber daya ini.",
+      "name": "Namanya.",
+      "index": "Daftar segitiga, atau `null` untuk menggambar verteks secara berurutan.",
+      "morphAttributes": "Per atribut yang di-morph, satu atribut per target morph.",
+      "morphTargetsRelative": "Benar jika target morph menyimpan perpindahan, bukan posisi.",
+      "groups": "Rentang indeks yang masing-masing digambar dengan satu permukaan.",
+      "drawRange": "Rentang indeks yang digambar.",
+      "boundingSphere": "Bola lokal, setelah dihitung atau dideklarasikan.",
+      "userData": "Ruang bebas untuk data milik siapa pun yang membangun geometri.",
+      "getIndex": "Daftar segitiga.",
+      "setIndex": "Menetapkan daftar segitiga.",
+      "getAttribute": "Atribut dengan nama itu.",
+      "setAttribute": "Menamai sebuah atribut.",
+      "deleteAttribute": "Melupakan sebuah atribut.",
+      "hasAttribute": "Apakah ia memiliki atribut dengan nama itu.",
+      "clone": "Geometri yang menyimpan salinan setiap buffer, grup, rentang, dan batasnya.",
+      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut adalah verteks tersendiri.",
+      "computeBoundingBox": "Menghitung kotak lokal atas semua verteks.",
+      "computeBoundingSphere": "Menghitung bola lokal: berpusat pada kotak, menjangkau verteks terjauh."
+    },
+    "summary": "Atribut yang digambar sebuah mesh, daftar segitiga yang mengindeksnya, target morph yang menggerakkannya, serta kotak dan bola lokal yang dihitung atasnya."
+  },
+  "GraphNode": {
+    "members": {
+      "name": "Nama host untuknya.",
+      "parent": "Induknya.",
+      "position": "Tempat ia berdiri.",
+      "rotation": "Bagaimana ia diputar, sebagai sudut.",
+      "quaternion": "Dua sisi rotasi sebuah node — quaternion yang dibandingkan mesin, dan sudut Euler yang disalin ke dalamnya — masing-masing MENGUMUMKAN penulisannya sendiri: sebuah callback yang sudah dirangkai host, yang diperluas sebuah hook alih-alih digantikan (`hooks.ts`). Kedua anggota bergaris bawah itu privat milik pustaka host, jadi ditulis di sini, tempat hook membutuhkannya, dan tidak diberi nama sendiri. Itu menjaga privat itu di luar daftar kontrak yang dipublikasikan SDK; itu TIDAK menjaganya di luar permukaan yang dipublikasikan, karena `HostGraphNode` membawanya. Membandingkan pose per bingkai, seperti sudah dilakukan pemindaian, adalah yang akan menghapus keterikatan itu — bukan milik lot ini.",
+      "scale": "Bagaimana ia direntangkan.",
+      "matrix": "Matriks lokalnya.",
+      "matrixWorld": "Matriks dunianya.",
+      "matrixAutoUpdate": "Salah saat host mengatur `matrix` sendiri: matriks itu ADALAH pose-nya dan tidak ada yang menyusunnya ulang.",
+      "visible": "Apakah ia digambar.",
+      "userData": "Tempat mesin menandai salinan miliknya sendiri, yang tidak pernah dilihat host dan tidak bisa ditulisnya.",
+      "traverse": "Subtree di bawah node itu, dirinya sendiri lebih dulu, dalam urutan host sendiri.",
+      "updateMatrixWorld": "Menyelesaikan matriks dunia subtree itu DI DALAM GRAF HOST, untuk pembaca host sendiri.",
+      "id": "Nomor node, unik dalam sesi.",
+      "kind": "Apa node ini: yang dipakai setiap pembaca graf untuk mempersempit jenisnya.",
+      "children": "Node yang dipegang node ini, berurutan.",
+      "up": "Arah mana yang atas untuk `lookAt`.",
+      "matrixWorldAutoUpdate": "Salah bila tidak ada yang menulis `matrixWorld`.",
+      "matrixWorldNeedsUpdate": "Ditetapkan bila matriks lokal berubah dan matriks dunia belum mengikutinya.",
+      "castShadow": "Apakah ia menghasilkan bayangan.",
+      "receiveShadow": "Apakah bayangan jatuh padanya.",
+      "frustumCulled": "Apakah renderer boleh melewatinya di luar pandangan.",
+      "renderOrder": "Urutan menggambar di antara benda tembus pandang.",
+      "add": "Menjadikan `nodes` anak node ini, masing-masing dilepas dulu dari induk sebelumnya.",
+      "remove": "Melepas `nodes` dari node ini.",
+      "removeFromParent": "Melepas node ini dari induknya.",
+      "clear": "Melepas semua anak dari node ini.",
+      "updateMatrix": "Menyusun matriks lokal dari pose.",
+      "updateWorldMatrix": "Menyelesaikan matriks dunia node ini, milik leluhurnya dulu bila diminta, lalu subpohonnya.",
+      "applyMatrix4": "Menerapkan `m` di atas pose node, lalu membaca kembali pose dari hasil perkaliannya.",
+      "lookAt": "Memutar node ke arah titik dunia, diberikan sebagai titik atau tiga angkanya.",
+      "clone": "Node dengan jenis dan nilai yang sama; anak-anaknya ikut disalin kecuali diminta tidak.",
+      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
+    },
+    "summary": "Node graf: namanya, posenya, matriks dunianya, induknya, dan anak-anaknya."
+  },
+  "GraphSurface": {
+    "members": {
+      "version": "Dinaikkan host setiap perubahan: yang dibandingkan sebuah baris yang di-cache untuk membangun ulang bidangnya.",
+      "uuid": "Nama yang unik untuk permukaan ini.",
+      "name": "Namanya.",
+      "userData": "Ruang bebas untuk data milik siapa pun yang membangun permukaan.",
+      "kind": "Apa sumber daya ini; `family` menyebut permukaan yang mana.",
+      "family": "Keluarga tempat ia berada.",
+      "needsUpdate": "`needsUpdate = true` setelah perubahan: setiap pembaca mengambil kolom-kolomnya lagi.",
+      "copy": "Mengambil setiap parameter `source`, warna dan vektor disalin, tekstur dibagi.",
+      "clone": "Permukaan dari keluarga yang sama dengan parameter yang sama."
+    },
+    "summary": "Permukaan: parameter satu keluarga, pada nilai referensi kecuali adegan menyatakan lain.",
+    "description": "Versinya dinaikkan oleh `needsUpdate`, yang dibandingkan setiap pembaca."
+  },
+  "GraphTexture": {
+    "members": {
+      "uuid": "Sebuah nama unik untuk tekstur itu.",
+      "name": "Nama host untuknya.",
+      "channel": "Set UV yang dibaca sampler, `texCoord` milik `KHR_texture_transform`.",
+      "wrapS": "Bagaimana ia berulang melintang, sebagai konstanta host.",
+      "wrapT": "Bagaimana ia berulang menaik, sebagai konstanta host.",
+      "magFilter": "Filter saat ditampilkan lebih besar.",
+      "minFilter": "Filter saat ditampilkan lebih kecil.",
+      "anisotropy": "Ketajaman pada kemiringan.",
+      "colorSpace": "Bagaimana angka-angkanya dibaca.",
+      "offset": "Dari apa `matrix` disusun.",
+      "matrixAutoUpdate": "Apakah host membangun ulang `matrix`.",
+      "matrix": "Transform UV sampler, `KHR_texture_transform` disusun jadi tiga baris; host menghitungnya ulang dari offset, repeat dan rotation saat memiliki pembaruannya.",
+      "generateMipmaps": "Apakah salinan lebih kecil dibuat.",
+      "premultiplyAlpha": "Apakah warna dikalikan awal dengan alpha.",
+      "flipY": "Apakah baris dibalik saat diunggah.",
+      "version": "Dinaikkan host setiap perubahan konten: yang dibandingkan sebuah unggahan untuk melewati penyalinan ulang.",
+      "image": "Gambar yang diurai, dalam wadah host sendiri.",
+      "updateMatrix": "Membangun ulang `matrix` dari offset, repeat dan rotation.",
+      "kind": "Membedakan tekstur dari kolom lain pada permukaan: gambar yang didekode, atau texel mentah (`image` berisi `{ data, width, height }`).",
+      "mapping": "Cara ia dialamatkan: dengan satu set UV.",
+      "userData": "Ruang bebas untuk data milik siapa pun yang membangun tekstur.",
+      "format": "Kanal texel dari tekstur mentah (`HOST_FORMAT_*`).",
+      "needsUpdate": "`needsUpdate = true` setelah perubahan: pembaca mengunggahnya lagi.",
+      "clone": "Tekstur dengan gambar dan keadaan yang sama, diumumkan sebagai berubah."
+    },
+    "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
+  },
+  "GraphAngles": {
+    "summary": "Orientasi yang sama sebagai tiga sudut dan urutannya, mengumumkan penulisannya dengan cara yang sama.",
+    "members": {
+      "x": "Tiga sudut dan urutannya, setiap penulisan diumumkan.",
+      "set": "Menulis tiga sudut, dan urutannya bila diberikan; diumumkan sekali.",
+      "setFromRotation": "Sudut-sudut `q` dalam urutan ini (`Euler` inti); diumumkan kecuali `quiet`."
+    }
+  },
+  "GraphArray": {
+    "summary": "Array bertipe yang disimpan sebuah atribut."
+  },
+  "GraphElements": {
+    "summary": "Salah satu dari dua jenis atribut."
+  },
+  "GraphInterleavedAttribute": {
+    "summary": "Atribut yang melihat `itemSize` angka pada `offset` dari setiap verteks buffer berselang-seling.",
+    "members": {
+      "kind": "Atribut ini melihat buffer bersama.",
+      "data": "Buffer yang dilihatnya.",
+      "offset": "Tempat angka-angkanya dimulai di setiap verteks.",
+      "array": "Penyimpanan tempat elemen berada.",
+      "count": "Berapa banyak verteks."
+    }
+  },
+  "GraphInterleavedBuffer": {
+    "summary": "Satu penyimpanan yang dilihat beberapa atribut, satu verteks setiap `stride` angka.",
+    "members": {
+      "kind": "Satu penyimpanan yang dilihat beberapa atribut.",
+      "count": "Berapa banyak verteks.",
+      "version": "Dinaikkan oleh `needsUpdate`.",
+      "array": "Penyimpanan.",
+      "stride": "Angka per verteks."
+    }
+  },
+  "GraphMesh": {
+    "summary": "Node yang digambar: geometri dan permukaannya, atau satu permukaan per grup geometri.",
+    "members": {
+      "kind": "Digambar di satu penempatan, atau di beberapa (`GraphInstancedMesh`).",
+      "morphTargetInfluences": "Bobot setiap target morph, bila geometri mendeklarasikannya.",
+      "morphTargetDictionary": "Peringkat setiap target morph menurut namanya.",
+      "geometry": "Bentuknya.",
+      "material": "Permukaannya, atau satu per grup geometri.",
+      "updateMorphTargets": "Satu bobot nol per target morph dari atribut ter-morph pertama, dinamai menurut peringkat.",
+      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
+    }
+  },
+  "GraphNodeKind": {
+    "summary": "Apa sebuah node graf: node polos, akar, grup, mesh yang digambar (di satu penempatan atau beberapa), mata, atau salah satu cahaya yang dideklarasikan adegan."
+  },
+  "GraphRotation": {
+    "summary": "Orientasi `(x, y, z, w)` yang penulisannya memanggil `_onChangeCallback`.",
+    "members": {
+      "x": "Empat angka, setiap penulisan diumumkan.",
+      "set": "Menulis empat angka, diumumkan sekali.",
+      "copy": "Mengambil angka rotasi lain.",
+      "fromArray": "Membaca empat angka dari daftar.",
+      "setFromAngles": "Rotasi dari `angles`, dalam urutannya (`localTurnQuaternion`); diumumkan kecuali `quiet`.",
+      "setFromRotationMatrix": "Rotasi dari 3×3 atas matriks berurutan kolom yang kolom-kolomnya berpanjang satu.",
+      "premultiply": "Menjadi `q` diikuti rotasi ini, `q · this`.",
+      "invert": "Menjadi putaran kebalikannya."
+    }
+  },
+  "GraphVector": {
+    "summary": "Tiga angka dari pose atau titik: kolom data biasa, dan operasi yang dipakai pengendali.",
+    "members": {
+      "set": "Menulis tiga angka.",
+      "copy": "Mengambil angka titik lain.",
+      "clone": "Sebuah salinan.",
+      "add": "Menambahkan vektor lain.",
+      "sub": "Mengurangkan vektor lain.",
+      "multiplyScalar": "Menskalakan tiga angka.",
+      "length": "Panjangnya.",
+      "setLength": "Mempertahankan arah, menetapkan panjang.",
+      "distanceTo": "Jarak ke sebuah titik.",
+      "fromArray": "Membaca tiga angka dari daftar."
     }
   }
 }
