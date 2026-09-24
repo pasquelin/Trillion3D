@@ -1317,6 +1317,16 @@
         "name": "texturePreviewAstc",
         "type": "ColumnKind",
         "desc": "The previews' ASTC blocks."
+      },
+      {
+        "name": "bundleDependencyCount",
+        "type": "ColumnKind",
+        "desc": "How many bundles each bundle depends on."
+      },
+      {
+        "name": "bundleDependency",
+        "type": "ColumnKind",
+        "desc": "The bundles each bundle depends on, closed to the root cover."
       }
     ],
     "description": ""
@@ -2876,6 +2886,11 @@
         "name": "bundles",
         "type": "number",
         "desc": "Bundles."
+      },
+      {
+        "name": "bundleDependencies",
+        "type": "number",
+        "desc": "Bundle dependencies, every bundle's list concatenated."
       },
       {
         "name": "previews",
@@ -4689,7 +4704,7 @@
     "kind": "Constant",
     "title": "GEOMETRY_PAGE_FORMAT_VERSION",
     "signature": "const GEOMETRY_PAGE_FORMAT_VERSION: 3",
-    "summary": "The geometry-page format a version-7 sidecar names, as the manifest's `geometryPages` declares it once and every page header opens with.",
+    "summary": "The geometry-page format a version-8 sidecar names, as the manifest's `geometryPages` declares it once and every page header opens with.",
     "description": ""
   },
   {
@@ -8106,9 +8121,9 @@
     "section": "types",
     "kind": "Constant",
     "title": "MANIFEST_BINARY_VERSION",
-    "signature": "const MANIFEST_BINARY_VERSION: 7",
+    "signature": "const MANIFEST_BINARY_VERSION: 8",
     "summary": "Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel column has no stride any more, each entry naming its own byte range.",
-    "description": "A file of another version is refused whole: a reader that sliced the wrong range would show one texture's levels on another. Version 5 widens a preview entry from ten to twelve words — the atlas it serves and how many levels are baked as files under `textures/` — and its pixels follow the graphics card's mip rule; a version-4 reader would stride through the entries wrongly, so it refuses this file. Version 6 keeps every column and names another geometry page in the geometry descriptor: the quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a version-6 reader would refuse one by one at decode; refusing the file says it once. Version 7 widens a preview entry to fourteen words — the layout each block family holds the chain in, or none — and adds two columns: the tails block-compressed, BC family then ASTC, each kept entry's range following from its dimensions; a version-6 reader would not know them, so it refuses."
+    "description": "A file of another version is refused whole: a reader that sliced the wrong range would show one texture's levels on another. Version 5 widens a preview entry from ten to twelve words — the atlas it serves and how many levels are baked as files under `textures/` — and its pixels follow the graphics card's mip rule; a version-4 reader would stride through the entries wrongly, so it refuses this file. Version 6 keeps every column and names another geometry page in the geometry descriptor: the quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a version-6 reader would refuse one by one at decode; refusing the file says it once. Version 7 widens a preview entry to fourteen words — the layout each block family holds the chain in, or none — and adds two columns: the tails block-compressed, BC family then ASTC, each kept entry's range following from its dimensions; a version-6 reader would not know them, so it refuses. Version 8 adds the page dependencies of the streaming bundles: a count per bundle, then the flat lists, closed up to the root cover (`docs/FORMAT.md` §Cluster DAG), that WebGPU requests and retains with a bundle. A version-7 reader cannot read the lists, so it refuses."
   },
   {
     "id": "MATH_PATH_CONTRACT",
@@ -14532,6 +14547,11 @@
         "desc": "Target bundle size."
       },
       {
+        "name": "maxDependencies",
+        "type": "number",
+        "desc": "Largest dependency count of a bundle: the bound the compiler publishes."
+      },
+      {
         "name": "pages",
         "type": "number",
         "desc": "How many bundles."
@@ -14937,6 +14957,11 @@
         "name": "count",
         "type": "number",
         "desc": "Clusters it holds."
+      },
+      {
+        "name": "dependencies",
+        "type": "number[]",
+        "desc": "The bundles holding the parents of its clusters, closed up to the pinned root cover and ascending: it is installed after every one of them."
       }
     ],
     "description": ""
@@ -14965,6 +14990,11 @@
         "name": "bundleBytes",
         "type": "number",
         "desc": "Target bundle size."
+      },
+      {
+        "name": "maxDependencies",
+        "type": "number",
+        "desc": "Largest dependency count of a bundle, as the compiler published it."
       },
       {
         "name": "pages",

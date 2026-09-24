@@ -894,7 +894,9 @@
       "texturePreviewSha": "L’empreinte de chaque aperçu de texture.",
       "texturePreviewPixels": "Les pixels des aperçus.",
       "texturePreviewBc7": "Les blocs BC7 des aperçus.",
-      "texturePreviewAstc": "Les blocs ASTC des aperçus."
+      "texturePreviewAstc": "Les blocs ASTC des aperçus.",
+      "bundleDependencyCount": "Combien de paquets chaque paquet attend.",
+      "bundleDependency": "Les paquets que chaque paquet attend, jusqu’aux racines."
     }
   },
   "ColumnKind": {
@@ -1072,7 +1074,8 @@
       "bundles": "Paquets.",
       "previews": "Aperçus de textures.",
       "previewBytes": "Octets de la colonne de pixels, chaque niveau de chaque entrée mis bout à bout.",
-      "previewBlockBytes": "Octets de chaque colonne de blocs : la fin des chaînes gardées, compressée, en blocs entiers, entrées à la suite, rien pour une chaîne que la famille a laissée sans perte."
+      "previewBlockBytes": "Octets de chaque colonne de blocs : la fin des chaînes gardées, compressée, en blocs entiers, entrées à la suite, rien pour une chaîne que la famille a laissée sans perte.",
+      "bundleDependencies": "Dépendances des paquets, les listes de tous les paquets mises bout à bout."
     }
   },
   "CpuStepSummary": {
@@ -5392,7 +5395,8 @@
       "version": "Version du format.",
       "pinned": "Paquets toujours gardés.",
       "bundleBytes": "Taille visée d’un paquet.",
-      "pages": "Combien de paquets."
+      "pages": "Combien de paquets.",
+      "maxDependencies": "Le plus grand nombre de dépendances d’un paquet : la borne que publie le compilateur."
     }
   },
   "SlimStructure": {
@@ -5527,7 +5531,8 @@
       "url": "Où on le lit.",
       "sha256": "Empreinte de ses octets.",
       "bytes": "Sa taille.",
-      "count": "Clusters qu’il contient."
+      "count": "Clusters qu’il contient.",
+      "dependencies": "Les paquets qui tiennent les parents de ses clusters, jusqu’aux racines toujours chargées, dans l’ordre : il est installé après chacun d’eux."
     }
   },
   "StreamCatalogue": {
@@ -5537,7 +5542,8 @@
       "version": "Version du format.",
       "pinned": "Paquets toujours gardés.",
       "bundleBytes": "Taille visée d’un paquet.",
-      "pages": "Chaque paquet."
+      "pages": "Chaque paquet.",
+      "maxDependencies": "Le plus grand nombre de dépendances d’un paquet, tel que le compilateur l’a publié."
     }
   },
   "StreamPage": {

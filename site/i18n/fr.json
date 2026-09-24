@@ -329,6 +329,7 @@
     "missing": {
       "colours-on-the-vertices": "couleurs par sommet sous WebGPU",
       "dashed-lines": "lignes pointillées",
+      "floating-crates": "géométrie réécrite à chaque image",
       "thick-lines": "lignes épaisses",
       "a-line-that-draws-itself": "plage de dessin d’une géométrie",
       "shapes-from-an-svg": "import de tracés SVG",

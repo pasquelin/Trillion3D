@@ -1513,6 +1513,7 @@
     "missing": {
       "colours-on-the-vertices": "màu theo từng đỉnh trên WebGPU",
       "dashed-lines": "đường đứt nét",
+      "floating-crates": "hình học được ghi lại mỗi khung hình",
       "thick-lines": "đường rộng",
       "a-line-that-draws-itself": "phạm vi vẽ hình học",
       "shapes-from-an-svg": "nhập đường dẫn SVG",

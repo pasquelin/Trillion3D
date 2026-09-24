@@ -309,7 +309,9 @@
       "texturePreviewSha": "각 텍스처 미리보기의 지문.",
       "texturePreviewPixels": "미리보기들의 픽셀.",
       "texturePreviewBc7": "미리보기들의 BC7 블록.",
-      "texturePreviewAstc": "미리보기들의 ASTC 블록."
+      "texturePreviewAstc": "미리보기들의 ASTC 블록.",
+      "bundleDependencyCount": "각 번들이 몇 개의 번들에 의존하는지.",
+      "bundleDependency": "각 번들이 의존하는 번들, 루트까지."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -652,7 +654,8 @@
       "bundles": "번들 수.",
       "previews": "텍스처 미리보기 수.",
       "previewBytes": "픽셀 열의 바이트 수. 모든 항목의 모든 레벨을 이어붙인 것.",
-      "previewBlockBytes": "각 블록 열의 바이트 수: 유지된 체인들의 꼬리는 압축되고, 블록 전체를 유지한 경우 항목이 연속으로 이어지며, 그 계열이 무손실로 남겨 둔 체인에는 아무것도 없다."
+      "previewBlockBytes": "각 블록 열의 바이트 수: 유지된 체인들의 꼬리는 압축되고, 블록 전체를 유지한 경우 항목이 연속으로 이어지며, 그 계열이 무손실로 남겨 둔 체인에는 아무것도 없다.",
+      "bundleDependencies": "번들 의존성, 모든 번들의 목록을 이어 붙인 것."
     }
   },
   "CpuStepSummary": {
@@ -3088,7 +3091,8 @@
       "version": "포맷 버전.",
       "pinned": "항상 유지되는 번들.",
       "bundleBytes": "목표 번들 크기.",
-      "pages": "번들 수."
+      "pages": "번들 수.",
+      "maxDependencies": "번들의 최대 의존 수: 컴파일러가 공개하는 상한."
     }
   },
   "SlimStructure": {
@@ -3181,7 +3185,8 @@
       "url": "그것이 읽히는 위치.",
       "sha256": "그 바이트의 지문.",
       "bytes": "그 크기.",
-      "count": "그것이 담고 있는 클러스터 수."
+      "count": "그것이 담고 있는 클러스터 수.",
+      "dependencies": "그 클러스터의 부모를 담은 번들, 항상 올라와 있는 루트까지, 오름차순: 그 각각의 뒤에 설치된다."
     }
   },
   "StreamCatalogue": {
@@ -3191,7 +3196,8 @@
       "version": "포맷 버전.",
       "pinned": "항상 유지되는 번들.",
       "bundleBytes": "목표 번들 크기.",
-      "pages": "모든 번들."
+      "pages": "모든 번들.",
+      "maxDependencies": "번들의 최대 의존 수, 컴파일러가 공개한 그대로."
     }
   },
   "StreamPage": {
