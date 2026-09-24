@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 4;
+export const PHYSICS_LAYOUT_VERSION = 5;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -22,6 +22,8 @@ export const OP = {
   material: 12,
   character: 13,
   characterMove: 14,
+  restore: 15,
+  release: 16,
 } as const;
 
 /** How a body moves: fixed, moved by the page, or moved by the simulation. */
@@ -34,8 +36,35 @@ export const MOTION = { static: 0, kinematic: 1, dynamic: 2 } as const;
  */
 export const LAYER = { static: 0, moving: 1, decorative: 2 } as const;
 
-/** Shape kinds of the ADD command: four exact primitives, a triangle mesh, a convex hull. */
-export const SHAPE = { box: 0, sphere: 1, capsule: 2, cylinder: 3, triangles: 4, hull: 5 } as const;
+/** Shape kinds of the ADD command: four exact primitives, a triangle mesh, a convex hull, and a
+ *  cooked shape (`physics.json`), named by the handle a RESTORE gave it — its one data word — and
+ *  scaled by `a, b, c`. */
+export const SHAPE = {
+  box: 0,
+  sphere: 1,
+  capsule: 2,
+  cylinder: 3,
+  triangles: 4,
+  hull: 5,
+  cooked: 6,
+} as const;
+
+/**
+ * Words of RESTORE before its bytes: `op, handle, byteCount`, then the shape's Jolt binary state
+ * padded to whole words. RELEASE is `op, handle`: bodies built from the shape keep it.
+ */
+export const RESTORE_WORDS = 3;
+
+/**
+ * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c` — a ray, or a
+ * sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`) swept
+ * along `travel`. Its hit: `engine id, fraction, point x, y, z, normal x, y, z, material`; a miss
+ * names no body (`0xFFFFFFFF`), a hit on a shape without cooked material has that material.
+ */
+export const CAST_WORDS = 10;
+export const HIT_WORDS = 9;
+export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const;
+export const MISS = 0xffffffff;
 
 /** Per-body flag bits: sensor, continuous collision, contact events wanted, hidden (no pose). */
 export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8 } as const;
