@@ -1,5 +1,6 @@
 import type { HostAttribute } from '../host/resources.ts';
 import { srgbToLinear, type Texture, type WrapMode } from '../../../sdk-core/src/index.ts';
+import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
 import type { Projected } from './projection.ts';
 import type { DepthCamera } from '../camera/depthConvention.ts';
 import { barycentricAt, projectVisibilityVertex, signedArea } from './projection.ts';
@@ -88,12 +89,6 @@ const SRGB8_LINEAIRE = new Float64Array(256);
 for (let octet = 0; octet < 256; octet++) SRGB8_LINEAIRE[octet] = srgbToLinear(octet / 255);
 
 export { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
-
-/** True when a map's UV transform (`Texture.transform`, three columns of three) moves its
- *  coordinate: the only case it is applied, here and on the GPU (`../webgpu/tile/sampling.ts`). */
-export function uvTransformed(m: readonly number[]) {
-  return m[0] !== 1 || m[1] !== 0 || m[3] !== 0 || m[4] !== 1 || m[6] !== 0 || m[7] !== 0;
-}
 
 /**
  * Rank of the texel a map reads at a coordinate, not its components: that byte indexes the sRGB

@@ -8,7 +8,7 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 <!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/src/       74 *.test.ts — unit tests, next to their source
+  sdk-core/src/       73 *.test.ts — unit tests, next to their source
   sdk-browser/src/    353 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/

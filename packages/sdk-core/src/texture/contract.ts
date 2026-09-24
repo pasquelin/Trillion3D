@@ -60,6 +60,12 @@ export interface Texture {
   readonly transform: readonly number[];
 }
 
+/** True when a UV transform (`Texture.transform`) moves the coordinate: the only case it is
+ *  applied, on the CPU twins and on both GPU paths. */
+export function uvTransformed(m: readonly number[]) {
+  return m[0] !== 1 || m[1] !== 0 || m[3] !== 0 || m[4] !== 1 || m[6] !== 0 || m[7] !== 0;
+}
+
 /**
  * Anisotropy a texture is sampled with, on both GPU paths, as the Three witness grants it
  * (`WebGLTextures.setTextureParameters`): only a linear magnification over a chain mixed across
@@ -68,46 +74,4 @@ export interface Texture {
 export function grantedAnisotropy(texture: Texture, ceiling: number) {
   if (texture.magFilter === 'nearest' || !texture.minFilter.endsWith('mip-linear')) return 1;
   return Math.min(ceiling, Math.max(1, texture.anisotropy));
-}
-
-/** What a texture's pixels are uploaded from: its image and the words the upload reads. A texture
- *  that has no such word — a page texture has no `premultiplyAlpha` — reads it as absent. */
-export type TexturePicture = {
-  readonly version: number;
-  readonly image: unknown;
-  readonly flipY: boolean;
-  readonly colorSpace: string;
-  readonly channel: number;
-  readonly premultiplyAlpha?: boolean;
-  readonly generateMipmaps?: boolean;
-};
-
-const PICTURE = [
-  'image',
-  'flipY',
-  'colorSpace',
-  'channel',
-  'premultiplyAlpha',
-  'generateMipmaps',
-] as const;
-
-/** The picture words of a texture, held beside what was uploaded from them (`textureChange`). */
-export const pictureWords = (texture: TexturePicture): unknown[] =>
-  PICTURE.map((field) => texture[field]);
-
-/**
- * What a texture's version asks of what was uploaded at `held` (#360, #361), the one rule of both
- * GPU paths and the host textures of a world: `'none'` when the version did not move; `'sampler'`
- * only when it is proven that the sampler state alone moved — `samplerMoved`, on the same picture
- * words —; `'picture'` otherwise. Pixels written in place move the version and nothing else a
- * record can compare, so any doubt is a new picture.
- */
-export function textureChange(
-  held: { readonly version: number; readonly picture: readonly unknown[] },
-  texture: TexturePicture,
-  samplerMoved: boolean,
-): 'none' | 'sampler' | 'picture' {
-  if (held.version === texture.version) return 'none';
-  if (!samplerMoved) return 'picture';
-  return PICTURE.every((field, i) => texture[field] === held.picture[i]) ? 'sampler' : 'picture';
 }
