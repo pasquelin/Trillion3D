@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import type { RenderBackend } from '../../backend/types.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import type { PartitionCells } from '../../scene/partition/cells.ts';
+import { GraphGroup } from '../../host/graph/mesh.ts';
+import { createPartitionCells, type PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
+import { placedMesh } from '../../scene/partition/rows.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { createPageStreamer } from '../../streaming/pages.ts';
 import { createPartitionFrame } from './partitionFrame.ts';
@@ -15,8 +17,8 @@ type Io = Parameters<PartitionCells['frame']>[2];
 function recording() {
   const seen: { eye: number[]; reach: number; io: Io }[] = [];
   const cells = {
-    frame(eye: number[], reach: (size: number) => number, io: Io) {
-      seen.push({ eye: [...eye], reach: reach(2), io });
+    frame(eye: number[], reach: number, io: Io) {
+      seen.push({ eye: [...eye], reach, io });
       io.request(['near.json'], false);
       io.request(['ahead.json'], true);
     },
@@ -40,39 +42,54 @@ test('no partition, no step before the frame', () => {
     partitions: [],
     streamer: streamer().port,
     camera: hostFramingCamera(60, 1, 0.1, 100),
-    canvas: { height: 720 },
-    pixelError: () => 1,
     active: () => ({}) as RenderBackend,
   });
   assert.equal(frame, null);
 });
 
-test('a frame reads the camera, the drawn height and the error of the moment', () => {
+test('a frame reads the cells within the far plane of its camera, visible first then ahead', () => {
   const { cells, seen } = recording();
   const { port, asked } = streamer();
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 500);
   camera.position.set(3, 4, 5);
-  let error = 1;
-  const frame = createPartitionFrame({
+  createPartitionFrame({
     partitions: [cells],
     streamer: port,
     camera,
-    canvas: { height: 1080 },
-    pixelError: () => error,
     active: () => ({}) as RenderBackend,
-  })!;
-  frame();
-  error = 4;
-  frame();
+  })!();
   assert.deepEqual(seen[0].eye, [3, 4, 5]);
-  assert.deepEqual(
-    seen.map(({ reach }) => reach),
-    [1, 4].map((target) => cellReach(2, camera, 1080, target)),
-  );
-  assert.deepEqual(asked.slice(0, 2), [
+  assert.equal(seen[0].reach, cellReach(camera));
+  assert.deepEqual(asked, [
     [['near.json'], PRIORITY_VISIBLE],
     [['ahead.json'], PRIORITY_PREFETCH],
   ]);
+});
+
+test('a pebble far below any error target is read while the far plane lets it be drawn', () => {
+  // Nothing coarser stands for an unread cell before #23: a small object within the far plane is
+  // read whatever it projects to, or it would be missing from the image for good.
+  const pebble = { url: 'pebble.json', sha256: '', bytes: 1, nodes: 1, size: 0.01 };
+  const cells = createPartitionCells({
+    partition: {
+      version: 1,
+      bounds: [200, 0, 0, 200.01, 0.01, 0.01],
+      meshes: [0],
+      cells: [{ ...pebble, bounds: [200, 0, 0, 200.01, 0.01, 0.01] }],
+    },
+    base: 'https://cache.test/key/',
+    root: new GraphGroup(),
+    parents: [],
+    meshes: new Map([[0, placedMesh([{ meshes: 0, primitives: 0 }])]]),
+  });
+  const { port, asked } = streamer();
+  createPartitionFrame({
+    partitions: [cells],
+    streamer: port,
+    camera: hostFramingCamera(60, 16 / 9, 0.1, 300),
+    active: () => ({}) as RenderBackend,
+  })!();
+  assert.deepEqual(asked, [[['https://cache.test/key/pebble.json'], PRIORITY_VISIBLE]]);
 });
 
 test('rows grow in the engine that can, and open the session again where it cannot', () => {
@@ -88,8 +105,6 @@ test('rows grow in the engine that can, and open the session again where it cann
       partitions: [cells],
       streamer: streamer().port,
       camera: hostFramingCamera(60, 1, 0.1, 100),
-      canvas: { height: 720 },
-      pixelError: () => 1,
       active: () => backend as unknown as RenderBackend,
       renew: () => void renewed++,
     })!();

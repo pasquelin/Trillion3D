@@ -18,7 +18,7 @@ type Inputs = {
 export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs) {
   const { options, metadata } = session;
   const { prepared, host, backends } = inputs;
-  const { camera, directGpu, pageSources, partitions, context } = prepared;
+  const { camera, directGpu, pageSources, partitions } = prepared;
   const { geometryUrls, pageIdByUrl, streamer } = pageSources;
   const {
     state,
@@ -59,8 +59,6 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     partitions,
     streamer,
     camera,
-    canvas: session.canvas,
-    pixelError: () => context.pixelError ?? 0,
     active: () => state.active,
     renew: options.onRowsOutgrown,
   });
