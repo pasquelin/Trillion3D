@@ -30,6 +30,7 @@
       "geometry pool": "réserve de géométrie",
       "lights": "lumières",
       "GPU frame": "image GPU",
+      "GPU frame (last)": "image GPU (dernière)",
       "CPU frame": "image CPU",
       "page hooks": "code de la page",
       "engine CPU": "moteur CPU"

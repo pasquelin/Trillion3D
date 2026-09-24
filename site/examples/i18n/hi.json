@@ -30,6 +30,7 @@
       "geometry pool": "ज्यामिति भंडार",
       "lights": "रोशनियाँ",
       "GPU frame": "GPU फ़्रेम",
+      "GPU frame (last)": "GPU फ़्रेम (अंतिम)",
       "CPU frame": "CPU फ़्रेम",
       "page hooks": "पेज का कोड",
       "engine CPU": "इंजन CPU"
