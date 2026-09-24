@@ -6860,6 +6860,7 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
+      "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
       "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`."
     }
@@ -6991,6 +6992,33 @@
     "summary": "Uma forma de colisão, quando a deduzida da geometria não serve.",
     "description": "Os tamanhos estão no referencial próprio do objeto, antes da escala."
   },
+  "PhysicsPart": {
+    "summary": "Uma parte de uma forma composta: uma primitiva, posicionada e girada no referencial do objeto."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Uma primitiva exata: os seus tamanhos no referencial próprio do objeto."
+  },
+  "WaterSpec": {
+    "summary": "Uma massa de água onde os corpos flutuam, tal como `world.physics.water` a recebe.",
+    "members": {
+      "waves": "As ondas de Gerstner da superfície; nenhuma para água parada.",
+      "level": "Altura da superfície em repouso, em metros.",
+      "density": "kg/m³; 1000, água doce, por padrão.",
+      "linearDrag": "Coeficiente de arrasto quadrático: quão depressa um corpo assenta, nunca onde; 0.5 por padrão.",
+      "angularDrag": "Quanto a água amortece a rotação de um corpo; 0.05 por padrão.",
+      "current": "Velocidade da água (a corrente de um rio), em m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Uma onda tal como uma cena a declara.",
+    "members": {
+      "direction": "Direção horizontal de deslocamento `[x, z]`; normalizada aqui.",
+      "wavelength": "Metros de crista a crista.",
+      "amplitude": "Metros do repouso à crista.",
+      "steepness": "De 0 (uma onda senoidal) a 1 (a crista mais aguda que não se enrola); normalizada sobre a soma.",
+      "phase": "Fase em `t = 0`, em radianos."
+    }
+  },
   "PhysicsStats": {
     "summary": "O que a física do mundo relata: contagens do último tick e os dois relógios à parte.",
     "members": {
@@ -7013,6 +7041,7 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
+      "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
       "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`."
     }

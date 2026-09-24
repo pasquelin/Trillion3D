@@ -5940,7 +5940,7 @@
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
-        "packages/sdk-browser/src/physics/session.ts"
+        "packages/sdk-browser/src/physics/sessionHost.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".PhysicsHost"
@@ -5977,6 +5977,28 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsOption"
+    },
+    {
+      "name": "PhysicsPart",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsPart"
+    },
+    {
+      "name": "PhysicsPrimitive",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsPrimitive"
     },
     {
       "name": "PhysicsShape",
@@ -7139,8 +7161,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/physicsLink.ts",
         "packages/sdk-browser/src/physics/placer.ts",
-        "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldLink.ts"
       ],
@@ -9084,6 +9106,36 @@
       "affectedConsumers": ["packages/sdk-browser/src/camera/renderOrigin.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/renderOrigin\".viewToRenderOrigin"
+    },
+    {
+      "name": "WaterSpec",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/fluids/buoyancy.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/protocol.ts",
+        "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/water.fixture.ts",
+        "packages/sdk-browser/src/physics/water.test.ts",
+        "packages/sdk-browser/src/physics/water.ts",
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
+        "scripts/bench-fluids.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/fluids/buoyancy\".WaterSpec"
+    },
+    {
+      "name": "WaveSpec",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/fluids/waves.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/fluids/waves\".WaveSpec"
     },
     {
       "name": "World",

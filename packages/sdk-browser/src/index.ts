@@ -22,6 +22,8 @@ export {
   DEFAULT_PHYSICS_BUDGET,
   type PhysicsType,
   type PhysicsShape,
+  type PhysicsPrimitive,
+  type PhysicsPart,
   type PhysicsBodyOptions,
   type PhysicsOption,
   type GravityPreset,
@@ -33,6 +35,7 @@ export {
   type PhysicsHost,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
+export type { WaterSpec, WaveSpec } from '../../sdk-core/src/fluids/index.ts';
 export type { PhysicsStats } from './physics/protocol.ts';
 export * from './world/metric/index.ts';
 export * from './world/diagnostic/index.ts';
