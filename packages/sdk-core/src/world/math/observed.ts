@@ -45,26 +45,42 @@ export class ObservedComponents extends Observed {
   }
 }
 
-/** Every listener `listen` hung on a value, called in the order they were added. */
-const heard = new WeakMap<Observed, Set<() => void>>();
+/** The listeners chained on a value, and the one call that runs them in order. */
+const chains = new WeakMap<Observed, { call: () => void; listeners: (() => void)[] }>();
 
-/** Adds `listener` after whatever the value already notified, so two owners both hear it; the
- *  returned function removes that listener alone. */
-export function listen(value: Observed, listener: () => void): () => void {
-  const listeners = heard.get(value) ?? hear(value);
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+/** Chains `listener` after whatever the value already notified, so two owners both hear it. A
+ *  listener already chained is not chained twice. */
+export function listen(value: Observed, listener: () => void) {
+  const current = value._onChange;
+  if (current === listener) return;
+  if (!current) {
+    value._onChange = listener;
+    return;
+  }
+  let chain = chains.get(value);
+  if (chain?.call !== current) {
+    const listeners = [current];
+    chain = {
+      listeners,
+      call: () => {
+        for (const heard of listeners) heard();
+      },
+    };
+    chains.set(value, chain);
+    value._onChange = chain.call;
+  }
+  if (!chain.listeners.includes(listener)) chain.listeners.push(listener);
 }
 
-/** Makes `value` call every listener of its set, the one it already had first. */
-function hear(value: Observed) {
-  const listeners = new Set<() => void>();
-  if (value._onChange) listeners.add(value._onChange);
-  value._onChange = () => {
-    for (const listener of listeners) listener();
-  };
-  heard.set(value, listeners);
-  return listeners;
+/** Takes `listener` off the value, the other owners chained with it kept. */
+export function unlisten(value: Observed, listener: () => void) {
+  const current = value._onChange;
+  if (current === listener) {
+    value._onChange = null;
+    return;
+  }
+  const chain = chains.get(value);
+  if (chain?.call !== current) return;
+  const at = chain.listeners.indexOf(listener);
+  if (at >= 0) chain.listeners.splice(at, 1);
 }

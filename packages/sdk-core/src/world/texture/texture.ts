@@ -1,5 +1,5 @@
 import { Vector2 } from '../math/vector2.ts';
-import { listen } from '../math/observed.ts';
+import { listen, unlisten } from '../math/observed.ts';
 import type { ColorSpace, Filter, Wrap } from '../constants/index.ts';
 
 let nextTexture = 1;
@@ -73,18 +73,18 @@ export class Texture {
     this.layout = layout;
     this.format = format;
     const placed = () => this.touch('placement');
-    const unplaced = { repeat: listen(this.repeat, placed), offset: listen(this.offset, placed) };
+    listen(this.repeat, placed);
+    listen(this.offset, placed);
     // A word written after creation reaches the materials that sample this texture; a new vector
     // for `repeat` or `offset` is heard like the one it replaces, and the old one no longer is.
     return new Proxy(this, {
       set(target, key, value) {
-        if ((key === 'repeat' || key === 'offset') && target[key] === value) return true;
+        const vector = key === 'repeat' || key === 'offset';
+        if (vector && target[key] === value) return true;
+        if (vector) unlisten(target[key], placed);
         Reflect.set(target, key, value);
         if (typeof key !== 'string' || COUNTERS.has(key)) return true;
-        if (key === 'repeat' || key === 'offset') {
-          unplaced[key]();
-          unplaced[key] = listen(value, placed);
-        }
+        if (vector) listen(value, placed);
         target.touch(COUNTER[key] ?? 'version');
         return true;
       },

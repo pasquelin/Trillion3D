@@ -30,6 +30,7 @@
       "geometry pool": "kolam geometri",
       "lights": "lampu",
       "GPU frame": "bingkai GPU",
+      "GPU frame (last)": "bingkai GPU (terakhir)",
       "CPU frame": "bingkai CPU",
       "page hooks": "kode halaman",
       "engine CPU": "CPU mesin"
