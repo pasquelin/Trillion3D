@@ -192,7 +192,8 @@ do not carry, or a view outside its binary, is `PREPARED_SCENE_MISMATCH`.
 ## `physics.json` — cooked colliders
 
 Written beside `clusters.json` by the compiler's `physics-cook` stage ([COMPILER.md](COMPILER.md)),
-with a `formatVersion` of its own (1): a reader refuses any other (`PHYSICS_FORMAT`). The shapes it
+with a `formatVersion` of its own (2): a reader refuses any other (`PHYSICS_FORMAT`, recompile the
+model). Format 1 carried the declared `bodies`, and no matter on an instance. The shapes it
 names are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
 the file names that commit in `jolt`, and the engine refuses a file cooked by another. `stage` names
 the stage and its version.
