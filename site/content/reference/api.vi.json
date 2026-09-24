@@ -1015,6 +1015,7 @@
       "pitchSpeed": "Số radian mỗi giây mà pitch xoay ở độ lệch tối đa; `null` (mặc định) là `rollSpeed`.",
       "yawSpeed": "Số radian mỗi giây mà yaw xoay ở độ lệch tối đa; `null` (mặc định) là `rollSpeed`.",
       "inputResponse": "Số giây một phím xoay cần để đạt độ lệch tối đa, và một phím được thả để quay về không: tốc độ xoay tăng dần như một cần điều khiển được di chuyển bằng tay. 0, giá trị mặc định, là bật hoặc tắt ngay lập tức. Một cần điều khiển vẫn còn đang di chuyển sẽ làm camera di chuyển, nên các khung hình tiếp tục cho tới khi nó về giữa.",
+      "lookSpeed": "Số radian góc nhìn xoay trên mỗi pixel con trỏ di chuyển; `null` (mặc định) là nửa vòng trên mỗi chiều cao bề mặt, bất kể kích thước.",
       "dragToLook": "Việc kéo có xoay góc nhìn hay không.",
       "pointerLook": "Con trỏ có xoay góc nhìn chút nào hay không, bằng kéo hoặc di chuột qua; mặc định là đúng.",
       "autoForward": "HÀNH TRÌNH, mặc định tắt: camera bay về phía trước với `movementSpeed` mà không cần giữ phím nào, như một chiếc máy bay. W khi đó cộng thêm `movementSpeed` (nhanh gấp đôi) và S lấy đi phần đó (camera treo tại chỗ); nó không bao giờ bay lùi. Không có gì di chuyển cho tới lần `update` tiếp theo, nên một ứng dụng chủ vẽ lại theo `change` sẽ yêu cầu một khung hình khi bật chế độ hành trình.",
@@ -1540,8 +1541,7 @@
     "summary": "Các cài đặt đã công bố của ánh sáng trực tiếp.",
     "description": "Đây là các lựa chọn sản phẩm có tên, không phải các hằng số bị chôn giấu: mọi giới hạn khi chạy đều đọc lại chúng, và bảng chẩn đoán công bố chúng nguyên trạng.",
     "members": {
-      "maxLights": "Số nguồn sáng mà hợp đồng chấp nhận tổng cộng; vượt quá đó, `addLight` từ chối.",
-      "maxLightsPerTile": "Số nguồn sáng mà một ô màn hình giữ lại; vòng lặp điểm ảnh bị giới hạn bởi con số này (X2).",
+      "maxLights": "Số nguồn sáng mà hợp đồng chấp nhận tổng cộng; vượt quá đó, `addLight` từ chối. Một ô màn hình giữ mọi nguồn sáng chạm vào nó; danh sách của nó và vòng lặp điểm ảnh bị giới hạn bởi con số này (X2).",
       "tileSize": "Cạnh tính bằng điểm ảnh của một ô màn hình trong danh sách nguồn sáng.",
       "samplesPerPixel": "Số nguồn sáng được tô bóng đầy đủ — kể cả đọc bóng đổ — cho mỗi điểm ảnh của một hình ảnh ĐANG CHUYỂN ĐỘNG (X2): những nguồn còn lại được cân nhắc mà không có bóng đổ của chúng, và những nguồn được tô bóng thì được vẽ theo tỉ lệ, nên ước lượng không thiên lệch và khử răng cưa theo thời gian sẽ lấy trung bình nó. Một hình ảnh đứng yên tô bóng mọi nguồn sáng trong ô của nó và hội tụ về tổng chính xác; ở đó, con số này không có vai trò gì.",
       "shadowPage": "Cạnh của một trang bóng, tính bằng texel: đơn vị của bể vật lý, của các bản đồ ảo và của việc vô hiệu hóa. Một vật chuyển động chỉ làm cũ các trang mà hộp chiếu của nó phủ.",
@@ -3878,7 +3878,7 @@
   },
   "WorldControls": {
     "summary": "Các cách mà một trang có thể lái camera bằng chuột và bàn phím, hoặc `'none'`.",
-    "description": "`'firstPerson'` di chuyển một camera; `'character'` di chuyển một thân thể — khối lượng, trọng lực, các cú nhảy, va chạm với `world.controls.colliders` — và nhìn qua đôi mắt của nó."
+    "description": "`'firstPerson'` di chuyển một camera; `'character'` di chuyển một thân thể — khối lượng, trọng lực, các cú nhảy, va chạm với `world.controls.colliders` — và nhìn qua đôi mắt của nó. `'fly'` và `'firstPerson'` di chuyển ở tốc độ `world.controls.movementSpeed` và xoay ở tốc độ `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "Số liệu của một hình ảnh như máy chủ đã sao chép từ động cơ, và hai giá trị trang đọc được ghép từ chúng; `null` ở nơi đường dẫn không đếm.",
@@ -3998,7 +3998,8 @@
       "pixelRatio": "Bao nhiêu điểm ảnh hình ảnh cho mỗi điểm ảnh màn hình.",
       "controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
-      "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải."
+      "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
+      "temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {
@@ -4632,7 +4633,8 @@
       "options.pixelRatio": "Có bao nhiêu pixel hình ảnh cho mỗi pixel màn hình.",
       "options.controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
-      "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải."
+      "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
+      "options.temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -6579,6 +6581,10 @@
     "summary": "Ánh sáng dội lại từ các bề mặt, được vẽ tia so với proxy đang cư trú; tắt theo mặc định.",
     "description": "Một thay đổi được áp dụng tại chỗ trên một đường xử lý mang nó, và được lấy bởi lần mở tiếp theo trên một đường xử lý không mang nó."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Khử răng cưa theo thời gian: độ lệch dưới điểm ảnh được tích lũy qua các khung hình; bật theo mặc định.",
+    "description": "Khi ghi, có hiệu lực từ khung hình kế tiếp, bỏ lịch sử, không mở lại phiên. Khi đọc, là điều hình ảnh mang: false trên WebGL2, và trong lúc chương trình biên dịch sau khi bật."
+  },
   "world.budget": {
     "summary": "Các bể bộ nhớ của thế giới, đọc và đặt theo byte.",
     "members": {
@@ -6609,7 +6615,7 @@
       "minAzimuthAngle": "Chỉ orbit: điểm bắt đầu của cung phương vị được phép, tính bằng radian từ +Z hướng tới +X.",
       "maxAzimuthAngle": "Chỉ orbit: điểm kết thúc của cung đó; nó có thể nhỏ hơn `minAzimuthAngle`.",
       "movementSpeed": "Flight và first person: đơn vị thế giới mỗi giây ở toàn bộ cần điều khiển; mặc định là 1.",
-      "lookSpeed": "Chỉ first person: số radian mà khung nhìn xoay cho mỗi pixel con trỏ di chuyển.",
+      "lookSpeed": "Bay, góc nhìn thứ nhất và nhân vật: số radian góc nhìn xoay trên mỗi pixel con trỏ di chuyển; `null` (mặc định) giữ giá trị riêng của từng loại — 0.002 cho một cái đầu, nửa vòng trên mỗi chiều cao canvas cho chế độ bay.",
       "minPitch": "Chỉ first person: mức thấp nhất mà đầu nhìn xuống, tính bằng radian (0 là đường chân trời, âm là hướng xuống).",
       "maxPitch": "Chỉ first person: mức cao nhất mà đầu nhìn lên, tính bằng radian phía trên đường chân trời.",
       "pointerLook": "Chỉ flight: liệu con trỏ có xoay khung nhìn hay không; sai thì chỉ các phím điều khiển.",
@@ -6815,7 +6821,7 @@
     "summary": "ĐẦU CỦA MỘT NGƯỜI ĐI BỘ, khóa con trỏ: con trỏ xoay nó, đường chân trời luôn giữ ngang bằng — yaw quanh phương lên của thế giới, pitch bị giới hạn trong `[minPitch, maxPitch]`, không bao giờ có roll.",
     "description": "Được chia sẻ bởi mọi bộ điều khiển nhìn qua đôi mắt của một người. VIỆC KHÓA LÀ QUYỀN CỦA ỨNG DỤNG CHỦ ĐỂ YÊU CẦU. Một trình duyệt chỉ cấp một khóa con trỏ bên trong một cử chỉ người dùng, nên đầu yêu cầu khi `pointerdown` và công bố `lock()`, `unlock()` và `locked()` cho một ứng dụng chủ muốn tự chọn thời điểm của riêng mình; một khóa mà người xem thoát ra chỉ đơn giản dừng việc nhìn, và một lần kéo không khóa vẫn xoay đầu.",
     "members": {
-      "lookSpeed": "Số radian xoay cho mỗi pixel chuyển động của con trỏ.",
+      "lookSpeed": "Số radian xoay trên mỗi pixel chuyển động của con trỏ; `null` (mặc định) là 0.002.",
       "minPitch": "Mức thấp nhất mà đầu nhìn xuống, tính bằng radian dưới đường chân trời được tính là âm (0 là đường chân trời); theo mặc định chỉ vừa chưa tới thẳng xuống dưới. Nâng nó lên để một người đi bộ không bao giờ nhìn vào chính thân thể mình.",
       "maxPitch": "Mức cao nhất mà đầu nhìn lên, tính bằng radian phía trên đường chân trời; theo mặc định chỉ vừa chưa tới thiên đỉnh."
     }
@@ -6853,6 +6859,7 @@
       "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt một thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`."
     }
@@ -6984,6 +6991,33 @@
     "summary": "Một hình va chạm, khi hình suy ra từ hình học không phù hợp.",
     "description": "Kích thước tính trong hệ riêng của vật, trước tỉ lệ."
   },
+  "PhysicsPart": {
+    "summary": "Một phần của hình phức hợp: một hình nguyên thủy, đặt và xoay trong hệ quy chiếu của đối tượng."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Một hình nguyên thủy chính xác: kích thước của nó trong hệ quy chiếu riêng của đối tượng."
+  },
+  "WaterSpec": {
+    "summary": "Một vùng nước nơi các vật nổi, như `world.physics.water` nhận nó.",
+    "members": {
+      "waves": "Các sóng Gerstner của mặt nước; không có sóng nào với nước lặng.",
+      "level": "Độ cao của mặt nước khi yên, tính bằng mét.",
+      "density": "kg/m³; mặc định 1000, nước ngọt.",
+      "linearDrag": "Hệ số cản bậc hai: vật ổn định nhanh đến đâu, không bao giờ là ở đâu; mặc định 0.5.",
+      "angularDrag": "Nước hãm chuyển động xoay của vật đến mức nào; mặc định 0.05.",
+      "current": "Vận tốc của nước (dòng chảy của một con sông), m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Một con sóng như một cảnh khai báo.",
+    "members": {
+      "direction": "Hướng di chuyển ngang `[x, z]`; được chuẩn hóa ở đây.",
+      "wavelength": "Số mét từ đỉnh sóng này đến đỉnh sóng kia.",
+      "amplitude": "Số mét từ mặt yên đến đỉnh sóng.",
+      "steepness": "Từ 0 (sóng hình sin) đến 1 (đỉnh nhọn nhất mà không cuộn lại); chuẩn hóa trên tổng.",
+      "phase": "Pha tại `t = 0`, tính bằng radian."
+    }
+  },
   "PhysicsStats": {
     "summary": "Những gì vật lý thế giới báo: số đếm của tick cuối, và hai đồng hồ tách riêng.",
     "members": {
@@ -7006,6 +7040,7 @@
       "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`."
     }

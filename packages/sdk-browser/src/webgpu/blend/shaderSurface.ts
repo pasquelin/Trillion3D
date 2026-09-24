@@ -1,5 +1,6 @@
 import { FLAG_SAMPLED } from '../../visibility/types.ts';
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
+import { FACING_SHIFT } from './facing.ts';
 
 /**
  * What a transparent fragment reads on its material, before any lighting: base colour and
@@ -11,7 +12,8 @@ import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
  * stage, which lights it in place (`shader.ts`), and the water surface stage, which
  * stores it for the fullscreen composite (`../water/surfaceWgsl.ts`). The host shader
  * declares `VSOut`, the atlas samplers and `blendRequest` before this block; the alpha test
- * discards here, so no stage shades a fragment the material rejects.
+ * discards here, so no stage shades a fragment the material rejects — nor one of a doubtful
+ * triangle its side does not draw (`facing.ts`).
  */
 export const BLEND_SURFACE_WGSL = `
 ${COTANGENT_FRAME_WGSL}
@@ -56,7 +58,7 @@ fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  }
  var emissive=in.emissive.xyz;
  if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,in.uv,gradX,gradY,sampled).rgb;}
- if(alpha<in.alphaAo.x){discard;}
+ if(alpha<in.alphaAo.x||facingDiscarded(in.water>>${FACING_SHIFT}u,front)){discard;}
  return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request);
 }
 `;

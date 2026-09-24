@@ -48,10 +48,7 @@ function banc() {
     layout: {
       packedPages,
       gpuWanted: [packedPages[0]],
-      rows: {
-        residentOffsetWords: new Int32Array(packedPages.length),
-        watchTouched: () => {},
-      },
+      rows: { watchTouched: () => {} },
     },
   } as unknown as WebgpuPagesCore;
   const publication = createWebgpuCutPublication(rt, residencySets);

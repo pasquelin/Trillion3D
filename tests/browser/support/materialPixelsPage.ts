@@ -47,7 +47,6 @@ interface Comparison {
   name: string;
   difference: number[];
   reason: string;
-  holds?: boolean;
   held: boolean;
   events: BackendDiagnostic[];
   samples: Reading[];
@@ -78,12 +77,11 @@ async function compare(fixture: Fixture, sides: Sides): Promise<Comparison> {
   const witnessUrl = canvas.toDataURL();
   const lights = fixture.lit ? stores.sun : stores.none;
   const engineSide = await engineImage(webgpuPagesBackend, scene, device, lights, camera, events);
-  const { name, difference, reason, holds } = fixture;
+  const { name, difference, reason } = fixture;
   return {
     name,
     difference,
     reason,
-    holds,
     held: engineSide.held,
     events,
     samples: fixture.points.map((point) => {

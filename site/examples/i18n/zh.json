@@ -1954,9 +1954,8 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "行走者绕着大厅走，推开球。“球”再加二十个。",
+    "banner": "点击环顾四周，然后用 W A S D 在球间行走并推开它们。“球”再加二十个。",
     "controls": {
-      "walking": "行走",
       "balls": "球"
     },
     "readouts": {

@@ -51,11 +51,11 @@ export type SelectionResult = {
   drawablePageIds?: number[];
   /** Triangle totals HELD BY THE GPU, where the verdict is given: the whole cut, what goes to
    *  draw, the hole — a wanted cluster whose bytes or row are missing — and the blend share.
-   *  `selected − drawn − uncovered = 0`. */
-  selectedTriangles?: number;
-  drawnTriangles?: number;
-  uncoveredTriangles?: number;
-  transparentTriangles?: number;
+   *  `selected − drawn − uncovered = 0`. The only source of these totals: the CPU sums none. */
+  selectedTriangles: number;
+  drawnTriangles: number;
+  uncoveredTriangles: number;
+  transparentTriangles: number;
   /** True when the cut exceeded the sample cap: the lists are truncated, and the frame must go
    *  back through the CPU cut rather than adopt them (`../dag/layout.ts`). */
   truncated?: boolean;
