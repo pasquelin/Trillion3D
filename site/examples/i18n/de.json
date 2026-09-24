@@ -1907,5 +1907,36 @@
         "1000": "1.000"
       }
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "Klicke auf den Boden, um dort einen Ball fallen zu lassen. Regen lässt zwanzig weitere fallen.",
+    "controls": {
+      "matter": "Material",
+      "rain": "Regen"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "Gummi",
+        "stone": "Stein",
+        "ice": "Eis"
+      }
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "Der Läufer umrundet die Halle und schiebt die Bälle. Bälle fügt zwanzig hinzu.",
+    "controls": {
+      "walking": "Gehen",
+      "balls": "Bälle"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt"
+    }
   }
 }
