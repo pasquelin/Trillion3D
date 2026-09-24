@@ -1907,5 +1907,36 @@
         "1000": "1,000"
       }
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "点击地面，在那里放下一个球。“下雨”再放二十个。",
+    "controls": {
+      "matter": "材质",
+      "rain": "下雨"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "活动",
+      "step": "步长"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "橡胶",
+        "stone": "石头",
+        "ice": "冰"
+      }
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "行走者绕着大厅走，推开球。“球”再加二十个。",
+    "controls": {
+      "walking": "行走",
+      "balls": "球"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "活动",
+      "step": "步长"
+    }
   }
 }

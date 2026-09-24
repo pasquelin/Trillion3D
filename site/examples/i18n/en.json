@@ -1907,5 +1907,36 @@
         "1000": "1,000"
       }
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "Click the ground to drop a ball where you clicked. Rain drops twenty more.",
+    "controls": {
+      "matter": "Matter",
+      "rain": "Rain"
+    },
+    "readouts": {
+      "bodies": "Bodies",
+      "awake": "Awake",
+      "step": "Step"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "rubber",
+        "stone": "stone",
+        "ice": "ice"
+      }
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "The walker circles the hall and pushes the balls. Press Balls for twenty more.",
+    "controls": {
+      "walking": "Walking",
+      "balls": "Balls"
+    },
+    "readouts": {
+      "bodies": "Bodies",
+      "awake": "Awake",
+      "step": "Step"
+    }
   }
 }

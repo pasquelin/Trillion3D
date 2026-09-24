@@ -319,7 +319,8 @@
       "hands-in-vr": "Mãos em RV",
       "teleport-in-vr": "Teletransportar-se em RV",
       "controllers-in-vr": "Controles em RV",
-      "ar-on-the-table": "RA sobre a mesa"
+      "ar-on-the-table": "RA sobre a mesa",
+      "a-walker-among-balls": "Um caminhante entre bolas"
     },
     "missing": {
       "colours-on-the-vertices": "cores por vértice no WebGPU",
@@ -482,7 +483,6 @@
       "breaking-things": "integração de um motor de física",
       "cloth-and-rope": "integração de um motor de física",
       "soft-bodies": "integração de um motor de física",
-      "rolling-on-terrain": "integração de um motor de física",
       "hinges-and-joints": "integração de um motor de física",
       "walk-with-collisions": "integração de um motor de física",
       "drive-a-car": "integração de um motor de física",

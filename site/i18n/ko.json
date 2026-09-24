@@ -319,7 +319,8 @@
       "hands-in-vr": "VR 속 손",
       "teleport-in-vr": "VR에서 순간이동",
       "controllers-in-vr": "VR 컨트롤러",
-      "ar-on-the-table": "탁자 위의 AR"
+      "ar-on-the-table": "탁자 위의 AR",
+      "a-walker-among-balls": "공 사이를 걷는 사람"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU에서의 정점별 색상",
@@ -482,7 +483,6 @@
       "breaking-things": "물리 엔진 연동",
       "cloth-and-rope": "물리 엔진 연동",
       "soft-bodies": "물리 엔진 연동",
-      "rolling-on-terrain": "물리 엔진 연동",
       "hinges-and-joints": "물리 엔진 연동",
       "walk-with-collisions": "물리 엔진 연동",
       "drive-a-car": "물리 엔진 연동",

@@ -319,7 +319,8 @@
       "hands-in-vr": "Hände in VR",
       "teleport-in-vr": "Teleportieren in VR",
       "controllers-in-vr": "Controller in VR",
-      "ar-on-the-table": "AR auf dem Tisch"
+      "ar-on-the-table": "AR auf dem Tisch",
+      "a-walker-among-balls": "Ein Läufer zwischen Bällen"
     },
     "missing": {
       "colours-on-the-vertices": "Vertexfarben unter WebGPU",
@@ -482,7 +483,6 @@
       "breaking-things": "Anbindung einer Physik-Engine",
       "cloth-and-rope": "Anbindung einer Physik-Engine",
       "soft-bodies": "Anbindung einer Physik-Engine",
-      "rolling-on-terrain": "Anbindung einer Physik-Engine",
       "hinges-and-joints": "Anbindung einer Physik-Engine",
       "walk-with-collisions": "Anbindung einer Physik-Engine",
       "drive-a-car": "Anbindung einer Physik-Engine",

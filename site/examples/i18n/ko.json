@@ -1907,5 +1907,36 @@
         "1000": "1,000"
       }
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "땅을 클릭하면 그 자리에 공을 떨어뜨립니다. 비는 스무 개를 더 떨어뜨립니다.",
+    "controls": {
+      "matter": "재질",
+      "rain": "비"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "고무",
+        "stone": "돌",
+        "ice": "얼음"
+      }
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "걷는 사람이 홀을 돌며 공을 밉니다. 공은 스무 개를 더합니다.",
+    "controls": {
+      "walking": "걷기",
+      "balls": "공"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝"
+    }
   }
 }
