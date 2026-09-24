@@ -25,7 +25,7 @@ export interface CharacterReport {
 }
 
 /** The settings that shape the body in the module: a change makes it again where it stands. */
-const SHAPE = [
+const RESHAPING = [
   'capsuleRadius',
   'capsuleHeight',
   'maxSlope',
@@ -84,9 +84,12 @@ export function createCharacterDriver() {
     /** The page's body: `next` settings (null removes it), `at` its feet when it is put there.
      *  Returns the words to run before the next step, or null when nothing changes in the module. */
     configure(next: CharacterSettings | null, at: ArrayLike<number> | null) {
-      const reshaped = !next || !settings || SHAPE.some((name) => next[name] !== settings![name]);
+      const reshaped =
+        !next || !settings || RESHAPING.some((name) => next[name] !== settings![name]);
       settings = next;
       if (!next) {
+        // The next body counts its jump presses from zero.
+        presses = 0;
         const words = new Uint32Array(CHARACTER_WORDS);
         words[0] = OP.character;
         return words;
