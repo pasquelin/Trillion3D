@@ -69,14 +69,15 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   marks.tilesEnd = performance.now();
   // A world matrix is a function of the scene alone: an image that nothing touched would find
   // them all identical. The engine index is therefore only recomputed at a scene-revision change,
-  // and a node that `setWebgpuTransform` just moved has already recomputed it.
-  run.gate.updateWorlds(rt.setup.worlds);
+  // and a node that `setWebgpuTransform` just moved has already recomputed it — and rewritten its
+  // own rows (`movedRoot.ts`). Only a host write, whose moved roots nobody named, walks it here.
+  const hostWalked = run.gate.updateWorlds(rt.setup.worlds);
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
   // What leaves toward the cut kernel is brought back to the eye (`../../../camera/renderOrigin.ts`): a
   // camera that moves therefore changes these sixteen numbers just as much as a moved node. Both
   // causes lead to the same resend, but they do not invalidate the same thing — a surface moved
   // in one case, in the other the same point is rewritten in a closer frame, and nothing the
-  // records or the occluders describe has changed.
+  // records, the occluders or the cut in hand describe has changed.
   const originMoved = !sameRenderOrigin(run.worldUploadOrigin, cam.eye);
   const rebased = worldsMoved || originMoved;
   rt.timing.worldCounts.racinesRebasees = rebased ? selectionRoots.length : 0;
@@ -85,9 +86,9 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     run.worldUploadOrigin.set(cam.eye);
     // The subtraction is done in double, the single-precision rounding comes after it.
     rootWorldsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
-    // A moved root invalidates every row's world matrix, which is the only shared input to a row the
-    // scene can still change after `prepare()`.
-    if (run.gpuSelection?.updateWorlds(worldUpdates) && worldsMoved) {
+    // A host write names no root: every row's world matrix, the only shared input to a row the
+    // scene can still change after `prepare()`, is written again.
+    if (run.gpuSelection?.updateWorlds(worldUpdates, worldsMoved) && hostWalked) {
       rows.tableEpoch++;
       invalidateOccluderHistory(run);
     }

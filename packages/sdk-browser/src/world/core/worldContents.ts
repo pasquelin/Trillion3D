@@ -41,8 +41,12 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     removed.forEach(forget);
     const reading = [...new Set([...added, ...stale])].filter((mesh) => members.meshes.has(mesh));
     stale.clear();
-    // Every resource is read at once; the meshes are then seated in the order they came.
-    const read = await Promise.all(reading.map((mesh) => cuts.of(mesh)));
+    // Every resource is read at once; the meshes are then seated in the order they came. A read
+    // that throws leaves them all to the next resolution.
+    const read = await Promise.all(reading.map((mesh) => cuts.of(mesh))).catch((error) => {
+      reading.forEach((mesh) => stale.add(mesh));
+      throw error;
+    });
     reading.forEach((mesh, i) => {
       const cut = read[i];
       if (!members.meshes.has(mesh)) return forget(mesh);

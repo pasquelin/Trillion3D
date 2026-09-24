@@ -502,7 +502,7 @@ public API takes or returns a Three.js object, and none of the batch maths needs
 
 ## Compiling from Node
 
-`prepare(source, cache, scope, triangles, options)` and `prepareMany(jobs, options)` relay to the
+`prepare(input, output, scope, budget, options)` and `prepareMany(jobs, options)` relay to the
 native executable; the `trillion3d-compile` CLI is the same relay on the command line. Arguments,
 events, the pointer, batch mode, cancellation, exit codes and the executable's selection
 (`options.executable`, then `TRILLION3D_COMPILER_BIN`, then the development build) are in
@@ -636,63 +636,24 @@ Every row names the witness call it is measured against, and its proof. The proo
 seeded inputs, compares bit for bit and refuses an engine slower than the witness. The ratios are
 the engine's speed-up over the witness, best of three runs on one machine (19 and 20 Sept. 2026,
 Apple M2 Max, Node 26.8.2); they say where, not how much a frame gains. The declared exceptions are
-named on their line. A host arriving from Three.js reads the "Witness call" column as its migration
+named on their line. A host arriving from Three.js reads the witness calls as its migration
 table.
 
 ### Unit functions
 
-#### Matrices — `packages/sdk-core/src/math/matrix/matrix4.ts`, `packages/sdk-core/src/math/matrix/matrix4Inverse.ts`, `packages/sdk-core/src/math/matrix/matrix4Trs.ts`
-
-| Function                                            | Computes                                                                            | Witness call                           | Proof                                               |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------- | --------------------------------------------------- |
-| `multiplyMatrix4(out, a, b)`                        | `out = a · b`, each term in double then rounded once                                | `Matrix4.multiplyMatrices`             | bench `Matrix4.multiplyMatrices` (×1.2)             |
-| `invertMatrix4(out, m)`                             | the inverse by cofactors; a singular `m` gives sixteen zeros, like the witness      | `Matrix4.invert`                       | bench `Matrix4.invert` (×1.3)                       |
-| `copyMatrix4(out, m, outAt = 0, mAt = 0)`           | sixteen numbers copied at offsets, a loop rather than `set` so untyped outputs work | `Matrix4.copy`, `fromArray`, `toArray` | pure copy, bit equality in every bench line         |
-| `IDENTITY_MATRIX4`                                  | the identity, read and never written                                                | `Matrix4.identity`                     | —                                                   |
-| `composeMatrix4(out, position, quaternion, scale)`  | `out = T · R · S`, quaternion `(x, y, z, w)`                                        | `Matrix4.compose`                      | bench `Matrix4.compose` (×1.4)                      |
-| `decomposeMatrix4(m, position, quaternion, scale)`  | the reverse, the sign of the determinant carried by the x scale, nothing returned   | `Matrix4.decompose`                    | bench `Matrix4.decompose` (×1.1)                    |
-| `basisMatrix4(out, u, v, n, origin, outAt = 0)`     | columns `u`, `v`, `n`, then the origin, last row `(0, 0, 0, 1)`                     | `Matrix4.makeBasis` + `setPosition`    | bench `Matrix4.makeBasis` (×1.7)                    |
-| `uniformScaleMatrix4(out, s, center, outAt = 0)`    | uniform scale `s` placed at `center`                                                | `Matrix4.makeScale` + `setPosition`    | bench `Matrix4.makeScale` (×2.3)                    |
-| `determinantMatrix4(m)`, `linearPartDeterminant(m)` | the 4×4 determinant, and that of the upper 3×3 (sign of a reflection)               | `Matrix4.determinant`                  | `packages/sdk-core/src/math/matrix/matrix4.test.ts` |
-
-#### Vectors — `packages/sdk-core/src/math/primitives/vector.ts`
-
-| Function                                               | Computes                                                                  | Witness call                    | Proof                                                  |
-| ------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------ |
-| `dotVector3(a, b, aAt = 0, bAt = 0)`                   | `a · b` on three components read at offsets                               | `Vector3.dot`                   | bench `Vector3.dot` (×3.9)                             |
-| `crossVector3(out, a, b, outAt = 0, aAt = 0, bAt = 0)` | `out = a × b`; operands read before the first write, so `out` may alias   | `Vector3.crossVectors`          | bench `Vector3.crossVectors` (×5.0)                    |
-| `lengthSqVector3(v, at = 0)`                           | `x² + y² + z²`; `Math.sqrt` of it is the witness's `length()` bit for bit | `Vector3.lengthSq`, `length`    | bench `Vector3.length` (×1.7)                          |
-| `scaleVector3(out, s)`                                 | the three components multiplied in place                                  | `Vector3.multiplyScalar`        | bench `Vector3.multiplyScalar` (×4.3)                  |
-| `copyScaledVector3(out, a, s, outAt = 0, aAt = 0)`     | `out = a · s`                                                             | `Vector3.copy().multiplyScalar` | same line                                              |
-| `transformAffinePoint(out, m, x, y, z, outAt = 0)`     | `M · (x, y, z, 1)` for an affine `M`, three components                    | `Vector3.applyMatrix4`          | bench `Vector3.applyMatrix4` (×2.4)                    |
-| `normalizeVector3(v)`                                  | `v / ‖v‖` in place, a zero vector left unchanged, nothing returned        | `Vector3.normalize`             | `packages/sdk-core/src/math/primitives/vector.test.ts` |
-
-#### Colours — `packages/sdk-core/src/math/primitives/color.ts`
-
-| Function                           | Computes                                                                           | Witness call                                  | Proof                                                                                                                                                                                     |
-| ---------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `srgbToLinear(c)`                  | the exact sRGB curve, `c / 12.92` below 0.04045, `((c + 0.055) / 1.055)^2.4` above | `Color.convertSRGBToLinear`, `new Color(hex)` | bench `Color.convertSRGBToLinear` (×1.0) — **declared exception**: the witness multiplies by rounded constants, the engine writes the curve; gap ≤ 1e-11 per channel, invisible at 8 bits |
-| `linearToSrgb(c)`                  | the inverse curve                                                                  | `Color.convertLinearToSRGB`                   | `packages/sdk-core/src/math/primitives/color.test.ts`                                                                                                                                     |
-| `hslToLinearRgb(out, at, h, s, l)` | HSL to linear RGB, three stores at `at`                                            | `Color.setHSL`                                | bench `Color.setHSL` (×1.3)                                                                                                                                                               |
-
-#### Camera — `packages/sdk-core/src/math/primitives/camera.ts`, `packages/sdk-browser/src/camera/engineCamera.ts`, `packages/sdk-browser/src/camera/world.ts`
+Each unit function has its page in the portal's
+[API reference](https://www.trillion3d.com/#/en/api): what it computes, the witness call it
+replaces and its proof, with the measured ratio. Those rows are written once, in
+`site/content/entries/` (`matrix.ts`, `vector.ts`, `camera.ts`), and never copied here. The
+functions live in `packages/sdk-core/src/math/matrix/` (matrices),
+`packages/sdk-core/src/math/primitives/` (vectors, colours, camera frame) and
+`packages/sdk-browser/src/camera/` (the engine camera).
 
 The engine composes its own projection from the declared optics — **reversed depth, infinite
-far plane**: `near` projects to 1, infinity to 0 (`depthConvention.ts`). This is the second
+far plane**: `near` projects to 1, infinity to 0 (`depthConvention.ts`). This is a
 declared exception: the bench compares the x/y terms of the projection to the witness's,
 the depth terms are the engine's by design. `far` is still read for the frustum far plane,
 the adaptive threshold and the shadow range.
-
-| Function                                                                   | Computes                                                                                                                                          | Witness call                                            | Proof                                                                                                                 |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `perspectiveProjection(out, fov, aspect, near, zoom)`                      | the projection above; `fov` vertical, in degrees                                                                                                  | `PerspectiveCamera.updateProjectionMatrix`              | bench `Matrix4.makePerspective` (×1.1, x/y terms)                                                                     |
-| `createCameraFrame()` / `updateCameraFrame(frame, projection, world, far)` | view = `world⁻¹`, view-projection, six frustum planes, once per frame                                                                             | `matrixWorldInverse`, `Frustum.setFromProjectionMatrix` | bench `Frustum.setFromProjectionMatrix` (×1.6, side planes)                                                           |
-| `createEngineCamera()`                                                     | an `EngineCamera`: the frame above plus `world`, `projection`, `eye`, `near`, `far`, `fov`, `aspect`, allocated once                              | `new PerspectiveCamera()`                               | `engineCamera.test.ts`                                                                                                |
-| `writeEngineCamera(into, { fov, aspect, near, far, zoom })`                | everything a frame reads, derived from `into.world` already set and the optics                                                                    | `updateProjectionMatrix` + `updateMatrixWorld`          | `engineCamera.test.ts`: same bits as a host camera read through `readCameraWorld`                                     |
-| `defaultEngineCamera()`                                                    | the camera at the origin with fov 50, aspect 1, near 0.1, far 2000, zoom 1 — the fallback of oracles called before the first frame                | `new PerspectiveCamera()`                               | `engineCamera.test.ts`                                                                                                |
-| `holdCameraWorld(into, from)`                                              | bit-for-bit copy of an engine camera, nothing recomputed                                                                                          | `PerspectiveCamera.copy`                                | `packages/sdk-browser/src/camera/world.test.ts`                                                                       |
-| `readCameraWorld(into, hostCamera)`                                        | resolves the host camera's ancestors, copies its world matrix, then `writeEngineCamera` — the only translation from a host camera, once per frame | `updateWorldMatrix` + the reads above                   | `packages/sdk-browser/src/camera/world.test.ts` under a hostile rig; `tests/integration/engine-without-three.test.ts` |
-| `enginePose(cam)`                                                          | `{ position, quaternion }` of the drawn frame, from the engine camera                                                                             | `getWorldPosition`, `getWorldQuaternion`                | `packages/sdk-browser/src/camera/world.test.ts`                                                                       |
 
 #### Sides — `packages/sdk-browser/src/scene/materialSide.ts`
 
@@ -876,7 +837,8 @@ shapes with this engine's [families](#families) instead. The portal's
 [migration page](https://www.trillion3d.com/#/en/learn/three-migration) sets one
 complete Three.js program beside the engine program that draws the same scene
 ([`site/examples/migrating-from-three.html`](../site/examples/migrating-from-three.html)); the
-maths map through the "Witness call" column of the [maths reference](#measured-against-the-witness-library).
+maths map through the witness call each function's page of the
+[API reference](https://www.trillion3d.com/#/en/api) names.
 Three.js stays a comparison witness of the bench, never mixed with a published world (#79).
 
 ## Current limits

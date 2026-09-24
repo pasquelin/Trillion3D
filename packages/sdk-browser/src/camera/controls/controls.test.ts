@@ -75,6 +75,17 @@ test('orbit pans the pivot on the secondary button, camera and target together',
   assert.equal(round(camera.position.distanceTo(controls.target)), 10);
 });
 
+test('orbit pans half as far per pixel at zoom 2: the pointer keeps the point it grabbed', () => {
+  const pan = (zoom: number) => {
+    const { camera, controls, surface } = orbit(10);
+    Object.assign(camera, { zoom });
+    controls.update();
+    fixtureDrag(surface, 40, 0, { button: 2 });
+    return controls.target.x;
+  };
+  assert.equal(round(pan(2)), round(pan(1) / 2));
+});
+
 /** The two fingers of a pinch, level and `a` and `b` pixels from the left of the surface. */
 const fingers = (a: number, b: number) =>
   [

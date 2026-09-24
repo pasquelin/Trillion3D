@@ -6,6 +6,7 @@ import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
+import { perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import type { ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
 import type { Plane } from '../../../../sdk-core/src/world/math/volumes.ts';
@@ -134,7 +135,7 @@ export const helper = markedFamily({
   /** The outline of what a camera sees: its pyramid from near to far.
    *  @param c - The camera to outline. */
   camera(c: Camera) {
-    const t = Math.tan((c.fov * Math.PI) / 360);
+    const t = perspectiveSlope(c.fov, c.zoom);
     const corners = [c.near, c.far].flatMap((d) =>
       [
         [-1, -1],

@@ -11,7 +11,7 @@ generates the manifest and geometry pages served by the example. This compact te
 a performance benchmark or a demonstration of large-scene residency pressure.
 
 Regenerate from the repository root with `pnpm build:native`, then `pnpm docs:scene`.
-`TRILLION3D_COMPILER` optionally selects a compatible compiler executable. Source generation is
+`TRILLION3D_COMPILER_BIN` optionally selects a compatible compiler executable. Source generation is
 deterministic; compiler timings and source provenance reflect the actual compilation run.
 
 The live example uses the public browser SDK and its WebGPU page backend, from the portal's own
