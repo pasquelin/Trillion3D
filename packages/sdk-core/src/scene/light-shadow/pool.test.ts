@@ -61,23 +61,24 @@ test('an entry mapped again after the pool evicted it counts as refetched, once'
 
 test('a lamp mip and a sun level are ranked within their own light before they compete', () => {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 1);
+  const plan = createShadowPlan(24, 2);
   const view = { ...VIEW, pixelNear: 1 };
   store.add(SUN);
   store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
   planFrame(plan, store, 0, view);
   const sun = store.sliceOf(0),
     lamp = store.sliceOf(1);
-  // Six levels above the sun's finest is under half its clipmap; mip 5 is the lamp's coarsest.
+  // Six levels above the sun's finest is under half its clipmap; mip 4 is four fifths of the
+  // lamp's. Four pages: the two floors, then the two lamp pages before the sun's.
   const level = plan.sun.finest[sun] + 6;
-  assert.ok(level > 5, 'the level counts more steps than the mip');
+  assert.ok(level > 4, 'the level counts more steps than the mip');
   const [sunPage] = sunPages(plan, sun, level, [[0, 0]]),
-    [lampPage] = lampPages(plan, lamp, 0, 5);
-  report(plan, store, 0, [sunPage, lampPage]);
+    lampPage = lampPages(plan, lamp, 0, 4).slice(0, 2);
+  report(plan, store, 0, [sunPage, ...lampPage]);
   planFrame(plan, store, 1, view);
   assert.ok(
-    plan.table.words[lampPage] & PAGE_MAPPED,
-    'the one page goes to the coarser of the two',
+    lampPage.every((entry) => plan.table.words[entry] & PAGE_MAPPED),
+    'the pages go to the coarser of the two',
   );
   assert.equal(plan.table.words[sunPage] & PAGE_MAPPED, 0);
 });
