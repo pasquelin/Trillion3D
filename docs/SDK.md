@@ -874,6 +874,55 @@ complete Three.js program beside the engine program that draws the same scene
 maths map through the "Witness call" column of the [maths reference](#measured-against-the-witness-library).
 Three.js stays a comparison witness of the bench, never mixed with a published world (#79).
 
+## Physics
+
+Physics is an option of the world, not a second world: [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
+runs in a worker, and every body is an ordinary mesh with `physics` set.
+
+```js
+const world = createWorld('view', { physics: true }); // or world.physics.enabled = true
+const floor = object.mesh(geometry.box(20, 1, 20), material.meshStandard({ physics: 'stone' }));
+floor.physics = 'static';
+const crate = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ physics: 'wood' }));
+crate.physics = 'dynamic';
+crate.position.y = 5;
+world.scene.add(floor, crate);
+crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse));
+```
+
+- **Loading.** A world without physics fetches no byte of Jolt. The worker and
+  `joltPhysics.wasm` (1.27 MB) are fetched the first time physics is enabled; bodies set before
+  then are queued.
+- **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
+  `'none'`), `paused`, `timeScale` (0.25 is slow motion), `stats` and `error`.
+  `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
+- **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
+gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
+  geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
+  its triangles when static and its convex hull, computed in the worker, when it moves. A dynamic
+  body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
+  teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
+- **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
+  A material carries `physics: 'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'` and its own
+  `density`, `friction` and `restitution` over the preset; a body's `friction` and `restitution`
+  override both.
+- **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
+  the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
+  the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
+  point.
+- **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
+  ticking and the world draws no frame.
+- **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
+  velocities kept, and thaws when it returns. Out of view, or hidden, it sends no pose and keeps
+  falling. `decorative` bodies meet the static world only and are simulated only in range and in
+  view.
+- **Budgets.** `world.budget.physics`: `bodies` 16,384, `triangles` 2,000,000, `decorative` 1,024,
+  `memoryBytes` 128 MiB (a hard ceiling: the module's memory cannot grow past it), read when the
+  physics starts. A request past one is refused with `PHYSICS_BUDGET` on `world.physics.error`.
+  The soft-body budget arrives with soft bodies.
+- **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
+  `stats.stepMs`, on its own clock: the two are never added.
+
 ## Current limits
 
 - `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
@@ -884,3 +933,8 @@ Three.js stays a comparison witness of the bench, never mixed with a published w
   by the declared-light rule above.
 - A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
   implemented.
+- Physics runs Jolt in a single worker: the thread pool over `SharedArrayBuffer` is not wired
+  yet. 10,000 boxes cost the worker about 5 ms a step in free fall and about 50 ms while they land,
+  when the simulation falls behind and runs in slow motion; the page's share is about 3 ms on a
+  frame that draws 10,000 new poses. Characters, joints, vehicles, soft bodies, cooked colliders and
+  loaded models as bodies arrive with the next physics issues (#396–#400).

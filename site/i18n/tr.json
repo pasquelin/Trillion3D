@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Bir yazılım tarayıcısı (rasterizer)",
       "sound-from-the-gpu": "GPU'dan gelen ses",
       "falling-boxes": "Düşen kutular",
+      "ten-thousand-bodies": "On bin cisim",
       "breaking-things": "Nesneleri kırmak",
       "cloth-and-rope": "Kumaş ve halat",
       "soft-bodies": "Yumuşak cisimler",
@@ -1053,6 +1054,17 @@
           "Parçaları <code>world.diagnostic.mode = 'clusters'</code> ile görün: her cluster kendi rengini alır."
         ],
         "tryIt": "Belleği azaltın: parçalar büyür, bina bütün kalır. Onları görmek için görünümü <code>clusters</code>'a değiştirin."
+      },
+      "make-things-fall": {
+        "title": "Nesneleri düşür",
+        "description": "Fiziği aç, şekillerin ağırlık kazansın: düşer, çarpışır ve durur.",
+        "steps": [
+          "Dünyaya <code>physics: true</code> ver. Simülasyon çizimden ayrı, bir <em>worker</em> içinde çalışır; görüntüyü asla yavaşlatmaz.",
+          "Zemini <code>'static'</code> işaretle: diğerlerini taşır, hiç kıpırdamaz. Bir kutuyu <code>'dynamic'</code> işaretle: yerçekimi onu çeker.",
+          "Şekil geometriden, ağırlık malzemeden gelir: <code>physics: 'wood'</code> hafif, <code>'metal'</code> ağır, <code>'rubber'</code> zıplar.",
+          "Bir cismi <code>applyImpulse</code> ile it ya da <code>contact</code> olayını dinle. Tüm cisimler uyuyunca hiçbir şey hesaplanmaz ve çizilmez."
+        ],
+        "tryIt": "Daha fazla kutu bırak, yerçekimini Ay’a çevir ve ağır çekimi aç."
       },
       "your-own-scene": {
         "title": "Kendi sahneniz",

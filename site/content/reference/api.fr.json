@@ -1224,7 +1224,8 @@
       "options.interactive": "Si le monde fait tourner sa propre boucle : il dessine quand quelque chose change et se repose après 120 images sans rien de nouveau. `false` laisse la page appeler `world.render()` elle-même.",
       "options.pixelRatio": "Combien de pixels d’image par pixel d’écran.",
       "options.controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
-      "options.signal": "Arrête les chargements du monde quand le signal est annulé."
+      "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -1581,7 +1582,10 @@
       "SESSION_OPEN_FAILED": "La session du monde n’a pas pu s’ouvrir, pour une raison sans code propre (`world.diagnostic.error`) : l’erreur levée est dans `details.cause`.",
       "WEBGPU_LOST": "WebGPU a perdu son appareil, ou une erreur sur celui-ci a laissé un état dont rien ne peut dessiner : levée par `render`, `flush` et les lectures qui ont besoin de l’appareil, nommée par le diagnostic `gpu-device-lost`, et sur `world.diagnostic.error` quand une session n’a pas pu s’ouvrir pour cette raison.",
       "UNSUPPORTED_SCENE_FORMAT": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
-      "SCENE_NOT_SAVABLE": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker."
+      "SCENE_NOT_SAVABLE": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "enginePose": {
@@ -3116,7 +3120,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.meshPhysical": {
@@ -3150,7 +3158,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.meshBasic": {
@@ -3184,7 +3196,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.meshPhong": {
@@ -3218,7 +3234,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.meshLambert": {
@@ -3252,7 +3272,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.meshToon": {
@@ -3286,7 +3310,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.meshNormal": {
@@ -3320,7 +3348,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.meshMatcap": {
@@ -3354,7 +3386,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.meshDepth": {
@@ -3388,7 +3424,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.points": {
@@ -3422,7 +3462,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.line": {
@@ -3456,7 +3500,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.lineDashed": {
@@ -3490,7 +3538,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.sprite": {
@@ -3524,7 +3576,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.shadow": {
@@ -3558,7 +3614,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "material.createShader": {
@@ -3612,7 +3672,11 @@
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "parameters.density": "kg/m³, fois le volume pour la masse.",
+      "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
+      "parameters.restitution": "À quel point un corps rebondit, de 0 à 1."
     },
     "members": {
       "isMaterial": "Toujours `true` : distingue un matériau de tout le reste.",
@@ -3634,7 +3698,11 @@
       "needsUpdate": "`material.needsUpdate = true` : les maillages qui le portent sont repeints.",
       "surface": "L’enregistrement physique de surface du moteur pour ce matériau (`contracts/material.ts`). Un genre hors de la famille physique est dessiné par la famille de l’hôte qui porte son nom, que le moteur ramène à son unique modèle d’éclairage (`surfaceModel.ts`).",
       "clone": "Un nouveau matériau du même genre, avec les mêmes valeurs.",
-      "dispose": "Oublie ceux qui le portent : un matériau libéré ne repeint plus personne."
+      "dispose": "Oublie ceux qui le portent : un matériau libéré ne repeint plus personne.",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "MATERIAL_TABLE_VERSION": {
@@ -3670,7 +3738,11 @@
       "gapSize": "Longueur de l’espace entre deux tirets.",
       "vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
-      "depthTest": "Si la surface se cache derrière ce qui est déjà plus proche."
+      "depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
+      "density": "kg/m³, fois le volume pour la masse.",
+      "friction": "À quel point un corps accroche, de 0 à plus.",
+      "restitution": "À quel point un corps rebondit, de 0 à 1."
     }
   },
   "materialSide": {
@@ -3983,7 +4055,8 @@
       "primitive": "Comment les sommets de la géométrie sont lus : triangles, points ou lignes.",
       "geometry": "La forme du maillage ; donne une autre géométrie pour la changer.",
       "material": "Le matériau du maillage, ou un par groupe ; donnes-en un autre pour le changer.",
-      "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas."
+      "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas.",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "metric": {
@@ -6407,7 +6480,8 @@
       "geometryPoolCeiling": "Les plus grands réservoirs qu’un monde peut demander : les budgets de départ du moteur.",
       "texturePoolCeiling": "Le plus grand réservoir de textures qu’un monde peut demander, en octets.",
       "geometryPool": "Octets de mémoire GPU gardés pour les pages de géométrie ; règle-le pour changer l’enveloppe.",
-      "texturePool": "Octets de mémoire GPU gardés pour les pages de texture ; règle-le pour changer l’enveloppe."
+      "texturePool": "Octets de mémoire GPU gardés pour les pages de texture ; règle-le pour changer l’enveloppe.",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.diagnostic": {
@@ -6585,7 +6659,8 @@
       "interactive": "Si le monde fait tourner sa propre boucle : il dessine quand quelque chose change et se repose après 120 images sans rien de nouveau. `false` laisse la page appeler `world.render()` elle-même.",
       "pixelRatio": "Combien de pixels d’image par pixel d’écran.",
       "controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
-      "signal": "Arrête les chargements du monde quand le signal est annulé."
+      "signal": "Arrête les chargements du monde quand le signal est annulé.",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -6910,5 +6985,17 @@
   "raycast": {
     "summary": "Chaque objet sous `roots` que `ray` rencontre — sa direction est un vecteur unitaire — le plus proche d’abord, un impact par objet : le plus proche des siens.",
     "description": "Les sous-arbres cachés sont sautés, ainsi que les nœuds que `skip` désigne, avec leurs sous-arbres : les repères avec lesquels une page travaille, jamais son contenu."
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+    }
   }
 }

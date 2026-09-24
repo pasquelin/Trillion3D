@@ -1880,5 +1880,33 @@
     "readouts": {
       "streaming": "Streaming"
     }
+  },
+  "falling-boxes": {
+    "banner": "Pulsa Soltar para cincuenta cajas más. Cambia la gravedad y míralas caer.",
+    "controls": {
+      "matter": "Materia",
+      "gravity": "Gravedad",
+      "drop": "Soltar",
+      "jump": "Saltar",
+      "slowMotion": "Cámara lenta"
+    },
+    "readouts": {
+      "bodies": "Cuerpos",
+      "awake": "Despiertos",
+      "step": "Paso"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Diez mil cajas caen a la vez. El panel muestra en directo lo que cuesta la física.",
+    "controls": {
+      "count": "Cantidad",
+      "again": "Otra vez"
+    },
+    "readouts": {
+      "bodies": "Cuerpos",
+      "awake": "Despiertos",
+      "step": "Paso",
+      "page": "Página"
+    }
   }
 }

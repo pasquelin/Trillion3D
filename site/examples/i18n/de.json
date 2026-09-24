@@ -1880,5 +1880,33 @@
     "readouts": {
       "streaming": "Streaming"
     }
+  },
+  "falling-boxes": {
+    "banner": "Klicke auf „Drop“ für fünfzig weitere Kisten. Ändere die Schwerkraft und sieh sie fallen.",
+    "controls": {
+      "matter": "Material",
+      "gravity": "Schwerkraft",
+      "drop": "Fallen lassen",
+      "jump": "Springen",
+      "slowMotion": "Zeitlupe"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Zehntausend Kisten fallen zugleich. Das Feld zeigt live, was die Physik kostet.",
+    "controls": {
+      "count": "Anzahl",
+      "again": "Nochmal"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt",
+      "page": "Seite"
+    }
   }
 }

@@ -3862,6 +3862,18 @@
       {
         "name": "SCENE_NOT_SAVABLE",
         "desc": "A saved scene is of another format or version, or holds what a saved scene cannot store."
+      },
+      {
+        "name": "PHYSICS_BUDGET",
+        "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      },
+      {
+        "name": "PHYSICS_NESTED",
+        "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      },
+      {
+        "name": "PHYSICS_FAILED",
+        "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
       }
     ],
     "description": ""
@@ -7663,6 +7675,29 @@
         "desc": "Whether the surface hides behind what is already closer."
       },
       {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
+      },
+      {
         "name": "defaults",
         "type": "Partial<MaterialParameters>",
         "default": "{}",
@@ -7739,6 +7774,26 @@
         "name": "depthTest",
         "type": "boolean",
         "desc": "Whether the surface hides behind closer things."
+      },
+      {
+        "name": "physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass' | undefined",
+        "desc": "Physics matter preset of the bodies wearing it."
+      },
+      {
+        "name": "density?",
+        "type": "number | undefined",
+        "desc": "kg/m³, for a body's mass."
+      },
+      {
+        "name": "friction?",
+        "type": "number | undefined",
+        "desc": "Physics friction."
+      },
+      {
+        "name": "restitution?",
+        "type": "number | undefined",
+        "desc": "Physics restitution."
       },
       {
         "name": "version",
@@ -7922,6 +7977,26 @@
         "name": "depthTest?",
         "type": "boolean | undefined",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass' | undefined",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "density?",
+        "type": "number | undefined",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "friction?",
+        "type": "number | undefined",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "restitution?",
+        "type": "number | undefined",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "description": ""
@@ -8464,6 +8539,11 @@
         "name": "material",
         "type": "Material | Material[]",
         "desc": "The mesh's material, or one per group; set another to change it."
+      },
+      {
+        "name": "physics",
+        "type": "ObjectPhysics | null",
+        "desc": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
       },
       {
         "name": "localBounds()",
@@ -16811,7 +16891,55 @@
     "title": "world.bounce",
     "signature": "world.bounce: boolean",
     "summary": "Light bounced off the surfaces, traced against the resident proxy; off by default.",
-    "description": "A change is applied in place on a path that carries it, and taken by the next opening on one that does not."
+    "description": "A change is applied in place on a path that carries it, taken by the next opening on one that does not."
+  },
+  {
+    "id": "world.physics",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Constant",
+    "title": "world.physics",
+    "signature": "world.physics: { enabled: boolean; get gravity(): Vector3; set gravity(g: GravityInput); paused: boolean; timeScale: number; budget: PhysicsBudget; readonly stats: Readonly...",
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": [
+      {
+        "name": "enabled",
+        "type": "boolean",
+        "desc": "Whether bodies are simulated. Turning it on fetches the physics the first time."
+      },
+      {
+        "name": "gravity",
+        "type": "Vector3",
+        "desc": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector."
+      },
+      {
+        "name": "paused",
+        "type": "boolean",
+        "desc": "Whether time stands still; writes still reach the bodies."
+      },
+      {
+        "name": "timeScale",
+        "type": "number",
+        "desc": "Simulated seconds per real second: 0.25 is slow motion."
+      },
+      {
+        "name": "budget",
+        "type": "PhysicsBudget",
+        "desc": "The fixed envelopes (`budget.physics`), read once when the physics starts."
+      },
+      {
+        "name": "stats",
+        "type": "Readonly<PhysicsStats>",
+        "desc": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame."
+      },
+      {
+        "name": "error",
+        "type": "EngineError | null",
+        "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      }
+    ],
+    "description": ""
   },
   {
     "id": "world.budget",
@@ -16820,9 +16948,14 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.budget",
-    "signature": "world.budget: { readonly geometryPoolCeiling: number; readonly texturePoolCeiling: number; geometryPool: number; get texturePool(): number | null; set texturePool(bytes: n...",
-    "summary": "The world's memory pools, read and set in bytes.",
+    "signature": "world.budget: { physics: PhysicsBudget; readonly geometryPoolCeiling: number; readonly texturePoolCeiling: number; geometryPool: number; get texturePool(): number | null; ...",
+    "summary": "The world's memory pools, read and set in bytes, and the physics envelopes.",
     "members": [
+      {
+        "name": "physics",
+        "type": "PhysicsBudget",
+        "desc": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      },
       {
         "name": "geometryPoolCeiling",
         "type": "number",
@@ -17586,6 +17719,11 @@
         "name": "signal?",
         "type": "AbortSignal | undefined",
         "desc": "Stops the world's loads when the signal is aborted."
+      },
+      {
+        "name": "physics?",
+        "type": "boolean | WorldPhysicsOptions | undefined",
+        "desc": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
       }
     ],
     "description": ""
@@ -21233,6 +21371,12 @@
         "name": "options.signal?",
         "type": "AbortSignal",
         "desc": "Stops the world's loads when the signal is aborted."
+      },
+      {
+        "name": "options.physics?",
+        "type": "boolean | WorldPhysicsOptions",
+        "default": "false",
+        "desc": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
       }
     ],
     "returns": {
@@ -25316,6 +25460,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -25478,6 +25645,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -25640,6 +25830,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -25802,6 +26015,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -25964,6 +26200,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -26126,6 +26385,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -26288,6 +26570,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -26450,6 +26755,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -26612,6 +26940,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -26774,6 +27125,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -26936,6 +27310,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -27098,6 +27495,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -27260,6 +27680,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {
@@ -27422,6 +27865,29 @@
         "name": "parameters.depthTest?",
         "type": "boolean",
         "desc": "Whether the surface hides behind what is already closer."
+      },
+      {
+        "name": "parameters.physics?",
+        "type": "'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'",
+        "desc": "The matter of a body wearing it: density, friction, restitution."
+      },
+      {
+        "name": "parameters.density?",
+        "type": "number",
+        "default": "1000",
+        "desc": "kg/m³, times the volume for the mass."
+      },
+      {
+        "name": "parameters.friction?",
+        "type": "number",
+        "default": "0.5",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "parameters.restitution?",
+        "type": "number",
+        "default": "0",
+        "desc": "How much a body bounces, 0 to 1."
       }
     ],
     "returns": {

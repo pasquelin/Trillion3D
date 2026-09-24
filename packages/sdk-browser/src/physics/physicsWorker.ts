@@ -29,13 +29,13 @@ let paused = false,
   owed = 0,
   timer: ReturnType<typeof setTimeout> | null = null,
   active = 0;
+const events = new Uint32Array(MAX_EVENTS * EVENT_WORDS);
 /** This tick's results: one slot per body (a later step overwrites), then the events. */
 let slotOf = new Int32Array(0),
   stamp = new Uint32Array(0),
   tickId = 0,
   poses = new Uint32Array(0),
   poseCount = 0,
-  events = new Uint32Array(MAX_EVENTS * EVENT_WORDS),
   eventCount = 0,
   steps = 0,
   stepMs = 0;

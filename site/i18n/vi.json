@@ -595,6 +595,17 @@
         ],
         "tryIt": "Kéo bộ nhớ xuống thấp: các mảnh ghép trở nên lớn hơn, tòa nhà vẫn nguyên vẹn. Chuyển góc nhìn sang <code>clusters</code> để thấy chúng."
       },
+      "make-things-fall": {
+        "title": "Làm vật rơi",
+        "description": "Bật vật lý và các hình có trọng lượng: rơi, va chạm rồi nằm yên.",
+        "steps": [
+          "Cho thế giới <code>physics: true</code>. Mô phỏng chạy tách khỏi việc vẽ, trong một <em>worker</em>, nên không làm hình chậm lại.",
+          "Đánh dấu sàn <code>'static'</code>: nó đỡ các vật khác và không bao giờ di chuyển. Đánh dấu hộp <code>'dynamic'</code>: trọng lực kéo nó.",
+          "Hình lấy từ hình học, trọng lượng từ vật liệu: <code>physics: 'wood'</code> nhẹ, <code>'metal'</code> nặng, <code>'rubber'</code> nảy.",
+          "Đẩy vật bằng <code>applyImpulse</code>, hoặc lắng nghe <code>contact</code>. Khi mọi vật đều ngủ, không gì được tính hay vẽ."
+        ],
+        "tryIt": "Thả thêm hộp, đổi trọng lực sang Mặt Trăng và bật chế độ chậm."
+      },
       "your-own-scene": {
         "title": "Cảnh của riêng bạn",
         "description": "Giờ bạn đã biết từng mảnh ghép. Chương này gộp chúng lại thành một cảnh nhỏ mà bạn có thể sao chép và biến thành của riêng mình.",
@@ -1453,6 +1464,7 @@
       "a-software-rasteriser": "Bộ raster hóa phần mềm",
       "sound-from-the-gpu": "Âm thanh từ GPU",
       "falling-boxes": "Các hộp rơi",
+      "ten-thousand-bodies": "Mười nghìn vật thể",
       "breaking-things": "Phá vỡ đồ vật",
       "cloth-and-rope": "Vải và dây thừng",
       "soft-bodies": "Vật thể mềm",

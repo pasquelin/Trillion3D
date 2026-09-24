@@ -1880,5 +1880,33 @@
     "readouts": {
       "streaming": "Streaming"
     }
+  },
+  "falling-boxes": {
+    "banner": "Premi Lascia per altre cinquanta scatole. Cambia la gravità e guardale cadere.",
+    "controls": {
+      "matter": "Materia",
+      "gravity": "Gravità",
+      "drop": "Lascia",
+      "jump": "Salta",
+      "slowMotion": "Rallentatore"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "awake": "Svegli",
+      "step": "Passo"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Diecimila scatole cadono insieme. Il pannello mostra dal vivo quanto costa la fisica.",
+    "controls": {
+      "count": "Numero",
+      "again": "Ancora"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "awake": "Svegli",
+      "step": "Passo",
+      "page": "Pagina"
+    }
   }
 }

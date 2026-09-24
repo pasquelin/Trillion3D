@@ -32,7 +32,7 @@ export {
   type ContactEventName,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
-export type { PhysicsStats } from './physics/session.ts';
+export type { PhysicsStats } from './physics/protocol.ts';
 export * from './world/metric/index.ts';
 export * from './world/diagnostic/index.ts';
 export * from './world/capability/index.ts';

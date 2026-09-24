@@ -380,6 +380,36 @@ with textures gets one layer, the rest of the budget by the bytes its tiles woul
 `texturePoolFormat`, `texturePoolLayers` and `texturePoolBytes` publish the result, and the
 `material-textures-ready` diagnostic lists each pool.
 
+## Physics
+
+Jolt Physics (MIT, pinned submodule `packages/physics-jolt-wasm/JoltPhysics`) is compiled with
+emscripten and SIMD into one standalone module, `joltPhysics.wasm`, behind this repository's own
+flat C API (`packages/physics-jolt-wasm/src/`): one `jolt_step` call reads a command buffer and
+writes a pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
+(`physics/joltModule.ts`) gives the module its memory, whose maximum is the memory budget.
+
+- **Worker.** `physics/physicsWorker.ts` steps at a fixed 60 Hz, at most four catch-up steps a
+  tick (beyond, time is dropped: slow motion, never a spiral). Two result buffers go back and forth
+  as transferables; when the page holds both, a tick's results wait for the next. With every body
+  asleep and no command queued, the worker stops ticking.
+- **Layouts.** `sdk-core/src/physics/layout.ts` (`PHYSICS_LAYOUT_VERSION`) holds the command,
+  pose and event word layouts the module mirrors; the page and the worker check the protocol.
+- **Page.** `physics/session.ts` reconciles bodies with the scene once per frame that changed it,
+  draws each moving body between its last drawn pose and the tick's pose (`poses.ts`), sends the
+  view, and posts the frame's commands in one message. A pose sent again unchanged asks for no
+  frame, so a sleeping world draws nothing.
+- **Distance and view.** The page sends its eye, facing, view cone and range (`camera.far`) only
+  when they change. In the module, a dynamic body beyond the range is deactivated with its
+  velocities kept; a body out of the cone or hidden sends no pose until it is seen again.
+- **Budgets.** Bodies, static triangles and decorative bodies are counted on the page; memory is
+  enforced by the module's memory maximum.
+- **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is the
+  page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`.
+- **Threads.** Not yet: the module runs single-threaded in one worker whether or not the page is
+  cross-origin isolated. `docs:serve` answers with COOP `same-origin` and COEP `credentialless`,
+  the headers the thread pool will need; the production server's headers are set outside this
+  repository.
+
 ## Diagnostics and timing
 
 `diagnosticDetail: 'trace' | 'summary'` controls event detail; an `onDiagnostic` observer defaults to

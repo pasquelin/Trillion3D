@@ -922,7 +922,10 @@
       "SESSION_OPEN_FAILED": "고유 코드가 없는 이유로 월드의 세션을 열 수 없었습니다(`world.diagnostic.error`). 발생한 오류는 `details.cause`에 있습니다.",
       "WEBGPU_LOST": "WebGPU가 장치를 잃었거나, 장치의 오류로 아무것도 그릴 수 없는 상태가 되었습니다. `render`, `flush` 및 장치가 필요한 읽기에서 발생하며, 진단 `gpu-device-lost`가 이 이름으로 알리고, 이 때문에 세션을 열 수 없었을 때 `world.diagnostic.error`에 나타납니다.",
       "UNSUPPORTED_SCENE_FORMAT": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
-      "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다."
+      "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1859,7 +1862,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     },
     "members": {
       "isMaterial": "항상 `true`: 재질을 다른 무엇과도 구분한다.",
@@ -1881,7 +1888,11 @@
       "needsUpdate": "`material.needsUpdate = true`: 그것을 두른 메시들이 다시 그려진다.",
       "surface": "이 재질에 대한, 엔진 고유의 물리적 표면 기록(`contracts/material.ts`). 물리 계열 밖의 종류는 그 이름을 가진 호스트 계열을 통해 그려지며, 엔진은 그것을 자신의 하나뿐인 라이팅 모델에 매핑한다(`surfaceModel.ts`).",
       "clone": "같은 종류, 같은 값을 가진 새 재질.",
-      "dispose": "착용자들을 잊는다: dispose된 재질은 누구도 다시 그리지 않는다."
+      "dispose": "착용자들을 잊는다: dispose된 재질은 누구도 다시 그리지 않는다.",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "MaterialParameters": {
@@ -1914,7 +1925,11 @@
       "gapSize": "두 점선 조각 사이 간격의 길이.",
       "vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "MathPath": {
@@ -2048,7 +2063,8 @@
       "primitive": "지오메트리의 정점이 어떻게 읽히는가: 삼각형, 점, 또는 선.",
       "geometry": "메시의 형태; 다른 지오메트리를 설정하면 바뀐다.",
       "material": "메시의 재질, 또는 그룹당 하나씩; 다른 것을 설정하면 바뀐다.",
-      "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다."
+      "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다.",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "Mixer": {
@@ -3945,7 +3961,8 @@
       "geometryPoolCeiling": "월드가 요청할 수 있는 최대 풀: 엔진의 초기 예산.",
       "texturePoolCeiling": "월드가 요청할 수 있는 최대 텍스처 풀, 바이트 단위.",
       "geometryPool": "지오메트리 페이지용으로 유지되는 GPU 메모리 바이트 수; 설정하면 그 범위가 바뀐다.",
-      "texturePool": "텍스처 페이지용으로 유지되는 GPU 메모리 바이트 수; 설정하면 그 범위가 바뀐다."
+      "texturePool": "텍스처 페이지용으로 유지되는 GPU 메모리 바이트 수; 설정하면 그 범위가 바뀐다.",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.diagnostic": {
@@ -4109,7 +4126,8 @@
       "interactive": "월드가 자신만의 루프를 실행하는지 여부: 무언가 바뀌면 그리고, 새로운 것이 없는 120프레임 후에는 쉰다. `false`로 하면 페이지가 직접 `world.render()`를 호출할 수 있다.",
       "pixelRatio": "화면 픽셀 하나당 이미지 픽셀 수.",
       "controls": "캔버스에서 카메라를 움직이는 컨트롤러; 나중에 `world.controls.kind`로 바꿀 수 있다.",
-      "signal": "그 신호가 중단되면 월드의 로드를 멈춘다."
+      "signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -4741,7 +4759,8 @@
       "options.interactive": "월드가 자신만의 루프를 실행하는지 여부: 무언가 바뀌면 그리고, 새로운 것이 없는 120프레임 후에는 쉰다. `false`로 하면 페이지가 직접 `world.render()`를 호출할 수 있다.",
       "options.pixelRatio": "화면 픽셀 하나당 이미지 픽셀 수.",
       "options.controls": "캔버스에서 카메라를 움직이는 컨트롤러; 나중에 `world.controls.kind`로 바꿀 수 있다.",
-      "options.signal": "그 신호가 중단되면 월드의 로드를 멈춘다."
+      "options.signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -5656,7 +5675,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.meshPhysical": {
@@ -5690,7 +5713,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.meshBasic": {
@@ -5724,7 +5751,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.meshPhong": {
@@ -5758,7 +5789,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.meshLambert": {
@@ -5792,7 +5827,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.meshToon": {
@@ -5826,7 +5865,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.meshNormal": {
@@ -5860,7 +5903,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.meshMatcap": {
@@ -5894,7 +5941,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.meshDepth": {
@@ -5928,7 +5979,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.points": {
@@ -5962,7 +6017,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.line": {
@@ -5996,7 +6055,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.lineDashed": {
@@ -6030,7 +6093,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.sprite": {
@@ -6064,7 +6131,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "material.shadow": {
@@ -6098,7 +6169,11 @@
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
       "parameters.depthWrite": "표면이 자신의 깊이를 기록하여, 이후에 그려지는 것을 가리는지 여부.",
-      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부."
+      "parameters.depthTest": "표면이 이미 더 가까이 있는 것 뒤에 가려지는지 여부.",
+      "parameters.physics": "이것을 입은 물체의 재질: 밀도, 마찰, 반발.",
+      "parameters.density": "kg/m³, 부피를 곱하면 질량입니다.",
+      "parameters.friction": "물체가 얼마나 미끄러지지 않는지, 0 이상.",
+      "parameters.restitution": "물체가 얼마나 튀는지, 0에서 1."
     }
   },
   "metric": {
@@ -6910,5 +6985,17 @@
   "raycast": {
     "summary": "`ray`가 만나는 `roots` 아래의 모든 객체. 가까운 순서로, 객체마다 하나의 교차: 그중 가장 가까운 것.",
     "description": "방향은 입구에서 단위 벡터로 바뀌므로, 페이지가 준 길이와 관계없이 모든 `distance`는 월드 단위입니다. 숨겨진 하위 트리는 건너뜁니다 — 숨겨진 조상 아래의 루트도 — 그리고 `skip`이 가리키는 노드도 하위 트리와 함께 건너뜁니다: 페이지가 작업에 쓰는 표시이지, 결코 그 내용이 아닙니다."
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+    }
   }
 }

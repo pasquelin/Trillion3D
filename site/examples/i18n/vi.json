@@ -1880,5 +1880,33 @@
     "readouts": {
       "streaming": "Truyền phát"
     }
+  },
+  "falling-boxes": {
+    "banner": "Nhấn Thả để thêm năm mươi hộp. Đổi trọng lực và xem chúng rơi.",
+    "controls": {
+      "matter": "Chất liệu",
+      "gravity": "Trọng lực",
+      "drop": "Thả",
+      "jump": "Nhảy",
+      "slowMotion": "Chậm"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Mười nghìn hộp rơi cùng lúc. Bảng hiển thị chi phí vật lý theo thời gian thực.",
+    "controls": {
+      "count": "Số lượng",
+      "again": "Lại"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước",
+      "page": "Trang"
+    }
   }
 }

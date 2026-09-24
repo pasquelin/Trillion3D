@@ -929,7 +929,10 @@
       "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
-      "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan."
+      "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1864,7 +1867,11 @@
       "parameters.gapSize": "Panjang celah antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan itu.",
       "parameters.depthWrite": "Apakah permukaan itu menulis kedalamannya, menyembunyikan yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     },
     "members": {
       "isMaterial": "Selalu `true`: membedakan sebuah material dari yang lain.",
@@ -1886,7 +1893,11 @@
       "needsUpdate": "`material.needsUpdate = true`: mesh yang memakainya dicat ulang.",
       "surface": "Catatan permukaan fisik mesin untuk material ini (`contracts/material.ts`). Sebuah jenis di luar keluarga fisik digambar lewat keluarga host bernama sama, yang dipetakan mesin ke satu model pencahayaannya (`surfaceModel.ts`).",
       "clone": "Material baru dengan jenis yang sama, dengan nilai yang sama.",
-      "dispose": "Melupakan pemakainya: sebuah material yang dibuang tidak mengecat siapa pun."
+      "dispose": "Melupakan pemakainya: sebuah material yang dibuang tidak mengecat siapa pun.",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "Material-common": {
@@ -1932,7 +1943,11 @@
       "gapSize": "Panjang celah antara dua dash.",
       "vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan itu.",
       "depthWrite": "Apakah permukaan itu menulis kedalamannya, menyembunyikan yang digambar setelahnya.",
-      "depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat."
+      "depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat.",
+      "physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "density": "kg/m³, dikali volume menjadi massa.",
+      "friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "MathPath": {
@@ -2066,7 +2081,8 @@
       "primitive": "Bagaimana vertex geometri dibaca: segitiga, titik atau garis.",
       "geometry": "Bentuk mesh itu; atur geometri lain untuk mengubahnya.",
       "material": "Material mesh itu, atau satu per grup; atur yang lain untuk mengubahnya.",
-      "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
+      "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun.",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "Mixer": {
@@ -4106,7 +4122,8 @@
       "interactive": "Apakah dunia menjalankan loop-nya sendiri: ia menggambar saat sesuatu berubah dan beristirahat setelah 120 bingkai tanpa yang baru. `false` membiarkan halaman memanggil `world.render()` sendiri.",
       "pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "controls": "Controller yang menggerakkan kamera dari canvas; `world.controls.kind` mengubahnya nanti.",
-      "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan."
+      "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -4752,7 +4769,8 @@
       "options.interactive": "Apakah dunia menjalankan loop-nya sendiri: ia menggambar saat sesuatu berubah dan beristirahat setelah 120 bingkai tanpa yang baru. `false` membiarkan halaman memanggil `world.render()` sendiri.",
       "options.pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "options.controls": "Pengontrol yang menggerakkan kamera dari kanvas; `world.controls.kind` mengubahnya nanti.",
-      "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan."
+      "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -5502,7 +5520,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.lineDashed": {
@@ -5536,7 +5558,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshBasic": {
@@ -5570,7 +5596,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshDepth": {
@@ -5604,7 +5634,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshLambert": {
@@ -5638,7 +5672,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshMatcap": {
@@ -5672,7 +5710,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshNormal": {
@@ -5706,7 +5748,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshPhong": {
@@ -5740,7 +5786,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshPhysical": {
@@ -5774,7 +5824,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshStandard": {
@@ -5808,7 +5862,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshToon": {
@@ -5842,7 +5900,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.points": {
@@ -5876,7 +5938,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.shadow": {
@@ -5910,7 +5976,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.sprite": {
@@ -5944,7 +6014,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "materialSide": {
@@ -6656,7 +6730,8 @@
       "geometryPoolCeiling": "Kolam terbesar yang boleh diminta sebuah dunia: anggaran awal mesin.",
       "texturePoolCeiling": "Kolam tekstur terbesar yang boleh diminta sebuah dunia, dalam byte.",
       "geometryPool": "Byte memori GPU yang disimpan untuk halaman geometri; atur untuk mengubah amplopnya.",
-      "texturePool": "Byte memori GPU yang disimpan untuk halaman tekstur; atur untuk mengubah amplopnya."
+      "texturePool": "Byte memori GPU yang disimpan untuk halaman tekstur; atur untuk mengubah amplopnya.",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.camera": {
@@ -6910,6 +6985,18 @@
       "counts": "Untuk setiap node: jumlah segitiga sebuah daun, 0 untuk node internal.",
       "bytes": "Byte yang disimpan pohon.",
       "triangleCount": "Segitiga yang disimpan pohon."
+    }
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
     }
   }
 }

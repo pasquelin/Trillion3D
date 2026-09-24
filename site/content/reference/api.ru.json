@@ -922,7 +922,10 @@
       "SESSION_OPEN_FAILED": "Сессию мира не удалось открыть по причине, у которой нет собственного кода (`world.diagnostic.error`): выброшенная ошибка находится в `details.cause`.",
       "WEBGPU_LOST": "WebGPU потерял своё устройство, или ошибка на нём оставила состояние, из которого ничего нельзя нарисовать: выбрасывается `render`, `flush` и чтениями, которым нужно устройство, называется диагностикой `gpu-device-lost` и появляется в `world.diagnostic.error`, когда из-за этого не удалось открыть сессию.",
       "UNSUPPORTED_SCENE_FORMAT": "Сохранённая сцена другого формата или версии либо содержит то, что сохранённая сцена хранить не может.",
-      "SCENE_NOT_SAVABLE": "Сохранённая сцена другого формата или версии либо содержит то, что сохранённая сцена хранить не может."
+      "SCENE_NOT_SAVABLE": "Сохранённая сцена другого формата или версии либо содержит то, что сохранённая сцена хранить не может.",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1859,7 +1862,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     },
     "members": {
       "isMaterial": "Всегда `true`: отличает материал от чего угодно другого.",
@@ -1881,7 +1888,11 @@
       "needsUpdate": "`material.needsUpdate = true`: меши, носящие его, перекрашиваются.",
       "surface": "Собственная физическая запись поверхности этого материала в движке (`contracts/material.ts`). Вид вне физического семейства рисуется через семейство хоста своего имени, которое движок отображает на свою единственную модель освещения (`surfaceModel.ts`).",
       "clone": "Новый материал того же вида, с теми же значениями.",
-      "dispose": "Забывает носителей: удалённый материал никого не перекрашивает."
+      "dispose": "Забывает носителей: удалённый материал никого не перекрашивает.",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "MaterialParameters": {
@@ -1914,7 +1925,11 @@
       "gapSize": "Длина промежутка между двумя штрихами.",
       "vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "density": "кг/м³; умноженная на объём, даёт массу.",
+      "friction": "Насколько тело цепляется, от 0 и выше.",
+      "restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "MathPath": {
@@ -2048,7 +2063,8 @@
       "primitive": "Как читаются вершины геометрии: треугольники, точки или линии.",
       "geometry": "Форма меша; задайте другую геометрию, чтобы изменить её.",
       "material": "Материал меша, или один на группу; задайте другой, чтобы изменить его.",
-      "localBounds": "Коробка собственного содержимого этого узла, локальная система координат; простой узел ничего не содержит."
+      "localBounds": "Коробка собственного содержимого этого узла, локальная система координат; простой узел ничего не содержит.",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "Mixer": {
@@ -3945,7 +3961,8 @@
       "geometryPoolCeiling": "Наибольшие пулы, которые может запросить мир: начальные бюджеты движка.",
       "texturePoolCeiling": "Наибольший пул текстур, который может запросить мир, в байтах.",
       "geometryPool": "Байты памяти GPU, удерживаемые для страниц геометрии; задайте, чтобы изменить объём.",
-      "texturePool": "Байты памяти GPU, удерживаемые для страниц текстур; задайте, чтобы изменить объём."
+      "texturePool": "Байты памяти GPU, удерживаемые для страниц текстур; задайте, чтобы изменить объём.",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.diagnostic": {
@@ -4109,7 +4126,8 @@
       "interactive": "Ведёт ли мир свой собственный цикл: он рисует, когда что-то меняется, и отдыхает после 120 кадров без ничего нового. `false` позволяет странице самой вызывать `world.render()`.",
       "pixelRatio": "Сколько пикселей изображения на пиксель экрана.",
       "controls": "Контроллер, который двигает камеру от canvas; `world.controls.kind` меняет его позже.",
-      "signal": "Останавливает загрузки мира, когда сигнал прерван."
+      "signal": "Останавливает загрузки мира, когда сигнал прерван.",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -4741,7 +4759,8 @@
       "options.interactive": "Ведёт ли мир свой собственный цикл: он рисует, когда что-то меняется, и отдыхает после 120 кадров без ничего нового. `false` позволяет странице самой вызывать `world.render()`.",
       "options.pixelRatio": "Сколько пикселей изображения на пиксель экрана.",
       "options.controls": "Контроллер, который двигает камеру от canvas; `world.controls.kind` меняет его позже.",
-      "options.signal": "Останавливает загрузки мира, когда сигнал прерван."
+      "options.signal": "Останавливает загрузки мира, когда сигнал прерван.",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -5485,7 +5504,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.meshPhysical": {
@@ -5519,7 +5542,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.meshBasic": {
@@ -5553,7 +5580,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.meshPhong": {
@@ -5587,7 +5618,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.meshLambert": {
@@ -5621,7 +5656,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.meshToon": {
@@ -5655,7 +5694,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.meshNormal": {
@@ -5689,7 +5732,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.meshMatcap": {
@@ -5723,7 +5770,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.meshDepth": {
@@ -5757,7 +5808,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.points": {
@@ -5791,7 +5846,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.line": {
@@ -5825,7 +5884,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.lineDashed": {
@@ -5859,7 +5922,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.sprite": {
@@ -5893,7 +5960,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.shadow": {
@@ -5927,7 +5998,11 @@
       "parameters.gapSize": "Длина промежутка между двумя штрихами.",
       "parameters.vertexColors": "Тонирует ли поверхность цвет `color` по вершинам геометрии.",
       "parameters.depthWrite": "Записывает ли поверхность свою глубину, скрывая то, что рисуется после неё.",
-      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе."
+      "parameters.depthTest": "Скрывается ли поверхность за тем, что уже ближе.",
+      "parameters.physics": "Материал тела, которое его носит: плотность, трение, упругость.",
+      "parameters.density": "кг/м³; умноженная на объём, даёт массу.",
+      "parameters.friction": "Насколько тело цепляется, от 0 и выше.",
+      "parameters.restitution": "Насколько тело отскакивает, от 0 до 1."
     }
   },
   "material.createShader": {
@@ -6910,5 +6985,17 @@
   "raycast": {
     "summary": "Каждый объект под `roots`, который встречает `ray`, ближайший первым, одно попадание на объект: ближайшее из его собственных.",
     "description": "Направление на входе приводится к единичному вектору, поэтому каждое `distance` выражено в мировых единицах, какую бы длину ни дала страница. Скрытые поддеревья пропускаются — и корень под скрытым предком тоже, — как и узлы, названные в `skip`, вместе с их поддеревьями: метки, с которыми работает страница, но никогда не её содержимое."
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+    }
   }
 }

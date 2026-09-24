@@ -1880,5 +1880,33 @@
     "readouts": {
       "streaming": "Akış"
     }
+  },
+  "falling-boxes": {
+    "banner": "Elli kutu daha için Bırak’a bas. Yerçekimini değiştir ve düşüşlerini izle.",
+    "controls": {
+      "matter": "Madde",
+      "gravity": "Yerçekimi",
+      "drop": "Bırak",
+      "jump": "Zıpla",
+      "slowMotion": "Ağır çekim"
+    },
+    "readouts": {
+      "bodies": "Cisimler",
+      "awake": "Uyanık",
+      "step": "Adım"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "On bin kutu aynı anda düşer. Panel fiziğin maliyetini canlı gösterir.",
+    "controls": {
+      "count": "Sayı",
+      "again": "Yeniden"
+    },
+    "readouts": {
+      "bodies": "Cisimler",
+      "awake": "Uyanık",
+      "step": "Adım",
+      "page": "Sayfa"
+    }
   }
 }

@@ -1880,5 +1880,33 @@
       "fieldOfView": "Champ de vision",
       "dollyZoom": "Travelling compensé"
     }
+  },
+  "falling-boxes": {
+    "banner": "Appuie sur Lâcher pour cinquante boîtes de plus. Change la gravité et regarde-les tomber.",
+    "controls": {
+      "matter": "Matière",
+      "gravity": "Gravité",
+      "drop": "Lâcher",
+      "jump": "Sauter",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Dix mille boîtes tombent d’un coup. Le panneau montre en direct ce que coûte la physique.",
+    "controls": {
+      "count": "Nombre",
+      "again": "Encore"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas",
+      "page": "Page"
+    }
   }
 }

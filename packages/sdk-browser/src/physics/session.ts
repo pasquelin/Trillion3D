@@ -18,20 +18,9 @@ import {
   resultBytes,
   type FromPhysics,
   type PhysicsResults,
+  type PhysicsStats,
 } from './protocol.ts';
 import { createPhysicsView } from './view.ts';
-
-/** What the world's physics reports: counts from the last tick, and both clocks apart. */
-export interface PhysicsStats {
-  /** Bodies the simulation holds. */ bodies: number;
-  /** Bodies awake after the last tick. */ active: number;
-  /** Worker milliseconds per fixed step, last tick: the worker's clock, never added to the page's. */
-  stepMs: number;
-  /** Page milliseconds the physics took in the last frame (the `physics` CPU stage). */
-  mainMs: number;
-  /** Poses the last tick sent back. */ poses: number;
-  /** Contact events the last tick sent back. */ events: number;
-}
 
 /** The URL of a resource beside this module: `.ts` in a source tree served as is, `.js` built. */
 const beside = (name: string) =>
@@ -120,10 +109,13 @@ export function createPhysicsSession(
       const a = bodies.meshes[words[at + 1]] ?? null,
         b = bodies.meshes[words[at + 2]] ?? null;
       const e = [floats[at + 3], floats[at + 4], floats[at + 5], floats[at + 6]];
-      const name = words[at] === EVENT.begin ? 'enter' : 'leave';
-      (emit(a, b, name, e), emit(b, a, name, e));
-      if (name === 'enter' && !a?.physics.sensor && !b?.physics.sensor)
-        (emit(a, b, 'contact', e), emit(b, a, 'contact', e));
+      const name: ContactEventName = words[at] === EVENT.begin ? 'enter' : 'leave';
+      // `contact` joins `enter` when the two touch for real: a sensor only reports presence.
+      const solid = name === 'enter' && !a?.physics.sensor && !b?.physics.sensor;
+      for (const each of solid ? [name, 'contact' as const] : [name]) {
+        emit(a, b, each, e);
+        emit(b, a, each, e);
+      }
     }
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
     const changed = moved > 0 || m.active !== stats.active;

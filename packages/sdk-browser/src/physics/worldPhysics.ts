@@ -10,7 +10,8 @@ import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D, SceneLink } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { HostCpuProfile } from '../host/cpuProfile.ts';
-import { createPhysicsSession, type PhysicsSession, type PhysicsStats } from './session.ts';
+import { createPhysicsSession, type PhysicsSession } from './session.ts';
+import type { PhysicsStats } from './protocol.ts';
 
 /** A gravity: a preset's name, or a vector in m/s². */
 export type GravityInput = GravityPreset | { x: number; y: number; z: number };
