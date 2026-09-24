@@ -27,7 +27,6 @@ export function encodeManifestBinary(
   header[0] = format.MANIFEST_BINARY_MAGIC;
   header[1] = format.MANIFEST_BINARY_VERSION;
   header[2] = format.COLUMN_NAMES.length;
-  header[3] = 0;
   format.COLUMN_NAMES.forEach((name, index) => {
     header[format.MANIFEST_BINARY_HEADER_WORDS + index * 2] = ranges[name].offset;
     header[format.MANIFEST_BINARY_HEADER_WORDS + index * 2 + 1] = ranges[name].length;
@@ -58,6 +57,9 @@ export function encodeManifestBinary(
   const structureRoot = view('structureRoot', (b, o, n) => new Int32Array(b, o, n));
   const bundleWords = view('bundleU32', (b, o, n) => new Uint32Array(b, o, n)),
     bundleSha = view('bundleSha', (b, o, n) => new Uint8Array(b, o, n));
+  const words32 = (b: ArrayBuffer, o: number, n: number) => new Uint32Array(b, o, n);
+  const dependencyCount = view('bundleDependencyCount', words32),
+    dependencyList = view('bundleDependency', words32);
   const pageDepthLayer = view('pageDepthLayer', (b, o, n) => new Uint32Array(b, o, n));
   encodePreviewColumns(manifest.texturePreviews ?? [], view);
   let page = 0,
@@ -66,7 +68,8 @@ export function encodeManifestBinary(
     child = 0,
     output = 0,
     root = 0,
-    bundle = 0;
+    bundle = 0,
+    dependency = 0;
   const primitives: SlimPrimitive[] = manifest.primitives.map((primitive) => {
     for (const item of primitive.pages) {
       bounds.set(item.min, page * 6);
@@ -161,6 +164,9 @@ export function encodeManifestBinary(
       writeSha(bundleSha, bundle, item.sha256);
       bundleWords[bundle * 2] = item.bytes;
       bundleWords[bundle * 2 + 1] = item.count;
+      dependencyCount[bundle] = item.dependencies.length;
+      dependencyList.set(item.dependencies, dependency);
+      dependency += item.dependencies.length;
       bundle++;
     }
     const {
