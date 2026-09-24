@@ -114,9 +114,7 @@ export function createPhysicsSession(
         if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
     },
     /** The scene's tree changed: bodies are reconciled before the next frame. */
-    structure() {
-      dirty = true;
-    },
+    structure: () => void (dirty = true),
     /** A mesh's geometry, material or `physics` changed. */
     content(node: Object3D) {
       if (hasBody(node)) stale.add(node);
@@ -162,6 +160,8 @@ export function createPhysicsSession(
     },
     /** The model a tile body's engine id belongs to, or the mesh a body's names, or `null`. */
     objectOf: (id: number) => tiles.modelOf(id) ?? bodies.meshOf(id),
+    /** The glTF material of a tile body's triangles, `-1` for any other body. */
+    materialOf: tiles.materialOf,
     dispose() {
       tiles.clear();
       bodies.clear();
