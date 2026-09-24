@@ -2,7 +2,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
 import { prepareExplorerWebglSurface } from '../../../packages/sdk-browser/src/world/render/webglHost.ts';
-import { baseCapabilities } from '../../../packages/sdk-browser/src/backend/common.ts';
+import { baseCapabilities } from '../../../bench/witnesses/capabilities.ts';
 import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 
