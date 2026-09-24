@@ -19,8 +19,12 @@ export function createHeldFloor(env: {
     read = -1,
     bytes = 0;
   return {
+    /** What the root cover holds changed; the pool reads the same revision (`coverRevision`). */
     changed() {
       revision++;
+    },
+    get revision() {
+      return revision;
     },
     bytes() {
       if (read === revision) return bytes;

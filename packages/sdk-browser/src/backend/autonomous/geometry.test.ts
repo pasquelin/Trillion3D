@@ -193,6 +193,8 @@ test('the store keeps a page by page, checked against the catalogue even when no
   assert.equal(store.storeGeometryPage('p.bin', page()), true);
   assert.equal(store.storeGeometryPage('p.bin', page()), true);
   assert.equal(store.state.residentPages, 1, 'one page, two records, stored twice');
+  assert.deepEqual([store.releasePage('p.bin'), store.releasePage('p.bin')], [true, false]);
+  assert.equal(store.state.residentPages, 0, 'the page, not its two records, left');
   store.dispose();
   material.dispose();
 });

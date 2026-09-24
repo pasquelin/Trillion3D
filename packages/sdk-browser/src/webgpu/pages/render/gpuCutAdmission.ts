@@ -1,6 +1,6 @@
 import { MAX_BUDGET_PIXEL_ERROR } from '../helpers.ts';
 import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
-import { MIN_BUDGET_PIXEL_ERROR } from '../../../page/cut/tally.ts';
+import { MIN_BUDGET_PIXEL_ERROR } from '../../../residency/pools.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Share of the slots under which a coarsened cut asks for the next finer threshold again. */

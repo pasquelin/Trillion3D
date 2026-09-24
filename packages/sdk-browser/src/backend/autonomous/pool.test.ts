@@ -22,12 +22,12 @@ test('over its budget the pool sheds the oldest pages no cut keeps, never a kept
   // p0 is the oldest but kept: p1 leaves in its place, and the page that just arrived stays.
   assert.deepEqual(f.dropped, ['p1']);
   assert.ok(f.state.allocationBytes <= 3 * PAGE);
-  // Kept at the last pass, p0 became the most recent: once released, p2 goes before it.
+  // The order is that of arrivals, not of the images that kept a page: once released, p0 goes.
   f.kept.clear();
   f.pool.trim();
   f.arrive('p4');
-  assert.deepEqual(f.dropped, ['p1', 'p2']);
-  assert.deepEqual([...f.resident].sort(), ['p0', 'p3', 'p4']);
+  assert.deepEqual(f.dropped, ['p1', 'p0']);
+  assert.deepEqual([...f.resident].sort(), ['p2', 'p3', 'p4']);
 });
 
 test('a page accepted again is the most recent again', () => {

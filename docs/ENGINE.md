@@ -276,28 +276,30 @@ engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of
 page, page cap and session ceiling). A slot holds one geometry copy: a classic instance
 (`addInstance`) holds its own copy of every page, so a page three instances draw fills three slots,
 while the records rows place share one. Its cut is drawn on the CPU in the image that shows it, so
-it fits the slots in that image: every page it asks for charges its copies once, the root cover held
-beforehand, and the cut draws coarser until they fit (`selectVisiblePages`'s `pageBudget`). A
-resident ancestor drawn in place of a missing page charges nothing more: each place on screen
-counts once, for the page that will be resident. The threshold is searched from one image to the
-next (`pageBudgetFrom`): an image the budget did not limit, or a host threshold lowered, starts
-again at the host's `pixelError` (one pass); otherwise each image starts from the threshold the last
-one kept, tries one step of √2 finer, never under the host's `pixelError`, keeps the last threshold
-when the finer step does not fit, and climbs by √2 in the same image when that one no longer fits (a
-camera move). The climb stops as soon as the cut fits, or where no coarser threshold changes the
-cut: a pass whose overflow comes from root pages, and from pages whose parent reaches the near
-plane (an infinite screen error, refined at every threshold), overflows at every coarser threshold
-too. It never climbs past a ceiling either: the largest error the DAG roots carry as parents, seen
-at the near plane on the view axis (`pageBudgetRootError`). A budget not even that coarsest cut fits
-holds the threshold there, fixed from one image to the next, draws that cut, and publishes the
-pool's `geometryPoolClamp` as `root-cover`, as on WebGPU. An image mostly costs one pass, a smaller budget holds in
+it fits the slots in that image: every page it asks for charges its copies once (`slotsOf`), the
+root cover held beforehand, and the cut draws coarser until they fit (`selectVisiblePages`'s
+`search`, `poolSearch.ts`). A resident ancestor drawn in place of a missing page charges nothing
+more: each place on screen counts once, for the page that will be resident. The threshold is
+searched from one image to the next, and an image mostly costs one pass: an image the budget did
+not limit, or a host threshold lowered, passes at the host's `pixelError`; otherwise each image
+passes one step of √2 finer than the threshold the last one kept, unless that step overflowed since
+and the kept cut charges no less than it did then (the kept threshold again, the one image that
+costs two passes), and climbs
+by √2 in the same image when the cut no longer fits (a camera move). The climb stops as soon as the
+cut fits, or where no coarser threshold changes the cut: a pass whose overflow comes from root
+pages, and from pages whose parent reaches the near plane (an infinite screen error, refined at
+every threshold), overflows at every coarser threshold too. It never climbs past a ceiling either:
+the largest error the DAG roots carry as parents, seen at the near plane on the view axis. A budget
+not even that coarsest cut fits holds the threshold there, draws that cut without the budget in one
+pass, probes it again only when the slots, the copies, the view or the host's threshold change, and
+publishes the pool's `geometryPoolClamp` as `root-cover`, as on WebGPU. A smaller budget holds in
 the image that follows it, and the detail converges on the finest threshold that fits, to √2, in a
 number of images logarithmic in the ratio of the kept threshold to the host's; only while a finer
-step is left to try does `pendingFrame` ask for another image (`awaitPages` waits for it, and for the
-pages of the settled cut), and an image whose view moved forces none. A threshold kept coarser than
-the host's is `budgetPixelError`, `0` otherwise. A verdict change is queued and published as
-`coverage-budget` by `flush`, as on WebGPU, in the image whose pass tried the host's threshold,
-whether the search has settled or not. Its `requiredSlots` is the slots the cut at the host's
+step is left to try does `pendingFrame` ask for another image, and an image whose view moved forces
+none. `flush` runs those images itself, at most 32, so `awaitPages` loads the pages of the fixed
+cut. A threshold kept coarser than the host's is `budgetPixelError`, `0` otherwise. A verdict
+change is queued and published as `coverage-budget` by `flush`, as on WebGPU, in the image whose
+pass tried the host's threshold, whether the search has settled or not. Its `requiredSlots` is the slots the cut at the host's
 threshold charges, known only when that cut fit, and `null` when the cut is drawn coarser, since a
 pass past the budget stops at its first
 overflowing page. When its pages hold more than the slots, those the image no longer keeps leave
@@ -305,10 +307,10 @@ oldest first (`evictOldest`, the page streamer's order). A refinement may hold m
 resident ancestor drawn in place of a missing page is kept while the pages that replace it arrive,
 so the pool goes past its slots by at most the ancestors standing in, and comes back under them in
 the cut that follows the last arrival, which no longer keeps them (`poolSearch.test.ts` measures 11
-slots over 150 for 60 ancestors replaced by 100 pages, and `geometryPoolAllocatedBytes` shows it).
+slots over 150 for 60 ancestors replaced by 100 pages, and `geometryAllocationBytes` shows it).
 Only the root cover and the pages the host replaced (`replaceGeometryPage`) stay above it; they are counted as the pages' bytes are, every
-geometry copy included. Its `geometryPoolAllocatedBytes` is what the pages hold, no pool being
-reserved. Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+geometry copy included. No pool is reserved: `geometryPoolAllocatedBytes` is `null`, and what the
+pages hold is `geometryAllocationBytes`. Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 A region keeps a complete resident representation until every replacement page is uploaded; if old
 and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.

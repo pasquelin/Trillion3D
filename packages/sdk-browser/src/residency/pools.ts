@@ -10,6 +10,10 @@ import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts';
  */
 export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024;
 
+/** Finest rung of both engines' budget ladder, in pixels: below it the cut is the one the host
+ *  asked for. */
+export const MIN_BUDGET_PIXEL_ERROR = 0.125;
+
 /** Bytes a page buffer may occupy on this device: the smaller of its limits. */
 export const pageBufferCap = (limits?: {
   maxBufferSize?: number;

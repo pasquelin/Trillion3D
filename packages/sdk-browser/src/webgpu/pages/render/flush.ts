@@ -129,7 +129,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   await services.bootstrapState.ensure();
   await services.residency.pending;
   if (run.coverageBudgetEvent) {
-    sendCoverageBudget(diag.engineDiagnostic, run.coverageBudgetEvent);
+    sendCoverageBudget(rt.context.onDiagnostic, run.coverageBudgetEvent);
     run.coverageBudgetEvent = undefined;
   }
   await timing.gpuTiming?.flush();

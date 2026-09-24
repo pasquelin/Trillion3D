@@ -1,6 +1,6 @@
 import { frameClusterError, frameSelects } from '../selection/frame.ts';
-import { residentUnder, type PageRecord, type SelectionState } from './state.ts';
-import { chargeFallback, truncateShown } from './tally.ts';
+import { residentUnder, truncateShown, type PageRecord, type SelectionState } from './state.ts';
+import { chargeDrawn } from './charge.ts';
 import { ESCALATION_ROUNDS } from '../selection/types.ts';
 import { flatConeKeeps, flatVisible } from './visit.ts';
 
@@ -21,7 +21,7 @@ export function rootCoverInto<T extends PageRecord>(
     }
     s.shown[s.shownCount++] = rec;
     s.shownTriangles += rec.triangles;
-    if (s.budget !== 0) chargeFallback(s, rec);
+    chargeDrawn(s);
   }
   return whole;
 }
@@ -59,7 +59,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
       }
       s.shown[s.shownCount++] = rec;
       s.shownTriangles += rec.triangles;
-      if (s.budget !== 0) chargeFallback(s, rec);
+      chargeDrawn(s);
     }
   if (!hard) return;
   if (!rootCoverInto(s, pages, start)) s.complete = false;

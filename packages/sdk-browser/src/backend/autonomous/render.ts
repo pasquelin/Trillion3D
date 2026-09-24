@@ -1,6 +1,7 @@
 import {
   createSelectionResult,
   selectVisiblePages,
+  type ClusterRoot,
   type PageRec,
 } from '../../page/selection/selection.ts';
 import type { BackendContext } from '../types.ts';
@@ -10,6 +11,7 @@ import type { CameraMotion, HostCamera } from '../../camera/world.ts';
 import type { HostWorldPlacements } from '../../host/world/placements.ts';
 import { attachedPages } from '../../placement/autonomousPlacements.ts';
 import type { createGeometryBudget } from './pool.ts';
+import { MAX_SEARCH_STEPS } from './poolSearch.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
@@ -40,7 +42,7 @@ export function createAutonomousRender(options: {
   context: BackendContext;
   gate: WebglFrameGate;
   lighting: ReturnType<typeof installSceneLighting>;
-  roots: Parameters<typeof selectVisiblePages>[0];
+  roots: ClusterRoot<PageRec>[];
   /** The engine's world-matrix index, rebuilt once per scene revision. */
   worlds: HostWorldPlacements;
   shown: PageRec[];
@@ -48,11 +50,11 @@ export function createAutonomousRender(options: {
   bootstrap: PageRec[];
   cap: number;
   sync: () => void;
-  /** Gathers what the image keeps, once, for the pool and the streamer (`residency.ts`). */
-  collectKept: () => void;
-  /** The geometry pool: the budget the cut fits, the verdict read on it, and the shedding of what
-   *  it left (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'bound' | 'settle' | 'settling' | 'trim'>;
+  /** The image drew another cut: what it keeps is gathered again when read (`residency.ts`). */
+  keptChanged: () => void;
+  /** The geometry pool: the search the cut runs under its slots, and the shedding of what it left
+   *  (`pool.ts`). */
+  pool: Pick<ReturnType<typeof createGeometryBudget>, 'search' | 'slotsOf' | 'settling' | 'trim'>;
 }) {
   const {
     state,
@@ -66,7 +68,7 @@ export function createAutonomousRender(options: {
     bootstrap,
     cap,
     sync,
-    collectKept,
+    keptChanged,
     pool,
   } = options;
   const motion: CameraMotion = {};
@@ -76,17 +78,17 @@ export function createAutonomousRender(options: {
     pixelError: 0,
     viewport: context.viewport,
     holdResident: true,
-    pageBudget: 0,
-    pageBudgetHeld: 0,
-    pageBudgetFrom: 0,
-    pageBudgetRootError: 0,
+    slotsOf: pool.slotsOf,
+    search: pool.search,
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
   const sourcesDessinees = roots.map((root) => root.pages[0]);
-  // The view revision of the last image the cut ran in.
-  let viewSeen = -1;
-  return (camera: HostCamera) => {
+  // The view revision of the last image the cut ran in, and its camera.
+  let viewSeen = -1,
+    lastCamera: HostCamera | undefined;
+  const frame = (camera: HostCamera) => {
+    lastCamera = camera;
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
     state.frameHeld = gate.enterFrame(
@@ -98,10 +100,8 @@ export function createAutonomousRender(options: {
       sourcesDessinees,
     );
     if (state.frameHeld) return;
-    // The cut fits the pool in this image: its threshold is searched from the last image's, by
-    // steps of √2, until the copies it asks for fit the slots.
+    // The cut fits the pool in this image: its threshold is searched from the last image's.
     selectOptions.pixelError = gate.pixelError;
-    pool.bound(selectOptions);
     // Copied world matrices and lights are a function of the scene only.
     if (gate.updateWorlds(worlds)) lighting.update();
     const selected = selectVisiblePages(roots, gate.cam, selectOptions, shown);
@@ -109,7 +109,6 @@ export function createAutonomousRender(options: {
     state.selectedTriangles = selected.selectedTriangles;
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
-    pool.settle(gate.pixelError, selected);
     // A search with a finer step left owes an image: the next one is not held on this one. A view
     // that moved in this image already breaks the hold, and forces nothing more.
     const view = gate.revisions.view;
@@ -121,9 +120,18 @@ export function createAutonomousRender(options: {
       for (let i = 0; i < bootstrap.length; i++) shown.push(bootstrap[i]);
     }
     sync();
-    collectKept();
+    keptChanged();
     // The pages this cut left can go, once the pool holds more than its budget.
     pool.trim();
     gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
+  };
+  return {
+    frame,
+    /** Fixes the pool's search on the last view, one cut an image, at most `MAX_SEARCH_STEPS`:
+     *  `awaitPages` then loads the pages of the fixed cut. */
+    settle() {
+      for (let image = 0; lastCamera && pool.settling && image < MAX_SEARCH_STEPS; image++)
+        frame(lastCamera);
+    },
   };
 }

@@ -29,11 +29,8 @@ export function fixture(
     rootBytes = 0,
     rootReads = 0,
     each = options.copies ?? 1,
-    generation = 0;
+    revision = 0;
   const copies: PageCopies = {
-    get generation() {
-      return generation;
-    },
     of: () => each,
     root: () => rootUrls.size * each,
     scene: () => count * each,
@@ -47,7 +44,8 @@ export function fixture(
     rootUrls,
     rootError: 0,
     copies,
-    shares: new Map(),
+    coverRevision: () => revision,
+    viewRevision: () => 0,
     state,
     floorBytes: () => {
       rootReads++;
@@ -78,7 +76,7 @@ export function fixture(
   /** Instances now hold `copies` copies of every page. */
   const instances = (copiesPerPage: number) => {
     each = copiesPerPage;
-    generation++;
+    revision++;
   };
   return {
     pool,

@@ -95,29 +95,26 @@ test('synchronous backends accept missing pages before syncing residency', async
   assert.equal(synced, true);
 });
 
-test('a budget search is awaited until it settles and the settled cut is resident', async () => {
-  // Each image steps the threshold one rung finer until the fourth; each rung asks for its page.
-  let rung = 0,
-    renders = 0;
+test('awaitPages returns on a fixed search, its pages resident', async () => {
+  // The WebGL2 backend fixes its threshold search in `flush`, one cut a rung, before the wait
+  // asks for the pages: those of the fixed cut are then the ones loaded.
+  let rung = 0;
   const resident = new Set<number>();
   await awaitBackendPages(
     {
-      render() {
-        renders++;
-        if (rung < 4 && resident.has(rung)) rung++;
+      render() {},
+      async flush() {
+        while (rung < 4) rung++;
       },
-      async flush() {},
       pendingUrls() {
         return resident.has(rung) ? [] : [`rung-${rung}`];
       },
-      cutSettling: () => rung < 4,
     },
     new THREE.PerspectiveCamera(),
     async (urls) => {
       for (const url of urls) resident.add(Number(url.slice(5)));
     },
   );
-  assert.equal(rung, 4, 'the search settled');
-  assert.ok(resident.has(4), 'the pages of the settled cut are resident');
-  assert.ok(renders < 40);
+  assert.equal(rung, 4, 'the search is fixed');
+  assert.deepEqual([...resident], [4], 'only the pages of the fixed cut were loaded');
 });

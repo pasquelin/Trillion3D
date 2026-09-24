@@ -3,7 +3,7 @@ import { frustumClipBox } from '../../../../sdk-core/src/index.ts';
 import { frameClusterError, frameSelects } from '../selection/frame.ts';
 import { cutSelectsAtZero } from '../selection/projection.ts';
 import { drawnUnderForcing } from './logic.ts';
-import { chargeDrawn, chargeShare, markFiner } from './tally.ts';
+import { chargeDrawn, chargeWanted } from './charge.ts';
 import {
   RESIDENT_ALL,
   residentUnder,
@@ -35,14 +35,7 @@ function keep<T extends PageRecord>(
     s.wantedTriangles += triangles;
     const level = rec.level;
     if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
-    // A page asked for takes its slots whether or not it is drawn: a cut that fits only while
-    // its pages are missing would overflow as they arrive. What is drawn in its place charges
-    // nothing more (`chargeDrawn`).
-    if (s.budget !== 0) {
-      const share = rec.budgetShare;
-      if (share !== undefined && chargeShare(s, share)) s.over = true;
-      markFiner(s, rec);
-    }
+    chargeWanted(s, rec);
   }
   if (resident !== RESIDENT_ALL && !residentUnder(s, rec, resident)) {
     if (forcing) s.flatShort = true;
@@ -54,7 +47,7 @@ function keep<T extends PageRecord>(
   s.shownTriangles += triangles;
   // A pass that exceeds the budget is discarded as-is: its only result is "too many pages".
   // Knowing at the first overrun skips the rest of the descent, not a page of the cut we keep.
-  if (s.budget !== 0 && chargeDrawn(s, rec)) s.over = true;
+  chargeDrawn(s);
 }
 
 /** Test a cluster, except its cut when an ancestor already settled it (`settled`): the frustum and

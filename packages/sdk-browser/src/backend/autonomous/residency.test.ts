@@ -13,13 +13,13 @@ import {
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 
-// A minimal but complete geometry store: only `detach` and `state` are read by
+// A minimal but complete geometry store: only `releasePage` is read by
 // `createAutonomousResidency`, but its parameter type is the full geometry-store shape.
 function fakeGeometryStore() {
   return {
     state: { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 },
     colorMaterials: new Map(),
-    detach: () => {},
+    releasePage: (_url: string) => false,
     sync: () => {},
     rowsWritten: () => {},
     dispose: () => {},
@@ -68,7 +68,6 @@ test('pendingUrls and pageUrls match the reference on a normal host, called twic
     ...env,
     pending: [],
     retained: [],
-    byUrl: new Map(),
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({ ...env, pending: [], retained: [] });
@@ -89,7 +88,6 @@ test('an empty host produces empty sets from both implementations', () => {
     ...empty,
     pending: [],
     retained: [],
-    byUrl: new Map(),
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({ ...empty, pending: [], retained: [] });
@@ -117,24 +115,18 @@ test('collectPendingUrls on an empty list returns an empty array from both sides
   assert.deepEqual(referenceCollectPendingUrls([], []), []);
 });
 
-test('dropPage counts one eviction per page, whatever records draw it, and none for an empty page', () => {
+test('dropPage counts one eviction per page the store held, never the root cover', () => {
   const geometryStore = fakeGeometryStore();
-  geometryStore.state.residentPages = 1;
-  const instances = [
-    fakePageRec('g.bin', new Uint32Array(3)),
-    fakePageRec('g.bin', new Uint32Array(3)),
-  ];
-  const residency = createAutonomousResidency({
-    ...makeEnv(),
-    pending: [],
-    retained: [],
-    byUrl: new Map([['g.bin', instances]]),
-    geometryStore,
-  });
+  let held = true;
+  geometryStore.releasePage = () => {
+    const was = held;
+    held = false;
+    return was;
+  };
+  const residency = createAutonomousResidency({ ...makeEnv(), geometryStore });
+  residency.dropPage('a.bin');
+  assert.equal(held, true, 'the root cover is never given back');
   residency.dropPage('g.bin');
-  assert.equal(residency.cacheEvictions, 1, 'as the WebGPU page cache counts');
-  assert.equal(geometryStore.state.residentPages, 0, 'the page, not its two records, left');
-  assert.ok(instances.every((rec) => !rec.array));
   residency.dropPage('g.bin');
   assert.equal(residency.cacheEvictions, 1, 'a page that held nothing is not evicted again');
 });
@@ -145,14 +137,13 @@ test('the streamer pins the set the image gathered, without gathering it again',
     ...env,
     pending: [],
     retained: [],
-    byUrl: new Map(),
     geometryStore: fakeGeometryStore(),
   });
   const pinned = [...residency.pageUrls()];
   env.shown.push(fakePageRec('z.bin'));
   assert.deepEqual(residency.pageUrls(), pinned, 'read, not rebuilt');
   assert.ok(!residency.keptUrls().has('z.bin'));
-  residency.collectKept();
+  residency.keptChanged();
   assert.ok(residency.pageUrls().includes('z.bin'));
   assert.equal(residency.keptUrls().size, pinned.length + 1);
 });

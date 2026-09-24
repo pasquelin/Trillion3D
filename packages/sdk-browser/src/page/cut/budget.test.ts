@@ -8,14 +8,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { selectVisiblePages } from '../selection/selection.ts';
-import {
-  dag,
-  dagAsk as ask,
-  dagCamera as camera,
-  racine,
-} from '../../../../../bench/perf/browser/support/dagCut.ts';
+import { createSelectionResult, selectVisiblePages } from '../selection/selection.ts';
+import { dag, racine, type DagPage } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+
+function camera() {
+  const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
+  cam.position.set(0, 0, 9);
+  cam.lookAt(0, 0, 0);
+  cam.updateMatrixWorld();
+  return cam;
+}
+
+function ask(pixelError: number, pageBudget: number) {
+  return {
+    pixelError,
+    viewport: [1280, 720] as [number, number],
+    holdResident: true,
+    pageBudget,
+    wanted: [] as DagPage[],
+    result: createSelectionResult<DagPage>(),
+  };
+}
 
 /** `cut.ts` before lot C: each retry takes its descent to the end, the
  *  result length alone decides whether it is redone at double the threshold. */
@@ -100,31 +114,4 @@ test('a budget even the coarsest threshold cannot hold remakes the whole cut', (
     65536,
     'sixteen doublings then the whole cut at the same threshold',
   );
-});
-
-test('a budget of shares charges each page asked for once, above what it holds', () => {
-  // Two copies of one tree, as rows place it: every page's records name one share.
-  const pages = dag({ feuilles: 64, seed: 7, residentes: 0.5 });
-  const shares = new Map(pages.map((page) => [page.url, { pass: 0, slots: 1 }]));
-  const twin = pages.map((page) => ({ ...page }));
-  for (const page of [...pages, ...twin]) page.budgetShare = shares.get(page.url);
-  const roots = [racine(pages), racine(twin)];
-  const cam = camera();
-  const free = selectVisiblePages(roots, cameraMoteur(cam), ask(1, 0), []);
-  const asked = new Set(free.wanted.map((page) => page.url)).size;
-  assert.ok(free.shown.length < free.wanted.length, 'missing pages are asked for, not drawn');
-  // The distinct pages the cut asks for fit exactly: the twin records charge nothing.
-  const exact = selectVisiblePages(roots, cameraMoteur(cam), ask(1, asked), []);
-  assert.equal(exact.pixelError, 1);
-  assert.equal(exact.requiredSlots, asked);
-  // Two slots held beforehand leave room for two pages fewer: the cut draws coarser, and what the
-  // host's threshold would need is not known from a pass stopped at its first overflow.
-  const held = selectVisiblePages(
-    roots,
-    cameraMoteur(cam),
-    { ...ask(1, asked), pageBudgetHeld: 2 },
-    [],
-  );
-  assert.ok(held.pixelError > 1);
-  assert.equal(held.requiredSlots, null);
 });

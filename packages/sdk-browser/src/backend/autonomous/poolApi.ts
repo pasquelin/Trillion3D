@@ -2,7 +2,6 @@ import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { MemoryBudgets, MemoryBudgetsReport } from '../../residency/pools.ts';
 import type { BackendContext } from '../types.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { BudgetShare } from '../../page/cut/tally.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
@@ -11,8 +10,6 @@ import { createGeometryBudget, type PageCopies } from './pool.ts';
 import type { HeldFloor } from './heldFloor.ts';
 import { checkTexturePoolBudget } from '../../residency/pools.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
-
-export { createHeldFloor } from './heldFloor.ts';
 
 /**
  * The copies each page holds once resident (`PageCopies`), from the records collected when the
@@ -44,9 +41,6 @@ export function pageCopies(
   }
   const each = () => 1 + instanceCount();
   return {
-    get generation() {
-      return instanceCount();
-    },
     of: (url) => (owned.get(url) ?? 0) * each() + (shared.has(url) ? 1 : 0),
     root: () => rootOwned * each() + rootShared,
     scene: () => sceneOwned * each() + shared.size,
@@ -54,9 +48,9 @@ export function pageCopies(
 }
 
 /**
- * The geometry pool wired into the WebGL2 backend (`pool.ts`): every record of a page names the
- * page's share of the budget, page arrivals and departures go through the pool, the host sets its
- * budget mid-session and reads it in the frame metrics.
+ * The geometry pool wired into the WebGL2 backend (`pool.ts`): the cut charges each page's share
+ * of the budget, page arrivals and departures go through the pool, the host sets its budget
+ * mid-session and reads it in the frame metrics.
  */
 export function createAutonomousPool(env: {
   context: BackendContext;
@@ -70,22 +64,17 @@ export function createAutonomousPool(env: {
   residency: ReturnType<typeof createAutonomousResidency>;
   heldFloor: HeldFloor;
   instanceCount: () => number;
+  /** Fixes the threshold search on the last view (`render.ts`). */
+  settle: () => void;
 }) {
   const { context, byUrl, gate, geometryStore, residency, heldFloor } = env,
     { state } = geometryStore;
-  // Records added later — instances, rows — are copies of these and carry their page's share.
-  const shares = new Map<string, BudgetShare>();
   // The largest error a refinement reads, the one the DAG roots carry as parents: read once.
   let rootError = 0;
-  for (const [url, recs] of byUrl) {
-    const share = { pass: 0, slots: 0 };
-    shares.set(url, share);
-    for (const rec of recs) {
-      rec.budgetShare = share;
-      const parent = rec.parentError;
-      if (parent != null && parent < Infinity && parent > rootError) rootError = parent;
-    }
-  }
+  for (const recs of byUrl.values())
+    for (const { parentError } of recs)
+      if (parentError != null && parentError < Infinity && parentError > rootError)
+        rootError = parentError;
   const budget = createGeometryBudget({
     budgetBytes: context.geometryPoolBytes,
     ceilingBytes: context.geometryPoolCeilingBytes,
@@ -94,7 +83,8 @@ export function createAutonomousPool(env: {
     rootUrls: env.bootstrapUrls,
     rootError,
     copies: pageCopies(byUrl, env.bootstrapUrls, env.instanceCount),
-    shares,
+    coverRevision: () => heldFloor.revision,
+    viewRevision: () => gate.revisions.view,
     state,
     floorBytes: heldFloor.bytes,
     kept: residency.keptUrls,
@@ -112,9 +102,8 @@ export function createAutonomousPool(env: {
       get geometryAllocationBytes() {
         return state.allocationBytes;
       },
-      get geometryPoolAllocatedBytes() {
-        return state.allocationBytes;
-      },
+      /** No pool is reserved on this path: the pages hold `geometryAllocationBytes`. */
+      geometryPoolAllocatedBytes: null,
       get geometryPoolBytes() {
         return budget.held.budgetBytes;
       },
@@ -131,11 +120,12 @@ export function createAutonomousPool(env: {
       texturePoolBytes: null,
     },
     api: {
-      /** The pool's search has a finer threshold left to try: another image is owed. */
+      /** The pool's search owes another image. */
       pendingFrame: async () => budget.settling,
-      cutSettling: () => budget.settling,
-      /** Publishes what the images left in flight: the pool's verdict, as on WebGPU. */
+      /** Fixes the search, so `awaitPages` loads the pages of the fixed cut, then publishes the
+       *  pool's verdict, as on WebGPU. */
       async flush() {
+        env.settle();
         budget.flush();
       },
       dropPage(url: string) {
