@@ -1,5 +1,5 @@
 /**
- * WHICH CELLS OF A PARTITIONED SCENE ARE READ, derived and never tuned (#404).
+ * WHICH CELLS OF A PARTITIONED SCENE ARE READ, derived from the camera, never from the scene (#404).
  *
  * A cell is read while the camera can draw any of it: until its box is past the far plane — met
  * on the frustum's diagonal at `far·√(1 + tan²θ)`, `θ` the half diagonal of the field, the same
@@ -10,13 +10,25 @@
  * camera does not shrink what it sees with distance, so every cell of its scene is read.
  *
  * A frame asks for the cells within the reach first, then — at the prefetch priority — those
- * within one cell diagonal past it, and a read cell leaves two diagonals past it, so one that
- * hovers on a border is not read again at every step. The first frame reads only what it draws.
+ * within `AHEAD` of it past it, and a read cell leaves once its box is `KEEP` of the reach past it,
+ * so one that hovers on a border is not read again at every step. Both margins are fractions of
+ * the reach, never of the cell: a cell the compiler cut wider than the view (its split counts
+ * bytes, not metres) is kept only while its box meets that sphere. The first frame reads only
+ * what it draws.
+ *
+ * The rows are sized once, when the session opens, for every placement that can be held at once
+ * within a reach (`residentRows`): nothing grows while a session draws.
  */
 import { invertMatrix4, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 
 const inverse = new Float64Array(MATRIX_VALUES);
+
+/** How far past the reach, as a fraction of it, a cell is read ahead at the prefetch priority. */
+export const AHEAD = 0.25;
+/** How far past the reach, as a fraction of it, a read cell is kept: past `AHEAD`, so a cell read
+ *  ahead is not dropped by the next step. */
+export const KEEP = 0.5;
 
 /** What the reach reads of a camera: its optics and whether it is orthographic. */
 export type PartitionOptics = {
@@ -58,18 +70,10 @@ export function boxDistance(bounds: readonly number[], eye: ArrayLike<number>) {
   return Math.sqrt(sum);
 }
 
-/** The diagonal of a box: the margin a cell is read ahead of its reach and kept past it. */
-export function boxDiagonal(bounds: readonly number[]) {
-  const x = bounds[3] - bounds[0],
-    y = bounds[4] - bounds[1],
-    z = bounds[5] - bounds[2];
-  return Math.sqrt(x * x + y * y + z * z);
-}
-
 /**
  * The cells `held` does not hold that a frame needs — `visible`, within `reach` — and those it
- * reads ahead — `ahead`, within one diagonal past it —, each nearest first; and the held cells
- * past the reach plus two diagonals, which leave. `reach` is the frame camera's (`cellReach`).
+ * reads ahead — `ahead`, within `reach·(1 + AHEAD)` —, each nearest first; and the held cells
+ * past `reach·(1 + KEEP)`, which leave. `reach` is the frame camera's (`cellReach`).
  */
 export function planCells(
   cells: readonly TableCell[],
@@ -81,15 +85,43 @@ export function planCells(
     ahead: { cell: number; distance: number }[] = [];
   const leave: number[] = [];
   for (let cell = 0; cell < cells.length; cell++) {
-    const { bounds } = cells[cell];
-    const distance = boxDistance(bounds, eye),
-      margin = boxDiagonal(bounds);
+    const distance = boxDistance(cells[cell].bounds, eye);
     if (held.has(cell)) {
-      if (distance > reach + 2 * margin) leave.push(cell);
+      if (distance > reach * (1 + KEEP)) leave.push(cell);
     } else if (distance <= reach) visible.push({ cell, distance });
-    else if (distance <= reach + margin) ahead.push({ cell, distance });
+    else if (distance <= reach * (1 + AHEAD)) ahead.push({ cell, distance });
   }
   const nearest = (list: typeof visible) =>
     list.sort((a, b) => a.distance - b.distance).map((entry) => entry.cell);
   return { visible: nearest(visible), ahead: nearest(ahead), leave };
+}
+
+/** Distance between two boxes, 0 when they meet. */
+function boxGap(a: readonly number[], b: readonly number[]) {
+  let sum = 0;
+  for (let axis = 0; axis < 3; axis++) {
+    const gap = Math.max(a[axis] - b[axis + 3], 0, b[axis] - a[axis + 3]);
+    sum += gap * gap;
+  }
+  return Math.sqrt(sum);
+}
+
+/**
+ * How many nodes of each mesh can be held at once while the reach stays within `reach`. After a
+ * frame from any eye, every held cell meets the sphere of radius `reach·(1 + KEEP)` around it
+ * (`planCells`); two cells held together are thus within twice that radius of each other, so what
+ * is held is among the cells that close to any one of them. The largest such sum, mesh by mesh,
+ * bounds the rows: it follows the reach and the cells' size, not the size of the world.
+ */
+export function residentRows(cells: readonly TableCell[], reach: number) {
+  const span = 2 * reach * (1 + KEEP);
+  const rows = new Map<number, number>();
+  for (let a = 0; a < cells.length; a++) {
+    const near = new Map<number, number>();
+    for (let b = 0; b < cells.length; b++)
+      if (boxGap(cells[a].bounds, cells[b].bounds) <= span)
+        for (const [mesh, nodes] of cells[b].meshes) near.set(mesh, (near.get(mesh) ?? 0) + nodes);
+    for (const [mesh, nodes] of near) rows.set(mesh, Math.max(rows.get(mesh) ?? 0, nodes));
+  }
+  return rows;
 }

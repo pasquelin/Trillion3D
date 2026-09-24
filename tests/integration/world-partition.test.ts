@@ -6,7 +6,7 @@
 // `clusters.json` and its column file), then its scene (`loadPreparedScene`) — and the cells its
 // first camera needs are read through the page streamer (`PartitionCells.prime`): every byte
 // fetched before the first frame is counted. Sixteen times the world costs about the same bytes; the world itself
-// weighs sixteen times more.
+// weighs sixteen times more. The rows sized for the placements are the same.
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadPreparedScene } from '../../packages/sdk-browser/src/world/scene/scene.ts';
-import { cellReach } from '../../packages/sdk-browser/src/scene/partition/plan.ts';
+import { cellReach, KEEP } from '../../packages/sdk-browser/src/scene/partition/plan.ts';
 import { loadClusterManifest } from '../../packages/sdk-browser/src/scene/manifestLoad.ts';
 import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pages.ts';
 import { SPACING, world } from './world-partition.fixture.ts';
@@ -58,6 +58,8 @@ function served(t: TestContext) {
 
 /** What a session reads before its first frame, from the middle of the smaller world, a
  *  camera of the open world's optics: 60°, 16:9, a 300 m far plane. */
+const REACH = cellReach({ fov: 60, aspect: 16 / 9, far: 300 });
+
 async function firstFrame(t: TestContext, pointer: URL) {
   const read = served(t);
   // The loader resolves the pointer against the page, which node has not.
@@ -82,11 +84,19 @@ async function firstFrame(t: TestContext, pointer: URL) {
   const [cells] = scene.partitions;
   assert.ok(cells, 'the world is partitioned');
   const streamer = createPageStreamer(cells.pages, base);
-  const reach = cellReach({ fov: 60, aspect: 16 / 9, far: 300 });
+  const reach = REACH;
   const eye = [48 * SPACING, 2, 48 * SPACING];
   await cells.prime(eye, reach, (url) => streamer.readBytes(url));
   const all = cells.pages.reduce((sum, page) => sum + page.bytes, 0);
-  return { bytes: read.bytes, manifest, cells: all, held: cells.stats().held };
+  const { held, rows } = cells.stats();
+  // The widest cell the compiler cut, read off disk and not counted: its split counts bytes.
+  const tables = JSON.parse(await readFile(new URL('scene-tables.json', base), 'utf8'));
+  const widest = Math.max(
+    ...tables.partition.cells.map(({ bounds: b }: { bounds: number[] }) =>
+      Math.max(b[3] - b[0], b[5] - b[2]),
+    ),
+  );
+  return { bytes: read.bytes, manifest, cells: all, held, rows, widest };
 }
 
 test(
@@ -108,5 +118,16 @@ test(
       `the first frame is not: ${small.bytes} → ${large.bytes} B`,
     );
     assert.ok(large.bytes < large.cells / 4, 'a fraction of the world');
+    // The rows are sized at open for every placement the reach can hold at once. Two cells held
+    // together are within 2·reach·(1 + KEEP) of each other, so every row counted lies in a square
+    // of side 3·widest + 4·reach·(1 + KEEP): a bound set by the reach and the cells' size, not by
+    // the world. These cells, cut by bytes, are wider than the view, so the square still exceeds
+    // the smaller world, and the rows grow up to it.
+    const square = 3 * large.widest + 4 * REACH * (1 + KEEP);
+    assert.ok(
+      large.rows <= (square / SPACING) ** 2,
+      `rows within the neighbourhood of one cell: ${small.rows} → ${large.rows}`,
+    );
+    assert.ok(large.rows < (384 * 384) / 1.5, 'the rows hold a part of the larger world');
   },
 );
