@@ -926,6 +926,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "RAYCAST_NO_VIEW": "Titik gambar diminta dari canvas yang tidak punya ukuran: tidak ada gambar untuk dibidik.",
+      "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
+      "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan."
     }
@@ -6722,10 +6724,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "Apa yang dipegang halaman: mode, dibaca dan ditulis.",
+    "summary": "Apa yang dipegang halaman: mode tampilan, dibaca dan ditulis; sesi yang dibuka dan mengapa sesi terakhir gagal, hanya dibaca.",
     "members": {
       "mode": "Mode tampilan: `'beauty'` untuk gambar normal, atau sebuah mode yang menunjukkan cara kerja mesin.",
       "sessions": "Sesi yang sudah dibuka dunia sejauh ini: perubahan yang membuka ulang sebuah sesi terlihat di sini.",
+      "error": "Mengapa sesi terakhir tidak bisa dibuka, sebagai galat mesin yang bernama: `code`-nya adalah salah satu yang didokumentasikan pada `EngineError` (`WEBGPU_LOST` saat WebGPU kehilangan perangkatnya), atau `SESSION_OPEN_FAILED` untuk alasan tanpa kode sendiri. `EngineError` dengan kode terdokumentasi adalah galat yang dilempar itu sendiri; galat lain dikonversi, dan galat yang dilempar lalu ada di `details.cause`. `null` sejak awal setiap pembukaan, dan saat tidak ada yang dicoba.",
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
     }
   },
