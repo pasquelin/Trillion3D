@@ -1,12 +1,14 @@
 // The material fixtures of the witness comparison, one per feature the engine claims: base
-// colour, its map, alpha MASK at its cutoff, BLEND, emissive, metal-roughness, normal map and
-// double-sided. Each fixture is a square facing the camera, its material, where it is read and
-// how far the two images may differ there — and why.
+// colour, its map — repeated and turned, nearest, anisotropic —, alpha MASK at its cutoff, BLEND,
+// emissive, metal-roughness, normal map and double-sided. Each fixture is a square facing the
+// camera — turned to a grazing angle for anisotropy —, its material, where it is read and how
+// far the two images may differ there — and why.
 //
 // This module is SERVED to the harness page and imported by its URL: the materials are built
 // in the page, with the `three` of its import map, the one the SDK under `dist/` also loads.
 import * as THREE from 'three';
 import { VIEWPORT } from './sharedSceneProof.ts';
+import * as img from './materialImages.ts';
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
 
 /** Side of the square viewport every fixture is rendered in, in pixels: `rgbAt` reads both
@@ -37,47 +39,10 @@ const QUADRANTS = [
   [SIZE * 0.68, SIZE * 0.68],
 ].map((p) => p.map(Math.round));
 const INSIDE = [CENTRE, ...QUADRANTS];
-
-/** A 2×2 image whose texels colour the four quadrants of the square: top-left, top-right,
- *  bottom-left, bottom-right on screen (`flipY` off, plane UVs). */
-function quadrantImage(texels: [number, number, number, number][]): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 2;
-  const ctx = canvas.getContext('2d')!;
-  const at = [
-    [0, 1],
-    [1, 1],
-    [0, 0],
-    [1, 0],
-  ];
-  texels.forEach(([r, g, b, a], i) => {
-    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-    ctx.fillRect(at[i][0], at[i][1], 1, 1);
-  });
-  return canvas;
-}
-
-/** A texture the two engines read the same way: nearest, unrepeated, in the declared space. */
-function texture(
-  texels: [number, number, number, number][],
-  colorSpace: THREE.ColorSpace = THREE.NoColorSpace,
-): THREE.CanvasTexture {
-  const map = new THREE.CanvasTexture(quadrantImage(texels));
-  map.colorSpace = colorSpace;
-  map.magFilter = map.minFilter = THREE.NearestFilter;
-  map.generateMipmaps = false;
-  map.flipY = false;
-  return map;
-}
-
-/** A base-colour map of four quadrants, in sRGB like every base colour. */
-const colourMap = (texels: [number, number, number, number][]) =>
-  texture(texels, THREE.SRGBColorSpace);
-
-/** A constant tangent-space normal, tilted toward +x, +y: a flat square that shades as a slope. */
-const TILTED_NORMAL: [number, number, number, number][] = Array.from({ length: 4 }, () => [
-  160, 210, 230, 255,
-]);
+/** A row across the middle of a square at a grazing angle (`tilt`), inside its width. */
+const GRAZING_ROW = Array.from({ length: 49 }, (_, i) => [24 + i, SIZE >> 1]);
+/** Levels of spread along `GRAZING_ROW` anisotropy 16 must add to 1, on each engine. */
+export const ANISOTROPY_GAIN = 64;
 
 export interface Fixture {
   name: string;
@@ -88,6 +53,8 @@ export interface Fixture {
   reason: string;
   holds?: boolean;
   back?: boolean;
+  /** Turn of the square about its horizontal axis, radians: a grazing view. */
+  tilt?: number;
   behind?: number;
   tangents?: boolean;
 }
@@ -129,30 +96,21 @@ const BLEND = (): THREE.MeshBasicMaterialParameters => ({
 /**
  * Each fixture: `material()` builds it in the page; `lit` declares the sun on both sides;
  * `back` turns the square away from the camera; `behind` puts an opaque square of that colour
- * behind it; `holds: false` excuses the engine from publishing a held frame; `points` are read
- * on both images, and the largest channel gap at each must fall within `difference`, for the
- * `reason` given.
+ * behind it, and no hole — the engine shows the background where the witness does not —; `holds:
+ * false` excuses the engine from publishing a held frame; `points` are read on both images, and
+ * the largest channel gap at each must fall within `difference`, for the `reason` given.
  */
 export const fixtures: Fixture[] = [
   unlit('base colour', () => ({ color: 0x993322 })),
-  unlit(
-    'base colour map',
-    () => ({
-      map: colourMap([
-        [255, 0, 0, 255],
-        [0, 255, 0, 255],
-        [0, 0, 255, 255],
-        [255, 255, 0, 255],
-      ]),
-    }),
-    { points: QUADRANTS },
-  ),
+  unlit('base colour map', () => ({ map: img.colourMap(img.FOUR_COLOURS) }), {
+    points: QUADRANTS,
+  }),
   // The two 8-bit alphas on either side of the cutoff: 128/255 is kept, 127/255 is cut. Read at
   // the quadrant centres, far from the edge where keep and discard meet.
   unlit(
     'alpha mask at cutoff',
     () => ({
-      map: colourMap([
+      map: img.colourMap([
         [255, 255, 255, 128],
         [255, 255, 255, 127],
         [255, 255, 255, 127],
@@ -177,6 +135,50 @@ export const fixtures: Fixture[] = [
     difference: [44, 46],
     reason: 'linear blend before the display encode, display-space blend in the witness',
   }),
+  // #360: the four-colour map repeated four times each way and turned 30°, mixed under
+  // magnification. A read at the raw UV shows the four quadrants once, upright.
+  unlit(
+    'map repeated and turned',
+    () => {
+      const map = img.colourMap(img.FOUR_COLOURS);
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.magFilter = THREE.LinearFilter;
+      map.repeat.set(4, 4);
+      map.rotation = Math.PI / 6;
+      return { map };
+    },
+    {
+      points: INSIDE,
+      difference: [0, 2],
+      reason: 'a mixed read between two texels, and the period seam the engine mixes by hand',
+    },
+  ),
+  // #361: at the quadrant points the square's UV falls 0.15 to 0.3 of a texel from an edge of
+  // the 8×8 checker: nearest reads one texel, black or white, the mixed read a grey.
+  unlit('nearest checker magnified', () => ({ map: img.checkerMap() }), { points: QUADRANTS }),
+  // #361: stripes on a square turned 75° away, a footprint four times longer along V: anisotropy
+  // 1 greys them out at the level of V, 16 keeps the level of U. Hardware and shader footprints
+  // differ, so the proof is the contrast each engine gains (`ANISOTROPY_GAIN`, the runner).
+  ...[1, 16].map((anisotropy) =>
+    unlit(`grazing stripes, anisotropy ${anisotropy}`, () => ({ map: img.stripeMap(anisotropy) }), {
+      tilt: (-75 * Math.PI) / 180,
+      points: GRAZING_ROW,
+      difference: [0, 255],
+      reason: 'judged by the contrast each engine gains from anisotropy, not texel by texel',
+    }),
+  ),
+  // Review of #389: the camera raster alone cuts, on the colour read's alpha as the witness does
+  // (`maskKeep`); a second cut in the resolve left holes, 51 at 80°, 33 at 84° on Apple M3. At 88°
+  // (past the 16:1 grant, clamped by each sampler its own way) leaf edges are judged by holes.
+  ...[80, 84, 88].map((degrees) =>
+    unlit(`foliage at a grazing angle of ${degrees}°, anisotropy 16`, img.foliage, {
+      tilt: (-degrees * Math.PI) / 180,
+      behind: 0x6a3d9a,
+      points: GRAZING_ROW,
+      difference: [0, degrees < 88 ? 2 : 255],
+      reason: 'the same leaves and gaps, a leaf edge mixed by two footprints: no hole',
+    }),
+  ),
   unlit('double-sided back face', () => ({ color: 0x2299cc, side: THREE.DoubleSide }), {
     back: true,
   }),
@@ -191,7 +193,7 @@ export const fixtures: Fixture[] = [
   lit('emissive', () => ({ color: 0x111111, roughness: 1, emissive: 0x881100 })),
   lit(
     'normal map',
-    () => ({ color: 0x808080, roughness: 0.8, normalMap: texture(TILTED_NORMAL) }),
+    () => ({ color: 0x808080, roughness: 0.8, normalMap: img.texture(img.TILTED_NORMAL) }),
     { tangents: true },
   ),
 ];

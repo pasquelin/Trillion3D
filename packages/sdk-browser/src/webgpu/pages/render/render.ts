@@ -45,6 +45,14 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   );
   const pixelError = run.gate.pixelError,
     cam = run.gate.cam;
+  // The atlases' records brought up to their host textures once for the image (#360, #361): a
+  // sampling or a placement moved rewrites the texture's header, a resource change that releases a
+  // held image. A filter rule switched on or off moves the resolve class of the pages that wear
+  // the texture (`FLAG_SAMPLED`): their rows and the transparent records are written again.
+  if (vis.textures?.followSampling()) {
+    rows.tableEpoch++;
+    refreshBlendScene(rt, gpuDevice);
+  }
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
   // previous image is this one. No CPU step is run below.
   if (holdWebgpuFrame(rt, gpuDevice)) return;

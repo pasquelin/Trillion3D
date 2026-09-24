@@ -195,6 +195,16 @@ input difference behind an image difference between that path and a witness, mea
 supposed. On `site/assets/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
 6.10 × 10⁻⁵, `maxNormalGapDegrees` 0.613, mean 0.284°.
 
+## What Anisotropy Costs
+
+    pnpm run build
+    node bench/runner/anisotropyCost.ts [--anisotropy 1,16] [--images 240] [--width 1920] [--height 1080]
+
+One floor whose picture has detail at every texel, seen at a grazing angle, drawn by the WebGPU
+engine of `dist/` at each anisotropy asked, and the p50 GPU time of its images printed side by side:
+the whole image (`gpuFrameMs`), and the sum of its timed passes where the device has timestamp
+queries. The camera slides by a hair at every image, so none is held.
+
 ## Published reports
 
 Reports are part of the bilingual learning portal. Measurement, export and site build are

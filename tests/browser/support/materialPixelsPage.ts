@@ -16,6 +16,7 @@ import {
   rgbAt,
   witnessImage,
   engineImage,
+  CLEAR_COLOR,
 } from './materialPixelsRender.ts';
 import type {
   BackendFactory,
@@ -50,7 +51,22 @@ interface Comparison {
   held: boolean;
   events: BackendDiagnostic[];
   samples: Reading[];
+  /** Pixels where the engine shows the background and the witness a surface (`behind`). */
+  holes?: number;
   images: { witness: string; engine: string };
+}
+
+/** The display background, one 8-bit step either way per channel. */
+const CLEAR_RGB = [16, 8, 0].map((shift) => (CLEAR_COLOR >> shift) & 255);
+const isClear = (pixels: ArrayLike<number>, i: number) =>
+  CLEAR_RGB.every((c, k) => Math.abs(pixels[i + k] - c) <= 1);
+
+/** Pixels where `engine` shows the background and `witness` does not. */
+function holesOf(witness: ArrayLike<number>, engine: ArrayLike<number>) {
+  let holes = 0;
+  for (let i = 0; i < witness.length; i += 4)
+    if (isClear(engine, i) && !isClear(witness, i)) holes++;
+  return holes;
 }
 
 /** One fixture on both engines: the readings at its points, the engine's diagnostics, both images. */
@@ -80,6 +96,7 @@ async function compare(fixture: Fixture, sides: Sides): Promise<Comparison> {
         gap: Math.max(...a.map((c, i) => Math.abs(c - b[i]))),
       };
     }),
+    holes: fixture.behind !== undefined ? holesOf(witness, engineSide.pixels ?? []) : undefined,
     images: { witness: witnessUrl, engine: engineSide.dataUrl },
   };
 }

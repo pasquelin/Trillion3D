@@ -2551,7 +2551,12 @@
       "colorSpace": "Wie ihre Zahlen gelesen werden.",
       "matrix": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Zeilen zusammengesetzt; der Host berechnet sie aus Versatz, Wiederholung und Rotation neu, wenn er die Aktualisierung macht.",
       "matrixAutoUpdate": "Ob der Host `matrix` neu aufbaut.",
-      "updateMatrix": "Baut `matrix` aus Versatz, Wiederholung und Rotation neu auf."
+      "updateMatrix": "Baut `matrix` aus Versatz, Wiederholung und Rotation neu auf.",
+      "offset": "Woraus `matrix` zusammengesetzt wird.",
+      "repeat": "Wie oft sie hineinpasst.",
+      "center": "Der Drehpunkt der Rotation.",
+      "rotation": "Die Rotation, in Radiant.",
+      "addEventListener": "Sagt dem Importer, wann der Host die Textur loslässt."
     }
   },
   "HostTraversable": {
@@ -5812,6 +5817,8 @@
       "id": "Identität der Textur in der importierten Szene: der Name, unter dem ein Cache-Schlüssel und eine Nachricht sie bezeichnen.",
       "name": "Vom Quelldatei gegebener Name, leer, wenn keiner gegeben wurde; nur von Nachrichten gelesen.",
       "version": "Erhöht, sobald sich die Texel ändern: das, was eine Sendung vergleicht, um eine erneute Kopie zu vermeiden.",
+      "sampling": "Erhöht, wenn Adressierung, Filter oder Anisotropie sich ändern: der Sampler wird neu gesetzt.",
+      "placement": "Erhöht, wenn sich `transform` ändert: die Platzierung wird neu geschrieben, nichts hochgeladen.",
       "image": "Das dekodierte Bild. Sein Container bleibt `unknown`: nur die Grenze, die es sendet, kennt ihn.",
       "channel": "UV-Satz, den der Sampler liest, das `texCoord` von `KHR_texture_transform`; die Engine tastet 0 und 1 ab.",
       "wrapS": "Wiederholung in der Breite.",
@@ -5844,7 +5851,9 @@
       "flipY": "Ob das Bild beim Lesen umgedreht wird.",
       "anisotropy": "Wie scharf das Bild schräg gesehen bleibt.",
       "channel": "Welchem UV-Satz der Geometrie die Textur folgt.",
-      "version": "Bei jedem Schreibvorgang erhöht: das, was ein Material vergleicht, um neu abzutasten.",
+      "version": "Erhöht durch einen Schreibvorgang am Bild oder an seiner Lesart: was ein Material vergleicht, um das Bild erneut zu senden.",
+      "sampling": "Erhöht durch einen Schreibvorgang an Adressierung, Filtern oder Anisotropie: neu gesetzt, nichts gesendet.",
+      "placement": "Erhöht durch einen Schreibvorgang an `repeat`, `offset` oder `rotation`: neu platziert, nichts gesendet.",
       "image": "Das Bild selbst: ein Bild, ein Canvas, ein Video oder rohe Pixel.",
       "layout": "Was das Bild zusätzlich zu seinen Pixeln enthält: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Wie jedes Pixel angeordnet ist: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",

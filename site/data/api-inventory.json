@@ -4354,6 +4354,7 @@
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
+        "packages/sdk-browser/src/world/core/worldTextures.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
@@ -4383,6 +4384,7 @@
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
+        "packages/sdk-browser/src/world/core/worldTextures.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
@@ -7679,7 +7681,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/scene/materials.ts",
-        "packages/sdk-browser/src/world/core/worldSurface.ts"
+        "packages/sdk-browser/src/world/core/worldTextures.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableContracts\".TABLE_SLOTS"
@@ -7802,6 +7804,7 @@
         "bench/perf/browser/sampled-texture.perf.ts",
         "bench/perf/browser/srgb-shading.perf.ts",
         "packages/sdk-browser/src/host/surfaceImport.ts",
+        "packages/sdk-browser/src/host/textureImport.ts",
         "packages/sdk-browser/src/scene/materials.ts",
         "packages/sdk-browser/src/scene/scene.fixture.ts",
         "packages/sdk-browser/src/scene/tables.ts",
@@ -7812,19 +7815,28 @@
         "packages/sdk-browser/src/visibility/types.ts",
         "packages/sdk-browser/src/visibility/wrapModes.test.ts",
         "packages/sdk-browser/src/visibility/wrapModes.ts",
+        "packages/sdk-browser/src/webgl/cluster/textures.test.ts",
         "packages/sdk-browser/src/webgl/cluster/textures.ts",
-        "packages/sdk-browser/src/webgpu/blend/items.ts",
         "packages/sdk-browser/src/webgpu/blend/state.ts",
         "packages/sdk-browser/src/webgpu/core/materialTextures.ts",
         "packages/sdk-browser/src/webgpu/pages/state/vis.ts",
+        "packages/sdk-browser/src/webgpu/row/pageRow.test.ts",
         "packages/sdk-browser/src/webgpu/row/pageRowMaterial.ts",
         "packages/sdk-browser/src/webgpu/tile/atlas.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
+        "packages/sdk-browser/src/webgpu/tile/pageTable.test.ts",
+        "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.ts",
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
+        "packages/sdk-browser/src/webgpu/tile/streamerSampling.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
+        "packages/sdk-browser/src/world/core/worldMaterials.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
-        "packages/sdk-browser/src/world/texture/index.ts",
-        "tests/browser/probes/addressingMaps.ts"
+        "packages/sdk-browser/src/world/core/worldTextures.ts",
+        "packages/sdk-browser/src/world/texture/index.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/contract\".Texture"
@@ -7841,6 +7853,7 @@
         "bench/perf/browser/sampled-texture.perf.ts",
         "bench/perf/browser/srgb-shading.perf.ts",
         "packages/sdk-browser/src/host/surfaceImport.ts",
+        "packages/sdk-browser/src/host/textureImport.ts",
         "packages/sdk-browser/src/scene/materials.ts",
         "packages/sdk-browser/src/scene/scene.fixture.ts",
         "packages/sdk-browser/src/scene/tables.ts",
@@ -7851,19 +7864,28 @@
         "packages/sdk-browser/src/visibility/types.ts",
         "packages/sdk-browser/src/visibility/wrapModes.test.ts",
         "packages/sdk-browser/src/visibility/wrapModes.ts",
+        "packages/sdk-browser/src/webgl/cluster/textures.test.ts",
         "packages/sdk-browser/src/webgl/cluster/textures.ts",
-        "packages/sdk-browser/src/webgpu/blend/items.ts",
         "packages/sdk-browser/src/webgpu/blend/state.ts",
         "packages/sdk-browser/src/webgpu/core/materialTextures.ts",
         "packages/sdk-browser/src/webgpu/pages/state/vis.ts",
+        "packages/sdk-browser/src/webgpu/row/pageRow.test.ts",
         "packages/sdk-browser/src/webgpu/row/pageRowMaterial.ts",
         "packages/sdk-browser/src/webgpu/tile/atlas.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
+        "packages/sdk-browser/src/webgpu/tile/pageTable.test.ts",
+        "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.ts",
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
+        "packages/sdk-browser/src/webgpu/tile/streamerSampling.test.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
+        "packages/sdk-browser/src/world/core/worldMaterials.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
-        "packages/sdk-browser/src/world/texture/index.ts",
-        "tests/browser/probes/addressingMaps.ts"
+        "packages/sdk-browser/src/world/core/worldTextures.ts",
+        "packages/sdk-browser/src/world/texture/index.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/texture/texture\".Texture"
@@ -7920,8 +7942,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/host/surfaceImport.ts",
-        "packages/sdk-browser/src/webgl/cluster/textures.ts"
+        "packages/sdk-browser/src/host/textureImport.ts",
+        "packages/sdk-browser/src/webgl/cluster/textures.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/contract\".TextureFilter"
@@ -8624,7 +8647,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/world/core/worldMaterials.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/vector2\".Vector2"
     },
@@ -8798,7 +8821,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/host/surfaceImport.ts",
+        "packages/sdk-browser/src/host/textureImport.ts",
         "packages/sdk-browser/src/visibility/math.ts",
         "packages/sdk-browser/src/visibility/wrapModes.ts",
         "packages/sdk-browser/src/webgl/cluster/textures.ts"

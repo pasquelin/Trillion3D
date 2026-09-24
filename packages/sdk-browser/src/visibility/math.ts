@@ -1,5 +1,6 @@
 import type { HostAttribute } from '../host/resources.ts';
 import { srgbToLinear, type Texture, type WrapMode } from '../../../sdk-core/src/index.ts';
+import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
 import type { Projected } from './projection.ts';
 import type { DepthCamera } from '../camera/depthConvention.ts';
 import { barycentricAt, projectVisibilityVertex, signedArea } from './projection.ts';
@@ -89,10 +90,29 @@ for (let octet = 0; octet < 256; octet++) SRGB8_LINEAIRE[octet] = srgbToLinear(o
 
 export { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
 
-/** Rank of the texel in the image, not its components: that byte indexes the sRGB table. */
-function texelAt(image: { width: number; height: number }, map: Texture, u: number, v: number) {
-  const x = wrapTexel(u, image.width, map.wrapS),
-    y = wrapTexel(v, image.height, map.wrapT);
+/**
+ * Rank of the texel a map reads at a coordinate, not its components: that byte indexes the sRGB
+ * table. The coordinate goes through the map's UV transform first — its affine part, as both GPU
+ * paths apply it —, untouched when it is the identity (`transformed`, which a caller reading many
+ * texels of one map computes once). No footprint here: the texel the coordinate falls in, the
+ * `nearest` rule.
+ */
+export function mapTexel(
+  image: { width: number; height: number },
+  map: Texture,
+  u: number,
+  v: number,
+  transformed = uvTransformed(map.transform),
+) {
+  const m = map.transform;
+  let u2 = u,
+    v2 = v;
+  if (transformed) {
+    u2 = m[0] * u + m[3] * v + m[6];
+    v2 = m[1] * u + m[4] * v + m[7];
+  }
+  const x = wrapTexel(u2, image.width, map.wrapS),
+    y = wrapTexel(v2, image.height, map.wrapT);
   return (y * image.width + x) * 4;
 }
 
@@ -100,7 +120,7 @@ export function sampleMap(map: Texture, u: number, v: number): [number, number, 
   const image = textureRgba(map);
   if (!image) return [1, 1, 1];
   const d = image.data,
-    i = texelAt(image, map, u, v);
+    i = mapTexel(image, map, u, v);
   return [
     SRGB8_LINEAIRE[d[i]] ?? NaN,
     SRGB8_LINEAIRE[d[i + 1]] ?? NaN,
@@ -111,7 +131,7 @@ export function sampleLinear(map: Texture, u: number, v: number): [number, numbe
   const image = textureRgba(map);
   if (!image) return [1, 1, 1];
   const d = image.data,
-    i = texelAt(image, map, u, v);
+    i = mapTexel(image, map, u, v);
   return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255];
 }
 
