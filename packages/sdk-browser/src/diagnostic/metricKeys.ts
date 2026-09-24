@@ -86,6 +86,8 @@ export const BACKEND_METRIC_KEYS = [
   'shadowWaitMs',
   'gpuLightListsMs',
   'gpuShadowsMs',
+  'gpuShadowCullMs',
+  'gpuShadowRasterMs',
   'gpuLightingMs',
 ] as const;
 

@@ -2,28 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTilePool } from './pool.ts';
 import { poolLayerBytes, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-
-installGpuGlobals();
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 const rgba = { kind: 'data', lane: 'lossless', format: 'rgba8unorm', texelBytes: 4 } as const;
-/** A dummy device: it keeps the descriptor of the texture it is asked for. */
-function fakeDevice() {
-  const created: GPUTextureDescriptor[] = [];
-  const device = {
-    createTexture: (descriptor: GPUTextureDescriptor) => {
-      created.push(descriptor);
-      return {
-        createView: () => ({}) as GPUTextureView,
-        destroy: () => {},
-      } as unknown as GPUTexture;
-    },
-  };
-  return { device, created };
-}
 
 test('the pool allocates its layers once, at the fixed size, and counts its tiles', () => {
-  const { device, created } = fakeDevice();
+  const { device, textures: created } = fakeDevice();
   const pool = createWebgpuTilePool(device, {
     kind: 'color',
     lane: 'lossless',
@@ -44,7 +28,7 @@ test('the pool allocates its layers once, at the fixed size, and counts its tile
 // Behaviour: a block pool counts one byte per texel and is never a render attachment — WebGPU
 // refuses that usage on a compressed format, and no browser image is copied into it.
 test('a block-compressed pool counts a quarter of the bytes and asks for no attachment usage', () => {
-  const { device, created } = fakeDevice();
+  const { device, textures: created } = fakeDevice();
   const pool = createWebgpuTilePool(device, {
     kind: 'color',
     lane: 'rgba',

@@ -4,7 +4,6 @@
  * comes from the caller — `tests/integration/engine-without-three.test.ts` forbids it here.
  */
 import { flatHierarchy } from './hierarchy.ts';
-import { BOUND_STRIDE, cullingBounds, PARENT_SPHERE } from '../../page/cut/bounds.ts';
 import { CULL_STRIDE, type DagRoot } from './types.ts';
 
 /** A page of level `level`, placed on a grid, with its replacement's error band. */
@@ -27,41 +26,6 @@ function page(level: number, i: number, gridSide: number, etendue: number) {
     parentError: parent,
     parentSphere: parent === null ? null : [cx, cy, 0, rayon * 2],
   };
-}
-
-/**
- * Packing hierarchy, with replacement error ceiling AND sphere filled:
- * `flatHierarchy` leaves the first at -1 and the second at zero, which forbids any
- * error pruning. Nodes are numbered by levels, so children follow their parent: a
- * reverse walk is enough to take the subtree maximum.
- *
- * The sphere comes from `cullingBounds`, which already encloses those of the
- * subtree replacements: the manifest ceiling is projected through it, and a sphere
- * left at zero would project it from the primitive origin — an underestimated
- * ceiling, hence a subtree dropped by mistake.
- */
-function culling(pages: ReturnType<typeof page>[], parNiveaux: boolean) {
-  const { nodes, stride } = parNiveaux ? hierarchieParNiveaux(pages) : flatHierarchy(pages);
-  const count = nodes.length / stride;
-  const bornes = cullingBounds({ nodes, stride }, pages);
-  for (let n = count - 1; n >= 0; n--) {
-    const base = n * stride,
-      at = n * BOUND_STRIDE;
-    for (let a = 0; a < 4; a++)
-      nodes[base + 6 + a] = Math.max(bornes[at + PARENT_SPHERE + a], a === 3 ? 0 : -Infinity);
-    let plafond = 0;
-    const enfants = nodes[base + 12];
-    for (let c = 0; c < enfants; c++) {
-      const fils = nodes[(nodes[base + 11] + c) * stride + 10];
-      plafond = fils < 0 || plafond < 0 ? -1 : Math.max(plafond, fils);
-    }
-    for (let p = 0; p < nodes[base + 14]; p++) {
-      const erreur = pages[nodes[base + 13] + p].parentError;
-      plafond = erreur === null || plafond < 0 ? -1 : Math.max(plafond, erreur);
-    }
-    nodes[base + 10] = plafond;
-  }
-  return { nodes, stride };
 }
 
 /** `niveaux` detail levels, each half as populated as the previous. */
@@ -110,6 +74,9 @@ function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
     nodes[a] = Infinity;
     nodes[3 + a] = -Infinity;
   }
+  // The root spans every level, the coarsest included, whose clusters nothing replaces:
+  // its ceiling certifies nothing, as `flatHierarchy` would say of it.
+  nodes[10] = -1;
   nodes[11] = 1;
   nodes[12] = blocs.length;
   for (let k = 0; k < blocs.length; k++) {
@@ -133,12 +100,14 @@ function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
 }
 
 /** Scene poses. The world matrix comes from the caller: this module does not know the
- *  host library, and the closed list in `tests/integration/engine-without-three.test.ts` forbids it. */
+ *  host library, and the closed list in `tests/integration/engine-without-three.test.ts` forbids it.
+ *  Without `parNiveaux` they carry `flatHierarchy`, what packing gives a primitive without a
+ *  manifest — the CPU cut, which does not synthesise one, reads it from here too. */
 export function sceneRoots(
   pages: ReturnType<typeof page>[],
   mondes: DagRoot['world'][],
   parNiveaux = false,
 ): DagRoot[] {
-  const cull = culling(pages, parNiveaux);
-  return mondes.map((world) => ({ world, pages: pages as DagRoot['pages'], culling: cull }));
+  const culling = parNiveaux ? hierarchieParNiveaux(pages) : flatHierarchy(pages);
+  return mondes.map((world) => ({ world, pages: pages as DagRoot['pages'], culling }));
 }

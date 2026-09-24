@@ -3,29 +3,18 @@ import assert from 'node:assert/strict';
 import { createGpuPartition } from './factory.ts';
 import { PARTITION_SHADER } from './shader.ts';
 import { PARTITION_BINDING, PARTITION_KERNEL_BINDINGS, ROW_DATA_U32 } from './contract.ts';
-import { hizDevice } from '../../../../../tests/kit/gpu/hizDevice.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { PartitionFrame } from './uniform.ts';
 
 const STORAGE_BUFFERS_PER_STAGE = 8;
 
-/** A device that records the bind groups it makes — which buffers, under which binding. */
-function recordingDevice() {
-  const groups: Array<Record<number, unknown>> = [];
-  const device = hizDevice({
-    createBuffer: ({ size }) => ({ size, destroy() {} }),
-    queue: { writeBuffer: () => {} },
-  });
-  (device as unknown as { createBindGroup: unknown }).createBindGroup = ({
-    entries,
-  }: {
-    entries: Array<{ binding: number; resource: { buffer: unknown } }>;
-  }) => {
-    const group = Object.fromEntries(entries.map((e) => [e.binding, e.resource.buffer]));
-    groups.push(group);
-    return group;
-  };
-  return { device, groups };
-}
+/** The bind groups a device made, as the buffer bound under each binding. */
+const bufferGroups = (bindGroups: GPUBindGroupDescriptor[]) =>
+  bindGroups.map(({ entries }) =>
+    Object.fromEntries(
+      [...entries].map((e) => [e.binding, (e.resource as GPUBufferBinding).buffer]),
+    ),
+  );
 
 const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer;
 
@@ -95,7 +84,7 @@ test("each partition kernel binds what it reads, nothing else, within a stage's 
 });
 
 test('the projection rebinds the pyramid when its identity changes, and only then', async () => {
-  const { device, groups } = recordingDevice();
+  const { device, bindGroups } = fakeDevice();
   let pyramid = buffer('pyramid A');
   const partition = await createGpuPartition(device, 4, {
     items: buffer('items'),
@@ -105,7 +94,8 @@ test('the projection rebinds the pyramid when its identity changes, and only the
     pyramid: () => pyramid,
   });
   assert.ok(partition);
-  const projectGroups = () => groups.filter((group) => PARTITION_BINDING.pyramid in group);
+  const projectGroups = () =>
+    bufferGroups(bindGroups).filter((group) => PARTITION_BINDING.pyramid in group);
   assert.equal(projectGroups().length, 1, 'one projection group at creation');
   assert.equal(projectGroups()[0][PARTITION_BINDING.pyramid], pyramid);
   partition.encode(encoder(), frame(4));
@@ -119,7 +109,7 @@ test('the projection rebinds the pyramid when its identity changes, and only the
 });
 
 test('rows rewritten since the last image are cleared run by run, once', async () => {
-  const { device } = recordingDevice();
+  const { device } = fakeDevice();
   const partition = await createGpuPartition(device, 64, {
     items: buffer('items'),
     flags: buffer('flags'),
@@ -163,7 +153,7 @@ test('rows rewritten since the last image are cleared run by run, once', async (
 });
 
 test('no pyramid, no partition: the frame then draws in one pass rather than reading nothing', async () => {
-  const { device } = recordingDevice();
+  const { device } = fakeDevice();
   const partition = await createGpuPartition(device, 4, {
     items: buffer('items'),
     flags: buffer('flags'),

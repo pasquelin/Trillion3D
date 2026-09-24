@@ -7,7 +7,7 @@ import { createStreamingCache } from './cache.ts';
 export type { StreamPage } from './types.ts';
 /** Resident bytes kept by default. Streaming bundles are far larger than a single cluster page, so
  *  a cache bounded only by entry count would hold hundreds of megabytes. */
-const DEFAULT_CACHED_BYTES = 256 * 1024 * 1024;
+export const DEFAULT_CACHED_BYTES = 256 * 1024 * 1024;
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive

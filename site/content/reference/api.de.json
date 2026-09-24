@@ -460,7 +460,7 @@
     "description": "`memory(world)` ist das, was die Welt jetzt hält (`world.budget`); die beiden Reservoirs bauen die Einstellung, die eine Welt annimmt."
   },
   "budget.memory": {
-    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die beiden Reservoirs und das Maximum jedes einzelnen."
+    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die GPU- und CPU-Summen, ihre Aufteilung nach der Regel, beide Pools und die Obergrenze jedes Pools."
   },
   "budget.geometryPool": {
     "summary": "Eine Reservoir-Einstellung für Geometrie von `bytes`, bereit, einer Welt gegeben zu werden.",
@@ -5206,6 +5206,8 @@
       "shadowWaitMs": "Wie lange sie gewartet haben.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
+      "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
+      "gpuShadowRasterMs": "GPU-Zeit für das Zeichnen dieser Werfer in die Seiten: die statische Ebene, dann der Pool.",
       "gpuLightingMs": "GPU-Zeit der Beleuchtung.",
       "shadowLightCuts": "Cluster-Schnitte der Lichter: einer pro gezeichneter Lichtansicht, null in einem ruhenden Bild.",
       "shadowPagesRequested": "Virtuelle Schattenseiten, die das Bild gelesen hat, wie sein letzter Anforderungsbericht sie nannte: was die Empfänger der Kamera markieren.",
@@ -5225,7 +5227,7 @@
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
       "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
-      "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltene Vereinigung kommt sofort in die Liste.",
+      "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltenen Boxen kommen sofort in die Liste.",
       "observeCost": "Zeitmesser des Schattendurchgangs eines Bildes, auf die gezeichneten Seiten umgelegt.",
       "setBudgetMs": "Vom Host veröffentlichtes Budget in GPU-Millisekunden pro Bild.",
       "setPageInvalidation": "Schaltet die Invalidierung pro Seite ab: ein bewegtes Objekt macht jede Seite der Lichter ungültig, die es berührt. Standardmäßig aktiv.",
@@ -6334,10 +6336,13 @@
     "members": {
       "geometryPoolCeiling": "Die größten Reservoirs, die eine Welt anfordern kann: die Startbudgets der Engine.",
       "texturePoolCeiling": "Das größte Textur-Reservoir, das eine Welt anfordern kann, in Bytes.",
-      "geometryPool": "GPU-Speicher-Bytes, die für Geometrieseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
-      "texturePool": "GPU-Speicher-Bytes, die für Texturseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
+      "geometryPool": "Bytes GPU-Speicher für Geometrieseiten; setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Textur-Pool lässt.",
+      "texturePool": "Bytes GPU-Speicher für Texturseiten, `null` bei einer Engine ohne Textur-Pool (WebGL2); setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Geometrie-Pool lässt.",
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
-      "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern."
+      "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
+      "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Nie von der Maschine gelesen.",
+      "cpu": "Bytes CPU-Speicher, die die dekodierten Seiten der Welt halten dürfen; beim nächsten Laden einer Szene übernommen.",
+      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Cache dekodierter Seiten nimmt die CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
   },
   "world.diagnostic": {
@@ -6465,6 +6470,8 @@
       "shadowWaitMs": "Wie lange sie gewartet haben.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
+      "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
+      "gpuShadowRasterMs": "GPU-Zeit für das Zeichnen dieser Werfer in die Seiten: die statische Ebene, dann der Pool.",
       "gpuLightingMs": "GPU-Zeit der Beleuchtung.",
       "hizTestedClusters": "Was der Verdeckungstest bei einem Bild getan hat: die ihm gegebenen Cluster, die er eliminiert hat, und die, deren Bildschirmfußabdruck auf Stufe 0 den Sechzehn-Texel-Kernel überschreitet und daher aus einem gröberen Mip antworten. `hiz*Triangles` sind die Dreiecke derselben Cluster. Auf dem GPU-Pfad beschreiben sie ein ÄLTERES Bild als das, das sie rendert — `hizCountedFrame` sagt welches —, wie `gpuPassMs`, und zwei benachbarte Bilder tragen oft denselben Messwert. Keiner wird geschätzt: `null` für eine Engine, die keine Verdeckung testet, auf einem Gerät, dessen Urteile nicht zurückgelesen werden können, und solange kein Bild gezählt wurde.",
       "hizRejectedClusters": "Versteckte Cluster.",
@@ -6864,6 +6871,7 @@
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
+      "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
       "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
       "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
@@ -7014,6 +7022,19 @@
       "current": "Geschwindigkeit des Wassers (die Strömung eines Flusses), in m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "Die Wasseroberfläche, wie die Seite sie zum Zeichnen liest (`world.physics.waterSurface`): das Wellenmodell, das der Auftrieb im Physik-Worker liest, dieselben Zahlen, zur Zeit der Simulation.",
+    "members": {
+      "level": "Höhe der Oberfläche in Ruhe, in Metern.",
+      "crest": "Höchster Punkt, den ein Wellenkamm über `level` erreicht, in Metern.",
+      "time": "Simulierte Sekunden, seit das Wasser gesetzt wurde: die Uhr der Wellen.",
+      "setTime": "Stellt die Wellen auf `t` simulierte Sekunden.",
+      "height": "Höhe der Oberfläche über dem Weltpunkt `(x, z)`, in Metern.",
+      "point": "Der Weltpunkt `[x, y, z]`, zu dem der Ruhepunkt `(x, level, z)` getragen wird, in `out`: ein Punkt für Punkt bewegtes Gitter ist die Oberfläche, Kämme so scharf wie die Wellen.",
+      "wavesNow": "Die deklarierten Wellen, jede Phase bis jetzt fortgeführt: erneut in `world.physics.water` gesetzt (dessen Wellen wieder bei 0 s beginnen), läuft die Oberfläche weiter, statt zu springen.",
+      "normal": "Einheitsnormale `[x, y, z]` der Oberfläche am Ruhepunkt `(x, z)`, in `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Eine Welle, wie eine Szene sie deklariert.",
     "members": {
@@ -7047,6 +7068,7 @@
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
+      "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
       "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
       "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
@@ -7379,12 +7401,6 @@
       "slider": "Eine Schiene entlang `axis`: eine Schublade, ein Kolben. `limits` in Metern.",
       "distance": "Hält `anchor` an `a` und `anchorB` an `b` in ihrem Abstand oder innerhalb von `limits`.",
       "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt."
-    }
-  },
-  "JointHost": {
-    "summary": "Die Weltseite eines Gelenks: was ein Schreiben darauf von der Simulation verlangt.",
-    "members": {
-      "motor": "Der Motor hat sich geändert."
     }
   }
 }

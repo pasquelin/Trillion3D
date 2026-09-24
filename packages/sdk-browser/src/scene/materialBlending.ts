@@ -4,9 +4,13 @@
  *
  * The equations are written once, in the WebGPU vocabulary; the WebGL2 cluster state maps the
  * same factors to its own enums (`../webgl/cluster/state.ts`), so the two paths cannot drift.
- * In linear light, with `s` the source colour, `a` its opacity and `d` what the target holds:
- * normal is `s·a + d·(1 − a)`, additive `d + s·a`, subtractive `d − s·a`, multiply `d·s`, and
- * none writes `s` as it is. A custom equation is not a mode the engine draws.
+ * In linear light, with `s` the source colour, `a` its opacity, `d` what the target holds and `t`
+ * its alpha: normal is `s·a + d·(1 − a)` (alpha `a + t·(1 − a)`), additive `d + s·a` (alpha
+ * `t + a·a`), subtractive `d·(1 − s)` (alpha `t`), multiply `d·s` (alpha `t·a`), and none writes
+ * `s` as it is — what the witness, three@0.174, computes for the same material. A custom equation
+ * is not a mode the engine draws. The WebGPU fallback pass (`webgpu/pages/prepare/shaders.ts`)
+ * applies the same equations after its tone map and sRGB encoding: it blends display values, not
+ * linear light.
  */
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts';
 import {
@@ -45,31 +49,45 @@ export function blendingOf(host: number | undefined): Blending | undefined {
   return BLEND_MODES.find((mode) => HOST[mode] === host);
 }
 
+/** Why a surface's mode is drawn by no path, or `undefined`: the one refusal the admission gate
+ *  and every draw share. A transmissive surface composes by the backdrop it reads, and a mode the
+ *  engine has no name for is no mode at all: both are refused by name, never drawn as normal. */
+export function blendingRefusal(blending: Blending | undefined, transmissive: boolean) {
+  if (!blending) return 'a surface declares a blending no path draws';
+  if (transmissive && blending !== 'normal')
+    return `a transmissive material cannot use ${blending} blending`;
+}
+
+/** The mode a transparent surface is drawn in, on every GPU path; what `blendingRefusal` refuses
+ *  is thrown by name. */
+export function drawnBlending(blending: Blending | undefined, transmissive: boolean): Blending {
+  const refusal = blendingRefusal(blending, transmissive);
+  if (refusal) throw new Error(refusal);
+  return blending!;
+}
+
 /** A mode that adds to, takes from or filters the background: it means nothing drawn opaque, so
  *  a surface declaring one is drawn in the transparent pass. */
 export const composesWithBackground = (blending: Blending) =>
   blending === 'additive' || blending === 'subtractive' || blending === 'multiply';
 
-/** The target keeps its own alpha under every mode but normal: only the colour composes. */
+/** The target keeps its own alpha: subtractive composes the colour alone. */
 const KEEP_ALPHA: GPUBlendComponent = { srcFactor: 'zero', dstFactor: 'one', operation: 'add' };
+const ADD: GPUBlendComponent = { srcFactor: 'src-alpha', dstFactor: 'one', operation: 'add' };
+const MULTIPLY: GPUBlendComponent = { srcFactor: 'zero', dstFactor: 'src', operation: 'add' };
 
-/** The equation of each mode; `undefined` is no blending at all — the source replaces the target. */
+/** The equation of each mode, colour and alpha as the witness (three@0.174, straight alpha)
+ *  writes them; `undefined` is no blending at all — the source replaces the target. */
 export const BLEND_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
   normal: {
     color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
     alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
   },
-  additive: {
-    color: { srcFactor: 'src-alpha', dstFactor: 'one', operation: 'add' },
-    alpha: KEEP_ALPHA,
-  },
+  additive: { color: ADD, alpha: ADD },
   subtractive: {
-    color: { srcFactor: 'src-alpha', dstFactor: 'one', operation: 'reverse-subtract' },
+    color: { srcFactor: 'zero', dstFactor: 'one-minus-src', operation: 'add' },
     alpha: KEEP_ALPHA,
   },
-  multiply: {
-    color: { srcFactor: 'zero', dstFactor: 'src', operation: 'add' },
-    alpha: KEEP_ALPHA,
-  },
+  multiply: { color: MULTIPLY, alpha: MULTIPLY },
   none: undefined,
 };
