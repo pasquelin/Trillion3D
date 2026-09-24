@@ -9,9 +9,13 @@ export const pageBufferBytes = (device: GPUDevice, pageBytes: number, slots: num
   return size;
 };
 
-export const createPageBuffer = (device: GPUDevice, size: number) =>
+export const createPageBuffer = (
+  device: GPUDevice,
+  size: number,
+  label = 'Trillion3D geometry page cache',
+) =>
   device.createBuffer({
-    label: 'Trillion3D geometry page cache',
+    label,
     size,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   });
