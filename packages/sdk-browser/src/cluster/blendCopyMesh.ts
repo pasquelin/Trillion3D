@@ -10,11 +10,14 @@ import {
   type PlacementRows,
 } from '../placement/rows.ts';
 import { growPlaced } from '../placement/growth.ts';
+import { threeGeometry, threeMaterials } from '../host/three/fromGraph.ts';
 
 /**
  * The transparent draw copy of an engine the HOST renderer draws — a witness, or the WebGL2 page
  * path: a host mesh, because such an engine hands its transparent surfaces back to that renderer.
- * The WebGPU path holds the record of `blendCopyRecord.ts` instead and names no library;
+ * The WebGPU path holds the record of `blendCopyRecord.ts` instead and names no library; a mesh
+ * of the engine's own graph is drawn through the library's copy of its geometry and surface
+ * (`../host/three/fromGraph.ts`). This file goes with the WebGL2 page path when it draws on its own.
  * `collectClusterPages` takes this builder as an option, which `../backend/exact/backend.ts` and
  * `../backend/autonomous/pages.ts` pass.
  *
@@ -40,7 +43,7 @@ export function createBlendCopy(
   placement?: PlacementOf,
 ): BlendCopy {
   const source = asHostLibrary<THREE.Mesh>(mesh);
-  const copy = new THREE.Mesh(source.geometry, source.material);
+  const copy = new THREE.Mesh(threeGeometry(source.geometry), threeMaterials(source.material));
   copy.matrixAutoUpdate = false;
   copy.matrix = Object.assign(new THREE.Matrix4(), {
     elements: asHostLibrary<number[]>(world.elements),

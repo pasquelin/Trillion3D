@@ -1,0 +1,198 @@
+/**
+ * The two sides of the prepared-scene proof (`build.test.ts`), described alike: every published
+ * cache served from disk, and a host graph walked into the fields a reader compares — whole, as
+ * the reference renderer reads it, or by shape, as the engine reads it, whichever library built it.
+ */
+import { type TestContext } from 'node:test';
+import { createHash } from 'node:crypto';
+import { readFile, readdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import * as THREE from 'three';
+import type { GraphNode } from '../graph/node.ts';
+
+const site = new URL('../../../../../site/assets/', import.meta.url);
+
+/** Every published cache: the key folder its pointer names. */
+export async function caches() {
+  const found: URL[] = [];
+  for (const entry of await readdir(site, { recursive: true }))
+    if (entry.endsWith('cache/native/full/manifest.json')) {
+      const pointer = new URL(entry, site);
+      const { url } = JSON.parse(await readFile(pointer, 'utf8')) as { url: string };
+      found.push(new URL('./', new URL(url, pointer)));
+    }
+  return found;
+}
+
+/** Files served from disk, and images decoded to the size of their bytes, on both sides. */
+export function serveFiles(t: TestContext) {
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    const url = input instanceof Request ? input.url : String(input);
+    return new Response(await readFile(fileURLToPath(url)));
+  });
+  const decode = async (blob: Blob) => ({ width: 1, height: 1, bytes: blob.size });
+  // The loader reports its download progress with the browser's event and reaches the page's
+  // global as `self`, which Node lacks.
+  class ProgressEvent extends Event {}
+  const scope = globalThis as Record<string, unknown>;
+  const stubs = { createImageBitmap: decode, ProgressEvent, self: globalThis };
+  Object.assign(scope, stubs);
+  t.after(() => {
+    for (const name of Object.keys(stubs)) delete scope[name];
+  });
+}
+
+const hash = (array: ArrayLike<number> & ArrayBufferView) =>
+  createHash('sha256')
+    .update(Buffer.from(array.buffer, array.byteOffset, array.byteLength))
+    .digest('hex');
+
+/** An attribute by its layout and its bytes, owning its storage or viewing an interleaved one. */
+function attribute(a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute) {
+  const data = 'data' in a ? a.data : undefined;
+  const array = data ? data.array : a.array;
+  return {
+    kind: array.constructor.name,
+    itemSize: a.itemSize,
+    count: a.count,
+    normalized: a.normalized,
+    stride: data?.stride,
+    offset: 'offset' in a ? a.offset : undefined,
+    bytes: hash(array as Float32Array),
+  };
+}
+
+function geometry(g: THREE.BufferGeometry) {
+  const attributes = Object.fromEntries(
+    Object.entries(g.attributes).map(([name, a]) => [name, attribute(a)]),
+  );
+  const morphs = Object.entries(g.morphAttributes).map(([name, list]) => [
+    name,
+    list.map(attribute),
+  ]);
+  return {
+    attributes,
+    morphs: Object.fromEntries(morphs),
+    relative: g.morphTargetsRelative,
+    index: g.index && attribute(g.index),
+    box: g.boundingBox && [...g.boundingBox.min.toArray(), ...g.boundingBox.max.toArray()],
+    sphere: g.boundingSphere && [...g.boundingSphere.center.toArray(), g.boundingSphere.radius],
+  };
+}
+
+export type Ranks = (
+  object: object,
+) => { meshes?: number; primitives?: number; textures?: number } | undefined;
+
+/** Every field of a surface, the emissive colour read as the host shades it (colour × strength). */
+function material(m: THREE.Material, ranks: Ranks) {
+  const out: Record<string, unknown> = { type: m.type };
+  const skip = new Set(['uuid', 'id', 'version', 'userData', 'emissive', 'emissiveIntensity']);
+  for (const [key, value] of Object.entries(m)) {
+    if (skip.has(key) || key.startsWith('_listeners')) continue;
+    if (value?.isTexture || value?.isColor || value?.isVector2) out[key] = read(value, ranks);
+    else if (typeof value !== 'function' && typeof value !== 'object') out[key] = value;
+  }
+  const emissive = (m as THREE.MeshStandardMaterial).emissive;
+  if (emissive)
+    out.emissive = emissive
+      .toArray()
+      .map((c) => c * (m as THREE.MeshStandardMaterial).emissiveIntensity);
+  return out;
+}
+
+export function describe(root: THREE.Object3D, ranks: Ranks) {
+  const out: unknown[] = [];
+  root.traverse((o) => {
+    const light = o as THREE.SpotLight;
+    const mesh = o as THREE.Mesh;
+    const { meshes, primitives } = ranks(o) ?? {};
+    out.push({
+      type: o.type,
+      name: o.name,
+      userName: o.userData.name as unknown,
+      pose: [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray()],
+      ranks: mesh.isMesh ? { meshes, primitives } : undefined,
+      geometry: mesh.isMesh ? geometry(mesh.geometry) : undefined,
+      morph: mesh.isMesh ? mesh.morphTargetInfluences : undefined,
+      material: mesh.isMesh ? material(mesh.material as THREE.Material, ranks) : undefined,
+      light: light.isLight ? [light.color.toArray(), ...LIGHT.map((k) => light[k])] : undefined,
+    });
+  });
+  return out;
+}
+
+/** The numbers of a light, after its colour. */
+const LIGHT = ['intensity', 'distance', 'decay', 'angle', 'penumbra'] as const;
+/** The fields of a surface the engine reads (`../shadedMaterial.ts`, the physical gate). */
+const SURFACE_FIELDS = (
+  'type name visible side forceSinglePass vertexColors toneMapped depthTest depthWrite ' +
+  'depthFunc colorWrite polygonOffset polygonOffsetFactor polygonOffsetUnits transparent ' +
+  'opacity alphaTest isMeshBasicMaterial isMeshStandardMaterial isMeshPhysicalMaterial ' +
+  'isMeshPhongMaterial shininess matcap color map metalness roughness metalnessMap ' +
+  'roughnessMap normalMap normalMapType normalScale aoMap aoMapIntensity emissive ' +
+  'emissiveIntensity emissiveMap transmission ior thickness attenuationDistance ' +
+  'attenuationColor alphaHash blending premultipliedAlpha alphaToCoverage stencilWrite ' +
+  'flatShading wireframe envMap lightMap bumpMap displacementMap alphaMap transmissionMap ' +
+  'thicknessMap clearcoat clearcoatMap clearcoatRoughnessMap clearcoatNormalMap ' +
+  'clearcoatNormalScale sheen sheenColor sheenColorMap sheenRoughnessMap iridescence ' +
+  'iridescenceMap iridescenceThicknessMap anisotropy anisotropyMap dispersion ' +
+  'specularIntensity specularIntensityMap specularColor specularColorMap'
+).split(' ');
+/** The fields of a texture the engine reads (`../resources.ts`, the admission gate). */
+const TEXTURE_FIELDS = (
+  'isTexture name channel wrapS wrapT magFilter minFilter anisotropy flipY premultiplyAlpha ' +
+  'generateMipmaps colorSpace matrixAutoUpdate mapping isCompressedTexture isDataTexture ' +
+  'isDataArrayTexture image'
+).split(' ');
+
+/** A value as the engine reads it: a colour by its components, a vector by its two numbers. */
+function read(value: unknown, ranks: Ranks): unknown {
+  const v = value as Record<string, unknown> | null | undefined;
+  if (v?.isTexture) {
+    const t = v as unknown as { updateMatrix(): void; matrix: { elements: ArrayLike<number> } };
+    t.updateMatrix();
+    const fields = Object.fromEntries(TEXTURE_FIELDS.map((key) => [key, v[key]]));
+    return { ...fields, matrix: Array.from(t.matrix.elements), rank: ranks(v)?.textures };
+  }
+  if (v?.isColor) return [v.r, v.g, v.b];
+  if (v?.isVector2) return [v.x, v.y];
+  if (v?.isVector3) return [v.x, v.y, v.z];
+  if (v?.isObject3D) return read(v.position, ranks);
+  if (v?.isInterleavedBufferAttribute || v?.isBufferAttribute) return attribute(v as never);
+  return Array.isArray(value) ? [...(value as unknown[])] : value;
+}
+
+/** The graph as the engine reads it, by name and by shape, whichever library built it. */
+export function describeShape(root: GraphNode | THREE.Object3D, ranks: Ranks) {
+  const out: unknown[] = [];
+  (root as GraphNode).traverse((node) => {
+    const o = node as unknown as Record<string, unknown> & THREE.Mesh & THREE.SpotLight;
+    const { meshes, primitives } = ranks(o) ?? {};
+    const materials = o.isMesh ? [o.material].flat() : [];
+    out.push({
+      ...Object.fromEntries(
+        ['type', 'name', 'visible', 'frustumCulled', 'renderOrder', 'castShadow', 'receiveShadow']
+          .concat(['matrixAutoUpdate', 'isMesh', 'isLight', 'isCamera', 'isGroup'])
+          .map((key) => [key, o[key]]),
+      ),
+      userName: o.userData.name as unknown,
+      pose: [o.position, o.quaternion, o.scale].flatMap((v) => v.toArray()),
+      ranks: o.isMesh ? { meshes, primitives } : undefined,
+      geometry: o.isMesh ? geometry(o.geometry) : undefined,
+      morph: o.isMesh ? o.morphTargetInfluences : undefined,
+      materials: materials.map((m) =>
+        Object.fromEntries(
+          SURFACE_FIELDS.map((key) => [key, read((m as Record<string, unknown>)[key], ranks)]),
+        ),
+      ),
+      light: o.isLight
+        ? ['color', ...LIGHT, 'target'].map((key) => read(o[key], ranks))
+        : undefined,
+      camera: o.isCamera
+        ? ['fov', 'aspect', 'near', 'far', 'zoom'].map((key) => o[key])
+        : undefined,
+    });
+  });
+  return out;
+}

@@ -11,28 +11,39 @@
  *   first coordinate set keeps the texture's rank;
  * - colour maps are sRGB, the rest linear; rows are not flipped.
  */
-import * as THREE from 'three';
 import type { TableTextureSlot, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
+import { GraphTexture } from '../graph/texture.ts';
+import {
+  HOST_FILTER_LINEAR,
+  HOST_FILTER_LINEAR_MIP_LINEAR,
+  HOST_FILTER_LINEAR_MIP_NEAREST,
+  HOST_FILTER_NEAREST,
+  HOST_FILTER_NEAREST_MIP_LINEAR,
+  HOST_FILTER_NEAREST_MIP_NEAREST,
+  HOST_WRAP_CLAMP_TO_EDGE,
+  HOST_WRAP_MIRRORED_REPEAT,
+  HOST_WRAP_REPEAT,
+} from '../surfaceConstants.ts';
 
-const FILTERS: Record<TextureFilter, THREE.TextureFilter> = {
-  nearest: THREE.NearestFilter,
-  linear: THREE.LinearFilter,
-  'nearest-mip-nearest': THREE.NearestMipmapNearestFilter,
-  'linear-mip-nearest': THREE.LinearMipmapNearestFilter,
-  'nearest-mip-linear': THREE.NearestMipmapLinearFilter,
-  'linear-mip-linear': THREE.LinearMipmapLinearFilter,
+const FILTERS: Record<TextureFilter, number> = {
+  nearest: HOST_FILTER_NEAREST,
+  linear: HOST_FILTER_LINEAR,
+  'nearest-mip-nearest': HOST_FILTER_NEAREST_MIP_NEAREST,
+  'linear-mip-nearest': HOST_FILTER_LINEAR_MIP_NEAREST,
+  'nearest-mip-linear': HOST_FILTER_NEAREST_MIP_LINEAR,
+  'linear-mip-linear': HOST_FILTER_LINEAR_MIP_LINEAR,
 };
-const WRAPS: Record<WrapMode, THREE.Wrapping> = {
-  clamp: THREE.ClampToEdgeWrapping,
-  mirror: THREE.MirroredRepeatWrapping,
-  repeat: THREE.RepeatWrapping,
+const WRAPS: Record<WrapMode, number> = {
+  clamp: HOST_WRAP_CLAMP_TO_EDGE,
+  mirror: HOST_WRAP_MIRRORED_REPEAT,
+  repeat: HOST_WRAP_REPEAT,
 };
 
 /** The rank each built texture answers to, keyed by the texture: what the engine finds the baked
  *  preview of a texture by. */
-export type TextureRanks = Map<THREE.Texture, number>;
+export type TextureRanks = Map<GraphTexture, number>;
 
 /**
  * The textures of `tables` for the images of `document`: `slot` resolves a material's map slot
@@ -44,8 +55,8 @@ export function preparedTextures(
   images: (rank: number) => Promise<unknown>,
   ranks: TextureRanks,
 ) {
-  const sources = new Map<number, Promise<THREE.Texture | null>>();
-  const folded = new Map<string, Promise<THREE.Texture | null>>();
+  const sources = new Map<number, Promise<GraphTexture | null>>();
+  const folded = new Map<string, Promise<GraphTexture | null>>();
 
   /** The texture holding image `rank`: the first request owns it, later ones copy it. */
   const source = (rank: number) => {
@@ -53,7 +64,7 @@ export function preparedTextures(
     if (held) return held.then((texture) => texture?.clone() ?? null);
     const made = images(rank).then((image) => {
       if (image === null) return null;
-      const texture = new THREE.Texture(image as TexImageSource);
+      const texture = new GraphTexture(image);
       texture.needsUpdate = true;
       return texture;
     });
@@ -74,12 +85,12 @@ export function preparedTextures(
         built.name = declared.name || image.name || '';
         if (!built.name && image.uri !== null && !image.uri.startsWith('data:image/'))
           built.name = image.uri;
-        built.magFilter = FILTERS[declared.magFilter] as THREE.MagnificationTextureFilter;
-        built.minFilter = FILTERS[declared.minFilter] as THREE.MinificationTextureFilter;
+        built.magFilter = FILTERS[declared.magFilter];
+        built.minFilter = FILTERS[declared.minFilter];
         built.wrapS = WRAPS[declared.wrapS];
         built.wrapT = WRAPS[declared.wrapT];
         built.generateMipmaps =
-          built.minFilter !== THREE.NearestFilter && built.minFilter !== THREE.LinearFilter;
+          built.minFilter !== HOST_FILTER_NEAREST && built.minFilter !== HOST_FILTER_LINEAR;
         ranks.set(built, rank);
         return built;
       });
@@ -88,7 +99,7 @@ export function preparedTextures(
     return texture;
   };
 
-  return async (slot: TableTextureSlot, colorSpace?: THREE.ColorSpace) => {
+  return async (slot: TableTextureSlot, colorSpace?: string) => {
     let texture = await textureOf(slot.texture);
     if (!texture) return null;
     const { transform, texCoord } = slot;
@@ -98,9 +109,9 @@ export function preparedTextures(
       const rank = ranks.get(texture);
       texture = texture.clone();
       texture.channel = texCoord;
-      if (transform?.offset) texture.offset.fromArray(transform.offset);
+      if (transform?.offset) texture.offset.set(transform.offset[0], transform.offset[1]);
       if (transform && transform.rotation !== null) texture.rotation = transform.rotation;
-      if (transform?.scale) texture.repeat.fromArray(transform.scale);
+      if (transform?.scale) texture.repeat.set(transform.scale[0], transform.scale[1]);
       if (moved) texture.needsUpdate = true;
       // A copy that reads another coordinate set answers to no rank, as the loader published none
       // for it; a copy that only moves the coordinates keeps its texture's.

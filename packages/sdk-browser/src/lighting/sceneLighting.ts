@@ -73,6 +73,9 @@ export function installSceneLighting(
   /** An empty node of that graph: what a copied light aims at. The engine poses it, the host
    *  makes it — the source's own target belongs to the source graph and stays there. */
   aimNode: () => HostPlaced,
+  /** The copy of a source light the display graph holds, made by the host that draws it: a
+   *  light of the source graph's own library copies itself. */
+  copyOf: (light: HostLight) => HostLight = (light) => light.clone(),
 ) {
   /** One entry per copied light; `aim` only where the source declared a target. */
   let pairs: Array<{ original: HostLight; copy: HostLight; aim?: Aim }> = [];
@@ -123,7 +126,7 @@ export function installSceneLighting(
     }
     pairs = [];
     for (const original of sceneLights(source)) {
-      const copy = original.clone();
+      const copy = copyOf(original);
       let aim: Aim | undefined;
       // A light that aims gets an aim of this graph: the copy is posed here, and the source's
       // own target stays in the graph its owner walks and resolves. The question is asked of

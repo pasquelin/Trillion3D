@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { installSceneLighting } from './sceneLighting.ts';
-import { hostAimNode, lighting } from '../host/scene/objects.ts';
+import { hostAimNode, lighting } from '../host/three/displayObjects.ts';
 
 test('Three reference adapter copies the authored directional target in world space', () => {
   const source = new THREE.Group(),

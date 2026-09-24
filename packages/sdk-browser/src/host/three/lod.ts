@@ -1,10 +1,10 @@
 import { meshes, geometryBytes } from '../../scene/meshes.ts';
 import { asHostLibrary } from '../resources.ts';
 import { copyElements } from '../../math/matrixElements.ts';
-import { hostMeshCopy } from '../scene/graphObjects.ts';
+import { threeCamera, threeMeshCopy } from './fromGraphNodes.ts';
 import { collectCover, buildIndex } from './lodHelpers.ts';
 import { installSceneLighting, sceneLightingApi } from '../../lighting/sceneLighting.ts';
-import { hostAimNode } from '../scene/objects.ts';
+import { hostAimNode } from './displayObjects.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from '../../backend/types.ts';
 import {
@@ -12,7 +12,7 @@ import {
   disposeTriangleGeometry,
 } from '../../diagnostic/triangleDiagnostic.ts';
 import { isTransmissive } from '../../visibility/buffer.ts';
-import { setGeometryBounds } from './bounds.ts';
+import { setGeometryBounds } from '../geometryBounds.ts';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/index.ts';
 import { resolveCameraWorld } from '../../camera/world.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './sceneAdapter.ts';
@@ -42,9 +42,9 @@ export const threeLodBackend: BackendFactory = (context) => {
   const seen = new Set<ArrayBufferView>();
   let order = 0;
   for (const mesh of meshes(context.source)) {
-    // The witness crosses back ONCE, at its door: inside the loop the source mesh is read with
-    // the host library's own types, which is what this engine exists to be compared against.
-    const host = asHostLibrary<THREE.Mesh>(mesh);
+    // The witness crosses ONCE, at its door: the library's copy of the source mesh
+    // (`fromGraph.ts`) is what this engine draws and exists to be compared against.
+    const host = threeMeshCopy(mesh);
     const association = context.associations.get(mesh);
     const primitive = context.metadata.primitives.find(
       (p) => p.mesh === association?.meshes && p.primitive === (association?.primitives ?? 0),
@@ -53,13 +53,13 @@ export const threeLodBackend: BackendFactory = (context) => {
     lod.matrixAutoUpdate = false;
     copyElements(lod.matrix.elements, mesh.matrixWorld.elements);
     lod.userData.sourceMesh = mesh;
-    const fine = asHostLibrary<THREE.Mesh>(hostMeshCopy(mesh));
+    const fine = host;
     fine.matrixAutoUpdate = false;
     fine.matrix.identity();
     fine.renderOrder = order;
     fine.frustumCulled = true;
-    fine.userData.sourceGeometry = mesh.geometry;
-    fine.userData.sourceMaterial = mesh.material;
+    fine.userData.sourceGeometry = host.geometry;
+    fine.userData.sourceMaterial = host.material;
     lod.addLevel(fine, 0);
     allocationBytes += geometryBytes(mesh.geometry, seen);
     if (primitive && primitive.pass !== 'shared-blend' && !isTransmissive(mesh.material)) {
@@ -95,7 +95,7 @@ export const threeLodBackend: BackendFactory = (context) => {
         coarse.renderOrder = order;
         coarse.userData.lodLevel = 1;
         coarse.userData.sourceGeometry = geometry;
-        coarse.userData.sourceMaterial = mesh.material;
+        coarse.userData.sourceMaterial = host.material;
         const radius = geometry.boundingSphere?.radius || host.geometry.boundingSphere?.radius || 1;
         lod.addLevel(coarse, Math.max(radius * 2, 1));
         levels = Math.max(levels, 2);
@@ -133,7 +133,7 @@ export const threeLodBackend: BackendFactory = (context) => {
     ...sceneLightingApi(sceneLights, () => {}),
     render(camera) {
       hostDraw.render(camera);
-      asHostLibrary<THREE.Object3D>(context.source).updateMatrixWorld(true);
+      context.source.updateMatrixWorld(true);
       sceneLights.update();
       // Frame entry: the world pose, ancestors included, before any read (`../../camera/world.ts`).
       resolveCameraWorld(camera);
@@ -143,7 +143,7 @@ export const threeLodBackend: BackendFactory = (context) => {
       for (const lod of lods) {
         lod.matrix.copy((lod.userData.sourceMesh as THREE.Mesh).matrixWorld);
         lod.updateMatrixWorld(true);
-        lod.update(asHostLibrary<THREE.Camera>(camera));
+        lod.update(threeCamera(asHostLibrary<THREE.Camera>(camera)));
         const current = lod.getCurrentLevel();
         lodLevel = Math.max(lodLevel, current);
         const object = lod.levels[current]?.object as THREE.Mesh | undefined;

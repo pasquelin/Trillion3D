@@ -30,7 +30,7 @@ export type HostTexture = {
   /** How its numbers are read. */ readonly colorSpace: string;
   /** UV transform of the sampler, `KHR_texture_transform` composed into three rows; the host
    *  recomputes it from offset, repeat and rotation when it owns the update. */
-  readonly matrix: { readonly elements: number[] };
+  readonly matrix: { readonly elements: ArrayLike<number> };
   /** Whether the host rebuilds `matrix`. */ readonly matrixAutoUpdate: boolean;
   /** Rebuilds `matrix` from offset, repeat and rotation. */ updateMatrix(): void;
 };

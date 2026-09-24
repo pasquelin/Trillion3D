@@ -8,15 +8,21 @@
  * - a mesh, a camera or a light several nodes name is copied per node, the copies sharing geometry and
  *   surface, and named `_instance_<n>` in turn;
  * - names are made unique in the order the loader reserved them: scene, then each node, its
- *   camera and its light depth first, then each mesh in the order it is first named;
+ *   camera and its light depth first, then each mesh as its surfaces are ready — in the order
+ *   they are first named when they are ready together, in the order their images land when not;
  * - a node's pose is set from what it declares: a matrix decomposed, or its translation, rotation
  *   and scale as they are — so the engine composes the same world matrices from them.
  */
-import * as THREE from 'three';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
 import type { SurfaceVariant } from './materials.ts';
+import type { GraphGeometry } from '../graph/geometry.ts';
+import type { GraphSurface } from '../graph/surface.ts';
+import { GraphGroup, GraphMesh } from '../graph/mesh.ts';
+import { GraphNode } from '../graph/node.ts';
+import { type GraphCamera } from '../graph/camera.ts';
+import { type GraphLight } from '../graph/light.ts';
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks. */
 export type MeshRanks = { meshes?: number; primitives?: number };
@@ -24,15 +30,15 @@ export type MeshRanks = { meshes?: number; primitives?: number };
 type Inputs = {
   tables: PreparedSceneTables;
   meshes: TableDocument['meshes'];
-  geometryOf: (mesh: number, primitive: number) => THREE.BufferGeometry;
-  materialOf: (rank: number, variant: SurfaceVariant) => Promise<THREE.Material>;
+  geometryOf: (mesh: number, primitive: number) => GraphGeometry;
+  materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>;
 };
 
 /** The prepared scene as a host graph, and the ranks each drawn host mesh answers to. */
 export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: Inputs) {
   const unique = uniqueNames();
-  const ranks = new Map<THREE.Object3D, MeshRanks>();
-  const scene = new THREE.Group();
+  const ranks = new Map<GraphNode, MeshRanks>();
+  const scene = new GraphGroup();
   if (tables.scene.name) scene.name = unique(tables.scene.name);
   // References are counted over every node, reached or not, as the loader counted them.
   const refs = (field: 'mesh' | 'light' | 'camera') => {
@@ -44,10 +50,10 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   const counts = { mesh: refs('mesh'), light: refs('light'), camera: refs('camera') };
   const uses = new Map<string, number>();
   /** The object a node names, or its copy when several nodes name it. */
-  const reference = (kind: keyof typeof counts, rank: number, made: THREE.Object3D) => {
+  const reference = (kind: keyof typeof counts, rank: number, made: GraphNode) => {
     if ((counts[kind].get(rank) ?? 0) <= 1) return made;
     const copy = made.clone();
-    const walk = (from: THREE.Object3D, to: THREE.Object3D) => {
+    const walk = (from: GraphNode, to: GraphNode) => {
       const held = ranks.get(from);
       if (held) ranks.set(to, held);
       from.children.forEach((child, i) => walk(child, to.children[i]));
@@ -61,8 +67,8 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   };
   // Names first, depth first: node, then its camera, then its light; each camera and each light
   // is built at its first use.
-  const cameras = new Map<number, THREE.Camera>();
-  const lights = new Map<number, THREE.Light>();
+  const cameras = new Map<number, GraphCamera>();
+  const lights = new Map<number, GraphLight>();
   const nodeNames = new Map<number, string>();
   const order: number[] = [];
   const named = new Set<number>();
@@ -98,31 +104,36 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
       return { geometry, material: materialOf(primitive.material, variant) };
     }),
   );
-  const built = new Map<number, THREE.Object3D>();
-  for (const [at, rank] of order.entries()) {
-    const parts: THREE.Mesh[] = [];
-    for (const [p, { geometry, material }] of drawn[at].entries()) {
-      const mesh = new THREE.Mesh(geometry, await material);
-      if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights);
-      mesh.name = unique(meshes[rank].name || `mesh_${rank}`);
-      ranks.set(mesh, { meshes: rank, primitives: p });
-      parts.push(mesh);
-    }
-    if (parts.length === 1) built.set(rank, parts[0]);
-    else {
-      const group = new THREE.Group();
-      ranks.set(group, { meshes: rank });
-      for (const part of parts) group.add(part);
-      built.set(rank, group);
-    }
-  }
-  const assemble = (id: number): THREE.Object3D => {
+  // Each mesh is named when its surfaces are ready, as the loader named it: meshes whose
+  // surfaces land together keep the order they were first named in.
+  const built = new Map<number, GraphNode>();
+  await Promise.all(
+    order.map((rank, at) =>
+      Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) => {
+        const parts = drawn[at].map(({ geometry }, p) => {
+          const mesh = new GraphMesh(geometry, surfaces[p]);
+          if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights);
+          mesh.name = unique(meshes[rank].name || `mesh_${rank}`);
+          ranks.set(mesh, { meshes: rank, primitives: p });
+          return mesh;
+        });
+        if (parts.length === 1) built.set(rank, parts[0]);
+        else {
+          const group = new GraphGroup();
+          ranks.set(group, { meshes: rank });
+          for (const part of parts) group.add(part);
+          built.set(rank, group);
+        }
+      }),
+    ),
+  );
+  const assemble = (id: number): GraphNode => {
     const declared = tables.nodes[id];
-    const carried: THREE.Object3D[] = [];
+    const carried: GraphNode[] = [];
     if (declared.mesh !== null) {
       const mesh = reference('mesh', declared.mesh, built.get(declared.mesh)!);
       // Weights a node declares override its mesh's, on every primitive it draws.
-      if (declared.weights) mesh.traverse((part) => weigh(part as THREE.Mesh, declared.weights));
+      if (declared.weights) mesh.traverse((part) => weigh(part as GraphMesh, declared.weights));
       carried.push(mesh);
     }
     if (declared.camera !== null)
@@ -133,8 +144,8 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
       carried.length === 1
         ? carried[0]
         : carried.length
-          ? new THREE.Group().add(...carried)
-          : new THREE.Object3D();
+          ? new GraphGroup().add(...carried)
+          : new GraphNode();
     if (declared.name) {
       node.userData.name = declared.name;
       node.name = nodeNames.get(id)!;

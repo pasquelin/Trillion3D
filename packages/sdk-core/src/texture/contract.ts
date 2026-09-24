@@ -56,5 +56,5 @@ export interface Texture {
   /** How its numbers are read. */
   readonly colorSpace: TextureColorSpace;
   /** UV transform of the sampler, `KHR_texture_transform` composed into three rows of three. */
-  readonly transform: readonly number[];
+  readonly transform: ArrayLike<number>;
 }

@@ -1,5 +1,5 @@
-import * as THREE from 'three';
-import { asHostLibrary } from '../../host/resources.ts';
+import type { HostDiagnosticGeometry, HostGeometry } from '../../host/resources.ts';
+import type { HostGraphGeometry } from '../../host/scene/graphResources.ts';
 import { geometryBytes } from '../../scene/meshes.ts';
 import { disposeTriangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -8,16 +8,26 @@ import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 import { ClusterBatches } from '../../cluster/batches.ts';
 
+/** A transparent copy the host renderer draws whole, as its triangles are counted. */
+type CountedCopy = {
+  readonly geometry: {
+    getIndex(): { readonly count: number } | null;
+    getAttribute(name: string): { readonly count: number };
+  };
+  readonly userData: Record<string, unknown>;
+};
+
 type MetricsContext = {
   batches: ClusterBatches;
-  blendCopies: THREE.Mesh[];
+  blendCopies: readonly CountedCopy[];
   metricsSeen: Set<ArrayBufferView>;
   attached: PageRec[];
   counters: { pagesDetached: number };
   materials: { disposeMaterials: () => void };
   allPages: PageRec[];
-  disposeGeometry: (geometry: THREE.BufferGeometry) => void;
-  scene: THREE.Scene;
+  disposeGeometry(geometry: HostGeometry): void;
+  /** The display graph the pages hang on, emptied with the engine. */
+  scene: { clear(): void };
   /** The frame gate, released with the scene: the host graph keeps no hook of this engine. */
   gate: WebglFrameGate;
   readonly diagnostic: DiagnosticMode;
@@ -50,8 +60,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         metricsSeen.clear();
         bytes = 0;
         for (const rec of attached)
-          if (rec.geometry)
-            bytes += geometryBytes(asHostLibrary<THREE.BufferGeometry>(rec.geometry), metricsSeen);
+          if (rec.geometry) bytes += geometryBytes(rec.geometry as HostGraphGeometry, metricsSeen);
       }
       const transparentSubmittedTriangles = blendCopies.reduce(
         (sum, copy) =>
@@ -91,12 +100,12 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
       materials.disposeMaterials();
       batches.dispose();
       for (const rec of allPages) {
-        if (rec.geometry) disposeGeometry(asHostLibrary<THREE.BufferGeometry>(rec.geometry));
+        if (rec.geometry) disposeGeometry(rec.geometry);
         rec.geometry = undefined;
         rec.mesh = undefined;
       }
       for (const copy of blendCopies)
-        disposeTriangleGeometry(copy.userData.sourceGeometry as THREE.BufferGeometry);
+        disposeTriangleGeometry(copy.userData.sourceGeometry as HostDiagnosticGeometry);
       scene.clear();
       gate.release();
     },

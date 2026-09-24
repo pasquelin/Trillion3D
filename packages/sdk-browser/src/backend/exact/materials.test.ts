@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createExactPagesMaterials } from './materials.ts';
-import { clusterColor } from '../../host/scene/objects.ts';
+import { clusterColor } from '../../host/three/displayObjects.ts';
 import { hashId, screenErrorColor } from '../../diagnostic/colors.ts';
 import { triangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
 import { hostDiagnostics } from '../../host/three/sceneAdapter.ts';
