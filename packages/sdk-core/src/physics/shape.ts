@@ -3,7 +3,7 @@ import { SHAPE } from './layout.ts';
 import type { PhysicsShape, PhysicsType } from './options.ts';
 
 /** A shape ready for the ADD command: a primitive's sizes, or scaled vertices and indices. */
-export interface ResolvedShape {
+interface ResolvedShape {
   shape: (typeof SHAPE)[keyof typeof SHAPE];
   size: [number, number, number];
   vertices?: Float32Array;
@@ -57,7 +57,7 @@ function primitive(declared: PhysicsShape, s: Scale): ResolvedShape | null {
 }
 
 /** The exact primitive a geometry was built as (`Geometry.recipe`), or `null`. */
-export function recipeShape(geometry: Geometry): PhysicsShape | null {
+function recipeShape(geometry: Geometry): PhysicsShape | null {
   const recipe = geometry.recipe;
   if (!recipe) return null;
   const a = recipe.args as number[];
