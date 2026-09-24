@@ -56,7 +56,8 @@ impl ScenePlugin for UnityPackage {
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
         archive::container(request, self, None, |file, root| {
-            extract(request, file, root)
+            let stream = GzDecoder::new(BufReader::new(fs::File::open(file)?));
+            unpack(request, stream, file, root)
         })
     }
 }
@@ -68,61 +69,29 @@ struct Target {
     file: bool,
 }
 
-/// Rebuilds the project tree under `root` and yields the entry count and the total written.
-///
-/// Two passes, like any container: the first reads the whole package to judge its target paths
-/// and ceilings without writing anything, the second rereads it to write. A refused package
-/// therefore leaves no file behind. The gzip stream not being rewindable, the second pass
-/// reopens the file rather than keeping asset bytes in memory.
-fn extract(request: &SceneRequest<'_>, source: &Path, root: &Path) -> Result<(usize, u64)> {
-    let (targets, entries) = index(request, source, root)?;
-    if targets.is_empty() {
-        return Err(archive::empty(source));
-    }
-    let mut archive = open(source)?;
-    let mut written = 0u64;
-    for entry in archive.entries().map_err(unreadable(source))? {
-        archive::check(request)?;
-        let mut entry = entry.map_err(unreadable(source))?;
-        let Some((guid, member)) = split(&entry) else {
-            continue;
-        };
-        let Some(target) = targets.get(&guid) else {
-            continue;
-        };
-        // The editor's `.meta` sits beside what it describes, project directory included.
-        let destination = match member.as_str() {
-            ASSET => archive::safe_join(root, &target.path)?,
-            META => archive::safe_join(root, &format!("{}.meta", target.path))?,
-            _ => continue,
-        };
-        if let Some(parent) = destination.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let room = archive::LIMITS.bytes - written;
-        let mut out = fs::File::create(&destination)?;
-        written += std::io::copy(&mut Read::take(&mut entry, room + 1), &mut out)
-            .map_err(unreadable(source))?;
-        archive::under_byte_limit(written)?;
-    }
-    ended(archive, source)?;
-    for target in targets.values().filter(|target| !target.file) {
-        fs::create_dir_all(archive::safe_join(root, &target.path)?)?;
-    }
-    Ok((entries, written))
-}
+/// Where members wait for their GUID's `pathname`, which may come after them. The name holds
+/// `..`, which `safe_join` refuses: no target path of the package can land there.
+const PENDING: &str = "..pending";
 
-/// First pass: the target path of each GUID, judged before any write, and the number of entries
-/// read. An entry that is not an ordinary file — symbolic or hard link — stops everything: it
-/// would name outside the extraction.
-fn index(
+/// One pass over the decompressed `stream`: each member is written as read, to the pending area
+/// under its entry number — never under a name the package chose —, then renamed to its target,
+/// in archive order, once the gzip footer proved the stream whole. The last member written to a
+/// path wins, as when it was written in place. Yields the entry count and the total written. A
+/// refusal leaves no file: `root` is the container's staging directory, removed whole. A link
+/// entry stops everything.
+pub(super) fn unpack<R: Read>(
     request: &SceneRequest<'_>,
+    stream: R,
     source: &Path,
     root: &Path,
-) -> Result<(BTreeMap<String, Target>, usize)> {
-    let mut archive = open(source)?;
+) -> Result<(usize, u64)> {
+    let pending = root.join(PENDING);
+    fs::create_dir_all(&pending)?;
+    let mut archive = tar::Archive::new(stream);
     let mut targets: BTreeMap<String, Target> = BTreeMap::new();
-    let (mut entries, mut declared) = (0usize, 0u64);
+    // Each written member, in archive order: its GUID, whether it is the `.meta`, its file.
+    let mut members: Vec<(String, bool, PathBuf)> = Vec::new();
+    let (mut entries, mut declared, mut written) = (0usize, 0u64, 0u64);
     for entry in archive.entries().map_err(unreadable(source))? {
         archive::check(request)?;
         let mut entry = entry.map_err(unreadable(source))?;
@@ -130,41 +99,69 @@ fn index(
         archive::under_entry_limit(entries)?;
         let kind = entry.header().entry_type();
         if kind.is_symlink() || kind.is_hard_link() {
-            return Err(CompilerError::new(
-                archive::SYMLINK,
-                format!(
-                    "archive entry {:?} is a link",
-                    String::from_utf8_lossy(&entry.path_bytes())
-                ),
-            ));
+            let name = String::from_utf8_lossy(&entry.path_bytes()).into_owned();
+            let detail = format!("archive entry {name:?} is a link");
+            return Err(CompilerError::new(archive::SYMLINK, detail));
         }
         declared = declared.saturating_add(entry.size());
         archive::under_byte_limit(declared)?;
         let Some((guid, member)) = split(&entry) else {
             continue;
         };
-        match member.as_str() {
+        let meta = match member.as_str() {
             PATHNAME => {
                 let path = first_line(&mut entry).map_err(unreadable(source))?;
-                // The target path comes from the package: it is judged here, before any write,
-                // by the same rule as any archive entry.
+                // Judged here, by the same rule as any archive entry, before it names a write.
                 archive::safe_join(root, &path)?;
                 targets.entry(guid).or_default().path = path;
+                continue;
             }
-            ASSET => targets.entry(guid).or_default().file = true,
-            _ => {}
+            ASSET => false,
+            META => true,
+            _ => continue,
+        };
+        if !meta {
+            targets.entry(guid.clone()).or_default().file = true;
         }
+        let file = pending.join(entries.to_string());
+        let mut out = fs::File::create(&file)?;
+        let room = archive::LIMITS.bytes - written;
+        written += std::io::copy(&mut Read::take(&mut entry, room + 1), &mut out)
+            .map_err(unreadable(source))?;
+        archive::under_byte_limit(written)?;
+        members.push((guid, meta, file));
     }
     ended(archive, source)?;
     // A GUID directory without `pathname` has no place in the project: it is not written.
     targets.retain(|_, target| !target.path.is_empty());
-    Ok((targets, entries))
+    if targets.is_empty() {
+        return Err(archive::empty(source));
+    }
+    for (guid, meta, file) in &members {
+        let Some(target) = targets.get(guid) else {
+            continue;
+        };
+        // The editor's `.meta` sits beside what it describes, project directory included.
+        let path = if *meta {
+            archive::safe_join(root, &format!("{}.meta", target.path))?
+        } else {
+            archive::safe_join(root, &target.path)?
+        };
+        land(file, &path)?;
+    }
+    for target in targets.values().filter(|target| !target.file) {
+        fs::create_dir_all(archive::safe_join(root, &target.path)?)?;
+    }
+    fs::remove_dir_all(&pending)?;
+    Ok((entries, written))
 }
 
-/// Package opened: the gzip stream unpacked as reading proceeds, read as a tar archive.
-fn open(source: &Path) -> Result<tar::Archive<GzDecoder<BufReader<fs::File>>>> {
-    let file = BufReader::new(fs::File::open(source)?);
-    Ok(tar::Archive::new(GzDecoder::new(file)))
+/// Moves a written member to its target path: a rename, no byte copied again.
+fn land(from: &Path, to: &Path) -> Result<()> {
+    if let Some(parent) = to.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    Ok(fs::rename(from, to)?)
 }
 
 /// Reads what remains of the stream after the last tar entry: the gzip footer, which carries
