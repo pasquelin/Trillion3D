@@ -234,8 +234,10 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
 - **The floor is always current.** Every page a report names asks for its light's floor under it
   too — a sun's last clipmap level, a lamp face's one-page mip —: mapped first, never evicted while
-  anything above it is read, and admitted first when stale, whatever the budget, which pays it
-  before any finer page. So a pixel that falls back past a withdrawn page reads a current floor,
+  anything above it is read, and admitted first when not read — never drawn, or withdrawn —,
+  whatever the budget, which pays it before any finer page; a floor still read, stale for its
+  moving casters or for detail, waits its turn like any page, so an object that keeps moving never
+  starves the finer pages. So a pixel that falls back past a withdrawn page reads a current floor,
   never the far ray of a sun or the unshadowed answer of a lamp; those answer only before a light's
   first report, and when the frame's floor pages span more views than the light cut holds.
 
