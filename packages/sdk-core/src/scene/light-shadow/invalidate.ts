@@ -4,7 +4,7 @@ import { writeFace } from './faces.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { lampFacesOf, lampPagesAt, sunPageMetres } from './virtual.ts';
+import { isFloorView, lampFacesOf, lampPagesAt, sunPageMetres } from './virtual.ts';
 import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 
 type Changes = ReturnType<typeof createShadowChanges>;
@@ -89,9 +89,10 @@ function sunPageMeets(level: number, ax: number, ay: number) {
  * What stales the mapped pages of a shadow light, and nothing more. Only mapped pages can be
  * stale: a page nobody reads has no content to keep, and is drawn whole when first asked for.
  *
- * - **The light moved, changed, or its clipmap changed projection** (`whole`): every page, and
- *   none is read until redrawn (`pool.withdraw`) — its depth was drawn under a projection the
- *   record no longer holds.
+ * - **The light moved, changed shape, or its clipmap changed projection** (`whole`): every page,
+ *   and none finer than the floor is read until redrawn (`pool.withdraw`) — its depth was drawn
+ *   under a projection the record no longer holds. The floor stays read, stale, until redrawn:
+ *   admission draws it first (`admit.ts`), and a reader never falls back past it to nothing.
  * - **An object moved within its reach**: only the pages its projected box covers — the rest
  *   still describes the scene, since nothing else changed. A static caster that moved makes the
  *   static layer of those pages wrong: they are read no more until redrawn. An object already
@@ -142,7 +143,8 @@ export function invalidateLightPages(
       const level = moved?.moving ? STALE_DYNAMIC : STALE_FULL;
       if (!meets) continue;
       if (pool.stale(page, nowMs, frame, level)) staled++;
-      if (wrong) pool.withdraw(table, page);
+      if (wrong && !(whole && isFloorView(isSun, key, sun.finest[slice])))
+        pool.withdraw(table, page);
     }
   }
   return staled;
