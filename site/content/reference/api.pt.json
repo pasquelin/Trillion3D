@@ -1004,6 +1004,7 @@
     "description": "As teclas transladam ao longo de seus próprios eixos e a giram sobre eles, rolamento incluído; um arraste olha ao redor. Nada é integrado até que o host chame `update(delta)` com os segundos decorridos, e `update` devolve — e emite — só quando uma tecla é mantida, uma entrada de controle é definida ou um arraste está pendente, de modo que um controle solto deixa a cena parada. `autoForward` é a única exceção: uma câmera em cruzeiro se move a cada `update`, e pede o próximo quadro emitindo `change` a cada vez. TECLAS, por `KeyboardEvent.code`: W/S para frente e para trás, A/D esquerda e direita, R/F para cima e para baixo, setas inclinação e guinada, Q/E rolamento. Nada limita um giro: manter uma tecla faz a câmera dar loops ou rolar sem parar, então um loop, um parafuso ou um Immelmann é voado como seria em um controle físico. `inputResponse` dá às teclas esse mesmo curso de controle. `dragToLook` (o padrão) olha enquanto um ponteiro é mantido pressionado; defina como false e o ponteiro olha assim que se move sobre a superfície; defina `pointerLook` como false e ele nunca vira a visão, só as teclas guiam. Uma tecla pressionada enquanto Ctrl ou Meta está pressionado é ignorada, então um atalho do navegador (Ctrl+W, Cmd+S) nunca guia; o modificador precisa ser solto antes que a tecla seguinte conte.",
     "members": {
       "rollSpeed": "Radianos por segundo que o rolamento gira na deflexão máxima; inclinação e guinada o seguem por padrão.",
+      "lookSpeed": "Radianos que a vista gira por pixel de movimento do ponteiro; `null` (padrão) é meia volta por altura da superfície, seja qual for o seu tamanho.",
       "dragToLook": "Se arrastar vira a visão.",
       "pitchSpeed": "Radianos por segundo que a inclinação gira na deflexão máxima; `null` (o padrão) é `rollSpeed`.",
       "yawSpeed": "Radianos por segundo que a guinada gira na deflexão máxima; `null` (o padrão) é `rollSpeed`.",
@@ -3762,7 +3763,7 @@
       "maxAzimuthAngle": "Só órbita: fim desse arco; pode ser menor que `minAzimuthAngle`.",
       "autoRotate": "Só órbita: radianos por segundo que ela gira sozinha em torno de `target`, até o primeiro toque ou passo da roda; 0 por padrão.",
       "movementSpeed": "Voo e primeira pessoa: unidades de mundo por segundo no controle máximo; 1 por padrão.",
-      "lookSpeed": "Primeira pessoa e personagem: radianos que a visão gira por pixel que o ponteiro se move.",
+      "lookSpeed": "Voo, primeira pessoa e personagem: radianos que a vista gira por pixel de movimento do ponteiro; `null` (padrão) mantém o valor próprio de cada um — 0.002 para uma cabeça, meia volta por altura do canvas para o voo.",
       "rollSpeed": "Só voo: radianos por segundo que as teclas inclinam, guinam e rolam.",
       "rotateSpeed": "Órbita e trackball: quão rápido arrastar gira; 1 por padrão.",
       "zoomSpeed": "Controladores de pivô: quão rápido a roda e o pinça dão zoom; 1 por padrão.",
@@ -3828,6 +3829,10 @@
     "summary": "Luz refletida das superfícies, traçada contra o proxy residente; desligado por padrão.",
     "description": "Uma mudança é aplicada no lugar em um caminho que a carrega, e adotada pela próxima abertura em um que não."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Antisserrilhado temporal: deslocamento subpixel acumulado entre imagens; ativado por padrão.",
+    "description": "Escrito, tem efeito na imagem seguinte, histórico descartado, sem reabrir a sessão. Lido, é o que a imagem carrega: false no WebGL2, e enquanto o programa compila depois de ativado."
+  },
   "world.budget": {
     "summary": "Os pools de memória do mundo, lidos e definidos em bytes.",
     "members": {
@@ -3835,7 +3840,8 @@
       "texturePoolCeiling": "O maior pool de textura que um mundo pode pedir, em bytes.",
       "geometryPool": "Bytes de memória de GPU mantidos para páginas de geometria; defina para mudar o envelope.",
       "texturePool": "Bytes de memória de GPU mantidos para páginas de textura; defina para mudar o envelope.",
-      "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`."
+      "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
+      "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope."
     }
   },
   "world.diagnostic": {
@@ -3885,7 +3891,7 @@
   },
   "WorldControls": {
     "summary": "As formas pelas quais uma página pode guiar a câmera com o mouse e o teclado, ou `'none'`.",
-    "description": "`'firstPerson'` move uma câmera; `'character'` move um corpo — massa, gravidade, pulos, colisões com `world.controls.colliders` — e olha através de seus olhos."
+    "description": "`'firstPerson'` move uma câmera; `'character'` move um corpo — massa, gravidade, pulos, colisões com `world.controls.colliders` — e olha através de seus olhos. `'fly'` e `'firstPerson'` movem-se a `world.controls.movementSpeed` e giram a `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "As métricas de uma imagem tal como o host as copiou do motor, e duas que uma página lê compostas a partir delas; `null` onde o caminho não conta.",
@@ -4005,7 +4011,8 @@
       "pixelRatio": "Quantos pixels de imagem por pixel de tela.",
       "controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "signal": "Para os carregamentos do mundo quando o sinal é abortado.",
-      "physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado."
+      "physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
+      "temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {
@@ -4191,15 +4198,6 @@
   },
   "batch": {
     "summary": "A família `batch`: mil matrizes de uma vez em vez de um laço, sobre os kernels em lote do núcleo (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
-  },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` para `count` matrizes em ordem de coluna guardadas de forma linear.",
-    "parameters": {
-      "out": "Para onde vão os produtos.",
-      "a": "As matrizes da esquerda.",
-      "b": "As matrizes da direita.",
-      "count": "Quantos produtos."
-    }
   },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` para `count` pontos guardados com três números cada.",
@@ -4634,7 +4632,8 @@
       "options.pixelRatio": "Quantos pixels de imagem por pixel de tela.",
       "options.controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "options.signal": "Para os carregamentos do mundo quando o sinal é abortado.",
-      "options.physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado."
+      "options.physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
+      "options.temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -6647,7 +6646,7 @@
     "summary": "A CABEÇA DE UM ANDARILHO, com ponteiro travado: o ponteiro a vira, o horizonte permanece nivelado — guinada ao redor do vertical do mundo, inclinação limitada a `[minPitch, maxPitch]`, nunca nenhum rolamento.",
     "description": "Compartilhado por todo controlador que olha através dos olhos de uma pessoa. A TRAVA É DO HOST PEDIR. Um navegador só concede uma trava de ponteiro dentro de um gesto, então a cabeça pede em `pointerdown` e publica `lock()`, `unlock()` e `locked()` para um host que preferir escolher seu próprio momento; uma trava da qual o visualizador escapa apenas para o olhar, e um arraste sem trava ainda vira a cabeça.",
     "members": {
-      "lookSpeed": "Radianos girados por pixel de movimento do ponteiro.",
+      "lookSpeed": "Radianos girados por pixel de movimento do ponteiro; `null` (padrão) é 0.002.",
       "minPitch": "Quão baixo a cabeça olha, em radianos abaixo do horizonte contados negativos (0 é o horizonte); por padrão, um pouco antes de reto para baixo. Aumente para que um andarilho nunca olhe para dentro de seu próprio corpo.",
       "maxPitch": "Quão alto a cabeça olha, em radianos acima do horizonte; por padrão, um pouco antes do zênite."
     }
@@ -6860,6 +6859,7 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
+      "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
       "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`."
     }
@@ -6991,6 +6991,33 @@
     "summary": "Uma forma de colisão, quando a deduzida da geometria não serve.",
     "description": "Os tamanhos estão no referencial próprio do objeto, antes da escala."
   },
+  "PhysicsPart": {
+    "summary": "Uma parte de uma forma composta: uma primitiva, posicionada e girada no referencial do objeto."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Uma primitiva exata: os seus tamanhos no referencial próprio do objeto."
+  },
+  "WaterSpec": {
+    "summary": "Uma massa de água onde os corpos flutuam, tal como `world.physics.water` a recebe.",
+    "members": {
+      "waves": "As ondas de Gerstner da superfície; nenhuma para água parada.",
+      "level": "Altura da superfície em repouso, em metros.",
+      "density": "kg/m³; 1000, água doce, por padrão.",
+      "linearDrag": "Coeficiente de arrasto quadrático: quão depressa um corpo assenta, nunca onde; 0.5 por padrão.",
+      "angularDrag": "Quanto a água amortece a rotação de um corpo; 0.05 por padrão.",
+      "current": "Velocidade da água (a corrente de um rio), em m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Uma onda tal como uma cena a declara.",
+    "members": {
+      "direction": "Direção horizontal de deslocamento `[x, z]`; normalizada aqui.",
+      "wavelength": "Metros de crista a crista.",
+      "amplitude": "Metros do repouso à crista.",
+      "steepness": "De 0 (uma onda senoidal) a 1 (a crista mais aguda que não se enrola); normalizada sobre a soma.",
+      "phase": "Fase em `t = 0`, em radianos."
+    }
+  },
   "PhysicsStats": {
     "summary": "O que a física do mundo relata: contagens do último tick e os dois relógios à parte.",
     "members": {
@@ -7013,6 +7040,7 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
+      "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
       "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`."
     }
