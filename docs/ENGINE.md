@@ -250,8 +250,17 @@ is created. A mixed session (measurement only) composes on a WebGL2 surface: the
 into a canvas of its own, publishes it as `presentedSurface`, and the host copies it with the
 engine's own full-screen program (`createBackendPresenter`). `presentedSurface` is withdrawn, and the
 canvas blanked, as soon as the device is lost; the loss is announced once by `gpu-device-lost`
-(`reason`: the device's own, `uncaptured-error` or `residency`). Neither path reads the image back
-for presentation.
+(`reason`: the device's own, `uncaptured-error`, `out-of-memory` or `residency`). Neither path reads
+the image back for presentation.
+
+A world keeps its device across sessions, and each session creates through its own handle on it,
+which tags every label (`gpu/core/deviceOwners.ts`). An uncaptured error counts as a loss only for a
+live session: one that names its objects, or one that names none while no closed session still has
+work on the queue. An error of a closed session's — its objects named, or none named while its last
+submitted work runs — is said once per closed session, as a warning, under
+`gpu-closed-session-error` (`kind: 'warning'`, `message`), and the browser's own console line for it
+is cancelled. Running out of memory is the device's condition, not an object's: it stays a loss for
+the live sessions, under `reason: 'out-of-memory'`.
 
 For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before anything
 else: attributes, drawing-buffer size from logical size and DPR, loss and restoration, one release.
@@ -341,7 +350,8 @@ modules in its configuration event; a direct source import has `hash: null`.
 Phases carry `pipelineVersion: 1`: `gpu-presentation`, `frame-allocation`, `material-textures`,
 `material-textures-ready`, `material-classes-ready`, `material-surfaces-ready`, `scene-lighting`,
 `render-capabilities`, `render-progress` (selected and resident pages, triangles, pending pages,
-transparent counters), surface-capture phases, `gpu-device-lost`. Observer exceptions cannot
+transparent counters), surface-capture phases, `gpu-device-lost`, `gpu-closed-session-error`
+(`kind: 'warning'`: an error of a session already closed on the same device, never a loss). Observer exceptions cannot
 interrupt a backend. These durations are not frame-performance measurements.
 
 **GPU timing.** `timestamp-query` is requested when the adapter advertises it (`gpu-timing-status`).

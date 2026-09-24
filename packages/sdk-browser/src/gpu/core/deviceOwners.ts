@@ -1,3 +1,5 @@
+import { sessionHandle, sharedGpuDevice } from './sessionHandle.ts';
+
 /**
  * Who owns an error on a device that outlives its sessions.
  *
@@ -7,30 +9,39 @@
  * an implementation uses it "to identify the underlying internal object" in its error messages
  * (Chrome/Dawn writes `[Buffer "label"]`, `[Texture "label"]`, `[TextureView of Texture "label"]`).
  *
- * So each session claims the device and receives its own handle on it: an object that forwards
- * everything to the device, whose `create*` methods — and the `createView` of the textures it
- * creates — join the session's tag to the label. The tag is the creating session's, whatever
- * other session is open by then: an object a closing session still creates keeps its tag. What
- * every session shares (`sharedGpuDevice`: the mip program, its uniforms) is created on the device
- * itself and carries none. One listener per device reads the tags an error names:
+ * So each session claims the device and receives its own handle on it (`sessionHandle.ts`), which
+ * joins the session's tag to every label it creates. The tag is the creating session's, whatever
+ * other session is open by then: an object a closing session still creates keeps its tag. A view
+ * of a texture the session did not create (the canvas's) takes its tag through `sessionLabel`.
+ * What every session shares (`sharedGpuDevice`: the mip program, its uniforms) is created on the
+ * device itself and carries none. One listener per device reads the tags an error names:
  * - an error that names a live claim's object goes to that claim;
- * - one that names only closed claims' objects is said as a warning, once per closed claim to the
- *   live claims' diagnostics (on the console alone while none is live), never as a loss;
- * - one that names none goes to every live claim, as before: it cannot be told apart.
+ * - one that names only closed claims' objects is a closed claim's;
+ * - one that names none is, while a claim released has work still running on the queue
+ *   (`onSubmittedWorkDone`, watched from its release), the last such claim's; otherwise it cannot
+ *   be told apart and goes to every live claim, as before;
+ * - an out-of-memory error is the device's state, whoever made the object: every live claim's
+ *   (the named ones' when it names live claims), under the reason `out-of-memory`.
+ * A closed claim's error is said once per closed claim, as a warning: on the console, and to the
+ * live claims' diagnostics when there are any; the browser's own console line for it is cancelled
+ * (`preventDefault`), since the warning already carries its text and a red error would read as the
+ * live session's failure. A live claim's error keeps the browser's line.
  *
  * `device.lost` is listened to once per device and reaches the claims still live; a claim made on
  * a device already lost is told at once. A claim released leaves the registry: nothing retains a
- * closed session until the device dies. Cost: the handle is built once per session, its methods
- * bound then; a label joined at each creation; nothing else per frame.
+ * closed session until the device dies. Nothing here runs per frame: only on an error, a claim
+ * or a release.
  */
 type GpuDeviceOwner = {
-  /** An uncaptured error that is, or may be, this claim's. */
-  error(message: string): void;
-  /** An error that names only a closed claim's objects: said once per closed claim. */
+  /** An uncaptured error that is, or may be, this claim's: `uncaptured-error`, or `out-of-memory`
+   *  for the device's own condition. */
+  error(message: string, reason: GpuErrorReason): void;
+  /** An error of a closed claim's: said once per closed claim. */
   closedError(message: string): void;
   /** The device is lost: every claim still live is. */
   lost(info: GpuDeviceLoss): void;
 };
+type GpuErrorReason = 'uncaptured-error' | 'out-of-memory';
 type GpuDeviceLoss = { reason: string; message: string };
 
 /** What an owner holds: its handle on the device, and `release` once its session is closed,
@@ -41,96 +52,51 @@ export type GpuDeviceClaim<D = GPUDevice> = {
   release(): void;
 };
 
-type OwnedDevice = Pick<GPUDevice, 'lost'> & Partial<Pick<GPUDevice, 'addEventListener'>>;
-type Labelled = { label?: string } | undefined;
+type OwnedDevice = Pick<GPUDevice, 'lost'> &
+  Partial<Pick<GPUDevice, 'addEventListener'>> & {
+    queue?: Partial<Pick<GPUQueue, 'onSubmittedWorkDone'>>;
+  };
 
 const TAG = /@t3d:(\d+)/g;
 /** One sequence for every device: a tag never names two claims. */
 let lastId = 0;
 
 const registries = new WeakMap<object, ReturnType<typeof ownerRegistry>>();
-/** Each session's handle → the device it forwards to. */
-const devices = new WeakMap<object, object>();
 
-/** The device behind a session's handle — the key and the creator of what every session shares;
- *  `device` itself when it is no handle. */
-export function sharedGpuDevice<D extends object>(device: D): D {
-  return (devices.get(device) as D | undefined) ?? device;
-}
-
-/** A label as the engine wrote it, without the session tag. */
-export const untaggedLabel = (label: string | undefined) =>
-  label?.replace(/ ?@t3d:\d+$/, '') || undefined;
-
-/**
- * `device` as one session sees it. Every member of the device and of its prototypes is forwarded:
- * methods bound to the device once, here, so that the platform's check of `this` holds; attributes
- * (`queue`, `limits`, `features`, `lost`, `label`, `onuncapturederror`) read and written on the
- * device at each access. The `create*` methods join `tag` to the label they are given.
- */
-function sessionHandle<D extends object>(device: D, tag: string): D {
-  const untitled = { label: tag };
-  const labelled = (descriptor: Labelled) =>
-    descriptor
-      ? { ...descriptor, label: descriptor.label ? `${descriptor.label} ${tag}` : tag }
-      : untitled;
-  const tagViews = (texture: GPUTexture) => {
-    const createView = texture.createView?.bind(texture);
-    if (createView)
-      texture.createView = (descriptor?: GPUTextureViewDescriptor) =>
-        createView(labelled(descriptor));
-    return texture;
-  };
-  const target = device as unknown as Record<PropertyKey, unknown>;
-  const handle: Record<PropertyKey, unknown> = {};
-  for (let from: object | null = device; from && from !== Object.prototype;) {
-    for (const key of Reflect.ownKeys(from)) {
-      if (key === 'constructor' || Object.hasOwn(handle, key)) continue;
-      const { value } = Object.getOwnPropertyDescriptor(from, key)!;
-      if (typeof value !== 'function')
-        Object.defineProperty(handle, key, {
-          get: () => target[key],
-          set: (next: unknown) => (target[key] = next),
-          enumerable: true,
-        });
-      else if (typeof key !== 'string' || !key.startsWith('create'))
-        handle[key] = value.bind(device);
-      else {
-        const create = value.bind(device) as (descriptor: Labelled) => unknown;
-        handle[key] =
-          key === 'createTexture'
-            ? (descriptor: Labelled) => tagViews(create(labelled(descriptor)) as GPUTexture)
-            : (descriptor: Labelled) => create(labelled(descriptor));
-      }
-    }
-    from = Object.getPrototypeOf(from) as object | null;
-  }
-  devices.set(handle, device);
-  return handle as D;
-}
+/** The device's own condition, not an object's: WebGPU raises it as `GPUOutOfMemoryError`. */
+const outOfMemory = (error: unknown) =>
+  typeof GPUOutOfMemoryError === 'function'
+    ? error instanceof GPUOutOfMemoryError
+    : (error as object | null)?.constructor?.name === 'GPUOutOfMemoryError';
 
 function ownerRegistry(device: OwnedDevice) {
   const owners = new Map<number, GpuDeviceOwner>();
   /** Closed claims whose error was already said. */
   const said = new Set<number>();
-  let loss: GpuDeviceLoss | undefined;
+  /** Released claims whose submitted work may still be running, the last released last. */
+  const settling = new Set<number>();
   device.addEventListener?.('uncapturederror', (event) => {
-    const message = String(event.error.message);
+    const { error } = event;
+    const message = String(error.message);
     const named = Array.from(message.matchAll(TAG), (match) => Number(match[1]));
     const live = named.filter((id) => owners.has(id));
-    if (named.length > 0 && live.length === 0) {
-      const fresh = named.filter((id) => !said.has(id));
+    const exhausted = outOfMemory(error);
+    const settled = named.length === 0 ? [...settling].at(-1) : undefined;
+    const closed = exhausted || live.length > 0 ? [] : settled !== undefined ? [settled] : named;
+    if (closed.length > 0) {
+      event.preventDefault();
+      const fresh = closed.filter((id) => !said.has(id));
       if (fresh.length === 0) return;
-      console.warn(`[trillion3d] WebGPU error of a closed session, not the live one's: ${message}`);
-      // Between two sessions no diagnostics hear it: the next error of the same is said to them.
-      if (owners.size === 0) return;
       for (const id of fresh) said.add(id);
+      console.warn(`[trillion3d] WebGPU error of a closed session, not the live one's: ${message}`);
       for (const owner of owners.values()) owner.closedError(message);
       return;
     }
+    const reason = exhausted ? 'out-of-memory' : 'uncaptured-error';
     for (const [id, owner] of owners)
-      if (live.length === 0 || live.includes(id)) owner.error(message);
+      if (live.length === 0 || live.includes(id)) owner.error(message, reason);
   });
+  let loss: GpuDeviceLoss | undefined;
   const lost = (info: GpuDeviceLoss) => {
     loss = info;
     for (const owner of owners.values()) owner.lost(info);
@@ -139,13 +105,27 @@ function ownerRegistry(device: OwnedDevice) {
     (info) => lost({ reason: info.reason, message: info.message }),
     (error) => lost({ reason: 'unknown', message: String(error) }),
   );
+  /** From its release until the queue has run what it submitted, `id` owns the untagged errors. */
+  const settle = (id: number) => {
+    const done = device.queue?.onSubmittedWorkDone?.();
+    if (!done) return;
+    settling.add(id);
+    const settledNow = () => settling.delete(id);
+    done.then(settledNow, settledNow);
+  };
   return {
     claim(owner: GpuDeviceOwner): GpuDeviceClaim<OwnedDevice> {
       const id = ++lastId,
         tag = `@t3d:${id}`;
       owners.set(id, owner);
       if (loss) owner.lost(loss);
-      return { tag, device: sessionHandle(device, tag), release: () => owners.delete(id) };
+      return {
+        tag,
+        device: sessionHandle(device, tag),
+        release: () => {
+          if (owners.delete(id)) settle(id);
+        },
+      };
     },
   };
 }

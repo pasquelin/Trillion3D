@@ -40,7 +40,8 @@ export function markWebgpuLost(
 /**
  * Claims `device` for the backend (`gpu/core/deviceOwners.ts`). An uncaptured error of its own
  * abandons the device: what follows would draw on a state no one knows, so it is reported once,
- * as the loss it is, with the error's text. An error of a closed session's objects is said under
+ * as the loss it is, with the error's text — reason `uncaptured-error`, or `out-of-memory` when
+ * the device ran out of it. An error of a closed session's is said under
  * `gpu-closed-session-error`, as a warning: it is not this session's.
  */
 export function claimWebgpuDevice(
@@ -48,7 +49,7 @@ export function claimWebgpuDevice(
   device: GPUDevice,
 ) {
   return claimGpuDevice(device, {
-    error: (message) => markWebgpuLost(rt, { reason: 'uncaptured-error', message }),
+    error: (message, reason) => markWebgpuLost(rt, { reason, message }),
     closedError: (message) =>
       rt.diag.engineDiagnostic('gpu-closed-session-error', 'WebGPU error of a closed session', {
         kind: 'warning',

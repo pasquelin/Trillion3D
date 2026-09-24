@@ -1,4 +1,4 @@
-import { sharedGpuDevice } from '../gpu/core/deviceOwners.ts';
+import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
 
 /** Full mip chain length for a texture of the given size. */
 export function mipLevelCountFor(width: number, height: number) {

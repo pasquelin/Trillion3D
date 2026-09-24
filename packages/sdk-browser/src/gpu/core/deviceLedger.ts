@@ -1,4 +1,4 @@
-import { sharedGpuDevice, untaggedLabel } from './deviceOwners.ts';
+import { sharedGpuDevice, untaggedLabel } from './sessionHandle.ts';
 
 /**
  * Allocation ledger of a WebGPU device: every texture and buffer created, their bytes computed
@@ -106,8 +106,10 @@ const labelOf = (descriptor: { label?: string }) => untaggedLabel(descriptor.lab
 
 const ledgers = new WeakMap<LedgerDevice, GpuDeviceLedger>();
 
-/** Installs the ledger on the device, or returns the one already there. */
-export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
+/** Installs the ledger on the device — the one behind a session's handle — or returns the one
+ *  already there: one per device, whatever session asks. */
+export function installGpuDeviceLedger(session: LedgerDevice): GpuDeviceLedger {
+  const device = sharedGpuDevice(session);
   const existing = ledgers.get(device);
   if (existing) return existing;
   const live = new Map<object, { label: string; bytes: number }>();
