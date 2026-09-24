@@ -5205,7 +5205,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/camera/controls/flyControls.ts",
         "packages/sdk-browser/src/camera/controls/math.test.ts",
-        "packages/sdk-browser/src/camera/controls/trackballControls.ts"
+        "packages/sdk-browser/src/camera/controls/trackballControls.ts",
+        "packages/sdk-browser/src/host/graph/rotation.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/quaternion\".multiplyQuaternion"
