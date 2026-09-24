@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { Quaternion } from '../packages/sdk-core/src/world/math/quaternion.ts';
 
-type Answer = [number, number, number, number, number, number, boolean] | null;
+type Surface = [number, number, number, number, number, number, boolean];
 type Ground = ((x: number, z: number, key?: string) => [number, boolean]) & {
   ready(): boolean;
   reset(): void;
@@ -22,28 +22,28 @@ async function pageFunction<T>(name: string): Promise<T> {
 }
 
 /** The probes over a ground that answers on demand, with the questions it was asked. */
-async function probesOver(answer: (x: number, z: number) => Answer) {
-  const asked: [number, number][] = [];
+async function probesOver(answer: (x: number, z: number, reach: number) => Surface[]) {
+  const asked: [number, number, number][] = [];
   const pending: (() => void)[] = [];
   const groundProbes = await pageFunction<(ask: unknown) => Ground>('groundProbes');
   const ground = groundProbes(
-    (x: number, z: number) =>
-      new Promise<Answer>((resolve) => {
-        asked.push([x, z]);
-        pending.push(() => resolve(answer(x, z)));
+    (x: number, z: number, reach: number) =>
+      new Promise<Surface[]>((resolve) => {
+        asked.push([x, z, reach]);
+        pending.push(() => resolve(answer(x, z, reach)));
       }),
   );
   const settle = async () => {
     for (const resolve of pending.splice(0)) resolve();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise(setImmediate);
   };
   return { ground, asked, settle };
 }
 
 // A slope rising half a metre per metre eastwards, landable nowhere.
-const slope = (x: number, z: number): Answer => {
+const slope = (x: number, z: number): Surface[] => {
   const n = Math.hypot(0.5, 1);
-  return [x, 0.5 * x, z, -0.5 / n, 1 / n, 0, false];
+  return [[x, 0.5 * x, z, -0.5 / n, 1 / n, 0, false]];
 };
 
 test('the flight ground reads no ground and holds the jet until the physics has answered under it', async () => {
@@ -64,21 +64,41 @@ test('each ground probe asks where it will be a frame on, one question in flight
   ground.send();
   ground(12, 0);
   ground.send(); // The first question is still in flight: none more.
-  assert.deepEqual(asked, [[10, 0]]);
+  assert.deepEqual(asked, [[10, 0, 1]]);
   await settle();
   ground(14, 0);
   ground.send();
-  assert.deepEqual(asked[1], [16, 0]);
+  assert.deepEqual(asked[1], [16, 0, 5]);
   await settle();
   // The answer at 16 m, carried along its plane to 17 m: the slope's height there.
   assert.ok(Math.abs(ground(17, 0)[0] - 8.5) < 1e-9);
   // An answered miss is no ground.
-  const none = await probesOver(() => null);
+  const none = await probesOver(() => []);
   none.ground(0, 0);
   none.ground.send();
   await none.settle();
   assert.equal(none.ground.ready(), true);
   assert.deepEqual(none.ground(0, 0), [-Infinity, false]);
+});
+
+test('the jet never reads the ground under a roof it is over, even when the answers come a frame late', async () => {
+  // Flat ground, and a roof 10 m high from x = 20 m on. A ray answers the point asked; a reach
+  // answers, too, the highest ground within it, as the physics' box sweep does.
+  const height = (x: number) => (x >= 20 ? 10 : 0);
+  const surface = (x: number, z: number): Surface => [x, height(x), z, 0, 1, 0, false];
+  for (const late of [1, 2]) {
+    const { ground, settle } = await probesOver((x, z, reach) =>
+      reach > 0
+        ? [surface(x, z), surface(Math.max(x, Math.min(x + reach, 20)), z)]
+        : [surface(x, z)],
+    );
+    for (let frame = 0, x = 0; x < 40; frame++, x += 4) {
+      const [floor] = ground(x, 0);
+      if (ground.ready()) assert.ok(floor >= height(x), `late ${late}, x ${x}: ${floor}`);
+      ground.send();
+      if (frame % late === 0) await settle();
+    }
+  }
 });
 
 test("the chase camera's blend is the normalised blend of the two turns it was before the engine's quaternions", async () => {

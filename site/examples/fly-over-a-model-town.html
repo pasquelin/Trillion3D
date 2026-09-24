@@ -295,31 +295,39 @@
       }
       // The physics answers a ground query between its steps, never at once: each place the flight
       // reads the ground is a probe, named by its key. `ground(x, z, key)` answers at once from
-      // the probe's last answer — [x, y, z, normal x, y, z, landable], or null for none —, carried
-      // to the asked point along the answered surface's plane; `send()`, once a frame, asks each
-      // probe's next question where it will be a frame on, from its own motion, one question in
-      // flight per probe. A probe never answered reads as no ground; `ready()` says the jet's own
-      // (`under`) has answered, and `reset()` forgets every probe when the jet is moved away.
+      // the probe's last answer — the surfaces found, each [x, y, z, normal x, y, z, landable] —,
+      // each carried to the asked point along its plane, the highest kept; `send()`, once a frame,
+      // asks each probe's next question where it will be a frame on, from its own motion, one
+      // question in flight per probe. An answer can come a frame late, and a roof's side lies
+      // between two answers, so the jet's own probe (`under`) also asks for the highest ground
+      // within `reach` of that point: two frames of its travel and a metre, where it can be before
+      // the next answer is read. The jet is then never inside what it reads as the ground; at a
+      // roof's side it meets the roof early, never inside it. A probe never answered reads as no
+      // ground; `ready()` says `under` has answered, and `reset()` forgets every probe when the
+      // jet is moved away.
       function groundProbes(ask) {
         let probes = new Map();
         function ground(x, z, key = 'under') {
           if (!probes.has(key)) probes.set(key, { at: null, was: null, answer: undefined, waiting: false });
           const probe = probes.get(key);
           probe.at = [x, z];
-          if (!probe.answer) return [-Infinity, false];
-          const [ax, ay, az, nx, ny, nz, landable] = probe.answer;
-          return [ny > 0.3 ? ay - (nx * (x - ax) + nz * (z - az)) / ny : ay, landable];
+          let found = [-Infinity, false];
+          for (const [ax, ay, az, nx, ny, nz, landable] of probe.answer ?? []) {
+            const y = ny > 0.3 ? ay - (nx * (x - ax) + nz * (z - az)) / ny : ay;
+            if (y > found[0]) found = [y, landable];
+          }
+          return found;
         }
         ground.ready = () => probes.get('under')?.answer !== undefined;
         ground.reset = () => (probes = new Map());
         ground.send = () => {
-          for (const probe of probes.values()) {
+          for (const [key, probe] of probes) {
             if (!probe.at) continue;
             const [x, z] = probe.at, [wx, wz] = probe.was ?? probe.at;
             [probe.was, probe.at] = [probe.at, null];
             if (probe.waiting) continue;
             probe.waiting = true;
-            ask(2 * x - wx, 2 * z - wz).then(
+            ask(2 * x - wx, 2 * z - wz, key === 'under' ? 2 * Math.hypot(x - wx, z - wz) + 1 : 0).then(
               (answer) => ((probe.answer = answer), (probe.waiting = false)),
               () => (probe.waiting = false),
             );
@@ -701,13 +709,16 @@
       // terrain, the water, the runway, the roofs — is static in it, and an exact raycast
       // (`world.raycast(ray, { exact: true })`) straight down from above the peaks finds, on the
       // triangles drawn, its height and whether a jet may touch down there: the runway or a flat
-      // stretch of land. Off the map there is none.
+      // stretch of land. Asked a `reach`, a box that wide swept down the same way
+      // (`world.raycast(ray, { shape })`) finds the highest ground within it as well. Off the map
+      // there is none.
       const floor = [...land, water, runway, roofs], down = math.ray(math.vector3(), math.vector3(0, -1, 0));
       for (const node of floor) node.physics = 'static';
-      const ground = groundProbes(async (x, z) => {
+      const ground = groundProbes(async (x, z, reach) => {
         down.origin.set(x, 10000, z);
-        const hit = await world.raycast(down, { exact: true, maxDistance: 20000 });
-        return hit && [hit.point.x, hit.point.y, hit.point.z, hit.normal.x, hit.normal.y, hit.normal.z, hit.object === runway || (land.includes(hit.object) && hit.normal.y > 0.97)];
+        const exact = world.raycast(down, { exact: true, maxDistance: 20000 });
+        const swept = reach > 0 && world.raycast(down, { shape: { type: 'box', halfExtents: { x: reach, y: 0.5, z: reach } }, maxDistance: 20000 });
+        return (await Promise.all([exact, swept])).filter(Boolean).map((hit) => [hit.point.x, hit.point.y, hit.point.z, hit.normal.x, hit.normal.y, hit.normal.z, hit.object === runway || (land.includes(hit.object) && hit.normal.y > 0.97)]);
       });
 
       // Forests on the lower slopes, none on the canyon floor, and round trees along the river.
