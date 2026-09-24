@@ -309,7 +309,9 @@
       "texturePreviewSha": "A impressão digital de cada pré-visualização de textura.",
       "texturePreviewPixels": "Os pixels das pré-visualizações.",
       "texturePreviewBc7": "Os blocos BC7 das pré-visualizações.",
-      "texturePreviewAstc": "Os blocos ASTC das pré-visualizações."
+      "texturePreviewAstc": "Os blocos ASTC das pré-visualizações.",
+      "bundleDependencyCount": "Quantos pacotes cada pacote precisa.",
+      "bundleDependency": "Os pacotes de que cada pacote precisa, até as raízes."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -652,7 +654,8 @@
       "bundles": "Pacotes.",
       "previews": "Pré-visualizações de textura.",
       "previewBytes": "Bytes da coluna de pixels, todos os níveis de cada entrada concatenados.",
-      "previewBlockBytes": "Bytes de cada coluna de blocos: as caudas das cadeias mantidas comprimidas, blocos inteiros, entradas contíguas, nada para uma cadeia que a família deixou sem perdas."
+      "previewBlockBytes": "Bytes de cada coluna de blocos: as caudas das cadeias mantidas comprimidas, blocos inteiros, entradas contíguas, nada para uma cadeia que a família deixou sem perdas.",
+      "bundleDependencies": "Dependências dos pacotes, as listas de todos os pacotes uma após a outra."
     }
   },
   "CpuStepSummary": {
@@ -2016,20 +2019,21 @@
       "castShadow": "Se o nó projeta sombras.",
       "receiveShadow": "Se sombras caem sobre o nó.",
       "renderOrder": "Ordem de desenho entre coisas transparentes.",
+      "frustumCulled": "Se um renderizador pode ignorá-lo fora da vista.",
       "userData": "Espaço livre para os dados próprios da página.",
       "visible": "Se o nó e seus filhos são desenhados.",
       "parent": "Pai na cena, ou nulo enquanto desanexado.",
       "children": "Filhos anexados na ordem de inserção. A lista devolvida não pode ser alterada.",
-      "matrix": "Matriz local, uma view do slot desse nó na árvore de transformações.",
-      "matrixWorld": "Matriz de mundo como composta pela última vez (`updateMatrixWorld`), uma view da árvore.",
       "add": "Torna objetos filhos deste nó.",
       "remove": "Tira filhos deste nó.",
+      "destroy": "Liberta o nó e tudo abaixo dele agora, em vez de quando forem recolhidos.",
       "removeFromParent": "Tira o nó de seu pai.",
       "clear": "Tira todo filho deste nó.",
       "traverse": "Chama `fn` neste nó e em todos abaixo dele.",
       "traverseVisible": "Chama `fn` em cada nó visível a partir daqui para baixo.",
       "getObjectByName": "O primeiro nó abaixo com esse nome.",
-      "updateMatrixWorld": "Compõe a matriz de mundo deste nó e a de seus descendentes, tomando a do pai como está.",
+      "updateMatrix": "Compõe a matriz local a partir da pose.",
+      "applyMatrix4": "Aplica `m` sobre a pose do nó e depois lê a pose de volta do produto.",
       "lookAt": "Vira o nó em direção a um ponto do mundo (`lookAtNode`): `+z` para ele, `-z` para um observador.",
       "rotateOnAxis": "Gira o nó ao redor de `axis` por `angle` radianos.",
       "rotateX": "Gira o nó ao redor de seu próprio eixo x.",
@@ -2042,6 +2046,16 @@
       "localToWorld": "Um ponto do referencial do nó, no mundo.",
       "worldToLocal": "Um ponto do mundo, no referencial do nó.",
       "localBounds": "A caixa do próprio conteúdo desse nó, referencial local; um nó simples não contém nenhum."
+    }
+  },
+  "TransformNode": {
+    "summary": "Um nó de cena lido pelas matrizes da referência, guardado na árvore de transformações do motor.",
+    "members": {
+      "matrix": "Matriz local, uma view do slot desse nó na árvore de transformações.",
+      "matrixWorld": "Matriz de mundo como composta pela última vez (`updateMatrixWorld`), uma view da árvore.",
+      "matrixAutoUpdate": "Falso quando `matrix` É a pose e nada a recompõe.",
+      "matrixWorldNeedsUpdate": "Ativado quando a matriz local mudou e a matriz do mundo não a acompanhou.",
+      "updateMatrixWorld": "Compõe a matriz de mundo deste nó e a de seus descendentes, tomando a do pai como está."
     }
   },
   "OcclusionFrameMetrics": {
@@ -2833,8 +2847,8 @@
       "visible": "Se é desenhado.",
       "parent": "Pai na cena, ou nulo enquanto desanexado.",
       "children": "Filhos anexados na ordem de inserção. A lista devolvida não pode ser alterada.",
-      "localMatrix": "Somente leitura por contrato; use setLocalMatrix para marcar a transformação como suja.",
-      "worldMatrix": "Matriz de mundo atual; chame updateWorldMatrix depois de mudar uma pose.",
+      "localMatrix": "Somente leitura por contrato, válida enquanto o nó vive; setLocalMatrix marca a transformação como suja.",
+      "worldMatrix": "Matriz de mundo atual, válida enquanto o nó vive; chame updateWorldMatrix depois de mudar uma pose.",
       "add": "Adiciona um filho.",
       "remove": "Remove um filho.",
       "clear": "Remove cada filho.",
@@ -2904,7 +2918,6 @@
     "summary": "O que cada nó de uma cena compartilha: sua árvore de transformações e seus índices.",
     "members": {
       "tree": "A árvore de transformações.",
-      "nodes": "Nós por slot.",
       "ids": "Nós por nome.",
       "nextId": "O próximo número de nome livre.",
       "root": "A raiz da cena."
@@ -3073,7 +3086,8 @@
       "version": "Versão do formato.",
       "pinned": "Pacotes sempre mantidos.",
       "bundleBytes": "Tamanho alvo do pacote.",
-      "pages": "Quantos pacotes."
+      "pages": "Quantos pacotes.",
+      "maxDependencies": "Maior número de dependências de um pacote: o limite que o compilador publica."
     }
   },
   "SlimStructure": {
@@ -3166,7 +3180,8 @@
       "url": "Onde é lido.",
       "sha256": "Impressão digital de seus bytes.",
       "bytes": "Seu tamanho.",
-      "count": "Clusters que contém."
+      "count": "Clusters que contém.",
+      "dependencies": "Os pacotes que guardam os pais dos seus clusters, até as raízes sempre carregadas, em ordem: ele é instalado depois de cada um deles."
     }
   },
   "StreamCatalogue": {
@@ -3176,7 +3191,8 @@
       "version": "Versão do formato.",
       "pinned": "Pacotes sempre mantidos.",
       "bundleBytes": "Tamanho alvo do pacote.",
-      "pages": "Cada pacote."
+      "pages": "Cada pacote.",
+      "maxDependencies": "Maior número de dependências de um pacote, como o compilador o publicou."
     }
   },
   "StreamPage": {
@@ -3522,7 +3538,7 @@
   },
   "TransformTree": {
     "summary": "Hierarquia de transformações do motor, orientada a dados: um nó é um índice em arrays lineares — pai, flags, posição, quatérnio `(x, y, z, w)`, escala, matriz local e matriz de mundo em ordem de coluna.",
-    "description": "`localViews[i]` e `worldViews[i]` são views de dezesseis números sobre `local` e `world`, criadas no crescimento e nunca durante uma atualização: a GPU lê o buffer inteiro, as fórmulas do kernel leem a view de um nó. As escritas passam pelos setters, que marcam o que mudam. Um crescimento substitui cada array: um chamador relê `tree.world` ou `tree.worldViews` depois de uma adição.",
+    "description": "`localViews[i]` e `worldViews[i]` são views de dezesseis números sobre `local` e `world`, criadas no crescimento e nunca durante uma atualização: a GPU lê o buffer inteiro, as fórmulas do kernel leem a view de um nó. As escritas passam pelos setters, que marcam o que mudam. Um crescimento substitui cada array: um chamador relê `tree.world` ou `tree.worldViews` depois de uma adição. Cada nó lista os seus filhos: um percurso de subárvore nunca lê fora da subárvore (`links.ts`).",
     "members": {
       "capacity": "Quantos nós cabem antes de crescer.",
       "end": "Índices atendidos: todo nó vivo está sob esse limite.",
@@ -3539,14 +3555,12 @@
       "seen": "A versão do pai que cada nó viu por último.",
       "free": "Índices liberados, reutilizados antes de estender `end`.",
       "freeCount": "Quantos índices liberados esperam.",
-      "order": "Ordem de atualização, pais antes de filhos, e o posto de cada nó nessa ordem.",
-      "orderAt": "O posto de cada nó em `order`.",
-      "orderCount": "Nós em `order`.",
-      "orderDirty": "Se `order` precisa ser reconstruída.",
-      "depth": "Buffers de trabalho de travessia: profundidade, cadeia de ancestrais, baldes, marcas.",
+      "firstChild": "Os filhos de cada nó como lista ligada, −1 para nenhum: um percurso de subárvore custa a subárvore.",
+      "lastChild": "Último filho, onde uma ligação se prende.",
+      "nextSibling": "Próximo filho do mesmo pai.",
+      "previousSibling": "Filho anterior do mesmo pai.",
       "chain": "Buffer de cadeia de ancestrais.",
-      "buckets": "Buffer de baldes.",
-      "stamp": "Buffer de marcas.",
+      "stamp": "Buffer de marcas: o que um percurso passa de um pai aos seus filhos.",
       "call": "Número de travessia atual."
     }
   },
@@ -7158,37 +7172,11 @@
   },
   "GraphNode": {
     "members": {
-      "name": "O nome do host para ele.",
-      "parent": "Seu pai.",
-      "position": "Onde está.",
-      "rotation": "Como está girado, em ângulos.",
-      "quaternion": "As duas faces da rotação de um nó — o quatérnio que o motor compara, e os ângulos de Euler que copiam para ele — cada um ANUNCIANDO suas próprias escritas: um callback que o host já encadeia, que um hook estende em vez de substituir (`hooks.ts`). Os dois membros sublinhados são privados da biblioteca do host, então são escritos aqui, onde o hook precisa deles, e não recebem nome próprio. Isso mantém o privado fora da lista de contratos publicados do SDK; NÃO o mantém fora da superfície publicada, já que `HostGraphNode` o carrega. Comparar a pose por quadro, como a varredura já faz, é o que removeria o acoplamento — não é deste lote.",
-      "scale": "Como está esticado.",
-      "matrix": "Sua matriz local.",
-      "matrixWorld": "Sua matriz de mundo.",
-      "matrixAutoUpdate": "Falso quando o próprio host definiu `matrix`: a matriz É a pose e nada a recompõe.",
-      "visible": "Se é desenhado.",
-      "userData": "Onde o motor marca uma cópia própria, que o host nunca viu e não pode escrever.",
-      "traverse": "A subárvore sob o nó, ele mesmo primeiro, na ordem própria do host.",
-      "updateMatrixWorld": "Resolve as matrizes de mundo da subárvore NO GRAFO DO HOST, para os leitores próprios do host.",
-      "id": "O número do nó, único na sessão.",
+      "serial": "O número do nó, único na sessão.",
       "kind": "O que o nó é: aquilo por que cada leitor do grafo o distingue.",
+      "parent": "Seu pai.",
       "children": "Os nós que este contém, por ordem.",
-      "up": "Que direção é para cima para `lookAt`.",
-      "matrixWorldAutoUpdate": "Falso quando nada escreve `matrixWorld`.",
-      "matrixWorldNeedsUpdate": "Ativado quando a matriz local mudou e a matriz do mundo não a acompanhou.",
-      "castShadow": "Se projeta sombras.",
-      "receiveShadow": "Se as sombras caem sobre ele.",
-      "frustumCulled": "Se um renderizador pode ignorá-lo fora da vista.",
-      "renderOrder": "Ordem de desenho entre coisas transparentes.",
-      "add": "Torna `nodes` filhos deste, cada um retirado primeiro do seu pai anterior.",
-      "remove": "Retira `nodes` deste.",
-      "removeFromParent": "Retira este nó do seu pai.",
-      "clear": "Retira todos os filhos deste nó.",
-      "updateMatrix": "Compõe a matriz local a partir da pose.",
-      "updateWorldMatrix": "Resolve a matriz do mundo deste nó, primeiro a dos seus antepassados quando pedido, depois a sua subárvore.",
-      "applyMatrix4": "Aplica `m` sobre a pose do nó e depois lê a pose de volta do produto.",
-      "lookAt": "Vira o nó para um ponto do mundo, dado como ponto ou como os seus três números.",
+      "traverse": "A subárvore sob o nó, ele mesmo primeiro, na ordem própria do host.",
       "clone": "Um nó do mesmo tipo com os mesmos valores; os seus filhos também copiados salvo indicação em contrário.",
       "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário."
     },

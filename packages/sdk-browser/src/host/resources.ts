@@ -94,8 +94,10 @@ export type HostDiagnosticGeometry = HostDisposable & {
 };
 /** A mesh a diagnostic view repaints: its surface and geometry swapped, its identity a seed. */
 export type HostDiagnosticMesh = {
-  /** Identity the mesh is numbered with: the colour seed of a mesh with no cluster. */
-  readonly id: number;
+  /** The colour seed of a mesh with no cluster: the engine's node's `serial`, else its `id`. */
+  readonly serial?: number;
+  /** A witness's mesh numbers itself here. */
+  readonly id: number | string;
   material: HostDiagnosticMaterial | HostDiagnosticMaterial[];
   geometry: HostDiagnosticGeometry;
   userData: Record<string, unknown>;
