@@ -7002,7 +7002,6 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
-      "budget": "Die festen Grenzen (`budget.physics`), einmal beim Start der Physik gelesen.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
       "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`."
     }
@@ -7025,7 +7024,10 @@
       "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
       "decorative": "Dekorative Körper gleichzeitig.",
       "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen.",
-      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite."
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
+      "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7096,7 +7098,10 @@
       "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
       "decorative": "Dekorative Körper gleichzeitig.",
       "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen.",
-      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite."
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
+      "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert."
     }
   },
   "PhysicsHost": {
@@ -7136,7 +7141,8 @@
       "stepMs": "Worker-Millisekunden pro festem Schritt, letzter Tick: die Uhr des Workers, nie zu der der Seite addiert.",
       "mainMs": "Seiten-Millisekunden der Physik im letzten Bild (die CPU-Stufe `physics`).",
       "poses": "Posen, die der letzte Tick zurückgab.",
-      "events": "Kontaktereignisse, die der letzte Tick zurückgab."
+      "events": "Kontaktereignisse, die der letzte Tick zurückgab.",
+      "droppedEvents": "Seit dem Start der Physik verworfene `enter`-Ereignisse, über `budget.physics.contactEvents` in einem Schritt hinaus (ihr `leave` wird nie gesendet)."
     }
   },
   "PhysicsType": {
@@ -7149,7 +7155,6 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
-      "budget": "Die festen Grenzen (`budget.physics`), einmal beim Start der Physik gelesen.",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
       "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`."
     }

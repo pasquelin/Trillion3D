@@ -2314,9 +2314,12 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/module.fixture.ts",
+        "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
-        "packages/sdk-browser/src/world/core/worldBudget.test.ts"
+        "packages/sdk-browser/src/world/core/worldBudget.test.ts",
+        "scripts/bench-physics.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".DEFAULT_PHYSICS_BUDGET"
@@ -2636,6 +2639,8 @@
         "packages/sdk-browser/src/page/selection/budgetPressure.test.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/joltModule.ts",
+        "packages/sdk-browser/src/physics/physicsWorker.ts",
         "packages/sdk-browser/src/physics/session.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/scene/manifestLoad.ts",
@@ -5699,7 +5704,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["scripts/bench-physics.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PHYSICS_MATERIALS"
     },
@@ -5723,8 +5728,11 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/joltModule.ts",
+        "packages/sdk-browser/src/physics/module.fixture.ts",
         "packages/sdk-browser/src/physics/protocol.ts",
         "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/tickResults.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/worldHandles.ts"
       ],
@@ -6462,6 +6470,7 @@
         "packages/sdk-browser/src/world/controls/transformMath.ts",
         "packages/sdk-browser/src/world/core/worldCamera.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
+        "scripts/bench-physics.ts",
         "site/app/editor/commands.ts"
       ],
       "disposition": "retained",

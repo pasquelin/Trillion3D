@@ -7003,7 +7003,6 @@
       "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt một thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
-      "budget": "Các giới hạn cố định (`budget.physics`), đọc một lần khi vật lý bắt đầu.",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`."
     }
@@ -7026,7 +7025,10 @@
       "triangles": "Tam giác của mọi hình tam giác tĩnh cùng lúc.",
       "decorative": "Vật trang trí cùng lúc.",
       "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá.",
-      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang."
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
+      "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
+      "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
+      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7097,7 +7099,10 @@
       "triangles": "Tam giác của mọi hình tam giác tĩnh cùng lúc.",
       "decorative": "Vật trang trí cùng lúc.",
       "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá.",
-      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang."
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
+      "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
+      "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
+      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn."
     }
   },
   "PhysicsHost": {
@@ -7137,7 +7142,8 @@
       "stepMs": "Mili giây worker mỗi bước cố định, tick cuối: đồng hồ của worker, không bao giờ cộng với đồng hồ trang.",
       "mainMs": "Mili giây trang mà vật lý dùng ở khung cuối (giai đoạn CPU `physics`).",
       "poses": "Tư thế mà tick cuối gửi về.",
-      "events": "Sự kiện va chạm mà tick cuối gửi về."
+      "events": "Sự kiện va chạm mà tick cuối gửi về.",
+      "droppedEvents": "Các sự kiện `enter` bị bỏ từ khi vật lý khởi động, vượt quá `budget.physics.contactEvents` trong một bước (`leave` của chúng không bao giờ được gửi)."
     }
   },
   "PhysicsType": {
@@ -7150,7 +7156,6 @@
       "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
-      "budget": "Các giới hạn cố định (`budget.physics`), đọc một lần khi vật lý bắt đầu.",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`."
     }

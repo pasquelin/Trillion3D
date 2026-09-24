@@ -7002,7 +7002,6 @@
       "gravity": "m/s² 단위 중력, 살아 있는 벡터. 프리셋(`'earth'`, `'moon'`, `'mars'`, `'none'`)이나 벡터를 설정하세요.",
       "paused": "시간이 멈췄는지 여부. 쓰기는 여전히 물체에 닿습니다.",
       "timeScale": "실제 1초당 시뮬레이션 초: 0.25는 슬로 모션입니다.",
-      "budget": "고정 한계(`budget.physics`), 물리가 시작될 때 한 번 읽습니다.",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
       "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`."
     }
@@ -7025,7 +7024,10 @@
       "triangles": "모든 정적 삼각형 모양의 삼각형 동시 개수.",
       "decorative": "장식 물체 동시 개수.",
       "memoryBytes": "물리 모듈 메모리 바이트: 단단한 상한이며, 모듈은 이를 넘어 커질 수 없습니다.",
-      "threads": "시뮬레이션을 진행하는 스레드 수(물리 워커의 스레드 포함). 1보다 크면 교차 출처 격리된 페이지(공유 메모리)가 필요하며, 그렇지 않으면 하나로 진행합니다. 기기의 논리 코어 수에서 페이지 몫을 뺀 수를 넘지 않습니다."
+      "threads": "시뮬레이션을 진행하는 스레드 수(물리 워커의 스레드 포함). 1보다 크면 교차 출처 격리된 페이지(공유 메모리)가 필요하며, 그렇지 않으면 하나로 진행합니다. 기기의 논리 코어 수에서 페이지 몫을 뺀 수를 넘지 않습니다.",
+      "bodyPairs": "한 스텝에서 경계가 겹치는 물체 쌍. 빽빽한 더미는 물체당 약 네 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
+      "contactConstraints": "한 스텝에서 풀리는 맞닿은 쌍. 가라앉은 더미는 물체당 약 두 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
+      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7096,7 +7098,10 @@
       "triangles": "모든 정적 삼각형 모양의 삼각형 동시 개수.",
       "decorative": "장식 물체 동시 개수.",
       "memoryBytes": "물리 모듈 메모리 바이트: 단단한 상한이며, 모듈은 이를 넘어 커질 수 없습니다.",
-      "threads": "시뮬레이션을 진행하는 스레드 수(물리 워커의 스레드 포함). 1보다 크면 교차 출처 격리된 페이지(공유 메모리)가 필요하며, 그렇지 않으면 하나로 진행합니다. 기기의 논리 코어 수에서 페이지 몫을 뺀 수를 넘지 않습니다."
+      "threads": "시뮬레이션을 진행하는 스레드 수(물리 워커의 스레드 포함). 1보다 크면 교차 출처 격리된 페이지(공유 메모리)가 필요하며, 그렇지 않으면 하나로 진행합니다. 기기의 논리 코어 수에서 페이지 몫을 뺀 수를 넘지 않습니다.",
+      "bodyPairs": "한 스텝에서 경계가 겹치는 물체 쌍. 빽빽한 더미는 물체당 약 네 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
+      "contactConstraints": "한 스텝에서 풀리는 맞닿은 쌍. 가라앉은 더미는 물체당 약 두 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
+      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다."
     }
   },
   "PhysicsHost": {
@@ -7136,7 +7141,8 @@
       "stepMs": "고정 스텝당 worker 밀리초, 마지막 tick: worker 자신의 시계이며 페이지 시계와 더하지 않습니다.",
       "mainMs": "마지막 프레임에서 물리가 쓴 페이지 밀리초(CPU 단계 `physics`).",
       "poses": "마지막 tick이 돌려준 자세.",
-      "events": "마지막 tick이 돌려준 접촉 이벤트."
+      "events": "마지막 tick이 돌려준 접촉 이벤트.",
+      "droppedEvents": "물리가 시작된 뒤 한 스텝에서 `budget.physics.contactEvents`를 넘어 버려진 `enter` 이벤트(그 `leave`는 보내지지 않습니다)."
     }
   },
   "PhysicsType": {
@@ -7149,7 +7155,6 @@
       "gravity": "m/s² 단위 중력, 살아 있는 벡터. 프리셋(`'earth'`, `'moon'`, `'mars'`, `'none'`)이나 벡터를 설정하세요.",
       "paused": "시간이 멈췄는지 여부. 쓰기는 여전히 물체에 닿습니다.",
       "timeScale": "실제 1초당 시뮬레이션 초: 0.25는 슬로 모션입니다.",
-      "budget": "고정 한계(`budget.physics`), 물리가 시작될 때 한 번 읽습니다.",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
       "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`."
     }

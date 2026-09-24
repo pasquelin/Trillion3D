@@ -7002,7 +7002,6 @@
       "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
-      "budget": "Sabit sınırlar (`budget.physics`), fizik başlarken bir kez okunur.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`."
     }
@@ -7025,7 +7024,10 @@
       "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
       "decorative": "Aynı anda dekoratif cisimler.",
       "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez.",
-      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz."
+      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz.",
+      "bodyPairs": "Bir adımda sınırları örtüşen cisim çiftleri. Yoğun bir yığında cisim başına yaklaşık dört tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactConstraints": "Bir adımda çözülen temas eden çiftler. Oturmuş bir yığında cisim başına yaklaşık iki tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7096,7 +7098,10 @@
       "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
       "decorative": "Aynı anda dekoratif cisimler.",
       "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez.",
-      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz."
+      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz.",
+      "bodyPairs": "Bir adımda sınırları örtüşen cisim çiftleri. Yoğun bir yığında cisim başına yaklaşık dört tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactConstraints": "Bir adımda çözülen temas eden çiftler. Oturmuş bir yığında cisim başına yaklaşık iki tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
+      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir."
     }
   },
   "PhysicsHost": {
@@ -7136,7 +7141,8 @@
       "stepMs": "Sabit adım başına worker milisaniyesi, son tik: worker’ın saati, sayfanınkine asla eklenmez.",
       "mainMs": "Son karede fiziğin aldığı sayfa milisaniyesi (`physics` CPU aşaması).",
       "poses": "Son tikin geri gönderdiği pozlar.",
-      "events": "Son tikin geri gönderdiği temas olayları."
+      "events": "Son tikin geri gönderdiği temas olayları.",
+      "droppedEvents": "Fizik başladığından beri, bir adımda `budget.physics.contactEvents` sınırını aştığı için atılan `enter` olayları (`leave`leri hiç gönderilmez)."
     }
   },
   "PhysicsType": {
@@ -7149,7 +7155,6 @@
       "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
-      "budget": "Sabit sınırlar (`budget.physics`), fizik başlarken bir kez okunur.",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`."
     }
