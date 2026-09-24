@@ -81,14 +81,14 @@ export function createTickResults(
     },
     /** Whether one more step's events surely fit in the tick's results. */
     room: () => eventCount + budget.contactEvents <= budget.contactEvents * MAX_CATCH_UP_STEPS,
-    /** Hands the tick's results to the page, `water` the water's clock after them; false while
-     *  it holds both buffers. */
+    /** Hands the tick's results to the page, `water` the water's clock after them and its epoch;
+     *  false while it holds both buffers. */
     post(
       steps: number,
       stepMs: number,
       active: number,
       character: () => CharacterReport | null,
-      water: number,
+      water: { readonly time: number; readonly epoch: number },
     ) {
       if (!out || !(poseCount || eventCount || steps)) return false;
       if (!outBuffer) {
@@ -103,7 +103,8 @@ export function createTickResults(
       const message = {
         ...counts,
         seconds: steps * PHYSICS_STEP,
-        water,
+        water: water.time,
+        waterEpoch: water.epoch,
         stepMs,
         active,
         character: character(),

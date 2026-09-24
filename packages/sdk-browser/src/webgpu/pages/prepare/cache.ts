@@ -8,7 +8,7 @@ import { type WebgpuPagesRuntime } from '../runtime.ts';
 export function createWebgpuPagesCache(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
-  slots = rt.setup.slots,
+  slots: number,
 ) {
   const { diag, run, services } = rt,
     { pageBytes } = rt.setup;
