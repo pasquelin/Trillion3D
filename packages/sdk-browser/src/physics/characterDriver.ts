@@ -35,7 +35,8 @@ export interface CharacterReport {
  * velocity of the step — the speed gathered, the jump, the arc of gravity in closed form, sent as
  * the step's mean velocity so a jump reaches the same apex — and Jolt's virtual character moves
  * the capsule by it (`physics-jolt-wasm/src/character.cpp`). The state it hands back decides the
- * landings, a floor walked off, a ceiling met. The page's input reaches the next step: at most one
+ * landings, a floor walked off, a ceiling met, and the friction of the floor the next steps push
+ * on: ice glides, stone grips. The page's input reaches the next step: at most one
  * step late. A body standing still in a world at rest asks for no step at all.
  */
 export function createCharacterDriver() {
@@ -141,6 +142,8 @@ export function createCharacterDriver() {
         for (let k = 0; k < 3; k++) v[k] += ground[k];
       } else if (!drive.grounded && h > 0) v[1] = Math.min(v[1], motion[1]);
       ground.set(state.subarray(5, 8));
+      // The floor's friction bounds the next steps' start and stop; none leaves the last.
+      if (state[8] >= 0) drive.floor = state[8];
       reported = false;
     },
     /** What the page hears after a tick, once per state read; null when nothing new. */
