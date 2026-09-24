@@ -484,7 +484,6 @@
       "soft-bodies": "integração de um motor de física",
       "rolling-on-terrain": "integração de um motor de física",
       "hinges-and-joints": "integração de um motor de física",
-      "walk-with-collisions": "integração de um motor de física",
       "drive-a-car": "integração de um motor de física",
       "a-room-in-vr": "sessão WebXR",
       "a-360-photo-in-vr": "sessão WebXR",
@@ -1063,6 +1062,17 @@
           "Empurra um corpo com <code>applyImpulse</code> ou ouve o seu <code>contact</code>. Quando todos dormem, nada é calculado nem desenhado."
         ],
         "tryIt": "Larga mais caixas, muda a gravidade para a Lua e liga a câmara lenta."
+      },
+      "touch-and-react": {
+        "title": "Tocar e reagir",
+        "description": "Entre no seu mundo: com a física, a personagem sobe, é levada e empurra o que encontra, e o que encontra empurra-a de volta.",
+        "steps": [
+          "Crie o mundo com <code>controls: 'character'</code> e <code>physics: true</code>. A personagem é agora um corpo da física, como as caixas.",
+          "Marque como <code>'static'</code> o que nunca se move: o chão, a escada, as paredes. A personagem sobe degraus até ao joelho e rampas até 45°.",
+          "Marque uma plataforma como <code>'kinematic'</code> e mova-a a partir do seu código a cada imagem: o que estiver em cima vai com ela.",
+          "Torne caixas <code>'dynamic'</code> e leves: a personagem empurra-as com <code>pushStrength</code> newtons, e elas caem, rolam e empurram de volta."
+        ],
+        "tryIt": "Clique na imagem, ande com W A S D, salte com Espaço. Suba a escada, ande na plataforma, empurre a pilha de caixas."
       },
       "your-own-scene": {
         "title": "A sua própria cena",
