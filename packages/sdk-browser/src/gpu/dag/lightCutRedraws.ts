@@ -31,27 +31,30 @@ export function createLightCutRedraws(
     pages: new Int32Array(pageCap),
     count: 0,
     epoch: 0,
+    reported: true,
+    reading: Promise.resolve(),
   }));
   const redraw = new Set<number>(),
     waiting = new Set<number>();
   let limit = pageCap,
-    epoch = 0,
-    reading: Promise<unknown> = Promise.resolve();
+    epoch = 0;
   const add = (into: Set<number>, pages: ArrayLike<number>, count: number) => {
     for (let i = 0; i < count; i++) into.add(pages[i]);
   };
   const read = (slot: (typeof slots)[number], flags: number) => {
     const dropped = (flags & WORK_DROPPED) !== 0;
-    // Residency moved since the frame was encoded: what it lacked may be there now.
-    if (dropped || (flags & WORK_ESCALATED && slot.epoch !== epoch))
-      add(redraw, slot.pages, slot.count);
+    // Residency moved since the frame was encoded: what it lacked may be there now. A frame whose
+    // requests were not copied waits for nothing: what it lacked was never asked for.
+    const stale = slot.epoch !== epoch || !slot.reported;
+    if (dropped || (flags & WORK_ESCALATED && stale)) add(redraw, slot.pages, slot.count);
     else if (flags & WORK_ESCALATED) add(waiting, slot.pages, slot.count);
     limit = dropped ? Math.max(1, Math.floor(slot.count / 2)) : Math.min(pageCap, limit * 2);
   };
   return {
-    /** Copies this frame's flag word with its `count` drawn `pages`; returns the settlement to
-     *  call once the command buffer is submitted, or dropped. */
-    encode(encoder: GPUCommandEncoder, pages: ArrayLike<number>, count: number) {
+    /** Copies this frame's flag word with its `count` drawn `pages` — `reported` when the frame's
+     *  requests were copied too (`lightCutReports.ts`); returns the settlement to call once the
+     *  command buffer is submitted, or dropped. */
+    encode(encoder: GPUCommandEncoder, pages: ArrayLike<number>, count: number, reported: boolean) {
       if (!count) return undefined;
       const slot = slots.find(({ busy }) => !busy);
       if (!slot) {
@@ -61,6 +64,7 @@ export function createLightCutRedraws(
       slot.busy = true;
       slot.count = count;
       slot.epoch = epoch;
+      slot.reported = reported;
       for (let i = 0; i < count; i++) slot.pages[i] = pages[i];
       encoder.copyBufferToBuffer(output, OUT_FLAGS * 4, slot.buffer, 0, 4);
       return (submitted: boolean) => {
@@ -68,7 +72,7 @@ export function createLightCutRedraws(
           slot.busy = false;
           return;
         }
-        const mapped = slot.buffer
+        slot.reading = slot.buffer
           .mapAsync(GPUMapMode.READ)
           .then(() => {
             const flags = new Uint32Array(slot.buffer.getMappedRange())[0];
@@ -79,7 +83,6 @@ export function createLightCutRedraws(
           .finally(() => {
             slot.busy = false;
           });
-        reading = Promise.all([reading, mapped]);
       };
     },
     /** Residency the light cuts see changed: the pages that waited on it are drawn again. */
@@ -100,7 +103,7 @@ export function createLightCutRedraws(
       return count;
     },
     /** Resolves once every flag copied so far is read. */
-    settled: () => reading,
+    settled: () => Promise.all(slots.map(({ reading }) => reading)).then(() => {}),
     /** A flag on its way, or pages to draw again not yet taken. */
     get unsettled() {
       return redraw.size > 0 || slots.some(({ busy }) => busy);

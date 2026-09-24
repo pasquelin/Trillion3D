@@ -20,8 +20,8 @@ function redrawsWith(flag: { value: number }) {
     redraws.takeRedraw((page) => again.push(page));
     return again;
   };
-  const frame = async (pages: number[]) => {
-    redraws.encode(encoder, pages, pages.length)?.(true);
+  const frame = async (pages: number[], reported = true) => {
+    redraws.encode(encoder, pages, pages.length, reported)?.(true);
     await redraws.settled();
     return taken();
   };
@@ -33,7 +33,11 @@ function redrawsWith(flag: { value: number }) {
 test('the pages of a frame that dropped work are drawn again, and fewer a frame until none drops', async () => {
   const flag = { value: WORK_DROPPED };
   const { redraws, encoder, frame } = redrawsWith(flag);
-  assert.equal(redraws.encode(encoder, [], 0), undefined, 'a frame without pages copies nothing');
+  assert.equal(
+    redraws.encode(encoder, [], 0, true),
+    undefined,
+    'a frame without pages copies nothing',
+  );
   assert.deepEqual(await frame([4, 9, 12, 20]), [4, 9, 12, 20], 'dropped: all drawn again');
   assert.equal(redraws.pageLimit, 2, 'half the pages that dropped');
   assert.equal(redraws.unsettled, false);
@@ -51,4 +55,17 @@ test('the pages a view drew coarse are drawn again once residency changes, and o
   redraws.residencyChanged();
   assert.deepEqual(taken(), [3, 7], 'residency moved: drawn again');
   assert.equal(redraws.pageLimit, 24, 'coarse is not a drop: the limit stays');
+});
+
+// A frame whose requests were never copied cannot wait on them: its coarse pages are drawn again.
+test('the coarse pages of a frame whose requests were not copied are drawn again at once', async () => {
+  const { frame } = redrawsWith({ value: WORK_ESCALATED });
+  assert.deepEqual(await frame([5, 6], false), [5, 6]);
+});
+
+// Every frame's read joins the settlement without keeping the previous ones' values alive.
+test('the settlement of the flag reads holds no value from one frame to the next', async () => {
+  const { redraws, frame } = redrawsWith({ value: 0 });
+  for (let i = 0; i < 3; i++) await frame([i]);
+  assert.equal(await redraws.settled(), undefined);
 });

@@ -61,11 +61,14 @@ export function encodeShadowCasters(
     lightSource.refreshRows = (pass) => map.encode(pass, rows);
     cull.encodeLight(encoder, lightSource, regions, rows);
     lights.lightRuns = runs.count;
-    // A copy still being read keeps its settlement pending: only a new copy takes its place.
+    // Every slot still being read: this frame's requests are not copied, and its coarse pages are
+    // drawn again rather than left waiting on them.
     const settle = light.reports.encodeReadback(encoder);
     if (settle) timing.shadowRequests = settle;
     const { list, count } = lights.plan.admission;
-    const redraw = runs.count ? light.redraws.encode(encoder, list, count) : undefined;
+    const redraw = runs.count
+      ? light.redraws.encode(encoder, list, count, settle !== undefined)
+      : undefined;
     if (redraw) timing.shadowRedraws = redraw;
     return true;
   }
