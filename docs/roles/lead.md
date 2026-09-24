@@ -27,7 +27,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    or a point of "Before merge" missed, goes back to step 3.
 5. **Hand over.** `gh issue edit <n> --remove-label "in review"`, add `to measure` for an engine
    batch (`packages/`, compiler, format, shaders, a published number), then `gh issue close <n>`.
-   The measurer and the auditor never hold the issue open.
+   The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
 6. **Report** to the maintainer in two lines: issue, pull request, verdict. Then back to step 1,
    until the domain has nothing left.
