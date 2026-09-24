@@ -356,6 +356,12 @@ positive value selects coarser pages when the cache includes them). `pose.fromBo
 box; `pose.pointOfInterest(name, pose)` names one; `pose.runPath(world, poses, { images })` replays a
 path — an exact A/A image gate, then timed blocks, not a general performance verdict.
 
+`world.temporalAntialiasing` (`createWorld(target, { temporalAntialiasing })`, `true` by default)
+jitters each image by a fraction of a pixel and accumulates it over the previous ones; `false` draws
+each pixel at its centre with no history, what a pixel-exact capture asks. Written, it takes effect
+at the next frame, history dropped, no session reopened. Read, it is what the image carries: `false`
+on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsupported).
+
 Dispose in the actual component or page teardown, **not immediately after startup**:
 `world.dispose()` removes owned controls, observers, queued frames and abort listeners and closes
 the engine, without removing the canvas. A page that wants job semantics around a load —

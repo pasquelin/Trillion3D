@@ -1541,8 +1541,7 @@
     "summary": "Pengaturan pencahayaan langsung yang dipublikasikan.",
     "description": "Ini adalah pilihan produk bernama, bukan konstanta terkubur: setiap batas saat berjalan membacanya ulang, dan diagnostik mempublikasikannya apa adanya.",
     "members": {
-      "maxLights": "Cahaya yang diterima kontrak secara total; melebihi itu, `addLight` menolak.",
-      "maxLightsPerTile": "Cahaya yang disimpan sebuah tile layar; loop piksel dibatasi angka ini (X2).",
+      "maxLights": "Cahaya yang diterima kontrak secara total; melebihi itu, `addLight` menolak. Sebuah tile layar menyimpan setiap cahaya yang menyentuhnya; daftarnya dan loop piksel dibatasi angka ini (X2).",
       "tileSize": "Sisi dalam piksel sebuah tile layar daftar cahaya.",
       "samplesPerPixel": "Cahaya yang dishading penuh — termasuk pembacaan bayangan — per piksel sebuah gambar BERGERAK (X2): yang lain ditimbang tanpa bayangannya, dan yang dishading digambar sebanding, jadi perkiraannya tidak bias dan antialiasing temporal merata-ratakannya. Sebuah gambar diam men-shading setiap cahaya tile-nya dan berkonvergensi ke jumlah pasti; di situ, angka ini tidak berperan.",
       "shadowPage": "Sisi halaman bayangan, dalam texel: satuan pool fisik, peta virtual, dan invalidasi. Objek bergerak hanya membuat usang halaman yang tertutup kotak proyeksinya.",
@@ -1686,6 +1685,7 @@
       "bounds": "Kotak yang diisi model itu, dalam kerangkanya sendiri.",
       "lights": "Cahaya di bawah model — yang dibawa berkas sumbernya, sebagai node: sebuah halaman mengedit, memindah atau menghapusnya seperti miliknya sendiri, dan mereka bergerak bersama model itu.",
       "record": "Semua yang disimpan dunia tentang model ini: alamatnya, manifest dan grafnya.",
+      "getObjectByName": "Node pertama di bawah dengan nama ini: model, node dari berkas sumbernya, lalu anak lain mana pun — cahaya yang dibawa berkas, node yang ditempatkan halaman.",
       "metadata": "Manifest terkompilasi model itu — primitifnya, `sourceTriangles` — dan `clusters`, cluster yang disimpan halamannya, setiap tingkat DAG-nya dihitung.",
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
     }
@@ -3999,7 +3999,8 @@
       "pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "controls": "Controller yang menggerakkan kamera dari canvas; `world.controls.kind` mengubahnya nanti.",
       "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
-      "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
+      "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
+      "temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {
@@ -4633,7 +4634,8 @@
       "options.pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "options.controls": "Pengontrol yang menggerakkan kamera dari kanvas; `world.controls.kind` mengubahnya nanti.",
       "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
-      "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
+      "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
+      "options.temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -6579,6 +6581,10 @@
   "world.bounce": {
     "summary": "Cahaya yang dipantulkan dari permukaan, ditelusuri terhadap proxy yang menetap; mati secara default.",
     "description": "Sebuah perubahan diterapkan di tempat pada sebuah jalur yang membawanya, dan diambil oleh pembukaan berikutnya pada yang tidak."
+  },
+  "world.temporalAntialiasing": {
+    "summary": "Antialiasing temporal: pergeseran subpiksel yang diakumulasi antarbingkai; aktif secara bawaan.",
+    "description": "Saat ditulis, berlaku pada bingkai berikutnya, riwayat dibuang, tanpa membuka ulang sesi. Saat dibaca, itulah yang dibawa gambar: false di WebGL2, dan selama program dikompilasi setelah diaktifkan."
   },
   "world.budget": {
     "summary": "Kolam memori dunia, dibaca dan diatur dalam byte.",

@@ -1212,7 +1212,8 @@
       "options.pixelRatio": "Quanti pixel di immagine per pixel di schermo.",
       "options.controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "options.signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
-      "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato."
+      "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
+      "options.temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -2758,8 +2759,7 @@
     "summary": "Impostazioni pubblicate dell'illuminazione diretta.",
     "description": "Sono scelte di prodotto nominate, non costanti sepolte: ogni limite a runtime le rilegge, e la diagnostica le pubblica così come sono.",
     "members": {
-      "maxLights": "Luci accettate in totale dal contratto; oltre, `addLight` rifiuta.",
-      "maxLightsPerTile": "Luci mantenute da una tessera di schermo; il ciclo per pixel è limitato da questo numero (X2).",
+      "maxLights": "Luci accettate in totale dal contratto; oltre, `addLight` rifiuta. Una tessera di schermo mantiene ognuna di quelle che la toccano; la sua lista e il ciclo per pixel sono limitati da questo numero (X2).",
       "tileSize": "Lato in pixel di una tessera di schermo della lista di luci.",
       "samplesPerPixel": "Luci illuminate per intero — lettura dell'ombra inclusa — per pixel di un'immagine IN MOVIMENTO (X2): le altre sono pesate senza la loro ombra, e quelle illuminate sono estratte a sorte in proporzione, quindi la stima è senza distorsioni e l'antialiasing temporale ne fa la media. Un'immagine ferma illumina ogni luce della sua tessera e converge verso la somma esatta; lì, questo numero non gioca alcun ruolo.",
       "shadowPage": "Lato di una pagina d’ombra, in texel: l’unità del pool fisico, delle mappe virtuali e dell’invalidazione. Un oggetto in movimento invalida solo le pagine coperte dal suo box proiettato.",
@@ -2852,6 +2852,7 @@
       "bounds": "La scatola che riempie il modello, nel proprio sistema.",
       "lights": "Le luci sotto il modello — quelle portate dal file sorgente, come nodi: una pagina le modifica, sposta o rimuove come le proprie, e si muovono con il modello.",
       "record": "Tutto ciò che il mondo conserva su questo modello: i suoi indirizzi, il suo manifesto e il suo grafo.",
+      "getObjectByName": "Il primo nodo sotto con questo nome: il modello, un nodo del suo file sorgente, poi qualsiasi altro figlio — una luce portata dal file, un nodo posato da una pagina.",
       "metadata": "Il manifesto compilato del modello — le sue primitive, `sourceTriangles` — e `clusters`, i cluster contenuti nelle sue pagine, ogni livello dei suoi DAG contato.",
       "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una."
     }
@@ -6320,6 +6321,10 @@
     "summary": "La luce che rimbalza sulle superfici, tracciata contro il proxy residente; spenta per impostazione predefinita.",
     "description": "Un cambiamento si applica sul posto su un percorso che lo porta, e viene preso alla prossima apertura su un percorso che non lo porta."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Antialiasing temporale: spostamento sub-pixel accumulato tra le immagini; attivo per impostazione predefinita.",
+    "description": "Scritto, ha effetto dall’immagine successiva, cronologia scartata, nessuna sessione riaperta. Letto, è ciò che l’immagine porta: false su WebGL2, e mentre il programma si compila dopo l’attivazione."
+  },
   "world.budget": {
     "summary": "Le riserve di memoria del mondo, lette e impostate in byte.",
     "members": {
@@ -6512,7 +6517,8 @@
       "pixelRatio": "Quanti pixel di immagine per pixel di schermo.",
       "controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
-      "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato."
+      "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
+      "temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {

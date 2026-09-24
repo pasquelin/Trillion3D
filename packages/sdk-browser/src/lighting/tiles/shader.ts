@@ -6,21 +6,25 @@ const WORDS = Math.ceil(LIGHT_SETTINGS.maxLights / 32);
 
 /**
  * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
- * tile's min and max depth, thread zero derives the tile's world bounding boxes, each thread
- * tests one light, then each kept thread writes its rank at the place the bit count before it
- * names — order stays increasing and determined, so the frame is too. No unbounded loop: each
- * list stops at `maxLightsPerTile`, and the requested count is written next to the kept count.
+ * tile's min and max depth, thread zero derives the tile's world bounds, each thread tests one
+ * light, then each kept thread writes its rank at the place the bit count before it names —
+ * order stays increasing and determined, so the frame is too. Each list has room for every
+ * light the contract accepts (`maxLights`): no tile drops a light, however many touch it, and
+ * the pixel loop stays bounded by a constant known before the frame.
  *
  * **Two lists per tile, two depth slices.** The opaque list covers the slice between the tile's
  * two depths, the tightest there is, and deferred resolve loses neither a light nor a
- * millisecond. The blend list covers the slice from the near plane to the opaque background,
- * and the whole world where no opaque covers the tile: a blend surface is drawn **in front of**
- * its pixel's opaque, and a box that starts at its depth would strip declared lights — foliage
- * in front of the sky would keep none. One pass, one depth reduce, two compacts.
+ * millisecond. The blend list covers what lies in front of the tile's background: a blend
+ * surface is drawn **in front of** its pixel's opaque, and a box that starts at its depth would
+ * strip declared lights. Where every pixel has an opaque behind it, that is the box from the
+ * near plane to the farthest opaque. Where a pixel sees the sky, a blend surface may stand at
+ * any distance in front of it — foliage against the sky —, so the slice is the tile's whole
+ * column: bounded across by its four side planes and in front by the near plane, unbounded in
+ * depth. One pass, one depth reduce, two compacts.
  *
- * Depth is REVERSE-Z (`../../camera/depthConvention.ts`): nearest is GREATEST, background is zero, and the
- * far plane is infinite — a tile without opaque therefore has no back bound to unproject, and
- * takes the whole world rather than a point at infinity.
+ * Depth is REVERSE-Z (`../../camera/depthConvention.ts`): nearest is GREATEST, background is
+ * zero, and the far plane is infinite — the background has no depth to unproject, so the
+ * column's planes are read at a finite depth, which gives the same planes at any depth.
  */
 export const LIGHT_TILES_SHADER = `
 struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,counts:vec4f,}
@@ -30,9 +34,14 @@ struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,counts:vec4f,}
 @group(0) @binding(3) var<storage,read_write> tiles:array<u32>;
 ${DIRECT_LIGHT_WGSL}
 struct Box{lo:vec3f,hi:vec3f,}
+/** Depth the column's planes are read at: any depth short of the background gives the same
+ *  planes; a deep one spreads the corners apart, so the planes keep their precision far from
+ *  the world origin. A numerical choice, independent of the scene. */
+const COLUMN_DEPTH:f32=${DEPTH_NEAR / 1024};
 var<workgroup> nearest:atomic<u32>;
 var<workgroup> farthest:atomic<u32>;
 var<workgroup> covered:atomic<u32>;
+var<workgroup> skyward:atomic<u32>;
 /** One mask, two slices: the first ${WORDS} words are the opaque list's, the next those of
  *  the blend list. One rank function knows how to read them, indexed by the start of its
  *  slice — no pointer into workgroup memory, which not every device takes as a parameter. */
@@ -41,34 +50,64 @@ const BLEND_MASK:u32=${WORDS}u;
 var<workgroup> hits:array<atomic<u32>,${2 * WORDS}u>;
 var<workgroup> opaqueBox:Box;
 var<workgroup> blendBox:Box;
+var<workgroup> column:array<vec4f,5>;
 fn unproject(ndc:vec3f)->vec3f{
  let point=view.inverseViewProjection*vec4f(ndc,1.0);
  return point.xyz/point.w;
 }
+/** World position of a tile corner — bit 0 picks the right edge, bit 1 the bottom — at depth z. */
+fn tileCorner(tile:vec2u,corner:u32,z:f32)->vec3f{
+ let size=view.viewport.xy;
+ let x=select(f32(tile.x*TILE_SIZE)/size.x,min(f32((tile.x+1u)*TILE_SIZE)/size.x,1.0),(corner&1u)!=0u);
+ let y=select(f32(tile.y*TILE_SIZE)/size.y,min(f32((tile.y+1u)*TILE_SIZE)/size.y,1.0),(corner&2u)!=0u);
+ return unproject(vec3f(x*2.0-1.0,1.0-y*2.0,z));
+}
 /** World box of the tile between two depths: eight corners, never a radius. */
 fn tileBox(tile:vec2u,front:f32,back:f32)->Box{
- let size=view.viewport.xy;
- let x0=f32(tile.x*TILE_SIZE)/size.x*2.0-1.0;
- let x1=min(f32((tile.x+1u)*TILE_SIZE)/size.x,1.0)*2.0-1.0;
- let y0=1.0-f32(tile.y*TILE_SIZE)/size.y*2.0;
- let y1=1.0-min(f32((tile.y+1u)*TILE_SIZE)/size.y,1.0)*2.0;
  var box:Box;
  box.lo=vec3f(1e30);
  box.hi=vec3f(-1e30);
  for(var corner=0u;corner<8u;corner++){
-  let px=select(x0,x1,(corner&1u)!=0u);
-  let py=select(y0,y1,(corner&2u)!=0u);
-  let pz=select(front,back,(corner&4u)!=0u);
-  let world=unproject(vec3f(px,py,pz));
+  let world=tileCorner(tile,corner&3u,select(front,back,(corner&4u)!=0u));
   box.lo=min(box.lo,world);
   box.hi=max(box.hi,world);
  }
  return box;
 }
+/** Plane through \`point\` along \`normal\`, turned so that \`inside\` is on its positive side. */
+fn inwardPlane(normal:vec3f,point:vec3f,inside:vec3f)->vec4f{
+ let n=normalize(normal);
+ let facing=select(-n,n,dot(n,inside-point)>=0.0);
+ return vec4f(facing,-dot(facing,point));
+}
+/** The tile's column from the near plane to infinity: four side planes, each through two
+ *  neighbouring corner rays, and the near plane, all facing the column's inside. */
+fn tileColumn(tile:vec2u){
+ var order=array<u32,4>(0u,1u,3u,2u);
+ var near:array<vec3f,4>;
+ var deep:array<vec3f,4>;
+ var inside=vec3f(0.0);
+ for(var i=0u;i<4u;i++){
+  near[i]=tileCorner(tile,order[i],${DEPTH_NEAR}.0);
+  deep[i]=tileCorner(tile,order[i],COLUMN_DEPTH);
+  inside+=deep[i]*0.25;
+ }
+ for(var i=0u;i<4u;i++){
+  column[i]=inwardPlane(cross(deep[(i+1u)%4u]-deep[i],deep[i]-near[i]),near[i],inside);
+ }
+ column[4]=inwardPlane(cross(deep[1]-deep[0],deep[3]-deep[0]),near[0],inside);
+}
 fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  let outside=max(box.lo-centre,centre-box.hi);
  let clamped=max(outside,vec3f(0.0));
  return dot(clamped,clamped)<=radius*radius;
+}
+/** A sphere is out of the column only if it lies wholly behind one of its planes. */
+fn sphereTouchesColumn(centre:vec3f,radius:f32)->bool{
+ for(var i=0u;i<5u;i++){
+  if(dot(column[i].xyz,centre)+column[i].w< -radius){return false;}
+ }
+ return true;
 }
 /** Rank of a kept light: the number of kept bits before it in the same slice. */
 fn rankBefore(mask:u32,lane:u32)->u32{
@@ -91,6 +130,7 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
   atomicStore(&nearest,0u);
   atomicStore(&farthest,0xffffffffu);
   atomicStore(&covered,0u);
+  atomicStore(&skyward,0u);
   for(var word=0u;word<${2 * WORDS}u;word++){atomicStore(&hits[word],0u);}
  }
  workgroupBarrier();
@@ -101,54 +141,50 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
    atomicMax(&nearest,bitcast<u32>(z));
    atomicMin(&farthest,bitcast<u32>(z));
    atomicStore(&covered,1u);
+  }else{
+   atomicStore(&skyward,1u);
   }
  }
  workgroupBarrier();
  if(lane==0u){
-  if(atomicLoad(&covered)==1u){
-   let front=bitcast<f32>(atomicLoad(&nearest));
-   let back=bitcast<f32>(atomicLoad(&farthest));
-   opaqueBox=tileBox(tile.xy,front,back);
-   blendBox=tileBox(tile.xy,${DEPTH_NEAR}.0,back);
-  }else{
-   // Nothing to unproject at the back: the whole world, where no light is rejected.
-   var whole:Box;whole.lo=vec3f(-1.0e30);whole.hi=vec3f(1.0e30);
-   opaqueBox=whole;blendBox=whole;
-  }
+  let back=bitcast<f32>(atomicLoad(&farthest));
+  if(atomicLoad(&covered)==1u){opaqueBox=tileBox(tile.xy,bitcast<f32>(atomicLoad(&nearest)),back);}
+  // A pixel that sees the sky has no back to its blend slice: the whole column, never a box.
+  if(atomicLoad(&skyward)==1u){tileColumn(tile.xy);}else{blendBox=tileBox(tile.xy,${DEPTH_NEAR}.0,back);}
  }
  workgroupBarrier();
  let count=min(lights.count,MAX_LIGHTS);
  if(lane<count){
   let light=lights.items[lane];
-  // A directional light reaches everywhere: no tile box can reject it. The others are kept
-  // only if their range sphere touches the slice's world box.
+  // A directional light reaches everywhere: no tile bound can reject it. The others are kept
+  // only if their range sphere touches the slice.
   let sun=isSun(light);
+  let centre=light.positionRange.xyz;
+  let radius=light.positionRange.w;
   let bit=1u<<(lane%32u);
-  if(atomicLoad(&covered)==1u&&(sun||sphereTouchesBox(opaqueBox,light.positionRange.xyz,light.positionRange.w))){
+  if(atomicLoad(&covered)==1u&&(sun||sphereTouchesBox(opaqueBox,centre,radius))){
    atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);
   }
-  if(sun||sphereTouchesBox(blendBox,light.positionRange.xyz,light.positionRange.w)){
+  var blendTouched=sun;
+  if(!sun&&atomicLoad(&skyward)==1u){blendTouched=sphereTouchesColumn(centre,radius);}
+  else if(!sun){blendTouched=sphereTouchesBox(blendBox,centre,radius);}
+  if(blendTouched){
    atomicOr(&hits[BLEND_MASK+lane/32u],bit);
   }
  }
  workgroupBarrier();
  // Parallel compact: each thread writes its light at its rank, so each list carries the same
- // light ranks in the same increasing order as the single-thread loop it replaces.
+ // light ranks in the same increasing order as the single-thread loop it replaces. The rank is
+ // below \`count\`, itself at most MAX_LIGHTS, so it always has its place.
  let base=(tile.y*u32(view.viewport.z)+tile.x)*TILE_STRIDE;
  if(lane<count&&maskHolds(OPAQUE_MASK,lane)){
-  let rank=rankBefore(OPAQUE_MASK,lane);
-  if(rank<MAX_TILE_LIGHTS){tiles[base+4u+rank]=lane;}
+  tiles[base+TILE_OPAQUE_BASE+rankBefore(OPAQUE_MASK,lane)]=lane;
  }
  if(lane<count&&maskHolds(BLEND_MASK,lane)){
-  let rank=rankBefore(BLEND_MASK,lane);
-  if(rank<MAX_TILE_LIGHTS){tiles[base+TILE_BLEND_BASE+rank]=lane;}
+  tiles[base+TILE_BLEND_BASE+rankBefore(BLEND_MASK,lane)]=lane;
  }
  if(lane==0u){
-  let requested=maskTotal(OPAQUE_MASK);
-  let blendRequested=maskTotal(BLEND_MASK);
-  tiles[base]=min(requested,MAX_TILE_LIGHTS);
-  tiles[base+1u]=requested;
-  tiles[base+2u]=min(blendRequested,MAX_TILE_LIGHTS);
-  tiles[base+3u]=blendRequested;
+  tiles[base]=maskTotal(OPAQUE_MASK);
+  tiles[base+1u]=maskTotal(BLEND_MASK);
  }
 }`;

@@ -1,11 +1,12 @@
 import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { theatreWorkshop } from '../shadow-theatre/geometry.ts';
 import { writeAvenue } from './avenue.ts';
 import { writeChessObj } from './chess-obj.ts';
 import { writeChessSet } from './chess-set.ts';
 import { writeCourtyard } from './courtyard.ts';
+import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts';
 import { appendSurfacesGltf } from './gltf.ts';
+import { fromGeometry, merge } from './mesh.ts';
 import { placeObj, writeBoxesObj, type BoxRow } from './obj.ts';
 import type { GltfDocument } from './gltf-types.ts';
 import { writeRing } from './ring.ts';
@@ -31,11 +32,18 @@ async function bust(models: string, directory: string) {
   const source = resolve(models, 'marble-bust');
   await cp(resolve(source, 'textures'), resolve(directory, 'textures'), { recursive: true });
   await copyModel(models, 'marble-bust', ['marble_bust_01.bin'], directory);
-  const shop = theatreWorkshop();
-  shop.box(0, [0, -1.15, 0], [4, 0.3, 4]);
-  shop.box(0, [0, 0.3, -1.85], [4, 3.2, 0.3]);
-  shop.box(1, [0, -0.5, 0], [0.42, 1, 0.42]);
-  shop.box(1, [0, -0.02, 0], [0.5, 0.04, 0.5]);
+  // Per material, boxes `x, y, z, width, height, depth`: the niche's floor and back; the pedestal.
+  const surfaces = [
+    [0, -1.15, 0, 4, 0.3, 4, 0, 0.3, -1.85, 4, 3.2, 0.3],
+    [0, -0.5, 0, 0.42, 1, 0.42, 0, -0.02, 0, 0.5, 0.04, 0.5],
+  ].map((boxes) =>
+    merge(
+      [0, 6].map((at) => {
+        const [x, y, z, ...size] = boxes.slice(at, at + 6);
+        return fromGeometry(geometry.box(...size).translate(x, y, z));
+      }),
+    ),
+  );
   const gltf: GltfDocument = JSON.parse(
     await readFile(resolve(source, 'marble_bust_01_1k.gltf'), 'utf8'),
   );
@@ -47,7 +55,7 @@ async function bust(models: string, directory: string) {
       ['Plaster niche', [0.6, 0.56, 0.5, 1], 0, 0.85],
       ['Dark stone pedestal', [0.16, 0.15, 0.15, 1], 0, 0.5],
     ],
-    shop.surfaces,
+    surfaces.entries(),
   );
 }
 
