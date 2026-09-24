@@ -2355,7 +2355,7 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Las matrices con las que un host dibuja una imagen, tal como las da el motor.",
+    "summary": "Las matrices y el rango de profundidad con los que un host dibuja una imagen, tal como las da el motor.",
     "members": {
       "projection": "La proyección.",
       "world": "La matriz de la cámara en el mundo.",
@@ -3261,7 +3261,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Sombrea cada punto según su distancia a la cámara.",
+    "summary": "Sombrea cada punto según su distancia a la cámara: blanco en `camera.near`, negro en `camera.far`, una rampa recta entre ambos, la misma en WebGPU y WebGL2.",
     "parameters": {
       "parameters": "Lo que una página puede dar a un miembro de material; cada campo es opcional.",
       "parameters.color": "El color base.",
