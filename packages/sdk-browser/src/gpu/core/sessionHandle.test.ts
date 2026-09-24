@@ -84,3 +84,32 @@ test('a member replaced on the device after the claim is what the handle calls',
   assert.equal(sessionLabel(handle, 'canvas'), `canvas ${tag}`);
   assert.equal(sessionLabel(device, 'canvas'), 'canvas');
 });
+
+test('a session handle writes nothing: a member set on it never reaches the shared device', () => {
+  const device = fakeDevice();
+  const { device: handle } = claimGpuDevice(device, owner());
+  const createBuffer = device.createBuffer;
+  assert.throws(() => {
+    (handle as { createBuffer: unknown }).createBuffer = () => null;
+  }, /read-only/);
+  assert.throws(() => Object.defineProperty(handle, 'label', { value: 'x' }), /read-only/);
+  assert.equal(device.createBuffer, createBuffer);
+  assert.equal(Object.hasOwn(device, 'label'), false);
+});
+
+test('a label is tagged once, then read back; every texture shares one view function', () => {
+  const device = fakeDevice();
+  const { device: handle, tag } = claimGpuDevice(device, owner());
+  const a = handle.createBuffer({ size: 4, usage: 0, label: 'rows' }).label;
+  const b = handle.createBuffer({ size: 4, usage: 0, label: 'rows' }).label;
+  assert.equal(a, `rows ${tag}`);
+  assert.equal(a, b);
+  const descriptor = { size: [1, 1], format: 'r8unorm', usage: 0 } as const;
+  const one = handle.createTexture(descriptor),
+    two = handle.createTexture(descriptor);
+  assert.equal(one.createView, two.createView);
+  // The caller's descriptor is never written.
+  const view = { label: 'level' };
+  assert.equal(one.createView(view).label, `level ${tag}`);
+  assert.deepEqual(view, { label: 'level' });
+});

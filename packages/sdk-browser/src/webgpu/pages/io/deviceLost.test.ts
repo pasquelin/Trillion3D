@@ -110,6 +110,10 @@ test("an error of the session closed on the device is never the next one's loss"
   assert.equal(said.length, 1);
   assert.equal(said[0].kind, 'warning');
   assert.match(String(said[0].message), /is destroyed/);
+  // The second is not said again, but counted in the first warning.
+  const { session, count } = said[0].errors as { session: string; count: number };
+  assert.equal(old.endsWith(session), true);
+  assert.equal(count, 2);
   // An error naming one of its own objects is its own.
   uncaptured(labels.at(-1)!);
   assert.throws(() => second.backend.render(camera()), /WEBGPU_LOST/);
