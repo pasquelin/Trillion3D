@@ -46,15 +46,26 @@ export function createShadowRequests(
     /** Allocation keys: the coarsest first, then in report order, packed into one number. */
     order = new Float64Array(CAP),
     scratch = new Int32Array(4);
-  const counts = { requested: 0, allocated: 0, refused: 0, latest: -1 };
+  /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`). */
+  const counts = { requested: 0, allocated: 0, refused: 0, unlisted: 0, latest: -1 };
   return {
     counts,
     /** Frame of the latest report read: the pages it named are the ones the image reads now. */
     get latest() {
       return counts.latest;
     },
+    /**
+     * True when the last report read changed nothing and asks for nothing the pool could still
+     * take. A refusal is such a request: a page is refused only when every page of the pool is
+     * one the report named. So is an entry past the list, once the named ones fill the pool —
+     * the list holds at least as many entries as the pool holds pages (`shadowPoolSide`).
+     */
+    get complete() {
+      return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
+    },
     consume(report: ShadowRequestReport, nowMs: number, frame: number) {
       counts.requested = Math.min(report.count, CAP);
+      counts.unlisted = report.count - counts.requested;
       counts.allocated = 0;
       counts.refused = 0;
       if (report.layoutEpoch !== table.layoutEpoch) return;
@@ -109,7 +120,7 @@ export function createShadowRequests(
       }
     },
     reset() {
-      counts.requested = counts.allocated = counts.refused = 0;
+      counts.requested = counts.allocated = counts.refused = counts.unlisted = 0;
       counts.latest = -1;
     },
   };

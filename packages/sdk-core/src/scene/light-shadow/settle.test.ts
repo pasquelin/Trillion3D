@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import type { SceneLight } from '../light/contracts.ts';
+import { LIGHT_SETTINGS, type SceneLight } from '../light/contracts.ts';
 import { SUN, cycle, lampPages, planFrame, sunPages } from './lightShadow.fixture.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
@@ -100,4 +100,56 @@ test('two different GPU samples, budget suspended: the queue drains in both case
     leftover.push(drain(setup, 8) === null ? setup.plan.counts.pendingPages : 0);
   }
   assert.deepEqual(leftover, [0, 0]);
+});
+
+/** A point light over a pool of 4 × 4 pages, planned once; `face` at mip 2 is 64 pages. */
+function smallPool() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 4);
+  store.add(pointLight('lamp', true));
+  planFrame(plan, store, 0);
+  return { store, plan, fine: lampPages(plan, store.sliceOf(0), 0, 2) };
+}
+
+test('a read set larger than the pool maps what fits, then holds: the rest waits for nothing', () => {
+  const { store, plan, fine } = smallPool();
+  let frame = 1;
+  for (; frame < DRAIN && !(plan.counts.pendingPages === 0 && plan.settled(store)); frame++)
+    cycle(plan, store, frame, () => fine);
+  assert.ok(frame < DRAIN, 'the image holds');
+  assert.equal(plan.pool.used, 16);
+  assert.equal(
+    plan.requests.counts.refused,
+    fine.length - 16,
+    'and publishes what it could not map',
+  );
+});
+
+test('a report past its list holds only once the pages it listed fill the pool', () => {
+  const { store, plan, fine } = smallPool();
+  // One page read, then entries of no light up to the list's end, and more past it.
+  const filler = Array.from(
+    { length: LIGHT_SETTINGS.shadowRequestCap - 1 },
+    (_, i) => (1 << 19) + i,
+  );
+  const truncated = (frame: number, listed: number[]) =>
+    plan.receive({
+      frame,
+      layoutEpoch: plan.table.layoutEpoch,
+      stamp: plan.stamp(store),
+      count: LIGHT_SETTINGS.shadowRequestCap + 100,
+      entries: Uint32Array.from([...listed, ...filler].slice(0, LIGHT_SETTINGS.shadowRequestCap)),
+    });
+  for (let frame = 1; frame < 4; frame++) {
+    truncated(frame, fine.slice(0, 1));
+    planFrame(plan, store, frame + 1);
+    plan.commit();
+  }
+  assert.equal(plan.settled(store), false, 'the pool has room for what the list left out');
+  for (let frame = 4; frame < 8; frame++) {
+    truncated(frame, fine.slice(0, 16));
+    planFrame(plan, store, frame + 1);
+    plan.commit();
+  }
+  assert.equal(plan.settled(store), true, 'the listed pages fill the pool: nothing more fits');
 });

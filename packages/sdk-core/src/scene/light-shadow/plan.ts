@@ -142,22 +142,15 @@ export function createShadowPlan(capacity: number, poolSide: number) {
           read = report;
         report = null;
         requests.consume(read, nowMs, frame);
-        if (read.stamp === before && !requests.counts.allocated && !requests.counts.refused)
-          settledStamp = stampOf(store);
+        if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
       const waiting = admission.run(pool, table, records, sun, budget, requests.latest, frame);
       for (let i = 0; i < admission.count; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);
       }
-      counts.endFrame(
-        pool,
-        records,
-        requests.latest,
-        waiting + requests.counts.refused,
-        nowMs,
-        frame,
-      );
+      // What the pool cannot hold waits for nothing: it is published, never pending.
+      counts.endFrame(pool, records, requests.latest, waiting, nowMs, frame);
       return admission.count;
     },
     /** The frame's pages were encoded, each in its `modes` entry: their draws land before

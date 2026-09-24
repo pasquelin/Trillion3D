@@ -131,6 +131,13 @@ export function createShadowPool(side: number) {
       valid[page] = 0;
       table.write(owner[page], page | PAGE_MAPPED);
     },
+    /** True when every page is taken and was asked for by the report of `reportFrame` or a later
+     *  one: the pool can hold no more of what that report read. */
+    heldBy(reportFrame: number) {
+      if (freeCount) return false;
+      for (let page = 0; page < pages; page++) if (requested[page] < reportFrame) return false;
+      return true;
+    },
     /** Unmaps the page: its entry reads nothing, and the page returns to the free list. */
     release(table: ShadowTable, page: number) {
       if (owner[page] < 0) return;

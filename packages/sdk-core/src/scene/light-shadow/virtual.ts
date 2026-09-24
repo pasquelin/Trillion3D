@@ -56,13 +56,16 @@ const PORTABLE_TEXTURE_SIDE = 8192;
  * At 1280 × 720: 20 × 12 tiles, 1 280 pages a frame, 2 560 held — 51 × 51 pages, a 6 528² depth
  * texture of 163 MiB, and as much for the static layer once something moves. The side is capped
  * where the atlas would pass the texture side every WebGPU device offers (64 pages, 4 096 pages):
- * from 1920 × 1080 on, the pool is that cap.
+ * from 1920 × 1080 on, the pool is that cap. It never holds more pages than a report lists
+ * (`shadowRequestCap`): a report whose list is full then names at least as many pages as the pool
+ * keeps, and what it names past its list is what the pool could not hold anyway.
  */
 export function shadowPoolSide(width: number, height: number) {
   const tiles = (pixels: number) => Math.ceil((2 * Math.max(1, pixels)) / SHADOW_PAGE);
   const perFrame = Math.ceil((4 * 4 * tiles(width) * tiles(height)) / 3);
   const side = Math.ceil(Math.sqrt(2 * perFrame));
-  return Math.min(side, Math.floor(PORTABLE_TEXTURE_SIDE / SHADOW_PAGE));
+  const listed = Math.floor(Math.sqrt(LIGHT_SETTINGS.shadowRequestCap));
+  return Math.min(side, Math.floor(PORTABLE_TEXTURE_SIDE / SHADOW_PAGE), listed);
 }
 /** Entries of a sun level, of a whole sun, of one lamp face (every mip). */
 export const SUN_LEVEL_ENTRIES = SUN_WINDOW * SUN_WINDOW;

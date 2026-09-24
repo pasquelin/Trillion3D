@@ -174,6 +174,7 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowPagesCached: lights.plan.counts.cachedPages,
     shadowPagesInvalidated: lights.plan.counts.invalidatedPages,
     shadowPagesPending: lights.plan.counts.pendingPages,
+    shadowPagesOverflow: lights.plan.requests.counts.refused + lights.plan.requests.counts.unlisted,
     shadowWaitMs: lights.plan.counts.waitedMs,
     shadowWaitFrames: lights.plan.counts.waitedFrames,
     shadowBudgetMs: lights.plan.budget.budgetMs,

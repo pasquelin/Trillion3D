@@ -12759,7 +12759,7 @@
       },
       {
         "name": "requests",
-        "type": "{ counts: { requested: number; allocated: number; refused: number; latest: number; }; readonly latest: number; consume(report: ShadowRequestReport, nowMs: nu...",
+        "type": "{ counts: { requested: number; allocated: number; refused: number; unlisted: number; latest: number; }; readonly latest: number; readonly complete: boolean; ...",
         "desc": "The request reports read back: what the latest one named, allocated or refused."
       },
       {

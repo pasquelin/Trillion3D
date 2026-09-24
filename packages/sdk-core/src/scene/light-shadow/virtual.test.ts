@@ -16,7 +16,7 @@ import {
   sunEntry,
   tableEntriesOf,
 } from './virtual.ts';
-import { LIGHT_KIND } from '../light/contracts.ts';
+import { LIGHT_KIND, LIGHT_SETTINGS } from '../light/contracts.ts';
 
 test('a lamp entry decodes to the face, mip and page it was built from, every entry once', () => {
   const out = new Int32Array(4),
@@ -44,6 +44,10 @@ test('the pool holds two frames of four pages a 64-pixel tile, not the screen on
     'a smaller screen, a smaller pool',
   );
   assert.equal(shadowPoolSide(1920, 1080), 64, 'never past an 8192-texel atlas');
+  assert.ok(
+    shadowPoolSide(7680, 4320) ** 2 <= LIGHT_SETTINGS.shadowRequestCap,
+    'never more pages than a report lists',
+  );
 });
 
 test('a sun page keeps its entry whichever extent sees it: absolute page modulo the extent', () => {

@@ -210,9 +210,14 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   pixels asked for, and keep their early depth reject.
 - **Only stale pages the image reads are drawn**, coarse first, under the Shadows budget
   (`shadowBudgetMs`, 1.0 ms, measured on the pass's timestamps) and at most `shadowPagesPerFrame`
-  (24) a frame. A moving light stales every page it maps; an object that moves stales only the
-  mapped pages its projected box covers; a representation change stales them once the camera rests.
-  A stale page is still read until its redraw lands; a page never drawn is not read. A page is drawn
+  (24) a frame. A light that moves or changes, or a sun whose clipmap moves its projection, stales
+  every page it maps, and none is read until redrawn: its depth belongs to the old projection. An
+  object that moves stales only the mapped pages its projected box covers; a representation change
+  stales them once the camera rests. Such a page is still read until its redraw lands, while a
+  report names it; one no report names is withdrawn, since blend and water read without asking. A
+  page never drawn is not read. A report that names more pages than the pool holds — the pool never
+  holds more than a report lists (`shadowRequestCap`) — maps the coarsest, and the rest read coarser:
+  that waits for nothing, and the diagnostic counts it (`shadowPagesOverflow`). A page is drawn
   with its own projection into its physical page — viewport and scissor —, so no other page of the
   pool is touched. `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`,
   `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
