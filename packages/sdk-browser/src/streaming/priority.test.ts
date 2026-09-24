@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import { orderPendingUrls, pixelScaleOf, type PriorityRecord } from './priority.ts';
+import {
+  orderPendingUrls,
+  pixelFootprintOf,
+  pixelNearOf,
+  pixelScaleOf,
+  type PriorityRecord,
+} from './priority.ts';
 import { referenceOrder } from '../../../../bench/oracles/browser/core-math-priority.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 
@@ -117,4 +123,16 @@ test('orderPendingUrls: matrices hostile to signed zeros (aligned axes, ±0) —
     const attendu = referenceOrder(records, cam, pixelScale);
     assert.deepEqual(recu, attendu, `records ${records.map((r) => r.url)}`);
   }
+});
+
+test('the pixel footprint is 2 / (|P[5]| · height), to the bit, and scaled by near in perspective', () => {
+  const perspective = cameraMoteur(camera()).projection;
+  const orthographic = [0.1, 0, 0, 0, 0, -0.37, 0, 0, 0, 0, -0.01, 0, 0, 0, 0, 1];
+  for (const projection of [perspective, orthographic])
+    for (const height of [0, 1, 720, 1081]) {
+      const footprint = 2 / (Math.abs(projection[5]) * Math.max(1, height));
+      assert.equal(pixelFootprintOf(projection, height), footprint);
+      const near = projection[15] === 0 ? 0.1 : 1;
+      assert.equal(pixelNearOf(projection, height, 0.1), footprint * near);
+    }
 });
