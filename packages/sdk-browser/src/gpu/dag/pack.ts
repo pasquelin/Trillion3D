@@ -1,10 +1,10 @@
 import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts';
 import { REQUEST_PAGE_MAX } from './request.ts';
-import { PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from '../core/selection.ts';
+import { SELECTION_NONE as NONE } from '../core/selection.ts';
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts';
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts';
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts';
-import { CLUSTER_WORDS, coldBase } from './layout.ts';
+import { CLUSTER_WORDS, COLD_WORDS, coldBase } from './layout.ts';
 import { createRecordTable } from './packRecords.ts';
 
 /**
@@ -104,7 +104,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   const recordSlots = Math.max(1, records.count),
     coldAt = coldBase(clusterCount);
   const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
-    pageCones = new Float32Array(coldAt + recordSlots * PAGE_CONE_FLOATS);
+    pageCones = new Float32Array(coldAt + recordSlots * COLD_WORDS);
   new Uint32Array(pageCones.buffer).set(pageWorlds);
   records.finish(clusters, pageCones, coldAt);
   return {
