@@ -1,6 +1,7 @@
-import type { HostColour, HostPlaced, HostTraversable } from '../host/resources.ts';
+import type { HostColour } from '../host/resources.ts';
 import { isLightNode, isPlacedLight, type GraphAnyLight } from '../host/graph/kinds.ts';
 import { shownChain } from '../placement/hidden.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * Browser boundary: the lights a source graph declares, placed in the graph an engine publishes.
@@ -37,9 +38,9 @@ export type HostLightScene = { add(node: unknown): void; remove(node: unknown): 
 
 /** What a copied light aims at: `from` is the target the source declared, read every update;
  *  `to` is the node of the display graph the copy points at in its place. */
-type Aim = { from: HostPlaced; to: AimNode };
+type Aim = { from: Object3D; to: AimNode };
 
-function sceneLights(source: HostTraversable): GraphAnyLight[] {
+function sceneLights(source: Object3D): GraphAnyLight[] {
   const lights: GraphAnyLight[] = [];
   source.traverse((object) => {
     if (isLightNode(object)) lights.push(object);
@@ -47,7 +48,7 @@ function sceneLights(source: HostTraversable): GraphAnyLight[] {
   return lights;
 }
 /** World position of a placed object: the translation column of its resolved world matrix. */
-function placeAt(into: AimNode, from: HostPlaced) {
+function placeAt(into: AimNode, from: Object3D) {
   const elements = from.matrixWorld.elements;
   into.position.x = elements[12];
   into.position.y = elements[13];
@@ -62,7 +63,7 @@ function placeAt(into: AimNode, from: HostPlaced) {
  */
 export function installSceneLighting(
   scene: HostLightScene,
-  source: HostTraversable,
+  source: Object3D,
   /** An empty node of that graph: what a copied light aims at. The engine poses it, the host
    *  makes it — the source's own target belongs to the source graph and stays there. */
   aimNode: () => AimNode,

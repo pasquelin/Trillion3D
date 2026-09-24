@@ -18,9 +18,9 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const coupe = (await import(`${options.modulesUrl}cutPage.ts`)) as typeof PageCoupe;
   // The Three witness does not read the contract's light store: the harness, a host like any
   // other, itself places in Three the lights that store declares (`witnessPage.ts`).
-  // A dist older than the graph light group exports no `GraphGroup`: its witness gets none.
+  // A dist whose witness entry exports no light group `Group` gives its witness none.
   const lighting =
-    options.witness && sdk.GraphGroup
+    options.witness && sdk.Group
       ? (
           (await import(`${options.modulesUrl}witnessPage.ts`)) as typeof PageTemoin
         ).creerEclairageTemoin(sdk)

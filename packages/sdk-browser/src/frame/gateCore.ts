@@ -1,4 +1,3 @@
-import type { HostGraphNode } from '../host/scene/graphNodes.ts';
 import {
   bumpResources,
   bumpScene,
@@ -17,6 +16,7 @@ import {
 } from '../camera/world.ts';
 import { resolvePixelError } from '../page/selection/selection.ts';
 import type { HostWorldPlacements } from '../host/world/placements.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 export type FrameGateCore = ReturnType<typeof createFrameGateCore>;
 
@@ -103,7 +103,7 @@ export function createFrameGateCore(holdValues: number) {
      * instance, a light set after the fact, a node reparented or a light retargeted by the host
      * — never per frame, and never after a pose write, which changes no node's membership.
      */
-    readScene(source: HostGraphNode, drawn: FrameGateSources) {
+    readScene(source: Object3D, drawn: FrameGateSources) {
       const observe = () =>
         sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
       if (watchRevision !== revisions.scene) observe();
@@ -161,7 +161,7 @@ export function createFrameGateCore(holdValues: number) {
       camera: HostCamera,
       motion: CameraMotion,
       viewport: readonly [number, number] | undefined,
-      source: HostGraphNode,
+      source: Object3D,
       drawn: FrameGateSources,
       /** Aspect ratio the image is drawn at, when a second view renders aside at its own. */
       aspect?: number,

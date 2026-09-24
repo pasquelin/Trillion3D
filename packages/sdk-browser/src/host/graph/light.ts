@@ -4,7 +4,8 @@
  */
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { GraphNode, type GraphLightKind } from './node.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { cloneNode, GraphNode, type GraphLightKind } from './node.ts';
 
 export type { GraphLightKind } from './node.ts';
 
@@ -27,7 +28,7 @@ export class GraphLight extends GraphNode {
   /** How soft a spot light's edge is, 0 to 1. */
   penumbra?: number;
   /** What a directional or spot light aims at. */
-  declare target?: GraphNode;
+  declare target?: Object3D;
   /** The kind of light. */
   override readonly kind: GraphLightKind;
   constructor(kind: GraphLightKind, colour = new Color().setRGB(1, 1, 1)) {
@@ -46,7 +47,7 @@ export class GraphLight extends GraphNode {
       // Stands one unit up until placed, and aims at the origin, as the reference's light does.
       this.position.set(0, 1, 0);
       this.updateMatrix();
-      this.target = new GraphNode();
+      this.target = new Object3D();
     }
   }
   protected override get looksDownNegativeZ() {
@@ -65,7 +66,7 @@ export class GraphLight extends GraphNode {
     this.angle = light.angle;
     this.penumbra = light.penumbra;
     // The copy aims at a copy of the target, outside the graph, as the reference's does.
-    if (light.target) this.target = light.target.clone();
+    if (light.target) this.target = cloneNode(light.target);
     return this;
   }
 }

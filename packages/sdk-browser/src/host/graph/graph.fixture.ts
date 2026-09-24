@@ -18,7 +18,7 @@ import { GraphGeometry } from './geometry.ts';
 import { GraphMesh } from './mesh.ts';
 import { GraphSurface, type GraphSurfaceFamily } from './surface.ts';
 import { GraphTexture } from './texture.ts';
-import { GraphNode } from './node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 
 export { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
@@ -33,8 +33,9 @@ export { GraphAttribute, GraphInterleavedAttribute, GraphInterleavedBuffer } fro
 export { GraphCamera } from './camera.ts';
 export { GraphGeometry } from './geometry.ts';
 export { GraphLight } from './light.ts';
-export { GraphGroup, GraphMesh } from './mesh.ts';
-export { GraphNode } from './node.ts';
+export { GraphMesh } from './mesh.ts';
+export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+export { GraphNode, cloneNode } from './node.ts';
 export { GraphScene } from './scene.ts';
 export { GraphSurface } from './surface.ts';
 export { GraphTexture } from './texture.ts';
@@ -150,13 +151,13 @@ export const xyz = (v: { x: number; y: number; z: number }) => [v.x, v.y, v.z];
 export const xyzw = (q: { x: number; y: number; z: number; w: number }) => [q.x, q.y, q.z, q.w];
 
 /** Where a node stands in the world, its chain resolved first. */
-export function worldPosition(node: GraphNode, target = new Vector3()) {
+export function worldPosition(node: Object3D, target = new Vector3()) {
   return target.setFromMatrixPosition(resolveCameraWorld(node).matrixWorld);
 }
 
 /** The first node of the subtree with that name, the root included. */
-export function byName(root: GraphNode, name: string) {
-  let found: GraphNode | undefined;
+export function byName(root: Object3D, name: string) {
+  let found: Object3D | undefined;
   root.traverse((node) => {
     if (!found && node.name === name) found = node;
   });

@@ -12,7 +12,6 @@ import { loadPreparedScene } from '../scene/scene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
 import { findGraphNode, modelNode } from './modelNodes.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
@@ -61,9 +60,9 @@ export class LoadedModel extends Object3D {
     return this.add(...nodes);
   }
   /** The scene node standing for each graph node a page looked up, and for its ancestors. */
-  private readonly looked = new Map<HostGraphNode, Object3D>();
+  private readonly looked = new Map<Object3D, Object3D>();
   /** The scene node of `graph`, built with its missing ancestors on first ask (`modelNode`). */
-  private nodeOf(graph: HostGraphNode): Object3D {
+  private nodeOf(graph: Object3D): Object3D {
     let node = this.looked.get(graph);
     if (node) return node;
     node = modelNode(graph);

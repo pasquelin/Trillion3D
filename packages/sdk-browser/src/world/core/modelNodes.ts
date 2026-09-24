@@ -1,11 +1,10 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 
 /** The graph node each scene node of a loaded model stands for. */
-const sources = new WeakMap<Object3D, HostGraphNode>();
+const sources = new WeakMap<Object3D, Object3D>();
 
 /** The first graph node named `name` from `graph` down, depth first: a scene walk's order. */
-export function findGraphNode(graph: HostGraphNode, name: string): HostGraphNode | undefined {
+export function findGraphNode(graph: Object3D, name: string): Object3D | undefined {
   if (graph.name === name) return graph;
   for (const child of graph.children) {
     const found = findGraphNode(child, name);
@@ -20,7 +19,7 @@ export function findGraphNode(graph: HostGraphNode, name: string): HostGraphNode
  * (`LoadedModel.getObjectByName`), so a world of a million nodes holds none it was not asked
  * for. A move is written back into the graph node (`writeModelNode`).
  */
-export function modelNode(graph: HostGraphNode): Object3D {
+export function modelNode(graph: Object3D): Object3D {
   const node = new Object3D();
   node.name = graph.name;
   // A graph node whose matrix is its pose may carry no pose fields: the matrix is read instead.
