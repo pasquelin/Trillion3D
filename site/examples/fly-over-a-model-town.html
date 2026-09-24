@@ -385,10 +385,10 @@
         // impact — the jet scrapes along and the instructor climbs away. On the ground the jet
         // stays level until it has the speed to lift its nose.
         const [floor, landable] = ground(S.pos[0], S.pos[2]), agl = S.pos[1] - GEAR - floor, sink = (from[1] - S.pos[1]) / dt;
-        const vel = S.pos.map((p, i) => (p - from[i]) / dt), slope = groundNormal(ground, S.pos[0], S.pos[2]);
+        const vel = S.pos.map((p, i) => (p - from[i]) / dt), normal = groundNormal(ground, S.pos[0], S.pos[2]);
         if (agl < 0) {
           if (landable && S.gearDown && (S.onGround || sink < HARD) && attitude(S.q).up[1] > 0.9) S.onGround = true;
-          else if (expert || -dot(vel, slope) > HARD) return void (S.crashed = true);
+          else if (expert || -dot(vel, normal) > HARD) return void (S.crashed = true);
           else S.q = level(attitude(S.q).heading, Math.max(attitude(S.q).pitch, 5 * deg));
           S.pos[1] = floor + GEAR;
         } else if (agl > 0.3) S.onGround = false;
