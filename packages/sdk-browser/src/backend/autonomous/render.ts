@@ -9,6 +9,8 @@ import type { installSceneLighting } from '../../lighting/sceneLighting.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 import type { CameraMotion, HostCamera } from '../../camera/world.ts';
 import type { HostWorldPlacements } from '../../host/world/placements.ts';
+import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
+import { showBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import { attachedPages } from '../../placement/autonomousPlacements.ts';
 import { followHostVisibility } from '../../placement/hidden.ts';
 import type { createGeometryBudget } from './pool.ts';
@@ -44,6 +46,8 @@ export function createAutonomousRender(options: {
   gate: WebglFrameGate;
   lighting: ReturnType<typeof installSceneLighting>;
   roots: ClusterRoot<PageRec>[];
+  /** The transparent copies the scene draws whole, hidden with their source node. */
+  blendCopies: readonly BlendCopy[];
   /** The engine's world-matrix index, rebuilt once per scene revision. */
   worlds: HostWorldPlacements;
   shown: PageRec[];
@@ -63,6 +67,7 @@ export function createAutonomousRender(options: {
     gate,
     lighting,
     roots,
+    blendCopies,
     worlds,
     shown,
     desired,
@@ -104,9 +109,14 @@ export function createAutonomousRender(options: {
     // The cut fits the pool in this image: its threshold is searched from the last image's.
     selectOptions.pixelError = gate.pixelError;
     // Copied world matrices and lights are a function of the scene only.
-    // A node the host hid or showed parks its roots or takes them back (`placement/hidden.ts`).
+    // A node the host hid or showed parks its roots and hides its copies, or takes them back
+    // (`placement/hidden.ts`).
     if (gate.updateWorlds(worlds)) {
-      followHostVisibility(roots);
+      followHostVisibility(roots, {
+        entries: blendCopies,
+        sourceOf: (copy) => copy.userData.sourceMesh,
+        flipped: showBlendCopy,
+      });
       lighting.update();
     }
     const selected = selectVisiblePages(roots, gate.cam, selectOptions, shown);
