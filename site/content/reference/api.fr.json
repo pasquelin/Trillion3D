@@ -1212,7 +1212,8 @@
       "options.pixelRatio": "Combien de pixels d’image par pixel d’écran.",
       "options.controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
       "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
-      "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors."
+      "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
+      "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -2766,8 +2767,7 @@
     "summary": "Réglages publiés de l’éclairage direct.",
     "description": "Ce sont des choix produit nommés, pas des constantes enterrées : chaque limite à l’exécution les relit, et le diagnostic les publie tels quels.",
     "members": {
-      "maxLights": "Lumières que le contrat accepte au total ; au-delà, `addLight` refuse.",
-      "maxLightsPerTile": "Lumières que garde une tuile d’écran ; la boucle par pixel est bornée par ce nombre (X2).",
+      "maxLights": "Lumières que le contrat accepte au total ; au-delà, `addLight` refuse. Une tuile d’écran garde chacune de celles qui la touchent ; sa liste et la boucle par pixel sont bornées par ce nombre (X2).",
       "tileSize": "Côté en pixels d’une tuile d’écran de la liste de lumières.",
       "samplesPerPixel": "Lumières éclairées en entier — lecture de l’ombre comprise — par pixel d’une image EN MOUVEMENT (X2) : les autres sont pesées sans leur ombre, et celles qu’on éclaire sont tirées au sort en proportion, donc l’estimation est sans biais et l’anticrénelage temporel en fait la moyenne. Une image immobile éclaire chaque lumière de sa tuile et converge vers la somme exacte ; là, ce nombre ne joue aucun rôle.",
       "shadowPage": "Côté d’une page de l’atlas d’ombres, en texels : la case d’invalidation d’une face. Un objet qui bouge ne rend périmées que les pages que couvre sa boîte projetée, jamais toute la face.",
@@ -2860,6 +2860,7 @@
       "bounds": "La boîte que remplit le modèle, dans son propre repère.",
       "lights": "Les lumières sous le modèle — celles que portait le fichier source, en nœuds : une page les modifie, les déplace ou les retire comme les siennes, et elles bougent avec le modèle.",
       "record": "Tout ce que le monde garde sur ce modèle : ses adresses, son manifeste et son graphe.",
+      "getObjectByName": "Le premier nœud en dessous portant ce nom : le modèle, un nœud de son fichier source, puis tout autre enfant — une lumière portée par le fichier, un nœud placé par une page.",
       "metadata": "Le manifeste compilé du modèle — ses primitives, `sourceTriangles` — et `clusters`, les clusters que contiennent ses pages, chaque niveau de ses DAG compté.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas."
     }
@@ -6328,6 +6329,10 @@
     "summary": "La lumière qui rebondit sur les surfaces, tracée contre le proxy résident ; éteinte par défaut.",
     "description": "Un changement s’applique sur place sur un chemin qui le porte, et est pris à la prochaine ouverture sur un chemin qui ne le porte pas."
   },
+  "world.temporalAntialiasing": {
+    "summary": "L’anticrénelage temporel : un décalage sous-pixel accumulé au fil des images ; activé par défaut.",
+    "description": "Écrit, il prend effet à l’image suivante, historique abandonné, sans rouvrir de session. Lu, c’est ce que porte l’image : false en WebGL2, et pendant que le programme se compile après l’avoir activé."
+  },
   "world.budget": {
     "summary": "Les réservoirs de mémoire du monde, lus et réglés en octets.",
     "members": {
@@ -6520,7 +6525,8 @@
       "pixelRatio": "Combien de pixels d’image par pixel d’écran.",
       "controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
       "signal": "Arrête les chargements du monde quand le signal est annulé.",
-      "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors."
+      "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
+      "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {

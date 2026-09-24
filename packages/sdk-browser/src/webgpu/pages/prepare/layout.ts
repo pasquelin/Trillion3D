@@ -1,7 +1,6 @@
 import type { PageRec } from '../../../page/selection/selection.ts';
 import { createWebgpuRowState } from '../../row/state.ts';
 import { pageAddress } from '../../row/pageSlots.ts';
-import { createBoxCorners } from '../../../hiz/hiz.ts';
 import { CORNER_VALUES } from '../../../gpu/partition/contract.ts';
 import { DRAW_ITEM_U32 } from '../../../gpu/draw/draw.ts';
 import { createCornerUploadHold } from '../../visibility/corners.ts';
@@ -47,14 +46,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   const rows = createWebgpuRowState(packedPages, drawSlots);
   /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
   const rasterCapacity = drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3);
-  /**
-   * World-space corners of every page's box, kept across images and rebuilt only when the epoch of the
-   * shared inputs changes — the same epoch a row is rewritten on. A moving camera reprojects them every
-   * image; it no longer retransforms them, and the projection itself no longer runs on this side.
-   */
-  const boxCorners = createBoxCorners(packedPages.length);
-  /** The same corners, per ROW and in single precision: what the GPU partition reads. They are
-   *  rewritten only on the table's dirty range, never per image. */
+  /** World-space corners per ROW, in single precision: what the GPU partition reads. They are
+   *  derived from each page's local bounds and rewritten only on the table's dirty range. */
   const cornerPacked = new Float32Array(drawSlots * CORNER_VALUES);
   const cornerHold = createCornerUploadHold();
   /** Draw rows, held from one image to the next: only a changing row rewrites them. */
@@ -74,7 +67,6 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
     drawSlots,
     rows,
     rasterCapacity,
-    boxCorners,
     cornerPacked,
     cornerHold,
     drawItemWords,
