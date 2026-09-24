@@ -10,12 +10,13 @@ import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
  */
 export const DIRECT_LIGHT_WGSL = `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
-/** A tile carries two lists: four header words — kept and requested of each —, the
- *  opaque list, then the blend one, which covers a deeper depth slice. */
-const TILE_STRIDE:u32=${LIGHT_SETTINGS.maxLightsPerTile * 2 + 4}u;
-const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.maxLightsPerTile + 4}u;
-const MAX_TILE_LIGHTS:u32=${LIGHT_SETTINGS.maxLightsPerTile}u;
+/** A tile carries two lists: two header words — the count of each —, the opaque list, then
+ *  the blend one, which covers a deeper depth slice. Each list has room for every light the
+ *  contract accepts, so a tile never drops one, however many touch it. */
 const MAX_LIGHTS:u32=${LIGHT_SETTINGS.maxLights}u;
+const TILE_STRIDE:u32=${LIGHT_SETTINGS.maxLights * 2 + 2}u;
+const TILE_OPAQUE_BASE:u32=2u;
+const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.maxLights + 2}u;
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
 const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
