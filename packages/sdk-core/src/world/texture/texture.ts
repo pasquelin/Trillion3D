@@ -73,15 +73,18 @@ export class Texture {
     this.layout = layout;
     this.format = format;
     const placed = () => this.touch('placement');
-    listen(this.repeat, placed);
-    listen(this.offset, placed);
+    const unplaced = { repeat: listen(this.repeat, placed), offset: listen(this.offset, placed) };
     // A word written after creation reaches the materials that sample this texture; a new vector
-    // for `repeat` or `offset` is heard like the one it replaces.
+    // for `repeat` or `offset` is heard like the one it replaces, and the old one no longer is.
     return new Proxy(this, {
       set(target, key, value) {
+        if ((key === 'repeat' || key === 'offset') && target[key] === value) return true;
         Reflect.set(target, key, value);
         if (typeof key !== 'string' || COUNTERS.has(key)) return true;
-        if (key === 'repeat' || key === 'offset') listen(value, placed);
+        if (key === 'repeat' || key === 'offset') {
+          unplaced[key]();
+          unplaced[key] = listen(value, placed);
+        }
         target.touch(COUNTER[key] ?? 'version');
         return true;
       },

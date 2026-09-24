@@ -45,13 +45,26 @@ export class ObservedComponents extends Observed {
   }
 }
 
-/** Chains `listener` after whatever the value already notified, so two owners both hear it. */
-export function listen(value: Observed, listener: () => void) {
-  const previous = value._onChange;
-  value._onChange = previous
-    ? () => {
-        previous();
-        listener();
-      }
-    : listener;
+/** Every listener `listen` hung on a value, called in the order they were added. */
+const heard = new WeakMap<Observed, Set<() => void>>();
+
+/** Adds `listener` after whatever the value already notified, so two owners both hear it; the
+ *  returned function removes that listener alone. */
+export function listen(value: Observed, listener: () => void): () => void {
+  const listeners = heard.get(value) ?? hear(value);
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Makes `value` call every listener of its set, the one it already had first. */
+function hear(value: Observed) {
+  const listeners = new Set<() => void>();
+  if (value._onChange) listeners.add(value._onChange);
+  value._onChange = () => {
+    for (const listener of listeners) listener();
+  };
+  heard.set(value, listeners);
+  return listeners;
 }
