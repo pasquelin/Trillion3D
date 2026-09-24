@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, opening, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -94,7 +94,6 @@
 
       let meaning = null, view = 'lit', shownExposure = 1;
       const ui = controls({
-        mouse: 'Drag to walk round the court; switch the view to see the surfaces as the renderer stores them',
         see: ['lit', 'normals', 'depth'],
         spin: true,
       }, (values, key) => {
@@ -113,21 +112,15 @@
 
       // The opening: the camera glides down from high above to the court. A press or a wheel on
       // the canvas hands the camera to the viewer at once.
-      let flying = true, time = 0, turn = 0;
-      const stop = () => (flying = false);
-      world.canvas.addEventListener('pointerdown', stop);
-      world.canvas.addEventListener('wheel', stop, { passive: true });
       const FROM = [4, 16, 30], TO = [9, 4.8, 12];
-      const ease = (t) => 1 - (1 - t) ** 3;
+      opening(world, (time) => {
+        const t = ease.out(time / 3.2);
+        world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * t));
+        return t < 1;
+      });
+      let turn = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
-        time += step;
-        if (flying) {
-          const t = ease(Math.min(1, time / 3.2));
-          world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * t));
-          world.controls.update();
-          if (t >= 1) flying = false;
-        }
         if (ui.spin) turn += step;
         knot.rotation.set(0, turn * 0.5, 0);
         for (const { mesh, speed, tilt } of turners) mesh.rotation.set(tilt, turn * speed, 0);

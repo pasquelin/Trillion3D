@@ -75,7 +75,6 @@
       let edgeCount = null;
       const segments = (list) => list.reduce((sum, { geometry: lines }) => sum + lines.attributes.position.count / 2, 0);
       const ui = controls({
-        mouse: 'Drag to look around; raise the threshold to keep only the sharp creases',
         view: ['surface and edges', 'edges', 'wireframe', 'surface and wireframe', 'surface'],
         threshold: [1, 90, 20, 1],
         lines: '#e8f1ff',

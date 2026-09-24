@@ -45,7 +45,6 @@
       // their values; `fromJSON` builds it again. The grid is a helper mark: it is not saved.
       let saved = world.scene.toJSON(world.camera);
       controls({
-        help: 'Knock the tower down, then open the saved scene again.',
         knockDown: () => {
           // Found by name: the tower `fromJSON` builds again is a new group.
           world.scene.getObjectByName('tower').children.forEach((block, i) => {

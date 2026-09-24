@@ -69,8 +69,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     frame: frames.dispatch,
     drawn: () => frames.last !== null,
     display: () => ({ exposure, toneMapping }),
-    notices: diagnostic.notices,
-    failed: (error) => console.error('World session failed', error),
+    diagnostic,
   });
   /** The camera outside the scene still redraws when it moves. */
   const cameraLink: SceneLink = { pose: invalidate, structure: () => {}, content: () => {} };
@@ -143,11 +142,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       if (session && !session.setBounce(on)) runtime.renew();
       invalidate();
     },
-    /** The world's memory pools, read and set in bytes. */ budget: worldBudget(
-      pools,
-      () => runtime.explorer,
-      () => frames.last,
-    ),
+    /** The world's memory pools, read and set in bytes. */
+    budget: worldBudget(pools, runtime, frames, () => renderer),
     diagnostic: diagnostic.handle,
     /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
      *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */

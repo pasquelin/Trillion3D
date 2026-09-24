@@ -33,11 +33,17 @@
       "CPU frame": "immagine CPU",
       "page hooks": "codice della pagina",
       "engine CPU": "CPU del motore"
+    },
+    "failure": {
+      "title": "Questo esempio si è fermato per un errore"
+    },
+    "banner": {
+      "close": "Chiudi"
     }
   },
   "a-city-from-rules": {
+    "banner": "Trascina per volare intorno. Muovi un cursore e la città si ricostruisce.",
     "controls": {
-      "mouse": "Trascina per volare intorno; ogni impostazione ricostruisce la città con le sue regole",
       "blocks": "Isolati",
       "maxHeight": "Altezza max",
       "density": "Densità",
@@ -52,8 +58,8 @@
     }
   },
   "a-cloud-of-points": {
+    "banner": "Trascina per girare intorno alla nuvola. Scegli un'altra forma e guardala cambiare.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla nuvola; scegli un'altra forma e la vecchia si avvolge e sparisce mentre la nuova si apre",
       "shape": "Forma",
       "spin": "Rotazione"
     },
@@ -71,6 +77,7 @@
     }
   },
   "a-colour-ramp-in-linear-light": {
+    "banner": "Scegli un colore e guarda la luce portarlo dal buio al chiaro.",
     "controls": {
       "colour": "Colore",
       "glow": "Bagliore",
@@ -78,6 +85,7 @@
     }
   },
   "a-field-of-pebbles": {
+    "banner": "Trascina per guardarti intorno. Muovi il sole e guarda le ombre dei sassi.",
     "controls": {
       "sunTurn": "Giro del sole",
       "sunHeight": "Altezza del sole",
@@ -86,13 +94,14 @@
     }
   },
   "a-first-world": {
+    "banner": "Trascina per girare intorno al cubo. Dagli un colore nuovo.",
     "controls": {
       "colour": "Colore"
     }
   },
   "a-game-board-seen-from-above": {
+    "banner": "Trascina per spostare la scacchiera. Scorri o pizzica per ingrandire. Frecce per muoverti.",
     "controls": {
-      "mouse": "Trascina per spostare la scacchiera · rotella o pizzico per lo zoom · frecce per muoverti",
       "play": "Gioca",
       "speed": "Velocità",
       "follow": "Segui",
@@ -106,6 +115,7 @@
     }
   },
   "a-lamp-in-its-glass": {
+    "banner": "Trascina per guardarti intorno. Fai oscillare la lanterna e guarda muoversi la luce.",
     "controls": {
       "swing": "Oscillazione",
       "lamp": "Lampada",
@@ -114,6 +124,7 @@
     }
   },
   "a-lighthouse-beam": {
+    "banner": "Trascina per guardarti intorno. Fai girare il fascio più veloce o più largo.",
     "controls": {
       "turnsPerMinute": "Giri al minuto",
       "beamWidth": "Larghezza del fascio",
@@ -121,8 +132,8 @@
     }
   },
   "a-long-shadowed-street": {
+    "banner": "Trascina per guardare la via. Cambia l'ora per allungare le ombre. Rotella per muoverti.",
     "controls": {
-      "mouse": "Trascina per guardare il viale, rotella per muoverti; sposta l'ora e le ombre si allungano sulla strada e salgono sulle facciate",
       "hour": "Ora",
       "traffic": "Traffico",
       "flyAgain": "Vola ancora"
@@ -133,8 +144,8 @@
     }
   },
   "a-matcap-sculpture": {
+    "banner": "Trascina per girare intorno alla scultura. La sua luce gira con te.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla scultura: la sua luce gira con te, perché vive nell'immagine",
       "matcap": "Matcap",
       "sculpture": "Scultura",
       "gallery": "Galleria",
@@ -157,8 +168,8 @@
     }
   },
   "a-mesh-built-by-hand": {
+    "banner": "Trascina per girare intorno alle gemme. Ognuna è costruita punto per punto. Togli le faccette nette per condividere gli angoli.",
     "controls": {
-      "mouse": "Trascina per girare intorno alle gemme; togli le faccette nette per condividere gli angoli",
       "points": "Punti",
       "waist": "Vita",
       "height": "Altezza",
@@ -172,8 +183,8 @@
     }
   },
   "a-model-from-obj": {
+    "banner": "Trascina per girare intorno alla scacchiera. Scorri per avvicinarti.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla scacchiera, rotella per avvicinarti: guarda cosa è diventato l'OBJ",
       "view": "Vista",
       "sunAngle": "Angolo del sole",
       "sunHeight": "Altezza del sole",
@@ -192,8 +203,8 @@
     }
   },
   "a-model-from-usdz": {
+    "banner": "Trascina per girare intorno agli scacchi. Scorri giù fino ai pezzi.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla scacchiera; scendi con la rotella fino ai pezzi",
       "view": "Vista",
       "turn": "Gira"
     },
@@ -216,8 +227,8 @@
     }
   },
   "a-molecule": {
+    "banner": "Trascina per girare intorno alla molecola. Scegline un'altra e guarda volare gli atomi.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla molecola; scegline un'altra e i suoi atomi volano ai nuovi posti",
       "molecule": "Molecola",
       "style": "Stile",
       "spin": "Rotazione"
@@ -241,6 +252,7 @@
     }
   },
   "a-neon-sign": {
+    "banner": "Trascina per guardarti intorno. Fai brillare e lampeggiare il neon.",
     "controls": {
       "star": "Stella",
       "wave": "Onda",
@@ -261,6 +273,7 @@
     }
   },
   "a-ring-of-lamps": {
+    "banner": "Trascina per guardarti intorno. Aggiungi lampade e falle girare.",
     "controls": {
       "lamps": "Lampade",
       "speed": "Velocità",
@@ -269,6 +282,7 @@
     }
   },
   "a-robot-that-walks-and-waves": {
+    "banner": "Trascina per guardarti intorno. Mescola camminata, saluto e ballo.",
     "controls": {
       "walk": "Cammina",
       "wave": "Onda",
@@ -278,6 +292,7 @@
     }
   },
   "a-scene-of-your-own": {
+    "banner": "Trascina per guardarti intorno. Cambia l'ora, il vento e il tetto.",
     "controls": {
       "hour": "Ora",
       "wind": "Vento",
@@ -285,8 +300,8 @@
     }
   },
   "a-softbox-panel": {
+    "banner": "Trascina per girare intorno. Ingrandisci il pannello per ammorbidire i riflessi.",
     "controls": {
-      "mouse": "Trascina per girare intorno al set; ingrandisci il pannello e guarda i riflessi addolcirsi",
       "panelWidth": "Larghezza del pannello",
       "power": "Potenza",
       "colour": "Colore",
@@ -298,6 +313,7 @@
     }
   },
   "a-staircase-from-one-step": {
+    "banner": "Trascina per guardarti intorno. Cambia i gradini e la scala si ricostruisce.",
     "controls": {
       "climb": "Salita",
       "turnPerStep": "Rotazione per gradino",
@@ -305,6 +321,7 @@
     }
   },
   "a-terrain-from-a-height-map": {
+    "banner": "Trascina per volare sulle montagne. Cambia l'ora del giorno.",
     "controls": {
       "hour": "Ora",
       "sunColour": "Colore del sole",
@@ -312,8 +329,8 @@
     }
   },
   "a-texture-turned-and-tiled": {
+    "banner": "Trascina per guardarti intorno. Ruota e ripeti l'immagine sui muri. Il pannello in fondo è la piastrella come è stata dipinta.",
     "controls": {
-      "mouse": "Trascina per guardarti intorno; il pannello in fondo è la piastrella come è stata dipinta",
       "tile": "Piastrella",
       "wrap": "Bordo",
       "tilesAcross": "Piastrelle in larghezza",
@@ -342,8 +359,8 @@
     }
   },
   "a-tube-along-a-spline": {
+    "banner": "Trascina per guardarti intorno. Le perle scorrono lungo il tubo.",
     "controls": {
-      "mouse": "Trascina per guardarti intorno; le perle corrono sulla curva che segue il tubo",
       "path": "Percorso",
       "radius": "Raggio",
       "sides": "Lati",
@@ -364,6 +381,7 @@
     }
   },
   "a-vase-turned-on-the-lathe": {
+    "banner": "Trascina per guardarti intorno. Cambia larghezza e altezza di un vaso.",
     "controls": {
       "width": "Larghezza",
       "height": "Altezza",
@@ -372,8 +390,8 @@
     }
   },
   "a-video-on-a-screen": {
+    "banner": "Trascina per guardare la stanza. Lo schermo mostra un vero video.",
     "controls": {
-      "mouse": "Trascina per guardare la stanza; lo schermo riproduce un vero elemento video",
       "playing": "In riproduzione",
       "openVideo": "Apri video"
     },
@@ -387,8 +405,8 @@
     }
   },
   "a-video-panorama": {
+    "banner": "Trascina per guardarti tutto intorno. Apri un tuo video se vuoi. La vista gira da sola finché non premi.",
     "controls": {
-      "mouse": "Trascina per guardarti intorno; la vista gira da sola finché non premi",
       "playing": "In riproduzione",
       "fieldOfView": "Campo visivo",
       "openVideo": "Apri video"
@@ -402,8 +420,8 @@
     }
   },
   "a-wall-of-cameras": {
+    "banner": "Clicca uno schermo piccolo per vederlo in grande. Scegli cosa guarda ogni telecamera.",
     "controls": {
-      "mouse": "Clicca una telecamera per metterla sul grande schermo; di' alle telecamere cosa guardare",
       "watch": "Guarda"
     },
     "choices": {
@@ -431,6 +449,7 @@
     }
   },
   "a-wave-across-a-grid": {
+    "banner": "Trascina per guardarti intorno. Rendi l'onda di cubi più alta o più veloce.",
     "controls": {
       "height": "Altezza",
       "speed": "Velocità",
@@ -440,8 +459,8 @@
     }
   },
   "a-world-of-blocks": {
+    "banner": "Trascina per volare intorno all'isola. Alza il mare per allagare le valli.",
     "controls": {
-      "mouse": "Trascina per volare intorno all'isola; alza il mare e guarda le valli allagarsi",
       "seed": "Seme",
       "seaLevel": "Livello del mare",
       "hour": "Ora",
@@ -452,8 +471,8 @@
     }
   },
   "before-and-after-slider": {
+    "banner": "Trascina il pomello rotondo per confrontare. Trascina l'immagine per girare.",
     "controls": {
-      "mouse": "Trascina la manopola tonda per spostare la divisione; trascina l'immagine per girare intorno alla piazza",
       "before": "Prima"
     },
     "choices": {
@@ -473,8 +492,8 @@
     }
   },
   "blobs-that-merge": {
+    "banner": "Trascina per girare intorno alla lampada. Scaldala e le gocce si fondono.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla lampada; alza l'appiccicosità e le gocce si fondono tra loro",
       "stickiness": "Appiccicosità",
       "heat": "Calore",
       "wax": "Cera"
@@ -484,6 +503,7 @@
     }
   },
   "bricks-with-a-normal-map": {
+    "banner": "Trascina per guardarti intorno. Muovi la lampada e guarda il rilievo dei mattoni.",
     "controls": {
       "sweep": "Spazzata",
       "lamp": "Lampada",
@@ -492,9 +512,7 @@
     }
   },
   "click-to-pick": {
-    "controls": {
-      "help": "Clicca una forma: si illumina, e il pannello dice dove il raggio l'ha colpita."
-    },
+    "banner": "Clicca una forma. Si illumina e il pannello dice dove l'hai colpita.",
     "readouts": {
       "picked": "Scelto",
       "point": "Punto",
@@ -511,8 +529,8 @@
     }
   },
   "colours-on-the-vertices": {
+    "banner": "Trascina per girare il pianeta. Ogni angolo ha il suo colore.",
     "controls": {
-      "mouse": "Trascina per girare il pianeta; ogni vertice ha il suo colore",
       "palette": "Tavolozza",
       "seaLevel": "Livello del mare",
       "relief": "Rilievo",
@@ -528,8 +546,8 @@
     }
   },
   "compressed-textures": {
+    "banner": "Trascina per girare intorno alla fontana. Avvicinati per vedere arrivare i dettagli.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla fontana; scendi fino a una piastrella e guarda arrivare i suoi dettagli",
       "sunTurn": "Giro del sole",
       "sunHeight": "Altezza del sole"
     },
@@ -548,8 +566,8 @@
     }
   },
   "copies-along-a-path": {
+    "banner": "Trascina per guardare il parco. Aggiungi copie finché formano un tunnel.",
     "controls": {
-      "mouse": "Trascina per guardare il parco; aumenta le copie finché gli archi formano un tunnel",
       "copies": "Copie",
       "twist": "Torsione",
       "speed": "Velocità",
@@ -560,6 +578,7 @@
     }
   },
   "crates-under-a-spotlight": {
+    "banner": "Trascina per guardarti intorno. Cambia l'angolo e il colore del faro.",
     "controls": {
       "angle": "Angolo",
       "softness": "Morbidezza",
@@ -571,8 +590,8 @@
     }
   },
   "create-and-dispose": {
+    "banner": "Trascina per girare intorno. Guarda i pezzi apparire e sparire di continuo. Rotella per avvicinarti.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla fontana · rotella per avvicinarti",
       "perSecond": "Al secondo",
       "copies": "Copie",
       "burst": "Raffica",
@@ -595,8 +614,8 @@
     }
   },
   "curved-surfaces": {
+    "banner": "Trascina per girare intorno. Abbassa la griglia per vedere i triangoli di ogni curva.",
     "controls": {
-      "mouse": "Trascina per girare nella galleria; abbassa la griglia per vedere i triangoli che formano ogni curva",
       "grid": "Griglia",
       "facets": "Faccette",
       "turntable": "Piatto girevole"
@@ -614,8 +633,8 @@
     }
   },
   "dashed-lines": {
+    "banner": "Trascina per girare intorno al sole. Cambia i trattini e gli spazi.",
     "controls": {
-      "mouse": "Trascina per girare intorno al sole; cambia il trattino e lo spazio e ogni orbita segue",
       "lines": "Linee",
       "dash": "Trattino",
       "gap": "Spazio",
@@ -632,8 +651,8 @@
     }
   },
   "detail-by-pixel-error": {
+    "banner": "Trascina per percorrere il viale. Avvicinati a un'urna, poi allontanati.",
     "controls": {
-      "mouse": "Trascina per percorrere il viale; avvicinati a un'urna, poi allontanati molto",
       "pixelError": "Errore in pixel",
       "view": "Vista"
     },
@@ -656,8 +675,8 @@
     }
   },
   "edges-and-wireframe": {
+    "banner": "Trascina per guardarti intorno. Alza la soglia per tenere solo gli spigoli vivi.",
     "controls": {
-      "mouse": "Trascina per guardarti intorno; alza la soglia per tenere solo le pieghe nette",
       "view": "Vista",
       "threshold": "Soglia",
       "lines": "Linee",
@@ -678,8 +697,8 @@
     }
   },
   "every-image-format": {
+    "banner": "Trascina per passare accanto ai cavalletti. Abbassa la qualità e guarda da vicino.",
     "controls": {
-      "mouse": "Trascina per camminare lungo i cavalletti; abbassa la qualità e guarda da vicino JPEG e WebP",
       "quality": "Qualità",
       "lookAt": "Guarda"
     },
@@ -720,8 +739,8 @@
     }
   },
   "flat-shadows-on-the-floor": {
+    "banner": "Trascina per girare intorno alla meridiana. Cambia l'ora per far girare le ombre.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla meridiana; sposta l'ora e ogni ombra gira con il sole",
       "hour": "Ora",
       "darkness": "Oscurità",
       "timeLapse": "Accelerato",
@@ -735,6 +754,7 @@
     }
   },
   "fly-over-a-model-town": {
+    "banner": "Pilota il jet attraverso gli anelli. Dai gas per decollare.",
     "choices": {
       "view": {
         "cockpit": "Cabina",
@@ -800,8 +820,8 @@
     }
   },
   "four-ways-to-blend": {
+    "banner": "Trascina per guardare di lato. Ogni pannello mescola i colori a modo suo. Da sinistra a destra: normale, additivo, sottrattivo, moltiplica.",
     "controls": {
-      "mouse": "Da sinistra a destra: normale, additivo, sottrattivo, moltiplica; trascina per guardarli di lato",
       "inks": "Inchiostri",
       "opacity": "Opacità",
       "circle": "Gira intorno"
@@ -815,8 +835,8 @@
     }
   },
   "frame-the-model": {
+    "banner": "Fai doppio clic su un oggetto per inquadrarlo. Trascina per girare. Rotella per lo zoom.",
     "controls": {
-      "mouse": "Doppio clic su un oggetto per inquadrarlo; trascina per girare, rotella per lo zoom",
       "model": "Oggetto",
       "margin": "Margine",
       "drift": "Deriva"
@@ -845,8 +865,8 @@
     }
   },
   "from-a-grain-to-a-planet": {
+    "banner": "Scorri per zoomare da un granello di sabbia a tutto il pianeta. Trascina per girare.",
     "controls": {
-      "mouse": "Usa la rotella per zoomare da un granello di sabbia fino al pianeta intero; trascina per girare",
       "toTheGrain": "Al granello",
       "toTheBeach": "Alla spiaggia",
       "toTheIsland": "All'isola",
@@ -867,6 +887,7 @@
     }
   },
   "from-clay-to-chrome": {
+    "banner": "Trascina per guardarti intorno. Vedi lo stesso colore in argilla, metallo e cromo.",
     "controls": {
       "colour": "Colore",
       "lamps": "Lampade",
@@ -874,6 +895,7 @@
     }
   },
   "from-noon-to-dusk": {
+    "banner": "Trascina per guardarti intorno. Cambia l'ora da mezzogiorno alla notte.",
     "controls": {
       "speed": "Velocità",
       "hour": "Ora",
@@ -881,6 +903,7 @@
     }
   },
   "glass-on-the-table": {
+    "banner": "Trascina per guardarti intorno. Cambia come il vetro piega la luce.",
     "controls": {
       "refraction": "Rifrazione",
       "thickness": "Spessore",
@@ -889,8 +912,8 @@
     }
   },
   "helpers-to-see-the-scene": {
+    "banner": "Trascina per girare intorno. Spegni gli aiuti per vedere l'immagine pulita.",
     "controls": {
-      "mouse": "Trascina per girare intorno al set; spegni gli aiuti per vedere l'inquadratura com'è",
       "helpers": "Aiuti",
       "dolly": "Carrello",
       "bulb": "Lampadina"
@@ -908,8 +931,8 @@
     }
   },
   "inside-a-panorama": {
+    "banner": "Trascina per girare. Scorri per avvicinarti. Scegli un altro cielo.",
     "controls": {
-      "mouse": "Trascina per girare · rotella per avvicinarti",
       "sky": "Cielo",
       "fieldOfView": "Campo visivo"
     },
@@ -925,8 +948,8 @@
     }
   },
   "inside-the-g-buffer": {
+    "banner": "Trascina per girare intorno. Scegli un buffer per guardare dentro l'immagine.",
     "controls": {
-      "mouse": "Trascina per girare intorno al campo · scegli un buffer per guardare dentro l'immagine",
       "buffer": "Buffer",
       "turning": "Rotazione"
     },
@@ -954,8 +977,8 @@
     }
   },
   "instances-in-colour": {
+    "banner": "Trascina per inclinare la galassia. Scorri per tuffarti dentro.",
     "controls": {
-      "mouse": "Trascina per inclinare la galassia; usa la rotella per tuffarti dentro",
       "count": "Numero",
       "arms": "Bracci",
       "twist": "Torsione",
@@ -969,8 +992,8 @@
     }
   },
   "keyframes-by-hand": {
+    "banner": "Trascina per girare intorno alla scrivania. Guarda la lampada saltare da una chiave all'altra. Mostra le chiavi di un salto come copie pallide della lampada.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla scrivania; mostra le chiavi di un salto come copie pallide della lampada",
       "timing": "Tempi",
       "onionSkin": "Pelle di cipolla",
       "speed": "Velocità"
@@ -997,8 +1020,8 @@
     }
   },
   "labels-that-follow": {
+    "banner": "Trascina per girare intorno al Sole. Le etichette viaggiano sui pianeti. Rotella per avvicinarti.",
     "controls": {
-      "mouse": "Trascina per girare intorno al Sole, rotella per avvicinarti; le etichette viaggiano sui pianeti",
       "show": "Mostra",
       "speed": "Velocità",
       "lineThemUp": "Allineali"
@@ -1034,6 +1057,7 @@
     }
   },
   "leaves-cut-by-alpha": {
+    "banner": "Trascina per guardarti intorno. Muovi la soglia e guarda i bordi delle foglie.",
     "controls": {
       "branches": "Rami",
       "leaves": "Foglie",
@@ -1042,6 +1066,7 @@
     }
   },
   "letters-carved-in-relief": {
+    "banner": "Trascina per guardarti intorno. Passa la luce sulle lettere scolpite.",
     "controls": {
       "rake": "Inclinazione",
       "warm": "Caldo",
@@ -1050,8 +1075,8 @@
     }
   },
   "light-from-a-probe": {
+    "banner": "Trascina per girare intorno al giardino. Scegli un luogo e guarda la sua luce.",
     "controls": {
-      "mouse": "Trascina per girare nel giardino; scegli un luogo e le sculture prendono la sua luce",
       "place": "Luogo",
       "turn": "Gira",
       "strength": "Forza",
@@ -1071,8 +1096,8 @@
     }
   },
   "light-in-real-units": {
+    "banner": "Trascina per girare nella piazza. Scegli un momento, da mezzogiorno al chiaro di luna.",
     "controls": {
-      "mouse": "Trascina per girare nella piazza; scegli un momento e guarda la telecamera adattarsi, da 100 000 lux fino a una notte di luna",
       "moment": "Momento",
       "lampLumens": "Lumen dei lampioni",
       "autoExposure": "Esposizione automatica",
@@ -1100,6 +1125,7 @@
     }
   },
   "lights-from-the-scene-file": {
+    "banner": "Trascina per guardarti intorno. Queste lampade erano nel file del modello.",
     "controls": {
       "lamp": "Lampada",
       "power": "Potenza",
@@ -1107,8 +1133,8 @@
     }
   },
   "lines-in-colour": {
+    "banner": "Trascina per girare. Scegli un'altra regola e guarda la penna disegnarla.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla figura; scegli un'altra regola e la penna la ridisegna dall'inizio",
       "figure": "Figura",
       "palette": "Tavolozza",
       "pace": "Passo",
@@ -1134,6 +1160,7 @@
     }
   },
   "marble-bust-on-its-pedestal": {
+    "banner": "Trascina per girare intorno al busto. Sposta la lampada intorno alla testa.",
     "controls": {
       "lampTurn": "Giro della lampada",
       "lampHeight": "Altezza della lampada",
@@ -1146,6 +1173,7 @@
     }
   },
   "memory-on-a-budget": {
+    "banner": "Trascina per guardarti intorno. Dai meno memoria e guarda cosa resta nitido.",
     "controls": {
       "memory": "Memoria",
       "view": "Vista"
@@ -1164,8 +1192,8 @@
     }
   },
   "move-rotate-scale-gizmo": {
+    "banner": "Trascina una maniglia per spostare, ruotare o ingrandire l'oggetto. Trascina accanto per guardarti intorno.",
     "controls": {
-      "help": "Trascina una maniglia. Trascina accanto per girare la telecamera.",
       "mode": "Modalità",
       "axes": "Assi",
       "snap": "Aggancia"
@@ -1187,8 +1215,8 @@
     }
   },
   "no-hitch-on-first-draw": {
+    "banner": "Trascina per guardarti intorno. Il grafico mostra il tempo tra un'immagine e l'altra.",
     "controls": {
-      "mouse": "Trascina per guardare la galleria · il grafico è il tempo tra le immagini",
       "turning": "Rotazione",
       "revealAgain": "Mostra di nuovo"
     },
@@ -1203,8 +1231,8 @@
     }
   },
   "normals-and-depth-seen": {
+    "banner": "Trascina per girare intorno. Cambia vista per vedere cosa conserva il renderer.",
     "controls": {
-      "mouse": "Trascina per girare intorno al campo; cambia vista per vedere le superfici come le salva il renderer",
       "see": "Vedi",
       "spin": "Rotazione"
     },
@@ -1225,6 +1253,7 @@
     }
   },
   "observatory-streamed": {
+    "banner": "Trascina per guardarti intorno. Cambia vista per vedere come è diviso il modello.",
     "controls": {
       "view": "Vista",
       "pixelError": "Errore in pixel"
@@ -1240,8 +1269,8 @@
     }
   },
   "one-clip-many-objects": {
+    "banner": "Trascina per girare intorno allo stadio. Scegli come l'ola passa tra i tifosi.",
     "controls": {
-      "mouse": "Trascina per girare intorno all'arena; scegli come la stessa animazione è distribuita tra i tifosi",
       "pattern": "Schema",
       "speed": "Velocità"
     },
@@ -1258,8 +1287,8 @@
     }
   },
   "orbit-around-a-clockwork": {
+    "banner": "Trascina per girare. Trascina col tasto destro per spostare. Scorri per ingrandire gli ingranaggi.",
     "controls": {
-      "mouse": "Un visore di prodotto: trascina per girare · trascina col tasto destro per spostare · rotella per zoomare sui denti",
       "view": "Vista",
       "speed": "Velocità",
       "brass": "Ottone"
@@ -1274,6 +1303,7 @@
     }
   },
   "painted-and-textured": {
+    "banner": "Trascina per guardarti intorno. Cambia la vernice e i quadretti delle forme.",
     "controls": {
       "checks": "Quadretti",
       "paint": "Vernice",
@@ -1282,8 +1312,8 @@
     }
   },
   "reading-pixels-back": {
+    "banner": "Trascina per guardarti intorno. L'immagine piccola è la vista riletta come numeri.",
     "controls": {
-      "mouse": "Trascina per guardarti intorno · l'immagine in basso a destra è la vista riletta come numeri",
       "sunHeight": "Altezza del sole",
       "live": "Dal vivo",
       "turning": "Rotazione",
@@ -1300,8 +1330,8 @@
     }
   },
   "ride-a-roller-coaster": {
+    "banner": "Trascina per girare la testa sulla giostra. Spegnila per guardare il parco.",
     "controls": {
-      "mouse": "Sulla giostra, trascina per girare la testa. Spegnila per girare intorno al parco",
       "ride": "Viaggia",
       "loops": "Giri della morte"
     },
@@ -1311,8 +1341,8 @@
     }
   },
   "save-the-scene": {
+    "banner": "Butta giù la torre, poi riapri la scena salvata.",
     "controls": {
-      "help": "Butta giù la torre, poi riapri la scena salvata.",
       "knockDown": "Butta giù",
       "save": "Salva",
       "open": "Apri"
@@ -1325,8 +1355,8 @@
     }
   },
   "scattered-on-a-surface": {
+    "banner": "Trascina per girare il pianeta. Lascia che il bosco salga sulle montagne.",
     "controls": {
-      "mouse": "Trascina per girare intorno al pianeta; alza la pendenza massima e la foresta sale sulle montagne",
       "trees": "Alberi",
       "rocks": "Rocce",
       "steepest": "Pendenza max",
@@ -1339,8 +1369,8 @@
     }
   },
   "see-the-triangles": {
+    "banner": "Scorri indietro e avanti. Da lontano il busto ha bisogno di meno triangoli, più grandi.",
     "controls": {
-      "mouse": "Rotella indietro e avanti: da lontano il busto ha bisogno di meno triangoli, più grandi",
       "view": "Vista",
       "pixelError": "Errore in pixel",
       "sideBySide": "Affiancati"
@@ -1363,8 +1393,8 @@
     }
   },
   "select-with-a-box": {
+    "banner": "Trascina un riquadro per selezionare. Maiusc aggiunge, Alt toglie. Passa a girati per guardarti intorno.",
     "controls": {
-      "help": "Seleziona: trascina un riquadro; Maiusc aggiunge, Alt toglie. Gira: trascina per volare sul giardino",
       "mouse": "Mouse",
       "selectAll": "Seleziona tutto",
       "clear": "Svuota"
@@ -1380,8 +1410,8 @@
     }
   },
   "several-views-one-page": {
+    "banner": "Trascina la vista grande per girarla. Scorri e trascina quelle piccole. Così zoomano e si spostano; doppio clic per ripristinare.",
     "controls": {
-      "mouse": "Trascina la vista grande per girarla; rotella e trascina sulle piccole per zoomare e spostare, doppio clic per ripristinare",
       "explode": "Esplodi",
       "windFrom": "Vento da",
       "windSpeed": "Velocità del vento"
@@ -1397,8 +1427,8 @@
     }
   },
   "shadows-from-the-sun": {
+    "banner": "Trascina per girare nel giardino. Cambia l'ora per far girare le ombre.",
     "controls": {
-      "mouse": "Trascina per girare nel giardino; sposta l'ora e ogni ombra gira, la punta dell'obelisco cammina sulle sue pietre delle ore",
       "hour": "Ora",
       "day": "Giorno",
       "latitude": "Latitudine",
@@ -1430,8 +1460,8 @@
     }
   },
   "shapes-cut-and-extruded": {
+    "banner": "Trascina per guardarti intorno. Metti la profondità a zero per vedere la forma piatta.",
     "controls": {
-      "mouse": "Trascina per guardarti intorno; una profondità di zero lascia la forma piatta ritagliata",
       "depth": "Profondità",
       "bevel": "Smusso",
       "bevelSize": "Misura dello smusso",
@@ -1444,6 +1474,7 @@
     }
   },
   "shapes-on-a-turntable": {
+    "banner": "Trascina per guardarti intorno. Cambia il colore e la rotazione.",
     "controls": {
       "colour": "Colore",
       "speed": "Velocità",
@@ -1451,8 +1482,8 @@
     }
   },
   "side-by-side-stereo": {
+    "banner": "Trascina l'immagine sinistra per girare. Incrocia gli occhi finché i due punti diventano uno.",
     "controls": {
-      "mouse": "Trascina sull'immagine di sinistra per girare; incrocia gli occhi finché i due punti diventano uno",
       "viewing": "Visione",
       "separation": "Distanza",
       "speed": "Velocità"
@@ -1469,8 +1500,8 @@
     }
   },
   "sky-and-ground-light": {
+    "banner": "Trascina per guardare da sotto e da sopra. Scegli un luogo per cambiare il suo cielo.",
     "controls": {
-      "mouse": "Trascina per guardare da sotto e da sopra; ogni luogo dipinge le parti alte con il suo cielo e quelle basse con il suo suolo",
       "place": "Luogo",
       "skyStrength": "Forza del cielo",
       "sun": "Sole",
@@ -1492,8 +1523,8 @@
     }
   },
   "smooth-edges-over-time": {
+    "banner": "Trascina per guardare i fili. Spegni la levigatura e guarda i gradini.",
     "controls": {
-      "mouse": "Trascina per guardare i fili; spegni l'ammorbidimento e guardali spezzarsi a gradini",
       "smoothing": "Ammorbidimento",
       "circle": "Gira intorno"
     },
@@ -1506,8 +1537,8 @@
     }
   },
   "snow-of-sprites": {
+    "banner": "Trascina per girare intorno alla baita. Trasforma la neve in una bufera.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla baita; trasformala in bufera e i fiocchi si infittiscono e volano di lato",
       "weather": "Meteo",
       "wind": "Vento"
     },
@@ -1523,8 +1554,8 @@
     }
   },
   "sound-made-visible": {
+    "banner": "Clicca sul palco per sentire una melodia. Trascina per girare intorno al palco: le barre sono le note, le perle l'onda stessa.",
     "controls": {
-      "mouse": "Trascina per girare intorno al palco; le barre sono le note, le perle l'onda stessa",
       "layout": "Disposizione",
       "height": "Altezza",
       "playMelody": "Suona la melodia",
@@ -1539,20 +1570,20 @@
       }
     },
     "words": {
-      "hint": "Clicca sul palco per sentire una melodia",
       "listening": "Ascolto il microfono: canta, fischia, batti le mani",
       "refused": "Il microfono è stato rifiutato: suona la melodia al suo posto",
       "silence": "Silenzio. Clicca sul palco per risentire la melodia"
     }
   },
   "spin-an-astrolabe": {
+    "banner": "Trascina per farlo girare in ogni verso, anche sottosopra. Scorri per ingrandire.",
     "controls": {
-      "mouse": "Trascina per farlo girare in ogni verso, anche capovolto · rotella per lo zoom",
       "turning": "Rotazione",
       "sun": "Sole"
     }
   },
   "street-lamp-at-night": {
+    "banner": "Trascina per guardarti intorno. Fai scendere la notte e accendi il lampione.",
     "controls": {
       "night": "Notte",
       "bounce": "Rimbalzo",
@@ -1564,8 +1595,8 @@
     }
   },
   "ten-thousand-objects": {
+    "banner": "Trascina per girare intorno al pianeta. Scorri dentro l'anello di rocce.",
     "controls": {
-      "mouse": "Trascina per girare intorno al pianeta; entra nell'anello con la rotella finché una roccia riempie la vista",
       "view": "Vista",
       "pixelError": "Errore in pixel",
       "drift": "Deriva"
@@ -1589,8 +1620,8 @@
     }
   },
   "texture-filters-compared": {
+    "banner": "Trascina per guardare lungo le corsie. Ogni corsia leviga l'immagine a modo suo. Da sinistra a destra: più vicino, lineare, trilineare, anisotropico.",
     "controls": {
-      "mouse": "Trascina per guardare lungo le corsie; da sinistra a destra: più vicino, lineare, trilineare, anisotropico",
       "picture": "Immagine",
       "anisotropy": "Anisotropia"
     },
@@ -1605,8 +1636,8 @@
     }
   },
   "the-material-family": {
+    "banner": "Trascina per girare intorno. Metti la luce di notte e guarda cosa brilla ancora.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla famiglia; metti la luce di notte e guarda quali tipi brillano ancora",
       "light": "Luce",
       "shape": "Forma",
       "lookAt": "Guarda",
@@ -1657,8 +1688,8 @@
     }
   },
   "the-webcam-as-a-texture": {
+    "banner": "Premi il pulsante per usare la tua telecamera. Trascina per guardare lungo il muro.",
     "controls": {
-      "mouse": "Trascina per guardare lungo il muro; la tua telecamera viene chiesta solo quando premi il pulsante",
       "useMyCamera": "Usa la mia telecamera",
       "layout": "Disposizione",
       "mirror": "Specchio"
@@ -1680,8 +1711,8 @@
     }
   },
   "toon-shading": {
+    "banner": "Trascina per girare intorno all'isola. Passa l'ombreggiatura a bande da cartone animato.",
     "controls": {
-      "mouse": "Trascina per girare intorno all'isola; cambia l'ombreggiatura e guarda la luce cadere a bande",
       "shading": "Ombreggiatura",
       "outlines": "Contorni",
       "sun": "Sole",
@@ -1696,8 +1727,8 @@
     }
   },
   "turn-toward-a-target": {
+    "banner": "Trascina per guardarti intorno. Attiva il puntatore per guidare il drone.",
     "controls": {
-      "mouse": "Trascina per guardarti intorno; accendi il puntatore e guida il drone, ogni parabola segue",
       "turn": "Gira",
       "turnSpeed": "Velocità di rotazione",
       "followPointer": "Segui il puntatore"
@@ -1714,8 +1745,8 @@
     }
   },
   "two-lenses-one-scene": {
+    "banner": "Trascina per girare intorno alla città. Cambia obiettivo e guarda le strade.",
     "controls": {
-      "mouse": "Trascina per girare intorno alla città; cambia obiettivo e guarda le strade raddrizzarsi",
       "lens": "Obiettivo",
       "fieldOfView": "Campo visivo",
       "isometric": "Isometrica",
@@ -1736,8 +1767,8 @@
     }
   },
   "uvs-of-every-shape": {
+    "banner": "Trascina per guardarti intorno. Una lettera e un numero danno il nome a ogni casella.",
     "controls": {
-      "mouse": "Trascina per guardarti intorno; una lettera e una cifra danno il nome a ogni casella dell'immagine",
       "pattern": "Schema",
       "repeat": "Ripeti",
       "slide": "Scorri",
@@ -1752,6 +1783,7 @@
     }
   },
   "walk-through-a-temple": {
+    "banner": "Premi Gioca, poi corri con W A S D e salta con Spazio.",
     "controls": {
       "keys": "Il controllo del personaggio del motore: Gioca nel menu cattura il mouse per guardare, W A S D per correre (Z Q S D su AZERTY), Maiusc per scattare, Spazio per saltare, Esc libera il mouse. La pagina aggiunge R per ricorrere, M per togliere l'audio.",
       "look": "Sguardo",
@@ -1778,8 +1810,8 @@
     }
   },
   "waves-of-points": {
+    "banner": "Trascina per girare intorno al campo. Scegli un motivo per cambiare le onde.",
     "controls": {
-      "mouse": "Trascina per girare intorno al campo; scegli uno schema e le onde cambiano forma sotto le boe",
       "pattern": "Schema",
       "height": "Altezza",
       "speed": "Velocità"
@@ -1798,8 +1830,8 @@
     }
   },
   "what-hides-what": {
+    "banner": "Trascina per guardarti intorno. Le siepi nascondono i nodi dorati.",
     "controls": {
-      "mouse": "Trascina per guardarti intorno; le siepi nascondono i nodi dorati in fondo ai vicoli ciechi",
       "hedgeHeight": "Altezza delle siepi",
       "view": "Vista",
       "aboveOrInside": "Sopra o dentro"
@@ -1821,12 +1853,14 @@
     }
   },
   "zoom-down-the-colonnade": {
+    "banner": "Premi Dolly zoom e guarda le colonne allungarsi.",
     "controls": {
       "fieldOfView": "Campo visivo",
       "dollyZoom": "Dolly zoom"
     }
   },
   "openworld": {
+    "banner": "Cammina con W A S D. Premi E vicino a un'auto o a un aereo per salire.",
     "controls": {
       "keys": "WASD camminare · Maiusc correre · Spazio saltare · C accovacciarsi · E salire o scendere da un'auto o un aereo",
       "teleport": "Teletrasporto",
