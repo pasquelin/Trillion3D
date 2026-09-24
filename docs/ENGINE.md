@@ -396,8 +396,12 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
   pose and event word layouts the module mirrors; the page and the worker check the protocol.
 - **Page.** `physics/session.ts` reconciles bodies with the scene once per frame that changed it,
   draws each moving body between its last drawn pose and the tick's pose (`poses.ts`), sends the
-  view, and posts the frame's commands in one message. A pose sent again unchanged asks for no
-  frame, so a sleeping world draws nothing.
+  view, and posts the frame's commands in one message. A tick is drawn over the interval at which
+  ticks arrive, not the time it simulates, and a late one is extrapolated from the linear and
+  angular velocities of its records, one interval at most: a slow worker shows slow motion, never
+  a held frame. The poses are written flat into each node and its transform tree, the angles
+  derived when read, and the world is told once for the batch (`SceneLink.posed`). A pose sent
+  again unchanged asks for no frame, so a sleeping world draws nothing.
 - **Distance and view.** The page sends its eye, facing, view cone and range (`camera.far`) only
   when they change. In the module, a dynamic body beyond the range is deactivated with its
   velocities kept; a body out of the cone or hidden sends no pose until it is seen again.
@@ -405,10 +409,16 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
   enforced by the module's memory maximum.
 - **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is the
   page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`.
-- **Threads.** Not yet: the module runs single-threaded in one worker whether or not the page is
-  cross-origin isolated. `docs:serve` answers with COOP `same-origin` and COEP `credentialless`,
-  the headers the thread pool will need; the production server's headers are set outside this
-  repository.
+- **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
+  bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
+  through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that
+  instantiates the same module on the same memory, sets its stack and thread-local storage, and
+  runs the entry point. `budget.physics.threads` fixes the count, capped at the logical cores
+  minus the page's own; elsewhere the single-threaded module runs. `docs:serve` answers with COOP
+  `same-origin` and COEP `credentialless`; the production server's headers are set outside this
+  repository. `scripts/bench-physics.ts` steps the example's scene in Node on both modules and on
+  the same C API compiled natively (`packages/physics-jolt-wasm/bench/`), with a per-phase profile
+  from Jolt's own scopes in a profiled build.
 
 ## Diagnostics and timing
 

@@ -73,7 +73,7 @@ uint32_t writePoses() {
     // A body that fell asleep sends its last pose even out of view, once: the page's `asleep` and
     // pose are then true, and a decorative body can leave the simulation. A frozen one is not
     // asleep (it resumes with its velocities), and sends nothing while it is out of view.
-    if (at.seen || asleep) send(index, body, asleep || frozen);
+    if (at.seen || asleep) send(index, body, asleep);
     else slot.withheld = true;
     if (frozen || (asleep && slot.withheld)) w.waiting.push_back(index);
   };

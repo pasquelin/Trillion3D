@@ -2956,7 +2956,8 @@
     "members": {
       "pose": "Bir düğüm hareket etti.",
       "structure": "Bir düğüm çocuk kazandı ya da kaybetti.",
-      "content": "Bir düğümün şekli ya da malzemesi değişti."
+      "content": "Bir düğümün şekli ya da malzemesi değişti.",
+      "posed": "Birçok düğüm aynı anda hareket etti, doğrudan ağaçlarına yazıldı (fiziğin cisimleri): bir kez bildirilir."
     }
   },
   "SceneNode": {
@@ -7015,7 +7016,8 @@
       "bodies": "Aynı anda her türden cisim.",
       "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
       "decorative": "Aynı anda dekoratif cisimler.",
-      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez."
+      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez.",
+      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7085,7 +7087,8 @@
       "bodies": "Aynı anda her türden cisim.",
       "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
       "decorative": "Aynı anda dekoratif cisimler.",
-      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez."
+      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez.",
+      "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz."
     }
   },
   "PhysicsHost": {

@@ -49,6 +49,7 @@ if (NOT EMSCRIPTEN)
   add_executable(joltBench bench/native.cpp src/world.cpp src/commands.cpp src/report.cpp
     ${PROFILE_SOURCES})
   target_link_libraries(joltBench PRIVATE Jolt)
+  target_compile_options(joltBench PRIVATE -O3)
   return()
 endif ()
 

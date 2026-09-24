@@ -5198,7 +5198,8 @@
     "members": {
       "pose": "Un nœud a bougé.",
       "structure": "Un nœud a gagné ou perdu des enfants.",
-      "content": "La forme ou le matériau d’un nœud a changé."
+      "content": "La forme ou le matériau d’un nœud a changé.",
+      "posed": "Plusieurs nœuds ont bougé d’un coup, écrits directement dans leur arbre (les corps de la physique) : dit une seule fois."
     }
   },
   "SceneNode": {
@@ -7015,7 +7016,8 @@
       "bodies": "Corps de toute sorte à la fois.",
       "triangles": "Triangles de toutes les formes triangulées statiques à la fois.",
       "decorative": "Corps décoratifs à la fois.",
-      "memoryBytes": "Octets de mémoire du module physique : un plafond dur, le module ne peut pas le dépasser."
+      "memoryBytes": "Octets de mémoire du module physique : un plafond dur, le module ne peut pas le dépasser.",
+      "threads": "Fils qui font avancer la simulation, celui du worker physique compris. Au-delà de 1, la page doit être isolée cross-origin (mémoire partagée) ; sinon la simulation avance sur un seul. Jamais plus que les cœurs logiques de la machine moins celui de la page."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7085,7 +7087,8 @@
       "bodies": "Corps de toute sorte à la fois.",
       "triangles": "Triangles de toutes les formes triangulées statiques à la fois.",
       "decorative": "Corps décoratifs à la fois.",
-      "memoryBytes": "Octets de mémoire du module physique : un plafond dur, le module ne peut pas le dépasser."
+      "memoryBytes": "Octets de mémoire du module physique : un plafond dur, le module ne peut pas le dépasser.",
+      "threads": "Fils qui font avancer la simulation, celui du worker physique compris. Au-delà de 1, la page doit être isolée cross-origin (mémoire partagée) ; sinon la simulation avance sur un seul. Jamais plus que les cœurs logiques de la machine moins celui de la page."
     }
   },
   "PhysicsHost": {

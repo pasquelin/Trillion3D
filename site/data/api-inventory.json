@@ -1702,7 +1702,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/session.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/physics/contacts.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".ContactEventName"
     },
@@ -2313,6 +2313,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts"
       ],
@@ -5070,6 +5071,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/poses.ts",
         "packages/sdk-browser/src/physics/session.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
@@ -6970,17 +6972,16 @@
     {
       "name": "SceneLink",
       "kind": "type",
-      "definingModule": "packages/sdk-core/src/world/object/object3d.ts",
+      "definingModule": "packages/sdk-core/src/world/object/sceneLink.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/worldPhysics.ts",
-        "packages/sdk-browser/src/world/core/world.ts",
         "packages/sdk-browser/src/world/core/worldLink.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/world/object/object3d\".SceneLink"
+      "bindingIdentity": "\"packages/sdk-core/src/world/object/sceneLink\".SceneLink"
     },
     {
       "name": "SceneNode",

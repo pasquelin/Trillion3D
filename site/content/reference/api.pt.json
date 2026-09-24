@@ -2956,7 +2956,8 @@
     "members": {
       "pose": "Um nó se moveu.",
       "structure": "Um nó ganhou ou perdeu filhos.",
-      "content": "A forma ou o material de um nó mudou."
+      "content": "A forma ou o material de um nó mudou.",
+      "posed": "Muitos nós moveram-se de uma vez, escritos diretamente na sua árvore (os corpos da física): avisado uma vez."
     }
   },
   "SceneNode": {
@@ -7015,7 +7016,8 @@
       "bodies": "Corpos de qualquer tipo ao mesmo tempo.",
       "triangles": "Triângulos de todas as formas estáticas de triângulos ao mesmo tempo.",
       "decorative": "Corpos decorativos ao mesmo tempo.",
-      "memoryBytes": "Bytes de memória do módulo de física: um teto rígido, o módulo não pode crescer além dele."
+      "memoryBytes": "Bytes de memória do módulo de física: um teto rígido, o módulo não pode crescer além dele.",
+      "threads": "Threads que fazem avançar a simulação, incluindo a do worker de física. Acima de 1 precisa de uma página isolada entre origens (memória partilhada); caso contrário a simulação avança numa só. Nunca mais do que os núcleos lógicos da máquina menos o da página."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7085,7 +7087,8 @@
       "bodies": "Corpos de qualquer tipo ao mesmo tempo.",
       "triangles": "Triângulos de todas as formas estáticas de triângulos ao mesmo tempo.",
       "decorative": "Corpos decorativos ao mesmo tempo.",
-      "memoryBytes": "Bytes de memória do módulo de física: um teto rígido, o módulo não pode crescer além dele."
+      "memoryBytes": "Bytes de memória do módulo de física: um teto rígido, o módulo não pode crescer além dele.",
+      "threads": "Threads que fazem avançar a simulação, incluindo a do worker de física. Acima de 1 precisa de uma página isolada entre origens (memória partilhada); caso contrário a simulação avança numa só. Nunca mais do que os núcleos lógicos da máquina menos o da página."
     }
   },
   "PhysicsHost": {

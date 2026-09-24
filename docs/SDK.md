@@ -914,10 +914,13 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
   velocities kept, and thaws when it returns. Out of view, or hidden, it sends no pose and keeps
-  falling. `decorative` bodies meet the static world only and are simulated only in range and in
-  view.
+  falling; the pose it has when it falls asleep is sent all the same. `decorative` bodies meet the
+  static world only, are simulated only in range and in view, and leave the simulation once asleep:
+  their mesh stays where it came to rest (set `physics` again to simulate it anew).
 - **Budgets.** `world.budget.physics`: `bodies` 16,384, `triangles` 2,000,000, `decorative` 1,024,
-  `memoryBytes` 128 MiB (a hard ceiling: the module's memory cannot grow past it), read when the
+  `memoryBytes` 128 MiB (a hard ceiling: the module's memory cannot grow past it), `threads` 8
+  (Jolt's thread pool, the worker's thread included, when the page is cross-origin isolated; never
+  more than the logical cores minus the page's own; one elsewhere), read when the
   physics starts. A request past one is refused with `PHYSICS_BUDGET` on `world.physics.error`.
   The soft-body budget arrives with soft bodies.
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
@@ -933,8 +936,8 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   by the declared-light rule above.
 - A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
   implemented.
-- Physics runs Jolt in a single worker: the thread pool over `SharedArrayBuffer` is not wired
-  yet. 10,000 boxes cost the worker about 5 ms a step in free fall and about 50 ms while they land,
-  when the simulation falls behind and runs in slow motion; the page's share is about 3 ms on a
-  frame that draws 10,000 new poses. Characters, joints, vehicles, soft bodies, cooked colliders and
+- Physics: 10,000 boxes landing at once cost the worker about 20 ms a step in Chrome on eight
+  threads (8–10 ms for the same module in Node), so the landing runs in slow motion; the page draws
+  on at its own pace, and its share is about 3 ms a frame that draws 10,000 new poses, above the
+  0.5 ms aimed at. Characters, joints, vehicles, soft bodies, cooked colliders and
   loaded models as bodies arrive with the next physics issues (#396–#400).

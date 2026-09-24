@@ -5190,7 +5190,8 @@
     "members": {
       "pose": "Un nodo si è mosso.",
       "structure": "Un nodo ha guadagnato o perso figli.",
-      "content": "La forma o il materiale di un nodo è cambiato."
+      "content": "La forma o il materiale di un nodo è cambiato.",
+      "posed": "Molti nodi si sono mossi insieme, scritti direttamente nel loro albero (i corpi della fisica): segnalato una volta."
     }
   },
   "SceneNode": {
@@ -7015,7 +7016,8 @@
       "bodies": "Corpi di ogni tipo insieme.",
       "triangles": "Triangoli di tutte le forme statiche a triangoli insieme.",
       "decorative": "Corpi decorativi insieme.",
-      "memoryBytes": "Byte di memoria del modulo fisico: un tetto rigido, il modulo non può crescere oltre."
+      "memoryBytes": "Byte di memoria del modulo fisico: un tetto rigido, il modulo non può crescere oltre.",
+      "threads": "Thread che fanno avanzare la simulazione, compreso quello del worker fisico. Sopra 1 serve una pagina isolata cross-origin (memoria condivisa); altrimenti la simulazione avanza su uno. Mai più dei core logici della macchina meno quello della pagina."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7085,7 +7087,8 @@
       "bodies": "Corpi di ogni tipo insieme.",
       "triangles": "Triangoli di tutte le forme statiche a triangoli insieme.",
       "decorative": "Corpi decorativi insieme.",
-      "memoryBytes": "Byte di memoria del modulo fisico: un tetto rigido, il modulo non può crescere oltre."
+      "memoryBytes": "Byte di memoria del modulo fisico: un tetto rigido, il modulo non può crescere oltre.",
+      "threads": "Thread che fanno avanzare la simulazione, compreso quello del worker fisico. Sopra 1 serve una pagina isolata cross-origin (memoria condivisa); altrimenti la simulazione avanza su uno. Mai più dei core logici della macchina meno quello della pagina."
     }
   },
   "PhysicsHost": {

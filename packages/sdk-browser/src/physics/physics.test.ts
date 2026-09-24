@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { Worker } from 'node:worker_threads';
+import { Worker as NodeWorker } from 'node:worker_threads';
 import {
   ASLEEP_BIT,
   CommandWriter,
@@ -68,11 +68,11 @@ test('the committed module drops a box on a floor, then sends no pose once it sl
 
 test('the threaded module steps on its pool, and a body asleep out of view says so', async () => {
   const bytes = await readFile(new URL('./joltPhysicsThreads.wasm', import.meta.url));
-  const threads: Worker[] = [];
+  const threads: NodeWorker[] = [];
   const loader = new URL('./joltThreads.ts', import.meta.url).href;
   const spawn = (start: JoltThreadStart) =>
     threads.push(
-      new Worker(
+      new NodeWorker(
         `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
         { eval: true, workerData: start },
       ),
@@ -157,10 +157,11 @@ test('a decorative body asleep is placed, taken out, and never added again', () 
     {} as PhysicsHost,
     scene,
   );
-  const chip = new Mesh(box(), new Material('meshStandard')) as Bodied;
-  chip.physics = { decorative: true };
+  const mesh = new Mesh(box(), new Material('meshStandard'));
+  mesh.physics = { decorative: true };
+  const chip = mesh as Bodied;
   scene.add(chip);
-  bodies.reconcile(new Set(), assert.fail);
+  bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
   const poses = createPhysicsPoses(4);
   const words = new Uint32Array(POSE_WORDS);
   words[0] = chip.physics._index | ASLEEP_BIT;
@@ -168,7 +169,7 @@ test('a decorative body asleep is placed, taken out, and never added again', () 
   poses.receive(words, 1, bodies.meshes, 16, bodies.retire);
   assert.equal(chip.position.y, 0.5);
   assert.equal(bodies.count.decorative, 0);
-  bodies.reconcile(new Set(), assert.fail);
+  bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
   assert.equal(bodies.count.bodies, 0);
 });
 
