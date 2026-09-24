@@ -157,15 +157,20 @@ export const COLOR_SAMPLE_WGSL = `${kind('color')}
 ${atlasReadWgsl('colorSample', 'color', 'vec4f', true)}`;
 
 /**
- * Cutout of a masked material: `maskAlpha(slot, uv, ddx, ddy, sampled)`, the base-map alpha read
- * as the materials pass reads its colour — same transform, filter and mix — at the derivatives of
- * the pass that reads, in one tap at the isotropic level: a cutout only compares a threshold, and
- * the visibility and shadow passes that read it do not pay for anisotropy's taps. `finest` is the shadow pass's fallback rule (see the header); the camera raster
- * does not have it: its tiles are the ones it requested. Requires `COLOR_SAMPLE_WGSL`.
+ * Cutout of a masked material: `maskAlpha(slot, uv, ddx, ddy, sampled)`, the base-map alpha at the
+ * derivatives of the pass that reads. The camera raster (`finest` false) reads it as the colour
+ * reads — same transform, filter, anisotropic taps and mix, `colorSample`'s own `.w` —: the
+ * silhouette the reference cuts is the one its hardware sampler reads, and the resolve that
+ * shades the kept pixel reads the same taps. The shadow pass (`finest` true) reads one tap at
+ * the isotropic level, under its fallback rule (see the header): a shadow texel's footprint is
+ * not a view at a grazing angle, and it does not pay for anisotropy's taps. Requires
+ * `COLOR_SAMPLE_WGSL`.
  */
 export const maskAlphaWgsl = (finest: boolean) =>
-  `fn maskAlphaAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->f32{return colorBlend(s,uv,lod,nearest,${finest}).w;}
-${atlasReadWgsl('maskAlpha', 'color', 'f32', false)}`;
+  finest
+    ? `fn maskAlphaAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->f32{return colorBlend(s,uv,lod,nearest,true).w;}
+${atlasReadWgsl('maskAlpha', 'color', 'f32', false)}`
+    : 'fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return colorSample(slot,uv,ddx,ddy,sampled).w;}';
 
 /** Data-atlas sample: `dataSample(slot, uv, ddx, ddy, sampled)`. */
 export const DATA_SAMPLE_WGSL = `${kind('data')}

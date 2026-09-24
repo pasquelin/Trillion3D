@@ -10,6 +10,6 @@ import { FLAG_SAMPLED } from '../../visibility/types.ts';
 export const BLEND_REQUEST_WGSL = `fn blendRequest(in:VSOut,gradX:vec2f,gradY:vec2f)->u32{
  if(!feedbackPhase(in.position.xy,uni.feedback)){return 0u;}
  let p=requestPick(in.position.xy,MAP_CHOICES);
- return mapRequest(p,vec2u(in.ids.x,in.ids.z),in.maps,in.uv,gradX,gradY,false,(in.ids.y&${FLAG_SAMPLED}u)!=0u);
+ return mapRequest(p,vec2u(in.ids.x,in.ids.z),in.maps,in.uv,gradX,gradY,(in.ids.y&${FLAG_SAMPLED}u)!=0u);
 }
 `;

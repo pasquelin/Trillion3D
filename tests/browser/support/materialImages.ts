@@ -100,7 +100,7 @@ export const stripeMap = (anisotropy: number) =>
 /** Foliage: green leaves two texels wide, opaque, between gaps two texels wide, transparent,
  *  running along V, repeated four times each way under the host's chain and trilinear filters —
  *  the stripes of `stripeMap` as an alpha cutout, seen at a grazing angle with `anisotropy`. */
-export const foliageMap = (anisotropy: number) =>
+const foliageMap = (anisotropy: number) =>
   canvasMap(
     8,
     (ctx) => {
@@ -132,3 +132,6 @@ export const TILTED_NORMAL: [number, number, number, number][] = Array.from({ le
 /** A base-colour map of four quadrants, in sRGB like every base colour. */
 export const colourMap = (texels: [number, number, number, number][]) =>
   texture(texels, THREE.SRGBColorSpace);
+
+/** A cutout material of `foliageMap`, anisotropy 16, cut at half alpha. */
+export const foliage = () => ({ map: foliageMap(16), alphaTest: 0.5 });

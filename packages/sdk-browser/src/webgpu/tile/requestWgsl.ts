@@ -39,10 +39,9 @@ const m = WRAP_MAP;
  * a pixel speaks only if it is its phase (`feedbackPhase`, all of them during a convergence), and it
  * asks for ONE map, chosen by its POSITION (`requestPick`): a tile covers dozens of pixels, so each
  * map, each of the two blend levels and each end of an anisotropic footprint is named by a share
- * of them, and two complete images of the same pose name the same set. A base map a cutout also
- * reads (`cutout`) is read at two levels: `iso` gives half its pixels to the isotropic level of the
- * cutout, half to the anisotropic one of the shading. The pick rank is `WRAP_MAP`'s; a missing map lets the base colour
- * speak (`mapRequest`). Hosts build their slots from the page row or the transparent item.
+ * of them, and two complete images of the same pose name the same set. The camera cutout reads the
+ * base map as the shading does (`maskAlphaWgsl`), so a masked base map asks one level too. The
+ * pick rank is `WRAP_MAP`'s; a missing map lets the base colour speak (`mapRequest`). Hosts build their slots from the page row or the transparent item.
  */
 /** Number of maps a pixel can name: the rank of `WRAP_MAP`, written once. */
 const MAP_CHOICES = Object.keys(WRAP_MAP).length;
@@ -53,23 +52,22 @@ fn feedbackPhase(p:vec2f,word:u32)->bool{
  if((word&${FEEDBACK_EVERY}u)!=0u){return true;}
  return ((u32(p.x)&${STRIDE_MASK}u)|((u32(p.y)&${STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
 }
-struct RequestPick{sel:u32,next:bool,along:u32,iso:bool,}
+struct RequestPick{sel:u32,next:bool,along:u32,}
 fn requestPick(pos:vec2f,choices:u32)->RequestPick{
  let px=u32(pos.x)+u32(pos.y);
- return RequestPick(px%choices,((px/choices)&1u)==1u,(px/choices/2u)%3u,((px/choices/6u)&1u)==1u);
+ return RequestPick(px%choices,((px/choices)&1u)==1u,(px/choices/2u)%3u);
 }
 /** \`color\`: base, emissive; \`data\`: roughness, metal, normals, occlusion. */
-fn mapRequest(p:RequestPick,color:vec2u,data:vec4u,uv:vec2f,ddx:vec2f,ddy:vec2f,cutout:bool,sampled:bool)->u32{
+fn mapRequest(p:RequestPick,color:vec2u,data:vec4u,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->u32{
  let sel=p.sel;
- var slot=color.x;var isColor=true;var map=${m.base}u;
- if(sel==${m.rough}u){slot=data.x;isColor=false;map=${m.rough}u;}
- else if(sel==${m.metal}u){slot=data.y;isColor=false;map=${m.metal}u;}
- else if(sel==${m.normal}u){slot=data.z;isColor=false;map=${m.normal}u;}
- else if(sel==${m.ao}u){slot=data.w;isColor=false;map=${m.ao}u;}
- else if(sel==${m.emissive}u){slot=color.y;map=${m.emissive}u;}
- if(slot==0u){slot=color.x;isColor=true;map=${m.base}u;}
+ var slot=color.x;var isColor=true;
+ if(sel==${m.rough}u){slot=data.x;isColor=false;}
+ else if(sel==${m.metal}u){slot=data.y;isColor=false;}
+ else if(sel==${m.normal}u){slot=data.z;isColor=false;}
+ else if(sel==${m.ao}u){slot=data.w;isColor=false;}
+ else if(sel==${m.emissive}u){slot=color.y;}
+ if(slot==0u){slot=color.x;isColor=true;}
  if(slot==0u){return 0u;}
- let aniso=!(cutout&&map==${m.base}u&&p.iso);
- if(isColor){return colorRequestIndex(slot,uv,ddx,ddy,p.next,p.along,aniso,sampled);}
+ if(isColor){return colorRequestIndex(slot,uv,ddx,ddy,p.next,p.along,true,sampled);}
  return dataRequestIndex(slot,uv,ddx,ddy,p.next,p.along,true,sampled);
 }`;

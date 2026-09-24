@@ -167,18 +167,17 @@ export const fixtures: Fixture[] = [
       reason: 'judged by the contrast each engine gains from anisotropy, not texel by texel',
     }),
   ),
-  // Review of #389: the resolve cuts on the raster's isotropic alpha, not its sixteen-tap colour:
-  // cutting on its own left holes the raster had kept, 51 pixels on Apple M3 (`behind`).
-  unlit(
-    'foliage at a grazing angle, anisotropy 16',
-    () => ({ map: img.foliageMap(16), alphaTest: 0.5 }),
-    {
-      tilt: (-80 * Math.PI) / 180,
+  // Review of #389: the camera raster alone cuts, on the colour read's alpha as the witness does
+  // (`maskKeep`); a second cut in the resolve left holes, 51 at 80°, 33 at 84° on Apple M3. At 88°
+  // (past the 16:1 grant, clamped by each sampler its own way) leaf edges are judged by holes.
+  ...[80, 84, 88].map((degrees) =>
+    unlit(`foliage at a grazing angle of ${degrees}°, anisotropy 16`, img.foliage, {
+      tilt: (-degrees * Math.PI) / 180,
       behind: 0x6a3d9a,
       points: GRAZING_ROW,
-      difference: [0, 2],
-      reason: 'the same leaves and gaps, a leaf edge mixed by two footprints, hardware and shader',
-    },
+      difference: [0, degrees < 88 ? 2 : 255],
+      reason: 'the same leaves and gaps, a leaf edge mixed by two footprints: no hole',
+    }),
   ),
   unlit('double-sided back face', () => ({ color: 0x2299cc, side: THREE.DoubleSide }), {
     back: true,

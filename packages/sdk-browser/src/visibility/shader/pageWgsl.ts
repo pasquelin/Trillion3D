@@ -68,9 +68,11 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * material flags.
  *
  * `ddx`, `ddy` are the per-texel derivatives of the coordinate of the pass that reads — camera
- * pixel or shadow texel —: each reads the map at the level of its footprint, as the materials
- * pass reads its colour (`maskAlpha`, `../../webgpu/tile/wgsl.ts`). The compute raster, which has no
- * derivatives, passes zero and reads level 0 — the finest resident tile under that texel.
+ * pixel or shadow texel —: each reads the map at the level of its footprint (`maskAlpha`,
+ * `../../webgpu/tile/wgsl.ts`), the camera through the colour's own read. This is the only cutout of
+ * an opaque pixel: the resolve shades what the raster kept and never tests again. The compute
+ * raster, which has no derivatives, passes zero and reads level 0 — the finest resident tile under
+ * that texel.
  *
  * The host shader declares `uvs`, the colour pool and its page table, then inserts
  * `TILE_POOL_WGSL` (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and
