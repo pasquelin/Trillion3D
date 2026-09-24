@@ -49,10 +49,10 @@ fn a_bundle_without_dependencies_or_depending_outside_its_primitive_is_refused()
         .as_object_mut()
         .unwrap()
         .remove("dependencies");
-    let error = split(&absent, &TEMPLATES, &[]).err().expect("refused");
+    let error = split(&absent, &TEMPLATES, &[]).expect_err("refused");
     assert!(error.message.contains("bundle.dependencies"), "{error}");
     let mut outside = two_bundles();
     outside["primitives"][0]["streams"]["pages"][1]["dependencies"] = json!([2]);
-    let error = split(&outside, &TEMPLATES, &[]).err().expect("refused");
+    let error = split(&outside, &TEMPLATES, &[]).expect_err("refused");
     assert!(error.message.contains("outside its primitive"), "{error}");
 }
