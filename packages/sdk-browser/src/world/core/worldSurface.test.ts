@@ -82,48 +82,37 @@ test('a repaint that moves a map’s placement alone recomposes its matrix, no u
   assert.ok(tx !== 0 || ty !== 0, 'the offset reaches the record');
 });
 
-// #360: a repaint writes sampling and values only, and never uploads nor reopens: a map that
-// shows another picture — image, `flipY`, colour space, UV set — keeps the one it was uploaded
-// with, sampling included, as before #360; live pictures are #362's. The values are written.
-test('a repaint leaves a map that shows another picture as uploaded, and writes the values', () => {
+// #360: nothing tells pixels written in place under the same image from a sampler change, so
+// every version a map moved to — other than its placement alone — sends its picture again, with
+// its sampling, into the host texture the surface holds; the values are written beside it.
+test('a repaint sends a map’s picture again at every version but a placement', () => {
   for (const change of [
     (map: Texture) => (map.image = { width: 4, height: 4 }),
     (map: Texture) => (map.flipY = false),
     (map: Texture) => (map.colorSpace = 'linear'),
     (map: Texture) => (map.channel = 1),
+    (map: Texture) => (
+      ((map.image as { data: Uint8Array }).data[0] = 255),
+      (map.needsUpdate = true)
+    ),
+    (map: Texture) => (map.magFilter = 'nearest'),
   ]) {
-    const map = new Texture({ width: 2, height: 2 });
+    const map = new Texture({ data: new Uint8Array(16), width: 2, height: 2 });
     const paint = material.meshStandard({ color: 0x808080, map });
     const surface = hostSurface(paint, false, new Map()) as unknown as Record<string, unknown>;
     const host = surface.map as HostTexture & { version: number };
     const version = host.version,
       surfaceVersion = surface.version as number;
     change(map);
-    map.magFilter = 'nearest';
     paint.color.set(0xff0000);
     repaintHostSurface(surface as never, paint);
-    assert.equal(host.version, version, 'the host texture untouched');
-    assert.equal(host.magFilter, THREE.LinearFilter, 'its sampling too');
+    assert.ok(host.version > version, `${change}: sent again`);
+    assert.equal(host.image, map.image, 'the picture the texture shows');
+    assert.equal(
+      host.magFilter,
+      THREE[map.magFilter === 'nearest' ? 'NearestFilter' : 'LinearFilter'],
+    );
     assert.ok((surface.version as number) > surfaceVersion, 'the values written');
     assert.equal((surface.color as THREE.Color).getHex(), 0xff0000);
   }
-});
-
-// #360: pixels written in place then `needsUpdate` move the version and nothing else: that is a
-// new picture, not a sampling change — left as uploaded, never taken for a sampler write.
-test('a version moved with neither sampling nor placement is a new picture', () => {
-  const pixels = { data: new Uint8Array(16), width: 2, height: 2 };
-  const map = new Texture(pixels);
-  const paint = material.meshStandard({ map });
-  const surface = hostSurface(paint, false, new Map()) as unknown as Record<string, unknown>;
-  const host = surface.map as HostTexture & { version: number };
-  const version = host.version;
-  pixels.data[0] = 255;
-  map.needsUpdate = true;
-  repaintHostSurface(surface as never, paint);
-  assert.equal(host.version, version, 'no sampler write stands for the new pixels');
-  map.anisotropy = 4;
-  repaintHostSurface(surface as never, paint);
-  assert.ok(host.version > version, 'a sampling change after it is written');
-  assert.equal(host.anisotropy, 4);
 });
