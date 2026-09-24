@@ -99,7 +99,10 @@ nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame
 `.mesure/assets/`, off git, and a sibling worktree has none of its own: point `TRILLION3D_ASSETS` at the
 shared folder. Without it the proof stops by name on the cache it could not find, and
 `pnpm run test:gpu` fails with it — loudly, never in silence. `node bench/runner/assets.ts`
-fetches and compiles every scene the proofs read (`bench/runner/README.md` § Assets). The material proof (`witness-materials`) needs no asset:
+fetches and compiles every scene the proofs read (`bench/runner/README.md` § Assets). The shadow
+stop proof (`shadow-camera-stop`) reads the generated facade instead (`facade-7-derived`, built as
+below): a lit scene whose sun shadows cover the inside of areas, where Sponza's walked gallery lies
+entirely in shadow. The material proof (`witness-materials`) needs no asset:
 its fixtures are built in the page and served from `tests/browser/support/`, the SDK from `dist/`, so
 `pnpm run build` precedes it.
 
@@ -125,24 +128,20 @@ node tests/browser/test-gpu.ts tests/browser/probes/reflection-cone.ts   # run s
 `test:gpu` drives a real GPU, so its result belongs to a machine: a batch declares the failures it
 inherited rather than the ones it caused, and the baseline lives here so the next batch compares
 against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
-`TRILLION3D_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23, head of #281: **2 fail** of
-64, always these two —
-- `explorer-startup`: the portal checks pass, then the geometry-garden lesson opens its world
-  (`scene.load` resolves, the controls enable, a manual `world.render()` returns metrics), yet
-  the world never schedules a frame: the canvas keeps its default 300 × 150 buffer under a CSS box
-  of 488 × 20 px, `invalidate()` requests no animation frame in 1.5 s, `onFrame` never fires and
-  no console error is logged, so the selected-triangle counter stays empty;
-- `shadow-camera-stop`: at the stop, with 198 shadow pages pending under the 0.01 ms budget,
-  57 705 of 876 096 pixels (6.6 %, bound 5 %) shade otherwise than at rest — lit arches far from
-  the camera read as shadowed. Publishing the current extent's matrix with the wrap origin of an
-  undrawn slid cascade moved this by under 0.2 % and was not kept; the cause is not isolated.
+`TRILLION3D_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-24, head of #281 after its
+merge of `develop` (91ecde0e2): **1 fail** of 65 —
+- `native-camera-controls`: `firstPersonControls did not come back to its pose`, 6 954 px differ
+  after the controls return to their start. Read once; not re-read on `develop`, so whether the
+  batch inherited it is not known.
 
-The geometry-garden lesson has since left the portal with the other lessons (#327), and with it
-the part of `explorer-startup` that failed; that proof has not been re-read since.
+`shadow-camera-stop` passes since it moved to the lit facade (`facade-7`): 0 pixels shade otherwise
+than at rest away from an edge, with 74 shadow pages pending at the capture. `explorer-startup`,
+failing at the previous reading through the geometry-garden lesson, passes now that the lessons
+have left the portal (#327).
 
 Before #281 the same reading gave 10 fail (`origin/develop` at `ea7e3ecf4` and the head of #322,
-54 pass / 10 fail each). A batch that leaves exactly these two failing has changed nothing
-here; one that adds a third owns it. The pass count
+54 pass / 10 fail each). A batch that leaves exactly this one failing has changed nothing
+here; one that adds a second owns it. The pass count
 moves with the number of proof files and means nothing on its own. Re-read the baseline on your
 own machine before leaning on it — the failures are not portable, only the method is.
 
