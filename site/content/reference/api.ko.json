@@ -7380,11 +7380,5 @@
       "distance": "`a`의 `anchor`와 `b`의 `anchorB`를 그 길이, 또는 `limits` 안으로 유지합니다.",
       "cone": "`axis`가 반각 `limits.max`인 원뿔 안에서 흔들리는 볼 관절."
     }
-  },
-  "JointHost": {
-    "summary": "관절의 세계 쪽: 관절에 쓰기가 시뮬레이션에 요청하는 것.",
-    "members": {
-      "motor": "모터가 바뀌었습니다."
-    }
   }
 }
