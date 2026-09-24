@@ -11,7 +11,7 @@ import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts';
 import { createPresentClasses, type PresentClasses } from '../../core/materialPasses.ts';
 import type { GeometryBlock } from '../../row/pageRowMaterial.ts';
-import type { BlendPipelines } from '../../blend/stagePipelines.ts';
+import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */
@@ -56,7 +56,7 @@ export interface WebgpuVisState {
   zeroFlags: GPUBuffer | undefined;
   // The textured forward pipelines share the visibility path's atlases and fall with it.
   blendBindGroupLayout: GPUBindGroupLayout | undefined;
-  blendPipelines: BlendPipelines | undefined;
+  blendPipelines: BlendModePipelines | undefined;
   gpuDraw: GpuDraw | undefined;
   /** Compaction of the tested half, between the occlusion test and the second pass. */
   gpuRestCompact: GpuRestCompact | undefined;

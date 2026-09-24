@@ -24,7 +24,7 @@ const HEAD_ORACLE = 4;
  * the four totals — are STRIPPED and asserted separately: comparing them would ask a side for
  * something it never knew.
  */
-const champs = (releve: SelectionResult | null) => {
+const champs = (releve: Partial<SelectionResult> | null) => {
   if (!releve) return releve;
   const {
     truncated: _t,
@@ -136,7 +136,7 @@ test('triangle totals are reread as the GPU posted them', () => {
   assert.equal(releve.drawnTriangles, 700);
   assert.equal(releve.uncoveredTriangles, 200);
   // The invariant the CPU documented, now held by the GPU.
-  assert.equal(releve.selectedTriangles! - releve.drawnTriangles! - releve.uncoveredTriangles!, 0);
+  assert.equal(releve.selectedTriangles - releve.drawnTriangles - releve.uncoveredTriangles, 0);
 });
 
 test('a normal readback without a mask matches the reference field for field', () => {
