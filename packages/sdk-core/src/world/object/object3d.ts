@@ -1,4 +1,4 @@
-import { SceneNode } from '../../scene/core/node.ts';
+import { TransformNode } from './transformNode.ts';
 import { createSceneRoot } from '../../scene/core/root.ts';
 import { lookAtNode } from '../../math/transform-tree/lookAt.ts';
 import * as read from '../../math/transform-tree/read.ts';
@@ -18,11 +18,12 @@ const aim = new Vector3(),
   turn = new Quaternion(),
   along = new Vector3(),
   inverse = new Matrix4(),
+  applied = new Matrix4(),
   at = new Float64Array(4);
 
 /** A node of the scene, as a page writes it: `position`, `rotation`, `quaternion` and `scale` are
  *  live values whose writes land in the engine's transform tree, and reach the world it is in. */
-export class Object3D extends SceneNode {
+export class Object3D extends TransformNode {
   /** Always `true`: tells a scene node apart. */ readonly isObject3D = true as const;
   /** The kind of node: `'Mesh'`, `'Group'`… */ type = 'Object3D';
   /** A name to find the node by. */ name = '';
@@ -34,11 +35,10 @@ export class Object3D extends SceneNode {
   /** Whether the node casts shadows. */ castShadow = false;
   /** Whether shadows fall on the node. */ receiveShadow = false;
   /** Drawing order among see-through things. */ renderOrder = 0;
+  /** Whether a renderer may skip it outside the view. */ frustumCulled = true;
   /** Free room for the page's own data. */ userData: Record<string, unknown> = {};
   /** The world this node is drawn by; set on attach, cleared on detach. */
   _link: SceneLink | null = null;
-  private readonly local = new Matrix4();
-  private readonly world = new Matrix4();
   constructor() {
     const slot = space.reserve();
     super(slot.state, slot.id, slot.index, slot.visible);
@@ -79,16 +79,6 @@ export class Object3D extends SceneNode {
   }
   override get children(): readonly Object3D[] {
     return super.children as readonly Object3D[];
-  }
-  /** Local matrix, a view of this node's slot of the transform tree. */
-  get matrix(): Matrix4 {
-    this.local.elements = this.localMatrix as Float64Array;
-    return this.local;
-  }
-  /** World matrix as last composed (`updateMatrixWorld`), a view of the tree. */
-  get matrixWorld(): Matrix4 {
-    this.world.elements = this.worldMatrix as Float64Array;
-    return this.world;
   }
   /** A viewer looks down `-z`: cameras and lights say so. */
   protected get looksDownNegativeZ() {
@@ -137,9 +127,16 @@ export class Object3D extends SceneNode {
     }
     return undefined;
   }
-  /** Composes this node's world matrix and its descendants', the parent's taken as it stands. */
-  updateMatrixWorld(_force?: boolean) {
-    this.updateWorldMatrix(false, true);
+  /** Composes the local matrix from the pose now, and marks the world matrix to follow. */
+  updateMatrix() {
+    this.matrix.compose(this.position, this.quaternion, this.scale);
+    this.matrixWorldNeedsUpdate = true;
+  }
+  /** Applies `m` on top of the node's pose, then reads the pose back out of the product. */
+  applyMatrix4(m: { elements: ArrayLike<number> }) {
+    if (this.matrixAutoUpdate) this.updateMatrix();
+    this.matrix.premultiply(applied.fromArray(m.elements));
+    this.matrix.decompose(this.position, this.quaternion, this.scale);
   }
   /** Turns the node toward a world point (`lookAtNode`): `+z` at it, `-z` for a viewer. */
   lookAt(x: number | { x: number; y: number; z: number }, y = 0, z = 0) {
