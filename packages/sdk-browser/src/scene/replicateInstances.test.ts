@@ -13,9 +13,9 @@ import { threeGraph } from '../../../../bench/witnesses/three/fromGraphNodes.ts'
 
 /** Two meshes under negative scale root and non-uniform scale child. */
 function hostileSource() {
-  const racine = new G.GraphGroup();
+  const racine = new G.Group();
   racine.scale.set(-1, 1, 1);
-  const enfant = new G.GraphGroup();
+  const enfant = new G.Group();
   enfant.position.set(3, 0, 0);
   enfant.scale.set(1, 2, 0.5);
   racine.add(enfant);
@@ -30,7 +30,7 @@ function hostileSource() {
 
 /** Legacy path, before batch M4a: `Matrix4.copy` then `group.updateMatrixWorld`. */
 function referenceReplicate(
-  graph: G.GraphNode,
+  graph: G.Object3D,
   associations: Map<THREE.Object3D, unknown>,
   count: 1 | 4 | 9 | 12,
 ) {
@@ -71,7 +71,7 @@ for (const count of [4, 9, 12] as const) {
   test(`replicateInstances(count=${count}) : world matrices of copies bit-for-bit identical to legacy Three path, hostile source`, () => {
     const obtenu = hostileSource();
     const attendu = hostileSource();
-    const groupeObtenu = replicateInstances(obtenu.racine, new Map(), count) as G.GraphGroup;
+    const groupeObtenu = replicateInstances(obtenu.racine, new Map(), count) as G.Group;
     const groupeAttendu = referenceReplicate(attendu.racine, new Map(), count) as THREE.Group;
     assert.equal(groupeObtenu.children.length, groupeAttendu.children.length);
     for (let i = 0; i < groupeObtenu.children.length; i++)
@@ -84,7 +84,7 @@ for (const count of [4, 9, 12] as const) {
 
 test('replicateInstances flags each copy ENGINE_OWNED and freezes its matrix (matrixAutoUpdate to false)', () => {
   const { racine } = hostileSource();
-  const groupe = replicateInstances(racine, new Map(), 4) as G.GraphGroup;
+  const groupe = replicateInstances(racine, new Map(), 4) as G.Group;
   for (const copie of groupe.children as G.GraphMesh[]) {
     assert.equal(copie.userData[ENGINE_OWNED], true);
     assert.equal(copie.matrixAutoUpdate, false);
@@ -93,11 +93,11 @@ test('replicateInstances flags each copy ENGINE_OWNED and freezes its matrix (ma
 
 test('replicateInstances transfers association of each source mesh onto its copies', () => {
   const { racine, a, b } = hostileSource();
-  const associations = new Map<G.GraphNode, { meshes: number }>([
+  const associations = new Map<G.Object3D, { meshes: number }>([
     [a, { meshes: 0 }],
     [b, { meshes: 1 }],
   ]);
-  const groupe = replicateInstances(racine, associations, 4) as G.GraphGroup;
+  const groupe = replicateInstances(racine, associations, 4) as G.Group;
   for (const copie of groupe.children as G.GraphMesh[])
     assert.ok(associations.get(copie), 'each copy carries association of its source mesh');
 });
@@ -115,7 +115,7 @@ test('replicateInstances uses `preparedBounds` as is, without recalculating boun
     reelles[4],
     reelles[5],
   ]);
-  const groupe = replicateInstances(racine, new Map(), 4, fausses) as G.GraphGroup;
+  const groupe = replicateInstances(racine, new Map(), 4, fausses) as G.Group;
   const attenduEspacement = fausses[3] - fausses[0];
   const reelEspacement = reelles[3] - reelles[0];
   const premiere = (groupe.children[0] as G.GraphMesh).matrixWorld.elements[12];

@@ -47,7 +47,7 @@ async function poseNeuve(device: GPUDevice, x: number, onDiag: (e: BackendDiagno
 export async function executer() {
   // The camera has only one local pose, set once: the rig carries the whole move.
   const camera = cameraFace(0),
-    rig = new G.GraphGroup();
+    rig = new G.Group();
   rig.add(camera);
   return surSceneOccultante({ stageProfile: true }, async (backend, device, onDiag, etapes) => {
     for (const x of POSES) {
