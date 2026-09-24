@@ -18,6 +18,7 @@ import { createTileStreamer } from './tiles.ts';
 import { createPhysicsView } from './view.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
 import { createCharacterPort, createPhysicsCharacter } from './physicsCharacter.ts';
+import { createWaterClock } from './waterClock.ts';
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -71,6 +72,7 @@ export function createPhysicsSession(
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
     const moved = poses.receive(words, m.poses, bodies, ms);
     emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
+    waves.received(m.water, m.active, began);
     if (m.character) character.hear?.(m.character);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
     const changed = moved > 0 || m.active !== stats.active || m.character !== null;
@@ -106,6 +108,7 @@ export function createPhysicsSession(
   worker.onerror = (event) =>
     failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`), true);
   const clock = { paused: false, timeScale: 1 };
+  const waves = createWaterClock(clock);
   const character = createCharacterPort((message) => worker.postMessage(message));
   return {
     stats,
@@ -114,6 +117,7 @@ export function createPhysicsSession(
     characterBody: createPhysicsCharacter.bind(null, character),
     /** Pauses or scales the simulation's time; a scale of 0 stands still, like a pause. */
     setClock(paused: boolean, timeScale: number) {
+      waves.retime();
       Object.assign(clock, { paused, timeScale });
       worker.postMessage({ type: 'clock', paused: paused || timeScale === 0, timeScale });
     },
@@ -121,9 +125,12 @@ export function createPhysicsSession(
      *  the awake bodies; every dynamic body is woken, so one at rest floats or falls. */
     setWater(water: WaterSpec | null) {
       worker.postMessage({ type: 'water', water });
+      waves.reset();
       for (const mesh of bodies.meshes)
         if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
     },
+    /** Simulated seconds the water's waves have run, for a frame drawn now. */
+    waterTime: () => waves.time(),
     /** The scene's tree changed: bodies are reconciled before the next frame. */
     structure: () => void (dirty = true),
     /** A mesh's geometry, material or `physics` changed. */
