@@ -1,13 +1,13 @@
 // The compiler's physics cook (`packages/asset-compiler-rust`, stage `physics-cook`): native Jolt,
 // from the same pinned submodule as the web module, turns triangles into shapes and writes them
 // with Jolt's own binary state (`src/blob.h`), so the physics worker restores them without
-// building a tree. Every entry point returns 0 on success; its bytes stay valid until the calling
-// thread's next call.
+// building a tree. Every entry point returns 0 on success, else 1 and Jolt's error text in place of
+// the bytes; either stays valid until the calling thread's next call.
 #include "../src/blob.h"
+#include "../src/mesh.h"
 
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
-#include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/RegisterTypes.h>
 
 #include <mutex>
@@ -29,15 +29,20 @@ void start() {
 }
 
 uint32_t save(const ShapeSettings::ShapeResult &result, const uint8_t **out, uint32_t *bytes) {
-  if (result.HasError()) return 1;
-  trillion::BlobOut blob;
-  Shape::ShapeToIDMap shapes;
-  Shape::MaterialToIDMap materials;
-  result.Get()->SaveWithChildren(blob, shapes, materials);
-  written.swap(blob.bytes);
+  uint32_t status = result.HasError() ? 1 : 0;
+  if (status) {
+    const String &error = result.GetError();
+    written.assign(error.begin(), error.end());
+  } else {
+    trillion::BlobOut blob;
+    Shape::ShapeToIDMap shapes;
+    Shape::MaterialToIDMap materials;
+    result.Get()->SaveWithChildren(blob, shapes, materials);
+    written.swap(blob.bytes);
+  }
   *out = written.data();
   *bytes = uint32_t(written.size());
-  return 0;
+  return status;
 }
 
 }  // namespace
@@ -45,7 +50,8 @@ uint32_t save(const ShapeSettings::ShapeResult &result, const uint8_t **out, uin
 extern "C" {
 
 /// A static triangle mesh: `vertexCount` points (3 floats each) and `triangleCount` triangles (3
-/// indices each). It carries no material: a tile is of its collider's, named in `physics.json`.
+/// indices each). It carries no material: a tile is of its collider's, named in `physics.json`. A tile
+/// Jolt would thin is cooked scaled up and wrapped in a `ScaledShape` of the inverse (`src/mesh.h`).
 uint32_t cook_mesh(const float *vertices, uint32_t vertexCount, const uint32_t *indices, uint32_t triangleCount,
                    const uint8_t **out, uint32_t *bytes) {
   start();
@@ -56,7 +62,7 @@ uint32_t cook_mesh(const float *vertices, uint32_t vertexCount, const uint32_t *
   triangles.reserve(triangleCount);
   for (uint32_t i = 0; i < triangleCount; ++i)
     triangles.push_back(IndexedTriangle(indices[i * 3], indices[i * 3 + 1], indices[i * 3 + 2]));
-  return save(MeshShapeSettings(list, triangles).Create(), out, bytes);
+  return save(trillion::wholeMesh(list, triangles), out, bytes);
 }
 
 /// A height field of `sampleCount`² heights (row by row along z, `FLT_MAX` for a hole), placed by
