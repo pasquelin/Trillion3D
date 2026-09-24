@@ -144,13 +144,13 @@ export function createWebgpuTileStreamer(options: {
       counters.pass(now() - started, unbounded);
       return { served, pending: counters.pending };
     },
-    /** Follows every texture's sampling into its header (`samplingHeaders.ts`) and sends what
-     *  moved (#360, #361); a moved colour texture is signalled as a landed tile is, for the cutout
-     *  shadows. True when a word moved: the next image draws it. */
-    followSampling() {
+    /** Follows every texture's sampling into its header (`samplingHeaders.ts`) once a surface was
+     *  filled since the last call, and sends what moved (#360, #361); a moved colour texture is
+     *  signalled as a landed tile is, for the cutout shadows. True when a word moved. */
+    followSampling(fills: number) {
       colorChanged.clear();
-      const colour = colorSampling(colorChanged);
-      if (!dataSampling() && !colour) return false;
+      const colour = colorSampling(fills, colorChanged);
+      if (!dataSampling(fills) && !colour) return false;
       flushAll();
       if (colorChanged.size) options.onColorChanged(colorChanged);
       return true;
