@@ -14,6 +14,7 @@ import {
 import { encodeBlend } from './encodeBlend.ts';
 import { encodeVis } from './encodeVis.ts';
 import { dropVis } from '../io/drops.ts';
+import { surfaceFills } from '../../../page/surface.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
@@ -77,6 +78,10 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     rt.services.syncRows();
     run.rowsSyncedFrame = run.frame;
   }
+  // The rows and the transparent plan have reread their surfaces, refilling their maps' records:
+  // a filter or a placement written since reaches its texture's header before this image is
+  // encoded and submitted, and the image draws it (#360, #361).
+  if (vis.textures?.followSampling(surfaceFills())) run.gate.resourcesChanged();
   if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {
     const rowWords = PAGE_INFO_STRIDE / 4;
     for (let row = 0; row < rows.packedCount; row++) {

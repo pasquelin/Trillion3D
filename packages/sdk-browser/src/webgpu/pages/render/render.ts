@@ -123,8 +123,4 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   if (!capture.capturing && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
     if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
   } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd);
-  // The surfaces this image reread — rows and transparent plan — refilled their maps' records: a
-  // filter or a placement written since, by a repaint or by the host on its own material, reaches
-  // its texture's header now, and the image that follows draws it (#360, #361).
-  if (vis.textures?.followSampling()) run.gate.resourcesChanged();
 }

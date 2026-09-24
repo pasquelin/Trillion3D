@@ -70,17 +70,19 @@ test('the sampling follows each texture once per version, and signals a moved co
     data = record();
   const { textures, writes, signalled } = streamer(colour, data);
   const opened = writes();
-  assert.equal(textures.followSampling(), false, 'nothing moved: nothing written');
+  let fills = 0;
+  assert.equal(textures.followSampling(++fills), false, 'nothing moved: nothing written');
   assert.equal(writes(), opened);
   colour.anisotropy = 8;
-  assert.equal(textures.followSampling(), false, 'a field without a version is not read');
+  assert.equal(textures.followSampling(++fills), false, 'a field without a version is not read');
   colour.version++;
-  assert.equal(textures.followSampling(), true);
+  assert.equal(textures.followSampling(fills), false, 'no surface filled since: not walked');
+  assert.equal(textures.followSampling(++fills), true);
   assert.deepEqual(signalled, [[1]], 'the colour slot, as a landed tile');
-  assert.equal(textures.followSampling(), false, 'the same version: written once');
-  // A host recomposes a placement without a version: the transform is compared all the same.
+  assert.equal(textures.followSampling(++fills), false, 'the same version: written once');
+  // A refill recomposes a placement without a version: the transform is compared all the same.
   data.transform[6] = 0.5;
-  assert.equal(textures.followSampling(), true, 'a data map moved');
+  assert.equal(textures.followSampling(fills + 1), true, 'a data map moved');
   assert.deepEqual(signalled, [[1]], 'no shadow reads a data map');
   assert.equal(writes(), opened + 2, 'one send per atlas that moved');
 });
