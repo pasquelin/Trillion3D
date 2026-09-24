@@ -1,11 +1,17 @@
-import type { Mesh } from '../shadow-theatre/geometry.ts';
 import { snap, type Vec3 } from './random.ts';
+import { geometry, type Geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts';
+import { computeNormals } from '../../../packages/sdk-core/src/world/geometry/normals.ts';
 
 /**
  * The mesh toolkit of the scenes modelled in code: flat position, normal, (u, v) and index
- * arrays, the workshop's `Mesh`; an empty `uvs` means the mesh carries no texture coordinates.
+ * arrays; an empty `uvs` means the mesh carries no texture coordinates.
  */
-export type { Mesh };
+export interface Mesh {
+  positions: number[];
+  normals: number[];
+  uvs: number[];
+  indices: number[];
+}
 
 /** The pairs of flat lists joined, `[a, b], [c, d]` to `[[a, b], [c, d]]`: compact profiles. */
 export function pairs(...lists: readonly (readonly number[])[]) {
@@ -14,19 +20,6 @@ export function pairs(...lists: readonly (readonly number[])[]) {
     flat[i * 2],
     flat[i * 2 + 1],
   ]);
-}
-
-/** Area-weighted vertex normals: each triangle adds its unnormalised face normal to its corners. */
-function vertexNormals(positions: readonly number[], indices: readonly number[]) {
-  const normals: number[] = Array(positions.length).fill(0);
-  for (let t = 0; t < indices.length; t += 3) {
-    const [a, b, c] = [indices[t] * 3, indices[t + 1] * 3, indices[t + 2] * 3],
-      e = [0, 1, 2].map((k) => positions[b + k] - positions[a + k]),
-      f = [0, 1, 2].map((k) => positions[c + k] - positions[a + k]),
-      face = [e[1] * f[2] - e[2] * f[1], e[2] * f[0] - e[0] * f[2], e[0] * f[1] - e[1] * f[0]];
-    for (const corner of [a, b, c]) for (let k = 0; k < 3; k++) normals[corner + k] += face[k];
-  }
-  return normalized(normals);
 }
 
 function normalized(vectors: number[]) {
@@ -53,9 +46,43 @@ export function solid(
   positions: number[],
   indices: number[],
   uvs: number[] = [],
-  normals = vertexNormals(positions, indices),
+  normals = Array.from(computeNormals(positions, indices)),
 ): Mesh {
   return { positions, normals, uvs, indices };
+}
+
+/** An sdk-core geometry as a scene mesh: its positions, normals, (u, v) and triangles. */
+export function fromGeometry(built: Geometry): Mesh {
+  const { position, normal, uv } = built.attributes;
+  return {
+    positions: Array.from(position.array),
+    normals: Array.from(normal.array),
+    uvs: Array.from(uv.array),
+    indices: Array.from(built.index!.array),
+  };
+}
+
+/**
+ * The mesh with its vertices at one place made one, each keeping its first copy's normal and
+ * (u, v): a surface a generator cut along a seam, or into loose triangles, shades smooth again.
+ */
+export function welded(mesh: Mesh): Mesh {
+  const out: Mesh = { positions: [], normals: [], uvs: [], indices: [] },
+    kept = new Map<string, number>();
+  const remap = Array.from({ length: mesh.positions.length / 3 }, (_, v) => {
+    const at = mesh.positions.slice(v * 3, v * 3 + 3),
+      key = at.map((value) => Math.round(value * 1e9)).join();
+    let index = kept.get(key);
+    if (index === undefined) {
+      kept.set(key, (index = kept.size));
+      out.positions.push(...at);
+      out.normals.push(...mesh.normals.slice(v * 3, v * 3 + 3));
+      out.uvs.push(...mesh.uvs.slice(v * 2, v * 2 + 2));
+    }
+    return index;
+  });
+  out.indices = mesh.indices.map((index) => remap[index]);
+  return out;
 }
 
 /** The mesh scaled per axis, then moved by `offset`; its normals follow the scaling. */
@@ -82,24 +109,6 @@ export function merge(meshes: readonly Mesh[]): Mesh {
   return merged;
 }
 
-/** Two triangles per cell of a grid of `rows + 1` rows of `cols` (+ 1 unless `wrap`) vertices. */
-export function gridIndices(rows: number, cols: number, wrap = false) {
-  const stride = wrap ? cols : cols + 1,
-    indices: number[] = [];
-  for (let r = 0; r < rows; r++)
-    for (let c = 0; c < cols; c++) {
-      const next = wrap ? (c + 1) % cols : c + 1,
-        [a, b, d, e] = [
-          r * stride + c,
-          r * stride + next,
-          (r + 1) * stride + c,
-          (r + 1) * stride + next,
-        ];
-      indices.push(a, d, b, b, d, e);
-    }
-  return indices;
-}
-
 /** The mesh wound so its normals mostly agree with `outward(vertex)`; normals recomputed. */
 export function facing(mesh: Mesh, outward: (vertex: number) => Vec3): Mesh {
   let agreement = 0;
@@ -113,54 +122,34 @@ export function facing(mesh: Mesh, outward: (vertex: number) => Vec3): Mesh {
   return solid(mesh.positions, flipped, mesh.uvs);
 }
 
-/** A flat disc of `segments` sides at height `y`, facing up or down. */
+/** A flat disc of `segments` sides at height `y`, facing up or down: sdk-core's `circle`, laid flat. */
 export function disc(radius: number, y: number, segments: number, up = true): Mesh {
-  const positions = [0, y, 0],
-    indices: number[] = [];
-  for (let k = 0; k < segments; k++) {
-    const angle = (2 * Math.PI * k) / segments;
-    positions.push(radius * Math.cos(angle), y, -radius * Math.sin(angle));
-    const next = 1 + ((k + 1) % segments);
-    indices.push(0, ...(up ? [1 + k, next] : [next, 1 + k]));
-  }
-  const normals = positions.map((_, index) => (index % 3 === 1 ? (up ? 1 : -1) : 0));
-  return solid(positions, indices, [], normals);
+  const flat = geometry.circle(radius, segments).rotateX(((up ? -1 : 1) * Math.PI) / 2);
+  return { ...fromGeometry(flat.translate(0, y, 0)), uvs: [] };
 }
 
 /**
- * Revolves `(radius, height)` points, bottom to top, about +Y. With `repeat` — repeats around,
- * metres per repeat along the profile — the seam column is doubled so a texture wraps without a
- * jump, and both copies of a seam vertex share one normal.
+ * Revolves `(radius, height)` points, bottom to top, about +Y: sdk-core's `lathe`, turned from
+ * +X towards -Z. With `repeat` — repeats around, metres per repeat along the profile — its (u, v)
+ * are in those repeats, so a texture wraps without a jump; without, the mesh carries none.
  */
 export function lathe(
   profile: readonly (readonly [number, number])[],
   segments: number,
   { caps = true, repeat }: { caps?: boolean; repeat?: readonly [number, number] } = {},
 ): Mesh {
-  const columns = repeat ? segments + 1 : segments,
-    positions: number[] = [],
-    uvs: number[] = [];
-  let arc = 0;
-  profile.forEach(([radius, y], row) => {
-    if (row) arc += Math.hypot(radius - profile[row - 1][0], y - profile[row - 1][1]);
-    for (let k = 0; k < columns; k++) {
-      const angle = (2 * Math.PI * k) / segments;
-      positions.push(radius * Math.cos(angle), y, -radius * Math.sin(angle));
-      if (repeat) uvs.push((k / segments) * repeat[0], arc / repeat[1]);
-    }
-  });
-  const indices = gridIndices(profile.length - 1, segments, !repeat),
-    body = facing(solid(positions, indices, uvs), (v) => [
-      positions[v * 3],
-      0,
-      positions[v * 3 + 2],
-    ]);
-  if (repeat)
-    for (let row = 0; row < profile.length; row++) {
-      const [first, last] = [row * columns * 3, (row * columns + segments) * 3],
-        seam = normalized([0, 1, 2].map((k) => body.normals[first + k] + body.normals[last + k]));
-      for (let k = 0; k < 3; k++) body.normals[first + k] = body.normals[last + k] = seam[k];
-    }
+  const body = fromGeometry(geometry.lathe(profile, segments, Math.PI / 2));
+  if (!repeat) body.uvs = [];
+  else {
+    const arcs = [0];
+    for (let row = 1; row < profile.length; row++)
+      arcs.push(
+        arcs[row - 1] + Math.hypot(...[0, 1].map((k) => profile[row][k] - profile[row - 1][k])),
+      );
+    body.uvs = body.uvs.map((value, i) =>
+      i % 2 ? arcs[Math.floor(i / 2 / (segments + 1))] / repeat[1] : value * repeat[0],
+    );
+  }
   const parts = [body];
   for (const [row, up] of [
     [0, false],
