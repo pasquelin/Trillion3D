@@ -11,7 +11,11 @@ function recorder() {
   const calls: unknown[][] = [];
   // What the witness's state reads once, at its creation.
   const parameter = (name: string) =>
-    name === 'VERSION' ? 'WebGL 2.0' : name.endsWith('BOX') || name === 'VIEWPORT' ? [0, 0, 1, 1] : 16;
+    name === 'VERSION'
+      ? 'WebGL 2.0'
+      : name.endsWith('BOX') || name === 'VIEWPORT'
+        ? [0, 0, 1, 1]
+        : 16;
   const gl = new Proxy({} as Record<string, unknown>, {
     get: (_, key: string) =>
       /^[A-Z_0-9]+$/.test(key)
