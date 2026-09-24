@@ -8,6 +8,7 @@ import {
   EDGE_WGSL,
   MASK_KEEP_WGSL,
   PAGE_INFO_STRUCT_WGSL,
+  STIPPLE_WGSL,
   VIS_UNIFORMS_WGSL,
 } from '../../visibility/shader/pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
@@ -26,9 +27,10 @@ import { wgslFloat } from '../partition/margins.ts';
  * texture, the depth and pyramid level zero that the hardware raster opened. Blend and
  * transmission surfaces keep their pass.
  *
- * A mask material does its alpha test HERE, on the finest already-resident tile — this raster
- * has no derivatives and passes null gradients to `maskKeep`, the same test as the frame and
- * shadows, at the same threshold, on the same coordinates.
+ * A mask material does its alpha test HERE, the same test as the frame and shadows, at the same
+ * threshold, on the same coordinates. This raster has no derivatives: on an accumulating image it
+ * computes the pixel's footprint (`uvFootprint`) and stipples like the camera raster; otherwise
+ * it passes null gradients and reads the finest already-resident tile.
  */
 const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
 ${VIS_UNIFORMS_WGSL}`;
@@ -64,6 +66,7 @@ fn vertex(vp:mat4x4f,page:PageInfo,h:ClusterHeader,index:u32)->vec4f{
 ${EDGE_WGSL}
 ${COMPUTE_TAKES_WGSL}
 ${MASK_KEEP_WGSL}
+${STIPPLE_WGSL}
 ${RASTER_TRI_WGSL}
 ${RASTER_PIXEL_WGSL}
 ${rasterKernels(capacity)}`;

@@ -74,8 +74,9 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * pixel or shadow texel —: each reads the map at the level of its footprint (`maskAlpha`,
  * `../../webgpu/tile/wgsl.ts`), the camera through the colour's own read. This is the only cutout of
  * an opaque pixel: the resolve shades what the raster kept and never tests again. The compute
- * raster, which has no derivatives, passes zero and reads level 0 — the finest resident tile under
- * that texel.
+ * raster has no derivatives: on an accumulating image it passes the exact screen gradients of its
+ * perspective-correct coordinate (`uvFootprint`, `../../gpu/raster/pixelWgsl.ts`), otherwise zero
+ * and reads level 0 — the finest resident tile under that texel.
  *
  * `stipple` (`stippleOffset`, in (−½, ½)) moves the threshold of an accumulating camera pixel by
  * up to half the alpha a pixel spans. A minified texel is an aggregate of the finer ones, and a
@@ -84,9 +85,9 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * its alpha passes, and the temporal pass averages that share back into partial coverage. The
  * spread is the footprint's level above the finest, clamped to one: zero while a texel covers a
  * pixel or more — there the jitter already antialiases the edge, and the test stays the hard one
- * — and the whole alpha range once the read comes from coarser levels. The shadows and the
- * compute raster, which no temporal pass averages or which have no footprint, pass zero: their
- * test is the hard threshold, to the bit.
+ * — and the whole alpha range once the read comes from coarser levels. Both rasters stipple the
+ * same way. The shadows, which no temporal pass averages, pass zero: their test is the hard
+ * threshold, to the bit.
  *
  * The host shader declares `uvs`, the colour pool and its page table, then inserts
  * `TILE_POOL_WGSL` (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and
