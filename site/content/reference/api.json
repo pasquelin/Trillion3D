@@ -6074,7 +6074,7 @@
         "desc": "The nodes at its top."
       }
     ],
-    "description": "Building it is a host boundary's; writing one, `HostDrawScene`."
+    "description": "The engine writes its own as a `GraphScene` (`graph/scene.ts`)."
   },
   {
     "id": "HostTexture",

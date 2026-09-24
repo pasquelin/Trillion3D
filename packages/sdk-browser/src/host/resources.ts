@@ -157,7 +157,7 @@ export type HostColour = {
 };
 
 /** The host display graph an engine draws into: what it holds, how it is walked, and the clear
- *  colour the composition reads. Building it is a host boundary's; writing one, `HostDrawScene`. */
+ *  colour the composition reads. The engine writes its own as a `GraphScene` (`graph/scene.ts`). */
 export type HostScene = HostTraversable & {
   /** What fills the image behind. */ readonly background: unknown;
   /** The nodes at its top. */ readonly children: readonly HostNode[];

@@ -7,7 +7,6 @@ import {
 import type { HostCamera, HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { clusterColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import { threeCamera } from './fromGraphNodes.ts';
-import type { HostDrawScene } from '../../../packages/sdk-browser/src/host/scene/graphNodes.ts';
 import {
   asHostLibrary,
   type HostDiagnosticFactory,
@@ -85,11 +84,8 @@ function release(entry: Shared) {
  * `null` before the first frame. Without a context (a session that never draws on the host
  * surface) the draw is refused by name.
  */
-export function createThreeSceneDraw(
-  gl: WebGL2RenderingContext | undefined,
-  display: HostDrawScene,
-) {
-  const scene = asHostLibrary<THREE.Scene>(display);
+export function createThreeSceneDraw(gl: WebGL2RenderingContext | undefined, display: THREE.Scene) {
+  const scene = display;
   let entry: Shared | undefined,
     camera: HostCamera | undefined,
     counters: { calls: number; triangles: number } | null = null;

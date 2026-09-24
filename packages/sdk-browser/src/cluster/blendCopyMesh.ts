@@ -85,7 +85,7 @@ export function growBlendCopies(
   copies: BlendCopy[],
   from: PlacementRows,
   to: PlacementRows,
-  add: (copy: HostMesh) => void,
+  add: (copy: GraphMesh) => void,
 ) {
   const rebind = (copy: BlendCopy, placement: PlacementOf) => {
     const { elements } = placementWorld(placement.rows, placement.index);
@@ -99,6 +99,6 @@ export function growBlendCopies(
   };
   for (const { item } of growPlaced(copies, from, to, rebind, clone)) {
     copies.push(item);
-    add(item as unknown as HostMesh);
+    add(item as unknown as GraphMesh);
   }
 }
