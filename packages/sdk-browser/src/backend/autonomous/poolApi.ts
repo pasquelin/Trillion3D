@@ -120,10 +120,13 @@ export function createAutonomousPool(env: {
       get budgetPixelError() {
         return budget.budgetPixelError;
       },
+      /** No texture pool on this path: `world.budget.texturePool` reads `null`. */
+      texturePoolBytes: null,
     },
     api: {
       /** The pool's search has a finer threshold left to try: another image is owed. */
       pendingFrame: async () => budget.settling,
+      cutSettling: () => budget.settling,
       /** Publishes what the images left in flight: the pool's verdict, as on WebGPU. */
       async flush() {
         budget.flush();
