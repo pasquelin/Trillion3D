@@ -5675,7 +5675,7 @@
   },
   "texture": {
     "summary": "La famiglia `texture`: un'immagine e il modo di campionarla.",
-    "description": "Le immagini di colore sono in sRGB, le immagini di dati in lineare; `needsUpdate` dopo aver scritto i pixel le fa rileggere."
+    "description": "Le immagini di colore sono in sRGB, quelle di dati in lineare; `needsUpdate` dopo aver scritto i pixel li fa rileggere ai campionatori, copiati sul posto nella texture già sulla GPU — solo una nuova dimensione la ricostruisce. Un video è vivo: i suoi fotogrammi arrivano da soli."
   },
   "texture.image": {
     "summary": "Una texture di colore a partire da un'immagine già nella pagina: un'immagine, una bitmap o un'immagine video.",
@@ -5694,12 +5694,14 @@
   },
   "texture.canvas": {
     "summary": "Una texture che mostra ciò che contiene un canvas.",
+    "description": "Dopo aver ridisegnato il canvas, imposta `needsUpdate`: i nuovi pixel vengono copiati nella texture già sulla GPU, niente viene ricostruito.",
     "parameters": {
       "c": "Il canvas da mostrare."
     }
   },
   "texture.video": {
-    "summary": "Una texture che mostra un video in riproduzione.",
+    "summary": "Una texture che mostra un video in riproduzione, o il flusso di una videocamera riprodotto in un video.",
+    "description": "Ogni nuovo fotogramma viene copiato da solo nella texture già sulla GPU; un video in pausa non costa nulla.",
     "parameters": {
       "v": "Il video da mostrare."
     }
@@ -5829,7 +5831,8 @@
       "textureLevelReads": "Le fonti. `textureLevelReads`: livelli cotti in corso di lettura nella cache. `textureLevelsDecoded`: livelli cotti decodificati dall'inizio. `textureLevelCacheBytes`: byte dell'host dei livelli decodificati mantenuti per ritagliarne altre tessere, sotto un budget fisso. `textureScratchBuilds`: texture di lavoro costruite per una texture senza catena cotta, ogni volta l'intera sorgente.",
       "textureLevelsDecoded": "Livelli decodificati.",
       "textureLevelCacheBytes": "Byte dei livelli decodificati mantenuti.",
-      "textureScratchBuilds": "Texture temporanee costruite."
+      "textureScratchBuilds": "Texture temporanee costruite.",
+      "textureLiveBytes": "Byte che tengono le texture vive: una texture di lavoro ciascuna, della propria dimensione."
     }
   },
   "TextureLayout": {
@@ -6500,6 +6503,7 @@
       "textureLevelsDecoded": "Livelli decodificati.",
       "textureLevelCacheBytes": "Byte dei livelli decodificati mantenuti.",
       "textureScratchBuilds": "Texture temporanee costruite.",
+      "textureLiveBytes": "Byte che tengono le texture vive: una texture di lavoro ciascuna, della propria dimensione.",
       "gpuAllocatedBytes": "Byte allocati attivi sul dispositivo, tutte le risorse insieme.",
       "gpuAllocatedByLabel": "Byte allocati raggruppati per etichetta di risorsa. Le allocazioni senza etichetta sono raggruppate sotto 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Numero di texture con formati non riconosciuti. Il valore atteso è 0.",
