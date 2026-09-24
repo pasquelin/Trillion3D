@@ -23,11 +23,8 @@ function runtime() {
     dispose() {},
   };
   const rt = {
-    setup: {
-      gpuDevice: { limits: { maxTextureDimension2D: 8192 } },
-      reserveHiz: true,
-    },
-    gpu: { temporal },
+    setup: { reserveHiz: true },
+    gpu: { device: { limits: { maxTextureDimension2D: 8192 } }, temporal },
     capture: { capturing: false },
     capabilities: { unsupported: [] as string[] },
     diag: { diagnosticFailure: (phase: string) => failures.push(phase) },
