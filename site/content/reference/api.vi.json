@@ -3999,7 +3999,8 @@
       "pixelRatio": "Bao nhiêu điểm ảnh hình ảnh cho mỗi điểm ảnh màn hình.",
       "controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
-      "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải."
+      "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
+      "temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {
@@ -4633,7 +4634,8 @@
       "options.pixelRatio": "Có bao nhiêu pixel hình ảnh cho mỗi pixel màn hình.",
       "options.controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
-      "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải."
+      "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
+      "options.temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -6579,6 +6581,10 @@
   "world.bounce": {
     "summary": "Ánh sáng dội lại từ các bề mặt, được vẽ tia so với proxy đang cư trú; tắt theo mặc định.",
     "description": "Một thay đổi được áp dụng tại chỗ trên một đường xử lý mang nó, và được lấy bởi lần mở tiếp theo trên một đường xử lý không mang nó."
+  },
+  "world.temporalAntialiasing": {
+    "summary": "Khử răng cưa theo thời gian: độ lệch dưới điểm ảnh được tích lũy qua các khung hình; bật theo mặc định.",
+    "description": "Khi ghi, có hiệu lực từ khung hình kế tiếp, bỏ lịch sử, không mở lại phiên. Khi đọc, là điều hình ảnh mang: false trên WebGL2, và trong lúc chương trình biên dịch sau khi bật."
   },
   "world.budget": {
     "summary": "Các bể bộ nhớ của thế giới, đọc và đặt theo byte.",

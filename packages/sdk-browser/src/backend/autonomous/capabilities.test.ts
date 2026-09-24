@@ -10,3 +10,8 @@ test('the WebGL2 page path declares the blend and transmission it draws', () => 
   assert.match(materials, /transmission/);
   assert.ok(!unsupported.some((entry) => /BLEND|transmission/.test(entry)));
 });
+
+// #363: WebGL2 has no temporal antialiasing; `world.temporalAntialiasing` reads false there.
+test('the WebGL2 page path declares temporal antialiasing unsupported', () => {
+  assert.ok(autonomousCapabilities(false).unsupported.includes('temporal antialiasing'));
+});
