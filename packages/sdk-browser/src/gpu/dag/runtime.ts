@@ -7,9 +7,8 @@ import {
   type SelectionUniforms,
 } from '../core/selection.ts';
 import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from '../../webgpu/residency/ranges.ts';
-import { refreshWorldStretch, worldsChanged } from './worlds.ts';
+import { primitiveWordAt, refreshWorldStretch, worldsChanged } from './worlds.ts';
 import { residentBase, residentWords } from './layout.ts';
-import { FRAME_VEC4 } from './types.ts';
 import { createDagDispatch } from './dispatch.ts';
 import type { createDagResources } from './resources.ts';
 
@@ -134,7 +133,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (packed.rootNodes[w] === node) return;
       packed.rootNodes[w] = node;
       // The root travels behind the stretch in the frame buffer (`resources.ts`): one word.
-      const at = (w * FRAME_VEC4 + 6) * 4 + 1;
+      const at = primitiveWordAt(w) + 1;
       frameInts[at] = node;
       device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
       resources.frameWrites.count++;
