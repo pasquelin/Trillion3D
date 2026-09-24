@@ -7398,11 +7398,5 @@
       "distance": "Garde `anchor` sur `a` et `anchorB` sur `b` à leur distance, ou dans `limits`.",
       "cone": "Une rotule dont l’`axis` oscille dans un cône de demi-angle `limits.max`."
     }
-  },
-  "JointHost": {
-    "summary": "Le côté monde d’une liaison : ce qu’une écriture sur elle demande à la simulation.",
-    "members": {
-      "motor": "Le moteur a changé."
-    }
   }
 }
