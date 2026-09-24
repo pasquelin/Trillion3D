@@ -1,18 +1,7 @@
-// Pseudo-random draws of the correctness campaigns: a reproducible generator, and the two
-// distributions every campaign draws from. The generators stay distinct — each campaign published
-// its figures with its own, changing it would move its cases — but `entre` and `log` now have
-// only one writing.
-
-/** Mulberry32: well-dispersed 32-bit sequence, advanced one step per draw. */
-export function mulberry32(graine: number): () => number {
-  let etat = graine;
-  return () => {
-    etat = (etat + 0x6d2b79f5) | 0;
-    let t = Math.imul(etat ^ (etat >>> 15), 1 | etat);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// Pseudo-random draws of the correctness campaigns: the xorshift generator one campaign published
+// its figures with, and the two distributions every campaign draws from. The other campaign draws
+// from the repository's `mulberry32` (site/examples/kit/random.ts); the generators stay distinct —
+// changing one would move its cases — but `entre` and `log` have only one writing.
 
 /** Xorshift32: three exclusive shifts, the state never passing through zero. */
 export function xorshift32(graine: number): () => number {
