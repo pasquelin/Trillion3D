@@ -1,9 +1,6 @@
 import { FLAG_CLIP, ROW_DATA_U32, ROW_FLAGS, ROW_NEAREST } from '../../gpu/partition/contract.ts';
 import { visLayerTop } from '../visibility/uniforms.ts';
-
-/** Doubles of a world box: eight corners of three coordinates, as `createBoxCorners` holds them.
- *  That is the REFERENCE layout, not that of the two-word buffer the kernel reads. */
-const BOX_CORNER_VALUES = 24;
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /**
@@ -63,7 +60,7 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
     corners = new Float64Array(rows * BOX_CORNER_VALUES);
   const ints = new Int32Array(words.buffer, words.byteOffset, words.length),
     floats = new Float32Array(words.buffer, words.byteOffset, words.length);
-  const { boxCorners, rows: table } = rt.layout;
+  const { rows: table } = rt.layout;
   for (let row = 0; row < rows; row++) {
     const base = row * ROW_DATA_U32;
     for (let k = 0; k < 4; k++) rect[row * 4 + k] = ints[base + k];
@@ -74,9 +71,7 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
     if (!rec) continue;
     // The corners the GPU read are these, rounded to single precision for transport: the reference
     // therefore starts from the same doubles, and the rounding enters the kernel's error bound.
-    const at = boxCorners.at(table.packedPageIndex[row], rec, table.tableEpoch);
-    for (let k = 0; k < BOX_CORNER_VALUES; k++)
-      corners[row * BOX_CORNER_VALUES + k] = boxCorners.corners[at + k];
+    pageCornersInto(corners, row * BOX_CORNER_VALUES, rec);
   }
   return {
     rows,

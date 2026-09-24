@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "引擎交出的、宿主用来绘制一帧所需的矩阵。",
+    "summary": "引擎交出的、宿主用来绘制一帧所需的矩阵和深度范围。",
     "members": {
       "projection": "投影矩阵。",
       "world": "摄像机的世界矩阵。",
       "view": "视图矩阵。",
-      "eye": "眼睛所在的位置。"
+      "eye": "眼睛所在的位置。",
+      "near": "最近距离。",
+      "far": "最远距离。"
     }
   },
   "HostDrawOutput": {
@@ -1523,8 +1525,7 @@
     "summary": "直接光照的公开设置。",
     "description": "这些是命名清楚的产品级选择,而不是隐藏起来的常量:每一处运行时的边界都会重新读取它们,诊断信息也会原样公开它们。",
     "members": {
-      "maxLights": "契约总共接受的光源数量;超过这个数,`addLight` 会拒绝。",
-      "maxLightsPerTile": "一个屏幕图块所保留的光源数;像素循环的上限就是这个数字(乘以 2)。",
+      "maxLights": "契约总共接受的光源数量;超过这个数,`addLight` 会拒绝。 屏幕图块保留每一个触及它的光源;其列表和像素循环的上限就是这个数字(X2)。",
       "tileSize": "光源列表所用屏幕图块一条边的长度,单位像素。",
       "samplesPerPixel": "一张**运动**图像中,每个像素完整着色(包含阴影读取)的光源数(乘以 2):其余的光源只按权重计算而不读取阴影,被完整着色的光源则按相应比例绘制,因此这个估计值是无偏的,时间性抗锯齿会对其求平均。静止图像会为其所在图块的每一个光源着色,并收敛到精确的总和;在那种情况下,这个数字不起任何作用。",
       "shadowPage": "阴影页的边长（纹素）：物理池、虚拟贴图与失效的单位。移动的物体只使其投影包围盒覆盖的页失效。",
@@ -1668,6 +1669,7 @@
       "bounds": "该模型所占据的包围盒,以它自身的坐标系表示。",
       "lights": "该模型之下的光源——即源文件以节点形式携带的那些:页面可以像对待自己的节点一样编辑、移动或移除它们,它们会随模型一起移动。",
       "record": "世界为这个模型保存的一切:它的地址、清单和图结构。",
+      "getObjectByName": "下方第一个带此名称的节点：模型、其源文件的节点，然后是其他任何子节点——文件携带的灯光、页面放置的节点。",
       "metadata": "该模型已编译的清单——它的图元、`sourceTriangles`——以及 `clusters`(它的页面所持有的簇,统计了其 DAG 的每一个层级)。",
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。"
     }
@@ -3829,6 +3831,10 @@
     "summary": "从表面反弹的光,针对常驻代理体进行追踪;默认关闭。",
     "description": "对于支持该功能的路径,变更会就地生效;对于不支持的路径,则要等到下一次开启时才会生效。"
   },
+  "world.temporalAntialiasing": {
+    "summary": "时间性抗锯齿：跨帧累积的亚像素抖动；默认开启。",
+    "description": "写入后从下一帧生效，丢弃历史，不重新打开会话。读取时是图像实际带有的：在 WebGL2 上为 false，开启后程序编译期间也为 false。"
+  },
   "world.budget": {
     "summary": "世界的内存池,以字节为单位读写。",
     "members": {
@@ -4007,7 +4013,8 @@
       "pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "signal": "当该信号被中止时停止世界的加载操作。",
-      "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
+      "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
+      "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。"
     }
   },
   "WorldPageSource": {
@@ -4627,7 +4634,8 @@
       "options.pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "options.controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "options.signal": "当该信号被中止时停止世界的加载操作。",
-      "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。"
+      "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
+      "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。"
     }
   },
   "crossVector3": {
@@ -5805,7 +5813,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "根据每个点到摄像机的距离来上明暗。",
+    "summary": "根据每个点到摄像机的距离来上明暗：在 `camera.near` 处为白色，在 `camera.far` 处为黑色，中间为直线渐变，在 WebGPU 和 WebGL2 上相同。",
     "parameters": {
       "parameters": "页面可以传给材质成员的内容;每个字段都是可选的。",
       "parameters.color": "基础颜色。",

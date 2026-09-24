@@ -1212,7 +1212,8 @@
       "options.pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "options.controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
       "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
-      "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
+      "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
+      "options.temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet."
     }
   },
   "crossVector3": {
@@ -2356,12 +2357,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Die Matrizen, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
+    "summary": "Die Matrizen und der Tiefenbereich, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
     "members": {
       "projection": "Die Projektion.",
       "world": "Die Matrix der Kamera in der Welt.",
       "view": "Die Sichtmatrix.",
-      "eye": "Wo das Auge ist."
+      "eye": "Wo das Auge ist.",
+      "near": "Nächste Entfernung.",
+      "far": "Fernste Entfernung."
     }
   },
   "HostDrawOutput": {
@@ -2758,8 +2761,7 @@
     "summary": "Veröffentlichte Einstellungen der direkten Beleuchtung.",
     "description": "Das sind benannte Produktentscheidungen, keine vergrabenen Konstanten: jede Laufzeitgrenze liest sie erneut, und die Diagnose veröffentlicht sie unverändert.",
     "members": {
-      "maxLights": "Insgesamt vom Vertrag akzeptierte Lichter; darüber hinaus lehnt `addLight` ab.",
-      "maxLightsPerTile": "Von einer Bildschirmkachel gehaltene Lichter; die Schleife pro Pixel ist durch diese Zahl begrenzt (X2).",
+      "maxLights": "Insgesamt vom Vertrag akzeptierte Lichter; darüber hinaus lehnt `addLight` ab. Eine Bildschirmkachel behält jedes davon, das sie berührt; ihre Liste und die Pixelschleife sind dadurch begrenzt (X2).",
       "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
       "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
@@ -2852,6 +2854,7 @@
       "bounds": "Die Box, die das Modell füllt, in seinem eigenen Bezugssystem.",
       "lights": "Die Lichter unter dem Modell — die, die die Quelldatei trug, als Knoten: eine Seite ändert, verschiebt oder entfernt sie wie ihre eigenen, und sie bewegen sich mit dem Modell.",
       "record": "Alles, was die Welt über dieses Modell hält: seine Adressen, sein Manifest und seinen Graphen.",
+      "getObjectByName": "Der erste Knoten darunter mit diesem Namen: das Modell, ein Knoten seiner Quelldatei, dann jedes andere Kind — ein Licht aus der Datei, ein von einer Seite platzierter Knoten.",
       "metadata": "Das kompilierte Manifest des Modells — seine Primitive, `sourceTriangles` — und `clusters`, die Cluster, die seine Seiten enthalten, jede Stufe seiner DAGs gezählt.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
     }
@@ -3260,7 +3263,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera.",
+    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera: weiß bei `camera.near`, schwarz bei `camera.far`, dazwischen ein gerader Verlauf, gleich auf WebGPU und WebGL2.",
     "parameters": {
       "parameters": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
       "parameters.color": "Die Grundfarbe.",
@@ -6320,6 +6323,10 @@
     "summary": "Das Licht, das auf Oberflächen zurückstrahlt, gegen den residenten Proxy verfolgt; standardmäßig aus.",
     "description": "Eine Änderung wird sofort auf einem Pfad angewendet, der es trägt, und bei der nächsten Öffnung auf einem Pfad übernommen, der es nicht trägt."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Zeitliche Kantenglättung: Subpixel-Versatz, über Bilder hinweg akkumuliert; standardmäßig an.",
+    "description": "Geschrieben, wirkt sie ab dem nächsten Bild, der Verlauf wird verworfen, keine Sitzung neu geöffnet. Gelesen, ist sie das, was das Bild trägt: false unter WebGL2 und solange das Programm nach dem Einschalten kompiliert."
+  },
   "world.budget": {
     "summary": "Die Speicherreservoirs der Welt, in Bytes gelesen und eingestellt.",
     "members": {
@@ -6512,7 +6519,8 @@
       "pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
       "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
-      "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
+      "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
+      "temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet."
     }
   },
   "WorldPageSource": {

@@ -446,7 +446,6 @@
       "drag-objects": "picking (raycast)",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "positional audio",
-      "smooth-edges-over-time": "the temporal antialiasing setting",
       "tone-mapping-compared": "tone-mapping operator choice",
       "a-first-post-effect": "post-processing chain",
       "a-glow-around-lights": "post-processing chain: bloom",

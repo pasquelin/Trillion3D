@@ -446,7 +446,6 @@
       "drag-objects": "Auswahl per Klick (Raycast)",
       "edit-a-spline": "Auswahl per Klick (Raycast)",
       "sound-in-space": "räumlicher Ton",
-      "smooth-edges-over-time": "die Einstellung des zeitlichen Antialiasing",
       "tone-mapping-compared": "Wahl des Tone-Mapping-Operators",
       "a-first-post-effect": "Postprocessing-Kette",
       "a-glow-around-lights": "Postprocessing: Bloom",
