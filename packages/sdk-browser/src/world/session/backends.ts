@@ -142,6 +142,11 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
         scope,
       });
     } catch (error) {
+      // Cancelled — the session closed, or the backend did: nothing failed, nothing falls back.
+      if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+        backend.dispose();
+        throw error;
+      }
       diagnose('backend-preparation-error', 'Backend preparation failed', {
         kind: 'error',
         backend: backend.id,
