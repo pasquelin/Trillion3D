@@ -71,8 +71,8 @@ fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
 /**
  * The unlit models in the surface pass: the view basis read off the view-projection (its first two
  * rows are the camera's right and up, up to the projection's scale), the view-space normal, then
- * the colour each shows. `depth` is the pixel's reversed depth — 1 at the near plane, toward 0 far
- * away (`../camera/depthConvention.ts`) —, the light-to-dark ramp a depth material shows.
+ * the colour each shows. `depth` is the ramp of `writeDepthRamp` (`../camera/depthConvention.ts`):
+ * white at the camera's near plane, black at its far one, linear in view distance.
  */
 export const SURFACE_MODEL_SHADE_WGSL = `
 fn viewNormal(N:vec3f)->vec3f{
