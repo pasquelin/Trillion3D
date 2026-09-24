@@ -37,8 +37,12 @@ export class Texture {
   anisotropy = 1;
   /** Which set of UVs of the geometry the texture follows. */
   channel = 0;
-  /** Bumped by every write: what a material compares to resample. */
+  /** Bumped by every write but the placement's: what a material compares to send the picture
+   *  again, with its sampling. */
   version = 0;
+  /** Bumped by a write of the placement — `repeat`, `offset`, `rotation` —, which moves where the
+   *  picture lands and never its pixels: what a material compares to place it again. */
+  placement = 0;
   readonly _listeners = new Set<() => void>();
 
   /** The picture itself: an image, a canvas, a video or raw pixels. */
@@ -51,14 +55,14 @@ export class Texture {
     this.image = image;
     this.layout = layout;
     this.format = format;
-    const changed = () => this.touch();
-    listen(this.repeat, changed);
-    listen(this.offset, changed);
-    // A sampling word written after creation reaches the materials that sample this texture.
+    const placed = () => this.touch(true);
+    listen(this.repeat, placed);
+    listen(this.offset, placed);
+    // A word written after creation reaches the materials that sample this texture.
     return new Proxy(this, {
       set(target, key, value) {
         Reflect.set(target, key, value);
-        if (key !== 'version') target.touch();
+        if (key !== 'version' && key !== 'placement') target.touch(key === 'rotation');
         return true;
       },
     });
@@ -86,8 +90,9 @@ export class Texture {
   get needsUpdate() {
     return false;
   }
-  private touch() {
-    this.version++;
+  private touch(placed = false) {
+    if (placed) this.placement++;
+    else this.version++;
     for (const listener of this._listeners) listener();
   }
   /** A new texture showing the same picture with the same settings. */

@@ -14534,7 +14534,12 @@
       {
         "name": "version",
         "type": "number",
-        "desc": "Bumped by every write: what a material compares to resample."
+        "desc": "Bumped by every write but the placement's: what a material compares to send the picture again, with its sampling."
+      },
+      {
+        "name": "placement",
+        "type": "number",
+        "desc": "Bumped by a write of the placement — `repeat`, `offset`, `rotation` —, which moves where the picture lands and never its pixels: what a material compares to place it again."
       },
       {
         "name": "image",

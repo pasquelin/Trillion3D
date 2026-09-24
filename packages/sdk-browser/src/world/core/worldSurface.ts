@@ -112,8 +112,8 @@ export function hostSurface(material: Material, vertexColors: boolean, textures:
  * Writes a material's value fields — colour, glow, metalness, roughness — and its maps' sampling
  * into the host surface built for it, as `hostSurface` wrote them, and bumps the surface's
  * version: every reader of the surface (`page/surface.ts`) takes them at its next read, nothing
- * built again (#335). A map whose version moved sends its picture again, unless its placement
- * alone moved (`repaintHostMaps`).
+ * built again (#335). A map whose version moved sends its picture again; one whose placement
+ * alone moved is placed again, nothing sent (`repaintHostMaps`).
  */
 export function repaintHostSurface(surface: THREE.Material, material: Material) {
   const into = surface as THREE.Material & Record<string, unknown>;
