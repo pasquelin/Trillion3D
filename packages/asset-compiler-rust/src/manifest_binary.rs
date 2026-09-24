@@ -17,6 +17,8 @@ use crate::texture_preview::{
 use crate::{CompilerError, Result};
 use serde_json::{json, Map, Value};
 
+#[cfg(test)]
+mod dependency_tests;
 mod digests;
 pub(crate) mod format;
 mod page;
@@ -29,16 +31,11 @@ mod tests;
 pub use digests::{digests, texture_digests, texture_levels, BakedLevels};
 use format::*;
 
-/// Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel
-/// column is no longer one stride per entry, and an entry carries its own byte range. A reader of
-/// version 3 would slice the wrong texture's levels, so it refuses this file outright.
-/// Version 5 widens an entry from ten to twelve words — the atlas it serves and the number of
-/// levels baked as files under `textures/` — and its pixels follow the graphics card's mip rule.
-/// A reader of version 4 would stride through the entries wrongly, so it refuses this file.
-/// Version 6 names the quantized cluster page (`WGP3`) as the only geometry page. Version 7 adds
-/// a layout word per block family to the entry and two columns of block-compressed tails, the
-/// BC family then ASTC; a reader of version 6 would not know them, so it refuses.
-pub const MANIFEST_BINARY_VERSION: u32 = 7;
+/// Every version changes what a column means, so a reader refuses any version but its own; the
+/// history sits beside the reader (`sdk-core/src/manifest/binaryFormat.ts`). Version 8 adds the
+/// page dependencies of the streaming bundles, a count per bundle then the flat closed lists: a
+/// reader of version 7 would install a bundle before the bundles holding its parents.
+pub const MANIFEST_BINARY_VERSION: u32 = 8;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -69,7 +66,9 @@ const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
 /// The tails block-compressed, one column per family in `BlockFormat::ALL` order.
 const TEXTURE_PREVIEW_BLOCKS: [usize; 2] = [24, 25];
-const COLUMNS: usize = 26;
+const BUNDLE_DEPENDENCY_COUNT: usize = 26;
+const BUNDLE_DEPENDENCY: usize = 27;
+const COLUMNS: usize = 28;
 /// Numbers per level entry: texture, image, width, height, kind and provenance
 /// view, then the first carried level, their count, the start and length of its
 /// pixels, the atlas it serves, the count of levels baked as files, and the
