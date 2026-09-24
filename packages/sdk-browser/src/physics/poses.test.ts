@@ -14,6 +14,7 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies, type Bodied } from './bodies.ts';
+import { createPosePlacer } from './placer.ts';
 import { createPhysicsPoses } from './poses.ts';
 
 /** One mesh in slot 0 at generation 0, as a tick's records name it. */
@@ -130,4 +131,19 @@ test('a record of a body that left its slot moves neither it nor the body in its
   assert.equal(next.physics._index, 0, 'the slot is taken again');
   assert.equal(poses.receive(record(old, [5, 5, 5, 0, 0, 0, 1]), 1, bodies, 0), 0);
   assert.deepEqual([crate.position.y, next.position.y], [0, 0]);
+});
+
+test('a turn is drawn the shorter way round, whichever sign its quaternion comes with', () => {
+  const scene = new Group();
+  const crate = new Mesh(box()) as Bodied;
+  scene.add(crate);
+  const placer = createPosePlacer(1, scene);
+  placer.bind(0, 0, crate);
+  placer.begin();
+  placer.place(0, [0, 0, 0, 0, 0, 0, 1], 0);
+  // A quarter turn about y, sent as its opposite quaternion: halfway is an eighth, not 3/8.
+  const half = Math.SQRT1_2;
+  placer.lerp(0, new Float32Array([0, 0, 0, 0, -half, 0, -half]), 0, 0.5);
+  placer.end();
+  assert.ok(Math.abs(crate.rotation.y - Math.PI / 4) < 1e-3, `an eighth turn, ${crate.rotation.y}`);
 });
