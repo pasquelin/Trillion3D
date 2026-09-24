@@ -101,8 +101,9 @@ test('a public scene whose coarsest cut overflows a small pool holds the thresho
   assert.ok(top > 1 && small.every((threshold) => threshold === top), `${small}`);
   assert.equal(pool.clamp, 'root-cover', 'limited by what no threshold coarsens');
   assert.equal(pool.settling, false, 'the search is fixed');
-  // A larger pool: one step of √2 finer an image, down to the host's threshold.
-  const back = sequence(2560 * 1024, 2 * Math.log2(top) + 2);
+  // A larger pool: one step of √2 finer an image, down to the host's threshold. 3 MiB holds the
+  // full-detail cut of the scene as the compiler now cooks it (#484), with the ancestors kept.
+  const back = sequence(3072 * 1024, 2 * Math.log2(top) + 2);
   const settled = back.indexOf(0);
   assert.ok(settled > 0, `back at the host's threshold: ${back}`);
   for (let frame = 1; frame < settled; frame++)
