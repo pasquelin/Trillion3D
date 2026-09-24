@@ -5,7 +5,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { maxStretch } from '../../../../sdk-core/src/index.ts';
 import { FRAME_VEC4 } from './types.ts';
-import { refreshWorldStretch, worldsChanged } from './worlds.ts';
+import {
+  primitiveFrameWords,
+  primitiveWordAt,
+  refreshWorldStretch,
+  worldsChanged,
+} from './worlds.ts';
 
 const WORLDS = 4;
 
@@ -73,4 +78,24 @@ test('worldsChanged is false on identical buffers and true on one moved translat
   assert.equal(worldsChanged(previous, next), false);
   next[2 * 16 + 14] += 1;
   assert.equal(worldsChanged(previous, next), true);
+});
+
+test('the frame words carry each primitive stretch, root and record shift, as the kernel reads them', () => {
+  const packed = {
+    worldCount: 3,
+    worldStretch: Float32Array.of(1, 2.5, 4),
+    rootNodes: Uint32Array.of(0, 0xffffffff, 17),
+    // A shift below zero wraps: page 12 of the second primitive reads record 2.
+    recordShift: Uint32Array.of(0, (2 - 12) >>> 0, 5),
+  };
+  const frames = primitiveFrameWords(packed),
+    ints = new Uint32Array(frames.buffer);
+  assert.equal(frames.length, 3 * FRAME_VEC4 * 4);
+  for (let w = 0; w < 3; w++) {
+    const at = primitiveWordAt(w);
+    assert.equal(frames[at], packed.worldStretch[w]);
+    assert.equal(ints[at + 1], packed.rootNodes[w]);
+    assert.equal(ints[at + 2], packed.recordShift[w]);
+  }
+  assert.equal((12 + ints[primitiveWordAt(1) + 2]) >>> 0, 2);
 });

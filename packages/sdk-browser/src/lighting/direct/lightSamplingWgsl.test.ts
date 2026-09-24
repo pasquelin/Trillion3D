@@ -12,7 +12,7 @@ test('deferred resolve samples on a ranked image and walks every light at rank z
   // The branch, in the resolve alone: rank zero is the loop from before the batch, unchanged.
   assert.match(
     DIRECT_LIGHTING_WGSL,
-    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,4u\);\}\s*return sampledTileLighting\(/,
+    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}\s*return sampledTileLighting\(/,
   );
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
     assert.equal(occurrences(shader, DIRECT_LIGHT_SAMPLING_WGSL), 1);
@@ -29,7 +29,7 @@ test('the sample budget is the published setting, and a list within it is summed
   );
   assert.match(
     DIRECT_LIGHT_SAMPLING_WGSL,
-    /if\(kept<=LIGHT_SAMPLES\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,4u\);\}/,
+    /if\(kept<=LIGHT_SAMPLES\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
   );
   // A light worth a sample's share is shaded exactly and leaves the pool; the drawn ones are
   // divided by their probability, copies counted.

@@ -10,7 +10,7 @@ const point = new Float64Array(3);
 /** The read box, allocated once: the scheduler projects it face by face without creating anything. */
 const readMin = new Float64Array(3),
   readMax = new Float64Array(3),
-  readBox = { min: readMin, max: readMax, moving: false };
+  readBox = { min: readMin, max: readMax, moving: false, detail: false };
 
 /**
  * What has moved in the world since the last frame, as world boxes. They are kept
@@ -35,7 +35,10 @@ export function createShadowChanges() {
   const min = new Float64Array(MOVED_BOXES * 3),
     max = new Float64Array(MOVED_BOXES * 3),
     /** The box holds only objects already moving: the static casters under it are unchanged. */
-    moving = new Uint8Array(MOVED_BOXES);
+    moving = new Uint8Array(MOVED_BOXES),
+    /** The box holds only the released union of representation changes: the pages under it are
+     *  coarser than the cut, not wrong, and stay read until redrawn. */
+    detail = new Uint8Array(MOVED_BOXES);
   let count = 0;
   /** The union of representation changes held until the camera rests: empty when none waits. */
   const defer = new Float64Array(6),
@@ -59,10 +62,16 @@ export function createShadowChanges() {
       max[base + axis] = merge ? Math.max(max[base + axis], hi[axis]) : hi[axis];
     }
   };
-  const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) => {
+  const add = (
+    lo: ArrayLike<number>,
+    hi: ArrayLike<number>,
+    movingOnly: boolean,
+    detailOnly: boolean,
+  ) => {
     if (count < MOVED_BOXES) {
       write(count * 3, lo, hi, false);
       moving[count] = movingOnly ? 1 : 0;
+      detail[count] = detailOnly ? 1 : 0;
       count++;
       return;
     }
@@ -77,11 +86,14 @@ export function createShadowChanges() {
     }
     write(best * 3, lo, hi, true);
     if (!movingOnly) moving[best] = 0;
+    if (!detailOnly) detail[best] = 0;
   };
+  const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) =>
+    add(lo, hi, movingOnly, false);
   /** The held union enters the list as one box, when one waits. */
   const release = () => {
     if (defer[0] === Infinity) return;
-    worldChanged(deferMin, deferMax);
+    add(deferMin, deferMax, false, true);
     boxEmpty(defer, 0);
   };
   return {
@@ -128,10 +140,12 @@ export function createShadowChanges() {
       }
       return squared <= range * range;
     },
-    /** Box `box` in two reused arrays — its minima, its maxima — and whether it moves alone. */
+    /** Box `box` in two reused arrays — its minima, its maxima —, whether it moves alone, and
+     *  whether it is a change of detail alone. */
     read(box: number) {
       const base = box * 3;
       readBox.moving = moving[box] === 1;
+      readBox.detail = detail[box] === 1;
       for (let axis = 0; axis < 3; axis++) {
         readMin[axis] = min[base + axis];
         readMax[axis] = max[base + axis];

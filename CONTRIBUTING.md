@@ -162,9 +162,10 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then
    run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
-3. Review the diff twice: first simplify duplicated or unnecessary work, then check correctness
-   against the requirements above. Fix findings and run `pnpm run check:changed`,
-   `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
+3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
+   `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
+   depth —, then check correctness against the requirements above. Fix findings and run
+   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
    measuring queue runs it after the merge.
 4. Commit with a descriptive English message. Open a pull request targeting `develop`, using
    `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`. Describe what both
@@ -175,7 +176,8 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    published history.
 6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
    an engine batch is labelled `to measure` first. Every merge into `develop` is then re-read
-   against this file; a finding becomes a new issue labelled `audit ko`, linked to the merged one.
+   against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
+   comment.
    If a pull request is closed without merging, remove both lifecycle labels; add `in progress`
    only if work resumes.
 

@@ -1954,15 +1954,29 @@
     }
   },
   "a-walker-among-balls": {
-    "banner": "Le marcheur fait le tour de la salle et pousse les balles. Balles en ajoute vingt.",
+    "banner": "Cliquez pour regarder autour, puis marchez parmi les balles avec Z Q S D et poussez-les. Balles en ajoute vingt.",
     "controls": {
-      "walking": "Marche",
       "balls": "Balles"
     },
     "readouts": {
       "bodies": "Corps",
       "awake": "Éveillés",
       "step": "Pas"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Ouvrez la porte et le tiroir, balancez la chaîne, puis lâchez la pierre sur le pont et regardez-le céder.",
+    "controls": {
+      "openDoor": "Ouvrir la porte",
+      "openDrawer": "Ouvrir le tiroir",
+      "strength": "Solidité du pont (N)",
+      "swingChain": "Balancer la chaîne",
+      "dropStone": "Lâcher la pierre",
+      "rebuild": "Reconstruire le pont"
+    },
+    "readouts": {
+      "joints": "Liaisons",
+      "broken": "Rompues"
     }
   }
 }

@@ -110,8 +110,8 @@ export type HostCamera = {
   /** A view of its own the host keeps — the pose a measurement campaign comes back to. */
   clone(): HostCamera;
 };
-/** The matrices a host draws a frame with, as the engine hands them over. */
-export type HostDrawCamera = {
+/** The matrices and depth range a host draws a frame with, as the engine hands them over. */
+export type HostDrawCamera = Pick<HostCamera, 'near' | 'far'> & {
   /** The projection. */ projection: Float32Array;
   /** The camera's world matrix. */ world: Float64Array;
   /** The view matrix. */ view: Float64Array;
@@ -122,6 +122,8 @@ export const createHostDrawCamera = (): HostDrawCamera => ({
   world: new Float64Array(16),
   view: new Float64Array(16),
   eye: new Float32Array(3),
+  near: 0,
+  far: 0,
 });
 
 /** What resolving a world pose asks of a host object, and nothing more: a camera, a rig, a node. */
@@ -175,6 +177,7 @@ export function readHostDrawCamera(into: HostDrawCamera, camera: HostCamera) {
   into.world.set(camera.matrixWorld.elements);
   invertMatrix4(into.view, into.world);
   into.eye.set(into.world.subarray(12, 15));
+  ({ near: into.near, far: into.far } = camera);
   return into;
 }
 
