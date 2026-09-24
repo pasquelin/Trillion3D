@@ -62,4 +62,4 @@ target_link_options(${NAME} PRIVATE
   -sSTANDALONE_WASM=1 -sIMPORTED_MEMORY=1 -sALLOW_MEMORY_GROWTH=1
   -sINITIAL_MEMORY=33554432 -sMAXIMUM_MEMORY=4294967296 -sSTACK_SIZE=1048576
   -sFILESYSTEM=0 -sASSERTIONS=0 -sERROR_ON_UNDEFINED_SYMBOLS=1
-  "-sEXPORTED_FUNCTIONS=['_jolt_init','_jolt_buffer','_jolt_step','_jolt_event_count','_jolt_error','_jolt_active_count','_malloc','_free'${THREAD_EXPORTS}${PROFILE_EXPORTS}]")
+  "-sEXPORTED_FUNCTIONS=['_jolt_init','_jolt_buffer','_jolt_step','_jolt_event_count','_jolt_dropped_events','_jolt_update_error','_jolt_refused_count','_jolt_refused','_jolt_error','_jolt_active_count'${THREAD_EXPORTS}${PROFILE_EXPORTS}]")

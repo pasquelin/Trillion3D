@@ -34,5 +34,5 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   UNSUPPORTED_SCENE_FORMAT:
     'A saved scene is of another format or version, or holds what a saved scene cannot store.',
   PHYSICS_BUDGET:
-    'The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.',
+    "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory, body pairs and contacts per step), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed or refused a body's shape (`PHYSICS_FAILED`): on `world.physics.error`.",
 };
