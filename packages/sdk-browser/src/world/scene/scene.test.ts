@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { pagesBounds } from './pagesBounds.ts';
 import { emptyWorldBox } from '../../host/world/bounds.ts';
 import { asHostLibrary } from '../../host/resources.ts';
@@ -61,10 +61,10 @@ test('a manifest with no page and no bundle yields empty indexes on both sides',
 });
 
 test('pagesBounds yields the same box as the reference, a « coarse » page excluded, a mesh without association reported', () => {
-  const geometry = new THREE.BufferGeometry();
-  const meshFound = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
-  const meshMissing = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
-  const source = new THREE.Group();
+  const geometry = new G.GraphGeometry();
+  const meshFound = G.mesh(geometry, G.basicSurface());
+  const meshMissing = G.mesh(geometry, G.basicSurface());
+  const source = new G.GraphGroup();
   source.add(meshFound, meshMissing);
   meshFound.position.set(2, 0, 0);
   const exact = pageDe(0, 'p/0');
@@ -76,16 +76,16 @@ test('pagesBounds yields the same box as the reference, a « coarse » page excl
   const metadata = {
     primitives: [{ mesh: 0, primitive: 0, pages: [exact, grossiere] }],
   } as unknown as ClusterManifest;
-  const associations = new Map<THREE.Mesh, { meshes: number; primitives: number }>([
+  const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>([
     [meshFound, { meshes: 0, primitives: 0 }],
   ]);
-  const manques: THREE.Mesh[] = [],
-    manquesRef: THREE.Mesh[] = [];
+  const manques: G.GraphMesh[] = [],
+    manquesRef: G.GraphMesh[] = [];
   const obtenu = pagesBounds(source, associations, metadata, (m) =>
-    manques.push(asHostLibrary<THREE.Mesh>(m)),
+    manques.push(asHostLibrary<G.GraphMesh>(m)),
   );
-  const attendu = referenceExactPagesBounds(source, associations, metadata, (m: THREE.Mesh) =>
-    manquesRef.push(m),
+  const attendu = referenceExactPagesBounds(asHostLibrary(source), associations, metadata, (m) =>
+    manquesRef.push(asHostLibrary<G.GraphMesh>(m)),
   );
   assert.deepEqual(Array.from(obtenu), [...attendu.min.toArray(), ...attendu.max.toArray()]);
   assert.deepEqual(manques, manquesRef);
@@ -96,21 +96,21 @@ test('pagesBounds yields the same box as the reference, a « coarse » page excl
 // `Box3.applyMatrix4`/`union`. Bit-exact on hostile matrices — negative scale, shear, singular
 // matrix, NaN — and a depth-3 hierarchy.
 test('pagesBounds agrees with the reference on hostile matrices, depth-3 hierarchy', () => {
-  const geometry = new THREE.BufferGeometry();
-  const racine = new THREE.Group();
+  const geometry = new G.GraphGeometry();
+  const racine = new G.GraphGroup();
   racine.scale.set(-3, 1, 1); // negative scale
-  const enfant = new THREE.Group();
+  const enfant = new G.GraphGroup();
   enfant.matrixAutoUpdate = false;
   enfant.matrix.set(1, 0.6, 0, 2, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1); // shear, zero z-row
   racine.add(enfant);
-  const singulier = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+  const singulier = G.mesh(geometry, G.basicSurface());
   enfant.add(singulier);
-  const petitEnfant = new THREE.Group();
+  const petitEnfant = new G.GraphGroup();
   petitEnfant.position.set(NaN, 5, -0);
   enfant.add(petitEnfant);
-  const nanMesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+  const nanMesh = G.mesh(geometry, G.basicSurface());
   petitEnfant.add(nanMesh);
-  const source = new THREE.Group();
+  const source = new G.GraphGroup();
   source.add(racine);
   const page0 = pageDe(0, 'p/0');
   page0.min = [-1, -2, -3];
@@ -121,21 +121,26 @@ test('pagesBounds agrees with the reference on hostile matrices, depth-3 hierarc
       { mesh: 1, primitive: 0, pages: [page0] },
     ],
   } as unknown as ClusterManifest;
-  const associations = new Map<THREE.Mesh, { meshes: number; primitives: number }>([
+  const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>([
     [singulier, { meshes: 0, primitives: 0 }],
     [nanMesh, { meshes: 1, primitives: 0 }],
   ]);
   const obtenu = pagesBounds(source, associations, metadata, () => {});
-  const attendu = referenceExactPagesBounds(source, associations, metadata, () => {});
+  const attendu = referenceExactPagesBounds(
+    asHostLibrary(source),
+    associations,
+    metadata,
+    () => {},
+  );
   assert.deepEqual(Array.from(obtenu), [...attendu.min.toArray(), ...attendu.max.toArray()]);
 });
 
 // Batch M4a: no allocation per page — one working buffer for the whole loop. Checked by passing
 // the same `into` output from one call to the next: that is what comes back, never a new object.
 test('pagesBounds reuses the `into` output instead of allocating one per page', () => {
-  const geometry = new THREE.BufferGeometry();
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
-  const source = new THREE.Group();
+  const geometry = new G.GraphGeometry();
+  const mesh = G.mesh(geometry, G.basicSurface());
+  const source = new G.GraphGroup();
   source.add(mesh);
   const pages = Array.from({ length: 50 }, (_, i) => {
     const p = pageDe(i, `p/${i}`);
@@ -144,7 +149,7 @@ test('pagesBounds reuses the `into` output instead of allocating one per page', 
     return p;
   });
   const metadata = { primitives: [{ mesh: 0, primitive: 0, pages }] } as unknown as ClusterManifest;
-  const associations = new Map<THREE.Mesh, { meshes: number; primitives: number }>([
+  const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>([
     [mesh, { meshes: 0, primitives: 0 }],
   ]);
   const into = emptyWorldBox();

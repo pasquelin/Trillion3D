@@ -1,16 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts';
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts';
 import { surfaceOf } from '../../page/surface.ts';
 
 /** The blend plan of a lone item, everything but its material left at its simplest. */
-function plan(material: THREE.Material | THREE.Material[]) {
+function plan(material: G.GraphSurface | G.GraphSurface[]) {
   const blendState = createWebgpuBlendState();
   blendState.blendGpu.push({
     surface: surfaceOf(material),
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     count: 3,
   } as unknown as BlendGpuItem);
   buildBlendStatics(blendState);
@@ -19,7 +19,7 @@ function plan(material: THREE.Material | THREE.Material[]) {
 }
 
 test('an item that declares no material plans the host default side: one front entry, not a crash', () => {
-  const front = plan(new THREE.MeshBasicMaterial({ side: THREE.FrontSide }));
+  const front = plan(G.basicSurface({ side: G.FRONT_SIDE }));
   assert.equal(front.length, 1);
   assert.deepEqual(plan([]), front, 'an empty material array declares nothing: front');
 });

@@ -1,6 +1,6 @@
 // Host rig of the "parented camera" reproductions: a camera child of a group that belongs to no
 // prepared scene. The engine only updates its scene; that parent, only the host touches.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 
 /**
  * Parent poses frame after frame: still, moved +5 in X, then rotated, then elsewhere; the fifth
@@ -28,13 +28,9 @@ export const POSES_SANS_PARENT = Array.from({ length: 24 }, (_, i) => ({
 export type PoseParent = { x: number; z: number; ry: number };
 /** A pose of a parentless camera, posed directly: local position and yaw/pitch. */
 export type PoseLibre = { x: number; y: number; z: number; ry: number; rx: number };
-export type Rig = { parent: THREE.Group; camera: THREE.PerspectiveCamera };
+export type Rig = { parent: G.GraphGroup; camera: G.GraphCamera };
 
-const regle = (
-  camera: THREE.PerspectiveCamera,
-  fov: number,
-  aspect: number,
-): THREE.PerspectiveCamera => {
+const regle = (camera: G.GraphCamera, fov: number, aspect: number): G.GraphCamera => {
   camera.fov = fov;
   camera.aspect = aspect;
   camera.near = 0.1;
@@ -45,8 +41,8 @@ const regle = (
 
 /** The camera is posed locally, never looked at a point: no parent is read. */
 export function creeRig(fov = 55, aspect = 16 / 9): Rig {
-  const parent = new THREE.Group();
-  const camera = regle(new THREE.PerspectiveCamera(), fov, aspect);
+  const parent = new G.GraphGroup();
+  const camera = regle(G.perspectiveCamera(), fov, aspect);
   camera.position.set(0.3, 0.2, 5);
   camera.rotation.set(-0.02, 0.04, 0);
   parent.add(camera);
@@ -54,7 +50,7 @@ export function creeRig(fov = 55, aspect = 16 / 9): Rig {
 }
 
 /** Poses the parent. `hote`: the host also updates its rig before the frame, as it should. */
-export function poseRig(rig: Rig, pose: PoseParent, hote: boolean): THREE.PerspectiveCamera {
+export function poseRig(rig: Rig, pose: PoseParent, hote: boolean): G.GraphCamera {
   rig.parent.position.set(pose.x, 0, pose.z);
   rig.parent.rotation.y = pose.ry;
   if (hote) rig.parent.updateMatrixWorld(true);
@@ -67,16 +63,12 @@ export function poseRig(rig: Rig, pose: PoseParent, hote: boolean): THREE.Perspe
  * translation. View, inverse, direction and position are therefore exactly those a correct rig
  * must produce.
  */
-export function cameraAplatie(
-  pose: PoseParent,
-  fov = 55,
-  aspect = 16 / 9,
-): THREE.PerspectiveCamera {
+export function cameraAplatie(pose: PoseParent, fov = 55, aspect = 16 / 9): G.GraphCamera {
   const jumeau = creeRig(fov, aspect);
   poseRig(jumeau, pose, true);
-  const plate = regle(new THREE.PerspectiveCamera(), fov, aspect);
+  const plate = regle(G.perspectiveCamera(), fov, aspect);
   jumeau.camera.matrixWorld.decompose(plate.position, plate.quaternion, plate.scale);
-  plate.position.setFromMatrixPosition(jumeau.camera.matrixWorld);
+  plate.position.copy(new G.Vector3().setFromMatrixPosition(jumeau.camera.matrixWorld));
   plate.matrixAutoUpdate = false;
   plate.matrix.copy(jumeau.camera.matrixWorld);
   plate.updateMatrixWorld(true);
@@ -84,12 +76,8 @@ export function cameraAplatie(
 }
 
 /** Parentless camera posed directly. */
-export function cameraSansParent(
-  pose: PoseLibre,
-  fov = 55,
-  aspect = 16 / 9,
-): THREE.PerspectiveCamera {
-  const camera = regle(new THREE.PerspectiveCamera(), fov, aspect);
+export function cameraSansParent(pose: PoseLibre, fov = 55, aspect = 16 / 9): G.GraphCamera {
+  const camera = regle(G.perspectiveCamera(), fov, aspect);
   camera.position.set(pose.x, pose.y, pose.z);
   camera.rotation.set(pose.rx, pose.ry, 0);
   camera.updateMatrixWorld();

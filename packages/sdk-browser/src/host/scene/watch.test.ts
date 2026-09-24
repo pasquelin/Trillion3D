@@ -5,26 +5,26 @@
 // integer; the other fields are a few values per node, taken by the same read.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../graph/graph.fixture.ts';
 import { createHostSceneWatch } from './watch.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
 import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts';
 import { quadRootsContext, frontCamera } from '../../backend/pagesBackendScenes.fixture.ts';
 
 function graphe() {
-  const source = new THREE.Group();
-  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
-  const lampe = new THREE.PointLight(0xffffff, 1);
-  const soleil = new THREE.DirectionalLight(0xffffff, 1);
+  const source = new G.GraphGroup();
+  const mesh = G.mesh(new G.GraphGeometry(), G.basicSurface());
+  const lampe = G.pointLight(0xffffff, 1);
+  const soleil = G.directionalLight(0xffffff, 1);
   source.add(mesh, lampe, soleil);
   source.updateMatrixWorld(true);
   return { source, mesh, lampe, soleil };
 }
 
 /** The reread nodes: the source models of what is drawn, the lamps, and their ancestors. */
-const dessine = (...meshes: THREE.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }));
+const dessine = (...meshes: G.GraphNode[]) => meshes.map((sourceMesh) => ({ sourceMesh }));
 
-function veille(source: THREE.Object3D, ...meshes: THREE.Object3D[]) {
+function veille(source: G.GraphNode, ...meshes: G.GraphNode[]) {
   const watch = createHostSceneWatch();
   watch.observe(source, dessine(...meshes));
   return watch;
@@ -54,7 +54,7 @@ test('visibility written directly by the host is seen; a reparent reshapes', () 
   mesh.visible = false;
   assert.equal(watch.take(), 'moved');
   assert.equal(watch.take(), 0);
-  new THREE.Group().add(mesh);
+  new G.GraphGroup().add(mesh);
   assert.equal(watch.take(), 'reshaped', 'the ancestor chain changed');
   assert.equal(watch.take(), 0);
 });
@@ -80,7 +80,7 @@ test("a directional lamp's target, outside the source graph, is seen", () => {
   const { source, soleil } = graphe();
   const watch = veille(source);
   watch.take();
-  soleil.target.position.set(0, -5, 0);
+  soleil.target!.position.set(0, -5, 0);
   assert.equal(watch.take(), 'moved', 'the sun direction has changed');
   assert.equal(watch.take(), 0);
 });
@@ -116,7 +116,7 @@ test('a write the engine made itself is settled with its revision, not announced
   gate.readScene(source, dessins);
   assert.equal(gate.revisions.scene, before + 1, 'and none after');
   // A structural engine write settled the same way leaves no reshape pending either.
-  new THREE.Group().add(mesh);
+  new G.GraphGroup().add(mesh);
   gate.sceneChanged();
   gate.readScene(source, dessins);
   gate.readScene(source, dessins);
@@ -128,7 +128,7 @@ test('a lamp retargeted by the host: the new target is hooked, its later pose is
   const { source, soleil } = graphe();
   gate.readScene(source, []);
   gate.readScene(source, []);
-  const cible = new THREE.Object3D();
+  const cible = new G.GraphNode();
   soleil.target = cible;
   gate.readScene(source, []); // the retarget is a scene change: the list is rebuilt at once
   const after = gate.revisions.scene;
@@ -143,11 +143,11 @@ test('a lamp retargeted by the host: the new target is hooked, its later pose is
 /** The Three engine with a lamp declared in the source graph, which the host will write directly. */
 function litEngine() {
   const { geometry, material, source, context } = quadRootsContext(true);
-  const lampe = new THREE.PointLight(0xffffff, 1);
+  const lampe = G.pointLight(0xffffff, 1);
   source.add(lampe);
   const backend = exactPagesBackend(context);
   const copie = () =>
-    backend.scene.children.find((child) => (child as THREE.Light).isLight) as THREE.PointLight;
+    backend.scene.children.find((child) => (child as G.GraphLight).isLight) as G.GraphLight;
   return { backend, lampe, copie, dispose: () => (geometry.dispose(), material.dispose()) };
 }
 

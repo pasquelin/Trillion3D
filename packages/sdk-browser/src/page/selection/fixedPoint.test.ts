@@ -5,7 +5,7 @@
 // them as identical.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts';
 import { dagFixture } from './dag.fixture.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
@@ -23,7 +23,7 @@ function coupe() {
   );
   const pages = roots.flatMap((root) => root.pages);
   for (const page of pages) page.array = new Uint32Array([0, 1, 2]);
-  const camera = new THREE.PerspectiveCamera(20, 1, 0.1, 1000);
+  const camera = G.perspectiveCamera(20, 1, 0.1, 1000);
   camera.position.set(-1, 0, 2);
   camera.lookAt(-1, 0, 0);
   camera.updateMatrixWorld();

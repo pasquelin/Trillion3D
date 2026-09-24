@@ -5,12 +5,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import * as G from './graph/graph.fixture.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { importHostSurface } from './surfaceImport.ts';
 import { followHostTexture, importHostTexture } from './textureImport.ts';
 
 const texture = () => {
-  const map = new THREE.DataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
+  const map = G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA);
   map.needsUpdate = true;
   return map;
 };
@@ -19,7 +20,7 @@ test('One host texture keeps one record for the session', () => {
   const host = texture();
   const first = importHostTexture(host);
   assert.equal(importHostTexture(host), first, 'a second read returns the held record');
-  const surface = importHostSurface(new THREE.MeshStandardMaterial({ map: host }));
+  const surface = importHostSurface(G.standardSurface({ map: host }));
   assert.equal(surface?.map, first, 'a surface reads the same record as a direct import');
 });
 
@@ -28,7 +29,7 @@ test('A version bump refills the held record at the next follow, its counters wi
   const record = importHostTexture(host);
   const { version, sampling, placement } = record;
   assert.equal(record.wrapS, 'clamp');
-  host.wrapS = THREE.RepeatWrapping;
+  host.wrapS = G.HOST_WRAP_REPEAT;
   host.anisotropy = 4;
   host.needsUpdate = true;
   followHostTexture(record);
@@ -53,14 +54,14 @@ test('Every render follows its records, and every consumer reads what moved', ()
   const host = texture();
   const record = importHostTexture(host);
   const seenBy = [record.sampling, record.sampling];
-  host.magFilter = THREE.LinearFilter;
+  host.magFilter = G.HOST_FILTER_LINEAR;
   followHostTexture(record);
   assert.ok(record.sampling > seenBy[0], 'the first engine sees it');
   seenBy[0] = record.sampling;
   followHostTexture(record);
   assert.ok(record.sampling > seenBy[1], 'the second engine too');
   assert.equal(record.sampling, seenBy[0], 'nothing moved since: counted once');
-  host.wrapS = THREE.RepeatWrapping;
+  host.wrapS = G.HOST_WRAP_REPEAT;
   host.image = { data: new Uint8Array(4), width: 1, height: 1 };
   const { version } = record;
   followHostTexture(record);
@@ -89,7 +90,8 @@ test('A held record is handed back with the image its host holds now', () => {
 // Review of #389: a host that disposes of a texture it still draws — Three uploads it again at
 // its next use — keeps one record, followed as before, its picture to send again.
 test('A disposed texture keeps its record, followed, its picture sent again', () => {
-  const host = texture();
+  const host = new THREE.DataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
+  host.needsUpdate = true;
   const record = importHostTexture(host);
   const { version } = record;
   host.dispose();
@@ -166,7 +168,7 @@ test('A glTF texture transform is composed at the first import', async () => {
   });
   const loader = new GLTFLoader().register(() => ({
     name: 'fixture-image',
-    loadTexture: () => Promise.resolve(texture()),
+    loadTexture: () => Promise.resolve(new THREE.DataTexture(new Uint8Array(4), 1, 1)),
   }));
   const { parser } = await loader.parseAsync(gltf, '');
   const material = (await parser.getDependency('material', 0)) as THREE.MeshStandardMaterial;
@@ -176,8 +178,8 @@ test('A glTF texture transform is composed at the first import', async () => {
 });
 
 test('A material is read in one place, and never cached: a replaced map is seen as it stands', () => {
-  const material = new THREE.MeshStandardMaterial({ map: texture() });
-  assert.equal(importHostSurface(material)?.map, importHostTexture(material.map!));
+  const material = G.standardSurface({ map: texture() });
+  assert.equal(importHostSurface(material)?.map, importHostTexture(material.map as G.GraphTexture));
   const second = texture();
   material.map = second;
   assert.equal(importHostSurface(material)?.map, importHostTexture(second));
@@ -189,7 +191,7 @@ test('A filter written after needsUpdate reaches the record at the next image', 
   const host = texture();
   const record = importHostTexture(host);
   host.needsUpdate = true;
-  host.magFilter = THREE.LinearFilter;
+  host.magFilter = G.HOST_FILTER_LINEAR;
   assert.equal(record.magFilter, 'nearest', 'nothing read at needsUpdate');
   const { version } = record;
   followHostTexture(record);

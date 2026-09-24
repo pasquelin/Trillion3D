@@ -1,30 +1,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { createHostDrawCamera, readHostDrawCamera } from '../../camera/world.ts';
 import { WebglClusterCopies } from './copyCulling.ts';
 
-const copyAt = (
-  x: number,
-  frustumCulled = true,
-  material: THREE.Material = new THREE.MeshBasicMaterial(),
-) => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, -3, 1, -1, -3, 0, 1, -3], 3),
-  );
-  const copy = new THREE.Mesh(geometry, material);
+const copyAt = (x: number, frustumCulled = true, material: G.GraphSurface = G.basicSurface()) => {
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', G.floatAttribute([-1, -1, -3, 1, -1, -3, 0, 1, -3], 3));
+  const copy = G.mesh(geometry, material);
   copy.frustumCulled = frustumCulled;
   copy.matrix.makeTranslation(x, 0, 0);
   return copy;
 };
 
 test('a scene copy outside the frustum is skipped unless it declares itself never culled, and each kept copy takes the pass its material asks for', () => {
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
-    copies = new WebglClusterCopies<THREE.Mesh>(),
-    glass = new THREE.MeshPhysicalMaterial({ transmission: 1 }),
-    blend = new THREE.MeshBasicMaterial({ transparent: true }),
+  const camera = G.perspectiveCamera(60, 1, 0.1, 10),
+    copies = new WebglClusterCopies<G.GraphMesh>(),
+    glass = G.physicalSurface({ transmission: 1 }),
+    blend = G.basicSurface({ transparent: true }),
     inView = copyAt(0),
     blended = copyAt(0, true, blend),
     away = copyAt(100),
@@ -39,7 +32,7 @@ test('a scene copy outside the frustum is skipped unless it declares itself neve
   assert.deepEqual(copies.transmissive, [glassInView]);
   assert.deepEqual(copies.blended, [blended], 'a blended copy draws after the transmissive ones');
   // The painted glass of a diagnostic mode no longer transmits: it draws as a whole mesh.
-  glassInView.material = new THREE.MeshBasicMaterial();
+  glassInView.material = G.basicSurface();
   copies.cull([glassInView], readHostDrawCamera(createHostDrawCamera(), camera));
   assert.deepEqual([copies.plain, copies.blended, copies.transmissive], [[glassInView], [], []]);
 });

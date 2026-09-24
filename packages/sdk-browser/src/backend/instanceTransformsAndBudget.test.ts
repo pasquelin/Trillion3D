@@ -1,7 +1,7 @@
 import test from 'node:test';
 import { asHostLibrary } from '../host/resources.ts';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { exactPagesBackend, referenceBackend } from '../../../../bench/witnesses/measurement.ts';
 import { threeLodBackend } from '../../../../bench/witnesses/three/lod.ts';
 import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackend.fixture.ts';
@@ -19,9 +19,9 @@ import { submittedDraws } from '../cluster/batchMesh.ts';
 test('source instance transforms update all three WebGL backends without rebuilding pages', () => {
   for (const factory of [referenceBackend, exactPagesBackend, threeLodBackend]) {
     const geometry = triangleGeometry();
-    const material = new THREE.MeshBasicMaterial(),
-      mesh = new THREE.Mesh(geometry, material),
-      source = new THREE.Group();
+    const material = G.basicSurface(),
+      mesh = G.mesh(geometry, material),
+      source = new G.GraphGroup();
     source.add(mesh);
     const page = {
       id: 0,
@@ -42,7 +42,7 @@ test('source instance transforms update all three WebGL backends without rebuild
       indices: new Map([['0', new Uint32Array([0, 1, 2])]]),
       associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
     });
-    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+    const camera = G.perspectiveCamera(55, 1, 0.1, 100);
     camera.position.z = 5;
     camera.lookAt(0, 0, 0);
     backend.render(camera);
@@ -50,7 +50,7 @@ test('source instance transforms update all three WebGL backends without rebuild
     backend.render(camera);
     if (backend.id === 'exact-cluster-pages') assert.equal(backend.metrics().selectedTriangles, 0);
     else {
-      const object = asHostLibrary<THREE.Object3D[]>(backend.scene.children).find(
+      const object = asHostLibrary<G.GraphNode[]>(backend.scene.children).find(
         (child) => child.type === 'Mesh' || child.type === 'LOD',
       );
       assert.ok(object);
