@@ -4,8 +4,8 @@ This is the on-disk contract implemented today: what the compiler writes and the
 
 ## Layout
 
-| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                          |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json`, `clusters.bin`, `source.gltf`, `source.bin`, SHA-addressed objects under `native/objects/`: `<digest>.bin`, one file per index page, geometry page or streaming bundle — and baked texture levels under `native/textures/v<N>/<digest>/<kind>-<level>.<format>`, one lossless PNG per mip level above the sidecar's tail, plus the same level in the cooked block family where the quality gate kept it |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected (`SCOPE_MISMATCH`).
@@ -92,17 +92,17 @@ Static opaque, alpha-mask and clustered BLEND primitives can additionally carry 
 
 The page is the published cluster format — positions on an object grid, octahedral normals, integer texture coordinates, colours on a grid, bit-packed local indices, no tangent — rebuilt from the literature for the web: twenty-four little-endian `u32` header words, then bit streams that start on a word each, and nothing else. A field never spans more than two words, so a shader reads any vertex or corner of a resident page in place, in O(1), without unpacking it (`packages/sdk-browser/src/cluster/decodeWgsl.ts`); the JavaScript and WebAssembly decoders unpack the same bytes to floats for the autonomous backend.
 
-| Word | Content |
-| --- | --- |
-| 0, 1 | magic `WGP3` (`0x33504757`), version `3` |
-| 2, 3 | vertex count (1 to 65,535), index count (a positive multiple of 3) |
-| 4 | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0 |
-| 5–8 | position record and minimum: one `f32` per axis |
-| 9–11 | TEXCOORD_0 record and minimum |
-| 12–14 | TEXCOORD_1 record and minimum |
-| 15–19 | COLOR_0 record and minimum, four channels |
-| 20 | `f32` quantization error: the largest distance between a source position and its decoded value, in object units |
-| 21–23 | reserved, zero |
+| Word  | Content                                                                                                         |
+| ----- | --------------------------------------------------------------------------------------------------------------- |
+| 0, 1  | magic `WGP3` (`0x33504757`), version `3`                                                                        |
+| 2, 3  | vertex count (1 to 65,535), index count (a positive multiple of 3)                                              |
+| 4     | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0                                        |
+| 5–8   | position record and minimum: one `f32` per axis                                                                 |
+| 9–11  | TEXCOORD_0 record and minimum                                                                                   |
+| 12–14 | TEXCOORD_1 record and minimum                                                                                   |
+| 15–19 | COLOR_0 record and minimum, four channels                                                                       |
+| 20    | `f32` quantization error: the largest distance between a source position and its decoded value, in object units |
+| 21–23 | reserved, zero                                                                                                  |
 
 A record word holds the width of each component in six-bit fields from bit 0 (each 0 to 24) and the grid exponent as a signed byte in the top byte; a component of zero width is constant and has no stream. Streams follow in this order — indices, position `x`, `y`, `z`, normal (if flagged), `u`, `v` of TEXCOORD_0 (if flagged), `u`, `v` of TEXCOORD_1 (if flagged), `r`, `g`, `b`, `a` (if flagged) —, each `ceil(count × bits / 32)` words, each field `i` at bit `i × bits`, least significant bit first. Index fields are `ceil(log2(vertexCount))` bits wide; a normal is 16 bits. Every offset follows from the counts and the widths, so the header stores none and a reader trusts none: the byte length must equal what the streams need, a header field outside the format (a width above 24, an exponent beyond ±64, a non-finite minimum, an unknown flag, a negative error, a reserved word set) refuses the page before any stream is read, and an index at or past the vertex count refuses it before any float is produced.
 
@@ -137,7 +137,7 @@ compilation publishes, which is the document the runtime loads: the slice's node
 answers already applied, the mesh ranks already remapped.
 
 - `nodes[]` — one entry per drawn primitive: `{ name, node, parent, mesh, primitive, material,
-  instance, matrix, bounds }`. `matrix` is the world pose, sixteen numbers column-major; `parent`
+instance, matrix, bounds }`. `matrix` is the world pose, sixteen numbers column-major; `parent`
   is a glTF node index or `null`; `instance` is the rank among the copies of that same primitive,
   which is what instancing is here — one geometry named by several nodes. `bounds` is the world
   box of the position accessor's declared corners, `null` when it declares none; the autonomous
@@ -153,7 +153,7 @@ answers already applied, the mesh ranks already remapped.
   tangents, and a reader flips the sign back when the geometry it holds disagrees. A primitive that declares no material wears an entry holding
   the glTF default one.
 - `textures[]` — sampler state at the glTF texture rank: `{ image, wrapS, wrapT, magFilter,
-  minFilter }`, in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
+minFilter }`, in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
   specification's defaults where the sampler is silent. A map slot is
   `{ texture, texCoord, transform }`, the transform being the 3×3 `KHR_texture_transform` composes,
   column-major.
@@ -162,6 +162,25 @@ The runtime reads the tables at load and checks them against the scene the loade
 primitive each mesh draws, at what pose, with which surface and which sampler. A divergence is
 `PREPARED_SCENE_MISMATCH`, naming the field: a cache that describes another scene is refused, not
 opened half way.
+
+## `physics.json` — cooked colliders
+
+Written beside `clusters.json` by the compiler's `physics-cook` stage ([COMPILER.md](COMPILER.md)),
+with a `formatVersion` of its own (1): a reader refuses any other (`PHYSICS_FORMAT`). The shapes it
+names are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
+the file names that commit in `jolt`, and the engine refuses a file cooked by another. `stage` names
+the stage and its version.
+
+| Field       | Content                                                                                                                                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `colliders` | One per compiled primitive with a DAG: `primitive`, `material` (glTF index), `kind` (`mesh` or `heightField`), `tolerance` (the DAG error the level was cut at), `hausdorff` (measured to level 0), `triangles`, `tiles`             |
+| `tiles`     | One Jolt shape each, a SHA-addressed object like a page: `url`, `sha256`, `bytes`, `triangles`, `bounds` (min and max in the primitive's frame). A `MeshShape` carries its triangles' material index (0: the collider's)             |
+| `instances` | Static placements: `node`, `collider`, `position`, `rotation` (x, y, z, w), `scale`. A node whose matrix shears cannot be a body pose: it is counted in `report.unplaced`                                                            |
+| `bodies`    | What the source declares (`KHR_physics_rigid_bodies`): `node`, `type`, `shape` (an implicit shape, or a `cooked` compound of hulls with `mass`, `centerOfMass`, `inertia`), `mass`, `gravityFactor`, `friction`, `restitution`, pose |
+| `report`    | Counts, the largest tolerance and the largest measured distance                                                                                                                                                                      |
+
+The manifest's `physics` field names the file, its format, the Jolt commit, the report and every
+object the file cites (`objects[].sha256`), so a prune keeps them.
 
 ## Source glTF
 

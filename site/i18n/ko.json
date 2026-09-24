@@ -1060,7 +1060,8 @@
           "월드에 <code>physics: true</code>를 주세요. 시뮬레이션은 그리기와 따로 <em>worker</em>에서 돌아 화면을 느리게 하지 않습니다.",
           "바닥을 <code>'static'</code>으로: 다른 것을 받치고 움직이지 않습니다. 상자를 <code>'dynamic'</code>으로: 중력이 끌어당깁니다.",
           "모양은 지오메트리에서, 무게는 재질에서 옵니다: <code>physics: 'wood'</code>는 가볍고 <code>'metal'</code>은 무겁고 <code>'rubber'</code>는 튑니다.",
-          "<code>applyImpulse</code>로 밀거나 <code>contact</code>를 들으세요. 모든 물체가 잠들면 아무것도 계산하거나 그리지 않습니다."
+          "<code>applyImpulse</code>로 밀거나 <code>contact</code>를 들으세요. 모든 물체가 잠들면 아무것도 계산하거나 그리지 않습니다.",
+          "<code>scene.load</code>로 불러온 모델은 컴파일할 때 준비된 자기 삼각형으로 충돌합니다. <code>await world.raycast(point, { exact: true })</code>는 커서 아래의 바로 그 삼각형을 찾습니다."
         ],
         "tryIt": "상자를 더 떨어뜨리고, 중력을 달로 바꾸고, 슬로 모션을 켜 보세요."
       },

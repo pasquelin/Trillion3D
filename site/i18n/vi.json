@@ -602,7 +602,8 @@
           "Cho thế giới <code>physics: true</code>. Mô phỏng chạy tách khỏi việc vẽ, trong một <em>worker</em>, nên không làm hình chậm lại.",
           "Đánh dấu sàn <code>'static'</code>: nó đỡ các vật khác và không bao giờ di chuyển. Đánh dấu hộp <code>'dynamic'</code>: trọng lực kéo nó.",
           "Hình lấy từ hình học, trọng lượng từ vật liệu: <code>physics: 'wood'</code> nhẹ, <code>'metal'</code> nặng, <code>'rubber'</code> nảy.",
-          "Đẩy vật bằng <code>applyImpulse</code>, hoặc lắng nghe <code>contact</code>. Khi mọi vật đều ngủ, không gì được tính hay vẽ."
+          "Đẩy vật bằng <code>applyImpulse</code>, hoặc lắng nghe <code>contact</code>. Khi mọi vật đều ngủ, không gì được tính hay vẽ.",
+          "Mô hình tải bằng <code>scene.load</code> va chạm bằng chính các tam giác của nó, được chuẩn bị khi biên dịch. <code>await world.raycast(point, { exact: true })</code> tìm đúng tam giác dưới con trỏ."
         ],
         "tryIt": "Thả thêm hộp, đổi trọng lực sang Mặt Trăng và bật chế độ chậm."
       },

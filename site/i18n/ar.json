@@ -602,7 +602,8 @@
           "أعطِ العالم <code>physics: true</code>. تعمل المحاكاة بعيدًا عن الرسم، في <em>worker</em>، فلا تبطئ الصورة.",
           "علّم الأرضية <code>'static'</code>: تحمل الباقي ولا تتحرك. علّم صندوقًا <code>'dynamic'</code>: تجذبه الجاذبية.",
           "الشكل من الهندسة والوزن من المادة: <code>physics: 'wood'</code> خفيف و<code>'metal'</code> ثقيل و<code>'rubber'</code> يرتد.",
-          "ادفع جسمًا بـ<code>applyImpulse</code> أو استمع إلى <code>contact</code>. حين تنام كل الأجسام لا يُحسب شيء ولا يُرسم شيء."
+          "ادفع جسمًا بـ<code>applyImpulse</code> أو استمع إلى <code>contact</code>. حين تنام كل الأجسام لا يُحسب شيء ولا يُرسم شيء.",
+          "النموذج المحمّل بـ <code>scene.load</code> يصطدم بمثلثاته الخاصة، المُعدّة عند ترجمته. <code>await world.raycast(point, { exact: true })</code> يجد المثلث نفسه تحت المؤشر."
         ],
         "tryIt": "أسقط مزيدًا من الصناديق، واجعل الجاذبية جاذبية القمر، وشغّل الحركة البطيئة."
       },

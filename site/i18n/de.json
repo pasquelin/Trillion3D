@@ -1060,7 +1060,8 @@
           "Gib der Welt <code>physics: true</code>. Die Simulation läuft getrennt vom Zeichnen, in einem <em>Worker</em>, und bremst das Bild nie.",
           "Markiere den Boden als <code>'static'</code>: Er trägt die anderen und bewegt sich nie. Markiere eine Kiste als <code>'dynamic'</code>: Die Schwerkraft zieht sie.",
           "Die Form kommt aus der Geometrie, das Gewicht aus dem Material: <code>physics: 'wood'</code> ist leicht, <code>'metal'</code> schwer, <code>'rubber'</code> springt.",
-          "Stoße einen Körper mit <code>applyImpulse</code> an oder höre auf seinen <code>contact</code>. Schlafen alle Körper, wird nichts berechnet und nichts gezeichnet."
+          "Stoße einen Körper mit <code>applyImpulse</code> an oder höre auf seinen <code>contact</code>. Schlafen alle Körper, wird nichts berechnet und nichts gezeichnet.",
+          "Ein mit <code>scene.load</code> geladenes Modell kollidiert mit seinen eigenen Dreiecken, die beim Kompilieren vorbereitet wurden. <code>await world.raycast(point, { exact: true })</code> findet genau das Dreieck unter dem Zeiger."
         ],
         "tryIt": "Lass mehr Kisten fallen, stell die Schwerkraft auf den Mond und schalte die Zeitlupe ein."
       },
