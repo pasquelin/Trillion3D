@@ -99,8 +99,11 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
       return { cache, destroy: () => void cache.dispose() };
     },
   );
-  if (granted) setup.geometryPool = granted.pool;
-  gpu.cache = granted?.made.cache ?? createWebgpuPagesCache(rt, gpuDevice);
+  // Refused even at its floor, the root cover: refused by name, never allocated at the full request
+  // outside any scope.
+  if (!granted) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
+  setup.geometryPool = granted.pool;
+  gpu.cache = granted.made.cache;
   throwIfStopped(rt);
   ({
     bindGroupLayout: gpu.bindGroupLayout,
