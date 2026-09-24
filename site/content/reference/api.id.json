@@ -7388,8 +7388,8 @@
       "sixDof": "Enam sumbu, masing-masing terkunci, bebas, atau terbatas (`axes`): sambungan apa pun di antara yang lain.",
       "path": "`a` melaju di rel halus yang melewati `path`, terpasang pada `b` atau dunia: roller coaster.",
       "pulley": "Tali dari `a` melewati dua roda (`over`) turun ke `b`: satu naik saat yang lain turun.",
-      "gear": "Dua roda yang berputar bersama menurut `ratio`, masing-masing pada pasaknya sendiri (`axis`, `axisB`); masing-masing perlu engselnya sendiri agar tetap di tempat.",
-      "rackAndPinion": "Pinion `a` yang berputar pada `axis` menggerakkan batang gigi `b` sepanjang `axisB`; masing-masing perlu engsel atau peluncurnya sendiri agar tetap di tempat."
+      "gear": "Dua roda yang berputar bersama menurut `ratio`, masing-masing pada pasaknya sendiri (`axis`, `axisB`) dan ditahan engselnya sendiri (roda sebagai `a`-nya); bila `ratio` atau 1 / `ratio` bulat, gigi-giginya juga menjaga fase saat dibuat.",
+      "rackAndPinion": "Pinion `a` yang berputar pada `axis` menggerakkan batang gigi `b` sepanjang `axisB`, masing-masing ditahan engsel atau peluncurnya sendiri (benda sebagai `a`-nya), giginya tetap pada fase saat dibuat."
     }
   }
 }

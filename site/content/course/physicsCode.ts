@@ -63,7 +63,9 @@ world.physics.add(plank);`,
       `// Tie motions together: each wheel on its own hinge, then the joints that mesh them.
 world.physics.add(joint.hinge(small, null, { axis: [0, 0, 1], motor: { mode: 'velocity', target: 1 } }));
 world.physics.add(joint.hinge(big, null, { axis: [0, 0, 1] }));
-world.physics.add(joint.gear(small, big, { axis: [0, 0, 1], ratio: 12 / 30 })); // teeth over teeth
+world.physics.add(joint.gear(small, big, { axis: [0, 0, 1], ratio: 12 / 36 })); // teeth over teeth
+world.physics.add(joint.hinge(pinion, null, { axis: [0, 0, 1] }));
+world.physics.add(joint.slider(rack, null, { axis: [0, 1, 0] }));
 world.physics.add(joint.rackAndPinion(pinion, rack, { axis: [0, 0, 1], axisB: [0, 1, 0], ratio: 1 / 0.5 }));
 
 // A rope over two wheels, a cart on a looped track, a shoulder that swings and twists.

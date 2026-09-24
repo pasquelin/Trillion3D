@@ -7387,8 +7387,8 @@
       "sixDof": "Her biri kilitli, serbest veya sınırlı altı eksen (`axes`): diğerlerinin arasındaki her eklem.",
       "path": "`a`, `path`’ten geçen, `b`’ye veya dünyaya sabit düzgün bir ray üzerinde gider: bir hız treni.",
       "pulley": "`a`’dan iki tekerleğin (`over`) üzerinden `b`’ye inen bir ip: biri inerken diğeri çıkar.",
-      "gear": "`ratio` oranında birlikte dönen iki tekerlek, her biri kendi pimi (`axis`, `axisB`) etrafında; her birinin yerinde durması için kendi menteşesi gerekir.",
-      "rackAndPinion": "`axis` etrafında dönen bir pinyon `a`, bir kremayer `b`’yi `axisB` boyunca sürer; her birinin yerinde durması için kendi menteşesi veya kızağı gerekir."
+      "gear": "`ratio` oranında birlikte dönen iki tekerlek, her biri kendi pimi (`axis`, `axisB`) etrafında ve kendi menteşesiyle tutulur (tekerlek onun `a`’sı); `ratio` ya da 1 / `ratio` tam sayıysa dişleri yapıldıkları fazı da korur.",
+      "rackAndPinion": "`axis` etrafında dönen bir pinyon `a`, bir kremayer `b`’yi `axisB` boyunca sürer; her biri kendi menteşesi veya kızağıyla tutulur (cisim onun `a`’sı), dişleri yapıldıkları fazda kalır."
     }
   }
 }
