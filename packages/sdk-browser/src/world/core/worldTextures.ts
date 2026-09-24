@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import { pictureWords, textureChange } from '../../../../sdk-core/src/texture/contract.ts';
 import {
   HOST_FILTER_LINEAR,
   HOST_FILTER_LINEAR_MIP_LINEAR,
@@ -49,11 +50,6 @@ export const COLOUR_MAPS = new Set(['map', 'emissiveMap', 'matcap']);
  *  a texture worn by several surfaces is uploaded once. */
 export type HostTextures = Map<string, THREE.Texture>;
 
-/** What a host texture was uploaded from beyond its sampling: a change there needs a new upload,
- *  which a repaint does not make. */
-const pictureOf = (texture: Texture) =>
-  [texture.image, texture.flipY, texture.colorSpace, texture.channel] as const;
-
 /** True when a host texture's placement — repeat, offset, rotation — is the texture's. */
 const placementHeld = (host: THREE.Texture, texture: Texture) =>
   host.repeat.x === texture.repeat.x &&
@@ -71,23 +67,21 @@ const addressingHeld = (host: THREE.Texture, texture: Texture) =>
   host.anisotropy === texture.anisotropy;
 
 /**
- * True when the picture a host texture shows is no longer the texture's: another image, flip,
- * colour space or UV set — or a version that moved with neither its sampling nor its placement,
- * the pixels written in place then `needsUpdate`. Only a new upload would show it.
+ * True when the picture a host texture shows is no longer the texture's (`textureChange`, the rule
+ * the WebGL2 binder reads too): another image, flip, colour space or UV set — or a version that
+ * moved with neither its sampling nor its placement, the pixels written in place then
+ * `needsUpdate`. Only a new upload would show it.
  */
-function pictureMoved(host: THREE.Texture, texture: Texture) {
-  const held = host.userData.picture as ReturnType<typeof pictureOf>;
-  if (pictureOf(texture).some((value, i) => value !== held[i])) return true;
-  return (
-    texture.version !== host.userData.version &&
-    placementHeld(host, texture) &&
-    addressingHeld(host, texture)
-  );
-}
+const pictureMoved = (host: THREE.Texture, texture: Texture) =>
+  textureChange(
+    host.userData as { version: number; picture: unknown[] },
+    texture,
+    !placementHeld(host, texture) || !addressingHeld(host, texture),
+  ) === 'picture';
 
 /**
  * Writes how a host texture samples, and only what moved. The placement of the picture is its UV
- * matrix, recomposed in place and read at every draw. Addressing and filters are the host
+ * matrix, which the import recomposes at its next read (`importHostTexture`). Addressing and filters are the host
  * texture's sampler state: a change there bumps its version, which refills its engine record
  * (`../../host/surfaceImport.ts`); the pixels stay, the WebGL2 binder sets the sampler on the
  * texture it holds (`../../webgl/cluster/textures.ts`). A repaint of a colour alone changes
@@ -99,7 +93,6 @@ function writeHostSampling(host: THREE.Texture, texture: Texture) {
     host.repeat.set(texture.repeat.x, texture.repeat.y);
     host.offset.set(texture.offset.x, texture.offset.y);
     host.rotation = texture.rotation;
-    host.updateMatrix();
   }
   if (addressingHeld(host, texture)) return;
   host.wrapS = WRAP[texture.wrapS];
@@ -126,7 +119,7 @@ export function hostTexture(texture: Texture, colour: boolean, built: HostTextur
     texture.colorSpace === 'srgb' && colour ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
   host.flipY = texture.flipY;
   host.name = texture.name;
-  host.userData.picture = pictureOf(texture);
+  host.userData.picture = pictureWords(texture);
   host.needsUpdate = true;
   built.set(key, host);
   return host;
