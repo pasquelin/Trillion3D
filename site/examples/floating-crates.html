@@ -55,23 +55,47 @@
         { direction: [1, -0.8], wavelength: 2.3, amplitude: 0.04, steepness: 0.1 },
       ];
 
-      // The surface: a plain grid, each point carried where the waves put it, every frame.
-      const sheet = geometry.plane(WIDE, DEEP, 112, 80);
-      const rest = Float32Array.from(sheet.attributes.position.array);
-      const sea = object.mesh(sheet, material.meshStandard({ color: '#1d6d8c', roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.8, depthWrite: false, side: 'double' }));
-      world.scene.add(sea);
-      const point = new Float64Array(3), normal = new Float64Array(3);
+      // The surface: a grid of small flat tiles, one shape and one matter shared, each placed every
+      // frame where the waves carry its four corners. A written shape is cut again and opens the
+      // world's session again, so vertices rewritten every frame would never be drawn; a tile
+      // moved, turned and stretched is a pose, written in place.
+      const ACROSS = 70, ALONG = 50, CELL = WIDE / ACROSS; // 0.4 m, square: DEEP / ALONG too
+      const tile = geometry.plane(CELL, CELL).rotateX(-Math.PI / 2);
+      const water = material.meshStandard({ color: '#1d6d8c', roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.8, depthWrite: false, side: 'double' });
+      const tiles = [];
+      for (let i = 0; i < ACROSS * ALONG; i++) {
+        const mesh = object.mesh(tile, water);
+        world.scene.add(mesh);
+        tiles.push(mesh);
+      }
+      // The corners, (ACROSS + 1) × (ALONG + 1) points, x then z, where the waves put them.
+      const corners = new Float64Array((ACROSS + 1) * (ALONG + 1) * 3), point = new Float64Array(3);
+      const basis = new Float64Array(16), ex = [0, 0, 0], ez = [0, 0, 0], mid = [0, 0, 0];
+      const cross = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+      const unit = (v) => v.map((component) => component / Math.hypot(...v));
       const drawSurface = (surface) => {
-        const position = sheet.attributes.position, normals = sheet.attributes.normal;
-        for (let v = 0; v < rest.length / 3; v++) {
-          // The plane stands in x and y: its y is the world's −z once laid flat.
-          const x = rest[v * 3], z = -rest[v * 3 + 1];
-          surface.point(x, z, point);
-          surface.normal(x, z, normal);
-          position.setXYZ(v, point[0], point[1], point[2]);
-          normals.setXYZ(v, normal[0], normal[1], normal[2]);
-        }
-        position.needsUpdate = normals.needsUpdate = true;
+        for (let k = 0, at = 0; k <= ALONG; k++)
+          for (let i = 0; i <= ACROSS; i++, at += 3)
+            corners.set(surface.point(-WIDE / 2 + i * CELL, -DEEP / 2 + k * CELL, point), at);
+        for (let k = 0; k < ALONG; k++)
+          for (let i = 0; i < ACROSS; i++) {
+            const a = (k * (ACROSS + 1) + i) * 3, b = a + 3, c = a + (ACROSS + 1) * 3, d = c + 3;
+            // The tile's two edges, each the mean of its two sides, and its centre.
+            for (let axis = 0; axis < 3; axis++) {
+              const p = corners[a + axis], q = corners[b + axis], r = corners[c + axis], s = corners[d + axis];
+              ex[axis] = (q - p + s - r) / 2;
+              ez[axis] = (r - p + s - q) / 2;
+              mid[axis] = (p + q + r + s) / 4;
+            }
+            // Its axes: x along the first edge, y the normal, z the third; stretched to its edges.
+            const width = Math.hypot(...ex), x = unit(ex);
+            const y = unit(cross(ez, ex)), z = cross(x, y);
+            basis.set([...x, 0, ...y, 0, ...z, 0]);
+            const mesh = tiles[k * ACROSS + i];
+            mesh.position.set(...mid);
+            mesh.quaternion.setFromRotationMatrix({ elements: basis });
+            mesh.scale.set(width / CELL, 1, (ez[0] * z[0] + ez[1] * z[1] + ez[2] * z[2]) / CELL);
+          }
       };
 
       // What floats and what does not is the matter's density against the water's (kg/m³).
