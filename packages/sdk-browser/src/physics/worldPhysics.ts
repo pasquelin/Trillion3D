@@ -49,8 +49,7 @@ export function createWorldPhysics(
     water: WaterSpec | null = null,
     surface: WaterSurface | null = null,
     error: EngineError | null = null,
-    /** Told when a session starts or ends: the character's body changes with it. */
-    watcher: (() => void) | null = null;
+    watcher: (() => void) | null = null; // told when a session starts or ends (the character)
   const stopped = emptyPhysicsStats();
   const joints = createJointList(() => {
     session?.structure();
@@ -78,8 +77,7 @@ export function createWorldPhysics(
     loading.then(
       ({ createPhysicsSession }) => {
         if (!wanted || session) return;
-        // The session sizes its arrays from the budget: a copy of it, frozen, for its whole life.
-        const frozen = Object.freeze({ ...budget });
+        const frozen = Object.freeze({ ...budget }); // sizes the session's arrays for its life
         session = createPhysicsSession(root, frozen, invalidate, failed, joints.joints);
         session.writer.gravity(gravity.elements);
         if (water) session.setWater(water);
