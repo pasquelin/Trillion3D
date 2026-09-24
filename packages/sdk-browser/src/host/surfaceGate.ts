@@ -22,8 +22,7 @@ import { isTransmissive } from '../visibility/shader/material.ts';
 
 const textureReason = (texture: HostMap) => {
   if (!texture) return;
-  if (texture.kind === 'texels')
-    return 'non-image texture storage is unsupported';
+  if (texture.kind === 'texels') return 'non-image texture storage is unsupported';
   if (!texture.image) return 'texture image is unavailable';
   if (texture.channel !== 0 && texture.channel !== 1)
     return `texture channel ${texture.channel} is unsupported`;

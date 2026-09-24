@@ -42,8 +42,7 @@ test('the autonomous path lights from the contract table, not from the source gr
       object.visible && (!object.parent || shown(object.parent));
     const lit: number[] = [];
     (backend.scene as G.GraphScene).traverse((object) => {
-      if (G.isLightNode(object) && shown(object))
-        lit.push((object as G.GraphLight).intensity);
+      if (G.isLightNode(object) && shown(object)) lit.push((object as G.GraphLight).intensity);
     });
     // The contract governs: the source-graph copy is switched off, and no intensity of the
     // glTF's photometric scale reaches the renderer.

@@ -44,3 +44,6 @@ export const isCameraNode = (node: object): node is GraphCamera => kindOf(node) 
 
 /** The root of a display graph. */
 export const isSceneNode = (node: object): node is GraphScene => kindOf(node) === 'scene';
+
+/** A texture of the graph, whatever slot of a surface holds it. */
+export { isGraphTexture } from './texture.ts';

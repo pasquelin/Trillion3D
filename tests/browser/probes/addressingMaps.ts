@@ -68,6 +68,8 @@ export function nibblesDuMelange() {
   const mat = materielMelange();
   return CARTES.map(
     ({ champ }) =>
-      (samplingWords(importHostTexture(mat[champ] as G.GraphTexture), false)[0] >>> SAMPLE_WRAP_SHIFT) & 15,
+      (samplingWords(importHostTexture(mat[champ] as G.GraphTexture), false)[0] >>>
+        SAMPLE_WRAP_SHIFT) &
+      15,
   );
 }

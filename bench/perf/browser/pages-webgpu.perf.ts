@@ -43,9 +43,7 @@ function clusters(nombre: number): PageRec[] {
   for (let i = 0; i < nombre; i++) {
     const matrix = new G.Matrix4().compose(
       new G.Vector3((alea() - 0.5) * 40, (alea() - 0.5) * 20, -alea() * 60),
-      new G.Quaternion().setFromEuler(
-        new G.Euler(alea() * 6.28, alea() * 6.28, alea() * 6.28),
-      ),
+      new G.Quaternion().setFromEuler(new G.Euler(alea() * 6.28, alea() * 6.28, alea() * 6.28)),
       new G.Vector3(1, 1, i % 7 ? 1 : -1),
     );
     recs.push(pageOf(matrix));
@@ -71,18 +69,17 @@ const vue = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 const courante = createEngineCamera();
 let gardeeReference: EngineCamera | undefined = undefined,
   gardeeOptimisee: EngineCamera | undefined = undefined;
-const parcoursDeVue =
-  (garder: (camera: G.GraphCamera) => boolean) => (images: number) => {
-    const verdicts = new Uint8Array(images),
-      elements = new Float64Array(16);
-    for (let image = 0; image < images; image++) {
-      vue.position.set(Math.sin(image * 0.01) * 3, 0, 6 + image * 0.001);
-      vue.updateMatrixWorld();
-      verdicts[image] = garder(vue) ? 1 : 0;
-    }
-    elements.set(vue.matrixWorldInverse.elements);
-    return { verdicts, elements };
-  };
+const parcoursDeVue = (garder: (camera: G.GraphCamera) => boolean) => (images: number) => {
+  const verdicts = new Uint8Array(images),
+    elements = new Float64Array(16);
+  for (let image = 0; image < images; image++) {
+    vue.position.set(Math.sin(image * 0.01) * 3, 0, 6 + image * 0.001);
+    vue.updateMatrixWorld();
+    verdicts[image] = garder(vue) ? 1 : 0;
+  }
+  elements.set(vue.matrixWorldInverse.elements);
+  return { verdicts, elements };
+};
 
 const referenceVue = parcoursDeVue((camera) => {
   const lue = readCameraWorld(courante, camera);

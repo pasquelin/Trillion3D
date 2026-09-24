@@ -10,7 +10,6 @@ import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
 
-
 const canvas = { width: 800, height: 450 } as unknown as HTMLCanvasElement;
 
 /** The old non-autonomous path: `expandByObject` per mesh, `getCenter`/`getSize().length()/2`. */
@@ -84,10 +83,9 @@ test('createExplorerCamera (autonomous) yields the same bounds, centre and radiu
   // Reference: the same page transformed by the mesh world matrix, via Box3.applyMatrix4.
   // The witness resolves the graph itself: since batch 8, the engine no longer composes the host's.
   source.updateMatrixWorld(true);
-  const attendu = new G.Box3(
-    new G.Vector3(-1, -1, -1),
-    new G.Vector3(1, 1, 1),
-  ).applyMatrix4(mesh.matrixWorld);
+  const attendu = new G.Box3(new G.Vector3(-1, -1, -1), new G.Vector3(1, 1, 1)).applyMatrix4(
+    mesh.matrixWorld,
+  );
   const center = attendu.getCenter(new G.Vector3()),
     radius = attendu.getSize(new G.Vector3()).length() / 2;
   assertBits([rendu.center.x, rendu.center.y, rendu.center.z], [center.x, center.y, center.z]);

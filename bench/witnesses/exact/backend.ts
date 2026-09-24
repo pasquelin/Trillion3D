@@ -14,7 +14,6 @@ import {
   GraphScene,
   collectClusterPages,
   createBlendCopy,
-  asHostLibrary,
   type PageRec,
   type DiagnosticMode,
   type BackendFactory,

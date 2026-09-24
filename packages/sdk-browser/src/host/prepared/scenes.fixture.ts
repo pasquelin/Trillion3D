@@ -1,9 +1,6 @@
-/**
- * The two sides of the prepared-scene proof (`build.test.ts`), described alike: every published
- * cache served from disk, and a host graph walked into the fields a reader compares — whole, as
- * the reference renderer reads it, or by shape, as the engine reads it, whichever library built it.
- */
-import { type TestContext } from 'node:test';
+/** The two sides of the prepared-scene proof (`build.test.ts`): every published cache served from
+ *  disk, and a graph walked into the fields a reader compares — whole, as the reference renderer
+ *  reads it, or by shape, as the engine reads it, whichever library built it. */ import { type TestContext } from 'node:test';
 import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -138,7 +135,6 @@ const SURFACE_FIELDS = (
   'iridescenceMap iridescenceThicknessMap anisotropy anisotropyMap dispersion ' +
   'specularIntensity specularIntensityMap specularColor specularColorMap'
 ).split(' ');
-/** The fields of a node the engine reads, beside its kind and its pose. */
 const NODE_FIELDS =
   'name visible frustumCulled renderOrder castShadow receiveShadow matrixAutoUpdate';
 /** The fields of a texture the engine reads (`../resources.ts`, the admission gate). */
@@ -146,7 +142,6 @@ const TEXTURE_FIELDS = (
   'name channel wrapS wrapT magFilter minFilter anisotropy flipY premultiplyAlpha ' +
   'generateMipmaps colorSpace matrixAutoUpdate mapping image'
 ).split(' ');
-
 /** A value as the engine reads it: a colour, a vector, a node by their numbers. */
 function read(value: unknown, ranks: Ranks): unknown {
   const v = value as Record<string, unknown> | null | undefined;

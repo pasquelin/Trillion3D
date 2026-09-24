@@ -16,21 +16,8 @@ import { lookAtQuaternion } from '../../../../sdk-core/src/math/transform-tree/l
 import { GraphAngles, GraphRotation } from './rotation.ts';
 import { GraphVector } from './vector.ts';
 
-/** What a node of the graph is: a bare node, the root, a group, a drawn mesh (at one placement
- *  or several), an eye, or one of the lights a scene declares. */
-export type GraphNodeKind =
-  | 'node'
-  | 'scene'
-  | 'group'
-  | 'mesh'
-  | 'instancedMesh'
-  | 'camera'
-  | GraphLightKind
-  | 'ambient'
-  | 'rect'
-  | 'probe';
-/** The kinds of light that aim or reach, named as the core's light declaration names them. */
-export type GraphLightKind = 'directional' | 'point' | 'spot';
+import type { GraphNodeKind } from './nodeKind.ts';
+export type { GraphLightKind, GraphNodeKind } from './nodeKind.ts';
 
 /** Numbered from one, like every node of a session: a diagnostic seeds a colour with it. */
 let nextId = 1;

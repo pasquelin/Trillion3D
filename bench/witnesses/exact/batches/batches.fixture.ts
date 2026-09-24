@@ -14,10 +14,7 @@ export const wears = (material: G.GraphSurface) => ({
 
 export function attributes(count: number) {
   const geometry = new G.GraphGeometry();
-  geometry.setAttribute(
-    'position',
-    G.floatAttribute(new Float32Array(count * 3), 3),
-  );
+  geometry.setAttribute('position', G.floatAttribute(new Float32Array(count * 3), 3));
   return geometry.attributes;
 }
 

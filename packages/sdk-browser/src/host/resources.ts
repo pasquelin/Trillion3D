@@ -19,7 +19,6 @@ export type HostAttribute = GraphElements;
  *  geometry blocks and position caches on the attribute set a page draws from. */
 export type HostAttributes = { [name: string]: GraphElements };
 
-
 /** One corner of a local bound, as the host writes it. */
 export type HostPoint = {
   /** Left to right. */ readonly x: number;
