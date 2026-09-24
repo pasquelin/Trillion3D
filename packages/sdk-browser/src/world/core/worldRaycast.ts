@@ -27,12 +27,6 @@ export interface RaycastOptions {
   objects?: readonly Object3D[];
 }
 
-/** `world.raycast`: at once from the scene's own geometry, or asked of the physics. */
-export interface WorldRaycast {
-  (at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null;
-  (at: CanvasPoint | Ray, options: PhysicsRaycastOptions): Promise<PhysicsIntersection | null>;
-}
-
 /** The world ray through a canvas point, as the world's camera draws it: the point is read on
  *  the canvas's CSS box, the picture's shape is the drawing buffer's the frame is drawn at. */
 export function canvasRay(camera: Camera, canvas: HTMLCanvasElement, at: CanvasPoint, out?: Ray) {
@@ -82,7 +76,13 @@ function worldRaycast(
   return raycast((options as RaycastOptions).objects ?? scene, ray, isHelper)[0] ?? null;
 }
 
-/** `world.raycast` for one world: its scene, its camera as it stands, its physics when on. */
+/**
+ * `world.raycast` for one world — its scene, its camera as it stands, its physics when on: at once
+ * from the scene's own geometry, or, asked `{ exact: true }` or `{ shape }` (a sphere, box or
+ * capsule swept along the ray; `maxDistance` defaults to the camera's `far`), by the physics, the
+ * hit then naming the glTF `material` of a cooked triangle. The type is spelled out: the physics'
+ * option types stay inside the engine.
+ */
 export const createWorldRaycast = (
   scene: Object3D,
   camera: () => Camera,
@@ -90,4 +90,17 @@ export const createWorldRaycast = (
   physics: () => PhysicsSession | null,
 ) =>
   ((at: CanvasPoint | Ray, options?: RaycastOptions | PhysicsRaycastOptions) =>
-    worldRaycast(scene, camera(), canvas, at, options as never, physics())) as WorldRaycast;
+    worldRaycast(scene, camera(), canvas, at, options as never, physics())) as {
+    (at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null;
+    (
+      at: CanvasPoint | Ray,
+      options: {
+        exact?: true;
+        shape?:
+          | { type: 'sphere'; radius: number }
+          | { type: 'box'; halfExtents: { x: number; y: number; z: number } }
+          | { type: 'capsule'; halfHeight: number; radius: number };
+        maxDistance?: number;
+      },
+    ): Promise<(Intersection & { material: number }) | null>;
+  };
