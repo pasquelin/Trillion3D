@@ -33,3 +33,6 @@ graphify-out
 
 # Local test assets (see docs/COMPILER.md, "Input formats")
 tests/assets/
+# The open world's cook, written here before it moved to pasquelin/Trillion3D-openworld (#426):
+# a leftover copy (about 1 GB) must never be staged.
+site/assets/examples/openworld/
