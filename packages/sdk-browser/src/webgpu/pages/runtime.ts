@@ -45,6 +45,9 @@ export const VIS_FEATURES = [
  *  part of it. `setup` and `layout` never change after construction; the other groups do. */
 export interface WebgpuPagesRuntime {
   context: BackendContext;
+  /** Aborted by `dispose`; `signal` is aborted by it or by the session's. */
+  closer: AbortController;
+  signal: AbortSignal;
   diag: WebgpuDiagnostics;
   setup: WebgpuPagesSetup;
   layout: WebgpuPagesLayout;
@@ -100,8 +103,11 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       'direct WebGPU present',
     ],
   };
+  const closer = new AbortController();
   const core: WebgpuPagesCore = {
     context,
+    closer,
+    signal: context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal,
     diag,
     setup,
     layout,

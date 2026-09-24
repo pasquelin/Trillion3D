@@ -253,16 +253,16 @@ canvas blanked, as soon as the device is lost; the loss is announced once by `gp
 (`reason`: the device's own, `uncaptured-error`, `out-of-memory` or `residency`). Neither path reads
 the image back for presentation.
 
-A world keeps its device across sessions, and each session creates through its own handle on it,
-which tags every label (`gpu/core/deviceOwners.ts`); the handle is read-only, nothing is set on the
-shared device through it. An uncaptured error is a loss for the live session whose objects it
-names, or, naming none, for every live session, as before. One that names only closed sessions'
-objects, out of memory or not, is counted, and said once per closed session, as one warning per
-error, under `gpu-closed-session-error` (`kind: 'warning'`, `message`, `errors`: a frozen copy of
-each named session's tag and count), and the browser's own console line for it is cancelled. A
-session closed or aborted while it prepares stops at its next wait and destroys what it built
-since. Running out of memory is otherwise the device's condition, not an object's: it stays a loss
-for the live sessions, under `reason: 'out-of-memory'`.
+A world keeps its device across sessions, and each session creates through its own handle on it
+(`gpu/core/sessionHandle.ts`, `gpu/core/deviceOwners.ts`), which tags every label. `dispose` releases
+the handle before anything else, and a released handle is inert: its `create*` throw an `AbortError`,
+so a preparation still running stops there (cancelled, torn down once after it stopped), and its
+queue writes and submits nothing. What a closed session submitted before may still raise an error:
+one that names only closed sessions' objects is a console warning and a `gpu-closed-session-error`
+diagnostic (`kind: 'warning'`, `message`) for the live session, or for the next one to claim the
+device when none is live. An uncaptured error is otherwise a loss for the live session whose objects
+it names, or, naming none, for every live session; running out of memory is reported under
+`reason: 'out-of-memory'`.
 
 For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before anything
 else: attributes, drawing-buffer size from logical size and DPR, loss and restoration, one release.

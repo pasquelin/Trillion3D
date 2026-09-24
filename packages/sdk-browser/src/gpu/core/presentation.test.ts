@@ -66,15 +66,12 @@ test('presentation acquires a fresh canvas target after resizing, shared by fuse
   assert.equal(unconfigured, true);
 });
 
-test("a session's canvas views carry its tag, one descriptor for every frame", () => {
+test("a session's canvas is configured with the device itself, not the session's handle", () => {
   Object.assign(globalThis, { GPUShaderStage: { FRAGMENT: 2 } });
-  const asked: Array<GPUTextureViewDescriptor | undefined> = [];
   let given: GPUDevice | undefined;
-  const texture = { createView: (descriptor?: GPUTextureViewDescriptor) => asked.push(descriptor) };
   const canvas = {
     getContext: () => ({
       configure: (value: GPUCanvasConfiguration) => (given = value.device),
-      getCurrentTexture: () => texture,
       unconfigure() {},
     }),
   } as unknown as HTMLCanvasElement;
@@ -86,16 +83,7 @@ test("a session's canvas views carry its tag, one descriptor for every frame", (
     createRenderPipeline: made,
     createPipelineLayout: made,
   } as unknown as GPUDevice;
-  const { device: handle, tag } = claimGpuDevice(device, {
-    error() {},
-    closedError() {},
-    lost() {},
-  });
-  const presenter = createGpuPresenter(handle, canvas);
-  presenter.targetView(4, 4);
-  presenter.targetView(4, 4);
-  presenter.dispose();
-  assert.equal(given, device, 'the canvas takes the device itself');
-  assert.equal(asked[0]?.label, `Trillion3D canvas ${tag}`);
-  assert.equal(asked[1], asked[0]);
+  const claim = claimGpuDevice(device, { error() {}, closedError() {}, lost() {} });
+  createGpuPresenter(claim.device, canvas).dispose();
+  assert.equal(given, device);
 });

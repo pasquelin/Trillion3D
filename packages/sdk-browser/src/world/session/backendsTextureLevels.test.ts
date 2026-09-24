@@ -85,24 +85,17 @@ test('a cache that bakes no texture chain hands no reader over', async () => {
   assert.equal(context.readTextureLevel, undefined);
 });
 
-test('an abort is a cancellation only when the session asked it; otherwise the WebGPU path falls back', async () => {
-  const aborted = () => {
-    throw new DOMException('closed', 'AbortError');
+test('an abort is a cancellation, whether the session asked it or a closed backend threw it', async () => {
+  const probe = {
+    id: 'webgpu-page-raster',
+    prepare: async () => {
+      throw new DOMException('closed', 'AbortError');
+    },
   };
-  const probe = { id: 'webgpu-page-raster', prepare: async () => aborted() };
   const phases: string[] = [];
   const diagnose = (phase: string) => phases.push(phase);
-  // Not asked: diagnosed, and the WebGPU path falls back (here to nothing, so no backend).
-  await assert.rejects(run({}, undefined, probe, { diagnose } as never), /No backend/);
-  assert.deepEqual(phases, ['backend-preparation-start', 'backend-preparation-error', 'fallback']);
-  // Asked: the abort goes up as it is, nothing diagnosed, nothing fallen back.
-  phases.length = 0;
-  const cancel = new AbortController();
-  cancel.abort();
-  const signal = cancel.signal;
-  await assert.rejects(run({}, undefined, probe, { diagnose, signal } as never), {
-    name: 'AbortError',
-  });
+  // Nothing diagnosed, nothing fallen back: the abort goes up as it is.
+  await assert.rejects(run({}, undefined, probe, { diagnose } as never), { name: 'AbortError' });
   assert.deepEqual(phases, ['backend-preparation-start']);
 });
 
@@ -134,7 +127,7 @@ test('a cancelled preparation waits for the release, and diagnoses one that fail
   assert.deepEqual(phases, ['backend-preparation-start', 'backend-dispose-error']);
 });
 
-test('a failed preparation waits for the release too, and diagnoses one that fails', async () => {
+test('a failed preparation falls back without waiting for the release, still diagnosed', async () => {
   const prepare = async () => {
     throw new Error('prepare failed');
   };
@@ -146,10 +139,11 @@ test('a failed preparation waits for the release too, and diagnoses one that fai
   };
   const probe = { id: 'webgpu-page-raster', prepare, dispose: failing };
   await assert.rejects(run({}, undefined, probe, { diagnose } as never), /No backend/);
+  await new Promise(setImmediate);
   assert.deepEqual(phases, [
     'backend-preparation-start',
     'backend-preparation-error',
-    'backend-dispose-error',
     'fallback',
+    'backend-dispose-error',
   ]);
 });

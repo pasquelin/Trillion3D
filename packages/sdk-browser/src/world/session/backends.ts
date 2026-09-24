@@ -142,8 +142,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
         scope,
       });
     } catch (error) {
-      // Its release awaited, so that nothing of it outlives the failure or the cancellation; a
-      // release that fails is diagnosed, and what went wrong before it still goes on.
+      // A release that fails is diagnosed; what went wrong before it still goes on.
       const release = async () => {
         try {
           await backend.dispose();
@@ -156,9 +155,9 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
           });
         }
       };
-      // Cancelled — the session closed: nothing failed, nothing falls back. An abort the session
-      // did not ask for is a failure like any other, diagnosed and fallen back from.
-      if (signal?.aborted) {
+      // Cancelled — the session closed, or the backend did (`AbortError`): nothing failed, nothing
+      // falls back, and nothing of it outlives the session.
+      if (signal?.aborted || (error as Error | null)?.name === 'AbortError') {
         await release();
         throw error;
       }
@@ -168,7 +167,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
         error: String(error),
         scope,
       });
-      await release();
+      // The fallback does not wait for the failed backend's release.
+      void release();
       if (backend.id === 'webgpu-page-raster' && !directGpu) {
         emit({
           eventVersion: 1,

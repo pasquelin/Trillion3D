@@ -8,7 +8,7 @@ import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geome
 
 /**
  * The error the engine throws: a stable `code` a page can test, words for a person, and details.
- * @errorCodes Every code it may carry, with what it means, is in `ENGINE_ERROR_CODES` (`errorCodes.ts`).
+ * @errorCodes Every code it may carry is in `ENGINE_ERROR_CODES` (`errorCodes.ts`).
  */
 export class EngineError extends Error {
   /** Which error it is, in capitals: the word a page tests. */

@@ -14,8 +14,6 @@ import { createWebgpuBudgetState, type WebgpuBudgetState } from '../../residency
  *  reads, and the occlusion history the next image inherits. */
 export interface WebgpuRunState extends WebgpuBudgetState {
   lost: boolean;
-  /** Disposed: a preparation still running stops at its next wait (`stopIfClosed`). */
-  closed: boolean;
   overBudget: boolean;
   visible: number;
   selectedTriangles: number;
@@ -124,7 +122,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
 export function createWebgpuRunState(): WebgpuRunState {
   return {
     lost: false,
-    closed: false,
     overBudget: false,
     visible: 0,
     selectedTriangles: 0,

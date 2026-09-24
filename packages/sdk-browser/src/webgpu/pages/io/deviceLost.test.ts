@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { camera, quadBackend } from '../testScenes.fixture.ts';
+import { tagsIn } from '../../../gpu/core/sessionHandle.ts';
 
 test('a lost WebGPU device fails the backend without throwing from dispose', async () => {
   installGpuGlobals();
@@ -91,7 +92,7 @@ test("an error of the session closed on the device is never the next one's loss"
   first.backend.render(camera());
   const old = labels.at(-1)!;
   await first.backend.dispose();
-  // Its errors, while the next session opens and after it: none is the next session's.
+  // Its errors, while the next session opens and after it: none is the next session's (#334).
   const said: Array<Record<string, unknown>> = [];
   const second = quadBackend(device, {
     onDiagnostic: (e) => e.phase === 'gpu-closed-session-error' && said.push(e.context),
@@ -102,19 +103,13 @@ test("an error of the session closed on the device is never the next one's loss"
   second.backend.render(camera());
   uncaptured(old);
   second.backend.render(camera());
-  // Said as a warning: on the console, and once on the diagnostics of the session that heard it.
-  const closedWarnings = warned.mock.calls.filter((call) =>
-    String(call.arguments[0]).includes('closed session'),
+  // Each said as a warning: on the console, and on the diagnostics of the session that heard it.
+  const lines = warned.mock.calls.map((call) => String(call.arguments[0]));
+  assert.equal(lines.filter((line) => line.includes('closed session')).length, 2);
+  assert.deepEqual(
+    said.map(({ kind, message }) => [kind, message]),
+    Array(2).fill(['warning', `[Buffer "${old}"] is destroyed.`]),
   );
-  assert.equal(closedWarnings.length, 1);
-  assert.equal(said.length, 1);
-  assert.equal(said[0].kind, 'warning');
-  assert.match(String(said[0].message), /is destroyed/);
-  // The second is not said again; the warning carries a frozen copy of the count, taken then.
-  const [{ session, count }] = said[0].errors as Array<{ session: string; count: number }>;
-  assert.equal(old.endsWith(session), true);
-  assert.equal(count, 1);
-  assert.ok(Object.isFrozen(said[0].errors));
   // An error naming one of its own objects is its own.
   uncaptured(labels.at(-1)!);
   assert.throws(() => second.backend.render(camera()), /WEBGPU_LOST/);
@@ -148,44 +143,24 @@ test('an error of its own objects fails a session while it opens', async () => {
   });
   const { fixture, backend } = quadBackend(device);
   await assert.rejects(backend.prepare(), /WEBGPU_LOST/);
-  assert.match(label, /@t3d:\d+$/);
+  assert.equal(tagsIn(label).length, 1);
   await backend.dispose();
   fixture.geometry.dispose();
   fixture.material.dispose();
 });
 
-test('a backend closed before it prepares is cancelled, not lost', async () => {
+test("a session's first claim on a device already lost announces the loss and builds nothing", async () => {
   installGpuGlobals();
-  const { device } = mockGpu();
+  const { device, lose, textures } = mockGpu();
+  lose('destroyed');
   const phases: string[] = [];
   const { fixture, backend } = quadBackend(device, { onDiagnostic: (e) => phases.push(e.phase) });
-  const closing = backend.dispose();
-  await assert.rejects(backend.prepare(), { name: 'AbortError' });
-  // Closed once: whoever closes it again waits on the same closing.
-  assert.equal(backend.dispose(), closing);
-  await closing;
-  assert.ok(!phases.includes('gpu-device-lost'));
+  await assert.rejects(backend.prepare(), /WEBGPU_LOST/);
+  assert.equal(textures.length, 0);
+  // A failure of prepare like any other: diagnosed where the others are.
+  assert.ok(phases.includes('gpu-device-lost'));
+  assert.ok(phases.includes('webgpu-prepare-failed'));
+  await backend.dispose();
   fixture.geometry.dispose();
   fixture.material.dispose();
-});
-
-test('a session opened on a device already lost announces the loss and builds nothing', async () => {
-  installGpuGlobals();
-  const { device, lose } = mockGpu();
-  const first = quadBackend(device);
-  await first.backend.prepare();
-  lose('destroyed');
-  await Promise.resolve();
-  await first.backend.dispose();
-  const phases: string[] = [];
-  const second = quadBackend(device, { onDiagnostic: (e) => phases.push(e.phase) });
-  await assert.rejects(second.backend.prepare(), /WEBGPU_LOST/);
-  assert.ok(phases.includes('gpu-device-lost'));
-  // A failure of prepare like any other: diagnosed where the others are.
-  assert.ok(phases.includes('webgpu-prepare-failed'));
-  await second.backend.dispose();
-  for (const { fixture } of [first, second]) {
-    fixture.geometry.dispose();
-    fixture.material.dispose();
-  }
 });

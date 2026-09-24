@@ -51,8 +51,7 @@ const MIP_SHADER = `
   return vec4f(mean.rgb,(u+v)*0.5);
  }`;
 
-function mipPipeline(session: GPUDevice, format: GPUTextureFormat): MipPipeline {
-  const device = sharedGpuDevice(session);
+function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
   let byFormat = pipelines.get(device);
   if (!byFormat) pipelines.set(device, (byFormat = new Map()));
   const held = byFormat.get(format);
@@ -87,8 +86,7 @@ function mipPipeline(session: GPUDevice, format: GPUTextureFormat): MipPipeline 
  */
 const uniformBuffers = new WeakMap<GPUDevice, { buffer: GPUBuffer; size: number }>();
 
-function mipUniforms(session: GPUDevice, size: number) {
-  const device = sharedGpuDevice(session);
+function mipUniforms(device: GPUDevice, size: number) {
   const held = uniformBuffers.get(device);
   if (held && held.size >= size) return held.buffer;
   const buffer = device.createBuffer({
@@ -114,7 +112,8 @@ export function generateMaterialMips(
 ) {
   const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
-  const { layout, pipeline } = mipPipeline(device, format);
+  const shared = sharedGpuDevice(device);
+  const { layout, pipeline } = mipPipeline(shared, format);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   // One uniform per reduced level: the extent of the source level, so as not to read off the image.
   const packed = new Uint32Array(((levels - 1) * stride) / 4);
@@ -123,7 +122,7 @@ export function generateMaterialMips(
     packed[at] = Math.max(1, width >> (level - 1));
     packed[at + 1] = Math.max(1, height >> (level - 1));
   }
-  const uniforms = mipUniforms(device, packed.byteLength);
+  const uniforms = mipUniforms(shared, packed.byteLength);
   device.queue.writeBuffer(uniforms, 0, packed);
   const encoder = device.createCommandEncoder();
   const viewOf = (level: number) => texture.createView({ baseMipLevel: level, mipLevelCount: 1 });

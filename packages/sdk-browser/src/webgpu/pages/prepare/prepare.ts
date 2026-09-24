@@ -15,22 +15,41 @@ import { prepareCones } from './cones.ts';
 import { ensureTargets } from './targets.ts';
 import { ensureUniform } from './pipelineFor.ts';
 import { dropVis, grantCapability } from '../io/drops.ts';
-import { stopIfClosed } from '../io/lost.ts';
+import { throwIfStopped } from '../io/lost.ts';
 import { prepareWebgpuTextures } from './textures.ts';
 import { prepareWebgpuVisibility } from './visibility.ts';
 import { prepareDirectLights } from './lights.ts';
 import { createWebgpuPagesCache } from './cache.ts';
+import { prepareGpuTiming } from './timing.ts';
+import { reserveRootBoxes } from '../../../math/batchBoxes.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 
+/** The backend's preparation on its session's handle: its timer, every resource, then its root
+ *  world boxes. */
+export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  // A first claim hears of a device already lost when `device.lost` settles: nothing is built.
+  await Promise.race([device.lost, undefined]);
+  throwIfStopped(rt);
+  prepareGpuTiming(rt, device);
+  await prepareWebgpuPages(rt, device);
+  // Root world boxes last: linear memory no longer grows behind them, nor a node move.
+  rt.context.preparationStep?.('root boxes');
+  rt.layout.rootBoxes = await reserveRootBoxes(rt.layout.selectionRoots);
+  throwIfStopped(rt);
+}
+
 /** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. A
- *  backend disposed meanwhile stops at the next wait, what it built in `rt` for the caller. */
+ *  backend closed, or a device lost, meanwhile stops it after the next step. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
     { allPages, blendCopies, scene, viewport, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
-  const step = <T>(name: string, work: Promise<T>) => (rt.context.preparationStep?.(name), work);
-  // After each wait, once what it gave is in `rt`: a backend disposed meanwhile stops there.
-  const stop = () => stopIfClosed(rt);
+  const step = async <T>(name: string, work: Promise<T>) => {
+    rt.context.preparationStep?.(name);
+    const done = await work;
+    throwIfStopped(rt);
+    return done;
+  };
   rt.lights.buffer = createSceneLightContractBuffer((gpu.device = gpuDevice));
   // No more light written into the scene, on either side: opaques and transparents read the same
   // declared-light buffer, with the same shadows and the same exposure (P6).
@@ -51,8 +70,6 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
       prepareTemporalAntialiasing(rt, gpuDevice),
     ]),
   );
-  stop();
-  context.signal?.throwIfAborted();
   gpu.presenter = prepareWebgpuPresentation(gpuDevice, context.gpuCanvas);
   if (gpu.presenter) grantCapability(capabilities, 'direct WebGPU present');
   diag.engineDiagnostic('gpu-presentation', 'GPU presentation initialised', {
@@ -96,7 +113,6 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     'transparent compaction',
     createTransparentCompaction(gpuDevice, blendState.table),
   );
-  stop();
   diag.engineDiagnostic('transparent-clusters', 'Transparent cluster table', {
     version: 1,
     items: blendState.table.pagedItems.length,
@@ -110,14 +126,11 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   ensureUniform(rt, gpuDevice, cap);
   try {
     await step('textures', prepareWebgpuTextures(rt, gpuDevice));
-    stop();
     // Item rows cite atlas layers: they are therefore mounted AFTER the textures.
     await step('blend resources', prepareBlendResources(rt, gpuDevice));
-    stop();
     await step('visibility programs', prepareWebgpuVisibility(rt, gpuDevice));
-    stop();
   } catch (error) {
-    stop(); // A close is no material failure.
+    throwIfStopped(rt); // A close or a loss is no material failure.
     diag.diagnosticFailure('material-pipeline-failed', error);
     dropVis(rt);
   }
@@ -126,7 +139,6 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
   await step('direct lights', prepareDirectLights(rt, gpuDevice));
-  stop();
   prepareCones(rt);
   // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
   if (vis.gpuDraw && selectionRoots.length) {
@@ -137,14 +149,12 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
         diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
       }),
     );
-    stop();
     // The GPU has just received ABSOLUTE world matrices: no render origin is posted there yet, and
     // the first image will bring them back to the eye wherever it is then.
     run.worldUploadOrigin.fill(NaN);
   }
   capabilities.gpuDriven = !!run.gpuSelection;
   await step('coverage bootstrap', services.bootstrapState.ensure());
-  stop();
   diag.engineDiagnostic('render-capabilities', 'Render paths ready', {
     surfaceVersion: gpu.surfaces?.version ?? null,
     deferredLighting: !!gpu.deferred,
