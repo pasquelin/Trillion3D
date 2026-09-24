@@ -42,8 +42,8 @@ export type WebgpuTilePageTable = {
   /** The tail's place, and the tap every tile of the texture — this one included — is read by. */
   setTail(slot: number, place: TilePlace, tap: number): void;
   setTile(key: TileKey, place: TilePlace): void;
-  /** Filter and UV transform of a texture as its record declares them; true when a word moved. */
-  setSampling(slot: number, texture: Parameters<typeof samplingWords>[0]): boolean;
+  /** Filter word and UV transform of a texture (`samplingWords`); true when a word moved. */
+  setSampling(slot: number, ...texture: Parameters<typeof samplingWords>): boolean;
   clearTile(key: TileKey): void;
   /** Sends the GPU what has changed; nothing when nothing moved. */
   flush(device: Pick<GPUDevice, 'queue'>): void;
@@ -149,9 +149,9 @@ export function createWebgpuTilePageTable(
       const header = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS;
       write(slot, header + 3, place.x | (place.y << 8) | (place.layer << 16) | (tap << 24));
     },
-    setSampling(slot, texture) {
+    setSampling(slot, ...texture) {
       const at = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS,
-        sampling = samplingWords(texture);
+        sampling = samplingWords(...texture);
       let moved = write(slot, at + 2, layouts[slot].last | (sampling[0] << PAGE_FILTER_SHIFT));
       for (let i = 1; i <= TRANSFORM_WORDS; i++)
         moved = write(slot, at + PAGE_TRANSFORM_WORD - 1 + i, sampling[i]) || moved;

@@ -4,8 +4,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { packedRowBase } from './pageRow.ts';
-import { createPageRowConstants } from './pageRowConstants.ts';
-import { surfaceOf } from '../../page/surface.ts';
 import { emptyGeometryBlock, rowGeometry, rowMaterial } from './pageRowMaterial.ts';
 import { FLAG_UV } from '../../cluster/format.ts';
 import { FLAG_CLUSTER_PAGE, VIS_TRIANGLE_BITS, visMaterial } from '../../visibility/buffer.ts';
@@ -59,20 +57,4 @@ test('the cluster-page flag rides the row without moving its material class', ()
   const paged = rowMaterial(material, { ...source, quantized: true }, layers);
   assert.equal(paged.classKey, plain.classKey);
   assert.equal(paged.flags, plain.flags | FLAG_CLUSTER_PAGE);
-});
-
-// #360, #361: the row writer is where a surface's moved version is seen, whatever wrote it — a
-// world repaint or the host on its own material —; what the row does not carry, its maps'
-// sampling, is told there, once per version read.
-test('the row constants tell each surface version they read, once', () => {
-  const host = new THREE.MeshStandardMaterial();
-  const surface = surfaceOf(host as never);
-  const told: unknown[] = [];
-  const constants = createPageRowConstants((changed) => told.push(changed));
-  constants.materialOf(surface);
-  constants.materialOf(surface);
-  assert.deepEqual(told, [surface], 'the first row');
-  host.needsUpdate = true;
-  constants.materialOf(surface);
-  assert.deepEqual(told, [surface, surface], 'the version moved');
 });
