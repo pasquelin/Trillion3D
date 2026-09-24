@@ -48,9 +48,10 @@ export async function setWebgpuMemoryBudgets(
   // Tiles first: their copy is synchronous, the pages' waits for in-flight loads.
   if (budgets.texturePoolBytes !== undefined) {
     checkTexturePoolBudget(budgets.texturePoolBytes);
-    setup.texturePoolBudget = budgets.texturePoolBytes;
     const pools = setup.texturePools;
-    if (pools) {
+    // Before prepare nothing is granted yet: the budget is kept, and prepare draws it.
+    if (!pools) setup.texturePoolBudget = budgets.texturePoolBytes;
+    else {
       const bytes = budgets.texturePoolBytes;
       let pool: TexturePool | undefined = pools.poolFor(bytes);
       if (!sameLayers(pool, pools.pool) && vis.textures && device && !run.lost)
@@ -60,6 +61,8 @@ export async function setWebgpuMemoryBudgets(
       if (pool) {
         if (vis.textures && !run.lost) evictedTiles = vis.textures.resize(pool.layers);
         pools.pool = pool;
+        // What the device granted, not what was asked: a refusal keeps the budget in place.
+        setup.texturePoolBudget = pool.budgetBytes;
       }
     }
   }

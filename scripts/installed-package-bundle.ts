@@ -7,6 +7,7 @@ import {
 } from './installed-package-browser-modes.ts';
 import type { InstalledBrowserProof } from './installed-package-browser-result.ts';
 import type { Run } from './installed-package-contracts.ts';
+import { missingBeside } from './installed-package-beside.ts';
 
 const sceneCaches = ['native-cache-primer', 'native-cache-replay'];
 
@@ -24,28 +25,13 @@ function filesAt(root: string, directory = root): BundleAsset[] {
   });
 }
 
-/** The chunk that starts the physics (it names Jolt's module) finds its worker and both modules
- *  beside it. */
-function checkPhysicsBeside(outputRoot: string, assets: BundleAsset[]) {
-  const starts = assets.filter(
-    ({ path }) =>
-      path.endsWith('.js') &&
-      readFileSync(join(outputRoot, path), 'utf8').includes('joltPhysics.wasm'),
-  );
-  if (!starts.length) throw new Error('browser bundle has no chunk that starts the physics');
-  for (const { path } of starts)
-    for (const beside of ['physicsWorker.js', 'joltPhysics.wasm', 'joltPhysicsThreads.wasm'])
-      if (!assets.some((asset) => asset.path === join(dirname(path), beside)))
-        throw new Error(`browser bundle: ${path} does not find ${beside} beside it`);
-}
-
-interface EmittedBrowserBundle {
+export interface EmittedBrowserBundle {
   outputRoot: string;
   assets: BundleAsset[];
   metafile: Metafile;
 }
 
-interface BrowserModesOptions {
+export interface BrowserModesOptions {
   fixture: string;
   packageName: string;
   browserEntry: string;
@@ -53,7 +39,9 @@ interface BrowserModesOptions {
   run: Run;
 }
 
-function emitInstalledBrowserBundle({
+/** Bundles the installed package for the browser, its modules beside the chunks that fetch
+ *  them, and checks the output; no browser runs (`proof:package -- --bundle`). */
+export function emitInstalledBrowserBundle({
   fixture,
   packageName,
   bundler,
@@ -117,9 +105,14 @@ function emitInstalledBrowserBundle({
   for (const required of entries)
     if (!assets.some(({ path }) => path === required))
       throw new Error(`browser bundle did not emit ${required}`);
-  checkPhysicsBeside(outputRoot, assets);
-  if (!assets.some(({ path }) => path.endsWith('/pageCodec.wasm')))
-    throw new Error('browser bundle did not place pageCodec.wasm beside its referring chunk');
+  const chunks = assets
+    .filter(({ path }) => path.endsWith('.js'))
+    .map(({ path }) => ({ path, text: readFileSync(join(outputRoot, path), 'utf8') }));
+  const missing = missingBeside(
+    chunks,
+    assets.map(({ path }) => path),
+  );
+  if (missing.length) throw new Error(`browser bundle: ${missing.join('; ')}`);
   return {
     outputRoot,
     assets,

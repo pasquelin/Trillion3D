@@ -9,6 +9,7 @@ export interface LooseWorld {
   pixelError: number;
   renderer: string | null;
   awaitPages(): Promise<void>;
+  diagnostic: { error: { message: string; details?: { cause?: unknown } } | null };
   render(): void;
   canvas: { width: number; height: number };
   dispose(): void;

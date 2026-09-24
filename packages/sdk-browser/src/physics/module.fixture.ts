@@ -1,6 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { Worker as NodeWorker } from 'node:worker_threads';
-import { DEFAULT_PHYSICS_BUDGET, type PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
+import {
+  CAST,
+  CAST_WORDS,
+  DEFAULT_PHYSICS_BUDGET,
+  type PhysicsBudget,
+} from '../../../sdk-core/src/physics/index.ts';
 import { openJolt, startJolt } from './joltModule.ts';
 import type { JoltThreadStart, SpawnJoltThread } from './joltThreads.ts';
 
@@ -49,3 +54,11 @@ export const body = (id: number, motion: number, y: number, half: number, flags 
   restitution: 0,
   gravityScale: 1,
 });
+
+/** A ray down at `x` through the module, straight: its hit words. */
+export function castDown(jolt: Module, x: number) {
+  const query = new Uint32Array(CAST_WORDS);
+  query[0] = CAST.ray;
+  new Float32Array(query.buffer).set([x, 5, 0, 0, -10, 0], 1);
+  return jolt.cast(query);
+}

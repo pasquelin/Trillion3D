@@ -14,7 +14,7 @@ import { createFrameComposer } from '../../../packages/sdk-browser/src/world/ren
 import { createThreeSceneDraw } from '../../../bench/witnesses/three/sceneAdapter.ts';
 import { threeGraph } from '../../../bench/witnesses/three/fromGraphNodes.ts';
 import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/src/webgl/core/surface.ts';
-import { baseCapabilities } from '../../../packages/sdk-browser/src/backend/common.ts';
+import { baseCapabilities } from '../../../bench/witnesses/capabilities.ts';
 
 const LARGEUR = 256,
   HAUTEUR = 192;
