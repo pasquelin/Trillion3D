@@ -1,7 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { CutDelta } from './delta.ts';
 import { createDenseKeySet } from './denseKeys.ts';
-import { awaitsPageBytes } from '../row/pageSlots.ts';
+import { awaitsClosure, awaitsPageBytes } from '../row/pageSlots.ts';
 
 /**
  * Pages of the requested cut that do not yet have their bytes, held from one image to the next.
@@ -18,15 +18,6 @@ import { awaitsPageBytes } from '../row/pageSlots.ts';
  * this set is attached once and for all.
  */
 export type CutPending = ReturnType<typeof createCutPending>;
-
-/** True while a record, or a bundle it is installed after, still waits for its bytes. */
-const awaitsClosure = (rec: PageRec) => {
-  if (awaitsPageBytes(rec)) return true;
-  const dependencies = rec.dependencies;
-  if (dependencies)
-    for (let i = 0; i < dependencies.length; i++) if (awaitsPageBytes(dependencies[i])) return true;
-  return false;
-};
 
 export function createCutPending(packedPages: readonly PageRec[], delta: CutDelta) {
   /** Records of the missing pages, held at their key rank by the set itself. */
